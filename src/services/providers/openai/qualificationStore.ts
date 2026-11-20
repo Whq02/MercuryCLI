@@ -146,7 +146,12 @@ export function receiptCurrency(receipt: StoredQualificationReceipt): ReceiptCur
 }
 
 export function readQualificationReceipts(): ReceiptCurrency[] {
-  return readFile().receipts.map(receiptCurrency)
+  try {
+    return readFile().receipts.map(receiptCurrency)
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
 }
 
 
@@ -189,7 +194,13 @@ function readWireMemories(now: () => number): StoredWireEffortVocabulary[] {
   if (wireMemoryCache !== null && wireMemoryCache.path === path && now() - wireMemoryCache.readAtMs < WIRE_MEMORY_READ_CACHE_MS) {
     return wireMemoryCache.entries
   }
-  const raw = readFile().wireEfforts
+  let raw: StoredWireEffortVocabulary[] | undefined
+  try {
+    raw = readFile().wireEfforts
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
   const entries = Array.isArray(raw) ? raw.filter(isStoredWireEffortVocabulary) : []
   wireMemoryCache = { path, readAtMs: now(), entries }
   return entries

@@ -27,7 +27,7 @@ function withScratchConfig<T>(fn: (dir: string) => T): T {
   }
 }
 
-console.log('1 · qualificationStore: unreadable or corrupt file throws on read and is not clobbered on write')
+console.log('1 · qualificationStore: unreadable or corrupt file returns empty on read and is not clobbered on write')
 {
   const q = await import('../../src/services/providers/openai/qualificationStore.js')
   withScratchConfig(() => {
@@ -35,13 +35,9 @@ console.log('1 · qualificationStore: unreadable or corrupt file throws on read 
     check('absent file reads as empty receipts', q.readQualificationReceipts().length === 0)
 
     writeFileSync(file, '{broken json', 'utf8')
-    let corruptReadErr: unknown
-    try {
-      q.readQualificationReceipts()
-    } catch (error) {
-      corruptReadErr = error
-    }
-    check('corrupt file throws on readQualificationReceipts', corruptReadErr instanceof Error, String(corruptReadErr))
+    check('corrupt file returns empty on readQualificationReceipts', q.readQualificationReceipts().length === 0)
+    check('corrupt file returns empty on readWireEffortVocabularies', q.readWireEffortVocabularies().length === 0)
+    check('corrupt file returns undefined on wireEffortVocabularyOf', q.wireEffortVocabularyOf('gpt-5', 'api-key') === undefined)
 
     const writeOnCorrupt = q.recordLiveQualification({ modelId: 'gpt-5', role: 'primary', sourceKind: 'api-key', now: () => 100 })
     check('recordLiveQualification refuses to overwrite corrupt file', writeOnCorrupt === undefined && readFileSync(file, 'utf8') === '{broken json')
@@ -53,15 +49,11 @@ console.log('1 · qualificationStore: unreadable or corrupt file throws on read 
       const valid = JSON.stringify({ version: 1, receipts: [] }) + '\n'
       writeFileSync(file, valid, { mode: 0o600 })
       chmodSync(file, 0o200)
-      let eaccesErr: unknown
-      try {
-        q.readQualificationReceipts()
-      } catch (error) {
-        eaccesErr = error
-      }
+      const receiptsOnUnreadable = q.readQualificationReceipts()
+      const wireOnUnreadable = q.readWireEffortVocabularies()
       const writeOnUnreadable = q.recordLiveQualification({ modelId: 'gpt-5', role: 'primary', sourceKind: 'api-key', now: () => 100 })
       chmodSync(file, 0o600)
-      check('unreadable file throws EACCES on readQualificationReceipts', (eaccesErr as NodeJS.ErrnoException | undefined)?.code === 'EACCES', String(eaccesErr))
+      check('unreadable file returns empty on readers', receiptsOnUnreadable.length === 0 && wireOnUnreadable.length === 0)
       check('recordLiveQualification leaves unreadable file untouched', writeOnUnreadable === undefined && readFileSync(file, 'utf8') === valid)
     }
   })
