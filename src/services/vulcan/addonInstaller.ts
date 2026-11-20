@@ -31,6 +31,7 @@ export interface VulcanInstallStatus {
   installed: boolean
   digestMatch: boolean
   enabled: boolean
+  projectReadError?: string
   bundledFiles: number
 }
 
@@ -52,10 +53,12 @@ export function vulcanInstallStatus(projectRoot: string): VulcanInstallStatus {
       }
     }
   }
+  const enabledRead = readEnabledPluginsOutcome(projectRoot)
   return {
     installed,
     digestMatch,
-    enabled: readEnabledPlugins(projectRoot).includes(PLUGIN_CFG_RES),
+    enabled: enabledRead.plugins.includes(PLUGIN_CFG_RES),
+    ...(enabledRead.error !== undefined ? { projectReadError: enabledRead.error } : {}),
     bundledFiles: VULCAN_ADDON_FILES.length,
   }
 }
@@ -65,15 +68,20 @@ function projectGodotPath(projectRoot: string): string {
   return path.join(projectRoot, 'project.godot')
 }
 
-export function readEnabledPlugins(projectRoot: string): string[] {
+function readEnabledPluginsOutcome(projectRoot: string): { plugins: string[]; error?: string } {
   let text: string
   try {
     text = readFileSync(projectGodotPath(projectRoot), 'utf8')
   } catch (error) {
     passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { plugins: [] }
+    return { plugins: [], error: error instanceof Error ? error.message : String(error) }
   }
-  return enabledPluginsFromText(text)
+  return { plugins: enabledPluginsFromText(text) }
+}
+
+export function readEnabledPlugins(projectRoot: string): string[] {
+  return readEnabledPluginsOutcome(projectRoot).plugins
 }
 
 function enabledPluginsFromText(text: string): string[] {
