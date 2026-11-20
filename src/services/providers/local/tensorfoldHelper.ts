@@ -335,12 +335,7 @@ async function start2b(): Promise<void> {
 }
 
 export function helperServedRecord(): TensorFoldServed | undefined {
-  try {
-    return helperSeam().served().find(record => record.name === HELPER_2B_NAME)
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
+  return helperSeam().served().find(record => record.name === HELPER_2B_NAME)
 }
 
 function adopt2b(): boolean {
@@ -400,12 +395,12 @@ export async function ensureHelperServing(): Promise<void> {
 
 export async function stopHelperServing(): Promise<void> {
   const running = helperProcess
-  helperProcess = undefined
   if (running === undefined) return
   if (running.stop !== undefined) {
     const { liveServiceChildren } = await import('../../projectServices/serviceManager.js')
-    if (liveServiceChildren().some(child => child.pid === running.pid)) await running.stop().catch(passedOverAs(undefined))
-  } else if (helperServedRecord()?.port === running.port) await helperSeam().stop(HELPER_2B_NAME).catch(passedOverAs(undefined))
+    if (liveServiceChildren().some(child => child.pid === running.pid)) await running.stop()
+  } else if (helperServedRecord()?.port === running.port) await helperSeam().stop(HELPER_2B_NAME)
+  if (helperProcess === running) helperProcess = undefined
 }
 
 export function __pinHelperProcessForTest(started: typeof helperProcess): void {

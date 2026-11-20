@@ -70,5 +70,59 @@ else {
   check('tensorfoldApp-ps-fails: listProcesses and detectTensorFoldApp reject when ps fails', r.listRejected !== null && r.detectRejected !== null, JSON.stringify(r))
 }
 
+console.log('\ntensorfoldHelper — failed served read and failed stop reject and keep helperProcess for retry')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const helper = await import(path.join(SRC, 'services/providers/local/tensorfoldHelper.ts'))
+    let serveFails = true
+    let stop2bCalls = 0
+    let stop2bFails = true
+    helper.__pinHelperServeSeamForTest(() => ({
+      start: async () => { throw new Error('unused') },
+      stop: async () => {
+        stop2bCalls++
+        if (stop2bFails) throw new Error('stop-2b-boom')
+      },
+      served: () => {
+        if (serveFails) throw new Error('served-read-boom')
+        return [{ repo: helper.HELPER_2B_REPO, name: helper.HELPER_2B_NAME, port: 43210, window: helper.HELPER_2B_WINDOW, pid: 99999 }]
+      },
+    }))
+    helper.__pinHelperProcessForTest({ size: '2b', port: 43210, modelId: 'local/qwen3.5-2b' })
+    out.servedReadThrew = (() => { try { helper.helperServedRecord(); return null } catch (e) { return String(e?.message ?? e) } })()
+    out.stopOnServedFail = await helper.stopHelperServing().then(() => null, e => String(e?.message ?? e))
+    serveFails = false
+    out.stop2bFirstFail = await helper.stopHelperServing().then(() => null, e => String(e?.message ?? e))
+    stop2bFails = false
+    out.stop2bRetry = await helper.stopHelperServing().then(() => null, e => String(e?.message ?? e))
+    out.stop2bCalls = stop2bCalls
+
+    mock.module(path.join(SRC, 'services/projectServices/serviceManager.js'), () => ({
+      liveServiceChildren: () => [{ pid: 77777 }],
+    }))
+    let stop4bCalls = 0
+    let stop4bFails = true
+    helper.__pinHelperProcessForTest({
+      size: '4b',
+      port: 43211,
+      modelId: 'local/qwen3.5-4b',
+      pid: 77777,
+      stop: async () => {
+        stop4bCalls++
+        if (stop4bFails) throw new Error('stop-4b-boom')
+      },
+    })
+    out.stop4bFirstFail = await helper.stopHelperServing().then(() => null, e => String(e?.message ?? e))
+    stop4bFails = false
+    out.stop4bRetry = await helper.stopHelperServing().then(() => null, e => String(e?.message ?? e))
+    out.stop4bCalls = stop4bCalls
+  `)
+  check('tensorfoldHelper-served-read-throws: helperServedRecord throws when served() fails', r.servedReadThrew === 'served-read-boom', JSON.stringify(r.servedReadThrew))
+  check('tensorfoldHelper-stop-2b-retry: failed served read and failed 2b stop reject and keep helperProcess so retry stops it', r.stopOnServedFail === 'served-read-boom' && r.stop2bFirstFail === 'stop-2b-boom' && r.stop2bRetry === null && r.stop2bCalls === 2, JSON.stringify({ stopOnServedFail: r.stopOnServedFail, stop2bFirstFail: r.stop2bFirstFail, stop2bRetry: r.stop2bRetry, stop2bCalls: r.stop2bCalls }))
+  check('tensorfoldHelper-stop-4b-retry: failed 4b stop rejects and keeps helperProcess so retry stops it', r.stop4bFirstFail === 'stop-4b-boom' && r.stop4bRetry === null && r.stop4bCalls === 2, JSON.stringify({ stop4bFirstFail: r.stop4bFirstFail, stop4bRetry: r.stop4bRetry, stop4bCalls: r.stop4bCalls }))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
