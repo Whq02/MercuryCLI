@@ -220,7 +220,10 @@ function writeShellCwd(next: string | null): void {
 
 export function getShellCwd(): string {
   const last = readShellCwd()
-  if (last !== null && directoryResolves(last)) return last
+  if (last !== null) {
+    const probe = probeDirectory(last)
+    if (probe.ok || !probe.missing) return last
+  }
   writeShellCwd(null)
   return getCwd()
 }
@@ -258,13 +261,12 @@ function folderNoProgramStartsIn(path: string, base: string): string | null {
   return physical.length > WINDOWS_STARTS_A_PROGRAM_IN ? shellDirectoryStays(base, `${NO_PROGRAM_STARTS_PAST}, and ${physical} has ${physical.length}; name such a folder by its path`) : null
 }
 
-function directoryResolves(path: string): boolean {
+function probeDirectory(path: string): { ok: true } | { ok: false; missing: boolean; error: unknown } {
   try {
     getFsImplementation().realpathSync(path)
-    return true
+    return { ok: true }
   } catch (error) {
-    passedOver(error)
-    return false
+    return { ok: false, missing: isENOENT(error), error }
   }
 }
 
@@ -305,7 +307,12 @@ export async function exec(
 ): Promise<ShellCommand> {
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS
   const cwdOverride = options.cwd === undefined ? undefined : resolveShellCwd(options.cwd)
-  if (cwdOverride !== undefined && !directoryResolves(cwdOverride)) return createFailedCommand(`Path "${cwdOverride}" does not exist`)
+  if (cwdOverride !== undefined) {
+    const overrideProbe = probeDirectory(cwdOverride)
+    if (!overrideProbe.ok) {
+      return createFailedCommand(overrideProbe.missing ? `Path "${cwdOverride}" does not exist` : errorMessage(overrideProbe.error))
+    }
+  }
 
   if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {
     const engine = resolveShellEngine(getInitialSettings().shell?.engine)
@@ -343,7 +350,7 @@ export async function exec(
     resolveShellEngine(getInitialSettings().shell?.engine).engine === 'system'
   ) {
     const shellDirectory = cwdOverride ?? getShellCwd()
-    if (directoryResolves(shellDirectory)) {
+    if (probeDirectory(shellDirectory).ok) {
       const invocation = await planWindowsBatchInvocation(command, { cwd: shellDirectory })
       if (invocation.kind === 'batch') {
         const unstartable = startRefusal(shellDirectory, cwdOverride === undefined, true)
@@ -369,16 +376,21 @@ export async function exec(
   const built = await provider.buildExecCommand(command, { id: invocationId })
 
   let cwd = cwdOverride ?? getShellCwd()
-  if (!directoryResolves(cwd)) {
+  const cwdProbe = probeDirectory(cwd)
+  if (!cwdProbe.ok) {
+    if (!cwdProbe.missing) return createFailedCommand(errorMessage(cwdProbe.error))
     if (cwdOverride !== undefined) return createFailedCommand(`Path "${cwdOverride}" does not exist`)
     const bootDirectory = getOriginalCwd()
-    if (directoryResolves(bootDirectory)) {
+    const bootProbe = probeDirectory(bootDirectory)
+    if (bootProbe.ok) {
       if (contextShellCwd() === undefined) setCwdState(bootDirectory)
       writeShellCwd(null)
       logForDebugging(
         `working directory ${cwd} no longer exists; recovered to the original directory ${bootDirectory}`,
       )
       cwd = bootDirectory
+    } else if (!bootProbe.missing) {
+      return createFailedCommand(errorMessage(bootProbe.error))
     } else {
       return createFailedCommand(
         `The working directory ${cwd} no longer exists, and the original startup directory is gone too. Restart Mercury from an existing directory.`,

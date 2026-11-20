@@ -372,6 +372,60 @@ try {
       JSON.stringify(r),
     )
   }
+
+  {
+    const r = runIsolated(`
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const { exec } = await import(SRC + '/utils/Shell.ts')
+      const blocker = path.join(SCRATCH, 'not-a-dir')
+      fs.writeFileSync(blocker, 'file')
+      const notDirChild = path.join(blocker, 'sub')
+      const enotdirCmd = await exec('echo hi', new AbortController().signal, 'bash', { cwd: notDirChild })
+      const enotdirRes = await enotdirCmd.result
+      out.enotdirErr = enotdirRes.preSpawnError ?? ''
+      const missingPath = path.join(SCRATCH, 'genuinely-absent')
+      const missingCmd = await exec('echo hi', new AbortController().signal, 'bash', { cwd: missingPath })
+      const missingRes = await missingCmd.result
+      out.missingErr = missingRes.preSpawnError ?? ''
+      const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+      out.posix = posix
+      if (posix) {
+        const locked = path.join(SCRATCH, 'locked-dir')
+        fs.mkdirSync(locked)
+        const hidden = path.join(locked, 'sub')
+        fs.mkdirSync(hidden)
+        fs.chmodSync(locked, 0o000)
+        try {
+          const eaccesCmd = await exec('echo hi', new AbortController().signal, 'bash', { cwd: hidden })
+          const eaccesRes = await eaccesCmd.result
+          out.eaccesErr = eaccesRes.preSpawnError ?? ''
+        } finally {
+          fs.chmodSync(locked, 0o700)
+        }
+      }
+    `)
+    const enotdirErr = String(r.enotdirErr ?? '')
+    const missingErr = String(r.missingErr ?? '')
+    check(
+      'shell-directory-non-enoent: ENOTDIR cwd reports real error instead of claiming Path does not exist',
+      !enotdirErr.includes('does not exist') && /ENOTDIR|not a directory/i.test(enotdirErr),
+      JSON.stringify(r),
+    )
+    check(
+      'shell-directory-non-enoent: genuinely absent cwd still reports Path does not exist',
+      missingErr.includes('does not exist'),
+      JSON.stringify(r),
+    )
+    if (r.posix === true) {
+      const eaccesErr = String(r.eaccesErr ?? '')
+      check(
+        'shell-directory-non-enoent: EACCES cwd reports real permission error instead of claiming Path does not exist',
+        !eaccesErr.includes('does not exist') && /EACCES|permission denied/i.test(eaccesErr),
+        JSON.stringify(r),
+      )
+    }
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
