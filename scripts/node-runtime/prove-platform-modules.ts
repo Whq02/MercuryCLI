@@ -136,15 +136,19 @@ import {
   envPathDirs,
   executableName,
   executableSuffixes,
+  hostOsFamily,
   hostPathDelimiter,
   isExecutableFile,
   isExecutablePath,
   missingSpawnCommandError,
+  normalizedOsPlatform,
+  packPlatformFor,
   pathDelimiter,
   pathExtensions,
   resolveProgramInPath,
   spawnableCommandSpellings,
   vendoredNodeRelativePath,
+  vendorPlatformTag,
   venvPythonPath,
 } from '../../src/utils/platform/programs.js'
 
@@ -256,6 +260,19 @@ const PROGRAMS: Row[] = [
         }
       }),
     recorded: {"win32":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"darwin":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"linux":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by process.platform alone":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by getPlatform() alone":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null}},
+  },
+  {
+    name: 'programs: packPlatformFor, vendorPlatformTag, hostOsFamily and normalizedOsPlatform',
+    answers: () => ({
+      pack: ['arm64', 'x64', 'ia32'].map(arch => packPlatformFor(process.platform, arch)),
+      packExplicit: [packPlatformFor('freebsd', 'x64'), packPlatformFor('win32', 'arm64')],
+      vendorTag: ['arm64', 'x64'].map(arch => vendorPlatformTag(process.platform, arch)),
+      hostOs: hostOsFamily(),
+      hostOsExplicit: [hostOsFamily('freebsd'), hostOsFamily('win32'), hostOsFamily('darwin')],
+      normOs: normalizedOsPlatform(),
+      normOsExplicit: [normalizedOsPlatform('freebsd'), normalizedOsPlatform('win32'), normalizedOsPlatform('darwin')],
+    }),
+    recorded: {"win32":{"pack":["win-arm64","win-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["win-arm64","win-x64"],"hostOs":"windows","hostOsExplicit":["linux","windows","darwin"],"normOs":"win32","normOsExplicit":["linux","win32","darwin"]},"darwin":{"pack":["darwin-arm64","darwin-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["darwin-arm64","darwin-x64"],"hostOs":"darwin","hostOsExplicit":["linux","windows","darwin"],"normOs":"darwin","normOsExplicit":["linux","win32","darwin"]},"linux":{"pack":["linux-arm64","linux-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["linux-arm64","linux-x64"],"hostOs":"linux","hostOsExplicit":["linux","windows","darwin"],"normOs":"linux","normOsExplicit":["linux","win32","darwin"]},"win32 by process.platform alone":{"pack":["win-arm64","win-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["win-arm64","win-x64"],"hostOs":"windows","hostOsExplicit":["linux","windows","darwin"],"normOs":"win32","normOsExplicit":["linux","win32","darwin"]},"win32 by getPlatform() alone":{"pack":["linux-arm64","linux-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["linux-arm64","linux-x64"],"hostOs":"linux","hostOsExplicit":["linux","windows","darwin"],"normOs":"linux","normOsExplicit":["linux","win32","darwin"]}},
   },
 ]
 

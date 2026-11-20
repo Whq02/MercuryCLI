@@ -6,6 +6,7 @@ import { getBundledDir } from '../paths.js'
 import { MERCURY_VERSION } from '../../constants/product.js'
 import { bundledMetadata, bundledPayloads } from './content.generated.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { vendorPlatformTag } from '../../utils/platform/programs.js'
 
 type BundledExtensionDefinition = {
   name: string
@@ -49,7 +50,7 @@ function shipped(): BundledExtensionDefinition[] {
 function craftPlatform(): string {
   const pinned = flagEnv('MERCURY_CRAFT_PLATFORM')?.trim()
   if (pinned) return pinned
-  return `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`
+  return vendorPlatformTag()
 }
 
 export function bundledReleaseMissingFor(root: string, name: string): string | null {
