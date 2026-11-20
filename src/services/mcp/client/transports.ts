@@ -41,16 +41,16 @@ export function buildStdioTransport(name: string, serverRef: ScopedMcpServerConf
     : new OwnedStdioClientTransport(parameters)
 }
 
-export async function sseTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider | null): Promise<Transport> {
+export async function sseTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {
   const headers = await getMcpServerHeaders(name, config)
-  const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
+  const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider))
   return new SSEClientTransport(new URL(config.url as string), {
-    authProvider: provider as never,
+    authProvider: provider,
     fetch: wrapped,
     requestInit: { headers: { 'User-Agent': getMCPUserAgent(), ...headers } },
     eventSourceInit: {
       fetch: async (input, init) => {
-        const tokens = await (provider as MercuryMcpAuthProvider).tokens()
+        const tokens = await provider.tokens()
         const streamHeaders = new Headers(init?.headers)
         streamHeaders.set('User-Agent', getMCPUserAgent())
         if (tokens?.access_token) streamHeaders.set('Authorization', `Bearer ${tokens.access_token}`)
@@ -69,16 +69,16 @@ export async function wsTransportFor(name: string, config: RemoteConfig): Promis
   return await createWsTransport(config.url as string, wsHeaders)
 }
 
-export async function httpTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider | null): Promise<Transport> {
+export async function httpTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {
   const headers = await getMcpServerHeaders(name, config)
-  const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
+  const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider))
   const requestInit = { headers: { 'User-Agent': getMCPUserAgent(), ...headers }, ...getProxyFetchOptions() }
   const proxyUrl = getProxyUrl()
   logMCPDebug(name, `runtime ${typeof Bun !== 'undefined' ? 'bun' : 'node'}, proxy ${proxyUrl === undefined ? 'none' : getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl }) ?? '[REDACTED]'}`)
   logMCPDebug(name, `HTTP request options: ${JSON.stringify({ headers: loggedHeadersOf(requestInit.headers), tls: 'tls' in requestInit, proxy: proxyUrl !== undefined })}`)
-  void Boolean(await (provider as MercuryMcpAuthProvider).tokens())
+  void Boolean(await provider.tokens())
   return new StreamableHTTPClientTransport(new URL(config.url as string), {
-    authProvider: provider as never,
+    authProvider: provider,
     fetch: wrapped,
     requestInit,
   })

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import type { Message } from '../../types/message.js'
-import type { TextPhase } from '../../types/wire.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
+import type { ApiUsage, ContentBlock, TextPhase } from '../../types/wire.js'
 
 export interface CommittedTextRow {
   seq: number
@@ -11,7 +11,7 @@ export interface CommittedTextRow {
   row: Message
 }
 
-const NOTHING_SPENT = {
+const NOTHING_SPENT: ApiUsage = {
   input_tokens: 0,
   output_tokens: 0,
   cache_creation: null,
@@ -25,10 +25,10 @@ const NOTHING_SPENT = {
   speed: null,
 }
 
-const textBlock = (text: string, phase: TextPhase | null) => (phase === null ? { type: 'text', text } : { type: 'text', text, phase })
+const textBlock = (text: string, phase: TextPhase | null): ContentBlock => (phase === null ? { type: 'text', text } : { type: 'text', text, phase })
 
 export function createTextRow({ messageId, text, phase, atMs, model }: { messageId: string; text: string; phase: TextPhase | null; atMs: number; model: string }): Message {
-  const message = {
+  const message: AssistantMessage['message'] = {
     id: messageId,
     container: null,
     role: 'assistant',
@@ -40,7 +40,7 @@ export function createTextRow({ messageId, text, phase, atMs, model }: { message
     context_management: null,
     usage: NOTHING_SPENT,
   }
-  return { type: 'assistant', uuid: randomUUID(), timestamp: new Date(atMs).toISOString(), requestId: undefined, isVirtual: true, message } as unknown as Message
+  return { type: 'assistant', uuid: randomUUID(), timestamp: new Date(atMs).toISOString(), requestId: undefined, isVirtual: true, message }
 }
 
 const textsOf = (content: unknown): string[] => {
