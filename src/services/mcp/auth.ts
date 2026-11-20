@@ -27,9 +27,9 @@ import { openBrowser } from '../../utils/browser.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
-import { getAuthConfigHomeDir, getMercuryHome } from '../../utils/envUtils.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
 import { lock } from '../../utils/lockfile.js'
-import { clearKeychainCache, getSecureStorage } from '../../utils/secureStorage/index.js'
+import { clearKeychainCache, credentialsPath, getSecureStorage } from '../../utils/secureStorage/index.js'
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
@@ -142,7 +142,7 @@ function refuseUnwrittenClear(serverName: string, written: { success: boolean; c
   if (written.success) return
   const code = written.code ?? 'EUNKNOWN'
   throw Object.assign(
-    new Error(`The credential store at ${join(getAuthConfigHomeDir(), '.credentials.json')} could not be written (${code}); the tokens of ${serverName} are still stored here. Close what holds the file, then run the command again.`),
+    new Error(`The credential store at ${credentialsPath()} could not be written (${code}); the tokens of ${serverName} are still stored here. Close what holds the file, then run the command again.`),
     { code },
   )
 }

@@ -20,7 +20,7 @@ export {
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
 export { isMacOsKeychainLocked, macOsKeychainStorage } from './macOsKeychainStorage.js'
-export { plainTextStorage } from './plainTextStorage.js'
+export { credentialsPath, plainTextStorage } from './plainTextStorage.js'
 export {
   clearLegacyApiKeyPrefetch,
   ensureKeychainPrefetchCompleted,

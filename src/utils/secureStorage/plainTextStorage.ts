@@ -17,7 +17,7 @@ import type { PreparedWrite, SecureStorage, SecureStorageData } from './types.js
 
 const CREDENTIALS_FILENAME = '.credentials.json'
 
-function credentialsPath(): string {
+export function credentialsPath(): string {
   return join(getAuthConfigHomeDir(), CREDENTIALS_FILENAME)
 }
 
