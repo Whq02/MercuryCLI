@@ -124,5 +124,37 @@ console.log('\ntensorfoldHelper — failed served read and failed stop reject an
   check('tensorfoldHelper-stop-4b-retry: failed 4b stop rejects and keeps helperProcess so retry stops it', r.stop4bFirstFail === 'stop-4b-boom' && r.stop4bRetry === null && r.stop4bCalls === 2, JSON.stringify({ stop4bFirstFail: r.stop4bFirstFail, stop4bRetry: r.stop4bRetry, stop4bCalls: r.stop4bCalls }))
 }
 
+console.log('\ntensorfoldHosts — writers refuse to overwrite an unreadable or corrupt hosts store')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const hosts = await import(path.join(SRC, 'services/providers/local/tensorfoldHosts.ts'))
+    const store = path.join(HOME, 'local-setup', 'tensorfold-hosts.json')
+    fs.mkdirSync(path.dirname(store), { recursive: true })
+    const torn = '{ torn-json'
+    fs.writeFileSync(store, torn, { mode: 0o600 })
+    out.corruptHost = await hosts.rememberTensorFoldHost({ name: 'box', baseUrl: 'http://127.0.0.1:8080', origin: 'typed' }).then(() => null, e => String(e?.message ?? e))
+    out.corruptPort = (() => { try { hosts.rememberTensorFoldPort(8081); return null } catch (e) { return String(e?.message ?? e) } })()
+    out.corruptSame = fs.readFileSync(store, 'utf8') === torn
+    if (${JSON.stringify(POSIX_MODES)}) {
+      const valid = JSON.stringify({ version: 1, hosts: [{ name: 'kept', baseUrl: 'http://127.0.0.1:9000', origin: 'typed' }], ports: [9000] })
+      fs.writeFileSync(store, valid, { mode: 0o600 })
+      fs.chmodSync(store, 0o200)
+      out.unreadableHost = await hosts.rememberTensorFoldHost({ name: 'other', baseUrl: 'http://127.0.0.1:8080', origin: 'typed' }).then(() => null, e => String(e?.code ?? e?.message ?? e))
+      out.unreadablePort = (() => { try { hosts.rememberTensorFoldPort(8081); return null } catch (e) { return String(e?.code ?? e?.message ?? e) } })()
+      fs.chmodSync(store, 0o600)
+      out.unreadableSame = fs.readFileSync(store, 'utf8') === valid
+    } else {
+      out.unreadableHost = 'skip'
+      out.unreadablePort = 'skip'
+      out.unreadableSame = true
+    }
+  `)
+  check('tensorfoldHosts-corrupt-kept: writers refuse and keep corrupt tensorfold-hosts.json intact', r.corruptHost !== null && r.corruptPort !== null && r.corruptSame === true, JSON.stringify({ corruptHost: r.corruptHost, corruptPort: r.corruptPort, corruptSame: r.corruptSame }))
+  if (!POSIX_MODES) skip('tensorfoldHosts-unreadable-kept', 'mode 0200 needs non-root POSIX')
+  else check('tensorfoldHosts-unreadable-kept: writers refuse and keep unreadable tensorfold-hosts.json intact', r.unreadableHost === 'EACCES' && r.unreadablePort === 'EACCES' && r.unreadableSame === true, JSON.stringify({ unreadableHost: r.unreadableHost, unreadablePort: r.unreadablePort, unreadableSame: r.unreadableSame }))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
