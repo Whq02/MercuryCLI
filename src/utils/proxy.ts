@@ -1,5 +1,6 @@
+import type { LookupFunction } from 'node:net'
 import axios, { type InternalAxiosRequestConfig } from 'axios'
-import { HttpsProxyAgent } from 'https-proxy-agent'
+import { HttpsProxyAgent, type HttpsProxyAgentOptions } from 'https-proxy-agent'
 import { Agent, EnvHttpProxyAgent, fetch as undiciFetch, setGlobalDispatcher, type Dispatcher } from 'undici'
 
 import { logForDebugging } from './debug.js'
@@ -118,7 +119,7 @@ let apiDispatcher: Dispatcher | null = null
 export function getApiDispatcher(): Dispatcher {
   if (apiDispatcher === null) {
     const options = buildApiAgentOptions()
-    apiDispatcher = new Agent(options as never)
+    apiDispatcher = new Agent(options)
     logForDebugging(
       `api dispatcher: connect ${options.connect.timeout}ms · ${options.connections === null ? 'unbounded' : options.connections} conns/origin · headers/body ${options.headersTimeout}ms · keep-alive ${options.keepAliveTimeout}ms · HTTP/1.1`,
     )
@@ -156,8 +157,14 @@ function isBunRuntime(): boolean {
   return typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined'
 }
 
-export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): Record<string, unknown> {
-  const base: Record<string, unknown> = {}
+export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): {
+  keepalive?: boolean
+  unix?: string
+  proxy?: string
+  tls?: ReturnType<typeof getTLSFetchOptions>['tls']
+  dispatcher?: Dispatcher
+} {
+  const base: { keepalive?: boolean } = {}
   if (keepAliveDisabled) base.keepalive = false
 
   const isBun = isBunRuntime()
@@ -186,7 +193,9 @@ export function getAddressFamily(options: { family?: number | string }): number 
 }
 
 
-function tlsConnectMaterial(): Record<string, unknown> | undefined {
+type TlsConnectMaterial = { cert?: string; key?: string; passphrase?: string; ca?: string[] }
+
+function tlsConnectMaterial(): TlsConnectMaterial | undefined {
   const mtls = getMTLSConfig()
   const ca = getCACertificates()
   if (!mtls && !ca) return undefined
@@ -206,8 +215,8 @@ type ProxyDispatcherOptions = {
   httpProxy: string
   httpsProxy: string
   noProxy?: string
-  connect: Record<string, unknown>
-  requestTls?: Record<string, unknown>
+  connect: TlsConnectMaterial & { timeout: number }
+  requestTls?: TlsConnectMaterial
   connections: number | null
   headersTimeout: number
   bodyTimeout: number
@@ -241,29 +250,26 @@ let tunnelAgentCache = new Map<string, HttpsProxyAgent<string>>()
 export function getProxyAgent(uri: string): Dispatcher {
   const cached = proxyDispatcherCache.get(uri)
   if (cached !== undefined) return cached
-  const agent = new EnvHttpProxyAgent(buildProxyAgentOptions(uri) as never)
+  const agent = new EnvHttpProxyAgent(buildProxyAgentOptions(uri))
   proxyDispatcherCache.set(uri, agent)
   return agent
 }
 
-function buildTunnelAgentOptions(): Record<string, unknown> {
-  const options: Record<string, unknown> = { ...(tlsConnectMaterial() ?? {}) }
+function buildTunnelAgentOptions(): HttpsProxyAgentOptions<string> {
+  const options: HttpsProxyAgentOptions<string> = { ...(tlsConnectMaterial() ?? {}) }
   if (isEnvTruthy(flagEnv('MERCURY_PROXY_RESOLVES_HOSTS'))) {
-    options.lookup = (
-      hostname: string,
-      lookupOptions: { family?: number | string; all?: boolean },
-      callback: (...args: unknown[]) => void,
-    ): void => {
+    const lookup: LookupFunction = (hostname, lookupOptions, callback) => {
       const family = getAddressFamily(lookupOptions)
       if (lookupOptions?.all) callback(null, [{ address: hostname, family }])
       else callback(null, hostname, family)
     }
+    options.lookup = lookup
   }
   return options
 }
 
 function createTunnelAgent(uri: string): HttpsProxyAgent<string> {
-  return new HttpsProxyAgent(uri, buildTunnelAgentOptions() as never)
+  return new HttpsProxyAgent(uri, buildTunnelAgentOptions())
 }
 
 function getTunnelAgent(uri: string): HttpsProxyAgent<string> {
