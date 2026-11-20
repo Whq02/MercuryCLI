@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { FAKE_BIN, GIB, MAC_48, QWEN_2B_REPO, fakeWorld } from '../tensorfold/fixtures/world.ts'
@@ -327,6 +327,139 @@ console.log('w03-3: inventory read failures (listDir, readText, sizeOf) surface 
       JSON.stringify({ statErrors, readNotice: statFacts.readNotice }),
     )
   }
+}
+
+console.log('w03-4: unreadable or damaged tensorfold-hosts.json keeps readers empty and surfaces strict error once in screen notice')
+{
+  const hostsMod = await import('../../src/services/providers/local/tensorfoldHosts.ts')
+  const { getMercuryHome } = await import('../../src/utils/envUtils.js')
+  const world = fakeWorld('wider-w03-4')
+  const storeFile = join(getMercuryHome(), 'local-setup', 'tensorfold-hosts.json')
+  mkdirSync(join(getMercuryHome(), 'local-setup'), { recursive: true })
+  rmSync(storeFile, { force: true })
+
+  const absentFacts = await scene.readTensorFoldPanelFacts({
+    cacheRoot: world.cache,
+    machine: MAC_48,
+    engine: null,
+    env: world.env,
+    home: world.home,
+    servedFile: join(world.home, 'served.json'),
+    localModels: () => [],
+  }) as { readNotice?: string }
+  check('absent hosts store produces no readNotice', absentFacts.readNotice === undefined, JSON.stringify(absentFacts.readNotice))
+
+  writeFileSync(storeFile, '[]\n', { mode: 0o600 })
+  check(
+    'non-object hosts store keeps readers returning empty without throwing',
+    hostsMod.tensorFoldHosts().length === 0 && hostsMod.tensorFoldHostRecords().length === 0 && hostsMod.tensorFoldPorts().length === 0,
+  )
+  const badObjFacts = await scene.readTensorFoldPanelFacts({
+    cacheRoot: world.cache,
+    machine: MAC_48,
+    engine: null,
+    env: world.env,
+    home: world.home,
+    servedFile: join(world.home, 'served.json'),
+    localModels: () => [],
+  }) as { readNotice?: string }
+  const expectedNonObj = `TensorFold hosts store at ${storeFile} is not a JSON object`
+  check(
+    'non-object hosts store puts strict error message in scene readNotice once',
+    badObjFacts.readNotice === expectedNonObj && badObjFacts.readNotice.split(expectedNonObj).length === 2,
+    JSON.stringify(badObjFacts.readNotice),
+  )
+
+  const React = await import('react')
+  const { Box } = await import('../../src/ink.ts')
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+  const { mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
+  road.__resetTensorFoldRoadForTest()
+  const mounted = await mountOffscreen(
+    React.createElement(
+      AppStateProvider as never,
+      {},
+      React.createElement(
+        ThemeProvider as never,
+        {},
+        React.createElement(
+          Box,
+          { flexDirection: 'column', width: 160, height: 48, justifyContent: 'center' },
+          React.createElement(panel.TensorFoldPanel as never, {
+            onDone: () => undefined,
+            io: {
+              facts: {
+                cacheRoot: world.cache,
+                machine: MAC_48,
+                engine: null,
+                env: world.env,
+                home: world.home,
+                platform: 'darwin' as const,
+                servedFile: join(world.home, 'served.json'),
+                localModels: () => [],
+                app: async () => ({ running: false }),
+                diskFreeBytes: () => 37_578_240_000,
+              },
+              road: {},
+              current: () => 'claude-opus-5-5',
+            },
+          } as never),
+        ),
+      ),
+    ),
+    160,
+    48,
+  )
+  await waitFor(() => mounted.lines().some(line => line.includes('TENSORFOLD')), 10_000)
+  await settle(250)
+  const rawLines = mounted.lines()
+  const screenText = rawLines.map(line => line.replace(/[│╭╮╰╯─]/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
+  mounted.unmount()
+  await settle(100)
+  const occurrences = screenText.split('is not a JSON object').length - 1
+  check(
+    'TensorFoldPanel renders the hosts store error in its notice once',
+    screenText.includes('TensorFold hosts store at') && occurrences === 1,
+    JSON.stringify({ occurrences, matchingLines: rawLines.filter(l => l.includes('TensorFold hosts store') || l.includes('not a JSON object')) }),
+  )
+
+  writeFileSync(storeFile, '{ torn-json', { mode: 0o600 })
+  const tornFacts = await scene.readTensorFoldPanelFacts({
+    cacheRoot: world.cache,
+    machine: MAC_48,
+    engine: null,
+    env: world.env,
+    home: world.home,
+    servedFile: join(world.home, 'served.json'),
+    localModels: () => [],
+  }) as { readNotice?: string }
+  check(
+    'torn JSON hosts store names store path and read error in readNotice',
+    typeof tornFacts.readNotice === 'string' && tornFacts.readNotice.startsWith(`TensorFold hosts store at ${storeFile} could not be read (`),
+    JSON.stringify(tornFacts.readNotice),
+  )
+
+  if (POSIX_MODES) {
+    chmodSync(storeFile, 0o000)
+    const eaccesFacts = await scene.readTensorFoldPanelFacts({
+      cacheRoot: world.cache,
+      machine: MAC_48,
+      engine: null,
+      env: world.env,
+      home: world.home,
+      servedFile: join(world.home, 'served.json'),
+      localModels: () => [],
+    }) as { readNotice?: string }
+    chmodSync(storeFile, 0o600)
+    check(
+      'EACCES hosts store keeps readers empty and surfaces error in readNotice',
+      typeof eaccesFacts.readNotice === 'string' && eaccesFacts.readNotice.startsWith(`TensorFold hosts store at ${storeFile} could not be read (`),
+      JSON.stringify(eaccesFacts.readNotice),
+    )
+  }
+
+  rmSync(storeFile, { force: true })
 }
 
 console.log(`\n${failures === 0 ? 'GREEN' : `RED (${failures})`}: prove-wider-w03`)
