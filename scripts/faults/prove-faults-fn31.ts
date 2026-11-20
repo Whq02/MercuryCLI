@@ -404,5 +404,45 @@ console.log('\ndurability.ts — EPERM from process.kill(pid, 0) counts journal 
   )
 }
 
+console.log('\nauth.ts — routing failure does not default to anthropic and usage failure emits a failing check')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const realModel = await import(SRC + '/utils/model/model.ts')
+    mock.module(SRC + '/utils/model/model.js', () => ({
+      ...realModel,
+      getUserSpecifiedModelSetting: () => 'broken',
+      getEngineModel: () => { throw new Error('route read boom') },
+    }))
+    const realUsage = await import(SRC + '/services/providers/providerUsage.ts')
+    mock.module(SRC + '/services/providers/providerUsage.js', () => ({
+      ...realUsage,
+      anthropicCredentialPresence: () => ({ credentialed: false, expired: false }),
+      providerFamilyPresences: () => { throw new Error('usage read boom') },
+    }))
+    const { authChecks } = await import(SRC + '/utils/health/sections/auth.ts')
+    const specs = await authChecks()
+    const anth = specs.find(c => c.id === 'auth-anthropic')
+    try {
+      out.anthRow = await anth.run()
+      out.anthErr = null
+    } catch (e) {
+      out.anthErr = e?.message ?? String(e)
+    }
+    const usage = specs.find(c => c.id === 'usage')
+    out.hasUsage = Boolean(usage)
+    if (usage) {
+      try {
+        await usage.run()
+        out.usageErr = null
+      } catch (e) {
+        out.usageErr = e?.message ?? String(e)
+      }
+    }
+  `)
+  check('auth:routing-failure-throws-in-run', r.anthErr === 'route read boom', JSON.stringify(r))
+  check('auth:usage-assembly-failure-emits-throwing-check', r.hasUsage === true && r.usageErr === 'usage read boom', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
