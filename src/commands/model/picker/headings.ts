@@ -16,7 +16,7 @@ import { catalogueEpoch } from '../../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
 import { getSubscriptionType } from '../../../utils/auth.js'
 import type { ProviderHeading } from '../../../utils/model/modelPickerGroups.js'
-import { passedOver } from '../../../utils/passedOver.js'
+import { logError } from '../../../utils/log.js'
 
 const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [ANTHROPIC_MODEL_GROUP]: 'anthropic',
@@ -103,14 +103,16 @@ export function providerHeadingsOf(slotVersion: number): Record<string, Provider
 }
 
 function buildProviderHeadings(): Record<string, ProviderHeading> {
-  const slotsOf = (family: string): AccountSlot[] => {
-    try {
-      return deriveFamilySlotGroups().find(group => group.family.id === family)?.slots ?? []
-    } catch (error) {
-      passedOver(error)
-      return []
-    }
+  let slotGroups: ReturnType<typeof deriveFamilySlotGroups> | null = null
+  let slotFailureReason: string | undefined
+  try {
+    slotGroups = deriveFamilySlotGroups()
+  } catch (error) {
+    logError(error)
+    slotFailureReason = `account status could not be read (${error instanceof Error ? error.message : String(error)}) — run /logins to check`
   }
+  const slotsOf = (family: string): AccountSlot[] =>
+    slotGroups?.find(group => group.family.id === family)?.slots ?? []
   const nameOf = (family: string): string => providerDisplayName(family).toUpperCase()
   const presences = new Map<string, { credentialed: boolean; identity?: string }>()
   try {
@@ -124,7 +126,8 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
-    if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
+    if (lane.credential === 'none') return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
+    if (doors.length === 0) return { name: nameOf(family), doors: [], reason: slotFailureReason ?? lane.blockers[0] ?? 'not connected' }
     return { name: nameOf(family), doors }
   }
   const anthropicPresence = anthropicCredentialPresence()
@@ -132,7 +135,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     ? {
         name: nameOf('anthropic'),
         doors: signedInDoorsOf('anthropic', slotsOf('anthropic'), anthropicPresence.identity),
-        ...(anthropicPresence.expired ? { reason: 'sign-in expired — /logins reconnects' } : {}),
+        ...(anthropicPresence.expired ? { reason: 'sign-in expired — /logins reconnects' } : slotFailureReason !== undefined ? { reason: slotFailureReason } : {}),
       }
     : { name: nameOf('anthropic'), doors: [], reason: anthropicNotSignedInReason() }
   const openrouterAvailability = getOpenrouterAvailability()
@@ -141,11 +144,16 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const nousAvailability = getNousAvailability()
   const local = localDiscoverySummary()
   const compatDoors = doorsOf('openai-compat')
+  const readyHeading = (family: string): ProviderHeading => ({
+    name: nameOf(family),
+    doors: doorsOf(family),
+    ...(slotFailureReason !== undefined ? { reason: slotFailureReason } : {}),
+  })
   return {
     [ANTHROPIC_MODEL_GROUP]: anthropic,
     [OPENAI_MODEL_GROUP]:
       gptAvailability.state === 'ready'
-        ? { name: nameOf('openai'), doors: doorsOf('openai') }
+        ? readyHeading('openai')
         : { name: nameOf('openai'), doors: [], reason: gptAvailability.reason },
     [ZAI_MODEL_GROUP]: keyLaneHeading('zai'),
     [MOONSHOT_MODEL_GROUP]: keyLaneHeading('moonshot'),
@@ -165,24 +173,24 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [QWEN_MODEL_GROUP]: keyLaneHeading('qwen'),
     [OPENROUTER_MODEL_GROUP]:
       openrouterAvailability.state === 'ready'
-        ? { name: nameOf('openrouter'), doors: doorsOf('openrouter') }
+        ? readyHeading('openrouter')
         : { name: nameOf('openrouter'), doors: [], reason: openrouterAvailability.reason },
     [GEMINI_MODEL_GROUP]:
       geminiAvailability.state === 'ready'
-        ? { name: nameOf('gemini'), doors: doorsOf('gemini') }
+        ? readyHeading('gemini')
         : { name: nameOf('gemini'), doors: [], reason: geminiAvailability.reason },
     [HUGGINGFACE_MODEL_GROUP]:
       huggingfaceAvailability.state === 'ready'
-        ? { name: nameOf('huggingface'), doors: doorsOf('huggingface') }
+        ? readyHeading('huggingface')
         : { name: nameOf('huggingface'), doors: [], reason: huggingfaceAvailability.reason },
-    [COMPAT_MODEL_GROUP]: { name: nameOf('openai-compat'), doors: compatDoors },
+    [COMPAT_MODEL_GROUP]: { name: nameOf('openai-compat'), doors: compatDoors, ...(slotFailureReason !== undefined ? { reason: slotFailureReason } : {}) },
     [LOCAL_MODEL_GROUP]:
       local.servers > 0
         ? { name: nameOf('local'), doors: [{ door: local.labels.join(' · ') }] }
         : { name: nameOf('local'), doors: [], reason: 'no local server answered' },
     [NOUS_MODEL_GROUP]:
       nousAvailability.state === 'ready'
-        ? { name: nameOf('nous'), doors: doorsOf('nous') }
+        ? readyHeading('nous')
         : { name: nameOf('nous'), doors: [], reason: nousAvailability.reason },
   }
 }

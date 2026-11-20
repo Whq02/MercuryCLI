@@ -342,5 +342,30 @@ console.log('\nKitMenuScreen — failed liveCount returns null instead of falsel
   check('failed countLiveConcourseWorkers resolves to null instead of 0', r.failedCount === null && r.okCount === 2, JSON.stringify(r))
 }
 
+console.log('\npicker/headings — failed slot derivation reports unread account status instead of not connected')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const slotsPath = path.join(SRC, 'services/providers/accountSlots.ts')
+    const usabilityPath = path.join(SRC, 'services/providers/providerUsability.ts')
+    const [realSlots, realUsability] = await Promise.all([import(slotsPath), import(usabilityPath)])
+    const baseUsability = realUsability.resolveProviderUsability()
+    mock.module(slotsPath, () => ({ ...realSlots, deriveFamilySlotGroups: () => { throw new Error('auth file EACCES') } }))
+    mock.module(usabilityPath, () => ({
+      ...realUsability,
+      resolveProviderUsability: () => ({
+        ...baseUsability,
+        deepseek: { ...baseUsability.deepseek, credential: 'api-key', blockers: [] },
+      }),
+    }))
+    const { providerHeadingsOf } = await import(path.join(SRC, 'commands/model/picker/headings.ts'))
+    const { DEEPSEEK_MODEL_GROUP } = await import(path.join(SRC, 'utils/model/modelOptions.ts'))
+    const headings = providerHeadingsOf(999)
+    out.deepseek = headings[DEEPSEEK_MODEL_GROUP]
+  `)
+  const ds = r.deepseek as { reason?: string } | undefined
+  check('credentialed key lane reports unreadable account status instead of not connected', ds?.reason === 'account status could not be read (auth file EACCES) — run /logins to check', JSON.stringify(ds ?? r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
