@@ -1,0 +1,10 @@
+prove-anchor-words.ts
+prove-changeset-apply.ts
+prove-changeset-flag.ts
+prove-changeset-migration.ts
+prove-changeset-planning.ts
+prove-changeset-recovery.ts
+prove-changeset-repeated-target.ts
+prove-changeset-zero-write.ts
+prove-compensation-isolation.ts
+prove-drift-before-rename.ts

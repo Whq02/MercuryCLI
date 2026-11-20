@@ -18,8 +18,4 @@ fi
 
 failed=0
 drive_members computer-drives 'scripts/computer/$name' "$here/members.txt" || failed=1
-for proof in "$here"/prove-*.ts; do
-  [ -f "$proof" ] || continue
-  drive_member_run computer-drives "$proof" "$(basename "$proof")" || failed=1
-done
 exit "$failed"
