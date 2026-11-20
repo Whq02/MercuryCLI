@@ -144,10 +144,34 @@ async function provePidLock(): Promise<void> {
   })
 }
 
+async function proveStoreRecovery(): Promise<void> {
+  const sr = await import('../../src/substrate/storeRecovery.js')
+  await withScratchHome(async home => {
+    check('storeRecovery: missing ledger returns empty', (await sr.readStoreRecoveryEvents()).length === 0)
+    if (POSIX_MODES) {
+      const ledgerDir = join(home, 'recovery')
+      mkdirSync(ledgerDir, { recursive: true })
+      const ledger = join(ledgerDir, 'store-recovery.jsonl')
+      writeFileSync(ledger, JSON.stringify({ ts: new Date().toISOString(), store: 'x', path: '/p', reason: 'r', quarantinePath: null, resumedFrom: 'empty' }) + '\n', { mode: 0o600 })
+      chmodSync(ledger, 0o200)
+      let code: string | undefined
+      try {
+        await sr.readStoreRecoveryEvents()
+      } catch (e) {
+        code = (e as NodeJS.ErrnoException).code
+      } finally {
+        chmodSync(ledger, 0o600)
+      }
+      check('storeRecovery: unreadable ledger throws EACCES', code === 'EACCES', String(code))
+    }
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
   await provePidLock()
+  await proveStoreRecovery()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }

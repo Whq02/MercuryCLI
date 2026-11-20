@@ -191,8 +191,8 @@ export async function readStoreRecoveryEvents(): Promise<StoreRecoveryEvent[]> {
   try {
     text = await readFile(storeRecoveryLedgerPath(), 'utf-8')
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
   }
   const out: StoreRecoveryEvent[] = []
   let dropped = 0
