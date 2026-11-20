@@ -393,7 +393,7 @@ async function acquireAndActivate(
       state: 'refused',
       stage: 'lock',
       reason: lock.note,
-      remedy: 'wait for it to finish; if it crashed, remove <versions>/.update.lock and retry',
+      remedy: NOTHING_ACTIVATED_WORDS,
     }
   }
   if (lock.state === 'held') {
@@ -590,7 +590,7 @@ export async function performRollback(roots: LayoutRoots, progress: Progress): P
     return {
       state: 'refused',
       reason: lock.note,
-      remedy: 'wait for it to finish; if it crashed, remove <versions>/.update.lock and retry',
+      remedy: 'the active version was left unchanged',
     }
   }
   if (lock.state === 'held') {
@@ -678,7 +678,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
       state: 'refused',
       stage: 'lock',
       reason: lock.note,
-      remedy: 'wait for it to finish; if it crashed, remove <versions>/.update.lock and retry',
+      remedy: NOTHING_ACTIVATED_WORDS,
     }
   }
   if (lock.state === 'held') {

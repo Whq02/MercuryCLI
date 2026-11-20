@@ -469,10 +469,15 @@ if (POSIX_MODES) {
       fs.chmodSync(vDir, 0o700)
     }
   `)
-  const outcome = r.outcome as { state?: string; reason?: string } | null
+  const outcome = r.outcome as { state?: string; reason?: string; remedy?: string } | null
   check(
     'performRollback returns refused carrying EACCES error without throwing when versionsDir is unwritable',
     r.threw === null && outcome?.state === 'refused' && /EACCES|permission denied/i.test(outcome.reason ?? '') && !(outcome.reason ?? '').includes('another update is already running'),
+    JSON.stringify(r),
+  )
+  check(
+    'that refusal does not tell the user to wait for an update that is not running',
+    outcome?.remedy === 'the active version was left unchanged',
     JSON.stringify(r),
   )
 }
