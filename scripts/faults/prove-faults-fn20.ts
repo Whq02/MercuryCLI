@@ -56,27 +56,36 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   }
 }
 
-console.log('\nremoteFiles/hosts.ts — unreadable ssh config or include folder throws instead of returning empty')
+console.log('\nremoteFiles/hosts.ts — an ssh config file or include folder that cannot be read is skipped, the rest is listed and the list says which')
 if (!POSIX_MODES) {
   skip('hosts-unreadable-config', 'needs non-root POSIX')
   skip('hosts-unreadable-include-dir', 'needs non-root POSIX')
 } else {
   const r1 = runSub(`
-    const { remoteHostNames } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
+    const { remoteHostNames, renderRemoteHosts } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
     const sshDir = path.join(HOME, '.ssh')
-    fs.mkdirSync(sshDir, { recursive: true })
-    const cfg = path.join(sshDir, 'config')
-    fs.writeFileSync(cfg, 'Host web1\\n', { mode: 0o600 })
-    fs.chmodSync(cfg, 0o000)
+    const incDir = path.join(sshDir, 'conf.d')
+    fs.mkdirSync(incDir, { recursive: true })
+    const shut = path.join(incDir, 'shut.conf')
+    fs.writeFileSync(path.join(incDir, 'open.conf'), 'Host app1\\n')
+    fs.writeFileSync(shut, 'Host app2\\n', { mode: 0o600 })
+    fs.writeFileSync(path.join(sshDir, 'config'), 'Host web1\\nInclude conf.d/*\\n')
+    fs.chmodSync(shut, 0o000)
+    const unread = []
     try {
-      out.hosts = remoteHostNames(() => true)
+      out.hosts = remoteHostNames(() => true, unread)
+      out.unread = unread
+      out.content = renderRemoteHosts(out.hosts, unread).content
     } catch (e) {
       out.code = e.code ?? e.name
     } finally {
-      fs.chmodSync(cfg, 0o600)
+      fs.chmodSync(shut, 0o600)
     }
   `)
-  check('hosts-unreadable-config', r1.code === 'EACCES', JSON.stringify(r1))
+  const hosts1 = (r1.hosts ?? []) as string[]
+  const unread1 = (r1.unread ?? []) as string[]
+  check('hosts-unreadable-config', r1.code === undefined && hosts1.includes('web1') && hosts1.includes('app1') && !hosts1.includes('app2') && unread1.length === 1 && unread1[0]!.includes('shut.conf'), JSON.stringify(r1))
+  check('hosts-unreadable-config-said', String(r1.content ?? '').includes('Not read, so its hosts are not listed: ') && String(r1.content ?? '').includes('shut.conf') && String(r1.content ?? '').includes('EACCES'), JSON.stringify(r1))
 
   const r2 = runSub(`
     const { remoteHostNames } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
@@ -84,23 +93,28 @@ if (!POSIX_MODES) {
     const incDir = path.join(sshDir, 'conf.d')
     fs.mkdirSync(incDir, { recursive: true })
     fs.writeFileSync(path.join(incDir, 'a.conf'), 'Host app1\\n')
-    fs.writeFileSync(path.join(sshDir, 'config'), 'Include conf.d/*\\n')
+    fs.writeFileSync(path.join(sshDir, 'config'), 'Host web1\\nInclude conf.d/*\\n')
     fs.chmodSync(incDir, 0o000)
+    const unread = []
     try {
-      out.hosts = remoteHostNames(() => true)
+      out.hosts = remoteHostNames(() => true, unread)
+      out.unread = unread
     } catch (e) {
       out.code = e.code ?? e.name
     } finally {
       fs.chmodSync(incDir, 0o700)
     }
   `)
-  check('hosts-unreadable-include-dir', r2.code === 'EACCES', JSON.stringify(r2))
+  check('hosts-unreadable-include-dir', r2.code === undefined && ((r2.hosts ?? []) as string[]).includes('web1') && ((r2.unread ?? []) as string[]).length === 1, JSON.stringify(r2))
 
   const r3 = runSub(`
-    const { remoteHostNames } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
-    out.hosts = remoteHostNames(() => true)
+    const { remoteHostNames, renderRemoteHosts } = await import(path.join(SRC, 'services/remoteFiles/hosts.ts'))
+    const unread = []
+    out.hosts = remoteHostNames(() => true, unread)
+    out.unread = unread.length
+    out.content = renderRemoteHosts(out.hosts, unread).content
   `)
-  check('hosts-absent-config-ok', Array.isArray(r3.hosts), JSON.stringify(r3))
+  check('hosts-absent-config-ok', Array.isArray(r3.hosts) && r3.unread === 0 && !String(r3.content ?? '').includes('Not read'), JSON.stringify(r3))
 }
 
 console.log('\nremoteFiles/ops.ts — a probe file that cannot be placed does not stop remote work: the host is read as before')

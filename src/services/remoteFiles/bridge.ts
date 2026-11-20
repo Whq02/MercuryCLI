@@ -305,7 +305,11 @@ export async function remoteReadTarget(
   const signal = context.abortController.signal
   const rules = context.getAppState().toolPermissionContext
   let target = parseRemotePath(written)
-  if (target === null) return { kind: 'hosts', path: REMOTE_RULE_ROOT, ...renderRemoteHosts(remoteHostNames(file => sshConfigReadable(file, rules))) }
+  if (target === null) {
+    const unread: string[] = []
+    const names = remoteHostNames(file => sshConfigReadable(file, rules), unread)
+    return { kind: 'hosts', path: REMOTE_RULE_ROOT, ...renderRemoteHosts(names, unread) }
+  }
   let gated = await gate('Read', target, 'read', context, ask, signal)
   let stat = await remoteStat(target, signal, true)
   let ranges: string[] | undefined
