@@ -250,7 +250,8 @@ export async function* withRetry<T>(
       lastError = error
       previousError = error
       if (error instanceof APIError) {
-        logForDebugging(`API error (attempt ${attempt}): ${error.status} ${error.message}`, {
+        const prefix = error.status !== undefined ? `${error.status} ` : ''
+        logForDebugging(`API error (attempt ${attempt}): ${prefix}${error.message}`, {
           level: 'error',
         })
       } else {
