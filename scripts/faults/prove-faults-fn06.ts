@@ -154,5 +154,83 @@ if (!POSIX_MODES) {
     JSON.stringify(r),
   )
 }
+console.log('\nsrc/mneme/mnemeHandover.ts')
+{
+  const r = runCase(`
+    const ho = await import(path.join(SRC, 'mneme/mnemeHandover.ts'))
+    const memDir = path.join(home, 'ho-eloop')
+    fs.mkdirSync(memDir, { recursive: true })
+    fs.symlinkSync(path.join(memDir, 'b.md'), path.join(memDir, 'a.md'))
+    fs.symlinkSync(path.join(memDir, 'a.md'), path.join(memDir, 'b.md'))
+    try {
+      out.listed = ho.listOldNotes(memDir)
+    } catch (e) {
+      out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+    }
+  `)
+  const threw = r.threw as { code: string | null } | undefined
+  check('handover-stat-failure-not-dropped', threw?.code === 'ELOOP', JSON.stringify(r))
+}
+if (!POSIX_MODES) {
+  skip('handover-unreadable-notes-dir', 'needs non-root POSIX chmod')
+  skip('handover-unreadable-receipt-not-rerun', 'needs non-root POSIX chmod')
+  skip('handover-receipt-write-failure-throws', 'needs non-root POSIX chmod')
+} else {
+  const r = runCase(`
+    const ho = await import(path.join(SRC, 'mneme/mnemeHandover.ts'))
+    const dir1 = path.join(home, 'ho-unreadable-dir')
+    fs.mkdirSync(dir1, { recursive: true })
+    fs.writeFileSync(path.join(dir1, 'note.md'), 'remember this')
+    fs.chmodSync(dir1, 0o000)
+    try {
+      out.due1 = ho.handoverDue(dir1)
+    } catch (e) {
+      out.dirThrew = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(dir1, 0o700)
+    }
+
+    const dir2 = path.join(home, 'ho-unreadable-receipt')
+    const lib2 = path.join(dir2, 'library')
+    fs.mkdirSync(lib2, { recursive: true })
+    fs.writeFileSync(path.join(dir2, 'old.md'), 'old note body')
+    const receiptFile = ho.handoverReceiptPath(lib2)
+    const keptBytes = '{"version":1,"ranAt":"2026-01-01T00:00:00.000Z","notes":1}'
+    fs.writeFileSync(receiptFile, keptBytes, { mode: 0o600 })
+    fs.chmodSync(receiptFile, 0o200)
+    out.outsideReceipt = ho.readHandoverReceipt(lib2)
+    try {
+      out.due2 = ho.handoverDue(dir2)
+    } catch (e) {
+      out.dueReceiptThrew = e?.code ?? String(e)
+    }
+    try {
+      out.run2 = ho.handoverMemoryDir(dir2)
+    } catch (e) {
+      out.runReceiptThrew = e?.code ?? String(e)
+    }
+    fs.chmodSync(receiptFile, 0o600)
+    out.receiptSame = fs.readFileSync(receiptFile, 'utf8') === keptBytes
+
+    const dir3 = path.join(home, 'ho-unwritable-receipt')
+    const lib3 = path.join(dir3, 'library')
+    fs.mkdirSync(lib3, { recursive: true })
+    fs.chmodSync(lib3, 0o500)
+    try {
+      out.run3 = ho.handoverMemoryDir(dir3)
+    } catch (e) {
+      out.writeThrew = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(lib3, 0o700)
+    }
+  `)
+  check('handover-unreadable-notes-dir', r.dirThrew === 'EACCES', JSON.stringify(r))
+  check(
+    'handover-unreadable-receipt-not-rerun',
+    r.outsideReceipt === null && r.dueReceiptThrew === 'EACCES' && r.runReceiptThrew === 'EACCES' && r.receiptSame === true,
+    JSON.stringify(r),
+  )
+  check('handover-receipt-write-failure-throws', typeof r.writeThrew === 'string' && /EACCES|DurablePublishError/i.test(r.writeThrew), JSON.stringify(r))
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
