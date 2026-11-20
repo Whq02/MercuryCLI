@@ -593,6 +593,61 @@ try {
       rmSync(epochFile, { force: true })
     }
   }
+
+  {
+    const { setActiveMission, clearActiveMission } = await import('../../src/guards/mission.ts')
+    const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
+    const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+    const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { dirname } = await import('node:path')
+
+    const projCwd = join(scratch, 'mission-write-fail-proj')
+    mkdirSync(projCwd, { recursive: true })
+    setOriginalCwd(projCwd)
+    const missionsBlocker = join(getProjectDir(projCwd), 'missions')
+    mkdirSync(dirname(missionsBlocker), { recursive: true })
+    writeFileSync(missionsBlocker, 'blocker file\n', { mode: 0o600 })
+    const sid = 'mission-write-fail-session'
+    const expectedPath = join(missionsBlocker, `${sid}.json`)
+    try {
+      const writeRes = writeMissionCard(
+        {
+          schema: 1,
+          sessionId: sid,
+          goal: 'finish',
+          state: 'armed',
+          nextStep: null,
+          iterations: 0,
+          setAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        projCwd,
+      ) as unknown as { ok?: boolean; path?: string; error?: string } | undefined
+      check(
+        'w04-6 writeMissionCard returns { ok: false, path, error } instead of void when write fails',
+        writeRes !== undefined && writeRes.ok === false && writeRes.path === expectedPath && Boolean(writeRes.error),
+        JSON.stringify(writeRes),
+      )
+
+      const directive = setActiveMission('ship cleanly', { sessionId: sid })
+      check(
+        'w04-6 setActiveMission appends save-failure sentence when mission card cannot be written',
+        directive.includes(`the mission could not be saved to ${expectedPath} (`) &&
+          directive.includes('), so it will not survive this session'),
+        directive,
+      )
+
+      const cleared = clearActiveMission(sid)
+      check(
+        'w04-6 clearActiveMission appends save-failure sentence when mission card cannot be written',
+        Boolean(cleared?.includes(`the mission could not be saved to ${expectedPath} (`)) &&
+          Boolean(cleared?.includes('), so it will not survive this session')),
+        String(cleared),
+      )
+    } finally {
+      rmSync(missionsBlocker, { force: true })
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

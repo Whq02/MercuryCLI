@@ -25,6 +25,7 @@ import {
 } from '../services/mission/goalJudge.js'
 import {
   missionCardStands,
+  missionCardUnwrittenWords,
   readMissionCard,
   writeMissionCard,
   type MissionCard,
@@ -122,21 +123,22 @@ function readCard(sessionId: string): MissionCard | null {
   return card
 }
 
-function writeCard(card: MissionCard): void {
-  writeMissionCard(card)
-  cardMemo.set(card.sessionId, card)
+function writeCard(card: MissionCard): ReturnType<typeof writeMissionCard> {
+  const result = writeMissionCard(card)
+  if (result.ok) cardMemo.set(card.sessionId, card)
+  return result
 }
 
-function persistCard(sessionId: string, mission: ActiveMission, state: MissionCardState): void {
+function persistCard(sessionId: string, mission: ActiveMission, state: MissionCardState): string | null {
   const standing = readCard(sessionId)
   const setAt = new Date(mission.setAt).toISOString()
   if (standing !== null && missionCardStands(standing.state) && Date.parse(standing.setAt) > mission.setAt) {
     logForDebugging(`[mission] the card for session ${sessionId} was armed after this record; the ${state} state of the older one is not written over it`)
-    return
+    return null
   }
   if (mission.closed !== undefined && mission.closed !== state) {
     logForDebugging(`[mission] the record for session ${sessionId} closed as ${mission.closed}; the ${state} state is not written over it`)
-    return
+    return null
   }
   const card: MissionCard = {
     schema: 1,
@@ -153,7 +155,8 @@ function persistCard(sessionId: string, mission: ActiveMission, state: MissionCa
     updatedAt: new Date().toISOString(),
     ...(mission.outcome !== undefined ? { outcome: mission.outcome } : {}),
   }
-  writeCard(card)
+  const written = writeCard(card)
+  return written.ok ? null : missionCardUnwrittenWords(written.path, written.error)
 }
 
 export function isMissionClearKeyword(text: string): boolean {
@@ -348,21 +351,24 @@ function gatherGoalEvidence(messages: Message[], mission: ActiveMission): GoalEv
   }
 }
 
-function pauseMission(sessionId: string, mission: ActiveMission, why: string, messages: Message[]): void {
+function pauseMission(sessionId: string, mission: ActiveMission, why: string, messages: Message[]): string | null {
   mission.paused = { why, boundary: operatorBoundary(messages) }
   mission.idleTurns = 0
   mission.lastReason = `paused — ${why}`
-  persistCard(sessionId, mission, 'paused')
+  const saveWarning = persistCard(sessionId, mission, 'paused')
   logForDebugging(`[mission] the mission for session ${sessionId} pauses: ${why}`)
   notifyMissionChange()
+  return saveWarning
 }
 
-function pausedNote(mission: ActiveMission): TurnNote {
-  return { level: 'warning', text: `mission paused — ${mission.paused?.why ?? 'waiting on you'} · your next message resumes it; /mission clear ends it` }
+function pausedNote(mission: ActiveMission, saveWarning: string | null = null): TurnNote {
+  const base = `mission paused — ${mission.paused?.why ?? 'waiting on you'} · your next message resumes it; /mission clear ends it`
+  return { level: 'warning', text: saveWarning === null ? base : `${base} · ${saveWarning}` }
 }
 
-function idleNote(): TurnNote {
-  return { level: 'warning', text: `mission paused after ${MISSION_IDLE_TURNS} turns without a tool call — your next message resumes it` }
+function idleNote(saveWarning: string | null = null): TurnNote {
+  const base = `mission paused after ${MISSION_IDLE_TURNS} turns without a tool call — your next message resumes it`
+  return { level: 'warning', text: saveWarning === null ? base : `${base} · ${saveWarning}` }
 }
 
 function resumeMission(sessionId: string, mission: ActiveMission, why: string): void {
@@ -411,16 +417,21 @@ function followSeatAtAdmission(): void {
   if (moved !== undefined) {
     moved.iterations = prior.iterations
     moved.lastReason = `armed while the chat was landing; follows the seat ${hostedId}`
-    persistCard(hostedId, moved, 'armed')
+    const saveWarning = persistCard(hostedId, moved, 'armed')
+    if (saveWarning !== null) moved.lastReason = `${moved.lastReason} · ${saveWarning}`
   }
   const card = readCard(pending.sessionId)
   if (card !== null && missionCardStands(card.state)) {
-    writeCard({
+    const written = writeCard({
       ...card,
       state: 'continued',
       nextStep: `continued in session ${hostedId}`,
       updatedAt: new Date().toISOString(),
     })
+    if (!written.ok && moved !== undefined) {
+      const note = missionCardUnwrittenWords(written.path, written.error)
+      moved.lastReason = moved.lastReason ? `${moved.lastReason} · ${note}` : note
+    }
   }
   logForDebugging(`[mission] the mission armed while the chat was landing follows the seat (${pending.sessionId} → ${hostedId})`)
   notifyMissionChange()
@@ -481,34 +492,36 @@ export function setActiveMission(
         mission.closed = 'met'
         mission.outcome = outcome
         mission.lastReason = `met — ${verdict.reason}`
-        persistCard(sessionId, mission, 'met')
+        const saveWarning = persistCard(sessionId, mission, 'met')
         announceMissionCompleted(sessionId, mission, outcome)
         notifyMissionChange()
-        return { hold: false }
+        return saveWarning === null ? { hold: false } : { hold: false, note: { level: 'warning', text: saveWarning } }
       }
       if (evidence.asksOperator) {
-        pauseMission(sessionId, mission, `the model asked: "${closingQuestion(evidence.closing)}"`, messages)
-        return { hold: false, note: pausedNote(mission) }
+        const saveWarning = pauseMission(sessionId, mission, `the model asked: "${closingQuestion(evidence.closing)}"`, messages)
+        return { hold: false, note: pausedNote(mission, saveWarning) }
       }
       if (verdict.kind === 'impossible') {
-        pauseMission(sessionId, mission, verdict.reason, messages)
-        return { hold: false, note: pausedNote(mission) }
+        const saveWarning = pauseMission(sessionId, mission, verdict.reason, messages)
+        return { hold: false, note: pausedNote(mission, saveWarning) }
       }
       mission.idleTurns = evidence.toolCalls === 0 ? mission.idleTurns + 1 : 0
       if (mission.idleTurns >= MISSION_IDLE_TURNS) {
-        pauseMission(sessionId, mission, `${MISSION_IDLE_TURNS} turns without a tool call`, messages)
-        return { hold: false, note: idleNote() }
+        const saveWarning = pauseMission(sessionId, mission, `${MISSION_IDLE_TURNS} turns without a tool call`, messages)
+        return { hold: false, note: idleNote(saveWarning) }
       }
       claimContinuation(processMainOwner(), turnBoundaryIndex(messages), messages.length)
       mission.lastReason = `not yet met (check ${mission.iterations}) — ${verdict.reason}`
-      persistCard(sessionId, mission, 'armed')
-      return { hold: true, words: holdWords(mission, verdict) }
+      const saveWarning = persistCard(sessionId, mission, 'armed')
+      return saveWarning === null
+        ? { hold: true, words: holdWords(mission, verdict) }
+        : { hold: true, words: holdWords(mission, verdict), note: { level: 'warning', text: saveWarning } }
     },
   })
 
   record.hookId = hookId
   missionsBySession.set(sessionId, record)
-  persistCard(sessionId, record, 'armed')
+  const saveWarning = persistCard(sessionId, record, 'armed')
   declarePrefixMove('a mission was set')
   logForDebugging(`[mission] installed standing mission for session ${sessionId}`)
   notifyMissionChange()
@@ -516,7 +529,8 @@ export function setActiveMission(
     armedAtLanding = { sessionId }
     if (seatWatch === null) seatWatch = subscribeFocusedSessionConnector(followSeatAtAdmission)
   }
-  return buildMissionDirective(condition)
+  const directive = buildMissionDirective(condition)
+  return saveWarning === null ? directive : `${directive}\n\n${saveWarning}`
 }
 
 export function clearActiveMission(
@@ -528,11 +542,11 @@ export function clearActiveMission(
   disengageTurnGuard(sessionId, mission.hookId)
   missionsBySession.delete(sessionId)
   mission.closed = 'cleared'
-  persistCard(sessionId, mission, 'cleared')
+  const saveWarning = persistCard(sessionId, mission, 'cleared')
   declarePrefixMove('the mission was cleared')
   logForDebugging(`[mission] cleared standing mission for session ${sessionId}`)
   notifyMissionChange()
-  return mission.condition
+  return saveWarning === null ? mission.condition : `${mission.condition} — ${saveWarning}`
 }
 
 export function activeMissionStatusLine(sessionId: string = conversationIdHere()): string | null {
@@ -577,19 +591,25 @@ export function rearmMissionFromCard(
     if (card.state === 'paused') {
       mission.paused = { why: card.nextStep?.replace(/^paused — /, '') ?? 'waiting on the operator', boundary: null }
       mission.lastReason = `re-armed on resume, still paused (the previous run closed at check ${card.iterations})`
-      persistCard(armSessionId, mission, 'paused')
+      const saveWarning = persistCard(armSessionId, mission, 'paused')
+      if (saveWarning !== null) mission.lastReason = `${mission.lastReason} · ${saveWarning}`
     } else {
       mission.lastReason = `re-armed on resume (the previous run closed at check ${card.iterations})`
-      persistCard(armSessionId, mission, 'armed')
+      const saveWarning = persistCard(armSessionId, mission, 'armed')
+      if (saveWarning !== null) mission.lastReason = `${mission.lastReason} · ${saveWarning}`
     }
   }
   if (cardSessionId !== armSessionId) {
-    writeCard({
+    const written = writeCard({
       ...card,
       state: 'continued',
       nextStep: `continued in session ${armSessionId}`,
       updatedAt: new Date().toISOString(),
     })
+    if (!written.ok && mission !== undefined) {
+      const note = missionCardUnwrittenWords(written.path, written.error)
+      mission.lastReason = mission.lastReason ? `${mission.lastReason} · ${note}` : note
+    }
   }
   logForDebugging(
     `[mission] re-armed from card (card session ${cardSessionId} → live session ${armSessionId})`,
