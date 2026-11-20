@@ -5,6 +5,7 @@ runner=$1
 secs=$2
 outdir=$3
 note=${4:-}
+leave_out=${6:-}
 
 dom=$(basename "$(dirname "$runner")")
 out="$outdir/$dom.out"
@@ -71,6 +72,11 @@ exec bash "$runner"
 }
 rm -f "$outdir/$dom.hang"
 printf 'suite %s: proof run root %s (%s)\n' "$dom" "$MERCURY_SUITE_TMPDIR" "${MERCURY_SUITE_TMPDIR_NOTE:-}" >"$out"
+unset MERCURY_SUITE_LEAVE_OUT
+if [ -s "$leave_out" ]; then
+  export MERCURY_SUITE_LEAVE_OUT="$(cd "$(dirname "$leave_out")" && pwd)/$(basename "$leave_out")"
+  printf 'second look: the %s test(s) green in the first attempt are not run again\n' "$(grep -c . "$leave_out")" >>"$out"
+fi
 resource=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$runner" | head -1 | tr -d '[:space:]')
 case "$resource" in pure|cpu|pty|exclusive) ;; *) resource=undeclared ;; esac
 python=$(shape_python) || exit 78

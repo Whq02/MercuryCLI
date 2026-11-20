@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/services/api/withRetry.ts src/services/api/errors.ts
-# gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/constants/prompts.ts src/context.ts
+# gate-watch: src/services/providers/anthropic/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

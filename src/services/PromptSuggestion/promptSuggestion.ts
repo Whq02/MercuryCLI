@@ -3,7 +3,6 @@ import {
   createCacheSafeParams,
   runForkedAgent,
   type CacheSafeParams,
-  type ForkedAgentParams,
 } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
@@ -90,13 +89,16 @@ async function generateSuggestion(
     canUseTool: async () => ({
       behavior: 'deny',
       message: 'tools are unavailable while generating a suggestion',
+      decisionReason: {
+        type: 'other',
+        reason: 'tools are unavailable while generating a suggestion',
+      },
     }),
     querySource: 'prompt_suggestion',
     forkLabel: 'prompt_suggestion',
     overrides: { abortController },
     skipTranscript: true,
-    suppressCacheWrites: true,
-  } as unknown as ForkedAgentParams)
+  })
   const messages = (result as { messages?: unknown[] }).messages ?? []
   let requestId: string | undefined
   let suggestion: string | undefined

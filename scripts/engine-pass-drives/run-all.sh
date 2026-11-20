@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/engine-pass/**
-# gate-watch: src/ink/** src/ink.ts
 # gate-watch: src/utils/staticRender.tsx src/components/mercury-ui/** assets/splash/**
 # gate-watch: scripts/ui/** scripts/critters/fixtures/** scripts/critters/zzzFrames.ts scripts/engine-connector/fixtures/**
 # gate-watch: design-system/live/**

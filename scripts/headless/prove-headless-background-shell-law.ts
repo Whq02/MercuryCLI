@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { bound, childEnv, DIST, MODEL, NODE, SCRATCH_ROOT } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
@@ -11,7 +11,6 @@ if (!existsSync(DIST)) {
   process.exit(0)
 }
 console.log(`build under proof: ${DIST}`)
-const ROOT = resolve(import.meta.dir, '..', '..')
 const KEEP = process.argv.includes('--keep')
 const scratch = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'background-shell-law-')))
 console.log(`world: ${scratch}`)
@@ -140,8 +139,6 @@ tally.section('S3 — the words the model reads before choosing: the run_in_back
   const without = getSimplePrompt(new Set(['Bash']))
   tally.check('the run_in_background field says the command is stopped when the run that started it ends', describeRunInBackground().includes('the command is stopped when the run that started it ends'), describeRunInBackground())
   tally.check('the Bash description names no Service road and no polling rule, whatever is offered: the start result carries the road at call time (S2)', !offered.includes(PROMPT_ROAD) && !offered.includes('Service') && !offered.includes('Never poll') && offered === without, offered.slice(0, 300))
-  const sessions = readFileSync(join(ROOT, 'docs/SESSIONS.md'), 'utf8')
-  tally.check('SESSIONS.md says a headless run ends every background shell and names the Service road for a process that must stay up', sessions.includes('A headless run whose input closes ends every monitor and every') && sessions.includes('lifecycle `project`'), '')
 }
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })

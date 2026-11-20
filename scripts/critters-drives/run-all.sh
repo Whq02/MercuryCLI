@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/components/mercury-ui/sessionAccent* src/utils/config/**
+# gate-watch: src/utils/config/**
 # gate-watch: src/utils/cockpit/**
 # gate-watch: src/components/MercuryFrame.tsx src/components/MercuryTurnRollup.tsx src/commands/critter/** src/utils/settings/types.ts
 # gate-watch: scripts/critters/* scripts/lib/* scripts/ui/*

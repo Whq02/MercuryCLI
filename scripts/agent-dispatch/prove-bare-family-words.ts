@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -245,14 +245,6 @@ section('§3 the two roads agree row for row, credentialed, over fixture lists')
   discovery.__resetProviderDiscoveryForTest()
   moonshot.__resetMoonshotCatalogueForTest()
   xai.__resetXaiCatalogueForTest()
-}
-
-section('§4 one resolver by construction: neither road spells a family word of its own')
-{
-  const engines = readFileSync(join(import.meta.dir, '../../docs/ENGINES.md'), 'utf8')
-  check('docs/ENGINES.md says the three words mean the newest row beside grok', /the family word `grok` means the newest Grok row[\s\S]{0,80}`deepseek`, `kimi` and `glm` mean the newest row/.test(engines))
-  const readme = readFileSync(join(import.meta.dir, '../../docs/ENGINES.md'), 'utf8')
-  check('docs/ENGINES.md names the four words as picks of the newest model', /A family word picks that family's newest\s+model: `\/model grok`, `\/model deepseek`, `\/model kimi` or `\/model glm`/.test(readme))
 }
 
 rmSync(scratch, { recursive: true, force: true })

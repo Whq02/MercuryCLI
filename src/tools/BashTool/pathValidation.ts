@@ -830,9 +830,8 @@ function unreadCode(failure: unknown): string {
   return getErrnoCode(failure) ?? errorMessage(failure)
 }
 
-function unreadEnvFolderAsk(command: PathCommand, folder: string, failure: unknown): PermissionResult {
-  const message = `${command} reads ${folder}, a folder Mercury could not search for env files (${unreadCode(failure)}); narrow the search, or approve`
-  return { behavior: 'ask', message, decisionReason: { type: 'other', reason: message } }
+function unreadFolderPassedOver(what: string, folder: string, failure: unknown): void {
+  passedOver(new Error(`${what}: the folder ${folder} could not be read (${unreadCode(failure)}), so it is left out`, { cause: failure }))
 }
 
 function unreadTreeAsk(command: PathCommand, follows: boolean, root: string, folder: string, failure: unknown): PermissionResult {
@@ -846,8 +845,8 @@ function envFileBeneath(command: PathCommand, args: string[], roots: string[], c
   const queue: string[] = []
   for (const root of roots) {
     const reading = folderReading(root)
-    if (typeof reading === 'object') return unreadEnvFolderAsk(command, root, reading.unread)
-    if (reading) queue.push(root)
+    if (typeof reading === 'object') unreadFolderPassedOver(`${command} env file search`, root, reading.unread)
+    else if (reading) queue.push(root)
   }
   const seen = new Set<string>()
   let visited = 0
@@ -859,8 +858,8 @@ function envFileBeneath(command: PathCommand, args: string[], roots: string[], c
     try {
       entries = readdirSync(dir, { withFileTypes: true })
     } catch (failure) {
-      if (isFsInaccessible(failure)) continue
-      return unreadEnvFolderAsk(command, dir, failure)
+      if (!isFsInaccessible(failure)) unreadFolderPassedOver(`${command} env file search`, dir, failure)
+      continue
     }
     for (const entry of entries) {
       if (++visited > budget) return null
@@ -898,10 +897,17 @@ function treeRefusal(
   const budget = scanCeiling()
   const seen = new Set<string>()
   const queue: { dir: string; root: string }[] = []
+  const unread = (root: string, folder: string, failure: unknown): PermissionResult | null => {
+    if (denied !== null) return unreadTreeAsk(command, follows, root, folder, failure)
+    unreadFolderPassedOver(`${command} link walk under ${root}`, folder, failure)
+    return null
+  }
   for (const root of roots) {
     const reading = folderReading(root)
-    if (typeof reading === 'object') return unreadTreeAsk(command, follows, root, root, reading.unread)
-    if (reading) queue.push({ dir: root, root })
+    if (typeof reading === 'object') {
+      const ask = unread(root, root, reading.unread)
+      if (ask !== null) return ask
+    } else if (reading) queue.push({ dir: root, root })
   }
   let visited = 0
   while (queue.length > 0) {
@@ -910,8 +916,9 @@ function treeRefusal(
     try {
       real = realpathSync(dir)
     } catch (failure) {
-      if (isFsInaccessible(failure)) continue
-      return unreadTreeAsk(command, follows, root, dir, failure)
+      const ask = isFsInaccessible(failure) ? null : unread(root, dir, failure)
+      if (ask !== null) return ask
+      continue
     }
     if (seen.has(real)) continue
     seen.add(real)
@@ -919,8 +926,9 @@ function treeRefusal(
     try {
       entries = readdirSync(real, { withFileTypes: true })
     } catch (failure) {
-      if (isFsInaccessible(failure)) continue
-      return unreadTreeAsk(command, follows, root, real, failure)
+      const ask = isFsInaccessible(failure) ? null : unread(root, real, failure)
+      if (ask !== null) return ask
+      continue
     }
     for (const entry of entries) {
       if (++visited > budget) {
@@ -933,8 +941,10 @@ function treeRefusal(
         const check = validatePath(full, cwd, context, operationType)
         if (!check.allowed) return operandRefusal(command, check, context, operationType, full)
         const target = folderReading(check.resolvedPath)
-        if (typeof target === 'object') return unreadTreeAsk(command, follows, root, check.resolvedPath, target.unread)
-        if (target) queue.push({ dir: check.resolvedPath, root })
+        if (typeof target === 'object') {
+          const ask = unread(root, check.resolvedPath, target.unread)
+          if (ask !== null) return ask
+        } else if (target) queue.push({ dir: check.resolvedPath, root })
         continue
       }
       const rule = denied?.(full)[0]

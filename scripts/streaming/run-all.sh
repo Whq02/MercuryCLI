@@ -3,20 +3,16 @@
 # gate-watch: src/components/Markdown* src/ink/**
 # gate-watch: src/utils/**
 # gate-watch: scripts/lib/*
-# gate-watch: src/services/engine-connector/* src/services/providers/streamIdleBudget.ts
+# gate-watch: src/services/engine-connector/*
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/streaming"
 fail=0
 echo "── FLUX terminal-fluidity proofs ──"
-claimed=$(cd "$here/../.." && cat scripts/streaming-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
-for f in "$here"/prove-*.ts; do
-  printf '%s\n' "$claimed" | grep -qx "$(basename "$f")" && continue
-  [ -e "$f" ] || continue
-  __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$f" || { __rc=$?; fail=1; }; prover_mark "$f" "$__t" "$__rc"
-done
+drive_members streaming 'scripts/streaming/$name' "$here/members.txt" || fail=1
 if [[ "$fail" == "0" ]]; then echo "✅ FLUX SUITE GREEN"; exit 0; else
   echo "❌ FLUX SUITE RED"; exit 1; fi

@@ -150,6 +150,37 @@ console.log('\n7. with the link removed, every shape is read-only again')
   }
 }
 
+console.log('\n8. a folder Mercury itself could not read asks nothing of a user who set no deny rule; with a deny rule set the ask stands')
+if (process.platform === 'win32') {
+  console.log('  [NOTE] not read on Windows: these rows stand on the lengths a POSIX name and path may have')
+} else {
+  const { execFileSync } = await import('node:child_process')
+  const long = 'x'.repeat(300)
+  const step = 'd'.repeat(200)
+  execFileSync('/bin/sh', ['-c', `mkdir deep && cd deep && for i in 1 2 3 4 5 6; do mkdir ${step} && cd ${step}; done && echo alpha > f.txt`], { cwd: root })
+  const short = (text: string): string => text.replace(/[xd]{20,}/g, '…')
+  const DENY = { alwaysDenyRules: { userSettings: ['Read(//nowhere/secret/**)'] } }
+  const missing = await decide('grep -R alpha nowhere')
+  check('control: a folder that is not there asks nothing', missing.behavior === 'allow', shown(missing))
+  for (const [command, what] of [
+    [`grep -R alpha ${long}`, 'a link walk whose root has a name too long to read (ENAMETOOLONG)'],
+    [`grep -r alpha ${long}`, 'an env-file search whose root has a name too long to read'],
+    ['grep -R alpha deep', 'a link walk that meets a folder deeper than a path may be'],
+    ['grep -r alpha deep', 'an env-file search that meets a folder deeper than a path may be'],
+  ] as Array<[string, string]>) {
+    const v = await decide(command)
+    check(`${what}: asks nothing with no deny rule set`, v.behavior === 'allow', short(shown(v)))
+  }
+  for (const [command, words] of [
+    [`grep -R alpha ${long}`, 'follows links under'],
+    [`grep -r alpha ${long}`, 'reads under'],
+    ['grep -r alpha deep', 'reads under'],
+  ] as Array<[string, string]>) {
+    const v = await decide(command, DENY)
+    check(`control: with a deny rule set, ${short(command)} still asks and names the folder that could not be read`, v.behavior === 'ask' && (v.message ?? '').includes(words) && (v.message ?? '').includes('could not be read (ENAMETOOLONG)'), short(shown(v)))
+  }
+  execFileSync('/bin/rm', ['-rf', join(root, 'deep')])
+}
 process.chdir(previousCwd)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-followed-links-ask: ALL LAWS HOLD' : `\nprove-followed-links-ask: ${failures} FAILURE(S)`)

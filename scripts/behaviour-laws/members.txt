@@ -1,0 +1,2 @@
+prove-behaviour-laws-contract.ts
+prove-behaviour-laws-render.ts

@@ -1,23 +1,8 @@
-#!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { codeOnlyLines } from '../lib/codeText.ts'
 
-const argValue = (name: string): string | undefined => {
-  const at = process.argv.indexOf(name)
-  return at >= 0 ? process.argv[at + 1] : undefined
-}
-const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
-const ROW = {
-  assets: 'scripts/consistency-census/basename-census.json',
-  generator: 'bun scripts/consistency-census/gen-basename-census.ts',
-  check: 'bun scripts/consistency-census/prove-basename-census.ts',
-  sources: 'src/**/*.{ts,tsx,mjs} scripts/consistency-census/gen-basename-census.ts scripts/lib/codeText.ts',
-}
-if (registerOnlyRequested(ROW)) process.exit(0)
-const REGISTERS = argValue('--root') === undefined && argValue('--out') === undefined
-
+const DEFAULT_ROOT = join(import.meta.dir, '..', '..')
 const OTHER_HOME = ['.cla', 'ude'].join('')
 const OTHER_GUIDE = ['CLA', 'UDE.md'].join('')
 const BASENAMES = [
@@ -40,32 +25,6 @@ interface Hit {
   needle: string
   excerpt: string
 }
-const hits: Hit[] = []
-
-const walk = (dir: string): void => {
-  for (const name of [...readdirSync(dir)].sort()) {
-    const full = join(dir, name)
-    const st = statSync(full)
-    if (st.isDirectory()) {
-      if (name === 'node_modules' || name === 'dist') continue
-      walk(full)
-      continue
-    }
-    if (!/\.(ts|tsx)$/.test(name)) continue
-    const rel = relative(ROOT, full)
-    const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
-    for (const text of lines) {
-      const trimmed = text.trim()
-      for (const needle of BASENAMES) {
-        if (text.includes(needle)) {
-          hits.push({ file: rel, needle: needle.replace(/['"]/g, ''), excerpt: trimmed.slice(0, 140) })
-        }
-      }
-    }
-  }
-}
-walk(join(ROOT, 'src'))
-
 const OTHER_GUIDE_ADAPTER = 'src/services/instructions/adapters/claudeCode.ts'
 const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boolean; cls: string; why: string }> = [
   {
@@ -150,29 +109,47 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
   },
 ]
 
-const classified = hits.map(h => {
-  for (const r of RULES) {
-    if (r.test(h.file, h.needle, h.excerpt)) return { ...h, cls: r.cls, why: r.why }
+export function basenameCensus(root = DEFAULT_ROOT): {
+  needles: string[]
+  counts: Record<string, number>
+  sites: Array<Hit & { cls: string; why: string }>
+} {
+  const hits: Hit[] = []
+  const walk = (dir: string): void => {
+    for (const name of [...readdirSync(dir)].sort()) {
+      const full = join(dir, name)
+      const st = statSync(full)
+      if (st.isDirectory()) {
+        if (name === 'node_modules' || name === 'dist') continue
+        walk(full)
+        continue
+      }
+      if (!/\.(ts|tsx)$/.test(name)) continue
+      const rel = relative(root, full)
+      const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
+      for (const text of lines) {
+        const trimmed = text.trim()
+        for (const needle of BASENAMES) {
+          if (text.includes(needle)) {
+            hits.push({ file: rel, needle: needle.replace(/['"]/g, ''), excerpt: trimmed.slice(0, 140) })
+          }
+        }
+      }
+    }
   }
-  return { ...h, cls: 'UNCLASSIFIED', why: 'new/unknown site — classify or fix' }
-})
-
-const counts: Record<string, number> = {}
-for (const c of classified) counts[c.cls] = (counts[c.cls] ?? 0) + 1
-
-const out = {
-  generatedBy: 'scripts/consistency-census/gen-basename-census.ts',
-  needles: BASENAMES.map(n => n.replace(/['"]/g, '')).filter((v, i, a) => a.indexOf(v) === i),
-  counts,
-  sites: classified.sort((a, b) => a.file.localeCompare(b.file)),
+  const srcDir = join(root, 'src')
+  if (existsSync(srcDir)) walk(srcDir)
+  const classified = hits.map(h => {
+    for (const r of RULES) {
+      if (r.test(h.file, h.needle, h.excerpt)) return { ...h, cls: r.cls, why: r.why }
+    }
+    return { ...h, cls: 'UNCLASSIFIED', why: 'new/unknown site — classify or fix' }
+  })
+  const counts: Record<string, number> = {}
+  for (const c of classified) counts[c.cls] = (counts[c.cls] ?? 0) + 1
+  return {
+    needles: BASENAMES.map(n => n.replace(/['"]/g, '')).filter((v, i, a) => a.indexOf(v) === i),
+    counts,
+    sites: classified.sort((a, b) => a.file.localeCompare(b.file)),
+  }
 }
-const outPath = argValue('--out') ?? join(ROOT, 'scripts/consistency-census/basename-census.json')
-writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')
-if (REGISTERS) registerGeneratedAsset(ROW)
-console.log(
-  `basename census: ${classified.length} site(s) across ${new Set(classified.map(c => c.file)).size} file(s); ` +
-    Object.entries(counts)
-      .map(([k, v]) => `${k}=${v}`)
-      .join(' '),
-)
-if ((counts['FORBIDDEN'] ?? 0) > 0 || (counts['UNCLASSIFIED'] ?? 0) > 0) process.exitCode = 1

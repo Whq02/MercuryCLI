@@ -6,13 +6,10 @@
 # gate-watch: src/ink.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
+
 cd "$(dirname "$0")/../.." || exit 1
-here="$(pwd)/scripts/media"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+here="scripts/media"
 fail=0
-for proof in "$here"/prove-*.ts; do
-  start=$SECONDS; rc=0
-  "$bun" run "$proof" || { rc=$?; fail=1; }
-  printf '── scripts/media/%s  %ss rc=%s\n' "$(basename "$proof")" "$(( SECONDS - start ))" "$rc"
-done
+drive_members media 'scripts/media/$name' "$here/members.txt" || fail=1
 exit "$fail"

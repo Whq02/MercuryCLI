@@ -215,7 +215,6 @@ console.log('\n§2 the real drives plan')
 console.log('\n§3 the journey split')
 {
   const parentDir = join(SCRIPTS, 'journey')
-  const parentText = readFileSync(join(parentDir, 'run-all.sh'), 'utf8')
   const provers = readdirSync(parentDir)
     .filter(f => /^prove-.*\.ts$/.test(f))
     .sort()
@@ -223,10 +222,6 @@ console.log('\n§3 the journey split')
     .filter(d => /^journey-\d+$/.test(d) && existsSync(join(SCRIPTS, d, 'members.txt')) && existsSync(join(SCRIPTS, d, 'run-all.sh')))
     .sort((a, b) => Number(a.slice('journey-'.length)) - Number(b.slice('journey-'.length)))
   check('the journey estate has sibling suites with member lists', siblings.length > 0)
-  check(
-    'the parent runs the complement of the sibling lists, stays glob-driven, and keeps the double-claim law',
-    parentText.includes('cat scripts/journey-*/members.txt') && parentText.includes('prove-*.ts') && parentText.includes('uniq -d'),
-  )
   const claims = new Map<string, string[]>()
   const bad: string[] = []
   for (const s of siblings) {

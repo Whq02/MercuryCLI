@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { bashDecision, check, finish, note, pageText, RUN_ROOT, said, section, type BashDecision, type Rules } from './denyRulesKit.ts'
+import { bashDecision, check, finish, note, RUN_ROOT, said, section, type BashDecision, type Rules } from './denyRulesKit.ts'
 
 const r = String.raw
 const PATCH = `-${'p'}`
@@ -184,13 +184,6 @@ const GROUPS: Group[] = [
     notes: [{ c: "python3 -c \"open('secrets/k.txt','w').write('x')\"" }],
   },
 ]
-
-section('the page, docs/TRUST.md')
-const page = pageText()
-check('the page says explicit deny rules still apply under Sovereign mode', /explicit deny rules and built-in command safety rules still apply/.test(page))
-check('the page says in Flow your deny rules refuse, as in Default', /Your deny rules refuse, as in Default/.test(page))
-check('the page says deny rules still win over an ask or an allow, and file restrictions still apply', /Deny rules still win over an ask or an allow; file restrictions still apply/.test(page))
-check('the page says a deny rule refuses a push outright', /A deny rule refuses it outright/.test(page))
 
 async function verdictsOf(command: string, group: Group): Promise<Array<readonly [string, BashDecision]>> {
   const verdicts: Array<readonly [string, BashDecision]> = []

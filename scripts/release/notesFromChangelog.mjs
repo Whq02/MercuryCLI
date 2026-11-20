@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
@@ -29,15 +29,37 @@ export function parseIsoDate(s) {
   return t
 }
 
+function extractReleaseDocBullets(text) {
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const start = lines.findIndex(line => line.trim() === '## What changed')
+  if (start < 0) return []
+  const bullets = []
+  let current = null
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (line.startsWith('## ') || line.startsWith('# ')) break
+    if (line.startsWith('- ')) {
+      if (current !== null) bullets.push(current)
+      current = line.slice(2).trim()
+    } else if (current !== null && /^\s+\S/.test(line)) {
+      current = `${current} ${line.trim()}`
+    } else if (line.trim() === '') {
+      if (current !== null) {
+        bullets.push(current)
+        current = null
+      }
+    }
+  }
+  if (current !== null) bullets.push(current)
+  return bullets.filter(note => note !== '')
+}
+
 export function releaseNotesFor(version, rootDir) {
-  const src = readFileSync(join(rootDir, 'src', 'constants', 'changelog.ts'), 'utf8')
-  const lines = src.split('\n')
-  const start = lines.findIndex(l => l.trim() === `## ${version}`)
-  if (start < 0) return undefined
-  const rest = lines.slice(start + 1)
-  const endRel = rest.findIndex(l => l.startsWith('## ') || l.startsWith('`'))
-  const body = (endRel < 0 ? rest : rest.slice(0, endRel)).join('\n').trim()
-  if (!body) return undefined
+  const docPath = join(rootDir, 'docs', 'releases', `${version}.md`)
+  if (!existsSync(docPath)) return undefined
+  const bullets = extractReleaseDocBullets(readFileSync(docPath, 'utf8'))
+  if (bullets.length === 0) return undefined
+  const body = bullets.map(bullet => `- ${bullet}`).join('\n')
   return `# Mercury ${version}\n\n${body}\n`
 }
 
@@ -47,7 +69,7 @@ if (invokedPath && invokedPath === process.argv[1]) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
   const notes = version ? releaseNotesFor(version, root) : undefined
   if (!notes) {
-    console.error(`no ## ${version || '<version>'} section in src/constants/changelog.ts`)
+    console.error(`no ## What changed section in docs/releases/${version || '<version>'}.md`)
     process.exit(1)
   }
   process.stdout.write(notes)

@@ -1,0 +1,5 @@
+prove-aseprite-art.ts
+prove-aseprite-denied-read.ts
+prove-aseprite-real-engine.ts
+prove-aseprite-resolution.ts
+prove-aseprite-tool.ts

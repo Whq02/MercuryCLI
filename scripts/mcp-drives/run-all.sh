@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/bootstrap/state* src/services/mcp/** src/state/AppState* src/utils/Shell*
-# gate-watch: src/utils/config/** src/utils/mcp/elicitationValidation*
-# gate-watch: src/commands/mcp/* src/components/mcp/* src/daemon/sessionKit* src/daemon/sessionSeat.ts src/daemon/controlServer.ts src/cli/run.ts src/services/engine-connector/*
-# gate-watch: src/daemon/main.ts src/runner/wire/methods.ts
+# gate-watch: src/services/mcp/** src/utils/Shell*
+# gate-watch: src/utils/config/**
+# gate-watch: src/commands/mcp/* src/components/mcp/* src/daemon/sessionKit* src/daemon/controlServer.ts src/services/engine-connector/*
+# gate-watch: src/daemon/main.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

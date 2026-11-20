@@ -178,5 +178,5 @@ if (process.platform !== 'win32' && run) {
 
 const checked = spawnSync('bun', ['scripts/host/export-llamacpp-engine.ts', '--check'], { cwd: root, encoding: 'utf8' })
 check('bun scripts/host/export-llamacpp-engine.ts --check is green on this tree and names the served image', checked.status === 0 && checked.stdout.includes('is current for llama.cpp ' + LLAMACPP_ENGINE_SHA) && checked.stdout.includes('served image ' + asset.image!.digest.slice(0, 19) + ' built at that commit'))
-check('the host suite runs this proof', readFileSync(join(root, 'scripts/host/run-all.sh'), 'utf8').includes('prove-llamacpp-engine-upkeep.ts'))
+check('the host suite runs this proof', readFileSync(join(root, 'scripts/host/members.txt'), 'utf8').includes('prove-llamacpp-engine-upkeep.ts'))
 console.log('LLAMACPP ENGINE UPKEEP GREEN · ' + checks + ' checks; injected Hub and registry fetches, no network, llama.cpp ' + short + ' (upstream facts: gguf.cpp, llama-model-loader.cpp, ggml.h, common/build-info at that commit) · tree ' + execFileSync('git', ['-C', root, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim())

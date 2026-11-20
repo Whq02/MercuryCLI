@@ -13,9 +13,10 @@ export interface GeneratedAssetRow {
   line: number
 }
 
-export function parseGeneratedAssetsMap(text: string): { rows: GeneratedAssetRow[]; errors: string[] } {
+export function parseGeneratedAssetsMap(text: string): { rows: GeneratedAssetRow[]; errors: string[]; skipped: string[] } {
   const rows: GeneratedAssetRow[] = []
   const errors: string[] = []
+  const skipped: string[] = []
   text.split('\n').forEach((raw, index) => {
     const line = raw.replace(/\r$/, '')
     if (line.trim() === '' || line.trimStart().startsWith('#')) return
@@ -31,17 +32,21 @@ export function parseGeneratedAssetsMap(text: string): { rows: GeneratedAssetRow
       errors.push(`line ${index + 1}: an empty asset, generator or sources column`)
       return
     }
+    const read: string[] = []
     for (const source of sourceList) {
-      if (!source.startsWith('re:')) continue
-      try {
-        new RegExp(source.slice('re:'.length))
-      } catch (error) {
-        errors.push(`line ${index + 1}: ${source} is not a regular expression that compiles (${errorMessage(error)})`)
+      if (source.startsWith('re:')) {
+        try {
+          new RegExp(source.slice('re:'.length))
+        } catch (error) {
+          skipped.push(`line ${index + 1}: ${source} is not a regular expression that compiles (${errorMessage(error)})`)
+          continue
+        }
       }
+      read.push(source)
     }
-    rows.push({ assets, generator: generator.trim(), check: check.trim() === '-' || check.trim() === '' ? null : check.trim(), sources: sourceList, line: index + 1 })
+    rows.push({ assets, generator: generator.trim(), check: check.trim() === '-' || check.trim() === '' ? null : check.trim(), sources: read, line: index + 1 })
   })
-  return { rows, errors }
+  return { rows, errors, skipped }
 }
 
 export function repoPathsIn(text: string): string[] {

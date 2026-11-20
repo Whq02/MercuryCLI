@@ -1,10 +1,8 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { z } from 'zod/v4'
 import { removeScratch } from '../lib/removeScratch.ts'
-
-const TREE = resolve(import.meta.dir, '..', '..')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'deny-rules-')))
 export const RUN_ROOT = join(scratch, 'run')
 mkdirSync(join(RUN_ROOT, '.git'), { recursive: true })
@@ -81,10 +79,6 @@ export function section(title: string): void {
 
 export function note(text: string): void {
   console.log(`  [NOTE] ${text}`)
-}
-
-export function pageText(): string {
-  return readFileSync(join(TREE, 'docs', 'TRUST.md'), 'utf8').replace(/\s+/g, ' ')
 }
 
 export function finish(name: string): never {

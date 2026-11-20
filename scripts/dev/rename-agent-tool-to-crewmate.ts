@@ -85,7 +85,6 @@ const PHRASES: Array<{ re: RegExp; to: string } & Why> = [
 const COMMENT_SKIP_RE = /(?<![\w$.\-/])Agent(?:\s+tool|-tool| call| launch| launched|\s+(?:and|or) Workflow|\()|(["'`])Agent\1|(?<![\w$.\-/])ResumeAgent(?![\w$])/
 
 const GENERATORS: Generator[] = [
-  { command: ['scripts/builtin-tools/census-gen.ts'], touches: ['scripts/builtin-tools/fixtures/tool-census.json', 'scripts/builtin-tools/fixtures/tool-census.md'], why: 'the tool census lists every tool by name' },
   { command: ['scripts/project-services/inventory.ts'], touches: ['scripts/project-services/fixtures/inventory.json'], why: 'the inventory lists the tool names sorted' },
   { command: ['scripts/splash/bake-menu.mjs'], touches: ['assets/splash/splash-core.mjs'], why: "the splash bakes the boot menu's summaries, which name the tool" },
 ]

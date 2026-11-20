@@ -1,17 +1,17 @@
 import { coerce } from 'semver'
 
-import { MERCURY_CHANGELOG } from '../constants/changelog.js'
+import { getMercuryChangelog } from '../constants/changelog.js'
 import { logError } from './log.js'
 import { gt } from './semver.js'
 import { passedOver } from './passedOver.js'
 
 
 function getStoredChangelogFromMemory(): string {
-  return MERCURY_CHANGELOG
+  return getMercuryChangelog()
 }
 
 export async function getStoredChangelog(): Promise<string> {
-  return MERCURY_CHANGELOG
+  return getMercuryChangelog()
 }
 
 function parseChangelog(content: string): Record<string, string[]> {

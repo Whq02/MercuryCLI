@@ -3,20 +3,14 @@
 # gate-watch: scripts/prompt-input/**
 # gate-watch: src/ink/input/**
 # gate-watch: src/components/PromptInput/**
-# gate-watch: src/input-core/** src/components/mercury-ui/useInteractiveList.ts
-# gate-watch: src/utils/promptDraft.ts
-# gate-watch: src/ink.ts src/components/design-system/ThemeProvider.tsx src/state/AppState.tsx src/keybindings/KeybindingProviderSetup.tsx src/components/mercury-ui/InteractiveRow.tsx
+# gate-watch: src/input-core/**
 # gate-watch: src/components/InlineChangeView.tsx src/tools/StructureTool/**
 # gate-watch: src/services/structure/** src/tools/LSPTool/**
-# gate-watch: src/utils/Cursor.ts src/utils/inputRange.ts
-# gate-watch: src/hooks/fileSuggestions.ts src/hooks/useTypeahead.tsx src/utils/suggestions/directoryCompletion.ts
-# gate-watch: src/hooks/useHistorySearch.ts
-# gate-watch: src/components/ScrollKeybindingHandler.tsx src/components/MercuryModelPicker.tsx
+# gate-watch: src/utils/inputRange.ts
+# gate-watch: src/components/MercuryModelPicker.tsx
 # gate-watch: src/components/HelmLanesRail.tsx
 # gate-watch: scripts/lib/*
-# gate-watch: src/hooks/useTextInput.ts src/ink/session/capabilities.ts
-# gate-watch: src/utils/cwd.ts
-# gate-watch: src/utils/suggestions/commandSuggestions.ts src/utils/truncate.ts
+# gate-watch: src/hooks/useTextInput.ts
 # gate-watch: src/utils/platform.ts
 # gate-watch: src/hooks/usePasteHandler.ts src/components/BaseTextInput.tsx
 set -uo pipefail

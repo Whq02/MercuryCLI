@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/ink/input/** src/ink/events/input-event.ts
+# gate-watch: src/ink/input/**
 # gate-watch: src/components/PromptInput/**
 # gate-watch: src/input-core/**
 # gate-watch: src/components/InlineChangeView.tsx src/tools/StructureTool/**
@@ -10,30 +10,14 @@
 # gate-watch: src/components/MercuryModelPicker.tsx
 # gate-watch: src/components/HelmLanesRail.tsx
 # gate-watch: scripts/lib/* scripts/ui/renderScenarios.ts scripts/ui/vshot.py
-# gate-watch: src/daemon/controlSocket.ts
-# gate-watch: src/services/crew/obligations.ts
-# gate-watch: src/components/mercury-ui/keyHintLabel.ts src/utils/platform.ts
-# gate-watch: src/hooks/usePasteHandler.ts src/components/BaseTextInput.tsx src/daemon/controlSocket.ts scripts/streaming/ptydrive.py
+# gate-watch: src/utils/platform.ts
+# gate-watch: src/hooks/usePasteHandler.ts src/components/BaseTextInput.tsx scripts/streaming/ptydrive.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
 cd "$(dirname "$0")/../.." || exit 1
-
-BUN="${BUN:-$HOME/.bun/bin/bun}"
+here="scripts/prompt-input"
 overall=0
-for p in \
-  scripts/prompt-input/prove-prompt-input-async-note.ts \
-  scripts/prompt-input/prove-newline-hint-latch.ts \
-  scripts/prompt-input/prove-backslash-path-enter.ts \
-  scripts/prompt-input/prove-suggestion-platform-and-project.ts \
-  scripts/prompt-input/prove-name-anchored-enter.ts \
-  scripts/prompt-input/prove-history-scan-debounce.ts \
-  scripts/prompt-input/prove-typing-survives-rekey.ts \
-  scripts/prompt-input/prove-stash-carries-mode.ts \
-  scripts/prompt-input/prove-edit-sanitises.ts \
-; do
-  echo "── $p"
-  __t=$SECONDS; __rc=0; "$BUN" run "$p" || { __rc=$?; overall=1; }; prover_mark "$p" "$__t" "$__rc"
-done
+drive_members prompt-input 'scripts/prompt-input/$name' "$here/members.txt" '' run || overall=1
 exit $overall

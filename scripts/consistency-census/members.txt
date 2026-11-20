@@ -1,0 +1,10 @@
+prove-basename-census.ts
+prove-census-comment-invariance.ts
+prove-execution-truth.ts
+prove-identity-transition.ts
+prove-lockup-census.ts
+prove-manifest-noncircular.ts
+prove-ordering-pin-teeth.ts
+prove-payload-bytestable.ts
+prove-shellstring-census.ts
+prove-worktree-settlement.ts

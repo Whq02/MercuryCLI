@@ -1,1 +1,1 @@
-prove-local-setup-drive.ts
+prove-local-setup-drive.ts --dist $dist

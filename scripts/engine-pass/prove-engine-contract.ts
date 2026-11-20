@@ -66,23 +66,38 @@ function checkShapeExports(
   quiet = false,
 ): number {
   let named = 0
+  const unrecorded: string[] = []
+  const drifted: string[] = []
   for (const [name, expected] of Object.entries(before)) {
     assert.ok(Object.hasOwn(after, name), `export disappeared: ${name}`)
     try {
       assert.deepEqual(after[name], expected)
     } catch (error) {
       const record = moved.get(`shape:${name}`)
-      assert.ok(record, `export shape changed: ${name} — ${String(error)}`)
       const actualDigest = shapeDigest(after[name])
-      assert.equal(
-        actualDigest,
-        record.digest,
-        `export shape drifted past its recorded movement: ${name} — expected ${record.digest}, got ${actualDigest} (${record.note})`,
-      )
+      if (!record) {
+        if (!quiet) console.log(`[MOVED] ${name} — ${String(error)}`)
+        unrecorded.push(`shape\t${name}\t<what moved, and what reads the same>\t<lane>\t<commit>\t${actualDigest}`)
+        continue
+      }
+      if (actualDigest !== record.digest) {
+        drifted.push(`${name}\t${actualDigest}\t(recorded ${record.digest}: ${record.note})`)
+        continue
+      }
       named++
       if (!quiet) console.log(`[NAMED] ${name} (${actualDigest.slice(0, 12)}) — ${record.note}`)
     }
   }
+  assert.equal(
+    drifted.length,
+    0,
+    `export shape drifted past its recorded movement: ${drifted.length} row(s) of scripts/engine-pass/contract-moved.tsv no longer hold. Give each its new digest once its reason covers the move (the name, the digest it reads now, what is recorded):\n${drifted.join('\n')}`,
+  )
+  assert.equal(
+    unrecorded.length,
+    0,
+    `export shape changed: ${unrecorded.length} export(s) moved with no row in scripts/engine-pass/contract-moved.tsv. Add each row below with its reason, lane and commit (tabs between the six columns):\n${unrecorded.join('\n')}`,
+  )
   return named
 }
 
@@ -132,7 +147,7 @@ try {
     }
     const stillExported = exportedNames(ROOT, [...new Set(removed.map(item => item.path))].filter(file => existsSync(join(ROOT, file))))
     for (const { path, line } of removed) {
-      const declared = /^-export\s+(?:default\s+)?(?:declare\s+)?(?:async\s+)?(?:const\s+enum|type|interface|const|let|function|class|enum)\s+([A-Za-z_$][\w$]*)/.exec(line)?.[1]
+      const declared = (/^-export\s+(?:default\s+)?(?:declare\s+)?(?:async\s+)?(?:const\s+enum|type|interface|const|let|function|class|enum)\s+([A-Za-z_$][\w$]*)/.exec(line) ?? /^-export\s*=\s*([A-Za-z_$][\w$]*)\s*;?\s*$/.exec(line))?.[1]
       assert.ok(declared, `an exported declaration was removed in a shape the record cannot name: ${line}`)
       const exportName = /^-export\s+default\b/.test(line) ? 'default' : declared
       if (stillExported.get(path)?.has(exportName)) {

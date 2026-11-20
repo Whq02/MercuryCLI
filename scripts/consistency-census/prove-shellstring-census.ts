@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { shellstringCensus } from './gen-shellstring-census.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
@@ -10,46 +10,13 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
 
-const censusPath = join(ROOT, 'scripts/consistency-census/shellstring-census.json')
-const before = readFileSync(censusPath, 'utf8')
-execFileSync(process.execPath, [join(ROOT, 'scripts/consistency-census/gen-shellstring-census.ts')], {
-  cwd: ROOT,
-  stdio: 'pipe',
-})
-const after = readFileSync(censusPath, 'utf8')
-if (before !== after) writeFileSync(censusPath, before)
-check('§A regeneration reproduces the SHELL-STRING census byte-for-byte', before === after)
-type Site = { cls: string; file: string; mechanism: string; excerpt: string }
-const census = JSON.parse(after) as { sites: Site[] }
-if (before !== after) {
-  const rows = (sites: Site[]): Map<string, { site: Site; count: number }> => {
-    const out = new Map<string, { site: Site; count: number }>()
-    for (const site of sites) {
-      const key = JSON.stringify(site)
-      const row = out.get(key) ?? { site, count: 0 }
-      row.count++
-      out.set(key, row)
-    }
-    return out
-  }
-  const committed = rows((JSON.parse(before) as { sites: Site[] }).sites)
-  const regenerated = rows(census.sites)
-  const name = (s: Site): string => `${s.file} (${s.mechanism}) ${s.excerpt}`
-  const surplus = (a: Map<string, { site: Site; count: number }>, b: Map<string, { site: Site; count: number }>): Site[] =>
-    [...a].filter(([k, row]) => (b.get(k)?.count ?? 0) < row.count).map(([, row]) => row.site)
-  const stale = surplus(committed, regenerated)
-  const unrecorded = surplus(regenerated, committed)
-  for (const s of stale.slice(0, 20)) console.log(`    committed but not in the tree: ${name(s)}`)
-  for (const s of unrecorded.slice(0, 20)) console.log(`    in the tree but not committed: ${name(s)}`)
-  const order = stale.length === 0 && unrecorded.length === 0 ? ' (the same rows in a different order or shape)' : ''
-  console.log(`    ${stale.length} stale row(s), ${unrecorded.length} unrecorded row(s)${order} — regenerate with scripts/consistency-census/gen-shellstring-census.ts`)
+const census = shellstringCensus(ROOT)
+const unclassified = census.sites.filter(s => s.cls === 'UNCLASSIFIED')
+check('§B zero unclassified sites', unclassified.length === 0, String(unclassified.length))
+if (unclassified.length > 0) {
+  for (const s of unclassified) console.log(`    ${s.file} (${s.mechanism}) ${s.excerpt}`)
+  console.log('    add a rule for it to RULES in scripts/consistency-census/gen-shellstring-census.ts, or change the call')
 }
-check(
-  '§B zero unclassified sites',
-  census.sites.every(s => s.cls !== 'UNCLASSIFIED'),
-  String(census.sites.filter(s => s.cls === 'UNCLASSIFIED').length),
-)
-
 const renderTui = readFileSync(join(ROOT, 'scripts/ui/render-tui.ts'), 'utf8')
 check('§C render-tui consumes the capture-driver contract', renderTui.includes('resolveCaptureDriver('))
 const baselineGen = readFileSync(join(ROOT, 'scripts/ui/generate-visual-baseline.ts'), 'utf8')

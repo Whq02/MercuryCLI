@@ -166,7 +166,8 @@ function profileDirRefusal(dir: string, chmodFailure: unknown): string | null {
   try {
     ownerUid = fs.statSync(dir).uid
   } catch (statFailure) {
-    return `the browser profile folder ${dir} could not be made private to you (chmod 0700: ${code}; stat: ${getErrnoCode(statFailure) ?? errorMessage(statFailure)}) — nothing was opened; give the folder back to your user or remove it, then open again`
+    logError(new Error(`the browser profile folder ${dir} could not be made private (chmod 0700: ${code}) and its owner could not be read (stat: ${getErrnoCode(statFailure) ?? errorMessage(statFailure)}), so the browser opens on it as before`))
+    return null
   }
   if (typeof process.getuid === 'function' && ownerUid !== process.getuid()) {
     return `the browser profile folder ${dir} could not be made private to you (chmod 0700: ${code}) — nothing was opened; give the folder back to your user or remove it, then open again`

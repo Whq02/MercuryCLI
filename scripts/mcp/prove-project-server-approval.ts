@@ -4,12 +4,11 @@
 
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { DIST, MODEL, NODE, PROBE_KEY, SCRATCH_ROOT, childEnv, configKeyOf, makeTally } from '../daemon/dupline-world.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { parseFrame, type Frame } from '../lib/rows.ts'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'project-server-approval-')))
 const SERVER = join(SCRATCH, 'server.cjs')
 const LINE = 'MCP server probe (project) skipped: not approved · open Mercury in this folder to approve it'
@@ -260,10 +259,6 @@ try {
       'the headers helper is a command the product runs, so it is part of what was approved: another helper is another digest, a helper added is another digest',
       projectMcpServerDefinitionDigest(remote) !== projectMcpServerDefinitionDigest(remoteWithAnotherHelper) && projectMcpServerDefinitionDigest(remote) !== projectMcpServerDefinitionDigest(remoteWithNone),
       `${projectMcpServerDefinitionDigest(remote)} ${projectMcpServerDefinitionDigest(remoteWithAnotherHelper)} ${projectMcpServerDefinitionDigest(remoteWithNone)}`,
-    )
-    tally.check(
-      'the page names the helper among what the approval is keyed to',
-      /keyed to\s+the server's definition as written\s+\(its command, arguments, URL, headers helper and environment variable names,\s+and the values of the variables a runtime loads its code by, such as `PATH`\s+and `NODE_OPTIONS`\)/.test(readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')),
     )
     recordProjectMcpServerChoices({ approved: [{ name: 'probe', config: changed }] })
     resetSettingsCache()

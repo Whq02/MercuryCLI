@@ -1,0 +1,9 @@
+prove-files-filter-win32.ts
+prove-polyglot-parity.ts
+prove-polyglot-query.ts
+prove-polyglot-transform.ts
+prove-project-checks.ts
+prove-repo-observation.ts
+prove-structure-fold.ts
+prove-structure-tools-artifact.ts
+prove-structure-tools-toolsearch.ts

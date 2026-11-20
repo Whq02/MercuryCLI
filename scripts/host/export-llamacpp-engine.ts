@@ -17,6 +17,7 @@ const ROW = {
   generator: 'bun scripts/host/export-llamacpp-engine.ts',
   check: 'bun scripts/host/export-llamacpp-engine.ts --check',
   sources: 'src/services/host/recipes.ts ' + DOCKERFILE + ' ' + WORKFLOW + ' scripts/host/export-llamacpp-engine.ts',
+  build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 

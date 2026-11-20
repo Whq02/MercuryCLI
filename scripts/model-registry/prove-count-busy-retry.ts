@@ -163,6 +163,20 @@ try {
     check('the stalled request is not retried: one request reached the box', k.hits.length === 1, k.hits.length)
     check('the debug log says no answer came within the budget and the caller keeps its estimate', k.lines.some(line => line.includes("no answer within the count's 15 s") && line.includes('not retried') && line.includes('the caller keeps its estimate')), k.lines)
   }
+  {
+    const closedPort = await new Promise<number>(resolve => {
+      const probe = createServer()
+      probe.listen(0, '127.0.0.1', () => {
+        const address = probe.address()
+        probe.close(() => resolve(typeof address === 'object' && address !== null ? address.port : 0))
+      })
+    })
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${closedPort}`
+    const n = await leg([], () => countMessagesTokensWithAPI(messages, []))
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
+    check('nothing listens at the provider\'s address: the count is unknown (null) and no retry is waited for (base: every rung of the ladder slept, 15 s on a read)', n.result === null && n.hits.length === 0 && !n.lines.some(line => line.includes('waiting')), { result: n.result, lines: n.lines })
+    check('the debug log says nothing answers there and the caller keeps its estimate', n.lines.some(line => line.includes('not retried: network unreachable (connection refused)') && line.includes('the caller keeps its estimate')), n.lines)
+  }
 
   console.log('\nthe create probe on the same wire')
   {

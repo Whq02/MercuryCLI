@@ -1,3 +1,4 @@
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,7 +19,62 @@ export function formatGeneratedAssetRow(row) {
   if (generator === '') throw new Error(`the row for ${assets.join(' ')} names no generator`)
   if (sources.length === 0) throw new Error(`the row for ${assets.join(' ')} names no sources`)
   const check = row.check === null || row.check === undefined || String(row.check).trim() === '' ? '-' : String(row.check).trim()
-  return [assets.join(' '), generator, check, sources.join(' ')].join('\t')
+  if (row.build === true && check === '-') throw new Error(`the row for ${assets.join(' ')} asks the build to check it and names no check`)
+  return [assets.join(' '), generator, check, sources.join(' '), ...(row.build === true ? ['build'] : [])].join('\t')
+}
+
+export function buildCheckedRows(text) {
+  return text
+    .split('\n')
+    .map(line => line.replace(/\r$/, ''))
+    .filter(line => line.trim() !== '' && !line.trimStart().startsWith('#'))
+    .map(line => line.split('\t').map(column => column.trim()))
+    .filter(columns => columns[4] === 'build')
+    .map(([assets, generator, check]) => ({ assets, generator, check }))
+}
+
+function runBuildCheck(root, row) {
+  const [, script, ...flags] = row.check.split(/\s+/)
+  if (!existsSync(resolve(root, script))) return Promise.resolve({ row, error: new Error(`${script} is not in this tree`) })
+  return new Promise(done => {
+    const child = spawn(process.execPath, [resolve(root, script), ...flags], { cwd: root })
+    let output = ''
+    child.stdout.on('data', chunk => { output += chunk })
+    child.stderr.on('data', chunk => { output += chunk })
+    child.on('error', error => done({ row, error }))
+    child.on('close', (status, signal) => done({ row, status, signal, output }))
+  })
+}
+
+export async function staleBuildAssets(root = REPOSITORY_ROOT) {
+  const path = resolve(root, GENERATED_ASSETS_MAP)
+  if (!existsSync(path)) return []
+  const stale = []
+  for (const run of await Promise.all(buildCheckedRows(readFileSync(path, 'utf8')).map(row => runBuildCheck(root, row)))) {
+    if (run.error !== undefined || run.status === null) {
+      console.error(`generated-assets: ${run.row.check} did not run (${run.error?.message ?? `ended by ${run.signal}`}), so the build goes on without it`)
+      continue
+    }
+    if (run.status !== 0) stale.push({ ...run.row, output: run.output.trim() })
+  }
+  return stale
+}
+
+export function indexedExecutables(dir) {
+  const listed = spawnSync('git', ['ls-files', '-s', '-z'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20_000, windowsHide: true })
+  const out = new Map()
+  if (listed.error !== undefined || listed.status !== 0) return out
+  for (const entry of listed.stdout.split('\0')) {
+    const tab = entry.indexOf('\t')
+    if (tab !== -1) out.set(entry.slice(tab + 1), (Number.parseInt(entry, 8) & 0o111) !== 0)
+  }
+  return out
+}
+
+export function executableBit({ indexed, onDisk, committed, platform = process.platform }) {
+  if (indexed === true) return true
+  if (platform === 'win32') return committed
+  return indexed ?? onDisk
 }
 
 function generatorOf(line) {

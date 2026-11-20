@@ -1,0 +1,13 @@
+prove-node-policy.ts
+prove-entry-gate.ts
+prove-compile-cache.ts
+prove-compile-cache-bound.ts
+prove-win32-console.ts
+prove-windows-seams.ts
+prove-launcher-probe-redirect.ts
+prove-spawn-window-discipline.ts
+prove-copy-truth.ts
+prove-workflow-toolchain.ts
+prove-broken-pipe-uniform.ts
+prove-session-env-own-stamps.ts
+prove-static-banner-colour.ts

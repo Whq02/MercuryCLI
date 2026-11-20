@@ -13,6 +13,7 @@ const ROW = {
   generator: 'node scripts/unity-bridge/regen-bridge.mjs',
   check: 'node scripts/unity-bridge/regen-bridge.mjs --check',
   sources: 'assets/unity/bridge/**',
+  build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -39,7 +40,7 @@ try {
   files = walk(bridgeRoot)
     .map(p => {
       const path = relative(bridgeRoot, p).split('\\').join('/')
-      return { path, content: readFileSync(p, 'utf8') }
+      return { path, content: readFileSync(p, 'utf8').replaceAll('\r\n', '\n') }
     })
     .sort((a, b) => (a.path < b.path ? -1 : 1))
 } catch {

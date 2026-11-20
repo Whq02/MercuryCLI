@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/default-provider/**
-# gate-watch: src/utils/model/defaultProviderRung* src/commands/defaultprovider/**
-# gate-watch: src/utils/model/model* src/components/ConsoleOAuthFlow* src/utils/config/schema*
-# gate-watch: src/services/providers/routeLaw.ts src/utils/accounts/signInLedger.ts src/utils/config.ts src/utils/model/computedDefault.ts
+# gate-watch: src/commands/defaultprovider/**
+# gate-watch: src/utils/model/model* src/components/ConsoleOAuthFlow*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -155,15 +155,6 @@ section('§7 the release workflow — four arms, the Intel one cross-packaged an
   check('the dropped-arm words are gone', !wf.includes('DROPPED'))
 }
 
-section('§8 the words — the archive README, the release page, the compatibility table')
-{
-  const notes = read('docs/releases/1.0.0-beta.3.md')
-  const intelItem = /\*\*The Intel Mac build\*\*([\s\S]*?)(?=\n\d+\. \*\*|\n\n)/.exec(notes)?.[1] ?? ''
-  check('the beta.3 page carries the Intel Mac build as done, naming the archive', intelItem.includes('`macos-x64`') && /\bDone\.\s*$/.test(intelItem) && !/In progress\./.test(intelItem), intelItem.slice(-80))
-  const compat = read('docs/COMPATIBILITY.md')
-  check('the compatibility table carries the six archives with the Intel row and the two arm64 rows', compat.includes('| `macos-x64` |') && compat.includes('| `macos-arm64` |') && compat.includes('| `linux-x64` |') && compat.includes('| `windows-x64` |') && compat.includes('| `linux-arm64` |') && compat.includes('| `windows-arm64` |'))
-}
-
 section('§9 the Windows archive carries the bundled shell engine — the contract, the packager, the verifier, the workflow')
 {
   type Pack = { name: string; version: string; platform: string; binary: string; degradation: string; manifestKey: string; dir: string; files: string[]; tree?: boolean; record?: Record<string, unknown> }

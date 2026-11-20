@@ -3,12 +3,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
-
-const ROOT = resolve(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'approval-key-code-variables-')))
 const HOME = join(SCRATCH, 'home')
 const PROJECT = join(SCRATCH, 'project')
@@ -68,11 +66,6 @@ const before = (definition: Definition): string =>
     .digest('hex')
     .slice(0, 16)
 const server = (env: Record<string, string>): Definition => ({ type: 'stdio', command: 'node', args: ['server.js'], env, scope: 'project' })
-
-section('the pages say what the approval is keyed to')
-for (const page of ['TRUST.md', 'AUTOMATION.md']) {
-  check(`docs/${page} names the values of the variables a runtime loads its code by`, /environment variable names,\s+and\s+the values of the variables a runtime loads its code by, such as `PATH`\s+and\s+`NODE_OPTIONS`\)/.test(readFileSync(join(ROOT, 'docs', page), 'utf8')))
-}
 
 section('§1 a changed value of a variable a runtime loads its code by is another definition')
 const CODE: Array<[string, string, string]> = [

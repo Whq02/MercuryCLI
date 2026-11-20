@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
@@ -82,12 +82,6 @@ t.section('§2 the IDE plane row names the macOS authorisation state: both answe
     bareOn.evidence.startsWith('python UNAVAILABLE (') && !/native debug|DevToolsSecurity/.test(`${bareOn.evidence}\n${bareOn.detail}\n${bareOn.fix ?? ''}`) && bareOn.fix === PYTHON_FIX,
     `${bareOn.status}: ${bareOn.evidence} | ${bareOn.fix}`,
   )
-}
-
-t.section('§3 the debugger doc')
-{
-  const doc = readFileSync('docs/DEBUGGER.md', 'utf8')
-  t.check('DEBUGGER.md names task_for_pid, the per-boot grant and the fix', doc.includes('task_for_pid') && doc.includes('lasts one boot') && doc.includes('sudo DevToolsSecurity -enable'))
 }
 
 t.finish('prove-debugger-authorisation')

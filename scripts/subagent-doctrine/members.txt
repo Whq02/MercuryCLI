@@ -1,0 +1,4 @@
+prove-subagent-doctrine.ts
+prove-crewmate-toolbox.ts
+prove-crewmate-teardown.ts
+prove-crewmate-foreground-throw.ts

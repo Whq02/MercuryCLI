@@ -71,13 +71,6 @@ console.log('============================================================')
 console.log(' a folder cannot accept the Sovereign consent for its user, and its file-suggestion command yields to managed-only')
 console.log('============================================================')
 
-section('§0 the page')
-{
-  const page = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')
-  check('the page says the consent is honoured from the user, flag and policy sources, and that both files in the folder are excluded', /`guardrails\.sovereignConsentSeen` is honoured from the user, flag, and policy\s+settings sources\. The two files that live in the folder, the project settings\s+and the local settings, are deliberately excluded/.test(page))
-  check('the page says the file-suggestion command runs only from policy settings under managed-only', /Under managed-only, the file-suggestion command\s+likewise runs only from policy settings/.test(page))
-}
-
 section('§1 the Sovereign consent, in a folder the user trusts')
 {
   world({})

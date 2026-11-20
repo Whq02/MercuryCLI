@@ -1,0 +1,8 @@
+prove-capacity-narration.ts
+prove-git-cache-fresh.ts
+prove-ground-move-resets.ts
+prove-host-inventory-heals.ts
+prove-instruction-invalidation-reaches-composition.ts
+prove-kit-menu-freshness.ts
+prove-local-discovery-honest.ts
+prove-stale-registry.ts

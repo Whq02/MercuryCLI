@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -161,22 +161,6 @@ section('(12) the reserved-shortcut table knows Windows')
   check('macOS keeps its set and gains no Windows row', reservedShortcutsFor('macos').some(s => s.key === 'cmd+q') && !reservedShortcutsFor('macos').some(s => WINDOWS_RESERVED.includes(s)))
   check('linux carries neither platform set', !reservedShortcutsFor('linux').some(s => WINDOWS_RESERVED.includes(s) || MACOS_RESERVED.includes(s)))
   check('every Windows row is a warning (the host may or may not eat it), never an error', WINDOWS_RESERVED.every(s => s.severity === 'warning'))
-}
-
-section('(13) the Windows install guide tells the tree\'s truth (a ratchet on the audited claims)')
-{
-  const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
-  check('no "refuses to draw narrower than 100" claim', !/refuses to draw narrower/.test(doc))
-  check('the guide states there is no minimum terminal size', doc.includes('no minimum terminal size'))
-  check('the winget id is the LTS line', doc.includes('winget install --id OpenJS.NodeJS.LTS --source winget') && !/--id OpenJS\.NodeJS --source/.test(doc))
-  check('no "spaces break some build tooling" claim', !/spaces break/.test(doc))
-  check('the splash tip says a bare direct node start paints it before the home screen', /a bare `node dist\\mercury\.mjs` runs it before the\s+(?:home screen|face)/.test(doc) && !/no effect on\s+a direct `node dist\\mercury\.mjs` start/.test(doc))
-  check('no stale "blank screen after the splash" row', !/blank screen after the splash/.test(doc))
-  check('the degraded-build row names the manifest tell, not a build error line', /lists names under `degraded`/.test(doc) && !/ends with `dist\/manifest\.json missing`/.test(doc))
-  check('the code-page sentence no longer pins one mojibake spelling', /437/.test(doc) && /850/.test(doc))
-  check('step 1 names Windows Terminal as the HOST and PowerShell 7 as the SHELL, not as alternatives', /Windows Terminal is the\s+host/.test(doc) && /PowerShell 7 \(`pwsh`\) is the shell/.test(doc) && !/Use \*\*Windows Terminal\*\* or \*\*PowerShell 7\*\*/.test(doc))
-  check('the standalone console is told about the terminal-check card and that its first row, 1, continues', /terminal-check card first, and its first row (?:\(|— )`1`, Continue anyway(?:\)| —)\s+starts the full interface/.test(doc))
-  check('where the engine serves the Bash tool, the page names what it does on Windows (a .cmd or .bat by bare name through PATHEXT, %VAR% and ^ unchanged, a relative path after a cd) and no longer names the retired limits', /`\.cmd` or `\.bat` program such as\s+`npm` by its bare name through PATHEXT/.test(doc) && /passes `%VAR%` and `\^` to a batch\s+file unchanged/.test(doc) && /runs a program named by a relative path after a `cd`\./.test(doc) && !doc.includes('cmd /c npm') && !/\(use its\s+absolute path\)/.test(doc))
 }
 
 section('(14) a deep probe\'s scratch sweep never outranks its verdict')

@@ -13,6 +13,7 @@ type RefusalWorld = ReadWorld & {
   startingFolder: string | undefined
   resolvePath: ((path: string) => ResolvedPath) | undefined
   toolName: string
+  standing?: ReadonlyMap<ReadCommand, string>
 }
 
 type Hit = { ward: string; at: number; excerpt: string; line: number; unread?: string }
@@ -203,7 +204,7 @@ function windowsSegments(path: string): { share: boolean; segments: string[]; co
 
 function windowsRoot(path: string, world: RefusalWorld): string | null {
   const { share, segments } = windowsSegments(path)
-  if (share) return segments.length === 2 ? path : null
+  if (share) return segments.length === 2 || (segments.length < 2 && world.platform === 'win32') ? path : null
   const home = world.windowsHome === undefined ? undefined : windowsPath(world.windowsHome, world)
   if (segments.length === 0) return path
   if (home !== undefined && `${path.slice(0, 2)}/${segments.join('/')}` === home) return path
@@ -222,6 +223,11 @@ function rootNamed(word: string, command: ReadCommand, world: RefusalWorld, anyw
     const path = windowsPath(word, world)
     if (path !== undefined) return windowsRoot(path, world)
     if (world.platform !== 'win32') return null
+  }
+  const stands = world.standing?.get(command)
+  if (stands !== undefined && wordKnown(word) && !/^[\\/~%]/.test(word)) {
+    const path = windowsPath(`${stands}/${word}`, world)
+    if (path !== undefined) return windowsRoot(path, world)
   }
   const path = posixPath(command.dialect === 'powershell' ? word.replace(/\\/g, '/') : word, command.cwd, world)
   return path === undefined ? null : protectedRoot(path, world)
@@ -711,8 +717,9 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
           if (!sharesEarlier(lister, command)) continue
           const listing = layered[earlier]!.find(listed => LISTERS.has(listed.program) || listed.program === 'find')
           if (listing === undefined) continue
-          const listed = listing.program === 'find' ? (listing.findRoots ?? []) : operandsOf(listing.argv)
           const deep = removal.recursive || listing.argv.some(word => RECURSE_PARAMETER.test(word) || (POSIX_RM_CLUSTER.test(word) && word.includes('R')))
+          const named = listing.program === 'find' ? (listing.findRoots ?? []) : operandsOf(listing.argv)
+          const listed = deep && listing.program !== 'find' && named.length === 0 ? ['.'] : named
           if (deep && listing.program !== 'find' && listed.some(word => rootNamed(word, lister, world, true) !== null)) hit('no-root-recursive-delete', at)
           if (listed.some(word => otherUserNamed(word, lister, world))) hit('no-other-user-delete', at)
         }
@@ -768,6 +775,31 @@ function worldOf(pending: PendingToolCall, cwd: string): RefusalWorld {
   }
 }
 
+async function windowsStanding(text: string, dialect: ReadCommand['dialect'], world: RefusalWorld, cwd: string, read: ShellRead): Promise<ReadonlyMap<ReadCommand, string> | undefined> {
+  if (world.platform !== 'win32' || !read.commands.some(command => layersOf(command.argv).some(layer => DELETE_PROGRAMS.has(layer.program) || layer.program === 'find' || layer.program === 'rsync'))) return undefined
+  const folderOf = (word: string): string | undefined => (word.includes(UNREAD_PART) ? undefined : windowsPath(word, world))
+  const home = world.windowsHome === undefined ? undefined : folderOf(world.windowsHome)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const again = await Promise.race([
+      readShellCommands(text, dialect, { cwd: folderOf(cwd), home, homesRoot: home === undefined ? world.homesRoot : posix.dirname(home), ownNames: world.ownNames, folderOf }),
+      new Promise<undefined>(resolve => (timer = startTimeout(resolve, READ_DEADLINE_MS, undefined))),
+    ])
+    if (again === undefined || again.commands.length !== read.commands.length) return undefined
+    const standing = new Map<ReadCommand, string>()
+    read.commands.forEach((command, at) => {
+      const folder = again.commands[at]!.cwd
+      if (folder !== undefined && /^(?:[a-z]:|\/\/)/.test(folder)) standing.set(command, folder)
+    })
+    return standing
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  } finally {
+    stopTimeout(timer)
+  }
+}
+
 export async function refusalOfShellCommand(pending: PendingToolCall, cwd: string, work?: WardWork): Promise<WardVerdict> {
   const text = pending.shellCommand ?? ''
   const dialect = pending.toolName === 'PowerShell' ? 'powershell' : 'posix'
@@ -781,6 +813,7 @@ export async function refusalOfShellCommand(pending: PendingToolCall, cwd: strin
   } finally {
     stopTimeout(timer)
   }
+  if (read !== undefined) world.standing = await windowsStanding(text, dialect, world, cwd, read)
   try {
     const unread = read === undefined ? { why: 'the shell parser did not answer in time', text } : read.unread
     const textReading = (part: string): WardVerdict => evaluateWards(REFUSAL_WARDS, { ...pending, shellCommand: part }, work)

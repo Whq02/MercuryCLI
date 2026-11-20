@@ -111,8 +111,8 @@ function guardKeyFileMode(path: string): void {
   try {
     stats = statSync(path)
   } catch (e) {
-    if (isENOENT(e)) return
-    throw new Error(`[identity] the operator identity key at ${path} was read, but its mode could not be checked (${getErrnoCode(e) ?? errorMessage(e)}), so it may be readable by other users — make it readable to you, run: chmod 600 ${path}, and start again`)
+    if (!isENOENT(e)) logError(new Error(`[identity] the mode of the operator identity key at ${path} could not be checked (${getErrnoCode(e) ?? errorMessage(e)}), so the key is used as it was read`))
+    return
   }
   const mode = stats.mode & 0o777
   if ((mode & 0o077) === 0) return

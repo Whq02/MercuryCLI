@@ -198,10 +198,9 @@ section('§8 posture: read-only, concurrency-safe, permission-free, no parameter
 
 section('§9 every roster that counts tools by name carries it')
 {
-  const censusPath = join(ROOT, 'scripts/builtin-tools/fixtures/tool-census.json')
-  const census = existsSync(censusPath) ? (JSON.parse(readFileSync(censusPath, 'utf8')) as { rows: Array<{ name: string; declared: unknown; proof: string | null }> }) : null
-  const row = census?.rows.find(entry => entry.name === TOOL_NAME)
-  check('the committed census anchor rows the tool (regenerated in the same change)', row !== undefined, 'run bun scripts/builtin-tools/census-gen.ts')
+  const { toolCensus } = await import('../builtin-tools/census-gen.ts')
+  const row = toolCensus().anchor.rows.find(entry => entry.name === TOOL_NAME)
+  check('the live census rows the tool', row !== undefined)
   check('the census row carries the declared contract and this proof', row?.declared !== null && row?.proof === 'scripts/tools/prove-context-left-tool.ts', JSON.stringify(row))
   check('the glyph registry gives it a family', TOOL_FAMILY_BY_NAME[TOOL_NAME] !== undefined, JSON.stringify(TOOL_FAMILY_BY_NAME[TOOL_NAME]))
   check('no agent is barred from it — a background sub-agent asks about its own window through the one filter', !ALL_AGENT_DISALLOWED_TOOLS.has(TOOL_NAME))

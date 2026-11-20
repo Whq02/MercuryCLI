@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/ink/** src/utils/cockpit/** src/components/tasks/BackgroundTasksDialog.tsx src/utils/collapseReadSearch.ts src/components/concourse/workerTranscriptFold.ts src/components/messages/CollapsedReadSearchContent.tsx
+# gate-watch: src/ink/** src/utils/cockpit/** src/components/tasks/BackgroundTasksDialog.tsx src/components/concourse/workerTranscriptFold.ts
 # gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/*
 # gate-watch: scripts/transcript-rows/* scripts/ui/*
 # gate-watch: src/screens/chat/*

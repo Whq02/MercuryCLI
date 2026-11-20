@@ -1,23 +1,8 @@
-#!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { codeOnlyLines } from '../lib/codeText.ts'
 
-const argValue = (name: string): string | undefined => {
-  const at = process.argv.indexOf(name)
-  return at >= 0 ? process.argv[at + 1] : undefined
-}
-const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
-const SRC = join(ROOT, 'src')
-const ROW = {
-  assets: 'scripts/consistency-census/lockup-census.json',
-  generator: 'bun scripts/consistency-census/gen-lockup-census.ts',
-  check: 'bun scripts/consistency-census/prove-lockup-census.ts',
-  sources: 'src/**/*.tsx scripts/consistency-census/gen-lockup-census.ts scripts/lib/codeText.ts',
-}
-if (registerOnlyRequested(ROW)) process.exit(0)
-const REGISTERS = argValue('--root') === undefined && argValue('--out') === undefined
+const DEFAULT_ROOT = join(import.meta.dir, '..', '..')
 
 interface Site {
   file: string
@@ -25,34 +10,7 @@ interface Site {
   excerpt: string
 }
 
-const sites: Site[] = []
-const walk = (dir: string): void => {
-  for (const name of [...readdirSync(dir)].sort()) {
-    const full = join(dir, name)
-    if (statSync(full).isDirectory()) {
-      if (name === 'node_modules') continue
-      walk(full)
-      continue
-    }
-    if (!name.endsWith('.tsx')) continue
-    const rel = relative(ROOT, full)
-    const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
-    for (const text of lines) {
-      const push = (kind: Site['kind']): void => {
-        sites.push({ file: rel, kind, excerpt: text.trim().slice(0, 160) })
-      }
-      if (/<Crab\b/.test(text)) push('crab')
-      if (/<Wordmark\b/.test(text)) push('wordmark')
-      if (/<SessionMark\b/.test(text)) push('session-mark')
-      if (/color=\{[A-Z_]+\}[^<]*>\s*Mercury\b/.test(text) || /Mercury<\/Text>/.test(text) && /color=/.test(text)) {
-        push('accent-mercury-text')
-      }
-    }
-  }
-}
-walk(SRC)
-
-const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
+export const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
   'src/components/mercury-ui/components.tsx': {
     role: 'product-identity-header',
     why: 'CommandCenter — THE shared crab+wordmark lockup owner',
@@ -119,23 +77,44 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
   },
 }
 
-const census = sites.map(s => {
-  const entry = ROLE_BY_FILE[s.file]
-  return {
-    ...s,
-    role: entry?.role ?? 'UNCLASSIFIED',
-    why: entry?.why ?? 'no classification — the UN-24 ratchet fails on this',
+export function lockupCensus(root = DEFAULT_ROOT): {
+  sites: Array<Site & { role: string; why: string }>
+} {
+  const sites: Site[] = []
+  const walk = (dir: string): void => {
+    for (const name of [...readdirSync(dir)].sort()) {
+      const full = join(dir, name)
+      if (statSync(full).isDirectory()) {
+        if (name === 'node_modules') continue
+        walk(full)
+        continue
+      }
+      if (!name.endsWith('.tsx')) continue
+      const rel = relative(root, full)
+      const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
+      for (const text of lines) {
+        const push = (kind: Site['kind']): void => {
+          sites.push({ file: rel, kind, excerpt: text.trim().slice(0, 160) })
+        }
+        if (/<Crab\b/.test(text)) push('crab')
+        if (/<Wordmark\b/.test(text)) push('wordmark')
+        if (/<SessionMark\b/.test(text)) push('session-mark')
+        if (/color=\{[A-Z_]+\}[^<]*>\s*Mercury\b/.test(text) || (/Mercury<\/Text>/.test(text) && /color=/.test(text))) {
+          push('accent-mercury-text')
+        }
+      }
+    }
   }
-})
-
-const out = {
-  generatedBy: 'scripts/consistency-census/gen-lockup-census.ts',
-  note: 'GENERATED — regenerate, never hand-edit. The UN-24 ratchet prover fails on UNCLASSIFIED rows.',
-  sites: census,
+  const srcDir = join(root, 'src')
+  if (existsSync(srcDir)) walk(srcDir)
+  return {
+    sites: sites.map(s => {
+      const entry = ROLE_BY_FILE[s.file]
+      return {
+        ...s,
+        role: entry?.role ?? 'UNCLASSIFIED',
+        why: entry?.why ?? 'no classification — the UN-24 ratchet fails on this',
+      }
+    }),
+  }
 }
-const outPath = argValue('--out') ?? join(ROOT, 'scripts', 'consistency-census', 'lockup-census.json')
-writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')
-if (REGISTERS) registerGeneratedAsset(ROW)
-const unclassified = census.filter(s => s.role === 'UNCLASSIFIED')
-console.log(`lockup census: ${census.length} site(s) across ${new Set(census.map(s => s.file)).size} file(s); ${unclassified.length} unclassified`)
-for (const u of unclassified) console.log(`  UNCLASSIFIED ${u.file} (${u.kind}) ${u.excerpt}`)

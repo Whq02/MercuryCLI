@@ -31,7 +31,8 @@ function providerAnswerNote(output: Output): string | null {
   const answer = output.results.filter((entry): entry is string => typeof entry === 'string').map(entry => entry.trim()).filter(entry => entry !== '').join('\n')
   if (answer === '') return null
   const shown = answer.length > PROVIDER_ANSWER_MAX_CHARS ? `${answer.slice(0, PROVIDER_ANSWER_MAX_CHARS - 1)}…` : answer
-  return `${searchBackendLabel(output.via as never)} answer, the provider's own words, unverified${answer.length > PROVIDER_ANSWER_MAX_CHARS ? ` (cut at ${PROVIDER_ANSWER_MAX_CHARS.toLocaleString('en-US')} characters)` : ''}: ${shown}`
+  const label = output.via !== undefined ? searchBackendLabel(output.via) : undefined
+  return `${label} answer, the provider's own words, unverified${answer.length > PROVIDER_ANSWER_MAX_CHARS ? ` (cut at ${PROVIDER_ANSWER_MAX_CHARS.toLocaleString('en-US')} characters)` : ''}: ${shown}`
 }
 
 export function mapSearchResult(output: Output, toolUseID: string) {

@@ -1,27 +1,19 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/cli/run* src/utils/process.ts src/utils/crashReport* src/ink/components/ErrorOverview* src/ink/components/App.tsx src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
+# gate-watch: src/cli/run* src/utils/process.ts src/ink/components/ErrorOverview* src/ink/components/App.tsx src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
 # gate-watch: scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
-# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStoragePortable.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/seedTranscript.ts
+# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/seedTranscript.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
-
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/terminal-boundary"
 fail=0
 echo "############################################################"
 echo "# terminal-boundary — presentation boundary + machine-output contracts"
 echo "############################################################"
-shopt -s nullglob
-claimed=$(cd "$here/../.." && members_cat scripts/terminal-boundary-*/members.txt)
-for proof in "$here"/prove-*.ts; do
-  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
-  echo
-  echo "── $(basename "$proof") ──"
-  __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
-done
+drive_members terminal-boundary 'scripts/terminal-boundary/$name' "$here/members.txt" || fail=1
 if [[ "$fail" == "0" ]]; then echo "✅ terminal-boundary suite GREEN"; exit 0; else
   echo "❌ terminal-boundary suite RED"; exit 1; fi

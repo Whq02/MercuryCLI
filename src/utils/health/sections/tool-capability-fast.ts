@@ -44,7 +44,7 @@ export function toolCapabilityFastChecks(): CheckSpec[] {
             (reasonless.length > 0 ? ` · NO REASON DECLARED: ${reasonless.join(', ')}` : ''),
           ...(detail.length > 0 ? { detail } : {}),
           ...(undeclared.length + s.unclassified.length + reasonless.length > 0
-            ? { fix: 'Declare the tool’s capability contract (gate/conditions for a gated tool), then re-run `bun run scripts/builtin-tools/census-gen.ts`.' }
+            ? { fix: 'Declare the tool’s capability contract (gate/conditions for a gated tool).' }
             : {}),
         }
       },

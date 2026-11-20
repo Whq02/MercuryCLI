@@ -17,8 +17,8 @@ import {
 } from '../openaiCatalogue.js'
 import { type EffortAdjustedV1 } from '../../../../utils/effort.js'
 import { retrySeconds } from '../../../api/recoveryBudget.js'
-import { type ReconnectLadder } from '../../../api/reconnectLadder.js'
-import { takesBusyLadder, type BusyRetryLadder } from '../../busyRetry.js'
+import type { TurnRetries } from '../../../api/withRetry.js'
+import { takesBusyLadder } from '../../busyRetry.js'
 import { emptyStreamSpentWords } from '../../emptyStreamRetry.js'
 import {
   openaiEffortWireFact,
@@ -59,10 +59,7 @@ export type OpenaiTurn = {
   effortAdjusted: EffortAdjustedV1 | undefined
   request: OpenaiResponsesRequest
   recovery: 'retried' | 'no-new-credential' | undefined
-  busy: { ladder: BusyRetryLadder; fault: OpenaiFault } | undefined
-  reconnect: ReconnectLadder | undefined
-  emptyEnds: number
-  emptyEnd: boolean
+  retries: TurnRetries<OpenaiFault>
 }
 
 export type AttemptFaultOutcome = Extract<AttemptOutcome, { kind: 'fault' }>
@@ -84,7 +81,7 @@ export function withEffort(turn: OpenaiTurn, message: AssistantMessage): Assista
 }
 
 export function busyPrefix(turn: OpenaiTurn, line: string, fault: OpenaiFault, typed: string): string {
-  const { busy, emptyEnd, turnStartedAtMs } = turn
+  const { retries: { busy, emptyEnd }, turnStartedAtMs } = turn
   return busy !== undefined && takesBusyLadder(fault, typed)
     ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
     : emptyEnd

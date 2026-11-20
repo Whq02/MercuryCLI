@@ -274,7 +274,7 @@ sys.exit(0 if ok and inside and pok else 1)
 PY
 
 rm -rf "$work/suites"
-mk_suite hopeless '# gate-class: pty' "echo run >>'$work/hopeless.count'; echo genuinely-broken >&2; echo '[FAIL] the leg'; echo '── scripts/hopeless/prove-h.ts  2s'; exit 5"
+mk_suite hopeless '# gate-class: pty' "echo run >>'$work/hopeless.count'; echo genuinely-broken >&2; echo '[FAIL] the leg'; echo '── scripts/hopeless/prove-h.ts  2s'; echo '── scripts/hopeless/prove-pair.ts (second)  1s rc=5'; exit 5"
 mk_suite steady '# gate-class: pure' 'sleep 3; exit 0'
 out4=$(gate "$work/verdict4.json"); rc4=$?
 runs4=$(wc -l <"$work/hopeless.count" 2>/dev/null | tr -d ' ')
@@ -306,8 +306,8 @@ sok = (len(solo) == 1 and solo[0]['kind'] == 'retry-solo' and solo[0]['lane'] ==
 print(f"  ✓ solo law: the after-drain re-run started at +{solo[0]['startS']}s ≥ pool end {pool_end}s, alone" if sok
       else f"  ✗ solo law: {solo} pool_end={pool_end} retries={t['retries']}")
 prov = t['topProvers']
-pok = len(prov) == 1 and prov[0] == {'suite': 'hopeless', 'attempt': 1, 'prover': 'prove-h.ts', 'secs': 2}
-print("  ✓ prover attribution: the repo-relative path form `── scripts/hopeless/prove-h.ts  2s` is recorded as hopeless/prove-h.ts" if pok
+pok = len(prov) == 2 and prov[0] == {'suite': 'hopeless', 'attempt': 1, 'prover': 'prove-h.ts', 'secs': 2} and prov[1] == {'suite': 'hopeless', 'attempt': 1, 'prover': 'prove-pair.ts (second)', 'secs': 1, 'exitCode': 5}
+print("  ✓ prover attribution: the repo-relative path form `── scripts/hopeless/prove-h.ts  2s` is recorded as hopeless/prove-h.ts, and one of a file's two rows keeps what tells them apart" if pok
       else f"  ✗ prover attribution (path form) wrong: {prov}")
 sys.exit(0 if ok and sok and pok else 1)
 PY
@@ -561,6 +561,16 @@ if [ -z "$unseeded" ]; then
   echo "  ✓ seed: every real suite has a duration row in scripts/gate/duration-seed.tsv"
 else
   echo "  ✗ seed: suite(s) without a duration row:$unseeded"; fail=1
+fi
+seed_sum=$(cksum <"$repo/scripts/gate/duration-seed.tsv")
+if python3 "$repo/scripts/gate/reseed-durations.py" gate=999999 zz-unlisted=9 --out "$work/own-seed.tsv" >"$work/own-seed.log" 2>&1 \
+   && [ "$(cksum <"$repo/scripts/gate/duration-seed.tsv")" = "$seed_sum" ] \
+   && grep -q '^gate	999999$' "$work/own-seed.tsv" && grep -q '^zz-unlisted	9$' "$work/own-seed.tsv" \
+   && [ "$(grep -v '^gate	' "$repo/scripts/gate/duration-seed.tsv")" = "$(grep -v -e '^gate	' -e '^zz-unlisted	' "$work/own-seed.tsv")" ] \
+   && [ "$(cd "$repo" && MERCURY_CI_SHARD_SEED_FILE="$work/own-seed.tsv" bash scripts/gate/ci-shard.sh 0 1 --class release --plan-only 2>/dev/null | head -1)" = gate ]; then
+  echo "  ✓ seed --out: measured seconds go to a file of their own, a suite the tree's file does not know gets a row there, the tree's file is untouched, and the planner puts the longest suite of that file first through MERCURY_CI_SHARD_SEED_FILE"
+else
+  echo "  ✗ seed --out: $(tail -1 "$work/own-seed.log" 2>/dev/null)"; fail=1
 fi
 gate_yml="$repo/.github/workflows/gate.yml"; drives_yml="$repo/.github/workflows/drives.yml"
 rel_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class release' "$gate_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)

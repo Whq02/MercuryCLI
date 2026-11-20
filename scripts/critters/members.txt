@@ -1,0 +1,16 @@
+prove-critter-persist.ts
+prove-sprite-symmetry.ts
+prove-click-cycle.ts
+prove-persistent-hero.ts
+prove-critter-gaze.ts
+prove-critter-look-census.ts
+prove-accent-epoch.ts
+prove-accent-snapshot.ts
+prove-critter-sleep.ts
+prove-critter-frame-cache.ts
+prove-ghost-wipe.ts
+prove-critter-four-eyes.ts
+prove-critter-eye-ground.ts
+prove-square-berths.ts
+prove-small-critter-estate.ts
+prove-no-large-art.ts

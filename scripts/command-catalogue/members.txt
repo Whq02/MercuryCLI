@@ -1,0 +1,13 @@
+prove-effective-catalogue.ts
+prove-no-literal-disabled-branches.ts
+prove-command-privacy.ts
+prove-surface-truth.ts
+prove-feedback-encoding.ts
+prove-readme-roster.ts
+prove-unavailable-honesty.ts
+prove-builtins-unshadowable.ts
+prove-swarm-channel-completion.ts
+prove-settings-popup-commands.ts
+prove-export-json.ts
+prove-export-masking.ts
+prove-merged-verbs.ts

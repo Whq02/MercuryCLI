@@ -2,6 +2,7 @@ import { z } from 'zod/v4'
 import type { MercuryRecord } from './record.js'
 import { SCHEMA_VERSION } from './record.js'
 import { isOrdinal } from './ordinal.js'
+import type { Attachment } from '../utils/attachments/types.js'
 
 const ordinal = z.string().refine(isOrdinal, 'canonical decimal-string ordinal')
 
@@ -223,7 +224,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   bagel_console: z.looseObject({ errorCount: z.number(), warningCount: z.number(), sample: z.string() }),
   user_context: z.looseObject({ body: z.string() }),
   compact_operator_messages: z.looseObject({ messages: z.array(z.looseObject({ ordinal: z.number(), text: z.string() })), omitted: z.number() }),
-}
+} satisfies Record<Attachment['type'], z.ZodType>
 
 const NOTICE_BODY_SHAPES: Record<string, z.ZodType> = {
   memory_saved: z.looseObject({ writtenPaths: z.array(z.string()) }),

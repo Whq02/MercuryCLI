@@ -10,7 +10,7 @@ const root = scratchRoot('attention-visibility')
 process.env.MERCURY_CREW_DIR = join(root, 'crew')
 
 const obl = await import('../../src/services/crew/obligations.js')
-await import('../../src/services/crew/obligationsBridge.js')
+;(await import('../../src/services/crew/obligationsBridge.js')).registerObligationsAttentionGatherer()
 const store = await import('../../src/services/attention/store.js')
 
 const unsub = store.subscribeAttentionStore(() => {})

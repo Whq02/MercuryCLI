@@ -4,26 +4,21 @@
 # gate-watch: src/components/prompts-panel/**
 # gate-watch: src/components/MessageSelector.tsx src/utils/messages/noticeRows.ts
 # gate-watch: src/ink.ts src/components/App.tsx src/state/AppStateStore.ts src/keybindings/KeybindingProviderSetup.tsx src/utils/staticRender.tsx
-# gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts src/fabric/entryCodec.ts
+# gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/messages.ts src/utils/config.ts src/types/message.ts
 # gate-watch: src/hooks/useSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/ui/gridToPng.ts
-# gate-watch: src/daemon/concourseWorkers.ts src/daemon/controlSocket.ts src/daemon/warmRunner.ts src/utils/sessionStorage/paths.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "$0")" && pwd)"
-BUN="${BUN:-$HOME/.bun/bin/bun}"
-cd "$here/../.." || exit 1
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/prompts-panel"
 fail=0
 echo "############################################################"
 echo "# PROMPTS PANEL — records · saved prompts"
 echo "############################################################"
-for f in prove-prompt-rows prove-saved-prompts-store; do
-  echo "── scripts/prompts-panel/$f.ts"
-  __t=$SECONDS; __rc=0; "$BUN" run "$here/$f.ts" || { __rc=$?; fail=1; }; prover_mark "$here/$f.ts" "$__t" "$__rc"
-done
+drive_members prompts-panel 'scripts/prompts-panel/$name' "$here/members.txt" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ PROMPTS PANEL PASS"; else echo "# ❌ PROMPTS PANEL FAILED"; fi
 echo "############################################################"

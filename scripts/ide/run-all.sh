@@ -7,24 +7,19 @@
 # gate-watch: src/services/vulcan/vulcanClient*
 # gate-watch: src/tools/TestTool/* src/tools/ToolSearchTool/* src/utils/**
 # gate-watch: scripts/vendor/*
-# gate-watch: src/tools/TransactionTool/* src/services/changeTransaction/contracts.ts
+# gate-watch: src/services/changeTransaction/contracts.ts
 # gate-watch: src/tools/NotebookEditTool/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "$0")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/ide"
 fail=0
 echo "############################################################"
 echo "# ide — proof harness"
 echo "############################################################"
-shopt -s nullglob
-for proof in "$here"/prove-*.ts; do
-  echo
-  echo ">>> $(basename "$proof")"
-  __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
-done
+drive_members ide 'scripts/ide/$name' "$here/members.txt" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL IDE PROOFS PASS"; else echo "# ❌ SOME IDE PROOFS FAILED"; fi
 echo "############################################################"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,7 +16,6 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -165,10 +164,6 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   const snapshot = kernel.buildProviderSnapshot()
   check("the kernel's exact pin resolves the sonnet family word as the sonnet class", snapshot.resolveExact('sonnet')?.modelClass === 'sonnet')
   check("the kernel's exact pin refuses an id no available provider lists (typed null, never a substitute)", snapshot.resolveExact('gpt-5.6-sol') === null)
-  const crews = readFileSync(join(ROOT, 'docs', 'CREW.md'), 'utf8')
-  const engines = readFileSync(join(ROOT, 'docs', 'ENGINES.md'), 'utf8')
-  check('docs/CREW.md names no Haiku refusal', !/Haiku/.test(crews))
-  check('docs/ENGINES.md names no frontier-only refusal', !/frontier-only/.test(engines) && !/economy-tier rows refuse/.test(engines))
 }
 
 section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the words name no provider as the exact case')

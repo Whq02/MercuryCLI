@@ -4,17 +4,15 @@
 # gate-watch: flake.nix flake.lock nix/** docs/NIX.md
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-. "$(dirname "$0")/../lib/proof-runner.sh"
-here="$(cd "$(dirname "$0")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
+
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/release"
 fail=0
 echo "############################################################"
 echo "# release — the release job on a machine of our own"
 echo "############################################################"
-for prover in "$here"/prove-*.ts; do
-  [ -e "$prover" ] || continue
-  run_proof "$prover" "$bun" run "$prover" || fail=1
-done
+drive_members release 'scripts/release/$name' "$here/members.txt" || fail=1
 if [ "$fail" -ne 0 ]; then
   echo "release suite: RED"
   exit 1
