@@ -48,7 +48,7 @@ try {
   const foreign = project('foreign', 'another-app', false)
   const untracked = project('untracked-react', 'another-app', false, false)
   const mirror = join(scratch, 'mercury-link')
-  symlinkSync(root, mirror, 'dir')
+  symlinkSync(root, mirror, process.platform === 'win32' ? 'junction' : 'dir')
   const color = 'export const color = "#fff"\n'
   const emoji = `export const icon = "${String.fromCodePoint(0x1f389)}"\n`
   for (const mode of ['default', 'implement', 'sovereign']) {
@@ -105,7 +105,7 @@ try {
     try {
       const child = spawn('node', [join(root, 'dist', 'mercury.mjs'), 'run', '--format', 'rows', ...(mode === 'sovereign' ? ['--sovereign'] : ['--mode', mode]), '--allowed-tools', 'Write', '--', 'write the fixture components'], {
         cwd: userTree, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
-        env: { HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url },
+        env: { ...(process.platform === 'win32' ? { USERPROFILE: home, SystemRoot: process.env.SystemRoot, SYSTEMROOT: process.env.SYSTEMROOT, ComSpec: process.env.ComSpec, COMSPEC: process.env.COMSPEC, TEMP: tmpdir(), TMP: tmpdir() } : {}), HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url },
       })
       let output = ''
       let errors = ''
