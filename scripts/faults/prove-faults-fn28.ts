@@ -210,8 +210,8 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nastPatterns/search: unreadable files are recorded in parseFailures instead of skipped silently')
-  const { searchAstPattern } = await import('../../src/utils/astPatterns/search.ts')
-  const { resolveAstScope, isAstRefusal } = await import('../../src/utils/astPatterns/scope.ts')
+  const { searchAstPattern } = await import('../../src/services/structure/astPatterns/search.ts')
+  const { resolveAstScope, isAstRefusal } = await import('../../src/services/structure/astPatterns/scope.ts')
   const astDir = join(SCRATCH, 'ast-proj')
   mkdirSync(astDir, { recursive: true })
   const secretFile = join(astDir, 'secret.ts')

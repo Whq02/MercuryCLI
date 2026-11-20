@@ -1,10 +1,10 @@
 import { readFileSync, statSync } from 'node:fs'
-import { loadGrammarEngine, parsePolyglot, type ParseErrorRegion, type TSNode } from '../../services/structure/grammarFacility.js'
-import { encodePattern, findPatternMatches, type CaptureSpan, type CompiledPattern } from '../../services/structure/pattern.js'
-import { compileFor, type PatternRefusal } from '../../services/structure/polyglotQuery.js'
+import { loadGrammarEngine, parsePolyglot, type ParseErrorRegion, type TSNode } from '../grammarFacility.js'
+import { encodePattern, findPatternMatches, type CaptureSpan, type CompiledPattern } from '../pattern.js'
+import { compileFor, type PatternRefusal } from '../polyglotQuery.js'
 import { AST_BOUNDS, PATTERN_GRAMMAR_LINES, PATTERN_EXAMPLES, LANGUAGE_PATTERN_EXAMPLES } from './languages.js'
 import type { AstScope, AstRefusal } from './scope.js'
-import { passedOver } from '../passedOver.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export interface AstCapture {
   key: string

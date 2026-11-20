@@ -11,7 +11,7 @@ const { engineDir, packPresent } = armEnvironment()
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
 const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
 const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
-const { astLanguageNames } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { astLanguageNames } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-search-'))
 writeLanguageFixtures(root)
@@ -203,7 +203,7 @@ section('§12 — the lang field counts only the grammars the build carries')
   const PROBE = `
 const { getAstSearchDescription, astLanguageField } = await import(${JSON.stringify(join(REPO, 'src/tools/AstSearchTool/prompt.ts'))})
 const { getAstEditDescription } = await import(${JSON.stringify(join(REPO, 'src/tools/AstEditTool/prompt.ts'))})
-const { astLanguageNames, resolveAstScope, searchAstPattern, renderSearchTrailer, isAstRefusal } = await import(${JSON.stringify(join(REPO, 'src/utils/astPatterns.ts'))})
+const { astLanguageNames, resolveAstScope, searchAstPattern, renderSearchTrailer, isAstRefusal } = await import(${JSON.stringify(join(REPO, 'src/services/structure/astPatterns.ts'))})
 const root = ${JSON.stringify(probeRoot)}
 const scope = resolveAstScope({ cwd: root, path: root })
 const search = isAstRefusal(scope) ? scope : await searchAstPattern(scope, { pattern: 'print($X)' })
@@ -274,7 +274,7 @@ if (!['markdown', 'yaml'].every(n => (astLanguageNames() as string[]).includes(n
 
 section('§14 — a pattern accepted by a skipped file is not refused by the languages beside it')
 {
-  const { AST_BOUNDS, isAstRefusal, resolveAstScope, searchAstPattern, patternRefusedEverywhere } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+  const { AST_BOUNDS, isAstRefusal, resolveAstScope, searchAstPattern, patternRefusedEverywhere } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
   const dir = join(root, 'size-and-pattern')
   mkdirSync(dir)
   writeFileSync(join(dir, 'a.css'), 'p { color: red; }\n')

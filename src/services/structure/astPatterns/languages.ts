@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { languageByName, POLYGLOT_LANGUAGES, resolveGrammarEngineDir, type PolyglotLanguage } from '../../services/structure/grammarFacility.js'
+import { languageByName, POLYGLOT_LANGUAGES, resolveGrammarEngineDir, type PolyglotLanguage } from '../grammarFacility.js'
 import * as path from 'node:path'
 
 export const AST_BOUNDS = {
