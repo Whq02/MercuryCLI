@@ -18,7 +18,8 @@ import { REMOTE_FILE_NOT_FOUND } from '../../services/remoteFiles/target.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isPathInside } from '../../utils/pathPrefix.js'
 import { plural } from '../../utils/stringUtils.js'
-import { resultResolvedNames, type Input, type Output } from './FileReadTool.js'
+import type { Input, Output } from './FileReadTool.js'
+import { resultResolvedNames } from './read/results.js'
 import { FILE_READ_TOOL_NAME } from './prompt.js'
 
 
