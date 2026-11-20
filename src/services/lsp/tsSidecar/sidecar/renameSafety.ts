@@ -47,8 +47,11 @@ export function isIdentifierName(ts: TsModule, name: string, target: TS.ScriptTa
   return true
 }
 
-export function reservedWordProblem(ts: TsModule, name: string): string | undefined {
-  const stringToToken = (ts as unknown as { stringToToken?: (s: string) => number | undefined }).stringToToken
+export function reservedWordProblem(
+  ts: { SyntaxKind: TsModule['SyntaxKind']; stringToToken?: (s: string) => number | undefined },
+  name: string,
+): string | undefined {
+  const stringToToken = ts.stringToToken
   if (typeof stringToToken !== 'function') return undefined
   const token = stringToToken(name)
   if (token === undefined) return undefined

@@ -200,7 +200,7 @@ export async function createDocument(input: DocumentInput, io: DocumentIO): Prom
     let imageRow = contentSheet.rowCount + 1
     for (const b of blocks) if (b.kind === 'image') {
       const image = images.get(b.path)!
-      const id = book.addImage({ buffer: image.bytes as unknown as ExcelJS.Buffer, extension: image.type === 'jpg' ? 'jpeg' : 'png' })
+      const id = book.addImage({ buffer: image.bytes, extension: image.type === 'jpg' ? 'jpeg' : 'png' })
       contentSheet.addImage(id, { tl: { col: 0, row: imageRow }, ext: { width: b.width ?? 480, height: b.height ?? 320 } })
       imageRow += Math.ceil((b.height ?? 320) / 20) + 1
     }

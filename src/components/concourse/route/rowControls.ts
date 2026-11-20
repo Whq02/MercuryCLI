@@ -78,7 +78,7 @@ export function interruptSession({ peekOpInFlight, noteControl, mintControlOpId,
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const clientOpId = mintControlOpId(`interrupt:${sessionId}`, `concourse-op-${randomUUID()}`)
       const reply = (await daemonControlRpc(
-        { op: 'concourseControl', action: 'interrupt', sessionId, by: 'operator', clientOpId } as never,
+        { op: 'concourseControl', action: 'interrupt', sessionId, by: 'operator', clientOpId },
         { timeoutMs: 15_000 },
       )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
       if (reply.ok !== true) {
@@ -117,7 +117,7 @@ export function setSessionModel({ peekOpInFlight, noteControl, refresh }: RouteC
     try {
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'concourseControl', action: 'set-model', sessionId, by: 'operator', model: modelId } as never,
+        { op: 'concourseControl', action: 'set-model', sessionId, by: 'operator', model: modelId },
         { timeoutMs: 15_000 },
       )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
       noteControl(
@@ -189,7 +189,7 @@ export function setSessionEffort({ peekOpInFlight, noteControl, refresh }: Route
     try {
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'concourseControl', action: 'set-effort', sessionId, by: 'operator', effort } as never,
+        { op: 'concourseControl', action: 'set-effort', sessionId, by: 'operator', effort },
         { timeoutMs: 15_000 },
       )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
       noteControl(

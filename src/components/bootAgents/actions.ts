@@ -1,10 +1,11 @@
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js';
+import type { AgentSpecFields } from '../../services/agents/contracts.js';
 import { setAgentDisabled, setAgentOverride } from '../../services/agents/overrides.js';
 import { AgentStoreError, deleteAgentToTrash } from '../../services/agents/store.js';
 import { isFileBacked, type StudioRow } from '../agents/studio/studioData.js';
 import type { FieldId } from '../agents/studio/studioEditorModel.js';
 import { AGENT_COLORS } from '../../tools/AgentTool/agentColorManager.js';
-import { EFFORT_LEVELS, resolveEffortTruth } from '../../utils/effort.js';
+import { EFFORT_LEVELS, resolveEffortTruth, type EffortValue } from '../../utils/effort.js';
 import { agentModelPickOutcome, getAgentModelPickerRows } from '../../utils/model/agentModelPicker.js';
 import { bootBirthFacts } from '../../services/switchboard/bootBirthFacts.js';
 import { offeredDefinitionModes } from '../../tools/AgentTool/agentPermissionPosture.js';
@@ -175,9 +176,12 @@ export function clearFormRowOf(ctx: AgentsFaceContext, id: 'destination' | Field
     case 'isolation':
       f.machine.commit({ set: { isolation: undefined } });
       return;
-    default:
-      f.machine.commit({ set: { [id]: undefined } as never });
+    default: {
+      const set: Partial<AgentSpecFields> = {};
+      set[id] = undefined;
+      f.machine.commit({ set });
       return;
+    }
   }
 }
 
@@ -196,7 +200,9 @@ export function formPickRun(ctx: AgentsFaceContext, value: string | null) {
         : current.includes(value)
           ? current.filter(n => n !== value)
           : [...current, value];
-    f.machine.commit({ set: { [field]: next.length === 0 ? undefined : next } as never });
+    const set: Partial<AgentSpecFields> = {};
+    set[field] = next.length === 0 ? undefined : next;
+    f.machine.commit({ set });
     return null;
   }
   const cleared = value === '(clear — use the default)';
@@ -217,10 +223,10 @@ export function formPickRun(ctx: AgentsFaceContext, value: string | null) {
     }
     f.machine.commit({ set: { model: cleared || value === 'inherit' ? undefined : value } });
   } else if (pick.field === 'effort') {
-    f.machine.commit({ set: { effort: cleared ? undefined : (value as never) } });
+    f.machine.commit({ set: { effort: cleared ? undefined : (value as EffortValue) } });
   } else if (pick.field === 'maxTurns') {
   } else {
-    f.machine.commit({ set: { [pick.field]: cleared ? undefined : value } as never });
+    f.machine.commit({ set: { [pick.field]: cleared ? undefined : value } as Partial<AgentSpecFields> });
   }
   setFormPick(null);
   return null;

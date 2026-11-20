@@ -37,7 +37,7 @@ export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
     const parsed = JSON.parse(raw) as { extensions?: { exclusive?: unknown } }
     const value = parsed.extensions?.exclusive
     if (value === undefined) return []
-    const knownSurfaces = [...CUSTOMIZATION_SURFACES]
+    const knownSurfaces: readonly string[] = [...CUSTOMIZATION_SURFACES]
     if (typeof value !== 'boolean' && !Array.isArray(value)) {
       return [
         {
@@ -48,7 +48,7 @@ export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
     }
     if (Array.isArray(value)) {
       const unrecognised = value.filter(
-        entry => typeof entry === 'string' && !knownSurfaces.includes(entry as never),
+        entry => typeof entry === 'string' && !knownSurfaces.includes(entry),
       )
       if (unrecognised.length > 0) {
         return [

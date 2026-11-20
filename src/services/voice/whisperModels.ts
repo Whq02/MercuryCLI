@@ -199,7 +199,7 @@ export async function downloadWhisperModel(
       out.on('close', () => resolveDone())
     })
     try {
-      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+      for await (const chunk of res.body) {
         received += chunk.byteLength
         if (received > row.bytes) throw new Error(`the download of ${row.file} grew past the ${row.bytes} bytes the lock pins — the file changed upstream`)
         hash.update(chunk)
