@@ -9,6 +9,8 @@ import type {
 } from '../../../../types/message.js'
 import type { CallModelParams } from '../../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../../api/errors.js'
+import { openTurnRetries } from '../../../api/withRetry.js'
+import type { OpenaiFault } from '../openaiWire.js'
 import {
   recordPromptState,
 } from '../../../api/promptCacheBreakDetection.js'
@@ -53,7 +55,7 @@ import { OPENAI_IMAGE_LIMITS } from '../../../../constants/apiLimits.js'
 import { resolveTurnEffort, type TurnEffort } from './turnEffort.js'
 import { bridgeFittedMessages } from './bridgeMessages.js'
 import { sendOpenaiGatewayProbe } from './gatewayProbe.js'
-import { apiErrorMessage } from './faults.js'
+import { OPENAI_MAX_ATTEMPTS, apiErrorMessage, openaiRetryDelayMs } from './faults.js'
 import { qualifyRequestedModel } from './qualify.js'
 import type { OpenaiTurn } from './turnState.js'
 
@@ -248,9 +250,15 @@ export function openOpenaiTurn(opening: TurnOpening, prepared: PreparedOpenaiTur
     effortAdjusted,
     request,
     recovery: undefined,
-    busy: undefined,
-    reconnect: undefined,
-    emptyEnds: 0,
-    emptyEnd: false,
+    retries: openTurnRetries<OpenaiFault>({
+      signal,
+      maxAttempts: OPENAI_MAX_ATTEMPTS,
+      backoffMs: openaiRetryDelayMs,
+      provider: 'OpenAI',
+      log: '[openai]',
+      agent: options.agentId !== undefined,
+      singleShot: options.querySource === 'overload_probe',
+      ...(options.onWait !== undefined ? { onWait: options.onWait } : {}),
+    }),
   }
 }
