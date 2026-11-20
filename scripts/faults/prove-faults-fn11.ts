@@ -199,5 +199,62 @@ console.log('\nnativeDriver.keyboardIdleMs — addon throw propagates instead of
   check('nativeDriver.keyboardIdleMs still returns finite idle ms on success', r.numValue === 42, JSON.stringify(r))
 }
 
+console.log('\nkernelManager.recoverEvalKernels — failed reap does not claim already gone or abort journal')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const pgPath = path.join(SRC, 'utils/processGroup.ts')
+    const realPg = await import(pgPath)
+    let mode = 'eperm'
+    mock.module(pgPath, () => ({
+      ...realPg,
+      killProcessGroup: () => {
+        if (mode === 'eperm') throw Object.assign(new Error('Operation not permitted'), { code: 'EPERM' })
+      },
+      endProcessTree: async (target) => {
+        const pid = typeof target === 'number' ? target : target.pid
+        if (mode === 'eperm') throw Object.assign(new Error('Operation not permitted'), { code: 'EPERM' })
+        if (mode === 'survivor') return { ended: 0, survivors: [pid] }
+        return { ended: 0, survivors: [] }
+      },
+    }))
+    const journal = await import(path.join(SRC, 'substrate/operationJournal.ts'))
+    const km = await import(path.join(SRC, 'services/eval/kernelManager.ts'))
+    const dir = km.evalJournalDir()
+    fs.mkdirSync(dir, { recursive: true })
+    const now = new Date().toISOString()
+    const op = {
+      schema: 1,
+      operationId: 'kernel-orphan-1',
+      ownerKey: 'test-owner',
+      kind: 'eval.kernel',
+      idempotencyKey: 'kernel-orphan-1',
+      state: 'applying',
+      steps: [],
+      createdAt: now,
+      updatedAt: now,
+      writerPid: 999999999,
+      payload: { pid: 888888888, language: 'js', interpreter: 'node', cwd: SCRATCH, owner: 'test-owner' },
+    }
+    await journal.republishJournalOperation(dir, op)
+    out.epermNotes = await km.recoverEvalKernels()
+    out.epermState = (await journal.listJournalOperations(dir)).find(o => o.operationId === 'kernel-orphan-1')?.state ?? null
+
+    mode = 'survivor'
+    out.survivorNotes = await km.recoverEvalKernels()
+    out.survivorState = (await journal.listJournalOperations(dir)).find(o => o.operationId === 'kernel-orphan-1')?.state ?? null
+
+    mode = 'gone'
+    out.goneNotes = await km.recoverEvalKernels()
+    out.goneState = (await journal.listJournalOperations(dir)).find(o => o.operationId === 'kernel-orphan-1')?.state ?? null
+  `)
+  const epermNotes = (r.epermNotes as string[]) ?? []
+  const survivorNotes = (r.survivorNotes as string[]) ?? []
+  const goneNotes = (r.goneNotes as string[]) ?? []
+  check('recoverEvalKernels keeps journal applying and does not say already gone on EPERM', r.epermState === 'applying' && epermNotes.length === 1 && !epermNotes[0]!.includes('already gone'), JSON.stringify(r))
+  check('recoverEvalKernels keeps journal applying and does not say already gone when process survives', r.survivorState === 'applying' && survivorNotes.length === 1 && !survivorNotes[0]!.includes('already gone'), JSON.stringify(r))
+  check('recoverEvalKernels marks aborted and says already gone when orphan is actually gone', r.goneState === 'aborted' && goneNotes.length === 1 && goneNotes[0]!.includes('already gone'), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
