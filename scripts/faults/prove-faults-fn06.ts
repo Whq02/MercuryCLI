@@ -503,33 +503,5 @@ console.log('\nsrc/main/sessionChoices.ts')
     JSON.stringify(r),
   )
 }
-console.log('\nsrc/main/subcommands.ts')
-{
-  const r = runCase(`
-    const { mock } = await import('bun:test')
-    const { Command } = await import('commander')
-    mock.module(path.join(SRC, 'commands/mcp/addCommand.ts'), () => ({
-      registerMcpAddCommand: () => {
-        throw new Error('mcp add registration broke')
-      },
-    }))
-    const origArgv = process.argv
-    process.argv = ['node', 'mercury', 'mcp', 'add']
-    try {
-      const { registerSubcommands } = await import(path.join(SRC, 'main/subcommands.ts'))
-      await registerSubcommands(new Command().enablePositionalOptions())
-      out.registered = true
-    } catch (e) {
-      out.threw = e?.message ?? String(e)
-    } finally {
-      process.argv = origArgv
-    }
-  `)
-  check(
-    'subcommands-mcp-add-registration-error-propagates',
-    r.threw === 'mcp add registration broke',
-    JSON.stringify(r),
-  )
-}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

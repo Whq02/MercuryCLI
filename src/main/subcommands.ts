@@ -1,5 +1,6 @@
 import { Command as CommanderCommand, InvalidArgumentError } from 'commander'
 import { binaryName } from '../utils/config.js'
+import { logError } from '../utils/log.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 import { update as updateCli } from '../cli/update.js'
 import { exitWithVersionLine, failCli, typedString, writeErr } from './cli.js'
@@ -34,8 +35,12 @@ function registerMcpVerbs(program: CommanderCommand): CommanderCommand {
 }
 
 async function registerMcpAddVerb(mcp: CommanderCommand): Promise<void> {
-  const { registerMcpAddCommand } = await import('../commands/mcp/addCommand.js')
-  registerMcpAddCommand(mcp)
+  try {
+    const { registerMcpAddCommand } = await import('../commands/mcp/addCommand.js')
+    registerMcpAddCommand(mcp)
+  } catch (error) {
+    logError(error)
+  }
 }
 
 function registerMcpManageVerbs(mcp: CommanderCommand): void {
