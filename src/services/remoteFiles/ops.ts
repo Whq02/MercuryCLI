@@ -79,25 +79,17 @@ function remoteFacts(authority: RemoteAuthority, signal: AbortSignal | undefined
   const key = authorityText(authority)
   return kept(facts, key, authority, async () => {
     const probe = join(tmpdir(), `.mercury-remote-${randomBytes(16).toString('hex')}`)
-    let placed = false
+    writeFileSync(probe, '')
     try {
-      writeFileSync(probe, '')
-      placed = true
-    } catch (error) {
-      passedOver(error)
-    }
-    try {
-      const reply = await remoteRun(authority, { script: `m_facts ${remoteQuote(placed ? probe : '')}`, signal })
+      const reply = await remoteRun(authority, { script: `m_facts ${remoteQuote(probe)}`, signal })
       const [home = '', system = '', here = '0', ripgrep = ''] = reply.stdout.toString('utf8').split('\0')
       if (reply.status !== 0 || !home.startsWith('/')) throw new RemoteFileError('EIO', `${key}: the remote account's home could not be read.`)
       return { home, system, here: here === '1', ripgrep: Number(/^ripgrep (\d+)\./.exec(ripgrep)?.[1] ?? 0) >= 11 }
     } finally {
-      if (placed) {
-        try {
-          unlinkSync(probe)
-        } catch (error) {
-          passedOver(error)
-        }
+      try {
+        unlinkSync(probe)
+      } catch (error) {
+        passedOver(error)
       }
     }
   })
