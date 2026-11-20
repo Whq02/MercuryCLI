@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { isRemotePath, remoteGeneration } from '../../services/remoteFiles/target.js'
+import { isRemotePath, remoteGeneration } from '../../utils/remoteFiles/target.js'
 import { parseMercuryRef } from '../../services/resources/contracts.js'
 import { fileReferenceCandidates } from '../../services/resources/referencePaths.js'
 import { getCwd } from '../../utils/cwd.js'

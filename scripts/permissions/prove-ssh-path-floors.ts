@@ -25,7 +25,7 @@ const { decideToolPermissionWithModes } = await import('../../src/utils/permissi
 const { enableConfigs } = await import('../../src/utils/config.ts')
 const { setOriginalCwd, setCwdState, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
 const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
-const { noteResolvedAuthority } = await import('../../src/services/remoteFiles/target.ts')
+const { noteResolvedAuthority } = await import('../../src/utils/remoteFiles/target.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(PROJ)

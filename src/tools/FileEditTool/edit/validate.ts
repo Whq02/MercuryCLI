@@ -7,7 +7,7 @@ import { fileGeneration } from '../../../services/changeTransaction/seenLines.js
 import { lineAnchorsEnabled, parseHashedLinesSpelling } from '../../../services/changeTransaction/lineAnchors.js'
 import { checkAnchor, formatAnchorFailure } from '../../../services/changeTransaction/snapshotAnchor.js'
 import { ideReadTextAvailable, readWholeTextViaIde } from '../../../services/acp/ideToolBridge.js'
-import { isRemotePath, remoteMovedSinceRead, remoteShellPath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, remoteMovedSinceRead, remoteShellPath } from '../../../utils/remoteFiles/target.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { isENOENT } from '../../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE } from '../../../utils/file.js'

@@ -1,7 +1,7 @@
 import { closeSync, readSync } from 'node:fs'
 import type { ToolUseContext } from '../../../Tool.js'
 import { ideReadTextAvailable, readRangeViaIde } from '../../../services/acp/ideToolBridge.js'
-import { isRemotePath, markRemoteRead } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, markRemoteRead } from '../../../utils/remoteFiles/target.js'
 import { FileTooLargeError, readFileInRange, type ReadFileRangeResult } from '../../../utils/readFileInRange.js'
 import { openRegularFileSync } from '../../../utils/regularFile.js'
 

@@ -1,4 +1,4 @@
-import { passedOver } from '../../utils/passedOver.js'
+import { passedOver } from '../passedOver.js'
 
 const SCHEME = /^ssh:\/\//i
 const HOME_FORM = /^\/~([A-Za-z0-9._-]*)(?:\/|$)/

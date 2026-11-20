@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
-import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import { expandPath } from '../../utils/path.js'
 import type { ReadQueryRequest, ReadQueryResult } from './readQuery.js'
 import { streamProfile } from './profileStream.js'

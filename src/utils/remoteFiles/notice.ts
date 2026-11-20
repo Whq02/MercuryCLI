@@ -1,5 +1,5 @@
 import type { Message } from '../../types/message.js'
-import type { Attachment } from '../../utils/attachments/types.js'
+import type { Attachment } from '../attachments/types.js'
 
 const REMOTE_FILES_NOTICE =
   "`ssh://host/path` is a file on another machine: Read, Edit, Write, Grep and Glob take it as a path. `host` is what `ssh host` accepts; `ssh://host/~/x` is under that account's home; Read of `ssh://` alone lists the hosts of the ssh configuration."
