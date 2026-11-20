@@ -11,6 +11,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
+delete process.env.MERCURY_MAX_RETRIES
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -22,7 +23,7 @@ function section(t: string): void {
 }
 const sse = (data: unknown): string => `data: ${JSON.stringify(data)}\n\n`
 
-type Mode = 'burst' | 'window'
+type Mode = 'burst' | 'window' | 'endless'
 let mode: Mode = 'burst'
 const requests: Array<{ road: string; nth: number; status: number }> = []
 const counts = new Map<string, number>()
@@ -48,7 +49,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const key = `${road}:${mode}`
     const nth = (counts.get(key) ?? 0) + 1
     counts.set(key, nth)
-    const refuse = mode === 'window' || nth === 1
+    const refuse = mode !== 'burst' || nth === 1
     if (refuse) {
       requests.push({ road, nth, status: 429 })
       res.writeHead(429, { 'content-type': 'application/json', 'retry-after': mode === 'window' ? RETRY_AFTER_WINDOW : RETRY_AFTER_BURST, connection: 'close' })
@@ -160,9 +161,9 @@ for (const { road, model, label } of ROADS) {
   const burst = await drive(model)
   check(`${road}: two requests — the refusal, then the reply`, requestsOf(road, 'burst') === 2, `requests=${requestsOf(road, 'burst')} thrown=${burst.thrown}`)
   check(`${road}: the reply landed after the wait`, streamedText(burst).includes('the reply after busy') && apiErrorText(burst) === null, `${streamedText(burst).slice(0, 60)} | ${apiErrorText(burst)}`)
-  check(`${road}: no retry notice — a wait the provider names rides the busy ladder, quiet inside its first thirty seconds`, notices(burst).length === 0, JSON.stringify(notices(burst).map(n => n.retryInMs)))
+  check(`${road}: the wait the provider names is said at once — one retry notice of 1000 ms, attempt 1 of 10`, notices(burst).length === 1 && notices(burst)[0]?.retryInMs === 1000 && notices(burst)[0]?.retryAttempt === 1 && notices(burst)[0]?.maxRetries === 10, JSON.stringify(notices(burst).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries])))
   const stamp = burst.yielded.find(e => e.type === 'assistant' && (e as { busyRecovery?: unknown }).busyRecovery !== undefined) as { busyRecovery?: { retries?: number; status?: number; detail?: string } } | undefined
-  check(`${road}: the settled reply carries the recovery stamp — one retry, the provider's 429, its ask as the wait`, stamp?.busyRecovery?.retries === 1 && stamp.busyRecovery.status === 429 && /retried after 1 s, and the second request was answered\.$/.test(stamp.busyRecovery.detail ?? ''), JSON.stringify(stamp?.busyRecovery))
+  check(`${road}: the settled reply carries no recovery stamp — the wait was said when it began`, stamp === undefined, JSON.stringify(stamp?.busyRecovery))
   check(`${road}: the ask was slept (a second or more between the refusal and the reply)`, burst.elapsedMs >= 1_000, String(burst.elapsedMs))
 
   section(`${label} — (b) a 429 asking for three hours is the provider's window: one request, the row names the wait`)
@@ -174,6 +175,17 @@ for (const { road, model, label } of ROADS) {
   check(`${road}: the row names the provider's wait (the one wait formatter's 3 h 0 min on the Anthropic and compat roads; the OpenAI road's 10800 s)`, text !== null && (/3 h 0 min/.test(text) || /10800 s/.test(text)), text ?? '(none)')
   const row = window.yielded.find(e => e.type === 'assistant' && (e as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) as { error?: string } | undefined
   check(`${road}: the row is typed as the provider's refusal`, row?.error === 'rate_limit', JSON.stringify(row?.error))
+
+  section(`${label} — (c) a 429 that names one second and never ends is retried ten times with MERCURY_MAX_RETRIES unset, each wait said, then the row`)
+  mode = 'endless'
+  const endless = await drive(model)
+  const said = notices(endless)
+  const lastText = apiErrorText(endless)
+  check(`${road}: eleven requests — the refusal and ten retries`, requestsOf(road, 'endless') === 11, `requests=${requestsOf(road, 'endless')} thrown=${endless.thrown}`)
+  check(`${road}: ten retry notices, attempts 1 to 10 of 10, each the second the provider names`, said.length === 10 && said.every((n, i) => n.retryInMs === 1000 && n.retryAttempt === i + 1 && n.maxRetries === 10), JSON.stringify(said.map(n => [n.retryInMs, n.retryAttempt, n.maxRetries])))
+  check(`${road}: every named second was waited (ten seconds or more) and then the turn ended on the provider's refusal, with no "stayed busy" head`, endless.elapsedMs >= 10_000 && endless.thrown === null && lastText !== null && !/stayed busy/.test(lastText), `${endless.elapsedMs}ms | ${lastText} | ${endless.thrown}`)
+  const endlessRow = endless.yielded.find(e => e.type === 'assistant' && (e as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) as { error?: string } | undefined
+  check(`${road}: that row is typed as the provider's refusal`, endlessRow?.error === 'rate_limit', JSON.stringify(endlessRow?.error))
 }
 
 server.close()

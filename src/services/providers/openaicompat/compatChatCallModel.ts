@@ -213,7 +213,7 @@ export async function* compatChatCallModel(
     }
     const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, { ...(recovery ? { recovery } : {}), requestUrl: credential.requestUrl ?? profile.requestUrl() }) + (profile.policyFaultNote?.(outcome.fault, request.extra) ?? '')
     const stayedBusy =
-      busy !== undefined && takesBusyLadder(outcome.fault, typed)
+      busy !== undefined && takesBusyLadder(outcome.fault)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
         : emptyEnd
           ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(profile.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
