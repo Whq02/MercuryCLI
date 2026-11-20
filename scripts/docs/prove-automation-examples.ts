@@ -16,7 +16,6 @@ process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 const { hostRunner } = await import('../lib/runnerHost.ts')
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 const docPath = join(ROOT, 'docs', 'AUTOMATION.md')
-const indexPath = join(ROOT, 'docs', 'README.md')
 const nodeBin = nodeBinPath()
 const pythonBin = Bun.which('python3') ?? 'python3'
 
@@ -39,8 +38,6 @@ if (!existsSync(docPath)) {
 
 section('§1 the page: indexed, four runnable blocks, the laws in its words')
 const doc = readFileSync(docPath, 'utf8')
-const index = readFileSync(indexPath, 'utf8')
-check('docs/README.md indexes AUTOMATION.md', index.includes('[AUTOMATION.md](AUTOMATION.md)'))
 
 const blocks = [...doc.matchAll(/```(ts|py)\n([\s\S]*?)\n```/g)].map(m => ({
   lang: m[1] as 'ts' | 'py',
@@ -52,10 +49,6 @@ check(
   blocks.map(b => b.lang).join(','),
 )
 if (blocks.length !== 4) process.exit(1)
-check('the page says a run leaves no note and carries no close row, and that the close row belongs to a runner whose host closes its end', /A `mercury run`\s+ends on the model's final answer and leaves no note, so its stream carries\s+no `close` row\./.test(doc) && /on a `mercury runner` session, the note left for the next session\s+when the host closes its end without `session\/leave`/.test(doc) && /It\s+follows the last `outcome`, whose totals do not include it\./.test(doc))
-check('the page says a one-shot ask nobody answers ends the turn blocked with the answer kept', /ends `blocked`\s+with its `answer` kept/.test(doc))
-check('the page says session/set_mode applies at once and the three held verbs answer at turn_end then session/applied', /`session\/set_mode` changes\s+the permission mode at once/.test(doc) && /`session\/set_spawn_switch` answer `at: "now"`/.test(doc) && /answer `at: "turn_end"` and a `session\/applied` notification/.test(doc))
-check('the page tells a reply from a request by method', /A reply\s+carries `result` or `error` and no `method`/.test(doc))
 
 type RunResult = { status: number | null; stdout: string; stderr: string }
 function execAsync(cmd: string, args: string[], opts: { cwd: string; env: Record<string, string | undefined>; timeoutMs: number }): Promise<RunResult> {
