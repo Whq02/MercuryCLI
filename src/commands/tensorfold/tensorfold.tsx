@@ -165,11 +165,19 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
         await doors.read?.()
         if (!installed) return
       }
+      let stopTail: string | undefined
       if (row.state === 'serving') {
         const served = facts.served.find(candidate => candidate.repo === row.repo)
-        if (served !== undefined) await stopTensorFoldRow(row, facts.served, io)
+        if (served !== undefined) {
+          const stopResult = await stopTensorFoldRow(row, facts.served, io)
+          if (stopResult.startsWith(`stopped ${served.name} · `)) stopTail = stopResult.slice(`stopped ${served.name} · `.length)
+        }
       }
       await serveTensorFoldRow({ ...row, state: row.state === 'serving' ? 'on-disk' : row.state }, act.window, io, { ...(facts.engine?.servedBy !== undefined ? { servedBy: facts.engine.servedBy } : {}) })
+      if (stopTail !== undefined) {
+        const current = tensorFoldRoadState().notice
+        setTensorFoldNotice(current !== undefined ? `${current} · ${stopTail}` : stopTail)
+      }
       return
     }
     case 'switch':
@@ -243,10 +251,17 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       const served = facts.served.find(candidate => candidate.repo === act.row.repo)
       if (row === undefined || served === undefined) return
       setTensorFoldNotice(act.kind === 'share' ? SHARE_WORDS : UNSHARE_WORDS)
-      await stopTensorFoldRow(row, facts.served, io)
+      const stopResult = await stopTensorFoldRow(row, facts.served, io)
+      const stopTail = stopResult.startsWith(`stopped ${served.name} · `) ? stopResult.slice(`stopped ${served.name} · `.length) : undefined
       const outcome = await serveTensorFoldRow({ ...row, state: 'on-disk', port: served.port }, served.window, io, { share: act.kind === 'share' })
       const code = tensorFoldPairingCode()
-      if (act.kind === 'share' && outcome !== null && code !== null) setTensorFoldNotice(PAIRING_WORDS.shown(code, outcome.served.name))
+      if (act.kind === 'share' && outcome !== null && code !== null) {
+        const parts = [PAIRING_WORDS.shown(code, outcome.served.name), ...(stopTail !== undefined ? [stopTail] : []), ...outcome.served.warnings]
+        setTensorFoldNotice(parts.join(' · '))
+      } else if (stopTail !== undefined) {
+        const current = tensorFoldRoadState().notice
+        setTensorFoldNotice(current !== undefined ? `${current} · ${stopTail}` : stopTail)
+      }
       return
     }
   }

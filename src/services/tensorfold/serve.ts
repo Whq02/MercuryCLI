@@ -28,7 +28,7 @@ import { runForOutput, tensorFoldLadder, tensorFoldProjectedBytes, type TensorFo
 import { pullCommandLines, pullTensorFold as pullWithEngine, type PullIo } from './pull.js'
 import { readTensorFoldRefusal, type TensorFoldRefusal } from './refusal.js'
 import { PROMPT_CACHE_OPT_IN_FAMILIES, startingPointOf, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
-import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const TENSORFOLD_SERVICES: Readonly<Record<TensorFoldServeRole, string>> = { session: 'tensorfold', helper: 'tensorfold-helper' }
 const TENSORFOLD_RECORD_FILES: Readonly<Record<TensorFoldServeRole, string>> = { session: 'served.json', helper: 'helper.json' }
@@ -46,7 +46,7 @@ type TensorFoldPortPick = { port: number; busy?: { port: number; answersAs?: str
 
 type TensorFoldAnnounceOffer = { model: string; enginePort: number; window: number; key: string }
 
-type TensorFoldAnnouncement = { stop: () => void; code?: string }
+type TensorFoldAnnouncement = { stop: () => void | Promise<void>; code?: string }
 
 export type TensorFoldSharedHost = TensorFoldHost & { key: string }
 
@@ -92,15 +92,20 @@ export function tensorFoldPairingCode(): string | null {
 
 async function announceOnNetwork(offer: TensorFoldAnnounceOffer): Promise<TensorFoldAnnouncement> {
   const pairing = await startPairingServer(offer, { listenHost: TENSORFOLD_SHARE_HOST })
-  return { stop: () => void pairing.stop().catch(passedOverAs(undefined)), code: pairing.code }
+  return { stop: () => pairing.stop(), code: pairing.code }
 }
 
-function endAnnouncement(): void {
+async function endAnnouncement(): Promise<string | undefined> {
+  const current = announcement
+  announcement = null
+  if (current === null) return undefined
   try {
-    announcement?.stop()
-    announcement = null
+    await current.stop()
+    return undefined
   } catch (error) {
+    passedOver(error)
     logError(new Error(`the TensorFold pairing server could not be stopped (${errorMessage(error)})`))
+    return `the pairing server could not be stopped (${errorMessage(error)}), so its listener may still be open`
   }
 }
 
@@ -200,12 +205,15 @@ function heldBytesOf(record: (TensorFoldServedRecord & { service: ServiceRecord 
 
 const loadingBytesOf = (record: (TensorFoldServedRecord & { service: ServiceRecord }) | null, adapter: boolean): number => heldBytesOf(record, adapter, ['starting'])
 
-async function forgetShared(sharedAs: string | undefined, io: Pick<ServeIo, 'forgetHost'>): Promise<void> {
-  if (sharedAs === undefined) return
+async function forgetShared(sharedAs: string | undefined, io: Pick<ServeIo, 'forgetHost'>): Promise<string | undefined> {
+  if (sharedAs === undefined) return undefined
   try {
     await (io.forgetHost ?? forgetTensorFoldHost)(sharedAs)
+    return undefined
   } catch (error) {
+    passedOver(error)
     logError(new Error(`the shared TensorFold host ${sharedAs} could not be removed from the hosts store (${errorMessage(error)}) — it stays listed, with its key, for a model that no longer serves`))
+    return `the shared host ${sharedAs} was not removed (${errorMessage(error)}), so it stays listed`
   }
 }
 
@@ -308,7 +316,8 @@ function logTail(record: ServiceRecord | null, bytes = 65_536): string {
   }
 }
 
-export async function startTensorFold(request: TensorFoldServeRequest, io: ServeIo = {}): Promise<TensorFoldServedByEngine> {
+export async function startTensorFold(request: TensorFoldServeRequest, io: ServeIo = {}): Promise<TensorFoldServedByEngine & { warnings: readonly string[] }> {
+  const warnings: string[] = []
   const role = request.role ?? io.role ?? 'session'
   const scoped: ServeIo = { ...io, role }
   const service = TENSORFOLD_SERVICES[role]
@@ -343,7 +352,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   const live = existing !== null && LIVE_STATES.includes(existing.service.state) ? existing : null
   if (live !== null && role === 'helper') {
     const { project: _project, busy: _busy, sharedAs: _sharedAs, service: liveService, ...served } = live
-    return { ...served, pid: liveService.pid ?? served.pid }
+    return { ...served, pid: liveService.pid ?? served.pid, warnings }
   }
   const full = checkpointFor(request.repo, adapter)
   if (full !== undefined) {
@@ -356,7 +365,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
       throw new TensorFoldStartError(`${gibWords(needBytes)} needed · ${gibWords(freeBytes)} free${live !== null ? ` once ${live.name} stops` : ''}`, null, { needBytes, freeBytes, offers })
     }
   }
-  if (live !== null) await stopTensorFold(live.name, scoped)
+  if (live !== null) warnings.push(...(await stopTensorFold(live.name, scoped)).warnings)
   const pick = await pickTensorFoldPort(request.port ?? rememberedTensorFoldPort(scoped) ?? TENSORFOLD_DEFAULT_PORT, io)
   io.onPort?.(pick)
   const key = request.share === true && role === 'session' ? (io.keyFile ?? writeTensorFoldKeyFile)() : undefined
@@ -415,33 +424,47 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   try {
     rememberPort(pick.port)
   } catch (error) {
+    passedOver(error)
     logError(new Error(`port ${pick.port} of the TensorFold server could not be remembered in the hosts store (${errorMessage(error)}) — local discovery does not look for it there`))
+    warnings.push(`port ${pick.port} was not saved (${errorMessage(error)}), so the next start may pick another`)
   }
   if (role === 'session') {
     try {
       ;(io.rememberWindow ?? rememberTensorFoldWindow)(request.repo, request.window)
     } catch (error) {
+      passedOver(error)
       logError(new Error(`the window ${request.window} for ${request.repo} could not be remembered in the hosts store (${errorMessage(error)}) — the next start offers the earlier window`))
+      warnings.push(`the window for ${name} was not saved (${errorMessage(error)}), so the next start may offer the earlier window`)
     }
   }
-  if (role === 'session') endAnnouncement()
+  if (role === 'session') {
+    const stopAnnounceWarning = await endAnnouncement()
+    if (stopAnnounceWarning !== undefined) warnings.push(stopAnnounceWarning)
+  }
   if (key !== undefined) {
     try {
       const handle = await (io.announce ?? announceOnNetwork)({ model: name, enginePort: pick.port, window: request.window, key: key.key })
       announcement = { name, ...handle }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       announcement = null
+      logError(new Error(`the TensorFold pairing server could not start (${errorMessage(error)})`))
+      warnings.push(`the pairing server could not start (${errorMessage(error)}), so no pairing code is shown`)
     }
   }
   const { project: _project, busy: _busy, sharedAs: _sharedAs, ...served } = record
-  return { ...served, pid: readRecord(cwd, service)?.pid ?? record.pid }
+  return { ...served, pid: readRecord(cwd, service)?.pid ?? record.pid, warnings }
 }
 
-export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 'servedFile' | 'helperFile' | 'forgetPort' | 'forgetHost'> = {}): Promise<void> {
+export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 'servedFile' | 'helperFile' | 'forgetPort' | 'forgetHost'> = {}): Promise<{ warnings: readonly string[] }> {
   const record = readServedRecord(io)
-  if (record === null) return
-  if (record.name !== name && record.repo !== name) return
-  if (roleOf(io) === 'session') endAnnouncement()
+  if (record === null) return { warnings: [] }
+  if (record.name !== name && record.repo !== name) return { warnings: [] }
+  const warnings: string[] = []
+  if (roleOf(io) === 'session') {
+    const stopAnnounceWarning = await endAnnouncement()
+    if (stopAnnounceWarning !== undefined) warnings.push(stopAnnounceWarning)
+  }
   announceTensorFoldStopping(record.port)
   const stopped = await stopService(record.project, TENSORFOLD_SERVICES[roleOf(io)])
   if (servedByAdapter(record.servedBy) && !('error' in stopped) && stopped.note === undefined) rmSync(adapterChildPidFile(record.port), { force: true })
@@ -450,11 +473,15 @@ export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 's
   try {
     forgetPort(record.port)
   } catch (error) {
+    passedOver(error)
     logError(new Error(`port ${record.port} of the stopped TensorFold server could not be removed from the hosts store (${errorMessage(error)}) — discovery keeps probing it`))
+    warnings.push(`port ${record.port} was not removed (${errorMessage(error)}), so discovery may still probe it`)
   }
-  await forgetShared(record.sharedAs, io)
+  const forgetSharedWarning = await forgetShared(record.sharedAs, io)
+  if (forgetSharedWarning !== undefined) warnings.push(forgetSharedWarning)
   if ('error' in stopped) throw new Error(stopped.error)
   if (stopped.note !== undefined) throw new Error(stopped.note)
+  return { warnings }
 }
 
 export async function pullTensorFold(repo: string, onProgress: (progress: TensorFoldPullProgress) => void, io: PullIo = {}): Promise<void> {

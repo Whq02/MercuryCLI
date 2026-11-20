@@ -308,7 +308,9 @@ function defaultServeSeam(): HelperServeSeam {
   const roleIo = { ...serveIo, role: HELPER_ROLE, forgetPort: () => undefined }
   return {
     start: request => serve.startTensorFold(request, { ...serveIo, owner: processMainOwner(), rememberPort: () => undefined }),
-    stop: name => serve.stopTensorFold(name, roleIo),
+    stop: async name => {
+      await serve.stopTensorFold(name, roleIo)
+    },
     served: () => serve.servedTensorFold(roleIo),
   }
 }
