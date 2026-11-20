@@ -25,8 +25,14 @@ import { type LocalWakeFacts, localWakeStep } from '../../tools/ScheduleWakeupTo
 import { sessionLaneWall } from '../../tools/MonitorTool/laneWall.js'
 import { registerLocalWakeSink } from '../../services/saturn/sessionScheduleBridge.js'
 import { AGENT_MESSAGE_STATUS } from '../../constants/agentMessage.js'
-import { taskRow } from '../../rows/project.js'
+import { noticeRow, taskRow } from '../../rows/project.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
+import { passedOver } from '../../utils/passedOver.js'
+import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { startTimeout } from '../../utils/timers.js'
+
+const duplicateUnreadNotified = new WeakSet<RunnerPorts['live']>()
 
 export const taskNotificationPayloads = (command: QueuedCommand): string[] => {
   if (command.origin?.kind === 'outside-report') return []
@@ -60,7 +66,23 @@ export async function acceptInput(input: AcceptedInput, ports: RunnerPorts): Pro
     const historical = await doesMessageExistInSession(
       getSessionId(),
       uuid as UUID,
-    )
+    ).catch((error: unknown) => {
+      passedOver(error)
+      logForDebugging(`inputDoor: duplicate check failed for ${uuid}: ${errorMessage(error)}`)
+      if (!duplicateUnreadNotified.has(live)) {
+        duplicateUnreadNotified.add(live)
+        if (typeof ports.enqueueRow === 'function' && typeof ports.liveScope === 'function') {
+          ports.enqueueRow(
+            noticeRow(
+              ports.liveScope(),
+              'warning',
+              `the transcript at ${getTranscriptPath()} could not be read (${errorMessage(error)}), so this message was not checked for a duplicate`,
+            ),
+          )
+        }
+      }
+      return false
+    })
     const runtime = receivedUuids.has(uuid)
     if (historical || runtime) {
       if (historical && !runtime) {

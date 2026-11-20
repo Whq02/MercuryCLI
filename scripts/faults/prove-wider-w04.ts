@@ -419,13 +419,13 @@ try {
 
   {
     const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
-    const { acceptInput, acceptInputRow } = await import('../../src/cli/headless/inputDoor.ts')
-    const { openInput } = await import('../../src/cli/headless/boot/openInput.ts')
+    const { acceptInput } = await import('../../src/cli/headless/inputDoor.ts')
     const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
     const { INPUT_REFUSED_CODE } = await import('../../src/cli/structuredIO.ts')
     const { getSessionId, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
     const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
     const { clearSessionMessagesCache } = await import('../../src/utils/sessionStorage/logs.ts')
+    const { getCommandQueue, remove } = await import('../../src/utils/messageQueueManager.ts')
     const { dirname } = await import('node:path')
     const { randomUUID } = await import('node:crypto')
 
@@ -441,12 +441,16 @@ try {
     if (POSIX_MODES) {
       chmodSync(transcriptPath, 0o000)
       try {
+        remove([...getCommandQueue()])
         const live = createRunnerState()
         const received = new Set<string>()
+        const enqueuedRows: Array<{ type?: string; level?: string; text?: string; code?: string }> = []
         const ports = {
           live,
           options: {},
           driver: { kick: () => {}, isRunning: () => false, closeOutputOnce: async () => {} },
+          enqueueRow: (row: { type?: string; level?: string; text?: string; code?: string }) => { enqueuedRows.push(row) },
+          liveScope: () => ({ session_id: testSid }),
           getAppState: () => ({}),
           setAppState: () => {},
           localCommandInput: () => false,
@@ -454,67 +458,21 @@ try {
           receivedUuids: { add: (id: string) => void received.add(id), has: (id: string) => received.has(id) },
         } as unknown as Parameters<typeof acceptInput>[1]
 
-        let threw: unknown = null
-        let verdict: unknown = null
-        try {
-          verdict = await acceptInput({ kind: 'prompt', content: 'repeat me', id: randomUUID() }, ports)
-        } catch (error) {
-          threw = error
-        }
-        check(
-          'w04-4 acceptInput propagates unreadable transcript error instead of answering not-duplicate',
-          threw !== null && verdict === null,
-          `threw=${String(threw)} verdict=${JSON.stringify(verdict)}`,
-        )
-
+        const first = await acceptInput({ kind: 'prompt', content: 'first line', id: randomUUID() }, ports)
         clearSessionMessagesCache()
-        const enqueuedRows: Array<{ kind?: string; level?: string; text?: string; code?: string }> = []
-        const acceptedInputs: unknown[] = []
-        const rowsStream = (async function* () {
-          yield { type: 'prompt' as const, content: 'blocked row', id: randomUUID() }
-          yield { type: 'prompt' as const, content: 'good row' }
-        })()
-        const loopLive = createRunnerState()
-        const loopPorts = {
-          live: loopLive,
-          options: {},
-          peer: null,
-          io: { structuredInput: rowsStream },
-          bootSettled: () => {},
-          stopShellsForClose: async () => {},
-          driver: { kick: () => {}, isRunning: () => false, closeOutputOnce: async () => {} },
-          enqueueRow: (row: { kind?: string; level?: string; text?: string; code?: string }) => { enqueuedRows.push(row) },
-          liveScope: () => ({ session_id: testSid }),
-          getAppState: () => ({}),
-          setAppState: () => {},
-          localCommandInput: () => false,
-          missionLineOf: () => null,
-          receivedUuids: { add: () => {}, has: () => false },
-          acceptInput: async (inp: Parameters<typeof acceptInput>[0]) => {
-            const res = await acceptInput(inp, ports)
-            acceptedInputs.push(inp)
-            return res
-          },
-        } as unknown as Parameters<typeof openInput.run>[0]
-        loopPorts.acceptInputRow = row => acceptInputRow(row, loopPorts)
-
-        const made = openInput.run(loopPorts)
-        let loopThrew: unknown = null
-        if (typeof made === 'object' && 'stdinLoop' in made) {
-          try {
-            await made.stdinLoop
-          } catch (error) {
-            loopThrew = error
-          }
-        }
-        const refusedNotice = enqueuedRows.find(r => r.code === INPUT_REFUSED_CODE && r.level === 'error')
+        const second = await acceptInput({ kind: 'prompt', content: 'second line', id: randomUUID() }, ports)
+        const queued = [...getCommandQueue()]
+        remove(queued)
+        const warnings = enqueuedRows.filter(r => r.level === 'warning' && r.code !== INPUT_REFUSED_CODE)
         check(
-          'w04-4 openInput catches per-row read error, emits input_refused notice, and continues reading next row',
-          loopThrew === null &&
-            refusedNotice !== undefined &&
-            Boolean(refusedNotice.text?.includes('EACCES')) &&
-            acceptedInputs.length === 1,
-          JSON.stringify({ loopThrew: loopThrew ? String(loopThrew) : null, enqueuedRows, acceptedCount: acceptedInputs.length }),
+          'w04-4 acceptInput still accepts and queues rows when transcript is unreadable and emits warning notice once per session',
+          first.accepted === true &&
+            second.accepted === true &&
+            queued.length === 2 &&
+            warnings.length === 1 &&
+            Boolean(warnings[0]?.text?.includes(`the transcript at ${transcriptPath} could not be read (`)) &&
+            Boolean(warnings[0]?.text?.includes('), so this message was not checked for a duplicate')),
+          JSON.stringify({ first, second, queuedCount: queued.length, enqueuedRows }),
         )
       } finally {
         chmodSync(transcriptPath, 0o600)
