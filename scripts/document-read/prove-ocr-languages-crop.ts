@@ -12,7 +12,7 @@ process.env.MERCURY_DESKTOP_PACK_DIR = resolve(import.meta.dir, '../../vendor/de
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getImageProcessor } = await import('../../src/tools/FileReadTool/imageProcessor.ts')
+const { getImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessor.ts')
 const { resolveOcrEngine } = await import('../../src/utils/ocr.ts')
 const context = () => ({ options: { engineModel: 'claude-sonnet-5-5' }, abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(100), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }) as never
 const normalise = (s: string) => s.normalize('NFKC').replace(/[\u064b-\u065f\u0670\u0640\u200e\u200f\u202a-\u202e\u2066-\u2069\s.،]/g, '')

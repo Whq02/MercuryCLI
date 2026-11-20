@@ -6,7 +6,7 @@ import { formatTokens } from '../utils/format.js'
 import { FAINT, IVORY, SECOND, TEAL } from './mercuryPalette.js'
 import { MessageResponse } from './MessageResponse.js'
 import { ProgressBar } from './mercury-ui/components.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 
 
 type Props = {

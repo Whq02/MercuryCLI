@@ -1,5 +1,5 @@
 import { menuRowChoices, saveBootDefaultsProfile, type MenuRow } from '../../substrate/startupMenu.js';
-import { seatCostWarning, seatSourceWords, setOperatorSeats } from '../../services/switchboard/capacityCheck.js';
+import { seatCostWarning, seatSourceWords, setOperatorSeats } from '../../utils/switchboard/capacityCheck.js';
 import { MOTION_SETTINGS, motionReceiptWords, setMotionSetting, type MotionSetting } from '../../utils/cockpit/motionSetting.js';
 import { jevReceiptWords, setJevEnabled } from '../../services/jev/jevSetting.js';
 import { backgroundLaunchReceiptWords, setBackgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js';

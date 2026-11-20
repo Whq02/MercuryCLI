@@ -47,7 +47,7 @@ console.log('— D07 (FN-018 rank 18): the hosted-search count rides the envelop
   const searched = mapOpenaiUsageToAnthropic(SPECIMEN, 3)
   check('web_search_requests carries the collected calls', searched.server_tool_use.web_search_requests === 3)
   check('the default is zero (no searches, no counter)', mapOpenaiUsageToAnthropic(SPECIMEN).server_tool_use.web_search_requests === 0)
-  const { getModelCosts } = await import('../../src/utils/modelCost.ts')
+  const { getModelCosts } = await import('../../src/services/usage/modelCost.ts')
   check('a pinned engine carries no per-search price (the count rides, the price waits for a recorded rate)', getModelCosts('gpt-5.6-sol').webSearchRequests === 0)
 }
 

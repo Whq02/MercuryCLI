@@ -1,12 +1,11 @@
 
 import { dapAdapterProbePending, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
-import { mercuryUnityEnabled } from '../../services/ide/unityProject.js'
-import { locateBlender, mercuryBlenderEnabled } from '../../services/ide/blenderProject.js'
-import { mercuryAsepriteEnabled } from '../../services/aseprite/asepriteApp.js'
+import { mercuryUnityEnabled } from '../unity/unityProject.js'
+import { locateBlender, mercuryBlenderEnabled } from '../blender/blenderProject.js'
+import { mercuryAsepriteEnabled } from '../aseprite/asepriteApp.js'
 import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
-import { healthCertEnabled } from '../healthReport.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { canAnswerAsks, getSessionKind } from '../../bootstrap/state.js'
 import { passedOver } from '../passedOver.js'
@@ -32,7 +31,7 @@ function dapReachableSafe(): boolean | null {
 
 export function computeHarnessMapLines(): string[] {
   const lines: Array<string | null> = [
-    `- Discovery: /help lists commands; /capabilities is the live capability matrix for this build${healthCertEnabled() ? '; /health runs the evidence-backed health certificate' : ''}; a surface absent here is in the tool roster or gated off.`,
+    `- Discovery: /help lists commands; /capabilities is the live capability matrix for this build${flagEnabled('MERCURY_HEALTH_CERT') ? '; /health runs the evidence-backed health certificate' : ''}; a surface absent here is in the tool roster or gated off.`,
     '- The `!` form: a prompt the user starts with `!` runs that command inside this very session, and whatever it prints arrives in the conversation — the road for a command that needs their own hands, such as an interactive login.',
     mercuryDapEnabled() && dapReachableSafe() === false && !dapAdapterProbePending()
       ? '- The Debug tool is withheld on this machine: no debug adapter is reachable, so no launch could work. Arm one — Python `pip install debugpy` (or a build carrying the vendored adapter) · native `xcode-select --install` (lldb-dap) or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest` — then start a new session or /clear for the tool to join.'

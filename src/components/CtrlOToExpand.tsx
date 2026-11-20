@@ -1,9 +1,8 @@
 
 import React, { createContext, useContext } from 'react'
 import { Text } from '../ink.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
-import { getShortcutDisplay } from '../keybindings/shortcutFormat.js'
 import { InVirtualListContext } from './messageActions.js'
 
 const SubAgentContext = createContext(false)
@@ -27,10 +26,6 @@ export function CtrlOToExpand(): React.ReactNode {
     return <Text dimColor>{GLYPH.chevronDown}</Text>
   }
   return <Text dimColor>({chord} to expand)</Text>
-}
-
-export function ctrlOToExpand(): string {
-  return `(${getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')} to expand)`
 }
 
 export default CtrlOToExpand

@@ -343,7 +343,7 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages.ts')
   const { resolveAutoCompactWindow } = await import('../../src/services/compact/autoCompact.ts')
   const { fitImagesToRequestCap } = await import('../../src/utils/imageResizer.ts')
-  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const f = t.fixtures
   type Spoken = { where: string; level: unknown; words: string }
   const systemNotices = (where: string, events: ReadonlyArray<Record<string, unknown> & { kind: string }>): Spoken[] =>

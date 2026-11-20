@@ -60,7 +60,7 @@ export async function runHealthFixCli(opts: { only?: string; yes: boolean }): Pr
   const disarm = armSilenceGuards('health --fix', trace, null)
   try {
     const [{ healthCertEnabled, runAndRecordHealthReport }, fixMod] = await Promise.all([
-      import('../utils/healthReport.js'),
+      import('../services/health/healthReport.js'),
       import('../utils/healthFix.js'),
     ])
     if (!healthCertEnabled()) {
@@ -106,7 +106,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
   const trace: RunTrace = { settled: 0, total: 0, lastSettled: null }
   const disarm = armSilenceGuards('health --json', trace, JSON_RUN_DEADLINE_MS[depth])
   try {
-    const { healthCertEnabled, runAndRecordHealthReport } = await import('../utils/healthReport.js')
+    const { healthCertEnabled, runAndRecordHealthReport } = await import('../services/health/healthReport.js')
     if (!healthCertEnabled()) {
       disarm()
       return emitAndExit({
@@ -139,7 +139,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
     let readiness: unknown
     let readinessError: string | undefined
     try {
-      const { collectReadiness } = await import('../utils/readiness.js')
+      const { collectReadiness } = await import('../services/health/readiness.js')
       readiness = collectReadiness({ includeEnv: false }).records
     } catch (e) {
       readinessError = e instanceof Error ? e.message : String(e)

@@ -5,7 +5,7 @@ import { z } from 'zod/v4'
 
 import { buildTool, type CanUseToolFn, type Tool, type ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { remoteSearchRoot } from '../../services/remoteFiles/target.js'
+import { remoteSearchRoot } from '../../utils/remoteFiles/target.js'
 import { checkReadPermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { getCwd } from '../../utils/cwd.js'

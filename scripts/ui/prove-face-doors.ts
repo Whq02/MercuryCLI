@@ -15,7 +15,7 @@ import {
   healthVerdictLine,
   wrapPlain,
 } from '../../src/components/BootHealthScreen.js'
-import { HEALTH_STATUS_META, type HealthCheck, type HealthStatus } from '../../src/utils/healthReport.js'
+import { HEALTH_STATUS_META, type HealthCheck, type HealthStatus } from '../../src/services/health/healthReport.js'
 import {
   resumeDetailLines,
   resumeElsewhereEntry,

@@ -15,13 +15,13 @@ import {
   doesEnterpriseMcpConfigExist,
   filterMcpServersByPolicy,
 } from '../../services/mcp/config.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
 import { releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
-import { disposeOwnerProcesses } from '../../services/run/ownerLifecycle.js'
-import { processOwnerForLane } from '../../services/run/resolveOwner.js'
+import { disposeOwnerProcesses } from '../../utils/run/ownerLifecycle.js'
+import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { beginAgentProjectLeases } from '../../services/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
@@ -306,7 +306,7 @@ async function preloadSkills(
   if (!skillNames || skillNames.length === 0) return []
   const commands = await getSkillToolCommands(getProjectRoot())
   const { formatSkillLoadingMetadata } = await import(
-    '../../utils/processUserInput/processSlashCommand.js'
+    '../../services/processUserInput/processSlashCommand.js'
   )
   const extensionPrefix =
     definition.source === 'extension' && 'extensionName' in definition

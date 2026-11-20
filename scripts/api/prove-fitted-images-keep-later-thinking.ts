@@ -251,7 +251,7 @@ section('§4 the screenshot retirement follows the same law: a retired screensho
   resetWireEditsForTesting()
   const retention = await import('../../src/services/desktop/screenshotRetention.ts')
   const desktop = await import('../../src/services/desktop/desktopSession.ts')
-  const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+  const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
   const lane = processOwnerForLane(null)
   const owner = 'owner-screens'
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]).toString('base64')

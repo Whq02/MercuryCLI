@@ -13,7 +13,7 @@ import type { Message } from '../../types/message.js'
 import { useSettings } from '../../hooks/useSettings.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
-import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
+import { formatCommandLoadingMetadata } from '../../services/processUserInput/processSlashCommand.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { themeLabel, type ThemeSetting } from '../../utils/theme.js'
 

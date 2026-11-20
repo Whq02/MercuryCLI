@@ -1,9 +1,9 @@
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
-import { kimiEffortsFor, kimiWireEffort } from '../moonshot/kimiPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
+import { kimiEffortsFor, kimiWireEffort } from '../../../utils/model/pins/kimiPins.js'
 import {
   deepseekAcceptsEffort,
   DEEPSEEK_EFFORTS,
-} from '../deepseek/deepseekPins.js'
+} from '../../../utils/model/pins/deepseekPins.js'
 import { EFFORT_STAMP_THINKING_OFF, type EffortWireFact } from '../../../utils/effortStamp.js'
 
 export function thinkingOffWireEffort(vocabulary: readonly string[]): string | undefined {

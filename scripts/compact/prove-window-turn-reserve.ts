@@ -19,7 +19,7 @@ const auto = await import('../../src/services/compact/autoCompact.ts')
 const { foldLandingCeiling } = await import('../../src/services/compact/verbatimTail.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const { estimateTurnsToCompact, recordCtxSample, noteCtxTurnBoundary, resetCtxForecastForTest } = await import('../../src/utils/cockpit/ctxForecast.ts')
+const { estimateTurnsToCompact, recordCtxSample, noteCtxTurnBoundary, resetCtxForecastForTest } = await import('../../src/services/cockpit/ctxForecast.ts')
 const { ollamaChatBody } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
 const model = 'local/window-proof:9b'
 const fetchImpl: typeof fetch = (async (url: string | URL | Request) => {

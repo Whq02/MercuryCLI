@@ -30,7 +30,7 @@ if (typeof (config as { enableConfigs?: () => void }).enableConfigs === 'functio
 
 section('§1 mcpGauge — configured ≠ ready; a publish is the only way to ready')
 {
-  const m = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const m = await import('../../src/services/cockpit/mcpGauge.ts')
   m.resetMcpGaugeForTests()
   const before = m.mcpGauge()
   check('two configured servers ⇒ live', before.state === 'live', before.state)
@@ -87,7 +87,7 @@ section('§1 mcpGauge — configured ≠ ready; a publish is the only way to rea
 
 section('§2 modelGauge — label, window provenance and provider from their owners')
 {
-  const g = await import('../../src/utils/cockpit/modelGauge.ts')
+  const g = await import('../../src/services/cockpit/modelGauge.ts')
   const { renderModelName } = await import('../../src/utils/model/model.ts')
   const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
   const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
@@ -116,9 +116,9 @@ section('§2 modelGauge — label, window provenance and provider from their own
 
 section('§3 fleetGauge — solo reads off; the roster still lists a live execution')
 {
-  const f = await import('../../src/utils/cockpit/fleetGauge.ts')
-  const plane = await import('../../src/services/primitives/executionPlane.ts')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const f = await import('../../src/services/cockpit/fleetGauge.ts')
+  const plane = await import('../../src/utils/primitives/executionPlane.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const owner = processMainOwner()
   const solo = await f.fleetGauge()
   check('solo session reads off with the no-fleet reason', solo.state === 'off' && /no fleet/.test(solo.reason ?? ''), `${solo.state} · ${solo.reason}`)
@@ -137,7 +137,7 @@ section('§3 fleetGauge — solo reads off; the roster still lists a live execut
 
 section('§4 contextGauge — fresh session is unavailable, never a fake figure')
 {
-  const c = await import('../../src/utils/cockpit/contextGauge.ts')
+  const c = await import('../../src/services/cockpit/contextGauge.ts')
   const fresh = c.contextGauge([] as never, 'claude-opus-5' as never)
   check('fresh ⇒ unavailable', fresh.state === 'unavailable', fresh.state)
   check('reason names the fresh session', /fresh session/.test(fresh.reason ?? ''), fresh.reason)

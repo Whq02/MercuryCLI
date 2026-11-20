@@ -1,10 +1,26 @@
 
-export type {
-  SnapshotState,
-  Snapshot,
-} from '../../components/mercury-ui/theme.js'
+export type SnapshotState =
+  | 'live'
+  | 'ready'
+  | 'starting'
+  | 'configured'
+  | 'degraded'
+  | 'stale'
+  | 'off'
+  | 'disabled'
+  | 'gated'
+  | 'unavailable'
+  | 'blocked'
+  | 'failed'
+  | 'excluded'
+  | 'planned'
 
-import type { Snapshot, SnapshotState } from '../../components/mercury-ui/theme.js'
+export type Snapshot<T = Record<never, never>> = {
+  state: SnapshotState
+  reason?: string
+  source?: string
+  updatedAt?: string
+} & T
 
 export function withState<T>(
   state: SnapshotState,

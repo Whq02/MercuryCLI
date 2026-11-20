@@ -24,7 +24,7 @@ const { rememberAnchoredSnapshot } = await import(
 const { recoverStaleHunks } = await import(
   '../../src/services/changeTransaction/stalePatchRecovery.ts'
 )
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'stale-rec-fix-')))
 const owner = processMainOwner()

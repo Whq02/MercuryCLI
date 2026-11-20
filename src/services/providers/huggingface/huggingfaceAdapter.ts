@@ -6,7 +6,7 @@ import {
 import {
   HUGGINGFACE_DISPLAY_PINS,
   HUGGINGFACE_MODEL_PREFIX,
-} from './huggingfacePins.js'
+} from '../../../utils/model/pins/huggingfacePins.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,

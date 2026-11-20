@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 import wrapText from '../../../ink/wrap-text.js'
 import { getFocusedWorkspaceCwd } from '../../../hooks/useFocusedWorkspaceCwd.js'
-import { GLYPH } from '../../mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 
 export const CONFIG_POPUP_WIDTH = 110
 export const CONFIG_POPUP_ROWS = 44

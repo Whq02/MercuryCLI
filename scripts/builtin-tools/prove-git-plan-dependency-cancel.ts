@@ -13,7 +13,7 @@ if (!process.argv.includes('--child')) {
 } else {
   if (homedir() !== process.env.GIT_PROOF_HOME) throw new Error('wrong proof home before product imports')
   const { preparePlan, applyPlan, getPlan } = await import('../../src/services/gitGraph/plan.ts')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
   const world = gitFixture('git-dependency-cancel-')
   let checks = 0
   let failures = 0

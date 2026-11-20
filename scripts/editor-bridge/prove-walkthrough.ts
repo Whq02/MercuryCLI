@@ -29,7 +29,7 @@ process.on('exit', () => {
 const { composeWalkthroughBody, createWalkthroughArtifact, createVisualJourneyArtifact } =
   await import('../../src/services/walkthrough/assembleWalkthrough.js')
 const { readReviewArtifactState } = await import('../../src/utils/artifacts/reviewStore.js')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
 
 const richInputs = {
   title: 'Ship the parser fix',

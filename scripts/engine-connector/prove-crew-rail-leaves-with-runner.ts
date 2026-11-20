@@ -71,7 +71,7 @@ console.log('\n(2) the connector says when the runner is gone')
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
   const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-  await import('../../src/daemon/ownerWatch.ts')
+  await import('../../src/utils/ownerWatch.ts')
   const seat = new DaemonSessionConnector({ sessionId: SID, runnerId: 'runner-air-8b', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch })
   publishSessionFacts({
     schema: 1,

@@ -51,7 +51,7 @@ import {
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { usageCarryWords, usageForProvider } from '../../services/providers/providerUsage.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
-import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
+import { paintSlotSwitchReceipt } from '../../services/providers/slotSwitchReceipt.js'
 import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
 import { anthropicWindowClosed, getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
 import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'

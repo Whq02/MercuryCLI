@@ -11,7 +11,7 @@ console.log('============================================================')
 console.log(' skill catalogue truncation — stated, never silent')
 console.log('============================================================')
 
-const prompt = await import('../../src/tools/SkillTool/prompt.ts')
+const prompt = await import('../../src/utils/skillListingFormat.ts')
 
 type Cmd = { type: string; name: string; description: string; loadedFrom?: string }
 const skill = (name: string, description: string, loadedFrom = 'skills'): Cmd => ({

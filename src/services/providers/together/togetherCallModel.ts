@@ -6,11 +6,11 @@ import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { TOGETHER_ENV_KEY, resolveTogetherAccount, resolveTogetherApiKey, togetherChatCompletionsUrl } from './togetherAccounts.js'
 import { cachedLiveIds, getCachedTogetherCatalogue, togetherListedModel } from './togetherCatalogue.js'
-import { TOGETHER_DISPLAY_PINS, togetherDisplayPin, togetherEffortVocabulary, togetherThinkingDial, togetherWireId } from './togetherPins.js'
+import { TOGETHER_DISPLAY_PINS, togetherDisplayPin, togetherEffortVocabulary, togetherThinkingDial, togetherWireId } from '../../../utils/model/pins/togetherPins.js'
 
 export function buildTogetherExtras(args: LaneExtrasArgs & { promptCacheKey?: string }): Record<string, unknown> {
   const dial = togetherThinkingDial(args.wireModel)

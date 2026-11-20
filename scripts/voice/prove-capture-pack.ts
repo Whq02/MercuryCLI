@@ -21,7 +21,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const pack = await import('../../src/services/voice/voicePack.js')
+const pack = await import('../../src/utils/voice/voicePack.js')
 const capture = await import('../../src/services/voice/capture.js')
 const wav = await import('../../src/services/voice/wav.js')
 
@@ -38,7 +38,7 @@ const build = spawnSync(BUN, ['run', 'scripts/vendor/build-voice.ts'], { cwd: RO
 const buildOut = `${build.stdout ?? ''}\n${build.stderr ?? ''}`
 
 async function healthRowSaysNone(): Promise<boolean> {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'iface-voice')
   return row !== undefined && String(row.evidence).includes('backend: none')

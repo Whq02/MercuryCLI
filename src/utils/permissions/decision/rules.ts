@@ -2,7 +2,7 @@ import {
   getMcpPrefix,
   getToolNameForPermissionCheck,
   mcpInfoFromString,
-} from '../../../services/mcp/mcpStringUtils.js'
+} from '../../mcp/mcpStringUtils.js'
 import type { Tool, ToolPermissionContext } from '../../../Tool.js'
 import { lspFamilyMatches } from '../../../services/lsp/toolFamily.js'
 import {
@@ -16,7 +16,7 @@ import type {
 } from '../PermissionRule.js'
 import { permissionRuleValueFromString } from '../permissionRuleParser.js'
 import { RULE_INHERITS } from '../../../constants/tools.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import { MONITOR_TOOL_NAME } from '../../../tools/MonitorTool/constants.js'
 
 const PERMISSION_RULE_SOURCES = [

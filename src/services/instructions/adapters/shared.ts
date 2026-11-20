@@ -1,7 +1,7 @@
 import { basename, join, sep } from 'path'
 
 import type { FrontmatterData } from '../../../utils/frontmatterParser.js'
-import type { InstructionConvention, InstructionRuleFormat, InstructionRuleReading } from '../contracts.js'
+import type { InstructionConvention, InstructionRuleFormat, InstructionRuleReading } from '../../../utils/instructions/contracts.js'
 import { isProjectInstructionExcluded } from '../nativeSource.js'
 
 type SharedFormat = {

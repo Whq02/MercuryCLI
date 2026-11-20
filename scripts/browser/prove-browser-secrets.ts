@@ -183,7 +183,7 @@ try {
   const originalHome = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = scratch
   const session = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
-  const { processOwnerForLane } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
+  const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
   const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
   const owner = processOwnerForLane('secrets-proof')
   const ctx = { agentId: 'secrets-proof' } as Parameters<typeof BrowserTool.call>[1]

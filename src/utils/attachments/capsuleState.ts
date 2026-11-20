@@ -1,6 +1,6 @@
 import type { Message } from '../../types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
-import { ownerFromToolUseContext, processMainOwner } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext, processMainOwner } from '../run/resolveOwner.js'
 
 interface CapsuleState {
   generation: string

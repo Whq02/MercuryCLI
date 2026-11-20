@@ -2,7 +2,7 @@ import type { Tools } from '../../Tool.js'
 import { getCwd } from '../../utils/cwd.js'
 import { primeEvalAvailability } from '../../services/eval/interpreters.js'
 import { EVAL_WALL_CEILING_MS } from '../../services/eval/contracts.js'
-import { samplesEnabled } from '../../services/samples/contracts.js'
+import { samplesEnabled } from '../../utils/samples/contracts.js'
 import { EVAL_TOOL_NAME } from './constants.js'
 
 export { EVAL_TOOL_NAME }

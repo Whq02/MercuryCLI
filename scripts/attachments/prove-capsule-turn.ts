@@ -28,7 +28,7 @@ try {
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
   const { getEngineModel } = await import('../../src/utils/model/model.js')
-  const { SKILL_TOOL_NAME } = await import('../../src/tools/SkillTool/constants.js')
+  const { SKILL_TOOL_NAME } = await import('../../src/constants/tools/skill.js')
   const { getAttachments } = await import('../../src/utils/attachments/orchestrator.js')
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
   let state = getDefaultAppState()

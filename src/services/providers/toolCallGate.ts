@@ -6,7 +6,7 @@ import { formatZodValidationError } from '../../utils/toolErrors.js'
 import { stripNullArgs } from './openai/openaiWire.js'
 import { straightenQuotes } from '../../utils/curlyQuotes.js'
 import { declaredInputSchema, repairArgumentsBySchema } from './local/schemaTyping.js'
-import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../tools/MemoryTools/prompt.js'
+import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../constants/tools/memory.js'
 import { displayToolName } from '../../utils/toolNameDisplay.js'
 import { passedOver } from '../../utils/passedOver.js'
 

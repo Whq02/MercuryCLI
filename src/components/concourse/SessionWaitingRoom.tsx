@@ -4,7 +4,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useTimer } from '../../hooks/effects.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { ConcourseComposer } from './ConcourseStrips.js'
 import { concourseWaitCopy } from './contracts.js'
 import {

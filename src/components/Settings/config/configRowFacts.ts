@@ -1,5 +1,5 @@
 import { getEngineModel, modelDisplayString, renderModelName } from '../../../utils/model/model.js'
-import { glmThinkingLocked } from '../../../services/providers/zai/glmPins.js'
+import { glmThinkingLocked } from '../../../utils/model/pins/glmPins.js'
 import { modelThinkingAlwaysOn } from '../../../utils/model/capabilities.js'
 import { declaredRouteOf } from '../../../services/providers/callModelRouter.js'
 import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'

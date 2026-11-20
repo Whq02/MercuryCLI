@@ -24,7 +24,7 @@ function section(t: string): void {
 const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/services/run/ownerKey.js')
+  const ok = await import('../../src/utils/run/ownerKey.js')
   const kernel = await import('../../src/services/run/runKernel.js')
   const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
 
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
   section('BM-03/BM-09 — receipts over read-back; evidence outside the checkout')
   {
     const v = await import('../../src/utils/verification/verificationState.js')
-    const { observeToolTerminal } = await import('../../src/services/run/effectObserver.js')
+    const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
     v._resetVerificationStateForTesting()
     const cwd = mkdtempSync(join(tmpdir(), 'speedster-bm-proj-'))
     const vOwner = ok.makeOwnerKey({ workspace: cwd, sessionId: 'bm-v', lane: 'main' })
@@ -287,7 +287,7 @@ async function main(): Promise<void> {
     const entryStamp = (JSON.parse(readFileSync(join(entryHome, '.config.json'), 'utf8')) as { headlessActivity?: { print: number; sdk: number } }).headlessActivity
     rmSync(entryHome, { recursive: true, force: true })
     check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', entryStamp?.sdk === 1 && entryStamp.print === 0)
-    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/utils/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'))
+    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/services/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'))
   }
 
   section('WK — the worktree preflight refuses BEFORE allocation, deterministically')

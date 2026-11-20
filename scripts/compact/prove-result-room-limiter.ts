@@ -22,7 +22,7 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
 const { getBlockingLimit, getAutoCompactThreshold, resolveAutoCompactWindow } = await import('../../src/services/compact/autoCompact.ts')
 const roomModule = await import('../../src/services/run/resultRoom.ts').catch(() => null)
 const RESULT_ROOM_WORDS: string = roomModule?.RESULT_ROOM_WORDS ?? 'the context is near its fold'

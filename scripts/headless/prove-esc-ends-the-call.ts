@@ -28,7 +28,7 @@ tally.section('§1 the executor race, pure: a call that ignores the abort is aba
 {
   const { z } = await import('zod/v4')
   const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-  const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+  const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.ts')
   const starts: unknown[] = []

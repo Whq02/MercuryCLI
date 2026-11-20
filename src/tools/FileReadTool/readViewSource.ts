@@ -1,6 +1,6 @@
 import { closeSync } from 'node:fs'
 import { expandPath } from '../../utils/path.js'
-import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import { openRegularFileSync } from '../../utils/regularFile.js'
 import type { ReadQueryRequest } from './readQuery.js'
 

@@ -6,7 +6,7 @@ import { delimiter, join } from 'node:path'
 import { parseMemAvailable, parseVmStat, deviceHeadroom } from '../../src/utils/cockpit/deviceHeadroom.ts'
 
 if (process.argv[2] === '--tight') {
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const row = runtimeChecks().find(entry => entry.id === 'resources')
   const platformNow = Object.getOwnPropertyDescriptor(process, 'platform')!
   Object.defineProperty(process, 'platform', { ...platformNow, value: 'darwin' })
@@ -47,7 +47,7 @@ t('available ≥ the freemem() floor (free pages are a subset of available)', li
 t('available is a finite positive number (no NaN-as-live)', Number.isFinite(live.availableB) && live.availableB > 0)
 
 console.log('§3 the row (run here)')
-const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
 const resourcesRow = runtimeChecks().find(row => row.id === 'resources')
 const says = await resourcesRow?.run()
 const now = await deviceHeadroom()

@@ -15,7 +15,7 @@ import {
   readScrollSpeedBase,
   type WheelAccelState,
 } from '../ScrollKeybindingHandler.js'
-import { truncateToWidth } from '../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../utils/glyphs.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { mirrorHeaderFit } from './mirrorHeader.js'
 import { pageStepRows, WHEEL_ROWS_PER_NOTCH } from '../mercury-ui/composerFloor.js'

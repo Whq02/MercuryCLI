@@ -10,7 +10,7 @@ import {
   type BlenderBridgeObjectNode,
   type BlenderReportEntry,
   type BlenderReportSeverity,
-} from '../../src/services/blender/bridgeProtocol.js'
+} from '../../src/utils/blender/bridgeProtocol.js'
 
 type FakeBridgeMode =
   | 'echo'

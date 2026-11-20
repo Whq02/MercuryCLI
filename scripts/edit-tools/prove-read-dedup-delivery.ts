@@ -17,12 +17,12 @@ const api = await startFixtureApi([])
 process.env.ANTHROPIC_BASE_URL = api.url
 
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FILE_UNCHANGED_STUB } = await import('../../src/tools/FileReadTool/prompt.ts')
+const { FILE_UNCHANGED_STUB } = await import('../../src/constants/tools/fileRead.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 

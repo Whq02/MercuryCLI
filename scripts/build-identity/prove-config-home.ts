@@ -73,7 +73,7 @@ console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a s
   check('at rest the auth home is the resolved session home', restAuthHome === envUtils.getMercuryHome())
   check('at rest the env-less service is suffixed (the split test still bites on a bare one)', /-[0-9a-f]{8}$/.test(kc.getMacOsKeychainStorageServiceName()))
   const rowHome = probe(true, saved.mcd ?? (await import('node:fs')).mkdtempSync(join((await import('node:os')).tmpdir(), 'config-home-row-')), undefined)
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.js')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.js')
   const configHomeRow = crewChecks().find(row => row.id === 'config-home')
   const atRest = await configHomeRow?.run()
   check('health config-home keys the keychain test on getAuthConfigHomeDir()', atRest?.status === 'ok' && atRest.evidence.startsWith(`${rowHome} via explicit MERCURY_CONFIG_DIR · keychain …${kc.getMacOsKeychainStorageServiceName().slice(-12)}`) && !atRest.evidence.includes('auth scope slotted'), atRest?.evidence)

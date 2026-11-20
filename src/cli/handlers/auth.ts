@@ -34,13 +34,13 @@ import {
   awaitStoredOAuthDaemonRestart,
   daemonRestartFailedNotice,
 } from '../../services/oauth/refresh.js'
-import type { OAuthTokens } from '../../services/oauth/types.js'
+import type { OAuthTokens } from '../../utils/oauth/types.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
   buildAccountProperties,
   buildAPIProviderProperties,
   propertyValueToText,
-} from '../../utils/status.js'
+} from '../../components/status.js'
 import { maybeMarkProjectOnboardingComplete } from '../../projectOnboardingState.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 
@@ -355,7 +355,7 @@ function routedProviderRows(anthropicPresent: boolean): {
     const { providerFamilyPresences } =
       require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
     const { sessionAccountFamily } =
-      require('../../utils/accounts/sessionAccount.js') as typeof import('../../utils/accounts/sessionAccount.js')
+      require('../../services/accounts/sessionAccount.js') as typeof import('../../services/accounts/sessionAccount.js')
     const engineModel = getEngineModel()
     const family = sessionAccountFamily(engineModel) ?? declaredRouteOf(engineModel) ?? 'anthropic'
     const snapshot = buildProviderSnapshot()

@@ -34,7 +34,7 @@ guard.unref?.()
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const evidenceModule = (await import('../../src/services/api/transportEvidence.js')) as unknown as Record<string, unknown>
+const evidenceModule = (await import('../../src/utils/api/transportEvidence.js')) as unknown as Record<string, unknown>
 const retry = await import('../../src/services/api/withRetry.js')
 const proxy = await import('../../src/utils/proxy.js')
 type Cut = { code: string; words: string }

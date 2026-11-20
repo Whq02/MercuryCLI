@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { controlCharacterPathRefusal } from '../../utils/path.js'
@@ -141,7 +141,7 @@ function transformFrom(input: Input): StructureTransform | { error: string } {
 }
 
 import { listQueries } from '../../services/structure/store.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 function latestQueryId(owner: OwnerKey): string | null {
   const all = listQueries(owner)
   return all.length > 0 ? all[all.length - 1]!.id : null

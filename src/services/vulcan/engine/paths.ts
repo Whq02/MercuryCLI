@@ -1,7 +1,7 @@
 import { mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
-import { projectLocalPath } from '../../projectLocal/paths.js'
+import { projectLocalPath } from '../../../utils/projectLocal/paths.js'
 import { foldPathCase } from '../../../utils/platform/paths.js'
 
 const ENGINE_DIR_SEGMENT = 'engine'

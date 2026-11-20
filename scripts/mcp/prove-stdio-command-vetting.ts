@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const sdk = await import('../../src/services/mcp/sdk.js')
+const sdk = await import('../../src/utils/mcp/sdk.js')
 let spawned = 0
 class FixtureTransport {
   stderr = new EventEmitter()
@@ -29,7 +29,7 @@ class FixtureClient {
   async request() { if (this.closed) throw new Error('closed'); return { tools: [] } }
   async close() { this.closed = true }
 }
-mock.module('../../src/services/mcp/sdk.js', () => ({ ...sdk, Client: FixtureClient, StdioClientTransport: FixtureTransport }))
+mock.module('../../src/utils/mcp/sdk.js', () => ({ ...sdk, Client: FixtureClient, StdioClientTransport: FixtureTransport }))
 const { enableConfigs, getGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { parseMcpConfig, addMcpConfig } = await import('../../src/services/mcp/config.ts')

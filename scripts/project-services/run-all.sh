@@ -6,7 +6,7 @@
 # gate-watch: src/utils/messages/attachmentText*
 # gate-watch: scripts/lib/proofHome.ts
 # gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: src/utils/crew/agentTranscriptReader.ts
+# gate-watch: src/services/crew/agentTranscriptReader.ts
 # gate-watch: src/tools.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

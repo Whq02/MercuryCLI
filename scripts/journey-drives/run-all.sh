@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/journey/**
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/guards/mission* src/services/mission/missionCard* src/utils/sessionRestore*
+# gate-watch: src/guards/mission* src/utils/mission/missionCard* src/services/resume/sessionRestore*
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/services/api/dumpPrompts.ts
 # gate-watch: src/components/mercury-ui/parity/AccountView* src/services/providers/accountSlots.ts
 # gate-watch: src/components/mercury-ui/screens/anthropicLoginModel* src/services/oauth/** src/components/BootLoginsScreen*

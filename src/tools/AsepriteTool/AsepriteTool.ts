@@ -14,7 +14,7 @@ import {
   resolveAseprite,
   runAseprite,
   type AsepriteResolution,
-} from '../../services/aseprite/asepriteApp.js'
+} from '../../utils/aseprite/asepriteApp.js'
 import { ASEPRITE_TOOL_NAME, getAsepriteToolDescription } from './prompt.js'
 import { SPRITE_CREATE_LUA, SPRITE_PROBE_LUA } from './luaScripts.js'
 import {

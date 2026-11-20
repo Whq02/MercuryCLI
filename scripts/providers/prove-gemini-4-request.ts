@@ -27,7 +27,7 @@ const { resolveDisplayedSessionModel } = await import('../../src/hooks/useDispla
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { IMAGE_ELIDED_TEXT } = await import('../../src/utils/messages/imageRequestFit.ts')
-const modelCost = await import('../../src/utils/modelCost.ts')
+const modelCost = await import('../../src/services/usage/modelCost.ts')
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 

@@ -13,7 +13,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.ts')
+const { buildAgentLaunchPlan } = await import('../../src/services/crew/agentLaunchPlan.ts')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 

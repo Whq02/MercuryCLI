@@ -23,10 +23,10 @@ function section(t: string): void {
 
 const effort = await import('../../src/utils/effort.ts')
 const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { glmEffortsFor, glmAcceptsEffort } = await import('../../src/services/providers/zai/glmPins.ts')
-const { nearestSupportedWireEffort } = await import('../../src/services/providers/openai/gptPins.ts')
-const { KIMI_EFFORTS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
-const { DEEPSEEK_EFFORTS } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
+const { glmEffortsFor, glmAcceptsEffort } = await import('../../src/utils/model/pins/glmPins.ts')
+const { nearestSupportedWireEffort } = await import('../../src/utils/model/pins/gptPins.ts')
+const { KIMI_EFFORTS } = await import('../../src/utils/model/pins/kimiPins.ts')
+const { DEEPSEEK_EFFORTS } = await import('../../src/utils/model/pins/deepseekPins.ts')
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']

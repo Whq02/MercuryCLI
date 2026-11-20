@@ -23,14 +23,14 @@ const engineDir = join(scratch, 'engine')
 mkdirSync(engineDir)
 const repo = join(import.meta.dir, '../..')
 const vscodeDir = join(repo, 'node_modules/@vscode/tree-sitter-wasm/wasm')
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/services/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
 for (const file of GRAMMAR_ENGINE_RUNTIME_FILES) copyFileSync(join(vscodeDir, file), join(engineDir, file))
 for (const grammar of GRAMMAR_REGISTRY) {
   const from = grammar.source === 'grammar-pack' ? join(repo, 'vendor/grammars/extracted') : vscodeDir
   copyFileSync(join(from, grammar.wasm), join(engineDir, grammar.wasm))
 }
 process.env.MERCURY_TREESITTER_VENDOR_DIR = engineDir
-const { _resetGrammarEngineForTesting } = await import('../../src/services/structure/grammarFacility.ts')
+const { _resetGrammarEngineForTesting } = await import('../../src/utils/structure/grammarFacility.ts')
 const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')

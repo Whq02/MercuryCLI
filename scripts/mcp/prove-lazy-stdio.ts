@@ -2,7 +2,7 @@ import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Client } from '../../src/services/mcp/sdk.js'
+import { Client } from '../../src/utils/mcp/sdk.js'
 import { LazyStdioClientTransport, type McpBootstrapManifest } from '../../src/services/mcp/lazyStdio.js'
 import { removeScratch } from '../lib/removeScratch.ts'
 

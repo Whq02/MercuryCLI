@@ -56,7 +56,7 @@ const OWNER_WORDS = `model refused (unknown-model) · pick one of: claude-opus-5
 const sock = await import('../../src/daemon/controlSocket.ts')
 const protocol = await import('../../src/daemon/protocol.ts')
 const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { isProcessAlive, getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+const { isProcessAlive, getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
 const { daemonRecordIdentity: daemonRecordIdentity } = await import('../../src/daemon/verbs.ts')
 const handoverModule = await import('../../src/daemon/handover.ts').catch(() => null)
 const rawFrame = (sockPath: string, payload: unknown, timeoutMs: number): Promise<{ ok: boolean }> =>

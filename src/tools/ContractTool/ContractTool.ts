@@ -5,7 +5,7 @@ import { jsonStringify } from '../../utils/slowOperations.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SessionContractV1 } from '../../daemon/sessionContract.js'
-import { CONTRACT_TOOL_NAME, CONTRACT_TOOL_PROMPT, DESCRIPTION } from './prompt.js'
+import { CONTRACT_TOOL_NAME, CONTRACT_TOOL_PROMPT, DESCRIPTION } from '../../constants/tools/contract.js'
 
 
 const inputSchema = lazySchema(() =>

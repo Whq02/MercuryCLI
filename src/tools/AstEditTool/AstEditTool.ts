@@ -13,9 +13,9 @@ import { dropSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { structurePolyglotEnabled } from '../../services/structure/contracts.js'
-import { resolveGrammarEngineDir } from '../../services/structure/grammarFacility.js'
+import { resolveGrammarEngineDir } from '../../utils/structure/grammarFacility.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -35,13 +35,13 @@ import {
   resolveAstScope,
   type AstRewritePlan,
   type AstScope,
-} from '../../utils/astPatterns.js'
+} from '../../services/structure/astPatterns.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { FILE_NOT_FOUND_CWD_NOTE, findSimilarFile, getFileModificationTime, suggestPathUnderCwd } from '../../utils/file.js'
-import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../services/changeTransaction/fileHistory.js'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import {

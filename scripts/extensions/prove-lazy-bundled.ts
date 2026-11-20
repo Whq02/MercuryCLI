@@ -16,7 +16,7 @@ import { bundledRoster } from '../../src/extensions/bundled/index.js'
 import { contributionsHash } from '../../src/extensions/manifest.js'
 import { hashTree } from '../../src/extensions/tree.js'
 import { callMCPToolWithUrlElicitationRetry, clearServerCache, fetchToolsForClient, getServerCacheKey, prefetchAllMcpResources } from '../../src/services/mcp/client.js'
-import { StdioClientTransport } from '../../src/services/mcp/sdk.js'
+import { StdioClientTransport } from '../../src/utils/mcp/sdk.js'
 import type { ConnectedMCPServer } from '../../src/services/mcp/types.js'
 
 setCwdState(proofHome)

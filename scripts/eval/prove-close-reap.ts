@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import { check, cleanup, finish, refusingBridge, loadEval, section, setup, sleep, within } from './lib.js'
-import type { OwnerKey } from '../../src/services/run/ownerKey.js'
+import type { OwnerKey } from '../../src/utils/run/ownerKey.js'
 
 const { work } = setup()
 const { evalKernelManager, evalJournalDir } = await loadEval()
 const { listJournalOperations } = await import('../../src/substrate/operationJournal.js')
 const { disposeOwner, disposeAllOwnersForShutdown, ownerLifecycleCounts } = await import(
-  '../../src/services/run/ownerLifecycle.js'
+  '../../src/utils/run/ownerLifecycle.js'
 )
 
 const bridge = refusingBridge()

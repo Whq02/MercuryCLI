@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-receipts-'
 process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const {
   _resetChangeReceiptsForTesting,
   receiptById,
@@ -18,8 +18,8 @@ const {
   receiptsSince,
 } = await import('../../src/services/changeTransaction/receipts.ts')
 const { isMutationOperation } = await import('../../src/services/changeTransaction/contracts.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -198,7 +198,7 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
     events.push(msg)
   }
 
-  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const { receiptsFor: rf } = await import('../../src/services/changeTransaction/receipts.ts')
   const e2eOwner = ownerFromToolUseContext(context as never)
   const e2eReceipts = rf(e2eOwner)

@@ -15,7 +15,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const chalk = (await import('chalk')).default
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 
 const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
 const setTTY = (v: boolean): void => {

@@ -1,7 +1,7 @@
 import type { ContentBlock, RedactedThinkingBlock, ThinkingBlock, ContentBlockParam, RedactedThinkingBlockParam, TextBlockParam, ThinkingBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
-import { DEAD_THINKING_PLACEHOLDER } from '../../services/providers/anthropic/deadThinkingPlaceholder.js'
+import { DEAD_THINKING_PLACEHOLDER } from '../model/deadThinkingPlaceholder.js'
 import { clientCallItemsOf, contentItemsOf, isReasoningContent, resultItemsOf } from '../../rows/content.js'
 import { createUserMessage } from './factories.js'
 import { mergeUserMessages } from './merge.js'

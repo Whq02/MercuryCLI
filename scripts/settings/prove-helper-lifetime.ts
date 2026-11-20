@@ -91,8 +91,8 @@ const mods = await (async () => {
       serve: await import('../../src/services/tensorfold/serve.js'),
       engine: await import('../../src/services/tensorfold/engine.js'),
       manager: await import('../../src/services/projectServices/serviceManager.js'),
-      lifecycle: await import('../../src/services/run/ownerLifecycle.js'),
-      resolveOwner: await import('../../src/services/run/resolveOwner.js'),
+      lifecycle: await import('../../src/utils/run/ownerLifecycle.js'),
+      resolveOwner: await import('../../src/utils/run/resolveOwner.js'),
       config: await import('../../src/utils/config/globalConfig.js'),
     }
   } catch (error) {

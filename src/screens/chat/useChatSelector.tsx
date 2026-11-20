@@ -199,7 +199,7 @@ export function useChatSelectorView({
           });
           if (!branch.ok) return { ok: false as const, reason: branch.reason };
           const branchId = branch.manifest.branchSessionId as UUID;
-          const { loadConversationForResume } = await import('../../utils/conversationRecovery.js');
+          const { loadConversationForResume } = await import('../../services/resume/conversationRecovery.js');
           const loaded = await loadConversationForResume(branchId, branch.branchTranscriptPath);
           if (!loaded) return { ok: false as const, reason: `branch created but not loadable — mercury --resume ${branchId}` };
           const branchLog: ResumableLog = { ...loaded, fullPath: branch.branchTranscriptPath };

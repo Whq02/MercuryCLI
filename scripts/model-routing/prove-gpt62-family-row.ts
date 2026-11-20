@@ -13,16 +13,16 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'OPENCODE_API_KEY', 'NOUS_API_KEY', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const { providerFrontierFact, openaiSessionDefault, openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
 const { effortFamiliesLabel } = await import('../../src/utils/effort.js')
-const { ZEN_DISPLAY_PINS, zenDisplayPin, zenPinObservedAt, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/services/providers/zen/zenPins.js')
+const { ZEN_DISPLAY_PINS, zenDisplayPin, zenPinObservedAt, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/utils/model/pins/zenPins.js')
 const zenCatalogue = await import('../../src/services/providers/zen/zenCatalogue.js')
 const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
 const { NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.js')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
 const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
 

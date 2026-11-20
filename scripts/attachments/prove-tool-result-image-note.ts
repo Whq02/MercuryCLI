@@ -16,7 +16,7 @@ if (JS_ROAD) process.env.MERCURY_IMAGE_PROCESSOR = 'javascript'
 
 const resizer = await import('../../src/utils/imageResizer.ts')
 const { ANTHROPIC_IMAGE_LIMITS } = await import('../../src/constants/apiLimits.ts')
-const { imageDimensionsFromHeader } = await import('../../src/tools/FileReadTool/imageProcessorJs.ts')
+const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0

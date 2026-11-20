@@ -1,7 +1,7 @@
 
 import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
-import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { getUserContext } from '../../context.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 import { prependUserContext } from '../../utils/api.js'

@@ -1,5 +1,5 @@
-import type { Transport } from './sdk.js'
-import type { JSONRPCMessage } from './sdk.js'
+import type { Transport } from '../../utils/mcp/sdk.js'
+import type { JSONRPCMessage } from '../../utils/mcp/sdk.js'
 import { startMicrotask } from '../../utils/timers.js'
 
 

@@ -30,7 +30,7 @@ export async function healthAction(options: {
   if (presentation.output === 'text' || presentation.depth === 'deep' || options.only !== undefined) {
     const { beginReadOnlyDiagnostic } = await import('../utils/diagnosticReadOnly.js')
     beginReadOnlyDiagnostic(options.only)
-    const { runAndRecordHealthReport } = await import('../utils/healthReport.js')
+    const { runAndRecordHealthReport } = await import('../services/health/healthReport.js')
     let completed = 0
     const cert = await runAndRecordHealthReport({
       depth: options.deep ? 'deep' : 'fast',

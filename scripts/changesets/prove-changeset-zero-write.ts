@@ -26,7 +26,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { mintFileAnchor } = await import(
   '../../src/services/changeTransaction/snapshotAnchor.ts'
 )
-const { sha256Hex } = await import('../../src/services/changeTransaction/changeSetPlan.ts')
+const { sha256Hex } = await import('../../src/utils/hash.ts')
 const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
 const { isDurableTempName } = await import('../../src/substrate/durablePublish.ts')
 

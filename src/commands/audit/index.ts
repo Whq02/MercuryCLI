@@ -5,7 +5,7 @@ import { parseSlashCommandToolsFromFrontmatter } from '../../utils/markdownConfi
 import { parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { applyPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
-import { executeShellCommandsInPrompt } from '../../utils/promptShellExecution.js'
+import { executeShellCommandsInPrompt } from '../../services/tools/promptShellExecution.js'
 
 const DESCRIPTION = 'Analyze the changes on this branch for security risks'
 

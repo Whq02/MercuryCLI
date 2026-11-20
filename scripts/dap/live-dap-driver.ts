@@ -23,7 +23,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-live', lane: 'main' })
 const session = await createDapSession({
   owner: OWNER,

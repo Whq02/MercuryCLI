@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { filterToolsByServer, excludeToolsByServer } = await import(join(SRC, 'services/mcp/utils.ts'))
-const { getMcpPrefix, wireSafeMcpToolName } = await import(join(SRC, 'services/mcp/mcpStringUtils.ts'))
+const { getMcpPrefix, wireSafeMcpToolName } = await import(join(SRC, 'utils/mcp/mcpStringUtils.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

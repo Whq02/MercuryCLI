@@ -14,7 +14,7 @@ import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { renderToolActivity } from './renderToolActivity.js'
 import { agentLifecycleOf, getTaskStatusColor, getTaskStatusIcon } from './taskStatusUtils.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 
 const PROMPT_CAP = 300
 

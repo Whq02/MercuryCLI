@@ -19,7 +19,7 @@ delete process.env.MERCURY_SPAWN_LEDGER
 
 const { reconcileDaemonRecords } = await import('../../src/daemon/reconcileRecords.ts')
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const ledger = await import('../../src/utils/spawnLedger.ts')
+const ledger = await import('../../src/daemon/spawnLedger.ts')
 
 const deadPid = spawnSync(process.execPath, ['-e', ''], { stdio: 'ignore' }).pid as number
 if (!deadPid || deadPid <= 1) {
@@ -218,7 +218,7 @@ check(
   const fsH = await import('node:fs')
   fsH.mkdirSync(dirname(supPath), { recursive: true })
   fsH.writeFileSync(supPath, JSON.stringify({ pid: deadPid, startedAt: Date.now() - 60_000 }))
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const daemonSays = await crewChecks().find(row => row.id === 'daemon')?.run()
   check(
     'health daemon row runs the reconcile (verb-path cleanup)',

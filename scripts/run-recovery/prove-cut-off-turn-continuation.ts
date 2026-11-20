@@ -15,7 +15,7 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { loadConversationForResume, getResumePrompt } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 import type { Message } from '../../src/types/message.ts'
 

@@ -1,5 +1,5 @@
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { contextWindowLabel } = await import('../../src/utils/contextFill.js')
+const { contextWindowLabel } = await import('../../src/services/context/contextFill.js')
 const { fmtCtx } = await import('../../src/components/MercuryModelPicker.js')
 const { localWindowWords, localUnloadedWindowWords } = await import('../../src/services/providers/local/localCatalogue.js')
 type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.js').LocalModelRecord

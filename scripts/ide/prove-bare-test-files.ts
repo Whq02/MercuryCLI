@@ -17,7 +17,7 @@ const pythonProject = await import('../../src/services/ide/pythonProject.ts')
 const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
 type ToolAnswer = { data: { outcome: string; result: string; record?: TestRunRecord }; effect: { outcome: string } }
 

@@ -1,6 +1,6 @@
 import { isMnemeEnabled } from '../../mneme/paths.js'
 import type { AgentColorName } from '../../tools/AgentTool/agentColorManager.js'
-import { loadAgentMemoryPrompt, withMemoryVerbs, type AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
+import { loadAgentMemoryPrompt, withMemoryVerbs, type AgentMemoryScope } from '../../utils/agentMemory.js'
 import type { AgentDefinition, ExtensionAgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { EFFORT_LEVELS, parseEffortValue } from '../../utils/effort.js'

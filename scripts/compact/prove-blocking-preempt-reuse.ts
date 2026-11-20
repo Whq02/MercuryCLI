@@ -29,7 +29,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const compact = await import('../../src/services/compact/autoCompact.ts')
-const tokens = await import('../../src/utils/tokens.ts')
+const tokens = await import('../../src/services/context/tokens.ts')
 
 const MODEL = 'claude-sonnet-5'
 

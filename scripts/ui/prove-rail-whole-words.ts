@@ -18,7 +18,7 @@ const { fitRailName, railRowBudgets } = await import('../../src/components/HelmL
 const { railPlanAt, HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
 const { railPanelInnerWidth } = await import('../../src/components/mercury-ui/RailPanel.tsx')
 const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
-const { displayWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
+const { displayWidth } = await import('../../src/utils/glyphs.ts')
 
 const USAGE_ROW = 'usage — after first reply'
 const HEALTH_ROW = '/health — health cert'

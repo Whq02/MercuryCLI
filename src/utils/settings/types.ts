@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-import { VideoProviderSettingsSchema } from '../../services/video/types.js'
+import { VideoProviderSettingsSchema } from '../video/types.js'
 import { CompatProviderSchema } from './compatProvider.js'
 import { ModelFactsSchema } from './modelFacts.js'
 import { EFFORT_LEVELS } from '../effortLadder.js'

@@ -1,7 +1,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from './effortLadder.js'
-import { nearestSupportedWireEffort, wireEffortForListDefault } from '../services/providers/openai/gptPins.js'
-import { isGlmModelId } from '../services/providers/zai/glmPins.js'
+import { nearestSupportedWireEffort, wireEffortForListDefault } from './model/pins/gptPins.js'
+import { isGlmModelId } from './model/pins/glmPins.js'
 import { isEnterpriseSubscriber, isMaxSubscriber, isProSubscriber, isCrewSubscriber } from './auth.js'
 import { getGlobalConfig, saveGlobalConfig } from './config.js'
 import {

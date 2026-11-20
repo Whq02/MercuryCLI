@@ -199,7 +199,7 @@ try {
   const denseList = await search(dir, { pattern: 'DENSE' })
   check('the per-file cap never changes count or filenames mode', denseCount.data.numMatches === 301 && denseList.data.numFiles === 2)
   const { checkSeenLines, fileGeneration } = await import('../../src/services/changeTransaction/seenLines.ts')
-  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const unseen = join(dir, 'unseen.txt')
   writeFileSync(unseen, Array.from({ length: 100 }, (_, i) => `UNSEEN ${i + 1}`).join('\n'))
   await search(dir, { pattern: 'UNSEEN', output_mode: 'content' })

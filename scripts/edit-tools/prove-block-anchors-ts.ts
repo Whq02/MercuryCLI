@@ -23,7 +23,7 @@ const { countLines } = await import('../../src/services/changeTransaction/hunks.
 const { fileGeneration, recordSeenLines } = await import(
   '../../src/services/changeTransaction/seenLines.ts'
 )
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'block-anchor-fix-')))
 const owner = processMainOwner()

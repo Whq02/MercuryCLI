@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { getFocusedSessionConnector, subscribeThroughFocused } from './focusedConnector.js'
 import { hasSeatLive } from './seatLive.js'
 import { mainShellRunsNow, subscribeShellRuns } from '../../tools/BashTool/backgroundRequest.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import type { Message } from '../../types/message.js'
 import type { WorkRowV1 } from './types.js'
 

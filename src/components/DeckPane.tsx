@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
-import { contextWindowLabel } from '../utils/contextFill.js'
+import { contextWindowLabel } from '../services/context/contextFill.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { useEngineModel } from '../hooks/useEngineModel.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
@@ -19,16 +19,16 @@ import {
   sessionTraceSnapshot,
   subscribeLiveContextUsage,
   type SnapshotState,
-} from '../utils/cockpit/index.js'
+} from '../services/cockpit/index.js'
 import { conversationIdHere, getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
-import { formatCountdown } from '../utils/cockpit/quota.js'
+import { formatCountdown } from '../services/cockpit/quota.js'
 import { isLocalModelId } from '../services/providers/local/localCatalogue.js'
 import { localWindowRuleWords } from '../services/providers/local/localWindow.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/anthropicLimits.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useNowTick } from './mercury-ui/components.js'
-import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from '../utils/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { STATE_STYLE } from './mercury-ui/theme.js'
 import { deckPaneView } from './deckPane/deckPaneView.js'

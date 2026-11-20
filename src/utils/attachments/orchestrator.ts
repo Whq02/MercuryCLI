@@ -53,7 +53,7 @@ import {
 } from './taskStatus.js'
 import { getMissionStatusAttachment } from './missionStatus.js'
 import type { Attachment } from './types.js'
-import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
 import { firstTurnUserContext } from '../api.js'
 import { getSystemContext, getUserContext } from '../../context.js'
@@ -104,7 +104,7 @@ export async function getAttachments(
           { inputScoped: true },
         ),
         maybe('samples_road', () => Promise.resolve(options?.operatorPrompt ? samplesRoadAttachment(input, messages) : []), { inputScoped: true }),
-        maybe('remote_files', async () => (input.includes('ssh://') ? (await import('../../services/remoteFiles/notice.js')).remoteFilesNotice(input, messages) : []), { inputScoped: true }),
+        maybe('remote_files', async () => (input.includes('ssh://') ? (await import('../remoteFiles/notice.js')).remoteFilesNotice(input, messages) : []), { inputScoped: true }),
         maybe(
           'agent_mentions',
           () =>

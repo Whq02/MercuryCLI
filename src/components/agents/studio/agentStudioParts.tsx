@@ -16,7 +16,7 @@ import {
   CommandCenter,
   SectionHeader,
 } from '../../mercury-ui/components.js'
-import { GLYPH, truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from '../../../utils/glyphs.js'
 import type { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import type { useFlatList } from '../../mercury-ui/useFlatList.js'
 import type { useEngineModel } from '../../../hooks/useEngineModel.js'

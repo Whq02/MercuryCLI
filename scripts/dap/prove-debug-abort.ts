@@ -15,7 +15,7 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: process.execPath, args: [join(import.meta.dir, 'mock-dap-terminal.mjs')] } })
 const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
 const { getDapSession, removeDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'services/dap/dapClient.ts'))
-const { processMainOwner } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
 const owner = processMainOwner()
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + detail : ''}`) }

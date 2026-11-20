@@ -65,7 +65,7 @@ const { buildMessageLookups } = await import('../../src/utils/messages/lookups.t
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { toolResultRowsOf } = await import('../../src/rows/project.ts')
 const { findTaskOutcome } = await import('../../src/tasks/taskOutcomeEnvelope.ts')
-const { processBashCommand } = await import('../../src/utils/processUserInput/processBashCommand.tsx')
+const { processBashCommand } = await import('../../src/services/processUserInput/processBashCommand.tsx')
 const { getCachedPowerShellPath } = await import('../../src/utils/shell/powershellDetection.ts')
 setIsInteractive(false)
 

@@ -1,7 +1,7 @@
 import { setLastMainRequestId } from 'src/bootstrap/state.js'
 import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import { getAgentContext } from 'src/utils/agentContext.js'
-import { calculateUSDCost } from 'src/utils/modelCost.js'
+import { calculateUSDCost } from 'src/services/usage/modelCost.js'
 import { stopSessionActivity } from '../../../../utils/sessionActivity.js'
 import { clearModelRefusal } from '../modelRefusal.js'
 import {

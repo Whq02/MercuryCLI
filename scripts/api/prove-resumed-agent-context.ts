@@ -104,7 +104,7 @@ section('§4 the resume and the launch wire the record end to end')
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const firstExchangeRecordOf = async (who: { agentId?: string; querySource?: string }): Promise<Record_ | undefined> => {
     const planted = await t.plantRun({ ...who, script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
     Object.assign(planted.run, { userContext: launchUserContext, systemContext: launchSystemContext })

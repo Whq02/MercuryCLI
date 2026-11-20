@@ -4,8 +4,8 @@ import {
   discoverBlendFiles,
   locateBlender,
   mercuryBlenderEnabled,
-} from '../../services/ide/blenderProject.js'
-import { BLENDER_BRIDGE_DEFAULT_PORT } from '../../services/blender/bridgeProtocol.js'
+} from './blenderProject.js'
+import { BLENDER_BRIDGE_DEFAULT_PORT } from './bridgeProtocol.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import * as path from 'node:path'

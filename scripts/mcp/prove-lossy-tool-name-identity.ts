@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { buildMcpToolName, getToolNameForPermissionCheck, wireSafeMcpToolName } from '../../src/services/mcp/mcpStringUtils.ts'
+import { buildMcpToolName, getToolNameForPermissionCheck, wireSafeMcpToolName } from '../../src/utils/mcp/mcpStringUtils.ts'
 
 const identities = [['srv', 'db.query'], ['srv', 'db_query'], ['s.rv', 'db_query'], ['s_rv', 'db_query'], ['srv', '名前'], ['srv', '__'], ['srv', 'x'.repeat(100)], ['srv', 'x'.repeat(99) + 'y'], ['s'.repeat(100), 'db.query']] as const
 const names = identities.map(([server, tool]) => wireSafeMcpToolName(server, tool))

@@ -1,5 +1,5 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
-import { processOwnerForLane } from '../../run/resolveOwner.js'
+import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import { randomUUID } from 'crypto'
 import type {
   ApiContentBlockDelta,
@@ -48,7 +48,7 @@ import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingS
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
-import { calculateUSDCost } from '../../../utils/modelCost.js'
+import { calculateUSDCost } from '../../usage/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import { resolveZaiDispatch } from './zaiAccounts.js'
 import { learnZaiKeyPlan } from './zaiCatalogue.js'
@@ -61,7 +61,7 @@ import {
 } from '../../../prompt/behaviourContract.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
-import type { MediaRefusal } from '../../api/mediaRefusal.js'
+import type { MediaRefusal } from '../../../utils/api/mediaRefusal.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
@@ -97,8 +97,8 @@ export function zaiLiveProofState(): { at: number; model: string } | null {
 const ZAI_MAX_ATTEMPTS = 2
 const ZAI_RETRY_BACKOFF_MS = 400
 
-import { glmAcceptsEffort, glmEffortsFor, glmThinkingLocked } from './glmPins.js'
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { glmAcceptsEffort, glmEffortsFor, glmThinkingLocked } from '../../../utils/model/pins/glmPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import {
   compatFaultToTypedError,
   compatTerminalFaultText,

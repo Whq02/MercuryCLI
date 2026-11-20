@@ -1,7 +1,7 @@
 
 import { searchToolsAvailability } from '../../../utils/ripgrep.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
-import { AGENT_TOOL_NAME } from '../constants.js'
+import { AGENT_TOOL_NAME } from '../../../constants/tools/agent.js'
 
 function searchToolGuidance(): string {
   const search = searchToolsAvailability()

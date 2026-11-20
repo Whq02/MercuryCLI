@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/utils/model/configs.ts src/utils/model/aliases.ts src/utils/model/model.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/cerebras/cerebrasPins.ts src/services/providers/fireworks/fireworksPins.ts src/services/providers/qwen/qwenPins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
+  sources: 'src/substrate/startupMenu.ts src/utils/model/configs.ts src/utils/model/aliases.ts src/utils/model/model.ts src/utils/model/pins/xaiPins.ts src/utils/model/pins/metaPins.ts src/utils/model/pins/mistralPins.ts src/utils/model/pins/minimaxPins.ts src/utils/model/pins/coherePins.ts src/utils/model/pins/groqPins.ts src/utils/model/pins/cerebrasPins.ts src/utils/model/pins/fireworksPins.ts src/utils/model/pins/qwenPins.ts src/utils/model/pins/deepseekPins.ts src/utils/model/pins/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
   build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
@@ -33,21 +33,21 @@ const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
 const { getMarketingNameForModel, parseUserSpecifiedModel } =
   await import('../../src/utils/model/model.ts')
-const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiPins.ts')
+const { XAI_DISPLAY_PINS } = await import('../../src/utils/model/pins/xaiPins.ts')
 const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } =
-  await import('../../src/services/providers/deepseek/deepseekPins.ts')
-const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+  await import('../../src/utils/model/pins/deepseekPins.ts')
+const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
 const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
 const GLM_DISPLAY_PINS = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displayName: entry.displayLabel }))
 
-const { META_DISPLAY_PINS } = await import('../../src/services/providers/meta/metaPins.ts')
-const { MISTRAL_DISPLAY_PINS } = await import('../../src/services/providers/mistral/mistralPins.ts')
-const { MINIMAX_DISPLAY_PINS } = await import('../../src/services/providers/minimax/minimaxPins.ts')
-const { COHERE_DISPLAY_PINS } = await import('../../src/services/providers/cohere/coherePins.ts')
-const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../src/services/providers/groq/groqPins.ts')
-const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../src/services/providers/cerebras/cerebrasPins.ts')
-const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../src/services/providers/fireworks/fireworksPins.ts')
-const { QWEN_DISPLAY_PINS } = await import('../../src/services/providers/qwen/qwenPins.ts')
+const { META_DISPLAY_PINS } = await import('../../src/utils/model/pins/metaPins.ts')
+const { MISTRAL_DISPLAY_PINS } = await import('../../src/utils/model/pins/mistralPins.ts')
+const { MINIMAX_DISPLAY_PINS } = await import('../../src/utils/model/pins/minimaxPins.ts')
+const { COHERE_DISPLAY_PINS } = await import('../../src/utils/model/pins/coherePins.ts')
+const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../src/utils/model/pins/groqPins.ts')
+const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../src/utils/model/pins/cerebrasPins.ts')
+const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../src/utils/model/pins/fireworksPins.ts')
+const { QWEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/qwenPins.ts')
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

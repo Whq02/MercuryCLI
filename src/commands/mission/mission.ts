@@ -23,7 +23,7 @@ export const call = async (
     const mission = getActiveMission()
     if (!mission) {
       try {
-        const { inspectMissionCard, missionCardUnreadWords } = await import('../../services/mission/missionCard.js')
+        const { inspectMissionCard, missionCardUnreadWords } = await import('../../utils/mission/missionCard.js')
         const { getSessionId } = await import('../../bootstrap/state.js')
         const read = inspectMissionCard(getSessionId())
         if (read.state === 'unreadable') {

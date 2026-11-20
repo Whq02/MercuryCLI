@@ -1,7 +1,7 @@
 
 import { openDeliverables } from './runKernel.js'
 import { getRunSnapshot } from './runCoordinator.js'
-import type { OwnerKey } from './ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_LIST = 12

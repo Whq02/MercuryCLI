@@ -1,7 +1,7 @@
 import { getGlobalConfig, isConfigReadingAllowed } from '../../utils/config.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { MiniMaxVideoProvider, MINIMAX_VIDEO_MODEL, videoBaseUrl } from './minimax.js'
-import { VideoProviderSettingsSchema, type VideoProviderConfig, type VideoProviderSettings } from './types.js'
+import { VideoProviderSettingsSchema, type VideoProviderConfig, type VideoProviderSettings } from '../../utils/video/types.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const VIDEO_SETUP = 'Video has no provider configured. First, /logins minimax stores an Open Platform pay-as-you-go API key. Then add videoProvider.<name> = { kind: "minimax" } to settings.'

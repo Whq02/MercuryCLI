@@ -16,8 +16,8 @@ import {
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { CACHE_COST } from '../../utils/cache/cacheClockCore.js'
 import { providerDisplayName, type CallModelRoute } from '../../services/providers/routeLaw.js'
-import { DEEPSEEK_DISPLAY_PINS } from '../../services/providers/deepseek/deepseekPins.js'
-import { KIMI_DISPLAY_PINS } from '../../services/providers/moonshot/kimiPins.js'
+import { DEEPSEEK_DISPLAY_PINS } from '../../utils/model/pins/deepseekPins.js'
+import { KIMI_DISPLAY_PINS } from '../../utils/model/pins/kimiPins.js'
 import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../../types/command.js'
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/model/** src/utils/healthReport*
+# gate-watch: src/utils/model/** src/services/health/healthReport*
 # gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

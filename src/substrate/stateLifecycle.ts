@@ -396,7 +396,7 @@ async function collectBashAuditLedger(budget: LifecycleBudget): Promise<Lifecycl
   const receipt = emptyReceipt('bash-audit-ledger')
   let live: string
   try {
-    const { bashAuditPath } = await import('../utils/spawnLedger.js')
+    const { bashAuditPath } = await import('../daemon/spawnLedger.js')
     live = bashAuditPath()
   } catch {
     receipt.done = true
@@ -445,7 +445,7 @@ async function collectBashAuditLedger(budget: LifecycleBudget): Promise<Lifecycl
 
 async function collectIdleScratchpads(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
   const receipt = emptyReceipt('session-scratchpads')
-  const { readScratchpadCensus, forgetStaleOwnerRecords, scratchpadFootprint, SCRATCHPAD_WALK_ENTRIES } = await import('../utils/scratchpadRetention.js')
+  const { readScratchpadCensus, forgetStaleOwnerRecords, scratchpadFootprint, SCRATCHPAD_WALK_ENTRIES } = await import('../daemon/scratchpadRetention.js')
   const { forgetSweptScratchpad, isSessionScratchpad } = await import('../utils/scratchpad.js')
   const { retentionCutoffMs } = await import('../utils/cleanup.js')
   const { getMercuryTempDir } = await import('../utils/permissions/filesystem.js')
@@ -668,7 +668,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'bash-audit-ledger',
     lane: 'mechanical-debris',
-    owner: 'src/utils/spawnLedger.ts',
+    owner: 'src/daemon/spawnLedger.ts',
     root: '<daemon dir>/bash-audit.jsonl · bash-audit.<stamp>.jsonl',
     kind: 'log',
     liveReference: 'the live file under 16 MB; the newest four rotated files within 256 MB together',
@@ -707,7 +707,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'session-scratchpads',
     lane: 'semantic-state',
-    owner: 'src/utils/scratchpad.ts · src/utils/scratchpadRetention.ts',
+    owner: 'src/utils/scratchpad.ts · src/daemon/scratchpadRetention.ts',
     root: '<temp root>/<project>/<session>/scratchpad/ · <temp root>/scratchpad-owners/<digest>.json',
     kind: 'temp',
     liveReference:

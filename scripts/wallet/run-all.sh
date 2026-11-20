@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/wallet/** src/utils/secureStorage/**
-# gate-watch: src/services/providers/credentialIdentity* src/services/providers/*/*Accounts.ts src/services/providers/*/*Login.ts src/services/oauth/** src/utils/accounts/**
+# gate-watch: src/utils/accounts/credentialIdentity* src/services/providers/*/*Accounts.ts src/services/providers/*/*Login.ts src/services/oauth/** src/utils/accounts/**
 # gate-watch: src/ink/stringWidth.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -176,7 +176,7 @@ function startFakeVulcanServer(
   const vulcanClientMod = await import(join(SRC, 'services/vulcan/vulcanClient.ts'))
   const { GodotTool } = await import(join(SRC, 'tools/GodotTool/GodotTool.ts'))
   const { buildGodotIdeSession, discoverGodotLaunchProfiles, _resetGodotSessionForTesting } = await import(join(SRC, 'services/ide/godotSession.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'services/run/ownerKey.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
   const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
 
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-2-')))
@@ -353,9 +353,9 @@ function startFakeVulcanServer(
 {
   console.log('\n4. w09-4: unreadable project.godot surfaced in vulcanInstallStatus, runtime/services health, and godotSession')
   const { vulcanInstallStatus, readEnabledPlugins } = await import(join(SRC, 'services/vulcan/addonInstaller.ts'))
-  const { vulcanCheck } = await import(join(SRC, 'utils/health/sections/runtime/services.ts'))
+  const { vulcanCheck } = await import(join(SRC, 'services/health/sections/runtime/services.ts'))
   const { buildGodotIdeSession, _resetGodotSessionForTesting } = await import(join(SRC, 'services/ide/godotSession.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'services/run/ownerKey.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
   const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
 
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-4-')))

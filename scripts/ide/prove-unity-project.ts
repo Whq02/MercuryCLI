@@ -25,7 +25,7 @@ const {
   locateUnityEditors,
   compareUnityVersionsDesc,
   buildUnityProjectProfile,
-} = await import('../../src/services/ide/unityProject.js')
+} = await import('../../src/utils/unity/unityProject.js')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 
 const savedEnv = { ...process.env }
@@ -194,11 +194,11 @@ section('§6 · registry honesty')
     unity !== undefined &&
       unity.kind === 'opt-in' &&
       unity.evidence === 'scripts/ide/prove-unity-project.ts' &&
-      unity.consumer === 'src/services/ide/unityProject.ts',
+      unity.consumer === 'src/utils/unity/unityProject.ts',
   )
   check(
     'MERCURY_UNITY_EDITOR row: value flag, consumer = unityProject',
-    editorPin !== undefined && editorPin.kind === 'value' && editorPin.consumer === 'src/services/ide/unityProject.ts',
+    editorPin !== undefined && editorPin.kind === 'value' && editorPin.consumer === 'src/utils/unity/unityProject.ts',
   )
 }
 

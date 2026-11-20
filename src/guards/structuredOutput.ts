@@ -1,4 +1,4 @@
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
+import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../constants/tools/syntheticOutput.js'
 import type { Message } from '../types/message.js'
 import { hasSuccessfulToolCall } from '../utils/messages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'

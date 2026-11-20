@@ -1,7 +1,7 @@
 import React from 'react'
 import figures from 'figures'
 import { Box, Text, paletteCollapsed } from '../../ink.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'

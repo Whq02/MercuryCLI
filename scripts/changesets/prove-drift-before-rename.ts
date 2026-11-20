@@ -21,7 +21,7 @@ guard.unref?.()
 
 const commitMod = await import(join(SRC, 'services/changeTransaction/changeSetCommit.ts'))
 const { runTextChangeSetCommit, commitPlanDigest } = commitMod
-const { sha256Hex } = await import(join(SRC, 'services/changeTransaction/changeSetPlan.ts'))
+const { sha256Hex } = await import(join(SRC, 'utils/hash.ts'))
 const { listJournalOperations } = await import(join(SRC, 'substrate/operationJournal.ts'))
 const seam = commitMod._setBeforeRenameHookForProofs as ((hook: ((path: string) => void) | null) => void) | undefined
 check('the staging-window proof seam exists', typeof seam === 'function')

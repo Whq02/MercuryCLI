@@ -5,7 +5,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { computeChromeMode } from '../../hooks/useLayoutTier.js'
 import { useSelectedSuggestion } from './suggestionSelectionStore.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { GLYPH, displayWidth, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { GLYPH, displayWidth, truncateToWidth } from '../../utils/glyphs.js'
 import { collapseWhitespace } from '../../utils/stringUtils.js'
 import { truncatePathMiddle } from '../../utils/truncate.js'
 

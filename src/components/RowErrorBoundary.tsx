@@ -3,7 +3,7 @@ import { Text } from '../ink.js'
 import { logError } from '../utils/log.js'
 import { crashReportDirDisplay, persistCrashReport } from '../utils/crashReport.js'
 import { FAINT } from './mercuryPalette.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 
 interface Props {
   children: React.ReactNode

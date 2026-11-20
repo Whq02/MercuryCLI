@@ -300,7 +300,7 @@ section('T. the Service tool end-to-end')
     t6b.data.state === 'absent' && t6b.data.result === "no service 'no-such-service' in this project\ntimeoutMs clamped to 300000 ms (the maximum)", t6b.data.result)
 
   const { resolveResource } = await import('../../src/services/resources/registry.ts')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
   const owner = makeOwnerKey({ workspace: workDir, sessionId: SESSION, lane: 'main' } as never)
   const ref = await resolveResource('mercury://service/tool-web', { owner, cwd: workDir } as never)
   check('T7 mercury://service/<name> resolves through the ONE resolver',

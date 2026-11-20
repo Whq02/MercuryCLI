@@ -1,6 +1,6 @@
 import { makeContext } from '../eval/lib.js'
 
-export async function sampleCellRunner(owner: import('../../src/services/run/ownerKey.js').OwnerKey, cwd: string) {
+export async function sampleCellRunner(owner: import('../../src/utils/run/ownerKey.js').OwnerKey, cwd: string) {
   const { evalKernelManager } = await import('../../src/services/eval/kernelManager.js')
   const { makeEvalBridgeServer } = await import('../../src/services/eval/evalBridge.js')
   const context = await makeContext()

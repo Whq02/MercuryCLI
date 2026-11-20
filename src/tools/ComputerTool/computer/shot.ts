@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { ToolUseContext } from '../../../Tool.js'
-import { imageDimensionsFromHeader } from '../../FileReadTool/imageProcessorJs.js'
+import { imageDimensionsFromHeader } from '../../../utils/imageProcessor/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../../utils/imageResizer.js'
-import { getImageProcessor } from '../../FileReadTool/imageProcessor.js'
+import { getImageProcessor } from '../../../utils/imageProcessor/imageProcessor.js'
 import { modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import {
   compatImageRefusalWords,
@@ -11,7 +11,7 @@ import {
   refreshCompatModelImageReading,
 } from '../../../services/providers/openaicompat/compatProbe.js'
 import { getEngineModel, normalizeModelStringForAPI } from '../../../utils/model/model.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../../utils/permissions/permissions.js'
 import type { PermissionRule, ToolPermissionContext } from '../../../types/permissions.js'
 import { classifyModelRoute, providerDisplayName } from '../../../services/providers/routeLaw.js'

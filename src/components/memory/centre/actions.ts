@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { GLYPH, truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from '../../../utils/glyphs.js'
 import { correctFact, pinPendingRow, replacePendingRow, retireFact, strikePendingRow } from '../../../mneme/mnemeCorrect.js'
 import { runDueMaintenance } from '../../../mneme/mnemeMaintenance.js'
 import { readPinnedStatus } from '../../../mneme/mnemeFrontPage.js'

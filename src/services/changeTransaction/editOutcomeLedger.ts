@@ -1,8 +1,8 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 type EditSurface = 'edit' | 'changeset' | 'anchor-patch'

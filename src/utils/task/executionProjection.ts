@@ -1,9 +1,9 @@
 
 import type { TaskState } from '../../tasks/types.js'
 import type { TaskStatus, TaskType } from '../../Task.js'
-import type { ExecutionKind, ExecutionState } from '../../services/primitives/execution.js'
-import { projectExternalState } from '../../services/primitives/externalProjection.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+import type { ExecutionKind, ExecutionState } from '../primitives/execution.js'
+import { projectExternalState } from '../primitives/externalProjection.js'
+import { processMainOwner } from '../run/resolveOwner.js'
 
 export function taskExecutionKind(type: TaskType): ExecutionKind {
   switch (type) {

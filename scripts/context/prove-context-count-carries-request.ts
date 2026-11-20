@@ -52,7 +52,7 @@ const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await 
 const { collectContextData } = await import('../../src/commands/context/context-noninteractive.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { countTokensWithAPI } = await import('../../src/services/tokenEstimation.ts')
-const { mcpContentNeedsTruncation, getMaxMcpOutputTokens } = await import('../../src/utils/mcpValidation.ts')
+const { mcpContentNeedsTruncation, getMaxMcpOutputTokens } = await import('../../src/services/mcp/mcpValidation.ts')
 
 type Body = { system?: unknown; tools?: unknown[]; messages?: Array<{ role: string; content: unknown }> }
 type Captured = { path: string; body: Body; raw: string }

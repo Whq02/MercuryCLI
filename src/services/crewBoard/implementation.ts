@@ -5,7 +5,7 @@ import { WHEEL_STEP_ROWS } from '../../components/mercury-ui/composerFloor.js'
 import { open } from './store.js'
 import { existsSync } from 'node:fs'
 import { chatKindColor, chatNameColor, chatRows } from './chat.js'
-import { displayWidth, padTo } from '../../components/mercury-ui/glyphs.js'
+import { displayWidth, padTo } from '../../utils/glyphs.js'
 import { truncateToWidthNoEllipsis } from '../../utils/truncate.js'
 export { open }
 

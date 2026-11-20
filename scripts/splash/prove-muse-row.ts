@@ -3,7 +3,7 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { META_DISPLAY_PINS } from '../../src/services/providers/meta/metaPins.ts'
+import { META_DISPLAY_PINS } from '../../src/utils/model/pins/metaPins.ts'
 const root = join(import.meta.dir, '..', '..')
 const { MODEL_NAMES } = await import(join(root, 'assets/splash/splash-core.mjs')) as { MODEL_NAMES: Record<string, string> }
 const source = readFileSync(join(root, 'assets/splash/mercury-splash.mjs'), 'utf8')

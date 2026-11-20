@@ -24,10 +24,10 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const qm = await import('../../src/utils/messageQueueManager.ts')
-const plane = await import('../../src/services/primitives/executionPlane.ts')
+const plane = await import('../../src/utils/primitives/executionPlane.ts')
 const coordinator = await import('../../src/services/run/runCoordinator.ts')
-const lifecycle = await import('../../src/services/run/ownerLifecycle.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const lifecycle = await import('../../src/utils/run/ownerLifecycle.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const MODEL = 'claude-opus-4-8'
 let failures = 0

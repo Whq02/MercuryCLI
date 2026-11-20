@@ -65,37 +65,37 @@ function mistralHeadRow(): BareFamilyWordRow | undefined {
 }
 
 function glmPinnedDefault(): BareFamilyWordRow | undefined {
-  const { GLM_STATIC_FLOOR_IDS, glmDisplayPin } = require('../../services/providers/zai/glmPins.js') as typeof import('../../services/providers/zai/glmPins.js')
+  const { GLM_STATIC_FLOOR_IDS, glmDisplayPin } = require('./pins/glmPins.js') as typeof import('./pins/glmPins.js')
   const pin = GLM_STATIC_FLOOR_IDS.map(id => glmDisplayPin(id)).find(row => row !== undefined)
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function kimiPinnedDefault(): BareFamilyWordRow | undefined {
-  const { KIMI_DISPLAY_PINS } = require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')
+  const { KIMI_DISPLAY_PINS } = require('./pins/kimiPins.js') as typeof import('./pins/kimiPins.js')
   const pin = KIMI_DISPLAY_PINS[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function deepseekPinnedDefault(): BareFamilyWordRow | undefined {
-  const { DEEPSEEK_DISPLAY_PINS } = require('../../services/providers/deepseek/deepseekPins.js') as typeof import('../../services/providers/deepseek/deepseekPins.js')
+  const { DEEPSEEK_DISPLAY_PINS } = require('./pins/deepseekPins.js') as typeof import('./pins/deepseekPins.js')
   const pin = DEEPSEEK_DISPLAY_PINS[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function grokPinnedDefault(): BareFamilyWordRow | undefined {
-  const { XAI_DISPLAY_PINS } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+  const { XAI_DISPLAY_PINS } = require('./pins/xaiPins.js') as typeof import('./pins/xaiPins.js')
   const pin = XAI_DISPLAY_PINS[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function musePinnedDefault(): BareFamilyWordRow | undefined {
-  const { META_DISPLAY_PINS, isMetaContributorModel } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
+  const { META_DISPLAY_PINS, isMetaContributorModel } = require('./pins/metaPins.js') as typeof import('./pins/metaPins.js')
   const pin = META_DISPLAY_PINS.find(row => !isMetaContributorModel(row.id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function mistralPinnedDefault(): BareFamilyWordRow | undefined {
-  const { MISTRAL_DISPLAY_PINS } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+  const { MISTRAL_DISPLAY_PINS } = require('./pins/mistralPins.js') as typeof import('./pins/mistralPins.js')
   const pin = MISTRAL_DISPLAY_PINS[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
@@ -149,67 +149,67 @@ function mistralListState(): BareFamilyListState {
 }
 
 function glmKnownRows(): BareFamilyWordRow[] {
-  const { GLM_DISPLAY_PINS } = require('../../services/providers/zai/glmPins.js') as typeof import('../../services/providers/zai/glmPins.js')
+  const { GLM_DISPLAY_PINS } = require('./pins/glmPins.js') as typeof import('./pins/glmPins.js')
   return GLM_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function glmKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { glmDisplayPin } = require('../../services/providers/zai/glmPins.js') as typeof import('../../services/providers/zai/glmPins.js')
+  const { glmDisplayPin } = require('./pins/glmPins.js') as typeof import('./pins/glmPins.js')
   const pin = glmDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function kimiKnownRows(): BareFamilyWordRow[] {
-  const { KIMI_DISPLAY_PINS } = require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')
+  const { KIMI_DISPLAY_PINS } = require('./pins/kimiPins.js') as typeof import('./pins/kimiPins.js')
   return KIMI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function kimiKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { kimiDisplayPin } = require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')
+  const { kimiDisplayPin } = require('./pins/kimiPins.js') as typeof import('./pins/kimiPins.js')
   const pin = kimiDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function deepseekKnownRows(): BareFamilyWordRow[] {
-  const { DEEPSEEK_DISPLAY_PINS } = require('../../services/providers/deepseek/deepseekPins.js') as typeof import('../../services/providers/deepseek/deepseekPins.js')
+  const { DEEPSEEK_DISPLAY_PINS } = require('./pins/deepseekPins.js') as typeof import('./pins/deepseekPins.js')
   return DEEPSEEK_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function deepseekKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { deepseekDisplayPin } = require('../../services/providers/deepseek/deepseekPins.js') as typeof import('../../services/providers/deepseek/deepseekPins.js')
+  const { deepseekDisplayPin } = require('./pins/deepseekPins.js') as typeof import('./pins/deepseekPins.js')
   const pin = deepseekDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function grokKnownRows(): BareFamilyWordRow[] {
-  const { XAI_DISPLAY_PINS } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+  const { XAI_DISPLAY_PINS } = require('./pins/xaiPins.js') as typeof import('./pins/xaiPins.js')
   return XAI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function grokKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+  const { xaiDisplayPin } = require('./pins/xaiPins.js') as typeof import('./pins/xaiPins.js')
   const pin = xaiDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function museKnownRows(): BareFamilyWordRow[] {
-  const { META_DISPLAY_PINS } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
+  const { META_DISPLAY_PINS } = require('./pins/metaPins.js') as typeof import('./pins/metaPins.js')
   return META_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function museKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { metaDisplayPin } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
+  const { metaDisplayPin } = require('./pins/metaPins.js') as typeof import('./pins/metaPins.js')
   const pin = metaDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function mistralKnownRows(): BareFamilyWordRow[] {
-  const { MISTRAL_DISPLAY_PINS } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+  const { MISTRAL_DISPLAY_PINS } = require('./pins/mistralPins.js') as typeof import('./pins/mistralPins.js')
   return MISTRAL_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function mistralKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { mistralDisplayPin } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+  const { mistralDisplayPin } = require('./pins/mistralPins.js') as typeof import('./pins/mistralPins.js')
   const pin = mistralDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
@@ -221,7 +221,7 @@ function minimaxHeadRow(): BareFamilyWordRow | undefined {
 }
 
 function minimaxPinnedDefault(): BareFamilyWordRow | undefined {
-  const { MINIMAX_DISPLAY_PINS } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+  const { MINIMAX_DISPLAY_PINS } = require('./pins/minimaxPins.js') as typeof import('./pins/minimaxPins.js')
   const pin = MINIMAX_DISPLAY_PINS[0]
   return pin === undefined ? undefined : { id: pin.wireId, displayName: pin.displayName }
 }
@@ -235,12 +235,12 @@ function minimaxListState(): BareFamilyListState {
 }
 
 function minimaxKnownRows(): BareFamilyWordRow[] {
-  const { MINIMAX_DISPLAY_PINS } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+  const { MINIMAX_DISPLAY_PINS } = require('./pins/minimaxPins.js') as typeof import('./pins/minimaxPins.js')
   return MINIMAX_DISPLAY_PINS.map(pin => ({ id: pin.wireId, displayName: pin.displayName }))
 }
 
 function minimaxKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+  const { minimaxDisplayPin } = require('./pins/minimaxPins.js') as typeof import('./pins/minimaxPins.js')
   const pin = minimaxDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.wireId, displayName: pin.displayName }
 }
@@ -252,7 +252,7 @@ function cohereHeadRow(): BareFamilyWordRow | undefined {
 }
 
 function coherePinnedDefault(): BareFamilyWordRow | undefined {
-  const { COHERE_DISPLAY_PINS } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+  const { COHERE_DISPLAY_PINS } = require('./pins/coherePins.js') as typeof import('./pins/coherePins.js')
   const pin = COHERE_DISPLAY_PINS[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
@@ -266,12 +266,12 @@ function cohereListState(): BareFamilyListState {
 }
 
 function cohereKnownRows(): BareFamilyWordRow[] {
-  const { COHERE_DISPLAY_PINS } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+  const { COHERE_DISPLAY_PINS } = require('./pins/coherePins.js') as typeof import('./pins/coherePins.js')
   return COHERE_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function cohereKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { cohereDisplayPin } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+  const { cohereDisplayPin } = require('./pins/coherePins.js') as typeof import('./pins/coherePins.js')
   const pin = cohereDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
@@ -283,7 +283,7 @@ function qwenHeadRow(): BareFamilyWordRow | undefined {
 }
 
 function qwenPinnedDefault(): BareFamilyWordRow | undefined {
-  const { qwenPinsFor } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  const { qwenPinsFor } = require('./pins/qwenPins.js') as typeof import('./pins/qwenPins.js')
   const pin = qwenPinsFor('pay-as-you-go')[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
@@ -297,12 +297,12 @@ function qwenListState(): BareFamilyListState {
 }
 
 function qwenKnownRows(): BareFamilyWordRow[] {
-  const { qwenPinsFor } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  const { qwenPinsFor } = require('./pins/qwenPins.js') as typeof import('./pins/qwenPins.js')
   return qwenPinsFor('pay-as-you-go').map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function qwenKnownRow(id: string): BareFamilyWordRow | undefined {
-  const { qwenDisplayPin } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  const { qwenDisplayPin } = require('./pins/qwenPins.js') as typeof import('./pins/qwenPins.js')
   const pin = qwenDisplayPin(bareModelIdOf(id))
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }

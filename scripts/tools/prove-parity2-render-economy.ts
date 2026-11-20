@@ -118,7 +118,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  const { formatCommandsWithinBudget } = await import('../../src/tools/SkillTool/prompt.ts')
+  const { formatCommandsWithinBudget } = await import('../../src/utils/skillListingFormat.ts')
   const huge = 'x'.repeat(5_000)
   const line = formatCommandsWithinBudget([{ name: 'big-skill', description: huge } as never], 1_000_000)
   t('an oversized skill description is hard-capped per entry', line.length < 300 && line.endsWith('…'), `${line.length} chars`)

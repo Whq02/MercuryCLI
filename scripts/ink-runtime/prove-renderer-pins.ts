@@ -123,7 +123,7 @@ const settleTick = async (start: () => Promise<unknown>): Promise<number> => {
 const DOOR: Array<[from: string, values: string[], types: string[]]> = [
   ['', ['render', 'createRoot'], ['Instance', 'RenderOptions', 'Root']],
   ['./ink/reconciler.js', ['flushPendingSyncWork'], []],
-  ['./components/design-system/color.js', ['color'], []],
+  ['./utils/color.js', ['color'], []],
   ['./components/design-system/ThemeProvider.js', ['ThemeProvider', 'usePreviewTheme', 'useTheme', 'useThemeSetting'], []],
   ['./components/design-system/ThemedBox.js', ['Box=default'], ['BoxProps=Props']],
   ['./components/design-system/ThemedText.js', ['Text=default'], ['TextProps=Props']],

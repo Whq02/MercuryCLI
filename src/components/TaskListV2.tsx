@@ -1,6 +1,6 @@
 
 import figures from 'figures'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import React, { useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'

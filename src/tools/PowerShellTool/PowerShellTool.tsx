@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult } from '../../Tool.js'
-import { POWERSHELL_TOOL_NAME } from './toolName.js'
+import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -45,7 +45,7 @@ import {
   outputBudgetClause,
   resizeShellImageOutput,
   stripEmptyLines,
-} from '../BashTool/utils.js'
+} from '../../utils/shell/utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from '../BashTool/maxOutputChars.js'
 import {
   renderToolResultMessage,

@@ -7,7 +7,7 @@ import OptionMap, {
   isInputOption,
   optionValueOf,
 } from '../../src/components/CustomSelect/option-map.js'
-import { color, isRawColorValue, resolveThemeColor } from '../../src/components/design-system/color.js'
+import { color, isRawColorValue, resolveThemeColor } from '../../src/utils/color.js'
 import {
   copyTextOf,
   isNavigableMessage,

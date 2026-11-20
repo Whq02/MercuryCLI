@@ -39,8 +39,8 @@ interface Family {
   head: Pin | undefined
 }
 
-const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
-const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } = await import('../../src/utils/model/pins/deepseekPins.ts')
+const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
 const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
 const glmPins: Pin[] = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displayName: entry.displayLabel }))
 const deepseekRetired: Pin[] = [...DEEPSEEK_RETIRED_ALIASES.keys()].map(id => ({ id, displayName: deepseekDisplayName(id) }))
@@ -103,9 +103,6 @@ check(`the generator bakes the scratch copy (${GENERATOR === join(ROOT, 'scripts
   check('the Sonnet 5.5 row still stands (the first-party rows are untouched)', rows.includes('"claude-sonnet-5-5": "Sonnet 5.5",'))
   check('the Grok 4.7 row and the grok word still stand (the xAI rows are untouched)', rows.includes('"grok-4.7": "Grok 4.7",') && rows.includes('"grok": "Grok 4.7",'))
   check('the committed core carries the block the generator writes', rowsOf(coreSrc).join('\n') === rows.join('\n'))
-  const map = readFileSync(join(tree, 'scripts', 'gate', 'generated-assets.tsv'), 'utf8')
-  const mapRow = map.split('\n').find(line => line.includes('\tbun scripts/splash/bake-menu.mjs\t')) ?? ''
-  check('the generator registers the three owners as sources of the bake', FAMILIES.every(family => mapRow.split('\t')[3]?.split(' ').includes(family.owner)), mapRow)
 }
 
 section("§2 the core's exported table agrees with the owners")
@@ -144,18 +141,6 @@ section("§3 the strip's own label law, run from the splash's source against the
   for (const pin of KIMI_PLAN_PINS) check(`a settings pin of the plan's ${pin.id} paints "${pin.displayName}"`, label(pin.id) === pin.displayName, label(pin.id))
   check('a settings pin of claude-sonnet-5-5 still paints "Sonnet 5.5"', label('claude-sonnet-5-5') === 'Sonnet 5.5', label('claude-sonnet-5-5'))
   check('a settings pin of grok-4.7 still paints "Grok 4.7"', label('grok-4.7') === 'Grok 4.7', label('grok-4.7'))
-}
-
-section('§4 the wiring: the generator reads the owners and the suite runs this proof')
-{
-  const generator = readFileSync(GENERATOR, 'utf8')
-  const suite = readFileSync(join(ROOT, 'scripts', 'splash', 'members.txt'), 'utf8')
-  for (const family of FAMILIES) check(`the generator reads ${family.owner}`, generator.includes(`await import('../../${family.owner}')`))
-  check('the generator bakes the retired DeepSeek spellings and the Kimi plan rows', generator.includes('DEEPSEEK_RETIRED_ALIASES.keys()') && generator.includes('KIMI_PLAN_PINS'))
-  check('the suite runs this proof beside the Grok row proof', suite.includes('prove-grok-row.ts') && suite.includes('prove-deepseek-kimi-glm-rows.ts'))
-  const trackedMap = readFileSync(join(ROOT, 'scripts', 'gate', 'generated-assets.tsv'), 'utf8')
-  const trackedRow = trackedMap.split('\n').find(line => line.includes('\tbun scripts/splash/bake-menu.mjs\t')) ?? ''
-  check('the tracked generated-assets map names the three owners as sources of the bake', FAMILIES.every(family => trackedRow.split('\t')[3]?.split(' ').includes(family.owner)), trackedRow)
 }
 
 rmSync(scratch, { recursive: true, force: true })

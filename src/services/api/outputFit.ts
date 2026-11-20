@@ -1,6 +1,6 @@
 import type { Message } from '../../types/message.js'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
-import { messageContextFill } from '../../utils/tokens.js'
+import { messageContextFill } from '../context/tokens.js'
 import { readRequestGauge, requestGaugeFixed } from '../run/requestGauge.js'
 
 export const OUTPUT_FIT_HEADWAY_TOKENS = 1_000

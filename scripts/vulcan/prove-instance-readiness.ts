@@ -20,7 +20,7 @@ delete process.env.MERCURY_GODOT_TOOLS_LITE
 const { VULCAN_ADDON_FILES } = await import('../../src/services/vulcan/addonFiles.generated.js')
 const { godotProviderInventory } = await import('./godotProviders.js')
 const { buildGodotIdeSession, discoverGodotLaunchProfiles } = await import('../../src/services/ide/godotSession.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const { resetVulcanClientForTest } = await import('../../src/services/vulcan/vulcanClient.js')
 const { vulcanOp } = await import('../../src/utils/vulcan/optable.generated.js')
@@ -33,7 +33,7 @@ for (const file of VULCAN_ADDON_FILES) {
   writeFileSync(target, file.content)
 }
 
-const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
 const vulcanSpec = runtimeChecks().find(row => row.id === 'vulcan')
 if (!vulcanSpec) throw new Error('health Godot row was not found')
 const healthRow = vulcanSpec.run as () => Promise<{ status: string; evidence: string; fix?: string }>

@@ -12,7 +12,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const resolver = await import('../../src/services/browser/browserResolver.ts')
 const sessions = await import('../../src/services/browser/browserSession.ts')
 const { printDocument } = await import('../../src/tools/DocumentTool/print.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const owner = makeOwnerKey({ workspace: proofHome, sessionId: 'proof', lane: 'main' })
 const fresh = (): AbortSignal => new AbortController().signal
 

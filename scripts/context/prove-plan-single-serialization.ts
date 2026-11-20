@@ -70,7 +70,7 @@ function fixtureMessages(): AnyMessage[] {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/services/run/ownerKey.js')
+  const ok = await import('../../src/utils/run/ownerKey.js')
   const planMod = await import('../../src/services/run/requestContextPlan.js')
   const cal = await import('../../src/services/run/contextCalibration.js')
 

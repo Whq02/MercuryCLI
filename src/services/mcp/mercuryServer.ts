@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
-import { serveStdio, type CallToolResult, type Transport } from './sdk.js'
+import { serveStdio, type CallToolResult, type Transport } from '../../utils/mcp/sdk.js'
 import { z } from 'zod/v4'
 import { errorMessage } from '../../utils/errors.js'
 import { logMCPDebug } from '../../utils/log.js'

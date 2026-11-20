@@ -16,7 +16,7 @@ import {
   parseUserSpecifiedModel,
 } from '../../src/utils/model/model.js'
 import { setEngineModelOverride } from '../../src/bootstrap/state.js'
-import { restoreConversationModelFromMessages } from '../../src/utils/sessionRestore.js'
+import { restoreConversationModelFromMessages } from '../../src/services/resume/sessionRestore.js'
 import { computedDefault } from '../../src/utils/model/computedDefault.js'
 
 let failures = 0

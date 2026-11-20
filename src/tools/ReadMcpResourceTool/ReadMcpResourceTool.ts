@@ -3,7 +3,7 @@ import { z } from 'zod/v4'
 
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { getBinaryBlobSavedMessage, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
+import { getBinaryBlobSavedMessage, persistBinaryContent } from '../../services/mcp/mcpOutputStorage.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, PROMPT, READ_MCP_RESOURCE_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, userFacingName } from './UI.js'

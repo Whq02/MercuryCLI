@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
-import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
+import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
 import { mediaGenerationDetails } from '../../src/services/media/generation.js'
 import { catalogue, installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 

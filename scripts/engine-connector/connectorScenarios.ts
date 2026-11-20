@@ -187,7 +187,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     throw new Error(message)
   }
   const progressStore = await import(src('state/ephemeralProgressStore.ts'))
-  await import(src('daemon/ownerWatch.ts'))
+  await import(src('utils/ownerWatch.ts'))
   const WATCHED_TOOLS = ['toolu_attach', 'toolu_run', 'toolu_hook', 'toolu_eval', 'toolu_mcp', 'toolu_ps', 'toolu_fed', 'toolu_old', 'toolu_f']
 
   type Pending = { req: Reply; answer: (reply: Reply | 'drop') => void; closed: Promise<void> }

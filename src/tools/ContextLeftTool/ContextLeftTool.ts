@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
-import { type ContextFillView, contextFillView } from '../../utils/contextFill.js'
+import { type ContextFillView, contextFillView } from '../../services/context/contextFill.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { CONTEXT_LEFT_MAX_RESULT_CHARS, CONTEXT_LEFT_TOOL_NAME } from './constants.js'
 import { CONTEXT_LEFT_DESCRIPTION, CONTEXT_LEFT_PROMPT, CONTEXT_LEFT_SEARCH_HINT } from './prompt.js'

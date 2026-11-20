@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flagEnv, flagPair, flagSpellings } from '../../src/substrate/flagRegistry.ts'
-import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
+import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
 
 
 let failures = 0

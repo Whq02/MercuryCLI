@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { voiceCargoTriple, voicePackPlatform } from '../../src/services/voice/voicePack.ts'
+import { voiceCargoTriple, voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
 import {
   DESKTOP_ADDON_FILE,
   DESKTOP_BUILD_COMMAND,

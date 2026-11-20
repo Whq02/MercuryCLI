@@ -71,7 +71,7 @@ section('§1 the environment section names no engine; the seat reference does')
   const seat = (await import('../../src/services/resources/adapters/seat.ts').catch(() => null)) as typeof import('../../src/services/resources/adapters/seat.ts') | null
   check('the seat adapter module exists (RED on the base: absent)', seat !== null)
   const { resolveResource, resourceAdapterKinds } = await import('../../src/services/resources/registry.ts')
-  const owner = (await import('../../src/services/run/resolveOwner.ts')).ownerFromToolUseContext({})
+  const owner = (await import('../../src/utils/run/resolveOwner.ts')).ownerFromToolUseContext({})
   const state = { effortValue: 'high', toolPermissionContext: { mode: 'default' } }
   const live = await resolveResource('mercury://seat', { owner, cwd, getAppState: () => state, engineModel: OPUS })
   check('mercury://seat resolves inside a turn with the model, the effort, the posture and the engines', live.state === 'ok' && live.resource.structured !== undefined && (live.resource.structured as { model: string }).model === OPUS, j(live))

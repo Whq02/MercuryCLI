@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/components/messages/UserBashInputMessage.tsx src/components/messages/TranscriptNameplate.tsx src/components/shell/ShellLiveTail.tsx src/components/shell/liveShellTail.ts
-// gate-watch: src/utils/processUserInput/processBashCommand.tsx src/tools/BashTool/BashTool.tsx src/Tool.ts
+// gate-watch: src/services/processUserInput/processBashCommand.tsx src/tools/BashTool/BashTool.tsx src/Tool.ts
 // gate-watch: src/tasks/LocalShellTask/LocalShellTask.tsx src/utils/task/workRoster.ts src/components/messages/UserBashOutputMessage.tsx
 // gate-watch: src/components/Message.tsx src/utils/messages/normalize.ts src/types/message.ts src/services/engine-connector/daemonConnector.ts
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'

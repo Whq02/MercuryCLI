@@ -9,7 +9,7 @@ const ROOT = scratchRoot('settle')
 const t = checker()
 
 const barrier = await import('./barrier.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const kernel = await import('../../src/services/run/runKernel.ts')
 const sidecar = await import('../../src/services/run/runSidecar.ts')
 const coord = await import('../../src/services/run/runCoordinator.ts')

@@ -1,14 +1,14 @@
 import type { ContentBlockParam } from '../../types/wire.js'
-import type { ReadResourceResult } from '../../services/mcp/sdk.js'
+import type { ReadResourceResult } from '../mcp/sdk.js'
 import type { UUID } from 'crypto'
 import type { HookEvent } from '../hooks/contract.js'
 import type { BoundPrefixSection, BoundPrefixToolMark, DeadThinkingMark, MessageOrigin } from 'src/types/message.js'
 import type { BypassedAskRoad, PermissionMode } from '../../types/permissions.js'
-import type { DiagnosticFile } from '../../services/diagnosticTracking.js'
+import type { DiagnosticFile } from '../diagnosticTracking.js'
 import type { DiscoverySignal } from '../../services/skillSearch/signals.js'
 import type { TaskType } from '../../Task.js'
 import type { Output as FileReadToolOutput } from '../../tools/FileReadTool/FileReadTool.js'
-import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
+import type { InstructionSourceEntry } from '../instructions/contracts.js'
 import type { Task } from '../tasks.js'
 
 export type CapsuleWorkingRef = {

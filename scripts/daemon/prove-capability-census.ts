@@ -39,7 +39,7 @@ const services = await import('../../src/services/projectServices/serviceManager
 console.log('capability census — what a runner still holds that a park would lose')
 try {
   console.log('C0 every tool has a declared and classified capability')
-  const toolCensus = (await import('../../src/utils/capability/census.ts')).buildToolCensus()
+  const toolCensus = (await import('../../src/services/capability/census.ts')).buildToolCensus()
   const undeclared = toolCensus.rows.filter(row => row.declared === null).map(row => row.name)
   const unclassified = toolCensus.summary.unclassified
   check('the capability census has no undeclared and no unclassified tool', undeclared.length === 0 && unclassified.length === 0, `UNDECLARED: ${undeclared.join(', ') || 'none'} · UNCLASSIFIED: ${unclassified.join(', ') || 'none'}`)

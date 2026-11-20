@@ -30,7 +30,7 @@ async function run(): Promise<void> {
     const { readConflictRegions } = await import('../../src/services/gitGraph/conflictRegionStore.ts')
     const root = join(scratch, 'conflict-regions')
     mkdirSync(root, { recursive: true })
-    const owner = 'session:fn12-conflict' as import('../../src/services/run/ownerKey.ts').OwnerKey
+    const owner = 'session:fn12-conflict' as import('../../src/utils/run/ownerKey.ts').OwnerKey
     const absent = readConflictRegions(owner, root, 'missing.txt')
     check('conflictRegionStore-enoent: absent file returns empty regions', absent.length === 0)
     if (!POSIX_MODES) skip('conflictRegionStore-eacces', 'needs non-root POSIX')
@@ -89,7 +89,7 @@ async function run(): Promise<void> {
     writeFileSync(join(unbornRoot, 'first.txt'), 'hello\n')
 
     const { preparePlan, applyPlan } = await import('../../src/services/gitGraph/plan.ts')
-    const owner = 'session:fn12-plan' as import('../../src/services/run/ownerKey.ts').OwnerKey
+    const owner = 'session:fn12-plan' as import('../../src/utils/run/ownerKey.ts').OwnerKey
     if (process.platform === 'win32') {
       console.log('  not read on Windows: the row plants a shell-script git on PATH, which Windows does not start')
     } else {

@@ -8,10 +8,10 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'axiom-txn-'))
 
 const P = await import('../../src/services/primitives/index.ts')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const receipts = await import('../../src/services/changeTransaction/receipts.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 
 let pass = 0
 let fail = 0

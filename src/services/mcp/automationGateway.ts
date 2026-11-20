@@ -13,7 +13,7 @@ import {
   type AuthInfo,
   type OAuthMetadata,
   type OAuthTokenVerifier,
-} from './sdk.js'
+} from '../../utils/mcp/sdk.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 type ServerSdk = typeof import('@modelcontextprotocol/server')

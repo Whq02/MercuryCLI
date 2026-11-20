@@ -2,7 +2,7 @@ import { stat } from 'node:fs/promises'
 import { describeEnvRedacted, describeHeadersRedacted, describeUrlRedacted } from '../../utils/redactHeaders.js'
 import pMap from 'p-map'
 import { cliError, cliOk } from '../exit.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import {
   connectToServer,
   getMcpServerConnectionBatchSize,

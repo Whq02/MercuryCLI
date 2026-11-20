@@ -10,7 +10,7 @@ import { type ArenaRun, grabScreens, requireDist, runArtifactArena, sendStamp } 
 
 requireDist()
 const { preparePlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const onlyArg = process.argv.find(a => a.startsWith('--only='))
 const ONLY = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean)) : null

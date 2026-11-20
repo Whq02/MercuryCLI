@@ -8,7 +8,7 @@ const { engineDir } = armEnvironment()
 
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
 const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
-const { resolveAstScope, searchAstPattern, isAstRefusal } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-csharp-function-'))
 const put = (file: string, text: string): void => { mkdirSync(join(root, file, '..'), { recursive: true }); writeFileSync(join(root, file), text) }

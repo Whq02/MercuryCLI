@@ -35,7 +35,7 @@ try {
   const { setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
   setOriginalCwd(cwd)
   setCwdState(cwd)
-  const { processUserInput } = await import('../../src/utils/processUserInput/processUserInput.ts')
+  const { processUserInput } = await import('../../src/services/processUserInput/processUserInput.ts')
   const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands.ts')
   const table = sessionSeatCommandTable([...builtinCommands()])
   const appState: Record<string, unknown> = {

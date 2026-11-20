@@ -5,7 +5,7 @@ import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
 import { conversationRosterKey, heldToolsAtLastPlan, planToolPayloadUnseeded, type ToolPayloadPlan } from '../../services/providers/toolEconomy.js'
 import { isDeferredToolFor } from '../../tools/ToolSearchTool/prompt.js'
-import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
 import {
   getMcpInstructionsDelta,
   isMcpInstructionsDeltaEnabled,

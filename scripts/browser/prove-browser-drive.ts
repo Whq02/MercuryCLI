@@ -21,7 +21,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 const { activeSession } = await import('../../src/services/browser/browserSession.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 
@@ -966,7 +966,7 @@ console.log('§14 exit reap drill')
   writeFileSync(
     child,
     `const { ensureBrowserSession } = await import(${JSON.stringify(join(ROOT, 'src', 'services', 'browser', 'browserSession.ts'))})
-const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src', 'services', 'run', 'resolveOwner.ts'))})
+const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'run', 'resolveOwner.ts'))})
 const s = await ensureBrowserSession(processOwnerForLane(null))
 if ('state' in s) { console.log('DRILL-UNAVAILABLE: ' + s.note); process.exit(3) }
 console.log('DRILL-PID ' + s.browser.process()?.pid)

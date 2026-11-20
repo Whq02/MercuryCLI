@@ -38,16 +38,16 @@ const perM = (tokens: number, rate: number): number => (tokens * rate) / 1e6
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 
-const cost = await import('../../src/utils/modelCost.ts')
+const cost = await import('../../src/services/usage/modelCost.ts')
 const state = await import('../../src/bootstrap/state.ts')
-const { glmPricePin } = await import('../../src/services/providers/zai/glmPins.ts')
-const { geminiPricePin, geminiPriceTierFor } = await import('../../src/services/providers/gemini/geminiPins.ts')
-const { gptDisplayPin, gptPriceTierFor } = await import('../../src/services/providers/openai/gptPins.ts')
-const { deepseekDisplayPin } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
-const { kimiDisplayPin } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { glmPricePin } = await import('../../src/utils/model/pins/glmPins.ts')
+const { geminiPricePin, geminiPriceTierFor } = await import('../../src/utils/model/pins/geminiPins.ts')
+const { gptDisplayPin, gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
+const { deepseekDisplayPin } = await import('../../src/utils/model/pins/deepseekPins.ts')
+const { kimiDisplayPin } = await import('../../src/utils/model/pins/kimiPins.ts')
 const { QWEN_SHARED_ENDPOINTS, qwenEndpointBase } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
 const qwenBoundBaseFor = (id: string): string => qwenEndpointBase(QWEN_SHARED_ENDPOINTS.find(endpoint => endpoint.id === id)!)
-const { huggingfaceDisplayPin } = await import('../../src/services/providers/huggingface/huggingfacePins.ts')
+const { huggingfaceDisplayPin } = await import('../../src/utils/model/pins/huggingfacePins.ts')
 const orCatalogue = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
 const tracker = await import('../../src/cost-tracker.ts')
@@ -397,7 +397,7 @@ section('nous — the list\'s own long tier: pricing.overrides chosen by prompt 
 
 section('a price that turns on a date is the price of the day the request was made: as it settles, resumed and in /usage')
 {
-  const { readUsageHistory } = await import('../../src/utils/usageHistory.ts')
+  const { readUsageHistory } = await import('../../src/services/usage/usageHistory.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
   const RealDate = Date

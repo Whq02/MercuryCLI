@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { remotePrelude } from './prelude.js'
-import { authorityText, noteResolvedAuthority, remoteAuthorityFault, RemotePathError, resolvedAuthority, type RemoteAuthority, type RemoteAuthorityFacts } from './target.js'
+import { authorityText, noteResolvedAuthority, remoteAuthorityFault, RemotePathError, resolvedAuthority, type RemoteAuthority, type RemoteAuthorityFacts } from '../../utils/remoteFiles/target.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 

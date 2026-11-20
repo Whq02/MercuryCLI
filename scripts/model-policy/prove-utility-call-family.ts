@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   const { floorEffort, utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
   const { openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
   const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
-  const { parseGptModelId } = await import('../../src/services/providers/openai/gptPins.js')
+  const { parseGptModelId } = await import('../../src/utils/model/pins/gptPins.js')
   for (const key of ['OPENAI_API_KEY', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
   process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
   process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
@@ -48,7 +48,7 @@ async function main(): Promise<void> {
     if (!snapshot || snapshot.models.length !== ids.length) throw new Error(`the fixture list did not seed: ${JSON.stringify(snapshot)}`)
   }
   const { settleAssistantTurn } = await import('../../src/services/providers/callModelRouter.js')
-  const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.js')
 
   section('§1 utilityCallFor — the seat\'s own model on all ten routing-law families, never a second id')
   {

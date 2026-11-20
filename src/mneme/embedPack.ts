@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../services/voice/voicePack.js'
+import { voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../utils/voice/voicePack.js'
 import { cpuFloorRefusal, probeCpuFloor, whisperCpuFloorWords } from '../services/voice/whisperPack.js'
 import { passedOver } from '../utils/passedOver.js'
 

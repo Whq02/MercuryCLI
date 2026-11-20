@@ -6,7 +6,7 @@ import TextInput from '../../TextInput.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import { WebFetchTool } from '../../../tools/WebFetchTool/WebFetchTool.js'
 import {
   permissionRuleValueFromString,

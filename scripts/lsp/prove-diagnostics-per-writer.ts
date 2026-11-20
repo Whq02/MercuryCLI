@@ -27,8 +27,8 @@ const { normalizeAttachmentForAPI } = await import(join(REPO, 'src/utils/message
 const { FileReadTool } = await import(join(REPO, 'src/tools/FileReadTool/FileReadTool.ts'))
 const { FileEditTool } = await import(join(REPO, 'src/tools/FileEditTool/FileEditTool.ts'))
 const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/Tool.ts'))
-const { processOwnerForLane } = await import(join(REPO, 'src/services/run/resolveOwner.ts'))
-const { BASH_TOOL_NAME } = await import(join(REPO, 'src/tools/BashTool/toolName.ts'))
+const { processOwnerForLane } = await import(join(REPO, 'src/utils/run/resolveOwner.ts'))
+const { BASH_TOOL_NAME } = await import(join(REPO, 'src/constants/tools/bash.ts'))
 
 type Row = { type: string; files: Array<{ uri: string; diagnostics: Array<{ message: string; severity: string }> }> }
 

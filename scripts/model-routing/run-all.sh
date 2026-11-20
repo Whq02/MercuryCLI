@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/** src/services/providers/** src/utils/model/**
-# gate-watch: src/utils/crew/engineDispatch* src/utils/crew/agentLaunchPlan*
+# gate-watch: src/services/crew/engineDispatch* src/services/crew/agentLaunchPlan*
 # gate-watch: src/prompt/**
 # gate-watch: src/commands/context/context-noninteractive.ts
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx

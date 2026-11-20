@@ -44,7 +44,7 @@ const { buildMessageLookups } = await import(src('utils/messages/lookups.ts'))
 const { normalizeMessages } = await import(src('utils/messages/normalize.ts'))
 const { getTools } = await import(src('tools.ts'))
 const { AgentTool } = await import(src('tools/AgentTool/AgentTool.tsx'))
-const { AGENT_TOOL_NAME } = await import(src('tools/AgentTool/constants.ts'))
+const { AGENT_TOOL_NAME } = await import(src('constants/tools/agent.ts'))
 const { BashTool } = await import(src('tools/BashTool/BashTool.tsx'))
 
 enableConfigs()

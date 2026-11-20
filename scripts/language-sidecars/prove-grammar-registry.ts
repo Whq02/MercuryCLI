@@ -5,8 +5,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/services/structure/grammarRegistry.ts')
-const { languageForFile, languageByName, patternLanguageForFile } = await import('../../src/services/structure/grammarFacility.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
+const { languageForFile, languageByName, patternLanguageForFile } = await import('../../src/utils/structure/grammarFacility.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

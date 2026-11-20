@@ -29,7 +29,7 @@ const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.js'
 const { createPeer } = await import('../../src/runner/wire/peer.js')
 const bootstrap = await import('../../src/bootstrap/state.js')
 const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const shellUtils = await import('../../src/tools/BashTool/utils.js')
+const shellUtils = await import('../../src/utils/shell/utils.js')
 bootstrap.setIsInteractive(false)
 
 let passed = 0

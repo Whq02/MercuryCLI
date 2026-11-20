@@ -14,7 +14,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
 import { noteUsageRecordChanged, resetLimitsForCredentialSwitch, usagePayloadShapeWords } from '../../anthropicLimits.js'
 import { isOAuthTokenExpired } from '../../oauth/client.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { formatUsageAge, formatUsageAgeShort, usagePollTtlMs } from '../usageFreshness.js'
 import { passedOver } from '../../../utils/passedOver.js'
 

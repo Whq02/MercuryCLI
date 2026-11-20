@@ -13,7 +13,7 @@ const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const {
   observeToolTerminal,
   subscribeToolTerminal,
-} = await import('../../src/services/run/effectObserver.ts')
+} = await import('../../src/utils/run/effectObserver.ts')
 const { generateTaskId, isTerminalTaskStatus } = await import('../../src/Task.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 

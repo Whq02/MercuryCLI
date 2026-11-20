@@ -1,7 +1,7 @@
 
-import type { OwnerKey } from './ownerKey.js'
-import { registerOwnerScopedStore } from './ownerLifecycle.js'
-import { OwnerScopedStore } from './ownerScopedStore.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 
 interface LatchState {
   claimedAttemptId: string | null

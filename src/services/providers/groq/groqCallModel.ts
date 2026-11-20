@@ -6,11 +6,11 @@ import { canonicalWireModelId } from '../routeLaw.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { streamCompatChat, type CompatStreamOptions, type CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { groqChatCompletionsUrl, resolveGroqApiKey } from './groqAccounts.js'
 import { getCachedGroqCatalogue, groqListedModel, groqOutputMaxFor } from './groqCatalogue.js'
-import { groqDisplayPin, groqEffortVocabulary, groqWireId, isGroqModelId, isGroqTextModelId } from './groqPins.js'
+import { groqDisplayPin, groqEffortVocabulary, groqWireId, isGroqModelId, isGroqTextModelId } from '../../../utils/model/pins/groqPins.js'
 import { groqHeaderWaitMs, groqRecordHeaders } from './groqUsageState.js'
 
 export function buildGroqExtras(args: LaneExtrasArgs): Record<string, unknown> {

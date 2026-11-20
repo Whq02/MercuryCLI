@@ -1,4 +1,4 @@
-import type { ListToolsResult, Tool as McpSdkTool } from '../sdk.js'
+import type { ListToolsResult, Tool as McpSdkTool } from '../../../utils/mcp/sdk.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { logMCPDebug } from '../../../utils/log.js'
 import type { ConnectedMCPServer } from '../types.js'

@@ -20,7 +20,7 @@ import {
 } from '../../utils/cockpit/liveGlyphs.js'
 import { AMBER, FAINT, IVORY } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
-import { GLYPH } from './glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 

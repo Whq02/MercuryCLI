@@ -210,7 +210,7 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const sumPlan = await plan([readTool, search], { pending: false, key: 'conv-marks' })
   check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan))
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { mainOwnerOfSession } = await import('../../src/services/run/resolveOwner.ts')
+  const { mainOwnerOfSession } = await import('../../src/utils/run/resolveOwner.ts')
   const ownerKeySentBy = async (owners: Record<string, string>): Promise<{ sent: unknown; processOwner: string }> => {
     const run = await t.runScripted({
       before: rig => {

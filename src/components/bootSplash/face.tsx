@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import figures from 'figures';
 import { Box } from '../../ink.js';
 import type { createSplashCore, SplashComposeOpts, SplashStripChips } from '../../../assets/splash/splash-core.mjs';
-import { truncateToWidth } from '../mercury-ui/glyphs.js';
+import { truncateToWidth } from '../../utils/glyphs.js';
 import type { scanBootCardFacts, BootProjectFact } from '../../utils/bootCardFacts.js';
 import type { PlainWorldWhy } from '../../context/surfaceRoute.js';
 import { BootAgentsScreen } from '../BootAgentsScreen.js';

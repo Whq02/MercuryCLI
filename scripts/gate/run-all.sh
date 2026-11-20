@@ -8,7 +8,7 @@
 # gate-watch: scripts/verify/fast.ts scripts/verify/impact.ts scripts/verify/sliceCore.ts
 # gate-watch: scripts/verify/prove-impact-manifest.ts scripts/verify/prove-impact-run.ts scripts/verify/prove-slice-core.ts
 # gate-watch: src/tasks/LocalShellTask/killShellTasks.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tools/BashTool/BashTool.tsx
-# gate-watch: src/tools/BashTool/BashToolResultMessage.tsx src/tools/BashTool/UI.tsx src/tools/BashTool/utils.ts
+# gate-watch: src/tools/BashTool/BashToolResultMessage.tsx src/tools/BashTool/UI.tsx src/utils/shell/utils.ts
 # gate-watch: src/utils/bash/shellCompletion.ts
 # gate-watch: src/cli/headless/*
 set -u
