@@ -4,20 +4,20 @@ import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { TASK_CREATE_TOOL_NAME } from '../../constants/tools/taskCreate.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../constants/tools/taskUpdate.js'
-import { isThinkingMessage } from '../messages.js'
+import { isThinkingMessage } from '../../utils/messages.js'
 import {
   getTaskListId,
   isTaskToolsEnabled,
   listTasks,
-} from '../tasks.js'
+} from '../../utils/tasks.js'
 import {
   CONTRACT_REMINDER_CONFIG,
   TASK_REMINDER_CONFIG,
   type Attachment,
-} from './types.js'
+} from '../../utils/attachments/types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { CONTRACT_TOOL_NAME } from '../../constants/tools/contract.js'
-import { passedOver } from '../passedOver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function reminderClock(messages: Message[], kind: 'task_reminder' | 'contract_reminder', tools: readonly string[]) {
   let touched = false

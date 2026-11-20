@@ -14,7 +14,7 @@ import type {
   PrAction,
 } from '../tools/shared/gitOperationTracking.js'
 import type { Progress } from '../Tool.js'
-import type { Attachment } from '../utils/attachments.js'
+import type { Attachment } from '../services/attachments.js'
 
 
 export type SystemMessageLevel =

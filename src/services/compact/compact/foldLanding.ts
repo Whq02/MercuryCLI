@@ -1,5 +1,5 @@
 import type { CompactMetadata, Message, SystemCompactBoundaryMessage } from '../../../types/message.js'
-import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../../attachments/orchestrator.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'

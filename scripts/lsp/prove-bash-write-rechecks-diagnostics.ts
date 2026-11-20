@@ -10,7 +10,7 @@ type Registry = typeof registry & {
   noteOutOfBandWrite?: (path: string, versions: ReadonlyArray<{ serverName: string; docVersion: number }>) => void
 }
 const live = registry as Registry
-const attachments = (await import('../../src/utils/attachments/diagnostics.ts').catch(() => null)) as { deliverAfterRevalidation?: (resynced: readonly string[], deadlineMs?: number) => Promise<Array<{ type: string; files: DiagnosticFile[] }>>; awaitFreshReports?: (resynced: readonly string[], deadlineMs?: number) => Promise<string[]> } | null
+const attachments = (await import('../../src/services/attachments/diagnostics.ts').catch(() => null)) as { deliverAfterRevalidation?: (resynced: readonly string[], deadlineMs?: number) => Promise<Array<{ type: string; files: DiagnosticFile[] }>>; awaitFreshReports?: (resynced: readonly string[], deadlineMs?: number) => Promise<string[]> } | null
 
 let failures = 0
 let count = 0

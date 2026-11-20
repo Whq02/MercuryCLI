@@ -29,7 +29,7 @@ try {
   const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
   const { getEngineModel } = await import('../../src/utils/model/model.js')
   const { SKILL_TOOL_NAME } = await import('../../src/constants/tools/skill.js')
-  const { getAttachments } = await import('../../src/utils/attachments/orchestrator.js')
+  const { getAttachments } = await import('../../src/services/attachments/orchestrator.js')
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
   let state = getDefaultAppState()
   const context = {

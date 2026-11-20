@@ -8,7 +8,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const { capsuleShouldEmit, priorCapsuleFromTranscript } = await import(
-  '../../src/utils/attachments/contextCapsule.js'
+  '../../src/services/attachments/contextCapsule.js'
 )
 type Message = import('../../src/types/message.js').Message
 

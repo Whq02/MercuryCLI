@@ -26,8 +26,8 @@ const { enableConfigs } = await import(`${source}/src/utils/config/globalConfig.
 enableConfigs()
 const writer = await import(`${source}/src/utils/sessionStorage/writer.ts`)
 const { createUserMessage } = await import(`${source}/src/utils/messages/factories.ts`)
-const { createAttachmentMessage } = await import(`${source}/src/utils/attachments/orchestrator.ts`)
-const capsule = await import(`${source}/src/utils/attachments/contextCapsule.ts`)
+const { createAttachmentMessage } = await import(`${source}/src/services/attachments/orchestrator.ts`)
+const capsule = await import(`${source}/src/services/attachments/contextCapsule.ts`)
 const { normalizeAttachmentForAPI } = await import(`${source}/src/utils/messages/attachmentText.ts`)
 const original = Object.values(capsuleFixtures).flat()
 const attachments = capsule.foldAttachmentsIntoCapsule ? capsule.foldAttachmentsIntoCapsule(original, [], 'Prove the attachment facts') : original

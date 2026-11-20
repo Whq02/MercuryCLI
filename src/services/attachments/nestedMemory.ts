@@ -2,12 +2,12 @@ import { dirname, parse, relative, resolve } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
-import type { InstructionSourceEntry } from '../instructions/contracts.js'
-import { getConditionalInstructionRulesForCwdLevelDirectory, getManagedAndUserConditionalInstructionRules, getInstructionFilesForNestedDirectory, getMaxMemoryCharacterCount } from '../../services/instructions/engine.js'
-import type { FileState } from '../fileStateCache.js'
-import { logError } from '../log.js'
-import { pathInAllowedWorkingPath } from '../permissions/filesystem.js'
-import type { Attachment } from './types.js'
+import type { InstructionSourceEntry } from '../../utils/instructions/contracts.js'
+import { getConditionalInstructionRulesForCwdLevelDirectory, getManagedAndUserConditionalInstructionRules, getInstructionFilesForNestedDirectory, getMaxMemoryCharacterCount } from '../instructions/engine.js'
+import type { FileState } from '../../utils/fileStateCache.js'
+import { logError } from '../../utils/log.js'
+import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
+import type { Attachment } from '../../utils/attachments/types.js'
 
 export async function getNestedMemoryAttachments(toolUseContext: ToolUseContext): Promise<Attachment[]> {
   const triggers = toolUseContext.nestedMemoryAttachmentTriggers

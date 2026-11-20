@@ -46,7 +46,7 @@ import {
 } from '../../utils/messages.js'
 import { appendSystemContext, firstTurnUserContext } from '../../utils/api.js'
 import { latestUserContextBody } from '../../utils/attachments/userContext.js'
-import { createAttachmentMessage } from '../../utils/attachments.js'
+import { createAttachmentMessage } from '../../services/attachments.js'
 import { headlessProfilerCheckpoint } from '../../utils/headlessProfiler.js'
 import { tokenCountWithEstimation } from '../../services/context/tokens.js'
 import { EarlyStarts } from '../../services/tools/earlyStarts.js'

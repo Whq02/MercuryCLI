@@ -1,15 +1,15 @@
 
 import { createHash } from 'node:crypto'
 import { relative } from 'node:path'
-import type { Attachment, CapsuleSection, CapsuleWorkingRef } from './types.js'
+import type { Attachment, CapsuleSection, CapsuleWorkingRef } from '../../utils/attachments/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
-import { capsuleKind } from './capsuleKinds.js'
-import { capsuleGeneration } from './capsuleState.js'
+import { capsuleKind } from '../../utils/attachments/capsuleKinds.js'
+import { capsuleGeneration } from '../../utils/attachments/capsuleState.js'
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
-import { cacheKeys } from '../fileStateCache.js'
+import { cacheKeys } from '../../utils/fileStateCache.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
-import { passedOver } from '../passedOver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface PriorCapsule {
   digest: string
@@ -119,7 +119,7 @@ export async function getContextCapsuleAttachment(
 ): Promise<Attachment[]> {
   try {
     const { projectIntelEnabled } =
-      require('../projectIntel/contracts.js') as typeof import('../projectIntel/contracts.js')
+      require('../../utils/projectIntel/contracts.js') as typeof import('../../utils/projectIntel/contracts.js')
     if (!projectIntelEnabled()) return []
     const inputTask = (() => {
       const trimmed = (input ?? '').trim()
@@ -131,7 +131,7 @@ export async function getContextCapsuleAttachment(
     if (!task) return []
 
     const { assembleContextCapsule, renderCapsule, RECENTLY_OBSERVED_REASON } =
-      require('../../services/projectIntel/capsule.js') as typeof import('../../services/projectIntel/capsule.js')
+      require('../projectIntel/capsule.js') as typeof import('../projectIntel/capsule.js')
     const { getActiveMission } =
       require('../../guards/mission.js') as typeof import('../../guards/mission.js')
 
@@ -151,11 +151,11 @@ export async function getContextCapsuleAttachment(
     }
 
     const { ownerFromToolUseContext } =
-      require('../run/resolveOwner.js') as typeof import('../run/resolveOwner.js')
+      require('../../utils/run/resolveOwner.js') as typeof import('../../utils/run/resolveOwner.js')
     const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
-      require('../primitives/owner.js') as typeof import('../primitives/owner.js')
+      require('../../utils/primitives/owner.js') as typeof import('../../utils/primitives/owner.js')
     const { getContextMarks } =
-      require('../projectIntel/pins.js') as typeof import('../projectIntel/pins.js')
+      require('../../utils/projectIntel/pins.js') as typeof import('../../utils/projectIntel/pins.js')
     const laneOwner = ownerFromToolUseContext(toolUseContext)
     const marksOwner =
       describeOwner(laneOwner).parent ??
@@ -171,7 +171,7 @@ export async function getContextCapsuleAttachment(
       prior !== null && prior.semDigest !== undefined && prior.semDigest === semDigest
 
     const { getProjectSnapshotAsync } =
-      require('../../services/projectIntel/snapshot.js') as typeof import('../../services/projectIntel/snapshot.js')
+      require('../projectIntel/snapshot.js') as typeof import('../projectIntel/snapshot.js')
     const snapshotRead = await getProjectSnapshotAsync(workspace, {
       maxStaleMs: semanticallyUnchanged ? Number.POSITIVE_INFINITY : 120_000,
     })
@@ -249,7 +249,7 @@ export function foldAttachmentsIntoCapsule(
   input: string | null,
   context?: Pick<ToolUseContext, 'owner' | 'agentId'>,
 ): Attachment[] {
-  const { normalizeAttachmentForAPI } = require('../messages/attachmentText.js') as typeof import('../messages/attachmentText.js')
+  const { normalizeAttachmentForAPI } = require('../../utils/messages/attachmentText.js') as typeof import('../../utils/messages/attachmentText.js')
   const sections: CapsuleSection[] = []
   const workingSet: CapsuleWorkingRef[] = []
   const members = new Set<Attachment>()
@@ -303,7 +303,7 @@ export function foldAttachmentsIntoCapsule(
     workingSet,
   }
   if (context) {
-    const { ownerFromToolUseContext } = require('../run/resolveOwner.js') as typeof import('../run/resolveOwner.js')
+    const { ownerFromToolUseContext } = require('../../utils/run/resolveOwner.js') as typeof import('../../utils/run/resolveOwner.js')
     if (lastAttached.size > 64) {
       const oldest = lastAttached.keys().next().value
       if (oldest !== undefined) lastAttached.delete(oldest)

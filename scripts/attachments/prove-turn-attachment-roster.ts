@@ -31,7 +31,7 @@ try {
   enableConfigs()
   const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
-  const { getAttachments, createAttachmentMessage } = await import(`${root}/src/utils/attachments/orchestrator.ts`)
+  const { getAttachments, createAttachmentMessage } = await import(`${root}/src/services/attachments/orchestrator.ts`)
   const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
   const { createUserMessage, createAssistantMessage } = await import(`${root}/src/utils/messages.ts`)
   const { getUserContext } = await import(`${root}/src/context.ts`)

@@ -133,7 +133,7 @@ try {
   check('the batch preserves the meta flag and permission mode on every prompt', users(metaBatch.messages).length === 3 && users(metaBatch.messages).every(row => row.isMeta === true && row.permissionMode === 'default'))
 
   const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/utils/messages.ts')
-  const { createAttachmentMessage } = await import('../../src/utils/attachments.ts')
+  const { createAttachmentMessage } = await import('../../src/services/attachments.ts')
   const { cleanForTranscript } = await import('../../src/utils/sessionStorage/chain.ts')
   const foldAttachment = createAttachmentMessage({ type: 'hook', outcome: 'context', event: 'compaction.after', name: 'fold-probe', words: 'FOLD-ATTACHMENT-SENTINEL' })
   table.push({

@@ -155,7 +155,7 @@ const { createAssistantMessage, createUserMessage } = await import(
   '../../src/utils/messages.ts'
 )
 const { createAttachmentMessage } = await import(
-  '../../src/utils/attachments/orchestrator.ts'
+  '../../src/services/attachments/orchestrator.ts'
 )
 const { createCompactBoundaryMessage, createSystemAPIErrorMessage } =
   await import('../../src/utils/messages/systemMessages.ts')
