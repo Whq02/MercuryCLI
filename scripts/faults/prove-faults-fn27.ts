@@ -469,6 +469,33 @@ try {
       JSON.stringify(r),
     )
   }
+
+  {
+    const r = runIsolated(`
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import(SRC + '/utils/accounts/accountIdentity.ts')
+      const scopeDir = path.join(SCRATCH, 'scope-a')
+      fs.mkdirSync(scopeDir, { recursive: true })
+      fs.writeFileSync(path.join(scopeDir, '.mercury.json'), JSON.stringify({ oauthAccount: { accountUuid: 'u-1', emailAddress: 'saved@example.com' } }))
+      _resetIdentityCacheForTesting()
+      const first = await resolveLiveScopeIdentity(scopeDir, {
+        readCreds: () => { throw new Error('EACCES: keychain locked') },
+      })
+      const second = await resolveLiveScopeIdentity(scopeDir, {
+        readCreds: () => undefined,
+      })
+      out.first = first
+      out.second = second
+    `)
+    const first = r.first as { state?: string; email?: string; note?: string } | undefined
+    const second = r.second as { state?: string } | undefined
+    check(
+      'account-identity-read-error-unverified: throwing readCreds returns unverified with snapshot email instead of signed-out and is not cached',
+      first?.state === 'unverified' && first.email === 'saved@example.com' && String(first.note ?? '').includes('keychain locked') && second?.state === 'signed-out',
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }

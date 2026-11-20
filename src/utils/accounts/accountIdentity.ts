@@ -66,8 +66,13 @@ async function resolveUncached(
   let creds: ReturnType<typeof readAccountOAuthCreds>
   try {
     creds = readCreds(dir)
-  } catch {
-    creds = undefined
+  } catch (err) {
+    const snap = snapshotEmail(dir)
+    return {
+      state: 'unverified',
+      ...(snap !== undefined && { email: snap }),
+      note: `credentials could not be read (${err instanceof Error ? err.message : String(err)})`,
+    }
   }
   if (!creds?.accessToken) return { state: 'signed-out' }
 
