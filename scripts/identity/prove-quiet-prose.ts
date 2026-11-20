@@ -369,10 +369,9 @@ check(
 )
 
 for (const allowed of ALLOW_LIST) {
-  const fileText = readFileSync(join(ROOT, allowed.file), 'utf8')
   check(
     `§2 allow-listed consent sentence stands in ${allowed.file}`,
-    fileText.includes(allowed.text),
+    allSentences.some(row => row.file === allowed.file && row.text.includes(allowed.text)),
     `    missing: ${JSON.stringify(allowed.text)}`,
   )
 }
