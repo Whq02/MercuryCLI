@@ -100,5 +100,31 @@ if (!POSIX_MODES) {
   )
 }
 
+console.log('\nsrc/mneme/mnemeCorrect.ts')
+if (!POSIX_MODES) {
+  skip('strike-pending-unreadable-dir', 'needs non-root POSIX chmod')
+} else {
+  const r = runCase(`
+    const buf = await import(path.join(SRC, 'mneme/mnemeBuffer.ts'))
+    const cor = await import(path.join(SRC, 'mneme/mnemeCorrect.ts'))
+    const dir = path.join(home, 'mneme-strike-test')
+    fs.mkdirSync(dir, { recursive: true })
+    buf.appendObservation({ text: 'a pending fact', source: 'test' }, dir)
+    const ts = buf.pendingRows(dir)[0].ts
+    fs.chmodSync(dir, 0o300)
+    try {
+      out.result = cor.strikePendingRow({ ts, dir })
+    } finally {
+      fs.chmodSync(dir, 0o700)
+    }
+    out.stillThere = buf.pendingRows(dir).some(row => row.ts === ts)
+  `)
+  const result = r.result as { ok: boolean; code?: string; message?: string }
+  check(
+    'strike-pending-unreadable-dir',
+    result.ok === false && result.code === 'error' && /EACCES/i.test(result.message ?? '') && r.stillThere === true,
+    JSON.stringify(r),
+  )
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
