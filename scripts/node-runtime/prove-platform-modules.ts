@@ -1188,6 +1188,9 @@ const FILES: Row[] = [
 ]
 
 import {
+  isLegacyWindowsConsole,
+  isModernWindowsTerminalHost,
+  isWindowsTerminalHost,
   terminalSupportsJobControl,
   terminalTitleTransport,
 } from '../../src/utils/platform/terminal.js'
@@ -1201,6 +1204,38 @@ const TERMINAL: Row[] = [
     name: 'terminal.terminalTitleTransport',
     answers: () => terminalTitleTransport(),
     recorded: {"win32":"process-title","darwin":"osc","linux":"osc","win32 by process.platform alone":"process-title","win32 by getPlatform() alone":"osc"},
+  },
+  {
+    name: 'terminal.isModernWindowsTerminalHost',
+    answers: () => [
+      isModernWindowsTerminalHost({}),
+      isModernWindowsTerminalHost({ WT_SESSION: 'wt-1' }),
+      isModernWindowsTerminalHost({ WT_SESSION: '' }),
+      isModernWindowsTerminalHost({ TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '1.90.0' }),
+      isModernWindowsTerminalHost({ TERM_PROGRAM: 'vscode' }),
+      isModernWindowsTerminalHost({ TERM_PROGRAM: 'mintty' }),
+      isModernWindowsTerminalHost({ MSYSTEM: 'MINGW64' }),
+    ],
+    recorded: {"win32":[false,true,false,true,false,true,true],"darwin":[false,false,false,false,false,false,false],"linux":[false,false,false,false,false,false,false],"win32 by process.platform alone":[false,true,false,true,false,true,true],"win32 by getPlatform() alone":[false,false,false,false,false,false,false]},
+  },
+  {
+    name: 'terminal.isLegacyWindowsConsole',
+    answers: () => [
+      isLegacyWindowsConsole({}),
+      isLegacyWindowsConsole({ WT_SESSION: 'wt-1' }),
+      isLegacyWindowsConsole({ TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '1.90.0' }),
+      isLegacyWindowsConsole({ MSYSTEM: 'MINGW64' }),
+    ],
+    recorded: {"win32":[true,false,false,false],"darwin":[false,false,false,false],"linux":[false,false,false,false],"win32 by process.platform alone":[true,false,false,false],"win32 by getPlatform() alone":[false,false,false,false]},
+  },
+  {
+    name: 'terminal.isWindowsTerminalHost',
+    answers: () => [
+      isWindowsTerminalHost({}),
+      isWindowsTerminalHost({ WT_SESSION: 'wt-1' }),
+      isWindowsTerminalHost({ WT_SESSION: '' }),
+    ],
+    recorded: {"win32":[true,true,true],"darwin":[false,true,false],"linux":[false,true,false],"win32 by process.platform alone":[true,true,true],"win32 by getPlatform() alone":[false,true,false]},
   },
 ]
 
