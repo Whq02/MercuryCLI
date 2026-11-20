@@ -19,7 +19,6 @@ import type { FaceDeviceFamily, HandlesLegId, DeviceWaitStateV1 } from './flowLi
 import type { LoginsFlowContext } from './context.js';
 import { enqueueNotification } from '../../context/notifications.js';
 import { logError } from '../../utils/log.js';
-import { createSovereignDisabledContext } from '../../utils/permissions/permissionSetup.js';
 
 export function postLoginSettleOf(ctx: LoginsFlowContext): void {
   const { given, setAppStateMaybe } = ctx;
@@ -39,28 +38,20 @@ export function postLoginSettleOf(ctx: LoginsFlowContext): void {
           return { ...prev, authVersion: (prev.authVersion ?? 0) + 1 };
         });
         if (capturedContext !== null) {
-          await killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe);
+          void killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe).catch((error: unknown) => {
+            logError(error);
+            enqueueNotification(setAppStateMaybe, {
+              key: 'bypass-killswitch',
+              text: `bypass permissions stays on: your organization's security policy could not be checked (${errorMessage(error)})`,
+              priority: 'high',
+              color: 'warning',
+              timeoutMs: 30_000,
+            });
+          });
         }
       }
     } catch (error) {
       logError(error);
-      if (setAppStateMaybe !== null) {
-        let disabled = false;
-        setAppStateMaybe(prev => {
-          if (!prev.toolPermissionContext.isBypassPermissionsModeAvailable) return prev;
-          disabled = true;
-          return { ...prev, toolPermissionContext: createSovereignDisabledContext(prev.toolPermissionContext) };
-        });
-        if (disabled) {
-          enqueueNotification(setAppStateMaybe, {
-            key: 'bypass-killswitch',
-            text: `bypass permissions was turned off: your organization's security policy could not be checked (${errorMessage(error)})`,
-            priority: 'high',
-            color: 'warning',
-            timeoutMs: 30_000,
-          });
-        }
-      }
     }
   })();
 }

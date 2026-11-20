@@ -161,7 +161,7 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
   )
 }
 
-console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when sovereign killswitch check throws')
+console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf keeps bypass permissions on and says so when the policy check throws')
 {
   const rejected = runScenario(`
     const { mock } = await import('bun:test')
@@ -191,12 +191,13 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
   `)
   const rejectedNotice = rejected.notice as { key?: string; color?: string; text?: string } | null
   check(
-    'bootlogins-killswitch-reject-fails-closed',
-    rejected.mode === 'default' &&
-      rejected.available === false &&
+    'bootlogins-killswitch-reject-stays-on-and-says-so',
+    rejected.mode === 'sovereign' &&
+      rejected.available === true &&
+      rejected.authVersion === 1 &&
       rejectedNotice?.key === 'bypass-killswitch' &&
       rejectedNotice?.color === 'warning' &&
-      rejectedNotice?.text === "bypass permissions was turned off: your organization's security policy could not be checked (killswitch probe failed)",
+      rejectedNotice?.text === "bypass permissions stays on: your organization's security policy could not be checked (killswitch probe failed)",
     `mode=${String(rejected.mode)} available=${String(rejected.available)} notice=${JSON.stringify(rejectedNotice)}`,
   )
 
@@ -226,12 +227,8 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
   `)
   const outerNotice = outerThrow.notice as { key?: string; color?: string; text?: string } | null
   check(
-    'bootlogins-settle-throw-fails-closed',
-    outerThrow.mode === 'default' &&
-      outerThrow.available === false &&
-      outerNotice?.key === 'bypass-killswitch' &&
-      outerNotice?.color === 'warning' &&
-      outerNotice?.text === "bypass permissions was turned off: your organization's security policy could not be checked (user cache reset failed)",
+    'bootlogins-settle-throw-changes-nothing',
+    outerThrow.mode === 'sovereign' && outerThrow.available === true && outerNotice === null,
     `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)} notice=${JSON.stringify(outerNotice)}`,
   )
   const control = runScenario(`
