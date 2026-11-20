@@ -235,6 +235,65 @@ console.log('\nmedia/catalogue.ts — path guard and non-absence stat errors pro
   }
 }
 
+const { mediaRuntimeInstalled, runMediaSetup } = await import('../../src/services/media/setup.js')
+
+console.log('\nmedia/setup.ts — onProgress throws are not mislabelled and unreadable runtime.json throws')
+{
+  const setupDir = join(scratch, 'media-setup')
+  const serverDir = join(setupDir, 'server')
+  mkdirSync(serverDir, { recursive: true })
+  const fakeServer = join(serverDir, 'server.js')
+  const fakeSetup = join(serverDir, 'setup.js')
+  writeFileSync(fakeServer, '', 'utf8')
+  writeFileSync(fakeSetup, `console.log(JSON.stringify({ event: 'progress', file: 'm.bin', bytes: 1, total: 10 }))\nconsole.log(JSON.stringify({ event: 'done' }))\n`, 'utf8')
+  let setupErr: unknown = null
+  try {
+    await runMediaSetup(
+      ['pull-runtime'],
+      () => {
+        throw new Error('progress consumer failed')
+      },
+      undefined,
+      { root: setupDir, serverPath: fakeServer },
+    )
+  } catch (error) {
+    setupErr = error
+  }
+  check(
+    'runMediaSetup rejects with the onProgress error instead of "Media setup returned an unreadable response."',
+    setupErr instanceof Error && setupErr.message === 'progress consumer failed',
+    `setupErr=${String(setupErr)}`,
+  )
+
+  const badRuntimeRoot = join(scratch, 'media-bad-runtime')
+  mkdirSync(badRuntimeRoot, { recursive: true })
+  writeFileSync(join(badRuntimeRoot, 'runtime.json'), '{not-json', 'utf8')
+  const minCatalogue = {
+    runtime: { tag: 't1', families: [], componentFamilies: [], platforms: {} },
+    models: [],
+    files: [],
+    recipes: [],
+  }
+  let rtErr: unknown = null
+  try {
+    mediaRuntimeInstalled(minCatalogue, badRuntimeRoot, undefined, undefined, 'ok')
+  } catch (error) {
+    rtErr = error
+  }
+  check(
+    'corrupt runtime.json throws instead of returning false from mediaRuntimeInstalled',
+    rtErr instanceof SyntaxError,
+    `rtErr=${String(rtErr)}`,
+  )
+
+  const absentRuntimeRoot = join(scratch, 'media-absent-runtime')
+  mkdirSync(absentRuntimeRoot, { recursive: true })
+  check(
+    'absent runtime.json still returns false from mediaRuntimeInstalled',
+    mediaRuntimeInstalled(minCatalogue, absentRuntimeRoot, undefined, undefined, 'ok') === false,
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
