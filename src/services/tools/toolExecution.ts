@@ -56,13 +56,14 @@ import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
+import { getAllBaseTools } from '../../tools.js'
 import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { displayToolName } from '../../utils/toolNameDisplay.js'
 import type { HookAnnounce, HookPermissionOutcome } from './toolHooks.js'
 import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, permissionDecidedHooks, resolveHookPermissionDecision } from './toolHooks.js'
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { hookWaitSeconds, hookWaitWords } from '../../utils/hooks/wait.js'
-import { baseToolsOfTheTable } from '../../tools/toolTable.js'
+import { tellEvalHowAToolCallRuns } from '../eval/toolCalls.js'
 
 
 export type MessageUpdateLazy<M = Message> = {
@@ -327,7 +328,7 @@ export async function* runToolUse(
 
   let tool = findToolByName(toolUseContext.options.tools, requestedName)
   if (!tool) {
-    const baseMatch = findToolByName(baseToolsOfTheTable(), requestedName)
+    const baseMatch = findToolByName(getAllBaseTools(), requestedName)
     if (baseMatch && baseMatch.name !== requestedName && toolMatchesName(baseMatch, requestedName)) {
       tool = baseMatch
     }
@@ -364,7 +365,7 @@ export async function* runToolUse(
       buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools, toolUseContext.options.engineModel) !== null
     const withheldByRule = (() => {
       const { toolPermissionContext: permissionContext, mcp } = toolUseContext.getAppState()
-      const named = findToolByName([...baseToolsOfTheTable(), ...(mcp?.tools ?? [])], requestedName)
+      const named = findToolByName([...getAllBaseTools(), ...(mcp?.tools ?? [])], requestedName)
       const covering = named === undefined ? [] : wholeToolDenyRulesCovering(permissionContext, named)
       const rule = covering[0]
       if (rule === undefined) return null
@@ -1122,3 +1123,5 @@ function flipMcpClientToNeedsAuth(tool: Tool, context: ToolUseContext): void {
     return { ...prevState, mcp: { ...mcp, clients } } as typeof prevState
   })
 }
+
+tellEvalHowAToolCallRuns(runToolUse)

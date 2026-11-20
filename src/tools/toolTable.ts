@@ -1,19 +1,11 @@
-import type { Tools } from '../Tool.js'
-import type { assembleToolPool, getAllBaseTools } from '../tools.js'
+import type { assembleToolPool } from '../tools.js'
 
-type ToolTable = {
-  getAllBaseTools: typeof getAllBaseTools
-  assembleToolPool: typeof assembleToolPool
+type AssemblesAToolPool = typeof assembleToolPool
+
+let howAToolPoolIsAssembled: AssemblesAToolPool | undefined
+
+export function tellHowAToolPoolIsAssembled(assemble: AssemblesAToolPool): void {
+  howAToolPoolIsAssembled = assemble
 }
 
-let toolTable: ToolTable | undefined
-
-export function tellTheToolTable(table: ToolTable): void {
-  toolTable = table
-}
-
-export function baseToolsOfTheTable(): Tools {
-  return toolTable === undefined ? [] : toolTable.getAllBaseTools()
-}
-
-export const toolPoolOfTheTable: ToolTable['assembleToolPool'] = (...call) => toolTable!.assembleToolPool(...call)
+export const toolPoolOfTheTable: AssemblesAToolPool = (...call) => howAToolPoolIsAssembled!(...call)
