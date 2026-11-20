@@ -9,7 +9,8 @@ import { jsonStringify } from '../../utils/slowOperations.js'
 import { clampWait } from '../../utils/waitCeiling.js'
 import { DESCRIPTION, SLEEP_TOOL_NAME, SLEEP_TOOL_PROMPT } from './prompt.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
+import { pollUntil } from '../../utils/deadline.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const MAX_SLEEP_SECONDS = 3600
 const MIN_SLEEP_SECONDS = 1
@@ -148,10 +149,11 @@ export const SleepTool = buildTool({
     let newInput = false
     await new Promise<void>(resolve => {
       const signal = abortController.signal
+      const watchAbort = new AbortController()
       let stopWatch: (() => void) | undefined
       const cleanup = (): void => {
         stopTimeout(timer)
-        stopInterval(watch)
+        watchAbort.abort()
         stopWatch?.()
         signal.removeEventListener('abort', onAbort)
       }
@@ -170,23 +172,6 @@ export const SleepTool = buildTool({
         cleanup()
         resolve()
       }, ms)
-      let tick = 0
-      const watch = startInterval(() => {
-        tick++
-        if (!armed) {
-          if (tick > TRACKED_ARM_GRACE_TICKS) {
-            stopInterval(watch)
-            return
-          }
-          armed = countTrackedRunningAgents(getAppState, agentId) > 0
-          if (!armed) return
-        }
-        if (countTrackedRunningAgents(getAppState, agentId) === 0) {
-          cleanup()
-          resolve()
-        }
-      }, TRACKED_SETTLE_POLL_MS)
-      watch?.unref?.()
       if (signal.aborted) {
         interrupted = true
         cleanup()
@@ -195,6 +180,34 @@ export const SleepTool = buildTool({
       }
       signal.addEventListener('abort', onAbort)
       stopWatch = watchForNewInput(agentId, onNewInput)
+      let tick = 0
+      void pollUntil<boolean, boolean, boolean>(
+        () => {
+          if (tick === 0) {
+            tick++
+            return undefined
+          }
+          if (!armed) {
+            if (tick > TRACKED_ARM_GRACE_TICKS) return false
+            armed = countTrackedRunningAgents(getAppState, agentId) > 0
+            if (!armed) {
+              tick++
+              return undefined
+            }
+          }
+          if (countTrackedRunningAgents(getAppState, agentId) === 0) {
+            cleanup()
+            resolve()
+            return true
+          }
+          tick++
+          return undefined
+        },
+        TRACKED_SETTLE_POLL_MS,
+        Infinity,
+        () => false,
+        { signal: watchAbort.signal, onAbort: () => false, unref: true },
+      )
     })
     const sleptSeconds = Math.round((Date.now() - start) / 1000)
     const settledEarly =

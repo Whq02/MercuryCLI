@@ -61,6 +61,7 @@ import { getToolManualAttachments } from './toolManuals.js'
 import { samplesRoadAttachment } from './samplesRoad.js'
 import { createAttachmentMessage } from './attachmentMessage.js'
 import { passedOver } from '../passedOver.js'
+import { withDeadline } from '../deadline.js'
 import { startTimeout, stopTimeout } from '../timers.js'
 export { createAttachmentMessage } from './attachmentMessage.js'
 
@@ -269,7 +270,6 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
     opts?: MaybeOpts,
   ): Promise<A[]> {
     const startTime = performance.now()
-    let timer: ReturnType<typeof setTimeout> | null = null
     try {
       const remaining = deadlineAt - startTime
       if (remaining <= 0 && !opts?.priority) {
@@ -300,14 +300,8 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
               return p
             })()
       const result = await (remaining > 0
-        ? Promise.race([
-            run,
-            new Promise<'pulse_deadline'>(resolve => {
-              timer = startTimeout(() => resolve('pulse_deadline'), remaining)
-            }),
-          ])
+        ? withDeadline(run, remaining, () => 'pulse_deadline' as const)
         : run)
-      if (timer !== null) stopTimeout(timer)
       if (result === 'pulse_deadline') {
         logError(
           new Error(
@@ -318,7 +312,6 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
       }
       return result
     } catch (e) {
-      if (timer !== null) stopTimeout(timer)
       logError(e)
 
       return []

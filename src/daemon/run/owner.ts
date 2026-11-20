@@ -1,5 +1,5 @@
 import { logForDebugging } from '../../utils/debug.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import {
   nextLiveCockpitOwner,
   PARK_DRAIN_CUT_REASON,
@@ -56,11 +56,19 @@ async function parkAllThenShutdown(state: DaemonRunState, needs: OwnerNeeds, sig
       console.error(`[daemon] the screen came back inside the drain — ownership passes to the live cockpit pid ${next}; the daemon stays up${kept.length > 0 ? ` and ${kept.join(', ')} ${kept.length === 1 ? 'keeps its turn' : 'keep their turns'} (the park asked at the reap is withdrawn)` : ''}`)
       return true
     }
-    let calledOff = false
-    while (!calledOff && pendingParkRequests().length > 0 && Date.now() - startedDrain < ceilingMs) {
-      await sleep(1000)
-      calledOff = screenCameBack()
-    }
+    let firstLook = true
+    const remainingMs = Math.max(0, ceilingMs - (Date.now() - startedDrain))
+    const calledOff = await pollUntil(
+      () => {
+        if (!firstLook && screenCameBack()) return true
+        firstLook = false
+        if (pendingParkRequests().length === 0) return false
+        return undefined
+      },
+      1000,
+      remainingMs,
+      () => false,
+    )
     if (calledOff) return
     for (const short of pendingParkRequests()) {
       const rec = readSessionWorkers()[short]
