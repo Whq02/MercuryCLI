@@ -94,11 +94,19 @@ const WINDOWS_TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
 const GIT_FOR_WINDOWS_ASKPASS_DISPLAY = 'needs-to-be-defined'
 const GIT_FOR_WINDOWS_ASKPASS = /(?:^|[/\\])(?:git-askpass(?:\.exe)?|git-gui--askpass)$/i
 
+function unquoteAskpass(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.length >= 2 && ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'")))) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
 function isGitForWindowsAskpass(key: string, value: string | undefined, platform: string): boolean {
   if (platform !== 'win32' || value === undefined) return false
   const upper = key.toUpperCase()
   if (upper === 'DISPLAY') return value === GIT_FOR_WINDOWS_ASKPASS_DISPLAY
-  return (upper === 'SSH_ASKPASS' || upper === 'GIT_ASKPASS') && GIT_FOR_WINDOWS_ASKPASS.test(value)
+  return (upper === 'SSH_ASKPASS' || upper === 'GIT_ASKPASS') && GIT_FOR_WINDOWS_ASKPASS.test(unquoteAskpass(value))
 }
 
 const toolShellKey = (key: string, platform: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
@@ -137,6 +145,15 @@ const WINDOWS_HEADLESS_GIT_DEFAULTS: Readonly<Record<string, string>> = {
   GCM_INTERACTIVE: 'never',
 }
 
+function windowsHeadlessGitDefaultsOwed(env: NodeJS.ProcessEnv, platform: string): string[] {
+  if (platform !== 'win32' || !getIsNonInteractiveSession()) return []
+  const entries = Object.entries(env)
+  const promptSetting = entries.reduce<string | undefined>((found, [key, value]) => (nameKey(key, platform) === 'GIT_TERMINAL_PROMPT' ? value : found), undefined)
+  if (promptSetting === '1') return []
+  const present = new Set(entries.filter(([key, value]) => value !== undefined && !isGitForWindowsAskpass(key, value, platform)).map(([key]) => nameKey(key, platform)))
+  return Object.keys(WINDOWS_HEADLESS_GIT_DEFAULTS).filter(name => !present.has(nameKey(name, platform)))
+}
+
 export function headlessChildDefaultsOwed(env: NodeJS.ProcessEnv, platform: string = process.platform): string[] {
   if (!getIsNonInteractiveSession()) return []
   const present = new Set(Object.keys(env).map(name => nameKey(name, platform)))
@@ -164,14 +181,15 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean; pla
   const hasBrowserSecret = Object.keys(env).some(key => nameKey(key, platform).startsWith(BROWSER_SECRET_PREFIX))
   const hasWindowsAskpass = platform === 'win32' && Object.entries(env).some(([key, value]) => isGitForWindowsAskpass(key, value, platform))
   const owedDefaults = headlessChildDefaultsOwed(env, platform)
-  if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret && !hasWindowsAskpass && owedDefaults.length === 0) {
+  const owedWindowsGit = windowsHeadlessGitDefaultsOwed(env, platform)
+  if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret && !hasWindowsAskpass && owedDefaults.length === 0 && owedWindowsGit.length === 0) {
     return env
   }
 
   const clone: NodeJS.ProcessEnv = { ...env }
   for (const name of owedDefaults) clone[name] = HEADLESS_CHILD_DEFAULTS[name]
   scrub(clone, scrubForCI, isolateCredentials, platform)
-  if (platform === 'win32' && (owedDefaults.includes('GIT_TERMINAL_PROMPT') || hasWindowsAskpass)) {
+  if (owedWindowsGit.length > 0 || hasWindowsAskpass) {
     const present = new Set(Object.keys(clone).map(key => nameKey(key, platform)))
     for (const [name, value] of Object.entries(WINDOWS_HEADLESS_GIT_DEFAULTS)) {
       if (!present.has(nameKey(name, platform))) clone[name] = value
