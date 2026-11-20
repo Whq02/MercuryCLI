@@ -204,11 +204,12 @@ function runCell(cell: Cell): void {
   sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, data: '', mark: 'final' })
   sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 3, data: '', mark: 'settled' })
   sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 4, data: '\x1b[1;5F', mark: 'bottom' })
+  sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', awaitPattern: 'TURN-(299|300)', minTick: 1, awaitSettleTicks: 2, awaitStableTicks: 4, data: '' })
   const out = join(SCRATCH, `${cell.tag}.json`)
   const cfgPath = join(SCRATCH, `${cell.tag}.cfg.json`)
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', join(ROOT, 'dist/mercury.mjs'), '--resume', '00000000-aaaa-bbbb-cccc-a3a3a3a3a3a3'],
-    cols: cell.cols, rows: cell.rows, total: 500, sends, out,
+    cols: cell.cols, rows: cell.rows, total: 500, sends, out, readyText: ['TURN-'], readySettleTicks: 4,
   }))
   const trace = join(SCRATCH, `${cell.tag}-trace.jsonl`)
   const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {

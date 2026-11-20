@@ -160,12 +160,12 @@ type Resize = { cols: number; rows: number; afterMark?: string; afterMs?: number
 type Grid = Array<Array<{ c: string }>>
 type Capture = { text: string; marks: Map<string, { atTick: number; text: string }>; stages: Array<{ cols: number; rows: number; text: string }>; status: number; tail: string; startedAt: number }
 const textOf = (grid: Grid): string => grid.map(row => row.map(cell => cell.c).join('').replace(/\s+$/, '')).join('\n')
-async function capture(opts: { id: string; sends: Send[]; resizes: Resize[]; total: number }): Promise<Capture> {
+async function capture(opts: { id: string; sends: Send[]; resizes: Resize[]; total: number; ready: string; settle: number }): Promise<Capture> {
   const cfgPath = join(SCRATCH, `cfg-${opts.id}.json`)
   const outPath = join(SCRATCH, `grid-${opts.id}.json`)
   writeFileSync(
     cfgPath,
-    JSON.stringify({ argv: ['node', BIN, '--model', 'claude-sonnet-5'], cwd: CWD, cols: 120, rows: 40, sends: opts.sends, resizes: opts.resizes, total: opts.total, out: outPath }),
+    JSON.stringify({ argv: ['node', BIN, '--model', 'claude-sonnet-5'], cwd: CWD, cols: 120, rows: 40, sends: opts.sends, resizes: opts.resizes, readyText: [opts.ready], readySettleTicks: opts.settle, total: opts.total, out: outPath }),
   )
   const startedAt = Date.now()
   const child = spawn(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { env: { ...process.env, ...worldEnv }, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -269,6 +269,8 @@ const h = await capture({
   ],
   resizes: sizeResizes,
   total: 400,
+  ready: REPLY2,
+  settle: 25,
 })
 const continued = markText(h, 'continued')
 const live = markText(h, 'live')
@@ -324,6 +326,8 @@ const r = await capture({
   ],
   resizes: refusalResizes,
   total: 160,
+  ready: WORDS3,
+  settle: 2,
 })
 const refused = markText(r, 'continued')
 printFrame('R 120×40 after Continue Last Session on a parked session beside a live holder', refused)

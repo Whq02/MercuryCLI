@@ -51,12 +51,12 @@ const nodeBin = nodeBinPath()
 
 const sends = [
   afterBootFace(1500, '\r'),
-  afterBootFace(4500, 'hello plain world'),
-  afterBootFace(5700, '\r'),
-  afterBootFace(10500, '/crew'),
-  afterBootFace(11700, '\r'),
+  'after:Type a prompt:600:hello plain world',
+  'after:~❯ hello plain world:400:\r',
+  'after:The fixture answers.:800:/crew',
+  'after:~❯ /crew:500:\r',
 ]
-const WALL_S = driveWallSeconds(sends)
+const WALL_S = driveWallSeconds(sends, { bootMs: 14_500 })
 const child = spawn(
   driver.python,
   [

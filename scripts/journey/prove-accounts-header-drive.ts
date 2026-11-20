@@ -171,8 +171,8 @@ async function runBoard(): Promise<{ payload: Payload | null; status: number | n
     argv: [NODE, DIST, '--model', 'claude-opus-4-8'],
     cwd: FIXTURE_CWD,
     sends: [
-      { atTick: 70, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
-      { atTick: 150, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: '/accounts', mark: 'composer' },
+      { requireAwait: true, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
+      { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: '/accounts', mark: 'composer' },
       { afterPrevTicks: 4, data: '\r' },
     ],
     readyText: ['Anthropic accounts'],

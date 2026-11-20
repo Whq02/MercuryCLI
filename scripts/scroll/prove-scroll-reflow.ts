@@ -131,15 +131,14 @@ function runCell(cell: Cell): void {
   const home = join(SCRATCH, `home-${cell.tag}`)
   seedSession(home)
   const PAGEUP = '\x1b[5~'
-  const RESIZE_AT = 45
   const sends: Record<string, unknown>[] = [
     { atTick: 999, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: PAGEUP, mark: 'p00' },
     { atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 2, awaitStableTicks: 4, data: PAGEUP, mark: 'p01' },
     { atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, data: '', mark: 'atRest' },
-    { atTick: 43, data: '', mark: 'preResize' },
-    { atTick: 55, data: '', mark: 'postResize' },
-    { atTick: 66, data: '', mark: 'late' },
-    { atTick: 68, data: PAGEUP, mark: 'q01' },
+    { afterPrevTicks: 15, data: '', mark: 'preResize' },
+    { afterPrevTicks: 12, data: '', mark: 'postResize' },
+    { afterPrevTicks: 11, data: '', mark: 'late' },
+    { afterPrevTicks: 2, data: PAGEUP, mark: 'q01' },
     { atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 2, awaitStableTicks: 4, data: PAGEUP, mark: 'q02' },
     { atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, data: '', mark: 'qEnd' },
   ]
@@ -148,7 +147,8 @@ function runCell(cell: Cell): void {
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', join(ROOT, 'dist/mercury.mjs'), '--resume', SID],
     cols: cell.cols, rows: cell.rows, total: 500, sends,
-    resizes: [{ atTick: RESIZE_AT, cols: cell.rCols, rows: cell.rRows }],
+    resizes: [{ afterMark: 'preResize', afterMs: 400, cols: cell.rCols, rows: cell.rRows }],
+    readyText: ['TURN-'], readySettleTicks: 4,
     out,
   }))
   const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {

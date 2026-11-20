@@ -34,6 +34,7 @@ interface Send {
   afterPrevTicks?: number
   data: string
   awaitText?: string
+  awaitPattern?: string
   minTick?: number
   awaitSettleTicks?: number
   mark?: string
@@ -61,12 +62,12 @@ function capture(
   cols: number,
   rows: number,
   sends: Send[],
-  total: number,
+  ready: string,
   extraEnv: Record<string, string> = {},
 ): string[] {
   const out = join(OUT_DIR, `${tag}-${cols}x${rows}.json`)
   const cfgPath = join(scratch, `${tag}-${cols}x${rows}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total, cols, rows, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, readyText: [ready], readySettleTicks: 5, total: 150, cols, rows, out }))
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     MERCURY_CONFIG_DIR: scratch,
@@ -83,7 +84,7 @@ function capture(
   if (fixturePath !== null) env.MERCURY_CONCOURSE_FIXTURE = fixturePath
   else delete env.MERCURY_CONCOURSE_FIXTURE
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
-  if (res.status !== 0) throw new Error(`vshot ${tag} ${cols}x${rows} failed: ${(res.stderr ?? '').slice(-600)}`)
+  if (res.status !== 0 && res.status !== 3) throw new Error(`vshot ${tag} ${cols}x${rows} failed: ${(res.stderr ?? '').slice(-600)}`)
   const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid & { marks?: ({ label: string } & Grid)[] }
   const lines = linesOf(payload)
   writeFileSync(join(OUT_DIR, `${tag}-${cols}x${rows}.txt`), lines.join('\n') + '\n')
@@ -123,7 +124,7 @@ if (runLeg('git-offer')) {
   const fixturePath = join(scratch, 'concourse-fixture.json')
   writeFileSync(fixturePath, JSON.stringify(fixture))
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-    const lines = capture('git-offer', scratch, fixturePath, cols, rows, [], 50)
+    const lines = capture('git-offer', scratch, fixturePath, cols, rows, [], '↑↓ choose · ↵ confirm · esc cancel')
     const title = rowOf(lines, 'Start a git repository')
     const strip = lines.findIndex(l => /\d+\/\d+ seats/.test(l))
     check(`${cols}×${rows}: the card frame paints with its title`, title >= 0)
@@ -146,7 +147,7 @@ if (runLeg('git-offer')) {
     check(`${cols}×${rows}: control — a live glyph inside the gutter ring is refused`, !ringBlank(poisoned), JSON.stringify(poisoned.at(-1)?.trim().slice(0, 8)))
     check(`${cols}×${rows}: the strip's retired y/n context is absent`, !has(lines, 'y allows · n denies'))
   }
-  const wrapped = capture('git-offer-down', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 2, data: DOWN }, { afterPrevTicks: 4, data: DOWN, mark: 'after-one-down' }], 70)
+  const wrapped = capture('git-offer-down', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 2, data: DOWN }, { afterPrevTicks: 4, awaitPattern: '❯\\s+\\d\\.[^\\n]*No — run here', data: DOWN, mark: 'after-one-down' }, { afterPrevTicks: 1, awaitPattern: '❯\\s+1\\. Yes', data: '' }], 'Do you want to proceed?')
   const moved = markOf('git-offer-down', 'after-one-down')
   const cursorOn = (l: string): boolean => /[│ ]*❯\s+\d\./.test(l)
   const noLine = moved.find(l => l.includes('No — run here')) ?? ''
@@ -169,7 +170,7 @@ if (ONLY === 'diag') {
   writeFileSync(fixturePath, JSON.stringify(fixture))
   const settle = { atTick: 999, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 2 }
   for (const [name, data] of [['down', '\x1b[B'], ['j', 'j'], ['digit2', '2']] as const) {
-    const lines = capture(`diag-${name}`, scratch, fixturePath, 120, 40, [{ ...settle, data }, { afterPrevTicks: 4, data }], 70)
+    const lines = capture(`diag-${name}`, scratch, fixturePath, 120, 40, [{ ...settle, data }, { afterPrevTicks: 4, data }], 'Do you want to proceed?')
     const noLine = lines.find(l => l.includes('No — run here')) ?? ''
     const yesLine = lines.find(l => /\b1\. Yes\b/.test(l)) ?? ''
     const cursor = /❯\s+\d\./.test(noLine) ? 'No' : /❯\s+\d\./.test(yesLine) ? 'Yes' : 'none'
@@ -187,8 +188,8 @@ if (runLeg('arrows')) {
   const fixturePath = join(scratch, 'concourse-fixture.json')
   writeFileSync(fixturePath, JSON.stringify(fixture))
   const settle = { atTick: 999, awaitText: 'Fix OAuth cal', minTick: 5, awaitSettleTicks: 2 }
-  const before = capture('arrows-before', scratch, fixturePath, 120, 40, [], 45)
-  const after = capture('arrows-after', scratch, fixturePath, 120, 40, [{ ...settle, data: DOWN }], 60)
+  const before = capture('arrows-before', scratch, fixturePath, 120, 40, [], 'Fix OAuth cal')
+  const after = capture('arrows-after', scratch, fixturePath, 120, 40, [{ ...settle, data: DOWN }, { afterPrevTicks: 1, awaitPattern: '▸\\s+\\S?\\s*Fix OAuth', data: '' }], 'Fix OAuth cal')
   const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))
   const titleOf = (line: string | undefined): string => (line ?? '').match(/(?:Audit|Fix OAuth|Refactor|Update)(?: \S+)*/)?.[0] ?? ''
   const rowBefore = selRow(before)
@@ -230,19 +231,19 @@ if (runLeg('queued')) {
   writeFileSync(fixturePath, JSON.stringify(fixture))
   const settle = { atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2 }
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-    const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\r' }], 60)
+    const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\r' }], 'm queues a message')
     check(`${cols}×${rows}: ↵ on the queued row keeps the board`, has(lines, 'SESSIONS') && has(lines, 'queued probe'))
     check(`${cols}×${rows}: the in-place line under the live view's message box — a disclaimer in the estate's voice, whole (the seat count and the m door both on the row)`, lines.some(l => /queued · \d+\/\d+ busy · m queues a message/.test(l)), lines.find(l => l.includes('queued ')) ?? '(no queued line)')
     check(`${cols}×${rows}: the void screen did NOT open`, !has(lines, 'add a message — it delivers') && !has(lines, keyHintLabel('⇧← back to the concourse')))
   }
-  const room = capture('queued-room', scratch, fixturePath, 120, 40, [{ ...settle, data: 'm' }], 70)
+  const room = capture('queued-room', scratch, fixturePath, 120, 40, [{ ...settle, data: 'm' }], 'add a message — it delivers when the session starts')
   check('m on the queued row opens the deliver-on-start room (the explicit door)', has(room, 'add a message — it delivers when the session starts') && has(room, keyHintLabel('⇧← back to the concourse')), room.filter(l => /add a message|back to the concourse|queued probe/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ').slice(0, 300))
   check('the room names the queued session', has(room, 'queued probe'))
   check('the list legend advertises m', lines120HasM(scratch, fixturePath))
 }
 
 function lines120HasM(scratch: string, fixturePath: string): boolean {
-  const lines = capture('queued-legend', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2, data: '' }], 50)
+  const lines = capture('queued-legend', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2, data: '' }], 'm message queued')
   return lines.some(l => l.includes('m message queued'))
 }
 

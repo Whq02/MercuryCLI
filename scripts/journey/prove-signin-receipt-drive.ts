@@ -235,30 +235,30 @@ const composerGate = { requireAwait: true, awaitText: 'Type a prompt', awaitSett
 
 function chatSends(): Send[] {
   return [
-    { atTick: 90, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
+    { requireAwait: true, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
     { minTick: 10, ...composerGate, data: '/logins anthropic', mark: 'composer' },
     { afterPrevTicks: 4, data: '\r' },
-    { atTick: 320, awaitText: 'Sign in', awaitSettleTicks: 3, data: '\r', mark: 'menu' },
+    { requireAwait: true, awaitText: 'Sign in', awaitSettleTicks: 3, data: '\r', mark: 'menu' },
     { requireAwait: true, awaitText: 'Sign in / re-login', awaitSettleTicks: 3, data: '\r', mark: 'card' },
     { requireAwait: true, awaitText: 'Claude subscription — browser sign-in', awaitSettleTicks: 3, data: '\r', mark: 'pick' },
-    { atTick: 560, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
-    { atTick: 640, awaitText: 'Login successful', awaitSettleTicks: 4, data: '', mark: 'receipt' },
+    { requireAwait: true, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
+    { requireAwait: true, awaitText: 'Login successful', awaitSettleTicks: 4, data: '', mark: 'receipt' },
   ]
 }
 
 function faceSends(): Send[] {
   const down = (mark?: string): Send => ({ afterPrevTicks: 2, data: '\x1b[B', ...(mark ? { mark } : {}) })
   return [
-    { atTick: 90, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\x1b[B', mark: 'face-before' },
+    { requireAwait: true, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\x1b[B', mark: 'face-before' },
     down(),
     down(),
     down(),
     down(),
     down(),
     { afterPrevTicks: 3, data: '\r' },
-    { atTick: 260, awaitText: 'CONTROL PLANE', awaitSettleTicks: 4, data: '\r', mark: 'roster-before' },
+    { requireAwait: true, awaitText: 'CONTROL PLANE', awaitSettleTicks: 4, data: '\r', mark: 'roster-before' },
     { requireAwait: true, awaitText: 'Claude subscription — browser sign-in', awaitSettleTicks: 3, data: '\r', mark: 'pick' },
-    { atTick: 520, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
+    { requireAwait: true, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
     { afterPrevTicks: 8, data: '', mark: 'roster' },
     { afterPrevTicks: 2, data: '\x1b' },
   ]

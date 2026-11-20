@@ -13,6 +13,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { untilAsync } = await import('../lib/untilAsync.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-boot-spine-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -108,7 +109,7 @@ console.log('============================================================')
 {
   let ok = false
   try {
-    const cap = await capture({ argv: ['node', BIN], cwd, cols: 120, rows: 40, sends: [{ data: '', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 6 }], total: 60 }, env, 90_000)
+    const cap = await capture({ argv: ['node', BIN], cwd, cols: 120, rows: 40, sends: [{ data: '', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 6 }], readyText: ['↑↓ choose'], total: 300 }, env, 90_000)
     ok = cap.text.includes('↑↓ choose')
     check('B1 the Boot face painted', ok, cap.text.split('\n').filter(r => r.trim()).slice(0, 6).join(' | '))
   } catch (error) {
@@ -117,6 +118,7 @@ console.log('============================================================')
   const spine = lastInteractiveSpine()
   check('B1 the face boot stamped the four rungs in order, first-frame before input-live', inOrder(spine), spineWords(spine))
   check('B1 the face boot is stamped interactive on its entry rung', spine[0]?.boot === 'interactive', spineWords(spine))
+  await untilAsync(() => lastSpine()[0]?.pid !== spine[0]?.pid, vshotBudgetMs(10_000), 100)
   const runners = lastSpine()
   check('B1 the boot\'s own headless children (the daemon, the runner) stamp headless, so they are never the judged spine', runners[0]?.pid === spine[0]?.pid || runners[0]?.boot === 'headless', spineWords(runners))
 }
@@ -125,7 +127,7 @@ console.log('============================================================')
   const before = readRows().length
   try {
     const cap = await capture(
-      { argv: ['node', BIN, '--chat'], cwd, cols: 120, rows: 40, sends: [{ data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 6 }, { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 4 }, { data: '/exit\r', afterPrevTicks: 2 }], total: 120 },
+      { argv: ['node', BIN, '--chat'], cwd, cols: 120, rows: 40, sends: [{ data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 6 }, { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 4 }, { data: '/exit\r', afterPrevTicks: 2 }], total: 300 },
       env,
       120_000,
     )
@@ -140,9 +142,16 @@ console.log('============================================================')
 
 {
   const interactive = lastInteractiveSpine()
-  const p = spawnSync('node', [BIN, 'run', 'spine: hello'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 60_000 })
+  const run = spawn('node', [BIN, 'run', 'spine: hello'], { cwd, env: { ...process.env, ...env }, stdio: 'ignore' })
+  const left = (): boolean => run.exitCode !== null || run.signalCode !== null
+  const rungs = (): number => readRows().filter(r => r.pid === run.pid).length
+  await untilAsync(() => left() || rungs() >= 1, vshotBudgetMs(60_000), 100)
+  await untilAsync(() => left() || rungs() > 1, vshotBudgetMs(5000), 100)
+  const status = run.exitCode
+  run.kill('SIGTERM')
+  if (!(await untilAsync(left, 5000, 100))) run.kill('SIGKILL')
   const spine = lastSpine()
-  check('B3 the headless run stamped its entry rung as headless and no interactive rung', spine.length === 1 && spine[0]!.milestone === 'runtime-entry' && spine[0]!.boot === 'headless', `${spineWords(spine)} (exit ${p.status})`)
+  check('B3 the headless run stamped its entry rung as headless and no interactive rung', spine.length === 1 && spine[0]!.milestone === 'runtime-entry' && spine[0]!.boot === 'headless', `${spineWords(spine)} (exit ${status})`)
   check('B3 the headless run is a new pid after the interactive spine', spine[0]?.pid !== interactive[0]?.pid)
   const d = spawnSync('node', [BIN, 'health', '--json'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 120_000 })
   let row: { status?: string; evidence?: string } | undefined

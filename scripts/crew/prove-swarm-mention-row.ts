@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, watch, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,7 +41,7 @@ try {
     const tee = join(captures, `crewboard-${cols}.tee.bin`)
     writeFileSync(tee, '')
     let posted = false
-    const observer = watch(tee, () => {
+    const observer = setInterval(() => {
       if (posted || !readFileSync(tee).includes(Buffer.from('Swarm chat off'))) return
       posted = true
       const board = open(path, SID)
@@ -50,14 +50,14 @@ try {
         board.enroll(sender)
         assert(board.post(sender, { clientOpId: 'row', kind: 'result', text }).ok)
       } finally { board.close() }
-    })
+    }, 100)
     let stderr = ''
     const code = await new Promise<number | null>((resolve, reject) => {
       const child = spawn(driver.kind === 'posix-pty' ? driver.python : 'python3', [fileURLToPath(new URL('../ui/vshot.py', import.meta.url)), configPath], { env: { ...process.env, VSHOT_TEE: tee }, timeout: vshotBudgetMs(120000), stdio: ['ignore', 'ignore', 'pipe'] })
       child.stderr.on('data', chunk => { stderr += String(chunk) })
       child.on('error', reject)
       child.on('exit', resolve)
-    }).finally(() => observer.close())
+    }).finally(() => clearInterval(observer))
     assert(posted, 'the fixture never observed the channel switched off')
     assert.equal(code, 0, stderr)
     const grid = JSON.parse(readFileSync(gridPath, 'utf8'))

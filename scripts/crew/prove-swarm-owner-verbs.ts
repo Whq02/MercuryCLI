@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, watch, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { BoardEvent, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
@@ -169,19 +169,19 @@ else {
     const tee = join(captures, `owner-verbs-${cols}.tee.bin`)
     writeFileSync(tee, '')
     let enrolled = false
-    const observer = watch(tee, () => {
+    const observer = setInterval(() => {
       if (enrolled || !readFileSync(tee).includes(Buffer.from('Swarm on for new crewmates'))) return
       enrolled = true
       const board = open(boardPath, SID)
       try { board.enroll({ author: { sessionId: SID, agentId: `poster-${cols}`, executionId: 'run' }, name: 'Poster', team: 'lists' }) } finally { board.close() }
-    })
+    }, 100)
     let stderr = ''
     const code = await new Promise<number | null>((resolve, reject) => {
       const child = spawn(driver.python, [fileURLToPath(new URL('../ui/vshot.py', import.meta.url)), configPath], { env: { ...process.env, VSHOT_TEE: tee }, timeout: vshotBudgetMs(150000), stdio: ['ignore', 'ignore', 'pipe'] })
       child.stderr.on('data', chunk => { stderr += String(chunk) })
       child.on('error', reject)
       child.on('exit', resolve)
-    }).finally(() => observer.close())
+    }).finally(() => clearInterval(observer))
     assert(enrolled, 'the fixture never observed the board switch')
     assert.equal(code, 0, stderr)
     const board = open(boardPath, SID, Date.now, true)
