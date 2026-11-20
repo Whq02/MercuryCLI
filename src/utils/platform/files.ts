@@ -118,3 +118,9 @@ export function dirFsyncErrorIsFatal(
   const code = (error as { code?: string } | null)?.code
   return code === undefined || !DIR_FSYNC_UNSUPPORTED_CODES.has(code)
 }
+
+export function localIpcDoorKind(
+  platform: NodeJS.Platform = process.platform,
+): 'named-pipe' | 'unix-socket' {
+  return platform === 'win32' ? 'named-pipe' : 'unix-socket'
+}
