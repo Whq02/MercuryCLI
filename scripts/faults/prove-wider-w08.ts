@@ -364,6 +364,23 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
   })
   plane.transitionExecution(owner, id, 'starting')
   plane.transitionExecution(owner, id, 'running')
+  const { GitTool } = await import(join(SRC, 'tools/GitTool/GitTool.ts'))
+  const { ownerFromToolUseContext } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  const gitCtx = { abortController: new AbortController(), options: {} } as never
+  const gitOwner = ownerFromToolUseContext(gitCtx)
+  const gitWatchId = 'run-watch-9992'
+  plane.registerExecution({
+    version: 1,
+    id: gitWatchId,
+    owner: gitOwner,
+    kind: 'host-run-watch',
+    label: 'watch run 9992',
+    lifecycle: 'session',
+  })
+  plane.transitionExecution(gitOwner, gitWatchId, 'starting')
+  plane.transitionExecution(gitOwner, gitWatchId, 'running')
+  const gitOut = await GitTool.call({ op: 'runWatch', run: '9992', cancel: true } as never, gitCtx)
+  check('w08-6: GitTool runWatch cancel surfaces stop hook failure sentence', gitOut.data.result.includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running'), JSON.stringify(gitOut.data))
   const stopped = runWatch.cancelRunWatch(owner, '9991') as { state: string; stopHookError?: string; outcome?: { reason?: string } } | undefined
   check('w08-6: requestStopExecution does not throw and surfaces stop hook failure in record outcome and stopHookError', stopped !== undefined && stopped.state === 'stopping' && typeof stopped.stopHookError === 'string' && stopped.stopHookError.includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running') && (stopped.outcome?.reason ?? '').includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running'), JSON.stringify(stopped))
 }
