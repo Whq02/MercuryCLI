@@ -4,6 +4,15 @@ import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import ts from 'typescript'
 import { BASE, ROOT, argument, baseSources, git, hasBaseObject, scratch } from './support.ts'
+import { registerOnlyRequested } from '../lib/generated-assets-map.mjs'
+
+const ROW = {
+  assets: 'scripts/engine-pass/contract-moved.tsv',
+  generator: 'bun scripts/engine-pass/prove-engine-contract.ts',
+  check: 'bun scripts/engine-pass/prove-engine-contract.ts',
+  sources: 'src/ink.ts src/ink/** tsconfig.json bun.lock',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 function contract(root: string): Record<string, unknown> {
   const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile)
@@ -66,23 +75,38 @@ function checkShapeExports(
   quiet = false,
 ): number {
   let named = 0
+  const unrecorded: string[] = []
+  const drifted: string[] = []
   for (const [name, expected] of Object.entries(before)) {
     assert.ok(Object.hasOwn(after, name), `export disappeared: ${name}`)
     try {
       assert.deepEqual(after[name], expected)
     } catch (error) {
       const record = moved.get(`shape:${name}`)
-      assert.ok(record, `export shape changed: ${name} — ${String(error)}`)
       const actualDigest = shapeDigest(after[name])
-      assert.equal(
-        actualDigest,
-        record.digest,
-        `export shape drifted past its recorded movement: ${name} — expected ${record.digest}, got ${actualDigest} (${record.note})`,
-      )
+      if (!record) {
+        if (!quiet) console.log(`[MOVED] ${name} — ${String(error)}`)
+        unrecorded.push(`shape\t${name}\t<what moved, and what reads the same>\t<lane>\t<commit>\t${actualDigest}`)
+        continue
+      }
+      if (actualDigest !== record.digest) {
+        drifted.push(`${name}\t${actualDigest}\t(recorded ${record.digest}: ${record.note})`)
+        continue
+      }
       named++
       if (!quiet) console.log(`[NAMED] ${name} (${actualDigest.slice(0, 12)}) — ${record.note}`)
     }
   }
+  assert.equal(
+    drifted.length,
+    0,
+    `export shape drifted past its recorded movement: ${drifted.length} row(s) of scripts/engine-pass/contract-moved.tsv no longer hold. Give each its new digest once its reason covers the move (the name, the digest it reads now, what is recorded):\n${drifted.join('\n')}`,
+  )
+  assert.equal(
+    unrecorded.length,
+    0,
+    `export shape changed: ${unrecorded.length} export(s) moved with no row in scripts/engine-pass/contract-moved.tsv. Add each row below with its reason, lane and commit (tabs between the six columns):\n${unrecorded.join('\n')}`,
+  )
   return named
 }
 
