@@ -7,6 +7,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { isMouseCaptureEnabled } from '../utils/config/derived.js'
 import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../utils/fullscreen.js'
 import { setStdinRecovery } from '../utils/process.js'
+import { consoleSizeNeedsPolling } from '../utils/platform/terminal.js'
 import { CharPool, HyperlinkPool, StylePool } from './cell-grid.js'
 import App from './components/App.js'
 import type { CursorDeclaration } from './components/CursorDeclarationContext.js'
@@ -160,7 +161,7 @@ export default class Ink {
       process.on('SIGCONT', this.resumeAfterContinue)
       attachStopListeners.call(this)
       const win32SizeTimer: ReturnType<typeof setInterval> | null =
-        process.platform === 'win32'
+        consoleSizeNeedsPolling()
           ? startInterval(() => this.reconcileSize(), 5_000)
           : null
       win32SizeTimer?.unref?.();
