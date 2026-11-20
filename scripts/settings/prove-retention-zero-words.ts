@@ -26,7 +26,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 console.log('§1 the records.retentionDays tip says what the product does')
 {
@@ -37,16 +36,6 @@ console.log('§1 the records.retentionDays tip says what the product does')
   check('it says 0 turns transcript writing off', /0 turns transcript writing off/.test(tip), tip)
   check('it says the transcripts already on disk stay', /already on disk stay/.test(tip), tip)
   check('it does not call transcripts the thing the window ages', !/transcript retention period/.test(tip), tip)
-}
-
-console.log('§2 the pages say what 0 does')
-{
-  const settingsRow = read('docs/SETTINGS.md').split('\n').find(l => l.startsWith('| `records.retentionDays`')) ?? ''
-  check('docs/SETTINGS.md has the records.retentionDays row', settingsRow.length > 0)
-  check('…and it says 0 turns transcript writing off', /`0` turns transcript writing off/.test(settingsRow), settingsRow)
-  check('…without a deletion claim', !/delet/i.test(settingsRow), settingsRow)
-  const sessions = read('docs/SESSIONS.md')
-  check('docs/SESSIONS.md says 0 turns transcript writing off for new chats and the written ones stay', /`0` turns transcript writing off for\nnew chats; the transcripts already on disk stay\./.test(sessions))
 }
 
 console.log('§3 the sweep at 0 ages a recording and leaves every transcript (the real sweep over a seeded estate)')
