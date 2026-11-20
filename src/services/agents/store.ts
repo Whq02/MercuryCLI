@@ -442,28 +442,33 @@ export async function saveAgentDraft(
   return path
 }
 
-export function listAgentDrafts(): { path: string; draft: AgentDraft }[] {
+export function listAgentDraftsWithError(): { drafts: { path: string; draft: AgentDraft }[]; error?: string } {
   let names: string[]
   try {
     names = readdirSync(draftsDir())
   } catch (error) {
     passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { drafts: [] }
+    return { drafts: [], error: error instanceof Error ? error.message : String(error) }
   }
-  const out: { path: string; draft: AgentDraft }[] = []
+  const drafts: { path: string; draft: AgentDraft }[] = []
   for (const name of names) {
     if (!name.endsWith('.json')) continue
     const path = join(draftsDir(), name)
     try {
       const draft = JSON.parse(readFileSync(path, 'utf-8')) as AgentDraft
       if (draft?.version === 1 && typeof draft.raw === 'string') {
-        out.push({ path, draft })
+        drafts.push({ path, draft })
       }
     } catch (error) {
       passedOver(error)
     }
   }
-  return out
+  return { drafts }
+}
+
+export function listAgentDrafts(): { path: string; draft: AgentDraft }[] {
+  return listAgentDraftsWithError().drafts
 }
 
 export function discardAgentDraft(path: string): void {
