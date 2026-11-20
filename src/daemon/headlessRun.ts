@@ -1,6 +1,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { totalmem } from 'node:os'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { killProcessGroup } from '../utils/processGroup.js'
@@ -141,6 +142,19 @@ export function getSelfInvocation(): { node: string; script: string } {
   return { node: process.execPath, script: selfScriptPath() }
 }
 
+const DEFAULT_HEAP_CEILING_MB = 4096
+const LARGEST_HEAP_CEILING_MB = 16384
+
+export function runnerHeapArgv(
+  nodeOptions: string | undefined,
+  totalBytes: number = totalmem(),
+  onNode: boolean = process.versions.bun === undefined,
+): string[] {
+  if (!onNode || /(^|\s)--max[-_]old[-_]space[-_]size\b/.test(nodeOptions ?? '')) return []
+  const ceiling = Math.min(LARGEST_HEAP_CEILING_MB, Math.floor(totalBytes / 4 / (1024 * 1024)))
+  return ceiling > DEFAULT_HEAP_CEILING_MB ? [`--max-old-space-size=${ceiling}`] : []
+}
+
 
 export interface RunnerChildSpec {
   model: string
@@ -262,10 +276,11 @@ export function spawnRunnerChild(
     cwd: spec.cwd ?? process.cwd(),
     role: spec.role,
   })
+  const heapArgv = runnerHeapArgv(env.NODE_OPTIONS)
   logForDebugging(
-    `[daemon] spawning long-lived child role=${spec.role} model=${spec.model} effort=${spec.effort}`,
+    `[daemon] spawning long-lived child role=${spec.role} model=${spec.model} effort=${spec.effort} heap=${heapArgv[0] ?? 'default'}`,
   )
-  const child = spawn(node, argv, {
+  const child = spawn(node, [...heapArgv, ...argv], {
     cwd: spec.cwd ?? process.cwd(),
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
@@ -308,6 +323,7 @@ export function runTaskHeadless(
       child = spawn(
         node,
         [
+          ...runnerHeapArgv(oneShotEnv.NODE_OPTIONS),
           script,
           'run',
           ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),

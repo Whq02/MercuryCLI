@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -351,6 +352,28 @@ for (const c of [
     j(respawn?.argv),
   )
   await settle(short)
+}
+
+section("§5 a runner's heap ceiling: a quarter of the machine's memory where that is above Node's own limit; the user's own flag is kept")
+{
+  const GB = 1024 ** 3
+  const heap = real.runnerHeapArgv
+  check('48 GB of memory: the runner starts with a 12288 MB ceiling', j(heap(undefined, 48 * GB, true)) === j(['--max-old-space-size=12288']), j(heap(undefined, 48 * GB, true)))
+  check('128 GB of memory: the ceiling stops at 16384 MB', j(heap(undefined, 128 * GB, true)) === j(['--max-old-space-size=16384']), j(heap(undefined, 128 * GB, true)))
+  check('16 GB and 8 GB of memory: no flag, Node keeps its own limit', heap(undefined, 16 * GB, true).length === 0 && heap(undefined, 8 * GB, true).length === 0)
+  check(
+    "a ceiling in the user's NODE_OPTIONS is kept, in either spelling",
+    heap('--max-old-space-size=8192', 48 * GB, true).length === 0 && heap('--no-warnings --max_old_space_size=8192', 48 * GB, true).length === 0,
+  )
+  check('another flag in NODE_OPTIONS does not stop it', j(heap('--no-warnings', 48 * GB, true)) === j(['--max-old-space-size=12288']))
+  check('a runner started under bun gets no flag', heap(undefined, 48 * GB, false).length === 0)
+  const probe = spawnSync(
+    process.env.MERCURY_NODE ?? 'node',
+    [...heap(undefined, 48 * GB, true), '-e', "process.stdout.write(String(Math.round(require('node:v8').getHeapStatistics().heap_size_limit / 1048576)))"],
+    { encoding: 'utf8', timeout: 20_000, windowsHide: true },
+  )
+  if ((probe.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') console.log('  [SKIP] no node on PATH to start with the flag')
+  else check('a node started with that flag has the ceiling', probe.status === 0 && Number(probe.stdout) >= 12288, `status=${probe.status} out=${probe.stdout}`)
 }
 
 clearTimeout(watchdog)
