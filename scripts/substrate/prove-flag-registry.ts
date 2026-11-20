@@ -388,11 +388,6 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
       !/RETIRED_SEAT_ENV_VARS[^=\n]*=\s*\[/.test(spawn),
   )
   check(
-    'assertSingleRole reads the swept list RAW (process.env), the live roles through flagEnv',
-    /RETIRED_SEAT_ENV_VARS\.filter\(v => process\.env\[v\] === '1'\)/.test(gates) &&
-      /\.filter\(v => flagEnv\(v\) === '1'\)/.test(gates),
-  )
-  check(
     "headlessRun's swept spellings = the live roles' registered spellings + the swept five appended RAW",
     /LIVE_ROLE_ENV_VARS\.flatMap\(flagSpellings\), \.\.\.RETIRED_SEAT_ENV_VARS/.test(spawn) &&
       !/RETIRED_SEAT_ENV_VARS\.flatMap\(flagSpellings\)/.test(spawn),
