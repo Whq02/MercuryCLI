@@ -217,7 +217,7 @@ export async function reviewerRefusal(tool: Tool, input: Record<string, unknown>
 function reviewerOffersTool(tool: Tool): boolean {
   if (tool.name === FILE_EDIT_TOOL_NAME || tool.name === BASH_TOOL_NAME) return true
   try {
-    return tool.isReadOnly({} as never) === true
+    return tool.isReadOnly({}) === true
   } catch {
     return false
   }
