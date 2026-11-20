@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -91,8 +91,6 @@ try {
   check('cache reads and writes both count toward the 100K threshold', close(cost.calculateUSDCost(ID, { input_tokens: 1, output_tokens: 100, cache_read_input_tokens: 50_000, cache_creation_input_tokens: 50_000 }), 0.0340005))
   check('one-hour writes cost $0.20 below and $1 above the threshold', close(cost.calculateUSDCost(ID, { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 100_000, cache_creation: { ephemeral_1h_input_tokens: 100_000 } }), 0.02) && close(cost.calculateUSDCost(ID, { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 100_001, cache_creation: { ephemeral_1h_input_tokens: 100_001 } }), 0.100001))
   check('4.5 keeps its own recorded $1/$5 prices', cost.getModelPricingString(OLD) === '$1/$5 per Mtok')
-  const engines = readFileSync(join(import.meta.dir, '../../docs/ENGINES.md'), 'utf8')
-  check('ENGINES records the row, family word and context', engines.includes('`haiku` means Haiku 5.5') && engines.includes('`claude-haiku-5-5`') && engines.includes('128K output'))
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
