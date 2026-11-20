@@ -170,7 +170,7 @@ export type Transcript = (
   | SystemMessage
 )[]
 
-export function writtenChainTail(messages: Message[], parentUuid?: string | null): string | undefined {
+export function writtenChainTail(messages: Message[], parentUuid?: UUID | null): UUID | undefined {
   return cleanForTranscript(messages).at(-1)?.uuid ?? parentUuid ?? undefined
 }
 

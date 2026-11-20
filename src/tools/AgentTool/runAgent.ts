@@ -8,7 +8,7 @@ import {
 import type { QueryParams } from '../../run-core/turn-machine.js'
 import { productionDeps } from '../../query/deps.js'
 import type { LegacyQueryYield } from '../../run-core/project-legacy.js'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, type UUID } from 'node:crypto'
 import { connectToServer, fetchToolsForClient } from '../../services/mcp/client.js'
 import {
   areMcpConfigsAllowedWithEnterpriseMcpConfig,
@@ -110,6 +110,7 @@ type RunAgentOverride = {
   agentId?: string
 }
 
+export type AgentQueryProgressEvent = Message | { type: 'stream_activity'; atMs: number } | { type: 'request_wait'; wait: unknown }
 export type RunAgentParams = {
   agentDefinition: AgentDefinition
   promptMessages: Message[]
@@ -143,7 +144,7 @@ export type RunAgentParams = {
   effortOverride?: string
   thinkingConfigOverride?: ThinkingConfig
   instructionProfileOverride?: string
-  onQueryProgress?: (message: Message) => void
+  onQueryProgress?: (message: AgentQueryProgressEvent) => void
   onWait?: (words: string | null) => void
   onPendingAsks?: (count: number) => void
   structuredOutputSpec?: {
@@ -231,7 +232,7 @@ export async function connectAgentMcpServers(
         continue
       }
       const name = keys[0]!
-      const inlineConfig = spec[name] as Record<string, unknown>
+      const inlineConfig = spec[name]!
       if (!McpServerConfigSchema().safeParse(inlineConfig).success) {
         logForDebugging(
           `runAgent: inline MCP server '${name}' refused — not a server configuration the one validator accepts`,
@@ -244,7 +245,7 @@ export async function connectAgentMcpServers(
         )
         continue
       }
-      if (doesEnterpriseMcpConfigExist() && !areMcpConfigsAllowedWithEnterpriseMcpConfig({ [name]: inlineConfig } as never)) {
+      if (doesEnterpriseMcpConfigExist() && !areMcpConfigsAllowedWithEnterpriseMcpConfig({ [name]: inlineConfig })) {
         logForDebugging(
           `runAgent: inline MCP server '${name}' refused — an enterprise MCP configuration exists and owns the server set`,
         )
@@ -260,7 +261,7 @@ export async function connectAgentMcpServers(
         ...inlineConfig,
         scope: 'dynamic',
         inlineDispatchId: dispatchNonce,
-      } as never)
+      })
       connected.push(client)
       dynamicCleanups.push(async () => {
         try {
@@ -503,10 +504,10 @@ export function agentOwnEffortWord(facts: {
 export async function landAgentTranscriptRows(
   messages: Message[],
   agentId: AgentId,
-  parentUuid?: string | null,
-): Promise<string | undefined> {
+  parentUuid?: UUID | null,
+): Promise<UUID | undefined> {
   try {
-    await recordSidechainTranscript(messages, agentId, parentUuid as never)
+    await recordSidechainTranscript(messages, agentId, parentUuid)
     await flushSessionStorage()
   } catch {
     return parentUuid ?? undefined
@@ -574,7 +575,7 @@ export async function* runAgent(
   const resolvedAgentModel = getAgentModel(
     agentDefinition.model,
     toolUseContext.options.engineModel,
-    model as never,
+    model,
   )
   const resolvedEffort = resolveAgentEffort({
     effortOverride,
@@ -659,7 +660,7 @@ export async function* runAgent(
     swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, params.resumed === true, params.team, abortController.signal)
     const { userContext, systemContext, systemPrompt, childContext, messages } = await prepareAgentRun({ agentId, name, description, swarm, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort })
 
-    let lastRecordedUuid: string | undefined = writtenChainTail(messages)
+    let lastRecordedUuid: UUID | undefined = writtenChainTail(messages)
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
 
     const deps = productionDeps()
@@ -689,7 +690,7 @@ export async function* runAgent(
           yield message
         }
       } finally {
-        await stream.return(undefined as never).catch(() => {})
+        await stream.return(undefined).catch(() => {})
       }
     }
 
@@ -698,11 +699,11 @@ export async function* runAgent(
     let lastAssistantRow: Message | undefined
     let stoppedEarly = false
     for await (const message of pausableQuery()) {
+      if (message.type === 'stream_event') continue
       const anyMessage = message as Message & {
         subtype?: string
         attachment?: { type?: string }
       }
-      if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
         streamedRows.push(message as Message)
         lastRecordedUuid = await landAgentTranscriptRows([message as Message], agentId, lastRecordedUuid)
@@ -739,7 +740,7 @@ export async function* runAgent(
       lastRecordedUuid = await landAgentTranscriptRows(
         [message as Message],
         agentId,
-        lastRecordedUuid as never,
+        lastRecordedUuid,
       )
       if (anyMessage.type !== 'progress') {
         streamedRows.push(message as Message)
@@ -765,7 +766,7 @@ export async function* runAgent(
     lastRecordedUuid = await landAgentTranscriptRows(
       [refusalRetry.row],
       agentId,
-      lastRecordedUuid as never,
+        lastRecordedUuid,
     )
     yield refusalRetry.row
     const carried = [...runMessages, ...streamedRows]

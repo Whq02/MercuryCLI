@@ -11,9 +11,11 @@ import type {
   KitDialReceiptV1,
   LeaveReceiptV1,
   SpawnSwitchReceiptV1,
+  McpRosterEntryV1,
   McpRosterV1,
   McpToolEntryV1,
   McpToolsV1,
+  MissionRowV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
   PermissionModeReceiptV1,
@@ -22,9 +24,11 @@ import type {
   SeatIdentityV1,
   SendReceiptV1,
   SessionAskV1,
+  SkillsRosterEntryV1,
   SkillsRosterV1,
   UsageFactsV1,
   WorkRosterV1,
+  WorkRowV1,
   WorkspaceFactsV1,
 } from './types.js'
 import type { SpawnSwitchFacts } from '../switchboard/spawnSwitches.js'
@@ -43,7 +47,7 @@ const NO_SPAWN_SWITCHES: SpawnSwitchFacts = Object.freeze({
 
 const EMPTY_MESSAGES: readonly Message[] = Object.freeze([])
 const EMPTY_ASKS: readonly SessionAskV1[] = Object.freeze([])
-const EMPTY_WORK: WorkRosterV1 = Object.freeze({ rows: Object.freeze([]) as never, mission: Object.freeze([]) as never })
+const EMPTY_WORK: WorkRosterV1 = Object.freeze({ rows: Object.freeze<WorkRowV1[]>([]), mission: Object.freeze<MissionRowV1[]>([]) })
 const ZERO_USAGE: UsageFactsV1 = Object.freeze({
   totalCostUSD: 0,
   totalAPIDurationMs: 0,
@@ -62,8 +66,8 @@ const NO_IDENTITY: SeatIdentityV1 = Object.freeze({
   claudeAiBilling: false,
   accountEmail: null,
 })
-const NO_SKILLS: SkillsRosterV1 = Object.freeze({ skills: Object.freeze([]) as never })
-const NO_MCP: McpRosterV1 = Object.freeze({ clients: Object.freeze([]) as never })
+const NO_SKILLS: SkillsRosterV1 = Object.freeze({ skills: Object.freeze<SkillsRosterEntryV1[]>([]) })
+const NO_MCP: McpRosterV1 = Object.freeze({ clients: Object.freeze<McpRosterEntryV1[]>([]) })
 const EMPTY_MCP_TOOLS: readonly McpToolEntryV1[] = Object.freeze([])
 const NO_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'off' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
 const NOOP_UNSUBSCRIBE = (): void => {}

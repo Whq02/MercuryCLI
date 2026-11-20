@@ -10,6 +10,7 @@ import { createUserMessage } from '../../utils/messages.js'
 import type { TurnAnswerContext } from '../../query/turnAnswerContext.js'
 import { currentLimits } from '../anthropicLimits.js'
 import type { AppState } from '../../state/AppState.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
 
 
@@ -263,7 +264,7 @@ function shouldFilterSuggestion(suggestion: string): boolean {
 
 async function tryGenerateSuggestion(
   abortController: AbortController,
-  messages: unknown[],
+  messages: Message[],
   getAppState: () => AppState,
   cacheSafeParams: CacheSafeParams,
 ): Promise<
@@ -274,20 +275,18 @@ async function tryGenerateSuggestion(
     return undefined
   }
   const assistantMessages = messages.filter(
-    message => (message as { type?: string }).type === 'assistant',
+    (message): message is AssistantMessage => message.type === 'assistant',
   )
   if (assistantMessages.length < 2) {
     logSuggestionSuppressed('early_conversation')
     return undefined
   }
-  const lastAssistant = assistantMessages[assistantMessages.length - 1] as {
-    isApiErrorMessage?: boolean
-  }
+  const lastAssistant = assistantMessages[assistantMessages.length - 1]
   if (lastAssistant.isApiErrorMessage === true) {
     logSuggestionSuppressed('last_response_error')
     return undefined
   }
-  const cacheReason = getParentCacheSuppressReason(lastAssistant as never)
+  const cacheReason = getParentCacheSuppressReason(lastAssistant)
   if (cacheReason !== undefined) {
     logSuggestionSuppressed(cacheReason)
     return undefined

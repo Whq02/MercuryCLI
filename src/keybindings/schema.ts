@@ -61,7 +61,7 @@ export const KeybindingBlockSchema = lazySchema(() =>
         z.string().describe('A keystroke pattern such as "ctrl+k" or "ctrl+x p"'),
         z
           .union([
-            z.enum(KEYBINDING_ACTIONS as unknown as [string, ...string[]]),
+            z.enum(KEYBINDING_ACTIONS),
             z.string().regex(COMMAND_BINDING_RE),
             z.null(),
           ])

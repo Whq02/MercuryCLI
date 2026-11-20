@@ -87,7 +87,7 @@ function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefine
       ? { ...Object.fromEntries(Object.keys(previous[key] as object).map(field => [field, undefined])), ...value } : value
     return {
       compatProvider: patch as NonNullable<ReturnType<typeof getSettingsForSource>>['compatProvider'],
-      ...(!endpoint ? { models: Object.fromEntries(Object.keys(raw.models ?? {}).filter(id => id.startsWith(`compat/${name}/`)).map(id => [id, undefined])) as unknown as NonNullable<ReturnType<typeof getSettingsForSource>>['models'] } : {}),
+      ...(!endpoint ? { models: Object.fromEntries(Object.keys(raw.models ?? {}).filter(id => id.startsWith(`compat/${name}/`)).map(id => [id, undefined])) } : {}),
     }
   })
   if (result.error) throw result.error

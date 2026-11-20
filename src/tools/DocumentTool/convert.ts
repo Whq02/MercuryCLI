@@ -165,7 +165,7 @@ export async function convertDocument(input: DocumentInput, io: DocumentIO): Pro
   }
   if (from === '.xlsx' && to === '.csv') {
     const book = new ExcelJS.Workbook()
-    await book.xlsx.load(bytes as unknown as ExcelJS.Buffer)
+    await book.xlsx.load(bytes)
     if (book.worksheets.length > 1 && !input.sheet) throw new Error(`Choose sheet: ${book.worksheets.map(s => s.name).join(', ')}`)
     const sheet = input.sheet ? book.getWorksheet(input.sheet) : book.worksheets[0]
     if (!sheet) throw new Error(`Worksheet not found: ${input.sheet ?? ''}`)
