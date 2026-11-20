@@ -7,6 +7,8 @@ import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
+import { localIpcDoorKind } from '../utils/platform/files.js'
+import { processInstantStartForm } from '../utils/platform/processes.js'
 import { sendPassedOverToDebugLog } from '../utils/passedOverSink.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
@@ -370,7 +372,7 @@ async function daemonRun(args: string[]): Promise<void> {
       }
       const restartNeeds = { liveWorkers, askLiveSessionsForFacts, requestShutdown: (signal: string) => requestShutdown(signal) }
       const bootStartToken = await atBootStep(state, 'the start token')(getProcessStartTokenAsync(process.pid))
-      const bootStartInstant = process.platform === 'win32' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
+      const bootStartInstant = processInstantStartForm() === 'instant' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
         writeDaemonState({
           pid: process.pid,
@@ -435,7 +437,7 @@ async function daemonRun(args: string[]): Promise<void> {
           if (roster !== null) onSeatSpawned(runnerId, roster)
         },
       })
-      state.controlServer = await atBootStep(state, 'the control server')(startControlServer(controlServerDeps(state, { roster, handover, handoverRef, controlKey, countBirth, concourseAdmitHandler, concourseDispatchHandler, warmDeps, liveWorkers, requestShutdown: (signal: string) => requestShutdown(signal), restartNeeds, bootStartInstant }), { socketPath: process.platform === 'win32' ? controlSockPath() : predecessorSockPath(process.pid) }))
+      state.controlServer = await atBootStep(state, 'the control server')(startControlServer(controlServerDeps(state, { roster, handover, handoverRef, controlKey, countBirth, concourseAdmitHandler, concourseDispatchHandler, warmDeps, liveWorkers, requestShutdown: (signal: string) => requestShutdown(signal), restartNeeds, bootStartInstant }), { socketPath: localIpcDoorKind() === 'named-pipe' ? controlSockPath() : predecessorSockPath(process.pid) }))
       await atBootStep(state, 'the daemon record')(persistDaemonRecord(state.currentOwnerPid))
       armPlaneHeal(state, {
         controlKey,
@@ -486,7 +488,7 @@ const SUCCESSOR_LOCK_WAIT_MS = 10_000
 export const FREE_THE_PLANE_WORDS = '`mercury daemon stop` asks the daemon that holds this home to leave (it answers over the control pipe from any Mercury build); if it does not answer, end its pid by hand, then start again'
 
 function planeHeldLine(holder: { pid: number; buildTree: string | null } | null, plane: string = controlSockPath(), stateFile: string = daemonStatePath()): string {
-  const door = process.platform === 'win32' ? 'control pipe' : 'control socket'
+  const door = localIpcDoorKind() === 'named-pipe' ? 'control pipe' : 'control socket'
   if (holder !== null && holder.pid === process.pid) return `this daemon gives the home back and exits: no other daemon holds the ${door} ${plane} — start again`
   if (holder !== null) {
     return `this daemon gives the home back and exits: pid ${holder.pid} (build ${holder.buildTree ?? 'unstamped'}) holds the ${door} ${plane} — ${FREE_THE_PLANE_WORDS}`

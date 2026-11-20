@@ -767,6 +767,7 @@ import { rememberedPlatform } from '../../src/utils/platform/host.js'
 import {
   appendNoFollowFlags,
   boundedProjectTempName,
+  canonicalHomePathSpelling,
   defaultMercuryTempBase,
   dirFsyncErrorIsFatal,
   envUserHomeDir,
@@ -1183,6 +1184,26 @@ const FILES: Row[] = [
       linux: [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
       'win32 by process.platform alone': [['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
       'win32 by getPlatform() alone': [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury', 'mercury', 'mercury-<uid>', '<tmpdir>', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+    },
+  },
+  {
+    name: 'files · canonicalHomePathSpelling',
+    answers: () => [
+      canonicalHomePathSpelling('c:/Users/Alice/'),
+      canonicalHomePathSpelling('C:\\'),
+      canonicalHomePathSpelling('\\\\server\\share\\'),
+      canonicalHomePathSpelling('/Users/alice///'),
+      canonicalHomePathSpelling('/'),
+      canonicalHomePathSpelling(''),
+      canonicalHomePathSpelling('c:/Users/Alice/', 'win32'),
+      canonicalHomePathSpelling('/Users/alice/', 'linux'),
+    ],
+    recorded: {
+      win32: ['C:\\Users\\Alice', 'C:\\', '\\\\server\\share\\', '\\Users\\alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
+      darwin: ['c:/Users/Alice', 'C:\\', '\\\\server\\share\\', '/Users/alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
+      linux: ['c:/Users/Alice', 'C:\\', '\\\\server\\share\\', '/Users/alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
+      'win32 by process.platform alone': ['C:\\Users\\Alice', 'C:\\', '\\\\server\\share\\', '\\Users\\alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
+      'win32 by getPlatform() alone': ['c:/Users/Alice', 'C:\\', '\\\\server\\share\\', '/Users/alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
     },
   },
 ]

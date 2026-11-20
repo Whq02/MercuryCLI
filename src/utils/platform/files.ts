@@ -195,3 +195,17 @@ export function boundedProjectTempName(
   if (platform !== 'windows' || sanitized.length <= bound) return sanitized
   return `${sanitized.slice(9 - bound)}-${shortHash}`
 }
+
+export function canonicalHomePathSpelling(
+  raw: string,
+  platform: string = process.platform,
+): string {
+  let s = raw.normalize('NFC')
+  if (platform === 'win32') {
+    s = s.replace(/\//g, '\\').replace(/^([a-z]):/, (_, letter: string) => `${letter.toUpperCase()}:`)
+  }
+  const bareRoot = platform === 'win32' ? /^(?:[A-Za-z]:\\|\\\\[^\\]+\\[^\\]+\\?)$/ : /^\/$/
+  if (bareRoot.test(s)) return s
+  s = s.replace(platform === 'win32' ? /[\\/]+$/ : /\/+$/, '')
+  return s.length === 0 ? raw.normalize('NFC') : s
+}
