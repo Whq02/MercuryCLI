@@ -187,13 +187,13 @@ function scanFile(file: { path: string; session: string; project: string }): Cac
     if (entry.sessionId !== file.session) return
     const model = servedModelOfAssistantRow(entry)
     if (!model) return
-    const raw = entry.message.usage as unknown as Record<string, unknown> | undefined
+    const raw = entry.message.usage
     if (!raw) return
     const usage = {
       input_tokens: finite(raw.input_tokens), output_tokens: finite(raw.output_tokens),
       cache_read_input_tokens: finite(raw.cache_read_input_tokens), cache_creation_input_tokens: finite(raw.cache_creation_input_tokens),
-      cache_creation: { ephemeral_1h_input_tokens: finite((raw.cache_creation as Record<string, unknown> | undefined)?.ephemeral_1h_input_tokens) },
-      server_tool_use: { web_search_requests: finite((raw.server_tool_use as Record<string, unknown> | undefined)?.web_search_requests) },
+      cache_creation: { ephemeral_1h_input_tokens: finite(raw.cache_creation?.ephemeral_1h_input_tokens) },
+      server_tool_use: { web_search_requests: finite(raw.server_tool_use?.web_search_requests) },
       request_started_at_ms: finite(raw.request_started_at_ms) || Date.parse(entry.timestamp),
     }
     const inputTokens = usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
