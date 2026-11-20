@@ -1,5 +1,4 @@
 import { chmodSync, closeSync, copyFileSync, fsyncSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import {
@@ -90,7 +89,7 @@ export const plainTextStorage: SecureStorage = {
 
   async readAsync(): Promise<SecureStorageData | null> {
     try {
-      return parseData(await readFile(credentialsPath(), 'utf8'))
+      return parseData(readFileSync(credentialsPath(), 'utf8'))
     } catch (error) {
       noteUnreadable(error)
       return null
