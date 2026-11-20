@@ -1,13 +1,8 @@
-import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../../utils/config.js'
 
 export function concourseEnabled(): boolean {
-  try {
-    return getGlobalConfig().concourseEnabled !== false
-  } catch (error) {
-    passedOver(error)
-    return true
-  }
+  if (!isConfigReadingAllowed()) return true
+  return getGlobalConfig().concourseEnabled !== false
 }
 
 export function setConcourseEnabled(on: boolean): void {
