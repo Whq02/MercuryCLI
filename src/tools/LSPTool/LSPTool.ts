@@ -11,6 +11,7 @@ import { lspStartFailureWords, remedyForLanguageServer, retryTimeWords, serverTi
 import { LSP_FIRST_CALL_START_WAIT_MS, startedWithin, workspaceSymbolServer } from '../../services/lsp/firstCallServer.js'
 import { isLspStartFailure } from '../../services/lsp/LSPServerInstance.js'
 import { mercuryLspEnabled, mercuryLspWriteOpsEnabled } from '../../services/lsp/mercuryLsp.js'
+import { mercuryLspServersInvalidNote } from '../../services/lsp/builtinServers.js'
 import { runWithLspAbortSignal, lspRequestFaultCount } from '../../services/lsp/lspAbort.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
@@ -33,6 +34,17 @@ const EVIDENCE_MAX_CHARS = 160
 const CHECK_IGNORE_BATCH = 50
 const CHECK_IGNORE_TIMEOUT_MS = 5_000
 const MERCURY_BRIDGE_OPERATIONS = new Set(['diagnostics', 'rename', 'codeActions', 'typeDefinition', 'serverStatus', 'workspaceDiagnostics', 'pathRename', 'formatDocument', 'formatRange', 'organizeImports', 'rawRequest', 'moveSymbol'])
+let lastNotedInvalidLspServers: string | null = null
+function consumeInvalidLspServersNote(): string {
+  const note = mercuryLspServersInvalidNote()
+  if (note === null) {
+    lastNotedInvalidLspServers = null
+    return ''
+  }
+  if (lastNotedInvalidLspServers === note) return ''
+  lastNotedInvalidLspServers = note
+  return ` ${note}`
+}
 
 type Input = LspInput & { operation: string }
 type LspChangeView = NonNullable<MercuryLspOpOutput['changeView']>
@@ -219,15 +231,18 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
     if (!mercuryLspEnabled()) return fail(`The ${tool.name} operation requires the IDE bridge, which is disabled (MERCURY_LSP is off).`)
     try {
       const op = await runMercuryLspOp({ input: input as MercuryLspOpInput, absolutePath: filePath ? expandPath(filePath) : cwd, cwd, manager, tool, context, requestWritePermission, ...(messageId !== undefined ? { messageId } : {}) })
+      const opResult = op.effect.outcome === 'failed' && /no language server/i.test(op.result)
+        ? op.result + consumeInvalidLspServersNote()
+        : op.result
       const data: Output = {
-        operation, result: op.result, filePath, resultCount: op.resultCount, fileCount: op.fileCount, outcome: op.effect.outcome,
+        operation, result: opResult, filePath, resultCount: op.resultCount, fileCount: op.fileCount, outcome: op.effect.outcome,
         ...(op.applied !== undefined ? { applied: op.applied } : {}),
         ...(op.changeView && op.changeView.files.length > 0 ? { changeView: op.changeView } : {}),
         ...(op.edits !== undefined ? { edits: op.edits } : {}),
         ...(op.omittedEdits !== undefined ? { omittedEdits: op.omittedEdits } : {}),
         ...(op.plan !== undefined ? { plan: op.plan } : {}),
       }
-      return { data, effect: makeEffect(operation, op.effect.outcome, op.result, startedAt, { changedPaths: op.effect.changedPaths, evidence: op.effect.evidence, ...(op.effect.details !== undefined ? { details: op.effect.details } : {}) }) }
+      return { data, effect: makeEffect(operation, op.effect.outcome, opResult, startedAt, { changedPaths: op.effect.changedPaths, evidence: op.effect.evidence, ...(op.effect.details !== undefined ? { details: op.effect.details } : {}) }) }
     } catch (err) {
       logError(err)
       return fail(failureWords(err, filePath))
@@ -245,7 +260,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
         response = await manager.sendRequest<SymbolInformation[]>(expandPath(filePath), 'workspace/symbol', { query })
       } else {
         const chosen = workspaceSymbolServer(manager, query, cwd)
-        if (!chosen) return fail('No language server is configured in this session; LspRead serverStatus lists what is available.')
+        if (!chosen) return fail(`No language server is configured in this session; LspRead serverStatus lists what is available.${consumeInvalidLspServersNote()}`)
         startPath = chosen.path
         if (chosen.server.state !== 'running') {
           const ready = (await startedWithin(chosen.server, LSP_FIRST_CALL_START_WAIT_MS)) || (await startedWithin(chosen.server, LSP_FIRST_CALL_START_WAIT_MS))
@@ -287,7 +302,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
     if (response === undefined) {
       const extension = extname(documentPath).toLowerCase() || basename(documentPath)
       const why = unclaimedCause(extension, cwd)
-      return fail(`The ${operation} operation was not run: no language server claims '${extension}' files in this session — ${why.cause}.${why.remedy ? ` What helps: ${why.remedy}.` : ''}`)
+      return fail(`The ${operation} operation was not run: no language server claims '${extension}' files in this session — ${why.cause}.${why.remedy ? ` What helps: ${why.remedy}.` : ''}${consumeInvalidLspServersNote()}`)
     }
     if (operation === 'incomingCalls' || operation === 'outgoingCalls') {
       const prepared = response as Array<Record<string, unknown>> | null
