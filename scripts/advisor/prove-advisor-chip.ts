@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = resolve(import.meta.dir, '..', '..')
 const home = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-chip-'))
 Object.assign(process.env, {
   MERCURY_CONFIG_DIR: home,
@@ -84,7 +83,6 @@ type AdvisorFacts = import('../../src/services/engine-connector/types.ts').Advis
 const h = React.createElement
 const MODEL = 'claude-opus-4-8'
 const leadModel = 'claude-fable-5-1'
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 section("§0 the words: 'advisor · every N minutes' while the chat is effectively on; 'advisor · off in settings' when the chat is on but the settings are off; nothing when the chat's switch is off or the runner has not spoken")
 {
@@ -129,7 +127,7 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   const hosted = { told: hostedAdvisor('advisor-told', { advisor: on }), untold: hostedAdvisor('advisor-untold', {}), unread: hostedAdvisor('advisor-unread', null) }
   if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
   else process.env.MERCURY_DAEMON_DIR = planeBefore
-  check('the daemon connector answers the facts it read, the resting connector null', j(hosted) === j({ told: on, untold: null, unread: null }) && src('src/services/engine-connector/noSessionConnector.ts').includes('advisorFacts(): null'), `advisorFacts() of the hosted connector answers ${j(hosted)}: it returns the facts' advisor as published, and null when the facts name none or none were read`)
+  check('the daemon connector answers the facts it read, the resting connector null', j(hosted) === j({ told: on, untold: null, unread: null }) && noSessionConnector().advisorFacts() === null, `advisorFacts() of the hosted connector answers ${j(hosted)}, resting ${j(noSessionConnector().advisorFacts())}`)
 }
 
 section("§2 the inline chat's statusline, rendered from source (the one surface that paints the frame's chips since the cockpit's sessions box left): the chip stands after the vitals while the chat is on, says off in settings when the settings are off, and is absent when the chat is off")

@@ -275,9 +275,9 @@ async function main(): Promise<void> {
     const here = readFileSync(import.meta.path, 'utf8')
     const self = write('/work/project/scripts/wards/prove-omission-placeholder.ts', here)
     check('a Write of this proof (its one-line literals carry every placeholder) ⇒ allowed', deniedBy(self) === null, denialText(self))
-    const engine = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'wards', 'wards.ts'), 'utf8')
+    const engine = `export const BUILTIN_WARDS = ${JSON.stringify(BUILTIN_WARDS, null, 2)}\n`
     const rules = write('/work/project/src/utils/wards/wards.ts', engine)
-    check('a Write of the engine source (the rule and its vocabulary) ⇒ allowed', deniedBy(rules) === null, denialText(rules))
+    check('a Write of the engine rules and vocabulary ⇒ allowed', deniedBy(rules) === null, denialText(rules))
     const suite = readFileSync(join(import.meta.dir, 'prove-wards.ts'), 'utf8')
     check('a Write of the wards suite proof ⇒ allowed', deniedBy(write('/work/project/scripts/wards/prove-wards.ts', suite)) === null)
     const split = write(file, `const fixture = ${JSON.stringify('// rest of methods ...')}\nconst two = '// rest of' + ' methods ...'\n`)
