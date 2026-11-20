@@ -260,6 +260,13 @@ function runIsolated(body: string): Record<string, unknown> {
         messages: [],
         toolRef: { name: 'Edit', shellCommandOf: () => { throw new Error('boom-in-ward') } },
       })
+      out.throwAgain = await guardsMod.judgeToolCall('wards-fn05', {
+        tool: 'Edit',
+        input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: '2' },
+        callId: 'w1b',
+        messages: [],
+        toolRef: { name: 'Edit', shellCommandOf: () => { throw new Error('boom-in-ward') } },
+      })
       out.badPkgVerdict = await guardsMod.judgeToolCall('wards-fn05', {
         tool: 'Edit',
         input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: 'const c = "#ff0000"' },
@@ -294,14 +301,22 @@ function runIsolated(body: string): Record<string, unknown> {
       fs.rmSync(repo, { recursive: true, force: true })
     }
   `)
-  const throwV = r.throwVerdict as { refused?: boolean; reason?: string }
+  const throwV = r.throwVerdict as { refused?: boolean; notes?: unknown[] }
+  const throwAgain = r.throwAgain as { refused?: boolean; notes?: unknown[] }
   const badPkgV = r.badPkgVerdict as { refused?: boolean; reason?: string }
-  check('wardsGuard: unexpected throw in judge refuses instead of allowing', throwV?.refused === true && String(throwV.reason).includes('boom-in-ward'), JSON.stringify(throwV))
+  check(
+    'wardsGuard: a judge that throws lets the call go on and says so once',
+    throwV?.refused === false &&
+      JSON.stringify(throwV.notes).includes('The wards could not check this Edit call (boom-in-ward), so this call and any later one they cannot check run without them.') &&
+      throwAgain?.refused === false &&
+      throwAgain.notes?.length === 0,
+    JSON.stringify([throwV, throwAgain]),
+  )
   const unreadPkgV = r.unreadPkgVerdict as { refused?: boolean; reason?: string } | null
   check('wardsGuard: a package.json that does not parse cannot identify Mercury, so the call is not refused', badPkgV?.refused === false, JSON.stringify(badPkgV))
-  if (POSIX_MODES) check('wardsGuard: a package.json that cannot be read refuses the call with the words of an unread file', unreadPkgV?.refused === true && String(unreadPkgV.reason).includes('could not read'), JSON.stringify(unreadPkgV))
-  check('wardsGuard: symlink loop throws in realTargetPath instead of leaving unresolved', r.loopThrew === true, JSON.stringify(r))
-  check('wardsGuard: NUL path throws in makeTargetResolver instead of returning unexpanded', r.nulThrew === true, JSON.stringify(r))
+  if (POSIX_MODES) check('wardsGuard: a package.json that cannot be read cannot identify Mercury, so the call is not refused', unreadPkgV?.refused === false, JSON.stringify(unreadPkgV))
+  check('wardsGuard: a symlink loop is judged as a path not made yet, with no throw', r.loopThrew === false, JSON.stringify(r))
+  check('wardsGuard: a path that cannot be expanded is judged by its own spelling, with no throw', r.nulThrew === false, JSON.stringify(r))
 }
 
 {
@@ -315,13 +330,13 @@ function runIsolated(body: string): Record<string, unknown> {
     }))
     const wardsGuard = await import(${JSON.stringify(join(SRC, 'guards/wardsGuard.ts'))})
     try {
-      wardsGuard.homeSpellings()
+      out.spellings = wardsGuard.homeSpellings()
       out.threw = false
     } catch (e) {
-      out.threw = e instanceof Error && e.message === 'home boom'
+      out.threw = true
     }
   `)
-  check('wardsGuard: homeSpellings throws when expandPath fails instead of answering empty', r.threw === true, JSON.stringify(r))
+  check('wardsGuard: a home folder that cannot be told answers no spellings, with no throw', r.threw === false && Array.isArray(r.spellings) && (r.spellings as unknown[]).length === 0, JSON.stringify(r))
 }
 
 if (POSIX_MODES) {

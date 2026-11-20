@@ -81,8 +81,8 @@ function deepestExisting(path: string, work?: WardWork): { real: string; tail: s
       return realpathSync(candidate)
     } catch (error) {
       const code = getErrnoCode(error)
-      if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'ENAMETOOLONG') return null
-      throw error
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`wards: ${candidate} could not be resolved (${code ?? errorMessage(error)}), so it is judged as a path not made yet`)
+      return null
     }
   }
   let missing = segments.length
@@ -119,9 +119,19 @@ export function realTargetPath(path: string): string {
 }
 
 let homeSpellingsCache: { home: string; spellings: string[] } | undefined
+let homeUnknownLogged = false
 
 export function homeSpellings(): string[] {
-  const home = expandPath('~')
+  let home: string
+  try {
+    home = expandPath('~')
+  } catch (error) {
+    if (!homeUnknownLogged) {
+      homeUnknownLogged = true
+      logForDebugging(`wards: the home folder could not be told (${errorMessage(error)}), so no ward matches a path by its home spelling`)
+    }
+    return []
+  }
   if (homeSpellingsCache?.home === home) return homeSpellingsCache.spellings
   const real = realTargetPath(home)
   const spellings = real === home ? [home] : [home, real]
@@ -134,8 +144,13 @@ setHomeSpellings(homeSpellings)
 export function makeTargetResolver(fallbackRoot: string, work?: WardWork): (path: string) => ResolvedPath {
   const fallback = realTargetPath(fallbackRoot)
   return (path: string): ResolvedPath => {
-    if (work) countWardWork(work, 'characters', path.length)
-    const expanded = expandPath(path)
+    let expanded: string
+    try {
+      if (work) countWardWork(work, 'characters', path.length)
+      expanded = expandPath(path)
+    } catch {
+      return { path, root: undefined }
+    }
     if (expanded.length > TARGET_PATH_MAX) return { path: expanded, root: fallback }
     const { real, tail } = deepestExisting(expanded, work)
     const resolved = tail.length === 0 ? real : join(real, ...tail)
@@ -261,6 +276,7 @@ export function registerWardsGuard(
   const unattendedRules = rulesFor(true)
   const resolveTarget = makeTargetResolver(getCwd(), work)
   const startingFolder = realTargetPath(getCwd())
+  let unjudgedSaid = false
   engageToolGuard(sessionId, {
     id: WARDS_HOOK_ID,
     timeoutMs: 5000,
@@ -276,11 +292,10 @@ export function registerWardsGuard(
         pending.isMercurySource = path => {
           const { path: resolved, root } = resolveTarget(path)
           if (root === undefined || !resolved.startsWith(`${join(root, 'src')}${sep}`) || !existsSync(join(root, 'src', 'components', 'mercuryPalette.ts'))) return false
-          const manifest = readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null'
           try {
-            return JSON.parse(manifest)?.name === 'mercury'
-          } catch {
-            logForDebugging(`wards: ${join(root, 'package.json')} could not be read as a manifest (its first 64 KB are not valid JSON), so ${resolved} is not judged as Mercury source`)
+            return JSON.parse(readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null')?.name === 'mercury'
+          } catch (error) {
+            logForDebugging(`wards: ${join(root, 'package.json')} could not be read as a manifest (${error instanceof SyntaxError ? 'its first 64 KB are not valid JSON' : errorMessage(error)}), so ${resolved} is not judged as Mercury source`)
             return false
           }
         }
@@ -308,7 +323,10 @@ export function registerWardsGuard(
         }
       } catch (error) {
         if (error instanceof TargetHeadUnread) return { allow: false, reason: `The ${call.tool} call was not made: the wards could not read ${error.path} to check its content rules (${error.why}) — retry it, and if it fails again, make the file readable to you first.` }
-        return { allow: false, reason: `The ${call.tool} call was not made: the wards could not check its content rules (${errorMessage(error)}) — retry it.` }
+        logForDebugging(`wards: the ${call.tool} call could not be judged (${errorMessage(error)}), so it goes on unchecked`, { level: 'error' })
+        if (unjudgedSaid) return { allow: true }
+        unjudgedSaid = true
+        return { allow: true, note: createSystemMessage(`The wards could not check this ${call.tool} call (${errorMessage(error)}), so this call and any later one they cannot check run without them.`, 'warning', call.callId) }
       }
     },
   })
