@@ -28,12 +28,37 @@ const PROGRAMS: Row[] = [
 const SPAWN: Row[] = [
 ]
 
-import { childGetsOwnProcessGroup } from '../../src/utils/platform/processes.js'
+import {
+  childGetsOwnProcessGroup,
+  processInstantStartForm,
+  processStartFormFor,
+  processStartProbeKind,
+} from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
   {
     name: 'childGetsOwnProcessGroup',
     answers: stand => [childGetsOwnProcessGroup(), childGetsOwnProcessGroup(stand.node)],
     recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'processStartFormFor',
+    answers: stand => [
+      processStartFormFor(true),
+      processStartFormFor(false),
+      processStartFormFor(true, stand.node),
+      processStartFormFor(false, stand.node),
+    ],
+    recorded: {"win32":["instant","token","instant","token"],"darwin":["token","token","token","token"],"linux":["token","token","token","token"],"win32 by process.platform alone":["instant","token","instant","token"],"win32 by getPlatform() alone":["token","token","token","token"]},
+  },
+  {
+    name: 'processInstantStartForm',
+    answers: stand => [processInstantStartForm(), processInstantStartForm(stand.node)],
+    recorded: {"win32":["instant","instant"],"darwin":["token","token"],"linux":["token","token"],"win32 by process.platform alone":["instant","instant"],"win32 by getPlatform() alone":["token","token"]},
+  },
+  {
+    name: 'processStartProbeKind',
+    answers: stand => [processStartProbeKind(), processStartProbeKind(stand.node)],
+    recorded: {"win32":["win32-cim","win32-cim"],"darwin":["posix-ps","posix-ps"],"linux":["linux-proc","linux-proc"],"win32 by process.platform alone":["win32-cim","win32-cim"],"win32 by getPlatform() alone":["linux-proc","linux-proc"]},
   },
 ]
 
