@@ -221,6 +221,75 @@ async function runSavedPromptsStore(): Promise<void> {
   }
 }
 
+async function runScratchLeases(): Promise<void> {
+  console.log('\nscratchLeases — unreadable or corrupt registry refuses without overwriting existing leases')
+  if (!POSIX_MODES) return
+  const { registerScratchLease, releaseScratchLease, listScratchLeftovers } = await import('../../src/utils/scratchLeases.ts')
+  const { getProjectTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+  const dir = getProjectTempDir()
+  mkdirSync(dir, { recursive: true })
+  const regPath = join(dir, 'scratch-leases.json')
+  const original = JSON.stringify({
+    v: 1,
+    leases: [
+      {
+        leaseId: 'sl-existing-1',
+        owner: { kind: 'agent', id: 'kept-agent' },
+        root: join(dir, 'kept-root'),
+        createdAt: 1,
+        lastUsedAt: 1,
+        cleanupPolicy: 'on-complete',
+        recovery: 'keep me',
+      },
+    ],
+  })
+
+  writeFileSync(regPath, original, { mode: 0o600 })
+  chmodSync(regPath, 0o200)
+  let regThrewUnreadable = false
+  let relUnreadable: { released: boolean; refusal?: string } = { released: true }
+  let listThrewUnreadable = false
+  try {
+    try {
+      registerScratchLease({ kind: 'agent', id: 'new-agent' }, join(dir, 'new-root'))
+    } catch {
+      regThrewUnreadable = true
+    }
+    relUnreadable = releaseScratchLease('sl-existing-1')
+    try {
+      listScratchLeftovers()
+    } catch {
+      listThrewUnreadable = true
+    }
+  } finally {
+    chmodSync(regPath, 0o600)
+  }
+  check('registerScratchLease throws and preserves unreadable registry', regThrewUnreadable && readFileSync(regPath, 'utf8') === original)
+  check(
+    'releaseScratchLease refuses unreadable registry instead of claiming no lease',
+    !relUnreadable.released && !/^no lease /.test(relUnreadable.refusal ?? '') && readFileSync(regPath, 'utf8') === original,
+    JSON.stringify(relUnreadable),
+  )
+  check('listScratchLeftovers throws on unreadable registry', listThrewUnreadable)
+
+  const corrupt = '{"v":1,"leases":[broken'
+  writeFileSync(regPath, corrupt, { mode: 0o600 })
+  let regThrewCorrupt = false
+  try {
+    registerScratchLease({ kind: 'agent', id: 'new-agent' }, join(dir, 'new-root'))
+  } catch {
+    regThrewCorrupt = true
+  }
+  const relCorrupt = releaseScratchLease('sl-existing-1')
+  check('registerScratchLease throws and preserves corrupt registry', regThrewCorrupt && readFileSync(regPath, 'utf8') === corrupt)
+  check(
+    'releaseScratchLease refuses corrupt registry instead of claiming no lease',
+    !relCorrupt.released && !/^no lease /.test(relCorrupt.refusal ?? '') && readFileSync(regPath, 'utf8') === corrupt,
+    JSON.stringify(relCorrupt),
+  )
+  rmSync(regPath, { force: true })
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
@@ -229,6 +298,7 @@ try {
   await runPromptEditor()
   await runProofHomeGuard()
   await runSavedPromptsStore()
+  await runScratchLeases()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
