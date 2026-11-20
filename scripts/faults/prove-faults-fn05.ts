@@ -91,6 +91,27 @@ function throwsWithCode(fn: () => unknown, codes: readonly string[]): { threw: b
   }
 }
 
+{
+  const { engageToolGuard, judgeToolCall, resetGuardsForTesting } = await import('../../src/guards/guards.ts')
+  resetGuardsForTesting()
+  engageToolGuard('fn05-throw', {
+    id: 'throwing-guard',
+    judge: () => {
+      throw new Error('guard exploded')
+    },
+  })
+  const threwVerdict = await judgeToolCall('fn05-throw', { tool: 'Bash', input: { command: 'rm -rf /' }, callId: 'c1', messages: [] })
+  check('guards: judgeToolCall refuses when a tool guard throws', threwVerdict.refused === true && threwVerdict.guard === 'throwing-guard', JSON.stringify(threwVerdict))
+  engageToolGuard('fn05-timeout', {
+    id: 'slow-guard',
+    timeoutMs: 25,
+    judge: () => new Promise(() => {}),
+  })
+  const timeoutVerdict = await judgeToolCall('fn05-timeout', { tool: 'Bash', input: { command: 'echo hi' }, callId: 'c2', messages: [] })
+  check('guards: judgeToolCall refuses when a tool guard times out', timeoutVerdict.refused === true && timeoutVerdict.guard === 'slow-guard', JSON.stringify(timeoutVerdict))
+  resetGuardsForTesting()
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

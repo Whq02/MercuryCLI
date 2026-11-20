@@ -148,7 +148,9 @@ export async function judgeToolCall(keys: string | readonly string[], call: Tool
         if (!verdict.allow) return { refused: true, guard: guard.id, reason: verdict.reason, notes }
         if (verdict.note) notes.push(verdict.note)
       } catch (error) {
-        logForDebugging(`guard ${guard.id} did not judge ${call.tool} (${errorMessage(error)}); the call proceeds`, { level: 'error' })
+        const reason = `guard ${guard.id} did not judge ${call.tool} (${errorMessage(error)})`
+        logForDebugging(`${reason}; the call is refused`, { level: 'error' })
+        return { refused: true, guard: guard.id, reason, notes }
       }
     }
   }
