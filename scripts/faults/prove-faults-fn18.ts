@@ -156,5 +156,42 @@ console.log('\ntensorfoldHosts — writers refuse to overwrite an unreadable or 
   else check('tensorfoldHosts-unreadable-kept: writers refuse and keep unreadable tensorfold-hosts.json intact', r.unreadableHost === 'EACCES' && r.unreadablePort === 'EACCES' && r.unreadableSame === true, JSON.stringify({ unreadableHost: r.unreadableHost, unreadablePort: r.unreadablePort, unreadableSame: r.unreadableSame }))
 }
 
+console.log('\ntensorfoldState — failed served/discovery/presence reads reject instead of answering empty')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    mock.module(path.join(SRC, 'services/tensorfold/serve.js'), () => ({
+      servedTensorFold: () => { throw new Error('serve-read-boom') },
+    }))
+    mock.module(path.join(SRC, 'services/providers/local/localDiscovery.js'), () => ({
+      getCachedLocalDiscovery: () => null,
+      refreshLocalDiscovery: async () => { throw new Error('discovery-refresh-boom') },
+    }))
+    const state = await import(path.join(SRC, 'services/providers/local/tensorfoldState.ts'))
+    out.servedReject = await state.readTensorFoldState({
+      engine: async () => null,
+      snapshot: async () => ({ probedAtMs: 1, targetCount: 0, servers: [] }),
+      hosts: () => [],
+      app: async () => ({ running: false }),
+      helper: () => ({ enabled: false }),
+      exited: async () => undefined,
+    }).then(() => null, e => String(e?.message ?? e))
+    out.discoveryReject = await state.readTensorFoldState({
+      engine: async () => null,
+      served: () => [],
+      hosts: () => [],
+      app: async () => ({ running: false }),
+      helper: () => ({ enabled: false }),
+      exited: async () => undefined,
+    }).then(() => null, e => String(e?.message ?? e))
+    out.installedThrow = (() => { try { state.tensorFoldPresenceCached({ installed: () => { throw new Error('installed-boom') }, snapshot: () => null, hosts: () => [] }); return null } catch (e) { return String(e?.message ?? e) } })()
+    out.hostsThrow = (() => { try { state.tensorFoldPresenceCached({ installed: () => false, snapshot: () => null, hosts: () => { throw new Error('hosts-boom') } }); return null } catch (e) { return String(e?.message ?? e) } })()
+  `)
+  check('tensorfoldState-served-rejects: readTensorFoldState rejects when servedTensorFold throws', r.servedReject === 'serve-read-boom', JSON.stringify(r.servedReject))
+  check('tensorfoldState-discovery-rejects: readTensorFoldState rejects when refreshLocalDiscovery rejects', r.discoveryReject === 'discovery-refresh-boom', JSON.stringify(r.discoveryReject))
+  check('tensorfoldState-presence-throws: tensorFoldPresenceCached throws when installed or hosts fails', r.installedThrow === 'installed-boom' && r.hostsThrow === 'hosts-boom', JSON.stringify({ installedThrow: r.installedThrow, hostsThrow: r.hostsThrow }))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
