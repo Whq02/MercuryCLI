@@ -135,5 +135,51 @@ else {
   )
 }
 
+console.log('3. src/utils/cockpit/daemonSnapshot.ts — EPERM on pid probe reads as live')
+{
+  const r = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { daemonStatePath } = await import(SRC + '/daemon/controlSocket.ts')
+    const { daemonSnapshot } = await import(SRC + '/utils/cockpit/daemonSnapshot.ts')
+    const recPath = daemonStatePath()
+    fs.mkdirSync(path.dirname(recPath), { recursive: true })
+    fs.writeFileSync(recPath, JSON.stringify({
+      pid: 424242,
+      version: '1.0.0',
+      startedAt: Date.now() - 5000,
+    }))
+    const origKill = process.kill
+    try {
+      process.kill = ((_pid, _sig) => {
+        const err = new Error('operation not permitted')
+        err.code = 'EPERM'
+        throw err
+      })
+      out.eperm = daemonSnapshot()
+      process.kill = ((_pid, _sig) => {
+        const err = new Error('no such process')
+        err.code = 'ESRCH'
+        throw err
+      })
+      out.esrch = daemonSnapshot()
+    } finally {
+      process.kill = origKill
+    }
+  `)
+  const eperm = r.eperm as { state?: string; reason?: string } | undefined
+  const esrch = r.esrch as { state?: string; reason?: string } | undefined
+  check(
+    'daemonSnapshot: EPERM on pid probe reads as live',
+    eperm?.state === 'live' && /running · pid 424242/.test(eperm.reason ?? ''),
+    JSON.stringify(eperm),
+  )
+  check(
+    'daemonSnapshot: ESRCH on pid probe still reads unavailable stale record',
+    esrch?.state === 'unavailable' && /stale record · pid 424242 not running/.test(esrch.reason ?? ''),
+    JSON.stringify(esrch),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

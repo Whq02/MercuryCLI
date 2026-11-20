@@ -18,6 +18,9 @@ function pidAlive(pid: number): boolean {
     process.kill(pid, 0)
     return true
   } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'EPERM') return true
+    if (code === 'ESRCH') return false
     passedOver(error)
     return false
   }
