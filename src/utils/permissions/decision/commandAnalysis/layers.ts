@@ -156,6 +156,10 @@ const MOVE_VALUED = ['path', 'literalpath', 'stackname', 'erroraction', 'warning
 const MOVE_SWITCHES = ['passthru', 'verbose', 'debug', 'usetransaction']
 const MOVE_ALIASES = new Map([['pspath', 'literalpath'], ['lp', 'literalpath'], ['ea', 'erroraction'], ['wa', 'warningaction'], ['infa', 'informationaction'], ['proga', 'progressaction'], ['ev', 'errorvariable'], ['wv', 'warningvariable'], ['iv', 'informationvariable'], ['ov', 'outvariable'], ['ob', 'outbuffer'], ['pv', 'pipelinevariable'], ['vb', 'verbose'], ['db', 'debug'], ['usetx', 'usetransaction']])
 
+export function inSameShell(layer: Layer): boolean {
+  return layer.wrappers.every(name => SAME_SHELL.has(name))
+}
+
 export function moveOf(command: Pick<ReadCommand, 'argv' | 'dialect'>): { program: string; operands: string[] } | undefined {
   const layer = layersOf(command.argv).find(found => MOVES.has(found.program))
   if (layer === undefined || layer.wrappers.some(name => !SAME_SHELL.has(name))) return undefined
