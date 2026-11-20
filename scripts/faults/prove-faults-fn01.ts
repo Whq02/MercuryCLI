@@ -324,5 +324,18 @@ console.log('\nmodels.ts — non-EPIPE stdout write failure rejects instead of b
   check('models: EPIPE writeSync failure is still passed over', t2 === null, JSON.stringify(epipe.out))
 }
 
+console.log('\nutil.tsx — healthHandler exits 1 instead of 0 when rendering throws')
+{
+  const r = runSubprocess(`
+    const path = await import('node:path')
+    const { healthHandler } = await import(path.join(SRC, 'cli/handlers/util.tsx'))
+    await healthHandler({
+      render: () => { throw new Error('render failed') },
+      unmount: () => {},
+    })
+  `, { allowNonZero: true })
+  check('util: healthHandler exits 1 when root.render throws instead of 0', r.status === 1, `status=${r.status}`)
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

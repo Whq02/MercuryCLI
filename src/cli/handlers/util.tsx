@@ -44,6 +44,7 @@ export async function setupTokenHandler(root: Root): Promise<void> {
 }
 
 export async function healthHandler(root: Root): Promise<void> {
+  let failed = false
   try {
     await new Promise<void>(resolve => {
       root.render(
@@ -57,6 +58,7 @@ export async function healthHandler(root: Root): Promise<void> {
       )
     })
   } catch (error) {
+    failed = true
     logError(error)
   } finally {
     try {
@@ -65,5 +67,5 @@ export async function healthHandler(root: Root): Promise<void> {
       logError(error)
     }
   }
-  process.exit(0)
+  process.exit(failed ? 1 : 0)
 }
