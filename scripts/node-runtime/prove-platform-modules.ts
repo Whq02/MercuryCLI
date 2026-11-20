@@ -22,20 +22,28 @@ const STANDS: readonly Stand[] = [
 import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
 import {
+  ensureDriveRootSeparator,
+  expandTildeWithHome,
   foldCaseInsensitivePath,
   foldHostCaseInsensitivePath,
   foldPathCase,
   hostOrWin32PathModule,
   hostPathSpellings,
+  isWindowsShareRooted,
   msysDrivePathToNative,
   nativeCwdFromRecordedShell,
   nativePathToShell,
   normalizeLocalDevicePath,
+  normalizedDriveRoot,
   pathModuleFor,
+  pathSeparatorRegex,
+  picomatchPathOptions,
+  preferredHomeEnv,
   samePathCase,
   shellPathToNative,
   splitPathFromRoot,
   stripExtendedLengthPrefixForPlatform,
+  toNativeSeparators,
   toPosixSeparators,
 } from '../../src/utils/platform/paths.js'
 
@@ -247,6 +255,109 @@ const PATHS: Row[] = [
       }
     },
     recorded: {"win32":{"default":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"darwin":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"linux":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"win32 by process.platform alone":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]}},
+  },
+  {
+    name: 'paths.toNativeSeparators',
+    answers: () => {
+      const inputs = ['', 'C:/Users/Alice/Repo', '/Users/Alice/Repo', 'a/b\\c']
+      return {
+        default: inputs.map(p => toNativeSeparators(p)),
+        win32: inputs.map(p => toNativeSeparators(p, 'win32')),
+        darwin: inputs.map(p => toNativeSeparators(p, 'darwin')),
+        linux: inputs.map(p => toNativeSeparators(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:\\Users\\Alice\\Repo","\\Users\\Alice\\Repo","a\\b\\c"],"win32":["","C:\\Users\\Alice\\Repo","\\Users\\Alice\\Repo","a\\b\\c"],"darwin":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"linux":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"]},"darwin":{"default":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"win32":["","C:\\Users\\Alice\\Repo","\\Users\\Alice\\Repo","a\\b\\c"],"darwin":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"linux":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"]},"linux":{"default":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"win32":["","C:\\Users\\Alice\\Repo","\\Users\\Alice\\Repo","a\\b\\c"],"darwin":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"linux":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice\\Repo","\\Users\\Alice\\Repo","a\\b\\c"],"win32":["","C:\\Users\\Alice\\Repo","\\Users\\Alice\\Repo","a\\b\\c"],"darwin":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"linux":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"]},"win32 by getPlatform() alone":{"default":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"win32":["","C:\\Users\\Alice\\Repo","\\Users\\Alice\\Repo","a\\b\\c"],"darwin":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"],"linux":["","C:/Users/Alice/Repo","/Users/Alice/Repo","a/b\\c"]}},
+  },
+  {
+    name: 'paths.isWindowsShareRooted',
+    answers: () => {
+      const inputs = ['', '\\\\server\\share', '//server/share', '/server/share', 'C:\\dir']
+      return {
+        default: inputs.map(p => isWindowsShareRooted(p)),
+        windows: inputs.map(p => isWindowsShareRooted(p, 'windows')),
+        macos: inputs.map(p => isWindowsShareRooted(p, 'macos')),
+        linux: inputs.map(p => isWindowsShareRooted(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[false,true,true,false,false],"windows":[false,true,true,false,false],"macos":[false,false,false,false,false],"linux":[false,false,false,false,false]},"darwin":{"default":[false,false,false,false,false],"windows":[false,true,true,false,false],"macos":[false,false,false,false,false],"linux":[false,false,false,false,false]},"linux":{"default":[false,false,false,false,false],"windows":[false,true,true,false,false],"macos":[false,false,false,false,false],"linux":[false,false,false,false,false]},"win32 by process.platform alone":{"default":[false,false,false,false,false],"windows":[false,true,true,false,false],"macos":[false,false,false,false,false],"linux":[false,false,false,false,false]},"win32 by getPlatform() alone":{"default":[false,true,true,false,false],"windows":[false,true,true,false,false],"macos":[false,false,false,false,false],"linux":[false,false,false,false,false]}},
+  },
+  {
+    name: 'paths.picomatchPathOptions',
+    answers: () => ({
+      default: picomatchPathOptions(),
+      win32: picomatchPathOptions('win32'),
+      darwin: picomatchPathOptions('darwin'),
+      linux: picomatchPathOptions('linux'),
+    }),
+    recorded: {"win32":{"default":{"dot":true,"nocase":true},"win32":{"dot":true,"nocase":true},"darwin":{"dot":true,"nocase":false},"linux":{"dot":true,"nocase":false}},"darwin":{"default":{"dot":true,"nocase":false},"win32":{"dot":true,"nocase":true},"darwin":{"dot":true,"nocase":false},"linux":{"dot":true,"nocase":false}},"linux":{"default":{"dot":true,"nocase":false},"win32":{"dot":true,"nocase":true},"darwin":{"dot":true,"nocase":false},"linux":{"dot":true,"nocase":false}},"win32 by process.platform alone":{"default":{"dot":true,"nocase":true},"win32":{"dot":true,"nocase":true},"darwin":{"dot":true,"nocase":false},"linux":{"dot":true,"nocase":false}},"win32 by getPlatform() alone":{"default":{"dot":true,"nocase":false},"win32":{"dot":true,"nocase":true},"darwin":{"dot":true,"nocase":false},"linux":{"dot":true,"nocase":false}}},
+  },
+  {
+    name: 'paths.normalizedDriveRoot',
+    answers: () => {
+      const inputs = ['', '/a/b', 'C:/Users/Alice', 'd:/', 'C:', 'rel/path']
+      return {
+        default: inputs.map(p => normalizedDriveRoot(p)),
+        windows: inputs.map(p => normalizedDriveRoot(p, 'windows')),
+        macos: inputs.map(p => normalizedDriveRoot(p, 'macos')),
+        linux: inputs.map(p => normalizedDriveRoot(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[null,"/","C:/","d:/",null,null],"windows":[null,"/","C:/","d:/",null,null],"macos":[null,"/",null,null,null,null],"linux":[null,"/",null,null,null,null]},"darwin":{"default":[null,"/",null,null,null,null],"windows":[null,"/","C:/","d:/",null,null],"macos":[null,"/",null,null,null,null],"linux":[null,"/",null,null,null,null]},"linux":{"default":[null,"/",null,null,null,null],"windows":[null,"/","C:/","d:/",null,null],"macos":[null,"/",null,null,null,null],"linux":[null,"/",null,null,null,null]},"win32 by process.platform alone":{"default":[null,"/",null,null,null,null],"windows":[null,"/","C:/","d:/",null,null],"macos":[null,"/",null,null,null,null],"linux":[null,"/",null,null,null,null]},"win32 by getPlatform() alone":{"default":[null,"/","C:/","d:/",null,null],"windows":[null,"/","C:/","d:/",null,null],"macos":[null,"/",null,null,null,null],"linux":[null,"/",null,null,null,null]}},
+  },
+  {
+    name: 'paths.ensureDriveRootSeparator',
+    answers: () => {
+      const inputs = ['', 'C:', 'd:', 'C:\\', 'C:/dir', '/tmp']
+      return {
+        default: inputs.map(p => ensureDriveRootSeparator(p)),
+        windows: inputs.map(p => ensureDriveRootSeparator(p, 'windows')),
+        macos: inputs.map(p => ensureDriveRootSeparator(p, 'macos')),
+        linux: inputs.map(p => ensureDriveRootSeparator(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"darwin":{"default":["","C:","d:","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"linux":{"default":["","C:","d:","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"win32 by process.platform alone":{"default":["","C:","d:","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"win32 by getPlatform() alone":{"default":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]}},
+  },
+  {
+    name: 'paths.pathSeparatorRegex',
+    answers: () => ({
+      default: pathSeparatorRegex(),
+      windows: pathSeparatorRegex('windows'),
+      macos: pathSeparatorRegex('macos'),
+      linux: pathSeparatorRegex('linux'),
+    }),
+    recorded: {"win32":{"default":"/[/\\\\]/g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"darwin":{"default":"/\\//g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"linux":{"default":"/\\//g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"win32 by process.platform alone":{"default":"/\\//g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"win32 by getPlatform() alone":{"default":"/[/\\\\]/g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"}},
+  },
+  {
+    name: 'paths.expandTildeWithHome',
+    answers: () => {
+      const inputs = ['', '~', '~/src', '~\\src', '~other/src', '/tmp']
+      return {
+        default: inputs.map(p => expandTildeWithHome(p, '/h')),
+        windows: inputs.map(p => expandTildeWithHome(p, 'C:\\Users\\Alice', 'windows')),
+        macos: inputs.map(p => expandTildeWithHome(p, '/Users/alice', 'macos')),
+        linux: inputs.map(p => expandTildeWithHome(p, '/home/alice', 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","/h","/h/src","/h\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"darwin":{"default":["","/h","/h/src","~\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"linux":{"default":["","/h","/h/src","~\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"win32 by process.platform alone":{"default":["","/h","/h/src","~\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"win32 by getPlatform() alone":{"default":["","/h","/h/src","/h\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]}},
+  },
+  {
+    name: 'paths.preferredHomeEnv',
+    answers: () => {
+      const envs: NodeJS.ProcessEnv[] = [
+        { HOME: '/home/a', USERPROFILE: 'C:\\Users\\A' },
+        { HOME: '/home/a' },
+        { USERPROFILE: 'C:\\Users\\A' },
+        {},
+      ]
+      return {
+        default: envs.map(e => preferredHomeEnv(e)),
+        windows: envs.map(e => preferredHomeEnv(e, 'windows')),
+        macos: envs.map(e => preferredHomeEnv(e, 'macos')),
+        linux: envs.map(e => preferredHomeEnv(e, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"darwin":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"linux":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"win32 by process.platform alone":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"win32 by getPlatform() alone":{"default":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]}},
   },
 ]
 

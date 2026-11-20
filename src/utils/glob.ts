@@ -7,7 +7,7 @@ import type { ToolPermissionContext } from '../Tool.js'
 import { isEnvTruthy } from './envUtils.js'
 import { globSearchDepth, normalizeGlobPattern, resolveSearchGlob } from './globPattern.js'
 import { getFileReadIgnorePatterns, normalizePatternsToPath, readDenialFilter } from './permissions/filesystem.js'
-import { getPlatform } from './platform.js'
+import { ensureDriveRootSeparator } from './platform/paths.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { ripGrepAnswer } from './ripgrep.js'
 import { passedOver } from './passedOver.js'
@@ -42,8 +42,7 @@ export function extractGlobBaseDirectory(pattern: string): { baseDir: string; re
 }
 
 function fixDrive(baseDir: string): string {
-  if (getPlatform() === 'windows' && /^[A-Za-z]:$/.test(baseDir)) return `${baseDir}\\`
-  return baseDir
+  return ensureDriveRootSeparator(baseDir)
 }
 
 function envFlagDefaultOn(name: string): boolean {
