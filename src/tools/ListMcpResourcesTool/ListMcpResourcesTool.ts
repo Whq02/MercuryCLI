@@ -70,6 +70,7 @@ export const ListMcpResourcesTool = buildTool({
           return await mcpClientForTools().fetchResourcesForClient(live)
         } catch (err) {
           logMCPError(client.name, err)
+          if (input.server) throw err
           return []
         }
       }),

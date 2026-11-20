@@ -100,6 +100,49 @@ try {
       }
     }
   }
+
+  {
+    const r = runIsolated(`
+      const { ListMcpResourcesTool } = await import(SRC + '/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
+      const { tellMcpToolsTheClient } = await import(SRC + '/services/mcp/client/forTools.ts')
+      tellMcpToolsTheClient({
+        ensureConnectedClient: async client => {
+          if (client.name === 'broken') throw new Error('MCP server "broken" is not connected')
+          return client
+        },
+        fetchResourcesForClient: async client => [{ uri: 'file:///ok', name: 'ok', server: client.name }],
+        reconnectMcpServerImpl: async () => { throw new Error('unused') },
+      })
+      const ctx = {
+        options: {
+          mcpClients: [
+            { type: 'connected', name: 'broken' },
+            { type: 'connected', name: 'healthy' },
+          ],
+        },
+      }
+      try {
+        await ListMcpResourcesTool.call({ server: 'broken' }, ctx)
+        out.namedThrew = false
+      } catch (e) {
+        out.namedThrew = true
+        out.namedMessage = e instanceof Error ? e.message : String(e)
+      }
+      const all = await ListMcpResourcesTool.call({}, ctx)
+      out.allCount = all.data.length
+      out.allServer = all.data[0]?.server ?? null
+    `)
+    check(
+      'list-mcp-resources-named-server-throws: querying a named server whose reconnect fails throws instead of answering empty',
+      r.namedThrew === true && String(r.namedMessage ?? '').includes('not connected'),
+      JSON.stringify(r),
+    )
+    check(
+      'list-mcp-resources-named-server-throws: querying all servers still returns healthy sibling resources',
+      r.allCount === 1 && r.allServer === 'healthy',
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
