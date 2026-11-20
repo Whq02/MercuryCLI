@@ -12,6 +12,7 @@ const PROBE = 'src/tools/BashTool/bashPermissions.ts'
 const SHELL_DIRS = [
   'src/utils/shell/',
   'src/utils/bash/',
+  'src/utils/permissions/decision/commandAnalysis/',
   'src/tools/BashTool/',
   'src/tools/PowerShellTool/',
   'src/utils/powershell/',
