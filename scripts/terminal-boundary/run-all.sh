@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/cli/run* src/utils/process.ts src/utils/crashReport* src/ink/components/ErrorOverview* src/ink/components/App.tsx src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
+# gate-watch: src/cli/run* src/utils/process.ts src/ink/components/ErrorOverview* src/ink/components/App.tsx src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
 # gate-watch: scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
-# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStoragePortable.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/seedTranscript.ts
+# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/seedTranscript.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/cli/headless/*
 set -uo pipefail

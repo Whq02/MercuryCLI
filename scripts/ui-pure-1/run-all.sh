@@ -3,9 +3,7 @@
 # gate-watch: scripts/ui/**
 # gate-watch: src/services/host/** src/commands/llmhost/** src/tools/BashTool/** src/commands/restart/**
 # gate-watch: src/commands/mcp/**
-# gate-watch: src/commands/appearance/index*
-# gate-watch: src/commands/run/runInspectorModel*
-# gate-watch: src/commands/crew/index* src/context/overlayContext*
+# gate-watch: src/commands/crew/index*
 # gate-watch: src/daemon/** src/ink/**
 # gate-watch: src/services/anthropicLimits*
 # gate-watch: src/services/run/**

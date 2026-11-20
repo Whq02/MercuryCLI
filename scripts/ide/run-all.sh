@@ -7,7 +7,7 @@
 # gate-watch: src/services/vulcan/vulcanClient*
 # gate-watch: src/tools/TestTool/* src/tools/ToolSearchTool/* src/utils/**
 # gate-watch: scripts/vendor/*
-# gate-watch: src/tools/TransactionTool/* src/services/changeTransaction/contracts.ts
+# gate-watch: src/services/changeTransaction/contracts.ts
 # gate-watch: src/tools/NotebookEditTool/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

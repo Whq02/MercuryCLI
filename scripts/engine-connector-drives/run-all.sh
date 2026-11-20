@@ -2,8 +2,8 @@
 # gate-class: pty
 # gate-watch: scripts/engine-connector/**
 # gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
-# gate-watch: src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
-# gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
+# gate-watch: src/components/MercuryFrame.tsx src/components/PromptInput/**
+# gate-watch: src/components/permissions/** src/hooks/useDisplayedSessionModel.ts
 # gate-watch: scripts/lib/*
 # gate-watch: src/cli/run.ts src/daemon/sessionSeat.ts src/utils/sessionStorage/writer.ts
 set -uo pipefail

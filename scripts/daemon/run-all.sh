@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/utils/worktree.ts
 # gate-watch: src/services/resources/adapters/health*
 # gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/**
-# gate-watch: src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
+# gate-watch: src/cli/run* src/tools/ScheduleWakeupTool/**
 # gate-watch: docs/SESSIONS.md scripts/journey/switch-fixture-server.ts
 # gate-watch: scripts/lib/*
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts
 # gate-watch: src/services/privateChannel/installLayout.ts
 # gate-watch: src/rows/*
-# gate-watch: src/components/Spinner/liveCounterWords.ts src/components/Spinner/spinnerHud.ts src/components/Spinner/SpinnerAnimationRow.tsx
+# gate-watch: src/components/Spinner/SpinnerAnimationRow.tsx
 # gate-watch: src/tasks/LocalAgentTask/* src/input-core/*
 # gate-watch: src/services/providers/openaicompat/compatAdapter.ts
 # gate-watch: src/commands/restart/* src/tasks/LocalShellTask/*

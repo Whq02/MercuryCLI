@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/utils/sessionStoragePortable*
 # gate-watch: src/guards/mission* src/services/mission/missionCard* src/utils/sessionRestore*
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/services/api/dumpPrompts.ts
 # gate-watch: src/components/mercury-ui/parity/AccountView* src/services/providers/accountSlots.ts
 # gate-watch: src/components/mercury-ui/screens/anthropicLoginModel* src/services/oauth/** src/components/BootLoginsScreen*
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* scripts/ui/vshot.py
 # gate-watch: src/components/PromptInput/useCrewBanner.ts
-# gate-watch: src/constants/figures.ts src/daemon/controlSocket.ts src/daemon/protocol.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/state/AppStateStore.ts
 # gate-watch: src/tools/AgentTool/agentColorManager.ts
-# gate-watch: src/utils/imageStore.ts
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/components/mercury-ui/keyHintLabel.ts src/utils/platform.ts
+# gate-watch: src/utils/platform.ts
 # gate-watch: src/commands/model/model.tsx src/utils/model/modelTransition.ts src/components/PromptInput/useComposerModelDoors.tsx
 # gate-watch: src/utils/health/sections/crew.ts
 set -uo pipefail

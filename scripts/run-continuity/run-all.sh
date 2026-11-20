@@ -4,12 +4,9 @@
 # gate-watch: src/services/workbench/**
 # gate-watch: src/components/diff/**
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
-# gate-watch: src/utils/messages/lookups.ts
-# gate-watch: src/services/api/errors.ts
 # gate-watch: scripts/ui/render-tui.ts src/rows/turn.ts
 # gate-watch: src/components/Message.tsx
-# gate-watch: src/components/messages/SystemTextMessage.tsx src/run-core/turn-machine.ts
-# gate-watch: src/utils/messages/normalize.ts src/utils/messages/systemMessages.ts
+# gate-watch: src/components/messages/SystemTextMessage.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

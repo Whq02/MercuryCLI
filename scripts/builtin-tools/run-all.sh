@@ -6,7 +6,7 @@
 # gate-watch: src/services/resources/adapters/**
 # gate-watch: src/services/structure/**
 # gate-watch: src/tools/**
-# gate-watch: scripts/lib/* src/ink.ts
+# gate-watch: scripts/lib/*
 # gate-watch: src/utils/*
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/permissions/**

@@ -1,23 +1,13 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/journey/**
-# gate-watch: src/services/providers/meta/metaCatalogue.ts src/services/providers/xai/xaiCatalogue.ts
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/utils/sessionStoragePortable*
 # gate-watch: src/guards/mission* src/services/mission/missionCard* src/utils/sessionRestore*
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/services/api/dumpPrompts.ts
 # gate-watch: src/components/mercury-ui/parity/AccountView* src/services/providers/accountSlots.ts
 # gate-watch: src/components/mercury-ui/screens/anthropicLoginModel* src/services/oauth/** src/components/BootLoginsScreen*
 # gate-watch: scripts/lib/*
-# gate-watch: src/commands/model/mercuryModel.tsx
-# gate-watch: src/ink.ts
-# gate-watch: src/services/providers/deepseek/deepseekAccounts.ts
-# gate-watch: src/services/providers/deepseek/deepseekCatalogue.ts
-# gate-watch: src/services/providers/moonshot/moonshotAccounts.ts
-# gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts src/state/AppState.tsx src/state/AppStateStore.ts src/state/store.ts
-# gate-watch: src/services/providers/openai/openaiCatalogue.ts
-# gate-watch: src/utils/accounts/signInLedger.ts src/utils/config.ts
-# gate-watch: src/utils/model/modelOptions.ts
+# gate-watch: src/state/AppStateStore.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/platform.ts
 # gate-watch: src/commands/model/model.tsx src/utils/model/modelTransition.ts src/components/PromptInput/useComposerModelDoors.tsx

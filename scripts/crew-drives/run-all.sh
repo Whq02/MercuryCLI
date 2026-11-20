@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: src/services/crewBoard/** src/commands/swarm/** src/components/prompts-panel/**
-# gate-watch: src/daemon/** src/cli/run.ts src/ink.ts
+# gate-watch: src/daemon/**
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/commands/general/** src/commands/team/** src/commands/whisper/**
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/queuedNotices.ts
-# gate-watch: src/screens/Chat.tsx src/commands/swarmchat/** src/commands/rename/** src/commands/contract/**
+# gate-watch: src/commands/swarmchat/** src/commands/rename/** src/commands/contract/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

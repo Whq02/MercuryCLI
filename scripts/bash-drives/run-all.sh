@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-env: MERCURY_SHELL_ENGINE
 # gate-watch: src/utils/shell/** build.ts
-# gate-watch: src/daemon/ownedDaemon.ts src/substrate/envStamps.ts
+# gate-watch: src/daemon/ownedDaemon.ts
 # gate-watch: scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
