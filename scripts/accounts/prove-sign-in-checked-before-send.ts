@@ -69,7 +69,7 @@ const oauth = (over: Record<string, unknown>) => ({
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, lastOnboardingVersion: '99.0.0', theme: 'dark' }) + '\n')
 
 const auth = await import('../../src/utils/auth.ts')
-const fresh = await import('../../src/utils/accounts/signInFreshness.ts')
+const fresh = await import('../../src/services/accounts/signInFreshness.ts')
 const ledger = await import('../../src/utils/accounts/signInLedger.ts')
 const { credentialWallLineForModel } = await import('../../src/services/providers/credentialWall.ts')
 const { promptBehindAuthWall } = await import('../../src/utils/messages/authWallHold.ts')

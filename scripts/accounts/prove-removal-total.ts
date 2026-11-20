@@ -77,7 +77,7 @@ const wallet = await import('../../src/services/wallet/wallet.ts')
 const cap = await import('../../src/services/capFailover.ts')
 const auth = await import('../../src/utils/auth.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const session = await import('../../src/utils/accounts/sessionAccount.ts')
+const session = await import('../../src/services/accounts/sessionAccount.ts')
 const openai = await import('../../src/services/providers/openai/openaiAccounts.ts')
 type AccountSlot = import('../../src/services/providers/accountSlots.ts').AccountSlot
 

@@ -24,7 +24,7 @@ import {
 } from '../../utils/auth.js'
 import { useFocusedContextFill } from '../../hooks/useDisplayedSessionModel.js'
 import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../../services/wallet/wallet.js'
-import { sessionAccountFamily } from '../../utils/accounts/sessionAccount.js'
+import { sessionAccountFamily } from '../../services/accounts/sessionAccount.js'
 import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { getEngineModel } from '../../utils/model/model.js'

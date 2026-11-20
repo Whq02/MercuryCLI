@@ -355,7 +355,7 @@ function routedProviderRows(anthropicPresent: boolean): {
     const { providerFamilyPresences } =
       require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
     const { sessionAccountFamily } =
-      require('../../utils/accounts/sessionAccount.js') as typeof import('../../utils/accounts/sessionAccount.js')
+      require('../../services/accounts/sessionAccount.js') as typeof import('../../services/accounts/sessionAccount.js')
     const engineModel = getEngineModel()
     const family = sessionAccountFamily(engineModel) ?? declaredRouteOf(engineModel) ?? 'anthropic'
     const snapshot = buildProviderSnapshot()

@@ -1,12 +1,12 @@
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
 import {
   anthropicCredentialPresence,
   presenceIdentityWords,
   providerFamilyPresences,
   type ProviderFamilyPresence,
-} from '../../services/providers/providerUsage.js'
-import { computedDefault, type ComputedDefault } from '../model/computedDefault.js'
-import { getUserSpecifiedModelSetting } from '../model/model.js'
+} from '../providers/providerUsage.js'
+import { computedDefault, type ComputedDefault } from '../../utils/model/computedDefault.js'
+import { getUserSpecifiedModelSetting } from '../../utils/model/model.js'
 
 type SessionAccountWords =
   | { state: 'email'; text: string; family: string }

@@ -1,6 +1,6 @@
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../../services/wallet/wallet.js'
-import { isChooseAModel } from '../model/computedDefault.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../wallet/wallet.js'
+import { isChooseAModel } from '../../utils/model/computedDefault.js'
 import { sessionAccountFamily } from './sessionAccount.js'
 
 export const NOT_SIGNED_IN_WORDS = 'not signed in'
