@@ -633,9 +633,19 @@ function acquireSettingsWriteLock(file: string): (() => void) | null {
   }
 }
 
+type SettingsPatchValue<T> = T extends readonly unknown[] | ((...args: never[]) => unknown)
+  ? T | undefined
+  : T extends object
+    ? { [K in keyof T]?: SettingsPatchValue<T[K]> | undefined }
+    : T | undefined
+
+export type SettingsPatch = {
+  [K in keyof SettingsJson]?: SettingsPatchValue<SettingsJson[K]> | undefined
+}
+
 export function updateSettingsForSource(
   source: EditableSettingSource,
-  partial: Partial<SettingsJson> | ((rawBase: Record<string, unknown>) => Partial<SettingsJson>),
+  partial: SettingsPatch | ((rawBase: Record<string, unknown>) => SettingsPatch),
 ): { error: Error | null } {
   if ((source as SettingSource) === 'policySettings' || (source as SettingSource) === 'flagSettings') {
     return { error: null }
