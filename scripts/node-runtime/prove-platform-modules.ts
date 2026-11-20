@@ -9,7 +9,10 @@ type Row = {
   answers: (stand: Stand) => unknown
   old?: (stand: Stand) => unknown
   recorded?: Record<string, unknown>
+  hostArm?: 'node' | 'house' | 'either'
 }
+
+const HOST_PLATFORM = process.argv.includes('--windows-host') ? 'win32' : process.platform
 
 const STANDS: readonly Stand[] = [
   { name: 'win32', node: 'win32', house: 'windows' },
@@ -556,6 +559,7 @@ const PROGRAMS: Row[] = [
   },
   {
     name: 'programs: isExecutableFile and isExecutablePath',
+    hostArm: 'node',
     answers: () =>
       withProgramFixture(dir => {
         const targets = ['run-x', 'run-x.exe', 'only-plain', 'subdir', 'missing'].map(name => p02Path.join(dir, name))
@@ -568,6 +572,7 @@ const PROGRAMS: Row[] = [
   },
   {
     name: 'programs: resolveProgramInPath',
+    hostArm: 'node',
     answers: () =>
       withProgramFixture(dir => {
         const rel = (found: string | null): string | null => (found === null ? null : p02Path.relative(dir, found))
@@ -1641,13 +1646,27 @@ console.log(' platform modules — each function answers as the inline code it r
 console.log('============================================================')
 
 const record = process.argv.includes('--record')
+const asksTheHost = (row: Row, stand: Stand): boolean => {
+  if (HOST_PLATFORM !== 'win32' || row.hostArm === undefined || row.old !== undefined) return false
+  if (row.hostArm === 'node') return stand.node !== 'win32'
+  if (row.hostArm === 'house') return stand.house !== 'windows'
+  return stand.node !== 'win32' || stand.house !== 'windows'
+}
 let failed = 0
+let unread = 0
 for (const row of ROWS) {
   const recording: Record<string, unknown> = {}
   for (const stand of row.stands ?? STANDS) {
     const got = await standIn(stand, row.answers)
     recording[stand.name] = JSON.parse(got)
     if (record) continue
+    if (asksTheHost(row, stand)) {
+      const threw = got.startsWith('"threw ')
+      if (threw) failed++
+      else unread++
+      console.log(`  [${threw ? 'FAIL' : 'SKIP'}] ${row.name} · ${stand.name} — ${threw ? `the function ${JSON.parse(got) as string}` : 'not read on Windows: this arm asks the host, and the recording was taken on a POSIX host'}`)
+      continue
+    }
     const want = row.old ? await standIn(stand, row.old) : row.recorded && stand.name in row.recorded ? show(row.recorded[stand.name]) : undefined
     const ok = got === want
     if (!ok) failed++
@@ -1657,5 +1676,5 @@ for (const row of ROWS) {
   if (record) console.log(`${row.name}\n    recorded: ${JSON.stringify(recording)},`)
 }
 
-console.log(failed === 0 ? `\nALL PLATFORM-MODULE CHECKS PASS (${ROWS.length} rows)` : `\n${failed} CHECK(S) FAILED`)
+console.log(failed === 0 ? `\nALL PLATFORM-MODULE CHECKS PASS (${ROWS.length} rows${unread === 0 ? '' : `, ${unread} stands not read on Windows`})` : `\n${failed} CHECK(S) FAILED`)
 process.exit(failed === 0 ? 0 : 1)
