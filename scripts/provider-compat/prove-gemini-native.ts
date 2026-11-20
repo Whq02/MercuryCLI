@@ -104,11 +104,11 @@ try {
   check('native success sets the existing earned-ready state', geminiLiveProofState()?.model === model)
   check('the session ledger receives native usage', (getUsageForModel(model)?.outputTokens ?? 0) >= 12)
   const record = (first.at(-1) as any)?.geminiProviderTurn
-  check('a streamed signature that arrives in an empty text part rides the reply text, with no empty part recorded', JSON.stringify(record?.parts) === JSON.stringify([{ text: 'native answer', thoughtSignature: 'fixture-text-signature' }]))
+  check('a streamed signature that arrives in an empty text part is recorded as Google sent it: the reply text with no signature, then the empty signed part', JSON.stringify(record?.parts) === JSON.stringify([{ text: 'native answer' }, { text: '', thoughtSignature: 'fixture-text-signature' }]))
   hits.length = 0
   await drain(params([user('Say hello.'), ...first, user('And again.')]))
   const replayed = hits.find(hit => hit.body.contents)?.body.contents as any[] | undefined
-  check('the next request replays the signed text part exactly as recorded', JSON.stringify(replayed?.[1]) === JSON.stringify({ role: 'model', parts: [{ text: 'native answer', thoughtSignature: 'fixture-text-signature' }] }) && replayed?.[2]?.parts?.[0]?.text === 'And again.')
+  check('the next request replays the two parts exactly as recorded', JSON.stringify(replayed?.[1]) === JSON.stringify({ role: 'model', parts: [{ text: 'native answer' }, { text: '', thoughtSignature: 'fixture-text-signature' }] }) && replayed?.[2]?.parts?.[0]?.text === 'And again.')
 
   scenario = 'refused-tool'
   hits.length = 0
@@ -173,7 +173,7 @@ try {
   hits.length = 0
   const keyAnswer = await drain(params([user('Say hello.')]))
   check('API keys ride the native wire under their own header, never the compatibility endpoint, without a token refresh', text(keyAnswer) === 'native answer' && hits.length === 1 && hits[0]!.url.endsWith(':streamGenerateContent?alt=sse') && hits[0]!.key === key && hits[0]!.auth === null)
-  check('the API-key road records the signed native turn the next request replays', Boolean((keyAnswer.at(-1) as any)?.geminiProviderTurn) && JSON.stringify((keyAnswer.at(-1) as any).geminiProviderTurn.parts) === JSON.stringify([{ text: 'native answer', thoughtSignature: 'fixture-text-signature' }]))
+  check('the API-key road records the signed native turn the next request replays', Boolean((keyAnswer.at(-1) as any)?.geminiProviderTurn) && JSON.stringify((keyAnswer.at(-1) as any).geminiProviderTurn.parts) === JSON.stringify([{ text: 'native answer' }, { text: '', thoughtSignature: 'fixture-text-signature' }]))
   delete process.env.GEMINI_API_KEY
   seed()
   scenario = 'refresh'
@@ -258,7 +258,7 @@ check('a request the codec cannot build is a typed non-retryable fault with no r
 const twoSignatures = await client(responseFetch(sse([{ candidates: [{ content: { parts: [{ text: '' }, { text: 'first', thoughtSignature: 'sig-1' }] } }] }, { candidates: [{ content: { parts: [{ thoughtSignature: 'sig-2' }] }, finishReason: 'STOP' }] }])))
 check('a second signature after a signed part keeps its own part and an unsigned empty part is dropped', JSON.stringify(twoSignatures.turns[0]?.parts) === JSON.stringify([{ text: 'first', thoughtSignature: 'sig-1' }, { text: '', thoughtSignature: 'sig-2' }]))
 const thoughts = await client(responseFetch(sse([{ candidates: [{ content: { parts: [{ text: 'plan ', thought: true }, { text: 'more', thought: true }, { text: 'answer' }] } }] }, { candidates: [{ content: { parts: [{ text: '', thoughtSignature: 'sig-3' }] }, finishReason: 'STOP' }] }])))
-check('thought parts merge apart from visible text and the closing signature rides the visible text', JSON.stringify(thoughts.turns[0]?.parts) === JSON.stringify([{ text: 'plan more', thought: true }, { text: 'answer', thoughtSignature: 'sig-3' }]) && thoughts.events.filter(event => event.type === 'reasoning-delta').length === 2)
+check('thought parts merge apart from visible text and the closing signature keeps its own empty part after the visible text', JSON.stringify(thoughts.turns[0]?.parts) === JSON.stringify([{ text: 'plan more', thought: true }, { text: 'answer' }, { text: '', thoughtSignature: 'sig-3' }]) && thoughts.events.filter(event => event.type === 'reasoning-delta').length === 2)
 const earlier = { type: 'assistant', message: { id: 'shared-turn', content: [] } } as unknown as AssistantMessage
 const later = { ...earlier, apexProviderTurn: { provider: 'openai', items: [{ type: 'message' }] }, geminiProviderTurn: { model, parts: [], calls: [], projection: '' } } as AssistantMessage
 const folded = foldSplitTurnsForWire([earlier, later]) as AssistantMessage[]

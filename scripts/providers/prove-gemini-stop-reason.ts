@@ -78,7 +78,7 @@ try {
   check('the last minted message carries end_turn and the usage, as every lane stamps them', late.at(-1)?.message.stop_reason === 'end_turn' && (late.at(-1)?.message.usage?.output_tokens ?? 0) > 0, j(late.at(-1)?.message))
   check('the fact keeps the signature for the transcript', (late[0]?.message.content[0] as { signature?: string } | undefined)?.signature === 'EpQDCpEDAWkUfRPYB5q')
   const record = (late.at(-1) as unknown as { geminiProviderTurn?: { parts: unknown[] } }).geminiProviderTurn
-  check('the replay record carries the signed text part Google sent', j(record?.parts) === j([{ text: 'I have written and verified the renderer spec.', thoughtSignature: 'EpQDCpEDAWkUfRPYB5q' }]), j(record))
+  check('the replay record carries the signed text part Google sent', j(record?.parts) === j([{ text: 'I have written and verified the renderer spec.' }, { text: '', thoughtSignature: 'EpQDCpEDAWkUfRPYB5q' }]), j(record))
   const transcript: Message[] = [createUserMessage({ content: 'Write the spec.' }), ...late]
   const result = finalizeAgentTool(transcript, 'agent-late', metadata)
   check('the crewmate envelope reads the whole final reply: the answer is the report and nothing is promoted', result.outcome?.status === 'completed' && result.outcome.promotedNarration === false && result.content.length === 1 && result.content[0]!.text === 'I have written and verified the renderer spec.', j(result.outcome) + ' ' + j(result.content))
