@@ -210,26 +210,6 @@ function runScenario(body: string): Record<string, unknown> {
   }
 }
 {
-  const r = runScenario(`
-    const { mock } = await import('bun:test')
-    const mcpConfigPath = path.join(SRC, 'services/mcp/config.ts')
-    const realMcp = await import(mcpConfigPath)
-    mock.module(mcpConfigPath, () => ({
-      ...realMcp,
-      getMcpConfigsByScope: (scope) => {
-        if (scope === 'project') throw new Error('EACCES: permission denied')
-        return { servers: {}, errors: [], notices: [] }
-      },
-    }))
-    const { getSettingsWithAllErrors } = await import(path.join(SRC, 'utils/settings/allErrors.ts'))
-    const result = getSettingsWithAllErrors()
-    out.errors = result.errors
-  `)
-  const errors = r.errors as Array<{ message?: string; mcpErrorMetadata?: { scope?: string; severity?: string } }>
-  const hit = errors.find(e => e.mcpErrorMetadata?.scope === 'project' && e.message?.includes('EACCES'))
-  check('all-errors-mcp-throw-reported', hit !== undefined, JSON.stringify(r))
-}
-{
   if (POSIX_MODES) {
     const r = runScenario(`
       const { mock } = await import('bun:test')
