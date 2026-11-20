@@ -226,6 +226,7 @@ const peel = (node: ts.Node): ts.Node => {
 
 function isProcessEnv(node: ts.Node): boolean {
   const at = peel(node)
+  if (ts.isCallExpression(at) && ts.isIdentifier(at.expression) && at.expression.text === 'hostEnv' && at.arguments.length === 0) return true
   if (!ts.isPropertyAccessExpression(at) || at.name.text !== 'env') return false
   const owner = peel(at.expression)
   return (ts.isIdentifier(owner) && owner.text === 'process') || (ts.isPropertyAccessExpression(owner) && owner.name.text === 'process')
