@@ -315,12 +315,9 @@ src/utils/crew/engineDispatch.ts	src/services/providers/xai/xaiAdapter.ts	load	o
 src/utils/crew/engineDispatch.ts	src/services/providers/zai/zaiAdapter.ts	load	open
 src/utils/crew/engineDispatch.ts	src/services/providers/zen/zenAdapter.ts	load	open
 src/utils/crew/engineDispatch.ts	src/services/providers/zen/zenPins.ts	load	open
-src/utils/debug.ts	src/cli/sessionArgs.ts	load	open
 src/utils/documentText.ts	src/tools/FileReadTool/readRichFormats.ts	load	open
-src/utils/earlyInput.ts	src/cli/sessionArgs.ts	load	open
 src/utils/effort.ts	src/services/providers/openai/gptPins.ts	load	open
 src/utils/effort.ts	src/services/providers/zai/glmPins.ts	load	open
-src/utils/envUtils.ts	src/cli/sessionArgs.ts	load	open
 src/utils/errors.ts	src/services/api/sdkErrors.ts	load	open
 src/utils/exportRenderer.tsx	src/components/Messages.tsx	load	open
 src/utils/file.ts	src/services/remoteFiles/target.ts	load	open
@@ -337,7 +334,6 @@ src/utils/forkedAgent.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
 src/utils/git.ts	src/services/gitGraph/contracts.ts	type	open
 src/utils/git.ts	src/services/gitGraph/observe.ts	load	open
 src/utils/gitRules.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/gracefulShutdown.ts	src/cli/sessionArgs.ts	load	open
 src/utils/groupToolUses.ts	src/tools/AgentTool/constants.ts	load	open
 src/utils/haltAll.ts	src/daemon/controlSocket.ts	load	open
 src/utils/health/sections/architecture-fast.ts	src/components/mercury-ui/toolCardGrammar.ts	load	open
