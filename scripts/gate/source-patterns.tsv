@@ -94,7 +94,6 @@ startInterval	src/components/tasks/ShellDetailDialog.tsx	1	clock 1
 startInterval	src/components/tasks/useCrewmateModel.ts	1	clock 1
 startInterval	src/components/tasks/useCrewmateTranscript.ts	1	clock 1
 startInterval	src/components/tensorfold/tensorfoldModelFacts.ts	1	clock 1
-startInterval	src/daemon/ownerWatch.ts	1	heartbeat 1
 startInterval	src/daemon/run/periodic.ts	1	periodic 1
 startInterval	src/daemon/saturnTicker.ts	1	periodic 1
 startInterval	src/daemon/warmRunner.ts	1	periodic 1
@@ -134,6 +133,7 @@ startInterval	src/utils/ShellCommand.ts	1	periodic 1
 startInterval	src/utils/cockpit/uiClock.ts	1	clock 1
 startInterval	src/utils/eventLoopStallDetector.ts	1	clock 1
 startInterval	src/utils/gracefulShutdown.ts	1	periodic 1
+startInterval	src/utils/ownerWatch.ts	1	heartbeat 1
 startInterval	src/utils/settings/changeDetector.ts	1	periodic 1
 startInterval	src/utils/task/TaskOutput.ts	1	periodic 1
 startInterval	src/utils/verification/verificationState.ts	1	periodic 1
