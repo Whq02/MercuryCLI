@@ -1,4 +1,4 @@
-import { sha256Hex } from '../../../services/changeTransaction/changeSetPlan.js'
+import { sha256Hex } from '../../../utils/hash.js'
 import { applyEditsToText, editRowsOf, formatEditPreview, type EditRow, type NormalizedFileEdits } from '../../../services/lsp/workspaceEditApply.js'
 import { buildDiffHunks } from '../../../services/structure/transform.js'
 import type { LspChangeViewFile, MercuryLspOpOutput, OpEnv } from './types.js'

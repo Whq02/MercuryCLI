@@ -8,7 +8,7 @@ import { structuredPatch } from 'diff'
 
 import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { commitPlanDigest, runTextChangeSetCommit, type CommitTarget } from '../services/changeTransaction/changeSetCommit.js'
-import { sha256Hex } from '../services/changeTransaction/changeSetPlan.js'
+import { sha256Hex } from './hash.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { SessionListing } from '../types/logs.js'
 import { getGlobalConfig } from './config.js'

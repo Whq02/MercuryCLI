@@ -13,9 +13,7 @@ process.env.MERCURY_CHANGESET_DIR = spec.csHome
 const { runTextChangeSetCommit, commitPlanDigest } = await import(
   '../../../src/services/changeTransaction/changeSetCommit.ts'
 )
-const { sha256Hex } = await import(
-  '../../../src/services/changeTransaction/changeSetPlan.ts'
-)
+const { sha256Hex } = await import('../../../src/utils/hash.ts')
 
 const targets = spec.files.map(f => {
   const originalBytes = f.from !== undefined ? Buffer.from(f.from, 'utf8') : readFileSync(f.path)
