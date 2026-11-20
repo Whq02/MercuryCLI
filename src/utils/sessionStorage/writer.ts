@@ -46,7 +46,7 @@ import { FilesPart } from './writer/files.js'
 import { QueuePart } from './writer/queue.js'
 import { RemovePart } from './writer/remove.js'
 import { SettlePart } from './writer/settle.js'
-import { describeTranscriptStoreFailure } from './writer/storeHealth.js'
+import { describeTranscriptStoreFailure, setStoreHealth } from './writer/storeHealth.js'
 import { passedOver } from '../passedOver.js'
 export { describeTranscriptStoreFailure, subscribeTranscriptStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 
@@ -72,6 +72,8 @@ export function registerAgentTranscriptDestination(
   agentTranscriptDestinations.set(agentId, filePath)
 }
 
+const reportedAgentReadFailures = new Set<string>()
+
 const getAgentFileMessages = memoize(
   async (filePath: string): Promise<Set<string>> => {
     let raw: string
@@ -80,9 +82,15 @@ const getAgentFileMessages = memoize(
     } catch (error) {
       const code = getErrnoCode(error)
       if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-        passedOver(error)
         logForDebugging(`agent transcript read failed for ${filePath} (${code ?? 'unknown'})`, { level: 'error' })
         getAgentFileMessages.cache.delete(filePath)
+        if (!reportedAgentReadFailures.has(filePath)) {
+          reportedAgentReadFailures.add(filePath)
+          setStoreHealth({
+            failing: true,
+            sentence: `Agent transcript at ${filePath} could not be read (${errorMessage(error)}), so entries may be duplicated — restore read permission on the file.`,
+          })
+        }
       }
       return new Set()
     }
@@ -141,6 +149,7 @@ export function resetProjectFlushStateForTesting(): void {
 
 export function resetProjectForTesting(): void {
   resetTranscriptFormatCacheForTesting()
+  reportedAgentReadFailures.clear()
   project = null
 }
 

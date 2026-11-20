@@ -136,6 +136,7 @@ function runScenario(body: string): Record<string, unknown> {
   if (POSIX_MODES) {
     const r = runScenario(`
       const writer = await import(path.join(SRC, 'utils/sessionStorage/writer.ts'))
+      const { setStoreHealth, subscribeTranscriptStoreHealth, transcriptStoreHealth } = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
       const { getSessionId } = await import(path.join(SRC, 'bootstrap/state.ts'))
       const sessionId = getSessionId()
       const sessionFile = path.join(HOME, 'main.jsonl')
@@ -157,6 +158,10 @@ function runScenario(body: string): Record<string, unknown> {
       fs.chmodSync(agentFile, 0o000)
       writer.setSessionFileForTesting(sessionFile)
       writer.registerAgentTranscriptDestination('a1', agentFile)
+      let notices = 0
+      const off = subscribeTranscriptStoreHealth(() => {
+        if (transcriptStoreHealth().failing) notices++
+      })
       try {
         await writer.recordSidechainTranscript([{
           type: 'user',
@@ -165,10 +170,21 @@ function runScenario(body: string): Record<string, unknown> {
           timestamp: '2026-01-01T00:00:00.000Z',
           message: { role: 'user', content: 'while-unreadable' },
         }], 'a1')
+        out.firstHealth = transcriptStoreHealth()
+        setStoreHealth({ failing: false, sentence: null })
+        await writer.recordSidechainTranscript([{
+          type: 'user',
+          uuid: '00000000-0000-4000-8000-000000000018',
+          sessionId,
+          timestamp: '2026-01-01T00:00:00.000Z',
+          message: { role: 'user', content: 'while-unreadable-2' },
+        }], 'a1')
+        out.notices = notices
         out.threw = null
       } catch (e) {
         out.threw = String(e)
       } finally {
+        off()
         fs.chmodSync(agentFile, 0o600)
       }
       await writer.recordSidechainTranscript([{
@@ -180,9 +196,17 @@ function runScenario(body: string): Record<string, unknown> {
       }], 'a1')
       await writer.flushSessionStorage()
       const occurrences = fs.readFileSync(agentFile, 'utf8').split('\\n').filter(l => l.includes(existingUuid)).length
+      out.agentFile = agentFile
       out.occurrences = occurrences
     `)
-    check('writer-agent-messages-unreadable-not-cached', r.threw === null && r.occurrences === 1, JSON.stringify(r))
+    const health = r.firstHealth as { failing: boolean; sentence: string | null } | undefined
+    const agentFile = String(r.agentFile ?? '')
+    const sentenceOk =
+      health?.failing === true &&
+      typeof health.sentence === 'string' &&
+      health.sentence.startsWith(`Agent transcript at ${agentFile} could not be read (`) &&
+      health.sentence.endsWith('), so entries may be duplicated — restore read permission on the file.')
+    check('writer-agent-messages-unreadable-not-cached', r.threw === null && sentenceOk && r.notices === 1 && r.occurrences === 1, JSON.stringify(r))
   }
 }
 {
