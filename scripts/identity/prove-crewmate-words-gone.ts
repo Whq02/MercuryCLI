@@ -39,7 +39,7 @@ const WORDS: Array<[string, RegExp]> = [
 
 const EXCLUDED_AREAS: Array<[string, string]> = [
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelog.ts', 'past release notes stay as published'],
+  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/interview/baselines/', 'frozen journey capture records'],
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts'],
