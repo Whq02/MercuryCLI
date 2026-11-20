@@ -8,7 +8,7 @@ import { getGlobalMercuryFile } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
 import { ConfigParseError, ConfigReadError, errorMessage, getErrnoCode } from '../errors.js'
 import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
-import { writeFileAndFlushAtomically } from '../file.js'
+import { AtomicWriteRefusal, writeFileAndFlushAtomically } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { safeParseJSON } from '../json.js'
 import { stripBOM } from '../jsonRead.js'
@@ -59,7 +59,15 @@ function armDeferredExitFlush(): void {
       if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)
     } catch (error) {
       if (!alreadyReported) {
-        process.stderr.write(`\nThe settings changed in this session could not be saved to ${getGlobalMercuryFile()} (${errorMessage(error)}); they are lost — set them again next time.\n`)
+        if (error instanceof AtomicWriteRefusal && error.phase === 'rename') {
+          logForDebugging(`Failed to save session settings to ${error.targetPath}: ${error.message}`, { level: 'error' })
+          const code = error.code ?? 'write error'
+          process.stderr.write(
+            `\nCould not save the settings changed in this session: ${error.targetPath} could not be written (${code}); nothing was written and those changes were lost. Close what holds the file, then try again.\n`,
+          )
+        } else {
+          process.stderr.write(`\nThe settings changed in this session could not be saved to ${getGlobalMercuryFile()} (${errorMessage(error)}); they are lost — set them again next time.\n`)
+        }
       }
     }
   })
