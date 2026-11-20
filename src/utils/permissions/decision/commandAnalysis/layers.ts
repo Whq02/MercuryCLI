@@ -173,6 +173,10 @@ export function moveOf(command: Pick<ReadCommand, 'argv' | 'dialect'>): { progra
   const unknown: string[] = []
   for (let i = 0; i < words.length; i++) {
     const word = words[i]!
+    if (word === '--') {
+      loose.push(...words.slice(i + 1))
+      break
+    }
     if (!/^-[A-Za-z]/.test(word)) {
       loose.push(word)
       continue
