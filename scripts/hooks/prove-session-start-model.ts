@@ -37,7 +37,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
 const { runSessionStartHooks, takeFirstPrompt } = await import('../../src/utils/sessionStart.js')
 const { getEngineModel } = await import('../../src/utils/model/model.js')
-const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.js')
+const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.js')
 const { loadInitialMessages } = await import('../../src/cli/headless/resume.js')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
 

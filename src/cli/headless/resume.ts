@@ -14,7 +14,7 @@ import {
   hasConversationTurn,
   loadConversationForResume,
   type TurnInterruptionState,
-} from 'src/utils/conversationRecovery.js'
+} from 'src/services/resume/conversationRecovery.js'
 import { gracefulShutdownSync } from 'src/utils/gracefulShutdown.js'
 import { logError } from 'src/utils/log.js'
 import { restoreSessionStateFromLog } from 'src/utils/sessionRestore.js'

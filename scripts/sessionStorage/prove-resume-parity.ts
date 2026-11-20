@@ -51,7 +51,7 @@ if (mode === '--compare') {
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
   const { loadInitialMessages } = await import('../../src/cli/headless/resume.js')
-  const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.js')
+  const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.js')
   const resumeDigest = (result: any, persisted: Set<string>): string => {
     if (result === null) return digest(null)
     const minted = new Map<string, string>()

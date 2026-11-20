@@ -23,7 +23,7 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
 const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
 const { buildConversationChain, findLatestMessage } = await import('../../src/utils/sessionStorage/chain.ts')
-const { deserializeLiveMessages } = await import('../../src/utils/conversationRecovery.ts')
+const { deserializeLiveMessages } = await import('../../src/services/resume/conversationRecovery.ts')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 

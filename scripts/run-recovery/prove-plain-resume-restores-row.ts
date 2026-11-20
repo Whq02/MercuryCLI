@@ -42,7 +42,7 @@ const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/load
 const { getProject } = await import('../../src/utils/sessionStorage/writer.ts')
 const { clearSessionMetadata } = await import('../../src/utils/sessionStorage/logs.ts')
 const { getCurrentWorktreeSession } = await import('../../src/utils/worktree.ts')
-const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
 const { loadInitialMessages } = await import('../../src/cli/headless/resume.ts')
 const { asSessionId } = await import('../../src/types/ids.ts')
 
