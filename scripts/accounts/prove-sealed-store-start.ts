@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'sealed-store-start-')))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -190,7 +191,7 @@ section('§2 never while a Mercury process of another build is alive: a process\
     mkdirSync(join(bundle, '..'), { recursive: true })
     writeFileSync(bundle, '')
   }
-  symlinkSync(join(VERSIONS, '1.0.11'), join(VERSIONS, 'current'), 'dir')
+  symlinkSync(join(VERSIONS, '1.0.11'), join(VERSIONS, 'current'), process.platform === 'win32' ? 'junction' : 'dir')
   const THROUGH_LINK = join(VERSIONS, 'current', 'mercury.mjs')
   const anHourAgo = new Date(Date.now() - 3_600_000)
   utimesSync(OWN, anHourAgo, anHourAgo)
@@ -489,6 +490,6 @@ section('§5 the choice at start, by platform and by the flag')
   check('under the flag the read-ahead starts nothing and is done at once', same(onDisk(join(home, '.credentials.json')), { claudeAiOauth: TOKENS }))
 }
 
-rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 3 })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? `\nALL ${total} CHECKS PASS` : `\n${failures} OF ${total} CHECKS FAILED`)
 process.exit(failures === 0 ? 0 : 1)
