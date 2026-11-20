@@ -85,7 +85,11 @@ export function symlinkDeniedByPrivilege(
   return symlinksMayRequirePrivilege(platform) && (code === 'EPERM' || code === 'EACCES')
 }
 
-const HELD_FILE_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200]
+export const HELD_FILE_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200]
+
+export function isHeldFileErrnoCode(code: string | undefined): boolean {
+  return code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
+}
 
 const DIR_FSYNC_UNSUPPORTED_CODES = new Set([
   'EISDIR',
@@ -100,7 +104,7 @@ export function isTransientHeldFileCode(
   code: string | undefined,
   platform: NodeJS.Platform = process.platform,
 ): boolean {
-  return platform === 'win32' && (code === 'EPERM' || code === 'EBUSY' || code === 'EACCES')
+  return platform === 'win32' && isHeldFileErrnoCode(code)
 }
 
 export function heldFileRetryDelayMs(
