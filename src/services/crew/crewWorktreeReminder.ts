@@ -1,9 +1,9 @@
 import { stat } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
 
-import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
-import { findCanonicalGitRoot, gitExe } from '../git.js'
-import { isAgentLane, worktreeBranchName, worktreeRemovalSafe } from '../worktree.js'
+import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
+import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
+import { isAgentLane, worktreeBranchName, worktreeRemovalSafe } from '../../utils/worktree.js'
 
 export const CREW_JANITOR_DAYS = 7
 const DAY_MS = 86_400_000

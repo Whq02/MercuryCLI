@@ -12,7 +12,7 @@ import { createFileStateCacheWithSizeLimit } from '../../../utils/fileStateCache
 import { logForDebugging } from '../../../utils/debug.js'
 import { getSchemaBoundStructuredOutputTool } from '../../SyntheticOutputTool/structuredOutputTool.js'
 import type { PermissionMode } from '../../../utils/permissions/PermissionMode.js'
-import { recordAtRunStart } from '../../../utils/crew/crewmateRecord.js'
+import { recordAtRunStart } from '../../../services/crew/crewmateRecord.js'
 import { swarmBrief } from '../../../services/crewBoard/seam.js'
 import { type ThinkingConfig, sessionThinkingConfig } from '../../../utils/thinking.js'
 import { restrictReviewerTools } from '../reviewerPolicy.js'

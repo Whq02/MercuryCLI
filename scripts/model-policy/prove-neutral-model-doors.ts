@@ -184,7 +184,7 @@ section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the
   check("the model field says an exact id or a family word, and where to read the ids", /Exact model id or family word/.test(description) && /mercury:\/\/models/.test(description), description.slice(0, 200))
   check('the schema admits an exact gemini or openrouter id (the dispatch grammar validates it)', schema.safeParse({ description: 'test', prompt: 'test', model: 'gemini-2.5-pro' }).success === true && schema.safeParse({ description: 'test', prompt: 'test', model: 'openrouter/qwen/qwen3-coder' }).success === true)
   check('neither the schema text nor the manual enumerates a per-boot id list', !description.includes('gpt-5.6-sol') && !description.includes('glm-5.2') && !modelWords.includes('gpt-5.6-sol') && !modelWords.includes('glm-5.2'))
-  const { unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')
+  const { unrecognisedModelWordRefusal } = await import('../../src/services/crew/engineDispatch.ts')
   check("the dispatch grammar refuses a word no family declares, naming it", (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'") && unrecognisedModelWordRefusal('haiku') === null && unrecognisedModelWordRefusal('gemini-2.5-pro') === null)
 }
 

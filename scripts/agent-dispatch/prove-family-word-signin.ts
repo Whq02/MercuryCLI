@@ -62,7 +62,7 @@ console.log(' a family word resolves from the sign-in: live head, else the known
 console.log('============================================================')
 
 ;(await import('../../src/utils/config.ts')).enableConfigs()
-const engine = await import('../../src/utils/crew/engineDispatch.ts')
+const engine = await import('../../src/services/crew/engineDispatch.ts')
 const words = await import('../../src/utils/model/bareFamilyWords.ts')
 const discovery = await import('../../src/services/providers/providerDiscovery.ts')
 const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
@@ -73,7 +73,7 @@ const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiP
 const { META_DISPLAY_PINS } = await import('../../src/services/providers/meta/metaPins.ts')
 const { MISTRAL_DISPLAY_PINS } = await import('../../src/services/providers/mistral/mistralPins.ts')
 const { KIMI_DISPLAY_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
-const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.ts')
+const { buildAgentLaunchPlan } = await import('../../src/services/crew/agentLaunchPlan.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type Road = { model?: string; backend?: string; displayLabel?: string; note?: string; threw?: string }

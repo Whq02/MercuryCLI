@@ -22,12 +22,12 @@
 # gate-watch: src/components/PromptInput/PromptInput.tsx
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts
 # gate-watch: package.json scripts/project-services/fixtures/inventory.json
-# gate-watch: src/utils/capability/declarations.ts src/utils/crew/agentLaunchPlan.ts
+# gate-watch: src/utils/capability/declarations.ts src/services/crew/agentLaunchPlan.ts
 # gate-watch: src/utils/hooks/hookEvents.ts src/utils/hooks/fire.ts src/services/oauth/client.ts
 # gate-watch: src/utils/tasks.ts src/utils/agentContext.ts
 # gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts
 # gate-watch: src/utils/crew/crewStart.ts
-# gate-watch: src/utils/crew/crewAccountChange.ts
+# gate-watch: src/services/crew/crewAccountChange.ts
 # gate-watch: docs/CREW.md docs/ENGINES.md README.md src/setup.ts src/components/Settings/Config.tsx
 # gate-watch: src/rows/*
 # gate-watch: src/constants/agentMessage.ts

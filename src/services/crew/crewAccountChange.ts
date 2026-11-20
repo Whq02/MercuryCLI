@@ -1,5 +1,5 @@
-import { subscribeSignInEpoch } from '../accounts/signInLedger.js'
-import { passedOver } from '../passedOver.js'
+import { subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const listeners = new Set<() => void>()
 let ledgerArmed = false
