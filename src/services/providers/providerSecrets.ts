@@ -94,12 +94,12 @@ function credentialAsidePath(path: string, stamp: number): string {
   return path.endsWith('-auth.json') ? `${path.slice(0, -'-auth.json'.length)}.corrupt.${stamp}-auth.json` : `${path}.corrupt.${stamp}`
 }
 
-function keepCredentialFileAside(what: string, store: string, path: string, why: string): void {
+function keepCredentialFileAside(what: string, store: string, path: string, why: string): string | null {
   const { keepDamagedFileAsideSync } = require('../../substrate/storeRecovery.js') as typeof import('../../substrate/storeRecovery.js')
   try {
-    keepDamagedFileAsideSync({ store, path, reason: why, by: 'copy', asideAt: stamp => credentialAsidePath(path, stamp) })
+    return keepDamagedFileAsideSync({ store, path, reason: why, by: 'copy', asideAt: stamp => credentialAsidePath(path, stamp) })
   } catch (error) {
-    if (isENOENT(error)) return
+    if (isENOENT(error)) return null
     const code = getErrnoCode(error) ?? errorMessage(error)
     throw Object.assign(new Error(`${what} at ${path} is ${why} and could not be kept aside (${code}); nothing was written. Move it away, then try again.`), { code })
   }
@@ -114,8 +114,19 @@ export function credentialJsonToWriteOver(what: string, store: string, path: str
       { code: probe.code },
     )
   }
-  if (probe.state === 'unusable') keepCredentialFileAside(what, store, path, probe.why)
+  if (probe.state === 'unusable') {
+    const aside = keepCredentialFileAside(what, store, path, probe.why)
+    if (aside !== null) credentialAsideWords.set(path, `${what} at ${path} was ${probe.why} and is kept aside at ${aside}; no credential could be read from it.`)
+  }
   return null
+}
+
+const credentialAsideWords = new Map<string, string>()
+
+export function takeCredentialKeptAside(path: string): string | undefined {
+  const words = credentialAsideWords.get(path)
+  credentialAsideWords.delete(path)
+  return words
 }
 
 export function credentialFileUnwritten(what: string, path: string, error: unknown): Error {

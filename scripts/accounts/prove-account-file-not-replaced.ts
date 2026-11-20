@@ -293,6 +293,7 @@ else {
       out.said = said
       out.now = raw(file)
       out.kept = asides().map(name => raw(path.join(dir, name)))
+      out.copies = asides().map(name => path.join(dir, name))
     `)
     const unread = signOut(`fs.writeFileSync(file, FULL, { mode: 0o600 }); fs.chmodSync(file, 0o200)`)
     const said = unread.said as { out: string; err: string; exit: number | null }
@@ -301,6 +302,8 @@ else {
     const unusable = signOut(`fs.writeFileSync(file, ${JSON.stringify(broken)}, { mode: 0o600 })`)
     const kept = unusable.kept as unknown[]
     check(`${family.label}: a file that is not valid JSON is kept aside by the sign-out of the family, every byte`, kept.length === 1 && kept[0] === broken && typeof unusable.now === 'string' && !unusable.now.includes(family.secret), `${kept.length} kept aside · ${JSON.stringify(unusable.said)}`)
+    const told = unusable.said as { out: string; err: string; exit: number | null }
+    check(`${family.label}: …and the sign-out says so with exit 0: what the file was, where the copy is, and that no credential could be read from it`, told.out === `The ${family.label} auth file at ${String(unusable.file)} was not valid JSON and is kept aside at ${String((unusable.copies as string[])[0])}; no credential could be read from it.\n` && told.err === '' && told.exit === 0, JSON.stringify(told))
   }
 }
 

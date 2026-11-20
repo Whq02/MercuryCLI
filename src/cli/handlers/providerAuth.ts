@@ -406,12 +406,15 @@ export async function providerAuthLogout(familyRaw?: string, io: ProviderAuthIo 
     slot => slot.family === targetFamily && (endpointFilter === undefined || slot.id.includes(endpointFilter)),
   )
   const removable = familySlots.filter(slot => slot.signedIn && slot.removal.route !== 'env' && slot.removal.route !== 'settings' && slot.removal.route !== 'excluded')
-  const unread = signOutAccountFileNoSlotReads(targetFamily)
+  const fileOnly = signOutAccountFileNoSlotReads(targetFamily)
+  const unread = fileOnly !== null && 'refused' in fileOnly ? fileOnly.refused : null
   if (removable.length === 0 && unread === null) {
     const envSlot = familySlots.find(slot => slot.removal.route === 'env')
     const note = envSlot && envSlot.removal.route === 'env'
       ? `${envSlot.removal.envVar} is set in the environment — unset it in your shell; no stored ${normalized} credential to remove.`
-      : `No stored ${normalized} credential to sign out.`
+      : fileOnly !== null && 'keptAside' in fileOnly
+        ? fileOnly.keptAside
+        : `No stored ${normalized} credential to sign out.`
     out(`${note}\n`)
     io.exit?.(0)
     return { ok: true, code: 0, receipt: note }
