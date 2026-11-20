@@ -305,5 +305,39 @@ console.log('6. src/utils/cockpit/mcpGauge.ts — policy or project MCP read fai
   )
 }
 
+console.log('7. src/utils/cockpit/traceSnapshot.ts — unreadable trace file does not say no trace file yet')
+if (!POSIX_MODES) skip('traceSnapshot: unreadable trace file', 'needs POSIX non-root chmod')
+else {
+  const r = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    process.env.MERCURY_TRACE = '1'
+    const { getInvocationTracePath } = await import(SRC + '/utils/observability/invocationTrace.ts')
+    const { traceSnapshot } = await import(SRC + '/utils/cockpit/traceSnapshot.ts')
+    out.absent = await traceSnapshot()
+    const traceFile = getInvocationTracePath()
+    fs.mkdirSync(path.dirname(traceFile), { recursive: true })
+    fs.writeFileSync(traceFile, '{"tool":"Read"}\\n', { mode: 0o600 })
+    fs.chmodSync(traceFile, 0o200)
+    try {
+      out.unreadable = await traceSnapshot()
+    } finally {
+      fs.chmodSync(traceFile, 0o600)
+    }
+  `)
+  const absent = r.absent as { state?: string; reason?: string } | undefined
+  const unreadable = r.unreadable as { state?: string; reason?: string } | undefined
+  check(
+    'traceSnapshot: unreadable trace file reports trace file unreadable with error message',
+    unreadable?.state === 'unavailable' && (unreadable.reason ?? '').startsWith('trace file unreadable (') && (unreadable.reason ?? '').includes('EACCES'),
+    JSON.stringify(unreadable),
+  )
+  check(
+    'traceSnapshot: control absent trace file still reads no trace file yet',
+    absent?.state === 'unavailable' && absent.reason === 'no trace file yet',
+    JSON.stringify(absent),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
