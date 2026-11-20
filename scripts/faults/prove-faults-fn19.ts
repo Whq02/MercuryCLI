@@ -94,5 +94,47 @@ console.log('2 · compatPrefixCache: compatEndpointLastTurnAt distinguishes abse
   })
 }
 
+console.log('3 · xaiCallModel: resolveCredential propagates credential read or refresh errors')
+{
+  const { spawnSync } = await import('node:child_process')
+  const { dirname, resolve } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const srcRoot = process.env.PROVE_SRC ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../src')
+  const xaiAccountsPath = join(srcRoot, 'services/providers/xai/xaiAccounts.ts')
+  const xaiCallModelPath = join(srcRoot, 'services/providers/xai/xaiCallModel.ts')
+  withScratchConfig(dir => {
+    const script = `
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      process.env.NODE_ENV = 'test'
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(dir)}
+      delete process.env.XAI_API_KEY
+      const { mock } = await import('bun:test')
+      const actual = await import(${JSON.stringify(xaiAccountsPath)})
+      let mode = 'absent'
+      mock.module(${JSON.stringify(xaiAccountsPath)}, () => ({
+        ...actual,
+        resolveXaiCredential: async () => {
+          if (mode === 'throw') throw new Error('xai refresh boom')
+          return undefined
+        },
+      }))
+      const { xaiLaneProfile } = await import(${JSON.stringify(xaiCallModelPath)})
+      const absent = await xaiLaneProfile.resolveCredential()
+      mode = 'throw'
+      let caught = null
+      try {
+        await xaiLaneProfile.resolveCredential()
+      } catch (error) {
+        caught = error instanceof Error ? error.message : String(error)
+      }
+      process.stdout.write(JSON.stringify({ absent: absent === undefined, caught }))
+    `
+    const res = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: dir, XAI_API_KEY: '' } })
+    const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { absent?: boolean; caught?: string | null }) : {}
+    check('absent xAI credential still returns undefined', res.status === 0 && out.absent === true, res.stderr.slice(-300))
+    check('throwing resolveXaiCredential rejects with the same error', res.status === 0 && out.caught === 'xai refresh boom', JSON.stringify(out))
+  })
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
