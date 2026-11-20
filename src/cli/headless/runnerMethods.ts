@@ -7,7 +7,10 @@ type RequestRef = { id: number }
 type Arm<M extends HostRequestName> = (params: ParamsOf<M>, ref: RequestRef, signal: AbortSignal) => Promise<ResultOf<M>> | ResultOf<M>
 type NotificationArm<M extends HostNotificationName> = (params: ParamsOf<M>) => void | Promise<void>
 
-export type RunnerArms = { [M in Exclude<HostRequestName, 'initialize'>]: Arm<M> } & { [M in Exclude<HostNotificationName, '$/cancel_request'>]: NotificationArm<M> }
+type RequestArms = { [M in Exclude<HostRequestName, 'initialize'>]: Arm<M> }
+type NotificationArms = { [M in Exclude<HostNotificationName, '$/cancel_request'>]: NotificationArm<M> }
+
+export type RunnerArms = RequestArms & NotificationArms
 
 export const RUNNER_REQUEST_METHODS = methodsFrom('host', 'request')
   .map(spec => spec.name)
@@ -16,13 +19,17 @@ export const RUNNER_NOTIFICATION_METHODS = methodsFrom('host', 'notification')
   .map(spec => spec.name)
   .filter(name => name !== '$/cancel_request') as Exclude<HostNotificationName, '$/cancel_request'>[]
 
+function bindRequest<M extends Exclude<HostRequestName, 'initialize'>>(peer: Peer, armsOf: () => RequestArms, name: M): void {
+  peer.onRequest(name, (params, ctx) => armsOf()[name](params, { id: ctx.id }, ctx.signal))
+}
+
+function bindNotification<M extends Exclude<HostNotificationName, '$/cancel_request'>>(peer: Peer, armsOf: () => NotificationArms, name: M): void {
+  peer.onNotification(name, params => armsOf()[name](params))
+}
+
 export function bindRunnerMethods(peer: Peer, armsOf: () => RunnerArms): void {
-  for (const name of RUNNER_REQUEST_METHODS) {
-    peer.onRequest(name, (params, ctx) => (armsOf()[name] as Arm<typeof name>)(params as never, { id: ctx.id }, ctx.signal) as never)
-  }
-  for (const name of RUNNER_NOTIFICATION_METHODS) {
-    peer.onNotification(name, params => (armsOf()[name] as NotificationArm<typeof name>)(params as never))
-  }
+  for (const name of RUNNER_REQUEST_METHODS) bindRequest(peer, armsOf, name)
+  for (const name of RUNNER_NOTIFICATION_METHODS) bindNotification(peer, armsOf, name)
 }
 
 export const DEFAULT_CAPABILITIES: Capabilities = { holds_asks: false, elicitation: false, partial_rows: false }
