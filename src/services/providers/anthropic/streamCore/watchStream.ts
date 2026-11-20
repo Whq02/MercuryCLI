@@ -90,13 +90,14 @@ export function watchStream(ctx: QueryCtx, call: CallState, pass: StreamPass) {
     lastMsg.streamEnd = end
     void settleTranscriptMessage(lastMsg)
     logForDebugging(streamEndReceiptLine(end), { level: 'warn' })
+    const deltaEvent: BetaRawMessageStreamEvent = {
+      type: 'message_delta',
+      delta: { stop_reason: reason, stop_sequence: null },
+      usage: call.usage,
+    }
     yield {
       type: 'stream_event' as const,
-      event: {
-        type: 'message_delta',
-        delta: { stop_reason: reason, stop_sequence: null },
-        usage: call.usage,
-      } as unknown as BetaRawMessageStreamEvent,
+      event: deltaEvent,
     }
     yield {
       type: 'stream_event' as const,
