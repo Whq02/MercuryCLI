@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { fileNameFor, parseTopicDoc, serializeTopicDoc, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 
@@ -18,14 +19,17 @@ export function libraryMetaPath(dir: string = mnemeLibraryDir()): string {
 const FRESH_META: LibraryMeta = { version: 1, seqCounter: 0, lastConsolidatedAt: null }
 
 export function readLibraryMeta(dir: string = mnemeLibraryDir()): LibraryMeta {
-  let parsed: LibraryMeta | null = null
+  const p = libraryMetaPath(dir)
+  let raw: string
   try {
-    parsed = JSON.parse(readFileSync(libraryMetaPath(dir), 'utf8')) as LibraryMeta
-  } catch {
-    parsed = null
+    raw = readFileSync(p, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return { ...FRESH_META }
+    throw error
   }
+  const parsed = JSON.parse(raw) as LibraryMeta
   if (parsed && typeof parsed.seqCounter === 'number' && parsed.seqCounter >= 0) return parsed
-  return { ...FRESH_META }
+  throw new Error(`memory library meta unreadable at ${p}: invalid library metadata`)
 }
 
 export function publishLibraryFile(path: string, content: string): void {
