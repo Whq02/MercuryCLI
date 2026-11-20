@@ -1,11 +1,9 @@
-import { join } from 'node:path'
 import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { huggingfaceAuthPathForDisplay, resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
 import { providerKeyCommandFailure } from '../providers/providerKeyCommand.js'
-import { probeCredentialJson } from '../providers/providerSecrets.js'
+import { probeCredentialJson, probeProviderSecretsFile } from '../providers/providerSecrets.js'
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
 import { hostRecipeSchema, hostWeightManifestSchema, hostWeightPathSchema, rememberSessionHostRecipe } from './recipesFile.js'
 import { checkGgufAgainstEngine, type GgufEngineCheck } from './ggufHeader.js'
@@ -99,8 +97,7 @@ export function huggingFaceTokenRead(): HuggingFaceTokenRead {
     if (auth.state === 'unusable') return { state: 'unread', error: authPath + ' is ' + auth.why }
     const cmdFailure = providerKeyCommandFailure('huggingface')
     if (cmdFailure) return { state: 'unread', error: cmdFailure.message }
-    const secretsPath = join(getAuthConfigHomeDir(), '.provider-secrets.json')
-    const secrets = probeCredentialJson(secretsPath)
+    const { path: secretsPath, probe: secrets } = probeProviderSecretsFile()
     if (secrets.state === 'unreadable') return { state: 'unread', error: secrets.message }
     if (secrets.state === 'unusable') return { state: 'unread', error: secretsPath + ' is ' + secrets.why }
     return { state: 'absent' }

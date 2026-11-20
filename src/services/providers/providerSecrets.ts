@@ -94,6 +94,11 @@ export function probeCredentialJson(path: string): CredentialJsonProbe {
   }
 }
 
+export function probeProviderSecretsFile(): { path: string; probe: CredentialJsonProbe } {
+  const path = secretsPath()
+  return { path, probe: probeCredentialJson(path) }
+}
+
 function credentialAsidePath(path: string, stamp: number): string {
   return path.endsWith('-auth.json') ? `${path.slice(0, -'-auth.json'.length)}.corrupt.${stamp}-auth.json` : `${path}.corrupt.${stamp}`
 }
