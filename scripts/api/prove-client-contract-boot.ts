@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { outcomeCount } from '../lib/rows.ts'
+import { ANTHROPIC_CLIENT_CONTRACT_VERSION } from '../../src/constants/oauth.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -40,8 +41,7 @@ const guard = setTimeout(() => {
 }, 240_000)
 guard.unref?.()
 
-const oauthSource = readFileSync(join(ROOT, 'src/constants/oauth.ts'), 'utf8')
-const CONTRACT = /^export const ANTHROPIC_CLIENT_CONTRACT_VERSION = '(\d+\.\d+\.\d+)'$/m.exec(oauthSource)?.[1] ?? ''
+const CONTRACT = ANTHROPIC_CLIENT_CONTRACT_VERSION
 const NEWER = bump(CONTRACT, 9)
 
 console.log('client-contract boot: a session boot peeks the registry once a day, in the background, and the next request presents what it learned')

@@ -1,7 +1,5 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
-import ts from 'typescript'
 import { z } from 'zod/v4'
 import { startEngineRules, validateEngineRequest, ENGINE_RULE_SOURCES } from './fixtures/engineRules.mjs'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
@@ -22,7 +20,6 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url.hostname !== '127.0.0.1') throw new Error(`Engine proof refused non-loopback fetch: ${url.origin}`)
   return realFetch(input, init)
 }) as typeof fetch
-const root = resolve(import.meta.dir, '../..')
 const dialects = Object.keys(ENGINE_RULE_SOURCES)
 const fixtures = await Promise.all(dialects.map(dialect => startEngineRules(dialect)))
 writeFileSync(resolve(process.env.MERCURY_CONFIG_DIR, 'settings.json'), JSON.stringify({ compatProvider: Object.fromEntries(fixtures.map(fixture => [fixture.dialect, { baseUrl: fixture.baseUrl, dialect: fixture.dialect, models: [fixture.model] }])) }))
@@ -52,17 +49,27 @@ const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(false)
 const options = { agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 const roster = new Map(getAllBaseTools().map(tool => [tool.name, tool]))
-const source = ts.createSourceFile('tools.ts', readFileSync(resolve(root, 'src/tools.ts'), 'utf8'), ts.ScriptTarget.Latest, true)
-for (const statement of source.statements) {
-  if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) || !statement.moduleSpecifier.text.startsWith('./tools/')) continue
-  const bindings = statement.importClause?.namedBindings
-  if (!bindings || !ts.isNamedImports(bindings)) continue
-  const modulePath = resolve(root, 'src', statement.moduleSpecifier.text.replace(/\.js$/, '.ts'))
-  const module = await import(pathToFileURL(existsSync(modulePath) ? modulePath : `${modulePath}x`).href)
-  for (const binding of bindings.elements) for (const value of [module[binding.propertyName?.text ?? binding.name.text]].flat()) {
-    if (value && typeof value === 'object' && typeof value.name === 'string' && 'inputSchema' in value) roster.set(value.name, value)
-  }
-}
+const gatedTools = [
+  (await import('../../src/tools/VideoTool/VideoTool.tsx')).VideoTool,
+  (await import('../../src/tools/ContractTool/ContractTool.ts')).ContractTool,
+  (await import('../../src/tools/DebugTool/DebugTool.ts')).DebugTool,
+  (await import('../../src/tools/GodotTool/GodotTool.ts')).GodotTool,
+  (await import('../../src/tools/UnityTool/UnityTool.ts')).UnityTool,
+  (await import('../../src/tools/BlenderTool/BlenderTool.ts')).BlenderTool,
+  (await import('../../src/tools/AsepriteTool/AsepriteTool.ts')).AsepriteTool,
+  (await import('../../src/tools/JevEvalTool/JevEvalTool.ts')).JevEvalTool,
+  (await import('../../src/tools/AskAdvisorTool/AskAdvisorTool.ts')).AskAdvisorTool,
+  (await import('../../src/tools/JournalTool/JournalTool.ts')).JournalTool,
+  (await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')).PowerShellTool,
+  (await import('../../src/tools/SyntheticOutputTool/SyntheticOutputTool.ts')).SyntheticOutputTool,
+  (await import('../../src/tools/TaskCreateTool/TaskCreateTool.ts')).TaskCreateTool,
+  (await import('../../src/tools/TaskGetTool/TaskGetTool.ts')).TaskGetTool,
+  (await import('../../src/tools/TaskListTool/TaskListTool.ts')).TaskListTool,
+  (await import('../../src/tools/TaskUpdateTool/TaskUpdateTool.ts')).TaskUpdateTool,
+  (await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')).ToolSearchTool,
+  (await import('../../src/tools/testing/TestingPermissionTool.tsx')).TestingPermissionTool,
+]
+for (const tool of gatedTools) roster.set(tool.name, tool)
 const tools = [...roster.values()].sort((a, b) => a.name.localeCompare(b.name))
 const schemas = await Promise.all(tools.map(tool => toolToAPISchema(tool, { ...options, tools, model: 'compat/llamacpp/engine-fixture' })))
 const apiTools = schemas.map(schema => ({ name: schema.name, description: schema.description, input_schema: schema.input_schema }))

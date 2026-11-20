@@ -91,15 +91,28 @@ section('§E sdkErrors.ts is the zero-dependency identity leaf')
 section('§F the versioned machine contract + the named projection (E03/E04), on the live homes')
 {
   for (const home of ['src/rows', 'src/runner/wire']) check(`${home} exists`, existsSync(join(ROOT, home)) && statSync(join(ROOT, home)).isDirectory())
-  const vocabulary = readFileSync(join(ROOT, 'src/rows/vocabulary.ts'), 'utf8')
-  const methods = readFileSync(join(ROOT, 'src/runner/wire/methods.ts'), 'utf8')
-  check('the row contract is VERSIONED (ROWS_SCHEMA exported as a literal)', /export const ROWS_SCHEMA = \d+/.test(vocabulary))
-  check('the wire contract is VERSIONED (RUNNER_PROTOCOL exported as a literal)', /export const RUNNER_PROTOCOL = \d+/.test(methods))
-  const project = readFileSync(join(ROOT, 'src/rows/project.ts'), 'utf8')
-  const read = readFileSync(join(ROOT, 'src/rows/read.ts'), 'utf8')
+  const { ROWS_SCHEMA } = await import('../../src/rows/vocabulary.ts')
+  const { RUNNER_PROTOCOL } = await import('../../src/runner/wire/methods.ts')
+  const { itemRowsOf, outcomeRow } = await import('../../src/rows/project.ts')
+  const { parseRow } = await import('../../src/rows/read.ts')
+  check('the row contract is VERSIONED (ROWS_SCHEMA exported as a literal)', typeof ROWS_SCHEMA === 'number' && Number.isInteger(ROWS_SCHEMA) && ROWS_SCHEMA >= 1, String(ROWS_SCHEMA))
+  check('the wire contract is VERSIONED (RUNNER_PROTOCOL exported as a literal)', typeof RUNNER_PROTOCOL === 'number' && Number.isInteger(RUNNER_PROTOCOL) && RUNNER_PROTOCOL >= 1, String(RUNNER_PROTOCOL))
+  const projected = itemRowsOf({ session_id: 's1', turn: 1 }, 'm1', 'hello')
+  const parsedItem = projected.length === 1 ? parseRow(JSON.stringify(projected[0])) : null
+  const out = outcomeRow({ session_id: 's1', turn: 1 }, {
+    turnId: 't1',
+    status: 'completed',
+    steps: 1,
+    wallMs: 0,
+    usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } as never,
+    models: {},
+    denials: [],
+    stopReason: 'end_turn',
+  })
+  const parsedOutcome = parseRow(JSON.stringify(out))
   check(
     'the row stream is a NAMED projection both ways (project.ts emits the rows, read.ts parses them)',
-    /export function itemRowsOf\(/.test(project) && /export function outcomeRow\(/.test(project) && /export function parseRow\(/.test(read),
+    parsedItem?.type === 'text' && parsedItem.text === 'hello' && parsedOutcome?.type === 'outcome' && parsedOutcome.schema === ROWS_SCHEMA,
   )
   const sdkHits = execSync(
     `grep -rln "from '@anthropic-ai/sdk" src/rows src/runner/wire --include='*.ts' || true`,

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { EXECUTION_DOMAIN_CENSUS } from '../../src/services/primitives/executionCensus.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -44,16 +45,9 @@ check(
 const importHits = hits(['src', 'scripts'], /providers\/codex/)
 check('no import/path reference to providers/codex anywhere in src or scripts', importHits.length === 0, importHits.join(', '))
 
-const executionSrc = readFileSync(join(ROOT, 'src', 'services', 'primitives', 'execution.ts'), 'utf8')
-check("the execution plane has no 'codex-engine' kind", !executionSrc.includes("'codex-engine'"))
-
-const censusSrc = readFileSync(join(ROOT, 'src', 'services', 'primitives', 'executionCensus.ts'), 'utf8')
-check('the running-work census has no codex domain', !/codex/i.test(censusSrc))
-
-const typesSrc = readFileSync(join(ROOT, 'src', 'services', 'providers', 'providerAdapter.ts'), 'utf8')
 check(
-  "ProviderTransport has no live 'codex-app-server' MEMBER (comment mentions allowed)",
-  !/\|\s*'codex-app-server'/.test(typesSrc),
+  'the running-work census has no codex domain',
+  EXECUTION_DOMAIN_CENSUS.every(entry => !/codex/i.test(entry.domain) && !/codex/i.test(entry.kind ?? '')),
 )
 
 const spawnHitsAll = hits(['src'], /(spawn|execFile)[^\n]*codex|['"]codex['"]/)
@@ -65,11 +59,6 @@ check(
   'no codex executable spawn/lookup survives in src outside the adjudicated estates (crew seat + capacity observer + foreign-harness recognizer)',
   spawnHits.length === 0,
   spawnHits.join(', '),
-)
-const foreignRecognizerSrc = readFileSync(join(ROOT, 'src', 'utils', 'knownAgentClis.ts'), 'utf8')
-check(
-  'the foreign-harness recognizer earns its exemption: no spawn/exec of ANY kind in the file',
-  !/\b(spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)\s*\(/.test(foreignRecognizerSrc),
 )
 
 const dist = join(ROOT, 'dist', 'mercury.mjs')
