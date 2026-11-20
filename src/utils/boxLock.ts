@@ -110,6 +110,7 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
       if (code === 'ENOENT' || code === 'ENOTDIR') continue
       throw error
     }
+    const [pidWord, label = '', since = ''] = line.split(/\s+/)
     const pid = Number(pidWord)
     if (!Number.isInteger(pid) || pid <= 0) continue
     holders.push({ slot, pid, label, since, alive: alive(pid) })
@@ -136,6 +137,7 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
     if (code === 'ENOENT' || code === 'ENOTDIR') waiters.length = 0
     else throw error
   }
+  holders.sort((a, b) => a.slot - b.slot)
   waiters.sort((a, b) => b.waitedS - a.waitedS)
   return { dir, holders, waiters }
 }
