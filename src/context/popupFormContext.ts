@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect } from 'react'
+import { createContext, useContext } from 'react'
+import { useClaim } from '../hooks/effects.js'
 
 export const PopupFormContext = createContext(false)
 
@@ -12,7 +13,7 @@ export function usePopupCompact(): PopupCompact {
 
 export function usePopupMarker(marker: string | null): void {
   const { setMarker } = usePopupCompact()
-  useEffect(() => {
+  useClaim(() => {
     setMarker(marker)
     return () => setMarker(null)
   }, [setMarker, marker])

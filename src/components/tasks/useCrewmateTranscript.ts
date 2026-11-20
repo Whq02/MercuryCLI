@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { usePublish, useTimer } from '../../hooks/effects.js'
 import { stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
@@ -138,7 +139,7 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
     return crewmateTranscriptFile(crewmate, { sessionId: connector.sessionId(), originalCwd: workspace.originalCwd || workspace.cwd })
   }, [crewmate])
   const agentId = crewmate === null ? null : crewmateTranscriptAgentId(crewmate)
-  useEffect(() => {
+  useTimer(() => {
     if (taskId === undefined || file === null || agentId === null) return
     let alive = true
     const read = async (): Promise<void> => {
@@ -174,7 +175,7 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
       clearInterval(timer)
     }
   }, [taskId, file, agentId, rosterStamp])
-  useEffect(() => {
+  usePublish(() => {
     lastStamp.current = ''
   }, [taskId])
   return useMemo(() => {
