@@ -35,6 +35,10 @@ function clearReactivatedFields(rec: ConcourseWorkerRecordV1): void {
   delete rec.attachRequestedBy
 }
 
+function recordsTakeNoWrite(error: unknown): ConcourseAdmitResult {
+  return { ok: false, code: 'not-ready', error: `no session was started: ${error instanceof Error ? error.message : String(error)}` }
+}
+
 function refuseReactivate(
   rec: ConcourseWorkerRecordV1,
   code: ConcourseRefusalCode,
@@ -42,12 +46,16 @@ function refuseReactivate(
   dir?: string,
   moves?: ConcourseMoveV1[],
 ): ConcourseAdmitResult {
-  updateConcourseWorkers(workers => {
-    const w = workers[rec.runnerId]
-    if (!w || w.endedAt !== undefined) return
-    if (w.parkedAt === undefined) stampParked(w, 'daemon:reactivate', error)
-    else w.parkReason = error
-  }, dir)
+  try {
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (!w || w.endedAt !== undefined) return
+      if (w.parkedAt === undefined) stampParked(w, 'daemon:reactivate', error)
+      else w.parkReason = error
+    }, dir)
+  } catch (error) {
+    return recordsTakeNoWrite(error)
+  }
   return { ok: false, code, error, ...(moves !== undefined ? { moves } : {}) }
 }
 
@@ -78,13 +86,17 @@ export async function reactivateConcourseSession(
   const held = roster.list().some(r => r.short === rec.runnerId && r.outcome === undefined)
   if (alive || held || rec.attachedAt !== undefined) {
     if (rec.parkRequestedAt !== undefined) {
-      updateConcourseWorkers(workers => {
-        const w = workers[rec.runnerId]
-        if (!w) return
-        delete w.parkRequestedAt
-        delete w.parkRequestedBy
-        delete w.parkRequestedReason
-      }, deps.dir)
+      try {
+        updateConcourseWorkers(workers => {
+          const w = workers[rec.runnerId]
+          if (!w) return
+          delete w.parkRequestedAt
+          delete w.parkRequestedBy
+          delete w.parkRequestedReason
+        }, deps.dir)
+      } catch (error) {
+        return recordsTakeNoWrite(error)
+      }
     }
     return {
       ok: true,
@@ -159,7 +171,7 @@ export async function reactivateConcourseSession(
         }, deps.dir)
       } catch (error) {
         roster.kill?.(short)
-        return { ok: false, code: 'not-ready', error: `no session was started: ${error instanceof Error ? error.message : String(error)}` }
+        return recordsTakeNoWrite(error)
       }
       deps.onSpawned?.(short, claimed.spec, claimed.pid)
       if (deps.ensureWarm !== undefined) {
@@ -187,15 +199,19 @@ export async function reactivateConcourseSession(
   }
   const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
   if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift) {
-    updateConcourseWorkers(workers => {
-      const w = workers[rec.runnerId]
-      if (!w || w.endedAt !== undefined) return
-      w.modelKey = args.modelKey
-      w.effort = effort
-      if (args.keyless === true) w.keyless = true
-      else delete w.keyless
-      if (isolationDrift) w.isolation = claimIsolation
-    }, deps.dir)
+    try {
+      updateConcourseWorkers(workers => {
+        const w = workers[rec.runnerId]
+        if (!w || w.endedAt !== undefined) return
+        w.modelKey = args.modelKey
+        w.effort = effort
+        if (args.keyless === true) w.keyless = true
+        else delete w.keyless
+        if (isolationDrift) w.isolation = claimIsolation
+      }, deps.dir)
+    } catch (error) {
+      return recordsTakeNoWrite(error)
+    }
   }
   const reviveRoster = {
     kill: (short: string): boolean => roster.kill?.(short) ?? false,
@@ -223,12 +239,16 @@ export async function reactivateConcourseSession(
       : refuseReactivate(rec, 'spawn-failed', `parked — ${revived.detail ?? revived.reason} · ↵ again retries`, deps.dir)
   }
   if (revived.outcome === 'applied') {
-    updateConcourseWorkers(workers => {
-      const w = workers[rec.runnerId]
-      if (!w || w.endedAt !== undefined) return
-      restampSessionKit(w, kit, kitSource, args.by)
-      if (args.atRest === true) stampTakenBackAtRest(w)
-    }, deps.dir)
+    try {
+      updateConcourseWorkers(workers => {
+        const w = workers[rec.runnerId]
+        if (!w || w.endedAt !== undefined) return
+        restampSessionKit(w, kit, kitSource, args.by)
+        if (args.atRest === true) stampTakenBackAtRest(w)
+      }, deps.dir)
+    } catch (error) {
+      console.error(`[daemon] ${rec.runnerId}: the kit of the reactivated session was not stamped on its session record: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
   const pid = revived.outcome === 'applied' ? revived.pid : rec.pid
   deps.onSpawned?.(
