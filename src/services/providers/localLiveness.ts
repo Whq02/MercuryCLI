@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getApiFetch } from '../../utils/proxy.js'
@@ -109,15 +109,25 @@ function readStore(): LocalPaceStore {
 
 function writeStore(store: LocalPaceStore): void {
   loaded = store
+  const path = localPaceStorePath()
+  const tmp = `${path}.${process.pid}.tmp`
+  let renamed = false
   try {
-    const path = localPaceStorePath()
     mkdirSync(join(path, '..'), { recursive: true })
-    const tmp = `${path}.${process.pid}.tmp`
     writeFileSync(tmp, `${JSON.stringify(store, null, 2)}\n`, 'utf8')
     renameSync(tmp, path)
+    renamed = true
   } catch (error) {
     passedOver(error)
     return
+  } finally {
+    if (!renamed) {
+      try {
+        rmSync(tmp, { force: true })
+      } catch (error) {
+        passedOver(error)
+      }
+    }
   }
 }
 

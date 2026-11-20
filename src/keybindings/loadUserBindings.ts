@@ -162,13 +162,26 @@ function layersKey(): string {
   return `${getCwd()}\n${folderTrusted() ? 'trusted' : 'untrusted'}`
 }
 
+function readErrorLayer(layer: Layer, error: unknown): ParsedLayer {
+  return {
+    blocks: null,
+    warnings: [
+      {
+        type: 'parse_error',
+        severity: 'error',
+        message: `Could not read the ${layer} keybindings file: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    ],
+  }
+}
+
 function readLayerSync(path: string | null, layer: Layer): ParsedLayer | null {
   if (!path) return null
   try {
     return parseLayer(readFileSync(path, 'utf8'), layer)
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    return readErrorLayer(layer, error)
   }
 }
 
@@ -212,8 +225,8 @@ export async function loadKeybindings(): Promise<KeybindingsLoadResult> {
   if (projectPath) {
     try {
       project = parseLayer(await readFile(projectPath, 'utf8'), 'project')
-    } catch {
-      project = null
+    } catch (error) {
+      project = isENOENT(error) ? null : readErrorLayer('project', error)
     }
   }
   return assemble(user, project)

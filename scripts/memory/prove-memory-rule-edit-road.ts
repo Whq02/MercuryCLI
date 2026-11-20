@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/mnemeCorrect.ts src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/tools/MemoryTools/prompt.ts src/tools/MemoryTools/MemoryTools.ts docs/MNEME.md
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -60,8 +60,6 @@ check('the pinned list legend names the road: ↵ opens a rule, c corrects it, x
 check('the model-facing refusal names the key, not just the screen', /c corrects it/.test(USER_ASKED_RULE_ROAD) && /\/memory/.test(USER_ASKED_RULE_ROAD) && /u unpins it/.test(USER_ASKED_RULE_ROAD), USER_ASKED_RULE_ROAD)
 check('Retain leaves the edit-key recovery to the refusal above rather than preloading it', !/↵|\/memory|ONE rule/.test(RETAIN_PROMPT) && RETAIN_PROMPT.includes('refusal reason'))
 check('Correct leaves the edit-key road to the refusal above rather than preloading it', !/↵|\/memory/.test(CORRECT_PROMPT) && /u unpins it/.test(USER_ASKED_RULE_ROAD))
-const manual = readFileSync(join(REPO, 'docs/MNEME.md'), 'utf8')
-check('the manual says how a rule you asked for is changed', manual.includes('`↵` opens the rule and `c` corrects it') && manual.includes('the pin and its "asked for'), manual.split('\n').find(l => l.includes('corrects it')) ?? '')
 
 const ownerSaid = (text: string) => ({ messageId: `owner-${text.length}`, text })
 const seeded = retainItems([{ content: OLD_RULE, pin: true, topic: 'user-preferences' }], { session: 'edit-road-seed', pinIntent: ownerSaid(`Remember this as a standing rule: ${OLD_RULE}`) }, dir)

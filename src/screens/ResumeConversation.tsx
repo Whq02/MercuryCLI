@@ -116,6 +116,19 @@ function NoConversations(): React.ReactNode {
   )
 }
 
+function LoadConversationsFailed({ error }: { error: string }): React.ReactNode {
+  useKeybinding('app:interrupt', () => {
+    process.exit(1)
+  })
+  return (
+    <Box paddingX={1}>
+      <Text color="error" wrap="wrap">
+        Could not load conversations ({error}) — press ctrl+c to exit and start fresh.
+      </Text>
+    </Box>
+  )
+}
+
 export function ResumeConversation({
   commands,
   worktreePaths,
@@ -131,6 +144,7 @@ export function ResumeConversation({
   const [allStatLogs, setAllStatLogs] = useState<SessionListing[]>([])
   const [nextIndex, setNextIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isResuming, setIsResuming] = useState(false)
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [resumeRefusal, setResumeRefusal] = useState<string | null>(null)
@@ -152,6 +166,7 @@ export function ResumeConversation({
   const load = useCallback(
     async (allProjects: boolean) => {
       setIsLoading(true)
+      setLoadError(null)
       try {
         const result = allProjects
           ? await listSessionsAcrossProjectsProgressive()
@@ -159,6 +174,7 @@ export function ResumeConversation({
         applyResult(result)
       } catch (error) {
         logError(error)
+        setLoadError(error instanceof Error ? error.message : String(error))
       } finally {
         setIsLoading(false)
       }
@@ -292,6 +308,13 @@ export function ResumeConversation({
         onCancel={cancelResumeWait}
       />,
     )
+  if (loadError !== null) {
+    return (
+      <KeybindingSetup>
+        <LoadConversationsFailed error={loadError} />
+      </KeybindingSetup>
+    )
+  }
   if (filteredLogs.length === 0) {
     return (
       <KeybindingSetup>

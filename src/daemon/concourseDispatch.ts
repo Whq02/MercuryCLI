@@ -135,29 +135,44 @@ function ledgerStamp(path: string): string | null {
   }
 }
 
-export function readConcourseDispatches(dir?: string): Record<string, ConcourseDispatchRecordV1> {
+export function readConcourseDispatchesStrict(dir?: string): Record<string, ConcourseDispatchRecordV1> {
   const path = concourseDispatchesPath(dir)
-  const stamp = ledgerStamp(path)
-  if (stamp === null) {
+  let stamp: string
+  try {
+    const st = statSync(path)
+    stamp = `${st.ino}:${st.mtimeMs}:${st.size}`
+  } catch (error) {
     ledgerMemo.delete(path)
-    return {}
+    if (isENOENT(error)) return {}
+    throw error
   }
   const memo = ledgerMemo.get(path)
   if (memo !== undefined && memo.stamp === stamp) return memo.map
+  let raw: DispatchFileV1
   try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as DispatchFileV1
-    if (!raw || raw.version !== 1 || typeof raw.dispatches !== 'object') {
-      ledgerMemo.delete(path)
-      return {}
-    }
-    for (const rec of Object.values(raw.dispatches)) {
-      const n = normalizeHoldReason(rec.heldReason)
-      if (n !== undefined && rec.heldReason !== n) rec.heldReason = n
-    }
-    ledgerMemo.set(path, { stamp, map: raw.dispatches })
-    return raw.dispatches
-  } catch {
+    raw = JSON.parse(readFileSync(path, 'utf8')) as DispatchFileV1
+  } catch (error) {
     ledgerMemo.delete(path)
+    if (isENOENT(error)) return {}
+    throw error
+  }
+  if (!raw || raw.version !== 1 || typeof raw.dispatches !== 'object' || raw.dispatches === null) {
+    ledgerMemo.delete(path)
+    throw new Error('invalid dispatch ledger format')
+  }
+  for (const rec of Object.values(raw.dispatches)) {
+    const n = normalizeHoldReason(rec.heldReason)
+    if (n !== undefined && rec.heldReason !== n) rec.heldReason = n
+  }
+  ledgerMemo.set(path, { stamp, map: raw.dispatches })
+  return raw.dispatches
+}
+
+export function readConcourseDispatches(dir?: string): Record<string, ConcourseDispatchRecordV1> {
+  try {
+    return readConcourseDispatchesStrict(dir)
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }

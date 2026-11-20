@@ -112,7 +112,9 @@ export function detectPackageManager(root: string): { bin: string } | { missing:
     const pm = pkg.packageManager?.split('@')[0]
     if (pm === 'bun' || pm === 'npm' || pm === 'pnpm' || pm === 'yarn') return { bin: pm }
   } catch (error) {
-    passedOver(error)
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      return { missing: `package.json could not be read (${error instanceof Error ? error.message : String(error)}) — fix it or declare a lockfile` }
+    }
   }
   return { missing: 'no lockfile and no packageManager field — declare one; Mercury never guesses a package manager' }
 }
@@ -147,9 +149,9 @@ function hasTestFiles(root: string, patterns: RegExp, dirs: string[]): boolean {
   return false
 }
 
-function jsProfiles(root: string): RunnerProfile[] {
+function jsProfiles(root: string): { profiles: RunnerProfile[]; manifestError?: string } {
   const pkgPath = path.join(root, 'package.json')
-  if (!existsSync(pkgPath)) return []
+  if (!existsSync(pkgPath)) return { profiles: [] }
   let pkg: {
     scripts?: Record<string, string>
     dependencies?: Record<string, string>
@@ -159,7 +161,11 @@ function jsProfiles(root: string): RunnerProfile[] {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
   } catch (error) {
     passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { profiles: [] }
+    return {
+      profiles: [],
+      manifestError: `package.json could not be read (${error instanceof Error ? error.message : String(error)}) — fix it or declare a lockfile`,
+    }
   }
   const profiles: RunnerProfile[] = []
   const deps = { ...pkg.dependencies, ...pkg.devDependencies }
@@ -238,7 +244,7 @@ function jsProfiles(root: string): RunnerProfile[] {
       availability,
     })
   }
-  return profiles
+  return { profiles }
 }
 
 function cargoProfiles(root: string): RunnerProfile[] {
@@ -287,11 +293,17 @@ function goProfiles(root: string): RunnerProfile[] {
 export function discoverRunnerProfiles(from: string = getCwd()): {
   root: string | null
   profiles: RunnerProfile[]
+  manifestError?: string
 } {
   if (!pythonTestsEnabled()) return { root: null, profiles: [] }
   const root = findRunnerRoot(from)
   if (!root) return { root: null, profiles: [] }
-  return { root, profiles: [...jsProfiles(root), ...cargoProfiles(root), ...goProfiles(root)] }
+  const js = jsProfiles(root)
+  return {
+    root,
+    profiles: [...js.profiles, ...cargoProfiles(root), ...goProfiles(root)],
+    ...(js.manifestError !== undefined ? { manifestError: js.manifestError } : {}),
+  }
 }
 
 export interface SubPackage {
@@ -318,7 +330,7 @@ export function discoverSubPackages(root: string): SubPackage[] {
     const dir = path.join(root, e.name)
     const manifests = RUNNER_MANIFESTS.filter(m => existsSync(path.join(dir, m)))
     if (manifests.length === 0) continue
-    out.push({ dir: e.name, manifests, profiles: [...jsProfiles(dir), ...cargoProfiles(dir), ...goProfiles(dir)] })
+    out.push({ dir: e.name, manifests, profiles: [...jsProfiles(dir).profiles, ...cargoProfiles(dir), ...goProfiles(dir)] })
   }
   return out
 }
@@ -845,8 +857,11 @@ export async function runRunnerProfile(
   const outputLines = combined.split('\n')
   let outputArtifactRef: string | undefined
   if (outputLines.length > OUTPUT_TAIL_LINES) {
-    const unkept = (): void =>
+    const unkept = (err?: unknown): void => {
+      const detail = err !== undefined ? ` (${err instanceof Error ? err.message : String(err)})` : ''
+      verdictNotes.push(`full output (${outputLines.length} lines) could not be saved${detail} — only the last ${OUTPUT_TAIL_LINES} lines were kept`)
       logError(new Error(`the full output of test run ${id} (${outputLines.length} lines) could not be stored as an artifact, so the record keeps only its last ${OUTPUT_TAIL_LINES} lines`))
+    }
     try {
       const { id: artifactId } = await storeArtifact({
         scope: 'test',
@@ -856,8 +871,8 @@ export async function runRunnerProfile(
       })
       if (artifactId) outputArtifactRef = `mercury://artifact/test/${artifactId}`
       else unkept()
-    } catch {
-      unkept()
+    } catch (err) {
+      unkept(err)
     }
   }
 
@@ -904,7 +919,7 @@ export type TestLane =
   | { lane: 'runner-missing'; runner: string; below?: SubPackage[] }
   | { lane: 'ambiguous'; options: string[] }
   | { lane: 'sub-packages'; root: string; packages: SubPackage[]; runner?: string }
-
+  | { lane: 'manifest-error'; error: string }
 export function hasPythonSignal(from: string = getCwd(), skipDirs: ReadonlySet<string> = new Set()): boolean {
   const root = findRunnerRoot(from) ?? path.resolve(from)
   for (const f of ['pyproject.toml', 'setup.py', 'setup.cfg', 'conftest.py']) {
@@ -921,7 +936,7 @@ export function resolveTestLane(from: string = getCwd(), explicit?: string): Tes
   if (explicit === 'pytest' || explicit === 'unittest') {
     return { lane: 'python', framework: explicit }
   }
-  const { root, profiles } = discoverRunnerProfiles(from)
+  const { root, profiles, manifestError } = discoverRunnerProfiles(from)
   const testProfiles = profiles.filter(p => p.kind === 'test')
   const below = root === null && pythonTestsEnabled() ? discoverSubPackages(path.resolve(from)) : []
   if (explicit) {
@@ -941,7 +956,10 @@ export function resolveTestLane(from: string = getCwd(), explicit?: string): Tes
     return { lane: 'sub-packages', root: path.resolve(from), packages: below }
   }
   if (hasPythonSignal(from)) return { lane: 'python' }
-  if (testProfiles.length === 0) return { lane: 'python' }
+  if (testProfiles.length === 0) {
+    if (manifestError !== undefined) return { lane: 'manifest-error', error: manifestError }
+    return { lane: 'python' }
+  }
   const runners = [...new Set(testProfiles.map(p => p.runner))]
   if (runners.length === 1) return { lane: 'runner', profile: testProfiles[0]! }
   return { lane: 'ambiguous', options: runners }

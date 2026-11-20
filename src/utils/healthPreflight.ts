@@ -57,7 +57,9 @@ async function runPreflight(): Promise<PreflightSummary> {
       let raw: unknown = null
       try {
         raw = JSON.parse(await readFile(gateVerdictPath(), 'utf8'))
-      } catch {
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
         raw = null
       }
       const git = await gitSnapshot()

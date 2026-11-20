@@ -37,22 +37,53 @@ const pathOf = (vendor: HostVendorId, rental: string): string => {
   return join(directory(), vendor + '-' + rental + '.json')
 }
 const parse = (text: string): HostLinkObservation | undefined => { const read = observationSchema.safeParse(JSON.parse(text)); return read.success ? read.data : undefined }
-export function readHostLinkObservation(vendor: HostVendorId, rental: string): HostLinkObservation | undefined {
-  try { return parse(readFileSync(pathOf(vendor, rental), 'utf8')) } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') logForDebugging(`[host] the link history of ${vendor} ${rental} could not be read (${error instanceof SyntaxError ? 'it is not valid JSON' : error instanceof Error ? error.message : String(error)}), so the next note of its link replaces it with only the new outage`, { level: 'warn' })
-    return undefined
+type ObservationRead =
+  | { state: 'ok'; observation: HostLinkObservation }
+  | { state: 'absent' }
+  | { state: 'corrupt'; error: unknown }
+  | { state: 'unreadable'; error: unknown }
+function readObservationRaw(vendor: HostVendorId, rental: string): ObservationRead {
+  let text: string
+  try { text = readFileSync(pathOf(vendor, rental), 'utf8') } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { state: 'absent' }
+    return { state: 'unreadable', error }
   }
+  try {
+    const parsed = parse(text)
+    return parsed ? { state: 'ok', observation: parsed } : { state: 'corrupt', error: 'invalid schema' }
+  } catch (error) {
+    return { state: 'corrupt', error }
+  }
+}
+export function readHostLinkObservation(vendor: HostVendorId, rental: string): HostLinkObservation | undefined {
+  const read = readObservationRaw(vendor, rental)
+  if (read.state === 'ok') return read.observation
+  if (read.state !== 'absent') {
+    const detail = read.error instanceof SyntaxError ? 'it is not valid JSON' : read.error instanceof Error ? read.error.message : String(read.error)
+    logForDebugging(`[host] the link history of ${vendor} ${rental} could not be read (${detail})`, { level: 'warn' })
+  }
+  return undefined
 }
 export function hostLinkObservations(): HostLinkObservation[] {
   let names: string[]
   try { names = readdirSync(directory()) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error }
-  return names.filter(name => name.endsWith('.json')).sort().flatMap(name => { try { const row = parse(readFileSync(join(directory(), name), 'utf8')); return row ? [row] : [] } catch (error) { passedOver(error); return [] } })
+  return names.filter(name => name.endsWith('.json')).sort().flatMap(name => {
+    try {
+      const row = parse(readFileSync(join(directory(), name), 'utf8'))
+      return row ? [row] : []
+    } catch (error) {
+      passedOver(error)
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') logForDebugging(`[host] reliability file ${name} skipped (${error instanceof Error ? error.message : String(error)})`, { level: 'warn' })
+      return []
+    }
+  })
 }
 
 export function noteHostLink(rental: HostRental, event: HostLinkEvent, at = Date.now()): HostLinkObservation {
   const path = pathOf(rental.vendor, rental.id)
   const stamp = new Date(at).toISOString()
-  const previous = readHostLinkObservation(rental.vendor, rental.id)
+  const read = readObservationRaw(rental.vendor, rental.id)
+  const previous = read.state === 'ok' ? read.observation : undefined
   const outages = [...(previous?.outages ?? [])]
   const open = outages.at(-1)?.outcome === 'reconnecting' ? outages.pop()! : undefined
   if (event.outcome === 'reconnecting') {
@@ -65,6 +96,10 @@ export function noteHostLink(rental: HostRental, event: HostLinkEvent, at = Date
   const machineId = rental.machineId ?? previous?.machineId
   const name = rental.name ?? previous?.name
   const observation = observationSchema.parse({ vendor: rental.vendor, rental: rental.id, ...(name ? { name } : {}), ...(machineId ? { machineId } : {}), outages })
+  if (read.state === 'unreadable') {
+    logForDebugging(`[host] the link history of ${rental.vendor} ${rental.id} could not be read (${read.error instanceof Error ? read.error.message : String(read.error)}), leaving the existing file untouched`, { level: 'warn' })
+    return observation
+  }
   mkdirSync(directory(), { recursive: true, mode: 0o700 })
   publishAtomicSync(path, JSON.stringify(observation) + '\n', { mode: 0o600 })
   return observation

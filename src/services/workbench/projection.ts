@@ -194,12 +194,8 @@ export async function gatherWorkbenchInputs(opts?: {
       .map(async t => {
         const meta = await agentMetaFor(t.agentId!)
         if (meta) agentMeta.set(t.agentId!, meta)
-        try {
-          const run = pickRunFacts(getRunSnapshot(processOwnerForLane(t.agentId!)))
-          if (run) laneRuns.set(t.id, run)
-        } catch (error) {
-          passedOver(error)
-        }
+        const run = pickRunFacts(getRunSnapshot(processOwnerForLane(t.agentId!)))
+        if (run) laneRuns.set(t.id, run)
       }),
   )
 

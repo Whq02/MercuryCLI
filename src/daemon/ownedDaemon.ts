@@ -199,14 +199,20 @@ export async function restartOwnedDaemonForFreshSignin(opts?: {
       return daemonControlRpc(req, o)
     })
   const { MERCURY_DAEMON_PROTO } = await import('./protocol.js')
-  await rpc(
-    {
-      op: 'restart-when-idle',
-      proto: MERCURY_DAEMON_PROTO,
-      by: 'fresh sign-in after an env-kept spawn — the successor re-runs the credential scrub',
-    },
-    { timeoutMs: 3000 },
-  ).catch(passedOverAs(undefined))
+  try {
+    const reply = (await rpc(
+      {
+        op: 'restart-when-idle',
+        proto: MERCURY_DAEMON_PROTO,
+        by: 'fresh sign-in after an env-kept spawn — the successor re-runs the credential scrub',
+      },
+      { timeoutMs: 3000 },
+    )) as { ok?: unknown } | null | undefined
+    if (reply?.ok === false) freshSigninRestartAsked = false
+  } catch (error) {
+    freshSigninRestartAsked = false
+    logForDebugging(`[daemon] the restart after a fresh sign-in was not asked (the next sign-in asks again): ${errorMessage(error)}`)
+  }
   return 'asked'
 }
 

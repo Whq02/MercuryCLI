@@ -44,7 +44,8 @@ import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
 import { feedbackView, type Step } from './feedback/feedbackView.js'
-import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { getErrnoCode } from '../utils/errors.js'
+import { passedOver } from '../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 
@@ -233,7 +234,7 @@ function modelFacts(): { family: string; model: string } {
 
 type RecentError = { error: string; timestamp: string }
 
-async function gatherReport(
+export async function gatherReport(
   description: string,
   messages: Message[],
   backgroundTasks: {
@@ -251,7 +252,14 @@ async function gatherReport(
     ...entry,
     error: redactSensitiveInfo(entry.error),
   }))
-  const isGit = await getIsGit().catch(passedOverAs(false))
+  const isGit = await getIsGit().catch((gitError: unknown) => {
+    logError(gitError)
+    errors.push({
+      error: redactSensitiveInfo(`git repository probe failed: ${gitError instanceof Error ? gitError.message : String(gitError)}`),
+      timestamp: new Date().toISOString(),
+    })
+    return undefined
+  })
 
   let rawTranscript: string | undefined
   try {
@@ -263,8 +271,15 @@ async function gatherReport(
     } else {
       logForDebugging(`feedback: transcript over the read cap (${stat.size} bytes), skipped`)
     }
-  } catch {
+  } catch (transcriptError) {
     rawTranscript = undefined
+    if (getErrnoCode(transcriptError) !== 'ENOENT') {
+      logError(transcriptError)
+      errors.push({
+        error: redactSensitiveInfo(`session transcript could not be read from disk: ${transcriptError instanceof Error ? transcriptError.message : String(transcriptError)}`),
+        timestamp: new Date().toISOString(),
+      })
+    }
   }
 
   const fromDisk = await loadAllSubagentTranscriptsFromDisk().catch(

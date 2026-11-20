@@ -43,7 +43,6 @@ import { startEngineHeartbeat } from './liveness.js'
 import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
 import { engineLogDrift, proofTreeFingerprint, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 import { logError } from '../../../utils/log.js'
-import { passedOver } from '../../../utils/passedOver.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 const unsavedRecordsNamed = new Set<string>()
@@ -223,8 +222,9 @@ function readEngineRecord(projectRoot: string, jobId: string): EngineRunRecord |
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as EngineRunRecord
   } catch (error) {
-    passedOver(error)
-    return null
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return null
+    throw error
   }
 }
 
@@ -235,8 +235,27 @@ export function listEngineRunIds(projectRoot: string): string[] {
       .sort()
       .reverse()
   } catch (error) {
-    passedOver(error)
-    return []
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return []
+    throw error
+  }
+}
+
+function writeRecordOf(job: EngineJob): void {
+  if (!job.record) return
+  try {
+    mkdirSync(job.runDir, { recursive: true })
+    writeFileSync(engineRunResultFile(job.runDir), JSON.stringify(job.record, null, 2))
+  } catch (error) {
+    const note = `the record of engine job ${job.id} could not be written to ${engineRunResultFile(job.runDir)} (${error instanceof Error ? error.message : String(error)}), so op:"engine_result" reads it only while this process holds it`
+    job.record.allPass = false
+    if (!job.record.error?.includes(note)) {
+      job.record.error = job.record.error ? `${job.record.error}; ${note}` : note
+      job.error = job.record.error
+    }
+    if (unsavedRecordsNamed.has(job.id)) return
+    unsavedRecordsNamed.add(job.id)
+    logError(new Error(note))
   }
 }
 
@@ -363,9 +382,15 @@ export class EngineJobService {
       this.executableCache = { resolved: fromManifest, note: 'named by the manifest' }
       return this.executableCache
     }
-    const census = await this.census().catch((error) => { passedOver(error); return [] as GodotProcess[] })
+    let census: GodotProcess[] = []
+    let censusError: string | null = null
+    try {
+      census = await this.census()
+    } catch (error) {
+      censusError = error instanceof Error ? error.message : String(error)
+    }
     const receipt = await resolveGodotExecutable({ census, projectRoot: this.projectRoot })
-    if (!receipt.resolved) return { error: receipt.note }
+    if (!receipt.resolved) return { error: censusError ? `${receipt.note} (${censusError})` : receipt.note }
     const resolved = engineConsoleSibling(receipt.resolved, process.platform, p => existsSync(p))
     this.executableCache = { resolved, note: resolved === receipt.resolved ? receipt.note : `${receipt.note}; its console sibling carries the output` }
     return this.executableCache
@@ -389,15 +414,7 @@ export class EngineJobService {
   }
 
   writeRecord(job: EngineJob): void {
-    if (!job.record) return
-    try {
-      mkdirSync(job.runDir, { recursive: true })
-      writeFileSync(engineRunResultFile(job.runDir), JSON.stringify(job.record, null, 2))
-    } catch (error) {
-      if (unsavedRecordsNamed.has(job.id)) return
-      unsavedRecordsNamed.add(job.id)
-      logError(new Error(`the record of engine job ${job.id} could not be written to ${engineRunResultFile(job.runDir)} (${error instanceof Error ? error.message : String(error)}), so op:"engine_result" reads it only while this process holds it`))
-    }
+    writeRecordOf(job)
   }
 
   remember(job: EngineJob): void {
@@ -876,18 +893,21 @@ async function runOneOf(
   this.handles.delete(job.id)
   job.currentSuite = null
   const logFile = engineRunLogFile(job.runDir, name)
+  let logWriteError: string | null = null
   try {
     mkdirSync(path.dirname(logFile), { recursive: true })
     writeFileSync(logFile, out.output)
   } catch (error) {
-    logError(new Error(`the log of suite ${name} in engine job ${job.id} could not be written to ${logFile} (${error instanceof Error ? error.message : String(error)}), so its row names a log that is not there`))
+    logWriteError = `the log of suite ${name} in engine job ${job.id} could not be written to ${logFile} (${error instanceof Error ? error.message : String(error)}), so its row names a log that is not there`
+    logError(new Error(logWriteError))
   }
   const clean = isCleanEngineLog(out.output, unclean)
   const markerLine = marker ? markerLineOf(marker, out.output) : null
   const markerHit = marker === null || markerLine !== null
   const drift = engineLogDrift(out.output, name, job.id)
   job.record?.drift.push(...drift)
-  const ok = out.exitCode === 0 && !out.signal && !out.timedOut && !out.spawnError && clean && markerHit && drift.length === 0
+  const spawnError = out.spawnError ? (logWriteError ? `${out.spawnError}; ${logWriteError}` : out.spawnError) : logWriteError
+  const ok = out.exitCode === 0 && !out.signal && !out.timedOut && !spawnError && clean && markerHit && drift.length === 0
   const errors: EngineRowError[] = []
   for (const e of engineLogErrors(out.output)) {
     let lastChange: string | null = null
@@ -902,7 +922,7 @@ async function runOneOf(
     exitCode: out.exitCode,
     signal: out.signal,
     timedOut: out.timedOut,
-    spawnError: out.spawnError,
+    spawnError,
     clean,
     marker: markerHit,
     seconds: out.seconds,

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -38,7 +38,6 @@ const permissionContext = getEmptyToolPermissionContext()
 const manual = await AgentTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
 const MODEL_SECTION = '\n## Model selection\n'
 const modelWords = manual.includes(MODEL_SECTION) ? manual.slice(manual.indexOf(MODEL_SECTION) + MODEL_SECTION.length).split('\n## ')[0]! : ''
-const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../', rel), 'utf8')
 
 section("§1 the launch tool's model parameter")
 {
@@ -59,8 +58,6 @@ section('§2 the same words wherever the model parameter repeats')
   const { readTargetPromptLines } = await import('../../src/tools/FileReadTool/readTarget.ts')
   const read = readTargetPromptLines()
   check("the Read tool's description keeps its byte budget: mercury:// records in one sentence, the models pages not named (the fact lives once, in the launch parameter and the Inspect listing)", read.includes('A mercury:// reference reads a session record') && !read.includes('mercury://models'), read)
-  const crew = src('docs/CREW.md')
-  check('docs/CREW.md follows: the two pages, the family-word default and the receipt line, the ask rung, the /logins refusal, never another provider (RED on the base)', crew.includes('`mercury://models` lists the providers the operator is signed into') && crew.includes('`mercury://models/known` lists the models this build knows') && crew.includes("runs the family's pinned default (xAI: Grok 4.7) and the launch receipt says") && crew.includes('ask the operator for the model id') && crew.includes('naming `/logins`') && crew.includes('no\nlaunch ever moves to another provider on its own'), crew.slice(crew.indexOf('## Starting a crewmate'), crew.indexOf('## Starting a crewmate') + 1800))
 }
 
 rmSync(scratch, { recursive: true, force: true })

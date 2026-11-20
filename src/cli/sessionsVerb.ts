@@ -8,7 +8,7 @@ import { getProjectDir, getProjectsDir } from '../utils/sessionStorage/paths.js'
 import { buildSessionDeleteOffer, operatorPruneTranscripts } from '../utils/sessionStorage/transcriptPruneDoor.js'
 import { validateUuid } from '../utils/sessionStoragePortable.js'
 import { sliceHeadAtGrapheme } from '../utils/intl.js'
-import { passedOver } from '../utils/passedOver.js'
+import { getErrnoCode, isENOENT } from '../utils/errors.js'
 
 export type SessionsCliIo = {
   out: (line: string) => void
@@ -39,8 +39,8 @@ async function savedSessionNamed(sessionId: string, projectStore: string): Promi
       if (entry.isDirectory() && store !== projectStore) stores.push(store)
     }
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
   for (const store of stores) {
     const fullPath = join(store, `${sessionId}.jsonl`)
@@ -48,8 +48,9 @@ async function savedSessionNamed(sessionId: string, projectStore: string): Promi
       const facts = await stat(fullPath)
       if (facts.isFile()) return { sessionId, fullPath, fileSize: facts.size, modified: facts.mtime, store }
     } catch (error) {
-      passedOver(error)
-      continue
+      const code = getErrnoCode(error)
+      if (code === 'ENOENT' || code === 'ENOTDIR') continue
+      throw error
     }
   }
   return null

@@ -1,5 +1,5 @@
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../envUtils.js'
 import { errorMessage, isENOENT } from '../errors.js'
@@ -13,17 +13,29 @@ function cachePath(): string {
 
 type ClearedMap = Record<string, number>
 
+function readMapStrict(): ClearedMap {
+  const p = cachePath()
+  let raw: string
+  try {
+    raw = readFileSync(p, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return {}
+    throw error
+  }
+  const parsed = JSON.parse(raw) as unknown
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`the cleared sessions map ${p} is not a JSON object`)
+  }
+  const out: ClearedMap = {}
+  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = v
+  }
+  return out
+}
+
 function readMap(): ClearedMap {
   try {
-    const p = cachePath()
-    if (!existsSync(p)) return {}
-    const parsed = JSON.parse(readFileSync(p, 'utf8')) as unknown
-    if (!parsed || typeof parsed !== 'object') return {}
-    const out: ClearedMap = {}
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === 'number' && Number.isFinite(v)) out[k] = v
-    }
-    return out
+    return readMapStrict()
   } catch (error) {
     if (!isENOENT(error)) logError(new Error(`the cleared sessions map ${cachePath()} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
     return {}
@@ -33,30 +45,38 @@ function readMap(): ClearedMap {
 let memo: { at: number; ids: Set<string> } | null = null
 const MEMO_MS = 5_000
 
-export function markSessionCleared(sessionId: string | null | undefined): void {
-  if (!sessionId) return
+type ClearedMarkResult = { ok: true } | { ok: false; error: string }
+
+export function markSessionCleared(sessionId: string | null | undefined): ClearedMarkResult {
+  if (!sessionId) return { ok: true }
   try {
-    const map = readMap()
+    const map = readMapStrict()
     map[sessionId] = Date.now()
     const entries = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, CACHE_MAX)
     mkdirSync(getMercuryHome(), { recursive: true })
     writeFileSync(cachePath(), JSON.stringify(Object.fromEntries(entries), null, 2) + '\n')
     memo = null
+    return { ok: true }
   } catch (error) {
-    logError(new Error(`the cleared mark of session ${sessionId} could not be written to ${cachePath()}, so it stays listed: ${errorMessage(error)}`))
+    const detail = errorMessage(error)
+    logError(new Error(`the cleared mark of session ${sessionId} could not be written to ${cachePath()}, so it stays listed: ${detail}`))
+    return { ok: false, error: detail }
   }
 }
 
-export function unmarkSessionCleared(sessionId: string | null | undefined): void {
-  if (!sessionId) return
+export function unmarkSessionCleared(sessionId: string | null | undefined): ClearedMarkResult {
+  if (!sessionId) return { ok: true }
   try {
-    const map = readMap()
-    if (!(sessionId in map)) return
+    const map = readMapStrict()
+    if (!(sessionId in map)) return { ok: true }
     delete map[sessionId]
     writeFileSync(cachePath(), JSON.stringify(map, null, 2) + '\n')
     memo = null
+    return { ok: true }
   } catch (error) {
-    logError(new Error(`the cleared mark of session ${sessionId} could not be removed from ${cachePath()}, so it stays hidden: ${errorMessage(error)}`))
+    const detail = errorMessage(error)
+    logError(new Error(`the cleared mark of session ${sessionId} could not be removed from ${cachePath()}, so it stays hidden: ${detail}`))
+    return { ok: false, error: detail }
   }
 }
 

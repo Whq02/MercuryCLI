@@ -378,8 +378,11 @@ export function readFakeActLog(path: string): FakeAct[] {
   try {
     text = readFileSync(path, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+      passedOver(error)
+      return []
+    }
+    throw error
   }
   return text
     .split('\n')

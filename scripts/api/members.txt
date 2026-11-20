@@ -76,3 +76,8 @@ prove-provider-wait-words.ts
 prove-quiet-wire.ts
 prove-headless-wire.ts
 prove-overload-no-retry.ts
+prove-retry-door.ts
+prove-retry-timeline-anthropic.ts
+prove-retry-timeline-openai.ts
+prove-retry-timeline-openaicompat.ts
+prove-retry-timeline-zai.ts

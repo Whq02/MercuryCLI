@@ -151,8 +151,9 @@ async function admitPair(pair: ClonePair, index: number, checkout: string, road:
   try {
     source = await realpath(pair.source)
   } catch (error) {
-    passedOver(error)
-    return 'missing'
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return 'missing'
+    throw error
   }
   const sourceStat = await stat(source)
   if (!sourceStat.isDirectory()) return 'missing'

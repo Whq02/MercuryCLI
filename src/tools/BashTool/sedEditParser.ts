@@ -1,4 +1,5 @@
 import { preparedSecurityParse, checkSemantics } from '../../utils/permissions/decision/commandAnalysis.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type SedEditInfo = {
   filePath: string
@@ -112,7 +113,7 @@ export function isSedInPlaceEdit(command: string): boolean {
 const WHOLE_MATCH_MARKER = '\x00MERCURY_SED_WHOLE_MATCH\x00'
 const REPLACEMENT_MARKER = /\x00MERCURY_SED_(?:WHOLE_MATCH|GROUP_([1-9]))\x00/g
 
-export function applySedSubstitution(content: string, sedInfo: SedEditInfo): string {
+export function applySedSubstitution(content: string, sedInfo: SedEditInfo): string | null {
   const global = sedInfo.flags.includes('g')
   const caseInsensitive = sedInfo.flags.includes('i') || sedInfo.flags.includes('I')
   const print = sedInfo.flags.includes('p')
@@ -124,8 +125,9 @@ export function applySedSubstitution(content: string, sedInfo: SedEditInfo): str
   let regex: RegExp
   try {
     regex = new RegExp(pattern, caseInsensitive ? 'gi' : 'g')
-  } catch {
-    return content
+  } catch (error) {
+    passedOver(error)
+    return null
   }
   const lines = content.split('\n')
   const last = lines.length - 1

@@ -22,17 +22,23 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { childPath, filterRows, flattenTree, parentPath, sortEntries, type GitMark, type TreeEntry, type TreeRow } from '../utils/files/fileTree.js'
 import { readFileTreeGit, type FileTreeGit } from '../utils/files/fileTreeGit.js'
-import { passedOver } from '../utils/passedOver.js'
+import { getErrnoCode } from '../utils/errors.js'
+import { logError } from '../utils/log.js'
 
 export const FILES_MENU_WIDTH = 70
 export const FILES_MENU_CHROME_ROWS = 9
 const FILES_MENU_TITLE_VIEW = 'files'
 export const FILES_MENU_FILTER_PLACEHOLDER = 'filter by name'
 export const FILES_MENU_HINT = '↑↓ move · ↵ open · → ← unfold · / filter · esc or click outside closes'
+const UNREADABLE_ROW_SENTINEL = '\0unreadable'
+
+function isUnreadableRow(path: string): boolean {
+  return path.endsWith(UNREADABLE_ROW_SENTINEL)
+}
 
 export { cutToWidth }
 
-function readFolder(root: string, dir: string): TreeEntry[] {
+export function readFolder(root: string, dir: string): TreeEntry[] {
   try {
     const entries: TreeEntry[] = []
     for (const dirent of readdirSync(join(root, dir), { withFileTypes: true })) {
@@ -41,8 +47,15 @@ function readFolder(root: string, dir: string): TreeEntry[] {
     }
     return sortEntries(entries)
   } catch (error) {
-    passedOver(error)
-    return []
+    if (getErrnoCode(error) === 'ENOENT') return []
+    logError(error)
+    return [
+      {
+        name: `folder could not be read (${error instanceof Error ? error.message : String(error)}) — check permissions`,
+        path: childPath(dir, UNREADABLE_ROW_SENTINEL),
+        dir: false,
+      },
+    ]
   }
 }
 
@@ -110,7 +123,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   }
   const activate = (index: number): void => {
     const row = rows[index]
-    if (!row) return
+    if (!row || isUnreadableRow(row.path)) return
     if (row.dir) {
       if (row.open) fold(row)
       else unfold(row)
@@ -208,12 +221,13 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   const nameWidth = listWidth - markWidth
   const renderRow = (row: TreeRow, index: number): React.ReactNode => {
     const selected = index === cursorIndex
+    const unreadable = isUnreadableRow(row.path)
     const indent = '  '.repeat(row.depth)
-    const lead = foldLead({ selected, folder: row.dir, open: row.open })
+    const lead = unreadable ? '  ' : foldLead({ selected, folder: row.dir, open: row.open })
     const budget = Math.max(1, nameWidth - displayWidth(indent) - 2)
     const name = truncateToWidth(row.name, budget)
     const pad = ' '.repeat(Math.max(0, budget - displayWidth(name)))
-    const mark: GitMark | undefined = row.dir ? undefined : git?.marks.get(row.path)
+    const mark: GitMark | undefined = row.dir || unreadable ? undefined : git?.marks.get(row.path)
     return (
       <InteractiveRow
         key={row.path}
@@ -227,7 +241,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
         <Text wrap="truncate-end">
           <Text>{indent}</Text>
           <Text color={selected ? accent : tok.textMuted}>{lead}</Text>
-          <Text color={selected || row.dir ? tok.textPrimary : tok.textSecondary}>{name}</Text>
+          <Text color={unreadable ? tok.warning : selected || row.dir ? tok.textPrimary : tok.textSecondary}>{name}</Text>
           <Text>{pad}</Text>
           <Text color={tok.warning}>{mark ?? ' '}</Text>
           <Text> </Text>

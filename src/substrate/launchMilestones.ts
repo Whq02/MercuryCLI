@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { flagEnv, flagSpellings } from './flagRegistry.js'
 import { passedOver } from '../utils/passedOver.js'
+import { logForDebugging } from '../utils/debug.js'
 
 export type LaunchMilestone =
   | 'runtime-entry'
@@ -45,11 +46,22 @@ export function launchMilestonesPath(): string {
 }
 
 function readAll(): LaunchMilestoneRowV1[] {
+  let text: string
   try {
-    const raw = JSON.parse(readFileSync(launchMilestonesPath(), 'utf8')) as MilestoneFileV1
-    if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
+    text = readFileSync(launchMilestonesPath(), 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
+  }
+  try {
+    const raw = JSON.parse(text) as MilestoneFileV1
+    if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
+      logForDebugging(`[launch-milestones] ${launchMilestonesPath()} has unexpected shape; resetting`)
+      return []
+    }
     return raw.rows
   } catch (error) {
+    logForDebugging(`[launch-milestones] ${launchMilestonesPath()} is not valid JSON (${error}); resetting`)
     passedOver(error)
     return []
   }
@@ -111,12 +123,21 @@ function writeRows(rows: LaunchMilestoneRowV1[]): void {
   }
 }
 
+function readAllSafe(): LaunchMilestoneRowV1[] {
+  try {
+    return readAll()
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
+}
+
 export function readLaunchMilestones(): LaunchMilestoneRowV1[] {
-  return readAll()
+  return readAllSafe()
 }
 
 export function lastInteractiveBootSpine(): LaunchMilestoneRowV1[] {
-  const rows = readAll()
+  const rows = readAllSafe()
   const headless = new Set(rows.filter(r => r.boot === 'headless').map(r => r.pid))
   for (let i = rows.length - 1; i >= 0; i--) {
     const pid = rows[i]!.pid

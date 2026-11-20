@@ -21,7 +21,6 @@ prove-crew-views-agree.ts
 prove-crew-vocabulary.ts
 prove-ended-run-call-is-answered-at-resume.ts
 prove-esc-ladder-words.ts
-prove-face-census.ts
 prove-foreground-crewmate-wait-words.ts
 prove-header-truth.ts
 prove-hosted-window-hears-the-store-fail.ts

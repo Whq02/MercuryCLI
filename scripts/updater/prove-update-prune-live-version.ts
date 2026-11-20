@@ -17,7 +17,7 @@ delete process.env.MERCURY_UPDATE_FAULT
 
 const { pruneSupersededVersions } = await import('../../src/services/privateChannel/installLayout.ts')
 const service = (await import('../../src/services/privateChannel/updateService.ts')) as { livePayloadDirs?: (roots: LayoutRoots) => Promise<string[]> }
-const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+const { getProcessStartTokenAsync, lstartWords } = await import('../../src/daemon/ownerWatch.ts')
 
 const IS_WINDOWS = process.platform === 'win32'
 const DEAD = 4242421
@@ -181,7 +181,7 @@ else {
 
   const reborn = layoutFor('recorded-pid-reused')
   const newer = await startFrom(join(reborn.versionsDir, CURRENT, 'mercury.mjs'), WINDOW_BODY)
-  register(newer.pid!, join(reborn.versionsDir, DAEMON_VERSION, 'mercury.mjs'), await getProcessStartTokenAsync(process.pid))
+  register(newer.pid!, join(reborn.versionsDir, DAEMON_VERSION, 'mercury.mjs'), lstartWords(new Date(0)))
   const second = await pruneAsTheUpdateDoes(reborn)
   check('another Mercury born at another time on the recorded pid pins nothing for the window that is gone', second.removed.includes(DAEMON_VERSION) && second.kept.includes(CURRENT), describe(second))
   await end(newer)

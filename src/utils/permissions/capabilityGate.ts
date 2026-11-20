@@ -225,7 +225,11 @@ function agentPolicyDenies(
 ): boolean {
   try {
     if (!flagEnv('MERCURY_AGENT_CAP')) return false
-    
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+  try {
     const policy = parseAgentCapPolicy()
     if (policy.size === 0) return false
     const key = normalizeAgentType(agentType ?? currentAgentTypeSafe())
@@ -242,8 +246,8 @@ function agentPolicyDenies(
     }
     return false
   } catch (error) {
-    passedOver(error)
-    return false
+    passedOver(new Error(`the agent cap could not be checked for ${tool.name} (${error instanceof Error ? error.message : String(error)}), so the tool is refused`, { cause: error }))
+    return true
   }
 }
 
@@ -333,7 +337,7 @@ function seedFromEnv(): void {
       }
     }
   } catch (error) {
-    passedOver(error)
+    passedOver(new Error(`MERCURY_KILL could not be read (${error instanceof Error ? error.message : String(error)}), so it switches no tool off`, { cause: error }))
   }
 }
 

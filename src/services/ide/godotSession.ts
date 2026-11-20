@@ -29,7 +29,8 @@ import {
   sectionSpan,
 } from '../vulcan/addonInstaller.js'
 import { presenceNudge, probeVulcanEditorPresence } from '../vulcan/editorPresence.js'
-import { getVulcanClient, type VulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
+import { formatUnreadableVulcanInstance, scanVulcanInstances } from '../vulcan/instances.js'
+import { resolveVulcanClient, type VulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const GODOT_LANES_ARM_SURFACE =
@@ -117,6 +118,7 @@ interface GodotLaunchDiscovery {
   profiles: GodotLaunchProfile[]
   sceneCount: number
   truncatedScenes: number
+  instanceError?: string
 }
 
 
@@ -156,8 +158,8 @@ export function parseGodotProjectFile(root: string): ParsedProjectGodot {
     parseCache = { file, mtimeMs: st.mtimeMs, parsed }
     return parsed
   } catch (error) {
-    passedOver(error)
-    return {}
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return {}
+    throw error
   }
 }
 
@@ -281,6 +283,18 @@ async function probeVulcanState(root: string | undefined): Promise<GodotVulcanSt
   const presence = await probeVulcanEditorPresence(root)
   port = presence.port
   if (!presence.reachable) {
+    if (!presence.instance && !presence.ambiguous?.length) {
+      const scan = scanVulcanInstances(root)
+      if (scan.unreadable.length > 0) {
+        const first = scan.unreadable[0]!
+        return {
+          state: 'unreachable',
+          port,
+          addon,
+          detail: formatUnreadableVulcanInstance(first.path, first.error),
+        }
+      }
+    }
     return {
       state: 'unreachable',
       port,
@@ -288,7 +302,16 @@ async function probeVulcanState(root: string | undefined): Promise<GodotVulcanSt
       detail: `${presence.words} — 127.0.0.1:${port} dark; ${presenceNudge(presence, addon)}`,
     }
   }
-  const client = presence.instance ? getVulcanClient(root, presence.instance.id) : null
+  const resolved = presence.instance ? resolveVulcanClient(root, presence.instance.id) : null
+  if (resolved && !resolved.ok && resolved.reason === 'unreadable') {
+    return {
+      state: 'unreachable',
+      port,
+      addon,
+      detail: resolved.message,
+    }
+  }
+  const client = resolved && resolved.ok ? resolved.client : null
   return {
     state: 'reachable',
     port,
@@ -407,17 +430,28 @@ function walkScenes(root: string): { scenes: string[]; total: number } {
   return { scenes, total }
 }
 
-async function vulcanCurrentScene(root: string): Promise<string | undefined> {
-  if (!vulcanEnabled()) return undefined
+async function vulcanCurrentScene(root: string): Promise<{ scene?: string; error?: string }> {
+  if (!vulcanEnabled()) return {}
   const presence = await probeVulcanEditorPresence(root)
-  if (!presence.reachable || !presence.instance) return undefined
-  const client = getVulcanClient(root, presence.instance.id)
-  if (!client) return undefined
-  const r = await client.request('scene_current', undefined, VULCAN_OP_TIMEOUT_MS)
-  if (!r.ok) return undefined
+  if (!presence.reachable || !presence.instance) {
+    if (!presence.instance && !presence.ambiguous?.length) {
+      const scan = scanVulcanInstances(root)
+      if (scan.unreadable.length > 0) {
+        const first = scan.unreadable[0]!
+        return { error: formatUnreadableVulcanInstance(first.path, first.error) }
+      }
+    }
+    return {}
+  }
+  const resolved = resolveVulcanClient(root, presence.instance.id)
+  if (!resolved.ok) {
+    return resolved.reason === 'unreadable' ? { error: resolved.message } : {}
+  }
+  const r = await resolved.client.request('scene_current', undefined, VULCAN_OP_TIMEOUT_MS)
+  if (!r.ok) return {}
   const edited = (r.result as { edited?: { path?: unknown } } | null)?.edited
   const scenePath = typeof edited?.path === 'string' ? edited.path : ''
-  return scenePath.startsWith('res://') ? scenePath : undefined
+  return scenePath.startsWith('res://') ? { scene: scenePath } : {}
 }
 
 export async function discoverGodotLaunchProfiles(root: string): Promise<GodotLaunchDiscovery> {
@@ -433,11 +467,11 @@ export async function discoverGodotLaunchProfiles(root: string): Promise<GodotLa
     })
   }
   const current = await vulcanCurrentScene(root)
-  if (current) {
-    const p = resolveResPath(root, current)
+  if (current.scene) {
+    const p = resolveResPath(root, current.scene)
     profiles.push({
       kind: 'current',
-      scene: current,
+      scene: current.scene,
       ...(p ? { path: p } : {}),
       label: 'current editor scene (VULCAN scene_current)',
     })
@@ -456,5 +490,6 @@ export async function discoverGodotLaunchProfiles(root: string): Promise<GodotLa
     profiles,
     sceneCount: total,
     truncatedScenes: Math.max(0, total - scenes.length),
+    ...(current.error ? { instanceError: current.error } : {}),
   }
 }

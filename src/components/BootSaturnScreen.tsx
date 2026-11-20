@@ -39,7 +39,8 @@ import { LOCAL_PULL_RECOMMENDATION } from '../services/providers/local/localAcco
 import { LOCAL_SETUP_OFFER } from '../commands/localsetup/words.js';
 import { clearFormRowOf, commitPromptOf, editFormRowOf, runNowOf, scheduleEditRpcOf, submitFormOf, type SaturnFormRowId } from './bootSaturn/actions.js';
 import { saturnMenuOf, saturnRowsView } from './bootSaturn/menu.js';
-import { passedOver } from '../utils/passedOver.js';
+import { getErrnoCode } from '../utils/errors.js';
+import { logError } from '../utils/log.js';
 
 
 const DETAIL_W = 38;
@@ -448,7 +449,7 @@ interface BootSaturnScreenProps {
   preflightOf?: (modelKey: string, nextFireMs: number | null) => SaturnFormPreflightV1;
 }
 
-function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
+export function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
   if (row.box === true) return [];
   try {
     return readSessionReceipts(getProjectDir(row.workspaceId), row.sessionId)
@@ -459,41 +460,42 @@ function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
       )
       .slice(-4);
   } catch (error) {
-    passedOver(error)
-    return [];
-  }
-}
-
-function liveModelOptions(): string[] {
-  try {
+    if (getErrnoCode(error) === 'ENOENT') return [];
+    logError(error);
     return [
-      ...new Set(
-        getModelOptions()
-          .map(o => o.value)
-          .filter(v => v.length > 0 && !v.startsWith(KEY_CONNECT_PREFIX)),
-      ),
+      {
+        at: '',
+        by: 'saturn-screen',
+        kind: 'schedule-held',
+        summary: `fire history could not be read (${error instanceof Error ? error.message : String(error)}) — press r to retry`,
+      },
     ];
-  } catch (error) {
-    passedOver(error)
-    return [];
   }
 }
 
-function livePresets(): string[] {
-  try {
-    return listKitPresets();
-  } catch (error) {
-    passedOver(error)
-    return [];
-  }
+export function liveModelOptions(): string[] {
+  return [
+    ...new Set(
+      getModelOptions()
+        .map(o => o.value)
+        .filter(v => v.length > 0 && !v.startsWith(KEY_CONNECT_PREFIX)),
+    ),
+  ];
 }
 
-function liveProjectDirs(): string[] {
+export function livePresets(): string[] {
+  return listKitPresets();
+}
+
+export function liveProjectDirs(): string[] {
+  return workedInProjects().map(p => p.dir);
+}
+
+export function runSaturnFormRowEdit(run: () => void, setFormNote: (note: string | null) => void): void {
   try {
-    return workedInProjects().map(p => p.dir);
+    run();
   } catch (error) {
-    passedOver(error)
-    return [];
+    setFormNote(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -636,7 +638,10 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
   };
 
   const editFormRow = (id: SaturnFormRowId): void => {
-    editFormRowOf({ form, setFormNote, setFormPrompt, setFormPick, modelOptionsOf, liveModelOptions, saturnWorkspacePickOptions, projectsOf, liveProjectDirs, setForm, presetsOf, livePresets, saturnOpeningPickOptions }, id);
+    runSaturnFormRowEdit(
+      () => editFormRowOf({ form, setFormNote, setFormPrompt, setFormPick, modelOptionsOf, liveModelOptions, saturnWorkspacePickOptions, projectsOf, liveProjectDirs, setForm, presetsOf, livePresets, saturnOpeningPickOptions }, id),
+      setFormNote,
+    );
   };
 
   const clearFormRow = (id: SaturnFormRowId): void => {

@@ -29,7 +29,7 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { connectableLoginFamilyWords, type TensorFoldOffer } from './loginFamilyRows.js'
 import { useTensorFoldOffer } from './tensorfold/tensorfoldFacts.js'
-import { passedOver } from '../utils/passedOver.js'
+import { logError } from '../utils/log.js'
 import { hostEnv } from '../utils/hostEnv.js'
 
 
@@ -281,6 +281,23 @@ function Guardrails({ onContinue, onBack }: { onContinue: () => void; onBack: ()
   )
 }
 
+export function runOnboardingTerminalSetup(
+  runSetup: () => Promise<unknown>,
+  onSuccess: () => void,
+  onError: (sentence: string) => void,
+): Promise<void> {
+  return runSetup()
+    .then(() => {
+      onSuccess()
+    })
+    .catch(error => {
+      logError(error)
+      onError(
+        `Terminal setup failed (${error instanceof Error ? error.message : String(error)}) — run /terminal-setup later; press Enter to continue`,
+      )
+    })
+}
+
 function TerminalKeys({
   theme,
   onDone,
@@ -291,6 +308,7 @@ function TerminalKeys({
   onBack: () => void
 }): React.ReactNode {
   const accent = useSessionAccent().accent
+  const [setupError, setSetupError] = useState<string | null>(null)
   const rows = [
     { id: 'install', label: TERMINAL_WORDS.install },
     { id: 'no', label: TERMINAL_WORDS.later },
@@ -300,16 +318,22 @@ function TerminalKeys({
     rowId: r => r.id,
     idNamespace: 'onboarding:terminal',
     initialId: 'no',
-    onClose: onBack,
+    onClose: setupError !== null ? onDone : onBack,
     actions: [
       {
         key: 'return',
         hint: '↵ select',
         run: r => {
+          if (setupError !== null) {
+            onDone()
+            return ''
+          }
           if (r?.id === 'install') {
-            void setupTerminal(theme === 'auto' ? DEFAULT_THEME_SETTING : theme)
-              .catch(passedOver)
-              .finally(onDone)
+            void runOnboardingTerminalSetup(
+              () => setupTerminal(theme === 'auto' ? DEFAULT_THEME_SETTING : theme),
+              onDone,
+              setSetupError,
+            )
           } else {
             onDone()
           }
@@ -337,6 +361,11 @@ function TerminalKeys({
           </InteractiveRow>
         ))}
       </Box>
+      {setupError !== null ? (
+        <Box marginTop={1}>
+          <Text color={AMBER}>{setupError}</Text>
+        </Box>
+      ) : null}
     </Box>
   )
 }

@@ -53,7 +53,7 @@ import {
   daemonControlRpc,
   daemonDir,
   mintControlKey,
-  readControlKey,
+  readLiveControlKey,
   readDaemonState,
   daemonExitTeardownSync,
   daemonStatePath,
@@ -200,7 +200,7 @@ async function daemonRun(args: string[]): Promise<void> {
     `${stampDaemonLogLine(`[mercury-daemon] engaged v${MERCURY_VERSION} pid ${process.pid} dir ${dir}`)}\n`,
   )
   if (!foreground) installStampedDaemonLog()
-  console.error(`[daemon] build ${bootBuildTree ?? 'unstamped'} at ${bootScript || '?'} (${buildHold === 'held' ? 'the build folder is held open for the installer' : 'no manifest beside the bundle'})`)
+  console.error(`[daemon] build ${bootBuildTree ?? 'unstamped'} at ${bootScript || '?'} (${buildHold === 'held' ? 'the build folder is held open for the installer' : typeof buildHold === 'object' ? `the build folder could not be held open for the installer (${buildHold.unheld}), so it may be replaced while this daemon runs` : 'no manifest beside the bundle'})`)
 
   const scrubbed = scrubDaemonRoleEnv()
   if (scrubbed.length > 0) {
@@ -299,7 +299,7 @@ async function daemonRun(args: string[]): Promise<void> {
       roster = atBootStep(state, 'the roster')(makeDaemonRoster(state))
       state.roster = roster
       if (handoverPredecessor === null) resetSeatProjections(dir)
-      const controlKey = atBootStep(state, 'the control key')(handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey())))
+      const controlKey = atBootStep(state, 'the control key')(handoverPredecessor === null ? await mintControlKey() : ((await readLiveControlKey()) ?? (await mintControlKey())))
       const warmDeps = {
         roster: () => roster ?? undefined,
         onWarmSpawned: (short: string, workspaceId: string, pid: number | undefined) => {

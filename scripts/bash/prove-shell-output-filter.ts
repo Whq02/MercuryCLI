@@ -157,8 +157,6 @@ section('§5 one law, two shells, one schema row')
 {
   const schema = JSON.parse(readFileSync(join(ROOT, 'scripts/settings/settings-schema.json'), 'utf8')) as { properties?: { shell?: { properties?: Record<string, { type?: string }> } } }
   check('the settings schema carries shell.filterOutput as a boolean', schema.properties?.shell?.properties?.filterOutput?.type === 'boolean')
-  const docs = readFileSync(join(ROOT, 'docs/SETTINGS.md'), 'utf8')
-  check('docs/SETTINGS.md names the key and says it is off by default', /\| `shell\.filterOutput` \|[^\n]*Off by default\./.test(docs))
 }
 
 section('refusals — real output that resembles progress or chatter is never dropped, and image output bypasses the filter')

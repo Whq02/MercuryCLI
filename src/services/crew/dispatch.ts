@@ -318,9 +318,9 @@ async function runDispatchTransaction(
   const ranTransaction =
     reservation.kind === 'reserved' || (retryingUnknown !== null && receipt !== retryingUnknown)
   if (draft.sourceConversationId !== undefined && ranTransaction) {
+    const ref = `receipt:${receipt.clientMessageId}`
     try {
       const conversations = await import('./conversations.js')
-      const ref = `receipt:${receipt.clientMessageId}`
       if (receipt.state === 'delivered') {
         await conversations.appendConversationEvent(
           draft.sourceConversationId,
@@ -348,6 +348,11 @@ async function runDispatchTransaction(
           dir !== undefined ? { dir } : undefined,
         )
       }
+    } catch (error) {
+      logForDebugging(`[crew/dispatch] conversation mirror failed for ${ref}: ${error}`)
+      passedOver(error)
+    }
+    try {
       const obligations = await import('./obligations.js')
       if (receipt.state === 'delivered') {
         await obligations.resolveObligationByRef(ref, {
@@ -376,6 +381,7 @@ async function runDispatchTransaction(
         })
       }
     } catch (error) {
+      logForDebugging(`[crew/dispatch] obligation mirror failed for ${ref}: ${error}`)
       passedOver(error)
     }
   }

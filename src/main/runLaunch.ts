@@ -23,6 +23,7 @@ import { validateForceLoginOrg } from '../utils/auth.js'
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { logForDebugging } from '../utils/debug.js'
+import { logError } from '../utils/log.js'
 import { describeEffortEnvOverride, type EffortLevel } from '../utils/effort.js'
 import { isBareMode } from '../utils/envUtils.js'
 import { runSessionStartHooks } from '../utils/sessionStart.js'
@@ -214,7 +215,10 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
           updater => store.setState(updater),
         ),
       )
-      .catch(passedOver)
+      .catch(error => {
+        logError(error)
+        writeErr(`bypass permissions stays on: your organization's security policy could not be checked (${error instanceof Error ? error.message : String(error)})`)
+      })
   }
 
   if (opts.ephemeral === true) {

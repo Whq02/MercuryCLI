@@ -7,8 +7,8 @@ import {
 } from '../../projectServices/contracts.js'
 import {
   readLogs,
-  reconcileAll,
-  reconcileRecord,
+  reconcileAllStrict,
+  reconcileRecordStrict,
 } from '../../projectServices/serviceManager.js'
 import {
   formatRef,
@@ -26,15 +26,18 @@ export const serviceAdapter: ResourceAdapter = {
       return { state: 'unavailable', note: 'project services are disabled (MERCURY_SERVICES=0)' }
     }
     if (ref.id === '') {
-      const records = reconcileAll(getOriginalCwd())
+      const listed = reconcileAllStrict(getOriginalCwd())
+      if (!listed.ok) return { state: 'unavailable', note: listed.error }
+      const { records, unreadable } = listed
       return {
         state: 'ok',
         resource: {
           ref: 'mercury://service',
           kind: 'service',
           title: 'project services',
-          summary: `${records.length} service(s) · ${records.filter(r => ['ready', 'running', 'starting'].includes(r.state)).length} live`,
+          summary: `${records.length} service(s) · ${records.filter(r => ['ready', 'running', 'starting'].includes(r.state)).length} live${unreadable.length > 0 ? ` · ${unreadable.length} not read` : ''}`,
           mutable: true,
+          ...(unreadable.length > 0 ? { text: unreadable.map(u => `not read: ${u.name} (${u.error})`).join('\n') } : {}),
           children: records.map(r => ({
             ref: formatRef('service', r.spec.name),
             title: r.spec.name,
@@ -43,7 +46,12 @@ export const serviceAdapter: ResourceAdapter = {
         },
       }
     }
-    const record = SERVICE_NAME_RE.test(ref.id) ? reconcileRecord(getOriginalCwd(), ref.id) : null
+    if (!SERVICE_NAME_RE.test(ref.id)) {
+      return { state: 'absent', note: `no service '${ref.id}' in this project` }
+    }
+    const loaded = reconcileRecordStrict(getOriginalCwd(), ref.id)
+    if (!loaded.ok) return { state: 'unavailable', note: loaded.error }
+    const record = loaded.record
     if (!record) {
       return { state: 'absent', note: `no service '${ref.id}' in this project` }
     }

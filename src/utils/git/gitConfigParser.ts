@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { passedOver } from '../passedOver.js'
+import { isENOENT } from '../errors.js'
 
 
 function matchesSectionHeader(line: string, section: string, subsection: string | null): boolean {
@@ -121,7 +121,7 @@ export async function parseGitConfigValue(
     const content = await readFile(join(gitDir, 'config'), 'utf8')
     return parseConfigString(content, section, subsection, key)
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
 }

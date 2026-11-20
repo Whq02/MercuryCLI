@@ -30,6 +30,7 @@ export interface PathEntryIo {
   removeFile(path: string): void
   resolveCommand(name: string): string | null
   zshDotDir(): string | null
+  zshDotDirError?(): string | null
   readUserPath(): UserPathRead
   writeUserPath(expected: string, value: string, kind: UserPathKind): void
 }
@@ -42,9 +43,9 @@ export type PathRemovalOutcome =
 export type PathEntryOutcome =
   | { state: 'on-path'; dir: string; line: string }
   | { state: 'reachable'; dir: string; resolved: string; line: string }
-  | { state: 'present'; dir: string; targets: string[]; line: string }
-  | { state: 'would-write'; dir: string; targets: string[]; line: string }
-  | { state: 'written'; dir: string; targets: string[]; line: string }
+  | { state: 'present'; dir: string; targets: string[]; line: string; note?: string }
+  | { state: 'would-write'; dir: string; targets: string[]; line: string; note?: string }
+  | { state: 'written'; dir: string; targets: string[]; line: string; note?: string }
   | { state: 'refused'; dir: string; reason: string; line: string }
 
 
@@ -215,16 +216,33 @@ const refusal = (roots: LayoutRoots, io: Pick<PathEntryIo, 'env' | 'home'>, reas
   line: manualPathLine(roots, io),
 })
 
-export function zshStartupDir(io: Pick<PathEntryIo, 'env' | 'home' | 'zshDotDir'>): string {
+function zshStartupDirWithNote(io: Pick<PathEntryIo, 'env' | 'home' | 'zshDotDir' | 'zshDotDirError'>): { dir: string; note?: string } {
   const fromEnv = io.env.ZDOTDIR ?? ''
-  if (fromEnv.startsWith('/')) return fromEnv
+  if (fromEnv.startsWith('/')) return { dir: fromEnv }
   let asked: string | null = null
   try {
     asked = io.zshDotDir()
   } catch (error) {
     passedOver(error)
+    return {
+      dir: io.home,
+      note: `zsh could not be asked for its startup folder (${errorText(error)}), so the PATH line went to ~/.zshrc; move it if your zsh reads another folder.`,
+    }
   }
-  return asked !== null && asked.startsWith('/') ? asked : io.home
+  if (asked === null) {
+    const probeErr = io.zshDotDirError?.() ?? null
+    if (probeErr !== null) {
+      return {
+        dir: io.home,
+        note: `zsh could not be asked for its startup folder (${probeErr}), so the PATH line went to ~/.zshrc; move it if your zsh reads another folder.`,
+      }
+    }
+  }
+  return { dir: asked !== null && asked.startsWith('/') ? asked : io.home }
+}
+
+export function zshStartupDir(io: Pick<PathEntryIo, 'env' | 'home' | 'zshDotDir'>): string {
+  return zshStartupDirWithNote(io).dir
 }
 
 const BASH_LOGIN_FILES = ['.bash_profile', '.bash_login', '.profile']
@@ -236,11 +254,15 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
   const spelled = spellUnderHome(dir, io.home)
   let targets: string[]
   let text: string
+  let zshNote: string | undefined
   switch (shell) {
-    case 'zsh':
-      targets = [join(zshStartupDir(io), '.zshrc')]
+    case 'zsh': {
+      const resolved = zshStartupDirWithNote(io)
+      targets = [join(resolved.dir, '.zshrc')]
+      zshNote = resolved.note
       text = `${shGuardedLine(spelled)}\n`
       break
+    }
     case 'bash': {
       const login =
         BASH_LOGIN_FILES.map(name => join(io.home, name)).find(candidate => io.readFile(candidate) !== null) ??
@@ -265,7 +287,8 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
     const content = existing.has(target) ? existing.get(target) ?? null : io.readFile(target)
     return content !== null && textNamesDir(content, dir, io.home)
   })
-  if (naming.length > 0) return { outcome: { state: 'present', dir, targets: naming, line } }
+  const noteSpread = zshNote !== undefined ? { note: zshNote } : {}
+  if (naming.length > 0) return { outcome: { state: 'present', dir, targets: naming, line, ...noteSpread } }
   const apply = (): PathEntryOutcome => {
     const written: string[] = []
     for (const target of targets) {
@@ -279,9 +302,9 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
       }
       written.push(target)
     }
-    return { state: 'written', dir, targets: written, line }
+    return { state: 'written', dir, targets: written, line, ...noteSpread }
   }
-  return { outcome: { state: 'would-write', dir, targets, line }, apply }
+  return { outcome: { state: 'would-write', dir, targets, line, ...noteSpread }, apply }
 }
 
 function decideWin32(roots: LayoutRoots, io: PathEntryIo): Decision {
@@ -517,6 +540,7 @@ function writeUserPathFile(file: string, expected: string, value: string, kind: 
 
 export function realPathEntryIo(opts: { powershell?: () => string | null } = {}): PathEntryIo {
   const storeFile = flagEnv('MERCURY_USER_PATH_FILE')
+  let lastZshDotDirError: string | null = null
   return {
     env: hostEnv(),
     home: homedir(),
@@ -540,15 +564,18 @@ export function realPathEntryIo(opts: { powershell?: () => string | null } = {})
     },
     resolveCommand: name => whichSync(name),
     zshDotDir() {
+      lastZshDotDirError = null
       const zsh = whichSync('zsh')
       if (zsh === null) return null
       try {
         return execFileSync(zsh, ['-c', 'printf %s "${ZDOTDIR-}"'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5_000, env: subprocessEnv() }).trim() || null
       } catch (error) {
         passedOver(error)
+        lastZshDotDirError = errorText(error)
         return null
       }
     },
+    zshDotDirError: () => lastZshDotDirError,
     readUserPath: () => (storeFile ? readUserPathFile(storeFile) : readUserPathRegistry(opts.powershell)),
     writeUserPath: (expected, value, kind) =>
       storeFile ? writeUserPathFile(storeFile, expected, value, kind) : writeUserPathRegistry(opts.powershell, expected, value, kind),

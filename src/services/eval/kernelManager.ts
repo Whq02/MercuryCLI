@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { logForDebugging } from '../../utils/debug.js'
-import { killProcessGroup } from '../../utils/processGroup.js'
+import { endProcessTree } from '../../utils/processGroup.js'
 import { sleep } from '../../utils/sleep.js'
 import { getToolResultsDir } from '../../utils/toolResultStorage.js'
 import { clampClause } from '../../utils/waitCeiling.js'
@@ -85,14 +85,29 @@ export async function recoverEvalKernels(): Promise<string[]> {
       if (isJournalWriterAlive(op)) continue
       const payload = (op.payload ?? {}) as { pid?: number; language?: string; interpreter?: string }
       let reaped = false
+      let reapFailure: string | null = null
       if (typeof payload.pid === 'number') {
         try {
           const pid = payload.pid
-          killProcessGroup({ pid, kill: signal => (process.kill(pid, signal), true) })
-          reaped = true
+          const receipt = await endProcessTree({ pid, kill: signal => (process.kill(pid, signal), true) })
+          if (receipt.survivors.length > 0) {
+            reapFailure = `reap failed (survivors: ${receipt.survivors.join(', ')})`
+          } else {
+            reaped = receipt.ended > 0
+          }
         } catch (error) {
-          passedOver(error)
+          if ((error as NodeJS.ErrnoException | null)?.code === 'ESRCH') {
+            passedOver(error)
+          } else {
+            reapFailure = `reap failed (${error instanceof Error ? error.message : String(error)})`
+          }
         }
+      }
+      if (reapFailure !== null) {
+        notes.push(
+          `orphaned ${payload.language ?? '?'} kernel from pid ${op.writerPid} (kernel pid ${payload.pid ?? '?'}) — ${reapFailure}`,
+        )
+        continue
       }
       notes.push(
         `orphaned ${payload.language ?? '?'} kernel from pid ${op.writerPid} (kernel pid ${payload.pid ?? '?'}) — ${reaped ? 'reaped' : 'already gone'}`,
@@ -577,7 +592,14 @@ async function runCellOnceOf(
         else if (wall.expired()) interruptRequested = 'wall'
         if (interruptRequested !== null) {
           interruptAt = Date.now()
-          entry.kernel.interrupt()
+          try {
+            entry.kernel.interrupt()
+          } catch (error) {
+            logForDebugging(`eval kernel interrupt failed: ${String(error)}`)
+            escalated = true
+            entry.kernel.kill()
+            return
+          }
         }
       } else if (interruptAt !== null && Date.now() - interruptAt > EVAL_INTERRUPT_ESCALATION_MS) {
         escalated = true

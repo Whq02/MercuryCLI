@@ -31,6 +31,7 @@ import { lock } from './lockfile.js'
 import { logError } from './log.js'
 import { loginShadowWarningFor } from './loginShadow.js'
 import {
+  clearCredentialStoreReadError,
   clearKeychainCache,
   clearLegacyApiKeyPrefetch,
   ensureKeychainPrefetchCompleted,
@@ -38,6 +39,7 @@ import {
   getMacOsKeychainStorageServiceName,
   getSecureStorage,
   getUsername,
+  noteCredentialStoreReadError,
 } from './secureStorage/index.js'
 import { keychainReachable } from './secureStorage/macOsKeychainHelpers.js'
 import { readKeychainServiceSync } from './secureStorage/macOsKeychainStorage.js'
@@ -621,8 +623,10 @@ function readStoredOAuthTokens(): OAuthTokens | null {
   if (fromFd !== null) return synthesizedEnvToken(fromFd)
   try {
     const stored = getSecureStorage().read()?.claudeAiOauth
+    clearCredentialStoreReadError()
     return overlayUnsavedRefresh(stored?.accessToken ? stored : null)
   } catch (error) {
+    noteCredentialStoreReadError(error)
     logError(error)
   }
   return null
@@ -638,9 +642,11 @@ export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null>
   if (fromFd !== null) return synthesizedEnvToken(fromFd)
   try {
     const data = await getSecureStorage().readAsync()
+    clearCredentialStoreReadError()
     const stored = data?.claudeAiOauth
     return overlayUnsavedRefresh(stored?.accessToken ? stored : null)
   } catch (error) {
+    noteCredentialStoreReadError(error)
     logError(error)
   }
   return null
@@ -648,8 +654,11 @@ export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null>
 
 export function hasStoredOAuthToken(): boolean {
   try {
-    return getSecureStorage().read()?.claudeAiOauth?.accessToken !== undefined
+    const has = getSecureStorage().read()?.claudeAiOauth?.accessToken !== undefined
+    clearCredentialStoreReadError()
+    return has
   } catch (error) {
+    noteCredentialStoreReadError(error)
     passedOver(error)
     return false
   }

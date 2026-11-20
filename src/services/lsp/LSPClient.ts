@@ -292,7 +292,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       await connection.sendNotification(method, params)
     } catch (err) {
       logForDebugging(`LSP server ${serverName} notification ${method} failed: ${String(err)}`, { level: 'error' })
-      logForDebugging(`LSP server ${serverName}: continuing after failed notification ${method}`)
+      throw err
     }
   }
 

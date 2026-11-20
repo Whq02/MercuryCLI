@@ -27,7 +27,7 @@ import {
   renderEvalResultMessage,
   renderEvalToolUseMessage,
 } from './UI.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { errorMessage } from '../../utils/errors.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 const inputSchema = () => {
@@ -80,15 +80,17 @@ function composeResultText(output: EvalToolOutput): string {
   return parts.join('\n')
 }
 
-function screenshotImageOf(screenshot: BridgeScreenshot | undefined): { mediaType: 'image/png' | 'image/jpeg'; data: string } | null {
+function screenshotImageOf(
+  screenshot: BridgeScreenshot | undefined,
+): { ok: true; mediaType: 'image/png' | 'image/jpeg'; data: string } | { ok: false; note: string } | null {
   if (screenshot === undefined || !modelReceivesImageBlocks(getEngineModel())) return null
+  const path = screenshot.inlinePath ?? screenshot.imagePath
   try {
-    const bytes = readFileSync(screenshot.inlinePath ?? screenshot.imagePath)
+    const bytes = readFileSync(path)
     const mediaType = screenshot.inlinePath !== undefined && screenshot.inlineMediaType === 'image/jpeg' ? 'image/jpeg' : 'image/png'
-    return { mediaType, data: bytes.toString('base64') }
+    return { ok: true, mediaType, data: bytes.toString('base64') }
   } catch (error) {
-    passedOver(error)
-    return null
+    return { ok: false, note: `(image not inlined — could not read ${path} (${errorMessage(error)}))` }
   }
 }
 
@@ -255,12 +257,15 @@ ${languages}`
     }
   },
   mapToolResultToToolResultBlockParam(output: EvalToolOutput, toolUseID) {
-    const text = composeResultText(output)
+    let text = composeResultText(output)
     const images = output.displays.filter(
       d => (d.mime === 'image/png' || d.mime === 'image/jpeg') && d.b64 === true,
     ).map(image => ({ mediaType: image.mime as 'image/png' | 'image/jpeg', data: image.data }))
     const screenshot = screenshotImageOf(output.screenshot)
-    if (screenshot !== null) images.unshift(screenshot)
+    if (screenshot !== null) {
+      if (screenshot.ok) images.unshift(screenshot)
+      else text = `${text}\n${screenshot.note}`
+    }
     if (images.length === 0) {
       return { tool_use_id: toolUseID, type: 'tool_result', content: text, ...(output.status !== 'ok' ? { is_error: true } : {}) }
     }

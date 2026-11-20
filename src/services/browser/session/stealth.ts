@@ -77,9 +77,7 @@ function pageStealthInit(langs: string[]): void {
     })
   }
   if (Object.prototype.hasOwnProperty.call(navigator, 'webdriver')) {
-    try {
-      delete (navigator as { webdriver?: boolean }).webdriver
-    } catch {}
+    Reflect.deleteProperty(navigator, 'webdriver')
   }
   const nativeLanguages = Object.getOwnPropertyDescriptor(navProto, 'languages')?.get
   let frozenLangs = Object.freeze([...langs])

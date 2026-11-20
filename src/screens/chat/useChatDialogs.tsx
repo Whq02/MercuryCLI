@@ -25,7 +25,13 @@ export type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
 type ElicitationQueue = AppState['elicitation']['queue'];
 
-export function useChatDialogs({ store }: { store: AppStateStore }) {
+export function useChatDialogs({
+  store,
+  addNotification,
+}: {
+  store: AppStateStore;
+  addNotification?: ReturnType<typeof useNotifications>['addNotification'];
+}) {
   const [toolJSX, setToolJSXState] = useState<ToolJSXState>(null);
   const setToolJSX: SetToolJSXFn = useCallback(next => {
     setToolJSXState(prev => resolveToolJSX(prev, next));
@@ -57,11 +63,19 @@ export function useChatDialogs({ store }: { store: AppStateStore }) {
         }
         setExitCommandJsx(element);
       } catch (error) {
-        logForDebugging(`exit command failed: ${String(error)}`);
+        const detail = error instanceof Error ? error.message : String(error);
+        logForDebugging(`exit command failed: ${detail}`);
         setIsExiting(false);
+        addNotification?.({
+          key: 'exit-failed',
+          text: `Could not exit (${detail}) — press ctrl+c to quit.`,
+          priority: 'high',
+          color: 'error' as const,
+          timeoutMs: RECEIPT_TIMEOUT_MS,
+        });
       }
     })();
-  }, [store]);
+  }, [store, addNotification]);
   return { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit };
 }
 

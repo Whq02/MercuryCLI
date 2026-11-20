@@ -15,6 +15,7 @@ import {
   type ExecutionSpec,
   type ExecutionState,
 } from './execution.js'
+import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const SETTLED_RING_CAP = 128
@@ -249,6 +250,7 @@ export function requestStopExecution(owner: OwnerKey, id: string): ExecutionReco
     try {
       domainHooks().get(record.spec.kind)?.requestStop?.(next)
     } catch (error) {
+      logError(error)
       passedOver(error)
     }
   }

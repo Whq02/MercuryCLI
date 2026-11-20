@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { getFsImplementation } from './fsOperations.js'
 import { CUSTOMIZATION_SURFACES } from './settings/types.js'
 import { getManagedFilePath } from './settings/managedPath.js'
-import { passedOver } from './passedOver.js'
 
 type ManagedPolicyWarning = { issue: string; fix: string }
 
@@ -12,12 +11,7 @@ export function managedPolicyPath(): string {
 }
 
 export function managedPolicyPresent(): boolean {
-  try {
-    return getFsImplementation().existsSync(managedPolicyPath())
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return getFsImplementation().existsSync(managedPolicyPath())
 }
 
 export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
@@ -35,35 +29,30 @@ export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
       },
     ]
   }
-  try {
-    const parsed = JSON.parse(raw) as { extensions?: { exclusive?: unknown } }
-    const value = parsed.extensions?.exclusive
-    if (value === undefined) return []
-    const knownSurfaces: readonly string[] = [...CUSTOMIZATION_SURFACES]
-    if (typeof value !== 'boolean' && !Array.isArray(value)) {
+  const parsed = JSON.parse(raw) as { extensions?: { exclusive?: unknown } }
+  const value = parsed.extensions?.exclusive
+  if (value === undefined) return []
+  const knownSurfaces: readonly string[] = [...CUSTOMIZATION_SURFACES]
+  if (typeof value !== 'boolean' && !Array.isArray(value)) {
+    return [
+      {
+        issue: `managed-settings.json: extensions.exclusive has an invalid value of type ${typeof value}.`,
+        fix: `The value reads as a full lock — every customization surface is restricted to extensions. Acceptable forms: true, or an array of surface names (${knownSurfaces.join(', ')}).`,
+      },
+    ]
+  }
+  if (Array.isArray(value)) {
+    const unrecognised = value.filter(
+      entry => typeof entry === 'string' && !knownSurfaces.includes(entry),
+    )
+    if (unrecognised.length > 0) {
       return [
         {
-          issue: `managed-settings.json: extensions.exclusive has an invalid value of type ${typeof value}.`,
-          fix: `The value reads as a full lock — every customization surface is restricted to extensions. Acceptable forms: true, or an array of surface names (${knownSurfaces.join(', ')}).`,
+          issue: `managed-settings.json: extensions.exclusive contains ${unrecognised.length} unrecognised surface name(s): ${unrecognised.join(', ')}.`,
+          fix: `Unrecognised names are ignored for forwards compatibility. Known surfaces for this version: ${knownSurfaces.join(', ')}. Either remove them, or this client is older than the settings intended.`,
         },
       ]
     }
-    if (Array.isArray(value)) {
-      const unrecognised = value.filter(
-        entry => typeof entry === 'string' && !knownSurfaces.includes(entry),
-      )
-      if (unrecognised.length > 0) {
-        return [
-          {
-            issue: `managed-settings.json: extensions.exclusive contains ${unrecognised.length} unrecognised surface name(s): ${unrecognised.join(', ')}.`,
-            fix: `Unrecognised names are ignored for forwards compatibility. Known surfaces for this version: ${knownSurfaces.join(', ')}. Either remove them, or this client is older than the settings intended.`,
-          },
-        ]
-      }
-    }
-    return []
-  } catch (error) {
-    passedOver(error)
-    return []
   }
+  return []
 }

@@ -7,7 +7,7 @@ import {
   censusPlatform,
   editorsForProject,
   isGodotExecutable,
-  runningGodotProcesses,
+  strictGodotCensus,
   type CensusPlatform,
   type GodotProcess,
 } from './godotProcessCensus.js'
@@ -31,6 +31,7 @@ interface ExecutableReceipt {
   source: 'pin' | 'running-editor' | 'PATH' | 'well-known-location' | 'not-found'
   note: string
   probed: string[]
+  censusError?: string
 }
 
 interface SemanticLaunch {
@@ -239,17 +240,28 @@ async function resolveGodotExecutableNow(opts: ResolveGodotOptions): Promise<Exe
   const probed = godotWellKnownRoots(platform, env)
   const pinned = pinnedGodotExecutable(opts.env === undefined ? flagEnv('MERCURY_GODOT_EXECUTABLE') : flagEnv('MERCURY_GODOT_EXECUTABLE', env), fs, probed)
   if (pinned !== null) return pinned
-  const census = opts.census ?? (await runningGodotProcesses({ platform }))
+  let census: GodotProcess[] = []
+  let censusError: string | undefined
+  if (opts.census !== undefined) {
+    census = opts.census
+  } else {
+    try {
+      census = await strictGodotCensus({ platform })
+    } catch (error) {
+      passedOver(error)
+      censusError = `the running Godot processes could not be listed (${error instanceof Error ? error.message : String(error)})`
+    }
+  }
 
   const mine = opts.projectRoot ? editorsForProject(census, opts.projectRoot, platform).filter(p => p.project) : []
   if (mine[0]) {
     return { resolved: mine[0].executable, source: 'running-editor', note: `the running editor's own executable (pid ${mine[0].pid}, this project)`, probed }
   }
   const onPath = godotOnPath(platform, env, fs)
-  if (onPath !== undefined) return { resolved: onPath.path, source: 'PATH', note: onPath.note, probed }
+  if (onPath !== undefined) return { resolved: onPath.path, source: 'PATH', note: onPath.note, probed, ...(censusError ? { censusError } : {}) }
   for (const root of probed) {
     const found = findGodotInRoot(root, platform, fs)
-    if (found) return { resolved: found, source: 'well-known-location', note: `resolved under ${root}`, probed }
+    if (found) return { resolved: found, source: 'well-known-location', note: `resolved under ${root}`, probed, ...(censusError ? { censusError } : {}) }
   }
   const any = census.find(p => p.editor) ?? census[0]
   if (any) {
@@ -262,8 +274,11 @@ async function resolveGodotExecutableNow(opts: ResolveGodotOptions): Promise<Exe
   }
   return {
     source: 'not-found',
-    note: `no godot executable on PATH, under ${probed.length} well-known root(s), or running — install Godot or add it to PATH`,
+    note: censusError
+      ? `no godot executable on PATH or under ${probed.length} well-known root(s); ${censusError} — install Godot or add it to PATH`
+      : `no godot executable on PATH, under ${probed.length} well-known root(s), or running — install Godot or add it to PATH`,
     probed,
+    ...(censusError ? { censusError } : {}),
   }
 }
 
@@ -320,8 +335,12 @@ function projectSkillFiles(projectRoot: string): string[] {
     try {
       entries = readdirSync(dir)
     } catch (error) {
-      passedOver(error)
-      continue
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        passedOver(error)
+        continue
+      }
+      throw error
     }
     for (const e of entries) {
       const skillMd = join(dir, e, 'SKILL.md')
@@ -342,6 +361,7 @@ export async function godotPortabilityReport(projectRoot: string, opts: { census
   try {
     live = liveInputActions(readFileSync(join(projectRoot, 'project.godot'), 'utf8'))
   } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     passedOver(error)
   }
   for (const skillFile of projectSkillFiles(projectRoot)) {
@@ -349,8 +369,11 @@ export async function godotPortabilityReport(projectRoot: string, opts: { census
     try {
       text = readFileSync(skillFile, 'utf8')
     } catch (error) {
-      passedOver(error)
-      continue
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        passedOver(error)
+        continue
+      }
+      throw error
     }
     text.split('\n').forEach((line, i) => {
       for (const m of line.matchAll(ABS_PATH_RE)) {

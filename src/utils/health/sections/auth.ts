@@ -61,24 +61,20 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
 }
 
 function routedAuthFamily(): string {
-  try {
-    const { declaredRouteOf } = require('../../../services/providers/routeLaw.js') as typeof import('../../../services/providers/routeLaw.js')
-    if (getUserSpecifiedModelSetting() === null) {
-      const decision = computedDefault()
-      if (decision.provider !== null) return decision.provider
-      const signedIn = mostRecentSignInFamily()
-      if (signedIn !== undefined) return signedIn
-    }
-    return declaredRouteOf(getEngineModel()) ?? 'anthropic'
-  } catch (error) {
-    passedOver(error)
-    return 'anthropic'
+  const { declaredRouteOf } = require('../../../services/providers/routeLaw.js') as typeof import('../../../services/providers/routeLaw.js')
+  if (getUserSpecifiedModelSetting() === null) {
+    const decision = computedDefault()
+    if (decision.provider !== null) return decision.provider
+    const signedIn = mostRecentSignInFamily()
+    if (signedIn !== undefined) return signedIn
   }
+  return declaredRouteOf(getEngineModel()) ?? 'anthropic'
 }
 
 function providerAuthChecks(): CheckSpec[] {
   const snap = buildProviderSnapshot()
-  const routedFamily = routedAuthFamily()
+  let cachedRoutedFamily: string | undefined
+  const getRoutedFamily = (): string => (cachedRoutedFamily ??= routedAuthFamily())
   return snap.providers.map((provider): CheckSpec => {
     const meta = PROVIDER_AUTH_PRESENTATION[provider.id] ?? {
       label: provider.id,
@@ -95,6 +91,7 @@ function providerAuthChecks(): CheckSpec[] {
             require('../../../services/providers/providerUsage.js') as typeof import('../../../services/providers/providerUsage.js')
           const presence = anthropicCredentialPresence()
           if (!presence.credentialed) {
+            const routedFamily = getRoutedFamily()
             if (routedFamily !== 'anthropic') {
               return {
                 status: 'info' as const,
@@ -154,6 +151,7 @@ function providerAuthChecks(): CheckSpec[] {
         }
         const account = provider.description.account
         if (account.kind === 'none') {
+          const routedFamily = getRoutedFamily()
           if (provider.id === routedFamily) {
             return {
               status: 'warn' as const,
@@ -183,8 +181,13 @@ function providerUsageChecks(): CheckSpec[] {
     owner = require('../../../services/providers/providerUsage.js') as typeof import('../../../services/providers/providerUsage.js')
     presences = owner.providerFamilyPresences()
   } catch (error) {
-    passedOver(error)
-    return []
+    return [{
+      id: 'usage',
+      label: 'Provider usage',
+      run: () => {
+        throw error
+      },
+    }]
   }
   const { providerDisplayName } = require('../../../services/providers/routeLaw.js') as typeof import('../../../services/providers/routeLaw.js')
   return presences

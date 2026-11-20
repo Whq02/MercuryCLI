@@ -7,6 +7,8 @@ import { useFlatList } from '../mercury-ui/useFlatList.js'
 import { factMemoryState, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
 import { mnemeEnabled, mnemeLibraryDir } from '../../mneme/mnemeGates.js'
+import { mnemeUnreadSentence } from '../../mneme/mnemeUnread.js'
+import { mnemeProjectKey, projectRecordsDir } from '../../mneme/paths.js'
 import { readSignalLog, signalCounts, SIGNAL_TURN_LIMIT } from '../../mneme/mnemeSignal.js'
 import { readDocLines } from '../../mneme/mnemeRetrieval.js'
 import { liveEntryIndex } from '../../mneme/mnemeFrontPage.js'
@@ -327,7 +329,9 @@ export function MemoryCentreView({
     const pending = correcting.ts === null ? undefined : pendingRows().find(r => r.ts === correcting.ts)
     return wrapText(live?.entry.text ?? pending?.text ?? detail?.summary ?? '', Math.max(8, textWidth - 5))
   }, [correcting, detail, textWidth])
-  const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 6 - (fl.note ? 2 : 0))
+  const unreadText = mnemeUnreadSentence([mnemeLibraryDir(), projectRecordsDir(mnemeProjectKey())])
+  const activeNote = fl.note ?? (unreadText !== null ? { kind: 'warn' as const, text: unreadText } : null)
+  const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 6 - (activeNote ? 2 : 0))
   const openLines = page ? page.lines : detail ? detailLines : []
   const pageWin = pageWindow(openLines.length, pageOffset, pageRows)
   const openedPage = React.useRef<{ page: Page | null; seqs: Set<number> }>({ page: null, seqs: new Set() })
@@ -339,7 +343,7 @@ export function MemoryCentreView({
     bumpUsage(seqs)
     for (const seq of seqs) openedPage.current.seqs.add(seq)
   }, [page, pageWin.start, pageWin.end])
-  const { visible, above, below, clampedSel, note, loadError, list } = fl
+  const { visible, above, below, clampedSel, loadError, list } = fl
 
   useInput(
     (input, key, event) => {
@@ -377,5 +381,5 @@ export function MemoryCentreView({
     onHint?.(footer)
   }, [footer, onHint])
 
-  return centreView({ view, list, query, searchFocus, detail, page, correcting, inner, tok, accent, textWidth, roomy, detailLineBudget, pageWin, openLines, fl, pins, detailPinned, detailPin, correctingLines, loadError, searching, above, visible, clampedSel, below, note, selectedOverview, onHint, footer })
+  return centreView({ view, list, query, searchFocus, detail, page, correcting, inner, tok, accent, textWidth, roomy, detailLineBudget, pageWin, openLines, fl, pins, detailPinned, detailPin, correctingLines, loadError, searching, above, visible, clampedSel, below, note: activeNote, selectedOverview, onHint, footer })
 }

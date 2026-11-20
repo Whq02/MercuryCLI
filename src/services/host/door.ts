@@ -13,7 +13,7 @@ import { inspectCompatServer } from '../providers/openaicompat/compatProbe.js'
 import { cachedCompatCatalogue, refreshCompatCatalogues, rememberCompatCatalogue } from '../providers/openaicompat/compatCatalogue.js'
 import { currentHostRecipes, currentPrivateHostRecipes } from './recipesFile.js'
 import { choosePrivateRecipesFile, privateRecipesRow, PRIVATE_RECIPES_ROW } from './privateRecipes.js'
-import { HF_OFFLINE_WORDS, HF_SEARCH_PLACEHOLDER, hfRecipeSourceWords, hfRowLabel, huggingFaceHubBase, huggingFaceToken, pickHuggingFaceModel, searchHuggingFace, type DerivedHfRecipe, type HfModel, type HfSearchOutcome } from './hfRecipes.js'
+import { HF_OFFLINE_WORDS, HF_SEARCH_PLACEHOLDER, hfRecipeSourceWords, hfRowLabel, huggingFaceHubBase, huggingFaceTokenRead, huggingFaceTokenUnreadNote, pickHuggingFaceModel, searchHuggingFace, type DerivedHfRecipe, type HfModel, type HfSearchOutcome } from './hfRecipes.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostOffer, HostPod, RunpodClient } from './runpod.js'
 import { hostRecords, type HostRecord } from './store.js'
@@ -108,8 +108,18 @@ type HfLookup = HfSearchOutcome | { state: 'fetching'; settled: Promise<void> }
 function hfSearchMemory(deps: ModelDoorDeps, signal: AbortSignal): { lookup: (query: string) => HfLookup | undefined; pick: (model: HfModel) => Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }> } {
   const results = new Map<string, HfSearchOutcome>()
   const inflight = new Map<string, Promise<void>>()
-  const search = deps.hfSearch ?? ((query: string, abort: AbortSignal) => searchHuggingFace(query, { signal: abort, base: huggingFaceHubBase(), token: huggingFaceToken() }))
-  const pick = deps.hfPick ?? ((model: HfModel, abort: AbortSignal) => pickHuggingFaceModel(model, { signal: abort, base: huggingFaceHubBase(), token: huggingFaceToken() }))
+  const search = deps.hfSearch ?? (async (query: string, abort: AbortSignal) => {
+    const tokenRead = huggingFaceTokenRead()
+    const outcome = await searchHuggingFace(query, { signal: abort, base: huggingFaceHubBase(), token: tokenRead.state === 'ok' ? tokenRead.token : undefined })
+    if (outcome.state === 'offline' && tokenRead.state === 'unread') return { state: 'offline', words: outcome.words + ' · ' + huggingFaceTokenUnreadNote(tokenRead.error) }
+    return outcome
+  })
+  const pick = deps.hfPick ?? (async (model: HfModel, abort: AbortSignal) => {
+    const tokenRead = huggingFaceTokenRead()
+    const outcome = await pickHuggingFaceModel(model, { signal: abort, base: huggingFaceHubBase(), token: tokenRead.state === 'ok' ? tokenRead.token : undefined })
+    if (!outcome.ok && tokenRead.state === 'unread') return { ok: false, words: outcome.words + ' · ' + huggingFaceTokenUnreadNote(tokenRead.error) }
+    return outcome
+  })
   return {
     lookup: query => {
       if (query.length < LLM_HOST_SEARCH_MIN_CHARS) return undefined
@@ -159,9 +169,9 @@ export async function removeHostEndpoint(name: string): Promise<string> {
   if (!endpoint) return 'This endpoint is no longer registered.'
   if (!cachedCompatCatalogue(endpoint)?.error) return 'This server is answering or has not been checked. Remove it in /llmhost → A server that’s already running → Remove.'
   try {
-    const { removeLlmHostProvider } = await import('../llmHost/index.js')
-    removeLlmHostProvider(name)
-    return 'Removed custom endpoint ' + name + ' · nothing else changed'
+    const { removeLlmHostProvider, tensorFoldUnregisterFailedNote } = await import('../llmHost/index.js')
+    const removed = await removeLlmHostProvider(name)
+    return 'Removed custom endpoint ' + name + (removed.tensorFoldUnregisterError ? ' · ' + tensorFoldUnregisterFailedNote(removed.tensorFoldUnregisterError) : ' · nothing else changed')
   } catch (error) {
     return 'Could not remove custom endpoint ' + name + ' · ' + String(error)
   }

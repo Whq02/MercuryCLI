@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { getEnabledSettingsForSource, getInitialSettings, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { isENOENT } from '../../utils/errors.js'
 import { readHostRecord } from '../host/store.js'
 import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 
@@ -126,9 +127,13 @@ export function mediaHealth(settings: MediaSettings = readMediaSettings()): { st
     if (!existsSync(root)) return { status: 'warn', evidence: 'Media folder missing · /imagesetup', fix: '/imagesetup' }
     const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { binary?: string; server?: string }
     const binary = record.binary ?? record.server
-    if (!binary || !existsSync(isAbsolute(binary) ? binary : join(root, binary))) throw new Error('runtime missing')
+    if (!binary || !existsSync(isAbsolute(binary) ? binary : join(root, binary))) {
+      return { status: 'warn', evidence: 'Media runtime missing · /imagesetup', fix: '/imagesetup' }
+    }
     return { status: 'ok', evidence: root }
-  } catch {
-    return { status: 'warn', evidence: 'Media runtime missing · /imagesetup', fix: '/imagesetup' }
+  } catch (error) {
+    if (isENOENT(error)) return { status: 'warn', evidence: 'Media runtime missing · /imagesetup', fix: '/imagesetup' }
+    const detail = error instanceof Error ? error.message : String(error)
+    return { status: 'warn', evidence: `Media runtime state could not be read (${detail}) · /imagesetup`, fix: '/imagesetup' }
   }
 }

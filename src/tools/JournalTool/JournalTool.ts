@@ -5,7 +5,6 @@ import { JOURNAL_ENTRY_CAP, journalEnabled, stageJournalEntry, type JournalStage
 import { lazySchema } from '../../utils/lazySchema.js'
 import { JOURNAL_DESCRIPTION, JOURNAL_PROMPT, JOURNAL_TOOL_NAME } from './prompt.js'
 import { renderJournalResult, renderJournalToolUse } from './UI.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 const journalSchema = lazySchema(() =>
   z.strictObject({
@@ -18,15 +17,6 @@ const journalSchema = lazySchema(() =>
 )
 type JournalSchema = ReturnType<typeof journalSchema>
 type JournalOutput = JournalStageOutcome
-
-function safeSession(): string {
-  try {
-    return String(getSessionId())
-  } catch (error) {
-    passedOver(error)
-    return 'boot'
-  }
-}
 
 export function journalResultWords(output: JournalOutput): string {
   if (!output.staged) return `journal entry refused: ${output.reason}`
@@ -64,7 +54,7 @@ export const JournalTool = buildTool({
     return JOURNAL_PROMPT
   },
   async call(input: z.infer<JournalSchema>) {
-    return { data: stageJournalEntry(safeSession(), input.entry) }
+    return { data: stageJournalEntry(String(getSessionId()), input.entry) }
   },
   mapToolResultToToolResultBlockParam(output: JournalOutput, toolUseID) {
     return {

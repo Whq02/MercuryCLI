@@ -25,7 +25,7 @@ import { ruleSentence } from '../permissions/ruleReason.js'
 import { matchingRuleForInput } from '../permissions/filesystem.js'
 import { isFileReadDenied } from './shared.js'
 import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from './types.js'
-import { passedOver, passedOverAs } from '../passedOver.js'
+import { passedOver } from '../passedOver.js'
 
 type FileRow = FileAttachment | CompactFileReferenceAttachment | PDFReferenceAttachment | AlreadyReadFileAttachment | DroppedImageAttachment
 type ReadWindow = { offset?: number; limit?: number }
@@ -86,12 +86,22 @@ export function mentionDeniedByRule(filename: string, permissions: Parameters<ty
   return rule === null ? null : droppedUnread(filename, ruleSentence(`Reading ${filename}`, 'deny', rule), 'refused')
 }
 
-async function unreadMention(filename: string, context: ToolUseContext, mode: ReadMode, failure: unknown): Promise<FileRow | null> {
-  if (mode !== 'at-mention' || context.abortController.signal.aborted) return null
-  const standing = await getFsImplementation().stat(filename).then(info => info.isFile()).catch(passedOverAs(false))
-  if (!standing) return null
+export function mentionReadFailed(filename: string, failure: unknown): DroppedImageAttachment {
   const line = (failure instanceof Error ? failure.message : String(failure)).split('\n')[0]!.trim().replace(/\.+$/, '')
   return droppedUnread(filename, `Reading it failed: ${line}.`, 'refused')
+}
+
+async function unreadMention(filename: string, context: ToolUseContext, mode: ReadMode, failure: unknown): Promise<FileRow | null> {
+  if (mode !== 'at-mention' || context.abortController.signal.aborted) return null
+  let standing = true
+  try {
+    standing = (await getFsImplementation().stat(filename)).isFile()
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    standing = code !== 'ENOENT' && code !== 'ENOTDIR'
+  }
+  if (!standing) return null
+  return mentionReadFailed(filename, failure)
 }
 
 async function tooLargeToMention(filename: string): Promise<FileRow | null | false> {

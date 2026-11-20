@@ -8,6 +8,7 @@ import {
 import { materializeEntriesAt } from '../../utils/sessionStorage/materialize.js'
 import { encodeTranscriptLine } from '../../utils/sessionStorage/vnext.js'
 import type { Entry } from '../../types/logs.js'
+import { isENOENT } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export interface BranchManifest {
@@ -140,13 +141,13 @@ export function createBranchSession(args: {
 }
 
 export function readBranchManifest(branchTranscriptPath: string): BranchManifest | null {
+  let rawText: string
   try {
-    const raw = JSON.parse(
-      readFileSync(branchManifestPathFor(branchTranscriptPath), 'utf8'),
-    ) as BranchManifest
-    return raw && raw.v === 1 ? raw : null
+    rawText = readFileSync(branchManifestPathFor(branchTranscriptPath), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
+  const raw = JSON.parse(rawText) as BranchManifest
+  return raw && raw.v === 1 ? raw : null
 }

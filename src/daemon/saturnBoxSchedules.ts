@@ -65,7 +65,7 @@ export function boxHeldFireProblem(raw: unknown): string | null {
   return null
 }
 
-export function readBoxSchedules(dir?: string): SaturnBoxFileV1 {
+export function readBoxSchedules(dir?: string, forWrite = false): SaturnBoxFileV1 {
   try {
     const raw = JSON.parse(readFileSync(saturnBoxSchedulesPath(dir), 'utf8')) as Partial<SaturnBoxFileV1>
     if (raw?.version !== 1) return { version: 1, schedules: [], heldFires: [] }
@@ -82,7 +82,11 @@ export function readBoxSchedules(dir?: string): SaturnBoxFileV1 {
       else logForDebugging(`[saturn] box held fire skipped — ${String((row as { scheduleId?: unknown } | null)?.scheduleId ?? '?')}: ${problem}`)
     }
     return { version: 1, schedules, heldFires }
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
+      if (forWrite) throw error
+      logForDebugging(`[saturn] box schedules could not be read: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+    }
     return { version: 1, schedules: [], heldFires: [] }
   }
 }
@@ -115,6 +119,7 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
       try {
         stale = Date.now() - statSync(lock).mtimeMs > BOX_LOCK_STALE_MS
       } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
         passedOver(error)
         continue
       }
@@ -123,6 +128,7 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
         try {
           rmdirSync(lock)
         } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
           passedOver(error)
         }
         continue
@@ -148,7 +154,7 @@ function publishBox(file: SaturnBoxFileV1, dir?: string): void {
 
 export function markBoxScheduleFired(scheduleId: string, firedAt: number, dir?: string): 'marked' | 'missing' {
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    const file = readBoxSchedules(dir, true)
     const row = file.schedules.find(s => s.id === scheduleId)
     if (!row) return 'missing'
     row.lastFiredAt = firedAt
@@ -159,7 +165,7 @@ export function markBoxScheduleFired(scheduleId: string, firedAt: number, dir?: 
 
 export function spendBoxOneShot(scheduleId: string, dir?: string): 'spent' | 'kept' | 'missing' {
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    const file = readBoxSchedules(dir, true)
     const row = file.schedules.find(s => s.id === scheduleId)
     if (!row) return 'missing'
     if (row.when.kind !== 'at') return 'kept'
@@ -171,7 +177,7 @@ export function spendBoxOneShot(scheduleId: string, dir?: string): 'spent' | 'ke
 
 export function holdBoxFire(held: HeldFireV1, dir?: string, requireSchedule = false): 'held' | 'already-held' | 'cap' | 'missing' {
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    const file = readBoxSchedules(dir, true)
     if (requireSchedule && !file.schedules.some(s => s.id === held.scheduleId)) return 'missing'
     if (file.heldFires.some(h => h.scheduleId === held.scheduleId && h.dueAt === held.dueAt)) return 'already-held'
     if (file.heldFires.length >= SATURN_HELD_CAP) return 'cap'
@@ -204,7 +210,12 @@ export function addBoxSchedule(
   if (!derived.ok) return { ok: false, reason: `schedule refused — ${derived.reason}` }
   const preflightAtWrite = deps.preflight ? deps.preflight(derived.account, saturnNextFireMs(sub.when, Date.now())) : undefined
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    let file: SaturnBoxFileV1
+    try {
+      file = readBoxSchedules(dir, true)
+    } catch (error) {
+      return { ok: false, reason: `schedule refused — ${error instanceof Error ? error.message : String(error)}` }
+    }
     if (file.schedules.length >= SATURN_SCHEDULE_CAP) {
       return { ok: false, reason: `schedule refused — the box already holds ${SATURN_SCHEDULE_CAP} schedules` }
     }
@@ -233,7 +244,7 @@ export function addBoxSchedule(
 
 export function removeBoxSchedule(scheduleId: string, dir?: string): 'removed' | 'missing' {
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    const file = readBoxSchedules(dir, true)
     if (!file.schedules.some(s => s.id === scheduleId) && !file.heldFires.some(h => h.scheduleId === scheduleId)) return 'missing'
     file.schedules = file.schedules.filter(s => s.id !== scheduleId)
     file.heldFires = file.heldFires.filter(h => h.scheduleId !== scheduleId)
@@ -244,7 +255,7 @@ export function removeBoxSchedule(scheduleId: string, dir?: string): 'removed' |
 
 export function setBoxSchedulePaused(scheduleId: string, paused: boolean, dir?: string): 'applied' | 'noop' | 'missing' {
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    const file = readBoxSchedules(dir, true)
     const row = file.schedules.find(s => s.id === scheduleId)
     if (row === undefined) return 'missing'
     if ((row.paused === true) === paused) return 'noop'
@@ -257,7 +268,7 @@ export function setBoxSchedulePaused(scheduleId: string, paused: boolean, dir?: 
 
 export function refreshBoxScheduleAccount(scheduleId: string, account: SaturnScheduleV1['account'], dir?: string): void {
   withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    const file = readBoxSchedules(dir, true)
     const row = file.schedules.find(s => s.id === scheduleId)
     if (row === undefined) return
     row.account = account
@@ -269,7 +280,7 @@ export function takeBoxHeldFires(keys: Array<{ scheduleId: string; dueAt: number
   if (keys.length === 0) return []
   const wanted = new Set(keys.map(k => `${k.scheduleId}@${k.dueAt}`))
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir)
+    const file = readBoxSchedules(dir, true)
     const taken: HeldFireV1[] = []
     const keep: HeldFireV1[] = []
     for (const h of file.heldFires) {

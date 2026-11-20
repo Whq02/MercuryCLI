@@ -5,6 +5,8 @@ import { daemonDir } from '../controlSocket.js'
 import type { WorkspaceIsolation } from './admission.js'
 import { withDaemonStoreLock } from './storeLock.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage, isENOENT } from '../../utils/errors.js'
 
 export interface CollisionEvidenceV1 {
   schema: 1
@@ -30,11 +32,47 @@ export function concourseCollisionsPath(dir: string = daemonDir()): string {
   return join(dir, 'concourse-collisions.json')
 }
 
+function rowsOfCollisionFile(text: string): CollisionEvidenceV1[] {
+  const raw = JSON.parse(text) as CollisionFileV1
+  if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
+  return raw.rows
+}
+
+export function readCollisionEvidenceStrict(dir?: string): CollisionEvidenceV1[] {
+  let text: string
+  try {
+    text = readFileSync(concourseCollisionsPath(dir), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return []
+    throw error
+  }
+  const raw = JSON.parse(text) as CollisionFileV1
+  if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
+    throw new Error('invalid collision evidence format')
+  }
+  return raw.rows
+}
+
 export function readCollisionEvidence(dir?: string): CollisionEvidenceV1[] {
   try {
-    const raw = JSON.parse(readFileSync(concourseCollisionsPath(dir), 'utf8')) as CollisionFileV1
-    if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
-    return raw.rows
+    return rowsOfCollisionFile(readFileSync(concourseCollisionsPath(dir), 'utf8'))
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
+}
+
+function readCollisionEvidenceToRewrite(path: string): CollisionEvidenceV1[] | null {
+  let text: string
+  try {
+    text = readFileSync(path, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return []
+    logForDebugging(`[concourse] the collision evidence at ${path} could not be read (${errorMessage(error)}), so it is not written over`)
+    return null
+  }
+  try {
+    return rowsOfCollisionFile(text)
   } catch (error) {
     passedOver(error)
     return []
@@ -44,7 +82,9 @@ export function readCollisionEvidence(dir?: string): CollisionEvidenceV1[] {
 function updateCollisionEvidence(mutate: (rows: CollisionEvidenceV1[]) => CollisionEvidenceV1[], dir?: string): void {
   const path = concourseCollisionsPath(dir)
   withDaemonStoreLock('the collision evidence', path, dir, ({ homeGone, assertStillHeld }) => {
-    const rows = mutate(readCollisionEvidence(dir))
+    const held = readCollisionEvidenceToRewrite(path)
+    if (held === null) return
+    const rows = mutate(held)
     if (homeGone || !daemonHomeStands('the collision evidence', dir)) return
     assertStillHeld()
     publishInDaemonHome(

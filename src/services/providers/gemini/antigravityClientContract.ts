@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { logForDebugging } from '../../../utils/debug.js'
+import { isENOENT } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../../utils/privacyLevel.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
@@ -121,6 +123,26 @@ export function readAntigravityClientRecord(): AntigravityClientRecord {
   }
 }
 
+function readAntigravityClientRecordForWrite(): AntigravityClientRecord | null {
+  const path = antigravityClientContractPath()
+  let raw: string
+  try {
+    if (statSync(path).size > RECORD_MAX_BYTES) return {}
+    raw = readFileSync(path, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return {}
+    passedOver(error)
+    logForDebugging(`antigravityClientContract: existing record at ${path} could not be read (${String(error)}); skipping write`)
+    return null
+  }
+  try {
+    return decodeAntigravityClientRecord(JSON.parse(raw))
+  } catch (error) {
+    passedOver(error)
+    return {}
+  }
+}
+
 function writeAntigravityClientRecord(next: AntigravityClientRecord): void {
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   durableAtomicPublishSync(antigravityClientContractPath(), JSON.stringify({ ...next, version: 1 }) + '\n', { mode: 0o600 })
@@ -231,7 +253,8 @@ export function peekAntigravityClient(io?: AntigravityClientIo & { force?: boole
   }
   const work = (async (): Promise<AntigravityClientPeek> => {
     const answer = await readAntigravityVersionFromManifest(io)
-    const fresh = readAntigravityClientRecord()
+    const fresh = readAntigravityClientRecordForWrite()
+    if (fresh === null) return { kind: 'read', answer, learned: false }
     if (!answer.ok) {
       try { writeAntigravityClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch (error) { passedOver(error) }
       return { kind: 'read', answer, learned: false }
@@ -240,8 +263,14 @@ export function peekAntigravityClient(io?: AntigravityClientIo & { force?: boole
     const next: AntigravityClientRecord = { ...fresh, lastPeekAtMs: now() }
     delete next.lastFailure
     if (newest) next.learned = { version: answer.version, learnedAtMs: now(), from: answer.from }
-    try { writeAntigravityClientRecord(next) } catch (error) { passedOver(error) }
-    return { kind: 'read', answer, learned: newest }
+    try {
+      writeAntigravityClientRecord(next)
+      return { kind: 'read', answer, learned: newest }
+    } catch (error) {
+      passedOver(error)
+      logForDebugging(`antigravityClientContract: record could not be written (${String(error)})`)
+      return { kind: 'read', answer, learned: false }
+    }
   })().finally(() => {
     peekInFlight = null
   })

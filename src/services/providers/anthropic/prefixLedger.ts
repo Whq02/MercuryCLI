@@ -7,6 +7,7 @@ import { renameWithWin32Retry } from '../../../substrate/durablePublish.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { registerCleanup } from '../../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { logError } from '../../../utils/log.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
 import { runningBuildTree } from '../../../utils/artifactIdentity.js'
 import { processMainOwner } from '../../run/resolveOwner.js'
@@ -329,6 +330,7 @@ function ownsSessionRecord(owner: string): boolean {
     return owner === String(processMainOwner())
   } catch (error) {
     passedOver(error)
+    logError(new Error(`ownsSessionRecord: processMainOwner failed: ${error instanceof Error ? error.message : String(error)}`))
     return false
   }
 }

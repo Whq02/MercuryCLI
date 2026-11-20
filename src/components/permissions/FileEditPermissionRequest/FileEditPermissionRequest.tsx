@@ -12,6 +12,7 @@ import {
 } from '../../../services/changeTransaction/hunks.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { isRemotePath, remoteLastRead } from '../../../services/remoteFiles/target.js'
+import { isENOENT } from '../../../utils/errors.js'
 import { displayAddressedTarget } from '../../../utils/file.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import { planAppend, planSectionEdit } from '../../../tools/FileEditTool/sectionEdit.js'
@@ -36,28 +37,36 @@ function parseEditInput(input: unknown): EditToolInput {
   return input as EditToolInput
 }
 
-function currentContentOf(path: string): string {
+function currentContentOf(path: string): { ok: true; content: string } | { ok: false; reason: string } {
   try {
-    return readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replaceAll('\r\n', '\n')
+    return { ok: true, content: readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replaceAll('\r\n', '\n') }
   } catch (error) {
-    passedOver(error)
-    return ''
+    if (isENOENT(error)) return { ok: true, content: '' }
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
   }
 }
 
-function previewAppendOrSection(input: EditToolInput): FileEdit[] {
-  const content = currentContentOf(input.file_path)
+export type PreviewEditOutcome =
+  | { kind: 'edits'; edits: FileEdit[] }
+  | { kind: 'unreadable'; message: string }
+
+function previewAppendOrSection(input: EditToolInput): PreviewEditOutcome {
+  const read = currentContentOf(input.file_path)
+  if (!read.ok) {
+    return { kind: 'unreadable', message: `Could not read ${basename(input.file_path)} to preview this edit (${read.reason})` }
+  }
+  const content = read.content
   const hasAppend = typeof input.append === 'string' && input.append.length > 0
   const hasSection = typeof input.section === 'string' && input.section.length > 0
   let updated: string
   if (hasSection) {
     const plan = planSectionEdit(content, input.section ?? '', hasAppend ? { append: input.append ?? '' } : { replace: input.new_string ?? '' })
-    if (!plan.ok) return [{ old_string: content, new_string: content, replace_all: false }]
+    if (!plan.ok) return { kind: 'edits', edits: [{ old_string: content, new_string: content, replace_all: false }] }
     updated = plan.updated
   } else {
     updated = planAppend(content, input.append ?? '')
   }
-  return [{ old_string: content, new_string: updated, replace_all: false }]
+  return { kind: 'edits', edits: [{ old_string: content, new_string: updated, replace_all: false }] }
 }
 
 function remotePreviewEditsFor(input: EditToolInput): FileEdit[] {
@@ -100,8 +109,10 @@ function lastReadPreviewEditsFor(input: EditToolInput, content: string): FileEdi
   return updated === null || updated === content ? null : [{ old_string: content, new_string: updated, replace_all: false }]
 }
 
-function previewEditsFor(input: EditToolInput, lastRead: string | null): FileEdit[] {
-  if (isRemotePath(input.file_path)) return (lastRead === null ? null : lastReadPreviewEditsFor(input, lastRead)) ?? remotePreviewEditsFor(input)
+export function previewEditOutcome(input: EditToolInput, lastRead: string | null): PreviewEditOutcome {
+  if (isRemotePath(input.file_path)) {
+    return { kind: 'edits', edits: (lastRead === null ? null : lastReadPreviewEditsFor(input, lastRead)) ?? remotePreviewEditsFor(input) }
+  }
   if ((typeof input.append === 'string' && input.append.length > 0) || (typeof input.section === 'string' && input.section.length > 0)) {
     return previewAppendOrSection(input)
   }
@@ -109,23 +120,29 @@ function previewEditsFor(input: EditToolInput, lastRead: string | null): FileEdi
     try {
       const content = readFileSync(input.file_path, 'utf8').replaceAll('\r\n', '\n')
       const plan = planHunks(content, input.hunks, input.expected_anchor)
-      if (plan.ok) return hunksToEdits(content, plan)
+      if (plan.ok) return { kind: 'edits', edits: hunksToEdits(content, plan) }
     } catch (error) {
       passedOver(error)
     }
-    return input.hunks.map(hunk => ({
-      old_string: `lines ${hunk.lines}`,
-      new_string: hunk.replace,
-      replace_all: false,
-    }))
+    return {
+      kind: 'edits',
+      edits: input.hunks.map(hunk => ({
+        old_string: `lines ${hunk.lines}`,
+        new_string: hunk.replace,
+        replace_all: false,
+      })),
+    }
   }
-  return [
-    {
-      old_string: input.old_string ?? '',
-      new_string: input.new_string ?? '',
-      replace_all: input.replace_all ?? false,
-    },
-  ]
+  return {
+    kind: 'edits',
+    edits: [
+      {
+        old_string: input.old_string ?? '',
+        new_string: input.new_string ?? '',
+        replace_all: input.replace_all ?? false,
+      },
+    ],
+  }
 }
 
 export function FileEditPermissionRequest({
@@ -139,7 +156,7 @@ export function FileEditPermissionRequest({
     [toolUseConfirm.input],
   )
   const lastRead = remoteLastRead(toolUseConfirm.toolUseContext.readFileState, parsed.file_path)
-  const previewEdits = useMemo(() => previewEditsFor(parsed, lastRead), [parsed, lastRead])
+  const preview = useMemo(() => previewEditOutcome(parsed, lastRead), [parsed, lastRead])
 
   return (
     <FilePermissionDialog<EditToolInput>
@@ -155,7 +172,13 @@ export function FileEditPermissionRequest({
           Do you want to make this edit to <Text bold>{basename(parsed.file_path)}</Text>?
         </Text>
       }
-      content={<ConsentFileEditDiff file_path={parsed.file_path} edits={previewEdits} />}
+      content={
+        preview.kind === 'edits' ? (
+          <ConsentFileEditDiff file_path={parsed.file_path} edits={preview.edits} />
+        ) : (
+          <Text color="warning">{preview.message}</Text>
+        )
+      }
       path={parsed.file_path}
       parseInput={parseEditInput}
       workerBadge={workerBadge}

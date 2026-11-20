@@ -3,7 +3,6 @@ import type { ToolUseContext } from '../../../Tool.js'
 import { isRemotePath } from '../../../services/remoteFiles/target.js'
 import { PDF_TARGET_RAW_SIZE } from '../../../constants/apiLimits.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../../utils/imageResizer.js'
-import { logError } from '../../../utils/log.js'
 import { createUserMessage } from '../../../utils/messages/factories.js'
 import { extractPDFPages, readPDF, removePDFPages } from '../../../utils/pdf.js'
 import { extractPdfText, renderPdfText } from '../../../utils/pdfText.js'
@@ -64,14 +63,15 @@ export async function readPdfLane(
       throw new Error(extraction.error.message)
     }
     const outputDir = extraction.data.file.outputDir
-    const entries = getFsImplementation()
-      .readdirSync(outputDir)
-      .map(entry => (typeof entry === 'string' ? entry : (entry as { name: string }).name))
-      .filter(name => name.endsWith('.jpg'))
-      .sort()
+    let entries: string[]
     const blocks: ContentBlockParam[] = []
-    for (const name of entries) {
-      try {
+    try {
+      entries = getFsImplementation()
+        .readdirSync(outputDir)
+        .map(entry => (typeof entry === 'string' ? entry : (entry as { name: string }).name))
+        .filter(name => name.endsWith('.jpg'))
+        .sort()
+      for (const name of entries) {
         const pageBuffer = (await import('node:fs')).readFileSync(`${outputDir}/${name}`)
         const resized = await maybeResizeAndDownsampleImageBuffer(pageBuffer, pageBuffer.length, 'jpeg')
         const ocr = await recogniseImage(pageBuffer, context.abortController.signal)
@@ -84,11 +84,10 @@ export async function readPdfLane(
             data: resized.buffer.toString('base64'),
           },
         } as ContentBlockParam)
-      } catch (err) {
-        logError(err)
       }
+    } finally {
+      await removePDFPages(outputDir)
     }
-    await removePDFPages(outputDir)
     const data: Output = {
       type: 'parts',
       file: {

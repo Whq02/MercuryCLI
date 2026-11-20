@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { passedOver, passedOverAs } from './passedOver.js'
+import { passedOver } from './passedOver.js'
 
 
 interface AgentCliSignature {
@@ -228,6 +228,19 @@ function classifyDaemonRecord(rel: string, raw: string): HarnessHomeArtifact | n
   }
 }
 
+async function readOptionalUtf8(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, 'utf8')
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      passedOver(error)
+      return null
+    }
+    throw error
+  }
+}
+
 export async function classifyHarnessHome(
   home: string,
   opts?: { expectedVersion?: string },
@@ -235,7 +248,7 @@ export async function classifyHarnessHome(
   const artifacts: HarnessHomeArtifact[] = []
 
   for (const rel of HARNESS_LOG_RELS) {
-    const raw = await readFile(harnessArtifactPath(home, rel), 'utf8').catch(passedOverAs(null))
+    const raw = await readOptionalUtf8(harnessArtifactPath(home, rel))
     if (raw === null) continue
     const verdict = classifyLog(rel, raw)
     if (verdict !== null) artifacts.push(verdict)
@@ -243,13 +256,13 @@ export async function classifyHarnessHome(
 
   const foreignLog = artifacts.find(artifact => artifact.verdict === 'foreign')
 
-  const rosterRaw = await readFile(harnessArtifactPath(home, HARNESS_ROSTER_REL), 'utf8').catch(passedOverAs(null))
+  const rosterRaw = await readOptionalUtf8(harnessArtifactPath(home, HARNESS_ROSTER_REL))
   if (rosterRaw !== null) {
     const verdict = classifyRoster(HARNESS_ROSTER_REL, rosterRaw, opts?.expectedVersion, foreignLog?.tool)
     if (verdict !== null) artifacts.push(verdict)
   }
 
-  const recordRaw = await readFile(harnessArtifactPath(home, HARNESS_DAEMON_RECORD_REL), 'utf8').catch(passedOverAs(null))
+  const recordRaw = await readOptionalUtf8(harnessArtifactPath(home, HARNESS_DAEMON_RECORD_REL))
   if (recordRaw !== null) {
     const verdict = classifyDaemonRecord(HARNESS_DAEMON_RECORD_REL, recordRaw)
     if (verdict !== null) artifacts.push(verdict)

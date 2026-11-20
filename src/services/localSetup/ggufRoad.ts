@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { flagPair } from '../../substrate/flagRegistry.js'
 import { bankedHostRecipes, bankFolder, bankFree, bankModelPath, bankState, bytesWords, rememberBankFolder, verifyBank } from '../host/bank.js'
 import { pullIntoBank } from '../host/bankPull.js'
-import { huggingFaceHubBase, huggingFaceToken } from '../host/hfRecipes.js'
+import { huggingFaceHubBase, huggingFaceTokenRead, huggingFaceTokenUnreadNote } from '../host/hfRecipes.js'
 import type { HostRunner } from '../host/ssh.js'
 import { shQuote } from '../host/boxExecution.js'
 import { bankGgufModel, ggufModelName, ggufModelRow, listGgufModels, withProjector, type GgufModel } from './ggufModels.js'
@@ -83,7 +83,16 @@ export async function* runLocalSetupRoad(consent: SetupConsentFn, seam: GgufSetu
         if (!repo) { yield done('stopped', ''); return }
         yield result('2', repo)
       }
-      const listing = await listGgufModels(repo, { base: seam.hubBase ?? huggingFaceHubBase(), token: huggingFaceToken(), signal, machineBytes: io.totalMemoryBytes, platform: io.platform })
+      const tokenRead = huggingFaceTokenRead()
+      let listing: Awaited<ReturnType<typeof listGgufModels>>
+      try {
+        listing = await listGgufModels(repo, { base: seam.hubBase ?? huggingFaceHubBase(), token: tokenRead.state === 'ok' ? tokenRead.token : undefined, signal, machineBytes: io.totalMemoryBytes, platform: io.platform })
+      } catch (error) {
+        if (tokenRead.state === 'unread' && !signal.aborted) {
+          throw new Error((error instanceof Error ? error.message : String(error)) + ' · ' + huggingFaceTokenUnreadNote(tokenRead.error))
+        }
+        throw error
+      }
       const row = { ...plan('4', 'GGUF files', repo), keys: choiceKeys, rows: listing.models.map(model => ({ tag: model.recipe.weightFile!, on: 'pull' as const, words: model.words })) }
       yield { type: 'step', plan: row }
       const picked = pickOf(await ask(row))
@@ -114,7 +123,15 @@ export async function* runLocalSetupRoad(consent: SetupConsentFn, seam: GgufSetu
       if (await ask(row) !== 'run') { yield done('stopped', ''); return }
       signal.throwIfAborted()
       folder = rememberBankFolder(folder)
-      yield* streamed<SetupEvent, unknown>(emit => pullIntoBank(model.recipe, folder, { signal, token: huggingFaceToken(), runner: seam.bankRunner, hashProgress: () => {}, progress: line => emit({ type: 'progress', step: 4, label: '4b', line }) }))
+      const pullTokenRead = huggingFaceTokenRead()
+      try {
+        yield* streamed<SetupEvent, unknown>(emit => pullIntoBank(model.recipe, folder, { signal, token: pullTokenRead.state === 'ok' ? pullTokenRead.token : undefined, runner: seam.bankRunner, hashProgress: () => {}, progress: line => emit({ type: 'progress', step: 4, label: '4b', line }) }))
+      } catch (error) {
+        if (pullTokenRead.state === 'unread' && !signal.aborted) {
+          throw new Error((error instanceof Error ? error.message : String(error)) + ' · ' + huggingFaceTokenUnreadNote(pullTokenRead.error))
+        }
+        throw error
+      }
       yield result('4b', bytesWords(model.recipe.weightsGb * 1e9) + ' · ' + folder)
     }
     const row = plan('5', 'Start llama-server', model.fit.words, [spec.command, ...spec.args].map(shQuote).join(' '))

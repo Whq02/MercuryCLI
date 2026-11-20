@@ -18,7 +18,6 @@ import {
 } from './pythonProject.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-
 export function pythonTestsEnabled(): boolean {
   return flagEnabled('MERCURY_TESTS')
 }
@@ -450,46 +449,49 @@ export function latestRun(from: string = getCwd()): TestRunRecord | null {
 }
 
 export function latestRunAtRoot(root: string): TestRunRecord | null {
+  let raw: string
   try {
-    return JSON.parse(readFileSync(path.join(runsDir(root), 'latest.json'), 'utf8')) as TestRunRecord
+    raw = readFileSync(path.join(runsDir(root), 'latest.json'), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return null
+    throw error
   }
+  return JSON.parse(raw) as TestRunRecord
 }
 
 export function getRun(id: string, from: string = getCwd()): TestRunRecord | null {
   const { root } = findPythonProjectRoot(from)
   if (!/^[a-z0-9-]+$/.test(id)) return null
+  let raw: string
   try {
-    return JSON.parse(readFileSync(path.join(runsDir(root), `${id}.json`), 'utf8')) as TestRunRecord
+    raw = readFileSync(path.join(runsDir(root), `${id}.json`), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return null
+    throw error
   }
+  return JSON.parse(raw) as TestRunRecord
 }
 
 export function listRuns(from: string = getCwd()): Array<{ id: string; startedAt: number; counts: TestRunRecord['counts'] }> {
   const { root } = findPythonProjectRoot(from)
+  let files: string[]
   try {
-    return readdirSync(runsDir(root))
-      .filter(f => f.startsWith('run-') && f.endsWith('.json'))
-      .map(f => {
-        try {
-          const r = JSON.parse(readFileSync(path.join(runsDir(root), f), 'utf8')) as TestRunRecord
-          return { id: r.id, startedAt: r.startedAt, counts: r.counts }
-        } catch (error) {
-          passedOver(error)
-          return null
-        }
-      })
-      .filter((r): r is { id: string; startedAt: number; counts: TestRunRecord['counts'] } => r !== null)
-      .sort((a, b) => b.startedAt - a.startedAt)
-      .slice(0, 50)
+    files = readdirSync(runsDir(root))
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return []
+    throw error
   }
+  const rows: Array<{ id: string; startedAt: number; counts: TestRunRecord['counts'] }> = []
+  for (const f of files) {
+    if (!f.startsWith('run-') || !f.endsWith('.json')) continue
+    try {
+      const r = JSON.parse(readFileSync(path.join(runsDir(root), f), 'utf8')) as TestRunRecord
+      rows.push({ id: r.id, startedAt: r.startedAt, counts: r.counts })
+    } catch (error) {
+      logForDebugging(`pythonTests: skipping unreadable run record ${f}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  return rows.sort((a, b) => b.startedAt - a.startedAt).slice(0, 50)
 }
 
 
@@ -504,23 +506,25 @@ interface NdjsonEvent {
 }
 
 function readNdjson(reportPath: string): NdjsonEvent[] {
+  let raw: string
   try {
-    return readFileSync(reportPath, 'utf8')
-      .split('\n')
-      .filter(l => l.trim())
-      .map(l => {
-        try {
-          return JSON.parse(l) as NdjsonEvent
-        } catch (error) {
-          passedOver(error)
-          return null
-        }
-      })
-      .filter((e): e is NdjsonEvent => e !== null)
+    raw = readFileSync(reportPath, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return []
+    throw error
   }
+  return raw
+    .split('\n')
+    .filter(l => l.trim())
+    .map(l => {
+      try {
+        return JSON.parse(l) as NdjsonEvent
+      } catch (error) {
+        passedOver(error)
+        return null
+      }
+    })
+    .filter((e): e is NdjsonEvent => e !== null)
 }
 
 async function spawnCollecting(
@@ -809,7 +813,10 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
   try {
     await persistRun(root, record)
   } catch (e) {
-    logForDebugging(`pythonTests: run record persistence failed: ${e instanceof Error ? e.message : String(e)}`)
+    const detail = e instanceof Error ? e.message : String(e)
+    logForDebugging(`pythonTests: run record persistence failed: ${detail}`)
+    const note = `this test run could not be saved (${detail}) — rerunFailed and report will not see it`
+    record.verdictNote = record.verdictNote ? `${record.verdictNote} · ${note}` : note
   }
   return { state: 'ok', record }
 }

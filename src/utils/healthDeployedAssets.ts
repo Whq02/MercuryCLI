@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { passedOver } from './passedOver.js'
 
 export const DEPLOYED_ASSET_PAIRS = [
   {
@@ -37,12 +36,7 @@ interface DeployedAssetsAssessment {
 }
 
 function bytesEqual(a: string, b: string): boolean {
-  try {
-    return readFileSync(a).equals(readFileSync(b))
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return readFileSync(a).equals(readFileSync(b))
 }
 
 export function assessDeployedAssets(repoRoot: string, home: string): DeployedAssetsAssessment {

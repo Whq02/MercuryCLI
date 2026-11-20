@@ -14,9 +14,29 @@ import Byline from '../design-system/Byline.js'
 import TextInput from '../TextInput.js'
 import { SelectOption } from './select-option.js'
 import type { InputOption } from './option-map.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { logError } from '../../utils/log.js'
 
 const INPUT_WRAP_COLUMNS = 80
+
+export function runSelectImagePaste(io: {
+  read?: typeof getImageFromClipboard
+  onImagePaste?: SelectInputOptionProps['onImagePaste']
+  onError: (sentence: string | null) => void
+}): Promise<void> {
+  return (io.read ?? getImageFromClipboard)()
+    .then(image => {
+      io.onError(null)
+      if (image) {
+        io.onImagePaste?.(image.base64, image.mediaType, undefined, image.dimensions)
+      }
+    })
+    .catch(error => {
+      logError(error)
+      io.onError(
+        `Could not paste image from clipboard (${error instanceof Error ? error.message : String(error)}) — copy the image again and retry`,
+      )
+    })
+}
 
 type SelectInputOptionProps<T = string> = {
   option: InputOption<T>
@@ -71,6 +91,7 @@ export function SelectInputOption<T>({
   onExitImageSelection,
 }: SelectInputOptionProps<T>): React.ReactNode {
   const [offset, setOffset] = useState(value.length)
+  const [pasteError, setPasteError] = useState<string | null>(null)
   const { columns: termCols } = useTerminalSize()
   const inputColumns = Math.max(20, Math.min(INPUT_WRAP_COLUMNS, termCols - 6))
   const keystrokeRef = useRef(false)
@@ -89,6 +110,7 @@ export function SelectInputOption<T>({
 
   const handleChange = (next: string): void => {
     keystrokeRef.current = true
+    if (pasteError !== null) setPasteError(null)
     onChange(next)
   }
 
@@ -106,13 +128,7 @@ export function SelectInputOption<T>({
   useKeybinding(
     'chat:imagePaste',
     () => {
-      void getImageFromClipboard()
-        .then(image => {
-          if (image) {
-            onImagePaste?.(image.base64, image.mediaType, undefined, image.dimensions)
-          }
-        })
-        .catch(passedOver)
+      void runSelectImagePaste({ onImagePaste, onError: setPasteError })
     },
     { context: 'Chat', isActive: isFocused && Boolean(onImagePaste) },
   )
@@ -296,6 +312,11 @@ export function SelectInputOption<T>({
           ) : (
             <Text dimColor>(press ↓ to select images)</Text>
           )}
+        </Box>
+      ) : null}
+      {isFocused && pasteError !== null ? (
+        <Box paddingLeft={descriptionIndent}>
+          <Text color="error">{pasteError}</Text>
         </Box>
       ) : null}
       {layout === 'expanded' ? <Box height={1} /> : null}

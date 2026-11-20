@@ -51,7 +51,17 @@ export function sendToSession(deps: SubmitDeps, line: SubmitLine): Promise<void>
 function handBackRefusedLine(deps: SubmitDeps, line: SubmitLine, receipt: SendReceiptV1): void {
   const { addNotification, setInputValue, setInputMode, setPastedContents, armedHandedBackRef } = deps;
   const { input, seatPastes } = line;
-  if (receipt.state !== 'refused') return;
+  if (receipt.state !== 'refused') {
+    if (receipt.note !== undefined && receipt.note !== '') {
+      addNotification({
+        key: 'focused-session-send-note',
+        text: receipt.note,
+        priority: 'high',
+        timeoutMs: RECEIPT_TIMEOUT_MS,
+      });
+    }
+    return;
+  }
   const handedBack = armedHandedBackRef.current;
   if (pendingInput.text() === '') {
     if (pendingInput.restoreStaged(input) === null) setInputValue(input);

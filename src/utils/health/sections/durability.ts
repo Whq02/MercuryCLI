@@ -1,5 +1,5 @@
 import type { CheckSpec } from '../../healthReport.js'
-import { passedOver } from '../../passedOver.js'
+import { getErrnoCode } from '../../errors.js'
 
 export function durabilityChecks(): CheckSpec[] {
   const scanJournals = async () => {
@@ -22,8 +22,10 @@ export function durabilityChecks(): CheckSpec[] {
             process.kill(pid, 0)
             return true
           } catch (error) {
-            passedOver(error)
-            return false
+            const code = getErrnoCode(error)
+            if (code === 'EPERM') return true
+            if (code === 'ESRCH') return false
+            throw error
           }
         }
         let terminal = 0

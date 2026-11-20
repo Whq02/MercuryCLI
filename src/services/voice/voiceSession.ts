@@ -196,8 +196,13 @@ export async function startVoiceCapture(opts: { env?: NodeJS.ProcessEnv; road?: 
 export function cancelVoiceCapture(): boolean {
   const handle = active
   if (handle === null) return false
+  try {
+    handle.cancel()
+  } catch (error) {
+    receipt(error instanceof Error ? error.message : String(error), 'error')
+    return false
+  }
   active = null
-  handle.cancel()
   publish({ phase: 'idle', startedAt: null, backend: null })
   receipt(CANCELLED_RECEIPT, 'info')
   return true

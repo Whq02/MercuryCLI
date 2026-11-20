@@ -1,3 +1,4 @@
+import { errorMessage, getErrnoCode, isENOENT } from '../../../errors.js'
 import type { CheckSpec } from '../../../healthReport.js'
 import { passedOver } from '../../../passedOver.js'
 
@@ -73,7 +74,7 @@ export function agentDefinitionsCheck(): CheckSpec {
     id: 'agent-definitions',
     label: 'Agent definitions',
     run: async () => {
-      const { existsSync, readdirSync } = await import('node:fs')
+      const { readdirSync } = await import('node:fs')
       const { join } = await import('node:path')
       const { getMercuryHome } = await import('../../../envUtils.js')
       const { projectLocalPath } = await import('../../../../services/projectLocal/paths.js')
@@ -85,21 +86,17 @@ export function agentDefinitionsCheck(): CheckSpec {
       } catch (error) {
         passedOver(error)
       }
-      const countMd = (dir: string): number | null => {
+      const describeDir = (label: string, dir: string): string => {
+        if (!dir) return `${label} dir absent`
         try {
-          if (!dir || !existsSync(dir)) return null
-          return readdirSync(dir).filter(f => f.endsWith('.md')).length
+          const count = readdirSync(dir).filter(f => f.endsWith('.md')).length
+          return `${label} ${count} .md file(s)`
         } catch (error) {
-          passedOver(error)
-          return null
+          if (isENOENT(error) || getErrnoCode(error) === 'ENOTDIR') return `${label} dir absent`
+          return `${label} dir unreadable (${errorMessage(error)})`
         }
       }
-      const user = countMd(userDir)
-      const project = countMd(projectDir)
-      const parts = [
-        user === null ? 'user dir absent' : `user ${user} .md file(s)`,
-        project === null ? 'project dir absent' : `project ${project} .md file(s)`,
-      ]
+      const parts = [describeDir('user', userDir), describeDir('project', projectDir)]
       return { status: 'info', evidence: `${parts.join(' · ')} — files on disk; a nameless .md is a reference document, so the loaded roster (mercury roster) can be smaller` }
     },
   }

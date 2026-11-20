@@ -1,10 +1,7 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { classifyImageRefusalFault } from '../../api/mediaRefusal.js'
-import {
-  createAssistantMessage,
-  createSystemAPIErrorMessage,
-} from '../../../utils/messages.js'
+import { createAssistantMessage } from '../../../utils/messages.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { noteRunPhase } from '../../../utils/runPhases.js'
@@ -17,18 +14,12 @@ import { refreshProviderUsage } from '../providerUsage.js'
 import { recordLaneBillingRefusal } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { rejectOpenaiCacheRetention } from './openaiCacheRetention.js'
-import { retryNoticeWait, retryReasonWords } from '../streamIdleBudget.js'
-import { providerWaitIsWindow, retrySeconds } from '../../api/recoveryBudget.js'
-import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError } from '../../api/reconnectLadder.js'
-import { sleep } from '../../../utils/sleep.js'
-import { busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder } from '../busyRetry.js'
-import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
+import { busyRefusalFact } from '../busyRetry.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import {
   requestCarriesInputImage,
 } from './responsesBridge.js'
-import { logForDebugging } from '../../../utils/debug.js'
-import { MODEL_NOT_FOUND_CODE, OPENAI_MAX_ATTEMPTS, apiErrorMessage, openaiFaultToTypedError, openaiRetryDelayMs, overflowOf } from './openaiCallModel/faults.js'
+import { MODEL_NOT_FOUND_CODE, apiErrorMessage, openaiFaultToTypedError, overflowOf } from './openaiCallModel/faults.js'
 import { applyCompactedToolResults, compactedToolResultsByConversation, isCompactionSource, priorConversation4xx, priorTurn4xxCodeOf } from './openaiCallModel/resumeTrim.js'
 import { openOpenaiTurn, prepareOpenaiTurn, type TurnOpening } from './openaiCallModel/prepareTurn.js'
 import { settleOpenaiTurn } from './openaiCallModel/turnSettled.js'
@@ -77,10 +68,10 @@ async function* openaiTurn(
     return
   }
   const turn = openOpenaiTurn(opening, prepared)
-  const { modelId } = turn
+  const { modelId, retries } = turn
   let attemptStartedAtMs = turn.turnStartedAtMs
-  for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || turn.busy !== undefined; attempt++) {
-    if (attempt > 1) {
+  while (retries.next()) {
+    if (retries.attempt > 1) {
       await refreshProviderUsage('openai', { force: true, reason: 'operator' })
       const refreshed = await resolveOpenaiRequestAuth({ sourceKind: turn.auth.account.kind })
       if (refreshed) turn.auth = refreshed
@@ -96,13 +87,13 @@ async function* openaiTurn(
       options,
       modelId,
       messages,
-      attempt,
+      attempt: retries.attempt,
       settlementNotes: turn.settlementNotes,
       ...(turn.effortAdjusted !== undefined ? { effortAdjusted: turn.effortAdjusted } : {}),
       effort: effortOnWire(turn),
       contractDigest: turn.contract.digest,
       deferredUnadmitted: turn.plan.isDeferredUnadmitted,
-      ...(turn.busy !== undefined ? { busy: turn.busy } : {}),
+      ...(retries.busy !== undefined ? { busy: retries.busy } : {}),
     })
     if (outcome.kind === 'done') {
       await settleOpenaiTurn(turn, signInRequest, attemptStartedAtMs)
@@ -111,7 +102,7 @@ async function* openaiTurn(
     if (outcome.kind === 'cancelled') return
     if (turn.request.prompt_cache_retention !== undefined && rejectOpenaiCacheRetention(modelId, outcome.fault)) {
       delete turn.request.prompt_cache_retention
-      attempt--
+      retries.uncounted()
       continue
     }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.wireMessage ?? outcome.fault.message)
@@ -120,7 +111,7 @@ async function* openaiTurn(
       typed === 'authentication_failed' &&
       outcome.retryEligible &&
       turn.recovery === undefined &&
-      attempt < OPENAI_MAX_ATTEMPTS
+      retries.left
     ) {
       if (turn.auth.account.kind === 'chatgpt-subscription') {
         const fresh = await resolveOpenaiRequestAuth({
@@ -151,7 +142,7 @@ async function* openaiTurn(
       yield* openaiTurn(params, note, resumeTrimReissued)
       return
     }
-    const reissueAtServedWord = reissueAtServedEffort(turn, outcome, attempt)
+    const reissueAtServedWord = reissueAtServedEffort(turn, outcome, retries.attempt)
     const refusedMedia = classifyImageRefusalFault(
       { status: outcome.fault.status, message: outcome.fault.wireMessage ?? outcome.fault.message },
       requestCarriesInputImage(turn.request),
@@ -162,90 +153,12 @@ async function* openaiTurn(
       yield* openaiTurn({ ...params, messages: trimmed.messages }, deferralFormReissued, trimmed.note)
       return
     }
-    const askedMs = outcome.fault.retryAfterMs
-    const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
-    const singleShot = options.querySource === 'overload_probe'
-    const outage = outcome.retryEligible && !singleShot ? outcome.fault.outage : undefined
-    if (outage !== undefined) {
-      const now = Date.now()
-      const ladder = turn.reconnect ?? openReconnectLadder(now, outage)
-      turn.reconnect = ladder
-      const step = nextReconnect(ladder, outage, now)
-      const notice = createSystemAPIErrorMessage(new NetworkOutageError(step, Object.assign(new Error(outcome.fault.message), { code: outage.code })), step.waitMs, step.reconnect, step.of)
-      logForDebugging(`[openai] network outage (${wireDetail}) — ${notice.error.message}`)
-      yield notice
-      options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
-      if (step.waitMs <= 0) {
-        yield withEffort(turn, apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code))
-        return
-      }
-      await sleep(step.waitMs, signal)
-      if (signal.aborted) return
-      attempt--
-      continue
-    }
-    if (outcome.fault.status !== undefined) turn.reconnect = undefined
-    if (outcome.retryEligible && !singleShot && !reissueAtServedWord && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
-      const ladder = turn.busy?.ladder ?? openBusyRetryLadder(Date.now())
-      turn.busy = { ladder, fault: outcome.fault }
-      const step = nextBusyRetry(ladder, askedMs, Date.now())
-      if (step !== null) {
-        logForDebugging(`[openai] busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
-        const notice = createSystemAPIErrorMessage(
-          Object.assign(new Error(outcome.fault.message), {
-            ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-            ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-          }),
-          step.waitMs,
-          step.attempt,
-          step.of,
-        )
-        if (!step.quiet) {
-          yield notice
-          options.onWait?.(retryNoticeWait(notice))
-        } else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
-        await sleep(step.waitMs, signal)
-        if (signal.aborted) return
-        continue
-      }
-      logForDebugging(`[openai] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
-    }
-    turn.emptyEnd = turn.busy === undefined && !singleShot && !reissueAtServedWord && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
-    if (turn.emptyEnd) {
-      turn.emptyEnds++
-      if (turn.emptyEnds < EMPTY_STREAM_TRIES) {
-        const waitMs = emptyStreamRetryWaitMs()
-        const notice = emptyStreamRetryNotice({ provider: 'OpenAI', detail: outcome.fault.code, attempt: turn.emptyEnds + 1, waitMs })
-        logForDebugging(`[openai] ${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${turn.emptyEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
-        yield notice
-        options.onWait?.(retryNoticeWait(notice))
-        await sleep(waitMs, signal)
-        if (signal.aborted) return
-        attempt--
-        continue
-      }
-      logForDebugging(`[openai] ${emptyStreamSpentWords('OpenAI', Date.now() - turn.turnStartedAtMs)} (${wireDetail})`, { level: 'error' })
-    }
-    const retryable =
-      !turn.emptyEnd &&
-      !providerWaitIsWindow(askedMs) &&
-      (reissueAtServedWord || (turn.busy === undefined && !singleShot && outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
-    if (retryable) {
-      const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)
-      const notice = createSystemAPIErrorMessage(
-        Object.assign(new Error(outcome.fault.message), {
-          ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-          ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-        }),
-        delayMs,
-        attempt,
-        OPENAI_MAX_ATTEMPTS - 1,
-      )
-      yield notice
-      options.onWait?.(retryNoticeWait(notice))
-      await sleep(delayMs, signal)
-      if (signal.aborted) return
-      continue
+    const verdict = yield* retries.afterFault(outcome.fault, { typed, retryEligible: outcome.retryEligible, reissue: reissueAtServedWord })
+    if (verdict.kind === 'again') continue
+    if (verdict.kind === 'cancelled') return
+    if (verdict.kind === 'outage-spent') {
+      yield withEffort(turn, apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${verdict.line}`, typed, outcome.fault.code))
+      return
     }
     const fault: AttemptFault = { outcome, typed, refusedMedia, overflow }
     if (outcome.fault.kind === 'usage-limit' && typed === 'rate_limit') {
@@ -289,7 +202,7 @@ async function* openaiTurn(
       outcome.fault.code,
       overflow,
       refusedMedia,
-      turn.busy !== undefined ? busyRefusalFact('OpenAI', turn.busy.ladder, outcome.fault) : null,
+      retries.busy !== undefined ? busyRefusalFact('OpenAI', retries.busy.ladder, outcome.fault) : null,
     ))
     return
   }

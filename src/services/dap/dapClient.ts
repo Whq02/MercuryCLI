@@ -10,7 +10,7 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { DapTerminalRunner } from './dapTerminal.js'
 import { createServer as createNetServer, type Socket } from 'node:net'
 import type { OwnerKey } from '../run/ownerKey.js'
-import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
+import { dormantBuiltinAdapterHints, envAdapterTableError, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 import type { DapStartOptions } from './client/launch.js'
 import { FramePart } from './client/frame.js'
@@ -78,6 +78,7 @@ export {
   dapAdapterProbePending,
   debugToolWithholding,
   dormantBuiltinAdapterHints,
+  envAdapterTableError,
   isDapToolCatalogEnabled,
   knownAdapterKeys,
   mercuryDapEnabled,
@@ -86,8 +87,8 @@ export {
   settleDapAdapterProbes,
 } from './client/adapters.js'
 import { DapSessionPublicLayer } from './client/publicLayer.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
-
 export class DapSession extends DapSessionPublicLayer {
   readonly adapterKey: string
   readonly program: string
@@ -374,7 +375,20 @@ registerExecutionDomain('debug-adapter', {
   requestStop: record => {
     const alias = record.spec.metadata?.alias
     if (typeof alias !== 'string') return
-    void removeDapSession(record.spec.owner, alias).catch(passedOver)
+    void removeDapSession(record.spec.owner, alias).catch(error => {
+      logForDebugging(`dap: stop request for ${alias} failed: ${error instanceof Error ? error.message : String(error)}`)
+      const key = registryKey(record.spec.owner, alias)
+      const live = sessions.get(key)
+      if (live) {
+        sessions.delete(key)
+        unregisterOwnerDisposer(record.spec.owner, `dap:${alias}`)
+        try {
+          live.killSync()
+        } catch (killError) {
+          passedOver(killError)
+        }
+      }
+    })
   },
 })
 
@@ -437,8 +451,10 @@ export async function createDapSession(options: {
   const resolved = options.specOverride ?? resolveAdapter(options.adapterKey)
   if (!resolved) {
     const dormant = dormantBuiltinAdapterHints()
+    const envError = envAdapterTableError()
     throw new Error(
-      `unknown adapter '${options.adapterKey}' — known: ${knownAdapterKeys().join(', ')}` +
+      (envError !== null ? `${envError} — ` : '') +
+        `unknown adapter '${options.adapterKey}' — known: ${knownAdapterKeys().join(', ')}` +
         (dormant.length > 0
           ? `; dormant builtin lanes (install to arm): ${dormant.map(d => `${d.key} — ${d.hint}`).join(' · ')}`
           : '') +
@@ -534,10 +550,20 @@ export async function removeDapSession(owner: OwnerKey, id: string, signal?: Abo
   if (!session) return false
   sessions.delete(key)
   unregisterOwnerDisposer(owner, `dap:${id}`)
-  await session.dispose(signal)
-  projectExternalState(owner, dapExecutionSpec(id, session.adapterKey), 'stopped', {
-    outcome: { reason: 'session disconnected' },
-  })
+  try {
+    await session.dispose(signal)
+  } finally {
+    if (!session.terminated) {
+      try {
+        session.killSync()
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    projectExternalState(owner, dapExecutionSpec(id, session.adapterKey), 'stopped', {
+      outcome: { reason: 'session disconnected' },
+    })
+  }
   return true
 }
 

@@ -108,6 +108,8 @@ function caseInsensitiveProject(root: string): boolean {
     const other = statSync(alternate)
     return original.dev === other.dev && original.ino === other.ino
   } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`engine leases: whether ${root} is on a case-insensitive disk could not be read (${code ?? String(error)}), so its paths are leased as written`)
     passedOver(error)
     return false
   }

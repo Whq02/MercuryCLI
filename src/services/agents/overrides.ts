@@ -40,10 +40,13 @@ function projectOverridesPath(cwd: string): string {
   return projectLocalPath(root, AGENT_OVERRIDES_BASENAME)
 }
 
-function parseOverridesFile(raw: string, path: string): AgentOverridesFile {
+function parseOverridesFile(raw: string, path: string, strict = false): AgentOverridesFile {
   try {
     const parsed = JSON.parse(raw) as Partial<AgentOverridesFile>
     if (typeof parsed !== 'object' || parsed === null || parsed.version !== 1) {
+      if (strict) {
+        throw new Error(`agent-overrides at ${path}: unrecognized shape`)
+      }
       logForDebugging(`agent-overrides at ${path}: unrecognized shape, ignored`)
       return EMPTY
     }
@@ -67,6 +70,11 @@ function parseOverridesFile(raw: string, path: string): AgentOverridesFile {
     }
     return { version: 1, disabled, agents }
   } catch (e) {
+    if (strict) {
+      throw e instanceof Error
+        ? e
+        : new Error(`agent-overrides at ${path}: unreadable (${String(e)})`)
+    }
     logForDebugging(
       `agent-overrides at ${path}: unreadable (${e instanceof Error ? e.message : String(e)}), ignored`,
     )
@@ -74,14 +82,19 @@ function parseOverridesFile(raw: string, path: string): AgentOverridesFile {
   }
 }
 
-function readOverridesFile(path: string): AgentOverridesFile {
+function readOverridesFile(path: string, strict = false): AgentOverridesFile {
   let raw: string
   try {
     raw = readFileSync(path, 'utf-8')
-  } catch {
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return EMPTY
+    if (strict) throw e
+    logForDebugging(
+      `agent-overrides at ${path}: unreadable (${e instanceof Error ? e.message : String(e)}), ignored`,
+    )
     return EMPTY
   }
-  return parseOverridesFile(raw, path)
+  return parseOverridesFile(raw, path, strict)
 }
 
 type LoadedAgentOverrides = {
@@ -123,7 +136,7 @@ export async function setAgentDisabled(
   disabled: boolean,
 ): Promise<AgentOverridesFile> {
   const path = scope === 'user' ? userOverridesPath() : projectOverridesPath(cwd)
-  const current = readOverridesFile(path)
+  const current = readOverridesFile(path, true)
   const set = new Set(current.disabled)
   if (disabled) set.add(agentType)
   else set.delete(agentType)
@@ -139,7 +152,7 @@ export async function setAgentOverride(
   patch: AgentOverridePatch | undefined,
 ): Promise<AgentOverridesFile> {
   const path = scope === 'user' ? userOverridesPath() : projectOverridesPath(cwd)
-  const current = readOverridesFile(path)
+  const current = readOverridesFile(path, true)
   const agents = { ...current.agents }
   if (
     patch === undefined ||

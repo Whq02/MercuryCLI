@@ -12,7 +12,7 @@ export function noteAskedAtExit(): boolean {
   return hasFocusedSession() || exitNoteDue()
 }
 
-export type ExitNoteReceipt = { note: ExitNoteOutcome; noteChars?: number }
+export type ExitNoteReceipt = { note: ExitNoteOutcome; noteChars?: number; detail?: string }
 
 export async function leaveNoteAtExit(signal: AbortSignal): Promise<ExitNoteReceipt> {
   if (!hasFocusedSession()) {
@@ -21,7 +21,11 @@ export async function leaveNoteAtExit(signal: AbortSignal): Promise<ExitNoteRece
     return { note, ...(kept === null ? {} : { noteChars: kept }) }
   }
   const receipt = await getFocusedSessionConnector().leave({ signal })
-  return { note: receipt.note, ...(receipt.noteChars === undefined ? {} : { noteChars: receipt.noteChars }) }
+  return {
+    note: receipt.note,
+    ...(receipt.noteChars === undefined ? {} : { noteChars: receipt.noteChars }),
+    ...(receipt.detail === undefined ? {} : { detail: receipt.detail }),
+  }
 }
 
 export function ExitHandoff({ onSettled }: { onSettled: (receipt: ExitNoteReceipt) => void }): React.ReactNode {

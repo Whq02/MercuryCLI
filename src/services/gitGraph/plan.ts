@@ -345,8 +345,8 @@ function headSha(root: string): string | null {
   try {
     return git(root, ['rev-parse', '--verify', '--quiet', 'HEAD']).trim() || null
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as { status?: unknown }).status === 1) return null
+    throw error
   }
 }
 

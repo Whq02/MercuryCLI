@@ -15,6 +15,8 @@ export type PreparedWrite =
   | { ok: true; commit(): { success: boolean; code?: string }; discard(): void }
   | { ok: false; code?: string }
 
+export type CredentialStoreUnread = { warning: string; code: string; message?: string }
+
 export interface SecureStorage {
   name: string
   read(): SecureStorageData | null
@@ -22,7 +24,7 @@ export interface SecureStorage {
   update(data: SecureStorageData): { success: boolean; warning?: string; code?: string }
   delete(): boolean
   prepare?(data: SecureStorageData): PreparedWrite
-  unread?(): { warning: string; code: string } | null
+  unread?(): CredentialStoreUnread | null
 }
 
 export type ProtectorAnswer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }

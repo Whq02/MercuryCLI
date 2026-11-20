@@ -388,13 +388,18 @@ export function deriveSessionKitForPreset(presetName: string, workspaceDir: stri
   if (!verdict.ok) return { ok: false, reason: `preset '${presetName}' refused — ${verdict.reason}` }
   const deltas = verdict.deltas
   let known: string[] = []
+  let unread: string | null = null
   try {
     known = knownMcpNamesForWorkspace(workspaceDir)
   } catch (err) {
     logForDebugging(`[kit] the preset census for ${workspaceDir} fell empty: ${err}`)
+    unread = err instanceof Error ? err.message : String(err)
   }
-  const unbiting = deltas.mcpOff.filter(name => !known.includes(name))
+  const unbiting = unread === null ? deltas.mcpOff.filter(name => !known.includes(name)) : []
   const parts: string[] = []
+  if (unread !== null && deltas.mcpOff.length > 0) {
+    parts.push(`this repo's MCP servers could not be read (${unread}) — its MCP deltas are not checked`)
+  }
   if (unbiting.length > 0) {
     parts.push(
       `${unbiting.length} MCP delta${unbiting.length === 1 ? '' : 's'} name${unbiting.length === 1 ? 's' : ''} servers this repo lacks (${unbiting.slice(0, 6).join(', ')}${unbiting.length > 6 ? ', …' : ''}) — they don't bite`,

@@ -122,7 +122,8 @@ export async function mutateProjectGodot(
     let original: string
     try {
       original = readFileSync(file, 'utf8')
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') throw error
       original = ''
     }
     const out = mutate(original)
@@ -135,7 +136,15 @@ export async function mutateProjectGodot(
     let current: string
     try {
       current = readFileSync(file, 'utf8')
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
+        try {
+          unlinkSync(tmp)
+        } catch (unlinkError) {
+          passedOver(unlinkError)
+        }
+        throw error
+      }
       current = ''
     }
     if (current !== original) {
@@ -171,8 +180,8 @@ export function readRuntimeAutoloadEntry(projectRoot: string): string | undefine
   try {
     text = readFileSync(projectGodotPath(projectRoot), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return undefined
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') return undefined
+    throw error
   }
   return runtimeAutoloadFromText(text)
 }

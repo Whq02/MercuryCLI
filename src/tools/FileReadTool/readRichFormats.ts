@@ -8,7 +8,6 @@ import { createGunzip, inflateRawSync } from 'node:zlib'
 import { hasBinaryExtension } from '../../constants/files.js'
 import { formatFileSize } from '../../utils/format.js'
 import { openRegularFileSync, readRegularFileSync } from '../../utils/regularFile.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 const ARCHIVE_EXTENSIONS = new Set(['zip', 'tar', 'tgz'])
 const SQLITE_EXTENSIONS = new Set(['sqlite', 'sqlite3', 'db'])
@@ -1269,9 +1268,10 @@ export async function renderSqliteTarget(
     for (const obj of objects) {
       const qName = quoteIdent(obj.name)
       const isView = obj.type === 'view'
-      let countDesc = 'view'
+      let countDesc: string | null = isView ? 'view' : null
       let cols: string[] = []
       let sample: Record<string, unknown>[] = []
+      let sampleError: string | null = null
       try {
         if (!isView) {
           const countRow = db.prepare(`SELECT COUNT(*) AS c FROM ${qName}`).all()[0] as { c?: number } | undefined
@@ -1281,9 +1281,21 @@ export async function renderSqliteTarget(
         const res = queryBoundedSqliteRows(db, obj.name, SQLITE_SAMPLE_ROWS)
         cols = res.cols
         sample = res.rows
-      } catch (error) { passedOver(error) }
+      } catch (error) {
+        sampleError = error instanceof Error ? error.message : String(error)
+      }
       lines.push('')
-      lines.push(isView ? `## ${obj.name} (view)` : `## ${obj.name} (${obj.type}, ${countDesc})`)
+      const detail =
+        sampleError !== null
+          ? isView
+            ? `view, ${sampleError}`
+            : countDesc !== null
+              ? `${obj.type}, ${countDesc}, ${sampleError}`
+              : `${obj.type}, ${sampleError}`
+          : isView
+            ? 'view'
+            : `${obj.type}, ${countDesc ?? '0 rows'}`
+      lines.push(`## ${obj.name} (${detail})`)
       if (obj.sql) lines.push(obj.sql.trim())
       if (sample.length > 0 && cols.length > 0) {
         lines.push(cols.join('\t'))

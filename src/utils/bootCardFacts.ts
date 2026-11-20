@@ -154,8 +154,9 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
   try {
     names = readdirSync(store)
   } catch (error) {
-    passedOver(error)
-    return null
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return null
+    throw error
   }
   const card = names.includes(PROJECT_CARD_FILE) ? readProjectCard(store) : null
   const candidates: Array<{ file: string; mtime: number; size: number }> = []
@@ -212,56 +213,62 @@ export const PARKED_CAP = 10
 export const PARKED_WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 export function projectChatCount(projectDir: string, opts: { excludeSessionId?: string } = {}): number {
+  const home = getProjectDir(projectDir)
+  const skip = opts.excludeSessionId ? `${opts.excludeSessionId}.jsonl` : null
+  let names: string[]
   try {
-    const home = getProjectDir(projectDir)
-    const skip = opts.excludeSessionId ? `${opts.excludeSessionId}.jsonl` : null
-    let n = 0
-    for (const f of readdirSync(home)) {
-      if (!isSessionFile(f) || f === skip) continue
-      try {
-        if (statSync(join(home, f)).size > 0) n++
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    return n
+    names = readdirSync(home)
   } catch (error) {
-    passedOver(error)
-    return 0
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return 0
+    throw error
   }
+  let n = 0
+  for (const f of names) {
+    if (!isSessionFile(f) || f === skip) continue
+    try {
+      if (statSync(join(home, f)).size > 0) n++
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  return n
 }
 
 export function parkedSessionsOf(
   projectDir: string,
   opts: { excludeSessionId?: string; cap?: number; withinMs?: number; nowMs?: number } = {},
 ): ParkedSessionFact[] {
+  const home = getProjectDir(projectDir)
+  const skip = opts.excludeSessionId ? `${opts.excludeSessionId}.jsonl` : null
+  const cap = Math.max(0, opts.cap ?? PARKED_CAP)
+  const since = opts.withinMs !== undefined ? (opts.nowMs ?? Date.now()) - opts.withinMs : Number.NEGATIVE_INFINITY
+  let names: string[]
   try {
-    const home = getProjectDir(projectDir)
-    const skip = opts.excludeSessionId ? `${opts.excludeSessionId}.jsonl` : null
-    const cap = Math.max(0, opts.cap ?? PARKED_CAP)
-    const since = opts.withinMs !== undefined ? (opts.nowMs ?? Date.now()) - opts.withinMs : Number.NEGATIVE_INFINITY
-    const candidates: Array<{ file: string; mtime: number; size: number }> = []
-    for (const f of readdirSync(home)) {
-      if (!isSessionFile(f) || f === skip) continue
-      try {
-        const st = statSync(join(home, f))
-        if (st.size > 0 && st.mtimeMs >= since) candidates.push({ file: join(home, f), mtime: st.mtimeMs, size: st.size })
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    candidates.sort((a, b) => b.mtime - a.mtime)
-    const out: ParkedSessionFact[] = []
-    for (const c of candidates.slice(0, cap + HUSK_WALK)) {
-      if (isAuthFailureHusk(c.file, c.size)) continue
-      out.push({ sessionId: sessionIdOf(c.file), transcriptPath: c.file, ageMs: Date.now() - c.mtime })
-      if (out.length >= cap) break
-    }
-    return out
+    names = readdirSync(home)
   } catch (error) {
-    passedOver(error)
-    return []
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return []
+    throw error
   }
+  const candidates: Array<{ file: string; mtime: number; size: number }> = []
+  for (const f of names) {
+    if (!isSessionFile(f) || f === skip) continue
+    try {
+      const st = statSync(join(home, f))
+      if (st.size > 0 && st.mtimeMs >= since) candidates.push({ file: join(home, f), mtime: st.mtimeMs, size: st.size })
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  candidates.sort((a, b) => b.mtime - a.mtime)
+  const out: ParkedSessionFact[] = []
+  for (const c of candidates.slice(0, cap + HUSK_WALK)) {
+    if (isAuthFailureHusk(c.file, c.size)) continue
+    out.push({ sessionId: sessionIdOf(c.file), transcriptPath: c.file, ageMs: Date.now() - c.mtime })
+    if (out.length >= cap) break
+  }
+  return out
 }
 
 export const BOOT_SCAN_DIR_CAP = 128
@@ -292,7 +299,13 @@ function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
   const skip = excludeSessionId ? `${excludeSessionId}.jsonl` : null
   const perDir: Array<{ facts: StoreDirFacts; mtime: number }> = []
   for (const d of capDirsByRecency(readdirSync(root), name => statSync(join(root, name)).mtimeMs)) {
-    const facts = readStoreDirFacts(join(root, d), skip)
+    let facts: StoreDirFacts | null
+    try {
+      facts = readStoreDirFacts(join(root, d), skip)
+    } catch (error) {
+      logError(error)
+      continue
+    }
     if (facts === null) continue
     perDir.push({ facts, mtime: Math.max(facts.newest?.mtime ?? 0, facts.card?.firstChatAt ?? 0) })
   }
@@ -379,12 +392,14 @@ function isCatalogedGround(canonicalDir: string): boolean {
   const now = Date.now()
   const hit = catalogedGroundCache.get(canonicalDir)
   if (hit !== undefined && hit.generation === catalogGeneration && now - hit.at < CATALOGED_GROUND_TTL_MS) return hit.answer
+  const store = getProjectDir(canonicalDir)
   let answer = false
   let decided = false
   try {
-    answer = readStoreDirFacts(getProjectDir(canonicalDir), null) !== null
+    answer = readStoreDirFacts(store, null) !== null
     decided = true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     answer = false
   }
   if (decided) catalogedGroundCache.set(canonicalDir, { at: now, generation: catalogGeneration, answer })
@@ -397,7 +412,7 @@ export function workspaceRecognizedByGround(groundDir: string, workspaceDir: str
   try {
     if (getProjectDir(workspaceDir) === getProjectDir(groundDir)) return true
   } catch (error) {
-    passedOver(error)
+    logError(error)
     return false
   }
   const ws = canonicalGroundSpelling(workspaceDir)
@@ -467,7 +482,7 @@ export function catalogFirstChat(dir: string, sessionId: string): void {
   try {
     initializeProjectLocalEstate(dir)
   } catch (error) {
-    passedOver(error)
+    logError(error)
   }
   try {
     const store = getProjectDir(dir)

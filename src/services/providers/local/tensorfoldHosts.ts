@@ -4,6 +4,8 @@ import { publishAtomicSync } from '../../../substrate/fileStore.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import type { HelperModelState, TensorFoldHost, TensorFoldHostOrigin } from '../../tensorfold/contracts.js'
+import { logForDebugging } from '../../../utils/debug.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const FILE_NAME = 'tensorfold-hosts.json'
 const ORIGINS: readonly TensorFoldHostOrigin[] = ['lan-paired', 'typed', 'pod', 'app', 'shared']
@@ -66,14 +68,28 @@ function hostRecordOf(raw: unknown): TensorFoldHostRecord | undefined {
   }
 }
 
+function readStoreStrict(): HostsFile {
+  let raw: string
+  try {
+    raw = readFileSync(storePath(), 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') return { version: 1, hosts: [], ports: [] }
+    throw error
+  }
+  const parsed = rec(JSON.parse(raw))
+  if (parsed === undefined) throw new SyntaxError(`TensorFold hosts store at ${storePath()} is not a JSON object`)
+  const hosts = Array.isArray(parsed.hosts) ? parsed.hosts.map(hostRecordOf).filter((row): row is TensorFoldHostRecord => row !== undefined) : []
+  const ports = Array.isArray(parsed.ports) ? parsed.ports.filter((port): port is number => Number.isInteger(port) && port > 0 && port < 65536) : []
+  const windows = Object.fromEntries(Object.entries(rec(parsed.windows) ?? {}).filter((entry): entry is [string, number] => Number.isInteger(entry[1]) && (entry[1] as number) > 0))
+  return { version: 1, hosts, ports, ...(Object.keys(windows).length > 0 ? { windows } : {}) }
+}
+
 function readStore(): HostsFile {
   try {
-    const parsed = rec(JSON.parse(readFileSync(storePath(), 'utf8')))
-    const hosts = Array.isArray(parsed?.hosts) ? parsed!.hosts.map(hostRecordOf).filter((row): row is TensorFoldHostRecord => row !== undefined) : []
-    const ports = Array.isArray(parsed?.ports) ? parsed!.ports.filter((port): port is number => Number.isInteger(port) && port > 0 && port < 65536) : []
-    const windows = Object.fromEntries(Object.entries(rec(parsed?.windows) ?? {}).filter((entry): entry is [string, number] => Number.isInteger(entry[1]) && (entry[1] as number) > 0))
-    return { version: 1, hosts, ports, ...(Object.keys(windows).length > 0 ? { windows } : {}) }
-  } catch {
+    return readStoreStrict()
+  } catch (error) {
+    passedOver(error)
+    logForDebugging(`[tensorfold-hosts] could not read ${storePath()}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
     return { version: 1, hosts: [], ports: [] }
   }
 }
@@ -90,7 +106,7 @@ function stripKey(host: TensorFoldHostRecord): TensorFoldHost {
 }
 
 export async function rememberTensorFoldHost(host: TensorFoldHost & { key?: string; chip?: string }): Promise<void> {
-  const store = readStore()
+  const store = readStoreStrict()
   const baseUrl = tensorFoldHostRoot(host.baseUrl)
   const before = store.hosts.find(row => row.name === host.name || row.baseUrl === baseUrl)
   const next: TensorFoldHostRecord = {
@@ -109,7 +125,7 @@ export async function rememberTensorFoldHost(host: TensorFoldHost & { key?: stri
 }
 
 export async function forgetTensorFoldHost(name: string): Promise<void> {
-  const store = readStore()
+  const store = readStoreStrict()
   writeStore({ ...store, hosts: store.hosts.filter(row => row.name !== name && row.baseUrl !== tensorFoldHostRoot(name)) })
 }
 
@@ -140,14 +156,14 @@ export function tensorFoldPorts(): readonly number[] {
 
 export function rememberTensorFoldPort(port: number): void {
   if (!Number.isInteger(port) || port <= 0 || port >= 65536) throw new Error(`a TensorFold port is 1 to 65535, not ${port}`)
-  const store = readStore()
+  const store = readStoreStrict()
   if (store.ports.includes(port)) return
   writeStore({ ...store, ports: [...store.ports, port] })
 }
 
 export function rememberTensorFoldWindow(repo: string, window: number): void {
   if (repo.trim() === '' || !Number.isInteger(window) || window <= 0) return
-  const store = readStore()
+  const store = readStoreStrict()
   const key = repo.toLowerCase()
   if (store.windows?.[key] === window) return
   writeStore({ ...store, windows: { ...store.windows, [key]: window } })
@@ -162,7 +178,7 @@ export function rememberedTensorFoldRepos(): readonly string[] {
 }
 
 export function forgetTensorFoldPort(port: number): void {
-  const store = readStore()
+  const store = readStoreStrict()
   if (!store.ports.includes(port)) return
   writeStore({ ...store, ports: store.ports.filter(row => row !== port) })
 }

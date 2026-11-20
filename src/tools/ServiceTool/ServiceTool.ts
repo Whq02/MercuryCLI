@@ -20,8 +20,9 @@ import {
   logEnd,
   readLogs,
   readRecord,
-  reconcileAll,
+  reconcileAllStrict,
   reconcileRecord,
+  reconcileRecordStrict,
   restartService,
   sendInput,
   startService,
@@ -157,20 +158,23 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       }
     }
     case 'list': {
-      const records = reconcileAll(project)
-      if (records.length === 0) {
+      const listed = reconcileAllStrict(project)
+      if (!listed.ok) return { op: 'list', result: listed.error, state: 'failed' }
+      const { records, unreadable } = listed
+      if (records.length === 0 && unreadable.length === 0) {
         return { op: 'list', result: 'no services in this project (start one with op:"start")' }
       }
-      return {
-        op: 'list',
-        result: records
-          .map(r => `${r.spec.name} — ${r.state}${r.pid ? ` (pid ${r.pid})` : ''}${r.restartCount ? ` · ${r.restartCount} restart(s)` : ''} · mercury://service/${r.spec.name}`)
-          .join('\n'),
-      }
+      const lines = [
+        ...records.map(r => `${r.spec.name} — ${r.state}${r.pid ? ` (pid ${r.pid})` : ''}${r.restartCount ? ` · ${r.restartCount} restart(s)` : ''} · mercury://service/${r.spec.name}`),
+        ...unreadable.map(u => `not read: ${u.name} (${u.error})`),
+      ]
+      return { op: 'list', result: lines.join('\n') }
     }
     case 'describe': {
       if (!input.name) need('name')
-      const record = reconcileRecord(project, input.name!)
+      const loaded = reconcileRecordStrict(project, input.name!)
+      if (!loaded.ok) return { op: 'describe', result: loaded.error, state: 'failed', name: input.name }
+      const record = loaded.record
       if (!record) return { op: 'describe', result: `no service '${input.name}' in this project`, state: 'absent' }
       const { ready, statuses } = await evaluateReadiness(project, record)
       const readinessLines =
@@ -189,6 +193,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       const wait = clampWait('timeoutMs', input.timeoutMs ?? WAIT_DEFAULT_MS, WAIT_MIN_MS, WAIT_MAX_MS, 'ms')
       const said = wait.clause === null ? '' : `\n${wait.clause}`
       const outcome = await waitForReady(project, input.name!, wait.value)
+      if (outcome.error !== undefined) return { op: 'wait', result: `${outcome.error}${said}`, state: 'failed', name: input.name }
       if (!outcome.record) return { op: 'wait', result: `no service '${input.name}' in this project${said}`, state: 'absent' }
       if (outcome.ready) {
         return { op: 'wait', result: `service '${input.name}' is READY\n${describeRecord(outcome.record)}${said}`, state: outcome.record.state, name: input.name }

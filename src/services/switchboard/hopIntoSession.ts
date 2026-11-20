@@ -9,6 +9,7 @@ import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { validateUuid } from '../../utils/sessionStoragePortable.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { errorMessage, getErrnoCode } from '../../utils/errors.js'
 
 export function liveTitleDeriverFor(
   workers: {
@@ -123,6 +124,7 @@ async function workspaceOfTranscript(transcriptPath: string | undefined): Promis
       const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head)
       if (m) return JSON.parse(`"${m[1]}"`) as string
     } catch (error) {
+      if (getErrnoCode(error) !== 'ENOENT') throw error
       passedOver(error)
     }
   }
@@ -183,7 +185,13 @@ async function admitResumedSession(
   const workers = await import('../../daemon/concourseWorkers.js')
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
   const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
-  const workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
+  let workspaceDir: string
+  try {
+    workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
+  } catch (error) {
+    const reason = errorMessage(error)
+    return { ok: false, reason, admitted: Promise.resolve(false), refusal: Promise.resolve(reason) }
+  }
   const paths = await import('../../utils/sessionStorage/paths.js')
   const seat = await import('../engine-connector/daemonConnector.js')
   const { headBriefLabel } = await import('../concourse/concourseSnapshot.js')
@@ -339,21 +347,24 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
       : undefined
     if (again === undefined || !again.ok) return { ok: false, reason: `a fresh session could not start, so this one stands — ${born.reason}` }
   }
-  await parkSessionById(oldSessionId)
+  const unparked = await parkSessionById(oldSessionId)
   const { markSessionCleared } = await import('../../utils/sessionStorage/clearedSessions.js')
-  markSessionCleared(oldSessionId)
+  const marked = markSessionCleared(oldSessionId)
+  if (unparked !== null) mintImmediateReceipt(`the cleared session could not be parked and is still running (${unparked}) — park it from the Session Concourse`, 'warning')
+  if (!marked.ok) mintImmediateReceipt(`the cleared mark could not be saved (${marked.error}), so this session may show in the list again`, 'warning')
   return { ok: true, cleared: true }
 }
 
-async function parkSessionById(sessionId: string): Promise<void> {
+async function parkSessionById(sessionId: string): Promise<string | null> {
   const workers = await import('../../daemon/concourseWorkers.js')
   const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
-  if (rec === undefined) return
+  if (rec === undefined) return null
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
+    const reply = (await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })) as { ok?: boolean; error?: unknown }
+    return reply.ok === true ? null : String(reply.error ?? 'refused')
   } catch (error) {
-    passedOver(error)
+    return errorMessage(error)
   }
 }
 
@@ -502,6 +513,14 @@ function launchWonOf(
   return out.model === undefined && out.effort === undefined ? null : out
 }
 
+async function notApplied<R>(call: () => Promise<R>): Promise<R | { state: 'failed'; detail: string }> {
+  try {
+    return await call()
+  } catch (error) {
+    return { state: 'failed', detail: errorMessage(error) }
+  }
+}
+
 async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resumeWithLaunchWords: (() => Promise<unknown>) | null): Promise<void> {
   try {
     const seat = await import('../engine-connector/daemonConnector.js')
@@ -515,22 +534,28 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
     const parts: string[] = []
     let daemonLeft = false
     if (launch.model !== undefined && launch.model !== facts.effective) {
-      const receipt = await connector.setModel(launch.model)
+      const receipt = await notApplied(() => connector.setModel(launch.model as string))
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--model ${renderModelName(launch.model)} wins over the session's ${renderModelName(facts.effective)}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
         daemonLeft = daemonWentAway()
         if (!daemonLeft) parts.push(`--model ${renderModelName(launch.model)} was refused, the session keeps ${renderModelName(facts.effective)}: ${receipt.detail}`)
+      } else if (receipt.state === 'failed') {
+        daemonLeft = daemonWentAway()
+        if (!daemonLeft) parts.push(`--model ${renderModelName(launch.model)} was not applied, the session keeps ${renderModelName(facts.effective)} (${receipt.detail})`)
       }
     }
     const sessionEffort = typeof facts.effort === 'string' ? facts.effort : undefined
     if (!daemonLeft && launch.effort !== undefined && launch.effort !== sessionEffort) {
-      const receipt = await connector.setEffort(launch.effort)
+      const receipt = await notApplied(() => connector.setEffort(launch.effort as string))
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--effort ${launch.effort} wins over the session's ${sessionEffort ?? 'own effort'}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
         daemonLeft = daemonWentAway()
         if (!daemonLeft) parts.push(`--effort ${launch.effort} was refused, the session keeps ${sessionEffort ?? 'its own effort'}: ${receipt.detail}`)
+      } else if (receipt.state === 'failed') {
+        daemonLeft = daemonWentAway()
+        if (!daemonLeft) parts.push(`--effort ${launch.effort} was not applied, the session keeps ${sessionEffort ?? 'its own effort'} (${receipt.detail})`)
       }
     }
     for (const part of parts) mintImmediateReceipt(part)

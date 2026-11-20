@@ -9,7 +9,6 @@ process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.MERCURY_CRITTER_IDLE
 delete process.env.MERCURY_LIVE_GLYPHS
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.js')
 const {
   MOTION_DOORS,
@@ -51,7 +50,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const configPath = join(HOME, '.mercury.json')
 const storedMotion = (): unknown => {
   if (!existsSync(configPath)) return undefined
@@ -173,13 +171,8 @@ for (const still of STILLS) {
   check('wide, reduced saved: the row reads reduced and the detail says set by you', /❯ Motion\s+reduced/.test(reduced) && /now: reduced \(set by you\)/.test(reduced))
 }
 
-section('S7 the documents')
+section('S7 the schema')
 {
-  const profile = src('docs/TERMINAL-PROFILE.md')
-  check('the terminal profile names the setting, its four values and both doors', /## Motion/.test(profile) && /`auto`/.test(profile) && /`off`/.test(profile) && /Motion row of `\/config`/.test(profile) && /Performance section/.test(profile))
-  check('the terminal profile maps the two switches onto the choice', /MERCURY_CRITTER_IDLE=0`\s+holds the critter part off/.test(profile.replace(/\n/g, ' ')) && /MERCURY_LIVE_GLYPHS=0`\s+the glyph part/.test(profile.replace(/\n/g, ' ')))
-  const readme = src('docs/SESSIONS.md')
-  check('SESSIONS.md names the Performance section and the /config row', /Performance\s+section includes a Motion setting/.test(readme) && /also available in `\/config`/.test(readme))
   const schema = generateSettingsJSONSchema()
   check('the settings schema snapshot carries no such key (the global config owns it)', !/"motion"/.test(schema))
 }

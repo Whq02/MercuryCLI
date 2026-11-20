@@ -1,6 +1,8 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
+import { logForDebugging } from '../utils/debug.js'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { errorMessage } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
 
@@ -63,11 +65,20 @@ export function recordInvocation(): InvocationCapabilityRecordV1 {
   const rec = captureInvocationRecord()
   try {
     let rows: InvocationCapabilityRecordV1[] = []
+    let text: string | null = null
     try {
-      const raw = JSON.parse(readFileSync(invocationRecordPath(), 'utf8')) as InvocationFileV1
-      if (raw && raw.version === 1 && Array.isArray(raw.rows)) rows = raw.rows
+      text = readFileSync(invocationRecordPath(), 'utf8')
     } catch (error) {
-      passedOver(error)
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+    if (text !== null) {
+      try {
+        const raw = JSON.parse(text) as InvocationFileV1
+        if (raw && raw.version === 1 && Array.isArray(raw.rows)) rows = raw.rows
+      } catch (error) {
+        passedOver(error)
+        logForDebugging(`[invocation-record] replacing corrupt record: ${errorMessage(error)}`, { level: 'warn' })
+      }
     }
     rows = [...rows, rec].slice(-MAX_ROWS)
     const path = invocationRecordPath()
@@ -77,17 +88,22 @@ export function recordInvocation(): InvocationCapabilityRecordV1 {
     renameSync(tmp, path)
   } catch (error) {
     passedOver(error)
+    logForDebugging(`[invocation-record] skipped recording invocation: ${errorMessage(error)}`, { level: 'warn' })
   }
   return rec
 }
 
 export function readInvocationRecords(): InvocationCapabilityRecordV1[] {
+  let text: string
   try {
-    const raw = JSON.parse(readFileSync(invocationRecordPath(), 'utf8')) as InvocationFileV1
-    if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
-    return raw.rows
+    text = readFileSync(invocationRecordPath(), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
   }
+  const raw = JSON.parse(text) as InvocationFileV1
+  if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
+    throw new SyntaxError('invalid invocation-record.json')
+  }
+  return raw.rows
 }

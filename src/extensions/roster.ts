@@ -14,7 +14,6 @@ import { readInstalled, readSources, type InstalledRecord, type SourceRecord } f
 import { compareWithCatalogue, readSourceCatalogue } from './sources.js'
 import { hashTree } from './tree.js'
 import type { RosterEntry, RosterSummary, TrustState } from './types.js'
-import { passedOver } from '../utils/passedOver.js'
 
 
 
@@ -222,14 +221,22 @@ export function computeRoster(input: RosterInput = {}): RosterResult {
     let names: string[] = []
     try {
       names = readdirSync(projectDir).filter(name => {
+        const entryPath = join(projectDir, name)
         try {
-          return statSync(join(projectDir, name)).isDirectory()
+          return statSync(entryPath).isDirectory()
         } catch (error) {
-          passedOver(error)
+          const code = (error as NodeJS.ErrnoException).code
+          if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+            problems.push(`${entryPath} unreadable (${error instanceof Error ? error.message : String(error)})`)
+          }
           return false
         }
       })
-    } catch {
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        problems.push(`${projectDir} unreadable (${error instanceof Error ? error.message : String(error)})`)
+      }
       names = []
     }
     for (const name of names.sort()) {

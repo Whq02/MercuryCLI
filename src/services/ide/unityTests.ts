@@ -160,10 +160,16 @@ export function readUnityTestResults(
   let xml: string
   try {
     xml = readFileSync(file, 'utf8')
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      return {
+        state: 'absent',
+        detail: `${file} not found — run the unity ${mode} test profile first (operator-run; the Launch tool prints the exact command)`,
+      }
+    }
     return {
-      state: 'absent',
-      detail: `${file} not found — run the unity ${mode} test profile first (operator-run; the Launch tool prints the exact command)`,
+      state: 'rejected',
+      reason: error instanceof Error ? error.message : String(error),
     }
   }
   return parseUnityTestResults(xml)

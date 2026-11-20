@@ -180,8 +180,10 @@ async function extractArchive(where: string, remote: boolean, format: 'zip' | 't
   } else {
     try {
       bytes = readFileSync(where)
-    } catch {
-      return { ok: false, step: 'read', reason: `archive missing · ${where}` }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      const missing = code === 'ENOENT' || code === 'ENOTDIR'
+      return { ok: false, step: 'read', reason: `${missing ? 'archive missing' : 'archive unreadable'} · ${where}` }
     }
   }
   mkdirSync(into, { recursive: true })

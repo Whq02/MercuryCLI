@@ -4,6 +4,7 @@ import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getMercuryHome } from '../envUtils.js'
+import { logForDebugging } from '../debug.js'
 import { projectSlug, sanitizePath } from '../sessionStoragePortable.js'
 import { passedOver } from '../passedOver.js'
 
@@ -34,6 +35,8 @@ export function savedPromptsPath(projectPath: string): string {
       try {
         renameSync(legacy, hashed)
       } catch (error) {
+        logForDebugging(`savedPromptsPath: failed to migrate ${legacy} to ${hashed}: ${String(error)}`, { level: 'warn' })
+        if (!existsSync(hashed) && existsSync(legacy)) return legacy
         passedOver(error)
       }
     }

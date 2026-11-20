@@ -4,7 +4,6 @@ import type { HelperModelState, TensorFoldEngine, TensorFoldHost, TensorFoldServ
 import { getCachedLocalDiscovery, refreshLocalDiscovery, type LocalDiscoverySnapshot, type LocalServerRecord } from './localDiscovery.js'
 import { detectTensorFoldApp, type TensorFoldAppState } from './tensorfoldApp.js'
 import { tensorFoldHostAddress, tensorFoldHostRecords, tensorFoldHostRoot } from './tensorfoldHosts.js'
-import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 const TENSORFOLD_SERVICE_NAME = 'tensorfold'
 export const TENSORFOLD_WINDOW_FLOOR = 32768
@@ -51,46 +50,27 @@ export interface TensorFoldStateReads {
 }
 
 async function readEngine(): Promise<TensorFoldEngine | null | undefined> {
-  try {
-    const { findTensorFoldEngine } = await import('../../tensorfold/engine.js')
-    return await findTensorFoldEngine()
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
+  const { findTensorFoldEngine } = await import('../../tensorfold/engine.js')
+  return findTensorFoldEngine()
 }
 
 function readServed(): readonly TensorFoldServed[] {
-  try {
-    const { servedTensorFold } = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
-    return servedTensorFold()
-  } catch (error) {
-    passedOver(error)
-    return []
-  }
+  const { servedTensorFold } = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
+  return servedTensorFold()
 }
 
 function readHelper(): HelperModelState {
-  try {
-    const { readHelperModelState } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
-    return readHelperModelState()
-  } catch {
-    return { enabled: false }
-  }
+  const { readHelperModelState } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
+  return readHelperModelState()
 }
 
 async function readExited(): Promise<TensorFoldExit | undefined> {
-  try {
-    const record = readRecord(getCwd(), TENSORFOLD_SERVICE_NAME)
-    if (record === null || record.explicitStop) return undefined
-    if (record.state !== 'failed' && !(record.state === 'stopped' && record.lastExitCode !== null && record.lastExitCode !== 0)) return undefined
-    const logs = await readLogs(getCwd(), TENSORFOLD_SERVICE_NAME, { tail: true, limitLines: 50 })
-    const lastLine = 'lines' in logs ? [...logs.lines].reverse().find(line => line.trim() !== '') : undefined
-    return { name: TENSORFOLD_SERVICE_NAME, ...(lastLine !== undefined ? { lastLine: lastLine.trim() } : {}) }
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
+  const record = readRecord(getCwd(), TENSORFOLD_SERVICE_NAME)
+  if (record === null || record.explicitStop) return undefined
+  if (record.state !== 'failed' && !(record.state === 'stopped' && record.lastExitCode !== null && record.lastExitCode !== 0)) return undefined
+  const logs = await readLogs(getCwd(), TENSORFOLD_SERVICE_NAME, { tail: true, limitLines: 50 })
+  const lastLine = 'lines' in logs ? [...logs.lines].reverse().find(line => line.trim() !== '') : undefined
+  return { name: TENSORFOLD_SERVICE_NAME, ...(lastLine !== undefined ? { lastLine: lastLine.trim() } : {}) }
 }
 
 function serverStateOf(record: LocalServerRecord, served: readonly TensorFoldServed[], hosts: readonly TensorFoldHost[]): TensorFoldServerState {
@@ -122,7 +102,7 @@ export async function readTensorFoldState(reads: TensorFoldStateReads = {}): Pro
   stateReads += 1
   const [engine, snapshot, app, exited] = await Promise.all([
     (reads.engine ?? readEngine)(),
-    (reads.snapshot ?? (async () => getCachedLocalDiscovery() ?? (await refreshLocalDiscovery().catch(passedOverAs(null)))))(),
+    (reads.snapshot ?? (async () => getCachedLocalDiscovery() ?? (await refreshLocalDiscovery())))(),
     (reads.app ?? (() => detectTensorFoldApp()))(),
     (reads.exited ?? readExited)(),
   ])
@@ -149,20 +129,9 @@ export function __tensorFoldStateReadsForTest(): number {
 }
 
 export function tensorFoldPresenceCached(reads: { installed?: () => boolean; snapshot?: () => LocalDiscoverySnapshot | null; hosts?: () => readonly TensorFoldHost[] } = {}): TensorFoldPresenceCached {
-  let installed = false
-  try {
-    const { tensorFoldEngineFound } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
-    installed = (reads.installed ?? tensorFoldEngineFound)()
-  } catch {
-    installed = false
-  }
+  const installed = reads.installed ? reads.installed() : (require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')).tensorFoldEngineFound()
   const snapshot = (reads.snapshot ?? getCachedLocalDiscovery)()
   const serving = (snapshot?.servers ?? []).some(server => server.kind === 'tensorfold' && server.models.length > 0)
-  let paired = false
-  try {
-    paired = (reads.hosts ?? tensorFoldHostRecords)().some(host => host.origin !== 'app' && host.origin !== 'shared')
-  } catch {
-    paired = false
-  }
+  const paired = (reads.hosts ?? tensorFoldHostRecords)().some(host => host.origin !== 'app' && host.origin !== 'shared')
   return { installed, serving, paired }
 }

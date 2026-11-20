@@ -80,18 +80,14 @@ import {
   CannotRetryError,
   FallbackTriggeredError,
   is529Error,
+  retryEmptyStream,
 } from '../../api/withRetry.js'
 import type { HeldBusyRetryWait } from '../busyRetry.js'
-import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords } from '../emptyStreamRetry.js'
-import { retrySeconds } from '../../api/recoveryBudget.js'
+import { emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { toolCallRefusalNote } from '../toolCallGate.js'
 import { safeParseJSON } from '../../../utils/json.js'
 import type { RefusedToolCall } from '../../../types/message.js'
-import { sleep } from '../../../utils/sleep.js'
-import {
-  retryNoticeWait,
-  type RequestWaitV1,
-} from '../streamIdleBudget.js'
+import type { RequestWaitV1 } from '../streamIdleBudget.js'
 import { anthropicEffortWireFact } from './requestParams.js'
 type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
 type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
@@ -473,20 +469,11 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
       if (streamingError instanceof APIUserAbortError) throw sdkAbortError(signal, streamingError)
 
       if (!pass.sawFirstStreamEvent && !pass.streamIdleAborted && !signal.aborted && !spokenByProvider(streamingError)) {
-        call.emptyStreamEnds++
         const cutBeforeEvents = transportCutOf(streamingError)
         const detail = cutBeforeEvents !== null ? cutBeforeEvents.code : errorMessage(streamingError) === NO_EVENTS_MESSAGE ? EMPTY_CLOSE_DETAIL : errorMessage(streamingError)
-        if (call.emptyStreamEnds < EMPTY_STREAM_TRIES) {
-          resetApiConnectionPool()
-          const waitMs = emptyStreamRetryWaitMs()
-          const notice = emptyStreamRetryNotice({ provider: 'Anthropic', detail, cause: streamingError, attempt: call.emptyStreamEnds + 1, waitMs })
-          logForDebugging(`${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${call.emptyStreamEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
-          yield notice
-          options.onWait?.(retryNoticeWait(notice))
-          await sleep(waitMs, signal)
-          if (signal.aborted) throw new APIUserAbortError()
-          continue streamingPass
-        }
+        const empty = yield* retryEmptyStream(call, { provider: 'Anthropic', detail, cause: streamingError, log: '', signal, whilePaused: resetApiConnectionPool, ...(options.onWait !== undefined ? { onWait: options.onWait } : {}) })
+        if (empty === 'cancelled') throw new APIUserAbortError()
+        if (empty === 'again') continue streamingPass
         logForDebugging(`${emptyStreamSpentWords('Anthropic', Date.now() - startIncludingRetries)} (${detail})`, { level: 'error' })
         throw new Error(`${emptyStreamSpentWords('Anthropic', Date.now() - startIncludingRetries)} — ${detail}; try again shortly`)
       }

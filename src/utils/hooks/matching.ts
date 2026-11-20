@@ -164,7 +164,10 @@ export async function matchHooks(
     const candidates = hooksFor(event, scope, options.appState)
     const fields: Record<string, unknown> = payload
     const value = hookMatchValue(event, fields)
-    const matching = await Promise.all(candidates.map(async hook => hook.entry.match === undefined || value === undefined || await matchesPattern(value, hook.entry.match, fields.input)))
+    const matching = await Promise.all(candidates.map(async hook => hook.entry.match === undefined || value === undefined || await matchesPattern(value, hook.entry.match, fields.input).catch((error: unknown) => {
+      logError(new Error(`hook matcher ${hook.entry.match} could not be read for ${event} — ${hook.entry.failClosed === true ? 'running the hook, which fails closed' : 'not running the hook'}`, { cause: error instanceof Error ? error : new Error(String(error)) }))
+      return hook.entry.failClosed === true
+    })))
     const result = dedupeHooks(candidates.filter((_, i) => matching[i])).filter(hook => !isHookSpent(hook.id, scope))
     logForDebugging(`${event}: ${result.length} hooks matched${value !== undefined ? ` for "${value}"` : ''} (${candidates.length} before deduplication)`, {
       level: 'verbose',

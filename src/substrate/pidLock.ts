@@ -71,6 +71,7 @@ async function readHolder(path: string): Promise<PidLockHolder | null> {
   try {
     return parseHolder(await readFile(path, 'utf8'))
   } catch (error) {
+    if (!isENOENT(error)) logForDebugging(`[pidLock] holder at ${path} could not be read: ${error}`)
     passedOver(error)
     return null
   }
@@ -438,14 +439,30 @@ export async function probePidLock(
     if (takenRead.kind === 'unreadable') {
       logForDebugging(`[pidLock] the record moved aside to ${taken} could not be read (${takenRead.code ?? 'EUNKNOWN'}), so it is put back at ${path} as a live holder's`)
     }
+    let keepTaken = false
     if (takenRead.kind === 'unreadable' || (takenHolder && holderAlive(takenHolder, opts.liveness, await liveTokenFor(takenHolder)))) {
-      await link(taken, path).catch((e: unknown) => {
-        if (getErrnoCode(e) !== 'EEXIST') {
-          logForDebugging(`[pidLock] the live holder's record moved aside to ${taken} could not be linked back to ${path} (${getErrnoCode(e) ?? e}), so its lock is removed`)
+      try {
+        await link(taken, path)
+      } catch (e: unknown) {
+        const code = getErrnoCode(e)
+        if (code !== 'EEXIST') {
+          let restored = false
+          if (takenRead.kind === 'ok' && (code === 'EPERM' || code === 'ENOSYS' || code === 'EOPNOTSUPP' || code === 'EMLINK')) {
+            try {
+              await writeFile(path, takenRead.raw, { flag: 'wx', mode: 0o600 })
+              restored = true
+            } catch (wxErr) {
+              if (getErrnoCode(wxErr) === 'EEXIST') restored = true
+            }
+          }
+          if (!restored) {
+            keepTaken = true
+            logForDebugging(`[pidLock] the live holder's record moved aside to ${taken} could not be linked back to ${path} (${code ?? e}), left at ${taken}`)
+          }
         }
-      })
+      }
     }
-    await unlink(taken).catch(passedOver)
+    if (!keepTaken) await unlink(taken).catch(passedOver)
   }
   return null
 }

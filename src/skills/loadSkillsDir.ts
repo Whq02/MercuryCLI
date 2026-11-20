@@ -387,8 +387,10 @@ async function loadSkillsFromDir(
         markdown = await fsPromises.readFile(skillFile, 'utf8')
       } catch (error) {
         if (!isENOENT(error)) {
+          const message = errorMessage(error)
+          recordSkillRefusal(skillFile, `could not read: ${message}`, sourceLabel)
           logForDebugging(
-            `skills: could not read ${skillFile}: ${errorMessage(error)}`,
+            `skills: could not read ${skillFile}: ${message}`,
             { level: 'warn' },
           )
         }
@@ -433,7 +435,9 @@ async function loadSkillsFromDir(
         })
         return { command, filePath: skillFile, source: sourceLabel }
       } catch (error) {
-        logForDebugging(`skills: failed to load ${skillFile}: ${errorMessage(error)}`)
+        const message = errorMessage(error)
+        recordSkillRefusal(skillFile, `failed to load: ${message}`, sourceLabel)
+        logForDebugging(`skills: failed to load ${skillFile}: ${message}`)
         return null
       }
     }),

@@ -12,12 +12,13 @@ import { beginOpenrouterConnect } from '../../services/providers/openrouter/open
 import { finishGeminiPlanConnect, finishGeminiOauthConnect, geminiConnectFailedReceipt } from '../../services/providers/gemini/geminiLogin.js';
 import { beginGeminiPlanBrowserConnect, beginGeminiBrowserConnect, geminiOauthClientConfig } from '../../services/providers/gemini/geminiAccounts.js';
 import { geminiGuideReturnStep, geminiGuideStep } from '../geminiConnectGuide.js';
-import { errorMessageWithCause } from '../../utils/errors.js';
+import { errorMessage, errorMessageWithCause } from '../../utils/errors.js';
 import { openBrowser } from '../../utils/browser.js';
 import { lateSettleNotice } from './facts.js';
 import type { FaceDeviceFamily, HandlesLegId, DeviceWaitStateV1 } from './flowLines.js';
 import type { LoginsFlowContext } from './context.js';
-import { passedOver } from '../../utils/passedOver.js';
+import { enqueueNotification } from '../../context/notifications.js';
+import { logError } from '../../utils/log.js';
 
 export function postLoginSettleOf(ctx: LoginsFlowContext): void {
   const { given, setAppStateMaybe } = ctx;
@@ -37,11 +38,20 @@ export function postLoginSettleOf(ctx: LoginsFlowContext): void {
           return { ...prev, authVersion: (prev.authVersion ?? 0) + 1 };
         });
         if (capturedContext !== null) {
-          void killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe).catch(passedOver);
+          void killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe).catch((error: unknown) => {
+            logError(error);
+            enqueueNotification(setAppStateMaybe, {
+              key: 'bypass-killswitch',
+              text: `bypass permissions stays on: your organization's security policy could not be checked (${errorMessage(error)})`,
+              priority: 'high',
+              color: 'warning',
+              timeoutMs: 30_000,
+            });
+          });
         }
       }
     } catch (error) {
-      passedOver(error)
+      logError(error);
     }
   })();
 }

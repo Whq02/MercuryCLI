@@ -1,11 +1,13 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { logForDebugging } from '../debug.js'
+import { getErrnoCode } from '../errors.js'
 import { createFallbackStorage } from './fallbackStorage.js'
 import { fileStorageFor } from './fileStorage.js'
 import { keychainReachable } from './macOsKeychainHelpers.js'
 import { macOsKeychainStorage } from './macOsKeychainStorage.js'
-import { plainTextStorage } from './plainTextStorage.js'
+import { credentialStoreUnread as plainTextCredentialStoreUnread, plainTextStorage } from './plainTextStorage.js'
 import { sealsUnder, systemProtectorFor } from './systemProtector.js'
-import type { SecureStorage, SecureStorageData } from './types.js'
+import type { CredentialStoreUnread, SecureStorage, SecureStorageData } from './types.js'
 
 
 export { createFallbackStorage } from './fallbackStorage.js'
@@ -20,7 +22,7 @@ export {
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
 export { isMacOsKeychainLocked, macOsKeychainStorage } from './macOsKeychainStorage.js'
-export { credentialsPath, credentialStoreUnread, plainTextStorage } from './plainTextStorage.js'
+export { credentialsPath, plainTextStorage } from './plainTextStorage.js'
 export {
   clearLegacyApiKeyPrefetch,
   ensureKeychainPrefetchCompleted,
@@ -28,6 +30,30 @@ export {
   startKeychainPrefetch,
 } from './keychainPrefetch.js'
 export type { SecureStorage, SecureStorageData } from './types.js'
+
+let lastReadError: CredentialStoreUnread | null = null
+
+export function noteCredentialStoreReadError(error: unknown): void {
+  const code = getErrnoCode(error) ?? 'EUNKNOWN'
+  const message = error instanceof Error ? error.message : String(error)
+  const warning = `The credential store could not be read (${code}): ${message}`
+  if (lastReadError !== null && lastReadError.code === code && lastReadError.message === message) return
+  lastReadError = { warning, code, message }
+  logForDebugging(`credential store: ${warning}`, { level: 'error' })
+}
+
+export function clearCredentialStoreReadError(): void {
+  if (lastReadError === null) return
+  lastReadError = null
+  logForDebugging('credential store: read recovered')
+}
+
+export function credentialStoreUnread(): CredentialStoreUnread | null {
+  if (lastReadError !== null) return lastReadError
+  const storage = getSecureStorage()
+  if (storage.unread !== undefined) return storage.unread()
+  return plainTextCredentialStoreUnread()
+}
 
 export function getSecureStorage(): SecureStorage {
   if (keychainReachable()) {

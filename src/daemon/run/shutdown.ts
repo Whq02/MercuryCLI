@@ -283,7 +283,10 @@ export async function stopVerb(state: DaemonRunState, { requestShutdown }: StopN
   const forwarded = forwardedFromPlane
     ? []
     : await Promise.all(
-        (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(passedOverAs(null))),
+        (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(e => {
+          console.error(`[daemon] the earlier daemon pid ${pid} did not answer the stop and may still be running: ${e instanceof Error ? e.message : String(e)}`)
+          return null
+        })),
       )
   let reaped = workers.length
   for (const reply of forwarded) {

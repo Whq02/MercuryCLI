@@ -831,6 +831,7 @@ export function observeCompletedToolCall(
       recordShellCommandOutcome(command, shellOutcome?.code ?? (ok ? 0 : 1), cwd, owner, shellOutcome?.pipelineStatus)
     }
   } catch (error) {
+    logForDebugging(`[verify] observeCompletedToolCall failed: ${String(error)}`, { level: 'error' })
     passedOver(error)
   }
 }
@@ -862,7 +863,13 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
       }
     }
     if (has('scripts/run-all-suites.sh')) verdict = true
-    if (!verdict && loadDeclaredGates(cwd).length > 0) verdict = true
+    if (!verdict) {
+      try {
+        if (loadDeclaredGates(cwd).length > 0) verdict = true
+      } catch (error) {
+        logForDebugging(`[verify] declared gates unreadable in ${cwd}, so they are not counted: ${String(error)}`, { level: 'warn' })
+      }
+    }
     if (!verdict && has('project.godot')) verdict = true
     if (!verdict && has('package.json')) {
       try {
@@ -1018,15 +1025,27 @@ export function pipefailActiveBefore(
   return false
 }
 
-export function projectVerifyPattern(): RegExp | null {
+function parseProjectVerifyPattern(): { pattern: RegExp | null; error: string | null } {
   const raw = flagEnv('MERCURY_VERIFY_PATTERN')
-  if (!raw) return null
+  if (!raw) return { pattern: null, error: null }
   try {
-    return new RegExp(raw, 'i')
+    return { pattern: new RegExp(raw, 'i'), error: null }
   } catch (error) {
-    passedOver(error)
-    return null
+    const message = error instanceof Error ? error.message : String(error)
+    logForDebugging(`[verify] invalid MERCURY_VERIFY_PATTERN (${message})`, { level: 'warn' })
+    return { pattern: null, error: message }
   }
+}
+
+export function projectVerifyPattern(): RegExp | null {
+  return parseProjectVerifyPattern().pattern
+}
+
+function verifyPatternNote(): string | null {
+  const { error } = parseProjectVerifyPattern()
+  return error === null
+    ? null
+    : `MERCURY_VERIFY_PATTERN is not a valid regular expression (${error}); fix it so matching commands count as verification.`
 }
 
 function verbScope(verb: string): VerificationScope {
@@ -1062,8 +1081,12 @@ export function classifyVerifySegment(
   const c = stripVerificationPrefixes(segment)
   if (!c || NOOP_COMMAND_HEADS.has(leadingShellCommandToken(c))) return null
   if (cwd !== undefined) {
-    const declared = matchDeclaredGate(c, cwd)
-    if (declared) return declared
+    try {
+      const declared = matchDeclaredGate(c, cwd)
+      if (declared) return declared
+    } catch (error) {
+      logForDebugging(`[verify] declared gates unreadable in ${cwd}: ${String(error)}`, { level: 'warn' })
+    }
   }
   if (/run-all-suites\.sh/.test(c)) {
     const m = c.match(/run-all-suites\.sh\s+([a-z0-9 _-]+)/)
@@ -1316,6 +1339,7 @@ export function recordShellCommandOutcome(
       ownerStates.get(effectiveOwner(owner)).unscoredVerification = command.replace(/\s+/g, ' ').slice(0, 240)
     }
   } catch (error) {
+    logForDebugging(`[verify] recordShellCommandOutcome failed: ${String(error)}`, { level: 'error' })
     passedOver(error)
   }
 }
@@ -1330,8 +1354,8 @@ export function verificationSummary(
   opts?: { skipDigest?: boolean; owner?: OwnerKey },
 ): VerificationSnapshot {
   const snapshot = summarize(cwd, opts)
-  const note = treeScanNote(cwd)
-  return note === null ? snapshot : { ...snapshot, detail: `${snapshot.detail} · ${note}` }
+  const notes = [treeScanNote(cwd), verifyPatternNote()].filter((n): n is string => n !== null)
+  return notes.length === 0 ? snapshot : { ...snapshot, detail: `${snapshot.detail} · ${notes.join(' · ')}` }
 }
 
 function summarize(

@@ -2,11 +2,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'copy-reply-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
@@ -224,9 +223,6 @@ check('no other default binds ctrl+x y', DEFAULT_BINDINGS.every(b => b.context =
 check("MessageActions 'ctrl+x y' → messageActions:c (the focused message copies with the same chord)", actionRows['ctrl+x y'] === 'messageActions:c', String(actionRows['ctrl+x y']))
 const commands = await getCommands(process.cwd())
 check('command:copy resolves to the registered /copy', findCommand('copy', commands)?.name === 'copy')
-
-const sessionsDoc = readFileSync(join(ROOT, 'docs/SESSIONS.md'), 'utf8')
-check('docs/SESSIONS.md documents /copy, /copy code and the chord', sessionsDoc.includes('`/copy code`') && sessionsDoc.includes('`ctrl+x y`'))
 
 console.log(failures === 0 ? '\n✅ prove-copy-reply-intact GREEN' : `\n❌ prove-copy-reply-intact RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

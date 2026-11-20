@@ -1,3 +1,4 @@
+import { errorMessage, isENOENT } from '../../errors.js'
 import { whichSync } from '../../which.js'
 import { flagAsSet, type CheckSpec } from '../../healthReport.js'
 
@@ -107,7 +108,7 @@ export function codingLoopFastChecks(): CheckSpec[] {
         const { discoverRunnerProfiles } = await import('../../../services/ide/projectRunners.js')
         const { repoHostEnabled } = await import('../../../services/repoHost/repoHost.js')
         const { openTransactionIdFor } = await import('../../../services/ide/ideTransaction.js')
-        const { profiles } = discoverRunnerProfiles()
+        const { profiles, manifestError } = discoverRunnerProfiles()
         const byRunner = new Map<string, { ok: number; total: number }>()
         for (const p of profiles) {
           const e = byRunner.get(p.runner) ?? { ok: 0, total: 0 }
@@ -116,8 +117,8 @@ export function codingLoopFastChecks(): CheckSpec[] {
           byRunner.set(p.runner, e)
         }
         const runnersLine = profiles.length
-          ? [...byRunner].map(([r, c]) => `${r} ${c.ok}/${c.total}`).join(' · ')
-          : 'no runner manifests in this project'
+          ? [...byRunner].map(([r, c]) => `${r} ${c.ok}/${c.total}`).join(' · ') + (manifestError !== undefined ? ` · ${manifestError}` : '')
+          : manifestError ?? 'no runner manifests in this project'
         const ghOnPath = whichSync('gh') !== null
         const repoLine = repoHostEnabled()
           ? `repo host: ${ghOnPath ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`
@@ -130,25 +131,32 @@ export function codingLoopFastChecks(): CheckSpec[] {
         } else {
           const engine = resolveGrammarEngineDir()
           if (engine.state === 'ok') {
-            let present = 0
+            let present: number | null = 0
+            let readErr: string | null = null
             try {
               const { readdirSync } = await import('node:fs')
               const shipped = new Set(readdirSync(engine.dir))
               present = POLYGLOT_LANGUAGES.filter(lang => shipped.has(lang.wasm)).length
-            } catch {
-              present = 0
+            } catch (error) {
+              if (isENOENT(error)) present = 0
+              else {
+                present = null
+                readErr = errorMessage(error)
+              }
             }
             engineLine =
-              present === POLYGLOT_LANGUAGES.length
-                ? `polyglot patterns: tree-sitter (${engine.source}) · ${present} languages`
-                : `polyglot patterns: tree-sitter (${engine.source}) · ${present} of ${POLYGLOT_LANGUAGES.length} languages present (${POLYGLOT_LANGUAGES.length - present} missing from ${engine.dir})`
+              present === null
+                ? `polyglot patterns: tree-sitter (${engine.source}) · grammar dir unreadable (${readErr})`
+                : present === POLYGLOT_LANGUAGES.length
+                  ? `polyglot patterns: tree-sitter (${engine.source}) · ${present} languages`
+                  : `polyglot patterns: tree-sitter (${engine.source}) · ${present} of ${POLYGLOT_LANGUAGES.length} languages present (${POLYGLOT_LANGUAGES.length - present} missing from ${engine.dir})`
           } else {
             engineLine = `polyglot patterns: engine UNAVAILABLE (${engine.note.slice(0, 80)})`
           }
         }
         const txId = openTransactionIdFor()
         return {
-          status: 'ok' as const,
+          status: manifestError !== undefined ? ('warn' as const) : ('ok' as const),
           evidence: `runners: ${runnersLine}`,
           detail: `${repoLine}\n${engineLine}\nopen coding transaction: ${txId ?? '—'}`,
         }

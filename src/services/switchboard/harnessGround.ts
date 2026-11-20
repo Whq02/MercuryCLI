@@ -1,3 +1,5 @@
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 let trueBootGround: string | null = null
@@ -9,7 +11,8 @@ export async function applyHarnessGround(dir: string | null): Promise<string> {
   try {
     process.chdir(target)
   } catch (error) {
-    passedOver(error)
+    logForDebugging(`the harness ground stays at ${process.cwd()}: ${target} could not be entered (${errorMessage(error)})`, { level: 'error' })
+    return process.cwd()
   }
   state.setOriginalCwd(target)
   state.setProjectRoot(target)

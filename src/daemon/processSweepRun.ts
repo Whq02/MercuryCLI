@@ -132,7 +132,7 @@ export async function registerCockpit(options: { terminal: string | null; home?:
   }
 }
 
-export async function readCockpitRegistrations(home: string = getMercuryHome()): Promise<ProcessSweepRegistration[] | null> {
+export async function readCockpitRegistrations(home: string = getMercuryHome(), read: 'strict' | 'loose' = 'loose'): Promise<ProcessSweepRegistration[] | null> {
   let names: string[]
   try {
     names = await readdir(processRecordsDir(home))
@@ -159,6 +159,7 @@ export async function readCockpitRegistrations(home: string = getMercuryHome()):
         bundle: typeof raw.bundle === 'string' && raw.bundle !== '' ? raw.bundle : null,
       })
     } catch (error) {
+      if (read === 'strict' && (error as NodeJS.ErrnoException).code !== 'ENOENT') return null
       passedOver(error)
       continue
     }
@@ -249,7 +250,7 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
   const own = deps.ownDaemonDir ?? daemonDir()
   const waitMs = deps.waitMs ?? processSweepWaitMs()
   const rpc = deps.rpc ?? (request => daemonControlRpc(request, { timeoutMs: waitMs }))
-  const registrations = await readCockpitRegistrations(home)
+  const registrations = await readCockpitRegistrations(home, 'strict')
   const dirs = [own, join(home, 'daemon'), ...(registrations ?? []).filter(entry => entry.configHome === home).map(entry => entry.daemonDir)]
   const planes: ProcessSweepPlane[] = []
   for (const dir of dirs) {

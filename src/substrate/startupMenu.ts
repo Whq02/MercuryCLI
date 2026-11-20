@@ -1,6 +1,6 @@
 
 import { getMercuryHome } from '../utils/envUtils.js'
-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { flagEnabled, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
@@ -477,8 +477,12 @@ export function applyBootMenuEnv(
   try {
     raw = readFileSync(path, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return null
+    const msg = error instanceof Error ? error.message : String(error)
+    return surfaced(
+      { applied: [], envWins: [], refused: [{ key: '(file)', reason: `could not be read (${msg})` }], retired: [] },
+      path,
+    )
   }
   const result: BootEnvApplyResult = { applied: [], envWins: [], refused: [], retired: [] }
   let parsed: unknown
@@ -562,7 +566,11 @@ export function applyLiveBootMenuEnv(
       syncSelfAppliedMarker(env, nextSelf)
       return result
     }
-    return null
+    if (fp !== null) rememberStat(env, path, fp)
+    const msg = err instanceof Error ? err.message : String(err)
+    result.refused.push({ key: '(file)', reason: `could not be read (${msg})` })
+    surfaced(result, path)
+    return result
   }
   if (fp !== null) rememberStat(env, path, fp)
   let parsed: unknown
@@ -653,6 +661,32 @@ export function readBootEnvChoices(
   }
 }
 
+function readBootEnvChoicesStrict(
+  path: string,
+): { ok: true; env: Record<string, string> } | { ok: false; reason: string } {
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return { ok: true, env: {} }
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) }
+  }
+  let o: { version?: unknown; env?: unknown }
+  try {
+    o = JSON.parse(raw) as { version?: unknown; env?: unknown }
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) }
+  }
+  if (!o || typeof o !== 'object' || o.version !== BOOT_ENV_VERSION || o.env === null || typeof o.env !== 'object' || Array.isArray(o.env)) {
+    return { ok: false, reason: `expected {version:${BOOT_ENV_VERSION}, env:{…}}` }
+  }
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(o.env as Record<string, unknown>)) {
+    if (typeof v === 'string') out[k] = v
+  }
+  return { ok: true, env: out }
+}
+
 export function writeBootEnvChoice(
   envKey: string,
   value: string | null,
@@ -666,7 +700,9 @@ export function writeBootEnvChoice(
       reason: `value ${JSON.stringify(value)} not among the row's declared choices`,
     }
   }
-  const saved = readBootEnvChoices(path) ?? {}
+  const prior = readBootEnvChoicesStrict(path)
+  if (!prior.ok) return { ok: false, reason: prior.reason }
+  const saved = prior.env
   const env: Record<string, string> = {}
   for (const r of allSettingRows()) {
     const sp = flagSpellings(r.env).find(s => saved[s] !== undefined)
@@ -696,34 +732,65 @@ export function profileDigestOf(env: Record<string, string>): string {
   return createHash('sha256').update(canonical, 'utf8').digest('hex')
 }
 
-export function readBootDefaultsProfile(path: string = bootEnvPath()): BootDefaultsProfileV1 | null {
-  let raw: string
+function parseBootDefaultsProfile(raw: string): { ok: true; profile: BootDefaultsProfileV1 } | { ok: false; reason: string } {
+  let parsed: Partial<BootDefaultsProfileV1> & { env?: unknown }
   try {
-    raw = readFileSync(path, 'utf8')
+    parsed = JSON.parse(raw) as Partial<BootDefaultsProfileV1> & { env?: unknown }
   } catch (error) {
-    passedOver(error)
-    return null
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
   }
-  try {
-    const parsed = JSON.parse(raw) as Partial<BootDefaultsProfileV1> & { env?: unknown }
-    if (parsed.version !== BOOT_ENV_VERSION || typeof parsed.env !== 'object' || parsed.env === null) return null
-    const env = Object.fromEntries(
-      Object.entries(parsed.env as Record<string, unknown>).filter(
-        (e): e is [string, string] => typeof e[1] === 'string',
-      ),
-    )
-    return {
+  if (!parsed || typeof parsed !== 'object' || parsed.version !== BOOT_ENV_VERSION || typeof parsed.env !== 'object' || parsed.env === null || Array.isArray(parsed.env)) {
+    return { ok: false, reason: `expected {version:${BOOT_ENV_VERSION}, env:{…}}` }
+  }
+  const env = Object.fromEntries(
+    Object.entries(parsed.env as Record<string, unknown>).filter(
+      (e): e is [string, string] => typeof e[1] === 'string',
+    ),
+  )
+  return {
+    ok: true,
+    profile: {
       version: BOOT_ENV_VERSION,
       savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
       env,
       revision: typeof parsed.revision === 'number' && Number.isFinite(parsed.revision) ? parsed.revision : 0,
       digest: typeof parsed.digest === 'string' && parsed.digest.length > 0 ? parsed.digest : profileDigestOf(env),
       receipt: typeof parsed.receipt === 'string' ? parsed.receipt : '',
-    }
+    },
+  }
+}
+
+function readBootDefaultsProfileStrict(
+  path: string,
+): { ok: true; profile: BootDefaultsProfileV1 | null } | { ok: false; reason: string } {
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
   } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { ok: true, profile: null }
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+  }
+  return parseBootDefaultsProfile(raw)
+}
+
+export function readBootDefaultsProfile(path: string = bootEnvPath()): BootDefaultsProfileV1 | null {
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      logForDebugging(`[boot-env] ${path} could not be read: ${error}`, { level: 'warn' })
+    }
     passedOver(error)
     return null
   }
+  const parsed = parseBootDefaultsProfile(raw)
+  if (!parsed.ok) {
+    logForDebugging(`[boot-env] ${path} could not be parsed (${parsed.reason})`, { level: 'warn' })
+    passedOver(parsed.reason)
+    return null
+  }
+  return parsed.profile
 }
 
 export function saveBootDefaultsProfile(
@@ -745,7 +812,9 @@ export function saveBootDefaultsProfile(
     const row = allSettingRows().find(r => flagSpellings(r.env).includes(key))!
     for (const sp of flagSpellings(row.env)) paired[sp] = value
   }
-  const previous = readBootDefaultsProfile(path)
+  const priorProfile = readBootDefaultsProfileStrict(path)
+  if (!priorProfile.ok) return { ok: false, reason: priorProfile.reason }
+  const previous = priorProfile.profile
   const revision = (previous?.revision ?? 0) + 1
   const digest = profileDigestOf(paired)
   const previousChoices = previous?.env ?? {}
@@ -783,13 +852,21 @@ export function saveBootDefaultsProfile(
     digest,
     receipt,
   }
+  let tmp: string | null = null
   try {
     mkdirSync(dirname(path), { recursive: true })
-    const tmp = `${path}.tmp-${process.pid}-${Math.random().toString(16).slice(2, 10)}`
+    tmp = `${path}.tmp-${process.pid}-${Math.random().toString(16).slice(2, 10)}`
     writeFileSync(tmp, `${JSON.stringify(profile, null, 2)}\n`, 'utf8')
     renameSync(tmp, path)
     return { ok: true, revision, digest, receipt }
   } catch (e) {
+    if (tmp !== null) {
+      try {
+        unlinkSync(tmp)
+      } catch (error) {
+        passedOver(error)
+      }
+    }
     return { ok: false, reason: e instanceof Error ? e.message : String(e) }
   }
 }

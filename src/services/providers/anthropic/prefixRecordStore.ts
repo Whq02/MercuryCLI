@@ -114,11 +114,7 @@ export async function sweepPrefixRecords(options: PrefixRecordSweepOptions = {})
     return receipt
   }
   const live = new Set<string>()
-  try {
-    live.add(sessionSegment(String(getSessionId())))
-  } catch (error) {
-    passedOver(error)
-  }
+  live.add(sessionSegment(String(getSessionId())))
   for (const id of options.liveSessionIds ?? []) live.add(sessionSegment(id))
   let unreadRegistry: string | null = null
   for (const entry of entries) {

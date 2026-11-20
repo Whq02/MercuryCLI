@@ -13,6 +13,7 @@ import {
 import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { daemonRecordIdentity } from './verbs.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { getErrnoCode } from '../utils/errors.js'
 
 interface DaemonRecordsReconcile {
   state: 'live' | 'clean' | 'reconciled'
@@ -63,17 +64,20 @@ export async function reconcileDaemonRecords(opts?: {
   }
 
   const cleaned: string[] = []
+  let refused: unknown
   const rm = async (path: string, name: string): Promise<void> => {
     try {
       await unlink(path)
       cleaned.push(name)
     } catch (error) {
-      passedOver(error)
+      if (getErrnoCode(error) === 'ENOENT') passedOver(error)
+      else refused ??= error
     }
   }
   if (supExists) await rm(supPath, 'daemon.json')
   if (lockExists) await rm(lockPath, 'daemon.lock')
   if (keyExists) await rm(keyPath, 'control.key')
+  if (refused !== undefined) throw refused
 
   if (cleaned.length === 0) {
     return { state: 'clean', cleaned, reason: 'records vanished before removal (racing reconcile)' }

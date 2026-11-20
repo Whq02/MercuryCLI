@@ -1,7 +1,9 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { isENOENT } from '../../utils/errors.js'
 import type { AnthropicMessageParams } from './anthropic/anthropicWire.js'
 import type { OpenaiResponsesRequest } from './openai/openaiWire.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -44,22 +46,51 @@ function readStore(): ProbeStoreFile {
     if (parsed && parsed.version === 1 && parsed.hosts && typeof parsed.hosts === 'object') {
       file = { version: 1, hosts: { ...parsed.hosts } }
     }
+    cache = { path, file }
+  } catch (error) {
+    if (isENOENT(error)) cache = { path, file }
+    else passedOver(error)
+  }
+  return file
+}
+
+function readStoreForWrite(): ProbeStoreFile | null {
+  const path = storePath()
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return { version: 1, hosts: {} }
+    passedOver(error)
+    logForDebugging(`deferralProbe: existing store at ${path} could not be read (${String(error)}); skipping write`)
+    return null
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<ProbeStoreFile>
+    if (parsed && parsed.version === 1 && parsed.hosts && typeof parsed.hosts === 'object') {
+      return { version: 1, hosts: { ...parsed.hosts } }
+    }
+    return { version: 1, hosts: {} }
   } catch (error) {
     passedOver(error)
+    return { version: 1, hosts: {} }
   }
-  cache = { path, file }
-  return file
 }
 
 function writeStore(file: ProbeStoreFile): void {
   const path = storePath()
+  const tmp = `${path}.${process.pid}.tmp`
   try {
     mkdirSync(getMercuryHome(), { recursive: true })
-    const tmp = `${path}.${process.pid}.tmp`
     writeFileSync(tmp, JSON.stringify(file, null, 2))
     renameSync(tmp, path)
   } catch (error) {
     passedOver(error)
+    try {
+      unlinkSync(tmp)
+    } catch (cleanupError) {
+      passedOver(cleanupError)
+    }
   }
   cache = { path, file }
 }
@@ -77,10 +108,10 @@ export function readGatewayProbeRecord(host: string): GatewayProbeRecord | undef
 }
 
 export function recordGatewayProbe(host: string, record: GatewayProbeRecord): void {
-  const file = readStore()
+  const file = readStoreForWrite()
+  if (file === null) return
   writeStore({ version: 1, hosts: { ...file.hosts, [host]: record } })
 }
-
 export function _resetGatewayProbeStoreForTesting(): void {
   cache = null
 }

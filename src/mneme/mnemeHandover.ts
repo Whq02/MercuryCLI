@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { stripBOM } from '../utils/jsonRead.js'
 import { retainItems } from './memoryVerbs.js'
 import { deterministicRewriter, maybeConsolidate, type MnemeRewriter } from './mnemeConsolidate.js'
@@ -106,8 +107,8 @@ export function listOldNotes(memoryDir: string): string[] {
   try {
     names = readdirSync(memoryDir)
   } catch (error) {
-    passedOver(error)
-    return []
+    if (isENOENT(error)) return []
+    throw error
   }
   return names
     .filter(n => n.endsWith('.md') && n !== 'MEMORY.md' && n !== 'TASTE.md' && !n.includes('.superseded.'))
@@ -115,8 +116,8 @@ export function listOldNotes(memoryDir: string): string[] {
       try {
         return statSync(join(memoryDir, n)).isFile()
       } catch (error) {
-        passedOver(error)
-        return false
+        if (isENOENT(error)) return false
+        throw error
       }
     })
     .sort()
@@ -126,19 +127,34 @@ export function handoverReceiptPath(dir: string = mnemeLibraryDir()): string {
   return join(dir, HANDOVER_FILE)
 }
 
+function readHandoverReceiptStrict(dir: string = mnemeLibraryDir()): HandoverReceipt | null {
+  let raw: string
+  try {
+    raw = readFileSync(handoverReceiptPath(dir), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return null
+    throw error
+  }
+  const parsed = JSON.parse(raw) as HandoverReceipt
+  if (typeof parsed?.ranAt !== 'string' || typeof parsed?.notes !== 'number') {
+    throw new SyntaxError(`handover receipt at ${handoverReceiptPath(dir)} is malformed`)
+  }
+  return parsed
+}
+
 export function readHandoverReceipt(dir: string = mnemeLibraryDir()): HandoverReceipt | null {
   try {
-    const parsed = JSON.parse(readFileSync(handoverReceiptPath(dir), 'utf8')) as HandoverReceipt
-    return typeof parsed?.ranAt === 'string' && typeof parsed?.notes === 'number' ? parsed : null
+    return readHandoverReceiptStrict(dir)
   } catch (error) {
     passedOver(error)
+    logForDebugging(`memory hand-over receipt unreadable: ${String(error)}`)
     return null
   }
 }
 
 export function handoverDue(memoryDir: string = getMnemeHome()): boolean {
   if (!mnemeEnabled()) return false
-  if (readHandoverReceipt(join(memoryDir, 'library')) !== null) return false
+  if (readHandoverReceiptStrict(join(memoryDir, 'library')) !== null) return false
   return listOldNotes(memoryDir).length > 0
 }
 
@@ -153,7 +169,7 @@ const handoverRewriter: MnemeRewriter = input => {
 
 export function handoverMemoryDir(memoryDir: string, now: Date = new Date()): HandoverReceipt {
   const dir = join(memoryDir, 'library')
-  const existing = readHandoverReceipt(dir)
+  const existing = readHandoverReceiptStrict(dir)
   if (existing) return existing
   const receipt: HandoverReceipt = {
     version: 1,
@@ -201,11 +217,7 @@ export function handoverMemoryDir(memoryDir: string, now: Date = new Date()): Ha
     receipt.consolidated = result.consolidated
     if (!result.consolidated) logForDebugging(`memory hand-over: consolidation did not run — ${result.reason}`)
   }
-  try {
-    publishLibraryFile(handoverReceiptPath(dir), JSON.stringify(receipt, null, 1))
-  } catch (e) {
-    logForDebugging(`memory hand-over receipt failed: ${String(e)}`)
-  }
+  publishLibraryFile(handoverReceiptPath(dir), JSON.stringify(receipt, null, 1))
   return receipt
 }
 

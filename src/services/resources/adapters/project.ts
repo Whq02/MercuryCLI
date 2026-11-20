@@ -8,7 +8,6 @@ import { suggestWorkSplit } from '../../projectIntel/split.js'
 import { getProjectSnapshot } from '../../projectIntel/snapshot.js'
 import { renderRepoSurfaceMap } from '../../../utils/cockpit/repoSurfaceMap.js'
 import type { ResourceAdapter, ResourceChild } from '../contracts.js'
-import { passedOver } from '../../../utils/passedOver.js'
 
 const CHILDREN: ResourceChild[] = [
   {
@@ -218,26 +217,19 @@ export const projectAdapter: ResourceAdapter = {
           note: 'the context child needs a task: mercury://project/current?child=context&q=<task text>',
         }
       }
-      let pins: string[] = []
-      let drops: string[] = []
-      let goal: string | null = null
-      try {
-        const { getContextMarks } =
-          require('../../projectIntel/pins.js') as typeof import('../../projectIntel/pins.js')
-        const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
-          require('../../primitives/owner.js') as typeof import('../../primitives/owner.js')
-        const identity = parseOwnerKey(ctx.owner)
-        const mainOwner =
-          describeOwner(ctx.owner).parent ?? makeOwnerKey({ ...identity, lane: MAIN_LANE })
-        const marks = getContextMarks(mainOwner)
-        pins = marks.pins
-        drops = marks.drops
-        const { getActiveMission } =
-          require('../../../guards/mission.js') as typeof import('../../../guards/mission.js')
-        goal = identity.sessionId ? (getActiveMission(identity.sessionId)?.condition ?? null) : null
-      } catch (error) {
-        passedOver(error)
-      }
+      const { getContextMarks } =
+        require('../../projectIntel/pins.js') as typeof import('../../projectIntel/pins.js')
+      const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
+        require('../../primitives/owner.js') as typeof import('../../primitives/owner.js')
+      const identity = parseOwnerKey(ctx.owner)
+      const mainOwner =
+        describeOwner(ctx.owner).parent ?? makeOwnerKey({ ...identity, lane: MAIN_LANE })
+      const marks = getContextMarks(mainOwner)
+      const pins = marks.pins
+      const drops = marks.drops
+      const { getActiveMission } =
+        require('../../../guards/mission.js') as typeof import('../../../guards/mission.js')
+      const goal = identity.sessionId ? (getActiveMission(identity.sessionId)?.condition ?? null) : null
       const capsule = assembleContextCapsule({ workspace: ctx.cwd, task, goal, pins, drops })
       if (!capsule) {
         return { state: 'unavailable', note: 'project intelligence is disabled (MERCURY_PROJECT_INTEL=0)' }

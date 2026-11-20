@@ -2,18 +2,16 @@
 import { jsonStringify } from '../utils/slowOperations.js'
 import { writeOutAndExit } from './healthPresentation.js'
 import { beginReadOnlyDiagnostic } from '../utils/diagnosticReadOnly.js'
-import { passedOver } from '../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 
 function emitAndExit(value: unknown, code: number): Promise<never> {
-  let text = '{}\n'
   try {
-    text = jsonStringify(value, null, 2) + '\n'
+    return writeOutAndExit(jsonStringify(value, null, 2) + '\n', code)
   } catch (error) {
-    passedOver(error)
+    const message = error instanceof Error && error.message ? error.message : 'the certificate run threw'
+    return writeOutAndExit(JSON.stringify({ error: message, code: 'cert-failed' }, null, 2) + '\n', 1)
   }
-  return writeOutAndExit(text, code)
 }
 
 interface RunTrace {

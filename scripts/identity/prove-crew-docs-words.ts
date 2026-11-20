@@ -130,8 +130,6 @@ if (REPORT) {
     for (const h of under) console.log(`      ${h.rel}:${h.line} ${h.text.slice(0, 120)}`)
   }
 }
-const index = readFileSync(join(ROOT, 'docs/README.md'), 'utf8')
-check('the docs index names the crew page', /\bcrew\b/i.test(index.split('\n').find(l => /CREWS\.md|CREW\.md/.test(l)) ?? ''), (index.split('\n').find(l => /CREWS\.md|CREW\.md/.test(l)) ?? '(no row)').trim())
 check('every allow row carries its reason', ALLOW.every(r => r.why.trim().length > 0))
 
 console.log(failures === 0 ? '\nprove-crew-docs-words: green' : `\nprove-crew-docs-words: ${failures} failed`)

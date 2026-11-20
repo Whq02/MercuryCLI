@@ -31,6 +31,7 @@ import {
   acquireUpdateLock,
   installPayload,
   listInstalledVersions,
+  listInstalledVersionsStrict,
   pathEntryEquals,
   PointerHeldError,
   pruneSupersededVersions,
@@ -40,7 +41,7 @@ import {
   releaseUpdateLock,
   restoreCurrent,
   runningPayloadDir,
-  shimStatus,
+  shimStatusStrict,
   smokeVersion,
   sweepUpdaterResidue,
   switchCurrent,
@@ -94,8 +95,10 @@ interface ChannelStatus {
   installedPointer: 'ok' | 'absent' | 'empty' | 'unreadable'
   previousVersion: string | null
   versionsPresent: string[]
+  versionsReadError?: string
   versionsDir: string
-  shim: 'absent' | 'managed' | 'foreign'
+  shim: 'absent' | 'managed' | 'foreign' | 'unreadable'
+  shimReadError?: string
   shimPath: string
   runtime: RunningRuntime
   channelRepo: string
@@ -104,14 +107,32 @@ interface ChannelStatus {
 
 export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> {
   const slug = channelRepoSlug()
+  let versionsPresent: string[] = []
+  let versionsReadError: string | undefined
+  try {
+    versionsPresent = listInstalledVersionsStrict(roots)
+  } catch (error) {
+    passedOver(error)
+    versionsReadError = error instanceof Error ? error.message : String(error)
+  }
+  let shim: ChannelStatus['shim'] = 'unreadable'
+  let shimReadError: string | undefined
+  try {
+    shim = shimStatusStrict(roots)
+  } catch (error) {
+    passedOver(error)
+    shimReadError = error instanceof Error ? error.message : String(error)
+  }
   return {
     runningVersion: MACRO.VERSION,
     installedVersion: readCurrentVersion(roots),
     installedPointer: readCurrentVersionState(roots).state,
     previousVersion: readPreviousVersion(roots),
-    versionsPresent: listInstalledVersions(roots),
+    versionsPresent,
+    ...(versionsReadError !== undefined ? { versionsReadError } : {}),
     versionsDir: roots.versionsDir,
-    shim: shimStatus(roots),
+    shim,
+    ...(shimReadError !== undefined ? { shimReadError } : {}),
     shimPath: roots.shimPath,
     runtime: runningRuntime(),
     channelRepo: slug,
@@ -364,13 +385,38 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress, 
   return outcome.state === 'refused' || outcome.state === 'restored' ? { ...outcome, road: check.road } : outcome
 }
 
+function tryAcquireUpdateLock(roots: LayoutRoots): ReturnType<typeof acquireUpdateLock> | { state: 'error'; note: string } {
+  try {
+    return acquireUpdateLock(roots)
+  } catch (e) {
+    return { state: 'error', note: e instanceof Error ? e.message.slice(0, 200) : String(e) }
+  }
+}
+
+async function pruneAfterActivation(roots: LayoutRoots): Promise<{ removed: string[]; left: string[] }> {
+  try {
+    return pruneSupersededVersions(roots, await livePayloadDirs(roots))
+  } catch (error) {
+    logForDebugging(`update: pruning older versions skipped (${String(error)})`)
+    return { removed: [], left: [] }
+  }
+}
+
 async function acquireAndActivate(
   roots: LayoutRoots,
   progress: Progress,
   check: Extract<CheckOutcome, { state: 'update-available' }>,
   allowUnsigned: boolean,
 ): Promise<UpdateOutcome> {
-  const lock = acquireUpdateLock(roots)
+  const lock = tryAcquireUpdateLock(roots)
+  if (lock.state === 'error') {
+    return {
+      state: 'refused',
+      stage: 'lock',
+      reason: lock.note,
+      remedy: NOTHING_ACTIVATED_WORDS,
+    }
+  }
   if (lock.state === 'held') {
     return {
       state: 'refused',
@@ -514,7 +560,7 @@ async function acquireAndActivate(
       }
     }
     const shim = writeShim(roots)
-    const { removed: pruned, left } = pruneSupersededVersions(roots, await livePayloadDirs(roots))
+    const { removed: pruned, left } = await pruneAfterActivation(roots)
     progress('complete', check.version)
     return {
       state: 'updated',
@@ -560,7 +606,14 @@ export async function performRollback(roots: LayoutRoots, progress: Progress): P
       remedy: 'download and install that release archive again if you need it',
     }
   }
-  const lock = acquireUpdateLock(roots)
+  const lock = tryAcquireUpdateLock(roots)
+  if (lock.state === 'error') {
+    return {
+      state: 'refused',
+      reason: lock.note,
+      remedy: 'the active version was left unchanged',
+    }
+  }
   if (lock.state === 'held') {
     return {
       state: 'refused',
@@ -640,7 +693,15 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
       remedy: 'run `mercury install` from the mercury/ directory of an extracted release archive (its own launcher)',
     }
   }
-  const lock = acquireUpdateLock(roots)
+  const lock = tryAcquireUpdateLock(roots)
+  if (lock.state === 'error') {
+    return {
+      state: 'refused',
+      stage: 'lock',
+      reason: lock.note,
+      remedy: NOTHING_ACTIVATED_WORDS,
+    }
+  }
   if (lock.state === 'held') {
     return {
       state: 'refused',
@@ -673,7 +734,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
       return { state: 'refused', reason: `post-activation smoke failed: ${post.note}`, remedy: 'the previous pointer was restored' }
     }
     const shim = writeShim(roots, { force: opts.force })
-    const { removed: pruned, left } = pruneSupersededVersions(roots, await livePayloadDirs(roots))
+    const { removed: pruned, left } = await pruneAfterActivation(roots)
     const binDirOnPath = (hostEnv().PATH ?? '')
       .split(roots.isWindows ? ';' : ':')
       .some(p => pathEntryEquals(p, roots.binDir, roots.isWindows))

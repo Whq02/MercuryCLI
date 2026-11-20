@@ -72,7 +72,13 @@ export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions
       <Box flexDirection="column">
         {transcript.state !== 'ready' ? (
           <Box paddingLeft={1} marginTop={1}>
-            <Text color={tokens.textMuted}>{transcript.state === 'reading' ? CREWMATE_TRANSCRIPT_READING : CREWMATE_TRANSCRIPT_EMPTY}</Text>
+            <Text color={tokens.textMuted}>
+              {transcript.state === 'reading'
+                ? CREWMATE_TRANSCRIPT_READING
+                : transcript.state === 'error' && transcript.error !== undefined
+                  ? transcript.error
+                  : CREWMATE_TRANSCRIPT_EMPTY}
+            </Text>
           </Box>
         ) : (
           <Messages

@@ -472,9 +472,14 @@ export async function gracefulShutdown(
   }
 
   failsafeTimer = startTimeout(() => {
-    runTerminalRestoration()
-    runResumeHint()
-    forceExit(exitCode)
+    try {
+      runTerminalRestoration()
+      runResumeHint()
+    } catch (error) {
+      passedOver(error)
+    } finally {
+      forceExit(exitCode)
+    }
   }, Math.max(FAILSAFE_FLOOR_MS, SESSION_END_HOOK_BUDGET_MS + FAILSAFE_HOOK_MARGIN_MS))
   failsafeTimer.unref()
 
@@ -508,16 +513,21 @@ export async function gracefulShutdown(
 
   try {
     const { fireHooks } = await import('./hooks/fire.js')
-    const { endBackgroundHooks } = await import('./hooks/background.js')
     const hookBudgetMs = SESSION_END_HOOK_BUDGET_MS
     const { getSessionId } = await import('../bootstrap/state.js')
     const ended = await fireHooks('session.end', { reason }, { scope: { sessionId: String(getSessionId()) }, signal: AbortSignal.timeout(hookBudgetMs), budgetMs: hookBudgetMs })
     for (const outcome of ended.outcomes) {
       if (outcome.state.kind === 'failed') process.stderr.write(`${outcome.state.line}\n`)
     }
-    await endBackgroundHooks()
   } catch (error) {
-    passedOver(error)
+    logForDebugging(`gracefulShutdown: session.end hooks failed (ignored): ${String(error)}`)
+  } finally {
+    try {
+      const { endBackgroundHooks } = await import('./hooks/background.js')
+      await endBackgroundHooks()
+    } catch (error) {
+      logForDebugging(`gracefulShutdown: ending background hooks failed (ignored): ${String(error)}`)
+    }
   }
 
   try {
@@ -570,9 +580,14 @@ export async function crashShutdown(exitCode: number): Promise<void> {
   }
 
   const cap = startTimeout(() => {
-    runTerminalRestoration()
-    runResumeHint()
-    forceExit(exitCode)
+    try {
+      runTerminalRestoration()
+      runResumeHint()
+    } catch (error) {
+      passedOver(error)
+    } finally {
+      forceExit(exitCode)
+    }
   }, CRASH_SHUTDOWN_BUDGET_MS)
   cap.unref()
 
@@ -677,9 +692,10 @@ export function gracefulShutdownSync(
     try {
       runTerminalRestoration()
       runResumeHint()
-      forceExit(exitCode)
     } catch (error) {
       passedOver(error)
+    } finally {
+      forceExit(exitCode)
     }
   })
 }

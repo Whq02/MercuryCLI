@@ -17,6 +17,7 @@ export class ProjectionFeed {
   private lastKey = PROJECTION_ABSENT
   private settleUntilMs = 0
   private recheck: ReturnType<typeof setTimeout> | null = null
+  private revert: ReturnType<typeof setTimeout> | null = null
   constructor(
     private readonly dir: string,
     private readonly path: string,
@@ -49,7 +50,7 @@ export class ProjectionFeed {
   }
   private cadenceMs(): number {
     if (this.watcher === null) return HEARTBEAT_MS
-    if (this.settleUntilMs > Date.now()) return HEARTBEAT_MS
+    if (this.settleUntilMs > performance.now()) return HEARTBEAT_MS
     return this.idleFloorMs()
   }
   rearm(): void {
@@ -63,10 +64,19 @@ export class ProjectionFeed {
   }
   settle(windowMs: number): void {
     if (windowMs <= 0) return
-    this.settleUntilMs = Math.max(this.settleUntilMs, Date.now() + windowMs)
+    this.settleUntilMs = Math.max(this.settleUntilMs, performance.now() + windowMs)
     this.rearm()
-    const revert = startTimeout(() => this.rearm(), windowMs)
+    this.revertWhenSettled()
+  }
+  private revertWhenSettled(): void {
+    if (this.revert !== null) stopTimeout(this.revert)
+    const revert = startTimeout(() => {
+      this.revert = null
+      if (this.settleUntilMs > performance.now()) this.revertWhenSettled()
+      else this.rearm()
+    }, Math.max(1, Math.ceil(this.settleUntilMs - performance.now())))
     revert.unref?.()
+    this.revert = revert
   }
   heartbeatMs(): number {
     return this.timer === null ? 0 : this.timerMs
@@ -103,6 +113,10 @@ export class ProjectionFeed {
     if (this.recheck !== null) {
       stopTimeout(this.recheck)
       this.recheck = null
+    }
+    if (this.revert !== null) {
+      stopTimeout(this.revert)
+      this.revert = null
     }
     try {
       this.watcher?.close()
