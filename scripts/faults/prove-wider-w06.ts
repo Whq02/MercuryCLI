@@ -571,5 +571,74 @@ console.log('\nw06-7: useDiffData and DiffDialog — failed git diff fetch carri
   check('DiffDialog still shows "The working tree is clean." when git diff succeeds with no changes', cleanScreen.includes('The working tree is clean.') && !cleanScreen.includes('Git diff could not be loaded'), cleanScreen.slice(0, 300))
 }
 
+console.log('\nw06-8: acpServer/mercuryRequests — _mercury/crew surfaces readErrors for failed sources and omits it when clean')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const convPath = path.join(SRC, 'services/crew/conversations.ts')
+    const descPath = path.join(SRC, 'services/crew/descriptor.ts')
+    const graphPath = path.join(SRC, 'services/crew/graph.ts')
+    const projPath = path.join(SRC, 'services/crew/projection.ts')
+    const [realConv, realDesc, realGraph, realProj] = await Promise.all([
+      import(convPath),
+      import(descPath),
+      import(graphPath),
+      import(projPath),
+    ])
+    let failReads = true
+    mock.module(convPath, () => ({
+      ...realConv,
+      listConversations: async () => {
+        if (failReads) throw new Error('conv boom')
+        return []
+      },
+      listReadCursors: async () => {
+        if (failReads) throw new Error('cursor boom')
+        return new Map()
+      },
+    }))
+    mock.module(descPath, () => ({
+      ...realDesc,
+      listSessionDescriptors: async () => {
+        if (failReads) throw new Error('desc boom')
+        return []
+      },
+    }))
+    mock.module(graphPath, () => ({
+      ...realGraph,
+      assembleSessionGraph: async () => {
+        if (failReads) throw new Error('graph boom')
+        return null
+      },
+    }))
+    mock.module(projPath, () => ({
+      ...realProj,
+      resolveCrewSnapshot: async () => ({ members: [], sources: null }),
+    }))
+
+    const { mercuryRequests } = await import(path.join(SRC, 'services/acp/acpServer/mercuryRequests.ts'))
+    const handlers = new Map()
+    const fakeApp = {
+      onRequest(method, _validate, handler) {
+        handlers.set(method, handler)
+        return this
+      },
+    }
+    mercuryRequests(fakeApp)
+    const crewHandler = handlers.get('_mercury/crew')
+
+    out.failedAnswer = await crewHandler({ params: {} })
+    failReads = false
+    const okAnswer = await crewHandler({ params: {} })
+    out.okHasReadErrors = 'readErrors' in okAnswer
+  `)
+  const failed = r.failedAnswer as { readErrors?: Record<string, string>; members?: unknown[]; conversations?: unknown[]; descriptors?: unknown[] } | undefined
+  const re = failed?.readErrors
+  check('_mercury/crew carries readErrors naming all four failed sources while still answering members and empty lists', Array.isArray(failed?.members) && Array.isArray(failed?.conversations) && Array.isArray(failed?.descriptors) && re?.conversations === 'conv boom' && re?.readCursors === 'cursor boom' && re?.descriptors === 'desc boom' && re?.graph === 'graph boom', JSON.stringify(failed))
+  check('_mercury/crew omits readErrors when all four reads succeed', r.okHasReadErrors === false, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)
