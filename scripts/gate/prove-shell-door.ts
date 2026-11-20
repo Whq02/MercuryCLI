@@ -143,8 +143,6 @@ const UNREAD: Array<[string, number]> = [
 ]
 
 const GRAMMAR_READERS: Array<[string, number]> = [
-  ['src/tools/AgentTool/reviewerPolicy.ts', 3],
-  ['src/tools/BashTool/bashPermissions.ts', 7],
   ['src/tools/BashTool/denyRuleReach.ts', 32],
   ['src/utils/permissions/flowLaw.ts', 27],
   ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
