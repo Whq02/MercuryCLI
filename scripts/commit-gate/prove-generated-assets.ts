@@ -383,7 +383,7 @@ section('§6 the build asks the generator of each file it ships')
   for (const bake of ['bun scripts/splash/bake-menu.mjs', 'bun scripts/splash/bake-ramp.mjs']) {
     check(`the build checks the splash core through ${bake}`, buildRows.some(row => row.assets === 'assets/splash/splash-core.mjs' && row.generator === bake && row.check === `${bake} --check`))
   }
-  for (const asset of ['src/services/blender/bridgeFiles.generated.ts', 'src/services/vulcan/addonFiles.generated.ts', 'src/utils/vulcan/optable.generated.ts assets/vulcan/addon/core/op_classes.gd', 'src/extensions/bundled/content.generated.ts', 'src/skills/bundled/**', 'docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md src/skills/bundled/extension-maker/references/CONTRACT.md']) {
+  for (const asset of ['src/services/blender/bridgeFiles.generated.ts', 'src/services/unity/bridgeFiles.generated.ts', 'assets/host/llamacpp-engine.json', 'src/services/vulcan/addonFiles.generated.ts', 'src/utils/vulcan/optable.generated.ts assets/vulcan/addon/core/op_classes.gd', 'src/extensions/bundled/content.generated.ts', 'src/skills/bundled/**', 'docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md src/skills/bundled/extension-maker/references/CONTRACT.md']) {
     check(`the build checks ${asset}`, buildRows.some(row => row.assets === asset))
   }
   check('every row the build checks asks its own generator with --check', buildRows.every(row => row.check === `${row.generator.split('&&').at(-1)!.trim()} --check`), buildRows.filter(row => row.check !== `${row.generator.split('&&').at(-1)!.trim()} --check`).map(row => row.check).join(' | '))
