@@ -34,6 +34,7 @@ import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './r
 import { jitterRetryDelay } from './retryJitter.js'
 import { APIError, APIUserAbortError } from './sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
+import { messageEffortRefusedBy } from '../providers/anthropic/messageEffort.js'
 
 
 const BASE_DELAY_MS = 500
@@ -319,6 +320,12 @@ export async function* withRetry<T>(
       if (cacheDiagnosticsRefusal() === null && isCacheDiagnosticsRefusal(error)) {
         refuseCacheDiagnostics(errorMessage(error))
         logForDebugging(`cache diagnostics: the provider refused the diagnostics field (${errorMessage(error)}); this process sends it no more and the request goes out again without it`, { level: 'warn' })
+        continue
+      }
+
+      if (messageEffortRefusedBy(error)) {
+        logForDebugging(`per-message effort: the provider refused the request that carried it (${errorMessage(error)}); this process sends it no more and the request goes out again without it`, { level: 'warn' })
+        attempt--
         continue
       }
 

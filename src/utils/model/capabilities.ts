@@ -197,6 +197,12 @@ export function modelSupportsForcedToolChoice(model: string): boolean {
   return canonical !== 'claude-fable-5-2' && canonical !== 'claude-fable-5-1' && canonical !== 'claude-opus-5-5' && canonical !== 'claude-sonnet-5-5'
 }
 
+export function modelSupportsMessageEffort(model: string): boolean {
+  if (!isFirstPartyAnthropicBaseUrl()) return false
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  return canonical === 'claude-fable-5-2' || canonical === 'claude-fable-5-1' || canonical === 'claude-opus-5-5' || canonical === 'claude-opus-5' || canonical === 'claude-sonnet-5-5' || canonical === 'claude-haiku-5-5'
+}
+
 export function foldToolChoiceForModel<T extends { type: string }>(
   model: string,
   toolChoice: T | undefined,

@@ -30,6 +30,7 @@ for proof in \
   prove-handoff-final-reply.ts \
   prove-handoff-verbatim.ts \
   prove-handoff-novelty.ts \
+  prove-handoff-low-effort.ts \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
   prove-exit-engine-gone.ts \

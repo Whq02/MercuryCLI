@@ -1,7 +1,7 @@
 import { flagEnv } from '../../../../substrate/flagRegistry.js'
 import type { JsonOutputFormat as BetaJSONOutputFormat } from '../../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from '../anthropicWire.js'
-import { STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
+import { MESSAGE_EFFORT_BETA_HEADER, STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import { applyThinkingBinding } from '../thinkingBinding.js'
 import { applyThinkingDisplay } from '../thinkingDisplay.js'
 import { modelSupportsStructuredOutputs } from 'src/utils/betas.js'
@@ -12,7 +12,7 @@ import {
   modelSupportsThinking,
   type ThinkingConfig,
 } from 'src/utils/thinking.js'
-import { foldToolChoiceForModel, getContextWindowForModel } from 'src/utils/model/capabilities.js'
+import { foldToolChoiceForModel, getContextWindowForModel, modelSupportsMessageEffort } from 'src/utils/model/capabilities.js'
 import { ANTHROPIC_IMAGE_LIMITS } from '../../../../constants/apiLimits.js'
 import { getAttributionHeader } from '../../../../constants/system.js'
 import { declareLawfulPrefixChange } from '../../lawfulPrefixChange.js'
@@ -46,6 +46,7 @@ import {
 } from '../requestParams.js'
 import type { Options } from '../streamCore.js'
 import type { CallState, PlannedRequest } from './state.js'
+import { messageEffortRow, messageEffortSteps, withMessageEffort } from '../messageEffort.js'
 
 type WireInputs = {
   messages: Message[]
@@ -138,6 +139,8 @@ export function wireParamsFor(call: CallState, wire: WireInputs) {
 
     thinking = applyThinkingDisplay(options.model, thinking, betasParams) as typeof thinking
     thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking
+    const effortSteps = modelSupportsMessageEffort(options.model) ? messageEffortSteps(messagesForAPI, outputConfig.effort) : []
+    if (effortSteps.length > 0 && !betasParams.includes(MESSAGE_EFFORT_BETA_HEADER)) betasParams.push(MESSAGE_EFFORT_BETA_HEADER)
     const sendBetas = betasParams.length > 0
 
     const enablePromptCaching =
@@ -183,8 +186,8 @@ export function wireParamsFor(call: CallState, wire: WireInputs) {
     }
     const inducedEdit = resolveInducedPrefixEdit()
     if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
-    const wireMessages = wireParts.messages
-    const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
+    const wireMessages = withMessageEffort<unknown>(wireParts.messages, effortSteps, messageEffortRow)
+    const wireMessageIds = withMessageEffort<string | null>(messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null)), effortSteps, () => null)
     const diagnostics = cacheDiagnosticsParam(wireMessageIds, options.querySource)
 
     const params = fitWireImages({

@@ -4,7 +4,7 @@ import type { APIError } from '../services/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
 import type { MediaRefusal } from '../services/api/mediaRefusal.js'
 import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
-import type { EffortAdjustedV1 } from '../utils/effort.js'
+import type { EffortAdjustedV1, EffortLevel } from '../utils/effort.js'
 import type { EffortStampV1 } from '../fabric/record.js'
 import type { AdvisorOrigin, SaturnOrigin, ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import type { UUID } from 'crypto'
@@ -201,6 +201,7 @@ export type UserMessage = {
   sourceToolAssistantUUID?: UUID
   sourceToolUseID?: string
   permissionMode?: import('./permissions.js').PermissionMode
+  replyEffort?: EffortLevel
   origin?: MessageOrigin
 }
 
