@@ -50,7 +50,7 @@ let reminder: Reminder | null = null
 try {
   reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
 } catch (error) {
-  tally.check('the reminder owner exists (src/utils/crew/crewWorktreeReminder.ts)', false, error instanceof Error ? error.message.split('\n')[0] : String(error))
+  tally.check('the reminder owner exists (src/services/crew/crewWorktreeReminder.ts)', false, error instanceof Error ? error.message.split('\n')[0] : String(error))
 }
 const now = Date.now()
 if (reminder !== null) {

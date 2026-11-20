@@ -67,7 +67,7 @@ const held = {
 const WORKER_SCRIPT = join(SCRATCH, 'worker-audit.ts')
 writeFileSync(WORKER_SCRIPT, [
   "import { existsSync } from 'node:fs'",
-  `const led = await import(${text(join(ROOT, 'src', 'utils', 'spawnLedger.ts'))})`,
+  `const led = await import(${text(join(ROOT, 'src', 'daemon', 'spawnLedger.ts'))})`,
   `const watch = await import(${text(join(ROOT, 'src', 'daemon', 'workerParentWatch.ts'))})`,
   "led.recordBashAudit('echo from a daemon-spawned worker', 0, false)",
   `console.log(JSON.stringify({ marker: watch.parseWorkerParentPid(), auditPath: led.bashAuditPath(), daemonDirStands: existsSync(${text(DAEMON_DIR)}) }))`,

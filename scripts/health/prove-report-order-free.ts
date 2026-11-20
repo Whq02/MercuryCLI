@@ -155,7 +155,7 @@ for (const depth of ['fast', 'deep'] as const) {
   const silent = runs.filter(entry => entry.run === null).map(entry => entry.why)
   check(`four ${depth} reports ran`, silent.length === 0, silent)
   if (first.run === null || second.run === null || reversed.run === null || rotated.run === null) continue
-  const ran = runs.flatMap(entry => (entry.run !== null && entry.run.called.join(' ') !== entry.run.handed.join(' ') ? [`the ${entry.run.mode} run handed the report ${entry.run.handed.length} sections (${entry.run.handed[0]} first) and the report called ${entry.run.called.length} of them (${entry.run.called[0] ?? 'none'} first): runHealthReport of src/utils/healthReport.ts takes the list of sections as its second argument and runs that list in the order handed`] : []))
+  const ran = runs.flatMap(entry => (entry.run !== null && entry.run.called.join(' ') !== entry.run.handed.join(' ') ? [`the ${entry.run.mode} run handed the report ${entry.run.handed.length} sections (${entry.run.handed[0]} first) and the report called ${entry.run.called.length} of them (${entry.run.called[0] ?? 'none'} first): runHealthReport of src/services/health/healthReport.ts takes the list of sections as its second argument and runs that list in the order handed`] : []))
   check(`the report ran the list it was handed, in the order handed (${first.run.handed[0]} first, ${reversed.run.handed[0]} first, ${rotated.run.handed[0]} first)`, ran.length === 0, ran)
 
   const control = differences({ run: first.run, places: first.places }, { run: second.run, places: second.places })
