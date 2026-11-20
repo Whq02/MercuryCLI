@@ -1,4 +1,5 @@
-import { lstatSync, statSync, type Stats } from 'node:fs'
+import { constants as fsConstants, lstatSync, statSync, type Stats } from 'node:fs'
+import { getPlatform, type Platform } from '../platform.js'
 
 type PathEntryKind = 'absent' | 'directory' | 'other'
 
@@ -50,4 +51,33 @@ export function isOwnedPrivateEntry(
 ): boolean {
   if (platform === 'win32') return true
   return (stats.mode & 0o077) === 0 && stats.uid === process.getuid?.()
+}
+
+export function exclusiveCreateNoFollowFlags(
+  platform: NodeJS.Platform = process.platform,
+): string | number {
+  if (platform === 'win32') return 'wx'
+  return fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | (fsConstants.O_NOFOLLOW ?? 0)
+}
+
+export function appendNoFollowFlags(
+  win32Flag: 'a' | 'w' = 'a',
+  platform: Platform = getPlatform(),
+): string | number {
+  if (platform === 'windows') return win32Flag
+  return fsConstants.O_WRONLY | fsConstants.O_APPEND | fsConstants.O_CREAT | (fsConstants.O_NOFOLLOW ?? 0)
+}
+
+export function symlinksMayRequirePrivilege(
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return platform === 'win32'
+}
+
+export function symlinkDeniedByPrivilege(
+  error: unknown,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return symlinksMayRequirePrivilege(platform) && (code === 'EPERM' || code === 'EACCES')
 }
