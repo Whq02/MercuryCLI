@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useClaim } from '../../../hooks/effects.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import {
   decodeAgentDocument,
@@ -93,7 +94,7 @@ export function StudioEditor({
   )
   const [snap, setSnap] = React.useState<StudioEditorSnapshot>(() => machine.snapshot())
   snapListener.current = setSnap
-  React.useEffect(() => () => machine.dispose(), [machine])
+  useClaim(() => () => machine.dispose(), [machine])
 
   const { doc, view, note, busy, conflict, recoverOffer, textBuffer, textCursor } = snap
 
@@ -516,14 +517,14 @@ function FieldEditor(props: {
   onCancel: () => void
 }): React.ReactNode {
   const { field, doc, tools, textBuffer, textCursor, setTextBuffer, setTextCursor } = props
-  const clear = { label: '(clear — use the default)', value: '__clear__' }
-  const selectFor = (
-    options: { label: string; value: string }[],
-    apply: (v: string | undefined) => void,
+  const clear = { label: '(clear — use the default)', value: '__clear__' as const }
+  const selectFor = <T extends string>(
+    options: { label: string; value: T }[],
+    apply: (v: T | undefined) => void,
   ): React.ReactNode => (
-    <Select
+    <Select<T | '__clear__'>
       options={[...options, clear]}
-      onChange={(v: string) => apply(v === '__clear__' ? undefined : v)}
+      onChange={v => apply(v === '__clear__' ? undefined : v)}
       onCancel={props.onCancel}
     />
   )
@@ -597,7 +598,7 @@ function FieldEditor(props: {
               : `${previewModel} takes no effort setting — no stops to offer; the field stays 'inherit session'`}
           </Text>
           {selectFor(options, v =>
-            props.onCommit({ set: { effort: v as EffortValue | undefined } }),
+            props.onCommit({ set: { effort: v } }),
           )}
         </Box>
       )
@@ -605,24 +606,24 @@ function FieldEditor(props: {
     case 'permissionMode':
       return selectFor(
         offeredDefinitionModes(props.sovereignConsent).map(m => ({ label: m, value: m })),
-        v => props.onCommit({ set: { permissionMode: v as never } }),
+        v => props.onCommit({ set: { permissionMode: v } }),
       )
     case 'memory':
       return selectFor(
-        ['user', 'project', 'local'].map(m => ({ label: m, value: m })),
-        v => props.onCommit({ set: { memory: v as never } }),
+        (['user', 'project', 'local'] as const).map(m => ({ label: m, value: m })),
+        v => props.onCommit({ set: { memory: v } }),
       )
     case 'instructionProfile':
       return selectFor(
-        ['auto', 'native'].map(m => ({ label: m, value: m })),
-        v => props.onCommit({ set: { instructionProfile: v as never } }),
+        (['auto', 'native'] as const).map(m => ({ label: m, value: m })),
+        v => props.onCommit({ set: { instructionProfile: v } }),
       )
     case 'color':
       return (
         <ColorPicker
           agentName={doc.fields.name || 'draft'}
           currentColor={(doc.fields.color as AgentColorName) ?? 'automatic'}
-          onConfirm={c => props.onCommit({ set: { color: c as never } })}
+          onConfirm={c => props.onCommit({ set: { color: c } })}
         />
       )
     case 'body':

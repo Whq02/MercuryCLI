@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { Text } from '../../ink.js'
 import { getCwd } from '../../utils/cwd.js'
 import { readMediaGenerationDetails } from '../../services/media/generation.js'
@@ -11,7 +12,7 @@ import type { PermissionRequestProps } from './PermissionRequest.js'
 
 export function MediaPermissionRequest(props: PermissionRequestProps & { kind: MediaKind }): React.ReactNode {
   const [detail, setDetail] = React.useState<string | null>(null)
-  React.useEffect(() => {
+  useLoad(() => {
     let active = true
     const { input, tool, cwd } = props.toolUseConfirm
     const project = cwd ?? getCwd()

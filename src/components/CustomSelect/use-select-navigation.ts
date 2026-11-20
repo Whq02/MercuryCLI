@@ -1,5 +1,6 @@
 
-import React, { useCallback, useEffect, useReducer, useRef } from 'react'
+import React, { useCallback, useReducer, useRef } from 'react'
+import { useDerivedState, usePublish } from '../../hooks/effects.js'
 import OptionMap, {
   isInputOption,
   optionsEquivalent,
@@ -390,7 +391,7 @@ export function useSelectNavigation<T>({
   onFocusRef.current = onFocus
   const lastNotifiedRef = useRef<T | undefined>(undefined)
   const hasNotifiedRef = useRef(false)
-  useEffect(() => {
+  usePublish(() => {
     if (validatedFocusedValue === undefined) return
     if (hasNotifiedRef.current && lastNotifiedRef.current === validatedFocusedValue) {
       return
@@ -400,7 +401,7 @@ export function useSelectNavigation<T>({
     onFocusRef.current?.(validatedFocusedValue)
   }, [validatedFocusedValue])
 
-  useEffect(() => {
+  useDerivedState(() => {
     dispatch({ type: 'focus-value', value: focusValue })
   }, [focusValue])
 

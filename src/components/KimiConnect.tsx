@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import TextInput from './TextInput.js'
 import { Select } from './CustomSelect/index.js'
@@ -46,7 +47,7 @@ export function KimiConnect({
     onResult({ ok, receipt })
   }
 
-  useEffect(() => {
+  useLoad(() => {
     if (leg !== 'device') return
     let disposed = false
     void runKimiDeviceLogin({

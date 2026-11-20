@@ -1,5 +1,6 @@
 
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import { useAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import { getExampleCommandFromCache } from '../../utils/exampleCommands.js'
@@ -26,7 +27,7 @@ export function usePromptInputPlaceholder({
     input === '' && submitCount === 0 && !viewingAgentName
       ? projectOnboardingHint()
       : undefined
-  useEffect(() => {
+  usePublish(() => {
     if (onboardingHint !== undefined) noteProjectOnboardingShown()
   }, [onboardingHint])
   const suggestionsEnabled = useAppState(

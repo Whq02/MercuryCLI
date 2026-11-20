@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { useDerivedState } from '../hooks/effects.js';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../hooks/useEngineModel.js';
@@ -245,7 +246,7 @@ export function BootAgentsScreen({
   );
 
   const wasSuspended = useRef(suspended);
-  useEffect(() => {
+  useDerivedState(() => {
     if (wasSuspended.current && !suspended) {
       setFormPick(pick =>
         pick !== null && pick.field === 'model'
