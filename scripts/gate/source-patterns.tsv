@@ -67,7 +67,7 @@ Promise.race	src/services/providers/together/togetherCallModel.ts	1	events 1
 Promise.race	src/services/providers/xai/xaiCallModel.ts	1	events 1
 Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
-Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
+Promise.race	src/tools/BashTool/BashTool.tsx	2	events 2
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	1	events 1
 Promise.race	src/utils/generators.ts	1	events 1
