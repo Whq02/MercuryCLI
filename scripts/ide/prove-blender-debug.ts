@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { fakeCommand } from '../dap/fakeCommand.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -80,9 +81,7 @@ section('§3 · the profile row (armed only)')
   const scratch = mkdtempSync(path.join(tmpdir(), 'blender-debug-'))
   mkdirSync(scratch, { recursive: true })
   writeFileSync(path.join(scratch, 'a.blend'), '')
-  const shimBin = path.join(scratch, 'shim-blender')
-  writeFileSync(shimBin, '#!/bin/sh\necho "Blender 5.2.1"\nexit 0\n')
-  chmodSync(shimBin, 0o755)
+  const shimBin = fakeCommand(scratch, 'shim-blender', 'Blender 5.2.1\n', scratch)
   process.env.MERCURY_BLENDER = '1'
   process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(scratch)
