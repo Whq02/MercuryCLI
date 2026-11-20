@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts
+// gate-watch: src/components/statusNotices/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts
 // gate-watch: src/components/Messages.tsx src/components/CrewmateTranscript.tsx src/components/memory/MemoryCentreView.tsx src/commands/memory/memory.tsx src/components/SettingsPopupSlot.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -31,7 +31,7 @@ const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeC
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 const { pinFact, formatTextSize } = await import('../../src/mneme/mnemeUsage.js')
 const { readPinnedStatus } = await import('../../src/mneme/mnemeFrontPage.js')
-const { getActiveNotices, pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
+const { getActiveNotices, pinnedOverLimitLine } = await import('../../src/components/statusNotices/statusNoticeDefinitions.js')
 const { getGlobalConfig } = await import('../../src/utils/config.js')
 
 section('§1 a library whose pinned shelf is over its text limit')

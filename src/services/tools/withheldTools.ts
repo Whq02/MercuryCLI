@@ -1,9 +1,9 @@
-import { videoProviderReadError, videoToolEnabled, VIDEO_SETUP } from '../services/video/registry.js'
-import { debugToolWithholding } from '../services/dap/dapClient.js'
-import { resolveDesktopDriver } from '../services/desktop/resolveDriver.js'
-import { flagEnabled } from '../substrate/flagRegistry.js'
-import { searchToolsAvailability } from './ripgrep.js'
-import { godotToolWithholding } from './vulcan/vulcanGates.js'
+import { videoProviderReadError, videoToolEnabled, VIDEO_SETUP } from '../video/registry.js'
+import { debugToolWithholding } from '../dap/dapClient.js'
+import { resolveDesktopDriver } from '../desktop/resolveDriver.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
+import { searchToolsAvailability } from '../../utils/ripgrep.js'
+import { godotToolWithholding } from '../../utils/vulcan/vulcanGates.js'
 
 export interface WithheldTool {
   tool: string

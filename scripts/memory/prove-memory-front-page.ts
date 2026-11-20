@@ -2,7 +2,7 @@
 // gate-watch: src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts src/mneme/mnemeArchive.ts
 // gate-watch: src/mneme/mnemeLookup.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeCorrect.ts
 // gate-watch: src/mneme/mnemeLibrary.ts src/mneme/mnemeTopicDocs.ts src/constants/prompts.ts
-// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeBuffer.ts src/utils/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
+// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeBuffer.ts src/components/statusNotices/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -109,7 +109,7 @@ check('a rule the user asked for is marked as asked for by the user', ruleSeqs.f
 check('a rule Mercury pinned on its own carries no asked mark', ruleSeqs.filter((_, i) => i % 2 === 1).every(seq => overRender.text.includes(`<seq=${seq}>`)))
 const roomy = renderFrontPage({ dir, topics: listTopicDocs(dir), archives: listArchiveDocs(dir), pins: readPins(dir), usage: {}, now: T0, limit: 100_000 })
 check('under the limit the same rules load without the over line', roomy.status.over === false && !roomy.text.includes('-character limit'))
-const { pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
+const { pinnedOverLimitLine } = await import('../../src/components/statusNotices/statusNoticeDefinitions.js')
 check('the start-of-session line is one calm sentence with the fill, the limit and both ways out',
   pinnedOverLimitLine({ pinned: 23, used: 9600, limit: 8000 }) === 'Pinned memory: 23 rules, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')
 const { pinnedTextLimit, PINNED_TEXT_LIMIT_DEFAULT } = await import('../../src/mneme/mnemeUsage.js')

@@ -26,7 +26,7 @@ process.env.MERCURY_COMPUTER_USE = '1'
 process.env.MERCURY_DESKTOP_PACK_DIR = join(emptyPacks, 'desktop')
 
 const { getAllBaseTools } = await import('../../src/tools.ts')
-const { withheldTools, withheldToolsLine } = await import('../../src/utils/withheldTools.ts')
+const { withheldTools, withheldToolsLine } = await import('../../src/services/tools/withheldTools.ts')
 const { collectReadiness } = await import('../../src/services/health/readiness.ts')
 const dap = await import('../../src/services/dap/dapClient.ts')
 const godot = await import('../../src/services/vulcan/portabilityHealth.ts')
@@ -93,7 +93,7 @@ const withheldRow = toolCapabilityFastChecks().find(row => row.id === 'tools-wit
 check("/health's TOOL CAPABILITY section carries the Tools withheld row", withheldRow?.label === 'Tools withheld')
 {
   const withheldSays = await withheldRow?.run()
-  const withheldOwner = await import('../../src/utils/withheldTools.ts')
+  const withheldOwner = await import('../../src/services/tools/withheldTools.ts')
   const settledList = withheldOwner.withheldTools()
   check("/health's row waits for the toolchain probes before it reads the census", withheldSays?.evidence === withheldOwner.withheldToolsLine(settledList) && (settledList.length === 0 ? withheldSays.status === 'ok' : withheldSays.status === 'info' && withheldSays.detail === settledList.map(w => `${w.tool} — needs ${w.dependency}: ${w.why}`).join('\n')), withheldSays?.evidence)
   const slowGdb = join(emptyBin, 'gdb')

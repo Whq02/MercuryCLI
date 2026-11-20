@@ -1,4 +1,4 @@
-import { passedOver } from '../../utils/passedOver.js'
+import { passedOver } from '../passedOver.js'
 
 interface DeepErrorDetail {
   name: string

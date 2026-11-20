@@ -1,5 +1,5 @@
 import { ProtocolError, SdkError, SdkErrorCode } from '../../../utils/mcp/sdk.js'
-import { deepestErrorDetail, isStaleSocketCode } from '../../api/transportEvidence.js'
+import { deepestErrorDetail, isStaleSocketCode } from '../../../utils/api/transportEvidence.js'
 import { errorMessage, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../../utils/errors.js'
 
 export class McpAuthError extends Error {
