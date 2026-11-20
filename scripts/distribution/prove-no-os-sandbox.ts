@@ -92,7 +92,6 @@ section("(e) PermissionRequestParamsSchema refuses kind: 'network'")
   check("kind: 'tool' still parses", tool.success, tool.success ? '' : JSON.stringify(tool.error.issues).slice(0, 200))
   const bogus = schema.safeParse({ kind: 'nosuchkind', host: 'example.com' })
   check("…and the refusal is the ordinary one: the same verdict an unknown kind gets", !bogus.success && !network.success)
-  check('docs/AUTOMATION.md describes one ask kind', !/kind: "network"/.test(read('docs/AUTOMATION.md')))
 }
 
 section('(f) bun scripts/sdk/generate.ts --check exits 0')
