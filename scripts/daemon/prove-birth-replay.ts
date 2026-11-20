@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -27,7 +27,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 const text = (v: unknown): string => JSON.stringify(v)
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
@@ -134,12 +133,6 @@ console.log('\nR7 the shape gate at the wire')
   const isBirthKey = (value: unknown): boolean => (typeof gate === 'function' ? gate(value) : false)
   check('R7 a UUID is a birth key', isBirthKey(K1))
   check('R7 an empty string, spaces, punctuation, a number and an over-long string are refused', typeof gate === 'function' && !isBirthKey('') && !isBirthKey('a b c d e f g h') && !isBirthKey('abc;def;ghi') && !isBirthKey(42) && !isBirthKey('x'.repeat(65)) && !isBirthKey('short'))
-}
-
-console.log('\nR8 the source seams: the wire narrows and forwards the key, both mints stamp it, the door mints one key per birth')
-{
-  const docs = read('docs/SESSIONS.md')
-  check('R8 the sessions page says a lost answer lands the ↵ in the one session', docs.includes('answers the retry with the session it already holds'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

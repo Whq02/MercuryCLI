@@ -7,7 +7,7 @@ import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { getSessionId } from '../bootstrap/state.js';
 import { chatOnlyBoot, leaveCurrentSurface, enterConcourse, routeSurfaceRegistered, stripFacts } from '../context/surfaceRoute.js';
-import { STARTUP_MENU, bootEnvPath, evaluateExplicitApply, isLiveEnvRow, menuRowChoices, readBootDefaultsProfile, bootAdmissionSnapshot, resolveEffectiveSettingsSnapshot, type BootDefaultsProfileV1, type ExplicitApplyReceipt, type MenuRow } from '../substrate/startupMenu.js';
+import { STARTUP_MENU, bootEnvPath, evaluateExplicitApply, isLiveEnvRow, menuRowChoices, readBootDefaultsProfile, readBootDefaultsProfileStrict, bootAdmissionSnapshot, resolveEffectiveSettingsSnapshot, type BootDefaultsProfileV1, type ExplicitApplyReceipt, type MenuRow } from '../substrate/startupMenu.js';
 import { flagSpellings } from '../substrate/flagRegistry.js';
 import { SEATS_MENU_ROW, seatCeilingFactsAsync, type SeatCeilingFacts } from '../services/switchboard/capacityCheck.js';
 import { MOTION_MENU_ROW, readMotionSetting, type MotionSetting } from '../utils/cockpit/motionSetting.js';
@@ -31,6 +31,8 @@ import { settingsRowLine } from './bootSettings/rows.js';
 import type { SettingsContext } from './bootSettings/context.js';
 import { armBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
 import { logError } from '../utils/log.js';
+import { errorMessage } from '../utils/errors.js';
+import { passedOver } from '../utils/passedOver.js';
 import { afterMicrotask } from '../utils/timers.js';
 export { JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, backgroundLaunchBootDetailLines } from './bootSettings/detailLines.js';
 
@@ -153,7 +155,9 @@ export function BootSettingsScreen({
 
   const [saveTick, setSaveTick] = useState(0);
   const [lastReceipt, setLastReceipt] = useState<string | null>(null);
-  const profile = useMemo(() => readBootDefaultsProfile(path), [path, saveTick]);
+  const profileRead = useMemo(() => readBootDefaultsProfileStrict(path), [path, saveTick]);
+  const profile = profileRead.ok ? profileRead.profile : null;
+  const profileReadError = profileRead.ok ? null : profileRead.reason;
   const saved = useMemo(() => savedChoicesByRow(profile), [profile]);
   const snapshot = useMemo(
     () => bootAdmissionSnapshot() ?? resolveEffectiveSettingsSnapshot({ sessionId: getSessionId(), path }),
@@ -245,8 +249,9 @@ export function BootSettingsScreen({
           }
         }
       })
-      .catch(() => {
-        if (!cancelled) setApply({ phase: 'ready', workers: [] });
+      .catch(error => {
+        passedOver(error);
+        if (!cancelled) setApply({ phase: 'ready', workers: [], error: errorMessage(error) });
       });
     return () => {
       cancelled = true;
@@ -336,8 +341,8 @@ export function BootSettingsScreen({
 
   const changed = useMemo(() => STARTUP_MENU.filter(r => saved[r.env] !== undefined).length, [saved]);
   const menuM = useMemo(() => {
-    return settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, saved, seatFacts, wordGlow });
-  }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
+    return settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, profileReadError, saved, seatFacts, wordGlow });
+  }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, profileReadError, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {

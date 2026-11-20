@@ -1,6 +1,6 @@
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 import type { resolveEffectiveSettingsSnapshot } from '../../substrate/startupMenu.js'
-import { workspaceKindOf } from '../concourseWorktrees.js'
+import { inspectWorkspaceKind, workspaceGitCheckNote } from '../concourseWorktrees.js'
 import { kitStampOf } from '../sessionKit.js'
 import { updateConcourseWorkers } from './store.js'
 import type { seatInitialPermissionMode } from './spec.js'
@@ -9,6 +9,13 @@ import type { AdmitSeat, ConcourseAdmitDeps, ConcourseAdmitResult } from './admi
 import { startTimeout } from '../../utils/timers.js'
 
 export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kind, modelKey, modelDisplayName, kit, preset, retainedNote, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed }: AdmitSeat & { runnerId: string; claimSessionId: string; claimEffort: string; claimPosture: ReturnType<typeof seatInitialPermissionMode>; snapshot: ReturnType<typeof resolveEffectiveSettingsSnapshot>; pidFields: ReturnType<typeof pidFieldsOf>; claimed: Extract<Awaited<ReturnType<NonNullable<ConcourseAdmitDeps['claimWarm']>>>, { claimed: true }> }): ConcourseAdmitResult {
+  const inspectedKind = inspectWorkspaceKind(workspaceId)
+  let note = retainedNote
+  if (inspectedKind.kind === 'plain-folder' && inspectedKind.gitCheckError !== undefined) {
+    const gitNote = workspaceGitCheckNote(workspaceId, inspectedKind.gitCheckError)
+    if (note === undefined) note = gitNote
+    else if (!note.includes(gitNote)) note = `${note} — ${gitNote}`
+  }
   try {
     updateConcourseWorkers(workers => {
       workers[runnerId] = {
@@ -28,7 +35,7 @@ export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kin
         ...pidFields,
         ...buildTreeFields(),
         settingsSnapshot: snapshot,
-        workspaceKind: workspaceKindOf(workspaceId),
+        workspaceKind: inspectedKind.kind,
         ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
         ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
         ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
@@ -50,7 +57,7 @@ export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kin
   }
   return {
     ok: true,
-    ...(retainedNote !== undefined ? { note: retainedNote } : {}),
+    ...(note !== undefined ? { note } : {}),
     runnerId,
     sessionId: claimSessionId,
     workspaceId,

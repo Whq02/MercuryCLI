@@ -107,8 +107,9 @@ export function couldNameSecret(word: string, cwd: string, homes: readonly strin
   let pattern: RegExp
   try {
     pattern = new RegExp(`^${wildcardSource(segments.slice(at).join('/').toLowerCase())}$`)
-  } catch {
-    pattern = new RegExp(`^${segments.slice(at).map(segment => globPartSource(segment.toLowerCase())).join('/')}$`)
+  } catch (error) {
+    globNotCompiled(word, error)
+    return false
   }
   for (const folder of protectedPathForms(fixed, cwd)) {
     const conventional = CONVENTIONAL_HOME.test(folder) ? [folder] : []
@@ -152,15 +153,8 @@ export function holdsMercuryHome(word: string, cwd: string, homes: readonly stri
 
 export const GLOB_PART = /[*?[{]/
 
-export function globPartSource(part: string): string {
-  const source = wildcardSource(part)
-  try {
-    RegExp(`^${source}$`)
-    return source
-  } catch (error) {
-    logForDebugging(`shell floors: the glob part ${part} could not be compiled (${error instanceof Error ? error.message : String(error)}), so it is read as matching any name`)
-    return '[^/]+'
-  }
+export function globNotCompiled(glob: string, error: unknown): void {
+  logForDebugging(`shell floors: the glob ${glob} could not be compiled (${error instanceof Error ? error.message : String(error)}), so it is read as naming nothing Mercury keeps`, { level: 'warn' })
 }
 
 export function globNamesStore(word: string, cwd: string, homes: readonly string[], hidden: boolean, dotted = false): boolean {
@@ -174,8 +168,9 @@ export function globNamesStore(word: string, cwd: string, homes: readonly string
   let tests: RegExp[]
   try {
     tests = patterns.map(pattern => new RegExp(`^${wildcardSource(pattern)}$`))
-  } catch {
-    tests = patterns.map(pattern => new RegExp(`^${globPartSource(pattern)}$`))
+  } catch (error) {
+    globNotCompiled(word, error)
+    return false
   }
   const dotLed = (pattern: string): boolean => pattern.startsWith('.') || /^\{(?:[^}]*,)?\./.test(pattern)
   for (const folder of protectedPathForms(fixed, cwd)) {

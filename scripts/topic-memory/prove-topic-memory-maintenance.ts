@@ -117,3 +117,4 @@ if (failures) {
   process.exit(1)
 }
 console.log('✅ ALL MNEME MAINTENANCE PROOFS PASS')
+process.exit(0)

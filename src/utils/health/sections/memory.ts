@@ -19,9 +19,10 @@ export function memoryChecks(): CheckSpec[] {
         if (!mnemeEnabled()) {
           return { status: 'off', evidence: 'memory is off (memory.enabled is false in settings) — nothing is loaded or saved' }
         }
-        const { readFrontPage, readPinnedStatus } = await import('../../../mneme/mnemeFrontPage.js')
+        const { pinnedStatusPath, readFrontPage, readPinnedStatus } = await import('../../../mneme/mnemeFrontPage.js')
         const { formatTextSize } = await import('../../../mneme/mnemeUsage.js')
-        const { readHandoverReceipt } = await import('../../../mneme/mnemeHandover.js')
+        const { handoverReceiptPath, readHandoverReceipt } = await import('../../../mneme/mnemeHandover.js')
+        const { mnemeUnreadSentence } = await import('../../../mneme/mnemeUnread.js')
         const dir = mnemeLibraryDir()
         const page = readFrontPage(dir)
         if (page === null) {
@@ -30,6 +31,16 @@ export function memoryChecks(): CheckSpec[] {
         const pinned = readPinnedStatus(dir)
         const topics = page.split('\n').filter(l => /^- /.test(l) && !/ <seq=/.test(l)).length
         const intake = readHandoverReceipt(dir)
+        const unread = mnemeUnreadSentence([pinnedStatusPath(dir), handoverReceiptPath(dir)])
+        if (unread !== null) {
+          const pinnedPart = pinned ? ` · pinned ${pinned.pinned} rule(s) ${formatTextSize(pinned.used)} of ${formatTextSize(pinned.limit)}` : ''
+          const intakePart = intake ? ` · intake ${intake.notes} note(s) → ${intake.facts} fact(s)` : ''
+          return {
+            status: 'warn',
+            evidence: `front page ${formatTextSize(page.length)} · ${topics} topic line(s)${pinnedPart}${intakePart} · ${unread}`,
+            link: '/memory',
+          }
+        }
         const evidence = `front page ${formatTextSize(page.length)} · ${topics} topic line(s) · pinned ${pinned?.pinned ?? 0} rule(s) ${pinned ? `${formatTextSize(pinned.used)} of ${formatTextSize(pinned.limit)}` : ''}${intake ? ` · intake ${intake.notes} note(s) → ${intake.facts} fact(s)` : ''}`
         if (pinned?.over) {
           return {
@@ -115,10 +126,10 @@ export function memoryChecks(): CheckSpec[] {
       id: 'preserved-thinking',
       label: 'Preserved thinking',
       run: async () => {
-        const { preservedThinkingHealth, readThinkingDropLedger, forgetThinkingDropLedger } = await import(
+        const { preservedThinkingHealth, readThinkingDropLedgerStrict, forgetThinkingDropLedger } = await import(
           '../../../services/providers/anthropic/thinkingBinding.js'
         )
-        const ledger = readThinkingDropLedger()
+        const ledger = readThinkingDropLedgerStrict()
         const row = preservedThinkingHealth(ledger)
         if (ledger === null || row.status !== 'warn' || !healthFixEnabled()) return row
         return {
@@ -127,7 +138,7 @@ export function memoryChecks(): CheckSpec[] {
             plan: 'forget the recorded thinking drop (derived evidence under the config home; a new drop is recorded again)',
             class: 'safe' as const,
             apply: async () => (forgetThinkingDropLedger() ? { ok: true, note: 'the record was removed' } : { ok: false, note: 'the record could not be removed' }),
-            verify: async () => (readThinkingDropLedger() === null ? { ok: true, note: 'no dropped thinking block recorded' } : { ok: false, note: 'the record still stands' }),
+            verify: async () => (readThinkingDropLedgerStrict() === null ? { ok: true, note: 'no dropped thinking block recorded' } : { ok: false, note: 'the record still stands' }),
           },
         }
       },

@@ -14,7 +14,13 @@ const { render } = await import('../../src/ink.ts')
 const { Box, Text } = await import('../../src/ink.ts')
 const { Byline } = await import('../../src/components/design-system/Byline.tsx')
 const { RowErrorBoundary } = await import('../../src/components/RowErrorBoundary.tsx')
+const { App } = await import('../../src/components/App.tsx')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { default: stripAnsi } = await import('strip-ansi')
+const AgentUI = await import('../../src/tools/AgentTool/UI.tsx')
+const EvalUI = await import('../../src/tools/EvalTool/UI.tsx')
 const SkillUI = await import('../../src/tools/SkillTool/UI.tsx')
+const { normalizeMessages } = await import('../../src/utils/messages.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -92,6 +98,129 @@ section('§3 THE ROW BOUNDARY')
     'and degrades to the one errored line',
     caught.output.includes('could not be rendered'),
     JSON.stringify(caught.output.slice(0, 100)),
+  )
+}
+
+section('§4 NESTED PROGRESS ROWS (AGENT, EVAL, SKILL)')
+{
+  const fakeTool = {
+    name: 'FakeRead',
+    userFacingName: () => 'FakeRead',
+    renderToolUseMessage: (input: { path?: string }) => input?.path ?? '',
+    renderToolResultMessage: (content: unknown) => React.createElement(Text, null, `RESULT:${String(content)}`),
+    inputSchema: { safeParse: (v: unknown) => ({ success: true, data: v }) },
+  } as never
+  const assistantToolCall = {
+    type: 'assistant',
+    uuid: 'a-1',
+    timestamp: '2026-11-20T10:00:00.000Z',
+    message: {
+      id: 'msg-1',
+      role: 'assistant',
+      model: 'claude-sonnet-4-6',
+      content: [{ type: 'tool_use', id: 'toolu_sub1', name: 'FakeRead', input: { path: 'foo.ts' } }],
+    },
+  }
+  const userToolResult = normalizeMessages([
+    {
+      type: 'user',
+      uuid: 'u-1',
+      timestamp: '2026-11-20T10:00:01.000Z',
+      message: {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'toolu_sub1', content: 'file-contents' }],
+      },
+    },
+  ] as never)[0]!
+  const assistantText = {
+    type: 'assistant',
+    uuid: 'a-2',
+    timestamp: '2026-11-20T10:00:02.000Z',
+    message: {
+      id: 'msg-2',
+      role: 'assistant',
+      model: 'claude-sonnet-4-6',
+      content: [{ type: 'text', text: 'finished reading foo.ts' }],
+    },
+  }
+  const mkProgress = (id: string, data: unknown) =>
+    ({
+      type: 'progress',
+      uuid: id,
+      timestamp: '2026-11-20T10:00:00.000Z',
+      toolUseID: 'toolu_parent',
+      parentToolUseID: 'toolu_parent',
+      data,
+    }) as never
+  const wrapApp = (node: React.ReactNode): React.ReactNode =>
+    React.createElement(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined, children: node })
+
+  const agentProgress = [
+    mkProgress('p1', { type: 'agent_progress', message: assistantToolCall, prompt: 'read foo' }),
+    mkProgress('p2', { type: 'agent_progress', message: userToolResult }),
+    mkProgress('p3', { type: 'agent_progress', message: assistantText }),
+  ]
+  const evalProgress = [
+    mkProgress('e1', { type: 'eval_progress', kind: 'nested', message: assistantToolCall }),
+    mkProgress('e2', { type: 'eval_progress', kind: 'nested', message: userToolResult }),
+    mkProgress('e3', { type: 'eval_progress', kind: 'nested', message: assistantText }),
+  ]
+  const skillProgress = [
+    mkProgress('s1', { type: 'skill_progress', message: assistantToolCall }),
+    mkProgress('s2', { type: 'skill_progress', message: userToolResult }),
+    mkProgress('s3', { type: 'skill_progress', message: assistantText }),
+  ]
+
+  const agentLive = await tryRender(
+    wrapApp(AgentUI.renderToolUseProgressMessage(agentProgress, { tools: [fakeTool], verbose: true })),
+  )
+  const agentLiveText = stripAnsi(agentLive.output)
+  check(
+    'AgentTool progress renders nested tool call and text without root error',
+    agentLive.ok && agentLiveText.includes('FakeRead') && agentLiveText.includes('foo.ts') && agentLiveText.includes('finished reading foo.ts'),
+    agentLive.error ?? JSON.stringify(agentLiveText.slice(0, 160)),
+  )
+
+  const agentTranscript = await tryRender(
+    wrapApp(
+      AgentUI.renderToolResultMessage(
+        {
+          status: 'completed',
+          prompt: 'read foo',
+          content: [{ type: 'text', text: 'all done' }],
+          totalToolUseCount: 1,
+          totalDurationMs: 1000,
+        } as never,
+        agentProgress,
+        { tools: [fakeTool], verbose: true, isTranscriptMode: true },
+      ),
+    ),
+  )
+  const agentTranscriptText = stripAnsi(agentTranscript.output)
+  check(
+    'AgentTool transcript result renders nested tool call and text without root error',
+    agentTranscript.ok && agentTranscriptText.includes('FakeRead') && agentTranscriptText.includes('foo.ts') && agentTranscriptText.includes('finished reading foo.ts'),
+    agentTranscript.error ?? JSON.stringify(agentTranscriptText.slice(0, 160)),
+  )
+
+  const evalLive = await tryRender(
+    wrapApp(EvalUI.renderEvalProgressMessage(evalProgress, { tools: [fakeTool], verbose: true })),
+  )
+  const evalLiveText = stripAnsi(evalLive.output)
+  check(
+    'EvalTool progress renders nested tool call and text without root error',
+    evalLive.ok && evalLiveText.includes('FakeRead') && evalLiveText.includes('foo.ts') && evalLiveText.includes('finished reading foo.ts'),
+    evalLive.error ?? JSON.stringify(evalLiveText.slice(0, 160)),
+  )
+
+  const skillLive = await tryRender(
+    wrapApp(SkillUI.renderToolUseProgressMessage(skillProgress, { tools: [fakeTool], verbose: true })),
+  )
+  const skillLiveText = stripAnsi(skillLive.output)
+  check(
+    'SkillTool progress renders nested tool call and text without root error',
+    skillLive.ok && skillLiveText.includes('FakeRead') && skillLiveText.includes('foo.ts') && skillLiveText.includes('finished reading foo.ts'),
+    skillLive.error ?? JSON.stringify(skillLiveText.slice(0, 160)),
   )
 }
 

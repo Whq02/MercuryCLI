@@ -612,15 +612,16 @@ interface PostProcessNeeds {
 }
 
 async function postProcess(result: ExecResult, { input, creations, editorTerminalNote, agentId, shouldAutoBackground, cwd, abortController, shellCommand, webNotice, timeoutClampNotice }: PostProcessNeeds): Promise<Out> {
+  let prLinkNote: string | undefined
   if (result.backgroundTaskId === undefined) {
-    trackGitOperations(input.command, result.code, result.stdout)
+    prLinkNote = await trackGitOperations(input.command, result.code, result.stdout)
     settleCreations(creations, result.code)
   }
 
   const accumulator = new EndTruncatingAccumulator()
   accumulator.append(result.stdout.trimEnd() + '\n')
   if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
-  for (const note of [editorTerminalNote, result.preSpawnError ? null : loginFilesLineOnce(agentId ?? 'main')]) if (note) accumulator.append(note + '\n')
+  for (const note of [editorTerminalNote, result.preSpawnError ? null : loginFilesLineOnce(agentId ?? 'main'), prLinkNote]) if (note) accumulator.append(note + '\n')
   if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
   if (commandNamesBoxLock(input.command)) await refreshBoxReading()
   const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })

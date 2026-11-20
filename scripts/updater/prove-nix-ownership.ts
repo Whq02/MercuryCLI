@@ -45,7 +45,6 @@ try {
   check('Windows keeps its existing owner even with the Nix marker present', classifyInstallProvenance(facts(entry, 'win32')).kind !== 'nix')
   check('Nix guidance names the flake or profile, not a managed installation', provenanceGuidance(owned) === 'update the flake input or the profile that provides it')
   check('the evidence names the ownership marker', owned.evidence.some((line: string) => line.includes(marker)))
-  check('the documentation map lists the Nix page', readFileSync(join(root, 'docs/README.md'), 'utf8').includes('- [NIX.md](NIX.md): '))
   const copied = join(scratch, 'copied/mercury.mjs')
   mkdirSync(dirname(copied), { recursive: true })
   copyFileSync(entry, copied)

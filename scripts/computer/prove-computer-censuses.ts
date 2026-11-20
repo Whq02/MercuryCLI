@@ -7,23 +7,15 @@ const { EXECUTION_DOMAIN_CENSUS } = await import('../../src/services/primitives/
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
 const state = await import('../../src/bootstrap/state.ts')
 
-interface CensusRow {
-  name: string
-  cancellation: string
-  deferred: boolean
-  operations: string[] | null
-  units: string[]
-}
-
-section('§1 the committed tool census carries the Computer row')
+section('§1 the live tool census carries the Computer row')
 {
-  const census = JSON.parse(sourceText('scripts/builtin-tools/fixtures/tool-census.json')) as { rows: CensusRow[] }
+  const { toolCensus } = await import('../builtin-tools/census-gen.ts')
+  const { anchor: census, markdown } = toolCensus()
   const row = census.rows.find(r => r.name === 'Computer')
   check('the row exists', row !== undefined)
   check("cancellation 'cancel' and deferred true", row?.cancellation === 'cancel' && row?.deferred === true, JSON.stringify(row))
   check('the fifteen operations in order', JSON.stringify(row?.operations) === JSON.stringify(COMPUTER_ACTIONS), JSON.stringify(row?.operations))
   check("the unit 'desktop-drive'", row?.units.includes('desktop-drive') === true, JSON.stringify(row?.units))
-  const markdown = sourceText('scripts/builtin-tools/fixtures/tool-census.md')
   check('the markdown census names the row too', markdown.includes('Computer'))
 }
 

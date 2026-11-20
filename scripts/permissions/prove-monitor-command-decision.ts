@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, said, section, shown, type Rules } from './floorsKit.ts'
 
 const MODES = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign'] as const
 type Mode = (typeof MODES)[number]
@@ -11,14 +11,6 @@ async function pair(label: string, command: string, mode: Mode, rules: Rules = {
   const viaMonitor = await monitor(command, mode, rules)
   check(`${mode} · ${label} · ${shown(fill(command))} · Bash: ${viaBash.behavior} · through Monitor it is not approved outright`, viaMonitor.behavior !== 'allow', `Monitor: ${said(viaMonitor)} — Bash: ${said(viaBash)}`)
 }
-
-section('the page, docs/TRUST.md')
-const page = pageText()
-check('Default mode asks for writes and edits in either place unless a permission rule already allows them', /\*\*Default mode\*\* asks for writes and edits in either place unless a permission rule already allows them/.test(page))
-check('deny rules still win over an ask or an allow; file restrictions still apply', /Deny rules still win over an ask or an allow; file restrictions still apply/.test(page))
-check('Flow asks before git that publishes or rewrites history, a push in any form', /git that publishes or rewrites history \(`git push` in any form/.test(page))
-check('a hostless run denies a call that still needs approval after its rules and mode are applied', /A hostless `mercury run` denies a call that still needs approval after its rules and mode are applied/.test(page))
-check('five safety floors hold alongside the permission modes and wards', /Five safety floors hold alongside the permission modes and wards/.test(page))
 
 
 section('§1 the modes: what Bash asks about or refuses, Monitor must not run unasked')

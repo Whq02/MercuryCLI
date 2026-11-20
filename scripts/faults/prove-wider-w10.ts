@@ -201,5 +201,256 @@ console.log('\n§3 w10-3 — zsh startup probe failure still writes ~/.zshrc and
   )
 }
 
+console.log('\n§4 w10-4 — cockpit heartbeat reports whether it landed and beat retries failed registration or heartbeat')
+{
+  const r = runScenario(`
+    const { existsSync, rmSync } = await import('node:fs')
+    const mod = await import(SRC + '/daemon/processSweepRun.ts')
+    const reg1 = await mod.registerCockpit({ terminal: null, home: HOME, daemonDirPath: HOME + '/daemon' })
+    out.reg1Ok = reg1 !== null
+    out.beatOk = reg1 ? await reg1.heartbeat() : null
+    if (reg1) rmSync(reg1.path, { force: true })
+    out.beatMissing = reg1 ? await reg1.heartbeat() : null
+    out.hasBeatHelper = typeof mod.beatCockpitRegistration === 'function'
+    if (typeof mod.beatCockpitRegistration === 'function') {
+      let calls = 0
+      const register = () => {
+        calls++
+        return mod.registerCockpit({ terminal: null, home: HOME, daemonDirPath: HOME + '/daemon' })
+      }
+      const recoveredFromNull = await mod.beatCockpitRegistration(null, register)
+      out.recoveredFromNull = recoveredFromNull !== null && existsSync(recoveredFromNull.path)
+      if (recoveredFromNull) rmSync(recoveredFromNull.path, { force: true })
+      const recoveredFromMiss = await mod.beatCockpitRegistration(recoveredFromNull, register)
+      out.recoveredFromMiss = recoveredFromMiss !== null && recoveredFromMiss.id !== recoveredFromNull?.id && existsSync(recoveredFromMiss.path)
+      out.registerCalls = calls
+      await recoveredFromMiss?.clear()
+    }
+  `)
+  check('w10-4: heartbeat returns true when utimes lands', r.reg1Ok === true && r.beatOk === true, JSON.stringify(r))
+  check('w10-4: heartbeat returns false when utimes fails', r.beatMissing === false, JSON.stringify(r))
+  check('w10-4: beatCockpitRegistration retries failed initial registration and failed heartbeat', r.hasBeatHelper === true && r.recoveredFromNull === true && r.recoveredFromMiss === true && r.registerCalls === 2, JSON.stringify(r))
+}
+
+console.log('\n§5 w10-5 — daemon status reports unreadable or damaged daemon record instead of not running')
+{
+  const r = runScenario(`
+    const { mkdirSync, rmSync, writeFileSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    const { daemonStatePath } = await import(SRC + '/daemon/controlSocket.ts')
+    const { formatMercuryDaemonStatus, getMercuryDaemonStatus } = await import(SRC + '/daemon/status.ts')
+    const statePath = daemonStatePath()
+    out.statePath = statePath
+    const absent = await getMercuryDaemonStatus()
+    out.absentErr = absent.daemonRecordError ?? null
+    out.absentText = formatMercuryDaemonStatus(absent)
+
+    mkdirSync(dirname(statePath), { recursive: true })
+    writeFileSync(statePath, '{not json')
+    const corrupt = await getMercuryDaemonStatus()
+    out.corruptErr = corrupt.daemonRecordError ?? null
+    out.corruptText = formatMercuryDaemonStatus(corrupt)
+
+    rmSync(statePath, { force: true })
+    mkdirSync(statePath, { recursive: true })
+    const unreadable = await getMercuryDaemonStatus()
+    out.unreadableErr = unreadable.daemonRecordError ?? null
+    out.unreadableText = formatMercuryDaemonStatus(unreadable)
+  `)
+  const statePath = String(r.statePath ?? '')
+  const prefix = `the daemon record at ${statePath} could not be read (`
+  check('w10-5: absent record still says not running with no error', r.absentErr === null && String(r.absentText ?? '').includes('not running'), JSON.stringify({ err: r.absentErr, text: r.absentText }))
+  check('w10-5: corrupt record reports unreadable daemon record sentence', typeof r.corruptErr === 'string' && r.corruptErr.startsWith(prefix) && String(r.corruptText ?? '').includes(prefix) && !String(r.corruptText ?? '').includes('not running'), JSON.stringify({ err: r.corruptErr, text: r.corruptText }))
+  check('w10-5: unreadable record reports unreadable daemon record sentence', typeof r.unreadableErr === 'string' && r.unreadableErr.startsWith(prefix) && String(r.unreadableText ?? '').includes(prefix) && !String(r.unreadableText ?? '').includes('not running'), JSON.stringify({ err: r.unreadableErr, text: r.unreadableText }))
+}
+
+console.log('\n§6 w10-6 — health rows throw strictly on unreadable launch-milestones, operation-journal, and crash-reports')
+{
+  const r = runScenario(`
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    const { launchMilestonesPath, lastBootReachedInputLive } = await import(SRC + '/substrate/launchMilestones.ts')
+    const { launchSpineCheck } = await import(SRC + '/utils/health/sections/crew/boot.ts')
+    const { listJournalOperations } = await import(SRC + '/substrate/operationJournal.ts')
+    const { changeSetJournalDir } = await import(SRC + '/services/changeTransaction/changeSetContracts.ts')
+    const { durabilityChecks } = await import(SRC + '/utils/health/sections/durability.ts')
+    const { crashReportDir, listCrashReports } = await import(SRC + '/utils/crashReport.ts')
+    const { crashReportsCheck } = await import(SRC + '/utils/health/sections/runtime/host.ts')
+
+    mkdirSync(launchMilestonesPath(), { recursive: true })
+    out.bootSafe = lastBootReachedInputLive()
+    try {
+      out.bootProbe = await launchSpineCheck().run()
+      out.bootThrew = null
+    } catch (e) {
+      out.bootThrew = e instanceof Error ? e.message : String(e)
+    }
+
+    const jDir = changeSetJournalDir()
+    mkdirSync(dirname(jDir), { recursive: true })
+    writeFileSync(jDir, 'not-a-dir')
+    out.journalSafe = await listJournalOperations(jDir)
+    try {
+      const spec = durabilityChecks().find(c => c.id === 'durable-journals')
+      out.journalProbe = await spec.run()
+      out.journalThrew = null
+    } catch (e) {
+      out.journalThrew = e instanceof Error ? e.message : String(e)
+    }
+
+    const cDir = crashReportDir()
+    mkdirSync(dirname(cDir), { recursive: true })
+    writeFileSync(cDir, 'not-a-dir')
+    out.crashSafe = listCrashReports(3)
+    try {
+      out.crashProbe = await crashReportsCheck().run()
+      out.crashThrew = null
+    } catch (e) {
+      out.crashThrew = e instanceof Error ? e.message : String(e)
+    }
+  `)
+  check('w10-6: launchSpineCheck throws on unreadable milestones while non-strict reader keeps null', r.bootSafe === null && typeof r.bootThrew === 'string' && r.bootThrew.length > 0, JSON.stringify({ safe: r.bootSafe, threw: r.bootThrew, probe: r.bootProbe }))
+  check('w10-6: durable-journals throws on unreadable journal dir while non-strict reader keeps []', Array.isArray(r.journalSafe) && r.journalSafe.length === 0 && typeof r.journalThrew === 'string' && r.journalThrew.length > 0, JSON.stringify({ safe: r.journalSafe, threw: r.journalThrew, probe: r.journalProbe }))
+  check('w10-6: crashReportsCheck throws on unreadable crash dir while non-strict reader keeps []', Array.isArray(r.crashSafe) && r.crashSafe.length === 0 && typeof r.crashThrew === 'string' && r.crashThrew.length > 0, JSON.stringify({ safe: r.crashSafe, threw: r.crashThrew, probe: r.crashProbe }))
+}
+
+console.log('\n§7 w10-7 — resolveGitDir does not cache null on transient/permission error reading .git')
+{
+  const r = runScenario(`
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { clearResolveGitDirCache, resolveGitDir } = await import(SRC + '/utils/git/gitFilesystem.ts')
+    const repo = join(PROJECT, 'git-transient')
+    const realGit = join(PROJECT, 'real-gitdir')
+    mkdirSync(repo, { recursive: true })
+    mkdirSync(realGit, { recursive: true })
+    const dotGit = join(repo, '.git')
+    writeFileSync(dotGit, 'gitdir: ' + realGit + '\\n')
+    chmodSync(dotGit, 0o000)
+    clearResolveGitDirCache()
+    try {
+      out.whileUnreadable = await resolveGitDir(repo)
+    } finally {
+      chmodSync(dotGit, 0o644)
+    }
+    out.afterRecover = await resolveGitDir(repo)
+    out.expected = realGit
+  `)
+  check('w10-7: returns null while .git file is unreadable (EACCES)', r.whileUnreadable === null, JSON.stringify(r))
+  check('w10-7: does not cache null so recovery succeeds without cache clear', r.afterRecover === r.expected, JSON.stringify(r))
+}
+
+console.log('\n§8 w10-8 — createBaselineWorktree catches scratch lease error, cleans up added worktree, returns refusal')
+{
+  const r = runScenario(`
+    const { execFileSync } = await import('node:child_process')
+    const { existsSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const tmpBase = join(PROJECT, 'tmpbase')
+    mkdirSync(tmpBase, { recursive: true })
+    process.env.MERCURY_TMPDIR = tmpBase
+    const repo = join(PROJECT, 'repo')
+    mkdirSync(repo, { recursive: true })
+    const sh = (args) => execFileSync('git', args, {
+      cwd: repo,
+      encoding: 'utf8',
+      env: { ...process.env, GIT_AUTHOR_NAME: 'p', GIT_AUTHOR_EMAIL: 'p@l', GIT_COMMITTER_NAME: 'p', GIT_COMMITTER_EMAIL: 'p@l' },
+    })
+    sh(['init', '--quiet', '--initial-branch=main'])
+    writeFileSync(join(repo, 'a.txt'), 'v1\\n')
+    sh(['add', '.'])
+    sh(['commit', '--quiet', '-m', 'v1'])
+    const sha = sh(['rev-parse', 'HEAD']).trim()
+    const { getProjectTempDir } = await import(SRC + '/utils/permissions/filesystem.ts')
+    const projTmp = getProjectTempDir()
+    mkdirSync(projTmp, { recursive: true })
+    writeFileSync(join(projTmp, 'scratch-leases.json'), '{not json')
+    const { createBaselineWorktree } = await import(SRC + '/utils/worktree.ts')
+    const targetPath = join(projTmp, 'baselines', sha.slice(0, 12))
+    try {
+      out.result = await createBaselineWorktree(sha, repo)
+      out.threw = null
+    } catch (e) {
+      out.result = null
+      out.threw = e instanceof Error ? e.message : String(e)
+    }
+    out.targetLeftBehind = existsSync(targetPath)
+    out.worktrees = sh(['worktree', 'list', '--porcelain']).split('\\n').filter(l => l.startsWith('worktree ')).length
+  `)
+  const res = r.result as { ok?: boolean; reason?: string } | null
+  check('w10-8: does not reject and returns { ok: false, reason } naming scratch lease error', r.threw === null && res?.ok === false && typeof res.reason === 'string' && res.reason.includes('scratch lease registry') && res.reason.includes('could not be read'), JSON.stringify(r))
+  check('w10-8: removes newly added baseline worktree on lease error', r.targetLeftBehind === false && r.worktrees === 1, JSON.stringify(r))
+}
+
+console.log('\n§9 w10-9 — getSettingsWithAllErrors passes over ConfigAccessBeforeAllowedError and reports real MCP read throws')
+{
+  const r = runScenario(`
+    delete process.env.NODE_ENV
+    const { mkdirSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { getSettingsWithAllErrors } = await import(SRC + '/utils/settings/allErrors.ts')
+    const { enableConfigs } = await import(SRC + '/utils/config.ts')
+    out.beforeAllowedErrors = getSettingsWithAllErrors().errors
+    enableConfigs()
+    mkdirSync(join(HOME, '.mercury.json'), { recursive: true })
+    out.afterUnreadableErrors = getSettingsWithAllErrors().errors
+  `)
+  const before = Array.isArray(r.beforeAllowedErrors) ? (r.beforeAllowedErrors as Array<{ message?: string }>) : []
+  const after = Array.isArray(r.afterUnreadableErrors) ? (r.afterUnreadableErrors as Array<{ message?: string; mcpErrorMetadata?: { scope?: string } }>) : []
+  check('w10-9: Config accessed before allowed guard is passed over with zero errors', before.length === 0, JSON.stringify(before))
+  check(
+    'w10-9: real MCP config read throw appends Failed to read MCP configuration file error',
+    after.some(e => typeof e.message === 'string' && e.message.startsWith('Failed to read MCP configuration file:') && e.mcpErrorMetadata?.scope === 'user'),
+    JSON.stringify(after),
+  )
+}
+
+console.log('\n§10 w10-10 — unreadable hook settings file goes on without refusing and notifies once a session')
+{
+  const r = runScenario(`
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { resetSettingsCache } = await import(SRC + '/utils/settings/settingsCache.ts')
+    const { resetHooksSnapshot } = await import(SRC + '/utils/hooks/hooksConfigSnapshot.ts')
+    const { beforeToolHooks } = await import(SRC + '/services/tools/toolHooks.ts')
+
+    const notifs = []
+    const ctx = {
+      getAppState: () => ({ sessionHooks: new Map(), toolPermissionContext: { mode: 'implement' } }),
+      addNotification: (n) => { notifs.push(n) },
+    }
+    const fakeTool = { name: 'Bash' }
+    const ac = new AbortController()
+
+    resetSettingsCache()
+    resetHooksSnapshot()
+    const absentRes = await beforeToolHooks(fakeTool, 'id-0', {}, ctx, ac.signal)
+    out.absentBlocked = absentRes.answer.block ?? null
+    out.absentNotifs = notifs.length
+
+    const settingsFile = join(HOME, 'settings.json')
+    mkdirSync(settingsFile, { recursive: true })
+    resetSettingsCache()
+    resetHooksSnapshot()
+    const res1 = await beforeToolHooks(fakeTool, 'id-1', {}, ctx, ac.signal)
+    const res2 = await beforeToolHooks(fakeTool, 'id-2', {}, ctx, ac.signal)
+    out.settingsFile = settingsFile
+    out.blocked1 = res1.answer.block ?? null
+    out.blocked2 = res2.answer.block ?? null
+    out.notifs = notifs
+  `)
+  const settingsFile = String(r.settingsFile ?? '')
+  const notifs = Array.isArray(r.notifs) ? (r.notifs as Array<{ text?: string }>) : []
+  const prefix = `hook settings at ${settingsFile} could not be read (`
+  const suffix = '), so no hook runs — fix the file to bring them back'
+  check('w10-10: absent settings emits no notice and does not refuse', r.absentBlocked === null && r.absentNotifs === 0, JSON.stringify(r))
+  check('w10-10: unreadable settings does not refuse tool calls', r.blocked1 === null && r.blocked2 === null, JSON.stringify({ b1: r.blocked1, b2: r.blocked2 }))
+  check(
+    'w10-10: unreadable settings notifies once per session with exact sentence',
+    notifs.length === 1 && typeof notifs[0]?.text === 'string' && notifs[0].text.startsWith(prefix) && notifs[0].text.endsWith(suffix),
+    JSON.stringify(notifs),
+  )
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -3,7 +3,7 @@ import { isPathTrusted, untrustedWorkspaceHeadless } from '../config.js'
 import { logForDebugging } from '../debug.js'
 import { resolveProjectConfigPath } from '../projectConfig.js'
 import { getLaunchSettingSources, isCheckoutSourceHeldForTrust, type SettingSource } from '../settings/constants.js'
-import { getSettingsForSource, parseSettingsFile } from '../settings/settings.js'
+import { getSettingsFilePathForSource, getSettingsForSource, loadManagedFileSettings, parseSettingsFile } from '../settings/settings.js'
 import { resetSettingsCache } from '../settings/settingsCache.js'
 import { isRestrictedToExtensionsOnly } from '../settings/extensionOnlyPolicy.js'
 import type { HookEntry, HooksSettings } from '../settings/types.js'
@@ -39,15 +39,37 @@ function entriesOf(map: HooksSettings | undefined, layer: HookLayer): LayeredHoo
   return out
 }
 
-function readLayers(): Array<{ layer: HookLayer; map: HooksSettings | undefined; disabled: boolean; managedOnly: boolean }> {
+export type HookSettingsReadError = { path: string; error: string }
+
+function readErrorOf(errors: ReadonlyArray<{ file?: string; path: string; message: string }>, fallbackPath: string): HookSettingsReadError | undefined {
+  const first = errors.find(e => e.path === '') ?? errors[0]
+  if (first === undefined) return undefined
+  return {
+    path: first.file ?? fallbackPath,
+    error: first.message.replace(/^settings file unreadable:\s*/, ''),
+  }
+}
+
+function readLayers(): Array<{ layer: HookLayer; map: HooksSettings | undefined; disabled: boolean; managedOnly: boolean; readError?: HookSettingsReadError }> {
   return getLaunchSettingSources().map(source => {
-    const events = getSettingsForSource(source)?.events
+    const settings = getSettingsForSource(source)
+    const events = settings?.events
     const held = isCheckoutSourceHeldForTrust(source)
+    let readError: HookSettingsReadError | undefined
+    if (settings === null) {
+      if (source === 'policySettings') {
+        readError = readErrorOf(loadManagedFileSettings().errors, getSettingsFilePathForSource(source) ?? 'managed-settings.json')
+      } else {
+        const filePath = getSettingsFilePathForSource(source)
+        if (filePath !== undefined) readError = readErrorOf(parseSettingsFile(filePath).errors, filePath)
+      }
+    }
     return {
       layer: LAYER_OF_SOURCE[source],
       map: events?.hooks,
       disabled: events?.disabled === true && !held,
       managedOnly: events?.managedOnly === true && !held,
+      ...(readError !== undefined ? { readError } : {}),
     }
   })
 }
@@ -59,6 +81,8 @@ type HooksSnapshot = {
   extensionsOnly: boolean
   untrustedCheckout: boolean
   skippedForTrust: number
+  unreadErrors: HookSettingsReadError[]
+  workspaceUnread: Record<string, HookSettingsReadError[]>
 }
 
 function computeSnapshot(): HooksSnapshot {
@@ -69,22 +93,26 @@ function computeSnapshot(): HooksSnapshot {
   const disabledBelow = layers.some(l => l.layer !== 'managed' && l.disabled)
   const extensionsOnly = isRestrictedToExtensionsOnly('hooks')
   const untrustedCheckout = untrustedWorkspaceHeadless()
-  if (disabledByManaged) return { hooks: [], disabled: true, managedOnly: false, extensionsOnly, untrustedCheckout, skippedForTrust: 0 }
+  if (disabledByManaged) return { hooks: [], disabled: true, managedOnly: false, extensionsOnly, untrustedCheckout, skippedForTrust: 0, unreadErrors: [], workspaceUnread: {} }
   const keepOnlyManaged = managedOnly || disabledBelow || extensionsOnly
   if (untrustedCheckout && !keepOnlyManaged) {
     logForDebugging('hooks: untrusted workspace on a non-interactive road — checkout hooks are not loaded (boot interactively once here to trust this directory)')
   }
   const hooks: LayeredHook[] = []
+  const unreadErrors: HookSettingsReadError[] = []
   let skippedForTrust = 0
-  for (const { layer, map } of layers) {
+  for (const { layer, map, readError } of layers) {
     if (keepOnlyManaged && layer !== 'managed') continue
     if (untrustedCheckout && CHECKOUT_LAYERS.has(layer)) {
       skippedForTrust += entriesOf(map, layer).length
       continue
     }
+    if (readError !== undefined && !unreadErrors.some(e => e.path === readError.path)) {
+      unreadErrors.push(readError)
+    }
     hooks.push(...entriesOf(map, layer))
   }
-  return { hooks, disabled: false, managedOnly: keepOnlyManaged, extensionsOnly, untrustedCheckout, skippedForTrust }
+  return { hooks, disabled: false, managedOnly: keepOnlyManaged, extensionsOnly, untrustedCheckout, skippedForTrust, unreadErrors, workspaceUnread: {} }
 }
 
 let snapshot: HooksSnapshot | undefined
@@ -118,14 +146,32 @@ function workspaceHooks(cwd: string): LayeredHook[] {
   if (own.disabled) return []
   const hooks = own.hooks.filter(hook => hook.source.kind === 'settings' && !CHECKOUT_LAYERS.has(hook.source.layer))
   if (own.managedOnly || !isPathTrusted(cwd)) return hooks
+  const wsUnread: HookSettingsReadError[] = []
   for (const { layer, file } of WORKSPACE_FILES) {
     const path = resolveProjectConfigPath(cwd, file)
     if (path === null) continue
-    hooks.push(...entriesOf(parseSettingsFile(path).settings?.events?.hooks, layer))
+    const parsed = parseSettingsFile(path)
+    if (parsed.settings === null) {
+      const readError = readErrorOf(parsed.errors, path)
+      if (readError !== undefined) wsUnread.push(readError)
+    }
+    hooks.push(...entriesOf(parsed.settings?.events?.hooks, layer))
   }
+  if (wsUnread.length > 0) own.workspaceUnread[cwd] = wsUnread
+  else delete own.workspaceUnread[cwd]
   return hooks
 }
 
+export function hooksSettingsUnreadErrors(cwd?: string): HookSettingsReadError[] {
+  const current = hooksSnapshot()
+  const out = [...current.unreadErrors]
+  if (cwd !== undefined) {
+    for (const item of current.workspaceUnread[cwd] ?? []) {
+      if (!out.some(e => e.path === item.path)) out.push(item)
+    }
+  }
+  return out
+}
 export function hooksDisabled(): boolean {
   return hooksSnapshot().disabled
 }

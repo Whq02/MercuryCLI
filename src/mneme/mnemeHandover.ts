@@ -8,6 +8,7 @@ import { deterministicRewriter, maybeConsolidate, type MnemeRewriter } from './m
 import { publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { getMnemeHome } from './paths.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import { passedOver } from '../utils/passedOver.js'
 
 export const HANDOVER_FILE = 'handover.json'
@@ -143,9 +144,13 @@ function readHandoverReceiptStrict(dir: string = mnemeLibraryDir()): HandoverRec
 }
 
 export function readHandoverReceipt(dir: string = mnemeLibraryDir()): HandoverReceipt | null {
+  const p = handoverReceiptPath(dir)
   try {
-    return readHandoverReceiptStrict(dir)
+    const receipt = readHandoverReceiptStrict(dir)
+    clearMnemeUnread(p)
+    return receipt
   } catch (error) {
+    recordMnemeUnread(p, error)
     passedOver(error)
     logForDebugging(`memory hand-over receipt unreadable: ${String(error)}`)
     return null

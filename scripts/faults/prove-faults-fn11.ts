@@ -268,7 +268,9 @@ console.log('\nprocKernel.interrupt — non-ESRCH kill failure throws instead of
       transport: 'fd',
     })
     const realKill = process.kill
+    const platformDesc = Object.getOwnPropertyDescriptor(process, 'platform')
     try {
+      if (process.platform === 'win32') Object.defineProperty(process, 'platform', { value: 'linux', configurable: true })
       process.kill = ((_pid, _sig) => {
         throw Object.assign(new Error('Operation not permitted'), { code: 'EPERM' })
       })
@@ -289,6 +291,7 @@ console.log('\nprocKernel.interrupt — non-ESRCH kill failure throws instead of
         out.esrchThrew = true
       }
     } finally {
+      if (platformDesc) Object.defineProperty(process, 'platform', platformDesc)
       process.kill = realKill
       kernel.killNow()
     }

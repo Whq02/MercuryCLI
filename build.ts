@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 
 const ROOT = import.meta.dir;
 const SRC = resolve(ROOT, 'src');
@@ -21,6 +22,16 @@ const HOST_KEY = platformKey(process.platform, process.arch);
 const SHIP_RELEASE = releaseTargetFor(SHIP.platform, SHIP.arch);
 const CROSS = SHIP_KEY !== HOST_KEY;
 if (CROSS) console.log(`CROSS BUILD: shipping for ${SHIP_KEY} (${SHIP_RELEASE}) on a ${HOST_KEY} host — every platform-bound pack is the target's`);
+
+{
+  const { staleBuildAssets } = await import('./scripts/lib/generated-assets-map.mjs');
+  const stale = await staleBuildAssets(ROOT);
+  for (const row of stale) {
+    if (row.output) console.error(row.output);
+    console.error(`BUILD FAILED: ${row.assets} is not current: a file it is made from changed. Run: ${row.generator}`);
+  }
+  if (stale.length > 0) process.exit(1);
+}
 
 const resolveBuildTime = (): string => {
   if (process.env.MERCURY_BUILD_TIME) return process.env.MERCURY_BUILD_TIME;
@@ -43,6 +54,8 @@ const REPO_URL = (PKG_JSON.repository?.url ?? '').replace(/^git\+/, '').replace(
 if (!REPO_URL.startsWith('https://github.com/')) throw new Error('package.json repository.url missing or unrecognized — MACRO.PACKAGE_URL cannot be derived');
 const { bundledDocPagesPacked } = await import('./src/skills/bundled/mercuryDocsPages.ts');
 const DOC_PAGES_PACKED = bundledDocPagesPacked();
+const { buildMercuryChangelog } = await import('./src/constants/changelog.ts');
+const CHANGELOG_PACKED = gzipSync(Buffer.from(buildMercuryChangelog(ROOT), 'utf8')).toString('base64');
 
 const MACRO = {
   VERSION: MACRO_VERSION,
@@ -171,6 +184,7 @@ const result = await Bun.build({
   define: {
     MACRO: JSON.stringify(MACRO),
     MERCURY_DOC_PAGES_PACKED: JSON.stringify(DOC_PAGES_PACKED),
+    MERCURY_CHANGELOG_PACKED: JSON.stringify(CHANGELOG_PACKED),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
 });

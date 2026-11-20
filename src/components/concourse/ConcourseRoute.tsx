@@ -6,6 +6,7 @@ import {
   enterBootSettings,
   enterRootChat,
   registerRouteSurface,
+  routeSurfaceRegistered,
 } from '../../context/surfaceRoute.js';
 import {
   writeConcourseDraft,
@@ -219,4 +220,7 @@ function LiveConcourse(): React.ReactNode {
   )
 }
 
-registerRouteSurface('concourse', { render: () => <LiveConcourse /> })
+export function registerConcourseRoute(): void {
+  if (routeSurfaceRegistered('concourse')) return
+  registerRouteSurface('concourse', { render: () => <LiveConcourse /> })
+}

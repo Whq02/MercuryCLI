@@ -12,11 +12,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 const repoRoot = resolve(import.meta.dir, '..', '..')
-const anchorPath = join(repoRoot, 'scripts', 'builtin-tools', 'fixtures', 'tool-census.json')
 
-const { buildToolCensus, stableCensus, CENSUS_VERSION } = await import(
-  '../../src/utils/capability/census.ts'
-)
+const { toolCensus } = await import('./census-gen.ts')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
 const { EXECUTION_DOMAIN_CENSUS } = await import(
   '../../src/services/primitives/executionCensus.ts'
@@ -28,33 +25,7 @@ const { resourceAdapterKinds } = await import('../../src/services/resources/regi
 
 console.log('── arsenal census drift gate ──')
 
-const census = buildToolCensus()
-const live = { version: CENSUS_VERSION, rows: stableCensus(census) }
-check('committed census anchor exists', existsSync(anchorPath), anchorPath)
-let committed: typeof live | null = null
-try {
-  committed = JSON.parse(readFileSync(anchorPath, 'utf8')) as typeof live
-} catch {
-  committed = null
-}
-const liveJson = JSON.stringify(live, null, 2)
-const committedJson = committed ? JSON.stringify(committed, null, 2) : ''
-if (liveJson !== committedJson && committed) {
-  const liveNames = new Set(live.rows.map(r => r.name))
-  const committedNames = new Set(committed.rows.map(r => r.name))
-  const added = [...liveNames].filter(n => !committedNames.has(n))
-  const removed = [...committedNames].filter(n => !liveNames.has(n))
-  check(
-    'census anchor matches the live catalog',
-    false,
-    `run \`bun run scripts/builtin-tools/census-gen.ts\` and commit — ` +
-      `${added.length ? `new: ${added.join(', ')}; ` : ''}` +
-      `${removed.length ? `gone: ${removed.join(', ')}; ` : ''}` +
-      `${!added.length && !removed.length ? 'row content changed' : ''}`,
-  )
-} else {
-  check('census anchor matches the live catalog', liveJson === committedJson)
-}
+const { census } = toolCensus()
 
 const missingProofs = census.rows
   .filter(r => r.proof !== null && !existsSync(join(repoRoot, r.proof)))

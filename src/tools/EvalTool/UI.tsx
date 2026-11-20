@@ -69,7 +69,7 @@ export function renderEvalProgressMessage(
       </MessageResponse>
     )
   }
-  const lookups = buildSubagentLookups([])
+  const { lookups } = buildSubagentLookups(nested)
   const shown = nested.slice(-4)
   return (
     <Box flexDirection="column">
@@ -93,7 +93,7 @@ export function renderEvalProgressMessage(
               isStatic={true}
               inProgressToolUseIDs={EMPTY_SET}
               progressMessagesForMessage={[]}
-              lookups={lookups as never}
+              lookups={lookups}
             />
           </MessageResponse>
         ))}

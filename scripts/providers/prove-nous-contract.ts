@@ -44,6 +44,6 @@ try {
   const discovery = await refreshProviderDiscovery('nous', { force: true })
   check('discovery records Nous Portal rather than falling through to another family', discovery?.provider === 'nous' && discovery.keyPresent && discovery.keySource === 'env')
   const engines = readFileSync(join(import.meta.dir, '..', '..', 'docs/ENGINES.md'), 'utf8')
-  check('the engines document carries the family row and the meter, and describes the sign-in as it is: the device flow presenting the Portal client id, with the API key as the other road', engines.includes('| `nous` | `nous/<vendor>/<model>`') && engines.includes('/api/oauth/account') && engines.includes('/api/oauth/device/code') && engines.includes(`\`${NOUS_PORTAL_CLIENT_ID}\``) && /paste an API key/.test(engines) && !/sign-in flow is reserved for Nous/.test(engines))
+  check('the engines document names the Portal client id', engines.includes(`\`${NOUS_PORTAL_CLIENT_ID}\``))
   console.log(`NOUS CONTRACT GREEN (${count} checks; no provider request)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

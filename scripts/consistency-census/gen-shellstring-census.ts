@@ -1,66 +1,16 @@
-#!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { codeOnlyLines } from '../lib/codeText.ts'
 
-const argValue = (name: string): string | undefined => {
-  const at = process.argv.indexOf(name)
-  return at >= 0 ? process.argv[at + 1] : undefined
-}
-const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
-const ROW = {
-  assets: 'scripts/consistency-census/shellstring-census.json',
-  generator: 'bun scripts/consistency-census/gen-shellstring-census.ts',
-  check: 'bun scripts/consistency-census/prove-shellstring-census.ts',
-  sources: 'src/**/*.{ts,tsx,mjs} scripts/**/*.{ts,tsx,mjs}',
-}
-if (registerOnlyRequested(ROW)) process.exit(0)
-const REGISTERS = argValue('--root') === undefined && argValue('--out') === undefined
+const DEFAULT_ROOT = join(import.meta.dir, '..', '..')
 
 interface Hit {
   file: string
   mechanism: 'execSync-string' | 'exec-string' | 'shell-dash-c' | 'hardcoded-interpreter' | 'hardcoded-tmp'
   excerpt: string
 }
-const hits: Hit[] = []
 
 const SCAN_DIRS = ['src', 'scripts']
-const walk = (dir: string): void => {
-  for (const name of [...readdirSync(dir)].sort()) {
-    const full = join(dir, name)
-    const st = statSync(full)
-    if (st.isDirectory()) {
-      if (name === 'node_modules' || name === 'receipts' || name === 'dist') continue
-      walk(full)
-      continue
-    }
-    if (!/\.(ts|tsx|mjs)$/.test(name)) continue
-    const rel = relative(ROOT, full)
-    if (rel.startsWith('scripts/consistency-census/gen-') || rel === 'scripts/consistency-census/prove-census-comment-invariance.ts') continue
-    if (rel === 'src/extensions/bundled/content.generated.ts') continue
-    const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
-    for (const text of lines) {
-      const push = (mechanism: Hit['mechanism']): void => {
-        hits.push({ file: rel, mechanism, excerpt: text.trim().slice(0, 140) })
-      }
-      if (/(?<![.\w])execSync\(/.test(text)) push('execSync-string')
-      else if (/(?<![.\w])exec\((`|')/.test(text)) push('exec-string')
-      if (/spawnSync?\((['"`])(bash|sh|zsh|cmd|powershell)\1\s*,\s*\[\s*(['"`])-c\3/.test(text)) push('shell-dash-c')
-      if (/\/usr\/bin\/python3/.test(text) && /spawn|SYS_PY|PYTHON|python3'|python3"|= '\/usr/.test(text)) {
-        push('hardcoded-interpreter')
-      }
-      if (
-        /(['"`])\/tmp\1|(['"`])\/tmp\//.test(text) &&
-        /mkdtemp|mkdir|writeFile|TMP|tmpRoot|outDir|startsWith\((['"`])\/tmp/.test(text)
-      ) {
-        push('hardcoded-tmp')
-      }
-    }
-  }
-}
-for (const d of SCAN_DIRS) walk(join(ROOT, d))
-
 const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: string; why: string }> = [
   {
     test: f => f.startsWith('scripts/verify/fast.ts') || f.startsWith('scripts/verify/prove-baseline-source.ts'),
@@ -113,6 +63,11 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'drives Shell.exec at a PATH-found .cmd on purpose — whether the Windows system shell runs a batch by its bare name with every argument byte intact is the subject under test',
   },
   {
+    test: f => f === 'scripts/faults/prove-faults-fn27.ts',
+    cls: 'test-fixture',
+    why: 'drives Shell.exec on purpose at a working folder that is missing, is not a folder or cannot be read — what the shell door answers there is the subject under test',
+  },
+  {
     test: f => f.startsWith('scripts/ide/'),
     cls: 'platform-owner',
     why: 'IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile',
@@ -159,25 +114,50 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
   },
 ]
 
-const census = hits.map(h => {
-  const rule = RULES.find(r => r.test(h.file, h.mechanism))
-  return { ...h, cls: rule?.cls ?? 'UNCLASSIFIED', why: rule?.why ?? 'no rule — the UN-44 ratchet fails on this' }
-})
-
-const outPath = argValue('--out') ?? join(ROOT, 'scripts', 'consistency-census', 'shellstring-census.json')
-writeFileSync(
-  outPath,
-  JSON.stringify(
-    {
-      generatedBy: 'scripts/consistency-census/gen-shellstring-census.ts',
-      note: 'GENERATED — regenerate, never hand-edit. UN-44/49 ratchet input.',
-      sites: census,
-    },
-    null,
-    2,
-  ) + '\n',
-)
-if (REGISTERS) registerGeneratedAsset(ROW)
-const un = census.filter(c => c.cls === 'UNCLASSIFIED')
-console.log(`shell-string census: ${census.length} site(s); ${un.length} unclassified`)
-for (const u of un.slice(0, 40)) console.log(`  UNCLASSIFIED ${u.file} (${u.mechanism}) ${u.excerpt}`)
+export function shellstringCensus(root = DEFAULT_ROOT): {
+  sites: Array<Hit & { cls: string; why: string }>
+} {
+  const hits: Hit[] = []
+  const walk = (dir: string): void => {
+    for (const name of [...readdirSync(dir)].sort()) {
+      const full = join(dir, name)
+      const st = statSync(full)
+      if (st.isDirectory()) {
+        if (name === 'node_modules' || name === 'receipts' || name === 'dist') continue
+        walk(full)
+        continue
+      }
+      if (!/\.(ts|tsx|mjs)$/.test(name)) continue
+      const rel = relative(root, full)
+      if (rel.startsWith('scripts/consistency-census/gen-') || rel === 'scripts/consistency-census/prove-census-comment-invariance.ts') continue
+      if (rel === 'src/extensions/bundled/content.generated.ts') continue
+      const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
+      for (const text of lines) {
+        const push = (mechanism: Hit['mechanism']): void => {
+          hits.push({ file: rel, mechanism, excerpt: text.trim().slice(0, 140) })
+        }
+        if (/(?<![.\w])execSync\(/.test(text)) push('execSync-string')
+        else if (/(?<![.\w])exec\((`|')/.test(text)) push('exec-string')
+        if (/spawnSync?\((['"`])(bash|sh|zsh|cmd|powershell)\1\s*,\s*\[\s*(['"`])-c\3/.test(text)) push('shell-dash-c')
+        if (/\/usr\/bin\/python3/.test(text) && /spawn|SYS_PY|PYTHON|python3'|python3"|= '\/usr/.test(text)) {
+          push('hardcoded-interpreter')
+        }
+        if (
+          /(['"`])\/tmp\1|(['"`])\/tmp\//.test(text) &&
+          /mkdtemp|mkdir|writeFile|TMP|tmpRoot|outDir|startsWith\((['"`])\/tmp/.test(text)
+        ) {
+          push('hardcoded-tmp')
+        }
+      }
+    }
+  }
+  for (const d of SCAN_DIRS) {
+    const dir = join(root, d)
+    if (existsSync(dir)) walk(dir)
+  }
+  const sites = hits.map(h => {
+    const rule = RULES.find(r => r.test(h.file, h.mechanism))
+    return { ...h, cls: rule?.cls ?? 'UNCLASSIFIED', why: rule?.why ?? 'no rule — the UN-44 ratchet fails on this' }
+  })
+  return { sites }
+}

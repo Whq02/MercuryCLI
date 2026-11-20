@@ -3,7 +3,7 @@ import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
 import { chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join, relative } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
@@ -15,6 +15,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const WINDOWS = process.platform === 'win32'
+const notRead = (label: string, why: string): void => console.log(`  [SKIP] ${label} — not read on Windows: ${why}`)
+const samePath = (a: string | null, b: string): boolean => a !== null && relative(a, b) === ''
 
 const {
   GENERATED_ASSETS_MAP,
@@ -72,8 +75,6 @@ check('every generator and check names a script that exists', deadScripts.length
 check('every files-of source exists', deadSources.length === 0, deadSources.join(', '))
 const settingsRow = map.rows.find(r => r.assets.includes('scripts/settings/settings-schema.json'))
 check('settings types map to the schema snapshot with its generator and check', settingsRow !== undefined && settingsRow.sources.includes('src/utils/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
-const inkRow = map.rows.find(r => r.assets.includes('scripts/ink-runtime/facade-inventory.json'))
-check('the facade inventory is a row', inkRow !== undefined && inkRow.sources.includes('src/ink.ts'))
 check('repoPathsIn reads the paths a census names', repoPathsIn('{"sites":[{"file":"src/a/b.ts","line":3},{"file":"scripts/x/y.sh"}]}').join(',') === 'src/a/b.ts,scripts/x/y.sh')
 check('repoPathsIn reads the keys of the contract inventory', repoPathsIn(readFileSync(join(ROOT, 'scripts/ownership/contract-inventory.json'), 'utf8')).includes('src/utils/settings/types.ts'))
 const badMap = parseGeneratedAssetsMap('# c\na.json\tgen a\n')
@@ -120,10 +121,9 @@ for (const text of ['printf scripts/x/prove-y.ts --strict', 'echo bun scripts/x/
 check('the actual invocation accepts an equivalent bun run spelling', checkChained('bun scripts/check-schema.ts', ['bun run "scripts/check-schema.ts"']))
 check('a removed content match still owes its generated output', generatedAssetsOwed({ rows, commitPaths: ['src/plain.ts'], contentOf: () => '', previousContentOf: () => "import { x } from '../ink/frame.js'", readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('gen/imports.json')))
 for (const [path, asset] of [
-  ['src/new-component.tsx', 'scripts/consistency-census/lockup-census.json'],
-  ['scripts/new/prove-spawn.ts', 'scripts/consistency-census/shellstring-census.json'],
+  ['src/utils/settings/newKey.ts', 'scripts/settings/settings-schema.json'],
   ['src/components/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
-  ['scripts/consistency-census/gen-lockup-census.ts', 'scripts/consistency-census/lockup-census.json'],
+  ['scripts/settings/gen-settings-schema.ts', 'scripts/settings/settings-schema.json'],
 ]) check('the real map covers new inputs, deleted imports and generator changes', generatedAssetsOwed({ rows: map.rows, commitPaths: [path!], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes(asset!)))
 check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
 
@@ -172,7 +172,7 @@ check('a short option cluster still recognizes all-files before its message', ge
 g('add', 'gen/schema.json')
 check('the asset staged beside its source settles it', generatedAssetsRefusal('git commit -F m', repo) === null)
 g('restore', '--staged', 'gen/schema.json')
-check('a `git -C <dir> commit` from another directory reads that repository', commitRepositoryRoot(`git -C "${repo}" commit -F m`, scratch) === repo && generatedAssetsRefusal(`git -C "${repo}" commit -F m`, scratch) !== null)
+check('a `git -C <dir> commit` from another directory reads that repository', samePath(commitRepositoryRoot(`git -C "${repo}" commit -F m`, scratch), repo) && generatedAssetsRefusal(`git -C "${repo}" commit -F m`, scratch) !== null)
 const bare = join(scratch, 'nomap')
 mkdirSync(bare)
 execFileSync('git', ['init', '-q'], { cwd: bare })
@@ -255,7 +255,7 @@ section('§4 a check the gate could not finish does not refuse the commit: git g
   c('commit', '-q', '-m', 'seed')
   writeFileSync(join(calm, 'notes.txt'), 'two\n')
   c('add', 'notes.txt')
-  const realGit = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+  const realGit = Bun.which('git') ?? 'git'
   const fake = join(scratch, 'fake-git')
   mkdirSync(fake)
   writeFileSync(join(fake, 'git'), `#!/bin/sh\nhere="$(dirname "$0")"\nif [ -s "$here/arm" ]; then\n  case " $* " in\n    *"$(cat "$here/arm")"*) if [ -e "$here/slow" ]; then exec sleep 6; fi; kill -KILL $$ ;;\n  esac\nfi\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
@@ -264,26 +264,70 @@ section('§4 a check the gate could not finish does not refuse the commit: git g
     writeFileSync(join(fake, 'arm'), arm)
     if (slow) writeFileSync(join(fake, 'slow'), '1')
     else rmSync(join(fake, 'slow'), { force: true })
-    process.env.PATH = `${fake}:${path}`
+    process.env.PATH = `${fake}${delimiter}${path}`
     try { return String(generatedAssetsRefusal('git commit -F m', calm)) } catch (error) { return `REFUSED: ${error instanceof Error ? error.message : String(error)}` } finally { process.env.PATH = path }
   }
   check('control: with git answering, a commit that touches no generated source owes nothing', verdict('') === 'null', verdict(''))
-  const slowRoot = verdict('rev-parse --show-toplevel', true)
-  check('git rev-parse --show-toplevel gives no answer within the 3 s limit: the commit goes on, as on 1.0.11', slowRoot === 'null', slowRoot)
-  const deadRoot = verdict('rev-parse --show-toplevel')
-  check('git rev-parse --show-toplevel ends without an exit status: the commit goes on', deadRoot === 'null', deadRoot)
-  const deadMap = verdict(` HEAD:${GENERATED_ASSETS_MAP} `)
-  check("git show HEAD:<the map> ends without an exit status: the commit goes on with the working tree's and the index's map", deadMap === 'null', deadMap)
-  const deadPrevious = verdict(' HEAD:notes.txt ')
-  check("git show HEAD:<a committed path> ends without an exit status: the commit goes on, the path's previous content unmatched", deadPrevious === 'null', deadPrevious)
-  chmodSync(join(calm, 'lists/a.txt'), 0o000)
-  const unreadable = verdict('')
-  chmodSync(join(calm, 'lists/a.txt'), 0o644)
-  check('a files-of: list that is there and cannot be read (EACCES): the commit goes on', process.getuid?.() === 0 || unreadable === 'null', unreadable)
+  const goesOn = (label: string, arm: string, slow = false): void => {
+    if (WINDOWS) return notRead(label, 'the row plants a shell-script git on PATH, which Windows does not start')
+    const answer = verdict(arm, slow)
+    check(label, answer === 'null', answer)
+  }
+  goesOn('git rev-parse --show-toplevel gives no answer within the 3 s limit: the commit goes on, as on 1.0.11', 'rev-parse --show-toplevel', true)
+  goesOn('git rev-parse --show-toplevel ends without an exit status: the commit goes on', 'rev-parse --show-toplevel')
+  goesOn("git show HEAD:<the map> ends without an exit status: the commit goes on with the working tree's and the index's map", ` HEAD:${GENERATED_ASSETS_MAP} `)
+  goesOn("git show HEAD:<a committed path> ends without an exit status: the commit goes on, the path's previous content unmatched", ' HEAD:notes.txt ')
+  if (WINDOWS) notRead('a files-of: list that is there and cannot be read (EACCES): the commit goes on', 'a POSIX mode does not make a file unreadable there')
+  else {
+    chmodSync(join(calm, 'lists/a.txt'), 0o000)
+    const unreadable = verdict('')
+    chmodSync(join(calm, 'lists/a.txt'), 0o644)
+    check('a files-of: list that is there and cannot be read (EACCES): the commit goes on', process.getuid?.() === 0 || unreadable === 'null', unreadable)
+  }
   writeFileSync(join(calm, 'notes.txt'), 'MARK_B\n')
   c('add', 'notes.txt')
   const owed = verdict('')
   check('control: the same gate still refuses what it did read (a staged source that matches re:MARK_B owes gen/b.json)', owed.includes('gen/b.json'), owed)
+  const uncompiled = parseGeneratedAssetsMap('gen/s.json\tbun scripts/gen-s.ts\tbun scripts/prove-s.ts\tsrc/** re:[oops\n')
+  const named: string[] = (uncompiled as { skipped?: string[] }).skipped ?? []
+  check('a re: source that does not compile is left out of its row and named; it is no map error and the row keeps its other source', uncompiled.errors.length === 0 && named.length === 1 && named[0]!.startsWith('line 1: re:[oops is not a regular expression that compiles') && JSON.stringify(uncompiled.rows[0]?.sources) === JSON.stringify(['src/**']), JSON.stringify(uncompiled))
+  const skip = join(scratch, 'skip')
+  for (const dir of ['scripts/gate', 'src', 'gen']) mkdirSync(join(skip, dir), { recursive: true })
+  const k = (...a: string[]): string => execFileSync('git', a, { cwd: skip, encoding: 'utf8', env })
+  k('init', '-q')
+  writeFileSync(join(skip, GENERATED_ASSETS_MAP), 'gen/s.json\tbun scripts/gen-s.ts\tbun scripts/prove-s.ts\tsrc/** re:[oops\n')
+  writeFileSync(join(skip, 'src/x.ts'), 'export const x = 1\n')
+  writeFileSync(join(skip, 'gen/s.json'), '{}\n')
+  writeFileSync(join(skip, 'notes.txt'), 'one\n')
+  k('add', '-A')
+  k('commit', '-q', '-m', 'seed')
+  writeFileSync(join(skip, 'notes.txt'), 'two\n')
+  k('add', 'notes.txt')
+  const judged = (): string => {
+    try { return String(generatedAssetsRefusal('git commit -F m', skip)) } catch (error) { return `REFUSED: ${error instanceof Error ? error.message : String(error)}` }
+  }
+  const unrelated = judged()
+  check('a map that holds such a source no longer refuses every commit in its repository', unrelated === 'null', unrelated)
+  const gate = await import('../../src/guards/commitGate.ts')
+  const { judgeToolCall } = await import('../../src/guards/guards.ts')
+  const { setFlagEnv, deleteFlagEnv } = await import('../../src/substrate/flagRegistry.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  setFlagEnv('MERCURY_COMMIT_GATE', '1')
+  gate.engageCommitGate('skipped-source')
+  const notesOf = async (callId: string): Promise<string[]> => {
+    const answered = await runWithCwdOverride(skip, () => judgeToolCall('skipped-source', { tool: 'Bash', input: { command: 'bun run typecheck && git commit -F m' }, callId, messages: [] }))
+    return answered.refused ? [`REFUSED: ${answered.reason}`] : answered.notes.map(note => String(note.content))
+  }
+  const first = await notesOf('skipped-1')
+  const second = await notesOf('skipped-2')
+  gate.disengageCommitGate('skipped-source')
+  deleteFlagEnv('MERCURY_COMMIT_GATE')
+  check('the commit goes on and one note says which source was skipped, the map first, and what to do', first.length === 1 && first[0]!.startsWith(`${GENERATED_ASSETS_MAP} line 1: re:[oops is not a regular expression that compiles`) && first[0]!.endsWith('so the commit was not checked against that source — fix the pattern in the map.'), JSON.stringify(first))
+  check('…once: the next commit carries no note', second.length === 0, JSON.stringify(second))
+  writeFileSync(join(skip, 'src/x.ts'), 'export const x = 2\n')
+  k('add', 'src/x.ts')
+  const stillOwed = judged()
+  check("control: the row's other source still judges (a staged file under src/** owes gen/s.json)", stillOwed.includes('gen/s.json'), stillOwed)
 }
 rmSync(scratch, { recursive: true, force: true })
 
@@ -378,6 +422,45 @@ for (const [file, generator] of [
   ['assets/splash/splash-core.mjs', 'scripts/splash/bake-menu.mjs'],
   ['scripts/builtin-tools/fixtures/RESULTS.md', 'scripts/builtin-tools/bench-builtin-tools.ts'],
 ]) check(`${file} is a row of ${generator}`, (assetRowFor(file!, map.rows)?.generator ?? '').includes(generator!))
+
+section('§6 the build asks the generator of each file it ships')
+{
+  const { buildCheckedRows, staleBuildAssets } = await import('../lib/generated-assets-map.mjs')
+  const buildRows: Array<{ assets: string; generator: string; check: string }> = buildCheckedRows(mapText)
+  for (const bake of ['bun scripts/splash/bake-menu.mjs', 'bun scripts/splash/bake-ramp.mjs']) {
+    check(`the build checks the splash core through ${bake}`, buildRows.some(row => row.assets === 'assets/splash/splash-core.mjs' && row.generator === bake && row.check === `${bake} --check`))
+  }
+  for (const asset of ['src/services/blender/bridgeFiles.generated.ts', 'src/services/unity/bridgeFiles.generated.ts', 'assets/host/llamacpp-engine.json', 'src/services/vulcan/addonFiles.generated.ts', 'src/utils/vulcan/optable.generated.ts assets/vulcan/addon/core/op_classes.gd', 'src/extensions/bundled/content.generated.ts', 'src/skills/bundled/**', 'docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md src/skills/bundled/extension-maker/references/CONTRACT.md']) {
+    check(`the build checks ${asset}`, buildRows.some(row => row.assets === asset))
+  }
+  check('every row the build checks asks its own generator with --check', buildRows.every(row => row.check === `${row.generator.split('&&').at(-1)!.trim()} --check`), buildRows.filter(row => row.check !== `${row.generator.split('&&').at(-1)!.trim()} --check`).map(row => row.check).join(' | '))
+  check('every row the build checks is a row the gate reads, with the same check', buildRows.every(row => map.rows.some(gateRow => gateRow.generator === row.generator && gateRow.check === row.check)))
+  const carried = formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', check: 'bun scripts/check-a.mjs', sources: 'source.txt', build: true })
+  check('a generator that sets build writes the fifth column, and the gate reads the row as before', carried.endsWith('\tsource.txt\tbuild') && parseGeneratedAssetsMap(carried).rows[0]?.check === 'bun scripts/check-a.mjs' && buildCheckedRows(carried).length === 1)
+  let noCheck = ''
+  try {
+    formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', sources: 'source.txt', build: true })
+  } catch (error) {
+    noCheck = String(error)
+  }
+  check('a row that asks for the build and names no check is refused', noCheck.includes('names no check'))
+  const buildScratch = realpathSync(mkdtempSync(join(tmpdir(), 'generated-build-')))
+  mkdirSync(join(buildScratch, 'scripts', 'gate'), { recursive: true })
+  writeFileSync(join(buildScratch, 'scripts/check-a.mjs'), "import { readFileSync } from 'node:fs'\nif (readFileSync('made.txt', 'utf8') !== readFileSync('source.txt', 'utf8')) {\n  console.error('made.txt trails source.txt')\n  process.exit(1)\n}\n")
+  writeFileSync(join(buildScratch, 'source.txt'), 'one\n')
+  writeFileSync(join(buildScratch, 'made.txt'), 'one\n')
+  check('a tree with no map has nothing for the build to check', (await staleBuildAssets(buildScratch)).length === 0)
+  writeFileSync(join(buildScratch, GENERATED_ASSETS_MAP), `${carried}\nother.txt\tbun scripts/gen-b.mjs\tbun scripts/check-b.mjs\tsource.txt\ngone.txt\tbun scripts/gen-gone.mjs\tbun scripts/check-gone.mjs\tsource.txt\tbuild\n`)
+  check('a current file: the build has nothing to say, a row without the column is not run, and a row whose check is not in the tree (a build of a part of it) is passed over', (await staleBuildAssets(buildScratch)).length === 0)
+  writeFileSync(join(buildScratch, 'source.txt'), 'two\n')
+  const staleRows: Array<{ assets: string; generator: string; output: string }> = await staleBuildAssets(buildScratch)
+  check('one feeding source changed: the row is stale at once, with the command to run and the words of its check', staleRows.length === 1 && staleRows[0]!.assets === 'made.txt' && staleRows[0]!.generator === 'bun scripts/gen-a.mjs' && staleRows[0]!.output.includes('made.txt trails source.txt'), JSON.stringify(staleRows))
+  writeFileSync(join(buildScratch, 'made.txt'), 'two\n')
+  check('the regenerated file settles it', (await staleBuildAssets(buildScratch)).length === 0)
+  rmSync(buildScratch, { recursive: true, force: true })
+  const staleHere: Array<{ assets: string; generator: string }> = await staleBuildAssets(ROOT)
+  check('every file the build checks is current on this tree', staleHere.length === 0, staleHere.map(row => `${row.assets}: run ${row.generator}`).join(' | '))
+}
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

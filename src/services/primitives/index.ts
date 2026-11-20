@@ -1,7 +1,5 @@
 
 export * from './owner.js'
-import '../resources/contracts.js'
-import '../resources/registry.js'
 export * from './execution.js'
 export * from './executionPlane.js'
 export * from './transaction.js'

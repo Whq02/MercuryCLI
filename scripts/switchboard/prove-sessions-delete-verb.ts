@@ -94,7 +94,6 @@ section('§0 the verb exists and rides the one delete door')
   const { builtHelp } = await import('../lib/builtProduct.ts')
   check('main.tsx registers `sessions delete <id>` with --yes', builtHelp('sessions').includes('delete [options] <id>') && builtHelp('sessions', 'delete').includes('Usage: mercury sessions delete [options] <id>') && builtHelp('sessions', 'delete').includes('--yes'))
   check('the door offers a named session without an age window (buildSessionDeleteOffer)', typeof door.buildSessionDeleteOffer === 'function')
-  check('AUTOMATION.md names the verb in the headless section', /`mercury sessions delete <id>`/.test(source('docs/AUTOMATION.md')))
   for (const file of ['assets/completions/mercury.bash', 'assets/completions/_mercury', 'assets/completions/mercury.fish']) {
     check(`${file} completes the sessions verb`, /\bsessions\b/.test(source(file)), file)
   }

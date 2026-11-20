@@ -58,6 +58,10 @@ export function renderSearchTrailer(scope: AstScope, result: AstSearchResult): s
     out.push(`Skipped ${n} file${n === 1 ? '' : 's'} whose grammar this build does not carry (${describeSkipped(scope.skippedUncarried)}): ${GRAMMAR_PACK_REMEDY}.`)
   }
   if (scope.skippedDenied > 0) out.push(`Skipped ${scope.skippedDenied} file${scope.skippedDenied === 1 ? '' : 's'} hidden by read-deny rules.`)
+  if (scope.skippedUnreadable && scope.skippedUnreadable.count > 0) {
+    const { count, firstPath, firstError } = scope.skippedUnreadable
+    out.push(`${count} folders or files could not be read and were not searched (first: ${firstPath}: ${firstError})`)
+  }
   if (result.skippedLarge > 0) out.push(`Skipped ${result.skippedLarge} file${result.skippedLarge === 1 ? '' : 's'} over ${AST_BOUNDS.maxFileBytes / 1_000_000}MB.`)
   if (scope.truncatedWalk) out.push(`The directory walk stopped at its file bound — narrow path or glob to search the rest.`)
   if (result.truncatedParse) out.push(`Stopped after ${AST_BOUNDS.maxFilesParsed} parsed files — narrow path or glob to search the rest.`)

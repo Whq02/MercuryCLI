@@ -10,6 +10,7 @@ import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibra
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import type { MnemeEntry, MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { pinnedTextLimit, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import { passedOver } from '../utils/passedOver.js'
 
 export const FRONT_PAGE_FILE = 'front-page.md'
@@ -181,10 +182,25 @@ export function readFrontPage(dir: string = mnemeLibraryDir()): string | null {
 }
 
 export function readPinnedStatus(dir: string = mnemeLibraryDir()): PinnedStatus | null {
+  const p = pinnedStatusPath(dir)
+  let raw: string
   try {
-    const parsed = JSON.parse(readFileSync(pinnedStatusPath(dir), 'utf8')) as PinnedStatus
-    return typeof parsed?.pinned === 'number' && typeof parsed?.limit === 'number' && typeof parsed?.used === 'number' ? parsed : null
+    raw = readFileSync(p, 'utf8')
   } catch (error) {
+    if (isENOENT(error)) clearMnemeUnread(p)
+    else recordMnemeUnread(p, error)
+    passedOver(error)
+    return null
+  }
+  try {
+    const parsed = JSON.parse(raw) as PinnedStatus
+    if (typeof parsed?.pinned === 'number' && typeof parsed?.limit === 'number' && typeof parsed?.used === 'number') {
+      clearMnemeUnread(p)
+      return parsed
+    }
+    throw new Error(`pinned status unreadable at ${p}`)
+  } catch (error) {
+    recordMnemeUnread(p, error)
     passedOver(error)
     return null
   }

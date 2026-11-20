@@ -88,6 +88,37 @@ try {
   assert.equal(await sock.acquireDaemonLock(), null)
   await successor.release()
   console.log('PASS live address and key retained, one successor after release')
+
+  if (process.platform !== 'win32') {
+    const promises = await import('node:fs/promises')
+    const { mock } = await import('bun:test')
+    const real = { ...promises }
+    let stand: 'through' | 'owner unread' | 'another user' = 'through'
+    mock.module('node:fs/promises', () => ({
+      ...real,
+      default: real,
+      chmod: async (...args: Parameters<typeof promises.chmod>) => {
+        if (stand !== 'through' && args[0] === sock.controlKeyPath()) throw Object.assign(new Error('EPERM: operation not permitted, chmod'), { code: 'EPERM' })
+        return real.chmod(...args)
+      },
+      stat: async (...args: Parameters<typeof promises.stat>) => {
+        if (stand === 'through' || args[0] !== sock.controlKeyPath()) return real.stat(...args)
+        if (stand === 'owner unread') throw Object.assign(new Error('EIO: i/o error, stat'), { code: 'EIO' })
+        const stats = await real.stat(args[0])
+        return Object.assign(Object.create(Object.getPrototypeOf(stats)), stats, { uid: Number(stats.uid) + 1 })
+      },
+    }))
+    const mint = (): Promise<string> => sock.mintControlKey().then(minted => (minted === readFileSync(sock.controlKeyPath(), 'utf8') ? 'minted' : 'minted, not the key on disk'), (error: unknown) => `REFUSED: ${error instanceof Error ? error.message : String(error)}`)
+    assert.equal(await mint(), 'minted', 'the rig holds: with the stand-in passing through, a key is minted')
+    stand = 'owner unread'
+    const unread = await mint()
+    stand = 'another user'
+    const foreign = await mint()
+    stand = 'through'
+    assert.equal(unread, 'minted', 'a control key whose owner cannot be read after a chmod that failed is used as it was written')
+    assert.match(foreign, /^REFUSED: .*belongs to another user/, 'control: a control key found to belong to another user still refuses')
+    console.log('PASS a control key whose owner cannot be read is used; one found to be another user\'s still refuses')
+  }
 } finally {
   for (const server of sockets) if (server.listening) await close(server)
   rmSync(root, { recursive: true, force: true })

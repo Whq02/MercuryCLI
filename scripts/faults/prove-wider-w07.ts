@@ -227,4 +227,178 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
   )
 }
 
+console.log('\nw07-2 · projectStoreIdentity + sessionStoragePortable — unreadable store/root/head notifies transcript store health')
+if (!POSIX_MODES) skip('w07-2 projectStoreIdentity unreadable', 'chmod 0000 needs non-root POSIX')
+else {
+  const r1 = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const p1 = path.join(PROJECT, 'fresh-proj')
+    fs.mkdirSync(p1, { recursive: true })
+    out.freshDir = portable.getProjectDir(p1)
+    out.freshHealth = health.transcriptStoreHealth()
+
+    const projectsDir = portable.getProjectsDir()
+    fs.mkdirSync(projectsDir, { recursive: true })
+    const p2 = path.join(PROJECT, 'root-blocked-proj')
+    fs.mkdirSync(p2, { recursive: true })
+    fs.chmodSync(projectsDir, 0o000)
+    try {
+      out.projectsDir = projectsDir
+      out.rootBlockedDir = portable.getProjectDir(p2)
+      out.rootBlockedHealth = health.transcriptStoreHealth()
+    } finally {
+      fs.chmodSync(projectsDir, 0o700)
+    }
+  `)
+  const freshHealth = r1.out.freshHealth as { failing?: boolean; sentence?: string | null }
+  const rootHealth = r1.out.rootBlockedHealth as { failing?: boolean; sentence?: string | null }
+  const projectsDir = String(r1.out.projectsDir ?? '')
+  check('w07-2 absent projects root (ENOENT) does not trigger store health notice', freshHealth?.failing === false, JSON.stringify(freshHealth))
+  check(
+    'w07-2 unreadable projects root keeps answer and sets transcript-store notice',
+    typeof r1.out.rootBlockedDir === 'string' &&
+      rootHealth?.failing === true &&
+      typeof rootHealth.sentence === 'string' &&
+      rootHealth.sentence.includes(`${projectsDir} could not be read (`) &&
+      rootHealth.sentence.includes("), so this project's earlier sessions may not be listed — restore read permission on it."),
+    JSON.stringify(rootHealth),
+  )
+
+  const r2 = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const projectsDir = portable.getProjectsDir()
+    const olderStore = path.join(projectsDir, '-old-spelling-12345678')
+    fs.mkdirSync(olderStore, { recursive: true })
+    const p = path.join(PROJECT, 'store-blocked-proj')
+    fs.mkdirSync(p, { recursive: true })
+    fs.chmodSync(olderStore, 0o000)
+    try {
+      out.olderStore = olderStore
+      out.dir = portable.getProjectDir(p)
+      out.health = health.transcriptStoreHealth()
+    } finally {
+      fs.chmodSync(olderStore, 0o700)
+    }
+  `)
+  const storeHealth = r2.out.health as { failing?: boolean; sentence?: string | null }
+  const olderStore = String(r2.out.olderStore ?? '')
+  check(
+    'w07-2 unreadable older store folder keeps answer and sets transcript-store notice',
+    typeof r2.out.dir === 'string' &&
+      storeHealth?.failing === true &&
+      typeof storeHealth.sentence === 'string' &&
+      storeHealth.sentence.includes(`${olderStore} could not be read (`) &&
+      storeHealth.sentence.includes("), so this project's earlier sessions may not be listed — restore read permission on it."),
+    JSON.stringify(storeHealth),
+  )
+
+  const r3 = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const projectsDir = portable.getProjectsDir()
+    const olderStore = path.join(projectsDir, '-old-head-12345678')
+    fs.mkdirSync(olderStore, { recursive: true })
+    const transcript = path.join(olderStore, '11111111-1111-4111-8111-111111111111.jsonl')
+    fs.writeFileSync(transcript, '{"cwd":"/somewhere"}\\n')
+    const p = path.join(PROJECT, 'head-blocked-proj')
+    fs.mkdirSync(p, { recursive: true })
+    fs.chmodSync(transcript, 0o000)
+    try {
+      out.transcript = transcript
+      out.dir = portable.getProjectDir(p)
+      out.health = health.transcriptStoreHealth()
+    } finally {
+      fs.chmodSync(transcript, 0o600)
+    }
+  `)
+  const headHealth = r3.out.health as { failing?: boolean; sentence?: string | null }
+  const transcript = String(r3.out.transcript ?? '')
+  check(
+    'w07-2 unreadable transcript head keeps answer and sets transcript-store notice',
+    typeof r3.out.dir === 'string' &&
+      headHealth?.failing === true &&
+      typeof headHealth.sentence === 'string' &&
+      headHealth.sentence.includes(`${transcript} could not be read (`) &&
+      headHealth.sentence.includes("), so this project's earlier sessions may not be listed — restore read permission on it."),
+    JSON.stringify(headHealth),
+  )
+}
+
+console.log('\nw07-4 · json.ts parseJSONL + fabric/transcriptDecode.ts — skipped lines counted (native & fallback, excluding torn last line)')
+{
+  const runCase = (disableNative: boolean) =>
+    runSubprocess(`
+      const path = await import('node:path')
+      ${disableNative ? 'if (globalThis.Bun) { try { Object.defineProperty(globalThis.Bun, "JSONL", { value: undefined, configurable: true }) } catch {} }' : ''}
+      const { parseJSONL } = await import(path.join(SRC, 'utils/json.ts'))
+      const probe = input => {
+        let skipped = 0
+        let calls = 0
+        const values = parseJSONL(input, { onSkipped: n => { skipped += n; calls++ } })
+        return { values, skipped, calls }
+      }
+      out.valid = probe('{"a":1}\\n{"b":2}\\n')
+      out.oneBad = probe('{"a":1}\\n{bad\\n{"b":2}\\n')
+      out.twoBad = probe('{"a":1}\\n{bad1\\n{bad2\\n{"b":2}\\n')
+      out.crlfBad = probe('{"a":1}\\r\\n{bad\\r\\n{"b":2}\\r\\n')
+      out.tornLast = probe('{"a":1}\\n{"b":')
+      out.bufBad = probe(Buffer.from('{"a":1}\\n{bad\\n{"b":2}\\n'))
+    `)
+  for (const [mode, res] of [
+    ['native', runCase(false)],
+    ['fallback', runCase(true)],
+  ] as const) {
+    const valid = res.out.valid as { values: unknown[]; skipped: number; calls: number }
+    const oneBad = res.out.oneBad as { values: unknown[]; skipped: number; calls: number }
+    const twoBad = res.out.twoBad as { values: unknown[]; skipped: number; calls: number }
+    const crlfBad = res.out.crlfBad as { values: unknown[]; skipped: number; calls: number }
+    const tornLast = res.out.tornLast as { values: unknown[]; skipped: number; calls: number }
+    const bufBad = res.out.bufBad as { values: unknown[]; skipped: number; calls: number }
+    check(`w07-4 (${mode}) valid JSONL reports 0 skipped`, valid.values.length === 2 && valid.skipped === 0 && valid.calls === 0, JSON.stringify(valid))
+    check(`w07-4 (${mode}) one bad line reports skipped=1`, oneBad.values.length === 2 && oneBad.skipped === 1, JSON.stringify(oneBad))
+    check(`w07-4 (${mode}) two bad lines report skipped=2`, twoBad.values.length === 2 && twoBad.skipped === 2, JSON.stringify(twoBad))
+    check(`w07-4 (${mode}) CRLF bad line reports skipped=1`, crlfBad.values.length === 2 && crlfBad.skipped === 1, JSON.stringify(crlfBad))
+    check(`w07-4 (${mode}) torn last line is not counted`, tornLast.values.length === 1 && tornLast.skipped === 0 && tornLast.calls === 0, JSON.stringify(tornLast))
+    check(`w07-4 (${mode}) Buffer input with bad line reports skipped=1`, bufBad.values.length === 2 && bufBad.skipped === 1, JSON.stringify(bufBad))
+  }
+
+  const rDecode = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { encodeTranscriptLine } = await import(path.join(SRC, 'utils/sessionStorage/vnext.ts'))
+    const { decodeTranscriptBuffer } = await import(path.join(SRC, 'fabric/transcriptDecode.ts'))
+    const loading = await import(path.join(SRC, 'utils/sessionStorage/loading.ts'))
+    const sid = '00000000-dddd-eeee-ffff-000000000d07'
+    const file = path.join(PROJECT, sid + '.jsonl')
+    const meta = (uuid, parent) => ({
+      isSidechain: false, entrypoint: 'cli', cwd: PROJECT, sessionId: sid,
+      version: '1.0.0', gitBranch: '', parentUuid: parent, uuid, timestamp: '2026-11-20T06:00:00.000Z',
+    })
+    const l1 = encodeTranscriptLine(file, { ...meta('00000000-0000-4000-8000-00000000d701', null), type: 'user', message: { role: 'user', content: 'first' } }).line
+    const l2 = encodeTranscriptLine(file, { ...meta('00000000-0000-4000-8000-00000000d702', '00000000-0000-4000-8000-00000000d701'), type: 'assistant', message: { role: 'assistant', model: 'glm-5.3', content: [{ type: 'text', text: 'second' }] } }).line
+    const l3 = encodeTranscriptLine(file, { ...meta('00000000-0000-4000-8000-00000000d703', '00000000-0000-4000-8000-00000000d702'), type: 'user', message: { role: 'user', content: 'third' } }).line
+    const content = l1 + l2.trimEnd() + l3
+    fs.writeFileSync(file, content)
+    const decoded = decodeTranscriptBuffer(content)
+    out.malformedLen = decoded.malformed.length
+    loading._resetTranscriptLoadDegradationForTesting()
+    await loading.loadTranscriptFile(file)
+    out.degradation = loading.transcriptLoadDegradation()
+  `)
+  const deg = rDecode.out.degradation as { malformed?: number; path?: string } | null
+  check(
+    'w07-4 two values on one line still triggers classifyMalformed and latches transcriptLoadDegradation',
+    rDecode.out.malformedLen === 1 && deg !== null && deg.malformed === 1,
+    JSON.stringify({ malformedLen: rDecode.out.malformedLen, deg }),
+  )
+}
+
 process.exit(failures === 0 ? 0 : 1)

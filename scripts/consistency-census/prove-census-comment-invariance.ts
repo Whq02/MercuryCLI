@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { codeOnlyText, syntaxShape } from '../lib/codeText.ts'
-
+import { shellstringCensus } from './gen-shellstring-census.ts'
+import { lockupCensus } from './gen-lockup-census.ts'
+import { basenameCensus } from './gen-basename-census.ts'
 const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -12,7 +13,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
 }
 
-type Row = { file: string; excerpt: string } & Record<string, unknown>
+type Row = { file: string; excerpt: string }
 type Census = { sites: Row[] }
 const CODE = 'PLANTED-CODE'
 const COMMENT = 'PLANTED-COMMENT'
@@ -79,27 +80,31 @@ const PLANTED_BASENAME = [
   '',
 ]
 
-const CENSUSES = [
+type CensusSpec = {
+  name: string
+  run: (root: string) => Census
+  planted: string
+  text: string
+  codeRows: number
+}
+const CENSUSES: CensusSpec[] = [
   {
     name: 'shellstring',
-    generator: 'scripts/consistency-census/gen-shellstring-census.ts',
-    asset: 'scripts/consistency-census/shellstring-census.json',
+    run: shellstringCensus,
     planted: 'src/planted/plantedShell.ts',
     text: PLANTED_SHELL.join('\n'),
     codeRows: 7,
   },
   {
     name: 'lockup',
-    generator: 'scripts/consistency-census/gen-lockup-census.ts',
-    asset: 'scripts/consistency-census/lockup-census.json',
+    run: lockupCensus,
     planted: 'src/planted/PlantedLockup.tsx',
     text: PLANTED_LOCKUP.join('\n'),
     codeRows: 7,
   },
   {
     name: 'basename',
-    generator: 'scripts/consistency-census/gen-basename-census.ts',
-    asset: 'scripts/consistency-census/basename-census.json',
+    run: basenameCensus,
     planted: 'src/planted/PlantedBasename.tsx',
     text: PLANTED_BASENAME.join('\n'),
     codeRows: 6,
@@ -117,15 +122,6 @@ function stripComments(path: string, text: string): string {
     else if (now.trim() !== '' || was.trim() === '') out.push(now.replace(/[ \t]+$/, ''))
   }
   return out.join('\n')
-}
-
-function generate(generator: string, root: string): string {
-  mkdirSync(join(root, 'src'), { recursive: true })
-  mkdirSync(join(root, 'scripts'), { recursive: true })
-  const out = join(root, 'census.json')
-  const run = spawnSync(process.execPath, [join(ROOT, generator), '--root', root, '--out', out], { cwd: ROOT, encoding: 'utf8' })
-  if (run.error || !existsSync(out)) throw new Error(`${generator} wrote nothing under ${root}: ${run.error?.message ?? run.stderr}`)
-  return readFileSync(out, 'utf8')
 }
 
 function representativeFiles(census: Census): string[] {
@@ -166,10 +162,9 @@ function writeTree(to: string, files: Map<string, string>): void {
 const scratch = mkdtempSync(join(tmpdir(), 'census-comment-invariance-'))
 try {
   for (const c of CENSUSES) {
-    const committed = JSON.parse(readFileSync(join(ROOT, c.asset), 'utf8')) as Census
-    const files = representativeFiles(committed)
-    check(`${c.name}: three representative sources carry committed rows`, files.length === 3, files.join(', '))
-
+    const baseline = c.run(ROOT)
+    const files = representativeFiles(baseline)
+    check(`${c.name}: three representative sources carry census rows`, files.length === 3, files.join(', '))
     const original = new Map<string, string>()
     for (const rel of files) original.set(rel, readFileSync(join(ROOT, rel), 'utf8'))
     original.set(c.planted, c.text)
@@ -196,8 +191,8 @@ try {
     const strippedRoot = join(scratch, c.name, 'stripped')
     writeTree(originalRoot, original)
     writeTree(strippedRoot, stripped)
-    const a = generate(c.generator, originalRoot)
-    const b = generate(c.generator, strippedRoot)
+    const a = JSON.stringify(c.run(originalRoot))
+    const b = JSON.stringify(c.run(strippedRoot))
     const rowsA = (JSON.parse(a) as Census).sites
     const rowsB = (JSON.parse(b) as Census).sites
     check(`${c.name}: comment-free copies regenerate byte-identical output`, a === b, `${rowsA.length} vs ${rowsB.length} rows`)
@@ -206,13 +201,12 @@ try {
     const fromSources = rowsA.filter(r => r.file !== c.planted)
     check(`${c.name}: the representative sources yield rows (${fromSources.length})`, fromSources.length > 0)
     check(
-      `${c.name}: every row of the representative sources is a committed row`,
-      fromSources.every(r => committed.sites.some(s => JSON.stringify(s) === JSON.stringify(r))),
-      fromSources.filter(r => !committed.sites.some(s => JSON.stringify(s) === JSON.stringify(r))).map(r => r.excerpt).join(' | ').slice(0, 300),
+      `${c.name}: every row of the representative sources is a census row`,
+      fromSources.every(r => baseline.sites.some(s => JSON.stringify(s) === JSON.stringify(r))),
+      fromSources.filter(r => !baseline.sites.some(s => JSON.stringify(s) === JSON.stringify(r))).map(r => r.excerpt).join(' | ').slice(0, 300),
     )
-    const committedFromSources = committed.sites.filter(s => files.includes(s.file))
-    check(`${c.name}: the representative sources reproduce every committed row of theirs`, committedFromSources.length === fromSources.length, `${committedFromSources.length} committed, ${fromSources.length} regenerated`)
-
+    const baselineFromSources = baseline.sites.filter(s => files.includes(s.file))
+    check(`${c.name}: the representative sources reproduce every census row of theirs`, baselineFromSources.length === fromSources.length, `${baselineFromSources.length} baseline, ${fromSources.length} regenerated`)
     const plantedRows = rowsA.filter(r => r.file === c.planted)
     check(
       `${c.name}: every planted code site is counted once (strings, a regex, a template, jsx text, a continuation line)`,

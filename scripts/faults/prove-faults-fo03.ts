@@ -9,6 +9,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
+function skip(label: string, why: string): void {
+  console.log(`  [SKIP] ${label} — ${why}`)
+}
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
@@ -32,10 +35,23 @@ const HELD = `{ scheduleId: 'bbbbbbbb', dueAt: 1, reason: 'unreachable', envelop
 console.log('saturnBoxSchedules')
 {
   const dir = scratch('box-eloop')
-  symlinkSync(join(dir, 'saturn-box-schedules.json.lock'), join(dir, 'saturn-box-schedules.json.lock'))
-  const r = runChild(`import { removeBoxSchedule } from ${JSON.stringify(BOX)}
+  let symCreated = true
+  try {
+    symlinkSync(join(dir, 'saturn-box-schedules.json.lock'), join(dir, 'saturn-box-schedules.json.lock'))
+  } catch (err) {
+    if (process.platform === 'win32' && (err as NodeJS.ErrnoException | null)?.code === 'EPERM') {
+      symCreated = false
+    } else {
+      throw err
+    }
+  }
+  if (!symCreated) {
+    skip('box-lock-stat-fails: an unreadable lock throws instead of spinning', 'not read on Windows: no symlink privilege')
+  } else {
+    const r = runChild(`import { removeBoxSchedule } from ${JSON.stringify(BOX)}
 try { console.log('RESULT', removeBoxSchedule('aaaaaaaa', ${JSON.stringify(dir)})) } catch (e) { console.log('THREW', (e as NodeJS.ErrnoException).code) }`)
-  check('box-lock-stat-fails: an unreadable lock throws instead of spinning', !r.timedOut && /THREW ELOOP/.test(r.out), r.timedOut ? 'spun past the timeout' : r.out.slice(0, 200))
+    check('box-lock-stat-fails: an unreadable lock throws instead of spinning', !r.timedOut && /THREW ELOOP/.test(r.out), r.timedOut ? 'spun past the timeout' : r.out.slice(0, 200))
+  }
 }
 {
   const dir = scratch('box-enotdir')

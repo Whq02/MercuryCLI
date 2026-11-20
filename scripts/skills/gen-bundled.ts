@@ -8,8 +8,9 @@ const ROOT = join(import.meta.dir, '..', '..')
 const ROW = {
   assets: 'src/skills/bundled/**',
   generator: 'bun scripts/skills/gen-bundled.ts',
-  check: null,
+  check: 'bun scripts/skills/gen-bundled.ts --check',
   sources: 'mercury-skills/**',
+  build: true,
 }
 
 type Layout = { sourceRoot: string; dest: string }

@@ -2,9 +2,11 @@ import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { journalSettingOn } from './journalSetting.js'
 import { ledgerClock } from './ledger.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import { isMnemeEnabled, mnemeProjectKey, projectRecordsDir } from './paths.js'
 import { registerSessionCloseAsk, registerSessionCloser, type SessionCloseAsk, type SessionCloseContext } from './sessionClose.js'
 import { JOURNAL_ENTRY_SHAPE, JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
@@ -69,13 +71,17 @@ export function parseJournal(raw: string): JournalEntry[] {
 }
 
 export function readJournal(projectKey: string = mnemeProjectKey()): JournalEntry[] {
+  const path = journalPath(projectKey)
   let raw: string
   try {
-    raw = readFileSync(journalPath(projectKey), 'utf8')
+    raw = readFileSync(path, 'utf8')
   } catch (error) {
+    if (isENOENT(error)) clearMnemeUnread(path)
+    else recordMnemeUnread(path, error)
     passedOver(error)
     return []
   }
+  clearMnemeUnread(path)
   return parseJournal(raw)
 }
 

@@ -61,3 +61,5 @@ prove-writer-reset-removed.ts
 prove-writer-runs.ts
 prove-x10-orphan-resync.ts
 prove-x10-tail-resync.ts
+prove-app-recording.ts
+prove-compose-buffer-recording.ts

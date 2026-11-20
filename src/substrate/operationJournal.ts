@@ -157,15 +157,15 @@ function decodeOp(raw: string): DurableOperation | null {
 
 type JournalFile = { name: string; op: DurableOperation }
 
-async function scanJournalDir(dir: string): Promise<{ records: JournalFile[]; rejected: string[] }> {
+async function scanJournalDir(dir: string, strict = false): Promise<{ records: JournalFile[]; rejected: string[] }> {
   let names: string[]
   try {
     names = await readdir(dir)
   } catch (error) {
-    if (getErrnoCode(error) !== 'ENOENT') {
-      logForDebugging(`[journal] ${dir} could not be listed (${getErrnoCode(error) ?? String(error)})`)
-      passedOver(error)
-    }
+    if (getErrnoCode(error) === 'ENOENT') return { records: [], rejected: [] }
+    if (strict) throw error
+    logForDebugging(`[journal] ${dir} could not be listed (${getErrnoCode(error) ?? String(error)})`)
+    passedOver(error)
     return { records: [], rejected: [] }
   }
   const records: JournalFile[] = []
@@ -203,8 +203,8 @@ async function scanJournalDir(dir: string): Promise<{ records: JournalFile[]; re
   return { records, rejected }
 }
 
-export async function listJournalOperations(dir: string): Promise<DurableOperation[]> {
-  return (await scanJournalDir(dir)).records.map(record => record.op)
+export async function listJournalOperations(dir: string, options?: { strict?: boolean }): Promise<DurableOperation[]> {
+  return (await scanJournalDir(dir, options?.strict === true)).records.map(record => record.op)
 }
 
 const dirChains = new Map<string, Promise<void>>()

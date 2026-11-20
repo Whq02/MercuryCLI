@@ -83,19 +83,39 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   const r = runSub(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const binDir = path.join(WORK, 'bin')
-    const marker = path.join(WORK, 'plain-gh-ran')
-    fs.mkdirSync(binDir, { recursive: true })
-    const fakeGh = path.join(binDir, 'gh')
-    fs.writeFileSync(fakeGh, '#!/bin/sh\\necho ran > ' + JSON.stringify(marker) + '\\necho ok\\n')
-    fs.chmodSync(fakeGh, 0o755)
-    process.env.PATH = binDir + ':' + (process.env.PATH ?? '')
-    process.env.MERCURY_GH_CMD = '{bad json'
-    const ghMod = await import(path.join(SRC, 'services/privateChannel/ghRelease.ts'))
-    out.badJson = await ghMod.gh(['--version'])
-    process.env.MERCURY_GH_CMD = '[]'
-    out.emptyArray = await ghMod.gh(['--version'])
-    out.plainRan = fs.existsSync(marker)
+    if (process.platform === 'win32') {
+      const { mock } = await import('bun:test')
+      const realCp = await import('node:child_process')
+      const seen = []
+      mock.module('node:child_process', () => ({
+        ...realCp,
+        execFile: (file, args, _opts, cb) => {
+          seen.push({ file, args })
+          queueMicrotask(() => cb(null, 'ok\\n', ''))
+          return { kill: () => {} }
+        },
+      }))
+      process.env.MERCURY_GH_CMD = '{bad json'
+      const ghMod = await import(path.join(SRC, 'services/privateChannel/ghRelease.ts'))
+      out.badJson = await ghMod.gh(['--version'])
+      process.env.MERCURY_GH_CMD = '[]'
+      out.emptyArray = await ghMod.gh(['--version'])
+      out.plainRan = seen.length === 2 && seen.every(s => Array.isArray(s.args) && s.args.at(-2) === 'gh' && s.args.at(-1) === '--version')
+    } else {
+      const binDir = path.join(WORK, 'bin')
+      const marker = path.join(WORK, 'plain-gh-ran')
+      fs.mkdirSync(binDir, { recursive: true })
+      const fakeGh = path.join(binDir, 'gh')
+      fs.writeFileSync(fakeGh, '#!/bin/sh\\necho ran > ' + JSON.stringify(marker) + '\\necho ok\\n')
+      fs.chmodSync(fakeGh, 0o755)
+      process.env.PATH = binDir + ':' + (process.env.PATH ?? '')
+      process.env.MERCURY_GH_CMD = '{bad json'
+      const ghMod = await import(path.join(SRC, 'services/privateChannel/ghRelease.ts'))
+      out.badJson = await ghMod.gh(['--version'])
+      process.env.MERCURY_GH_CMD = '[]'
+      out.emptyArray = await ghMod.gh(['--version'])
+      out.plainRan = fs.existsSync(marker)
+    }
   `)
   const badJson = r.badJson as { state?: string; stderr?: string }
   const emptyArray = r.emptyArray as { state?: string; stderr?: string }

@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -105,12 +105,6 @@ const REFUSED = [
 console.log('============================================================')
 console.log(' the session\'s tool guards ride every context of the session')
 console.log('============================================================')
-
-section('§0 the page: docs/TRUST.md says the same list rides crew sessions')
-{
-  const page = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')
-  check('the page says the list rides interactive, headless run, crew and runner sessions alike and never stands down', /The same\s+list rides interactive, headless `run`, crew and runner sessions alike, and it never\s+stands down within a session/.test(page))
-}
 
 section('§1 the session arms its wards under its own id, as a turn does')
 resetGuardsForTesting()

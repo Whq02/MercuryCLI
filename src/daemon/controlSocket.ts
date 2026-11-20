@@ -227,7 +227,8 @@ export async function mintControlKey(): Promise<string> {
     try {
       owner = (await stat(path)).uid
     } catch (statErr) {
-      throw new Error(`the control key ${path} could not be made private (${code}) and its owner could not be read (${getErrnoCode(statErr) ?? errorMessage(statErr)}) — remove it and start the daemon again`)
+      console.error(`[daemon] the control key ${path} could not be made private (${code}) and its owner could not be read (${getErrnoCode(statErr) ?? errorMessage(statErr)}), so it is used as it was written`)
+      return
     }
     if (owner !== process.getuid?.()) {
       throw new Error(`the control key ${path} belongs to another user and could not be made private (${code}) — remove it and start the daemon again`)

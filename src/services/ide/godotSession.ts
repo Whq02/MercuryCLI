@@ -318,7 +318,9 @@ async function probeVulcanState(root: string | undefined): Promise<GodotVulcanSt
     addon,
     ...(client ? { client } : {}),
     clientStatus: client?.status() ?? 'disconnected',
-    detail: `editor answering on 127.0.0.1:${port}`,
+    detail: addon.projectReadError
+      ? `editor answering on 127.0.0.1:${port}; project.godot could not be read (${addon.projectReadError})`
+      : `editor answering on 127.0.0.1:${port}`,
   }
 }
 
@@ -370,14 +372,22 @@ export async function buildGodotIdeSession(
   const root = findGodotProjectRoot(from)
   let project: GodotProjectResult
   if (root) {
-    const parsed = parseGodotProjectFile(root)
-    const mainScenePath = parsed.mainScene ? resolveResPath(root, parsed.mainScene) : undefined
-    project = {
-      state: 'ok',
-      root,
-      ...(parsed.name ? { name: parsed.name } : {}),
-      ...(parsed.mainScene ? { mainScene: parsed.mainScene } : {}),
-      ...(mainScenePath ? { mainScenePath } : {}),
+    try {
+      const parsed = parseGodotProjectFile(root)
+      const mainScenePath = parsed.mainScene ? resolveResPath(root, parsed.mainScene) : undefined
+      project = {
+        state: 'ok',
+        root,
+        ...(parsed.name ? { name: parsed.name } : {}),
+        ...(parsed.mainScene ? { mainScene: parsed.mainScene } : {}),
+        ...(mainScenePath ? { mainScenePath } : {}),
+      }
+    } catch (error) {
+      passedOver(error)
+      project = {
+        state: 'absent',
+        detail: `project.godot could not be read (${error instanceof Error ? error.message : String(error)})`,
+      }
     }
   } else {
     project = {

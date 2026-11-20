@@ -259,17 +259,34 @@ function registerBootBackgroundNodes(args: { sessionTitle: string | undefined })
     startBackgroundHousekeeping()
   })
   registerBackgroundNode('process-registry', async () => {
-    const { registerCockpit, recordProcessCensusAtBoot, COCKPIT_HEARTBEAT_MS } = await import('../daemon/processSweepRun.js')
+    const { beatCockpitRegistration, registerCockpit, recordProcessCensusAtBoot, COCKPIT_HEARTBEAT_MS } = await import('../daemon/processSweepRun.js')
     if (process.stdin.isTTY) {
-      const registration = await registerCockpit({ terminal: null })
-      if (registration !== null) {
-        const beat = startInterval(() => void registration.heartbeat(), COCKPIT_HEARTBEAT_MS)
-        beat.unref()
-        registerCleanup(async () => {
-          stopInterval(beat)
-          await registration.clear()
-        })
-      }
+      const register = () => registerCockpit({ terminal: null })
+      let registration = await register()
+      let beating = false
+      let stopped = false
+      const beat = startInterval(() => {
+        if (beating || stopped) return
+        beating = true
+        void beatCockpitRegistration(registration, register)
+          .then(next => {
+            if (stopped) {
+              void next?.clear()
+              return
+            }
+            registration = next
+          })
+          .catch(passedOver)
+          .finally(() => {
+            beating = false
+          })
+      }, COCKPIT_HEARTBEAT_MS)
+      beat.unref()
+      registerCleanup(async () => {
+        stopped = true
+        stopInterval(beat)
+        await registration?.clear()
+      })
     }
     const census = await recordProcessCensusAtBoot()
     logForDebugging(`process census at boot: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`)

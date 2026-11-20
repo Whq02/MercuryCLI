@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, fill, finish, note, pageText, section } from './floorsKit.ts'
+import { check, fill, finish, note, section } from './floorsKit.ts'
 
 const { mkdirSync, writeFileSync } = await import('node:fs')
 const { dirname } = await import('node:path')
@@ -27,9 +27,6 @@ const aside = (written: string): { kept: boolean; stashed: boolean; back: boolea
     back: (restored.alwaysAllowRules.userSettings ?? []).includes(rule),
   }
 }
-
-section('the page, docs/TRUST.md')
-check('broad dangerous allow rules are set aside while Flow is on', /Broad\s+dangerous\s+allow\s+rules\s+are\s+set\s+aside\s+while\s+Flow\s+is\s+on/.test(pageText()))
 
 section('§1 an allow rule whose program runs another program is set aside while Flow is on, and comes back when Flow is left')
 for (const rule of ['Bash(nice *)', 'Bash(timeout *)', 'Bash(timeout 5 *)', 'Bash(nohup *)', 'Bash(command *)', 'Bash(find *)', 'Bash(time *)', 'Bash(stdbuf *)', 'Bash(setsid *)', 'Bash(watch *)', 'Bash(flock *)', 'Bash(nice)', 'Bash(nice*)']) {

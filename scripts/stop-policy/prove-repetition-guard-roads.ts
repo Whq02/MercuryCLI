@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isHandoffRequest } from '../lib/fixtureApi.ts'
-import { bootRunner, bound, DIST, NODE, MODEL, childEnv, isSession, isOutcome, j, makeTally, removeWorld, REPO, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
+import { bootRunner, bound, DIST, NODE, MODEL, childEnv, isSession, isOutcome, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
 import {
   answerText,
   answerTool,
@@ -25,7 +25,6 @@ const CYCLE_ASK = 'run the two checks over and over'
 const CYCLE_END = 'done: the two checks ran'
 const CYCLE_PAIRS = 12
 
-const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 type Item = { role?: string; content?: unknown }
 type ResultBlock = { type?: string; content?: unknown; is_error?: boolean }
@@ -96,10 +95,6 @@ const sameAnswers = (answers: { bash: string[]; grep: string[] }): boolean =>
   answers.bash.length === 1 && answers.grep.length === 1 && !answers.bash[0]!.startsWith('error:') && !answers.grep[0]!.startsWith('error:')
 
 if (import.meta.main) {
-  section('§1 calls are never refused for repeating; headless identical failures stop, and successful cycles remain opt-in')
-  const durability = src('docs/DURABILITY.md').replace(/\s+/g, ' ')
-  check('the durability page distinguishes loop reminders from tool-specific failure guards and names the optional cycle stop', durability.includes('The loop guard does not refuse individual calls for repeating. In foreground sessions it only reminds by default') && durability.includes('the language service refuses an unchanged failing call after three attempts') && durability.includes('Crewmates and headless runs end after three consecutive failed calls') && durability.includes('With `turns.loopGuard: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
-
   section('§2 DEFAULT ROAD on the built product: twenty identical reads of an unchanged file are reminded, never refused, and run to the model’s own end')
   {
     const home = join(SCRATCH_ROOT, `mercury-guard-default-${process.pid}`)

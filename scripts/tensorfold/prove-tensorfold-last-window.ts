@@ -44,6 +44,8 @@ async function sealed(p: PanelCard): Promise<void> {
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
+const WINDOWS = process.platform === 'win32'
+const macRow = (label: string): void => console.log(`  [SKIP] ${label} — not read on Windows: the Mac's row (TensorFold's own engine, the MLX 2B on MAC_48); its stand-in engine does not start there (spawn produced no pid)`)
 const save = (name: string, p: PanelCard): void => {
   if (FRAMES === undefined) return
   writeFileSync(join(FRAMES, `${name}-${CARD_COLUMNS}x${CARD_ROWS}.txt`), p.lines().map(line => line.replace(/\s+$/, '')).join('\n') + '\n')
@@ -118,21 +120,25 @@ section('3 · the same on TensorFold\'s own engine (a Mac, the 2B): refused at 2
 {
   const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-last-window', free: () => need(262_144) - 2.2 * GIB })
   await sealed(p)
-  await p.press(KEY.enter)
-  await p.until(card => card.refused !== undefined, 10_000)
-  await p.press(KEY.left, 3)
-  await p.press(KEY.enter)
-  const up = await p.until(serving('qwen3.5-2b'), 30_000)
-  const served = p.card()
-  check('refused at 256k, ← ← ← to 32k and ↵: it is served at 32k', up && served.row.startsWith('Qwen3.5 2B local/qwen3.5-2b current 32k ctx ') && serve.servedTensorFold({ servedFile: p.servedFile })[0]?.window === 32_768, served.all)
-  await p.reopen()
-  await p.press('s')
-  await p.press('s')
-  await p.until(card => card.row.includes(' on disk '), 20_000)
-  const stopped = p.card()
-  save('stopped', p)
-  check('s, s: the row stands on disk 32k ctx 5.0 GiB and ↵ will run 32768, where it went back to 256k and 7.6 GiB', stopped.row === 'Qwen3.5 2B local/qwen3.5-2b on disk 32k ctx 5.0 GiB' && stopped.strip.includes('[32k]') && stopped.run.includes('--context 32768'), stopped.all)
-  check('each model keeps its own window in the store', remembered(QWEN_2B_REPO) === 32_768 && remembered(QWEN_4B_REPO) === 32_768 && storeText().includes('"mlx-community/qwen3.5-2b-mlx-4bit": 32768') && storeText().includes('"mlx-community/qwen3.5-4b-mlx-4bit": 32768'), storeText())
+  const SERVED = ['refused at 256k, ← ← ← to 32k and ↵: it is served at 32k', 's, s: the row stands on disk 32k ctx 5.0 GiB and ↵ will run 32768, where it went back to 256k and 7.6 GiB', 'each model keeps its own window in the store'] as const
+  if (WINDOWS) SERVED.forEach(macRow)
+  else {
+    await p.press(KEY.enter)
+    await p.until(card => card.refused !== undefined, 10_000)
+    await p.press(KEY.left, 3)
+    await p.press(KEY.enter)
+    const up = await p.until(serving('qwen3.5-2b'), 30_000)
+    const served = p.card()
+    check(SERVED[0], up && served.row.startsWith('Qwen3.5 2B local/qwen3.5-2b current 32k ctx ') && serve.servedTensorFold({ servedFile: p.servedFile })[0]?.window === 32_768, served.all)
+    await p.reopen()
+    await p.press('s')
+    await p.press('s')
+    await p.until(card => card.row.includes(' on disk '), 20_000)
+    const stopped = p.card()
+    save('stopped', p)
+    check(SERVED[1], stopped.row === 'Qwen3.5 2B local/qwen3.5-2b on disk 32k ctx 5.0 GiB' && stopped.strip.includes('[32k]') && stopped.run.includes('--context 32768'), stopped.all)
+    check(SERVED[2], remembered(QWEN_2B_REPO) === 32_768 && remembered(QWEN_4B_REPO) === 32_768 && storeText().includes('"mlx-community/qwen3.5-2b-mlx-4bit": 32768') && storeText().includes('"mlx-community/qwen3.5-4b-mlx-4bit": 32768'), storeText())
+  }
   await p.close()
 }
 
@@ -166,19 +172,23 @@ section('5 · what is remembered: the window of a session\'s start that came up,
   const io = (free: number, serviceEnv: Record<string, string> = {}) => ({ binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: { ...world.serviceEnv, ...serviceEnv }, servedFile, machine: MAC_48, app: async () => ({ running: false }), freeMemoryBytes: async () => free, rememberPort: () => undefined, forgetPort: () => undefined, rememberWindow: (repo: string, window: number) => void calls.push([repo, window]) }) as never
   const tight = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port: await freePort() }, io(need(262_144) - 2.2 * GIB)).then(() => 'served', (error: unknown) => (error instanceof serve.TensorFoldStartError && error.tight !== null ? 'tight' : String(error)))
   check('a start refused for memory remembers nothing', tight === 'tight' && calls.length === 0, `${tight} ${JSON.stringify(calls)}`)
-  const refusedByEngine = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port: await freePort() }, io(40 * GIB, { FAKE_TENSORFOLD_SERVE: 'refuse-memory' })).then(() => 'served', (error: unknown) => (error instanceof serve.TensorFoldStartError && error.refusal !== null ? 'refused' : String(error)))
-  check('a start the engine refuses remembers nothing', refusedByEngine === 'refused' && calls.length === 0, `${refusedByEngine} ${JSON.stringify(calls)}`)
-  const session = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 65_536, port: await freePort() }, io(40 * GIB))
-  check('a session\'s start that comes up remembers its model and its window, once', session.window === 65_536 && JSON.stringify(calls) === JSON.stringify([[QWEN_2B_REPO, 65_536]]), JSON.stringify(calls))
-  const afterSession = calls.length
-  const helper = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 32_768, name: 'qwen3.5-2b', port: await freePort(), promptCacheGib: 1, role: 'helper' }, io(40 * GIB))
-  check('the helper\'s start remembers nothing: its window is not the one a person chose', helper.window === 32_768 && calls.length === afterSession, JSON.stringify(calls))
-  await serve.stopTensorFold('qwen3.5-2b', { servedFile, role: 'helper', forgetPort: () => undefined })
-  await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined })
-  check('a stop remembers nothing more', calls.length === afterSession && serve.servedTensorFold({ servedFile }).length === 0, JSON.stringify(calls))
-  const blind = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 65_536, port: await freePort() }, { ...io(40 * GIB), app: async () => { throw new Error('the process list could not be read') } }).then(() => 'served', (error: unknown) => String(error))
-  check('a start goes on when whether the app is already serving could not be read: a check that could not finish refuses nothing', blind === 'served', blind)
-  if (blind === 'served') await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined })
+  const STARTS = ['a start the engine refuses remembers nothing', 'a session\'s start that comes up remembers its model and its window, once', 'the helper\'s start remembers nothing: its window is not the one a person chose', 'a stop remembers nothing more', 'a start goes on when whether the app is already serving could not be read: a check that could not finish refuses nothing'] as const
+  if (WINDOWS) STARTS.forEach(macRow)
+  else {
+    const refusedByEngine = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port: await freePort() }, io(40 * GIB, { FAKE_TENSORFOLD_SERVE: 'refuse-memory' })).then(() => 'served', (error: unknown) => (error instanceof serve.TensorFoldStartError && error.refusal !== null ? 'refused' : String(error)))
+    check(STARTS[0], refusedByEngine === 'refused' && calls.length === 0, `${refusedByEngine} ${JSON.stringify(calls)}`)
+    const session = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 65_536, port: await freePort() }, io(40 * GIB))
+    check(STARTS[1], session.window === 65_536 && JSON.stringify(calls) === JSON.stringify([[QWEN_2B_REPO, 65_536]]), JSON.stringify(calls))
+    const afterSession = calls.length
+    const helper = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 32_768, name: 'qwen3.5-2b', port: await freePort(), promptCacheGib: 1, role: 'helper' }, io(40 * GIB))
+    check(STARTS[2], helper.window === 32_768 && calls.length === afterSession, JSON.stringify(calls))
+    await serve.stopTensorFold('qwen3.5-2b', { servedFile, role: 'helper', forgetPort: () => undefined })
+    await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined })
+    check(STARTS[3], calls.length === afterSession && serve.servedTensorFold({ servedFile }).length === 0, JSON.stringify(calls))
+    const blind = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 65_536, port: await freePort() }, { ...io(40 * GIB), app: async () => { throw new Error('the process list could not be read') } }).then(() => 'served', (error: unknown) => String(error))
+    check(STARTS[4], blind === 'served', blind)
+    if (blind === 'served') await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined })
+  }
   rmSync(world.root, { recursive: true, force: true })
 }
 

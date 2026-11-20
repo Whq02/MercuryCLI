@@ -328,8 +328,9 @@ async function* runPowerShell(
 
   async function postProcess(result: ExecResult): Promise<Out> {
     const notExecuted = result.preSpawnError !== undefined || result.backgroundTaskId !== undefined
+    let prLinkNote: string | undefined
     if (!notExecuted) {
-      trackGitOperations(input.command, result.code, result.stdout)
+      prLinkNote = await trackGitOperations(input.command, result.code, result.stdout)
     }
     let gitOperation: unknown
     if (!notExecuted && result.code === 0) {
@@ -352,6 +353,7 @@ async function* runPowerShell(
     const accumulator = new EndTruncatingAccumulator()
     const trailingTrimmed = result.stdout.trimEnd()
     accumulator.append(trailingTrimmed + '\n')
+    if (prLinkNote) accumulator.append(prLinkNote + '\n')
     const redact = createShellResultRedactor()
     let out = stripEmptyLines(redact(accumulator.toString()))
     out = await applyShellOutputFilter(out, { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })

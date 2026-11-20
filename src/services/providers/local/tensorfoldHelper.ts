@@ -84,20 +84,29 @@ export function helperEngineIsAdapter(reads: { candidates?: () => string[]; exec
   return !(reads.candidates ?? (() => tensorFoldBinaryCandidates()))().some(executable)
 }
 
-export function helper2bOnDisk(reads: { snapshot?: (repo: string) => boolean; adapter?: boolean } = {}): boolean {
-  if (reads.snapshot !== undefined) return reads.snapshot(HELPER_2B_REPO)
+function readHelper2bOnDisk(reads: { snapshot?: (repo: string) => boolean; adapter?: boolean } = {}): { onDisk: boolean; readError?: { path: string; error: string } } {
+  if (reads.snapshot !== undefined) return { onDisk: reads.snapshot(HELPER_2B_REPO) }
   try {
     if (reads.adapter ?? helperEngineIsAdapter()) {
       const { ggufOnDisk, hfCacheRoot } = require('../../tensorfold/hfCache.js') as typeof import('../../tensorfold/hfCache.js')
-      return ggufOnDisk(hfCacheRoot(), QWEN_2B_GGUF.gguf).complete
+      return { onDisk: ggufOnDisk(hfCacheRoot(), QWEN_2B_GGUF.gguf).complete }
     }
     const { hfCacheRoot, readHfSnapshot } = require('../../tensorfold/inventory.js') as typeof import('../../tensorfold/inventory.js')
-    const snapshot = readHfSnapshot(hfCacheRoot(), HELPER_2B_REPO)
-    return snapshot !== undefined && snapshot.weightsBytes > 0 && snapshot.incompleteBytes === 0
+    let readError: { path: string; error: string } | undefined
+    const snapshot = readHfSnapshot(hfCacheRoot(), HELPER_2B_REPO, {
+      onReadError: failure => {
+        readError ??= failure
+      },
+    })
+    return { onDisk: snapshot !== undefined && snapshot.weightsBytes > 0 && snapshot.incompleteBytes === 0, ...(readError !== undefined ? { readError } : {}) }
   } catch (error) {
     passedOver(error)
-    return false
+    return { onDisk: false }
   }
+}
+
+export function helper2bOnDisk(reads: { snapshot?: (repo: string) => boolean; adapter?: boolean } = {}): boolean {
+  return readHelper2bOnDisk(reads).onDisk
 }
 
 const SINGLE_SLOT_FAMILIES: readonly RegExp[] = [/qwen3[._-]?8[-_]27b/i]
@@ -174,9 +183,23 @@ export function helperModelChoices(reads: { usable?: number; session?: LocalMode
   const has4b = reads.banked4b ?? banked4b() !== undefined
   const installed = reads.engineFound ?? pinnedReads?.engineFound ?? tensorFoldEngineFound()
   const adapter = reads.adapter ?? (reads.engineFound === undefined && pinnedReads?.engineFound === undefined && helperEngineIsAdapter())
-  const twoBOnDisk = reads.twoBOnDisk ?? pinnedReads?.twoBOnDisk ?? (installed && helper2bOnDisk({ adapter }))
+  const twoBCheck =
+    reads.twoBOnDisk !== undefined
+      ? { onDisk: reads.twoBOnDisk }
+      : pinnedReads?.twoBOnDisk !== undefined
+        ? { onDisk: pinnedReads.twoBOnDisk }
+        : installed
+          ? readHelper2bOnDisk({ adapter })
+          : { onDisk: false }
+  const twoBOnDisk = twoBCheck.onDisk
   const fit = (bytes: number): 'fits' | 'does not fit' => (bytes <= usable ? 'fits' : 'does not fit')
-  const twoBMissing = !installed ? HELPER_NOT_INSTALLED_REASON : !twoBOnDisk ? HELPER_2B_NOT_PULLED_REASON : undefined
+  const twoBMissing = !installed
+    ? HELPER_NOT_INSTALLED_REASON
+    : twoBCheck.readError !== undefined && !twoBOnDisk
+      ? `${twoBCheck.readError.path} could not be read (${twoBCheck.readError.error})`
+      : !twoBOnDisk
+        ? HELPER_2B_NOT_PULLED_REASON
+        : undefined
   const twoB: HelperModelChoice = {
     size: '2b',
     label: adapter ? `2B (${ADAPTER_ENGINE_WORDS})` : '2B (TensorFold)',

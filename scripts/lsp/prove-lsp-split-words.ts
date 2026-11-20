@@ -24,7 +24,7 @@ try {
   const map = computeHarnessMapLines().join('\n')
   check('the harness map repeats none of it (the roster lists the tools)', !map.includes('Code intelligence is native'))
   for (const tool of available.LSP_TOOLS) {
-    const generated = '/work/project/scripts/builtin-tools/fixtures/tool-census.json'
+    const generated = '/work/project/scripts/settings/settings-schema.json'
     const writeTool = !['LspRead', 'LspRequest'].includes(tool.name)
     const input = { filePath: generated, targetPath: generated, newPath: generated, apply: true }
     const verdict = evaluateWards(BUILTIN_WARDS, { toolName: tool.name, input, resolvePath: path => ({ path, root: '/work/project' }) })

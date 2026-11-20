@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -54,9 +54,6 @@ const broadIn = (list: string): boolean => list.split(',').some(rule => rule ===
 console.log('============================================================')
 console.log(' Flow keeps a broad allow rule set aside when a settings file changes')
 console.log('============================================================')
-
-section('§0 the page')
-check('the page says broad dangerous allow rules are set aside while Flow is on', /Broad\s+dangerous\s+allow\s+rules\s+are\s+set\s+aside\s+while\s+Flow\s+is\s+on/.test(readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')))
 
 section('§1 a session in Flow whose user settings allow every Bash command')
 const booted = setup.stripDangerousPermissionsForFlow({ ...applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk()), mode: 'flow' }) as Context

@@ -11,5 +11,4 @@ prove-identity-and-headless.ts
 prove-managed-precedence.ts
 prove-bounded-subscribers.ts
 prove-body-shape-registry.ts
-prove-attachment-registry.ts
 prove-persisted-body-shape.ts

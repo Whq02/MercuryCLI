@@ -2,3 +2,4 @@ prove-nix-release-pins.ts
 prove-release-local.ts
 prove-windows-launcher.ts
 prove-windows-payload-bash-pack.ts
+prove-changelog-one-source.ts

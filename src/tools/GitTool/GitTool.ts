@@ -363,7 +363,12 @@ async function runOp(
       if (input.cancel) {
         const record = cancelRunWatch(owner, input.run)
         return record
-          ? { result: `watch on run ${input.run} — stop requested (state: ${record.state})`, outcome: 'succeeded' }
+          ? {
+              result: record.stopHookError
+                ? `watch on run ${input.run} — ${record.stopHookError}`
+                : `watch on run ${input.run} — stop requested (state: ${record.state})`,
+              outcome: record.stopHookError ? 'failed' : 'succeeded',
+            }
           : { result: `no live watch on run ${input.run} in this conversation`, outcome: 'no-change' }
       }
       const out = await watchRun(owner, root, input.run)

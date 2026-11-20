@@ -166,7 +166,7 @@ const UPDATING_MD = updatingDoc(NODE_POLICY, VERSION)
 
 const { releaseNotesFor } = await import('./notesFromChangelog.mjs')
 const RELEASE_NOTES = releaseNotesFor(VERSION, ROOT)
-if (!RELEASE_NOTES) fail(`src/constants/changelog.ts carries no ## ${VERSION} section — author the release notes there before packaging`)
+if (!RELEASE_NOTES) fail(`docs/releases/${VERSION}.md carries no ## What changed section — author the release notes there before packaging`)
 
 const noticesSrc = join(ROOT, 'THIRD_PARTY_NOTICES.md')
 if (!existsSync(noticesSrc)) fail('THIRD_PARTY_NOTICES.md missing — run bun run scripts/distribution/generate-third-party-notices.ts')

@@ -18,6 +18,7 @@ import {
 } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startTimeout } from '../utils/timers.js'
 
@@ -163,10 +164,14 @@ function readMaintenanceReceiptsStrict(dir: string, n: number): MnemeMaintenance
 }
 
 export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10): MnemeMaintenanceReceipt[] {
+  const p = receiptPath(dir)
   try {
-    return readMaintenanceReceiptsStrict(dir, n)
+    const rows = readMaintenanceReceiptsStrict(dir, n)
+    clearMnemeUnread(p)
+    return rows
   } catch (e) {
-    logForDebugging(`mneme maintenance receipts unreadable at ${receiptPath(dir)}: ${String(e)}`)
+    recordMnemeUnread(p, e)
+    logForDebugging(`mneme maintenance receipts unreadable at ${p}: ${String(e)}`)
     passedOver(e)
     return []
   }

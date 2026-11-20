@@ -1,6 +1,5 @@
 prove-nix-profile.ts
 prove-nix-wrapper.ts
-prove-current-release-words.ts
 prove-channel-core.ts
 prove-update-channel-rule.ts
 prove-update-notice-newer.ts

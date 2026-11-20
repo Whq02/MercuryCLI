@@ -79,8 +79,8 @@ async function run(): Promise<void> {
     const lockedFile = join(root, 'locked.ts')
     writeFileSync(lockedFile, 'export function secretFn() { return 2 }\n', 'utf8')
     const brokenLink = join(root, 'broken.ts')
-    symlinkSync(join(root, 'does-not-exist.ts'), brokenLink)
     if (POSIX_NON_ROOT) {
+      symlinkSync(join(root, 'does-not-exist.ts'), brokenLink)
       chmodSync(sub, 0o000)
       chmodSync(lockedFile, 0o000)
       const res = structureQuery.runStructureQuery(root, { select: 'function' })
@@ -92,7 +92,7 @@ async function run(): Promise<void> {
       check('structure-query-unreadable-file-reported', failedFiles.includes('locked.ts'), `parseFailures=${JSON.stringify(failedFiles)}`)
     } else {
       skip('structure-query-unreadable-dir-reported', 'needs POSIX non-root')
-      skip('structure-query-broken-stat-reported', 'needs POSIX non-root')
+      skip('structure-query-broken-stat-reported', process.platform === 'win32' ? 'not read on Windows: no symlink privilege' : 'needs POSIX non-root')
       skip('structure-query-unreadable-file-reported', 'needs POSIX non-root')
     }
   }

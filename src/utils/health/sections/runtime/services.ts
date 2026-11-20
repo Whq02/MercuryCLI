@@ -197,7 +197,7 @@ export function vulcanCheck(): CheckSpec {
       const parts = [
         `project ${root}`,
         s.installed ? `addon installed${s.digestMatch ? '' : s.bundledFiles === 0 ? ' (dev bundle empty)' : ' (out of date — op:"vulcan_install" refreshes it)'}` : 'addon NOT installed',
-        s.enabled ? 'addon enabled' : 'addon not enabled',
+        s.projectReadError ? `project.godot could not be read (${s.projectReadError})` : s.enabled ? 'addon enabled' : 'addon not enabled',
         presence.reachable ? `bridge up :${port}` : `${presence.words} (:${port} dark)`,
         `engine workers ${engineWorkers.count}${engineWorkers.source === 'flag' ? ' (MERCURY_GODOT_WORKERS)' : ''}`,
       ]

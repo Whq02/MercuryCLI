@@ -200,4 +200,10 @@ function workbenchFacts(): { attention: AttentionFact[]; relations: RelationFact
   return gatherWithLifecycle(getWorkbenchSnapshot(), Date.now())
 }
 
-registerAttentionGatherer(workbenchFacts, { subscribe: subscribeWorkbench })
+let registered = false
+
+export function registerWorkbenchAttentionGatherer(): void {
+  if (registered) return
+  registered = true
+  registerAttentionGatherer(workbenchFacts, { subscribe: subscribeWorkbench })
+}

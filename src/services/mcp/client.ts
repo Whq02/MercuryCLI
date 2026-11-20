@@ -341,7 +341,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
 
 export const connectToServer = memoize(connectImpl, getServerCacheKey)
 
-export async function clearServerCache(name: string, serverRef: ScopedMcpServerConfig): Promise<void> {
+export async function clearServerCache(name: string, serverRef: ScopedMcpServerConfig): Promise<{ cleanupError?: string }> {
+  let cleanupError: string | undefined
   const memoized = connectToServer.cache.get(getServerCacheKey(name, serverRef)) as
     | ReturnType<typeof connectToServer>
     | undefined
@@ -351,6 +352,7 @@ export async function clearServerCache(name: string, serverRef: ScopedMcpServerC
       if (existing.type === 'connected') await existing.cleanup()
     } catch (error) {
       passedOver(error)
+      cleanupError = error instanceof Error ? error.message : String(error)
     }
   }
   connectToServer.cache.delete(getServerCacheKey(name, serverRef))
@@ -358,6 +360,7 @@ export async function clearServerCache(name: string, serverRef: ScopedMcpServerC
   fetchResourcesForClient.cache.delete(name)
   fetchCommandsForClient.cache.delete(name)
   forgetHiddenCharacters('mcp', { group: name })
+  return cleanupError !== undefined ? { cleanupError } : {}
 }
 
 export async function ensureConnectedClient(client: MCPServerConnection): Promise<ConnectedMCPServer> {

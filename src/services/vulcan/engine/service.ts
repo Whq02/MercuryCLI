@@ -461,7 +461,8 @@ export class EngineJobService {
     try {
       processes = await this.census()
     } catch (error) {
-      throw new Error(`native run refused: whether another Godot holds the display could not be read (${error instanceof Error ? error.message : String(error)}) — pass displayShared:true to run beside it`)
+      logError(new Error(`whether another Godot holds the display could not be read (${error instanceof Error ? error.message : String(error)}), so the native run goes on`, { cause: error }))
+      return null
     }
     const holder = processes.find(p => !p.headless && !(p.project !== undefined && isEnginePath(this.projectRoot, p.project)))
     return holder ? describeGodotProcess(holder) : null

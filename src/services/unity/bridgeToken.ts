@@ -24,14 +24,26 @@ export function ensureUnityBridgeToken(projectRoot: string): string {
   return token
 }
 
-export function readUnityBridgeToken(projectRoot: string): string | undefined {
+type UnityBridgeTokenOutcome =
+  | { state: 'present'; token: string }
+  | { state: 'absent' }
+  | { state: 'unreadable'; path: string; error: string }
+
+export function readUnityBridgeTokenOutcome(projectRoot: string): UnityBridgeTokenOutcome {
   const override = unityBridgeTokenOverride()
-  if (override) return override
+  if (override) return { state: 'present', token: override }
+  const file = unityBridgeTokenPath(projectRoot)
   try {
-    const existing = readFileSync(unityBridgeTokenPath(projectRoot), 'utf8').trim()
-    return /^[0-9a-f]{64}$/.test(existing) ? existing : undefined
+    const existing = readFileSync(file, 'utf8').trim()
+    return /^[0-9a-f]{64}$/.test(existing) ? { state: 'present', token: existing } : { state: 'absent' }
   } catch (error) {
     passedOver(error)
-    return undefined
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { state: 'absent' }
+    return { state: 'unreadable', path: file, error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+export function readUnityBridgeToken(projectRoot: string): string | undefined {
+  const outcome = readUnityBridgeTokenOutcome(projectRoot)
+  return outcome.state === 'present' ? outcome.token : undefined
 }

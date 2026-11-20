@@ -154,7 +154,7 @@ export function memoryLifecycleCheck(): CheckSpec {
     id: 'memory-lifecycle',
     label: 'Memory lifecycle',
     run: async () => {
-      const { mnemeEnabled } = await import('../../../../mneme/mnemeGates.js')
+      const { mnemeEnabled, mnemeLibraryDir } = await import('../../../../mneme/mnemeGates.js')
       if (!mnemeEnabled()) {
         return {
           status: 'off' as const,
@@ -162,7 +162,15 @@ export function memoryLifecycleCheck(): CheckSpec {
         }
       }
       const { mnemeStatus } = await import('../../../../mneme/mnemeMaintenance.js')
+      const { mnemeUnreadSentence } = await import('../../../../mneme/mnemeUnread.js')
       const st = mnemeStatus()
+      const unread = mnemeUnreadSentence([mnemeLibraryDir()])
+      if (unread !== null) {
+        return {
+          status: 'warn' as const,
+          evidence: unread,
+        }
+      }
       const evidence = [
         `memory: ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`,
         st.running ? 'maintenance running' : st.due ? `maintenance DUE (${st.dueReason})` : 'maintenance idle',

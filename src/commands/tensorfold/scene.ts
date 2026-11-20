@@ -8,7 +8,7 @@ import { localServerName } from '../../services/providers/local/localCatalogue.j
 import { cachedLocalModels, type LocalModelRecord } from '../../services/providers/local/localDiscovery.js'
 import { detectTensorFoldApp, type TensorFoldAppState } from '../../services/providers/local/tensorfoldApp.js'
 import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
-import { tensorFoldHostAddress, tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
+import { tensorFoldHostAddress, tensorFoldHosts, tensorFoldHostsReadError } from '../../services/providers/local/tensorfoldHosts.js'
 import { sameUrl, withDiscoveredHosts } from '../../components/tensorfold/tensorfoldFacts.js'
 import { lastTensorFoldTurn } from '../../services/providers/local/tensorfoldUsage.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldServed } from '../../services/tensorfold/contracts.js'
@@ -18,7 +18,7 @@ import type { TensorFoldMachineTruth } from '../../services/tensorfold/fit.js'
 import { adapterNeedsLlamaCpp, llamaCppInstallPlan, tensorFoldInstallPlan, type InstallIo, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
 import { isLoopbackUrl } from '../../utils/privacyLevel.js'
 import { hfCacheRoot } from '../../services/tensorfold/hfCache.js'
-import { bestTensorFoldFit, hfCacheWords, readTensorFoldInventory, type InventoryIo, type TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
+import { bestTensorFoldFit, hfCacheWords, readTensorFoldInventory, type InventoryIo, type TensorFoldInventoryReadError, type TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
 import { pullPace, pullPercent, pullProgressWords, type PullPace } from '../../services/tensorfold/pull.js'
 import { refusalNextStep, refusedWords, wiredLimitCommand, wiredLimitCostWords, type TensorFoldRefusal } from '../../services/tensorfold/refusal.js'
 import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TENSORFOLD_HOST, type ServeIo, type TensorFoldServedByEngine } from '../../services/tensorfold/serve.js'
@@ -63,6 +63,7 @@ export type TensorFoldPanelFacts = {
   current?: string
   landing?: string
   newer?: string
+  readNotice?: string
   acts: Readonly<Record<string, TensorFoldAct>>
   other?: { input: string; refused?: string; read?: TensorFoldInventoryRow }
   port: { next: number; busy?: { port: number; answersAs?: string } }
@@ -200,9 +201,15 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const served = io.served ?? servedTensorFold(io)
   const helperServed = quietly(() => servedTensorFold({ ...io, role: 'helper' }), [] as readonly TensorFoldServed[])
   const records = io.localModels?.() ?? cachedLocalModels()
-  const rows = platform === 'win32' && engine === null ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
+  const inventoryReadErrors: TensorFoldInventoryReadError[] = []
+  const recordInventoryReadError = (failure: TensorFoldInventoryReadError): void => {
+    io.onReadError?.(failure)
+    if (!inventoryReadErrors.some(item => item.path === failure.path)) inventoryReadErrors.push(failure)
+  }
+  const rows = platform === 'win32' && engine === null ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served, onReadError: recordInventoryReadError }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
   const current = io.current
   const turn = quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined)
+  const hostsReadError = io.hosts === undefined ? tensorFoldHostsReadError() : undefined
   const hosts = withDiscoveredHosts(quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])).map(host => host.origin === 'pod' && host.lastReply === undefined && host.serving !== undefined && turn !== undefined && turn.address === tensorFoldHostAddress(host.baseUrl) && (turn.model === host.serving || turn.model.endsWith(`/${host.serving}`)) ? { ...host, lastReply: { ...(turn.timeToFirstTokenS !== undefined ? { firstTokenMs: turn.timeToFirstTokenS * 1000 } : {}), ...(turn.tokensPerSecond !== undefined ? { tokensPerSecond: turn.tokensPerSecond } : {}) } } : host)
   const outside = outsideOf(records, served, helperServed, hosts, current).filter(server => !hosts.some(host => sameUrl(host.baseUrl, server.baseUrl)))
   const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
@@ -241,7 +248,12 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   }
   const landing = landingOf(facts)
   const newer = newerEngineLine(engine, tensorFoldInstallPlan(machine, { ...io, platform }))
-  return { ...facts, ...(landing !== undefined ? { landing } : {}), ...(newer !== undefined ? { newer } : {}), live: liveLineOf(facts), copySupportOffered: Object.values(state.acts).some(act => act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight') }
+  const readNotices = [
+    ...(inventoryReadErrors.length > 0 ? [`${inventoryReadErrors[0]!.path} could not be read (${inventoryReadErrors[0]!.error}), so the models in it are not listed`] : []),
+    ...(hostsReadError !== undefined ? [hostsReadError] : []),
+  ]
+  const readNotice = readNotices.length > 0 ? readNotices.join(' · ') : undefined
+  return { ...facts, ...(landing !== undefined ? { landing } : {}), ...(newer !== undefined ? { newer } : {}), ...(readNotice !== undefined ? { readNotice } : {}), live: liveLineOf(facts), copySupportOffered: Object.values(state.acts).some(act => act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight') }
 }
 
 function releaseOlder(installed: string, supported: string): boolean {

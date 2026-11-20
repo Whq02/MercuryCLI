@@ -36,13 +36,28 @@ enableConfigs()
 const { setProjectRoot } = await import('../../src/bootstrap/state.ts')
 setProjectRoot(project)
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
+const { mnemeUnreadSentence } = await import('../../src/mneme/mnemeUnread.ts')
+const { lineagePath, mnemeProjectKey } = await import('../../src/mneme/paths.ts')
 const { pinsPath, readPins, usagePath, readUsage } = await import('../../src/mneme/mnemeUsage.ts')
 const { libraryMetaPath, readLibraryMeta } = await import('../../src/mneme/mnemeLibrary.ts')
+const { readLedger } = await import('../../src/mneme/ledger.ts')
+const { currentBufferPath, readBuffer, readConsumingRows } = await import('../../src/mneme/mnemeBuffer.ts')
+const { currentLedger } = await import('../../src/mneme/mnemeFootnotes.ts')
+const { frontPagePath, pinnedStatusPath, readPinnedStatus } = await import('../../src/mneme/mnemeFrontPage.ts')
+const { handoverReceiptPath, readHandoverReceipt } = await import('../../src/mneme/mnemeHandover.ts')
+const { readMaintenanceReceipts } = await import('../../src/mneme/mnemeMaintenance.ts')
+const { journalPath, readJournal } = await import('../../src/mneme/journal.ts')
 const { call: callMemoryCommand } = await import('../../src/commands/memory/memory.tsx')
 const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.tsx')
+const { configMemoryRows } = await import('../../src/components/Settings/config/configRowsMemory.tsx')
+const { memoryChecks } = await import('../../src/utils/health/sections/memory.ts')
+const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+const { readThinkingDropLedger, thinkingDropLedgerPath } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+const { memoryLifecycleCheck } = await import('../../src/utils/health/sections/settings/prompt.ts')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { Box } = await import('../../src/ink.ts')
+const { dirname } = await import('node:path')
 
 const dir = mnemeLibraryDir()
 mkdirSync(dir, { recursive: true })
@@ -155,6 +170,212 @@ try {
     readLibraryMeta(dir)
     const statsLibAfter = await memoryStatsText()
     check('fixing library.json clears the unread sentence', !statsLibAfter.includes('could not be read'), statsLibAfter)
+  }
+
+  section('§2 w01-2: unreadable ledger, buffer, consuming rows, pinned status, handover, maintenance, journal')
+  {
+    const projectKey = mnemeProjectKey()
+    const front = frontPagePath(dir)
+    writeFileSync(front, '# Memory\n## Index\n- alpha (1 fact)\n')
+    const memCheck = memoryChecks().find(c => c.id === 'memory')!
+    const lifeCheck = memoryLifecycleCheck()
+
+    const ps = pinnedStatusPath(dir)
+    writeFileSync(ps, '{not json')
+    check('corrupt pinned-status.json keeps readPinnedStatus null', readPinnedStatus(dir) === null)
+    const memPinned = await memCheck.run()
+    check(
+      'memory health row warns with unread sentence for corrupt pinned-status.json',
+      memPinned.status === 'warn' && memPinned.evidence.includes(`${ps} could not be read (`) && memPinned.evidence.includes('so what it holds is not shown — fix or remove the file.'),
+      JSON.stringify(memPinned),
+    )
+    const cfgRows = configMemoryRows({
+      config: {} as never,
+      merged: {} as never,
+      tokens: { warning: 'yellow', textSecondary: 'gray' } as never,
+      boolValue: () => null,
+      writeGlobal: () => {},
+      writeSource: () => false,
+      recordToggle: () => {},
+      recordSet: () => {},
+      bump: () => {},
+      themeSetting: 'dark' as never,
+    })
+    const pinnedRow = cfgRows.find(r => r.id === 'memory.pinnedLimit')
+    check(
+      'configMemoryRows warning shows unread sentence for corrupt pinned-status.json',
+      typeof pinnedRow?.warning === 'string' && pinnedRow.warning.includes(`${ps} could not be read (`) && !pinnedRow.warning.includes('0 rules pinned'),
+      String(pinnedRow?.warning),
+    )
+    unlinkSync(ps)
+    readPinnedStatus(dir)
+    const memPinnedAfter = await memCheck.run()
+    check('removing corrupt pinned-status.json restores memory health row to ok', memPinnedAfter.status === 'ok', JSON.stringify(memPinnedAfter))
+
+    const ho = handoverReceiptPath(dir)
+    writeFileSync(ho, '{not json')
+    check('corrupt handover.json keeps readHandoverReceipt null', readHandoverReceipt(dir) === null)
+    const memHandover = await memCheck.run()
+    check(
+      'memory health row warns with unread sentence for corrupt handover.json',
+      memHandover.status === 'warn' && memHandover.evidence.includes(`${ho} could not be read (`) && memHandover.evidence.includes('so what it holds is not shown — fix or remove the file.'),
+      JSON.stringify(memHandover),
+    )
+    unlinkSync(ho)
+    readHandoverReceipt(dir)
+
+    if (POSIX_MODES) {
+      const bufPath = currentBufferPath(dir)
+      writeFileSync(bufPath, '{"ts":"2026-01-01T00:00:00.000Z","source":"t","text":"hi"}\n', { mode: 0o600 })
+      chmodSync(bufPath, 0o200)
+      try {
+        check('unreadable current.jsonl keeps readBuffer []', readBuffer(dir).length === 0)
+        const lifeBuf = await lifeCheck.run()
+        check(
+          'memory-lifecycle health row warns with unread sentence for unreadable current.jsonl',
+          lifeBuf.status === 'warn' && lifeBuf.evidence.includes(`${bufPath} could not be read (`) && lifeBuf.evidence.includes('so what it holds is not shown — fix or remove the file.'),
+          JSON.stringify(lifeBuf),
+        )
+      } finally {
+        chmodSync(bufPath, 0o600)
+        unlinkSync(bufPath)
+      }
+      readBuffer(dir)
+
+      const consPath = join(dir, 'consuming-1.jsonl')
+      writeFileSync(consPath, '{"ts":"2026-01-01T00:00:00.000Z","source":"t","text":"hi"}\n', { mode: 0o600 })
+      chmodSync(consPath, 0o200)
+      try {
+        check('unreadable consuming-*.jsonl keeps readConsumingRows []', readConsumingRows(dir).length === 0)
+        const lifeCons = await lifeCheck.run()
+        check(
+          'memory-lifecycle health row warns with unread sentence for unreadable consuming-*.jsonl',
+          lifeCons.status === 'warn' && lifeCons.evidence.includes(`${consPath} could not be read (`),
+          JSON.stringify(lifeCons),
+        )
+      } finally {
+        chmodSync(consPath, 0o600)
+        unlinkSync(consPath)
+      }
+      readConsumingRows(dir)
+      const lifeConsAfter = await lifeCheck.run()
+      check('removing unreadable consuming-*.jsonl clears memory-lifecycle warning', lifeConsAfter.status === 'ok', JSON.stringify(lifeConsAfter))
+
+      chmodSync(dir, 0o300)
+      try {
+        check('unreadable library dir keeps readConsumingRows []', readConsumingRows(dir).length === 0)
+        const dirUnread = mnemeUnreadSentence([dir])
+        check(
+          'mnemeUnread records unread sentence for unreadable library dir',
+          dirUnread !== null && dirUnread.includes(`${dir} could not be read (`),
+          String(dirUnread),
+        )
+      } finally {
+        chmodSync(dir, 0o700)
+      }
+      readConsumingRows(dir)
+      check('restoring library dir clears unread sentence', mnemeUnreadSentence([dir]) === null, String(mnemeUnreadSentence([dir])))
+
+      const maintPath = join(dir, 'maintenance.jsonl')
+      writeFileSync(maintPath, '{"ts":"2026-01-01T00:00:00.000Z","trigger":"operator","ran":true,"reason":"ok"}\n', { mode: 0o600 })
+      chmodSync(maintPath, 0o200)
+      try {
+        check('unreadable maintenance.jsonl keeps readMaintenanceReceipts []', readMaintenanceReceipts(dir).length === 0)
+        const statsMaint = await memoryStatsText()
+        check(
+          '/memory stats shows unread sentence for unreadable maintenance.jsonl',
+          statsMaint.includes(`${maintPath} could not be read (`),
+          statsMaint,
+        )
+      } finally {
+        chmodSync(maintPath, 0o600)
+        unlinkSync(maintPath)
+      }
+      readMaintenanceReceipts(dir)
+
+      const ledPath = lineagePath(projectKey)
+      mkdirSync(dirname(ledPath), { recursive: true })
+      writeFileSync(ledPath, '', { mode: 0o600 })
+      chmodSync(ledPath, 0o200)
+      try {
+        check('unreadable ledger.jsonl keeps readLedger and currentLedger []', readLedger(projectKey).length === 0 && currentLedger().length === 0)
+        const statsLed = await memoryStatsText()
+        check(
+          '/memory stats shows unread sentence for unreadable ledger.jsonl',
+          statsLed.includes(`${ledPath} could not be read (`),
+          statsLed,
+        )
+      } finally {
+        chmodSync(ledPath, 0o600)
+        unlinkSync(ledPath)
+      }
+      readLedger(projectKey)
+
+      const jPath = journalPath(projectKey)
+      mkdirSync(dirname(jPath), { recursive: true })
+      writeFileSync(jPath, '## 2026-01-01T00:00:00.000Z\n\nhi\n', { mode: 0o600 })
+      chmodSync(jPath, 0o200)
+      try {
+        check('unreadable journal.md keeps readJournal []', readJournal(projectKey).length === 0)
+        const statsJournal = await memoryStatsText()
+        check(
+          '/memory stats shows unread sentence for unreadable journal.md',
+          statsJournal.includes(`${jPath} could not be read (`) && statsJournal.includes('so what it holds is not shown — fix or remove the file.'),
+          statsJournal,
+        )
+        const centreJournal = await renderMemoryCentre()
+        check(
+          'Memory Centre note shows unread sentence for unreadable journal.md',
+          centreJournal.includes(`${jPath} could not be read (`),
+          centreJournal.slice(-400),
+        )
+      } finally {
+        chmodSync(jPath, 0o600)
+        unlinkSync(jPath)
+      }
+      readJournal(projectKey)
+      const statsFinal = await memoryStatsText()
+      check('clearing all unreadable files leaves /memory stats clean', !statsFinal.includes('could not be read'), statsFinal)
+    }
+  }
+
+  section('§3 w01-3: unreadable or corrupt thinking-drop ledger in preserved-thinking health row')
+  {
+    const runPreservedThinkingRow = async () => {
+      const cert = await runHealthReport({}, [{ id: 'memory', title: 'Memory', checks: () => memoryChecks().filter(c => c.id === 'preserved-thinking') }])
+      return cert.sections[0]!.checks[0]!
+    }
+    const ledgerPath = thinkingDropLedgerPath()
+    const cleanRow = await runPreservedThinkingRow()
+    check('absent thinking-drop ledger reads ok in preserved-thinking health row', cleanRow.status === 'ok', JSON.stringify(cleanRow))
+
+    writeFileSync(ledgerPath, '{not json')
+    check('corrupt thinking-drop ledger keeps readThinkingDropLedger returning null', readThinkingDropLedger() === null)
+    const corruptRow = await runPreservedThinkingRow()
+    check(
+      'corrupt thinking-drop ledger reads unknown (probe threw) in preserved-thinking health row',
+      corruptRow.status === 'unknown' && corruptRow.evidence.startsWith('probe threw:'),
+      JSON.stringify(corruptRow),
+    )
+
+    if (POSIX_MODES) {
+      writeFileSync(ledgerPath, JSON.stringify({ last: { at: '2026-01-01T00:00:00.000Z', kind: 'first', lawful: null, reason: 'r', path: 'p', count: 1, consecutive: 1, model: 'm' }, longestRun: 1 }), { mode: 0o600 })
+      chmodSync(ledgerPath, 0o200)
+      try {
+        check('unreadable thinking-drop ledger keeps readThinkingDropLedger returning null', readThinkingDropLedger() === null)
+        const eaccesRow = await runPreservedThinkingRow()
+        check(
+          'unreadable thinking-drop ledger reads unknown (probe threw) in preserved-thinking health row',
+          eaccesRow.status === 'unknown' && eaccesRow.evidence.startsWith('probe threw:'),
+          JSON.stringify(eaccesRow),
+        )
+      } finally {
+        chmodSync(ledgerPath, 0o600)
+      }
+    }
+    unlinkSync(ledgerPath)
+    const afterRow = await runPreservedThinkingRow()
+    check('removing thinking-drop ledger restores preserved-thinking health row to ok', afterRow.status === 'ok', JSON.stringify(afterRow))
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

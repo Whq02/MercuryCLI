@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, waitFor } from '../lib/settingsPopupHarness.ts'
+import { lockupCensus, ROLE_BY_FILE } from './gen-lockup-census.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
@@ -11,41 +12,16 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
 
-const censusPath = join(ROOT, 'scripts/consistency-census/lockup-census.json')
-const before = readFileSync(censusPath, 'utf8')
-execFileSync(process.execPath, [join(ROOT, 'scripts/consistency-census/gen-lockup-census.ts')], {
-  cwd: ROOT,
-  stdio: 'pipe',
-})
-const after = readFileSync(censusPath, 'utf8')
-if (before !== after) writeFileSync(censusPath, before)
-check('§A regeneration reproduces the LOCKUP census byte-for-byte', before === after)
-type Site = { role: string; file: string; kind: string; excerpt: string }
-const census = JSON.parse(after) as { sites: Site[] }
-if (before !== after) {
-  const rows = (sites: Site[]): Map<string, { site: Site; count: number }> => {
-    const out = new Map<string, { site: Site; count: number }>()
-    for (const site of sites) {
-      const key = JSON.stringify(site)
-      const row = out.get(key) ?? { site, count: 0 }
-      row.count++
-      out.set(key, row)
-    }
-    return out
-  }
-  const committed = rows((JSON.parse(before) as { sites: Site[] }).sites)
-  const regenerated = rows(census.sites)
-  const surplus = (a: Map<string, { site: Site; count: number }>, b: Map<string, { site: Site; count: number }>): Site[] =>
-    [...a].filter(([k, row]) => (b.get(k)?.count ?? 0) < row.count).map(([, row]) => row.site)
-  for (const s of surplus(committed, regenerated).slice(0, 20)) console.log(`    committed but not in the tree: ${s.file} (${s.kind}) ${s.excerpt}`)
-  for (const s of surplus(regenerated, committed).slice(0, 20)) console.log(`    in the tree but not committed: ${s.file} (${s.kind}) ${s.excerpt}`)
-  console.log('    regenerate with scripts/consistency-census/gen-lockup-census.ts')
+const census = lockupCensus(ROOT)
+const unclassified = census.sites.filter(s => s.role === 'UNCLASSIFIED')
+check('§A zero unclassified production sites', unclassified.length === 0, String(unclassified.length))
+if (unclassified.length > 0) {
+  for (const s of unclassified) console.log(`    ${s.file} (${s.kind}) ${s.excerpt}`)
+  console.log('    classify it in ROLE_BY_FILE in scripts/consistency-census/gen-lockup-census.ts, or remove the lockup site')
 }
-check('§A zero unclassified production sites', census.sites.every(s => s.role !== 'UNCLASSIFIED'), String(census.sites.filter(s => s.role === 'UNCLASSIFIED').length))
-const classified = [...readFileSync(join(ROOT, 'scripts/consistency-census/gen-lockup-census.ts'), 'utf8').matchAll(/^  '([^']+)': \{$/gm)].map(m => m[1]!)
+const classified = Object.keys(ROLE_BY_FILE)
 const classifiedAbsent = classified.filter(file => !existsSync(join(ROOT, file)))
 check('§A every file the role table classifies stands in the tree', classified.length > 0 && classifiedAbsent.length === 0, classifiedAbsent.join(', '))
-
 {
   const prevCwd = process.cwd()
   const scratchHome = pinScratchHome('lockup-census')

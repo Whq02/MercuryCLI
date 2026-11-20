@@ -314,7 +314,7 @@ export default class ComposeBuffer {
           const from = x < clip.x1! ? clip.x1! - x : 0
           const w = lineWidth(line)
           const to = x + w > clip.x2! ? clip.x2! - x : w
-          return this.clipLine(line, from, to)
+          return clipLine(this.sliceCache, line, from, to)
         })
         if (x < clip.x1!) x = clip.x1!
       }
@@ -337,7 +337,7 @@ export default class ComposeBuffer {
     for (let i = 0; i < lines.length; i++) {
       const lineY = y + i
       if (lineY >= this.height) break
-      const contentEnd = this.writeLine(lines[i]!, x, lineY)
+      const contentEnd = writeLine(screen, this.width, this.stylePool, this.clusterCache, lines[i]!, x, lineY)
       written += contentEnd - x
       if (op.softWrap) {
         swBits[lineY] = op.softWrap[swFrom + i] === true ? prevContentEnd : 0
@@ -346,78 +346,83 @@ export default class ComposeBuffer {
     }
     return written
   }
+}
 
-  private clipLine(line: string, from: number, to: number): string {
-    const key = `${from} ${to} ${line}`
-    const hit = this.sliceCache.get(key)
-    if (hit !== undefined) return hit
-    let sliced = sliceAnsi(line, from, to)
-    if (lineWidth(sliced) > to - from) {
-      sliced = sliceAnsi(line, from, to - 1)
-    }
-    this.sliceCache.set(key, sliced)
-    return sliced
+function clipLine(sliceCache: Map<string, string>, line: string, from: number, to: number): string {
+  const key = `${from} ${to} ${line}`
+  const hit = sliceCache.get(key)
+  if (hit !== undefined) return hit
+  let sliced = sliceAnsi(line, from, to)
+  if (lineWidth(sliced) > to - from) {
+    sliced = sliceAnsi(line, from, to - 1)
+  }
+  sliceCache.set(key, sliced)
+  return sliced
+}
+
+function writeLine(
+  screen: Screen,
+  width: number,
+  stylePool: StylePool,
+  clusterCache: Map<string, ClusteredChar[]>,
+  line: string,
+  x: number,
+  y: number,
+): number {
+  let clusters = clusterCache.get(line)
+  if (!clusters) {
+    clusters = reorderBidi(clusterStyledLine(line, stylePool))
+    clusterCache.set(line, clusters)
   }
 
-  private writeLine(line: string, x: number, y: number): number {
-    let clusters = this.clusterCache.get(line)
-    if (!clusters) {
-      clusters = reorderBidi(clusterStyledLine(line, this.stylePool))
-      this.clusterCache.set(line, clusters)
-    }
+  let cx = x
 
-    const screen = this.screen
-    const W = this.width
-    const pool = this.stylePool
-    let cx = x
+  for (let i = 0; i < clusters.length; i++) {
+    const cluster = clusters[i]!
+    const cp = cluster.value.codePointAt(0)
 
-    for (let i = 0; i < clusters.length; i++) {
-      const cluster = clusters[i]!
-      const cp = cluster.value.codePointAt(0)
-
-      if (cp !== undefined && cp <= 0x1f) {
-        if (cp === 0x09) {
-          const stop = 8 - (cx % 8)
-          for (let s = 0; s < stop && cx < W; s++) {
-            setCellAt(screen, cx, y, {
-              char: ' ',
-              styleId: pool.none,
-              width: CellWidth.Narrow,
-              hyperlink: undefined,
-            })
-            cx++
-          }
-        } else if (cp === 0x1b) {
-          i = skipEscapeSequence(clusters, i)
+    if (cp !== undefined && cp <= 0x1f) {
+      if (cp === 0x09) {
+        const stop = 8 - (cx % 8)
+        for (let s = 0; s < stop && cx < width; s++) {
+          setCellAt(screen, cx, y, {
+            char: ' ',
+            styleId: stylePool.none,
+            width: CellWidth.Narrow,
+            hyperlink: undefined,
+          })
+          cx++
         }
-        continue
+      } else if (cp === 0x1b) {
+        i = skipEscapeSequence(clusters, i)
       }
-
-      const w = cluster.width
-      if (w === 0) continue
-
-      const isWide = w >= 2
-      if (isWide && cx + 2 > W) {
-        setCellAt(screen, cx, y, {
-          char: ' ',
-          styleId: pool.none,
-          width: CellWidth.SpacerHead,
-          hyperlink: undefined,
-        })
-        cx++
-        continue
-      }
-
-      setCellAt(screen, cx, y, {
-        char: cluster.value,
-        styleId: cluster.styleId,
-        width: isWide ? CellWidth.Wide : CellWidth.Narrow,
-        hyperlink: cluster.hyperlink,
-      })
-      cx += isWide ? 2 : 1
+      continue
     }
-    return cx
+
+    const w = cluster.width
+    if (w === 0) continue
+
+    const isWide = w >= 2
+    if (isWide && cx + 2 > width) {
+      setCellAt(screen, cx, y, {
+        char: ' ',
+        styleId: stylePool.none,
+        width: CellWidth.SpacerHead,
+        hyperlink: undefined,
+      })
+      cx++
+      continue
+    }
+
+    setCellAt(screen, cx, y, {
+      char: cluster.value,
+      styleId: cluster.styleId,
+      width: isWide ? CellWidth.Wide : CellWidth.Narrow,
+      hyperlink: cluster.hyperlink,
+    })
+    cx += isWide ? 2 : 1
   }
+  return cx
 }
 
 

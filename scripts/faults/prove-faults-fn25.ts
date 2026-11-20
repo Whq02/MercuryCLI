@@ -47,7 +47,19 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-
+function skip(label: string, why: string): void {
+  console.log(`  [SKIP] ${label} — ${why}`)
+}
+function trySymlinkLoop(a: string, b: string): boolean {
+  try {
+    symlinkSync(b, a)
+    symlinkSync(a, b)
+    return true
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException | null)?.code === 'EPERM') return false
+    throw error
+  }
+}
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts')
 
@@ -56,19 +68,21 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   mkdirSync(dir, { recursive: true })
   const loopA = join(dir, 'a')
   const loopB = join(dir, 'b')
-  symlinkSync(loopB, loopA)
-  symlinkSync(loopA, loopB)
-  let thrown: (Error & { code?: string }) | null = null
-  try {
-    resolveAgentCwd(loopA, getEmptyToolPermissionContext())
-  } catch (error) {
-    thrown = error as Error & { code?: string }
+  if (trySymlinkLoop(loopA, loopB)) {
+    let thrown: (Error & { code?: string }) | null = null
+    try {
+      resolveAgentCwd(loopA, getEmptyToolPermissionContext())
+    } catch (error) {
+      thrown = error as Error & { code?: string }
+    }
+    check(
+      'agent/cwd: non-ENOENT stat failure throws real errno instead of claiming cwd does not exist',
+      thrown !== null && thrown.code === 'ELOOP' && !thrown.message.includes('cwd does not exist'),
+      thrown ? `${thrown.code ?? 'no-code'}: ${thrown.message}` : 'did not throw',
+    )
+  } else {
+    skip('agent/cwd: non-ENOENT stat failure throws real errno instead of claiming cwd does not exist', 'not read on Windows: no symlink privilege')
   }
-  check(
-    'agent/cwd: non-ENOENT stat failure throws real errno instead of claiming cwd does not exist',
-    thrown !== null && thrown.code === 'ELOOP' && !thrown.message.includes('cwd does not exist'),
-    thrown ? `${thrown.code ?? 'no-code'}: ${thrown.message}` : 'did not throw',
-  )
   let missing: Error | null = null
   try {
     resolveAgentCwd(join(dir, 'absent'), getEmptyToolPermissionContext())
@@ -248,23 +262,25 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'loop-a.aseprite')
   const loopB = join(work, 'loop-b.aseprite')
-  symlinkSync(loopB, loopA)
-  symlinkSync(loopA, loopB)
-  const prevBin = process.env.MERCURY_ASEPRITE_BIN
-  process.env.MERCURY_ASEPRITE_BIN = '/usr/bin/true'
-  try {
-    const res = await runWithCwdOverride(work, () =>
-      AsepriteTool.call({ op: 'info', file: loopA } as never, {} as never),
-    )
-    const text = (res.data as { result: string }).result
-    check(
-      'AsepriteTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before',
-      !/ELOOP|too many/i.test(text),
-      text.slice(0, 160),
-    )
-  } finally {
-    if (prevBin === undefined) delete process.env.MERCURY_ASEPRITE_BIN
-    else process.env.MERCURY_ASEPRITE_BIN = prevBin
+  if (!trySymlinkLoop(loopA, loopB)) {
+    skip('AsepriteTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before', 'not read on Windows: no symlink privilege')
+  } else {
+    const prevBin = process.env.MERCURY_ASEPRITE_BIN
+    process.env.MERCURY_ASEPRITE_BIN = '/usr/bin/true'
+    try {
+      const res = await runWithCwdOverride(work, () =>
+        AsepriteTool.call({ op: 'info', file: loopA } as never, {} as never),
+      )
+      const text = (res.data as { result: string }).result
+      check(
+        'AsepriteTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before',
+        !/ELOOP|too many/i.test(text),
+        text.slice(0, 160),
+      )
+    } finally {
+      if (prevBin === undefined) delete process.env.MERCURY_ASEPRITE_BIN
+      else process.env.MERCURY_ASEPRITE_BIN = prevBin
+    }
   }
 }
 
@@ -298,17 +314,19 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'loop-a.blend')
   const loopB = join(work, 'loop-b.blend')
-  symlinkSync(loopB, loopA)
-  symlinkSync(loopA, loopB)
-  const res = await runWithCwdOverride(work, () =>
-    BlenderTool.call({ op: 'blend_open', args: { path: loopA } } as never, {} as never),
-  )
-  const text = (res.data as { result: string }).result
-  check(
-    'BlenderTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before',
-    !/ELOOP|too many/i.test(text),
-    text.slice(0, 160),
-  )
+  if (!trySymlinkLoop(loopA, loopB)) {
+    skip('BlenderTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before', 'not read on Windows: no symlink privilege')
+  } else {
+    const res = await runWithCwdOverride(work, () =>
+      BlenderTool.call({ op: 'blend_open', args: { path: loopA } } as never, {} as never),
+    )
+    const text = (res.data as { result: string }).result
+    check(
+      'BlenderTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before',
+      !/ELOOP|too many/i.test(text),
+      text.slice(0, 160),
+    )
+  }
 }
 
 {
@@ -319,8 +337,7 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'loop-a.png')
   const loopB = join(work, 'loop-b.png')
-  symlinkSync(loopB, loopA)
-  symlinkSync(loopA, loopB)
+  const hasLoop = trySymlinkLoop(loopA, loopB)
   const unreadable = join(work, 'secret.png')
   writeFileSync(unreadable, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]))
   const nonImage = join(work, 'plain.txt')
@@ -328,29 +345,35 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
   if (posix) chmodSync(unreadable, 0o200)
   try {
+    const targets = [...(hasLoop ? [{ path: 'loop-a.png' }] : []), { path: 'absent.png' }, { path: 'plain.txt' }, ...(posix ? [{ path: 'secret.png' }] : [])]
     const parts = await runWithCwdOverride(work, () =>
       readShown(
-        [{ path: 'loop-a.png' }, { path: 'absent.png' }, { path: 'plain.txt' }, ...(posix ? [{ path: 'secret.png' }] : [])],
-        [null, null, null, null],
+        targets,
+        targets.map(() => null),
         () => undefined,
       ),
     )
     const noteOf = (i: number): string => (parts[i]?.kind === 'note' ? parts[i]!.text : JSON.stringify(parts[i]))
-    check(
-      'BlenderTool/show: non-ENOENT stat failure reports real error instead of "was not written"',
-      !noteOf(0).includes('was not written') && /ELOOP|too many/i.test(noteOf(0)),
-      noteOf(0),
-    )
+    const offset = hasLoop ? 1 : 0
+    if (hasLoop) {
+      check(
+        'BlenderTool/show: non-ENOENT stat failure reports real error instead of "was not written"',
+        !noteOf(0).includes('was not written') && /ELOOP|too many/i.test(noteOf(0)),
+        noteOf(0),
+      )
+    } else {
+      skip('BlenderTool/show: non-ENOENT stat failure reports real error instead of "was not written"', 'not read on Windows: no symlink privilege')
+    }
     check(
       'BlenderTool/show: absent file still reports "was not written" and text file reports "is not a picture"',
-      noteOf(1).includes('was not written') && noteOf(2).includes('is not a picture'),
-      `${noteOf(1)} | ${noteOf(2)}`,
+      noteOf(offset).includes('was not written') && noteOf(offset + 1).includes('is not a picture'),
+      `${noteOf(offset)} | ${noteOf(offset + 1)}`,
     )
     if (posix) {
       check(
         'BlenderTool/show: unreadable file reports EACCES instead of "is not a picture"',
-        !noteOf(3).includes('is not a picture') && /EACCES|permission denied/i.test(noteOf(3)),
-        noteOf(3),
+        !noteOf(offset + 2).includes('is not a picture') && /EACCES|permission denied/i.test(noteOf(offset + 2)),
+        noteOf(offset + 2),
       )
     }
   } finally {
@@ -432,15 +455,17 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'a')
   const loopB = join(work, 'b')
-  symlinkSync(loopB, loopA)
-  symlinkSync(loopA, loopB)
-  const loopMsg = tableRefusal({ action: 'file', x: 10, y: 10, path: loopA } as never)
+  if (trySymlinkLoop(loopA, loopB)) {
+    const loopMsg = tableRefusal({ action: 'file', x: 10, y: 10, path: loopA } as never)
+    check(
+      'ComputerTool/schema: non-ENOENT stat failure reports real error instead of "is not a file on this machine"',
+      loopMsg !== null && !loopMsg.includes('is not a file on this machine') && /ELOOP|too many/i.test(loopMsg),
+      String(loopMsg),
+    )
+  } else {
+    skip('ComputerTool/schema: non-ENOENT stat failure reports real error instead of "is not a file on this machine"', 'not read on Windows: no symlink privilege')
+  }
   const absentMsg = tableRefusal({ action: 'file', x: 10, y: 10, path: join(work, 'absent.txt') } as never)
-  check(
-    'ComputerTool/schema: non-ENOENT stat failure reports real error instead of "is not a file on this machine"',
-    loopMsg !== null && !loopMsg.includes('is not a file on this machine') && /ELOOP|too many/i.test(loopMsg),
-    String(loopMsg),
-  )
   check(
     'ComputerTool/schema: ENOENT still reports "is not a file on this machine"',
     absentMsg !== null && absentMsg.includes('is not a file on this machine'),

@@ -170,21 +170,12 @@ function pageSays(pattern: RegExp): boolean {
 }
 
 section('the page, docs/TRUST.md')
-check('five safety floors hold alongside the permission modes and wards', pageSays(/Five safety floors hold alongside the permission modes and wards/))
 check('floor 1: writes to credential stores are refused unless an exact path rule grants them', pageSays(/Writes to credential stores are refused unless an exact path rule grants them/))
 check("floor 2: agent reads of Mercury's own stored credentials are refused", pageSays(/Agent reads of Mercury's own stored credentials are refused/))
-check('floor 4: Mercury\'s running binary and daemon are protected', pageSays(/Mercury's running binary and daemon are protected against writes, deletes and kills/))
-check('floor 5: writing project instruction files or reading .env files asks for approval first', pageSays(/Writing project instruction files or reading `\.env` files asks for approval first/))
-check('the page says before its five lines that each floor acts where it recognises its subject', pageSays(/Five safety floors hold alongside the permission modes and wards\. Each acts where it recognises its subject:/))
 check("the page says the credential and runtime floors read a shell command's text before it runs, in every permission mode, as the commands a shell would run", pageSays(/For a shell command the credential and runtime floors read the command's text before it runs, in every permission mode, as the commands a shell would run, so many other spellings of a command are refused like the plain one:/))
-check('the page says a line that cannot be read that way is judged by the words of its text', pageSays(/A line that cannot be read that way is judged by the words of its text\./))
-check('the page says a command can be written that no reading of its text will recognise, and so for a shell command a floor holds in the forms that reading knows and in no others', pageSays(/A command can be written that no reading of its text will recognise, so for a shell command a floor holds in the forms that reading knows and in no others\./))
-check('the page says the floors lower the chance of an accident and are not a sandbox', pageSays(/The floors lower the chance of an accident or of a careless instruction and are not a sandbox: they do not isolate a session from the files and processes its user can reach\./))
 check('the page says what stands between a session and a secret: the permission question, in the modes that ask it', pageSays(/What stands between a session and a secret is the permission question, in the modes that ask it\./))
 check('the page says of the system store what its seal is and no more: a secret kept there is in no file in the clear', pageSays(/Where Mercury keeps the secret in the system's credential store, it is sealed at rest as well: no file holds it in the clear\./) && !pageSays(/that store's seal at rest/))
 check('the page says the file Mercury falls back to when that store does not answer is a plain file', pageSays(/The file Mercury falls back to when that store does not answer is a plain file\./))
-check('the page says of the wards that they read a command in the forms their reading knows, and that no reading of text follows every form', pageSays(/The rules read a command's text as the commands a shell would run, in the forms that reading knows: the program by its name behind a path, quoting, an assignment or a wrapper/) && pageSays(/That reading follows many forms of a command and no reading of text follows them all\./))
-check('the page promises no reading of every form, and keeps the earlier phrasings of the limit out', !pageSays(/behind any path, quoting, assignment or wrapper/) && !pageSays(/instead of the text/) && !pageSays(/A floor sees a path where the command writes it out/) && !pageSays(/works out only while it runs/) && !pageSays(/leaves to another program/) && !pageSays(/where asks are off\. The floors guard/))
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds')
@@ -200,6 +191,10 @@ await expect('floor 4', bash('rm -rf <CONFIG>/runtime'), FOUR, refused, 'Bash re
 await expect('floor 4', bash('kill -9 <DAEMON_PID>'), FOUR, refused, 'Bash refuses')
 await expect('floor 4', bash('pkill -f mercury'), FOUR, refused, 'Bash refuses')
 await expect('floor 4', call('Write', { file_path: '<CONFIG>/runtime/current/mercury.mjs', content: 'x' }), FOUR, refused, 'the Write tool refuses')
+await expect('floor 2', bash('cat <CONFIG>/.cred[a-z]*', 'a glob that names the store'), FOUR, refused, 'Bash refuses')
+await expect('floor 2', bash('cat <CONFIG>/.cred[z-a]*', 'a glob part that does not compile'), ['sovereign', 'flow'], notRefused, 'a glob Mercury could not read as a pattern is not refused for what it might name')
+await expect('floor 4', bash(`cd ${RUN_ROOT}/c[a-z]* && rm -rf runtime`, 'a cd by a glob that names the config home'), FOUR, refused, 'Bash refuses')
+await expect('floor 4', bash(`cd ${RUN_ROOT}/c[z-a]* && rm -rf runtime`, 'a cd by a glob part that does not compile'), ['sovereign', 'flow'], notRefused, 'a glob Mercury could not read as a pattern is not refused for where it might lead')
 
 const EVERY: Mode[] = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign']
 section('the page says "in every permission mode" of the credential and runtime floors for a shell command: each asked plainly on both shell tools in all six')

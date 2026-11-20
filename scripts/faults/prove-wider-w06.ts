@@ -261,5 +261,201 @@ console.log('\nw06-2: daemonConnector.sendWords and sessionSend — unreadable o
   check('sessionSend surfaces SendReceiptV1.note via addNotification once and stays quiet without a note', r.noticesAfterNoted === 1 && notices.length === 1 && notices[0]?.text === expected, JSON.stringify({ noticesAfterNoted: r.noticesAfterNoted, notices }))
 }
 
+console.log('\nw06-3: mcp/client.clearServerCache and runLaunch — failed duplicate server cleanup is returned and noted at start')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const mcpClient = await import(path.join(SRC, 'services/mcp/client.ts'))
+    const dupConfig = { type: 'http', url: 'https://example.invalid/mcp-dup', scope: 'dynamic' }
+    const directKey = mcpClient.getServerCacheKey('ext:direct', dupConfig)
+    mcpClient.connectToServer.cache.set(directKey, Promise.resolve({
+      type: 'connected',
+      name: 'ext:direct',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => { throw new Error('EPERM: process locked') },
+    }))
+    out.directFail = await mcpClient.clearServerCache('ext:direct', dupConfig)
+    const cleanKey = mcpClient.getServerCacheKey('ext:clean', dupConfig)
+    mcpClient.connectToServer.cache.set(cleanKey, Promise.resolve({
+      type: 'connected',
+      name: 'ext:clean',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => {},
+    }))
+    out.directOk = await mcpClient.clearServerCache('ext:clean', dupConfig)
+
+    mock.module(path.join(SRC, 'services/mcp/anthropicConnectors.ts'), () => ({
+      fetchAnthropicConnectorsIfEligible: async () => ({ 'claudeai:dup': dupConfig }),
+    }))
+    mock.module(path.join(SRC, 'cli/run.ts'), () => ({
+      runHeadless: async () => {},
+    }))
+    mcpClient.connectToServer.cache.set(mcpClient.getServerCacheKey('ext:dup', dupConfig), Promise.resolve({
+      type: 'connected',
+      name: 'ext:dup',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => { throw new Error('EPERM: process locked') },
+    }))
+    mcpClient.fetchToolsForClient.cache.set('ext:dup', Promise.resolve([]))
+    mcpClient.fetchCommandsForClient.cache.set('ext:dup', Promise.resolve([]))
+    mcpClient.connectToServer.cache.set(mcpClient.getServerCacheKey('claudeai:dup', dupConfig), Promise.resolve({
+      type: 'connected',
+      name: 'claudeai:dup',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => {},
+    }))
+    mcpClient.fetchToolsForClient.cache.set('claudeai:dup', Promise.resolve([]))
+    mcpClient.fetchCommandsForClient.cache.set('claudeai:dup', Promise.resolve([]))
+
+    const stderrLines = []
+    const realStderrWrite = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (chunk) => { stderrLines.push(String(chunk)); return true }
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const { runLaunch } = await import(path.join(SRC, 'main/runLaunch.ts'))
+    await runLaunch({
+      opts: { continue: true, onlyMcp: true },
+      commands: [],
+      prompt: 'hi',
+      permissionMode: 'default',
+      toolPermissionContext: getEmptyToolPermissionContext(),
+      allowDangerousSkip: false,
+      mcpConfigPromise: Promise.resolve({ 'ext:dup': dupConfig }),
+      thinkingConfig: { type: 'disabled' },
+      userSpecifiedModel: undefined,
+      fallbackModel: undefined,
+      mainThreadAgentDefinition: undefined,
+      activeAgents: [],
+      allAgents: [],
+      customSystemPrompt: undefined,
+      appendSystemPrompt: undefined,
+      inputFormat: 'text',
+      outputFormat: 'text',
+      includePartialMessages: false,
+      door: 'rows',
+    })
+    process.stderr.write = realStderrWrite
+    out.stderr = stderrLines.join('')
+  `)
+  const directFail = r.directFail as { cleanupError?: string } | undefined
+  const directOk = r.directOk as { cleanupError?: string } | undefined
+  const expected = 'the duplicate MCP server ext:dup could not be closed (EPERM: process locked) and may still be running'
+  check('clearServerCache returns cleanupError without throwing when cleanup fails, and none when it succeeds', directFail?.cleanupError === 'EPERM: process locked' && directOk?.cleanupError === undefined, JSON.stringify({ directFail, directOk }))
+  check('runLaunch writes the duplicate server close-failure note to stderr at start', String(r.stderr ?? '').includes(expected), String(r.stderr ?? '').slice(0, 300))
+}
+
+console.log('\nw06-4: agents/store.listAgentDrafts and studioEditorModel — unreadable drafts folder surfaces notice instead of offering none')
+{
+  const r = runScenario(`
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const store = await import(path.join(SRC, 'services/agents/store.ts'))
+    const { createStudioEditorMachine } = await import(path.join(SRC, 'components/agents/studio/studioEditorModel.ts'))
+
+    const makeMachine = () => createStudioEditorMachine(
+      {
+        mode: 'create',
+        cwd: SCRATCH,
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-fable-5',
+        onSaved: () => {},
+        onCancel: () => {},
+      },
+      () => {},
+    )
+
+    const absentMachine = makeMachine()
+    out.absentNote = absentMachine.snapshot().note
+    absentMachine.dispose()
+
+    const draftsPath = path.join(HOME, 'agent-drafts')
+    fs.writeFileSync(draftsPath, 'not-a-directory', 'utf8')
+    out.listDraftsArray = store.listAgentDrafts()
+    const unreadMachine = makeMachine()
+    out.unreadNote = unreadMachine.snapshot().note
+    out.unreadRecover = unreadMachine.snapshot().recoverOffer
+    unreadMachine.dispose()
+  `)
+  const unreadNote = r.unreadNote as { text?: string } | null | undefined
+  check('studioEditorModel stays quiet when agent-drafts folder is absent (ENOENT)', r.absentNote === null, JSON.stringify(r.absentNote))
+  check('studioEditorModel surfaces "saved drafts could not be read (<error>)" when drafts folder cannot be read, without throwing', Array.isArray(r.listDraftsArray) && r.listDraftsArray.length === 0 && r.unreadRecover === null && typeof unreadNote?.text === 'string' && unreadNote.text.startsWith('saved drafts could not be read (') && unreadNote.text.endsWith(')'), JSON.stringify({ listDraftsArray: r.listDraftsArray, unreadNote, unreadRecover: r.unreadRecover }))
+}
+
+console.log('\nw06-5: agents/store.discardAgentDraft and studioEditorModel — failed draft removal returns error and surfaces notice')
+{
+  const r = runScenario(`
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const store = await import(path.join(SRC, 'services/agents/store.ts'))
+    const { createStudioEditorMachine } = await import(path.join(SRC, 'components/agents/studio/studioEditorModel.ts'))
+
+    const absentPath = path.join(SCRATCH, 'missing-draft.json')
+    out.absentDiscard = store.discardAgentDraft(absentPath)
+
+    const dirPath = path.join(SCRATCH, 'unremovable-draft-dir')
+    fs.mkdirSync(dirPath)
+    out.dirDiscard = store.discardAgentDraft(dirPath)
+
+    const { serializeAgentMarkdown } = await import(path.join(SRC, 'services/agents/codec.ts'))
+    const draftPath = '/drafts/new.json'
+    const draftRaw = serializeAgentMarkdown({ name: 'scout-one', description: 'Use when testing draft removal.' }, 'You are scout-one, a careful verification agent.')
+    const machine1 = createStudioEditorMachine(
+      {
+        mode: 'create',
+        cwd: SCRATCH,
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-fable-5',
+        onSaved: () => {},
+        onCancel: () => {},
+      },
+      () => {},
+      {
+        listDrafts: () => [{ path: draftPath, draft: { version: 1, savedAt: 'now', raw: draftRaw } }],
+        discardDraft: () => ({ ok: false, error: 'EACCES: permission denied' }),
+      },
+    )
+    machine1.declineRecover()
+    out.declineNote = machine1.snapshot().note
+    machine1.dispose()
+
+    let savedMessage = ''
+    const machine2 = createStudioEditorMachine(
+      {
+        mode: 'create',
+        cwd: SCRATCH,
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-fable-5',
+        onSaved: (msg) => { savedMessage = msg },
+        onCancel: () => {},
+      },
+      () => {},
+      {
+        listDrafts: () => [{ path: draftPath, draft: { version: 1, savedAt: 'now', raw: draftRaw } }],
+        discardDraft: () => ({ ok: false, error: 'EACCES: permission denied' }),
+        saveDocument: async () => ({ path: '/dest/scout-one.md', afterRevision: 'rev-1', semanticChanges: ['name'], bytes: 10, at: 'now' }),
+      },
+    )
+    machine2.loadRaw(draftRaw)
+    await machine2.save()
+    out.savedMessage = savedMessage
+    out.saveNote = machine2.snapshot().note
+    machine2.dispose()
+  `)
+  const absentDiscard = r.absentDiscard as { ok?: boolean } | undefined
+  const dirDiscard = r.dirDiscard as { ok?: boolean; error?: string } | undefined
+  const declineNote = r.declineNote as { text?: string } | null | undefined
+  const saveNote = r.saveNote as { text?: string } | null | undefined
+  const expected = 'the draft at /drafts/new.json could not be removed (EACCES: permission denied) — it will be offered again'
+  check('discardAgentDraft returns { ok: true } on ENOENT and { ok: false, error } on non-ENOENT failure', absentDiscard?.ok === true && dirDiscard?.ok === false && typeof dirDiscard?.error === 'string' && dirDiscard.error.length > 0, JSON.stringify({ absentDiscard, dirDiscard }))
+  check('studioEditorModel surfaces removal failure sentence on declineRecover and save', declineNote?.text === expected && saveNote?.text === expected && String(r.savedMessage ?? '').includes(expected), JSON.stringify({ declineNote, saveNote, savedMessage: r.savedMessage }))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)

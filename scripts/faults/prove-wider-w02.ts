@@ -200,5 +200,286 @@ console.log('\nw02-2 — olderChatsCensus reports unreadable transcript folder a
   }
 }
 
+console.log('\nw02-3 — unreadable .git stat surfaces git-check error note without refusing birth')
+if (!POSIX_MODES) skip('workspaceKindOf EACCES', 'chmod 0644 needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const wt = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorktrees.ts'))})
+    const adm = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorkers/admission.ts'))})
+    const warm = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorkers/admitWarm.ts'))})
+
+    const plainDir = path.join(PROJECT, 'plain-dir')
+    const gitDir = path.join(PROJECT, 'git-dir')
+    const lockedDir = path.join(PROJECT, 'locked-git-dir')
+    fs.mkdirSync(plainDir, { recursive: true })
+    fs.mkdirSync(path.join(gitDir, '.git'), { recursive: true })
+    fs.mkdirSync(path.join(lockedDir, '.git'), { recursive: true })
+
+    out.hasInspect = typeof wt.inspectWorkspaceKind === 'function'
+    if (out.hasInspect) {
+      out.plain = wt.inspectWorkspaceKind(plainDir)
+      out.git = wt.inspectWorkspaceKind(gitDir)
+    }
+
+    fs.chmodSync(lockedDir, 0o644)
+    try {
+      out.lockedKind = wt.workspaceKindOf(lockedDir)
+      if (out.hasInspect) out.lockedInspect = wt.inspectWorkspaceKind(lockedDir)
+      out.collisionRes = adm.resolveDefaultedAdmission(
+        [{ workspaceId: lockedDir, isolation: 'exclusive' }],
+        { workspaceId: lockedDir },
+        4,
+      )
+      const daemonDir = path.join(HOME, 'daemon-w02-3')
+      fs.mkdirSync(daemonDir, { recursive: true })
+      const warmRes = warm.warmSeatAnswer({
+        req: { workspaceDir: lockedDir, by: 'operator' },
+        deps: { dir: daemonDir, roster: () => null },
+        records: {},
+        workspaceId: lockedDir,
+        effectiveIsolation: 'exclusive',
+        kind: 'oculus',
+        modelKey: 'test-model',
+        modelDisplayName: 'Test',
+        keyless: false,
+        kit: { schema: 1, workspaceId: lockedDir, mcp: { disabled: [], enabled: [] } },
+        preset: undefined,
+        retainedNote: undefined,
+        carryBuildNotices: () => {},
+        runnerId: 'w-1',
+        claimSessionId: 's-w02-3',
+        claimEffort: 'high',
+        claimPosture: 'default',
+        snapshot: { profileRevision: 0, entries: [] },
+        pidFields: {},
+        claimed: { claimed: true, short: 'w-1', pid: process.pid, spec: {} },
+      })
+      out.warmOk = warmRes.ok
+      out.warmNote = warmRes.ok ? (warmRes.note ?? null) : null
+    } finally {
+      fs.chmodSync(lockedDir, 0o755)
+    }
+  `)
+  const lockedInspect = r.out.lockedInspect as { kind?: string; gitCheckError?: string } | undefined
+  const plain = r.out.plain as { kind?: string; gitCheckError?: string } | undefined
+  const git = r.out.git as { kind?: string; gitCheckError?: string } | undefined
+  check(
+    'inspectWorkspaceKind distinguishes git, plain-folder (ENOENT), and EACCES',
+    r.out.hasInspect === true &&
+      git?.kind === 'git' &&
+      plain?.kind === 'plain-folder' &&
+      plain.gitCheckError === undefined &&
+      lockedInspect?.kind === 'plain-folder' &&
+      typeof lockedInspect.gitCheckError === 'string' &&
+      lockedInspect.gitCheckError.length > 0,
+    JSON.stringify({ plain, git, lockedInspect }),
+  )
+  const col = r.out.collisionRes as { kind?: string; decision?: { reason?: string }; gitCheckError?: string } | undefined
+  check(
+    'resolveDefaultedAdmission does not offer fake git-init when .git stat fails with EACCES',
+    col?.kind === 'decision' &&
+      typeof col.decision?.reason === 'string' &&
+      col.decision.reason.includes('could not be checked for git (') &&
+      col.decision.reason.includes('so this session works in the folder itself, not in a worktree'),
+    JSON.stringify(col),
+  )
+  check(
+    'warmSeatAnswer births session (ok:true) and attaches git-check note on EACCES',
+    r.out.warmOk === true &&
+      typeof r.out.warmNote === 'string' &&
+      (r.out.warmNote as string).includes('could not be checked for git (') &&
+      (r.out.warmNote as string).includes('so this session works in the folder itself, not in a worktree'),
+    JSON.stringify({ warmOk: r.out.warmOk, warmNote: r.out.warmNote }),
+  )
+}
+
+console.log('\nw02-4 — BootSettingsScreen applyOverrideRows reports read error instead of no established sessions')
+{
+  const r = runSubprocess(`
+    const { settingsMenuModel } = await import(${JSON.stringify(join(SRC, 'components/bootSettings/menuModel.ts'))})
+    const baseArgs = {
+      backgroundLaunchOn: false,
+      changed: 0,
+      chatBoot: false,
+      concourseLive: false,
+      dirTail: '',
+      effectiveByEnv: new Map(),
+      isBackgroundLaunchRow: () => false,
+      isJevRow: () => false,
+      isMotionRow: () => false,
+      isSeatsRow: () => false,
+      jevDetailLines: [],
+      jevSettings: { enabled: false },
+      lastReceipt: null,
+      list: { selectedIndex: 0, note: null },
+      liveCount: 0,
+      mainModel: 'test-model',
+      menuRows: [],
+      motionSetting: 'auto',
+      plainWorld: false,
+      profile: null,
+      saved: {},
+      seatFacts: null,
+      wordGlow: 0,
+    }
+    const emptyModel = settingsMenuModel({ ...baseArgs, apply: { phase: 'ready', workers: [] } })
+    const errModel = settingsMenuModel({ ...baseArgs, apply: { phase: 'ready', workers: [], error: 'EACCES: permission denied' } })
+    out.emptyLines = emptyModel.detailOverride ?? null
+    out.errLines = errModel.detailOverride ?? null
+  `)
+  const emptyLines = Array.isArray(r.out.emptyLines) ? (r.out.emptyLines as string[]) : []
+  const errLines = Array.isArray(r.out.errLines) ? (r.out.errLines as string[]) : []
+  check(
+    'empty workers without error still says no established sessions',
+    emptyLines.some(l => l.includes('no established sessions')),
+    JSON.stringify(emptyLines),
+  )
+  check(
+    'ApplyState with read error shows established sessions could not be read (<error>) instead of no established sessions',
+    errLines.some(l => l === 'established sessions could not be read (EACCES: permission denied)') &&
+      !errLines.some(l => l.includes('no established sessions')),
+    JSON.stringify(errLines),
+  )
+}
+
+console.log('\nw02-5 — unreadable/corrupt boot-env.json surfaces could not be read in strict reads, BootSettings, /caching, and Concourse')
+{
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const sm = await import(${JSON.stringify(join(SRC, 'substrate/startupMenu.ts'))})
+    const { settingsMenuModel } = await import(${JSON.stringify(join(SRC, 'components/bootSettings/menuModel.ts'))})
+    const snap = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
+    const { renderToString } = await import(${JSON.stringify(join(SRC, 'utils/staticRender.tsx'))})
+    const caching = await import(${JSON.stringify(join(SRC, 'commands/caching/caching.tsx'))})
+    const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'components/design-system/ThemeProvider.tsx'))})
+    const React = await import('react')
+
+    const bootPath = sm.bootEnvPath()
+    fs.mkdirSync(path.dirname(bootPath), { recursive: true })
+    out.hasStrictProfile = typeof sm.readBootDefaultsProfileStrict === 'function'
+    out.hasStrictEnv = typeof sm.readBootEnvChoicesStrict === 'function'
+    if (out.hasStrictProfile) out.absentProfile = sm.readBootDefaultsProfileStrict(bootPath)
+    if (out.hasStrictEnv) out.absentEnv = sm.readBootEnvChoicesStrict(bootPath)
+
+    const corrupt = '{not valid json'
+    fs.writeFileSync(bootPath, corrupt, 'utf8')
+    if (out.hasStrictProfile) out.corruptProfile = sm.readBootDefaultsProfileStrict(bootPath)
+    if (out.hasStrictEnv) out.corruptEnv = sm.readBootEnvChoicesStrict(bootPath)
+    out.writeRefused = sm.writeBootEnvChoice('MERCURY_CACHE_TTL', '1h', bootPath)
+    out.saveRefused = sm.saveBootDefaultsProfile({ MERCURY_CACHE_TTL: '1h' }, bootPath)
+    out.preserved = fs.readFileSync(bootPath, 'utf8') === corrupt
+
+    const menuM = settingsMenuModel({
+      apply: { phase: 'closed' },
+      backgroundLaunchOn: false,
+      changed: 0,
+      chatBoot: false,
+      concourseLive: false,
+      dirTail: '',
+      effectiveByEnv: new Map(),
+      isBackgroundLaunchRow: () => false,
+      isJevRow: () => false,
+      isMotionRow: () => false,
+      isSeatsRow: () => false,
+      jevDetailLines: [],
+      jevSettings: { enabled: false },
+      lastReceipt: null,
+      list: { selectedIndex: 0, note: null },
+      liveCount: 0,
+      mainModel: 'test-model',
+      menuRows: [],
+      motionSetting: 'auto',
+      plainWorld: false,
+      profile: null,
+      profileReadError: 'Unexpected token n',
+      saved: {},
+      seatFacts: null,
+      wordGlow: 0,
+    })
+    out.menuProfile = menuM.summary.profile
+    out.menuStatus = menuM.statusRight
+
+    const recordsDir = path.join(HOME, 'daemon-w02-5')
+    const crewDir = path.join(HOME, 'crew-w02-5')
+    const draftDir = path.join(HOME, 'draft-w02-5')
+    fs.mkdirSync(recordsDir, { recursive: true })
+    fs.mkdirSync(crewDir, { recursive: true })
+    fs.mkdirSync(draftDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(recordsDir, 'concourse-workers.json'),
+      JSON.stringify({
+        version: 1,
+        workers: {
+          'w-1': {
+            schema: 1,
+            runnerId: 'w-1',
+            sessionId: 's-w02-5',
+            workspaceId: PROJECT,
+            isolation: 'exclusive',
+            modelKey: 'fable',
+            spawnedAt: 1_700_000_000_000,
+            lastLiveAt: 1_700_000_000_000,
+            attachedAt: 1_700_000_000_000,
+            settingsSnapshot: { profileRevision: 2, rows: [] },
+          },
+        },
+      }),
+    )
+    const csnap = await snap.buildConcourseSnapshot({ recordsDir, crewDir, draftDir, peekSessionId: 's-w02-5', nowMs: 1_700_000_000_000 })
+    out.concourseNotices = csnap.sectionNotices ?? null
+    out.peekSettings = csnap.peek?.settings ?? null
+
+    const el = await caching.call(() => {}, {})
+    out.cachingText = await renderToString(React.createElement(ThemeProvider, null, el), 100)
+  `)
+  const absentProfile = r.out.absentProfile as { ok?: boolean; profile?: unknown } | undefined
+  const corruptProfile = r.out.corruptProfile as { ok?: boolean; reason?: string } | undefined
+  const corruptEnv = r.out.corruptEnv as { ok?: boolean; reason?: string } | undefined
+  const writeRefused = r.out.writeRefused as { ok?: boolean; reason?: string } | undefined
+  const saveRefused = r.out.saveRefused as { ok?: boolean; reason?: string } | undefined
+  check(
+    'strict boot-env readers exported and distinguish absent from corrupt',
+    r.out.hasStrictProfile === true &&
+      r.out.hasStrictEnv === true &&
+      absentProfile?.ok === true &&
+      absentProfile.profile === null &&
+      corruptProfile?.ok === false &&
+      corruptEnv?.ok === false,
+    JSON.stringify({ absentProfile, corruptProfile, corruptEnv }),
+  )
+  check(
+    'writeBootEnvChoice and saveBootDefaultsProfile refuse corrupt file with could not be read and preserve bytes',
+    writeRefused?.ok === false &&
+      typeof writeRefused.reason === 'string' &&
+      writeRefused.reason.includes('could not be read (') &&
+      saveRefused?.ok === false &&
+      typeof saveRefused.reason === 'string' &&
+      saveRefused.reason.includes('could not be read (') &&
+      r.out.preserved === true,
+    JSON.stringify({ writeRefused, saveRefused, preserved: r.out.preserved }),
+  )
+  check(
+    'BootSettings menuModel shows could not be read (<error>) instead of default when profileReadError is set',
+    r.out.menuProfile === 'could not be read (Unexpected token n)' &&
+      r.out.menuStatus === 'could not be read (Unexpected token n)',
+    JSON.stringify({ menuProfile: r.out.menuProfile, menuStatus: r.out.menuStatus }),
+  )
+  const concourseNotices = Array.isArray(r.out.concourseNotices) ? (r.out.concourseNotices as string[]) : []
+  check(
+    'Concourse snapshot surfaces boot-env read failure in sectionNotices and omits false peek.settings',
+    concourseNotices.some(n => n.includes('could not be read (')) && r.out.peekSettings === null,
+    JSON.stringify({ concourseNotices, peekSettings: r.out.peekSettings }),
+  )
+  const cachingText = String(r.out.cachingText ?? '')
+  check(
+    '/caching shows could not be read (<error>) when boot-env.json is corrupt',
+    cachingText.includes('could not be read ('),
+    cachingText.slice(0, 300),
+  )
+}
+
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

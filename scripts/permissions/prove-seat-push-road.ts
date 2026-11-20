@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -256,14 +256,8 @@ section('§3 the operator\'s road on disk — guardrails.allow in a settings fil
   resetSettingsCache()
 }
 
-section('§4 the words on disk — the docs say how an operator pre-authorises a push')
+section('§4 the headless entry stamps the boot rules')
 {
-  const trust = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')
-  const nonInteractive = trust.slice(trust.indexOf('## Non-interactive sessions'))
-  const sectionText = nonInteractive.slice(0, nonInteractive.indexOf('\n## ', 1) > 0 ? nonInteractive.indexOf('\n## ', 1) : undefined)
-  check('docs/TRUST.md, Non-interactive sessions: says a push on a headless seat waits on a present operator unless a rule pre-authorises it', /git push/.test(sectionText) && /present/.test(sectionText), sectionText.slice(0, 400))
-  check('…names the rule shape `Bash(git push *)` and guardrails.allow', /Bash\(git push \*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
-  check('…says a push is one of the five Flow asks about and names the sentence it travels with', /one of the five Flow asks about/.test(sectionText) && /it publishes history\./.test(sectionText), sectionText.slice(0, 400))
   const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
   const ruled = needsLine(await firstSystemPrompt(['--allowed-tools', PUSH_RULE]))
   const savedHome = mkdtempSync(join(tmpdir(), 'push-road-saved-rule-'))

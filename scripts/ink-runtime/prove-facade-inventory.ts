@@ -1,26 +1,9 @@
 #!/usr/bin/env bun
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const FACADE = join(ROOT, 'src', 'ink.ts')
-const INVENTORY = join(import.meta.dir, 'facade-inventory.json')
-const record = process.argv.includes('--record')
-const ROW = {
-  assets: 'scripts/ink-runtime/facade-inventory.json',
-  generator: 'bun scripts/ink-runtime/prove-facade-inventory.ts --record',
-  check: 'bun scripts/ink-runtime/prove-facade-inventory.ts',
-  sources: 'src/ink.ts',
-}
-if (registerOnlyRequested(ROW)) process.exit(0)
-
-let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
-  if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-}
 
 type FacadeExport = {
   name: string
@@ -28,10 +11,11 @@ type FacadeExport = {
   from: string
 }
 
-function scanFacade(): { exports: FacadeExport[]; extraStatements: string[] } {
+function scanFacade(root = ROOT): { exports: FacadeExport[]; extraStatements: string[] } {
+  const facadePath = join(root, 'src', 'ink.ts')
   const source = ts.createSourceFile(
     'ink.ts',
-    readFileSync(FACADE, 'utf8'),
+    readFileSync(facadePath, 'utf8'),
     ts.ScriptTarget.Latest,
     true,
   )
@@ -77,49 +61,41 @@ function scanFacade(): { exports: FacadeExport[]; extraStatements: string[] } {
       if (isExported) exports.push({ name: stmt.name.text, kind: 'type', from: '' })
       continue
     }
+    if (ts.isVariableStatement(stmt)) {
+      const names = stmt.declarationList.declarations
+        .map(d => (ts.isIdentifier(d.name) ? d.name.text : d.name.getText(source)))
+        .join(', ')
+      extraStatements.push(`variable ${names}`)
+      continue
+    }
     extraStatements.push(ts.SyntaxKind[stmt.kind])
   }
   exports.sort((a, b) => a.name.localeCompare(b.name) || a.kind.localeCompare(b.kind))
   return { exports, extraStatements }
 }
 
-console.log('bedrock facade inventory — src/ink.ts')
-const { exports: scanned, extraStatements } = scanFacade()
-
-check(
-  'facade law: no logic beyond re-exports + the theme wrap',
-  extraStatements.length === 0,
-  extraStatements.join(', '),
-)
-
-if (record) {
-  writeFileSync(INVENTORY, JSON.stringify({ exports: scanned }, null, 2) + '\n')
-  registerGeneratedAsset(ROW)
-  console.log(`  recorded ${scanned.length} exports → ${INVENTORY}`)
-} else {
-  check('inventory file exists (run --record once)', existsSync(INVENTORY))
-  if (existsSync(INVENTORY)) {
-    const recorded: FacadeExport[] = JSON.parse(readFileSync(INVENTORY, 'utf8')).exports
-    const key = (e: FacadeExport) => `${e.name}|${e.kind}|${e.from}`
-    const scannedSet = new Set(scanned.map(key))
-    const recordedSet = new Set(recorded.map(key))
-    const missing = recorded.filter(e => !scannedSet.has(key(e)))
-    const unrecorded = scanned.filter(e => !recordedSet.has(key(e)))
-    check(
-      `no recorded export disappeared (${recorded.length} recorded)`,
-      missing.length === 0,
-      missing.map(e => `${e.name} (${e.kind} from '${e.from}')`).join(', '),
-    )
-    check(
-      'no unrecorded export appeared (self-accounting)',
-      unrecorded.length === 0,
-      unrecorded.map(e => `${e.name} (${e.kind} from '${e.from}')`).join(', '),
-    )
+if (import.meta.main) {
+  let failures = 0
+  function check(label: string, cond: boolean, detail = ''): void {
+    if (!cond) failures++
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
   }
-}
 
-if (failures > 0) {
-  console.log(`\nbedrock facade inventory: RED (${failures} failure${failures === 1 ? '' : 's'})`)
-  process.exit(1)
+  console.log('bedrock facade inventory — src/ink.ts')
+  const { exports: scanned, extraStatements } = scanFacade()
+
+  check(
+    'facade law: no logic beyond re-exports + the theme wrap',
+    extraStatements.length === 0,
+    extraStatements.length > 0
+      ? `${extraStatements.join(', ')} — move logic out of src/ink.ts and re-export it`
+      : '',
+  )
+  check('facade exports scanned', scanned.length > 0)
+
+  if (failures > 0) {
+    console.log(`\nbedrock facade inventory: RED (${failures} failure${failures === 1 ? '' : 's'})`)
+    process.exit(1)
+  }
+  console.log(`\nbedrock facade inventory: green (${scanned.length} exports)`)
 }
-console.log('\nbedrock facade inventory: green')

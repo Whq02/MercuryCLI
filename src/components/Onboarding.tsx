@@ -293,7 +293,7 @@ export function runOnboardingTerminalSetup(
     .catch(error => {
       logError(error)
       onError(
-        `Terminal setup failed (${error instanceof Error ? error.message : String(error)}) — run /terminal-setup later; press Enter to continue`,
+        `Terminal setup failed (${error instanceof Error ? error.message : String(error)}) — run /keysetup later; press Enter to continue`,
       )
     })
 }

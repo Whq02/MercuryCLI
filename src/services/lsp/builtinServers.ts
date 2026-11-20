@@ -216,6 +216,18 @@ export function builtinImplementationInfo(name: string): { source: string; versi
   return null
 }
 
+export function mercuryLspServersInvalidNote(): string | null {
+  const raw = mercuryLspServersEnv()
+  if (!raw) return null
+  try {
+    JSON.parse(raw)
+    return null
+  } catch (error) {
+    passedOver(error)
+    return `MERCURY_LSP_SERVERS is not valid JSON (${error instanceof Error ? error.message : String(error)}), so the language servers it names were not loaded.`
+  }
+}
+
 function operatorEnvServers(): Record<string, ScopedLspServerConfig> {
   const raw = mercuryLspServersEnv()
   if (!raw) return {}
@@ -223,6 +235,7 @@ function operatorEnvServers(): Record<string, ScopedLspServerConfig> {
   try {
     parsed = JSON.parse(raw)
   } catch (e) {
+    passedOver(e)
     logForDebugging(
       `[LSP BUILTIN] MERCURY_LSP_SERVERS is not valid JSON — ignored (${String(e)})`,
     )

@@ -1,26 +1,10 @@
 #!/usr/bin/env bun
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import ts from 'typescript'
 import { codeOnlyText } from '../lib/codeText.ts'
 
 const ROOT = path.resolve(import.meta.dir, '../..')
-const OUT = path.join(ROOT, 'scripts/compositor/fixtures/surface-census.md')
-const WRITE = process.argv.includes('--write')
-const ROW = {
-  assets: path.relative(ROOT, OUT),
-  generator: 'bun scripts/compositor/prove-surface-census.ts --write',
-  check: 'bun scripts/compositor/prove-surface-census.ts',
-  sources: 'src/commands/** src/interactiveHelpers.tsx src/screens/ResumeConversation.tsx src/ink/components/AlternateScreen.tsx src/entrypoints/cli.tsx scripts/compositor/prove-surface-census.ts',
-}
-if (registerOnlyRequested(ROW)) process.exit(0)
-
-let fail = 0
-const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
-  if (!ok) fail = 1
-}
 
 const SIGNALS = new Map([
   ['NavigablePanes', 'panes'],
@@ -50,29 +34,29 @@ function signalsOf(file: string, src: string): string[] {
 
 type Route = { name: string; type: string; unit: string; signals: string[] }
 
-function unitFiles(unit: string): string[] {
-  const p = path.join(ROOT, unit)
+function unitFiles(root: string, unit: string): string[] {
+  const p = path.join(root, unit)
   if (statSync(p).isFile()) return [unit]
   const out: string[] = []
   const walk = (d: string): void => {
     for (const n of readdirSync(d).sort()) {
       const fp = path.join(d, n)
       if (statSync(fp).isDirectory()) walk(fp)
-      else if (/\.(ts|tsx)$/.test(n) && !/\.test\./.test(n)) out.push(path.relative(ROOT, fp))
+      else if (/\.(ts|tsx)$/.test(n) && !/\.test\./.test(n)) out.push(path.relative(root, fp))
     }
   }
   walk(p)
   return out
 }
 
-function oneHopImports(file: string): string[] {
-  const src = codeOnlyText(file, readFileSync(path.join(ROOT, file), 'utf8'))
+function oneHopImports(root: string, file: string): string[] {
+  const src = codeOnlyText(file, readFileSync(path.join(root, file), 'utf8'))
   const out: string[] = []
   for (const m of src.matchAll(/from '((?:\.\.?\/)[^']+)'/g)) {
     const raw = m[1]!.replace(/\.js$/, '')
     const base = path.normalize(path.join(path.dirname(file), raw))
     for (const cand of [`${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts'), path.join(base, 'index.tsx')]) {
-      if (cand.startsWith('src/') && existsSync(path.join(ROOT, cand))) {
+      if (cand.startsWith('src/') && existsSync(path.join(root, cand))) {
         out.push(cand)
         break
       }
@@ -81,24 +65,24 @@ function oneHopImports(file: string): string[] {
   return out
 }
 
-function collectRoutes(): Route[] {
+function collectRoutes(root: string): Route[] {
   const routes: Route[] = []
-  const dir = path.join(ROOT, 'src/commands')
+  const dir = path.join(root, 'src/commands')
   for (const entry of readdirSync(dir).sort()) {
     const unit = `src/commands/${entry}`
-    const files = unitFiles(unit)
+    const files = unitFiles(root, unit)
     const defFile = files.find(f => /(?:^|\/)index\.tsx?$/.test(f)) ?? files[0]
     if (!defFile) continue
-    const defSrc = codeOnlyText(defFile, readFileSync(path.join(ROOT, defFile), 'utf8'))
+    const defSrc = codeOnlyText(defFile, readFileSync(path.join(root, defFile), 'utf8'))
     const name = defSrc.match(/\bname:\s*'([^']+)'/)?.[1]
     const type = defSrc.match(/\btype:\s*'([^']+)'/)?.[1]
     if (!name || !type) continue
     const sigSet = new Set<string>()
     const seen = new Set<string>()
-    for (const f of [...files, ...files.flatMap(oneHopImports)]) {
+    for (const f of [...files, ...files.flatMap(file => oneHopImports(root, file))]) {
       if (seen.has(f)) continue
       seen.add(f)
-      for (const s of signalsOf(f, readFileSync(path.join(ROOT, f), 'utf8'))) sigSet.add(s)
+      for (const s of signalsOf(f, readFileSync(path.join(root, f), 'utf8'))) sigSet.add(s)
     }
     routes.push({ name, type, unit, signals: [...sigSet].sort() })
   }
@@ -136,8 +120,8 @@ const BOOT_SURFACES: readonly BootRow[] = [
   },
 ]
 
-function generate(): string {
-  const routes = collectRoutes()
+export function surfaceCensus(root = ROOT): string {
+  const routes = collectRoutes(root)
   const boot = BOOT_SURFACES
   const jsx = routes.filter(r => r.type === 'local-jsx')
   const local = routes.filter(r => r.type === 'local')
@@ -145,10 +129,8 @@ function generate(): string {
   const other = routes.filter(r => !['local-jsx', 'local', 'prompt'].includes(r.type))
 
   const lines: string[] = []
-  lines.push('# compositor surface census — GENERATED (scripts/compositor/prove-surface-census.ts)')
+  lines.push('# compositor surface census')
   lines.push('')
-  lines.push('> Regenerate: `bun run scripts/compositor/prove-surface-census.ts --write`.')
-  lines.push('> The bare prover run DIFFS this file against the live tree — drift is RED.')
   lines.push('> Rows derive from live route sources; this is a census, never a router.')
   lines.push('')
   lines.push('## Estate invariants (laws, recorded once — the per-row columns they replace)')
@@ -199,33 +181,33 @@ function generate(): string {
   return lines.join('\n')
 }
 
-t('kernel signals ignore comments and string literals',
-  signalsOf('fixture.tsx', '/* <InteractiveRow /> useFlatList() */ const text = "<NavigablePanes />"').length === 0)
-t('kernel signals include generic calls and JSX controls',
-  signalsOf('fixture.tsx', 'useFlatList<{ id: string }>(options); <InteractiveRow />').join(' ') === 'flat irow')
-
-const generated = generate()
-
-console.log('the generated surface census')
-if (WRITE) {
-  writeFileSync(OUT, generated)
-  registerGeneratedAsset(ROW)
-  console.log(`\nwrote ${path.relative(ROOT, OUT)}`)
-} else {
-  const committed = existsSync(OUT) ? readFileSync(OUT, 'utf8') : ''
-  if (committed !== generated) {
-    const a = committed.split('\n')
-    const b2 = generated.split('\n')
-    let firstDiff = 0
-    while (firstDiff < Math.min(a.length, b2.length) && a[firstDiff] === b2[firstDiff]) firstDiff++
-    t(
-      'census matches the live tree (regenerate with --write)',
-      false,
-      `first divergence at line ${firstDiff + 1}: committed=${JSON.stringify(a[firstDiff] ?? '<EOF>')} live=${JSON.stringify(b2[firstDiff] ?? '<EOF>')}`,
-    )
-  } else {
-    t('census matches the live tree', true)
+if (import.meta.main) {
+  let fail = 0
+  const t = (name: string, ok: boolean, detail = ''): void => {
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+    if (!ok) fail = 1
   }
-}
 
-process.exit(fail)
+  t('kernel signals ignore comments and string literals',
+    signalsOf('fixture.tsx', '/* <InteractiveRow /> useFlatList() */ const text = "<NavigablePanes />"').length === 0)
+  t('kernel signals include generic calls and JSX controls',
+    signalsOf('fixture.tsx', 'useFlatList<{ id: string }>(options); <InteractiveRow />').join(' ') === 'flat irow')
+
+  const missingBoot = BOOT_SURFACES.flatMap(b => b.source.split(' → ')).filter(file => !existsSync(path.join(ROOT, file)))
+  t(
+    'every boot surface source exists',
+    missingBoot.length === 0,
+    missingBoot.length ? `missing: ${missingBoot.join(', ')} — update BOOT_SURFACES in scripts/compositor/prove-surface-census.ts or restore the file` : '',
+  )
+
+  const routes = collectRoutes(ROOT)
+  const generated = surfaceCensus(ROOT)
+  const missingRoutes = routes.filter(r => !generated.includes(`/${r.name}`))
+  t(
+    'live surface census lists every command route',
+    routes.length > 0 && missingRoutes.length === 0,
+    routes.length === 0 ? 'no command routes collected under src/commands' : missingRoutes.map(r => `/${r.name}`).join(', '),
+  )
+
+  process.exit(fail)
+}

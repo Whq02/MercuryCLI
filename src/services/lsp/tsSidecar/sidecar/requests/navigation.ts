@@ -71,12 +71,14 @@ export function workspaceSymbolRequest(params: unknown, requireState: RequireSta
     location: LspLocation
     containerName?: string
   }[] = []
+  let firstError: string | undefined
   for (const project of new Set([...st.workspaceProjects(), ...st.allProjects()])) {
     let items: TS.NavigateToItem[] = []
     try {
       items = project.service.getNavigateToItems(query, 128, undefined, false, true)
     } catch (error) {
       passedOver(error)
+      if (firstError === undefined) firstError = error instanceof Error ? error.message : String(error)
       logForDebugging(`tsSidecar workspace/symbol skipped throwing project ${project.key}: ${String(error)}`)
       continue
     }
@@ -106,8 +108,9 @@ export function workspaceSymbolRequest(params: unknown, requireState: RequireSta
       }
       if (item.containerName) entry.containerName = item.containerName
       out.push(entry)
-      if (out.length >= 256) return out
+      if (out.length >= 256) break
     }
+    if (out.length >= 256) break
   }
-  return out
+  return firstError !== undefined ? { symbols: out, incompleteError: firstError } : out
 }

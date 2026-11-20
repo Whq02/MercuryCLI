@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, standInService, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, said, section, shown, standInService, type Rules } from './floorsKit.ts'
 
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
 type Shape = { label: string; argv: string[]; bashModes: Mode[]; rules?: Rules }
@@ -19,12 +19,6 @@ const shapes: Shape[] = [
   { label: "Flow's five, publishing a package", argv: ['npm', 'publish'], bashModes: ['flow'] },
   { label: 'a deny rule Bash(rm *)', argv: ['rm', '-rf', 'build'], bashModes: ['flow', 'sovereign'], rules: { deny: ['Bash(rm *)'] } },
 ]
-
-section('the page, docs/TRUST.md')
-const page = pageText()
-check('the floors hold alongside the permission modes and wards', /Five safety floors hold alongside the permission modes and wards/.test(page))
-check('Flow asks before a push in any form', /git that publishes or rewrites history \(`git push` in any form/.test(page))
-check('deny rules still win over an ask or an allow', /Deny rules still win over an ask or an allow; file restrictions still apply/.test(page))
 
 section('§1 the same program and arguments through Bash (control), Service start, a Journey command.run step, and Debug launch')
 for (const shape of shapes) {

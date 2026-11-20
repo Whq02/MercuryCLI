@@ -19,6 +19,7 @@ export interface AstScope {
   skippedNoGrammar: Array<[ext: string, count: number]>
   skippedUncarried: Array<[ext: string, count: number]>
   skippedDenied: number
+  skippedUnreadable?: { count: number; firstPath: string; firstError: string }
   truncatedWalk: boolean
   glob?: string
   lang?: PolyglotLanguage
@@ -165,6 +166,15 @@ export function resolveAstScope(opts: {
     skippedNoGrammar: [...discovered.skippedNoGrammar.entries()].sort(byCount),
     skippedUncarried: [...uncarried.entries()].sort(byCount),
     skippedDenied,
+    ...(discovered.skippedUnreadable > 0 && discovered.firstUnreadable !== undefined
+      ? {
+          skippedUnreadable: {
+            count: discovered.skippedUnreadable,
+            firstPath: discovered.firstUnreadable.path,
+            firstError: discovered.firstUnreadable.error,
+          },
+        }
+      : {}),
     truncatedWalk: discovered.truncatedWalk,
     ...(glob !== undefined && { glob }),
     ...(lang !== undefined && { lang }),

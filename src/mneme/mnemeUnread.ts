@@ -20,17 +20,24 @@ export function clearMnemeUnread(path: string): void {
   unread.delete(keyOf(path))
 }
 
-export function mnemeUnreadSentence(roots?: readonly string[]): string | null {
+export function clearMnemeUnreadWhere(predicate: (resolvedPath: string) => boolean): void {
+  for (const key of unread.keys()) {
+    if (predicate(key)) unread.delete(key)
+  }
+}
+
+export function mnemeUnreadSentence(roots?: readonly string[], exact?: readonly string[]): string | null {
   let hit: MnemeUnread | undefined
-  if (roots === undefined) {
+  if (roots === undefined && exact === undefined) {
     hit = unread.values().next().value
   } else {
-    const normalized = roots.map(root => {
+    const normalized = (roots ?? []).map(root => {
       const key = keyOf(root)
       return { key, prefix: key.endsWith(sep) ? key : `${key}${sep}` }
     })
+    const exactKeys = new Set((exact ?? []).map(keyOf))
     for (const [key, entry] of unread) {
-      if (normalized.some(r => key === r.key || key.startsWith(r.prefix))) {
+      if (exactKeys.has(key) || normalized.some(r => key === r.key || key.startsWith(r.prefix))) {
         hit = entry
         break
       }
