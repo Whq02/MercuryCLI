@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,7 +15,13 @@ function skip(label: string, why: string): void {
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
-const SEAM_PRESENT = existsSync(join(SRC, 'utils/settings/mdm/rawRead.ts')) && readFileSync(join(SRC, 'utils/settings/mdm/rawRead.ts'), 'utf8').includes('_setMdmRawReadForProofs')
+let SEAM_PRESENT = false
+try {
+  const rawMod = await import(join(SRC, 'utils/settings/mdm/rawRead.ts'))
+  SEAM_PRESENT = typeof rawMod._setMdmRawReadForProofs === 'function'
+} catch {
+  SEAM_PRESENT = false
+}
 
 const POLICY = { guardrails: { deny: ['Bash(rm *)'], disableSovereignMode: true }, events: { managedOnly: true } }
 

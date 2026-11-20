@@ -25,22 +25,10 @@ const taskIdPrefixes = Object.fromEntries(
   taskTypes.map(t => [t, taskMod.generateTaskId(t as never)[0]]),
 )
 
-function literalOps(path: string, pattern: RegExp): string[] {
-  const src = readFileSync(path, 'utf8')
-  const ops: string[] = []
-  for (const m of src.matchAll(pattern)) ops.push(m[1]!)
-  return ops
-}
 const { LSP_READ_OPERATIONS } = await import('../../src/tools/LSPTool/schemas.ts')
 const lspOps = [...LSP_READ_OPERATIONS]
-const dapSrc = readFileSync('src/tools/DebugTool/debug/schema.ts', 'utf8')
-const dapOpsBlock = dapSrc.match(/const OPS = \[([\s\S]*?)\] as const/)?.[1] ?? ''
-const dapOps = [...dapOpsBlock
-  .split('\n')
-  .filter(l => !l.trim().startsWith('//'))
-  .join('\n')
-  .matchAll(/'([^']+)'/g),
-].map(m => m[1]!)
+const { inputSchema: debugInputSchema } = await import('../../src/tools/DebugTool/debug/schema.ts')
+const dapOps: string[] = [...debugInputSchema().shape.op.options]
 
 const inventory = {
   generatedAt: '2026-07-14',
