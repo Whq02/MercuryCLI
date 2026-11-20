@@ -9,4 +9,4 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 here="scripts/outcome-pack"
 out="${MERCURY_BUILD_OUTDIR:-$PWD/dist}"; case "$out" in /*) ;; *) out="$PWD/$out" ;; esac
-drive_members outcome-pack 'scripts/outcome-pack/$name' "$here/members.txt" '' run
+drive_members outcome-pack 'scripts/outcome-pack/$name' "$here/members.txt" '' run || exit "$drive_member_code"

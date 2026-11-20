@@ -53,6 +53,7 @@ drive_member_run() {
 drive_members() {
   local suite="$1" template="$2" members="$3" skip="${4:-}" form="${5:-}" jobs
   jobs=$(drive_member_jobs)
+  drive_member_code=0
   local failed=0 name rest f only="${MERCURY_SUITE_MEMBER:-}"
   local -a names=() files=() rests=()
   while read -r name rest; do
@@ -82,7 +83,7 @@ drive_members() {
     for i in "${!names[@]}"; do
       drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" || {
         code=$?
-        [ "${#names[@]}" -eq 1 ] && [ "$failed" -eq 0 ] && return "$code"
+        [ "$drive_member_code" -eq 0 ] && drive_member_code=$code
         failed=1
       }
     done
@@ -94,8 +95,12 @@ drive_members() {
   local -a pids=() idxs=()
   local i j running=0 next=0 total=${#names[@]}
   collect() {
+    local code
     cat "$out/$1.out"
-    [ "$(cat "$out/$1.rc" 2>/dev/null || echo 1)" = 0 ] || failed=1
+    code=$(cat "$out/$1.rc" 2>/dev/null || echo 1)
+    [ "$code" = 0 ] && return 0
+    [ "$drive_member_code" -eq 0 ] && drive_member_code=$code
+    failed=1
   }
   while [ "$next" -lt "$total" ] || [ "$running" -gt 0 ]; do
     while [ "$next" -lt "$total" ] && [ "$running" -lt "$jobs" ]; do

@@ -8,5 +8,5 @@ set -uo pipefail
 cd "$(dirname "$0")/../.." || exit 1
 here="scripts/dev-context"
 rc=0
-drive_members dev-context 'scripts/dev-context/$name' "$here/members.txt" || rc=$?
+drive_members dev-context 'scripts/dev-context/$name' "$here/members.txt" || rc=$drive_member_code
 exit "$rc"
