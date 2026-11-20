@@ -97,6 +97,8 @@ export async function hasPermissionsToUseTool(
   return reportedDecision(tool, result)
 }
 
+tellHooksHowAToolIsPermitted(hasPermissionsToUseTool)
+
 export async function checkRuleBasedPermissions(
   tool: Tool,
   input: Record<string, unknown>,
@@ -114,3 +116,4 @@ export {
   filterDeniedAgents, getDenyRuleForAgent,
   getRuleByContentsForTool, getRuleByContentsForToolName, permissionRuleSourceDisplayString,
 } from './decision/rules.js'
+import { tellHooksHowAToolIsPermitted } from '../hooks/toolPermission.js'
