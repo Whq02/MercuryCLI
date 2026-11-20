@@ -72,8 +72,8 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
     out.created = fs.existsSync(path.join(target, '.mercury'))
   `)
   check(
-    'initializeProjectLocalEstate throws and does not create .mercury when homedir fails',
-    r.threw === 'homedir unavailable' && r.created === false,
+    'initializeProjectLocalEstate returns null and does not create .mercury when homedir fails',
+    r.threw === null && r.result === null && r.created === false,
     JSON.stringify(r),
   )
 }

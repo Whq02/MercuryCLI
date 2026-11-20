@@ -17,7 +17,13 @@ export function initializeProjectLocalEstate(root: string): { dir: string; creat
   if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(basename(root))) return null
   const absolute = resolve(root)
   if (dirname(absolute) === absolute) return null
-  if (absolute === resolve(homedir())) return null
+  let home: string
+  try {
+    home = resolve(homedir())
+  } catch {
+    return null
+  }
+  if (absolute === home) return null
   if (projectLocalEstateExists(root)) return { dir: projectLocalDir(root), created: false }
   const dir = projectLocalDir(root)
   try {
