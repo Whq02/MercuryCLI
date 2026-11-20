@@ -32,6 +32,9 @@ import { isTransientWin32FsCode } from '../substrate/durablePublish.js'
 import type { HealthCheck } from './healthCertCore.js'
 import { deleteFlagEnv, flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 import { sleep } from './sleep.js'
+import type { Message } from '../types/message.js'
+import type { LSPServerInstance } from '../services/lsp/LSPServerInstance.js'
+import type { LSPServerManager } from '../services/lsp/LSPServerManager.js'
 
 type CheckResult = Omit<HealthCheck, 'id' | 'label'>
 
@@ -109,30 +112,51 @@ export async function probeContextParity(): Promise<CheckResult> {
   const owner = fixtureOwnerKey(ownerMod, 'ctx')
   const other = fixtureOwnerKey(ownerMod, 'ctx-other')
   try {
-    const messages = [
+    const messages: Message[] = [
       {
         type: 'assistant',
-        uuid: 'a1',
+        uuid: '00000000-0000-0000-0000-0000000000a1',
         timestamp: new Date().toISOString(),
+        requestId: undefined,
         message: {
+          type: 'message',
           role: 'assistant',
+          id: 'probe-msg-1',
+          model: 'probe',
           content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: '/tmp/f' } }],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: {
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_creation: null,
+            cache_creation_input_tokens: null,
+            cache_read_input_tokens: null,
+            inference_geo: null,
+            iterations: null,
+            output_tokens_details: null,
+            server_tool_use: null,
+            service_tier: null,
+            speed: null,
+          },
+          container: null,
+          context_management: null,
         },
       },
       {
         type: 'user',
-        uuid: 'u1',
+        uuid: '00000000-0000-0000-0000-0000000000b1',
         timestamp: new Date().toISOString(),
         message: {
           role: 'user',
           content: [{ type: 'tool_result', tool_use_id: 't1', content: 'probe '.repeat(40) }],
         },
       },
-    ] as never[]
+    ]
     const input = {
       messages,
       owner,
-      querySource: 'main_thread' as never,
+      querySource: 'main_thread' as const,
       contentReplacementState: undefined,
       skipToolNames: new Set<string>(),
     }
@@ -201,11 +225,44 @@ export async function probeLspEngine(): Promise<CheckResult> {
   if (!appliedText.ok || !appliedText.text.startsWith('const qux')) {
     return { status: 'fail', evidence: 'edit application produced wrong text' }
   }
-  const fakeManager = {
-    getServerForFile: () => ({ name: 'probe', generation: 1, capabilities: {} }),
-    getDocumentVersion: () => 1,
+  const fakeServer: LSPServerInstance = {
+    name: 'probe',
+    config: { command: 'probe', extensionToLanguage: { '.py': 'python' }, transport: 'stdio', scope: 'dynamic', source: 'probe' },
+    state: 'running',
+    capabilities: {},
+    startTime: undefined,
+    lastError: undefined,
+    restartCount: 0,
+    generation: 1,
+    start: async () => {},
+    stop: async () => undefined,
+    restart: async () => undefined,
+    isHealthy: () => true,
+    sendRequest: async () => {
+      throw new Error('probe fakeServer.sendRequest not used')
+    },
+    sendNotification: async () => {},
+    onNotification: () => {},
+    onRequest: () => {},
+  }
+  const fakeManager: LSPServerManager = {
+    initialize: async () => {},
+    shutdown: async () => [],
+    getServerForFile: () => fakeServer,
+    getServersForFile: () => [fakeServer],
+    ensureServerStarted: async () => fakeServer,
     sendRequest: async () => undefined,
-  } as never
+    getAllServers: () => new Map([['probe', fakeServer]]),
+    openFile: async () => {},
+    changeFile: async () => {},
+    saveFile: async () => {},
+    closeFile: async () => {},
+    changeAndSaveFile: async () => {},
+    getDocumentVersion: () => 1,
+    closeAllFiles: async () => 0,
+    isFileOpen: () => false,
+    revalidateOpenDocuments: async () => ({ checked: 0, resynced: [], closed: [], failed: [] }),
+  }
   const before = _publishListenerCountForTesting()
   const pending = awaitDiagnosticStabilization(fakeManager, '/tmp/health-push/probe.py', {
     deadlineMs: 1_200,
@@ -215,7 +272,16 @@ export async function probeLspEngine(): Promise<CheckResult> {
     registerPendingLSPDiagnostic({
       serverName: 'probe',
       files: [
-        { uri: 'file:///tmp/health-push/probe.py', diagnostics: [{ severity: 'Error', message: 'x' }] } as never,
+        {
+          uri: 'file:///tmp/health-push/probe.py',
+          diagnostics: [
+            {
+              severity: 'Error',
+              message: 'x',
+              range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            },
+          ],
+        },
       ],
     })
   }, 40)
@@ -648,7 +714,7 @@ export async function probeChangeTransaction(): Promise<CheckResult> {
         startedAt: Date.now(),
         completedAt: Date.now(),
       },
-    } as never)
+    })
     const receipts = receiptsFor(owner)
     if (receipts.length !== 1 || receipts[0]!.effect.changedPaths[0] !== file) {
       return { status: 'fail', evidence: `the effect seam minted ${receipts.length} receipt(s), wanted 1 with the exact path` }
@@ -735,7 +801,7 @@ export async function probeAgentEnvelope(): Promise<CheckResult> {
         startedAt: Date.now(),
         completedAt: Date.now(),
       },
-    } as never)
+    })
     const envelope = await buildAgentResultEnvelope({
       agentId,
       status: 'completed',
@@ -812,7 +878,7 @@ export async function probeAxiomPrimitives(): Promise<CheckResult> {
       { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
       { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'x' } },
       { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
-    ].flatMap(e => P.projectAnthropicStreamEvent(e as never, state))
+    ].flatMap(e => P.projectAnthropicStreamEvent(e, state))
     if (events.map(e => e.type).join(',') !== 'response.started,text.delta,response.completed') {
       return { status: 'fail', evidence: `canonical stream fixture drifted: ${events.map(e => e.type).join(',')}` }
     }

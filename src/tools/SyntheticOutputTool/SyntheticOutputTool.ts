@@ -86,7 +86,7 @@ const schemaBoundCache = new WeakMap<object, SchemaBoundResult>()
 function boundTo(jsonSchema: object): SchemaBoundResult {
   const compiled = compileJsonSchema(jsonSchema)
   if (!compiled.ok) return { error: compiled.error }
-  const tool = {
+  const tool: Tool = {
     ...SyntheticOutputTool,
     inputJSONSchema: jsonSchema as ToolInputJSONSchema,
     async call(input: unknown): Promise<Delivered> {
@@ -94,7 +94,7 @@ function boundTo(jsonSchema: object): SchemaBoundResult {
       if (issues.length > 0) throw schemaMismatch(issues)
       return delivered(input)
     },
-  } as unknown as Tool
+  }
   return { tool }
 }
 

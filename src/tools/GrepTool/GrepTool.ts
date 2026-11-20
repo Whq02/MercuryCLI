@@ -5,8 +5,8 @@ import { dirname, isAbsolute, join, relative } from 'node:path'
 import picomatch from 'picomatch'
 import { z } from 'zod/v4'
 
-import { buildTool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../Tool.js'
+import { buildTool, type CanUseToolFn, type Tool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
+import type { AssistantMessage } from '../../types/message.js'
 import { isRemotePath } from '../../services/remoteFiles/target.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
@@ -456,7 +456,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   const ignoreByRoot = getFileReadIgnorePatterns(
     context.getAppState().toolPermissionContext,
   )
-  for (const pattern of normalizePatternsToPath(ignoreByRoot as never, searchRoot)) {
+  for (const pattern of normalizePatternsToPath(ignoreByRoot, searchRoot)) {
     args.push('--iglob', pattern.startsWith('/') ? `!${pattern}` : `!**/${pattern}`)
   }
   return args
@@ -584,20 +584,25 @@ async function rankedCall(input: Input, context: ToolUseContext, searchRoot: str
   }
 }
 
-function grepToolItself(): unknown {
+function grepToolItself(): Tool & { call(input: Input, context: ToolUseContext): Promise<{ data: Output }> } {
   return GrepTool
 }
 
 const readElsewhere = new WeakMap<object, string>()
 
-async function searchElsewhere(input: Input, context: ToolUseContext, canUseTool: unknown, parentMessage: unknown): Promise<{ data: Output }> {
+async function searchElsewhere(
+  input: Input,
+  context: ToolUseContext,
+  canUseTool?: CanUseToolFn,
+  parentMessage?: AssistantMessage,
+): Promise<{ data: Output }> {
   const bridge = await import('../../services/remoteFiles/bridge.js')
   const mirror = await bridge.remoteMirror(
     GREP_TOOL_NAME,
     input.path!,
     context,
     typeof canUseTool === 'function' && parentMessage !== undefined
-      ? path => (canUseTool as CanUseToolFn)(grepToolItself() as never, { ...input, path }, context, parentMessage as never, `${context.toolUseId ?? 'grep'}-resolved`)
+      ? path => canUseTool(grepToolItself(), { ...input, path }, context, parentMessage, `${context.toolUseId ?? 'grep'}-resolved`)
       : null,
     0,
     input.type !== undefined || !input.glob ? null : bridge.remoteSearchNames(splitGrepGlobField(input.glob)),
@@ -616,7 +621,7 @@ async function searchElsewhere(input: Input, context: ToolUseContext, canUseTool
         ? null
         : await mirror.matching({ ignoreCase: input['-i'] === true, literal: input.literal === true, multiline: input.multiline === true }, pattern, files.filter(file => !isSearchableDocument(file)))
     const pulled = await mirror.pull(matched === null ? files : [...matched, ...documents], cwd === root ? documents : new Set([...documents, root]))
-    const answer = await (grepToolItself() as { call(input: Input, context: ToolUseContext): Promise<{ data: Output }> }).call(local, inner)
+    const answer = await grepToolItself().call(local, inner)
     const data = mirror.rename(answer.data)
     const from = `read ${pulled.files} ${plural(pulled.files, 'file')}, ${formatFileSize(pulled.bytes).replace(/(\d)([KMGT]B)$/, '$1 $2')}, from ${mirror.host}`
     readElsewhere.set(data, mirror.ripgrep ? from : `${from}: it has no ripgrep; with rg installed there the search runs on the host`)
@@ -631,11 +636,11 @@ export const GrepTool = buildTool({
   strict: true,
   straightQuoteInputs: ['pattern', 'path', 'glob'],
   maxResultSizeChars: 20_000,
-  get inputSchema(): typeof rankedInputSchema {
-    return rankedModeEnabled() ? rankedInputSchema : (inputSchema as unknown as typeof rankedInputSchema)
+  get inputSchema(): typeof rankedInputSchema | typeof inputSchema {
+    return rankedModeEnabled() ? rankedInputSchema : inputSchema
   },
-  get outputSchema(): typeof rankedOutputSchema {
-    return rankedModeEnabled() ? rankedOutputSchema : (outputSchema as unknown as typeof rankedOutputSchema)
+  get outputSchema(): typeof rankedOutputSchema | typeof outputSchema {
+    return rankedModeEnabled() ? rankedOutputSchema : outputSchema
   },
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
@@ -712,7 +717,7 @@ export const GrepTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext, canUseTool?: unknown, parentMessage?: unknown) {
+  async call(input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentMessage?: AssistantMessage) {
     if (isRemotePath(input.path)) return searchElsewhere(input, context, canUseTool, parentMessage)
     const mode = input.output_mode ?? 'files_with_matches'
     const givenRoot = input.path !== undefined ? expandPath(input.path) : getCwd()
