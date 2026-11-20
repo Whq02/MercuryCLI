@@ -10,7 +10,7 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const utils = (await import('../../src/tools/FileEditTool/utils.ts')) as unknown as {
+const utils = (await import('../../src/utils/fileEditUtils.ts')) as unknown as {
   findActualString: (content: string, search: string) => string | null
   locateActualString?: (content: string, search: string) => Outcome
   preserveQuoteStyleForFile: (path: string, content: string, oldString: string, actual: string, newString: string) => Promise<string>

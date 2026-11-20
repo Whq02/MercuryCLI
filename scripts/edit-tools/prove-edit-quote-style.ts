@@ -10,7 +10,7 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const { preserveQuoteStyle, normalizeQuotes, findActualString, LEFT_DOUBLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE } = await import('../../src/tools/FileEditTool/utils.ts')
+const { preserveQuoteStyle, normalizeQuotes, findActualString, LEFT_DOUBLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE } = await import('../../src/utils/fileEditUtils.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 

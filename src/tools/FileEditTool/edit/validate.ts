@@ -21,7 +21,7 @@ import { validateInputForSettingsFileEdit } from '../../../utils/settings/valida
 import { parseStructuredWriteTarget, validateStructuredEditTarget } from '../../FileWriteTool/structuredTargets.js'
 import { modifiedSinceReadMessage } from '../otherSession.js'
 import type { FileEditInput } from '../types.js'
-import { applyEditToFile, locateActualString, preserveQuoteStyleForFile } from '../utils.js'
+import { applyEditToFile, locateActualString, preserveQuoteStyleForFile } from '../../../utils/fileEditUtils.js'
 import { findSection, planAppend, planSectionEdit } from '../sectionEdit.js'
 import { ONE_GIB, type FarHeld, type EditMode, tooLargeToEdit, decodeFileBuffer, notFoundSuggestionSentence, staleAtValidation, hasText, hunksInUse, editMode, attemptStaleHunkRecovery, splitLeadingBom } from './fileFacts.js'
 import { linesOfMatches, noMatchWords, readKnowledge, readKnowledgeRefusal } from './readKnowledge.js'

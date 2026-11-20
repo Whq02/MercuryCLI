@@ -28,7 +28,7 @@ import { callStructuredEditTarget, parseStructuredWriteTarget } from '../../File
 import { FILE_EDIT_TOOL_NAME } from '../../../constants/tools/fileEdit.js'
 import { modifiedSinceReadMessage } from '../otherSession.js'
 import type { FileEditInput } from '../types.js'
-import { findActualString, getPatchForEdit, preserveQuoteStyleForFile } from '../utils.js'
+import { findActualString, getPatchForEdit, preserveQuoteStyleForFile } from '../../../utils/fileEditUtils.js'
 import { buildEditedLines } from '../editResult.js'
 import type { getPatchFromContents } from '../../../utils/diff.js'
 import { ONE_GIB, type FarHeld, tooLargeToEdit, discoverSkillsForPath, patchLineCounts, hasText, hunksInUse, editMode, attemptStaleHunkRecovery, splitLeadingBom } from './fileFacts.js'

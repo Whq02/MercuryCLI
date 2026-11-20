@@ -15,7 +15,7 @@ import {
   type LineRange,
   type ReadThroughBound,
 } from './readThrough.js'
-import { locateActualString } from './utils.js'
+import { locateActualString } from '../../utils/fileEditUtils.js'
 import { stripBom } from '../../utils/readFileInRange.js'
 
 export const EDIT_RESULT_MAX_ROWS = 60
