@@ -12,7 +12,7 @@ import {
   unityBridgeInstallStatus,
   type UnityBridgeInstallStatus,
 } from '../unity/bridgeInstaller.js'
-import { readUnityBridgeToken } from '../unity/bridgeToken.js'
+import { readUnityBridgeTokenOutcome } from '../unity/bridgeToken.js'
 import {
   buildUnityProjectProfile,
   findUnityProjectRoot,
@@ -40,6 +40,7 @@ type UnityBridgeState =
       detail: string
       install: UnityBridgeInstallStatus
       tokenPresent: boolean
+      tokenError?: string
     }
   | {
       state: 'reachable'
@@ -47,6 +48,7 @@ type UnityBridgeState =
       detail: string
       install: UnityBridgeInstallStatus
       tokenPresent: boolean
+      tokenError?: string
       clientStatus: 'disconnected' | 'connecting' | 'ready'
     }
 
@@ -87,7 +89,12 @@ async function probeBridgeState(root: string | undefined): Promise<UnityBridgeSt
     }
   }
   const install = unityBridgeInstallStatus(root)
-  const tokenPresent = readUnityBridgeToken(root) !== undefined
+  const tokenOutcome = readUnityBridgeTokenOutcome(root)
+  const tokenPresent = tokenOutcome.state === 'present'
+  const tokenError =
+    tokenOutcome.state === 'unreadable'
+      ? `the bridge token at ${tokenOutcome.path} could not be read (${tokenOutcome.error})`
+      : undefined
   const client = getUnityBridgeClient()
   const reachable = client?.status() === 'ready' ? true : await probeUnityBridgeReachable(port)
   if (!reachable) {
@@ -96,9 +103,11 @@ async function probeBridgeState(root: string | undefined): Promise<UnityBridgeSt
       port,
       install,
       tokenPresent,
+      ...(tokenError ? { tokenError } : {}),
       detail:
         `bridge not answering on 127.0.0.1:${port} — ${unityBridgeHint(port)}` +
-        (install.installed ? '' : '; package not installed (op:"unity_bridge_install")'),
+        (install.installed ? '' : '; package not installed (op:"unity_bridge_install")') +
+        (tokenError ? `; ${tokenError}` : ''),
     }
   }
   return {
@@ -106,8 +115,9 @@ async function probeBridgeState(root: string | undefined): Promise<UnityBridgeSt
     port,
     install,
     tokenPresent,
+    ...(tokenError ? { tokenError } : {}),
     clientStatus: client?.status() ?? 'disconnected',
-    detail: `bridge answering on 127.0.0.1:${port}`,
+    detail: `bridge answering on 127.0.0.1:${port}${tokenError ? `; ${tokenError}` : ''}`,
   }
 }
 
@@ -227,7 +237,13 @@ export function unityBridgeReadinessRecords(): Array<{
       },
     ]
   }
-  const tokenPresent = readUnityBridgeToken(root) !== undefined
+  const tokenOutcome = readUnityBridgeTokenOutcome(root)
+  const tokenClause =
+    tokenOutcome.state === 'present'
+      ? 'token present'
+      : tokenOutcome.state === 'unreadable'
+        ? `the bridge token at ${tokenOutcome.path} could not be read (${tokenOutcome.error})`
+        : 'token ABSENT (unity_bridge_install writes it)'
   return [
     {
       ...base,
@@ -235,7 +251,7 @@ export function unityBridgeReadinessRecords(): Array<{
       detail:
         `package installed under ${path.join('Packages', 'com.mercury.unity-bridge')}` +
         `${install.digestMatch ? ' (up to date)' : ' (out of date — unity_bridge_install refreshes it)'}` +
-        `; token ${tokenPresent ? 'present' : 'ABSENT (unity_bridge_install writes it)'}` +
+        `; ${tokenClause}` +
         `; reachability is probed by op:"unity_status", never here`,
     },
   ]
