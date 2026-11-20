@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { spawnFfmpeg } from '../../utils/ffmpeg.js'
 import { sleep } from '../../utils/sleep.js'
 import { createVideoProvider, videoProviderSelection } from './registry.js'
-import type { VideoInput, VideoJob, VideoOutput, VideoRole, VideoStatus } from './types.js'
+import type { VideoInput, VideoJob, VideoOutput, VideoRole, VideoStatus } from '../../utils/video/types.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const MEDIA: Record<string, { type: 'image' | 'video' | 'audio'; mime: string; max: number }> = {

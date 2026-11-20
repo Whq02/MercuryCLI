@@ -1,7 +1,7 @@
 import { scanAccountScopes, type AccountScope } from '../../utils/accounts/scopeScan.js'
 import { getAnthropicApiKeyWithSource, isClaudeAISubscriber } from '../../utils/auth.js'
 import { credentialStoreUnread, getSecureStorage } from '../../utils/secureStorage/index.js'
-import type { OAuthTokens } from '../oauth/types.js'
+import type { OAuthTokens } from '../../utils/oauth/types.js'
 import {
   openaiSubscriptionRef,
   resolveOpenaiAccount,

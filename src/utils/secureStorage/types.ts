@@ -1,5 +1,5 @@
 import type { EnterpriseGateway } from '../gatewayTrust.js'
-import type { OAuthTokens } from '../../services/oauth/types.js'
+import type { OAuthTokens } from '../oauth/types.js'
 
 export interface SecureStorageData {
   claudeAiOauth?: OAuthTokens
