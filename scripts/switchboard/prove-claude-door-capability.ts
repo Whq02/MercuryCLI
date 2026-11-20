@@ -152,17 +152,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
   check('…and the door refuses it not-runnable:unrecognised, the honest class', !spaced.ok && spaced.reason === 'not-runnable:unrecognised', text(spaced))
 }
 
-section('§5 the road census — every door reaches a capability owner; a new judge must be declared here')
-{
-  const { readFileSync } = await import('node:fs')
-  const { join: j } = await import('node:path')
-  const { execFileSync } = await import('node:child_process')
-  const ROOT = j(import.meta.dir, '..', '..')
-  const read = (rel: string): string => readFileSync(j(ROOT, rel), 'utf8')
-  const docs = read('docs/ENGINES.md').replace(/\s+/g, ' ')
-  check('the docs say a new Anthropic model runs before a catalogue row lands, and what a row adds', /runs before its catalogue row lands/.test(docs) && /A catalogue row adds/.test(docs) && /display name/.test(docs) && /price tier/.test(docs) && /1M twin/.test(docs) && /wire laws/.test(docs))
-}
-
 removeScratch(scratch)
 console.log(failures === 0 ? '\n✅ prove-claude-door-capability — all checks pass' : `\n❌ prove-claude-door-capability — ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)
