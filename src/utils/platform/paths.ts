@@ -43,8 +43,12 @@ export function toNativeSeparators(filePath: string, platform: NodeJS.Platform =
   return platform === 'win32' ? filePath.replace(/\//g, '\\') : filePath
 }
 
-export function isWindowsShareRooted(filePath: string, platform: Platform = getPlatform()): boolean {
-  return platform === 'windows' && /^[\\/]{2}/.test(filePath)
+export function isWindowsShareRooted(
+  filePath: string,
+  allowMixed = true,
+  platform: Platform = getPlatform(),
+): boolean {
+  return platform === 'windows' && (allowMixed ? /^[\\/]{2}/ : /^(\\\\|\/\/)/).test(filePath)
 }
 
 export function picomatchPathOptions(platform: NodeJS.Platform = process.platform): { dot: true; nocase: boolean } {
