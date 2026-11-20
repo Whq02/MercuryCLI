@@ -234,11 +234,11 @@ function captureChildAnswer(stdout: Buffer): { raw: DesktopAddonCapture } | { er
     return null
   }
   if (head === null || typeof head !== 'object') return null
-  const record = head as Record<string, unknown>
+  const record = head as Omit<DesktopAddonCapture, 'png' | 'capturedAt'> & { error?: unknown; png?: unknown }
   if (typeof record.error === 'string') return { error: record.error }
   if (typeof record.png !== 'number' || stdout.length - newline - 1 !== record.png) return null
   const png = stdout.subarray(newline + 1)
-  return { raw: { ...(record as unknown as Omit<DesktopAddonCapture, 'png'>), png, capturedAt: Date.now() } }
+  return { raw: { ...record, png, capturedAt: Date.now() } }
 }
 
 function sessionsOnThisBinary(): { read: boolean; named: string } {

@@ -10,6 +10,7 @@ import {
   writeSync,
 } from 'fs'
 import { recordToEntry } from '../../../fabric/entryCodec.js'
+import type { MercuryRecord } from '../../../fabric/record.js'
 import { logForDebugging } from '../../debug.js'
 import { formatFileSize } from '../../format.js'
 import { LITE_READ_BUF_SIZE } from '../../sessionStoragePortable.js'
@@ -25,12 +26,16 @@ function lineAround(tail: Buffer, matchIdx: number, matchLength: number, bytesRe
   return { start: prevNl + 1, end: nextNl >= 0 ? nextNl + 1 : bytesRead }
 }
 
-function storedLineUuid(parsed: Record<string, unknown>): unknown {
-  const envelope =
+function isMercuryRecord(parsed: Record<string, unknown>): parsed is MercuryRecord {
+  return (
     typeof parsed.schemaVersion === 'number' &&
     typeof parsed.payload === 'object' &&
     parsed.payload !== null
-  const entry = envelope ? recordToEntry(parsed as never) : parsed
+  )
+}
+
+function storedLineUuid(parsed: Record<string, unknown>): unknown {
+  const entry = isMercuryRecord(parsed) ? recordToEntry(parsed) : parsed
   return entry.uuid
 }
 

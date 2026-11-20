@@ -124,7 +124,7 @@ const outputSchema = z.object({
 const pathShim = {
   name: AST_EDIT_TOOL_NAME,
   getPath: (i: { file_path: string }) => i.file_path,
-} as unknown as Parameters<typeof checkWritePermissionForTool>[0]
+}
 
 function scopeFor(input: Input, context: ToolUseContext): AstScope {
   const permCtx = context.getAppState().toolPermissionContext
