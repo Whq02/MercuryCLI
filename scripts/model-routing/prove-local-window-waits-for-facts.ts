@@ -70,7 +70,7 @@ const { localRecordFor } = await import('../../src/services/providers/local/loca
 const windows = await import('../../src/services/providers/local/localWindow.ts')
 const { awaitContextWindowSource, contextWindowSourceReady } = await import('../../src/services/context/contextWindowWarmup.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
-const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
 
 const note = (n: number): string => {
   let out = ''

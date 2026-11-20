@@ -1,7 +1,7 @@
 
 export * from '../../utils/cockpit/types.js'
 export * from './modelGauge.js'
-export * from '../../utils/cockpit/contextGauge.js'
+export * from './contextGauge.js'
 export * from './contextUsageLive.js'
 export * from '../../utils/cockpit/gitSnapshot.js'
 export * from './substrateSnapshot.js'

@@ -10,7 +10,7 @@ import { type SessionFactsAnswerV1, effortSentOf } from '../../services/engine-c
 import { getEngineModel } from '../../utils/model/model.js'
 import { getEngineModelOverride, getTotalCostUSD, getTotalAPIDuration, getTotalDuration, getTotalLinesAdded, getTotalLinesRemoved, getTotalInputTokens, getTotalOutputTokens, getTotalCacheReadInputTokens, getTotalCacheCreationInputTokens, hasUnknownModelCost, getTotalUnpricedTurns, getOriginalCwd, getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { sessionModelSpendRows } from '../../services/engine-connector/modelSpendFacts.js'
-import { contextFillView } from '../../utils/contextFill.js'
+import { contextFillView } from '../../services/context/contextFill.js'
 import { providerLimitWarning } from '../../services/providers/limitWarning.js'
 import { openaiObservedUsage } from '../../services/providers/openai/openaiLimitState.js'
 import { jevFactsOf } from '../../services/jev/jevSessionFacts.js'

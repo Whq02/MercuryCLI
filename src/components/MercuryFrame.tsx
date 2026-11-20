@@ -7,7 +7,7 @@ import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js
 import { countOperatorTurns } from '../utils/messages/operatorTurns.js'
 import { advisorChipWords } from '../utils/advisor/advisorSettings.js'
 import { Box, Text } from '../ink.js'
-import { contextPercentLabel } from '../utils/contextFill.js'
+import { contextPercentLabel } from '../services/context/contextFill.js'
 import { needsYouCount } from '../utils/needsYouCount.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
 import { usePublish } from '../hooks/effects.js'

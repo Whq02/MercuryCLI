@@ -647,8 +647,8 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
   const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
   const { gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
   const autoCompact = await import('../../src/services/compact/autoCompact.ts')
-  const { contextFillView } = await import('../../src/utils/contextFill.ts')
-  const tokens = await import('../../src/utils/tokens.ts')
+  const { contextFillView } = await import('../../src/services/context/contextFill.ts')
+  const tokens = await import('../../src/services/context/tokens.ts')
   const jsonFetch = (body: unknown): typeof fetch =>
     (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch
   catalogue.__resetOpenaiCatalogueForTest()

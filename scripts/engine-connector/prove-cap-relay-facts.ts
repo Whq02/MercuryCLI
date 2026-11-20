@@ -44,7 +44,7 @@ const projections = await import('../../src/services/engine-connector/seatProjec
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
 const epochs = await import('../../src/services/providers/catalogueEpoch.ts')
 const capabilities = await import('../../src/utils/model/capabilities.ts')
-const contextFill = await import('../../src/utils/contextFill.ts')
+const contextFill = await import('../../src/services/context/contextFill.ts')
 
 let failures = 0
 let checks = 0
