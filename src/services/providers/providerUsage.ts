@@ -44,8 +44,7 @@ import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
 import { credentialFingerprint } from './credentialIdentity.js'
 import { activeWalletEntry, anthropicCredentialAccount, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { accountIdentityShown, familyAccountWord } from '../wallet/identityWords.js'
-import { providerDisplayName } from './routeLaw.js'
-import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
+import { declaredRouteOf, PROVIDER_ID_SPACES, providerDisplayName } from './routeLaw.js'
 import {
   NO_USAGE_READ_WORDS,
   usageAgeWords,
