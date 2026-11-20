@@ -91,7 +91,7 @@ export function useConcourseAdmissionPump({
                 workspaceDir: '',
                 targetSessionId: sessionId,
                 by: 'operator',
-              } as never,
+              },
               { timeoutMs: 15_000 },
             )) as { ok?: boolean; heldReason?: string }
             if (dreply.ok === true || dreply.heldReason === undefined) {
