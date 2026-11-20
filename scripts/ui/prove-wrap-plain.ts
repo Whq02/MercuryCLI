@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { displayWidth } from '../../src/components/mercury-ui/glyphs.js'
+import { displayWidth } from '../../src/utils/glyphs.js'
 import { wrapPlain } from '../../src/utils/cockpit/wrapPlain.js'
 
 let failures = 0

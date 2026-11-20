@@ -2,7 +2,7 @@
 import Fuse from 'fuse.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { generateFileSuggestions } from './fileSuggestions.js'
-import { truncateToWidth } from '../components/mercury-ui/glyphs.js'
+import { truncateToWidth } from '../utils/glyphs.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
 

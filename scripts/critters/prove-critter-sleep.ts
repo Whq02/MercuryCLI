@@ -502,7 +502,7 @@ t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view 
 
 t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zzz for the rest)')
 {
-  const { displayWidth } = await import('../../src/components/mercury-ui/glyphs.js')
+  const { displayWidth } = await import('../../src/utils/glyphs.js')
   const byName = Object.fromEntries(cd.CRITTERS.map(d => [d.name, d]))
   const expected: Record<string, string> = {
     crab: cd.SLEEP_GLYPHS_DEFAULT,

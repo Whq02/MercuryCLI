@@ -11,7 +11,7 @@ import { gridToPng } from '../ui/gridToPng.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
 import { boardSeatName, type BoardViewSnapshot } from '../../src/services/crewBoard/contracts.ts'
-import { displayWidth } from '../../src/components/mercury-ui/glyphs.ts'
+import { displayWidth } from '../../src/utils/glyphs.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
 const THREE_LINES = 'Three lines:\nthe header row,\nthe footer row.'

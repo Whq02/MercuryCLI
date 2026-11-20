@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import figures from 'figures'
-import { GLYPH } from '../../src/components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../src/utils/glyphs.js'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { DIST, nodeBinPath, requireDist } from '../streaming/artifactArena.ts'

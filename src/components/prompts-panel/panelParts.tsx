@@ -10,7 +10,7 @@ import { COMPOSER_COLUMNS, promptsComposerRows } from './composerLayout.js'
 import { CrewChatPanel } from './CrewChatPanel.js'
 import TextInput from '../TextInput.js'
 import { KeyValueGrid, type KVRow } from '../mercury-ui/components.js'
-import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from '../../utils/glyphs.js'
 import {
   NavigablePanes,
   type ColumnDef,

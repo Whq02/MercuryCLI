@@ -1,7 +1,7 @@
 import { mcpServersFailed, mcpServerFailedWords } from '../../../services/mcp/utils.js'
 import { noticeRow } from '../../../rows/project.js'
 import { MCP_SERVER_FAILED_CODE, MCP_SERVER_SKIPPED_CODE } from '../../../rows/vocabulary.js'
-import { GLYPH } from '../../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { mcpServersSkippedForApprovalLines } from '../../../services/mcp/config.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 

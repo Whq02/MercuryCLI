@@ -6,7 +6,7 @@ import { browseKeysFor, CONCOURSE_HELP_KEY, managerPaneKeysFor, regionKeysFor, w
 import { InteractiveRow } from '../../mercury-ui/InteractiveRow.js'
 import { gitOfferDescription } from '../GitOfferCard.js'
 import { FloatingPopup } from '../../PopupGutter.js'
-import { displayWidth } from '../../mercury-ui/glyphs.js'
+import { displayWidth } from '../../../utils/glyphs.js'
 import { keyHintLabel } from '../../mercury-ui/keyHintLabel.js'
 import { splitAvailableAt } from '../splitView.js'
 

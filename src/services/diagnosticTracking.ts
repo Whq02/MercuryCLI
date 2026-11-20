@@ -1,5 +1,5 @@
 import figures from 'figures'
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 
 export interface Diagnostic {
   message: string

@@ -10,7 +10,7 @@ import {
   type ReadinessRecord,
 } from '../../../services/health/readiness.js'
 import { CommandCenter, EmptyState, StateBadge } from '../components.js'
-import { padTo, truncateToWidth } from '../glyphs.js'
+import { padTo, truncateToWidth } from '../../../utils/glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 
 

@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const { GLYPH, branchChip, branchChipWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
+const { GLYPH, branchChip, branchChipWidth } = await import('../../src/utils/glyphs.ts')
 const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 
 let failures = 0

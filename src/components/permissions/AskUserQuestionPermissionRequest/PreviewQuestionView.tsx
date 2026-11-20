@@ -1,5 +1,5 @@
 import figures from 'figures'
-import { GLYPH } from '../../mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'

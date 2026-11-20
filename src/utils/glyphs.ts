@@ -1,6 +1,6 @@
 
-import { stringWidth } from '../../ink/stringWidth.js'
-import { truncateToWidth as rigorousTruncateToWidth } from '../../utils/truncate.js'
+import { stringWidth } from '../ink/stringWidth.js'
+import { truncateToWidth as rigorousTruncateToWidth } from './truncate.js'
 
 export const GLYPH = {
   sep: '│',

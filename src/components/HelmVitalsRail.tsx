@@ -21,7 +21,7 @@ import { focusedSessionIdOrNull, useFocusedWorkRoster } from './tasks/useFocused
 import { healthCertSnapshot } from '../services/health/healthCertSnapshot.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { GLYPH, SPARK } from './mercury-ui/glyphs.js'
+import { GLYPH, SPARK } from '../utils/glyphs.js'
 import { requestCommandDispatch, requestHelmRowActivationByLabel, setHelmCursor } from '../utils/cockpit/helmFocus.js'
 import { usageActivityBins } from '../utils/cockpit/usageActivity.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'

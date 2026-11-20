@@ -5,7 +5,7 @@ import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErr
 import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { ToolCardMarker, ToolCardMeta, toolCardCountColor } from '../../components/mercury-ui/toolCardMeta.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import { Box, Text } from '../../ink.js'

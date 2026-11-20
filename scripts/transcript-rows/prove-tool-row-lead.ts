@@ -21,7 +21,7 @@ const { MessageMetaProvider } = await import('../../src/components/messages/Tran
 const { AppStateProvider } = await import('../../src/state/AppState.js')
 const { useMercuryTokens } = await import('../../src/components/mercury-ui/useMercuryTokens.js')
 const { TOOL_FAMILY_BY_NAME, TOOL_FAMILY_MARKS } = await import('../../src/components/mercury-ui/toolGlyphs.js')
-const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.js')
+const { GLYPH } = await import('../../src/utils/glyphs.js')
 
 type Family = keyof typeof TOOL_FAMILY_MARKS
 type ToneRole = (typeof TOOL_FAMILY_MARKS)[Family]['tone']

@@ -17,7 +17,7 @@ interface FireOutcomeSummary {
 }
 import { daemonHandshakeEvidence, handshakeDaemon, type DaemonHandshakeVerdict } from './handshake.js'
 import { MERCURY_DAEMON_PROTO, type WireRosterEntry, type WireStatus } from './protocol.js'
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import { forwardFrame, predecessorSockPath, predecessorSockPidOf } from './handover.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { readdirSync } from 'node:fs'

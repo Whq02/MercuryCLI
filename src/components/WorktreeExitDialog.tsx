@@ -1,5 +1,5 @@
 
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import React, { useRef, useState } from 'react'
 import { useLoad, usePublish } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'

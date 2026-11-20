@@ -3,7 +3,7 @@ import { relative } from 'node:path'
 import React from 'react'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { GLYPH } from './glyphs.js'
 import { Box, Text } from '../ink.js'
 import { getLargeMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from '../services/instructions/engine.js'
 import type { InstructionSourceEntry } from './instructions/contracts.js'

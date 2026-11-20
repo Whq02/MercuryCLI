@@ -4,7 +4,7 @@ import { pokeVitals, useVitals } from '../state/vitalsBus.js'
 import { aggregateByTool, aggregateVelocity, sessionTraceSnapshot } from '../services/cockpit/index.js'
 import { conversationIdHere } from '../services/engine-connector/focusedConnector.js'
 import { SECOND, AMBER, CRIMSON, FAINT, IVORY, TEAL } from './mercuryPalette.js'
-import { GLYPH, padTo, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from '../utils/glyphs.js'
 import {
   ActivityFeed,
   CommandCenter,

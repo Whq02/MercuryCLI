@@ -11,7 +11,7 @@ import type { SampleRowV1, WorkRowV1 } from '../../../services/engine-connector/
 import { sampleStateWord } from '../../../utils/samples/contracts.js'
 import { crewAgentFactsOf, crewCostLabel, crewModelLabel, CREW_ASK_WAIT_WORDS, crewPhaseWords, crewSpendLabel, crewStateLabel, crewStatusWords, crewTokensBreakdown, crewTokensLabel, crewToolUsesLabel } from '../../../services/engine-connector/crewFacts.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
-import { GLYPH } from '../../mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 
 export const WINDOW = 10
 export const MISSION_IN_PROGRESS_CAP = 4

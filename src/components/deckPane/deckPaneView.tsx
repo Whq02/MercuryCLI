@@ -13,7 +13,7 @@ import { MiniCritter } from '../mercury-ui/MiniCritter.js'
 import { Crab } from '../mercury-ui/assets.js'
 import { ProgressBar, UsageMeter } from '../mercury-ui/components.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
-import { GLYPH, truncateToWidth, branchChip } from '../mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth, branchChip } from '../../utils/glyphs.js'
 import type { GitRepoState } from '../../utils/git.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 

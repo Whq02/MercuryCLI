@@ -7,7 +7,7 @@ import { contextPercentLabel, contextWindowLabel } from '../../../utils/contextF
 import { isLocalModelId } from '../../providers/local/localCatalogue.js'
 import { formatCountdown, formatCountdownCoarse } from '../quota.js'
 import { saturnWakeGlanceWords } from '../../../daemon/saturn.js'
-import { GLYPH } from '../../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { getLogDisplayTitle } from '../../../utils/log.js'
 import { LEAD_ROW_NAME } from '../../../utils/cockpit/crewmateWords.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'

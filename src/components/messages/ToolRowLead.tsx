@@ -1,6 +1,6 @@
 import React from 'react'
 import { Text } from '../../ink.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { TOOL_FAMILY_MARKS, type ToolFamily } from '../mercury-ui/toolGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 

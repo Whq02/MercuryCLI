@@ -1,5 +1,5 @@
 
-import { charWidth, displayWidth } from '../../components/mercury-ui/glyphs.js'
+import { charWidth, displayWidth } from '../glyphs.js'
 
 function breakWord(word: string, width: number): string[] {
   const chunks: string[] = []

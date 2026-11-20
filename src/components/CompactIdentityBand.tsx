@@ -10,7 +10,7 @@ import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccen
 import { Wordmark } from './mercury-ui/assets.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
 import { FailoverMark } from './mercury-ui/FailoverMark.js'
-import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
+import { GLYPH, branchChip } from '../utils/glyphs.js'
 import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
 import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'

@@ -1,5 +1,5 @@
 
-import { displayWidth } from '../components/mercury-ui/glyphs.js'
+import { displayWidth } from './glyphs.js'
 import { resultResolvedNames } from '../tools/FileReadTool/FileReadTool.js'
 import { passedOver } from './passedOver.js'
 

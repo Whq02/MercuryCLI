@@ -8,7 +8,7 @@ import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.j
 import { Box, Text, useInput } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { ProductLockup } from './mercury-ui/components.js'
-import { branchChip, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
+import { branchChip, displayWidth, truncateToWidth } from '../utils/glyphs.js'
 import { POPUP_PAGE_HINT, PopupListViewport, popupListMotion, popupListWindow } from './CustomSelect/popup-list.js'
 import ScrollBox, { type ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { InkInstanceContext } from '../ink/components/InkInstanceContext.js'
