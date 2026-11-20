@@ -1,6 +1,7 @@
 import { posix } from 'node:path'
-import { type ReadCommand, UNREAD_PART, layersOf, wordKnown } from '../decision/commandAnalysis.js'
-import { mercurySecretPath } from './paths.js'
+import { type ReadCommand, type ShellRead, UNREAD_PART, layersOf, moveOf, wordKnown } from '../decision/commandAnalysis.js'
+import { expandPath, hasNulByte } from '../../path.js'
+import { mercurySecretPath, spelling } from './paths.js'
 import { UNREAD_ADVICE, flaggedReadOperands, readOperands, unreadWords, verb } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptReads } from './inlineScripts.js'
 import { expandShellConstants, walkPowerShellCommands } from './walk.js'
@@ -9,18 +10,40 @@ import { foldersAfter, foldersRead } from './folders.js'
 import { FILE_READERS, FIND_NON_READERS, POWERSHELL_LISTERS, callsUnreadName, filesSentOrPrinted, findMaxDepth, findNamesASecret, findstrFolderFiles, gitGrepRoots, joinedUnderStanding, keychainItemRead, namesNoSecret, powershellListing, readsHandedFiles, readsWholeTree, receivesListing, ripgrepReachesHidden, searcherOf, searchesNamesAsText, searchesTextOfListing, sharesEarlierStage, stagesApart, standingSpelled, storeBelowDepth, treeReadRoots } from './listings.js'
 
 const PS_NET_SECRET_READER = /\[(?:System\.)?IO\.File\]::(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenRead)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
+const PLAIN_CD_PROGRAMS = new Set(['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location'])
 
-async function namedPowerShellSecretPath(command: string, cwd: string): Promise<string | null> {
-  const expanded = expandShellConstants(command, true)
-  const pending = [expanded]
+function literalSecretToken(command: string, cwd: string): string | null {
+  const pending = [command]
   while (pending.length) {
     const text = pending.pop()!
     for (const match of text.matchAll(/"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s"'();|<>=]+)/g)) {
       const token = match[1] ?? match[2] ?? match[3]!
       if (mercurySecretPath(token, cwd) !== null) return token
-      if (token.length < text.length && /["']/.test(token)) pending.push(token)
+      if (token.length < text.length && (token.includes('"') || token.includes("'"))) pending.push(token)
     }
   }
+  return null
+}
+
+function plainTrackedCwd(read: ShellRead, at: number, cwd: string): string {
+  let current = cwd
+  for (let i = 0; i < at; i++) {
+    const move = moveOf(read.commands[i]!)
+    if (move === undefined || !PLAIN_CD_PROGRAMS.has(move.program)) continue
+    const target = move.operands[0]
+    if (target !== undefined) {
+      if (target === '-' || target.includes(UNREAD_PART) || hasNulByte(target)) continue
+      current = expandPath(spelling(target), current)
+    } else if (move.program !== 'pushd' && move.program !== 'push-location') {
+      current = expandPath(spelling('~'), current)
+    }
+  }
+  return current
+}
+
+async function namedPowerShellSecretPath(command: string, cwd: string): Promise<string | null> {
+  const literal = literalSecretToken(expandShellConstants(command, true), cwd)
+  if (literal !== null) return literal
   return walkPowerShellCommands(command, ({ argv, cwd: here, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.File\]::(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenRead)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
@@ -47,9 +70,24 @@ export async function readSecretReach(command: string, powershell: boolean, cwd:
   if (powershell) {
     const named = await namedPowerShellSecretPath(command, cwd)
     if (named !== null) return named
+  } else {
+    const literal = literalSecretToken(command, cwd)
+    if (literal !== null) return literal
   }
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
+  if (!powershell) {
+    for (let at = 0; at < read.commands.length; at++) {
+      const simple = read.commands[at]!
+      const plainCwd = plainTrackedCwd(read, at, cwd)
+      for (const layer of layersOf(simple.argv)) {
+        for (const path of readOperands(layer.argv)) {
+          const hit = mercurySecretPath(path, plainCwd)
+          if (hit !== null) return path.includes('/') || path.includes('\\') ? path : hit
+        }
+      }
+    }
+  }
   const homes = mercuryHomes()
   const fed = new Set<number>()
   for (const reader of read.commands) for (const at of [...reader.inner.flat(), ...reader.inputInner]) fed.add(at)
@@ -163,12 +201,6 @@ export async function readSecretReach(command: string, powershell: boolean, cwd:
   }
   const words = unreadWords(read, command, powershell)
   if (words.length > 0) {
-    if (!powershell) {
-      for (const match of command.matchAll(/"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s"'();|<>=]+)/g)) {
-        const token = match[1] ?? match[2] ?? match[3]!
-        if (mercurySecretPath(token, cwd) !== null) return token
-      }
-    }
     const stands = namesMercuryHome('.', cwd, homes)
     const needles = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld), ...homes.map(home => posix.basename(home))].map(name => name.toLowerCase())
     for (const word of words) {
