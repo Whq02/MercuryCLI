@@ -2,7 +2,7 @@ import { statSync } from 'node:fs'
 import { basename, dirname } from 'node:path'
 import type { AwayRecapMetadata, LaunchWonV1 } from '../../types/message.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { emitFocusedSessionConnectorChanged, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
+import { emitFocusedSessionConnectorChanged, getFocusedSessionConnector, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
 import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWornPresetKit, settleLandingWords, takeWornPresetKit } from './bootBirthFacts.js'
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
@@ -524,7 +524,7 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
       }
     }
     for (const part of parts) mintImmediateReceipt(part)
-    if (daemonLeft && resumeWithLaunchWords !== null) await resumeWithLaunchWords()
+    if (daemonLeft && resumeWithLaunchWords !== null && getFocusedSessionConnector().sessionId() === sessionId) await resumeWithLaunchWords()
   } catch {
   }
 }

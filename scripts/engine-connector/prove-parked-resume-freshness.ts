@@ -32,7 +32,8 @@ mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonLast
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
 const { sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.js')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { getFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+const { getFocusedSessionConnector, releaseFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+const { daemonSessionConnectorFor } = await import('../../src/services/engine-connector/daemonConnector.js')
 const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.js')
 const { statusLine } = await import('../../src/components/SwitchboardTagBar.js')
 const { sessionOwnedByLiveWorker } = await import('../../src/daemon/concourseWorkers.js')
@@ -246,6 +247,25 @@ try {
   await new Promise(resolve => setTimeout(resolve, 100))
   scripted = () => undefined
   check('a dial the daemon refuses on a live session is shown as refused and the other dial is still made, though the daemon is slow to answer a ping: no resume is asked', receipts.some(text => text.includes('--model Opus 5 was refused') && text.includes('model refused (no-credential)')) && asked.some(request => request.action === 'set-effort' && request.effort === 'max') && !asked.some(request => request.op === 'sessionAdmit'), `${askedWords()} ${JSON.stringify(receipts)}`)
+  answer({ ok: true, liveHop: true })
+  writeFileSync(factsFile, JSON.stringify({ ...seed, atMs: 1011, effort: 'high', effortSent: 'high' }))
+  connector.readFacts()
+  releaseFocusedSessionConnector()
+  record({ modelKey: 'claude-sonnet-5', effort: 'high', parkedAt: undefined, parkedBy: undefined, pid: process.pid })
+  let daemonGoes!: () => void
+  const dialHeld = new Promise<Record<string, unknown>>(resolve => { daemonGoes = () => resolve({ ok: false, code: 'ENOCONN', error: 'daemon closed without a reply (ENOCONN)' }) })
+  scripted = request => (request.action === 'set-model' ? dialHeld : undefined)
+  waitNextAdmission()
+  asked.length = 0
+  const moved = await focusResumedSession(sid, transcript, { firstPaintMs: 10, model: 'claude-opus-5', effort: 'max' })
+  await moved.admitted
+  for (let waited = 0; !asked.some(request => request.action === 'set-model') && waited < 3000; waited += 20) await new Promise(resolve => setTimeout(resolve, 20))
+  const elsewhere = daemonSessionConnectorFor({ sessionId: '00000000-0000-4000-8000-000000000098', runnerId: 'concourse-w9', title: 'another session', projectLabel: 'work', workspaceId: work, home: project })
+  setFocusedSessionConnector(elsewhere)
+  daemonGoes()
+  await new Promise(resolve => setTimeout(resolve, 150))
+  scripted = () => undefined
+  check('a launch whose dial loses the daemon after the user has moved to another session leaves the focus where the user put it and resumes nothing', getFocusedSessionConnector() === elsewhere && !asked.some(request => request.op === 'sessionAdmit'), `focused ${getFocusedSessionConnector().sessionId()} ${askedWords()}`)
   answer({ ok: true, liveHop: true })
 } finally {
   releaseFocusedSessionConnector()
