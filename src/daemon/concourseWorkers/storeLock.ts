@@ -86,7 +86,7 @@ function acquireSessionRecordsLock(
             if (acquired && !stillHeld()) return
             rmdirSync(target)
           }) as typeof rmdirSync,
-        } as never,
+        },
         onCompromised: (err: Error) => {
           logForDebugging(`[concourse] ${where} lock was compromised: ${err.message}`, { level: 'warn' })
         },

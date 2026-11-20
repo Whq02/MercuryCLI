@@ -4,7 +4,6 @@ export function cliError(msg?: string): never {
     console.error(msg)
   }
   process.exit(1)
-  return undefined as never
 }
 
 export function cliJsonError(msg?: string): never {
@@ -12,7 +11,6 @@ export function cliJsonError(msg?: string): never {
     process.stdout.write(`${msg}\n`)
   }
   process.exit(1)
-  return undefined as never
 }
 
 export function cliOk(msg?: string): never {
@@ -20,5 +18,4 @@ export function cliOk(msg?: string): never {
     process.stdout.write(`${msg}\n`)
   }
   process.exit(0)
-  return undefined as never
 }

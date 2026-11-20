@@ -42,6 +42,7 @@ import {
   type CompatStreamOptions,
   type CompatWireMessage,
 } from '../openaicompat/compatChatClient.js'
+import type { ZaiContentPart } from '../zai/zaiClient.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 export const OLLAMA_WIRE_DUMP_CHARS = 2_000
@@ -144,11 +145,14 @@ export function ollamaMessagesOf(messages: readonly CompatWireMessage[]): Ollama
     else {
       for (const item of turn.items) {
         if (item.type === 'text') content += item.text
-        else if ((item.value as { type: string }).type === 'image_url') {
-          const url = (item.value as unknown as { image_url: { url: string } }).image_url.url
-          const b64 = dataUrlBase64(url)
-          if (b64 !== undefined) images.push(b64)
-          else content += `[image ${url}]`
+        else {
+          const part = item.value as ZaiContentPart
+          if (part.type === 'image_url') {
+            const url = part.image_url.url
+            const b64 = dataUrlBase64(url)
+            if (b64 !== undefined) images.push(b64)
+            else content += `[image ${url}]`
+          }
         }
       }
     }
@@ -205,7 +209,7 @@ export function withLocalDispatcher(fetchOptions: Record<string, unknown>, api: 
 export function localFetchOptions(): Record<string, unknown> {
   const options = getProxyFetchOptions()
   if (!('dispatcher' in options)) return options
-  return withLocalDispatcher(options, getApiDispatcher(), () => new Agent(localApiAgentOptions() as never))
+  return withLocalDispatcher(options, getApiDispatcher(), () => new Agent(localApiAgentOptions()))
 }
 
 class LineSplitter {
