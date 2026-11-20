@@ -106,8 +106,11 @@ function probeEnabled(tool: Tool): boolean {
     if (typeof tool.isEnabled !== 'function') return true
     return tool.isEnabled() !== false
   } catch (error) {
-    passedOver(error)
-    return true
+    logForDebugging(
+      `tool search: isEnabled threw for ${tool.name}: ${error instanceof Error ? error.message : String(error)}`,
+      { level: 'warn' },
+    )
+    return false
   }
 }
 
