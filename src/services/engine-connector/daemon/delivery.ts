@@ -68,7 +68,21 @@ export class DeliveryPart {
     const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded, ...(meta ? { isMeta: true } : {}) })
     this.needs.echo(provisionalId, this.needs.factsBusy() ? ({ ...echo, queued: true } as Message) : echo)
     this.needs.paint()
-    const answering = meta ? null : await this.needs.openQuestion()
+    let answering: string | null = null
+    if (!meta) {
+      try {
+        answering = await this.needs.openQuestion()
+      } catch (e) {
+        this.needs.drop(provisionalId)
+        this.needs.paint()
+        this.retainedSend = { text: expanded, id: provisionalId }
+        this.needs.wakeLive()
+        return {
+          state: 'refused',
+          detail: `the message was not sent because open questions could not be checked (${e instanceof Error ? e.message : String(e)}) — ↵ again retries`,
+        }
+      }
+    }
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
     if (clientMessageId !== provisionalId) this.needs.rekeyEcho(provisionalId, clientMessageId)
     submitTrace('connector-deliver', expanded, { mode, clientMessageId, ...(meta ? { metaFrom: opts.metaFrom!.command } : {}) })

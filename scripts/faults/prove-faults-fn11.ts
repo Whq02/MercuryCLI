@@ -326,5 +326,150 @@ console.log('\nrunnerCache.ensureCached — failed rename throws when target fil
   check('ensureCached removes temp file and succeeds when a peer already populated target', Array.isArray(r.leftoverTmps) && r.leftoverTmps.length === 0 && r.raceExists === true, JSON.stringify(r))
 }
 
+console.log('\ndelivery.DeliveryPart — openQuestion failure refuses send with honest sentence instead of throwing or dispatching')
+{
+  const r = runScenario(`
+    const { DeliveryPart } = await import(path.join(SRC, 'services/engine-connector/daemon/delivery.ts'))
+    const echoed = new Map()
+    const rpcCalls = []
+    let wakes = 0
+    const delivery = new DeliveryPart({
+      sessionId: () => 'sess-deliv',
+      factsBusy: () => false,
+      compacting: () => false,
+      paint: () => {},
+      wakeLive: () => { wakes++ },
+      openQuestion: async () => { throw new Error('EACCES: cannot read store') },
+      admissionPending: () => null,
+      sendDelivered: () => {},
+      assertSeat: () => {},
+      rpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+      chainRpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+      imageBlocks: () => [],
+      lostLine: () => 'lost',
+      recallTakenLine: 'taken',
+      recallUnknownLine: 'unknown',
+      echo: (id, row) => echoed.set(id, row),
+      rekeyEcho: () => {},
+      enlist: () => {},
+      drop: (id) => echoed.delete(id),
+      withdrawn: () => {},
+      dress: () => {},
+      sendOf: () => undefined,
+      markWithdrawing: () => {},
+      retireUnknown: () => {},
+    })
+    try {
+      out.receipt = await delivery.sendWords('yes proceed')
+    } catch (e) {
+      out.threw = e instanceof Error ? e.message : String(e)
+    }
+    out.echoLeft = echoed.size
+    out.rpcCount = rpcCalls.length
+    out.wakes = wakes
+  `)
+  const receipt = r.receipt as { state?: string; detail?: string } | undefined
+  check('DeliveryPart.sendWords refuses with honest sentence when openQuestion throws', r.threw === undefined && receipt?.state === 'refused' && receipt?.detail === 'the message was not sent because open questions could not be checked (EACCES: cannot read store) — ↵ again retries', JSON.stringify(r))
+  check('DeliveryPart drops provisional echo and sends no RPC on openQuestion failure', r.echoLeft === 0 && r.rpcCount === 0, JSON.stringify(r))
+}
+
+console.log('\ndaemonConnector.openQuestion — obligations read error refuses send instead of dispatching ordinary prompt')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const oblPath = path.join(SRC, 'services/crew/obligations.ts')
+    const realObl = await import(oblPath)
+    let failRead = true
+    mock.module(oblPath, () => ({
+      ...realObl,
+      openObligations: async () => {
+        if (failRead) throw new Error('EACCES: obligations unreadable')
+        return []
+      },
+    }))
+    const ensurePath = path.join(SRC, 'services/switchboard/ensureDaemon.ts')
+    const realEnsure = await import(ensurePath)
+    mock.module(ensurePath, () => ({
+      ...realEnsure,
+      ensureOwnedDaemon: async () => true,
+    }))
+    const { DaemonSessionConnector } = await import(path.join(SRC, 'services/engine-connector/daemonConnector.ts'))
+    const rpcCalls = []
+    const connector = new DaemonSessionConnector(
+      {
+        sessionId: 'sess-conn-1',
+        runnerId: 'runner-1',
+        title: 't',
+        projectLabel: 'p',
+        workspaceId: SCRATCH,
+        home: HOME,
+      },
+      {
+        rpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+        armTranscriptWatcher: () => {},
+        armTranscriptTimer: () => {},
+      },
+    )
+    out.refused = await connector.sendWords('my answer')
+    out.rpcAfterFail = rpcCalls.length
+    out.recordsAfterFail = connector.records().length
+    failRead = false
+    out.accepted = await connector.sendWords('ordinary prompt')
+    out.rpcAfterOk = rpcCalls.length
+  `)
+  const refused = r.refused as { state?: string; detail?: string } | undefined
+  const accepted = r.accepted as { state?: string } | undefined
+  check('DaemonSessionConnector.sendWords refuses with honest sentence and dispatches nothing when openObligations throws', refused?.state === 'refused' && refused?.detail === 'the message was not sent because open questions could not be checked (EACCES: obligations unreadable) — ↵ again retries' && r.rpcAfterFail === 0 && r.recordsAfterFail === 0, JSON.stringify(r))
+  check('DaemonSessionConnector.sendWords still delivers normally when openObligations succeeds', accepted?.state === 'accepted' && r.rpcAfterOk === 1, JSON.stringify(r))
+}
+
+console.log('\nverbs.VerbsPart.leave — failed abort interrupt lands in receipt detail')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const socketPath = path.join(SRC, 'daemon/controlSocket.ts')
+    const realSocket = await import(socketPath)
+    let releaseLeave = null
+    mock.module(socketPath, () => ({
+      ...realSocket,
+      daemonControlRpc: () => new Promise(resolve => {
+        releaseLeave = resolve
+      }),
+    }))
+    const { VerbsPart } = await import(path.join(SRC, 'services/engine-connector/daemon/verbs.ts'))
+    let failInterrupt = true
+    const verbs = new VerbsPart({
+      record: () => ({ sessionId: 'sess-leave-1' }),
+      rpc: async () => {
+        if (failInterrupt) throw new Error('ECONNREFUSED')
+        releaseLeave?.({ ok: true, outcome: 'applied', detail: JSON.stringify({ note: 'skipped' }) })
+        return { ok: true, outcome: 'applied' }
+      },
+      chainRpc: async () => ({ ok: true }),
+      verbChain: () => Promise.resolve(),
+      tick: async () => {},
+      readFacts: () => {},
+    })
+    const c1 = new AbortController()
+    const p1 = verbs.leave({ signal: c1.signal })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    c1.abort(new Error('ctrl-c'))
+    const timer = setTimeout(() => releaseLeave?.({ ok: true, outcome: 'applied', detail: JSON.stringify({ note: 'none' }) }), 200)
+    out.failedReceipt = await p1
+    clearTimeout(timer)
+
+    failInterrupt = false
+    const c2 = new AbortController()
+    const p2 = verbs.leave({ signal: c2.signal })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    c2.abort(new Error('ctrl-c'))
+    out.okReceipt = await p2
+  `)
+  const failed = r.failedReceipt as { note?: string; detail?: string } | undefined
+  const ok = r.okReceipt as { note?: string; detail?: string } | undefined
+  check('VerbsPart.leave returns interrupt failure sentence in receipt.detail when abort interrupt fails', failed?.note === 'none' && failed?.detail === 'the handoff could not be interrupted (ECONNREFUSED) — the turn may still be running', JSON.stringify(r))
+  check('VerbsPart.leave still returns skipped with no error detail when abort interrupt succeeds', ok?.note === 'skipped' && ok?.detail === undefined, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
