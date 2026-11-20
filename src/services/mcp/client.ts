@@ -100,16 +100,14 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let stderrBuffer = ''
   let inProcess = false
   const redactStderr = mcpServerStderrRedactor(serverRef)
-  const provider =
-    type === 'sse' || type === 'http' ? new MercuryMcpAuthProvider(name, serverRef, undefined, false) : null
 
   try {
     if (type === 'sse') {
-      transport = await sseTransportFor(name, config, provider)
+      transport = await sseTransportFor(name, config, new MercuryMcpAuthProvider(name, serverRef, undefined, false))
     } else if (type === 'ws') {
       transport = await wsTransportFor(name, config)
     } else if (type === 'http') {
-      transport = await httpTransportFor(name, config, provider)
+      transport = await httpTransportFor(name, config, new MercuryMcpAuthProvider(name, serverRef, undefined, false))
     } else if (type === 'claudeai-proxy') {
       transport = proxyTransportFor(name, config)
     } else if ((type === 'stdio' || config.type === undefined) && isMercuryServer(name) && isMercuryServerEnabled()) {

@@ -131,7 +131,7 @@ export async function warmSessionRunner(workspaceDir: string, retiring?: string)
         ...carriedConsentOf(bootBirthFacts()),
         ...(bootCarriesRunnerOptions() ? { runnerOptionsPresent: true } : {}),
         ...carriedKitOf(bootBirthFacts()),
-      } as never,
+      },
       { timeoutMs: 5_000 },
     )) as { ok?: boolean; state?: string }
     return reply.ok === true && (reply.state === 'warmed' || reply.state === 'kept')

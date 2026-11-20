@@ -132,7 +132,7 @@ function rearmStdinAfterFault(this: RearmStdinAfterFaultReads, code: string, sys
   if (stdin.destroyed) {
     let fresh: NodeJS.ReadStream
     try {
-      fresh = new TtyReadStream(0) as unknown as NodeJS.ReadStream
+      fresh = new TtyReadStream(0)
     } catch (error) {
       logForDebugging(`${label}: the reader was destroyed and a fresh one could not open the terminal — ${String(error)}`, { level: 'warn' })
       this.stdinRecoveryArmed = false

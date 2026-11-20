@@ -7,8 +7,8 @@ const PAINTED_RESULT_INDEX = 0x7e000
 const paintedResults = new WeakMap<Message, Map<string, Message>>()
 
 type Block = { type: string; id?: string; tool_use_id?: string }
-const blocksOf = (row: Message): Block[] =>
-  (row.type === 'user' || row.type === 'assistant') && Array.isArray(row.message.content) ? (row.message.content as unknown as Block[]) : []
+const blocksOf = (row: Message): readonly Block[] =>
+  (row.type === 'user' || row.type === 'assistant') && Array.isArray(row.message.content) ? row.message.content : []
 
 function asksAReply(row: Message): boolean {
   return row.type === 'user' && !blocksOf(row).some(block => block.type === 'tool_result')
