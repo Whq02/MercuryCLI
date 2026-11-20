@@ -39,7 +39,8 @@ import { healthFixEnabled } from '../../utils/healthFix.js'
 import { sleep } from '../../utils/sleep.js'
 import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { sleepSync, startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
+import { sleepSync } from '../../utils/timers.js'
 
 const treeScratchDirs = new Set<string>()
 const treeScratchGits = new Set<ChildProcess>()
@@ -653,34 +654,32 @@ export async function runHealthReport(opts?: RunHealthReportOptions, list?: read
     const timeoutMs = spec.timeoutMs ?? ((spec.depth ?? 'fast') === 'deep' ? 60_000 : 10_000)
     let result: CheckResult
     const controller = new AbortController()
-    const onCallerAbort = (): void =>
-      controller.abort(opts?.signal?.reason ?? new Error('health run cancelled'))
-    opts?.signal?.addEventListener('abort', onCallerAbort, { once: true })
-    const deadline = startTimeout(
-      () => controller.abort(new Error(`check timed out after ${timeoutMs}ms`)),
-      timeoutMs,
-    )
-    ;(deadline as { unref?: () => void }).unref?.()
     try {
       if (opts?.signal?.aborted) throw new Error('health run cancelled')
-      result = await Promise.race([
+      result = await withDeadline(
         Promise.resolve(spec.run({ signal: controller.signal })),
-        new Promise<never>((_, rej) => {
-          controller.signal.addEventListener(
-            'abort',
-            () => rej(controller.signal.reason instanceof Error ? controller.signal.reason : new Error('aborted')),
-            { once: true },
-          )
-        }),
-      ])
+        timeoutMs,
+        () => {
+          const error = new Error(`check timed out after ${timeoutMs}ms`)
+          controller.abort(error)
+          throw error
+        },
+        {
+          signal: opts?.signal,
+          onAbort: () => {
+            const reason = opts?.signal?.reason ?? new Error('health run cancelled')
+            controller.abort(reason)
+            throw reason instanceof Error ? reason : new Error('aborted')
+          },
+          unref: true,
+        },
+      )
     } catch (e: unknown) {
       result = {
         status: 'unknown',
         evidence: `probe threw: ${e instanceof Error && e.message ? e.message.slice(0, 140) : 'error'} — no evidence either way`,
       }
     } finally {
-      stopTimeout(deadline)
-      opts?.signal?.removeEventListener('abort', onCallerAbort)
       if (!controller.signal.aborted) controller.abort(new Error('check settled'))
     }
     const check: HealthCheck = {
