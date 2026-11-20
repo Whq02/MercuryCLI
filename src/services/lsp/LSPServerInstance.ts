@@ -267,27 +267,15 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     return Math.max(0, server.lastInitFailureAt + window - lspLedgerNow())
   }
 
-  function abortedStart(): Error {
-    const error = new Error(`LSP server ${name} start was interrupted before it finished.`)
-    error.name = 'AbortError'
-    return error
-  }
-
   function waitStart(flight: Promise<void>): Promise<void> {
     const signal = currentLspAbortSignal()
     if (signal === undefined) return flight
     flight.catch(passedOver)
-    return withDeadline(flight, Number.POSITIVE_INFINITY, () => undefined, {
-      signal,
-      onAbort: () => {
-        throw abortedStart()
-      },
-    })
+    return withDeadline(flight, Number.POSITIVE_INFINITY, () => undefined, { signal })
   }
 
   async function start(): Promise<void> {
     if (server.state === 'running') return
-    if (currentLspAbortSignal()?.aborted) throw abortedStart()
     if (server.state === 'starting' && server.inFlightStart !== null) {
       return waitStart(server.inFlightStart)
     }
