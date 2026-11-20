@@ -35,7 +35,7 @@ export function newSession({ noteControl, splitFrameStands, birthInFlightRef, se
         try {
           const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
           const reply = (await daemonControlRpc(
-            { op: 'sessionControl', action: 'contract', sessionId: born.sessionId, by: 'operator', contract: { op: 'set', text: contractText } } as never,
+            { op: 'sessionControl', action: 'contract', sessionId: born.sessionId, by: 'operator', contract: { op: 'set', text: contractText } },
             { timeoutMs: 10_000 },
           )) as { ok?: boolean; outcome?: string; detail?: string }
           if (reply.ok !== true || reply.outcome !== 'applied') {
