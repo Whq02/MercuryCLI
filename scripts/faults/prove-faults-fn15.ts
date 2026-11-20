@@ -85,6 +85,33 @@ console.log('\nsidecarFraming.ts — createFrameReader does not mislabel onMessa
   )
 }
 
+const { judgeGoal, JUDGE_UNREACHABLE } = await import('../../src/services/mission/goalJudge.js')
+const { compileGoal } = await import('../../src/services/mission/goal.js')
+
+console.log('\ngoalJudge.ts — judgeGoal fails closed when helper judge throws')
+{
+  const goal = compileGoal('the parser suite is green')
+  const evidence = {
+    closing: '1. the parser suite is green — all passing\nMERCURY_MISSION_MET',
+    claimedMet: true,
+    asksOperator: false,
+    toolCalls: 1,
+    toolNames: ['Bash'],
+    verification: null,
+    checks: 0,
+  }
+  const verdict = await judgeGoal(goal, evidence, {
+    judge: async () => {
+      throw new Error('judge exploded')
+    },
+  })
+  check(
+    'throwing helper judge yields not yet (JUDGE_UNREACHABLE) instead of falling through to met claim',
+    verdict.kind === 'not yet' && verdict.reason === JUDGE_UNREACHABLE,
+    JSON.stringify(verdict),
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
