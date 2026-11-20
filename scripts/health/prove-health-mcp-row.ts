@@ -79,7 +79,8 @@ try {
   const j = healthJson(BIN)
   const row = mcpRowOf(j.text)
   const certificate = JSON.parse(j.text) as { sections: Array<{ checks: Row[] }> }
-  const mcpIndex = certificate.sections.flatMap(section => section.checks).findIndex(check => check.id === 'mcp')
+  const allChecks = certificate.sections.flatMap(section => section.checks)
+  const mcpIndex = allChecks.findIndex(check => check.id === 'mcp')
   check('health --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`)
   check('the row names the server with its state', typeof row?.evidence === 'string' && /\bfixture-echo \((configured|starting|failed|ready|needs-auth|disabled)\)/.test(row.evidence), row?.evidence?.slice(0, 120) ?? '')
   check('no evidence anywhere reads [object Object]', !j.text.includes('[object Object]'))
@@ -100,7 +101,7 @@ try {
       sends: [
         { atTick: 140, awaitRaw: `${ESC}[?2004h`, minTick: 30, data: '/health' },
         { afterPrevTicks: 6, data: '\r' },
-        { requireAwait: true, awaitText: '↑↓ move · ↵ unfold', awaitSettleTicks: 3, data: '\x1b[B'.repeat(mcpIndex) },
+        { requireAwait: true, awaitText: `${allChecks.length} checks`, awaitSettleTicks: 3, data: '\x1b[B'.repeat(mcpIndex) },
         { requireAwait: true, awaitText: 'MCP policy', awaitSettleTicks: 3, data: '\r' },
       ],
       readyText: 'fixture-echo',
