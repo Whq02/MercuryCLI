@@ -2,7 +2,6 @@
 import { readFileSync, statSync } from 'node:fs'
 import { projectConfigCandidates } from '../projectConfig.js'
 import type { VerificationScope } from './verificationState.js'
-import { passedOver } from '../passedOver.js'
 
 interface DeclaredGate {
   id: string
@@ -34,8 +33,9 @@ function fingerprintOf(path: string): string | null {
     const s = statSync(path)
     return `${s.mtimeMs}:${s.size}`
   } catch (error) {
-    passedOver(error)
-    return null
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return null
+    throw error
   }
 }
 
@@ -54,11 +54,7 @@ function parseGates(raw: string): DeclaredGate[] {
     if (!id || argv.length === 0) continue
     let match: RegExp | null = null
     if (typeof g.match === 'string' && g.match) {
-      try {
-        match = new RegExp(g.match, 'i')
-      } catch {
-        match = null
-      }
+      match = new RegExp(g.match, 'i')
     }
     const scope = typeof g.scope === 'string' && SCOPES.has(g.scope)
       ? (g.scope as VerificationScope)
@@ -90,8 +86,10 @@ export function loadDeclaredGates(cwd: string): DeclaredGate[] {
   if (winner) {
     try {
       gates = parseGates(readFileSync(winner, 'utf8'))
-    } catch {
-      gates = []
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') gates = []
+      else throw error
     }
   }
   cache.set(cwd, { gates, fingerprint, at: now })

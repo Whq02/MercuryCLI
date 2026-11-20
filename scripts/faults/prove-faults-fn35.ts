@@ -278,11 +278,81 @@ async function runWorktreeCloneRows(): Promise<void> {
   }
 }
 
+async function runProjectGatesRows(): Promise<void> {
+  const { _resetDeclaredGatesForTesting, loadDeclaredGates } = await import('../../src/utils/verification/projectGates.ts')
+  const emptyWs = join(SCRATCH, 'pg-empty')
+  mkdirSync(emptyWs, { recursive: true })
+  _resetDeclaredGatesForTesting()
+  check('projectGates: absent gates.json returns empty array', loadDeclaredGates(emptyWs).length === 0)
+
+  const badJsonWs = join(SCRATCH, 'pg-bad-json')
+  mkdirSync(join(badJsonWs, '.mercury'), { recursive: true })
+  writeFileSync(join(badJsonWs, '.mercury', 'gates.json'), '{not valid json')
+  _resetDeclaredGatesForTesting()
+  let badJsonErr: unknown = null
+  try {
+    loadDeclaredGates(badJsonWs)
+  } catch (error) {
+    badJsonErr = error
+  }
+  check('projectGates: malformed JSON throws SyntaxError', badJsonErr instanceof SyntaxError, String(badJsonErr))
+
+  const badRegexWs = join(SCRATCH, 'pg-bad-regex')
+  mkdirSync(join(badRegexWs, '.mercury'), { recursive: true })
+  writeFileSync(
+    join(badRegexWs, '.mercury', 'gates.json'),
+    JSON.stringify({ schema: 1, gates: [{ id: 'bad', argv: ['check.sh'], match: '[unterminated' }] }),
+  )
+  _resetDeclaredGatesForTesting()
+  let badRegexErr: unknown = null
+  try {
+    loadDeclaredGates(badRegexWs)
+  } catch (error) {
+    badRegexErr = error
+  }
+  check('projectGates: invalid match regex throws SyntaxError', badRegexErr instanceof SyntaxError, String(badRegexErr))
+
+  if (POSIX_MODES) {
+    const unreadableFileWs = join(SCRATCH, 'pg-unreadable-file')
+    mkdirSync(join(unreadableFileWs, '.mercury'), { recursive: true })
+    const gatesFile = join(unreadableFileWs, '.mercury', 'gates.json')
+    writeFileSync(gatesFile, JSON.stringify({ schema: 1, gates: [{ id: 'g1', argv: ['check.sh'] }] }))
+    chmodSync(gatesFile, 0o200)
+    _resetDeclaredGatesForTesting()
+    let readErr: unknown = null
+    try {
+      loadDeclaredGates(unreadableFileWs)
+    } catch (error) {
+      readErr = error
+    } finally {
+      chmodSync(gatesFile, 0o600)
+    }
+    check('projectGates: unreadable gates.json throws EACCES', (readErr as NodeJS.ErrnoException | null)?.code === 'EACCES', String(readErr))
+
+    const unreadableDirWs = join(SCRATCH, 'pg-unreadable-dir')
+    const dotMercury = join(unreadableDirWs, '.mercury')
+    mkdirSync(dotMercury, { recursive: true })
+    writeFileSync(join(dotMercury, 'gates.json'), JSON.stringify({ schema: 1, gates: [{ id: 'g2', argv: ['check.sh'] }] }))
+    chmodSync(dotMercury, 0o000)
+    _resetDeclaredGatesForTesting()
+    let statErr: unknown = null
+    try {
+      loadDeclaredGates(unreadableDirWs)
+    } catch (error) {
+      statErr = error
+    } finally {
+      chmodSync(dotMercury, 0o700)
+    }
+    check('projectGates: stat EACCES on .mercury throws EACCES', (statErr as NodeJS.ErrnoException | null)?.code === 'EACCES', String(statErr))
+  }
+}
+
 try {
   await runUsageHistoryRows()
   await runBaselineRows()
   await runWorktreeRows()
   await runWorktreeCloneRows()
+  await runProjectGatesRows()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
