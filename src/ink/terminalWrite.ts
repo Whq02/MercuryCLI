@@ -1,5 +1,6 @@
 
-import { createContext, useContext, useEffect, useRef } from 'react'
+import { createContext, useContext, useRef } from 'react'
+import { useClaim, usePublish } from '../hooks/effects.js'
 import { noteModeAcquired, noteModeReleased } from './root/terminalModeLedger.js'
 import { isProgressReportingAvailable } from './session/capabilities.js'
 import { ITERM2, osc, OSC, PROGRESS, wrapForMultiplexer } from './termio/osc.js'
@@ -65,11 +66,11 @@ export function useTabRing(live: boolean): void {
   const tokenRef = useRef<symbol | null>(null)
   if (tokenRef.current === null) tokenRef.current = Symbol('tab-ring-holder')
   const token = tokenRef.current
-  useEffect(() => {
+  usePublish(() => {
     if (write === null) return
     ringOver(write).hold(token, live)
   }, [write, live, token])
-  useEffect(
+  useClaim(
     () => () => {
       if (write !== null) ringOver(write).release(token)
     },

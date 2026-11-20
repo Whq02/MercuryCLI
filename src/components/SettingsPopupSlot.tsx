@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Box, elementScreenLeft, elementScreenTop, measureElement, type DOMElement } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useMeasure } from '../hooks/effects.js'
 import {
   settingsPopupCompact,
   settingsPopupRequest,
@@ -72,7 +73,7 @@ export function SettingsPopupSlot({
   const { columns, rows: terminalRows } = useTerminalSize()
   const [host, setHost] = useState<SettingsPopupHost | null>(null)
   const hosted = overlay && hostRef !== undefined
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (!hosted || request === null) return
     const element = hostRef?.current
     const next = (element ? settingsPopupHost(element, framed) : null) ?? { left: 0, columns }

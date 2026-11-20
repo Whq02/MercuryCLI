@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { useAuthWallHold } from '../../hooks/useAuthWallHold.js';
+import { useClaim } from '../../hooks/effects.js';
 import type { VimMode } from '../../hooks/useVimInput.js';
 import * as pendingInput from '../../input-core/pending-input.js';
 import { conversationIdHere, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
@@ -48,7 +49,7 @@ export function useChatDraft({
     () => getFocusedSessionConnector().modelFacts().effective,
   );
   const insertTextRef = useRef<{ insert: (text: string) => void; setInputWithCursor: (value: string, cursor: number) => void; cursorOffset: number } | null>(null);
-  useEffect(() => {
+  useClaim(() => {
     return pendingInput.registerInterceptors({
       interceptSuggestion: () => false,
       onEmptyToNonempty: () => {
@@ -59,8 +60,8 @@ export function useChatDraft({
     });
   }, [fullscreen, repinToBottom]);
 
-  useEffect(() => registerComposerSeeder(seed => pendingInput.append(seed)), []);
-  useEffect(
+  useClaim(() => registerComposerSeeder(seed => pendingInput.append(seed)), []);
+  useClaim(
     () =>
       registerComposerSeedTrimmer(() => {
         const words = pendingInput.text();

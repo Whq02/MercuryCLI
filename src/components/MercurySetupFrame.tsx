@@ -1,9 +1,10 @@
 import * as React from 'react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Box, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
 import { useSettingsMaybe } from '../hooks/useSettings.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useMeasure } from '../hooks/effects.js'
 import { Crab, Wordmark } from './mercury-ui/assets.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -69,7 +70,7 @@ export function MercurySetupFrame({
   const bodyViewportRef = useRef<DOMElement | null>(null)
   const bodyRef = useRef<DOMElement | null>(null)
   const [clipped, setClipped] = useState(false)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (!centred) return
     const viewport = bodyViewportRef.current
     const body = bodyRef.current
