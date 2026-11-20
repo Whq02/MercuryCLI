@@ -5,18 +5,21 @@ import { nextOrdinal, asOrdinal, type Ordinal } from '../../fabric/ordinal.js'
 import type { MercuryRecord } from '../../fabric/record.js'
 import type { SessionId } from '../../types/ids.js'
 import { logForDebugging } from '../debug.js'
-import { getErrnoCode } from '../errors.js'
+import { errorMessage, getErrnoCode } from '../errors.js'
 import { jsonStringify } from '../slowOperations.js'
 import { passedOver } from '../passedOver.js'
+import { setStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 
 const TAIL_BYTES = 256 * 1024
 
 type FileState = { nextValue: number; headerPending: boolean; unterminatedTail: boolean }
 
 const fileStates = new Map<string, FileState>()
+const reportedReadFailures = new Set<string>()
 
 export function resetTranscriptFormatCacheForTesting(): void {
   fileStates.clear()
+  reportedReadFailures.clear()
 }
 
 function recoverTailOrdinalFloor(fd: number, size: number): number {
@@ -64,8 +67,16 @@ function stateFor(fullPath: string): FileState {
     const code = getErrnoCode(error)
     resolved = { nextValue: 1, headerPending: true, unterminatedTail: false }
     if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-      passedOver(error)
       logForDebugging(`transcript state read failed for ${fullPath} (${code ?? 'unknown'})`, { level: 'error' })
+      if (!reportedReadFailures.has(fullPath)) {
+        reportedReadFailures.add(fullPath)
+        if (!transcriptStoreHealth().failing) {
+          setStoreHealth({
+            failing: true,
+            sentence: `Session transcript at ${fullPath} could not be read (${errorMessage(error)}), so new messages may be saved out of order — restore read permission on the file.`,
+          })
+        }
+      }
       return resolved
     }
   } finally {
