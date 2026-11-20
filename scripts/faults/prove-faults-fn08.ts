@@ -225,6 +225,111 @@ async function main(): Promise<void> {
       check('unreadable manifest throws instead of returning null', eaccesThrew)
     }
   })
+
+  await runRow('browserEmulation: reports revoke failure, re-grant failure, and inherited header clear failure', () => {
+    const script = `
+      import { mock } from 'bun:test'
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+      process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const sessionPath = ${JSON.stringify(join(SRC, 'services/browser/browserSession.ts'))}
+      const realSession = await import(sessionPath)
+      const kits = new WeakMap()
+      mock.module(sessionPath, () => ({
+        ...realSession,
+        pageKitOf: page => kits.get(page) ?? null,
+        presentToFrames: () => undefined,
+        driverVersion: () => 'test',
+      }))
+      const emu = await import(${JSON.stringify(join(SRC, 'services/browser/browserEmulation.ts'))})
+      const makePage = (startUrl, permImpl, cdpImpl) => {
+        let curUrl = startUrl
+        const handlers = new Map()
+        const ctx = { setPermission: permImpl }
+        const page = {
+          url: () => curUrl,
+          setUrl: u => { curUrl = u },
+          browserContext: () => ctx,
+          browser: () => ctx,
+          setExtraHTTPHeaders: async () => undefined,
+          setViewport: async () => undefined,
+          emulateNetworkConditions: async () => undefined,
+          on: (ev, fn) => {
+            const set = handlers.get(ev) ?? new Set()
+            set.add(fn)
+            handlers.set(ev, set)
+          },
+          once: (ev, fn) => {
+            const set = handlers.get(ev) ?? new Set()
+            set.add(fn)
+            handlers.set(ev, set)
+          },
+          off: (ev, fn) => { handlers.get(ev)?.delete(fn) },
+          emit: (ev, arg) => { for (const fn of [...(handlers.get(ev) ?? [])]) fn(arg) },
+        }
+        kits.set(page, {
+          cdp: { send: cdpImpl, on: () => undefined },
+          identity: null,
+          languages: ['en-US'],
+          timeZone: 'UTC',
+          born: null,
+          presented: null,
+          fetchHeld: false,
+        })
+        return page
+      }
+
+      let permFail = null
+      const page1 = makePage(
+        'https://a.example/',
+        async (_origin, req) => {
+          if (permFail && req.state === permFail.state) throw new Error(permFail.msg)
+        },
+        async () => undefined,
+      )
+      await emu.applyEmulation(page1, { geolocation: { latitude: 1, longitude: 2 } }, {})
+      permFail = { state: 'granted', msg: 'grant denied' }
+      page1.setUrl('https://b.example/')
+      page1.emit('framenavigated', { parentFrame: () => null })
+      await new Promise(r => setTimeout(r, 20))
+      const linesAfterNav = emu.emulationLines(page1)
+
+      permFail = { state: 'prompt', msg: 'revoke denied' }
+      const clearOutcome = await emu.applyEmulation(page1, { geolocation: null }, {})
+
+      const fromPage = makePage('https://a.example/', async () => undefined, async () => undefined)
+      await emu.applyEmulation(fromPage, { timezone: 'Europe/Paris' }, {})
+      const toPage = makePage(
+        'https://a.example/',
+        async () => undefined,
+        async method => {
+          if (method === 'Network.setExtraHTTPHeaders') throw new Error('headers clear refused')
+        },
+      )
+      kits.get(toPage).born = {
+        identity: null,
+        languages: ['en-US'],
+        locale: null,
+        timeZone: 'UTC',
+        headers: { 'x-old': '1' },
+      }
+      const inherited = await emu.inheritEmulation(fromPage, toPage, true)
+
+      process.stdout.write('\\n' + JSON.stringify({
+        regrantReported: linesAfterNav.some(l => l.includes('location permission could not be granted to https://b.example (grant denied)')),
+        revokeReported: clearOutcome.failures.some(f => f.includes('revoke denied')),
+        headerClearReported: (inherited?.failures ?? []).some(f => f.includes('headers clear refused')),
+      }))
+    `
+    const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
+    check('isolated browserEmulation check exited 0', res.status === 0, res.stderr.slice(-400))
+    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { regrantReported?: boolean; revokeReported?: boolean; headerClearReported?: boolean }
+    check('re-grant failure after navigation surfaces in emulationLines', out.regrantReported === true)
+    check('revoke failure on geolocation clear surfaces in outcome.failures', out.revokeReported === true)
+    check('inherited header clear failure surfaces in outcome.failures', out.headerClearReported === true)
+  })
 }
 
 try {
