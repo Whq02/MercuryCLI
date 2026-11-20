@@ -145,32 +145,45 @@ try {
     const linkFile = join(symDir, 'link.txt')
     writeFileSync(targetFile, 'original-target')
     const fsReal = await import('node:fs')
-    fsReal.symlinkSync(targetFile, linkFile)
-    const childCode = `
-      const { mock } = await import('bun:test')
-      const realFs = await import('node:fs')
-      mock.module('node:fs', () => ({
-        ...realFs,
-        readlinkSync: () => { throw Object.assign(new Error('EIO readlink'), { code: 'EIO' }) },
-      }))
-      const fileMod = await import(${JSON.stringify(join(HERE, '../../src/utils/file.ts'))})
-      let code = null
-      try {
-        fileMod.writeFileAndFlushAtomically(${JSON.stringify(linkFile)}, 'replaced')
-      } catch (err) {
-        code = err?.code ?? 'THREW'
+    let symCreated = true
+    try {
+      fsReal.symlinkSync(targetFile, linkFile)
+    } catch (err) {
+      if (process.platform === 'win32' && (err as NodeJS.ErrnoException | null)?.code === 'EPERM') {
+        symCreated = false
+      } else {
+        throw err
       }
-      const stillLink = realFs.lstatSync(${JSON.stringify(linkFile)}).isSymbolicLink()
-      const targetText = realFs.readFileSync(${JSON.stringify(targetFile)}, 'utf8')
-      process.stdout.write(JSON.stringify({ code, stillLink, targetText }))
-    `
-    const sub = Bun.spawnSync([process.execPath, '-e', childCode], {
-      env: { ...process.env, MERCURY_CONFIG_DIR: home, NODE_ENV: 'test' },
-      stdout: 'pipe',
-      stderr: 'pipe',
-    })
-    const symResult = sub.exitCode === 0 ? JSON.parse(sub.stdout.toString('utf8').trim()) as { code: string | null; stillLink: boolean; targetText: string } : null
-    check('file.writeFileAndFlushAtomically readlink EIO refuses and keeps symlink intact', symResult !== null && symResult.code === 'EIO' && symResult.stillLink === true && symResult.targetText === 'original-target', JSON.stringify(symResult ?? sub.stderr.toString('utf8').slice(-300)))
+    }
+    if (!symCreated) {
+      skip('file.writeFileAndFlushAtomically readlink EIO refuses and keeps symlink intact', 'not read on Windows: no symlink privilege')
+    } else {
+      const childCode = `
+        const { mock } = await import('bun:test')
+        const realFs = await import('node:fs')
+        mock.module('node:fs', () => ({
+          ...realFs,
+          readlinkSync: () => { throw Object.assign(new Error('EIO readlink'), { code: 'EIO' }) },
+        }))
+        const fileMod = await import(${JSON.stringify(join(HERE, '../../src/utils/file.ts'))})
+        let code = null
+        try {
+          fileMod.writeFileAndFlushAtomically(${JSON.stringify(linkFile)}, 'replaced')
+        } catch (err) {
+          code = err?.code ?? 'THREW'
+        }
+        const stillLink = realFs.lstatSync(${JSON.stringify(linkFile)}).isSymbolicLink()
+        const targetText = realFs.readFileSync(${JSON.stringify(targetFile)}, 'utf8')
+        process.stdout.write(JSON.stringify({ code, stillLink, targetText }))
+      `
+      const sub = Bun.spawnSync([process.execPath, '-e', childCode], {
+        env: { ...process.env, MERCURY_CONFIG_DIR: home, NODE_ENV: 'test' },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+      const symResult = sub.exitCode === 0 ? JSON.parse(sub.stdout.toString('utf8').trim()) as { code: string | null; stillLink: boolean; targetText: string } : null
+      check('file.writeFileAndFlushAtomically readlink EIO refuses and keeps symlink intact', symResult !== null && symResult.code === 'EIO' && symResult.stillLink === true && symResult.targetText === 'original-target', JSON.stringify(symResult ?? sub.stderr.toString('utf8').slice(-300)))
+    }
   }
   {
     const fhDir = join(scratch, 'fh-stat')
