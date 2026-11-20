@@ -456,5 +456,34 @@ console.log('\nauth.ts — routing failure does not default to anthropic and usa
   check('auth:usage-assembly-failure-emits-throwing-check', r.hasUsage === true && r.usageErr === 'usage read boom', JSON.stringify(r))
 }
 
+console.log('\nruntime.ts — editOutcomeLedgerEnabled throw emits a throwing Edit outcomes check instead of omitting the row')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const real = await import(SRC + '/services/changeTransaction/editOutcomeLedger.ts')
+    mock.module(SRC + '/services/changeTransaction/editOutcomeLedger.js', () => ({
+      ...real,
+      editOutcomeLedgerEnabled: () => { throw new Error('ledger check boom') },
+    }))
+    const { runtimeChecks } = await import(SRC + '/utils/health/sections/runtime.ts')
+    const row = runtimeChecks().find(c => c.id === 'edit-outcomes')
+    out.present = Boolean(row)
+    out.label = row?.label ?? null
+    if (row) {
+      try {
+        await row.run()
+        out.err = null
+      } catch (e) {
+        out.err = e?.message ?? String(e)
+      }
+    }
+  `)
+  check(
+    'runtime:edit-outcomes-assembly-failure-emits-throwing-check',
+    r.present === true && r.label === 'Edit outcomes' && r.err === 'ledger check boom',
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
