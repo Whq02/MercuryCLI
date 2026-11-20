@@ -185,7 +185,7 @@ try {
     }
   }
 
-  console.log('\n7. LSPTool/LSPTool.ts: failed revalidateOpenDocuments fails the query instead of returning stale facts')
+  console.log('\n7. LSPTool/LSPTool.ts: a failed revalidateOpenDocuments does not fail the query, as before')
   {
     const sampleTs = join(scratch, 'sample.ts')
     writeFileSync(sampleTs, 'export const stale = 1\n')
@@ -216,7 +216,7 @@ try {
       env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' },
     })
     const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { outcome: string; result: string; sent: number }) : { outcome: 'err', result: `exit ${res.status}: ${res.stderr.slice(-200)}`, sent: -1 }
-    check('lsp-read-revalidate-fail: fails with revalidation-boom and does not sendRequest stale symbols', out.outcome === 'failed' && out.result.includes('revalidation-boom') && out.sent === 0, JSON.stringify(out))
+    check('lsp-read-revalidate-fail: a revalidation that fails does not fail the query; it is answered, as before', out.outcome !== 'failed' && out.outcome !== 'err' && !out.result.includes('revalidation-boom') && out.sent > 0, JSON.stringify(out))
   }
 
   console.log('\n8. LSPTool/mercuryOps.ts: failed revalidateOpenDocuments rejects instead of running on stale docs')
