@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 const root = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const files = await import(join(root, 'utils/attachments/fileAttachments.ts'))
+const files = await import(join(root, 'services/attachments/fileAttachments.ts'))
 const helpers = await import(join(root, 'utils/file.ts'))
 const shared = await import(join(root, 'utils/attachments/shared.ts'))
 const pdf = await import(join(root, 'utils/pdf.ts'))

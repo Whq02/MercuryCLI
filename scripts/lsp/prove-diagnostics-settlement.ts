@@ -7,7 +7,7 @@ import { join } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const registry = await import(join(ROOT, 'src/services/lsp/LSPDiagnosticRegistry.ts'))
 const manager = await import(join(ROOT, 'src/services/lsp/manager.ts'))
-const road = await import(join(ROOT, 'src/utils/attachments/diagnostics.ts'))
+const road = await import(join(ROOT, 'src/services/attachments/diagnostics.ts'))
 const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
 const { BASH_TOOL_NAME } = await import(join(ROOT, 'src/constants/tools/bash.ts'))
 type Diagnostic = { message: string; severity: 'Error' | 'Warning'; range: { start: { line: number; character: number }; end: { line: number; character: number } }; source: string; code: string }

@@ -23,7 +23,7 @@ enableConfigs()
 const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
 const { FileReadTool } = await import(join(SRC, 'tools/FileReadTool/FileReadTool.ts'))
-const { generateFileAttachment } = await import(join(SRC, 'utils/attachments/fileAttachments.ts'))
+const { generateFileAttachment } = await import(join(SRC, 'services/attachments/fileAttachments.ts'))
 const compact = await import(join(SRC, 'services/compact/compact.ts'))
 
 type Entry = { content: string; timestamp: number; offset: number | undefined; limit: number | undefined }

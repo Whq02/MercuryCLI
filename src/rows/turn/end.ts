@@ -1,6 +1,6 @@
 import type { getSessionId } from '../../bootstrap/state.js'
 import type { Message } from '../../types/message.js'
-import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../../services/attachments/orchestrator.js'
 import { isBareMode } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 import { turnCutOf } from '../../utils/messages/turnCut.js'

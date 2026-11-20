@@ -16,7 +16,7 @@ import type { PermissionAllowDecision, PermissionDecisionReason } from '../../ty
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import type { ContentBlockParam, ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
-import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAbortError, ShellError, type ShellRunFact } from '../../utils/errors.js'
 import { clampToolResultImageBlocks } from '../../utils/imageResizer.js'

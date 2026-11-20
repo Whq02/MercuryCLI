@@ -56,7 +56,7 @@ import {
 import {
   createAttachmentMessage,
   getAgentPendingMessageAttachments,
-} from '../../utils/attachments.js'
+} from '../../services/attachments.js'
 import { getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
 import { ledgerMark, ledgerSpentSince } from '../../utils/ledgerMark.js'

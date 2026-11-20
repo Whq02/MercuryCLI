@@ -20,7 +20,7 @@ process.chdir(project)
 
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { cacheKeys, cloneFileStateCache, createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { generateFileAttachment, getChangedFiles } = await import('../../src/utils/attachments/fileAttachments.ts')
+const { generateFileAttachment, getChangedFiles } = await import('../../src/services/attachments/fileAttachments.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 const { setCwdState, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 enableConfigs()

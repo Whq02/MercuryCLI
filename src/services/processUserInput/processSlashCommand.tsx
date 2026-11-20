@@ -29,7 +29,7 @@ import type {
 import {
   createAttachmentMessage,
   getAttachmentMessages,
-} from '../../utils/attachments.js'
+} from '../attachments.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import {
   createCommandInputMessage,

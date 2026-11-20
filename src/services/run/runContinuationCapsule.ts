@@ -88,7 +88,7 @@ export function buildRunContinuationCapsule(
   }
   try {
     const { capsuleContinuationLine } =
-      require('../../utils/attachments/contextCapsule.js') as typeof import('../../utils/attachments/contextCapsule.js')
+      require('../attachments/contextCapsule.js') as typeof import('../attachments/contextCapsule.js')
     const capsuleLine = capsuleContinuationLine(String(owner))
     if (capsuleLine) lines.push(capsuleLine)
   } catch (error) {

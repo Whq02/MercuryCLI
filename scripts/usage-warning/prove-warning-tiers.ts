@@ -51,7 +51,7 @@ for (const posture of ['off', 'offer', 'auto'] as const) {
   assert.equal(decideCapAction(posture, 'rejected').kind, posture === 'off' ? 'none' : posture === 'auto' ? 'auto-handoff' : 'offer')
 }
 
-const { getUsageLimitNoticeAttachment } = await import('../../src/utils/attachments/sessionContext.ts')
+const { getUsageLimitNoticeAttachment } = await import('../../src/services/attachments/sessionContext.ts')
 const context = { options: { engineModel: 'fable' } } as Parameters<typeof getUsageLimitNoticeAttachment>[0]
 const { getSettingsForSource, updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')

@@ -1,10 +1,10 @@
 
 import type { ToolUseContext } from '../../Tool.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
-import { providerLimitWarningFacts } from '../../services/providers/limitWarning.js'
-import { getInitialSettings } from '../settings/settings.js'
-import type { Attachment } from './types.js'
-import { passedOver } from '../passedOver.js'
+import { providerLimitWarningFacts } from '../providers/limitWarning.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
+import type { Attachment } from '../../utils/attachments/types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function getCriticalSystemReminderAttachment(
   toolUseContext: ToolUseContext,

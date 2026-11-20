@@ -31,7 +31,7 @@ import {
 } from '../../utils/messages.js'
 import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
 import { createUserMessage } from '../../utils/messages.js'
-import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../../services/attachments/orchestrator.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
 import {

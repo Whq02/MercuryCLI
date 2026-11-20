@@ -18,7 +18,7 @@ const { DaemonSessionConnector } = await import(
   '../../src/services/engine-connector/daemonConnector.ts'
 )
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 
 let failures = 0
 let checks = 0

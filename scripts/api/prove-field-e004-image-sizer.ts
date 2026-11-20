@@ -61,7 +61,7 @@ const { processOwnerForLane, rosterOwnerFromToolUseContext } = await import(join
 const OWNER = String(processOwnerForLane(null))
 const resizer = await import(join(ROOT, 'src/utils/imageResizer.ts'))
 const limitsMod = await import(join(ROOT, 'src/constants/apiLimits.ts'))
-const { createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
 const { describeImageProcessor, imageProcessorState } = await import(join(ROOT, 'src/utils/imageProcessor/imageProcessor.ts'))
 const sharp = (await import('sharp')).default
 

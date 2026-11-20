@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_PROJECT_INTEL = '1'
 
 await import('../../src/tasks.js')
-const { makeMaybe, getAttachments } = await import('../../src/utils/attachments/orchestrator.js')
+const { makeMaybe, getAttachments } = await import('../../src/services/attachments/orchestrator.js')
 const { getProjectSnapshot, _resetProjectIntelForTesting } = await import(
   '../../src/services/projectIntel/snapshot.js'
 )

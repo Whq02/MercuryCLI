@@ -71,7 +71,7 @@ async function runChild(args: ChildArgs): Promise<void> {
     if (args.road === 'read') return viaRead(path)
     if (args.road === 'reference') return viaRead(`mercury://file/${path}`)
     if (args.road === 'mention') {
-      const { generateFileAttachment } = await import('../../src/utils/attachments/fileAttachments.ts')
+      const { generateFileAttachment } = await import('../../src/services/attachments/fileAttachments.ts')
       const row = (await generateFileAttachment(path, makeContext() as never, 'at-mention')) as { type?: string } | null
       return row === null ? 'nothing attached' : String(row.type)
     }

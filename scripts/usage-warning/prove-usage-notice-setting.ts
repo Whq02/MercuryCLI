@@ -18,7 +18,7 @@ state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSetting
 const userFile = join(process.env.MERCURY_CONFIG_DIR, 'settings.json')
 writeFileSync(userFile, '{}')
 
-const { getUsageLimitNoticeAttachment } = await import('../../src/utils/attachments/sessionContext.ts')
+const { getUsageLimitNoticeAttachment } = await import('../../src/services/attachments/sessionContext.ts')
 const { usageWarningNoticeText } = await import('../../src/services/providers/limitWarning.ts')
 
 const reset = Math.floor(Date.now() / 1000) + 604800

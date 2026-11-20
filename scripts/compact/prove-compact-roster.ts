@@ -41,7 +41,7 @@ const { seatWaitWords } = await import('../../src/services/capacity/seatWords.ts
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const { getCompactPrompt, getPartialCompactPrompt } = await import('../../src/services/compact/prompt.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 
 type AnyTask = Record<string, unknown>
 const now = Date.now()

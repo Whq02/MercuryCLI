@@ -58,7 +58,7 @@ t(
 t('plain C:\\ stays protected', isDangerousRemovalPath('C:\\') === true)
 t('an ordinary nested path stays unflagged', isDangerousRemovalPath('/home/u/project/tmp') === false)
 
-const { processAtMentionedFiles } = await import('../../src/utils/attachments/mentionResolvers.ts')
+const { processAtMentionedFiles } = await import('../../src/services/attachments/mentionResolvers.ts')
 const mentionContext = {
   getAppState: () => ({ toolPermissionContext: ctx }),
   options: {},

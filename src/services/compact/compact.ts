@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../Tool.js'
 import type { NonNullableUsage } from '../../utils/api/emptyUsage.js'
 import type { Message, UserMessage, CompactMetadata } from '../../types/message.js'
-import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { CacheSafeParams } from '../agents/forkedAgent.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
