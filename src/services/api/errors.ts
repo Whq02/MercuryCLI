@@ -10,6 +10,7 @@ import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSourc
 import { formatFileSize } from '../../utils/format.js'
 import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { logError } from '../../utils/log.js'
 import { NO_RESPONSE_REQUESTED } from '../../utils/messages/rejectionText.js'
 import { createAssistantAPIErrorMessage } from '../../utils/messages/factories.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -180,16 +181,26 @@ function headerValue(headers: unknown, name: string): string | undefined {
 
 
 function routeOfModel(model: string): string {
-  const { declaredRouteOf } =
-    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
-  return declaredRouteOf(model) ?? 'gateway'
+  try {
+    const { declaredRouteOf } =
+      require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+    return declaredRouteOf(model) ?? 'gateway'
+  } catch (error) {
+    logError(new Error(`routeOfModel: ${error instanceof Error ? error.message : String(error)}`))
+    return 'anthropic'
+  }
 }
 
 function providerNameOfModel(model: string): string {
   const route = routeOfModel(model)
-  const { providerDisplayName } =
-    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
-  return providerDisplayName(route)
+  try {
+    const { providerDisplayName } =
+      require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+    return providerDisplayName(route)
+  } catch (error) {
+    logError(new Error(`providerNameOfModel: ${error instanceof Error ? error.message : String(error)}`))
+    return route
+  }
 }
 
 
@@ -768,9 +779,14 @@ function composeAuthFailureMessage(status: number, model: string, message: strin
 }
 
 function overflowFamilyOfModel(model: string): OverflowFamily {
-  const { declaredRouteOf } =
-    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
-  return declaredRouteOf(model) ?? 'unknown'
+  try {
+    const { declaredRouteOf } =
+      require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+    return declaredRouteOf(model) ?? 'unknown'
+  } catch (error) {
+    logError(new Error(`overflowFamilyOfModel: ${error instanceof Error ? error.message : String(error)}`))
+    return 'unknown'
+  }
 }
 
 

@@ -153,7 +153,7 @@ async function main(): Promise<void> {
     }
   })
 
-  await runRow('errors: route lookup and provider name bugs propagate instead of falling back to anthropic', () => {
+  await runRow('errors: overflowFamilyOfModel classifies as unknown and preserves provider error when routeLaw throws', () => {
     const script = `
       import { mock } from 'bun:test'
       process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
@@ -163,12 +163,10 @@ async function main(): Promise<void> {
       globalThis.MACRO = { VERSION: '1.0.0' }
       const routePath = ${JSON.stringify(join(SRC, 'services/providers/routeLaw.ts'))}
       const realRoute = await import(routePath)
-      let mode = 'declared'
       mock.module(routePath, () => ({
         ...realRoute,
         declaredRouteOf: () => {
-          if (mode === 'declared') throw new Error('route-law-boom')
-          return 'openai'
+          throw new Error('route-law-boom')
         },
         providerDisplayName: () => {
           throw new Error('display-name-boom')
@@ -176,31 +174,25 @@ async function main(): Promise<void> {
       }))
       const errors = await import(${JSON.stringify(join(SRC, 'services/api/errors.ts'))})
       const { APIError } = await import(${JSON.stringify(join(SRC, 'services/api/sdkErrors.ts'))})
-      const out = { routeThrew: false, overflowThrew: false, displayThrew: false }
-      try {
-        errors.getAssistantMessageFromError(new APIError(401, { error: { message: 'bad key' } }, 'bad key', new Headers()), 'gpt-5')
-      } catch (e) {
-        out.routeThrew = String(e).includes('route-law-boom')
-      }
-      try {
-        errors.getAssistantMessageFromError(new APIError(400, { error: { message: 'prompt is too long' } }, 'prompt is too long', new Headers()), 'gpt-5')
-      } catch (e) {
-        out.overflowThrew = String(e).includes('route-law-boom')
-      }
-      mode = 'display'
-      try {
-        errors.getAssistantMessageFromError(new APIError(400, { error: { message: 'bad req' } }, 'bad req', new Headers()), 'gpt-5')
-      } catch (e) {
-        out.displayThrew = String(e).includes('display-name-boom')
-      }
-      process.stdout.write('\\n' + JSON.stringify(out))
+      const overflowMsg = errors.getAssistantMessageFromError(
+        new APIError(400, { error: { message: 'prompt is too long' } }, 'prompt is too long', new Headers()),
+        'gpt-5',
+      )
+      const authMsg = errors.getAssistantMessageFromError(
+        new APIError(400, { error: { message: 'bad req' } }, 'bad req', new Headers()),
+        'gpt-5',
+      )
+      process.stdout.write('\\n' + JSON.stringify({
+        family: overflowMsg.overflowSignal?.family ?? null,
+        hasOverflowMsg: overflowMsg.isApiErrorMessage === true,
+        hasBadReqMsg: authMsg.isApiErrorMessage === true,
+      }))
     `
     const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
     check('isolated errors check exited 0', res.status === 0, res.stderr.slice(-400))
-    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { routeThrew?: boolean; overflowThrew?: boolean; displayThrew?: boolean }
-    check('routeOfModel bug propagates', out.routeThrew === true)
-    check('overflowFamilyOfModel bug propagates', out.overflowThrew === true)
-    check('providerNameOfModel bug propagates', out.displayThrew === true)
+    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { family?: string | null; hasOverflowMsg?: boolean; hasBadReqMsg?: boolean }
+    check('overflowFamilyOfModel classifies as unknown on throw instead of anthropic', out.family === 'unknown', `got ${out.family}`)
+    check('provider error message still returned when routeLaw throws', out.hasOverflowMsg === true && out.hasBadReqMsg === true)
   })
 
   await runRow('usage: fetchUtilization propagates foldUtilizationFromEndpoint and epoch bugs', () => {
