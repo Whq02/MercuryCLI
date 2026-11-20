@@ -50,6 +50,22 @@ export function noteGlobalConfigRefusalSaid(): void {
   globalConfigRefusalSaid = true
 }
 
+type GlobalConfigSaveRefusal =
+  | { kind: 'read'; filePath: string; code: string }
+  | { kind: 'locked'; filePath: string }
+  | { kind: 'auth-wipe'; filePath: string }
+
+function exitFlushRefusalLine(refusal: GlobalConfigSaveRefusal): string {
+  switch (refusal.kind) {
+    case 'read':
+      return `Could not save the settings changed in this session: ${refusal.filePath} could not be read (${refusal.code}); nothing was written and those changes were lost. Close what holds the file, then try again.`
+    case 'locked':
+      return `Could not save the settings changed in this session: ${refusal.filePath} could not be written (another Mercury kept its lock); nothing was written and those changes were lost. Close what holds the file, then try again.`
+    case 'auth-wipe':
+      return `Could not save the settings changed in this session: ${refusal.filePath} was not written over (it read back without the sign-in this session holds); nothing was written and those changes were lost. Set them again next time.`
+  }
+}
+
 function armDeferredExitFlush(): void {
   if (deferredExitFlushArmed) return
   deferredExitFlushArmed = true
@@ -57,11 +73,9 @@ function armDeferredExitFlush(): void {
     const alreadyReported = globalConfigRefusalSaid
     try {
       if (hasPendingDeferredGlobalConfigSaves()) {
-        const readRefusal = saveGlobalConfigOutcome(current => current)
-        if (readRefusal !== null && !alreadyReported) {
-          process.stderr.write(
-            `\nCould not save the settings changed in this session: ${readRefusal.filePath} could not be read (${readRefusal.code}); nothing was written and those changes were lost. Close what holds the file, then try again.\n`,
-          )
+        const refusal = saveGlobalConfigOutcome(current => current)
+        if (refusal !== null && !alreadyReported) {
+          process.stderr.write(`\n${exitFlushRefusalLine(refusal)}\n`)
         }
       }
     } catch (error) {
@@ -125,7 +139,7 @@ export function hasPendingDeferredGlobalConfigSaves(): boolean {
 
 function saveGlobalConfigOutcome(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
-): ConfigReadError | null {
+): GlobalConfigSaveRefusal | null {
   if (isReadOnlyDiagnostic()) return null
   if (process.env.NODE_ENV === 'test') {
     const config = updater(TEST_GLOBAL_CONFIG_FOR_TESTING)
@@ -138,7 +152,7 @@ function saveGlobalConfigOutcome(
 
   let written: GlobalConfig | null = null
   try {
-    const didWrite = saveConfigWithLock(
+    const outcome = saveConfigWithLockOutcome(
       getGlobalMercuryFile(),
       createDefaultGlobalConfig,
       current => {
@@ -150,7 +164,10 @@ function saveGlobalConfigOutcome(
         return written
       },
     )
-    if (didWrite && written) {
+    if (outcome === 'auth-wipe') {
+      return { kind: 'auth-wipe', filePath: getGlobalMercuryFile() }
+    }
+    if (outcome === 'written' && written) {
       writeThroughGlobalConfigCache(written)
     }
     return null
@@ -160,11 +177,11 @@ function saveGlobalConfigOutcome(
         `saveGlobalConfig: refusing the write — ${error.message}`,
         { level: 'error' },
       )
-      return error
+      return { kind: 'read', filePath: error.filePath, code: error.code }
     }
     if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
       noteConfigContentionRefusal('saveGlobalConfig')
-      return null
+      return { kind: 'locked', filePath: getGlobalMercuryFile() }
     }
     logForDebugging(`Failed to save config with lock: ${error}`, {
       level: 'error',
@@ -179,7 +196,7 @@ function saveGlobalConfigOutcome(
           `saveGlobalConfig fallback: refusing the write — ${readError.message}`,
           { level: 'error' },
         )
-        return readError
+        return { kind: 'read', filePath: readError.filePath, code: readError.code }
       }
       throw readError
     }
@@ -188,7 +205,7 @@ function saveGlobalConfigOutcome(
         'saveGlobalConfig fallback: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).',
         { level: 'error' },
       )
-      return null
+      return { kind: 'auth-wipe', filePath: getGlobalMercuryFile() }
     }
     const config = updater(foldPendingUpdaters(currentConfig))
     if (config === currentConfig) {
@@ -529,12 +546,12 @@ function backupOutgoingConfig(file: string, fs: ReturnType<typeof getFsImplement
   }
 }
 
-export function saveConfigWithLock<A extends object>(
+function saveConfigWithLockOutcome<A extends object>(
   file: string,
   createDefault: () => A,
   mergeFn: (current: A) => A,
   waitForLock = true,
-): boolean {
+): 'written' | 'unchanged' | 'auth-wipe' {
   const defaultConfig = createDefault()
   const dir = dirname(file)
   const fs = getFsImplementation()
@@ -582,7 +599,7 @@ export function saveConfigWithLock<A extends object>(
         'saveConfigWithLock: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).',
         { level: 'error' },
       )
-      return false
+      return 'auth-wipe'
     }
 
     const mergedConfig = mergeFn(file === getGlobalMercuryFile()
@@ -590,7 +607,7 @@ export function saveConfigWithLock<A extends object>(
       : currentConfig)
 
     if (mergedConfig === currentConfig) {
-      return false
+      return 'unchanged'
     }
 
     const filteredConfig = pickBy(
@@ -612,12 +629,21 @@ export function saveConfigWithLock<A extends object>(
       writeThroughGlobalConfigCache(mergedConfig as GlobalConfig)
       pendingDeferredUpdaters = []
     }
-    return true
+    return 'written'
   } finally {
     if (release) {
       release()
     }
   }
+}
+
+export function saveConfigWithLock<A extends object>(
+  file: string,
+  createDefault: () => A,
+  mergeFn: (current: A) => A,
+  waitForLock = true,
+): boolean {
+  return saveConfigWithLockOutcome(file, createDefault, mergeFn, waitForLock) === 'written'
 }
 
 let configReadingAllowed = false
