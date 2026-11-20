@@ -151,6 +151,30 @@ async function run(): Promise<void> {
       check('idle-media-eacces: unreadable activity.json yields undefined verdict instead of idle', lockedVerdict === undefined, JSON.stringify(lockedVerdict))
     }
   }
+
+  {
+    const { resolveRepoFolder } = await import('../../src/services/gitGraph/repoFolder.ts')
+    const emptyDir = join(scratch, 'repo-folder-empty')
+    mkdirSync(emptyDir, { recursive: true })
+    const absent = resolveRepoFolder(emptyDir)
+    check('repoFolder-empty: readable non-repo returns no git repository refusal', absent.state === 'refused' && absent.note.includes('no git repository at '), JSON.stringify(absent))
+    if (!POSIX_MODES) skip('repoFolder-eacces', 'needs non-root POSIX')
+    else {
+      const noStatDir = join(scratch, 'repo-folder-nostat')
+      mkdirSync(noStatDir, { recursive: true })
+      chmodSync(noStatDir, 0o000)
+      let statRes: ReturnType<typeof resolveRepoFolder>
+      try { statRes = resolveRepoFolder(noStatDir) } finally { chmodSync(noStatDir, 0o700) }
+      check('repoFolder-stat-eacces: unsearchable folder refuses with EACCES instead of no git repository', statRes.state === 'refused' && !statRes.note.includes('no git repository') && statRes.note.includes('EACCES'), JSON.stringify(statRes))
+
+      const noListDir = join(scratch, 'repo-folder-nolist')
+      mkdirSync(noListDir, { recursive: true })
+      chmodSync(noListDir, 0o111)
+      let listRes: ReturnType<typeof resolveRepoFolder>
+      try { listRes = resolveRepoFolder(noListDir) } finally { chmodSync(noListDir, 0o700) }
+      check('repoFolder-readdir-eacces: unreadable folder refuses with EACCES instead of no git repository', listRes.state === 'refused' && !listRes.note.includes('no git repository') && listRes.note.includes('EACCES'), JSON.stringify(listRes))
+    }
+  }
 }
 
 try {
