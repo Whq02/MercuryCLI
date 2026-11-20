@@ -18,6 +18,7 @@ import type {
   RateLimitTier,
   SubscriptionType,
 } from './types.js'
+import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const EXCHANGE_TIMEOUT_MS = 15_000
@@ -229,9 +230,14 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
     if (!changed) return
   }
   if (existing !== undefined && existing.accountUuid !== info.accountUuid) {
-    const { resetLimitsForCredentialSwitch } =
-      require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
-    resetLimitsForCredentialSwitch()
+    try {
+      const { resetLimitsForCredentialSwitch } =
+        require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
+      resetLimitsForCredentialSwitch()
+    } catch (error) {
+      logError(`storeOAuthAccountInfo: resetLimitsForCredentialSwitch failed: ${error instanceof Error ? error.message : String(error)}`)
+      passedOver(error)
+    }
   }
   saveGlobalConfig(current => ({ ...current, oauthAccount: info }))
   void import('../../daemon/ownedDaemon.js')
