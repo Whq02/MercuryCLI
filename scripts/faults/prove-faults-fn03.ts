@@ -522,5 +522,55 @@ console.log('\nSessionMirror.tsx:63 — unreadable receipts and transcript error
   )
 }
 
+console.log('\nextensions/bindings.ts:48 — corrupt or unreadable keybindings.json adds a declined note instead of silent default keys')
+{
+  const res = runScenario(`
+    const { getKeybindingsPath } = await import(${JSON.stringify(join(SRC, 'keybindings/loadUserBindings.ts'))})
+    const { resolveExtensionsBindings } = await import(${JSON.stringify(join(SRC, 'components/extensions/bindings.ts'))})
+    const kbPath = getKeybindingsPath()
+    const kbDir = path.dirname(kbPath)
+    out.absent = resolveExtensionsBindings().declined
+    fs.mkdirSync(kbDir, { recursive: true })
+    fs.writeFileSync(kbPath, '{ broken json', 'utf8')
+    const corrupt = resolveExtensionsBindings()
+    out.corruptDeclined = corrupt.declined
+    out.corruptHasDefault = corrupt.chars.get('extensions:install') === 'i'
+    const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    if (posix) {
+      fs.writeFileSync(kbPath, '{"bindings":[]}', { mode: 0o600 })
+      fs.chmodSync(kbPath, 0o200)
+      out.eaccesDeclined = resolveExtensionsBindings().declined
+      fs.chmodSync(kbPath, 0o600)
+    }
+    out.kbDir = kbDir
+    out.posix = posix
+  `)
+  const corruptDeclined = res.corruptDeclined as string[]
+  const eaccesDeclined = res.eaccesDeclined as string[] | undefined
+  const kbDir = String(res.kbDir)
+  check(
+    'extensions-bindings-corrupt-declined-note',
+    res.corruptHasDefault === true &&
+      corruptDeclined.length === 1 &&
+      corruptDeclined[0] === `keybindings.json could not be read (not valid JSON) — fix it in ${kbDir} to restore your keys`,
+    JSON.stringify(corruptDeclined),
+  )
+  if (res.posix === true) {
+    check(
+      'extensions-bindings-eacces-declined-note',
+      Array.isArray(eaccesDeclined) &&
+        eaccesDeclined.length === 1 &&
+        eaccesDeclined[0]!.startsWith('keybindings.json could not be read (') &&
+        eaccesDeclined[0]!.endsWith(`) — fix it in ${kbDir} to restore your keys`),
+      JSON.stringify(eaccesDeclined),
+    )
+  }
+  check(
+    'extensions-bindings-absent-control-empty',
+    Array.isArray(res.absent) && (res.absent as string[]).length === 0,
+    JSON.stringify(res.absent),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

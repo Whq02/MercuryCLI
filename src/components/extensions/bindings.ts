@@ -3,8 +3,8 @@ import { basename, dirname } from 'node:path'
 import { getKeybindingsPath, getProjectKeybindingsPath } from '../../keybindings/loadUserBindings.js'
 import { chordToString, parseChord } from '../../keybindings/parser.js'
 import type { Chord } from '../../keybindings/types.js'
-import { passedOver } from '../../utils/passedOver.js'
-
+import { errorMessage, isENOENT } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 const DEFAULT_CHARS: ReadonlyArray<readonly [string, string]> = [
   ['extensions:toggle', ' '],
   ['extensions:install', 'i'],
@@ -46,7 +46,10 @@ export function resolveExtensionsBindings(): ExtensionsBindings {
         }
       }
     } catch (error) {
-      passedOver(error)
+      if (isENOENT(error)) continue
+      logError(error)
+      const why = error instanceof SyntaxError ? 'not valid JSON' : errorMessage(error)
+      declined.push(`${basename(path)} could not be read (${why}) — fix it in ${dirname(path)} to restore your keys`)
     }
   }
 
