@@ -1,5 +1,6 @@
 
-import React, { useCallback, useContext, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useContext, useInsertionEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useClaim, useMeasure, usePublish } from '../hooks/effects.js'
 import { fileURLToPath } from 'node:url'
 import { logError } from '../utils/log.js'
 import { Box, MotionParkContext, measureElement, type DOMElement } from '../ink.js'
@@ -72,11 +73,11 @@ export function computeUnseenDivider(
     if (message.type === 'progress') continue
     if (
       message.type === 'attachment' &&
-      isNullRenderingAttachment(message as never)
+      isNullRenderingAttachment(message)
     ) {
       continue
     }
-    if (message.type === 'system' && isNullRenderingSystemRow(message as never)) {
+    if (message.type === 'system' && isNullRenderingSystemRow(message)) {
       continue
     }
     anchor = message
@@ -124,14 +125,14 @@ export function useUnseenDivider(
     dividerYRef.current = null
   }
 
-  useEffect(() => {
+  usePublish(() => {
     if (clearSnapshotRef.current && dividerIndex === null) {
       clearSnapshotRef.current = false
       dividerYRef.current = null
     }
   }, [dividerIndex])
 
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (!shrunkRef.current) return
     shrunkRef.current = false
     const handle = scrollRef?.current
@@ -237,7 +238,7 @@ export function FullscreenLayout({
   const tokens = useMercuryTokens()
   const fullscreen = isFullscreenEnvEnabled()
 
-  useEffect(() => {
+  useClaim(() => {
     if (!fullscreen) return
     const ink = instances.get(process.stdout)
     if (!ink) return
@@ -276,7 +277,7 @@ export function FullscreenLayout({
     if (fullscreen && !covered) ink?.repaintAfterNestedAltScreenClose()
   }, [ink, fullscreen, covered, modalUp])
 
-  useEffect(() => {
+  usePublish(() => {
     const reachable = cockpit && !modalUp
     setHelmVitalsAvailable(reachable && plan.vitals)
     if (!reachable) setHelmFocus('prompt')
@@ -330,7 +331,7 @@ export function FullscreenLayout({
   )
   const [centreRows, setCentreRows] = useState<number | undefined>(undefined)
   const [statusBandRows, setStatusBandRows] = useState<number | undefined>(undefined)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (lanesBoxRef.current) {
       const { height } = measureElement(lanesBoxRef.current)
       if (height > 0 && height !== lanesRows) setLanesRows(height)
@@ -353,7 +354,7 @@ export function FullscreenLayout({
   const elevatedRef = useElevatedSurface()
   const viewedCrewmate = useViewedCrewmate()
 
-  useEffect(() => {
+  useClaim(() => {
     setRecessTarget(recessTargetFor(tokens))
     return () => setRecessTarget(null)
   }, [tokens])

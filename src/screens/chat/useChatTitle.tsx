@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useClaim, usePublish } from '../../hooks/effects.js';
 import { useOverlayOpen } from '../../context/overlayContext.js';
 import { useInterval } from '../../ink/hooks/use-interval.js';
 import { useTerminalFocus } from '../../ink/hooks/use-terminal-focus.js';
@@ -56,14 +57,14 @@ export function useChatTitle({
   const agentTitle = store.getState().standaloneAgentContext?.name;
   const title = sessionTitle ?? agentTitle ?? 'Mercury';
   const titleAnimating = isLoading && !isWaitingForApproval && !showingLocalDialog;
-  useEffect(() => {
+  useClaim(() => {
     if (!titleAnimating) return;
     startPreventSleep();
     return () => stopPreventSleep();
   }, [titleAnimating]);
   const diffReviewOpen = useOverlayOpen('diff-dialog');
   const cockpitActivity: ActivityState = isWaitingForApproval ? 'waiting' : diffReviewOpen ? 'review' : isLoading ? 'active' : 'calm';
-  useEffect(() => {
+  usePublish(() => {
     publishCockpitActivity(cockpitActivity);
   }, [cockpitActivity]);
   return { title, titleAnimating, sessionTitleSetting };
