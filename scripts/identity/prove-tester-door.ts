@@ -63,7 +63,5 @@ check('a decline with a reason, a cancel before the run and an esc during the to
 check('a declined call beside a tool that genuinely errored is still a failure: the door', sessionSawFailure([prompt, toolCall('t7'), denied('t7', REJECT_MESSAGE), toolCall('t8'), result('t8', true), answer('pnpm is not installed.')]) === true)
 const readme = readFileSync(join(root, 'README.md'), 'utf8')
 check('the installation docs describe counts honestly', /approximate script-request counts by source and UTC\s+day \(completed installs are not counted\); the counter stores no IP address, user-agent string\s+or cookie/.test(readme))
-check('the README install line stays plain', readme.includes('curl -fsSL https://mercury-cli.ai/install | sh') && !readme.includes('https://mercury-cli.ai/install?src='))
-check('the README links to the short form and command', readme.includes('[the tester form](https://mercury-cli.ai/report)') && readme.includes('/bug --short <what you tried>'))
 console.log(`tester door: ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

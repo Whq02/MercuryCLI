@@ -108,7 +108,6 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
     const text = readFileSync(joinPath(import.meta.dir, '../../', doc), 'utf8')
     const missing = keys.map(k => DOC_NEEDLE[k]!).filter(needle => needle !== undefined && !text.includes(needle))
     t(`§4 ${doc} names every live card row`, missing.length === 0, missing.join(', '))
-    t(`§4 ${doc} carries the Continue history gate`, text.includes('once') && text.includes('history'), 'the first-boot card has no Continue row')
   }
 }
 

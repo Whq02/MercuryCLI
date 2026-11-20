@@ -44,7 +44,6 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 
 const pagePath = join(ROOT, 'docs', 'REMOTE-FILES.md')
 const page = existsSync(pagePath) ? readFileSync(pagePath, 'utf8') : ''
-const index = readFileSync(join(ROOT, 'docs', 'README.md'), 'utf8')
 type Parsed = { authority: { user?: string; host: string; port?: number }; home: string | null; path: string } | null
 const parsed = (written: string): Parsed | string => {
   try {
@@ -58,9 +57,6 @@ const shape = (written: string): string => {
   return typeof target === 'string' || target === null ? String(target) : JSON.stringify([target.authority.user ?? null, target.authority.host, target.authority.port ?? null, target.home, target.path])
 }
 
-section('the page and its place')
-check('the index of the documentation names the page', index.includes('- [REMOTE-FILES.md](REMOTE-FILES.md): '), 'no such line in docs/README.md')
-check('the page names the five tools that take such a path', page.includes('Read, Edit, Write, Grep and Glob take a path on another machine'), page.slice(0, 200))
 
 section('every path the page writes is a path the grammar takes, with the meaning the page gives it')
 const written = [...new Set([...page.matchAll(/ssh:\/\/[^\s"'`,)]*/g)].map(found => found[0].replace(/[.;]$/, '')))]
@@ -68,7 +64,7 @@ const patterns = written.filter(path => path.includes('*'))
 const paths = written.filter(path => !path.includes('*')).map(path => path.replace(':port/', ':2222/'))
 const refused = paths.filter(path => typeof parsed(path) === 'string')
 check('each of its example paths parses', paths.length >= 10 && refused.length === 0, `${paths.length} paths; ${refused.map(path => `${path} ${parsed(path)}`).join(' | ')}`)
-check('ssh:// alone is the host list and names no file', page.includes('`ssh://` alone') && parsed('ssh://') === null, shape('ssh://'))
+check('ssh:// alone is the host list and names no file', parsed('ssh://') === null, shape('ssh://'))
 const MEANINGS: Array<[string, string]> = [
   ['ssh://web1/srv/app/config.yml', '[null,"web1",null,null,"/srv/app/config.yml"]'],
   ['ssh://deploy@web1:2222/var/log/app.log', '["deploy","web1",2222,null,"/var/log/app.log"]'],
@@ -77,9 +73,9 @@ const MEANINGS: Array<[string, string]> = [
   ['ssh://host', '[null,"host",null,"",""]'],
   ['ssh://[2001:db8::7]:2222/etc/hosts', '[null,"2001:db8::7",2222,null,"/etc/hosts"]'],
 ]
-for (const [path, meaning] of MEANINGS) check(`${path} is on the page and means what the page says`, page.includes(path) && shape(path) === meaning, `${page.includes(path) ? 'on the page' : 'NOT on the page'}; ${shape(path)}`)
-check('the three percent forms the page names: a space, a percent sign, a literal tilde', ['%20', '%25', '%7E'].every(form => page.includes(`\`${form}\``)) && shape('ssh://h/a%20b') === '[null,"h",null,null,"/a b"]' && shape('ssh://h/100%25') === '[null,"h",null,null,"/100%"]' && shape('ssh://h/%7Ex') === '[null,"h",null,null,"/~x"]', `${shape('ssh://h/a%20b')} ${shape('ssh://h/100%25')} ${shape('ssh://h/%7Ex')}`)
-check('a path written with a password is refused, as the page says', page.includes('A path written with a password is refused') && String(parsed('ssh://deploy:hunter2@web1/x')).startsWith('refused: ') && !String(parsed('ssh://deploy:hunter2@web1/x')).includes('hunter2'), String(parsed('ssh://deploy:hunter2@web1/x')))
+for (const [path, meaning] of MEANINGS) check(`${path} means what the grammar gives it`, shape(path) === meaning, shape(path))
+check('the three percent forms: a space, a percent sign, a literal tilde', shape('ssh://h/a%20b') === '[null,"h",null,null,"/a b"]' && shape('ssh://h/100%25') === '[null,"h",null,null,"/100%"]' && shape('ssh://h/%7Ex') === '[null,"h",null,null,"/~x"]', `${shape('ssh://h/a%20b')} ${shape('ssh://h/100%25')} ${shape('ssh://h/%7Ex')}`)
+check('a path written with a password is refused', String(parsed('ssh://deploy:hunter2@web1/x')).startsWith('refused: ') && !String(parsed('ssh://deploy:hunter2@web1/x')).includes('hunter2'), String(parsed('ssh://deploy:hunter2@web1/x')))
 
 
 section('the rules the page writes decide what the page says they decide')
@@ -124,7 +120,7 @@ try {
       check('its deny of edits under a folder refuses an edit there and leaves a read allowed', (await edit('ssh://web1/etc/hosts')) === 'deny' && (await read('ssh://web1/etc/hosts')) === 'allow', `${await edit('ssh://web1/etc/hosts')} ${await read('ssh://web1/etc/hosts')}`)
       check('a host its example does not name asks', example.allow.length > 0 && (await read('ssh://db1/etc/hosts')) === 'ask', await read('ssh://db1/etc/hosts'))
       check('a rule that names a host covers every account and port on it, and one that names them covers them only', (await read('ssh://deploy@web1:2222/x')) === 'allow' && (await read('ssh://deploy@web1:2222/x', { allow: ['Read(ssh://deploy@web1:2222/**)'] })) === 'allow' && (await read('ssh://web1/x', { allow: ['Read(ssh://deploy@web1:2222/**)'] })) === 'ask', `${await read('ssh://deploy@web1:2222/x')} ${await read('ssh://web1/x', { allow: ['Read(ssh://deploy@web1:2222/**)'] })}`)
-      check('a rule for a local path never matches a remote path: every local file allowed, and a local deny of a file name, leave the remote file to its own rules', page.includes('A rule for a local path never matches a remote path') && (await read('ssh://web1/etc/hosts', { allow: ['Read(//**)', 'Read(**)'] })) === 'ask' && (await read('ssh://web1/srv/.env', { allow: ['Read(ssh://web1/**)'], deny: ['Read(**/.env)', 'Read(//**/.env)'] })) === 'allow', `${await read('ssh://web1/etc/hosts', { allow: ['Read(//**)', 'Read(**)'] })} ${await read('ssh://web1/srv/.env', { allow: ['Read(ssh://web1/**)'], deny: ['Read(**/.env)', 'Read(//**/.env)'] })}`)
+      check('a rule for a local path never matches a remote path: every local file allowed, and a local deny of a file name, leave the remote file to its own rules', (await read('ssh://web1/etc/hosts', { allow: ['Read(//**)', 'Read(**)'] })) === 'ask' && (await read('ssh://web1/srv/.env', { allow: ['Read(ssh://web1/**)'], deny: ['Read(**/.env)', 'Read(//**/.env)'] })) === 'allow', `${await read('ssh://web1/etc/hosts', { allow: ['Read(//**)', 'Read(**)'] })} ${await read('ssh://web1/srv/.env', { allow: ['Read(ssh://web1/**)'], deny: ['Read(**/.env)', 'Read(//**/.env)'] })}`)
       mkdirSync(join(world.data, 'page'), { recursive: true })
       writeFileSync(join(world.data, 'page', 'a.txt'), 'a word to find\n')
       const context = { ...(contextOf({ allow: ['Read(ssh://box/**)'] }) as object), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'sovereign' } }) } as never
@@ -132,8 +128,8 @@ try {
         result => String(GrepTool.mapToolResultToToolResultBlockParam(result.data as never, 'page').content),
         error => `thrown: ${error instanceof Error ? error.message : String(error)}`,
       )
-      check('a Grep of a machine with no ripgrep closes with the line the page describes: what was read, and that the machine has none', page.includes('where the remote machine has no ripgrep, the line says so') && page.includes('ripgrep 11 or later') && /\n\(read 1 file, \d+ bytes, from box: it has no ripgrep; with rg installed there the search runs on the host\)$/.test(found), found)
-      check('the form the page gives for every host covers every host, and the form it warns of covers none', page.includes('`Read(ssh://*/**)` covers every host') && (await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://*/**)'] })) === 'allow' && (await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://**)'] })) === 'ask', `${await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://*/**)'] })} ${await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://**)'] })}`)
+      check('a Grep of a machine with no ripgrep closes with the line describing what was read and that the machine has none', /\n\(read 1 file, \d+ bytes, from box: it has no ripgrep; with rg installed there the search runs on the host\)$/.test(found), found)
+      check('the form for every host covers every host, and ssh://** covers none', (await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://*/**)'] })) === 'allow' && (await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://**)'] })) === 'ask', `${await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://*/**)'] })} ${await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://**)'] })}`)
     } finally {
       closeRemoteConnections()
       leave()

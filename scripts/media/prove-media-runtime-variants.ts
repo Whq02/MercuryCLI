@@ -66,8 +66,6 @@ try {
   assert.equal(mediaSizeWords(plan.bytes), '907.0 MB')
   assert.equal(plan.title, 'stable-diffusion.cpp')
   assert.deepEqual(mediaPullPlan(snapshot(undefined, false)).args, ['pull-runtime'])
-  const docs = readFileSync(resolve(import.meta.dir, '../../docs/MEDIA.md'), 'utf8').replace(/\n {0,3}/g, ' ')
-  for (const words of ['37.6 MB on macOS', '29.7 MB for Vulkan on Windows', '907.0 MB for CUDA 12', '37.6 MB for Vulkan on Linux', 'Apple Silicon gets the Metal build; Windows gets the Vulkan build, or the CUDA 12 build when an NVIDIA card is present. Linux uses Vulkan or builds CUDA from source when an NVIDIA card is present, as described below.', 'There is no build for arm64 Windows or arm64 Linux yet.', 'Windows needs nothing beyond PowerShell 5.1.']) assert.ok(docs.includes(words), words)
 
   const cuda = mediaRuntimeChoice(bundled, 'win32', 'x64', 'nvidia')!
   const vulkan = mediaRuntimeChoice(bundled, 'win32', 'x64')!

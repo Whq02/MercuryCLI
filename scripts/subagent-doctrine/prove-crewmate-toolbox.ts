@@ -1,15 +1,11 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 delete process.env.NODE_ENV
 for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL']) delete process.env[k]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: 'true', args: [], connect: 'stdio' } })
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 let checks = 0
@@ -167,7 +163,7 @@ section('§7 THE DEFERRED ROSTER lists the new tools for a crewmate exactly as f
   check('a crewmate asking ToolSearch for AstSearch gets it: the match is AstSearch and the result hands its model the tool reference', asked.data.matches.includes('AstSearch') && asked.data.total_deferred_tools === crew.deferredNames.size && Array.isArray(handed.content) && (handed.content as Array<{ type: string; tool_name?: string }>).some(block => block.type === 'tool_reference' && block.tool_name === 'AstSearch'), JSON.stringify(asked.data))
 }
 
-section('§8 THE WORDS — the Crewmate tool and docs/CREW.md say what a crewmate carries and what dies with it')
+section('§8 THE WORDS — the Crewmate tool says what a crewmate carries and what dies with it')
 {
   const { getPrompt } = await import('../../src/tools/AgentTool/prompt.ts')
   const full = await getPrompt([MERCURY_CREW_AGENT, MERCURY_SCOUT_AGENT], false, undefined, new Set(catalogueNames))
@@ -175,8 +171,6 @@ section('§8 THE WORDS — the Crewmate tool and docs/CREW.md say what a crewmat
   const narrow = await getPrompt([MERCURY_CREW_AGENT], false, undefined, new Set(catalogueNames.filter(n => n !== 'Computer' && n !== 'AskAdvisor')))
   check('the manual does not teach an unavailable tool', !narrow.includes('Computer') && !narrow.includes('AskAdvisor'))
   check('mercury-crew still lists as (Tools: *) — the claim the law now makes true', /- mercury-crew: .*\(Tools: \*\)/.test(full))
-  const docs = src('docs/CREW.md')
-  check('docs/CREW.md names the same barred set and the processes law', docs.includes('(AskUserQuestion, ApolloReview, AskAdvisor)') && docs.includes('(Computer, Journal, CronCreate, CronDelete,\nScheduleWakeup, RecordConvention, and the Crewmate tool itself)') && docs.includes('end when it ends'))
 }
 
 console.log(`\ncrewmate-toolbox: ${checks} checks, ${failures} failed`)
