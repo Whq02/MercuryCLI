@@ -27,7 +27,7 @@ function withScratchConfig<T>(fn: (dir: string) => T): T {
   }
 }
 
-console.log('1 · qualificationStore: unreadable or corrupt file returns empty on read and is not clobbered on write')
+console.log('1 · qualificationStore: a torn file reads as empty and is replaced by the next write; an unreadable file is left as it is')
 {
   const q = await import('../../src/services/providers/openai/qualificationStore.js')
   withScratchConfig(() => {
@@ -40,10 +40,13 @@ console.log('1 · qualificationStore: unreadable or corrupt file returns empty o
     check('corrupt file returns undefined on wireEffortVocabularyOf', q.wireEffortVocabularyOf('gpt-5', 'api-key') === undefined)
 
     const writeOnCorrupt = q.recordLiveQualification({ modelId: 'gpt-5', role: 'primary', sourceKind: 'api-key', now: () => 100 })
-    check('recordLiveQualification refuses to overwrite corrupt file', writeOnCorrupt === undefined && readFileSync(file, 'utf8') === '{broken json')
+    const healed = JSON.parse(readFileSync(file, 'utf8')) as { receipts?: unknown[] }
+    check('recordLiveQualification replaces a torn file with the new receipt', writeOnCorrupt !== undefined && Array.isArray(healed.receipts) && healed.receipts.length === 1, JSON.stringify(healed))
 
+    writeFileSync(file, '{broken json', 'utf8')
     const wireOnCorrupt = q.recordWireEffortRefusal({ modelId: 'gpt-5', sourceKind: 'api-key', refused: 'high', levels: ['low'], now: () => 100 })
-    check('recordWireEffortRefusal refuses to overwrite corrupt file', wireOnCorrupt === undefined && readFileSync(file, 'utf8') === '{broken json')
+    const healedWire = JSON.parse(readFileSync(file, 'utf8')) as { wireEfforts?: unknown[] }
+    check('recordWireEffortRefusal replaces a torn file with the new memory', wireOnCorrupt !== undefined && Array.isArray(healedWire.wireEfforts) && healedWire.wireEfforts.length === 1, JSON.stringify(healedWire))
 
     if (POSIX_MODES) {
       const valid = JSON.stringify({ version: 1, receipts: [] }) + '\n'

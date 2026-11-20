@@ -83,11 +83,15 @@ function readFile(): QualificationFile {
     }
     throw error
   }
-  const parsed = JSON.parse(raw) as unknown
-  if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as QualificationFile).receipts)) {
-    throw new Error(`qualification store at ${filePath()} is malformed`)
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as QualificationFile).receipts)) {
+      return parsed as QualificationFile
+    }
+  } catch (error) {
+    passedOver(error)
   }
-  return parsed as QualificationFile
+  return { version: FILE_VERSION, receipts: [] }
 }
 
 export function recordLiveQualification(i: {
