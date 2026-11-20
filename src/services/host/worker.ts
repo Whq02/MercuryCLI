@@ -236,7 +236,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           if (observed.pod.status === 'RUNNING' && observed.baseUrl) return observed.baseUrl
           mark('HF endpoint · starting · ' + Math.floor((Date.now() - (initial.jobStartedAt ?? Date.now())) / 60_000) + ' min')
         },
-        pause,
+        left => Math.min(pause, left),
         Math.max(0, deadline - Date.now()),
         () => { throw new Error('HF endpoint did not reach running within the setup budget.') },
         { signal },
@@ -272,7 +272,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
             }
           }
         },
-        pause,
+        left => Math.min(pause, left),
         Math.max(0, sshDeadline - Date.now()),
         () => 'done',
         { signal },
