@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import type { ToolUseContext, CanUseToolFn } from '../../../Tool.js'
+import type { Tool, ToolUseContext, CanUseToolFn } from '../../../Tool.js'
 import { changeTransactionEnabled } from '../../../services/changeTransaction/contracts.js'
 import { fileGeneration } from '../../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnchor.js'
@@ -26,7 +26,7 @@ import { resolveModelCapabilities } from '../../../utils/model/capabilities.js'
 import { getEngineModel } from '../../../utils/model/model.js'
 import { FileTooLargeError } from '../../../utils/readFileInRange.js'
 import { notAFileKind, notAFileRefusal, readRegularFile } from '../../../utils/regularFile.js'
-import type { Message } from '../../../types/message.js'
+import type { AssistantMessage, Message } from '../../../types/message.js'
 import { getDefaultFileReadingLimits, type FileReadingLimits } from '../limits.js'
 import { resultRoomFor } from '../../../services/run/resultRoom.js'
 import { isRichFormatReadable, parseRichFormatTarget, RICH_CONTAINER_MAX_BYTES } from '../readRichFormats.js'
@@ -47,7 +47,7 @@ import { readTextLane } from './textLane.js'
 import { readRangeElsewhere } from './source.js'
 import { readRemoteListing, readUrlTarget, readDirectoryTarget } from './callParts.js'
 
-export async function readFileCall(input: Input, context: ToolUseContext, canUseTool: unknown, parentMessage: unknown, readToolItself: () => unknown) {
+export async function readFileCall(input: Input, context: ToolUseContext, canUseTool: CanUseToolFn | undefined, parentMessage: AssistantMessage | undefined, readToolItself: () => Tool) {
   const ownRead = parentMessage !== undefined
   const declaredLimits: FileReadingLimits =
     (context.fileReadingLimits as FileReadingLimits | undefined) ?? getDefaultFileReadingLimits()
@@ -93,7 +93,7 @@ export async function readFileCall(input: Input, context: ToolUseContext, canUse
         remoteInner === null ? remoteRangeSelector(input.file_path.trim()) : null,
         context,
         typeof canUseTool === 'function' && parentMessage !== undefined
-          ? path => (canUseTool as CanUseToolFn)(readToolItself() as never, { ...input, file_path: path }, context, parentMessage as never, `${context.toolUseId ?? 'read'}-resolved`)
+          ? path => canUseTool(readToolItself(), { ...input, file_path: path }, context, parentMessage, `${context.toolUseId ?? 'read'}-resolved`)
           : null,
         readTargetsEnabled(),
       )
