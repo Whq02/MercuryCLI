@@ -114,16 +114,6 @@ export function venvPythonPath(venvDir: string, platform: string = process.platf
   return platform === 'win32' ? path.join(venvDir, 'Scripts', 'python.exe') : path.join(venvDir, 'bin', 'python')
 }
 
-export function evalPythonCommands(platform: string = process.platform): string[] {
-  return platform === 'win32' ? ['python3', 'python', 'py'] : ['python3']
-}
-
-export function debugpyPythonCommands(platform: string = process.platform): string[] {
-  if (platform === 'win32') return ['python3', 'python', 'py']
-  if (platform === 'darwin') return ['python3', 'python', '/usr/bin/python3']
-  return ['python3', 'python']
-}
-
 function envValueInsensitive(env: NodeJS.ProcessEnv, target: string): string | undefined {
   const upper = target.toUpperCase()
   let found: string | undefined

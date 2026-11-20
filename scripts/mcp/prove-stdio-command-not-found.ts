@@ -17,6 +17,10 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 process.env.MERCURY_MCP_TIMEOUT_MS = '3000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
+const bootstrap = await import('../../src/bootstrap/state.ts')
+bootstrap.setIsInteractive(false)
 
 const comspecHitFile = join(SCRATCH, 'comspec-was-invoked')
 if (HOST_PLATFORM !== 'win32') {
@@ -44,10 +48,6 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 try {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-  enableConfigs()
-  const bootstrap = await import('../../src/bootstrap/state.ts')
-  bootstrap.setIsInteractive(false)
   const mcp = await import('../../src/services/mcp/client.ts')
 
   console.log('============================================================')
