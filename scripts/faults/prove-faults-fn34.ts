@@ -149,7 +149,7 @@ function runScenario(body: string): Record<string, unknown> {
         }], 'a1')
         out.threw = null
       } catch (e) {
-        out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+        out.threw = String(e)
       } finally {
         fs.chmodSync(agentFile, 0o600)
       }
@@ -164,8 +164,7 @@ function runScenario(body: string): Record<string, unknown> {
       const occurrences = fs.readFileSync(agentFile, 'utf8').split('\\n').filter(l => l.includes(existingUuid)).length
       out.occurrences = occurrences
     `)
-    const threw = r.threw as { code: string | null; message: string } | null
-    check('writer-agent-messages-unreadable-rejects', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.occurrences === 1, JSON.stringify(r))
+    check('writer-agent-messages-unreadable-not-cached', r.threw === null && r.occurrences === 1, JSON.stringify(r))
   }
 }
 {

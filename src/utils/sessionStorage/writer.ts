@@ -22,6 +22,7 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import { registerExitCliffSeam } from '../exitCliffDrain.js'
 import { isEnvTruthy } from '../envUtils.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
+import { logForDebugging } from '../debug.js'
 import { errorMessage, getErrnoCode } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
@@ -78,9 +79,12 @@ const getAgentFileMessages = memoize(
       raw = await readFile(filePath, 'utf8')
     } catch (error) {
       const code = getErrnoCode(error)
-      if (code === 'ENOENT' || code === 'ENOTDIR') return new Set()
-      getAgentFileMessages.cache.delete(filePath)
-      throw error
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        passedOver(error)
+        logForDebugging(`agent transcript read failed for ${filePath} (${code ?? 'unknown'})`, { level: 'error' })
+        getAgentFileMessages.cache.delete(filePath)
+      }
+      return new Set()
     }
     const set = new Set<string>()
     for (const line of raw.split('\n')) {
