@@ -305,5 +305,49 @@ console.log('\nnousCallModel — resolveCredential rejects when credential read 
   check('nousCallModel-resolve-credential-throws: resolveCredential rejects with credential read error and returns undefined when absent', r.rejected === 'nous-cred-boom' && r.absent === null, JSON.stringify(r))
 }
 
+console.log('\nnousClientContract — unreadable file is not overwritten, torn content heals, and failed write returns learned=false')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const contract = await import(path.join(SRC, 'services/providers/nous/nousClientContract.ts'))
+    const file = contract.nousClientContractPath()
+    const env = { ...process.env, MERCURY_NOUS_CLIENT_SOURCE_BASE: 'http://127.0.0.1:9999' }
+    const fakeFetch = async url => {
+      if (String(url).includes('/releases/latest')) return new Response(JSON.stringify({ tag_name: 'v9.9.9' }), { status: 200 })
+      return new Response('DEFAULT_NOUS_CLIENT_ID = "hermes-next"\\nNOUS_INFERENCE_INVOKE_SCOPE = "inference:invoke"\\n', { status: 200 })
+    }
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, '{ torn', { mode: 0o600 })
+    const healed = await contract.peekNousClient({ env, fetchImpl: fakeFetch, force: true, now: () => 1_700_000_000_000 })
+    out.healedLearned = healed.kind === 'read' && healed.learned === true && contract.readNousClientRecord().learned?.clientId === 'hermes-next'
+    if (${JSON.stringify(POSIX_MODES)}) {
+      const kept = JSON.stringify({ version: 1, learned: { clientId: 'kept-client', scope: 'inference:invoke', release: '1.0.0', learnedAtMs: 1, from: 'http://127.0.0.1' } }) + '\\n'
+      fs.writeFileSync(file, kept, { mode: 0o600 })
+      fs.chmodSync(file, 0o200)
+      const unread = await contract.peekNousClient({ env, fetchImpl: fakeFetch, force: true, now: () => 1_700_000_001_000 })
+      fs.chmodSync(file, 0o600)
+      out.unreadableSame = fs.readFileSync(file, 'utf8') === kept
+      out.unreadableLearned = unread.kind === 'read' ? unread.learned : 'not-read'
+
+      fs.rmSync(file, { force: true })
+      fs.chmodSync(path.dirname(file), 0o500)
+      const writeFailed = await contract.peekNousClient({ env, fetchImpl: fakeFetch, force: true, now: () => 1_700_000_002_000 })
+      fs.chmodSync(path.dirname(file), 0o700)
+      out.writeFailedLearned = writeFailed.kind === 'read' ? writeFailed.learned : 'not-read'
+    } else {
+      out.unreadableSame = true
+      out.unreadableLearned = false
+      out.writeFailedLearned = false
+    }
+  `)
+  check('nousClientContract-torn-heals: torn JSON is replaced by the next learned contract', r.healedLearned === true, JSON.stringify(r.healedLearned))
+  if (!POSIX_MODES) skip('nousClientContract-unreadable-and-write-fail', 'mode 0200/0500 needs non-root POSIX')
+  else {
+    check('nousClientContract-unreadable-kept: unreadable contract file stays byte-identical and returns learned=false', r.unreadableSame === true && r.unreadableLearned === false, JSON.stringify({ unreadableSame: r.unreadableSame, unreadableLearned: r.unreadableLearned }))
+    check('nousClientContract-write-fail-not-learned: failed write returns learned=false', r.writeFailedLearned === false, JSON.stringify(r.writeFailedLearned))
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

@@ -116,15 +116,32 @@ export function decodeNousClientRecord(value: unknown): NousClientRecord {
   return record
 }
 
-export function readNousClientRecord(): NousClientRecord {
+function readNousClientRecordState(): { state: 'ok'; record: NousClientRecord } | { state: 'unreadable'; error: unknown } {
   const path = nousClientContractPath()
+  let raw: string
   try {
-    if (statSync(path).size > RECORD_MAX_BYTES) return {}
-    return decodeNousClientRecord(JSON.parse(readFileSync(path, 'utf8')))
+    if (statSync(path).size > RECORD_MAX_BYTES) return { state: 'ok', record: {} }
+    raw = readFileSync(path, 'utf8')
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { state: 'ok', record: {} }
+    return { state: 'unreadable', error }
+  }
+  try {
+    return { state: 'ok', record: decodeNousClientRecord(JSON.parse(raw)) }
   } catch (error) {
     passedOver(error)
+    return { state: 'ok', record: {} }
+  }
+}
+
+export function readNousClientRecord(): NousClientRecord {
+  const read = readNousClientRecordState()
+  if (read.state === 'unreadable') {
+    passedOver(read.error)
     return {}
   }
+  return read.record
 }
 
 function writeNousClientRecord(next: NousClientRecord): void {
@@ -255,7 +272,12 @@ export function peekNousClient(io?: NousClientIo & { force?: boolean }): Promise
   }
   const work = (async (): Promise<NousClientPeek> => {
     const answer = await readNousClientFromSource(io)
-    const fresh = readNousClientRecord()
+    const read = readNousClientRecordState()
+    if (read.state === 'unreadable') {
+      passedOver(read.error)
+      return { kind: 'read', answer, learned: false }
+    }
+    const fresh = read.record
     if (!answer.ok) {
       try { writeNousClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch (error) { passedOver(error) }
       return { kind: 'read', answer, learned: false }
@@ -264,8 +286,14 @@ export function peekNousClient(io?: NousClientIo & { force?: boolean }): Promise
     const next: NousClientRecord = { ...fresh, lastPeekAtMs: now() }
     delete next.lastFailure
     if (newest) next.learned = { ...answer.facts, learnedAtMs: now(), from: answer.from }
-    try { writeNousClientRecord(next) } catch (error) { passedOver(error) }
-    return { kind: 'read', answer, learned: newest }
+    let persisted = false
+    try {
+      writeNousClientRecord(next)
+      persisted = true
+    } catch (error) {
+      passedOver(error)
+    }
+    return { kind: 'read', answer, learned: newest && persisted }
   })().finally(() => {
     peekInFlight = null
   })
