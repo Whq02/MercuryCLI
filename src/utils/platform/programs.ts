@@ -169,3 +169,29 @@ export function missingSpawnCommandError(
   }
   return missing()
 }
+
+type PackPlatform = 'darwin-arm64' | 'darwin-x64' | 'linux-x64' | 'linux-arm64' | 'win-x64' | 'win-arm64'
+
+export function packPlatformFor(platform: string = process.platform, arch: string = process.arch): PackPlatform | null {
+  if (platform === 'darwin' && arch === 'arm64') return 'darwin-arm64'
+  if (platform === 'darwin' && arch === 'x64') return 'darwin-x64'
+  if (platform === 'linux' && arch === 'x64') return 'linux-x64'
+  if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
+  if (platform === 'win32' && arch === 'x64') return 'win-x64'
+  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
+  return null
+}
+
+export function vendorPlatformTag(platform: string = process.platform, arch: string = process.arch): string {
+  return `${platform === 'win32' ? 'win' : platform}-${arch}`
+}
+
+export function hostOsFamily(platform: string = process.platform): 'windows' | 'darwin' | 'linux' {
+  return platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux'
+}
+
+export function normalizedOsPlatform(platform: string = process.platform): 'win32' | 'darwin' | 'linux' {
+  if (platform === 'win32') return 'win32'
+  if (platform === 'darwin') return 'darwin'
+  return 'linux'
+}
