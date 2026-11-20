@@ -1,9 +1,9 @@
-import * as path from 'node:path'
 import { normalizeGlobPattern } from '../../utils/globPattern.js'
+import { pathModuleFor, toPosixSeparators } from '../../utils/platform/paths.js'
 
 export function posixRelative(root: string, full: string, platform: NodeJS.Platform = process.platform): string {
-  const rel = (platform === 'win32' ? path.win32 : path.posix).relative(root, full)
-  return platform === 'win32' ? rel.split('\\').join('/') : rel
+  const rel = pathModuleFor(platform).relative(root, full)
+  return toPosixSeparators(rel, platform)
 }
 
 export function normalizeFileGlobs(globs: readonly string[] | undefined, platform: NodeJS.Platform = process.platform): string[] | undefined {

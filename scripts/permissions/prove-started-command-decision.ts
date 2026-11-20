@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, said, section, shown, standInService, type Rules } from './floorsKit.ts'
+import { check, decide, fill, fillBash, finish, note, said, section, shown, standInService, type Rules } from './floorsKit.ts'
 
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
 type Shape = { label: string; argv: string[]; bashModes: Mode[]; rules?: Rules }
@@ -109,11 +109,11 @@ for (const service of ['shell', 'wrapped', 'nested', 'never-started']) {
   ] as Array<[string, string, Rules]>) {
     const wrong: string[] = []
     for (const mode of ALL_MODES) {
-      const viaBash = await decide('Bash', { command: fill(text) }, mode, rules)
-      const decision = await decide('Service', typed(service, fill(text)), mode, rules)
+      const viaBash = await decide('Bash', { command: fillBash(text) }, mode, rules)
+      const decision = await decide('Service', typed(service, fillBash(text)), mode, rules)
       if (viaBash.behavior !== 'deny' || decision.behavior !== 'deny' || decision.message !== viaBash.message) wrong.push(`${mode}: ${said(decision)} — Bash: ${said(viaBash)}`)
     }
-    check(`service "${service}" · ${label} · ${shown(fill(text))} typed into it is refused in all six modes with the Bash layer's sentence`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`service "${service}" · ${label} · ${shown(fillBash(text))} typed into it is refused in all six modes with the Bash layer's sentence`, wrong.length === 0, wrong.join(' ‖ '))
   }
 }
 {
@@ -131,7 +131,7 @@ for (const service of ['shell', 'wrapped', 'nested', 'never-started']) {
 for (const service of ['repl', 'server']) {
   const wrong: string[] = []
   for (const mode of ALL_MODES) {
-    const decision = await decide('Service', typed(service, fill("print(open('<CONFIG>/.credentials.json').read())")), mode)
+    const decision = await decide('Service', typed(service, fillBash("print(open('<CONFIG>/.credentials.json').read())")), mode)
     if (decision.behavior !== 'deny' || !/holds Mercury's own credentials/.test(decision.message ?? '')) wrong.push(`${mode}: ${said(decision)}`)
   }
   check(`service "${service}" (not a shell) · text that reads Mercury's stored credentials is refused in all six modes by the floor's reader`, wrong.length === 0, wrong.join(' ‖ '))
@@ -190,7 +190,7 @@ section('§7 the environment a start hands its program joins the reading')
 
 section('§8 text the debuggee runs passes the floors\' readers')
 {
-  const reads = fill("open('<CONFIG>/.credentials.json').read()")
+  const reads = fillBash("open('<CONFIG>/.credentials.json').read()")
   const calls: Array<[string, Record<string, unknown>]> = [
     ['evaluate', { op: 'evaluate', expression: reads }],
     ['setVariable', { op: 'setVariable', name: 'x', value: reads, variablesReference: 1 }],
@@ -219,11 +219,11 @@ section('§9 a service\'s inputs are one script: text sent to it is read with th
   const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
   const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
   check('the history of what a service was sent is there to be told', history !== null)
-  const sentTo = (name: string, text: string, submitted = true, run = ':'): void => history?.noteServiceInput(history.serviceInputKey(getOriginalCwd(), name), run, fill(text), submitted)
+  const sentTo = (name: string, text: string, submitted = true, run = ':'): void => history?.noteServiceInput(history.serviceInputKey(getOriginalCwd(), name), run, fillBash(text), submitted)
   const everyMode = async (name: string, text: string, rules: Rules = {}): Promise<string[]> => {
     const wrong: string[] = []
     for (const mode of ALL_MODES) {
-      const decision = await decide('Service', typed(name, fill(text)), mode, rules)
+      const decision = await decide('Service', typed(name, fillBash(text)), mode, rules)
       if (decision.behavior !== 'deny') wrong.push(`${mode}: ${said(decision)}`)
     }
     return wrong
@@ -236,7 +236,7 @@ section('§9 a service\'s inputs are one script: text sent to it is read with th
   sentTo('stateful', 'cd <CONFIG>')
   for (const text of ['cat .credentials.json', 'cat mcp-auth.json', 'cp .credentials.json <PROJECT>/copy.json']) {
     const wrong = await everyMode('stateful', text)
-    check(`after cd <config> was sent to it, ${shown(fill(text))} is refused in all six modes: the folder the earlier text left is the folder this one is read in`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`after cd <config> was sent to it, ${shown(fillBash(text))} is refused in all six modes: the folder the earlier text left is the folder this one is read in`, wrong.length === 0, wrong.join(' ‖ '))
   }
   for (const [mode, behavior] of [['sovereign', 'allow'], ['flow', 'allow'], ['default', 'ask']] as const) {
     const plain = await decide('Service', typed('stateful', 'ls'), mode)
@@ -292,10 +292,10 @@ section('§10 a program that is not known for a shell but may run what it is sen
     for (const text of command === 'sqlite3' ? ['cat <CONFIG>/.credentials.json', '.shell cat <CONFIG>/.credentials.json'] : ['cat <CONFIG>/.credentials.json']) {
       const wrong: string[] = []
       for (const mode of ALL_MODES) {
-        const decision = await decide('Service', typed(name, fill(text)), mode)
+        const decision = await decide('Service', typed(name, fillBash(text)), mode)
         if (decision.behavior !== 'deny' || !/holds Mercury's own credentials/.test(decision.message ?? '')) wrong.push(`${mode}: ${said(decision)}`)
       }
-      check(`${label} (${[command, ...args].join(' ')}) · ${shown(fill(text))} typed into it is refused in all six modes: the text is read as a command too`, wrong.length === 0, wrong.join(' ‖ '))
+      check(`${label} (${[command, ...args].join(' ')}) · ${shown(fillBash(text))} typed into it is refused in all six modes: the text is read as a command too`, wrong.length === 0, wrong.join(' ‖ '))
     }
     const ruled: string[] = []
     for (const mode of ALL_MODES) {
@@ -324,8 +324,8 @@ section('§10 a program that is not known for a shell but may run what it is sen
 section('§11 Debug: a custom request\'s body, a debugger\'s own shell command, an attach by a program\'s name')
 {
   const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
-  const reads = fill("open('<CONFIG>/.credentials.json').read()")
-  const shellRead = fill('cat <CONFIG>/.credentials.json')
+  const reads = fillBash("open('<CONFIG>/.credentials.json').read()")
+  const shellRead = fillBash('cat <CONFIG>/.credentials.json')
   const refusedEverywhere: Array<[string, Record<string, unknown>, Rules]> = [
     ['a custom evaluate request whose body reads the stored credentials', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: reads, context: 'repl' }) }, {}],
     ['a custom request whose body is no JSON and reads them', { op: 'customRequest', method: 'evaluate', body: reads }, {}],

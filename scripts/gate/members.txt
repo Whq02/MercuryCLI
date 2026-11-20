@@ -51,6 +51,7 @@ prove-shard-compile-cache-removed.ts
 prove-shard-temp-spelling.ts
 prove-shell-door.ts
 prove-outside-the-import-cycle.ts
+prove-layer-imports.ts
 scripts/substrate/prove-flag-registry-readers.ts
 scripts/substrate/prove-flag-registry-split.ts
 prove-second-look-runs-reds.ts

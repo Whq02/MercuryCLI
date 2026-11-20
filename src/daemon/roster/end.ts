@@ -1,7 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
 import { killProcessGroup } from '../../utils/processGroup.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { sleep } from '../../utils/sleep.js'
 import type { RosterOptions, WorkerHandle } from './types.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
@@ -19,15 +18,23 @@ export function decideRunnerEnd(facts: {
 
 export class EndPart {
   private readonly asked = new Map<ChildProcess, ReturnType<typeof setTimeout>>()
+  private readonly settledWaiters: Array<() => void> = []
 
   constructor(private readonly opts: RosterOptions) {}
+
+  private dropAsked(child: ChildProcess): void {
+    this.asked.delete(child)
+    if (this.asked.size === 0 && this.settledWaiters.length > 0) {
+      for (const resolve of this.settledWaiters.splice(0)) resolve()
+    }
+  }
 
   endChild(short: string, h: WorkerHandle, child: ChildProcess, signal: NodeJS.Signals): void {
     const standing = this.asked.get(child)
     if (standing !== undefined) {
       if (signal === 'SIGTERM') return
       stopTimeout(standing)
-      this.asked.delete(child)
+      this.dropAsked(child)
     }
     const input = child.stdin
     const verdict = decideRunnerEnd({
@@ -43,19 +50,22 @@ export class EndPart {
     }
     logForDebugging(`[daemon] kill(${short}): the runner is idle, so its input is ended and it ends itself; its tree is killed if it stands after the bound`)
     const bound = startTimeout(() => {
-      this.asked.delete(child)
+      this.dropAsked(child)
       killProcessGroup(child, signal)
     }, this.opts.runnerAskBoundMs ?? RUNNER_ASK_BOUND_MS)
     bound.unref?.()
     this.asked.set(child, bound)
     child.once('exit', () => {
       stopTimeout(bound)
-      this.asked.delete(child)
+      this.dropAsked(child)
     })
     input.end()
   }
 
   async askedSettled(): Promise<void> {
-    while (this.asked.size > 0) await sleep(25)
+    if (this.asked.size === 0) return
+    await new Promise<void>(resolve => {
+      this.settledWaiters.push(resolve)
+    })
   }
 }

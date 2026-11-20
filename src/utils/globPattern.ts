@@ -1,10 +1,10 @@
 import { existsSync, globSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { passedOver } from './passedOver.js'
+import { toPosixSeparators } from './platform/paths.js'
 
 export function normalizeGlobPattern(pattern: string, platform: NodeJS.Platform = process.platform): string {
-  if (platform !== 'win32') return pattern
-  return pattern.replace(/\\/g, '/')
+  return toPosixSeparators(pattern, platform)
 }
 
 export function splitGrepGlobField(field: string, platform: NodeJS.Platform = process.platform): string[] {

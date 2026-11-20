@@ -4,7 +4,8 @@ import { join, resolve } from 'node:path'
 import { readFileRange } from '../fsOperations.js'
 import { getErrnoCode } from '../errors.js'
 import { logError } from '../log.js'
-import { getPlatform } from '../platform.js'
+import { appendNoFollowFlags, exclusiveCreateNoFollowFlags, symlinksMayRequirePrivilege } from '../platform/files.js'
+import { rememberedPlatform } from '../platform/host.js'
 import { getProjectTempDir } from '../permissions/filesystem.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { sleep } from '../sleep.js'
@@ -48,13 +49,11 @@ function track<T>(promise: Promise<T>): Promise<T> {
 }
 
 function exclusiveCreateFlags(): string | number {
-  if (getPlatform() === 'windows') return 'wx'
-  return fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW ?? 0)
+  return exclusiveCreateNoFollowFlags(rememberedPlatform())
 }
 
 function appendFlags(): string | number {
-  if (getPlatform() === 'windows') return 'a'
-  return fs.constants.O_WRONLY | fs.constants.O_APPEND | fs.constants.O_CREAT | (fs.constants.O_NOFOLLOW ?? 0)
+  return appendNoFollowFlags()
 }
 
 async function createTaskOutputFile(taskId: string): Promise<string> {
@@ -142,7 +141,7 @@ async function createTaskOutputSymlink(taskId: string, targetPath: string): Prom
     return path
   } catch (error) {
     logError(error)
-    if (getPlatform() !== 'windows') return initTaskOutput(taskId)
+    if (!symlinksMayRequirePrivilege(rememberedPlatform())) return initTaskOutput(taskId)
     const stub = await initTaskOutput(taskId)
     await awaitTranscriptFor(stub, targetPath)
     return stub

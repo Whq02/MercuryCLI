@@ -311,11 +311,15 @@ console.log('\nWorktreeExitDialog.tsx:43,48 — failed directory restore reports
   )
 }
 
-console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable existing agent file instead of fake full-add diff')
+console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable existing agent file with advice visible at panel width')
 {
   const res = runScenario(`
+    const React = await import('react')
     const { decodeAgentDocument } = await import(${JSON.stringify(join(SRC, 'services/agents/codec.ts'))})
     const { buildReviewFacts } = await import(${JSON.stringify(join(SRC, 'components/agents/studio/studioEditorModel.ts'))})
+    const { studioReviewView } = await import(${JSON.stringify(join(SRC, 'components/agents/studio/studioEditorView.tsx'))})
+    const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'components/design-system/ThemeProvider.tsx'))})
+    const { mountOffscreen, settle } = await import(${JSON.stringify(join(HERE, '../lib/settingsPopupHarness.ts'))})
     const raw = '---\\nname: scout\\ndescription: Checks code carefully\\n---\\nInspect files thoroughly.\\n'
     const doc = decodeAgentDocument(raw, '/repo/.mercury/agents/scout.md')
     const base = { identity: { filePath: '/repo/.mercury/agents/scout.md', revision: 'rev-1' }, agent: {} }
@@ -323,17 +327,51 @@ console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable 
       throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
     })
     out.readable = buildReviewFacts(doc, base, () => raw)
+    const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    out.posix = posix
+    if (posix) {
+      const lockedDir = path.join(process.cwd(), 'some-long-project-folder', 'nested-subpath', '.mercury', 'agents')
+      fs.mkdirSync(lockedDir, { recursive: true })
+      const lockedFile = path.join(lockedDir, 'potluck-checker.md')
+      fs.writeFileSync(lockedFile, raw, 'utf8')
+      fs.chmodSync(lockedFile, 0o000)
+      try {
+        const lockedBase = { identity: { filePath: lockedFile, revision: 'rev-1' }, agent: {} }
+        const view = studioReviewView({
+          doc,
+          base: lockedBase,
+          header: null,
+          destinationPath: lockedFile,
+          effective: { model: 'claude-sonnet-5-5', effort: { label: 'high', supportsEffort: true }, tools: { readOnly: false, hasWildcard: true, validTools: [], invalidTools: [] } },
+          validation: { errors: [], warnings: [], canSave: true },
+        })
+        const m = await mountOffscreen(React.createElement(ThemeProvider, {}, view), 80, 18)
+        await settle(80)
+        out.painted = m.screen()
+        m.unmount()
+      } finally {
+        fs.chmodSync(lockedFile, 0o644)
+      }
+    }
   `)
   const unread = res.unread as { changed: string[]; diffLines: string[] }
   const readable = res.readable as { changed: string[]; diffLines: string[] }
   check(
     'studio-review-unreadable-base-sentence',
     unread.diffLines.length === 1 &&
-      unread.diffLines[0] === 'Could not read existing agent file (EACCES: permission denied) — check permissions before saving.' &&
+      unread.diffLines[0] === 'Could not read existing agent file — check permissions before saving (EACCES: permission denied).' &&
       !unread.diffLines.some(l => l.startsWith('+')) &&
       unread.changed.join(',') === '(existing file unreadable)',
     JSON.stringify(unread),
   )
+  if (res.posix === true) {
+    const painted = String(res.painted ?? '')
+    check(
+      'studio-review-unreadable-base-advice-visible-at-panel-width',
+      painted.includes('Could not read existing agent file — check permissions before saving'),
+      painted.slice(0, 500),
+    )
+  }
   check(
     'studio-review-readable-base-control',
     readable.changed.length === 0 && readable.diffLines.length === 0,

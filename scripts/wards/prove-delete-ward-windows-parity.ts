@@ -9,6 +9,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
+const hostPlatform = process.platform
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
 function pinPlatform(value: NodeJS.Platform): void {
   Object.defineProperty(process, 'platform', { value, configurable: true })
@@ -345,14 +346,29 @@ async function main(): Promise<void> {
   }
 
   section('§7 off win32 — the Mac ward is the parity source and is unchanged; the Windows set never joins')
-  check(`platform restored (${process.platform})`, process.platform !== 'win32')
-  check('rm -rf /Users/other still refused on this host', refused('rm -rf /Users/other', 'Bash'))
-  check('rm -rf /Users still refused on this host', refused('rm -rf /Users', 'Bash'))
-  check('rm -rf /System still refused on this host', refused('rm -rf /System', 'Bash'))
-  check('rm -rf /Volumes/Backup still refused on this host', refused('rm -rf /Volumes/Backup', 'Bash'))
-  check('rm -rf /Users/other/proj/dist refused on this host by no-other-user-delete (the .37 ruling)', ruleOf('rm -rf /Users/other/proj/dist', 'Bash') === 'no-other-user-delete', ruleOf('rm -rf /Users/other/proj/dist', 'Bash'))
-  check('Remove-Item -Recurse -Force C:\\Users\\Other is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force C:\\Users\\Other'))
-  check('Remove-Item -Recurse -Force C:\\Windows is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force C:\\Windows'))
+  check(`platform restored (${process.platform})`, process.platform === hostPlatform)
+  if (hostPlatform === 'win32') {
+    pinPlatform('darwin')
+    process.env.HOME = '/Users/alice'
+    delete process.env.USERPROFILE
+  }
+  try {
+    check('rm -rf /Users/other still refused on this host', refused('rm -rf /Users/other', 'Bash'))
+    check('rm -rf /Users still refused on this host', refused('rm -rf /Users', 'Bash'))
+    check('rm -rf /System still refused on this host', refused('rm -rf /System', 'Bash'))
+    check('rm -rf /Volumes/Backup still refused on this host', refused('rm -rf /Volumes/Backup', 'Bash'))
+    check('rm -rf /Users/other/proj/dist refused on this host by no-other-user-delete (the .37 ruling)', ruleOf('rm -rf /Users/other/proj/dist', 'Bash') === 'no-other-user-delete', ruleOf('rm -rf /Users/other/proj/dist', 'Bash'))
+    check('Remove-Item -Recurse -Force C:\\Users\\Other is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force C:\\Users\\Other'))
+    check('Remove-Item -Recurse -Force C:\\Windows is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force C:\\Windows'))
+  } finally {
+    if (hostPlatform === 'win32') {
+      restorePlatform()
+      if (savedHome === undefined) delete process.env.HOME
+      else process.env.HOME = savedHome
+      if (savedProfile === undefined) delete process.env.USERPROFILE
+      else process.env.USERPROFILE = savedProfile
+    }
+  }
 
   console.log(`\n${failures === 0 ? 'OK' : 'FAIL'} — ${failures} failure(s)`)
   process.exit(failures === 0 ? 0 : 1)

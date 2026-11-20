@@ -35,7 +35,7 @@ import {
   installServiceExecutionDomain,
   projectServiceExecution,
 } from './executionProjection.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
@@ -415,42 +415,68 @@ export async function waitForReady(
   name: string,
   timeoutMs: number,
 ): Promise<{ ready: boolean; statuses: ReadinessStatus[]; record: ServiceRecord | null; error?: string }> {
+  type ReadyResult = { ready: boolean; statuses: ReadinessStatus[]; record: ServiceRecord | null; error?: string }
   const deadline = Date.now() + timeoutMs
-  const registrationGrace = Date.now() + Math.min(timeoutMs, WAIT_REGISTRATION_GRACE_MS)
-  for (;;) {
-    const loaded = reconcileRecordStrict(cwd, name)
-    if (!loaded.ok) return { ready: false, statuses: [], record: null, error: loaded.error }
-    const record = loaded.record
-    if (!record) {
-      if (Date.now() >= registrationGrace) return { ready: false, statuses: [], record: null }
-      await sleep(100)
-      continue
-    }
-    if (record.state === 'failed' || record.state === 'stopped') {
-      const { statuses } = await evaluateReadiness(cwd, record)
-      return { ready: false, statuses, record }
-    }
-    const { ready, statuses } = await evaluateReadiness(cwd, record)
-    if (ready) {
-      if (record.state === 'starting') {
-        const updated: ServiceRecord = {
-          ...record,
-          state: 'ready',
-          readiness: statuses,
-          updatedAt: Date.now(),
-        }
-        writeRecord(cwd, updated)
-        return { ready: true, statuses, record: updated }
+  const registrationGraceMs = Math.min(timeoutMs, WAIT_REGISTRATION_GRACE_MS)
+  const registration = await pollUntil<
+    { kind: 'record'; record: ServiceRecord } | { kind: 'done'; result: ReadyResult },
+    { kind: 'done'; result: ReadyResult }
+  >(
+    () => {
+      const loaded = reconcileRecordStrict(cwd, name)
+      if (!loaded.ok) return { kind: 'done', result: { ready: false, statuses: [], record: null, error: loaded.error } }
+      if (loaded.record) return { kind: 'record', record: loaded.record }
+      return undefined
+    },
+    100,
+    registrationGraceMs,
+    () => ({ kind: 'done', result: { ready: false, statuses: [], record: null } }),
+  )
+  if (registration.kind === 'done') return registration.result
+
+  let initial: ServiceRecord | null = registration.record
+  let lastRecord: ServiceRecord = registration.record
+  let lastStatuses: ReadinessStatus[] = []
+  return pollUntil(
+    async () => {
+      let record: ServiceRecord | null = initial
+      initial = null
+      if (!record) {
+        const loaded = reconcileRecordStrict(cwd, name)
+        if (!loaded.ok) return { ready: false, statuses: [], record: null, error: loaded.error }
+        record = loaded.record
+        if (!record) return { ready: false, statuses: [], record: null }
       }
-      return { ready: true, statuses, record }
-    }
-    if (Date.now() >= deadline) {
-      const updated: ServiceRecord = { ...record, readiness: statuses, updatedAt: Date.now() }
+      if (record.state === 'failed' || record.state === 'stopped') {
+        const { statuses } = await evaluateReadiness(cwd, record)
+        return { ready: false, statuses, record }
+      }
+      const { ready, statuses } = await evaluateReadiness(cwd, record)
+      lastRecord = record
+      lastStatuses = statuses
+      if (ready) {
+        if (record.state === 'starting') {
+          const updated: ServiceRecord = {
+            ...record,
+            state: 'ready',
+            readiness: statuses,
+            updatedAt: Date.now(),
+          }
+          writeRecord(cwd, updated)
+          return { ready: true, statuses, record: updated }
+        }
+        return { ready: true, statuses, record }
+      }
+      return undefined
+    },
+    250,
+    Math.max(0, deadline - Date.now()),
+    () => {
+      const updated: ServiceRecord = { ...lastRecord, readiness: lastStatuses, updatedAt: Date.now() }
       writeRecord(cwd, updated)
-      return { ready: false, statuses, record: updated }
-    }
-    await sleep(250)
-  }
+      return { ready: false, statuses: lastStatuses, record: updated }
+    },
+  )
 }
 
 
@@ -723,11 +749,12 @@ export async function stopService(
       passedOver(error)
     }
   }
-  const deadline = Date.now() + 5_000
-  while (Date.now() < deadline) {
-    if (!processAlive(record.pid, record.startToken)) break
-    await sleep(100)
-  }
+  await pollUntil(
+    () => (!processAlive(record.pid, record.startToken) ? true : undefined),
+    100,
+    5_000,
+    () => false,
+  )
   if (processAlive(record.pid, record.startToken)) {
     const stillOwned = ownedLiveChild(cwd, name, record.pid)
     const stillOurs = decideServiceStrike({
@@ -824,22 +851,26 @@ export async function awaitOutput(
   cursor: number,
   timeoutMs: number,
 ): Promise<{ record: ServiceRecord | null; grew: boolean }> {
-  const deadline = Date.now() + timeoutMs
   let lastGrowth: number | null = null
   let seen = cursor
-  for (;;) {
-    const record = reconcileRecord(cwd, name)
-    const size = logEnd(cwd, name)
-    if (size > seen) {
-      seen = size
-      lastGrowth = Date.now()
-    }
-    const now = Date.now()
-    if (record === null || record.pid === null) return { record, grew: seen > cursor }
-    if (lastGrowth !== null && now - lastGrowth >= OUTPUT_QUIET_MS) return { record, grew: true }
-    if (now >= deadline) return { record, grew: seen > cursor }
-    await sleep(Math.min(OUTPUT_POLL_MS, Math.max(1, deadline - now)))
-  }
+  let lastRecord: ServiceRecord | null = null
+  return pollUntil(
+    () => {
+      const record = reconcileRecord(cwd, name)
+      lastRecord = record
+      const size = logEnd(cwd, name)
+      if (size > seen) {
+        seen = size
+        lastGrowth = Date.now()
+      }
+      if (record === null || record.pid === null) return { record, grew: seen > cursor }
+      if (lastGrowth !== null && Date.now() - lastGrowth >= OUTPUT_QUIET_MS) return { record, grew: true }
+      return undefined
+    },
+    OUTPUT_POLL_MS,
+    timeoutMs,
+    () => ({ record: lastRecord, grew: seen > cursor }),
+  )
 }
 
 export async function readLogs(

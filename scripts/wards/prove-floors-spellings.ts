@@ -68,7 +68,9 @@ writeFileSync(join(PROJECT, 'docs', 'plain.md'), 'a plain document\n')
 writeFileSync(join(PROJECT, 'notes.txt'), 'notes\n')
 process.chdir(PROJECT)
 
-const standIn = spawn('/bin/sleep', ['600'], { stdio: 'ignore' })
+const standIn = process.platform === 'win32'
+  ? spawn(process.execPath, ['-e', 'setTimeout(() => {}, 600000)', '/bin/sleep', '600'], { stdio: 'ignore' })
+  : spawn('/bin/sleep', ['600'], { stdio: 'ignore' })
 const DAEMON_PID = standIn.pid ?? 0
 process.on('exit', () => {
   try {
@@ -132,9 +134,17 @@ async function decide(tool: string, input: Record<string, unknown>, mode: string
   }
 }
 
+const bashPath = (path: string): string => (process.platform === 'win32' ? path.replaceAll('\\', '/') : path)
 const fill = (text: string): string => text.replaceAll('<HOME>', OWN_HOME).replaceAll('<USER>', FAKE_USER).replaceAll('<CONFIG>', CONFIG_HOME).replaceAll('<PROJECT>', PROJECT).replaceAll('<DAEMON_PID>', String(DAEMON_PID)).replaceAll('<OWN_PID>', String(process.pid))
-const shown = (text: string): string => JSON.stringify(text.replaceAll(OWN_HOME, '<home>').replaceAll(CONFIG_HOME, '<config>').replaceAll(PROJECT, '<project>').replaceAll(String(DAEMON_PID), '<daemon pid>').replaceAll(String(process.pid), '<own pid>'))
-const said = (decision: Decision): string => `${decision.behavior}${decision.message ? `: ${decision.message.replaceAll('\n', ' ').replaceAll(OWN_HOME, '<home>').replaceAll(CONFIG_HOME, '<config>').replaceAll(PROJECT, '<project>').slice(0, 160)}` : ''}`
+const fillBash = (text: string): string => text.replaceAll('<HOME>', bashPath(OWN_HOME)).replaceAll('<USER>', FAKE_USER).replaceAll('<CONFIG>', bashPath(CONFIG_HOME)).replaceAll('<PROJECT>', bashPath(PROJECT)).replaceAll('<DAEMON_PID>', String(DAEMON_PID)).replaceAll('<OWN_PID>', String(process.pid))
+const fillValue = (value: unknown, slash: boolean): unknown => {
+  if (typeof value === 'string') return slash ? fillBash(value) : fill(value)
+  if (Array.isArray(value)) return value.map(item => fillValue(item, slash))
+  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fillValue(v, slash)]))
+  return value
+}
+const shown = (text: string): string => JSON.stringify(text.replaceAll(OWN_HOME, '<home>').replaceAll(bashPath(OWN_HOME), '<home>').replaceAll(CONFIG_HOME, '<config>').replaceAll(bashPath(CONFIG_HOME), '<config>').replaceAll(PROJECT, '<project>').replaceAll(bashPath(PROJECT), '<project>').replaceAll(String(DAEMON_PID), '<daemon pid>').replaceAll(String(process.pid), '<own pid>'))
+const said = (decision: Decision): string => `${decision.behavior}${decision.message ? `: ${decision.message.replaceAll('\n', ' ').replaceAll(OWN_HOME, '<home>').replaceAll(bashPath(OWN_HOME), '<home>').replaceAll(CONFIG_HOME, '<config>').replaceAll(bashPath(CONFIG_HOME), '<config>').replaceAll(PROJECT, '<project>').replaceAll(bashPath(PROJECT), '<project>').slice(0, 160)}` : ''}`
 const bash = (command: string, why?: string, rules?: Rules): Call => ({ command, why, rules })
 const call = (tool: string, input: Record<string, unknown>, why?: string, rules?: Rules): Call => ({ tool, input, why, rules })
 const wanted = process.argv.slice(2).filter(arg => !arg.startsWith('--'))
@@ -142,7 +152,7 @@ const runs = (id: string): boolean => wanted.length === 0 || wanted.includes(id)
 
 async function reading(item: Call, mode: Mode): Promise<{ decision: Decision; what: string }> {
   const tool = item.tool ?? 'Bash'
-  const input = item.input ? (JSON.parse(fill(JSON.stringify(item.input))) as Record<string, unknown>) : { command: fill(item.command ?? '') }
+  const input = item.input ? (fillValue(item.input, tool === 'Bash' || tool === 'Eval') as Record<string, unknown>) : { command: fillBash(item.command ?? '') }
   const decision = await decide(tool, input, mode, item.rules ?? {})
   const what = tool === 'Bash' ? shown(String(input.command)) : `${tool} ${shown(JSON.stringify(input)).slice(0, 150)}`
   return { decision, what }
@@ -193,8 +203,8 @@ await expect('floor 4', bash('pkill -f mercury'), FOUR, refused, 'Bash refuses')
 await expect('floor 4', call('Write', { file_path: '<CONFIG>/runtime/current/mercury.mjs', content: 'x' }), FOUR, refused, 'the Write tool refuses')
 await expect('floor 2', bash('cat <CONFIG>/.cred[a-z]*', 'a glob that names the store'), FOUR, refused, 'Bash refuses')
 await expect('floor 2', bash('cat <CONFIG>/.cred[z-a]*', 'a glob part that does not compile'), ['sovereign', 'flow'], notRefused, 'a glob Mercury could not read as a pattern is not refused for what it might name')
-await expect('floor 4', bash(`cd ${RUN_ROOT}/c[a-z]* && rm -rf runtime`, 'a cd by a glob that names the config home'), FOUR, refused, 'Bash refuses')
-await expect('floor 4', bash(`cd ${RUN_ROOT}/c[z-a]* && rm -rf runtime`, 'a cd by a glob part that does not compile'), ['sovereign', 'flow'], notRefused, 'a glob Mercury could not read as a pattern is not refused for where it might lead')
+await expect('floor 4', bash(`cd ${bashPath(RUN_ROOT)}/c[a-z]* && rm -rf runtime`, 'a cd by a glob that names the config home'), FOUR, refused, 'Bash refuses')
+await expect('floor 4', bash(`cd ${bashPath(RUN_ROOT)}/c[z-a]* && rm -rf runtime`, 'a cd by a glob part that does not compile'), ['sovereign', 'flow'], notRefused, 'a glob Mercury could not read as a pattern is not refused for where it might lead')
 
 const EVERY: Mode[] = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign']
 section('the page says "in every permission mode" of the credential and runtime floors for a shell command: each asked plainly on both shell tools in all six')
@@ -2603,7 +2613,7 @@ if (runs('OWN')) {
     const told = await reading(item, 'sovereign')
     check(`OWN · ${told.what}${item.why ? ` (${item.why})` : ''} · the refusal names the runtime folder as the disk spells it`, told.decision.behavior === 'deny' && (told.decision.message ?? '').includes(SPELLED), String(told.decision.message))
   }
-  const shouted = bash(`rm -rf ${join(OWN_HOME, '.mercury', 'runtime').toUpperCase()}`, 'the folder spelled in another case')
+  const shouted = bash(`rm -rf ${bashPath(join(OWN_HOME, '.mercury', 'runtime').toUpperCase())}`, 'the folder spelled in another case')
   await expect('OWN', shouted, ['sovereign', 'flow', 'default'], refused, 'is refused all the same')
   const shoutedTold = await reading(shouted, 'sovereign')
   check('OWN · …and the sentence still names the folder as the disk spells it, not as the line did', (shoutedTold.decision.message ?? '').includes(SPELLED), String(shoutedTold.decision.message))
