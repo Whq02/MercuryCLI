@@ -49,10 +49,7 @@ Promise.race	src/boot/launchGraph.ts	1	events 1
 Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
 Promise.race	src/cli/headless/runnerAsks.ts	1	events 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
-Promise.race	src/services/context/contextWindowWarmup.ts	1	deadline 1
 Promise.race	src/services/eval/procKernel.ts	1	events 1
-Promise.race	src/services/health/healthReport.ts	1	deadline 1
-Promise.race	src/services/health/sections/interface.ts	1	deadline 1
 Promise.race	src/services/host/door.ts	1	events 1
 Promise.race	src/services/lsp/LSPClient.ts	1	events 1
 Promise.race	src/services/oauth/index.ts	1	events 1
