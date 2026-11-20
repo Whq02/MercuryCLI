@@ -206,8 +206,14 @@ export async function mcpRemoveHandler(
 
 export async function mcpListHandler(): Promise<void> {
   const { servers: configs, errors: notices } = await getMercuryMcpConfigs()
+  let printedFault = false
   for (const notice of notices) {
-    if (notice.kind === 'document-bounded') process.stdout.write(`${notice.message}\n`)
+    if (notice.kind === 'config-fault') {
+      process.stderr.write(`${notice.message}\n`)
+      printedFault = true
+    } else if (notice.kind === 'document-bounded') {
+      process.stdout.write(`${notice.message}\n`)
+    }
   }
   const names = Object.keys(configs)
   const skippedForTrust = mcpServersSkippedForTrustLine()
@@ -215,7 +221,7 @@ export async function mcpListHandler(): Promise<void> {
   const skippedForApproval = mcpServersSkippedForApprovalLines()
   for (const { line } of skippedForApproval) process.stdout.write(`${line}\n`)
   if (names.length === 0) {
-    if (skippedForTrust === null && skippedForApproval.length === 0) process.stdout.write(`No MCP servers configured. Add one with: ${binaryName()} mcp add\n`)
+    if (!printedFault && skippedForTrust === null && skippedForApproval.length === 0) process.stdout.write(`No MCP servers configured. Add one with: ${binaryName()} mcp add\n`)
     await gracefulShutdown(0)
     return
   }

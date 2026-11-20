@@ -1,14 +1,16 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(resolve(import.meta.dir, '..', '..'))
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'first-byte-liveness-'))
+const configHome = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'first-byte-liveness-'))
+process.env.MERCURY_CONFIG_DIR = configHome
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.DEBUG = '1'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
@@ -125,7 +127,7 @@ const warmHistory = (): unknown[] => {
   return [createUserMessage({ content: 'first' }), earlier, createUserMessage({ content: 'go' })]
 }
 
-async function drive(): Promise<{ last: AssistantMessage | undefined; notices: SystemAPIErrorMessage[]; errors: string[]; threw: unknown; wallMs: number; waits: unknown[] }> {
+async function drive(opts?: { messages?: unknown[]; fetchOverride?: typeof fetch }): Promise<{ last: AssistantMessage | undefined; notices: SystemAPIErrorMessage[]; errors: string[]; threw: unknown; wallMs: number; waits: unknown[] }> {
   const assistants: AssistantMessage[] = []
   const notices: SystemAPIErrorMessage[] = []
   const errors: string[] = []
@@ -134,7 +136,7 @@ async function drive(): Promise<{ last: AssistantMessage | undefined; notices: S
   const t0 = performance.now()
   try {
     for await (const item of routedCallModel({
-      messages: warmHistory() as never,
+      messages: (opts?.messages ?? warmHistory()) as never,
       systemPrompt: ['fixture'] as never,
       thinkingConfig: { type: 'enabled', budgetTokens: 1024 } as never,
       tools: [] as never,
@@ -149,6 +151,7 @@ async function drive(): Promise<{ last: AssistantMessage | undefined; notices: S
         mcpTools: [],
         effortValue: 'max',
         onWait: (wait: unknown) => waits.push(wait),
+        ...(opts?.fetchOverride !== undefined ? { fetchOverride: opts.fetchOverride } : {}),
       } as never,
     })) {
       const typed = item as { type?: string; subtype?: string }
@@ -194,6 +197,48 @@ section('L2 · the edge accepts the request and never answers: the typed first-b
   check('the budget fired at its number, not long after', o.wallMs >= IDLE_MS && o.wallMs < IDLE_MS * 4, `${o.wallMs.toFixed(0)} ms`)
   const retryWait = o.notices[0] !== undefined ? idle.retryNoticeWait(o.notices[0]) : null
   check('the status row reads the wait as a first-byte timeout', retryWait !== null && retryWait.reason === 'a first-byte timeout', retryWait !== null ? retryWait.reason : 'no notice')
+}
+
+section('L3 · an early connect timeout before a long first-byte budget logs the elapsed time (never the whole 6m 42s budget) and no "undefined" status')
+{
+  const coldWait = { kind: 'first-byte' as const, cold: true, promptTokens: 35_000, model: 'Sonnet 5.5', budgetMs: 402_000, sinceMs: 0, attempt: 1 }
+  check('firstByteTimeoutLine with an explicit elapsedMs prints the time that passed (30 s), not the whole budget (6m 42s)', idle.firstByteTimeoutLine(coldWait, 30_000) === 'no first byte from Sonnet 5.5 after 30 s (a 35k-token prompt ingesting uncached)', idle.firstByteTimeoutLine(coldWait, 30_000))
+  check('firstByteTimeoutLine without elapsedMs keeps budgetMs unchanged', idle.firstByteTimeoutLine(coldWait) === 'no first byte from Sonnet 5.5 after 6m 42s (a 35k-token prompt ingesting uncached)', idle.firstByteTimeoutLine(coldWait))
+
+  const debugLines = (): string[] => {
+    const dir = join(configHome, 'debug')
+    if (!existsSync(dir)) return []
+    return readdirSync(dir).filter(name => name.endsWith('.txt')).flatMap(name => readFileSync(join(dir, name), 'utf8').split('\n'))
+  }
+  const prevIdle = process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
+  process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '120000'
+  const linesBefore = debugLines().length
+  plans.push('full')
+  seen.length = 0
+  let fetchCalls = 0
+  const earlyConnectTimeoutFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    fetchCalls++
+    if (fetchCalls === 1) {
+      throw Object.assign(new TypeError('fetch failed'), {
+        cause: Object.assign(new Error('Connect Timeout Error (attempted address: 192.0.2.1:443, timeout: 30000ms)'), { code: 'UND_ERR_CONNECT_TIMEOUT' }),
+      })
+    }
+    return fetch(input, init)
+  }) as unknown as typeof fetch
+  try {
+    const o = await drive({ messages: [createUserMessage({ content: 'cold prompt' })], fetchOverride: earlyConnectTimeoutFetch })
+    const added = debugLines().slice(linesBefore)
+    const firedLine = added.find(line => line.includes('first-byte budget fired:')) ?? ''
+    const apiErrLine = added.find(line => line.includes('API error (attempt 1):')) ?? ''
+    check('the turn settled on the retry after the early connect timeout', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)}`)
+    check('first-byte budget fired debug line prints elapsed time (1 s), never the unreached 2m budget', firedLine.includes('after 1 s (') && !firedLine.includes('after 2m'), firedLine)
+    check('API error debug line omits undefined when the error carries no HTTP status', apiErrLine.includes('API error (attempt 1): no first byte from') && apiErrLine.includes('after 1 s (') && !apiErrLine.includes('undefined'), apiErrLine)
+    const underlyingMessage = (o.notices[0]?.error as { cause?: { message?: string } } | undefined)?.cause?.message ?? noticeWords(o.notices)
+    check('the underlying timeout error carries the elapsed time (1 s), not the whole 2m budget', o.notices.length === 1 && underlyingMessage.includes('after 1 s (') && !underlyingMessage.includes('after 2m'), underlyingMessage)
+  } finally {
+    if (prevIdle === undefined) delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
+    else process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = prevIdle
+  }
 }
 
 for (const t of timers) clearInterval(t)

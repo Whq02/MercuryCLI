@@ -120,8 +120,11 @@ export function streamPassRetries(call: CallState, pass: StreamPass, { messages,
         result = await dispatch()
       } catch (sent) {
         if (!signal.aborted && isFirstByteTimeout(sent)) {
-          logForDebugging(`first-byte budget fired: ${firstByteTimeoutLine(wait)}`, { level: 'warn' })
-          throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait), requestDeadline: (sent as { requestDeadline?: unknown }).requestDeadline === true })
+          const requestDeadline = (sent as { requestDeadline?: unknown }).requestDeadline === true
+          const elapsedMs = Math.max(0, Date.now() - wait.sinceMs)
+          const line = firstByteTimeoutLine(wait, requestDeadline ? wait.budgetMs : Math.min(wait.budgetMs, elapsedMs))
+          logForDebugging(`first-byte budget fired: ${line}`, { level: 'warn' })
+          throw new APIConnectionTimeoutError({ message: line, requestDeadline })
         }
         noteMessageEffortRefusal(params.messages, sent)
         throw sent

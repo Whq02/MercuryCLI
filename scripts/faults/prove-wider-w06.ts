@@ -640,5 +640,121 @@ console.log('\nw06-8: acpServer/mercuryRequests — _mercury/crew surfaces readE
   check('_mercury/crew omits readErrors when all four reads succeed', r.okHasReadErrors === false, JSON.stringify(r))
 }
 
+console.log('\nw06-9: MercuryExitConfirm — leave dialog reads live running work as it paints')
+{
+  const r = runScenario(`
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const React = await import('react')
+    const { Box } = await import(path.join(SRC, 'ink.ts'))
+    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
+    const { AppStoreContext } = await import(path.join(SRC, 'state/AppState.tsx'))
+    const { createStore } = await import(path.join(SRC, 'state/store.ts'))
+    const { getDefaultAppState } = await import(path.join(SRC, 'state/AppStateStore.ts'))
+    const { call: exitCall } = await import(path.join(SRC, 'commands/exit/exit.tsx'))
+    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
+    const { noSessionConnector } = await import(path.join(SRC, 'services/engine-connector/noSessionConnector.ts'))
+    const { mountOffscreen, settle } = await import(path.join(REPO, 'scripts/lib/settingsPopupHarness.ts'))
+
+    const workListeners = new Set()
+    let rosterRows = [{ id: 'sh-1', kind: 'shell', label: 'sleep 90', status: 'running', startedAt: 1 }]
+    const conn = {
+      ...noSessionConnector(),
+      sessionId: () => '00000000-0000-4000-8000-0000000000cd',
+      workRoster: () => ({ rows: rosterRows, mission: [], reported: true }),
+      subscribeWork: (listener) => {
+        workListeners.add(listener)
+        return () => { workListeners.delete(listener) }
+      },
+    }
+    setFocusedSessionConnector(conn)
+    try {
+      const store = createStore(getDefaultAppState())
+      const node = await exitCall(() => {}, { getAppState: () => store.getState(), setAppState: (u) => store.setState(u) })
+      const m = await mountOffscreen(
+        React.createElement(
+          AppStoreContext.Provider,
+          { value: store },
+          React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 100, height: 8 }, node)),
+        ),
+        100,
+        8,
+      )
+      await settle(80)
+      out.hostedBefore = m.screen()
+
+      rosterRows = [{ id: 'sh-1', kind: 'shell', label: 'sleep 90', status: 'completed', startedAt: 1 }]
+      for (const listener of [...workListeners]) listener()
+      await settle(80)
+      out.hostedAfter = m.screen()
+      m.unmount()
+    } finally {
+      releaseFocusedSessionConnector(conn)
+    }
+
+    const localStore = createStore({
+      ...getDefaultAppState(),
+      tasks: {
+        't-1': { id: 't-1', type: 'local_bash', status: 'running', isBackgrounded: true, description: 'sleep 10', startTime: Date.now(), shellCommand: { status: 'backgrounded' } },
+        't-2': { id: 't-2', type: 'local_bash', status: 'running', isBackgrounded: true, description: 'sleep 20', startTime: Date.now(), shellCommand: { status: 'backgrounded' } },
+      },
+    })
+    const localNode = await exitCall(() => {}, { getAppState: () => localStore.getState(), setAppState: (u) => localStore.setState(u) })
+    const m2 = await mountOffscreen(
+      React.createElement(
+        AppStoreContext.Provider,
+        { value: localStore },
+        React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 100, height: 8 }, localNode)),
+      ),
+      100,
+      8,
+    )
+    await settle(80)
+    out.localTwo = m2.screen()
+    localStore.setState(prev => ({
+      ...prev,
+      tasks: {
+        ...prev.tasks,
+        't-1': { ...prev.tasks['t-1'], status: 'completed' },
+      },
+    }))
+    await settle(80)
+    out.localOne = m2.screen()
+    localStore.setState(prev => ({
+      ...prev,
+      tasks: {
+        ...prev.tasks,
+        't-2': { ...prev.tasks['t-2'], status: 'completed' },
+      },
+    }))
+    await settle(80)
+    out.localNone = m2.screen()
+    m2.unmount()
+  `)
+  const hostedBefore = String(r.hostedBefore ?? '')
+  const hostedAfter = String(r.hostedAfter ?? '')
+  const localTwo = String(r.localTwo ?? '')
+  const localOne = String(r.localOne ?? '')
+  const localNone = String(r.localNone ?? '')
+  check(
+    'hosted shell running initially paints "1 shell command still running" and "quitting stops them"',
+    hostedBefore.includes('1 shell command still running') && hostedBefore.includes('quitting stops them · see them with /runs · the session itself stays resumable'),
+    hostedBefore,
+  )
+  check(
+    'when hosted shell finishes while dialog stands, dialog updates to "nothing still running" and drops "quitting stops them"',
+    !hostedAfter.includes('1 shell command still running') && hostedAfter.includes('nothing still running') && !hostedAfter.includes('quitting stops them') && hostedAfter.includes('the session itself stays resumable'),
+    hostedAfter,
+  )
+  check(
+    'local background tasks update live from 2 -> 1 -> nothing while dialog stands',
+    localTwo.includes('2 shell commands still running') &&
+      localOne.includes('1 shell command still running') &&
+      !localNone.includes('shell command') &&
+      localNone.includes('nothing still running'),
+    JSON.stringify({ localTwo, localOne, localNone }),
+  )
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)

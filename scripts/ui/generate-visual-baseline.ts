@@ -446,7 +446,7 @@ async function main(): Promise<number> {
       theme: spec.theme, colorMode: spec.colorMode, motion: spec.motion,
       mouse: 'on', stateFixture: spec.scenario, terminalProfile: 'pyte-xterm',
       gridPath, gridDigest: gridDigest(grid, masks), styleDigest: styleDigest(grid, masks),
-      masks, generatedAt: new Date().toISOString(),
+      masks,
     })
     generated++
     console.log(`✓ ${id}`)
@@ -459,7 +459,6 @@ async function main(): Promise<number> {
     schema: 1,
     generator: 'scripts/ui/generate-visual-baseline.ts',
     sourceSha, buildDigest,
-    generatedAt: new Date().toISOString(),
     descoped: DESCOPED,
     entries: [...entries.values()].sort((a, b) => a.id.localeCompare(b.id)),
   }

@@ -3,7 +3,6 @@
   "generator": "scripts/ui/generate-visual-baseline.ts",
   "sourceSha": "1c7c67b5a876f95a1007e670d88e1bd30292360f",
   "buildDigest": "99fae3cd2dfac1d7089193c70b95de8ec21b8046",
-  "generatedAt": "2026-11-14T02:51:56.255Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -49,8 +48,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.236Z"
+      ]
     },
     {
       "id": "frame--100x30--dark--truecolor--full",
@@ -86,8 +84,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.159Z"
+      ]
     },
     {
       "id": "frame--101x30--dark--truecolor--full",
@@ -123,8 +120,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.160Z"
+      ]
     },
     {
       "id": "frame--120x40--dark--256--full",
@@ -160,8 +156,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.241Z"
+      ]
     },
     {
       "id": "frame--120x40--dark--ansi--full",
@@ -197,8 +192,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.243Z"
+      ]
     },
     {
       "id": "frame--120x40--dark--none--full",
@@ -234,8 +228,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.246Z"
+      ]
     },
     {
       "id": "frame--120x40--dark--truecolor--full",
@@ -271,8 +264,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.162Z"
+      ]
     },
     {
       "id": "frame--120x40--dark--truecolor--reduced",
@@ -308,8 +300,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.248Z"
+      ]
     },
     {
       "id": "frame--120x40--true-black--truecolor--full",
@@ -345,8 +336,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.250Z"
+      ]
     },
     {
       "id": "frame--149x40--dark--truecolor--full",
@@ -382,8 +372,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.166Z"
+      ]
     },
     {
       "id": "frame--150x40--dark--truecolor--full",
@@ -419,8 +408,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.172Z"
+      ]
     },
     {
       "id": "frame--151x40--dark--truecolor--full",
@@ -456,8 +444,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.180Z"
+      ]
     },
     {
       "id": "frame--160x50--dark--truecolor--full",
@@ -493,8 +480,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.188Z"
+      ]
     },
     {
       "id": "frame--269x70--dark--truecolor--full",
@@ -530,8 +516,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.215Z"
+      ]
     },
     {
       "id": "frame--60x18--dark--truecolor--full",
@@ -568,8 +553,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-13T06:06:30.285Z"
+      ]
     },
     {
       "id": "frame--80x24--dark--truecolor--full",
@@ -606,8 +590,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-13T06:06:30.285Z"
+      ]
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
@@ -644,8 +627,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-07T23:35:40.326Z"
+      ]
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
@@ -682,8 +664,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-07T23:35:40.328Z"
+      ]
     },
     {
       "id": "help--120x40--dark--truecolor--full",
@@ -719,8 +700,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.238Z"
+      ]
     },
     {
       "id": "resume-2turn--100x30--dark--truecolor--full",
@@ -756,8 +736,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.159Z"
+      ]
     },
     {
       "id": "resume-2turn--101x30--dark--truecolor--full",
@@ -793,8 +772,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.161Z"
+      ]
     },
     {
       "id": "resume-2turn--120x40--dark--256--full",
@@ -830,8 +808,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.242Z"
+      ]
     },
     {
       "id": "resume-2turn--120x40--dark--ansi--full",
@@ -867,8 +844,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.244Z"
+      ]
     },
     {
       "id": "resume-2turn--120x40--dark--none--full",
@@ -904,8 +880,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.247Z"
+      ]
     },
     {
       "id": "resume-2turn--120x40--dark--truecolor--full",
@@ -941,8 +916,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.164Z"
+      ]
     },
     {
       "id": "resume-2turn--149x40--dark--truecolor--full",
@@ -978,8 +952,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.168Z"
+      ]
     },
     {
       "id": "resume-2turn--150x40--dark--truecolor--full",
@@ -1015,8 +988,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.176Z"
+      ]
     },
     {
       "id": "resume-2turn--151x40--dark--truecolor--full",
@@ -1052,8 +1024,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.183Z"
+      ]
     },
     {
       "id": "resume-2turn--160x50--dark--truecolor--full",
@@ -1089,8 +1060,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.194Z"
+      ]
     },
     {
       "id": "resume-2turn--269x70--dark--truecolor--full",
@@ -1126,8 +1096,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.235Z"
+      ]
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
@@ -1164,8 +1133,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-13T06:06:30.285Z"
+      ]
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
@@ -1202,8 +1170,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-13T06:06:30.286Z"
+      ]
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
@@ -1240,8 +1207,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-07T23:35:40.327Z"
+      ]
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
@@ -1278,8 +1244,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
-      ],
-      "generatedAt": "2026-10-07T23:35:40.329Z"
+      ]
     },
     {
       "id": "sessions--120x40--dark--truecolor--full",
@@ -1315,8 +1280,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.237Z"
+      ]
     },
     {
       "id": "tool-cards--120x40--dark--truecolor--full",
@@ -1352,8 +1316,7 @@
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
-      ],
-      "generatedAt": "2026-11-14T02:51:56.239Z"
+      ]
     }
   ]
 }

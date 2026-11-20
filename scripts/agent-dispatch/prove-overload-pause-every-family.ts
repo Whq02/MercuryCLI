@@ -139,6 +139,7 @@ section("P2 Z.AI's 1305 is the provider overloaded, not a spent window")
 
 section('P3 controls: what is NOT an overload keeps its road')
 {
+  process.env.MERCURY_MAX_RETRIES = '1'
   const zaiRoad = roads.find(road => road.name === 'zai')!
   const { last: rate1302 } = await lastRow(zaiRoad, undefined, { status: 429, body: { error: { code: '1302', message: 'Too many requests, please slow down' } } })
   check('Z.AI 1302 (a real rate limit): no stamp, the window road', rate1302 !== undefined && rate1302.busyRefusal === undefined && lane.usageWindowPauseOf([rate1302 as Message], 'glm-5.2') !== null && lane.overloadPauseOf([rate1302 as Message], 'glm-5.2') === null, JSON.stringify(rate1302?.busyRefusal))
@@ -146,7 +147,8 @@ section('P3 controls: what is NOT an overload keeps its road')
   const { last: exhausted } = await lastRow(geminiRoad, undefined, { status: 429, body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota reached' } } })
   check('Gemini RESOURCE_EXHAUSTED: no stamp, no overload pause', exhausted !== undefined && exhausted.busyRefusal === undefined && lane.overloadPauseOf([exhausted as Message], 'gemini-3.5-flash') === null)
   const { last: askedRate } = await lastRow(geminiRoad, undefined, { status: 429, body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota reached' } }, retryAfter: '1' })
-  check('a 429 that rode the ladder on its Retry-After is not a busy provider: no stamp (isBusyRefusal keys the stamp, never takesBusyLadder)', askedRate !== undefined && askedRate.busyRefusal === undefined, JSON.stringify(askedRate?.busyRefusal))
+  check('a 429 that names a wait is not a busy provider: no stamp (isBusyRefusal keys the stamp)', askedRate !== undefined && askedRate.busyRefusal === undefined, JSON.stringify(askedRate?.busyRefusal))
+  delete process.env.MERCURY_MAX_RETRIES
   const anthropicRow = createAssistantAPIErrorMessage({ content: 'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":"req_fixture"}', error: 'unknown' }) as Message
   const firstParty = lane.overloadPauseOf([anthropicRow], 'claude-fable-5-1')
   check("the first-party 529 row still pauses by its words, status 529", firstParty !== null && firstParty.status === 529 && firstParty.pause.words.includes('(HTTP 529)'), JSON.stringify(firstParty))

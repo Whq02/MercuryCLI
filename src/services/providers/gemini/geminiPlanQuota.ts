@@ -1,7 +1,7 @@
 import { getModelUsage } from '../../../bootstrap/state.js'
 import { getFocusedSessionConnector } from '../../engine-connector/focusedConnector.js'
 import { declaredRouteOf } from '../routeLaw.js'
-import type { UsageFigureView, UsageRefreshIo } from '../providerUsage.js'
+import type { UsageFigureView, UsageRefreshIo, UsageWindowView } from '../providerUsage.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { resolveGeminiAccount } from './geminiAccounts.js'
 import { geminiPlanEffortOrder, geminiPlanEffortSuffix, getCachedGeminiCatalogue, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
@@ -98,5 +98,27 @@ export function geminiPlanQuotaReadNote(snapshot: Pick<GeminiCatalogueSnapshot, 
   if (snapshot === null || snapshot.lastError === undefined) return undefined
   const why = snapshot.lastError === 'account-source-unavailable' ? 'the Google sign-in could not be used' : snapshot.lastError
   return `no quota read (${why})`
+}
+
+export function geminiPlanQuotaMeter(figure: UsageFigureView): { title: string; window: UsageWindowView } | null {
+  const match = /^\s*(\d+(?:\.\d+)?)\s*%/.exec(figure.value)
+  if (match === null) return null
+  const left = Number(match[1])
+  if (!Number.isFinite(left) || left < 0 || left > 100) return null
+  const usedPct = Math.max(0, Math.min(100, Math.round(100 - left)))
+  const title = figure.label.replace(/\s+quota left$/i, '')
+  return {
+    title,
+    window: {
+      key: figure.key,
+      label: title,
+      usedPct,
+      ...(figure.resetsAtMs !== undefined ? { resetsAtMs: figure.resetsAtMs } : {}),
+      ...(figure.observedAtMs !== undefined ? { observedAtMs: figure.observedAtMs } : {}),
+      source: figure.source,
+      ...(figure.freshForMs !== undefined ? { freshForMs: figure.freshForMs } : {}),
+      state: 'live',
+    },
+  }
 }
 

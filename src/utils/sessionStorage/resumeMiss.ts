@@ -1,10 +1,39 @@
+import type { UUID } from 'node:crypto'
+import { closeSync, openSync, readSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
+import { errorMessage, isENOENT } from '../errors.js'
+import { passedOver } from '../passedOver.js'
+import { sessionFilePath } from './loading.js'
 import { enrichSessionListings, listSessionsAcrossProjectsProgressive } from './logs.js'
 import { getProjectDir } from './paths.js'
-import { passedOver } from '../passedOver.js'
 
-export async function resumeMissMessage(sessionId: string): Promise<string> {
+function transcriptReadFailure(filePath: string): string | null {
+  let fd: number | undefined
+  try {
+    fd = openSync(filePath, 'r')
+    readSync(fd, Buffer.alloc(1), 0, 1, 0)
+    return null
+  } catch (error) {
+    if (isENOENT(error)) return null
+    return errorMessage(error)
+  } finally {
+    if (fd !== undefined) {
+      try { closeSync(fd) } catch (error) { passedOver(error) }
+    }
+  }
+}
+
+export function unreadableTranscriptMessage(sessionId: string, sourceFile?: string): string | null {
+  const target = sourceFile ?? sessionFilePath(sessionId as UUID)
+  const readError = transcriptReadFailure(target)
+  if (readError === null) return null
+  return `Session ${sessionId} transcript could not be read: ${target} (${readError}).`
+}
+
+export async function resumeMissMessage(sessionId: string, sourceFile?: string): Promise<string> {
+  const unreadable = unreadableTranscriptMessage(sessionId, sourceFile)
+  if (unreadable !== null) return unreadable
   try {
     const current = getProjectDir(getOriginalCwd())
     const { allStatLogs } = await listSessionsAcrossProjectsProgressive(undefined, 0)

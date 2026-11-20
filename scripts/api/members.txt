@@ -84,3 +84,4 @@ prove-retry-timeline-zai.ts
 prove-image-refusal-drive.ts
 prove-stream-cut-drive.ts
 prove-prompt-suggestion-cache-skip.ts
+prove-compat-cut-reply.ts
