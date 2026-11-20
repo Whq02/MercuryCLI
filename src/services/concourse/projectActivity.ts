@@ -1,6 +1,6 @@
 
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
-import { concourseRecordState, listConcourseWorkers } from '../../daemon/concourseWorkers.js'
+import { concourseRecordState, concourseWorkersPath, readSessionWorkersSnapshot, unreadSessionRecordsRefusal } from '../../daemon/concourseWorkers.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import { inProject, projectDisplayName, type ProjectIdentity } from '../../utils/bootCardFacts.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1 } from '../../components/concourse/contracts.js'
@@ -58,22 +58,23 @@ export function elsewhereLine(p: ConcourseElsewhereV1): string {
 
 export async function runningByProjectKey(recordsDir?: string): Promise<Map<string, number>> {
   const out = new Map<string, number>()
-  try {
-    for (const rec of listConcourseWorkers(null, recordsDir)) {
-      const alive = rec.pid !== undefined && isProcessAlive(rec.pid)
-      const state = concourseRecordState(rec, { needsYou: rec.crash !== undefined, alive })
-      if (!isRunningState(state, alive)) continue
-      let key: string
-      try {
-        key = getProjectDir(rec.workspaceId)
-      } catch (error) {
-        passedOver(error)
-        continue
-      }
-      out.set(key, (out.get(key) ?? 0) + 1)
+  const snapshot = readSessionWorkersSnapshot(recordsDir)
+  if (snapshot.state !== 'known') {
+    throw unreadSessionRecordsRefusal(recordsDir) ?? new Error(`the session records at ${concourseWorkersPath(recordsDir)} could not be read`)
+  }
+  for (const rec of Object.values(snapshot.workers)) {
+    if (rec.endedAt !== undefined) continue
+    const alive = rec.pid !== undefined && isProcessAlive(rec.pid)
+    const state = concourseRecordState(rec, { needsYou: rec.crash !== undefined, alive })
+    if (!isRunningState(state, alive)) continue
+    let key: string
+    try {
+      key = getProjectDir(rec.workspaceId)
+    } catch (error) {
+      passedOver(error)
+      continue
     }
-  } catch (error) {
-    passedOver(error)
+    out.set(key, (out.get(key) ?? 0) + 1)
   }
   return out
 }
