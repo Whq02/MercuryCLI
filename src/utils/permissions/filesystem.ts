@@ -315,6 +315,7 @@ export function isSettingsFilePath(filePath: string): boolean {
       if (path && normalizeCaseForComparison(expandPath(path)) === folded) return true
     } catch (error) {
       passedOver(error)
+      return true
     }
   }
   return false
