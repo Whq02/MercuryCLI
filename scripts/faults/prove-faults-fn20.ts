@@ -236,5 +236,44 @@ if (!POSIX_MODES) {
   check('transcript-adapter-unreadable-subagents-dir-fails', listRes?.state === 'unavailable', JSON.stringify(listRes))
 }
 
+console.log('\nresources/adapters/artifact.ts — computeWorkingTreeDigest throw makes artifact unavailable instead of dropping STALE')
+{
+  const r = runSub(`
+    const { mock } = await import('bun:test')
+    const verPath = path.join(SRC, 'utils/verification/verificationState.ts')
+    const storePath = path.join(SRC, 'utils/artifacts/reviewStore.ts')
+    const realVer = await import(verPath)
+    const realStore = await import(storePath)
+    mock.module(verPath, () => ({ ...realVer, computeWorkingTreeDigest: () => { throw new Error('digest boom') } }))
+    mock.module(storePath, () => ({
+      ...realStore,
+      isReviewArtifactId: (id) => id === 'ra-test1',
+      readReviewArtifactState: () => ({
+        id: 'ra-test1',
+        kind: 'plan',
+        title: 'Test',
+        latestVersion: 1,
+        statuses: { 1: 'draft' },
+        comments: [],
+        versions: [{
+          version: 1,
+          kind: 'plan',
+          title: 'Test',
+          createdAt: 1,
+          producer: { sessionId: 's1' },
+          workspace: { roots: [PROJECT], treeDigest: 'deadbeef1234' },
+          body: { kind: 'plan', markdown: 'hi' },
+          evidenceRefs: [],
+        }],
+      }),
+    }))
+    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
+    out.res = await resolveResource('mercury://artifact/ra-test1', { owner: processMainOwner(), cwd: PROJECT })
+  `)
+  const res = r.res as { state?: string; note?: string }
+  check('artifact-adapter-digest-throw-unavailable', res?.state === 'unavailable' && String(res?.note).includes('digest boom'), JSON.stringify(res))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
