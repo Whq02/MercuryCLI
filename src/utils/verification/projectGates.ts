@@ -1,6 +1,6 @@
 
 import { readFileSync, statSync } from 'node:fs'
-import { projectConfigCandidates } from '../projectConfig.js'
+import { projectConfigCandidatePaths } from '../projectConfig.js'
 import type { VerificationScope } from './verificationState.js'
 
 interface DeclaredGate {
@@ -76,7 +76,7 @@ function parseGates(raw: string): DeclaredGate[] {
 export function loadDeclaredGates(cwd: string): DeclaredGate[] {
   const now = Date.now()
   const cached = cache.get(cwd)
-  const candidates = projectConfigCandidates(cwd, 'gates.json')
+  const candidates = projectConfigCandidatePaths(cwd, 'gates.json')
   const winner = candidates.find(p => fingerprintOf(p) !== null) ?? null
   const fingerprint = winner ? fingerprintOf(winner) ?? '' : ''
   if (cached && now - cached.at < CACHE_TTL_MS && cached.fingerprint === fingerprint) {
