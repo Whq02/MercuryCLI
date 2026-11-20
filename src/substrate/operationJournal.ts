@@ -161,7 +161,11 @@ async function scanJournalDir(dir: string): Promise<{ records: JournalFile[]; re
   let names: string[]
   try {
     names = await readdir(dir)
-  } catch {
+  } catch (error) {
+    if (getErrnoCode(error) !== 'ENOENT') {
+      logForDebugging(`[journal] ${dir} could not be listed (${getErrnoCode(error) ?? String(error)})`)
+      passedOver(error)
+    }
     return { records: [], rejected: [] }
   }
   const records: JournalFile[] = []
@@ -172,7 +176,12 @@ async function scanJournalDir(dir: string): Promise<{ records: JournalFile[]; re
     try {
       raw = await readFile(join(dir, name), 'utf-8')
     } catch (error) {
-      passedOver(error)
+      const code = getErrnoCode(error)
+      if (code === 'ENOENT') continue
+      const reason = `${join(dir, name)} could not be read (${code ?? String(error)}): left in place, reported`
+      logForDebugging(`[journal] ${reason}`)
+      await recordRefusedDurableFile({ store: 'operation-journal', path: join(dir, name), reason })
+      rejected.push(name)
       continue
     }
     const op = decodeOp(raw)

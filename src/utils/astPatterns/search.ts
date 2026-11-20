@@ -124,7 +124,7 @@ export async function searchAstPattern(
       try {
         text = readFileSync(file.abs, 'utf8')
       } catch (error) {
-        passedOver(error)
+        parseFailures.push({ rel: file.rel, message: `unreadable: ${error instanceof Error ? error.message : String(error)}` })
         continue
       }
       if (text.length > AST_BOUNDS.maxFileBytes) {
@@ -156,7 +156,7 @@ export async function searchAstPattern(
       try {
         text = readFileSync(file.abs, 'utf8')
       } catch (error) {
-        passedOver(error)
+        parseFailures.push({ rel: file.rel, message: `unreadable: ${error instanceof Error ? error.message : String(error)}` })
         continue
       }
       if (text.length > AST_BOUNDS.maxFileBytes) {

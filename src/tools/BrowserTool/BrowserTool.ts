@@ -49,7 +49,7 @@ import { firstRequestWords, popupWords } from './browser/settle.js'
 import { checkBrowserPermissions, sentByEmulation } from './browser/permissions.js'
 import { validateBrowserInput } from './browser/validate.js'
 import { runOp } from './browser/ops.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { errorMessage } from '../../utils/errors.js'
 export { browserToolEnabled, EXTRACT_CAP, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './browser/schema.js'
 export type { Input, Output } from './browser/schema.js'
 export { browserGoneMidOpWords, driverFailureWords, errorChainText, isDriverTimeout, openSchemeRefusal } from './browser/failures.js'
@@ -286,8 +286,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
     if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
+      const path = output.inlinePath ?? output.imagePath
       try {
-        const bytes = readFileSync(output.inlinePath ?? output.imagePath)
+        const bytes = readFileSync(path)
         const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
         return {
           tool_use_id: toolUseId,
@@ -301,7 +302,11 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           ],
         }
       } catch (error) {
-        passedOver(error)
+        return {
+          tool_use_id: toolUseId,
+          type: 'tool_result' as const,
+          content: `${output.result}\n(image not inlined — could not read ${path} (${errorMessage(error)}))`,
+        }
       }
     }
     const text =

@@ -15,7 +15,7 @@ import { MONITOR_TOOL_NAME } from './constants.js'
 import { sessionLaneWall } from './laneWall.js'
 import { BURST_WINDOW_MS, DELIVERY_INTERVAL_MS, createWatchMailbox } from './watchMailbox.js'
 import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { startImmediate, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export { MONITOR_TOOL_NAME }
@@ -142,9 +142,22 @@ export const MonitorTool = buildTool({
     const { timeoutMs, clamped } = monitorDeadline(timeout_ms, persistent)
 
     let taskId: string | undefined
+    let shellCommand: Awaited<ReturnType<typeof exec>> | undefined
     let stopped = false
     let events = 0
-
+    const stopWatchedProcess = (id: string | undefined, reason: string): void => {
+      if (id === undefined) {
+        shellCommand?.kill()
+        return
+      }
+      void stopTask(id, { getAppState, setAppState }).catch(error => {
+        logForDebugging(
+          `monitor ${id}: stopTask failed on ${reason}, killing process directly: ${error instanceof Error ? error.message : String(error)}`,
+          { level: 'warn' },
+        )
+        shellCommand?.kill()
+      })
+    }
     let tokens = RATE_BURST
     let lastRefill = Date.now()
     let suppressed = 0
@@ -208,11 +221,11 @@ export const MonitorTool = buildTool({
             (now - overflowStart) / 1000,
           )}s). Start a new monitor with a tighter filter, such as grep --line-buffered or a wrapper script that emits only the events you need.]`,
         )
-        if (taskId) void stopTask(taskId, { getAppState, setAppState }).catch(passedOver)
+        stopWatchedProcess(taskId, 'overflow')
       }
     }
 
-    const shellCommand = await exec(command, abortController.signal, 'bash', {
+    shellCommand = await exec(command, abortController.signal, 'bash', {
       preventCwdChanges: true,
       onStdout: onData,
     })
@@ -235,7 +248,7 @@ export const MonitorTool = buildTool({
         if (stopped) return
         stopped = true
         mailbox.push(monitorExpiryNotice(description, handle.taskId, timeoutMs, events))
-        void stopTask(handle.taskId, { getAppState, setAppState }).catch(passedOver)
+        stopWatchedProcess(handle.taskId, 'timeout')
       }, timeoutMs)
       timer.unref?.()
     }

@@ -310,7 +310,7 @@ export function writeFileAndFlushAtomically(
       logForDebugging(`atomic write: ${filePath} is a symlink; writing through to ${target}`)
     }
   } catch (error) {
-    if (!isENOENT(error)) logError(error)
+    if (!isENOENT(error)) throw error
   }
 
   let existingMode: number | undefined

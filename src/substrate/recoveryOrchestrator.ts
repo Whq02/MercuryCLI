@@ -169,8 +169,9 @@ async function sweepTaskEpochs(
   let lists: string[]
   try {
     lists = (await readdir(tasksRoot)).filter(n => !n.startsWith('.'))
-  } catch {
-    return out
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return out
+    throw error
   }
   const { readTaskEpoch, sweepDeadEpochTasks } = await import('../utils/tasks.js')
   const epochChecks = await mapWithConcurrency(lists, 8, async list => {
@@ -264,7 +265,7 @@ export async function runBootRecovery(opts: {
         return Number.isFinite(t) && t >= cutoff
       }).length
     } catch (error) {
-      passedOver(error)
+      errors.push(`store-recovery ledger read failed: ${error instanceof Error ? error.message : String(error)}`)
     }
 
     report.durationMs = Date.now() - startedMs
@@ -287,15 +288,16 @@ export async function countOrphanDurableTemps(): Promise<{ dirs: number; stale: 
     try {
       names = await readdir(dir)
     } catch (error) {
-      passedOver(error)
-      continue
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+      throw error
     }
     for (const name of names) {
       if (!isDurableTempName(name)) continue
       try {
         if ((await stat(join(dir, name))).mtimeMs < cutoff) stale++
       } catch (error) {
-        passedOver(error)
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
       }
     }
   }

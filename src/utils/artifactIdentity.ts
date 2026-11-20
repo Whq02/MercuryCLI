@@ -40,22 +40,23 @@ export function describeArtifactIdentity(version: string, entryPath: string | nu
   if (!entry || !entry.endsWith('.mjs')) return base
   const manifestPath = join(dirname(entry), 'manifest.json')
   if (!existsSync(manifestPath)) return { ...base, distribution: 'source-run' }
+  const sourceAbove = existsSync(join(dirname(entry), '..', 'build.ts'))
+  const distribution: ArtifactIdentity['distribution'] = sourceAbove ? 'source-build' : 'packaged-install'
   try {
     const m = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
       buildTree?: string
       buildTime?: string
       target?: string
     }
-    const sourceAbove = existsSync(join(dirname(entry), '..', 'build.ts'))
     return {
       ...base,
-      distribution: sourceAbove ? 'source-build' : 'packaged-install',
+      distribution,
       buildTree: typeof m.buildTree === 'string' ? m.buildTree.slice(0, 12) : null,
       buildTime: typeof m.buildTime === 'string' ? m.buildTime : null,
       target: typeof m.target === 'string' ? m.target : null,
     }
   } catch {
-    return base
+    return { ...base, distribution }
   }
 }
 

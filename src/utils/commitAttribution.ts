@@ -331,17 +331,12 @@ async function getGitDiffSize(filePath: string): Promise<number> {
 }
 
 async function isFileDeleted(filePath: string): Promise<boolean> {
-  try {
-    const result = await execFileNoThrowWithCwd(
-      gitExe(),
-      ['diff', '--cached', '--name-status', '--', filePath],
-      { cwd: getAttributionRepoRoot(), timeout: GIT_PROBE_TIMEOUT_MS },
-    )
-    return result.stdout.trim().startsWith('D\t')
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  const result = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['diff', '--cached', '--name-status', '--', filePath],
+    { cwd: getAttributionRepoRoot(), timeout: GIT_PROBE_TIMEOUT_MS },
+  )
+  return result.stdout.trim().startsWith('D\t')
 }
 
 export function stateToSnapshotMessage(

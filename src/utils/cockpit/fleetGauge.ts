@@ -2,8 +2,6 @@ import { listConcourseWorkers } from '../../daemon/concourseWorkers.js'
 import { listExecutions } from '../../services/primitives/executionPlane.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { withState, type Snapshot } from './types.js'
-import { passedOver } from '../passedOver.js'
-
 export type FleetRosterSource = 'concourse' | 'execution'
 
 export interface FleetRosterEntry {
@@ -22,39 +20,43 @@ export type FleetData = {
 const CONCOURSE_STALE_MS = 60_000
 
 function concourseRows(nowMs: number): FleetRosterEntry[] {
-  try {
-    return listConcourseWorkers(null).map(r => ({
-      id: `concourse:${r.runnerId}`,
-      name: r.agentName ?? r.runnerId,
-      source: 'concourse' as const,
-      state: r.pausedAt !== undefined ? 'paused' : nowMs - r.lastLiveAt > CONCOURSE_STALE_MS ? 'stale' : 'running',
-      model: r.modelKey,
-    }))
-  } catch (error) {
-    passedOver(error)
-    return []
-  }
+  return listConcourseWorkers(null).map(r => ({
+    id: `concourse:${r.runnerId}`,
+    name: r.agentName ?? r.runnerId,
+    source: 'concourse' as const,
+    state: r.pausedAt !== undefined ? 'paused' : nowMs - r.lastLiveAt > CONCOURSE_STALE_MS ? 'stale' : 'running',
+    model: r.modelKey,
+  }))
 }
 
 function executionRows(): FleetRosterEntry[] {
-  try {
-    return listExecutions(processMainOwner(), { liveOnly: true, kind: 'agent' }).map(r => ({
-      id: `execution:${r.spec.id}`,
-      name: r.spec.label,
-      source: 'execution' as const,
-      state: r.state,
-    }))
-  } catch (error) {
-    passedOver(error)
-    return []
-  }
-}
-
-function rosterRows(nowMs: number): FleetRosterEntry[] {
-  return [...concourseRows(nowMs), ...executionRows()]
+  return listExecutions(processMainOwner(), { liveOnly: true, kind: 'agent' }).map(r => ({
+    id: `execution:${r.spec.id}`,
+    name: r.spec.label,
+    source: 'execution' as const,
+    state: r.state,
+  }))
 }
 
 export async function fleetGauge(): Promise<Snapshot<{ data: FleetData }>> {
-  const roster = rosterRows(Date.now())
+  const nowMs = Date.now()
+  let concourse: FleetRosterEntry[] = []
+  let executions: FleetRosterEntry[] = []
+  let firstError: unknown = null
+  try {
+    concourse = concourseRows(nowMs)
+  } catch (error) {
+    firstError ??= error
+  }
+  try {
+    executions = executionRows()
+  } catch (error) {
+    firstError ??= error
+  }
+  const roster = [...concourse, ...executions]
+  if (firstError !== null) {
+    const detail = firstError instanceof Error ? firstError.message : String(firstError)
+    return withState('unavailable', { roster }, `fleet roster unreadable (${detail})`, 'fleet roster')
+  }
   return withState('off', { roster }, 'no fleet', 'fleet roster')
 }

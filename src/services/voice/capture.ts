@@ -192,12 +192,8 @@ function startVendored(): RawCapture {
     },
     cancel: () => {
       if (done) return
+      load.addon.cancelCapture(handle)
       done = true
-      try {
-        load.addon.cancelCapture(handle)
-      } catch (error) {
-        passedOver(error)
-      }
     },
     streamErrors: readErrors,
   }
@@ -374,10 +370,10 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
     },
     cancel: () => {
       if (settled) return
-      settled = true
-      cancelled = true
       stopTimeout(bound)
       raw.cancel()
+      settled = true
+      cancelled = true
     },
     streamErrors: () => raw.streamErrors?.() ?? NO_STREAM_ERRORS,
   }

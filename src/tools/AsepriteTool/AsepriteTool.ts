@@ -25,6 +25,8 @@ import {
 } from './UI.js'
 
 import { ART_OPS, artAsk, artFields, artInputError, isArtOp, isArtRead, runArt, type ArtResult } from './art.js'
+import { getErrnoCode } from '../../utils/errors.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const OPS = ['status', 'info', 'export', 'create', 'run-script', ...ART_OPS] as const
@@ -109,7 +111,8 @@ function realpathNearest(target: string): string {
       return tail.length === 0
         ? realpathSync(existing)
         : path.join(realpathSync(existing), ...tail)
-    } catch {
+    } catch (error) {
+      if (getErrnoCode(error) !== 'ENOENT') logForDebugging(`aseprite: ${existing} could not be resolved (${getErrnoCode(error) ?? String(error)}), so the path is judged from its nearest folder that resolves`)
       const parent = path.dirname(existing)
       if (parent === existing) return target
       tail.unshift(path.basename(existing))

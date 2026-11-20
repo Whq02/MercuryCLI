@@ -128,6 +128,9 @@ export function listSamples(sessionId: string): SampleRecordV1[] {
   try {
     names = readdirSync(root)
   } catch (error) {
+    if (!isENOENT(error)) {
+      logForDebugging(`samples: the samples folder could not be read — ${errorMessage(error)}`)
+    }
     passedOver(error)
     return []
   }
@@ -147,26 +150,29 @@ export function getSample(sessionId: string, id: string): SampleRecordV1 | null 
 }
 
 export function readVersion(sessionId: string, id: string, n: number): string | null {
-  if (!Number.isInteger(n) || n < 1) return null
+  if (!Number.isInteger(n) || n < 1 || !SAMPLE_ID_RE.test(id)) return null
   try {
     return readFileSync(join(sampleDir(sessionId, id), `v${n}.html`), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
 }
 
 export function readMarks(sessionId: string, id: string, n: number): SampleMarksV1[] {
-  if (!Number.isInteger(n) || n < 1) return []
+  if (!Number.isInteger(n) || n < 1 || !SAMPLE_ID_RE.test(id)) return []
+  let raw: unknown
   try {
-    const raw: unknown = JSON.parse(readFileSync(join(sampleDir(sessionId, id), `marks-v${n}.json`), 'utf8'))
-    return Array.isArray(raw) ? (raw as SampleMarksV1[]) : []
+    raw = JSON.parse(readFileSync(join(sampleDir(sessionId, id), `marks-v${n}.json`), 'utf8'))
   } catch (err) {
-    if (!isENOENT(err)) {
-      logForDebugging(`samples: the marks of ${id} v${n} could not be read — ${err instanceof SyntaxError ? 'the file is not valid JSON' : errorMessage(err)}`)
-    }
-    return []
+    if (isENOENT(err)) return []
+    logForDebugging(`samples: the marks of ${id} v${n} could not be read — ${err instanceof SyntaxError ? 'the file is not valid JSON' : errorMessage(err)}`)
+    throw err
   }
+  if (!Array.isArray(raw)) {
+    throw new Error(`samples: the marks of ${id} v${n} is not a JSON array`)
+  }
+  return raw as SampleMarksV1[]
 }
 
 export function appendMarks(

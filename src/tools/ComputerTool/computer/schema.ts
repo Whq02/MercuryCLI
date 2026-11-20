@@ -327,7 +327,14 @@ export function tableRefusal(input: Input): string | null {
   if (action === 'file') {
     if (typeof input.path !== 'string' || !isAbsolute(input.path)) return 'file requires path: the absolute path of the file to upload'
     let stat: ReturnType<typeof statSync> | null = null
-    try { stat = statSync(input.path) } catch { stat = null }
+    try {
+      stat = statSync(input.path)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
+        return `file: ${input.path}: ${error instanceof Error ? error.message : String(error)}`
+      }
+      stat = null
+    }
     if (stat === null || !stat.isFile()) return `file: ${input.path} is not a file on this machine`
     if (input.durationMs !== undefined && !(isNumber(input.durationMs) && input.durationMs >= 0 && input.durationMs <= WAIT_CAP_MS)) return `file takes durationMs as the milliseconds to wait for the dialog, up to ${WAIT_CAP_MS}`
   }

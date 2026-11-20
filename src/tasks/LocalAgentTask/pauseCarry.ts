@@ -7,13 +7,14 @@ import type { AgentId } from '../../types/ids.js'
 import { asAgentId } from '../../types/ids.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
+import { getErrnoCode } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getAgentMetadataPath, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { decodeAgentPause, type AgentPauseV1 } from './agentPause.js'
-import { AGENT_WINDOW_RESUME_NOTE, isLocalAgentTask, type LocalAgentTaskState } from './LocalAgentTask.js'
-import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { AGENT_RESUME_DOOR, AGENT_WINDOW_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, type LocalAgentTaskState } from './LocalAgentTask.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 type AgentPauseRecordFacts = {
   description: string
@@ -72,15 +73,11 @@ export async function readAgentPauseRecord(agentId: string): Promise<AgentPauseR
   try {
     bytes = await readFile(agentPauseRecordPath(agentId), 'utf-8')
   } catch (failure) {
-    if (!isFsInaccessible(failure)) throw failure
-    return null
+    const code = getErrnoCode(failure)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return null
+    throw failure
   }
-  try {
-    return decodeAgentPauseRecord(JSON.parse(bytes))
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return decodeAgentPauseRecord(JSON.parse(bytes))
 }
 
 async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record: AgentPauseRecordV1 }>> {
@@ -89,15 +86,29 @@ async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record
   try {
     names = await readdir(directory)
   } catch (failure) {
-    if (!isFsInaccessible(failure)) throw failure
-    return []
+    const code = getErrnoCode(failure)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return []
+    throw failure
   }
   const rows: Array<{ agentId: AgentId; record: AgentPauseRecordV1 }> = []
   for (const name of names) {
     const match = /^agent-(.+)\.pause\.json$/.exec(name)
     if (!match) continue
     const agentId = asAgentId(match[1]!)
-    const record = await readAgentPauseRecord(agentId).catch(passedOverAs(null))
+    let record: AgentPauseRecordV1 | null
+    try {
+      record = await readAgentPauseRecord(agentId)
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      logError(error)
+      enqueueAgentReceiptRow({
+        taskId: agentId,
+        description: agentId,
+        status: 'failed',
+        summary: `Crewmate "${agentId}" could not be resumed automatically (${msg}) — ${AGENT_RESUME_DOOR}`,
+      })
+      continue
+    }
     if (record !== null) rows.push({ agentId, record })
   }
   return rows.sort((a, b) => a.record.armedAt - b.record.armedAt)

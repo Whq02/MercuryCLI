@@ -13,7 +13,10 @@ import { awaitDiagnosticStabilization } from './afterWrite.js'
 import { changeViewOf, planFiles, planTokenOf, editRowsFor } from './preview.js'
 import { applyPrepared } from './apply.js'
 import { pathRenameClaimants, prepareApplyFanOut, advertisesFileOperation } from './pathRenameFanOut.js'
-import { passedOver } from '../../../utils/passedOver.js'
+
+function moveFailed(result: string, evidence: string): MercuryLspOpOutput {
+  return { result, resultCount: 0, fileCount: 0, effect: { outcome: 'failed', changedPaths: [], evidence } }
+}
 
 function pathRenamePreviewOf(
   env: OpEnv,
@@ -95,45 +98,37 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   let isDirectory = false
   try {
     isDirectory = (await stat(oldPath)).isDirectory()
-  } catch {
-    return {
-      result: `LspMoveFile failed: ${display} does not exist.`,
-      resultCount: 0,
-      fileCount: 0,
-      effect: { outcome: 'failed', changedPaths: [], evidence: 'source missing' },
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return moveFailed(`LspMoveFile failed: ${display} does not exist.`, 'source missing')
     }
+    return moveFailed(
+      `LspMoveFile refused: ${display} could not be checked (${errorMessage(error)}) — nothing moved.`,
+      'source unchecked — nothing moved',
+    )
   }
   try {
     await stat(newPath)
-    return {
-      result: `LspMoveFile refused: Target already exists at ${newDisplay} — nothing moved.`,
-      resultCount: 0,
-      fileCount: 0,
-      effect: {
-        outcome: 'failed',
-        changedPaths: [],
-        evidence: 'target exists — nothing moved',
-      },
-    }
+    return moveFailed(`LspMoveFile refused: Target already exists at ${newDisplay} — nothing moved.`, 'target exists — nothing moved')
   } catch (error) {
     const code = getErrnoCode(error)
     if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-      return {
-        result: `LspMoveFile refused: the target ${newDisplay} could not be checked (${errorMessage(error)}) — nothing moved.`,
-        resultCount: 0,
-        fileCount: 0,
-        effect: {
-          outcome: 'failed',
-          changedPaths: [],
-          evidence: 'target unchecked — nothing moved',
-        },
-      }
+      return moveFailed(
+        `LspMoveFile refused: the target ${newDisplay} could not be checked (${errorMessage(error)}) — nothing moved.`,
+        'target unchecked — nothing moved',
+      )
     }
   }
 
   const claimants = await pathRenameClaimants(env, oldPath, newPath, isDirectory)
+  const unprepared: string[] = []
   for (const c of claimants) {
-    if (c.state !== 'running') await c.start().catch(passedOver)
+    if (c.state !== 'running') {
+      await c.start().catch((error: unknown) => {
+        unprepared.push(`${c.name} could not start (${errorMessage(error)}), so the move goes on without its import updates`)
+      })
+    }
   }
   const askable = claimants.filter(c => advertisesFileOperation(c, 'willRename'))
 
@@ -142,9 +137,13 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
 
   let prepared: { ok: true; files: NormalizedFileEdits[]; snapshots: Map<string, string> }
   let supportNote: string
-  const fanOutNotes: string[] = []
+  const fanOutNotes: string[] = [...unprepared]
   if (askable.length > 0) {
-    if (!isDirectory) await syncFileFromDisk(env.manager, oldPath).catch(passedOver)
+    if (!isDirectory) {
+      await syncFileFromDisk(env.manager, oldPath).catch((error: unknown) => {
+        fanOutNotes.push(`${display} could not be re-read for the language server (${errorMessage(error)}), so its import updates come from the copy it already had`)
+      })
+    }
     const fan = await prepareApplyFanOut(
       env,
       askable.map(server => ({

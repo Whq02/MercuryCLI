@@ -6,7 +6,8 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { errorMessage } from '../../utils/errors.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { sleep } from '../../utils/sleep.js'
 import { announcerMachineName } from '../lan/announcer.js'
@@ -97,11 +98,10 @@ async function announceOnNetwork(offer: TensorFoldAnnounceOffer): Promise<Tensor
 function endAnnouncement(): void {
   try {
     announcement?.stop()
+    announcement = null
   } catch (error) {
-    passedOver(error)
-    void 0
+    logError(new Error(`the TensorFold pairing server could not be stopped (${errorMessage(error)})`))
   }
-  announcement = null
 }
 
 export class TensorFoldStartError extends Error {
@@ -126,11 +126,27 @@ function recordFile(io: RoleIo = {}): string {
   return io.helperFile ?? join(dirname(served), TENSORFOLD_RECORD_FILES.helper)
 }
 
+function readServedRecordStrict(io: RoleIo = {}): TensorFoldServedRecord | null {
+  let text: string
+  try {
+    text = readFileSync(recordFile(io), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return null
+    throw error
+  }
+  const raw: unknown = JSON.parse(text)
+  if (raw === null) return null
+  if (typeof raw === 'object' && typeof (raw as TensorFoldServedRecord).repo === 'string' && typeof (raw as TensorFoldServedRecord).port === 'number' && typeof (raw as TensorFoldServedRecord).project === 'string') {
+    return raw as TensorFoldServedRecord
+  }
+  throw new SyntaxError('it is not a TensorFold record')
+}
+
 export function readServedRecord(io: RoleIo = {}): TensorFoldServedRecord | null {
   try {
-    const raw = JSON.parse(readFileSync(recordFile(io), 'utf8')) as TensorFoldServedRecord
-    return typeof raw.repo === 'string' && typeof raw.port === 'number' && typeof raw.project === 'string' ? raw : null
+    return readServedRecordStrict(io)
   } catch (error) {
+    logForDebugging(`tensorfold: served record at ${recordFile(io)} could not be read (${errorMessage(error)})`, { level: 'warn' })
     passedOver(error)
     return null
   }
@@ -151,6 +167,14 @@ export function servedTensorFold(io: RoleIo = {}): readonly TensorFoldServedByEn
 
 function servedTensorFoldRecord(io: RoleIo = {}): (TensorFoldServedRecord & { service: ServiceRecord }) | null {
   const record = readServedRecord(io)
+  if (record === null) return null
+  const service = reconcileRecord(record.project, TENSORFOLD_SERVICES[roleOf(io)])
+  if (service === null) return null
+  return { ...record, service }
+}
+
+function servedTensorFoldRecordStrict(io: RoleIo = {}): (TensorFoldServedRecord & { service: ServiceRecord }) | null {
+  const record = readServedRecordStrict(io)
   if (record === null) return null
   const service = reconcileRecord(record.project, TENSORFOLD_SERVICES[roleOf(io)])
   if (service === null) return null
@@ -310,7 +334,12 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     const refused = app === undefined ? undefined : refuseSecondCopy(app)
     if (refused !== undefined) throw new TensorFoldStartError(refused, null)
   }
-  const existing = servedTensorFoldRecord(scoped)
+  let existing: ReturnType<typeof servedTensorFoldRecordStrict>
+  try {
+    existing = servedTensorFoldRecordStrict(scoped)
+  } catch (error) {
+    throw new TensorFoldStartError(`the record of what is already serving could not be read (${errorMessage(error)}) · nothing was started — delete ${recordFile(scoped)} if nothing is serving, then serve again`, null)
+  }
   const live = existing !== null && LIVE_STATES.includes(existing.service.state) ? existing : null
   if (live !== null && role === 'helper') {
     const { project: _project, busy: _busy, sharedAs: _sharedAs, service: liveService, ...served } = live

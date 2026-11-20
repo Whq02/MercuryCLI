@@ -1,5 +1,5 @@
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
+import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { classCacheReport, type StaleClass } from './classCache.js'
 import { editorOnlySliceWords, staticCapsuleSource, type GodotEditorPresence } from './editorPresence.js'
@@ -75,8 +75,11 @@ function walkCensus(
   try {
     entries = readdirSync(dir).sort()
   } catch (error) {
-    passedOver(error)
-    return
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      passedOver(error)
+      return
+    }
+    throw error
   }
   for (const name of entries) {
     if (census.visited++ > WALK_ENTRY_CAP) return
@@ -86,8 +89,12 @@ function walkCensus(
     try {
       st = statSync(full)
     } catch (error) {
-      passedOver(error)
-      continue
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ELOOP') {
+        passedOver(error)
+        continue
+      }
+      throw error
     }
     if (st.isDirectory()) {
       walkCensus(full, root, census, budget)
@@ -104,13 +111,12 @@ function walkCensus(
 
 function exportPresets(projectRoot: string): Array<{ name: string; platform: string }> {
   const file = join(projectRoot, 'export_presets.cfg')
-  if (!existsSync(file)) return []
   let sections: Map<string, string[]>
   try {
     sections = iniSections(readFileSync(file, 'utf8'))
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
   }
   const out: Array<{ name: string; platform: string }> = []
   for (const [section, lines] of sections) {
