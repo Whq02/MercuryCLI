@@ -2,9 +2,9 @@ import type { Node } from '../../../bash/parser.js'
 import { parseForSecurityFromAst } from './exact.js'
 
 type Word = string | null
-type Scope = { cwds: string[]; cwdKnown: boolean; entered?: string[] }
+type Scope = { cwds: string[]; left: string[]; cwdKnown: boolean; entered?: { folders: string[]; from: string[] } }
 type Fed<F> = F | { said: string[] } | null | undefined
-type View<F> = { argv: Word[]; redirects: Array<{ op: string; target: Word }>; feed: Fed<F>; cwds: string[]; cwdKnown: boolean; text: string }
+type View<F> = { argv: Word[]; redirects: Array<{ op: string; target: Word }>; feed: Fed<F>; cwds: string[]; left: string[]; cwdKnown: boolean; text: string }
 
 const DYNAMIC_KINDS: ReadonlySet<string> = new Set(['simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'ansi_c_string', 'translated_string'])
 const MAX_FOLDERS = 8
@@ -61,7 +61,7 @@ export function commandViews<F>(rootNode: unknown, cwd: string, handedDown: (nam
       case 'subshell':
       case 'command_substitution':
       case 'process_substitution': {
-        const inner: Scope = { cwds: [...scope.cwds], cwdKnown: scope.cwdKnown }
+        const inner: Scope = { cwds: [...scope.cwds], left: [...scope.left], cwdKnown: scope.cwdKnown }
         for (const child of node.children) {
           if (child.type === 'file_redirect') redirect(child, inner)
           else walk(child, inner, undefined)
@@ -117,7 +117,7 @@ export function commandViews<F>(rootNode: unknown, cwd: string, handedDown: (nam
           const own = read.kind === 'simple' ? read.commands.find(simple => simple.argv.length === argv.length && simple.argv[0] === argv[0]) : undefined
           if (own !== undefined) own.argv.forEach((word, index) => { argv[index] = word.includes('__MERCURY_UNKNOWN') ? null : word })
         }
-        views.push({ argv, redirects, feed: fed, cwds: [...scope.cwds], cwdKnown: scope.cwdKnown, text: node.text })
+        views.push({ argv, redirects, feed: fed, cwds: [...scope.cwds], left: [...scope.left], cwdKnown: scope.cwdKnown, text: node.text })
         const name = argv[0]
         delete scope.entered
         if (name === 'cd' || name === 'pushd') {
@@ -128,8 +128,9 @@ export function commandViews<F>(rootNode: unknown, cwd: string, handedDown: (nam
             const next = [...new Set([...scope.cwds, ...entered])]
             if (next.length > MAX_FOLDERS) scope.cwdKnown = false
             else {
+              scope.entered = { folders: entered, from: scope.cwds }
+              scope.left = [...new Set([...scope.left, ...scope.cwds])]
               scope.cwds = next
-              scope.entered = entered
             }
           }
         } else if (name === 'popd') scope.cwdKnown = false
@@ -139,22 +140,23 @@ export function commandViews<F>(rootNode: unknown, cwd: string, handedDown: (nam
         for (const child of node.children) {
           if (child.type === 'file_redirect') redirect(child, scope)
           else if (child.type === '&&' && scope.entered !== undefined) {
-            scope.cwds = scope.entered
+            scope.cwds = scope.entered.folders
+            scope.left = scope.entered.from
             delete scope.entered
           } else walk(child, scope, undefined)
         }
     }
   }
-  const loose: Array<{ op: string; target: Word; cwds: string[]; cwdKnown: boolean }> = []
+  const loose: Array<{ op: string; target: Word; cwds: string[]; left: string[]; cwdKnown: boolean }> = []
   const redirectOf = (node: Node): { op: string; target: Word } => {
     const op = node.children.find(child => /^[<>&|]+$/.test(child.type))?.type ?? ''
     const target = node.children.filter(child => child.type !== 'file_descriptor' && !/^[<>&|]+$/.test(child.type))[0]
     return { op, target: target === undefined ? null : literalOf(target) }
   }
   function redirect(node: Node, scope: Scope): void {
-    loose.push({ ...redirectOf(node), cwds: [...scope.cwds], cwdKnown: scope.cwdKnown })
+    loose.push({ ...redirectOf(node), cwds: [...scope.cwds], left: [...scope.left], cwdKnown: scope.cwdKnown })
   }
   const root = asNode(rootNode)
-  if (root !== null) walk(root, { cwds: [cwd], cwdKnown: true }, undefined)
+  if (root !== null) walk(root, { cwds: [cwd], left: [], cwdKnown: true }, undefined)
   return { views, loose, broken }
 }
