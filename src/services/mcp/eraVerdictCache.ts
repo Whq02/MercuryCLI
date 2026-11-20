@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { getMercuryHome } from '../../utils/envUtils.js'
-import type { ProtocolEra } from './sdk.js'
+import type { ProtocolEra } from '../../utils/mcp/sdk.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const ERA_VERDICT_TTL_MS = 24 * 60 * 60 * 1000

@@ -8,7 +8,7 @@ import {
   parseScopes,
 } from './client.js'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from './crypto.js'
-import type { OAuthTokens } from './types.js'
+import type { OAuthTokens } from '../../utils/oauth/types.js'
 
 type OAuthFlowOptions = {
   loginWithClaudeAi?: boolean

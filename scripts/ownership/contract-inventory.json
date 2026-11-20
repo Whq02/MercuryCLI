@@ -275,7 +275,7 @@
     "persistPermissionUpdates",
     "type:PersistVerdict"
    ],
-   "src/utils/permissions/permissionExplainer.ts": [
+   "src/services/permissions/permissionExplainer.ts": [
     "generatePermissionExplanation",
     "isPermissionExplainerEnabled",
     "type:PermissionExplanation",
@@ -411,7 +411,7 @@
     "withoutNullToolMetadata",
     "wrapFetchWithTimeout"
    ],
-   "src/services/mcp/types.ts": [
+   "src/utils/mcp/types.ts": [
     "ConfigScopeSchema",
     "McpJsonConfigSchema",
     "McpServerConfigSchema",
@@ -438,7 +438,7 @@
     "runTools",
     "windowHoldsNoWholeResult"
    ],
-   "src/services/run/effectObserver.ts": [
+   "src/utils/run/effectObserver.ts": [
     "_toolTerminalSubscriberCountForTesting",
     "observeToolStart",
     "observeToolTerminal",

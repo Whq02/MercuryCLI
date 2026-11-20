@@ -30,13 +30,13 @@ const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { getModelCosts, calculateUSDCost, resolveModelPricing, COST_TIER_5_25 } = await import('../../src/utils/modelCost.ts')
+const { getModelCosts, calculateUSDCost, resolveModelPricing, COST_TIER_5_25 } = await import('../../src/services/usage/modelCost.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
 await refreshLocalDiscovery({ force: true })
-const { deepseekDisplayPin } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
-const { kimiDisplayPin } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { deepseekDisplayPin } = await import('../../src/utils/model/pins/deepseekPins.ts')
+const { kimiDisplayPin } = await import('../../src/utils/model/pins/kimiPins.ts')
 
 type Usage = Parameters<typeof calculateUSDCost>[1]
 const usage = (input: number, output: number, cacheRead = 0): Usage => ({
@@ -108,7 +108,7 @@ section('§4 the first-party table and the GPT pins are untouched')
 {
   const sonnet = getModelCosts('claude-sonnet-5')
   check('claude-sonnet-5 keeps the 2/10 tier', sonnet.inputTokens === 2 && sonnet.outputTokens === 10)
-  const { gptDisplayPin, gptPriceTierFor } = await import('../../src/services/providers/openai/gptPins.ts')
+  const { gptDisplayPin, gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
   const gptId = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4'].find(id => gptDisplayPin(id)?.costInPerMtok !== undefined)
   if (gptId !== undefined) {
     const pin = gptPriceTierFor(gptDisplayPin(gptId)!, undefined)

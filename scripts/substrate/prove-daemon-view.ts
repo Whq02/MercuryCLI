@@ -15,7 +15,7 @@ plugin({
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { deriveDaemonRows } from '../../src/utils/cockpit/daemonRows.js'
+import { deriveDaemonRows } from '../../src/services/cockpit/daemonRows.js'
 import { thisMercuryCommand } from '../../src/services/privateChannel/installPath.js'
 import type { MercuryDaemonStatus } from '../../src/daemon/status.js'
 

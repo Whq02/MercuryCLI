@@ -9,14 +9,14 @@ import {
 } from '../../../services/agents/overrides.js'
 import type { AppState } from '../../../state/AppStateStore.js'
 import type { Tools } from '../../../Tool.js'
-import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../../../types/agent.js'
 import { editFileInEditor } from '../../../utils/promptEditor.js'
 import { AMBER, CRIMSON, FAINT, IVORY, TEAL } from '../../mercuryPalette.js'
 import {
   CommandCenter,
   SectionHeader,
 } from '../../mercury-ui/components.js'
-import { GLYPH, truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from '../../../utils/glyphs.js'
 import type { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import type { useFlatList } from '../../mercury-ui/useFlatList.js'
 import type { useEngineModel } from '../../../hooks/useEngineModel.js'

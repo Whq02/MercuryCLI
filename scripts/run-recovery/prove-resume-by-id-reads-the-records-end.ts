@@ -18,7 +18,7 @@ const project = join(scratch, 'project')
 mkdirSync(project, { recursive: true })
 bootstrap.setOriginalCwd(project)
 bootstrap.setProjectRoot(project)
-const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 

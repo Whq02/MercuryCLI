@@ -12,11 +12,11 @@ import {
   mercuryUnityEnabled,
   unityTestResultsPath,
   UNITY_LICENSE_DISCLAIMER,
-} from './unityProject.js'
+} from '../../utils/unity/unityProject.js'
 import {
   buildBlenderContextProfile,
   mercuryBlenderEnabled,
-} from './blenderProject.js'
+} from '../../utils/blender/blenderProject.js'
 import {
   findPythonProjectRoot,
   buildPythonProjectProfile,

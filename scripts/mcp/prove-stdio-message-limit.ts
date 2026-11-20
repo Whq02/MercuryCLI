@@ -45,8 +45,8 @@ rl.on('line', line => {
   send({ jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'Method not found' } })
 })
 `
-const config: import('../../src/services/mcp/types.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: ['-e', script] }
-const call = (connection: import('../../src/services/mcp/types.ts').MCPServerConnection, mb: number) =>
+const config: import('../../src/utils/mcp/types.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: ['-e', script] }
+const call = (connection: import('../../src/utils/mcp/types.ts').MCPServerConnection, mb: number) =>
   callMCPToolWithUrlElicitationRetry({ client: connection, tool: 'echo', args: { mb }, signal: new AbortController().signal })
     .then(result => ({ ok: true as const, length: JSON.stringify(result.content).length }), (error: Error) => ({ ok: false as const, message: error.message }))
 

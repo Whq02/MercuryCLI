@@ -149,7 +149,7 @@ console.log('── §3 the roster follows the road ──')
   check('on the road WITH a bash, whatever packs stand: the found bash is the road and nothing arms the engine — the Bash tool stands, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'git-bash' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err)
   const unasked = (line: string | undefined): boolean => line !== undefined && line.startsWith(`${import.meta.path} — named by MERCURY_GIT_BASH_PATH; whether it is a bash is asked when the Bash tool is first offered`) && !/the Bash tool runs under it|bash at/.test(line)
   check("…and /health's line names the pinned program and who named it, and calls it no bash before it has answered: the road does not trust that the pin's file exists", unasked(wb?.line), wb?.line)
-  const readinessProbe = `const config = await import('${join(ROOT, 'src/utils/config.ts').replace(/\\/g, '\\\\')}'); config.enableConfigs(); const readiness = await import('${join(ROOT, 'src/utils/readiness.ts').replace(/\\/g, '\\\\')}'); console.log(JSON.stringify(readiness.collectReadiness({ includeEnv: false }).records.find(row => row.id === 'tool:shell')))`
+  const readinessProbe = `const config = await import('${join(ROOT, 'src/utils/config.ts').replace(/\\/g, '\\\\')}'); config.enableConfigs(); const readiness = await import('${join(ROOT, 'src/services/health/readiness.ts').replace(/\\/g, '\\\\')}'); console.log(JSON.stringify(readiness.collectReadiness({ includeEnv: false }).records.find(row => row.id === 'tool:shell')))`
   const pinnedRow = roadSubprocess(readinessProbe, { [SEAM]: 'locate', [PIN]: import.meta.path })
   let pr: { state?: string; detail?: string } | null = null
   try {
@@ -329,8 +329,8 @@ console.log('── §5 the built bundle boots headless through the seam ──'
 
 console.log('── §6 the consumers are wired (source) ──')
 {
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
-  const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
   const shellRow = await runtimeChecks().find(row => row.id === 'shell')?.run()
   const roadNow = (await import('../../src/utils/shell/windowsShellRoad.ts')).describeWindowsShellRoad()
   check('the certificate check exists and says what the road says', shellRow !== undefined && shellRow.evidence.startsWith(roadNow.line) && (shellRow.status === 'ok' || shellRow.status === 'warn'), JSON.stringify(shellRow))

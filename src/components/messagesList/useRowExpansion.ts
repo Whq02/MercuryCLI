@@ -1,6 +1,6 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import type { NormalizedMessage, RenderableMessage } from '../../types/message.js'
-import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { hiddenAgentToolUses } from '../../tools/AgentTool/UI.js'
 import { expandedRowsOf, subscribeExpandedRows, toggleExpandedRow } from '../messages/transcriptMemory.js'
 import { getToolUseID } from '../../utils/messages/lookups.js'

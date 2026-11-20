@@ -1,5 +1,5 @@
 import type { ToolUseBlock } from '../../types/wire.js'
-import type { SpinnerMode } from '../../components/Spinner.js'
+import type { SpinnerMode } from '../../types/spinner.js'
 import type { Message, RequestStartEvent, StreamEvent, TombstoneMessage } from '../../types/message.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
 

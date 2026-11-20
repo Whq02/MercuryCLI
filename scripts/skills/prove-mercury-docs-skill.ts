@@ -25,7 +25,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
 const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.ts')
-const { formatCommandsWithinBudgetDetailed } = await import('../../src/tools/SkillTool/prompt.ts')
+const { formatCommandsWithinBudgetDetailed } = await import('../../src/utils/skillListingFormat.ts')
 const docsSkill = await import('../../src/skills/bundled/mercuryDocs.ts')
 type Command = import('../../src/types/command.ts').Command
 

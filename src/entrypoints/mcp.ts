@@ -1,4 +1,4 @@
-import { ProtocolError, ProtocolErrorCode, Server, serveStdio, type Tool as McpTool } from '../services/mcp/sdk.js'
+import { ProtocolError, ProtocolErrorCode, Server, serveStdio, type Tool as McpTool } from '../utils/mcp/sdk.js'
 import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { query } from '../query.js'

@@ -82,7 +82,7 @@ const metadata = Object.fromEntries(Object.entries(payloads).map(([name, files])
     ...(files['server/bootstrap.json'] ? { bootstrap: JSON.parse(files['server/bootstrap.json'] as string) } : {}),
   }]
 }))
-const content = 'import type { ExtensionManifest } from "../manifest.js"\nimport type { McpBootstrapManifest } from "../../services/mcp/lazyStdio.js"\n\nexport const bundledMetadata: Record<string, { digest: string; contentHash: string; contributionsHash: string; manifest: ExtensionManifest; bootstrap?: McpBootstrapManifest }> = ' + JSON.stringify(metadata, null, 2) + '\n\n' + PAYLOADS + JSON.stringify(payloads, null, 2) + '\n'
+const content = 'import type { ExtensionManifest } from "../manifest.js"\nimport type { McpBootstrapManifest } from "../../utils/mcp/types.js"\n\nexport const bundledMetadata: Record<string, { digest: string; contentHash: string; contributionsHash: string; manifest: ExtensionManifest; bootstrap?: McpBootstrapManifest }> = ' + JSON.stringify(metadata, null, 2) + '\n\n' + PAYLOADS + JSON.stringify(payloads, null, 2) + '\n'
 if (process.argv.includes('--check')) {
   if (current !== content) throw new Error('Bundled extensions changed; run bun scripts/extensions/gen-bundled.ts')
 } else writeFileSync(target, content)

@@ -16,9 +16,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const section = (t: string): void => console.log(`\n${t}`)
 
-const webFetch = (await import('../../src/tools/WebFetchTool/WebFetchTool.ts')) as { WebFetchTool: { checkPermissions?: (input: unknown, context: unknown) => Promise<unknown> }; webFetchRuleMatches?: (rule: string, request: string) => boolean }
-const { WebFetchTool } = webFetch
-const webFetchRuleMatches = (rule: string, request: string): boolean => webFetch.webFetchRuleMatches?.(rule, request) ?? false
+const { WebFetchTool } = (await import('../../src/tools/WebFetchTool/WebFetchTool.ts')) as { WebFetchTool: { checkPermissions?: (input: unknown, context: unknown) => Promise<unknown> } }
+const { webFetchRuleMatches } = await import('../../src/utils/permissions/webFetchRuleMatches.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getCustomValidation } = await import('../../src/utils/settings/toolValidationConfig.ts')
 const validateToolPermissionRule = (tool: string, content: string): { valid: boolean } => getCustomValidation(tool)?.(content) ?? { valid: false }

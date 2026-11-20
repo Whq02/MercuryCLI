@@ -28,7 +28,7 @@ function section(t: string): void {
 await import('../../src/tasks.js')
 const task = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const queue = await import('../../src/utils/messageQueueManager.js')
-const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
+const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.js')
 const crew = await import('../../src/services/engine-connector/crewFacts.js')
 const wire = await import('../../src/services/engine-connector/seatWire.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')

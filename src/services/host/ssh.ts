@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join, posix, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { hostDirectory } from './store.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -240,21 +241,28 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
   let progressedAt = started
   let progressed = false
   const dir = '/workspace/mercury-host/' + recipe.id
-  while (!signal.aborted && (Date.now() - started < timeoutMs || progressed && Date.now() - progressedAt < progressGraceMs)) {
-    const log = await runner.run('ssh', [...sshArguments(target), enginePollCommand(dir)], signal)
-    const rows = log.trimEnd().split('\n')
-    let overlap = Math.min(previous.length, rows.length)
-    while (overlap && previous.slice(-overlap).join('\n') !== rows.slice(0, overlap).join('\n')) overlap--
-    if (overlap < rows.length) { onLog(rows.slice(overlap).join('\n')); if (previous.length) { progressedAt = Date.now(); progressed = true } }
-    previous = rows
-    const failed = engineFailure(log, recipe, log.includes('MERCURY_ENGINE_EXITED'))
-    if (failed) throw failed
-    try { await runner.run('ssh', [...sshArguments(target), recipe.engine === 'tensorfold' ? tensorFoldReadyCommand(dir) : 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal); return } catch (error) { last = String(error) }
-    last = log || last
-    await sleep(pauseMs, signal, { throwOnAbort: true })
-  }
   const minutes = (ms: number): string => (ms >= 60_000 ? Math.round(ms / 60_000) + ' min' : Math.max(1, Math.round(ms / 1000)) + ' s')
-  throw new Error('Engine not ready. The engine printed nothing new for ' + minutes(Date.now() - progressedAt) + ' after its ' + minutes(timeoutMs) + ' setup budget; it may still be loading on the machine. Last engine lines: ' + last)
+  const notReady = (): Error => new Error('Engine not ready. The engine printed nothing new for ' + minutes(Date.now() - progressedAt) + ' after its ' + minutes(timeoutMs) + ' setup budget; it may still be loading on the machine. Last engine lines: ' + last)
+  await pollUntil(
+    async () => {
+      if (!(Date.now() - started < timeoutMs || progressed && Date.now() - progressedAt < progressGraceMs)) throw notReady()
+      const log = await runner.run('ssh', [...sshArguments(target), enginePollCommand(dir)], signal)
+      const rows = log.trimEnd().split('\n')
+      let overlap = Math.min(previous.length, rows.length)
+      while (overlap && previous.slice(-overlap).join('\n') !== rows.slice(0, overlap).join('\n')) overlap--
+      if (overlap < rows.length) { onLog(rows.slice(overlap).join('\n')); if (previous.length) { progressedAt = Date.now(); progressed = true } }
+      previous = rows
+      const failed = engineFailure(log, recipe, log.includes('MERCURY_ENGINE_EXITED'))
+      if (failed) throw failed
+      try { await runner.run('ssh', [...sshArguments(target), recipe.engine === 'tensorfold' ? tensorFoldReadyCommand(dir) : 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal); return true } catch (error) { last = String(error) }
+      last = log || last
+      if (!(Date.now() - started < timeoutMs || progressed && Date.now() - progressedAt < progressGraceMs)) throw notReady()
+    },
+    pauseMs,
+    Infinity,
+    () => { throw notReady() },
+    { signal },
+  )
 }
 export async function openHostTunnel(id: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, preferredPort?: number, service: { port: number; path: string; headers?: Record<string, string> } = { port: 30000, path: '/v1/models' }): Promise<number> {
   tunnels.get(id)?.stop()
@@ -262,13 +270,18 @@ export async function openHostTunnel(id: string, target: SshTarget, runner: Host
   const args = sshArguments(target)
   const tunnel = runner.tunnel(['-N', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-L', '127.0.0.1:' + port + ':127.0.0.1:' + service.port, ...args])
   try {
-    for (let n = 0; n < 100; n++) {
-      signal.throwIfAborted()
-      const failed = tunnel.failed(); if (failed) throw new Error(failed)
-      try { const response = await fetch('http://127.0.0.1:' + port + service.path, { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error', headers: service.headers }); if (response.ok) { tunnels.get(id)?.stop(); tunnels.set(id, tunnel); return port } } catch (error) { passedOver(error) }
-      await sleep(100, signal, { throwOnAbort: true })
-    }
-    throw new Error('The SSH tunnel did not answer on local port ' + port)
+    let tries = 0
+    return await pollUntil(
+      async () => {
+        const failed = tunnel.failed(); if (failed) throw new Error(failed)
+        try { const response = await fetch('http://127.0.0.1:' + port + service.path, { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error', headers: service.headers }); if (response.ok) { tunnels.get(id)?.stop(); tunnels.set(id, tunnel); return port } } catch (error) { passedOver(error) }
+        if (++tries >= 100) throw new Error('The SSH tunnel did not answer on local port ' + port)
+      },
+      100,
+      Infinity,
+      () => { throw new Error('The SSH tunnel did not answer on local port ' + port) },
+      { signal },
+    )
   } catch (error) { tunnel.stop(); throw error }
 }
 export function closeHostTunnel(id: string): void { tunnels.get(id)?.stop(); tunnels.delete(id) }

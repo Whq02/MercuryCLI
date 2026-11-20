@@ -224,10 +224,10 @@ try {
     const dbg = (await LaunchTool.call({ op: 'debug', profile: pyId, file: path.join(proj, 'hello.py'), lines: [3] } as never, ctx)) as { data: { result: string } }
     check('C6 op:"debug" stops at the real breakpoint', dbg.data.result.includes('stopped — reason breakpoint'), dbg.data.result.split('\n')[0])
     const dap = await import('../../src/services/dap/dapClient.js')
-    const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+    const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
     void makeOwnerKey
-    const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
-    const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
+    const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
+    const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
     await disposeOwner(ownerFromToolUseContext(ctx))
     check('C7 owner disposal reaps the launch session', dap._dapSessionCountForTesting() === 0, String(dap._dapSessionCountForTesting()))
 

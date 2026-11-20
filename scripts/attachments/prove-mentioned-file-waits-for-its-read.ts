@@ -160,8 +160,8 @@ try {
   const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
   const { getEngineModel } = await import(`${root}/src/utils/model/model.ts`)
-  const { getAttachments } = await import(`${root}/src/utils/attachments/orchestrator.ts`)
-  const { processAtMentionedFiles } = await import(`${root}/src/utils/attachments/mentionResolvers.ts`)
+  const { getAttachments } = await import(`${root}/src/services/attachments/orchestrator.ts`)
+  const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
   const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
   const { FileReadTool } = await import(`${root}/src/tools/FileReadTool/FileReadTool.ts`)
 

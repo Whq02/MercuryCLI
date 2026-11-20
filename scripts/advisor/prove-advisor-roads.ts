@@ -184,7 +184,7 @@ const { runAgent } = await import(join(ROOT, 'src/tools/AgentTool/runAgent.ts'))
 const { getAgentTranscriptPath, getTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
 const { flushSessionStorage, recordTranscript } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
 const { recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
-const { getAttachments, createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const { getAttachments, createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
 const storage = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
 type AnyMsg = Record<string, unknown> & { type?: string }
 advisor.setAdvisorClockForTests(() => clock.now)
@@ -533,7 +533,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   await mainTurn('a line to materialize the file', messages)
   await recordTranscript(messages as never, undefined, messages as never)
   await flushSessionStorage()
-  const { loadConversationForResume } = await import(join(ROOT, 'src/utils/conversationRecovery.ts'))
+  const { loadConversationForResume } = await import(join(ROOT, 'src/services/resume/conversationRecovery.ts'))
   const { SNAPSHOT_SCHEMA } = await import(join(ROOT, 'src/utils/sessionStorage/resumeSnapshot.ts'))
   const transcriptPath = getTranscriptPath()
   const recordsOf = (): Raw[] => (existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as Raw) : [])
@@ -644,7 +644,7 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   const bareAgent = makeCtx('agent-no-kind')
   const bareDenied = await AskAdvisorTool.call({ question: QUESTION }, bareAgent as never) as { data: { status: string; text: string } }
   check('an agent context with no kind word is a crewmate to the advisor: refused the same way', bareDenied.data.status === 'refused' && wire.length === before && bareDenied.data.text.includes(advisor.ADVISOR_CREWMATE_REFUSAL), j(bareDenied))
-  const { getAdvisorNoteAttachments, isMainChatAdvisorDrain } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  const { getAdvisorNoteAttachments, isMainChatAdvisorDrain } = await import(join(ROOT, 'src/services/attachments/queuedCommands.ts'))
   const note = { text: 'a note queued before the toggle', origin: { kind: 'advisor', model: ADVISOR_MODEL, minutes: 1, at: new Date().toISOString() } }
   for (const kind of ['crewmate'] as const) {
     ctx.agentKind = kind
@@ -664,7 +664,7 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   const redelivered = getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }) as Raw[]
   check('…and once the chat is advised again the held note is delivered intact', redelivered.length === 1 && redelivered[0]!.prompt === note.text && advisor.peekAdvisorNotes(SESSION).length === 0, j(redelivered))
   ctx.agentKind = 'crewmate'
-  const { createSubagentContext } = await import(join(ROOT, 'src/utils/forkedAgent.ts'))
+  const { createSubagentContext } = await import(join(ROOT, 'src/services/agents/forkedAgent.ts'))
   const fork = createSubagentContext(ctx as never)
   check('a crewmate context fork retains the crewmate exclusion', fork.agentKind === 'crewmate')
   const forkDenied = await AskAdvisorTool.call({ question: QUESTION }, fork) as { data: { status: string; text: string } }

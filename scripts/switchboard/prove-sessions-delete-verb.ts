@@ -27,7 +27,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const source = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
 
 const { getProjectDir, getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const door = await import('../../src/utils/sessionStorage/transcriptPruneDoor.ts')
+const door = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
 const verb = await import('../../src/cli/sessionsVerb.ts').catch(() => null)
 
 const STORE = getProjectDir(PROJ)

@@ -16,7 +16,7 @@ const { CarrierPart } = await import('../../src/services/engine-connector/daemon
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-await import('../../src/daemon/ownerWatch.ts')
+await import('../../src/utils/ownerWatch.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

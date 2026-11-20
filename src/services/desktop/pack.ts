@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../voice/voicePack.js'
+import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../../utils/voice/voicePack.js'
 import type { DesktopFocusedText, DesktopTreeElement } from './driver.js'
 import { passedOver } from '../../utils/passedOver.js'
 

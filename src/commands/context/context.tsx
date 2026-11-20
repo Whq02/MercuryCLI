@@ -9,8 +9,8 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
-import { analyzeContextUsage } from '../../utils/analyzeContext.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
+import { analyzeContextUsage } from '../../services/context/analyzeContext.js'
 import { errorMessage } from '../../utils/errors.js'
 import { renderToAnsiString, staticPrintColumns } from '../../utils/staticRender.js'
 import { buildContextInspectionPlan } from './context-noninteractive.js'

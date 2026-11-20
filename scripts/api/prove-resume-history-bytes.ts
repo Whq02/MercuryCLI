@@ -61,9 +61,9 @@ const cache = await import('../../src/services/providers/anthropic/cacheAndUsage
 const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
 const writer = await import('../../src/utils/sessionStorage/writer.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const recovery = await import('../../src/utils/conversationRecovery.ts')
+const recovery = await import('../../src/services/resume/conversationRecovery.ts')
 const state = await import('../../src/bootstrap/state.ts')
-const resolveOwner = await import('../../src/services/run/resolveOwner.ts')
+const resolveOwner = await import('../../src/utils/run/resolveOwner.ts')
 
 let seq = 0
 const uuidOf = (): string => `0000c0de-0000-4000-8000-${String(++seq).padStart(12, '0')}`

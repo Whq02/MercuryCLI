@@ -46,7 +46,7 @@ mock.module(join(ROOT, 'src/utils/execFileNoThrow.ts'), () => ({
 }))
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
 Object.defineProperty(process, 'platform', { ...platform, value: 'darwin' })
-const cap = await import('../../src/services/switchboard/capacityCheck.ts')
+const cap = await import('../../src/utils/switchboard/capacityCheck.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 config.enableConfigs()
 const clock = Date.now

@@ -10,13 +10,13 @@ import {
   type BlenderBridgeError,
   type BlenderBridgeHelloInfo,
   type BlenderBridgeResult,
-} from './bridgeProtocol.js'
+} from '../../utils/blender/bridgeProtocol.js'
 import { resolveBlenderAddonHome } from './addonHome.js'
 import { readBlenderBridgeToken } from './bridgeToken.js'
 import { blenderBridgeTokenOverride } from '../../utils/blender/bridgeGates.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
-export type { BlenderBridgeResult } from './bridgeProtocol.js'
+export type { BlenderBridgeResult } from '../../utils/blender/bridgeProtocol.js'
 
 interface BlenderBridgeEvent {
   event: string

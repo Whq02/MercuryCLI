@@ -11,7 +11,7 @@ import { z } from 'zod/v4'
 
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
-const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { CANCEL_MESSAGE, isDenialResultText, isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.ts')
 const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')

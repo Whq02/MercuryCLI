@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 
 const sourceArg = process.argv.indexOf('--source-root')
 const root = sourceArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process.argv[sourceArg + 1]!)
-const { getQueuedCommandAttachments } = await import(`${root}/src/utils/attachments/queuedCommands.ts`)
+const { getQueuedCommandAttachments } = await import(`${root}/src/services/attachments/queuedCommands.ts`)
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)

@@ -4,7 +4,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
-import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
+import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 process.chdir(proofHome)

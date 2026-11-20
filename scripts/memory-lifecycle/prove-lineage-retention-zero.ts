@@ -19,7 +19,7 @@ try {
   const exit = await import('../../src/mneme/exitHandoff.ts')
   const ledger = await import('../../src/mneme/ledger.ts')
   const paths = await import('../../src/mneme/paths.ts')
-  const { saveCacheSafeParams } = await import('../../src/utils/forkedAgent.ts')
+  const { saveCacheSafeParams } = await import('../../src/services/agents/forkedAgent.ts')
   const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
   const setRetention = (days: number) => {
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ records: { retentionDays: days } }))

@@ -9,7 +9,7 @@ import {
   resolveResource,
   resourceAdapterKinds,
 } from '../../services/resources/registry.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { referenceReadDecision } from '../../services/resources/referencePaths.js'

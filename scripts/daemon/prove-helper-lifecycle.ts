@@ -21,7 +21,7 @@ const { daemonControlRpc, readControlKey, controlSockPath } = await import('../.
 const { forwardFrame } = await import('../../src/daemon/handover.ts')
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
 const { formatMercuryDaemonStatus, getMercuryDaemonStatus, helperPidSocketsOnDisk } = await import('../../src/daemon/status.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail: unknown = ''): void => {

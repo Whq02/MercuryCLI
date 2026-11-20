@@ -20,7 +20,7 @@ import {
   createGetAppStateWithAllowedTools,
   extractResultText,
   prepareForkedCommandContext,
-} from '../../utils/forkedAgent.js'
+} from '../../services/agents/forkedAgent.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { normalizeMessages } from '../../utils/messages.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
@@ -31,11 +31,11 @@ import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { runAgent } from '../AgentTool/runAgent.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
-import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { GLOB_TOOL_NAME } from '../GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
 import { getToolUseIDFromParentMessage, tagMessagesWithToolUseID } from '../utils.js'
-import { SKILL_TOOL_NAME } from './constants.js'
+import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
 import { getPrompt } from './prompt.js'
 import {
   renderToolResultMessage,
@@ -418,7 +418,7 @@ export const SkillTool = buildTool({
       }
     }
 
-    const { processPromptSlashCommand } = await import('../../utils/processUserInput/processSlashCommand.js')
+    const { processPromptSlashCommand } = await import('../../services/processUserInput/processSlashCommand.js')
     const processed = await processPromptSlashCommand(name, args, commands, context)
     if (!processed.shouldQuery) {
       throw refusedExpansionError(name, processed)

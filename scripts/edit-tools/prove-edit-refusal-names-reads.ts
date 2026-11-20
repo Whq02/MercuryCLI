@@ -13,10 +13,10 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 
 const { fileGeneration, recordSeenLines, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/FileEditTool/constants.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
 
 let failures = 0
 let checks = 0

@@ -80,10 +80,10 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { query: startTurn } = await import('../../src/query.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { getAttachments, createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { getAttachments, createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
 const { planToolPayload, clearToolRosterLatches, toolRosterLatchFor } = await import('../../src/services/providers/toolEconomy.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 const { recordGatewayProbe, openaiGatewayProbeKey } = await import('../../src/services/providers/deferralProbe.ts')
 recordGatewayProbe(openaiGatewayProbeKey(host), { verdict: 'openai-native', status: 200, evidence: 'loopback fixture serves native search', probedAt: new Date().toISOString() })
 const fixture = (name: string, extra: Partial<Tool> = {}): Tool => ({

@@ -71,7 +71,7 @@ async function runChild(args: ChildArgs): Promise<void> {
     if (args.road === 'read') return viaRead(path)
     if (args.road === 'reference') return viaRead(`mercury://file/${path}`)
     if (args.road === 'mention') {
-      const { generateFileAttachment } = await import('../../src/utils/attachments/fileAttachments.ts')
+      const { generateFileAttachment } = await import('../../src/services/attachments/fileAttachments.ts')
       const row = (await generateFileAttachment(path, makeContext() as never, 'at-mention')) as { type?: string } | null
       return row === null ? 'nothing attached' : String(row.type)
     }
@@ -84,7 +84,7 @@ async function runChild(args: ChildArgs): Promise<void> {
     const answer =
       args.road === 'query'
         ? ((await (await import('../../src/cli/headless/projectQuery.ts')).projectQuery({ op: 'resource', ref: `mercury://file/${path}` } as never, getEmptyToolPermissionContext())) as { state?: string; note?: string })
-        : ((await (await import('../../src/services/resources/registry.ts')).resolveResource(`mercury://file/${path}`, { cwd: args.project, owner: (await import('../../src/services/run/resolveOwner.ts')).processMainOwner() })) as { state?: string; note?: string })
+        : ((await (await import('../../src/services/resources/registry.ts')).resolveResource(`mercury://file/${path}`, { cwd: args.project, owner: (await import('../../src/utils/run/resolveOwner.ts')).processMainOwner() })) as { state?: string; note?: string })
     if (answer.state !== 'ok') throw new Error(String(answer.note))
     return 'ok'
   }

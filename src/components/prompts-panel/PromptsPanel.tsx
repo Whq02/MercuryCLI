@@ -14,7 +14,7 @@ import {
   moveSavedPrompt,
   subscribeSavedPrompts,
 } from '../../utils/savedPrompts/savedPromptsStore.js'
-import { truncateToWidth } from '../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../utils/glyphs.js'
 import type {
   ColumnDef,
   RowAction,

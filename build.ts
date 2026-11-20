@@ -654,7 +654,7 @@ let pythonMeta: { version: string; release: string; platform: string; license: s
   }
 }
 
-const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/services/voice/voicePack.ts');
+const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/utils/voice/voicePack.ts');
 let voiceVendored = false;
 let voiceMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
 {
@@ -1038,7 +1038,7 @@ let typescriptVersion: string | null = null;
   }
 }
 
-const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages } = await import('./src/tools/FileReadTool/imageProcessor.ts');
+const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages } = await import('./src/utils/imageProcessor/imageProcessor.ts');
 let imagePackVendored = false;
 let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvips: string | null } | null = null;
 {
@@ -1094,7 +1094,7 @@ let grammarPackMissing: string[] = [];
   const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_TREESITTER === '1';
   const srcDir = resolve(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm');
   const wasmDir = resolve(srcDir, 'wasm');
-  const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('./src/services/structure/grammarRegistry.ts');
+  const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('./src/utils/structure/grammarRegistry.ts');
   const vscodeWasms = GRAMMAR_REGISTRY.filter(g => (g.source ?? 'vscode-pack') === 'vscode-pack').map(g => g.wasm);
   const packWasms = GRAMMAR_REGISTRY.filter(g => g.source === 'grammar-pack').map(g => g.wasm);
   const runtimeFiles = [...GRAMMAR_ENGINE_RUNTIME_FILES];

@@ -12,9 +12,10 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { planChangeSet, sha256Hex } = await import(
+const { planChangeSet } = await import(
   '../../src/services/changeTransaction/changeSetPlan.ts'
 )
+const { sha256Hex } = await import('../../src/utils/hash.ts')
 const { CHANGESET_BOUNDS } = await import(
   '../../src/services/changeTransaction/changeSetContracts.ts'
 )
@@ -30,7 +31,7 @@ const {
   _resetChangeSetStoreForTesting,
 } = await import('../../src/services/changeTransaction/changeSetStore.ts')
 const { processMainOwner, processOwnerForLane } = await import(
-  '../../src/services/run/resolveOwner.ts'
+  '../../src/utils/run/resolveOwner.ts'
 )
 const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
   '../../src/services/changeTransaction/snapshotRing.ts'

@@ -15,18 +15,18 @@ import {
   doesEnterpriseMcpConfigExist,
   filterMcpServersByPolicy,
 } from '../../services/mcp/config.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
 import { releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
-import { disposeOwnerProcesses } from '../../services/run/ownerLifecycle.js'
-import { processOwnerForLane } from '../../services/run/resolveOwner.js'
+import { disposeOwnerProcesses } from '../../utils/run/ownerLifecycle.js'
+import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { beginAgentProjectLeases } from '../../services/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
-import { McpServerConfigSchema, type MCPServerConnection } from '../../services/mcp/types.js'
+import { McpServerConfigSchema, type MCPServerConnection } from '../../utils/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
 import { subagentDefaultEffort } from '../../utils/agentDefaults.js'
@@ -36,7 +36,7 @@ import {
   READ_FILE_STATE_CACHE_SIZE,
 } from '../../utils/fileStateCache.js'
 import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
-import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
 import { OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -68,8 +68,8 @@ import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySectionsWithOutcome, subagentMemoryLoadNote } from '../../constants/subagentDoctrine.js'
 import { enqueueAgentReceiptRow } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
-import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
-import { isBuiltInAgent } from './loadAgentsDir.js'
+import type { AgentDefinition, AgentMcpServerSpec } from '../../types/agent.js'
+import { isBuiltInAgent } from '../../types/agent.js'
 import { canonicalReviewerReceipt } from './reviewerPolicy.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 
@@ -306,7 +306,7 @@ async function preloadSkills(
   if (!skillNames || skillNames.length === 0) return []
   const commands = await getSkillToolCommands(getProjectRoot())
   const { formatSkillLoadingMetadata } = await import(
-    '../../utils/processUserInput/processSlashCommand.js'
+    '../../services/processUserInput/processSlashCommand.js'
   )
   const extensionPrefix =
     definition.source === 'extension' && 'extensionName' in definition

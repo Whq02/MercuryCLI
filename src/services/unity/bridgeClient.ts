@@ -1,6 +1,6 @@
 
 import * as net from 'node:net'
-import { findUnityProjectRoot } from '../ide/unityProject.js'
+import { findUnityProjectRoot } from '../../utils/unity/unityProject.js'
 import { unityBridgeEnabled, unityBridgePort } from '../../utils/unity/bridgeGates.js'
 import {
   UNITY_BRIDGE_MAX_LINE_BYTES,
@@ -11,11 +11,11 @@ import {
   type UnityBridgeError,
   type UnityBridgeHelloInfo,
   type UnityBridgeResult,
-} from './bridgeProtocol.js'
+} from '../../utils/unity/bridgeProtocol.js'
 import { ensureUnityBridgeToken } from './bridgeToken.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
-export type { UnityBridgeResult } from './bridgeProtocol.js'
+export type { UnityBridgeResult } from '../../utils/unity/bridgeProtocol.js'
 
 interface UnityBridgeEvent {
   event: string

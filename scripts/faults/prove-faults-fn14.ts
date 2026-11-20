@@ -176,7 +176,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 
 {
   const { readUnityTestResults } = await import('../../src/services/ide/unityTests.ts')
-  const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.ts')
+  const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.ts')
   const dir = makeTempDir('fn14-unity-')
   try {
     const absent = readUnityTestResults(dir, 'EditMode')

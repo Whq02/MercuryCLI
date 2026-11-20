@@ -2,7 +2,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { logMCPDebug } from '../../../utils/log.js'
-import type { MCPServerConnection, ScopedMcpServerConfig } from '../types.js'
+import type { MCPServerConnection, ScopedMcpServerConfig } from '../../../utils/mcp/types.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 const NEEDS_AUTH_TTL_MS = 15 * 60 * 1000

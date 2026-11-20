@@ -5,7 +5,7 @@ import { flowShellAsk } from '../../src/utils/permissions/flowLaw.ts'
 import { refusalOfShellCommand } from '../../src/utils/wards/wardsRefusals.ts'
 import { VastClient } from '../../src/services/host/vendors/vast.ts'
 import { normalizePatternsToPath } from '../../src/utils/permissions/filesystem.ts'
-import { parseRemotePath } from '../../src/services/remoteFiles/target.ts'
+import { parseRemotePath } from '../../src/utils/remoteFiles/target.ts'
 import { posixRelative } from '../../src/services/structure/scanPaths.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')

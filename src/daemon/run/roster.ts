@@ -1,4 +1,4 @@
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { errorMessage } from '../../utils/errors.js'
 import { failWorkingDispatchesForRunner } from '../concourseDispatch.js'
 import { settleConcourseWorker, completeRequestedPark, retireRequestedPark } from '../concourseWorkers.js'

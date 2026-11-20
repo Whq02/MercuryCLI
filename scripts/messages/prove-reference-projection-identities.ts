@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
 const { stripToolReferenceBlocksFromUserMessage: strip, stripUnavailableToolReferencesFromUserMessage: available } = await import(`${root}/src/utils/messages/apiView.ts`)
-const { STRIPPED_ADMISSION_RECORD_TEXT } = await import(`${root}/src/tools/ToolSearchTool/prompt.ts`)
+const { STRIPPED_ADMISSION_RECORD_TEXT } = await import(`${root}/src/constants/tools/toolSearch.ts`)
 const ref = (tool_name?: string) => ({ type: 'tool_reference', ...(tool_name === undefined ? {} : { tool_name }) })
 const result = (content: unknown, tool_use_id: string) => ({ type: 'tool_result', content, tool_use_id })
 const user = (content: unknown) => ({ type: 'user', uuid: 'reference-row', message: { role: 'user', content } })

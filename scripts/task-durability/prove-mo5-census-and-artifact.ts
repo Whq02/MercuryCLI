@@ -26,7 +26,7 @@ console.log('── mo5 census ratchet + artifact survival')
   const envUtils = await import('../../src/utils/envUtils.ts')
   const forget = (): void => (envUtils.getMercuryHome as unknown as { cache: { clear?: () => void } }).cache.clear?.()
   forget()
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const isolation = await crewChecks().find(row => row.id === 'isolation')?.run()
   const dest = /move the foreign records to (.+) \(reversible archive/.exec(isolation?.remedy?.plan ?? '')?.[1] ?? ''
   let blocked: { ok: boolean; note?: string } | undefined

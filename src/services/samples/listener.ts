@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { enqueue } from '../../utils/messageQueueManager.js'
-import { SAMPLE_MARKS_BODY_CAP_BYTES } from './contracts.js'
+import { SAMPLE_MARKS_BODY_CAP_BYTES } from '../../utils/samples/contracts.js'
 import { formatMarksMessage, parseMarksBody } from './marks.js'
 import { renderSampleShell } from './shell.js'
 import { appendMarks, getSample, readVersion, sessionOfSample, setSampleListenerAddress } from './store.js'

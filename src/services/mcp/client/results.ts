@@ -4,10 +4,10 @@ import { flagEnabled } from '../../../substrate/flagRegistry.js'
 import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../../utils/errors.js'
 import { createImageMetadataText, type ImageDimensions, ImageResizeError, maybeResizeAndDownsampleImageBuffer } from '../../../utils/imageResizer.js'
 import { logMCPError } from '../../../utils/log.js'
-import { getBinaryBlobSavedMessage, getFormatDescription, getLargeOutputInstructions, persistBinaryContent } from '../../../utils/mcpOutputStorage.js'
-import { mcpContentNeedsTruncation, truncateMcpContent, type MCPToolResult } from '../../../utils/mcpValidation.js'
+import { getBinaryBlobSavedMessage, getFormatDescription, getLargeOutputInstructions, persistBinaryContent } from '../mcpOutputStorage.js'
+import { mcpContentNeedsTruncation, truncateMcpContent, type MCPToolResult } from '../mcpValidation.js'
 import { persistToolResult } from '../../../utils/toolResultStorage.js'
-import { normalizeNameForMCP } from '../normalization.js'
+import { normalizeNameForMCP } from '../../../utils/mcp/normalization.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])

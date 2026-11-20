@@ -14,7 +14,7 @@ process.env.MERCURY_DAEMON_DIR = plane
 
 const { CarrierPart } = await import('../../src/services/engine-connector/daemon/carrier.ts')
 const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-await import('../../src/daemon/ownerWatch.ts')
+await import('../../src/utils/ownerWatch.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

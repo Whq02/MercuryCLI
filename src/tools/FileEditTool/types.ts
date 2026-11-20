@@ -91,12 +91,6 @@ export const inputSchema = lazySchema((): z.ZodType<FileEditInput> => {
   return widestSchemaFactory()
 })
 
-export type FileEdit = {
-  old_string: string
-  new_string: string
-  replace_all: boolean
-}
-
 export const hunkSchema = lazySchema(() =>
   z.object({
     oldStart: z.number(),

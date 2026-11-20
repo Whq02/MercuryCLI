@@ -16,10 +16,10 @@ import {
 } from '../../services/browser/browserSession.js'
 import { EMULATION_FIELD_WORDS } from '../../services/browser/browserEmulation.js'
 import { scrubSecretFromText } from '../../services/browser/browserSecrets.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import { readFileSync } from 'node:fs'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import {
   ACT_OPS,
   EXTRACT_CAP,

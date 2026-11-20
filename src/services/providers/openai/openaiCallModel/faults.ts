@@ -3,7 +3,7 @@ import type {
   BusyRefusalV1,
 } from '../../../../types/message.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../../api/overflowSignal.js'
-import { type MediaRefusal } from '../../../api/mediaRefusal.js'
+import { type MediaRefusal } from '../../../../utils/api/mediaRefusal.js'
 import {
   createAssistantAPIErrorMessage,
 } from '../../../../utils/messages.js'

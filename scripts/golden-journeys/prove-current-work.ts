@@ -12,7 +12,7 @@ import {
   type RunEvent,
   type RunSnapshot,
 } from '../../src/services/run/runKernel.ts'
-import { makeOwnerKey } from '../../src/services/run/ownerKey.ts'
+import { makeOwnerKey } from '../../src/utils/run/ownerKey.ts'
 import {
   WORKBENCH_SOURCES_SCHEMA,
   type WorkbenchSnapshot,

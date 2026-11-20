@@ -15,7 +15,7 @@ import {
   type HealthFixFlow,
 } from '../../src/components/BootHealthScreen.js'
 import { formatAge } from '../../src/utils/healthCertCore.js'
-import type { HealthCertificate } from '../../src/utils/healthReport.js'
+import type { HealthCertificate } from '../../src/services/health/healthReport.js'
 import {
   pruneCardLines,
   pruneLegendOf,
@@ -32,7 +32,7 @@ import {
 } from '../../src/components/BootResumeScreen.js'
 import { projectSessionPickerRows, type SessionScope } from '../../src/components/mercury-ui/screens/sessionPickerModel.js'
 import type { SessionListing } from '../../src/types/logs.js'
-import { buildPruneOffer, type PruneReceipt } from '../../src/utils/sessionStorage/transcriptPruneDoor.js'
+import { buildPruneOffer, type PruneReceipt } from '../../src/services/switchboard/transcriptPruneDoor.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-doors')
 

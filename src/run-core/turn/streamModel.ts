@@ -45,15 +45,15 @@ import {
 import { StreamChantWatch } from '../../services/tools/chantGuard.js'
 import { prependUserContext, firstTurnUserContext } from '../../utils/api.js'
 import { latestUserContextBody } from '../../utils/attachments/userContext.js'
-import { createAttachmentMessage } from '../../utils/attachments.js'
+import { createAttachmentMessage } from '../../services/attachments.js'
 import { reconcileAppliedPlanUsage } from '../../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../services/run/contextCalibration.js'
 import { bindRequestGauge, settleRequestGauge } from '../../services/run/requestGauge.js'
 import { getContextEpoch } from '../../services/run/contextEpochs.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../../services/providers/streamIdleBudget.js'
-import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
-import { recordSentRequest } from '../../utils/forkedAgent.js'
+import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../utils/run/resolveOwner.js'
+import { recordSentRequest } from '../../services/agents/forkedAgent.js'
 import type { Terminal } from '../../query/transitions.js'
 import {
   backfillCloneForYield,

@@ -19,7 +19,7 @@ import {
 import {
   endRunnersLeftWithoutHost,
 } from './concourseWorkers.js'
-import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../services/switchboard/capacityCheck.js'
+import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../utils/switchboard/capacityCheck.js'
 import {
   onSeatSpawned,
   requestSessionFacts,
@@ -41,7 +41,7 @@ import {
   getProcessStartInstantAsync,
   getProcessStartToken,
   getProcessStartTokenAsync,
-} from './ownerWatch.js'
+} from '../utils/ownerWatch.js'
 import { startControlServer } from './controlServer.js'
 import { DAEMON_USAGE, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'

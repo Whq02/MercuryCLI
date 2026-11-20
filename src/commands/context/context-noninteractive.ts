@@ -1,7 +1,7 @@
 import type { QuerySource } from '../../constants/querySource.js'
 import type { AppState } from '../../state/AppState.js'
 import type { Message } from '../../types/message.js'
-import type { AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinitionsResult } from '../../types/agent.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Tools } from '../../Tool.js'
 import type { EffortValue } from '../../utils/effort.js'
@@ -9,13 +9,13 @@ import {
   buildRequestContextPlan,
   type RequestContextPlan,
 } from '../../services/run/requestContextPlan.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import {
   analyzeContextUsage,
   type ContextData,
-} from '../../utils/analyzeContext.js'
+} from '../../services/context/analyzeContext.js'
 import { getSourceDisplayName } from '../../utils/settings/constants.js'
 import { formatTokens } from '../../utils/format.js'
 

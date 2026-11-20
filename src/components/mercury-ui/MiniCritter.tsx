@@ -5,7 +5,7 @@ import { FAINT } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { Box, Text } from '../../ink.js'
 import { AnimatedCritterArt } from './AnimatedCritterArt.js'
-import { GLYPH } from './glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { cycleSessionCritter, useSessionAccent } from './sessionAccent.js'
 
 export function MiniCritter({ bare = false }: { bare?: boolean }): React.ReactNode {

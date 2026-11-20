@@ -7,7 +7,7 @@ import type {
 import { formatDuration } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { renderToString } from '../../utils/staticRender.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../guards/mission.js'
 import type { MissionCardFactV1 } from '../../services/engine-connector/types.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -60,7 +60,7 @@ async function sessionMissionCard(): Promise<SessionMissionCardRead> {
   const fact = connector.workRoster().missionCard
   if (fact !== undefined && fact !== null) return { state: 'ok', card: fact }
   try {
-    const { inspectMissionCard, missionCardUnreadWords } = await import('../../services/mission/missionCard.js')
+    const { inspectMissionCard, missionCardUnreadWords } = await import('../../utils/mission/missionCard.js')
     const read = inspectMissionCard(connector.sessionId(), connector.workspace().originalCwd)
     if (read.state === 'unreadable') {
       passedOver(read.error)

@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: assets/splash/**
 # gate-watch: src/ink/frame-writer.ts
-# gate-watch: src/components/mercury-ui/assets.tsx src/components/mercury-ui/focalRamp.ts src/components/mercury-ui/glyphs.ts src/components/mercury-ui/splashRuns.ts
+# gate-watch: src/components/mercury-ui/assets.tsx src/components/mercury-ui/focalRamp.ts src/utils/glyphs.ts src/components/mercury-ui/splashRuns.ts
 # gate-watch: src/components/mercuryPalette.ts src/ink/colorize.ts src/utils/mercuryTokens.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

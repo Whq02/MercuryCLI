@@ -9,7 +9,7 @@ import {
   stageUploads,
   uploadSourcesChanged,
 } from '../../../services/browser/browserUploads.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { checkReadPermissionForTool, checkUncPathPermission } from '../../../utils/permissions/filesystem.js'
 import type { PermissionDecision, PermissionDecisionReason, ToolPermissionContext } from '../../../types/permissions.js'
 import type { Input } from './schema.js'

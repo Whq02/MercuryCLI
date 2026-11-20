@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import type { SpinnerMode } from './types.js'
+import type { SpinnerMode } from '../../types/spinner.js'
 
 
 const MID_STREAM_STILL_WAITING_MS = 10_000

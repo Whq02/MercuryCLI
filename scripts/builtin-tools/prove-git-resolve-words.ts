@@ -14,7 +14,7 @@ if (!process.argv.includes('--child')) {
   const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { readConflictRegions } = await import('../../src/services/gitGraph/conflictRegions.ts')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
   const { enableConfigs } = await import('../../src/utils/config.ts')

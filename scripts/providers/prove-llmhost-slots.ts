@@ -278,7 +278,7 @@ try {
   const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
   const { createUserMessage } = await import(`${root}/src/utils/messages.ts`)
   const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-  const { processOwnerForLane } = await import(`${root}/src/services/run/resolveOwner.ts`)
+  const { processOwnerForLane } = await import(`${root}/src/utils/run/resolveOwner.ts`)
   const idle = (await import(`${root}/src/services/providers/streamIdleBudget.ts`)) as Record<string, any>
   const { HOST_RECIPES } = await import(`${root}/src/services/host/recipes.ts`)
 

@@ -15,7 +15,7 @@ import {
   type CompatCompletedToolCall, type CompatFinishReason, type CompatStreamEvent, type CompatStreamOptions,
 } from '../openaicompat/compatChatClient.js'
 import { buildGeminiPlanRequest, buildGeminiRequest, geminiValidatesSignatures, hoistElidedResponseMedia, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
-import { geminiRequestPin } from './geminiPins.js'
+import { geminiRequestPin } from '../../../utils/model/pins/geminiPins.js'
 import { maskGeminiSecrets } from './geminiAccounts.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'

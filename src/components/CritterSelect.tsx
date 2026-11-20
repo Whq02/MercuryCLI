@@ -6,7 +6,7 @@ import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critte
 import { DUNE, FAINT, TEAL } from './mercuryPalette.js'
 import { CommandCenter, SectionHeader } from './mercury-ui/components.js'
 import { AnimatedCritterArt } from './mercury-ui/AnimatedCritterArt.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import {
   ALL_CRITTERS,
   getSessionAccent,

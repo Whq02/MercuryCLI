@@ -1,7 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   ANCHOR_PATCH_BOUNDS,

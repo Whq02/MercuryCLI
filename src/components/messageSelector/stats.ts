@@ -1,5 +1,5 @@
 import { basename } from 'path'
-import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import type { Tool } from '../../Tool.js'
 import { getAllBaseTools } from '../../tools.js'
 import { isSqliteRowTarget } from '../../tools/FileWriteTool/structuredTargets.js'

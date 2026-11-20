@@ -252,7 +252,7 @@ export async function showSetupScreens(
       if (commands !== undefined) commands.splice(0, commands.length, ...await getCommands(cwd))
     }
     registerBackgroundNode('setup:prefetch-system-context', async () => {
-      await import('./utils/queryContext.js')
+      await import('./services/agents/queryContext.js')
     })
     const { errors } = getSettingsWithAllErrors()
     if (errors.length === 0) {

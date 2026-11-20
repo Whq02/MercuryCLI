@@ -1,4 +1,4 @@
-import { APIError } from '../../../api/sdkErrors.js'
+import { APIError } from '../../../../utils/api/sdkErrors.js'
 import type { ApiMessage as BetaMessage } from '../../../../types/wire.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
@@ -11,7 +11,7 @@ import {
   createStreamCutMessage,
   createSystemAPIErrorMessage,
 } from '../../../../utils/messages.js'
-import { transportCutOf, transportCutWords } from '../../../api/transportEvidence.js'
+import { transportCutOf, transportCutWords } from '../../../../utils/api/transportEvidence.js'
 import { createStreamIdleWatchdog } from '../../streamIdleBudget.js'
 import { patienceSeconds } from '../../patience.js'
 import type { Options } from '../streamCore.js'

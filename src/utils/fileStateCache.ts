@@ -2,7 +2,7 @@ import { normalize } from 'node:path'
 
 import { LRUCache } from 'lru-cache'
 
-import { isRemotePath } from '../services/remoteFiles/target.js'
+import { isRemotePath } from './remoteFiles/target.js'
 
 export type FileState = {
   content: string

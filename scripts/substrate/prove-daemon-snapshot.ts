@@ -15,7 +15,7 @@ plugin({
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { daemonSnapshot } from '../../src/utils/cockpit/daemonSnapshot.js'
+import { daemonSnapshot } from '../../src/services/cockpit/daemonSnapshot.js'
 import { thisMercuryCommand } from '../../src/services/privateChannel/installPath.js'
 import { daemonStatePath } from '../../src/daemon/controlSocket.js'
 

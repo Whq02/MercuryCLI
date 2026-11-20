@@ -8,8 +8,8 @@ import { logForDebugging } from '../utils/debug.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../utils/errors.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
-import { isProcessAlive } from './ownerWatch.js'
-import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
+import { decideTransition, type ConcourseSessionState } from '../utils/concourseLifecycle.js'
 import {
   canonicalWorkspaceId,
   operatorTookSessionBack,
@@ -28,7 +28,7 @@ import type { ConcourseReviveOutcome } from './concourseWorkers.js'
 
 type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refused' }>['reason']
 import { inspectWorkspaceKind, workspaceGitCheckNote } from './concourseWorktrees.js'
-import { isolationAwarenessNote } from './isolationNote.js'
+import { isolationAwarenessNote } from '../utils/isolationNote.js'
 import type { SaturnOrigin, ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messages/outsideReport.js'
 import type { InputBlock, InputRow } from '../rows/vocabulary.js'

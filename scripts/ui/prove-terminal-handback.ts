@@ -23,7 +23,7 @@ import {
   TERMINAL_HANDBACK_FLAG,
   type TtyAddon,
 } from '../../src/utils/terminalHandback.ts'
-import { loadVoiceAddon, resetVoiceAddonForTest, VOICE_ADDON_EXPORTS } from '../../src/services/voice/voicePack.ts'
+import { loadVoiceAddon, resetVoiceAddonForTest, VOICE_ADDON_EXPORTS } from '../../src/utils/voice/voicePack.ts'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -188,7 +188,7 @@ if (packPresent) {
 
 section('S · one owner · every hand-off site · the one native spelling · the health row · the registry · the fallback road')
 {
-  const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
   const terminalSays = await interfaceChecks().find(entry => entry.id === 'iface-terminal')?.run()
   const handbackNow = describeTerminalHandback()
   check("/health's Terminal profile row reads describeTerminalHandback() and carries its line in the detail", terminalSays?.detail?.split('\n').at(-1) === handbackNow.line, terminalSays?.detail?.split('\n').at(-1))
@@ -200,7 +200,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
 
 section('D · /health: the Terminal profile row carries the hand-back fact')
 {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const row = async (): Promise<{ status: string; evidence: string; detail: string }> => {
     const cert = await report.runHealthReport({ depth: 'fast' })
     for (const s of cert.sections) {

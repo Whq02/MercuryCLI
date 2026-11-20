@@ -17,7 +17,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 const { activeSession } = await import('../../src/services/browser/browserSession.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 
@@ -281,7 +281,7 @@ console.log("§7 a process that leaves with the browser open takes the browser's
       [
         `process.env.MERCURY_BROWSER ??= '1'`,
         `const { ensureBrowserSession, disposeBrowserOwner, firstNavigation } = await import(${JSON.stringify(join(ROOT, 'src/services/browser/browserSession.ts'))})`,
-        `const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src/services/run/resolveOwner.ts'))})`,
+        `const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src/utils/run/resolveOwner.ts'))})`,
         `const owner = processOwnerForLane(null)`,
         `const s = await ensureBrowserSession(owner)`,
         `if ('state' in s) { console.log('NO-SESSION ' + s.note); process.exit(3) }`,

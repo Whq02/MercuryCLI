@@ -9,7 +9,7 @@ import { calculateHorizontalScrollWindow } from '../../utils/horizontalScroll.js
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { Theme } from '../../utils/theme.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'

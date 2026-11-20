@@ -27,7 +27,7 @@ const foldLandingCeiling = (tailModule.foldLandingCeiling as ((threshold: number
   return Math.max(1, threshold - Math.min(Math.max(Math.ceil(largest * ratio), LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)))
 })
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
 

@@ -37,7 +37,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-status-neutra
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 
-const status = await import('../../src/utils/status.js')
+const status = await import('../../src/components/status.js')
 const config = await import('../../src/components/Settings/Config.js')
 const model = await import('../../src/utils/model/model.js')
 

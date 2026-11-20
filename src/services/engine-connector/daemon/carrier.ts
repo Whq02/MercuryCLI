@@ -92,7 +92,7 @@ export class CarrierPart {
 
   private async carrierVerdict(): Promise<'alive' | 'gone' | 'unknown'> {
     const { readDaemonState } = await import('../../../daemon/controlSocket.js')
-    const { isProcessAlive } = await import('../../../daemon/ownerWatch.js')
+    const { isProcessAlive } = await import('../../../utils/ownerWatch.js')
     const state = await readDaemonState()
     if (state === null) return this.carrierSeen ? 'gone' : 'unknown'
     if (state.state === 'stopping' || !isProcessAlive(state.pid)) return 'gone'

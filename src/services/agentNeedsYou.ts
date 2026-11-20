@@ -1,4 +1,4 @@
-import { APIUserAbortError } from './api/sdkErrors.js'
+import { APIUserAbortError } from '../utils/api/sdkErrors.js'
 import { getEmptyToolPermissionContext } from '../Tool.js'
 import type { Message } from '../types/message.js'
 import { logForDebugging } from '../utils/debug.js'

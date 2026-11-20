@@ -2,7 +2,7 @@
 import { pathToFileURL } from 'node:url'
 import React from 'react'
 import Link from '../ink/components/Link.js'
-import { isRemotePath } from '../services/remoteFiles/target.js'
+import { isRemotePath } from '../utils/remoteFiles/target.js'
 
 export function FilePathLink({
   filePath,

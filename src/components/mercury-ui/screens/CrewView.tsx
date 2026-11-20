@@ -38,7 +38,7 @@ import {
   useFocusedWorkRoster,
 } from '../../tasks/useFocusedWork.js'
 import { Chip, CommandCenter, SectionHeader, useNowTick } from '../components.js'
-import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from '../../../utils/glyphs.js'
 import { InteractiveRow } from '../InteractiveRow.js'
 import { WorkingGlyph } from '../LiveGlyphs.js'
 import { decodeNavKey } from '../navSemantics.js'
@@ -53,7 +53,7 @@ import { enterCrewmateView, setMainChat } from '../../../state/crewmateViewHelpe
 import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
-import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
+import { crewWorktreeLeftWords } from '../../../services/crew/crewWorktreeReminder.js'
 
 
 type Row = { kind: 'agent'; id: string; facts: CrewAgentFacts }

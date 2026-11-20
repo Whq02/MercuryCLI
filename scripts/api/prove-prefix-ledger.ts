@@ -67,7 +67,7 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const r2 = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt'))] }
   const v2 = judgeAndRecordPrefix('main', KEY, r2)
   check('an appended request holds (compared, no mismatch, the last replayed block at message 1)', v2.compared && v2.mismatch === null && v2.lastThinkingIndex === 1, j(v2))
-  const { DEAD_THINKING_PLACEHOLDER } = await import('../../src/services/providers/anthropic/deadThinkingPlaceholder.ts')
+  const { DEAD_THINKING_PLACEHOLDER } = await import('../../src/utils/model/deadThinkingPlaceholder.ts')
   const r2b = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(TEXT(DEAD_THINKING_PLACEHOLDER)), user(TEXT('second prompt'))] }
   const v2b = judgeAndRecordPrefix('main', KEY, r2b)
   check('a thinking-only row replayed as the placeholder digests no new text block (no mismatch)', v2b.compared && v2b.mismatch === null, j(v2b))

@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react'
 import { Box } from '../../ink.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { Select } from '../CustomSelect/select.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 
 const EXPANDED_MARKER = `${GLYPH.chevronDown} `
 const COLLAPSED_MARKER = `${GLYPH.chevronRight} `

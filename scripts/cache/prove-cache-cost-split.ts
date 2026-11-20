@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-const { calculateUSDCost } = await import('../../src/utils/modelCost.ts')
+const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

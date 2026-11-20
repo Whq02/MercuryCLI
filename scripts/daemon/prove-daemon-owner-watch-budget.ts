@@ -54,7 +54,7 @@ const POSIX = process.platform !== 'win32'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const ownerWatch = await import('../../src/utils/ownerWatch.ts')
 const { controlSockPath } = await import('../../src/daemon/controlSocket.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 

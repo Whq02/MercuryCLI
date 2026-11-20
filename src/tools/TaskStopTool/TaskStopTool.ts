@@ -5,7 +5,7 @@ import { isTerminalTaskStatus, type TaskStateBase } from '../../Task.js'
 import { bareMissWords, finishedAgentFromRow, finishedAgentWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, isPausedAgentRow, resolveStopTargetId, stopTask, stoppedWhilePausedWords, type FinishedAgent, type FinishedShell } from '../../tasks/stopTask.js'
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from './prompt.js'
+import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
 import { settledStopSentence } from './stopSettlement.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 

@@ -2,7 +2,7 @@ import {
   UNITY_BRIDGE_VERBS,
   unityBridgeVerbNames,
   type UnityBridgeVerbSpec,
-} from '../../services/unity/bridgeProtocol.js'
+} from '../../utils/unity/bridgeProtocol.js'
 import { unityBridgePort } from '../../utils/unity/bridgeGates.js'
 
 export const UNITY_TOOL_NAME = 'Unity' as const

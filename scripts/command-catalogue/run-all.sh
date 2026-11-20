@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/components/HelpV2/** src/components/mercury-ui/** src/main* src/utils/processUserInput/**
+# gate-watch: src/components/HelpV2/** src/components/mercury-ui/** src/main* src/services/processUserInput/**
 # gate-watch: src/types/message.ts
 # gate-watch: src/utils/secureStorage/**
 # gate-watch: src/services/repoHost/** src/services/privateChannel/ghRelease.ts .github/ISSUE_TEMPLATE/**

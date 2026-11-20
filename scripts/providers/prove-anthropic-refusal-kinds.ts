@@ -34,7 +34,7 @@ const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
 const wall = await import('../../src/services/providers/credentialWall.ts')
 const auth = await import('../../src/utils/auth.ts')
-const { APIError } = await import('../../src/services/api/sdkErrors.js')
+const { APIError } = await import('../../src/utils/api/sdkErrors.js')
 const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(true)
@@ -204,7 +204,7 @@ section("§6 the chat's notice: a 401 on a dead sign-in speaks the sign-in line;
 
 section('§7 the roads read the one classification')
 {
-  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const usageOwner = await import('../../src/services/providers/providerUsage.ts')
   seed(DEAD_SIGN_IN)
   const authSays = await (await authChecks()).find(row => row.id === 'auth-anthropic')?.run()

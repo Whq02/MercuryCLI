@@ -7,7 +7,7 @@ import { getCwd } from '../../utils/cwd.js';
 import { readFileSafe } from '../../utils/file.js';
 import { Divider } from '../design-system/Divider.js';
 import { StructuredDiff } from '../StructuredDiff.js';
-import { displayWidth, truncateToWidth } from '../mercury-ui/glyphs.js';
+import { displayWidth, truncateToWidth } from '../../utils/glyphs.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 
 

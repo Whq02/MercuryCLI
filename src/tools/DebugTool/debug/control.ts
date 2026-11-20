@@ -1,5 +1,5 @@
 import { type DapSession, removeDapSession } from '../../../services/dap/dapClient.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import type { Input, InputWith, OpResult } from './schema.js'
 import { reportStop, resolveThreadId } from './shared.js'
 

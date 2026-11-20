@@ -731,11 +731,18 @@ function unclassed(rows: Rows, classed: Classed): string[] {
   return out
 }
 
+const nameOf = (file: string): string => file.slice(file.lastIndexOf('/') + 1)
+
 function carried(rows: Rows, was: Classed): Classed {
   const out: Classed = new Map()
   for (const habit of CLASSED) {
-    for (const [file, count] of rows.get(habit)!) {
-      const words = was.get(rowKey(habit, file))
+    const files = rows.get(habit)!
+    const gone = [...was.keys()].flatMap(key => (key.startsWith(`${habit}\t`) && !files.has(key.slice(habit.length + 1)) ? [key.slice(habit.length + 1)] : []))
+    const fresh = [...files.keys()].filter(file => !was.has(rowKey(habit, file)))
+    for (const [file, count] of files) {
+      const from = gone.filter(old => nameOf(old) === nameOf(file))
+      const moved = from.length === 1 && fresh.filter(other => nameOf(other) === nameOf(file)).length === 1 ? from[0] : undefined
+      const words = was.get(rowKey(habit, file)) ?? (moved === undefined ? undefined : was.get(rowKey(habit, moved)))
       if (words === undefined) continue
       const parts = words.split(' · ').map(part => CLASS_WORDS.exec(part))
       const left = parts.flatMap(part => (part ? [[part[1]!, Number(part[2])] as [string, number]] : []))
@@ -1288,6 +1295,19 @@ function plantedEstate(): void {
     `a row of ${RACE} and of ${INTERVAL} carries the class of each site its file holds, read and written back as it stands; it is named when its classes do not add up to the file's count, hold a word that is not a class, or are missing; --write keeps the classes, moves the count of a row of one class with its file, takes a fall in a row of several classes from the classes that move (${MOVING.join(', ')}) and from no other, and --classes writes them from a census of sites`,
     markedTable !== null && render(markedTable, marked) === markedText && unclassed(waitRows, marked).length === 0 && loose[0]!.join() === `${waits} ${INTERVAL}: the file holds 2 and its row says "clock 1"` && loose[1]!.length === 1 && loose[2]!.length === 2 && kept.get(rowKey(INTERVAL, waits)) === 'clock 1' && kept.get(rowKey(RACE, waits)) === 'events 2' && short.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(INTERVAL, waits)) === 'clock 1 · heartbeat 1',
     JSON.stringify({ loose, kept: [...kept], short: [...short], census: [...census] }),
+  )
+  const movedTo = 'src/planted/later/waits.ts'
+  const movedRows = rowsOf([])
+  movedRows.get(RACE)!.set(movedTo, 3)
+  movedRows.get(INTERVAL)!.set(movedTo, 1)
+  const followed = carried(movedRows, marked)
+  const twoRows = rowsOf([])
+  twoRows.get(RACE)!.set('src/planted/one/waits.ts', 3).set('src/planted/two/waits.ts', 3)
+  const two = carried(twoRows, marked)
+  check(
+    `a row of ${RACE} and of ${INTERVAL} whose file moved keeps its classes at the new path when the one file of that name left the table and one came to it, and none when two came`,
+    followed.get(rowKey(RACE, movedTo)) === 'deadline 1 · events 2' && followed.get(rowKey(INTERVAL, movedTo)) === 'clock 1' && followed.size === 2 && two.size === 0,
+    JSON.stringify({ followed: [...followed], two: [...two] }),
   )
   check('on its own table the planted estate stands for every habit', NAMES.every(habit => judge(habit, hits, table).over.length === 0 && judge(habit, hits, table).total === judge(habit, hits, table).allowed))
   const unrowed = tableOf(text.replace('env-read\tsrc/planted/Screen.tsx\t1\n', ''))!

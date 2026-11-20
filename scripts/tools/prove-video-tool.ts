@@ -23,7 +23,7 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 const { VideoTool } = await import(`${source}/tools/VideoTool/VideoTool.tsx`)
 const { getAllBaseTools } = await import(`${source}/tools.ts`)
-const { withheldTools } = await import(`${source}/utils/withheldTools.ts`)
+const { withheldTools } = await import(`${source}/services/tools/withheldTools.ts`)
 const { enableConfigs } = await import(`${source}/utils/config/globalConfig.ts`)
 const { getEmptyToolPermissionContext } = await import(`${source}/Tool.ts`)
 const { runWithCwdOverride } = await import(`${source}/utils/cwd.ts`)

@@ -155,7 +155,7 @@ const { createAssistantMessage, createUserMessage } = await import(
   '../../src/utils/messages.ts'
 )
 const { createAttachmentMessage } = await import(
-  '../../src/utils/attachments/orchestrator.ts'
+  '../../src/services/attachments/orchestrator.ts'
 )
 const { createCompactBoundaryMessage, createSystemAPIErrorMessage } =
   await import('../../src/utils/messages/systemMessages.ts')
@@ -165,7 +165,7 @@ const { createFileStateCacheWithSizeLimit } = await import(
 const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
   '../../src/tools/SyntheticOutputTool/SyntheticOutputTool.ts'
 )
-const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
+const { AGENT_TOOL_NAME } = await import('../../src/constants/tools/agent.ts')
 const { logError } = await import('../../src/utils/log.ts')
 const printMod = await import('../../src/cli/run.ts')
 const resumeMod = await import('../../src/cli/headless/resume.ts')
@@ -177,8 +177,8 @@ const qm = await import('../../src/utils/messageQueueManager.ts')
 const MODEL = 'claude-opus-4-8'
 const MODEL2 = 'claude-sonnet-5'
 const { addToTotalSessionCost } = await import('../../src/cost-tracker.ts')
-const { calculateUSDCost } = await import('../../src/utils/modelCost.ts')
-const { EMPTY_USAGE } = await import('../../src/services/api/emptyUsage.ts')
+const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
+const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
 foldScriptedUsage = (usage, params) => {
   const options = (params.toolUseContext as Record<string, unknown> | undefined)?.options as Record<string, unknown> | undefined
   const model = typeof options?.engineModel === 'string' ? options.engineModel : MODEL

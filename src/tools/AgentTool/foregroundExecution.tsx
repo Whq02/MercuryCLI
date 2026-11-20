@@ -44,7 +44,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { mirrorSwarmNotice, watchSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { pauseLineWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import {
   extractTextContent,
@@ -54,10 +54,10 @@ import {
 import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
-import { getAssistantMessageContentLength } from '../../utils/tokens.js'
-import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
+import { getAssistantMessageContentLength } from '../../services/context/tokens.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { BackgroundHint } from '../BashTool/UI.js'
-import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { noteOverloadDeath, overloadDeathNotifies, overloadNoticeWords } from '../../tasks/LocalAgentTask/agentOverload.js'
 import {
   deriveAgentTerminalOutcome,
@@ -80,7 +80,7 @@ import {
   type AgentToolResult,
 } from './agentToolUtils.js'
 import type { BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
-import type { AgentDefinition } from './loadAgentsDir.js'
+import type { AgentDefinition } from '../../types/agent.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 

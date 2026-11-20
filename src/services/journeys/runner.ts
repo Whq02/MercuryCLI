@@ -4,9 +4,9 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { recordCanonicalEvidence } from '../primitives/evidencePlane.js'
 import {
   registerExecution,
@@ -14,7 +14,7 @@ import {
   requestStopExecution,
   settleExecution,
   transitionExecution,
-} from '../primitives/executionPlane.js'
+} from '../../utils/primitives/executionPlane.js'
 import {
   readLogs,
   startService,
@@ -27,9 +27,8 @@ import type {
   JourneySpec,
   JourneyStep,
 } from './contracts.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil, withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout } from '../../utils/timers.js'
 
 const RING = 16
 const MAX_DETAIL = 400
@@ -268,25 +267,31 @@ async function runStep(
       return { ok: true, detail: `'${step.path}' ${exists ? 'present' : 'absent'} as expected` }
     }
     case 'log.match': {
-      const deadline = Date.now() + (step.timeoutMs ?? DEFAULT_STEP_TIMEOUT['log.match'])
       const re = new RegExp(step.pattern)
-      for (;;) {
-        const out = await readLogs(ctx.root, step.service, {
-          cursor: ctx.logCursors.get(step.service) ?? 0,
-          limitLines: 500,
-        })
-        if ('error' in out) return { ok: false, detail: out.error }
-        const hit = out.lines.find(l => re.test(l))
-        if (hit) {
-          ctx.logCursors.set(step.service, out.nextCursor)
-          return { ok: true, detail: `log matched /${step.pattern}/: ${bounded(hit)}` }
-        }
-        if (Date.now() > deadline) {
-          return { ok: false, detail: `no log line matched /${step.pattern}/ within the timeout (${out.lines.length} line(s) scanned)` }
-        }
-        if (ctx.signal.aborted) return { ok: false, detail: 'cancelled while waiting on logs' }
-        await sleep(150, ctx.signal)
-      }
+      let scanned = 0
+      return await pollUntil(
+        async () => {
+          const out = await readLogs(ctx.root, step.service, {
+            cursor: ctx.logCursors.get(step.service) ?? 0,
+            limitLines: 500,
+          })
+          if ('error' in out) return { ok: false, detail: out.error }
+          scanned = out.lines.length
+          const hit = out.lines.find(l => re.test(l))
+          if (hit) {
+            ctx.logCursors.set(step.service, out.nextCursor)
+            return { ok: true, detail: `log matched /${step.pattern}/: ${bounded(hit)}` }
+          }
+          return undefined
+        },
+        150,
+        step.timeoutMs ?? DEFAULT_STEP_TIMEOUT['log.match'],
+        () => ({ ok: false, detail: `no log line matched /${step.pattern}/ within the timeout (${scanned} line(s) scanned)` }),
+        {
+          signal: ctx.signal,
+          onAbort: () => ({ ok: false, detail: 'cancelled while waiting on logs' }),
+        },
+      )
     }
     case 'diagnostic.check': {
       const { resolveStructureTypescript, loadTs, parseSource } = await import('../structure/tsFacility.js')
@@ -401,16 +406,12 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
     try {
       const timeoutMs = step.timeoutMs ?? DEFAULT_STEP_TIMEOUT[step.kind]
       const watchdogMs = timeoutMs + 2_000
-      out = await Promise.race([
+      out = await withDeadline(
         runStep(step, ctx),
-        new Promise<{ ok: boolean; detail: string }>(resolvePromise => {
-          const t = startTimeout(
-            () => resolvePromise({ ok: false, detail: `step wedged past ${watchdogMs}ms (its own ${timeoutMs}ms deadline never answered)` }),
-            watchdogMs,
-          )
-          ;(t as { unref?: () => void }).unref?.()
-        }),
-      ])
+        watchdogMs,
+        () => ({ ok: false, detail: `step wedged past ${watchdogMs}ms (its own ${timeoutMs}ms deadline never answered)` }),
+        { unref: true },
+      )
     } catch (err) {
       out = { ok: false, detail: `step threw: ${(err as Error).message.slice(0, 200)}` }
     }

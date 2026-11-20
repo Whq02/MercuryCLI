@@ -33,7 +33,7 @@ import { getShellHistoryCompletion } from '../../utils/suggestions/shellHistoryC
 import {
   getSlackChannelSuggestions,
   hasSlackMcpServer,
-} from '../../utils/suggestions/slackChannelSuggestions.js'
+} from '../../services/suggestions/slackChannelSuggestions.js'
 import type { Publish, SuggestionsState } from './state.js'
 import { armTypeaheadTimer } from './timers.js'
 import { extractCompletionToken, extractSearchToken, shellMetadataOf } from './tokens.js'

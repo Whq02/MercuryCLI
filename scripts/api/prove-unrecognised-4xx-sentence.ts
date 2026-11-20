@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import { APIError } from '../../src/services/api/sdkErrors.js'
+import { APIError } from '../../src/utils/api/sdkErrors.js'
 
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'

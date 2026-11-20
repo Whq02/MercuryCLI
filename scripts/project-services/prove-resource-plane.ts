@@ -19,8 +19,8 @@ const {
   resolveResource,
   resourceAdapterKinds,
 } = await import('../../src/services/resources/registry.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const { _resetChangeReceiptsForTesting, receiptsFor } = await import(
   '../../src/services/changeTransaction/receipts.ts'
 )

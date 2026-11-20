@@ -167,7 +167,7 @@ console.log('\n[4] the native bridge: a stub addon shows what the driver sends a
 {
   const pack = await import('../../src/services/desktop/pack.js')
   const native = await import('../../src/services/desktop/nativeDriver.js')
-  const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+  const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
   const { createHash } = await import('node:crypto')
   const { mkdirSync } = await import('node:fs')
   const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')

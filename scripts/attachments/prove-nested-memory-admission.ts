@@ -31,7 +31,7 @@ const settle = async (ready: () => boolean) => {
 try {
   const { enableConfigs } = await import(`${root}/src/utils/config/globalConfig.ts`)
   enableConfigs()
-  const { memoryFilesToAttachments } = await import(`${root}/src/utils/attachments/nestedMemory.ts`)
+  const { memoryFilesToAttachments } = await import(`${root}/src/services/attachments/nestedMemory.ts`)
   const state = await import(`${root}/src/bootstrap/state.ts`)
   const guide = join(project, 'sub', 'MERCURY.md')
   const rule = join(project, '.mercury', 'rules', 'ts.md')

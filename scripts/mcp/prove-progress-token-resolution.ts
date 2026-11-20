@@ -5,7 +5,7 @@ import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const mcp = await import(join(SRC, 'services/mcp/client.ts'))
 const { callMCPToolWithUrlElicitationRetry } = mcp
-const { wireSafeMcpToolName } = await import(join(SRC, 'services/mcp/mcpStringUtils.ts'))
+const { wireSafeMcpToolName } = await import(join(SRC, 'utils/mcp/mcpStringUtils.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

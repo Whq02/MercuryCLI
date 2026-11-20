@@ -3,7 +3,7 @@ import { getCwd } from '../../utils/cwd.js'
 import {
   createReviewArtifact,
   type ReviewWriteResult,
-} from '../../utils/artifacts/reviewStore.js'
+} from '../artifacts/reviewStore.js'
 import type {
   JourneyBodyStep,
   WalkthroughClaim,
@@ -12,7 +12,7 @@ import { verificationSummary } from '../../utils/verification/verificationState.
 import { receiptsFor } from '../changeTransaction/receipts.js'
 import { gitStatus } from '../gitGraph/observe.js'
 import { evidenceFor } from '../primitives/evidencePlane.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { getRunSnapshot } from '../run/runCoordinator.js'
 import { getJourney, listJourneys } from '../journeys/runner.js'
 

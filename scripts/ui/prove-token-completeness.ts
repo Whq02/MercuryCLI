@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { listUnresolvedTokenRoles, resolveMercuryTokens } from '../../src/utils/mercuryTokens.js'
 import { THEME_NAMES } from '../../src/utils/theme.js'
-import { stateStyleOf, gaugeColorOf, type SnapshotState } from '../../src/components/mercury-ui/theme.js'
+import { stateStyleOf, gaugeColorOf } from '../../src/components/mercury-ui/theme.js'
+import type { SnapshotState } from '../../src/utils/cockpit/types.js'
 import { TERRA } from '../../src/components/mercuryPalette.js'
 
 let fail = 0

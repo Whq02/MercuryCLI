@@ -17,10 +17,10 @@ const { AssistantToolUseMessage } = await import(
 )
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.js')
-const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.js')
+const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.js')
 const { AppStateProvider } = await import('../../src/state/AppState.js')
 const { WORK_FRAMES } = await import('../../src/utils/cockpit/liveGlyphs.js')
-const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.js')
+const { GLYPH } = await import('../../src/utils/glyphs.js')
 const { BLACK_CIRCLE } = await import('../../src/constants/figures.js')
 const { TOOL_FAMILY_MARKS } = await import('../../src/components/mercury-ui/toolGlyphs.js')
 

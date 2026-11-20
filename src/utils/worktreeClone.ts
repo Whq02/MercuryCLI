@@ -9,7 +9,7 @@ import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
-import { startInterval, stopInterval } from './timers.js'
+import { armInactivityDeadline, isDeadlineExceeded } from './deadline.js'
 
 export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'held' | 'unsupported' | 'failed'
 
@@ -364,24 +364,19 @@ async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: Cl
 }
 
 async function unlessQuiet<T>(work: (moved: () => void) => Promise<T>, quietBoundMs: number): Promise<T | Quiet> {
-  let last = Date.now()
-  let left = false
-  let watch: ReturnType<typeof setInterval> | undefined
-  const quiet = new Promise<Quiet>(resolve => {
-    watch = startInterval(() => {
-      if (Date.now() - last >= quietBoundMs) resolve('quiet')
-    }, Math.max(20, Math.min(1000, quietBoundMs / 4)))
-  })
+  if (!Number.isFinite(quietBoundMs) || quietBoundMs <= 0) return 'quiet'
+  const deadline = armInactivityDeadline({ seam: 'worktree clone', limitMs: quietBoundMs })
   const moved = (): void => {
-    if (left) throw new Error('given up after it went quiet')
-    last = Date.now()
+    if (deadline.fired) throw new Error('given up after it went quiet')
+    deadline.touch()
   }
   try {
-    const answer = await Promise.race([work(moved), quiet])
-    left = answer === 'quiet'
-    return answer
+    return await deadline.within(work(moved))
+  } catch (error) {
+    if (isDeadlineExceeded(error) && deadline.fired) return 'quiet'
+    throw error
   } finally {
-    stopInterval(watch)
+    deadline.cancel()
   }
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeBuffer.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/prompt.ts
+// gate-watch: src/mneme/mnemeBuffer.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/MemoryTools.ts src/constants/tools/memory.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -21,7 +21,7 @@ function section(t: string): void {
 const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.js')
 const { appendObservation, pendingRows, currentBufferPath } = await import('../../src/mneme/mnemeBuffer.js')
 const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
-const { RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.js')
+const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.js')
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 
 const dir = mnemeLibraryDir()

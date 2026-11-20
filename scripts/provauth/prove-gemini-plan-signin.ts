@@ -351,7 +351,7 @@ try {
   check('the stated facts of a google/ row: the window, the output ceiling, the thinking dial only where the roster says so', catalogue.geminiContextWindowFor('google/claude-sonnet-4-6')?.window === 200000 && catalogue.geminiOutputTokenLimitFor('google/claude-sonnet-4-6') === 64000 && catalogue.geminiEffortVocabularyFor('google/claude-sonnet-4-6').length === 0 && catalogue.geminiEffortVocabularyFor('google/claude-opus-4-6-thinking').length > 0 && catalogue.geminiEffortVocabularyFor('google/gpt-oss-120b-medium').length > 0)
   const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
   check('images ride only where the roster flags them', modelReceivesImageBlocks('gemini-4-argon') === true && modelReceivesImageBlocks('gemini-3.5-flash-low') === false && modelReceivesImageBlocks('google/claude-sonnet-4-6') === false)
-  const engine = await import('../../src/utils/crew/engineDispatch.ts')
+  const engine = await import('../../src/services/crew/engineDispatch.ts')
   const dispatched = await engine.resolveEngineDispatch('google/claude-sonnet-4-6').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
   check('a crewmate named onto google/claude-sonnet-4-6 dispatches on the Gemini backend with the roster\'s display name', 'backend' in dispatched && dispatched.backend === 'gemini' && dispatched.model === 'google/claude-sonnet-4-6' && dispatched.displayLabel === 'Claude Sonnet 4.6', JSON.stringify(dispatched))
   const { geminiValidatesSignatures, buildGeminiRequest, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/services/providers/gemini/geminiCodec.ts')
@@ -373,7 +373,7 @@ try {
   const neonHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
   const neonGen = ((neonHit?.body?.request as Record<string, unknown>)?.generationConfig ?? {}) as Record<string, unknown>
   check('through the road at effort medium, /model gemini-4-neon rides gemini-4-neon-medium: the wire model is the effort row, the thinking level and the row\'s own ceiling ride, the answer lands', neonHit?.body?.model === 'gemini-4-neon-medium' && JSON.stringify(neonGen.thinkingConfig) === JSON.stringify({ thinkingLevel: 'MEDIUM' }) && neonGen.maxOutputTokens === 65536 && neonReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: neonHit?.body?.model, gen: neonGen }))
-  const engineNeon = await (await import('../../src/utils/crew/engineDispatch.ts')).resolveEngineDispatch('gemini-4-neon').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+  const engineNeon = await (await import('../../src/services/crew/engineDispatch.ts')).resolveEngineDispatch('gemini-4-neon').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
   check('a crewmate named onto the bare id dispatches on the Gemini backend with the high row (no effort of its own)', 'backend' in engineNeon && engineNeon.backend === 'gemini' && engineNeon.model === 'gemini-4-neon-high', JSON.stringify(engineNeon))
   console.log('── the roster is re-read: on the TTL before a chat (never only at sign-in), and once on a bare id\'s 404 — a row that appeared meanwhile is taken, else the kin words ──')
   catalogue.__resetGeminiCatalogueForTest()

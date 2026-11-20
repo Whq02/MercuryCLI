@@ -5,7 +5,7 @@ import type { ToolUseConfirm } from '../../components/permissions/PermissionRequ
 import { SpinnerWithVerb } from '../../components/Spinner.js';
 import { adoptSeatTurnStart } from '../../components/Spinner/seatClock.js';
 import { StreamingHoldRow } from '../../components/Spinner/StreamingHoldRow.js';
-import type { SpinnerMode } from '../../components/Spinner/types.js';
+import type { SpinnerMode } from '../../types/spinner.js';
 import { statusLine, statusRowWarns } from '../../components/SwitchboardTagBar.js';
 import { BASH_INPUT_TAG } from '../../constants/xml.js';
 import type { useNotifications } from '../../context/notifications.js';

@@ -12,7 +12,7 @@ import {
   type RunEvent,
   type RunSnapshot,
 } from '../../src/services/run/runKernel.ts'
-import { makeOwnerKey, type OwnerKey } from '../../src/services/run/ownerKey.ts'
+import { makeOwnerKey, type OwnerKey } from '../../src/utils/run/ownerKey.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 

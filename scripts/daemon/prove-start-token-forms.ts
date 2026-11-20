@@ -67,7 +67,7 @@ const GONE = 2_147_000_000
 writeFileSync(table, JSON.stringify({ [process.pid]: { text: BOX, instant: INSTANT } }))
 const asked = (): Array<{ instant: boolean; batch: boolean; pids: number[] }> => readFileSync(calls, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line))
 
-const owner = await import('../../src/daemon/ownerWatch.ts')
+const owner = await import('../../src/utils/ownerWatch.ts')
 const ABSENT = 'no such probe'
 const watch = {
   ...owner,

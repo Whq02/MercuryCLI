@@ -21,7 +21,7 @@ enableConfigs()
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { processSlashCommand, resolveUnknownSlashName, unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+const { processSlashCommand, resolveUnknownSlashName, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
 const { expandPastedTextRefs } = await import('../../src/history.ts')
 const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
 

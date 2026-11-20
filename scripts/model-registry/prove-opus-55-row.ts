@@ -78,7 +78,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
   const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
-  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const effort = await import('../../src/utils/effort.ts')
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
@@ -149,7 +149,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
 section('§3 the wire laws: thinking always on, no forced tool choice, the four disabled roads omit the parameter, the binding rides, foreign thinking leaves the wire both ways')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
+  const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
   const { applyThinkingBinding, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)

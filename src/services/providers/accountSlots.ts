@@ -1,4 +1,4 @@
-import { maskedKeyTail } from './credentialIdentity.js'
+import { maskedKeyTail } from '../../utils/accounts/credentialIdentity.js'
 import {
   buildProviderSnapshot,
   type ProviderSnapshot,

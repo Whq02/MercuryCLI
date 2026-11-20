@@ -40,7 +40,7 @@ section('§1 — the capture gate: the seat runner captures under the interactiv
   const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { setIsInteractive, getIsNonInteractiveSession } = await import('../../src/bootstrap/state.ts')
-  const { fileHistoryEnabled } = await import('../../src/utils/fileHistory.ts')
+  const { fileHistoryEnabled } = await import('../../src/services/changeTransaction/fileHistory.ts')
 
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   setIsInteractive(false)

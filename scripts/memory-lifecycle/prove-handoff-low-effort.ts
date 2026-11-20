@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/handoffAsk.ts src/services/providers/anthropic/messageEffort.ts src/services/providers/anthropic/streamCore/wireParams.ts src/services/providers/anthropic/streamCore/passRetries.ts src/services/api/withRetry.ts src/utils/model/capabilities.ts src/utils/forkedAgent.ts
+// gate-watch: src/mneme/handoffAsk.ts src/services/providers/anthropic/messageEffort.ts src/services/providers/anthropic/streamCore/wireParams.ts src/services/providers/anthropic/streamCore/passRetries.ts src/services/api/withRetry.ts src/utils/model/capabilities.ts src/services/agents/forkedAgent.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -142,7 +142,7 @@ const { askForHandoff, _resetHandoffAskForTesting } = await import('../../src/mn
 const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/mneme/lineageSession.ts')
 const { ledgerEntryOf, openEntry, closeEntry } = await import('../../src/mneme/ledger.ts')
 const { mnemeProjectKey } = await import('../../src/mneme/paths.ts')
-const { getLastCacheSafeParams, runForkedAgent } = await import('../../src/utils/forkedAgent.ts')
+const { getLastCacheSafeParams, runForkedAgent } = await import('../../src/services/agents/forkedAgent.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')

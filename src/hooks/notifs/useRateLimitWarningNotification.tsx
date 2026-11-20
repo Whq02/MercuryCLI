@@ -2,7 +2,7 @@
 import { useRef, useSyncExternalStore } from 'react'
 import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { useNowTick } from '../../components/mercury-ui/components.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'

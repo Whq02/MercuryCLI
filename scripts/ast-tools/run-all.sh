@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-watch: src/tools/AstSearchTool/**
 # gate-watch: src/main.tsx
-# gate-watch: src/tools/BashTool/utils.ts src/utils/*
+# gate-watch: src/utils/shell/utils.ts src/utils/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

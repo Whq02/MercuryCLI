@@ -18,15 +18,71 @@ const LAYERS: Rule = {
   from: ['src/utils/'],
   to: ['src/cli/', 'src/commands/', 'src/components/', 'src/daemon/', 'src/services/', 'src/tools/'],
   kept: [
+    ['src/components/mercury-ui/sessionAccent.ts', 'its path is the hex exemption of src/utils/wards/wards.ts'],
+    ['src/components/mercuryPalette.ts', 'src/guards/wardsGuard.ts knows a Mercury checkout by this path'],
     ['src/tools/BashTool/bashPermissions.ts', 'row 8'],
     ['src/tools/BashTool/denyRuleReach.ts', 'row 8'],
+    ['src/utils/accounts/signInLedger.ts', 'shared credential and sign-in state used across src/utils; checks live provider accounts'],
+    ['src/utils/accounts/signInRefusal.ts', 'shared credential and sign-in state used across src/utils; checks live provider accounts'],
+    ['src/utils/api.ts', 'request-shape helpers read provider route and deferral law for messages/apiPlan.ts and apiView.ts'],
+    ['src/utils/artifacts/reviewContracts.ts', 'a type only: CrewActorRef of src/services/crew/identity.ts'],
+    ['src/utils/attachments/types.ts', "a type only: FileReadTool's output in the attachment union"],
+    ['src/utils/auth.ts', 'shared credential and sign-in state used across src/utils; checks live provider accounts'],
+    ['src/utils/backgroundHousekeeping.ts', 'its move up rewrites src/services/health/healthReport.ts, which row 11 holds'],
     ['src/utils/bash/', 'row 8'],
+    ['src/utils/capability/manifest.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],
+    ['src/utils/cockpit/harnessMap.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],
+    ['src/utils/cockpit/runtimePosture.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],
+    ['src/utils/git.ts', 'the git utility hands status observation to src/services/gitGraph'],
+    ['src/utils/hooks/crewmateRunner.ts', 'hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports'],
+    ['src/utils/hooks/questionRunner.ts', 'hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports'],
+    ['src/utils/imageResizer.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
+    ['src/utils/messages/apiPlan.ts', 'the message normalizer formats API error, instruction and tool-result blocks'],
+    ['src/utils/messages/attachmentText.ts', 'the message normalizer formats API error, instruction and tool-result blocks'],
+    ['src/utils/messages/lookups.ts', 'the message normalizer formats API error, instruction and tool-result blocks'],
+    ['src/utils/model/agent.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/bareFamilyWords.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/capabilities.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/computedDefault.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/model.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/modelAllowlist.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/modelFamilies.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/modelNames.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/modelOptions.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/modelOverrides.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/modelTransition.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/providerFrontier.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/subModelSlots.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
+    ['src/utils/model/utilityModel.ts', 'the utility-model picker reads route law and the local helper id for the hook runners'],
+    ['src/utils/normalizeToolSchema.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
+    ['src/utils/ocr.ts', 'its move up rewrites src/services/health/healthReport.ts, which row 11 holds'],
     ['src/utils/permissions/decision/', 'row 8'],
+    ['src/utils/permissions/filesystem.ts', 'remoteFiles/thisMachine.ts goes down once row 11 releases this file, its importer'],
     ['src/utils/permissions/flowLaw.ts', 'row 8'],
+    ['src/utils/permissions/runtimeProtection.ts', "self-protection reads the live daemon pid and script; row 8's floors call it"],
     ['src/utils/permissions/shellProtectedPaths/', 'row 8'],
+    ['src/utils/redactSecrets.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
+    ['src/utils/secureStorage/otherBuilds.ts', 'the credential store checks live processes of other Mercury builds before sealing'],
+    ['src/utils/sessionStorage/chain.ts', 'the transcript chain strips and restores desktop screenshots through screenshotRetention'],
+    ['src/utils/settings/allErrors.ts', 'the settings error list collects MCP config load errors'],
+    ['src/utils/spendSpelling.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
+    ['src/utils/subprocessEnv.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
+    ['src/utils/toolResultSummary.ts', "reads resolved display names from FileReadTool's stateful results WeakMap"],
+    ['src/utils/toolSearch.ts', 'formats deferred-tool lines and reads ToolSearch deferral predicates'],
+    ['src/utils/vulcan/vulcanGates.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],
     ['src/utils/wards/', 'row 8'],
+    ['src/utils/worktree.ts', 'worktree setup refreshes instruction discovery for the new worktree'],
   ],
   end: 'move the file above down into src/utils/<area> or src/constants when it imports nothing above src/utils itself; move the file under src/utils up into the folder of what it serves when it runs that layer; else hand the value in from its caller',
+}
+
+const ENGINE_TABLE = 'scripts/gate/screen-engine-imports.tsv'
+const ENGINE: Rule = {
+  title: 'files under src/components and src/screens that import a part below a door of the engine (src/run-core/turn-machine.ts over turn/, src/services/engine-connector/daemonConnector.ts over daemon/)',
+  from: ['src/components/', 'src/screens/'],
+  to: ['src/run-core/turn/', 'src/services/engine-connector/daemon/'],
+  kept: [],
+  end: 'take what the screen needs from the door, src/run-core/turn-machine.ts or the session connector of src/services/engine-connector/daemonConnector.ts, never from a part below it',
 }
 
 let failures = 0
@@ -147,6 +203,7 @@ function hold(table: string, rule: Rule): void {
 }
 
 hold(LAYERS_TABLE, LAYERS)
+hold(ENGINE_TABLE, ENGINE)
 
 console.log('')
 console.log(failures === 0 ? `prove-layer-imports: ALL HOLD — ${checks} checks` : `prove-layer-imports: ${failures} FAILURE(S) of ${checks}`)

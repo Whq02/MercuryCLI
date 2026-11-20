@@ -22,7 +22,7 @@ import { saveAgentDocument } from '../../../services/agents/store.js'
 import { useAppState, useSetAppState } from '../../../state/AppState.js'
 import type { AppState } from '../../../state/AppStateStore.js'
 import type { Tools } from '../../../Tool.js'
-import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../../../types/agent.js'
 import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
@@ -31,7 +31,7 @@ import {
   SectionHeader,
   StateBadge,
 } from '../../mercury-ui/components.js'
-import { truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../../utils/glyphs.js'
 import { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import { useFlatList } from '../../mercury-ui/useFlatList.js'
 import { popupListWindow, PopupListViewport, usePopupListNavigation } from '../../CustomSelect/popup-list.js'

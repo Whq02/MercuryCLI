@@ -11,7 +11,7 @@ import {
   createAssistantAPIErrorMessage,
 } from '../../../../utils/messages.js'
 import { getContextWindowForModel } from '../../../../utils/model/capabilities.js'
-import type { MediaRefusal } from '../../../api/mediaRefusal.js'
+import type { MediaRefusal } from '../../../../utils/api/mediaRefusal.js'
 import {
   type CompatChatRequest,
   type CompatFault,

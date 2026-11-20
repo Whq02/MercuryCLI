@@ -13,7 +13,7 @@ import {
   hasEmojiPresentation,
   hasEmojiProperty,
 } from './lib/emojiProperties.ts'
-import { GLYPH, SPARK, displayWidth, padTo } from '../../src/components/mercury-ui/glyphs.js'
+import { GLYPH, SPARK, displayWidth, padTo } from '../../src/utils/glyphs.js'
 import { stringWidth } from '../../src/ink/stringWidth.js'
 import wrapText from '../../src/ink/wrap-text.js'
 import { truncatePathMiddle, truncateStartToWidth, truncateToWidth } from '../../src/utils/truncate.js'

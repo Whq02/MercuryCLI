@@ -3,7 +3,7 @@ process.env.NODE_ENV = 'test'
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { getDefaultEngineModel } = await import('../../src/utils/model/model.js')
-const { contextGauge, CONTEXT_FRESH_SESSION_REASON } = await import('../../src/utils/cockpit/contextGauge.js')
+const { contextGauge, CONTEXT_FRESH_SESSION_REASON } = await import('../../src/services/cockpit/contextGauge.js')
 let failures = 0
 function check(name: string, ok: boolean): void {
   if (!ok) failures++

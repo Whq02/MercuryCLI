@@ -21,7 +21,7 @@ if (process.argv.includes('--record')) {
   process.exit(0)
 }
 const frozen = JSON.parse(readFileSync(oldPath, 'utf8'))
-const module = await import(`${root}/src/utils/attachments/contextCapsule.ts`)
+const module = await import(`${root}/src/services/attachments/contextCapsule.ts`)
 const fold = module.foldAttachmentsIntoCapsule ?? ((rows: any[]) => rows)
 let failures = 0
 function check(label: string, good: boolean) {

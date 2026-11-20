@@ -345,7 +345,7 @@ section('refusals — the three stub readers (compact, microcompact, queryHelper
   const { isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
   const { extractReadFilesFromMessages } = await import('../../src/utils/queryHelpers.ts')
   const { repeatedResultPointer } = await import('../../src/services/tools/loopGuard.ts')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const pointerText = `${REPEATED_RESULT_TAG} this Read call ({"file_path":"/work/a.ts"}) returned exactly the same ${LONG.length} characters as call tu_r1 earlier in this turn, so the text is not repeated here. Reread that result — it is unchanged.`
   const readUse = (id: string, file_path: string) => createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Read', input: { file_path } }] as never })
   const readRes = (tool_use_id: string, content: string, timestamp = '2026-10-17T12:00:00.000Z') => ({ ...(createUserMessage({ content: [{ type: 'tool_result', tool_use_id, content }] as never }) as Record<string, unknown>), timestamp })

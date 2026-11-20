@@ -7,7 +7,7 @@ import {
   projectConfigDirs,
   resolveProjectConfigPath,
 } from '../../src/utils/projectConfig.js'
-import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
+import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
 import { getProjectDirsUpToHome } from '../../src/utils/markdownConfigLoader.js'
 import { loadProjectWards } from '../../src/guards/wardsGuard.js'
 

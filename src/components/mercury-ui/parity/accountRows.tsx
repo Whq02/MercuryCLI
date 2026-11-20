@@ -10,7 +10,7 @@ import {
 } from '../../../services/providers/accountSlots.js'
 import { usageCreditsLine, usageForProvider, type ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { AMBER, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
-import { padTo, truncateToWidth } from '../glyphs.js'
+import { padTo, truncateToWidth } from '../../../utils/glyphs.js'
 import { InteractiveRow } from '../InteractiveRow.js'
 import type { useInteractiveList } from '../useInteractiveList.js'
 

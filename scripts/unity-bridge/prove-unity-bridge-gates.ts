@@ -27,7 +27,7 @@ resetEnv()
 
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const gates = await import('../../src/utils/unity/bridgeGates.js')
-const { UNITY_BRIDGE_DEFAULT_PORT } = await import('../../src/services/unity/bridgeProtocol.js')
+const { UNITY_BRIDGE_DEFAULT_PORT } = await import('../../src/utils/unity/bridgeProtocol.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'unity-bridge-gates-'))

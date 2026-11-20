@@ -15,8 +15,8 @@ import {
   scanForContext,
 } from '../utils/readEditContext.js'
 import { logError } from '../utils/log.js'
-import { isRemotePath } from '../services/remoteFiles/target.js'
-import { getPatchForEdits } from '../tools/FileEditTool/utils.js'
+import { isRemotePath } from '../utils/remoteFiles/target.js'
+import { getPatchForEdits } from '../utils/fileEditUtils.js'
 import { boundHunks, diffPaintWidth } from './permissions/consentBodyBudget.js'
 import { StructuredDiffList } from './StructuredDiffList.js'
 import { passedOver } from '../utils/passedOver.js'

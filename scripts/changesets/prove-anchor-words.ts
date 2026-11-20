@@ -15,7 +15,7 @@ const { checkAnchor, formatAnchorFailure, mintFileAnchor } = await import(join(R
 const { planChangeSet } = await import(join(ROOT, 'src/services/changeTransaction/changeSetPlan.ts'))
 const { FileReadTool } = await import(join(ROOT, 'src/tools/FileReadTool/FileReadTool.ts'))
 const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { FILE_UNCHANGED_STUB } = await import(join(ROOT, 'src/tools/FileReadTool/prompt.ts'))
+const { FILE_UNCHANGED_STUB } = await import(join(ROOT, 'src/constants/tools/fileRead.ts'))
 const { matchExactEdit } = await import(join(ROOT, 'src/tools/FileEditTool/FileEditTool.ts'))
 
 let failures = 0
@@ -60,7 +60,7 @@ check('the ChangeSet preflight refusal names the member fault (11 of 12 hex char
 
 const { ChangeSetTool } = await import(join(ROOT, 'src/tools/ChangeSetTool/ChangeSetTool.ts'))
 const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
-const { processMainOwner } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
+const { processMainOwner } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
 {
   const readFileState = new Map<string, unknown>()
   readFileState.set(target, { content: "import test from 'node:test'\ntest('ownerId', () => {})\n", timestamp: Date.now() + 60_000 })

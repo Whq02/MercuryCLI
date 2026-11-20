@@ -2,7 +2,7 @@ import { type Command as CommanderCommand } from 'commander'
 import { cliError, cliOk } from '../../cli/exit.js'
 import { addMcpConfig } from '../../services/mcp/config.js'
 import { readClientSecret, saveMcpClientSecret } from '../../services/mcp/auth.js'
-import type { McpServerConfig } from '../../services/mcp/types.js'
+import type { McpServerConfig } from '../../utils/mcp/types.js'
 import {
   describeMcpConfigFilePath,
   ensureConfigScope,

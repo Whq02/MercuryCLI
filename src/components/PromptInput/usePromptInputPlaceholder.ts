@@ -5,7 +5,7 @@ import { useAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import { getExampleCommandFromCache } from '../../utils/exampleCommands.js'
 import { noteProjectOnboardingShown, projectOnboardingHint } from '../../projectOnboardingState.js'
-import { truncateToWidth } from '../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../utils/glyphs.js'
 import { crewmatePlaceholder } from '../../utils/cockpit/crewmateWords.js'
 
 const AGENT_NAME_MAX_COLUMNS = 24

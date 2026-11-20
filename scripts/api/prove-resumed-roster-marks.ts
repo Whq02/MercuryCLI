@@ -30,10 +30,10 @@ const { isDeferredToolFor, isDeferredTool } = await import('../../src/tools/Tool
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { planToolPayload, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey } = await import('../../src/services/providers/toolEconomy.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
 const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 

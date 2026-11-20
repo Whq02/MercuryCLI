@@ -24,7 +24,7 @@ const { daemonSessionConnectorFor, HEARTBEAT_MS, IDLE_PROJECTION_FLOOR_MS } = aw
 const { getEphemeralProgressFrame, _resetEphemeralProgressForTesting } = await import(
   '../../src/state/ephemeralProgressStore.js'
 )
-const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.js')
+const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

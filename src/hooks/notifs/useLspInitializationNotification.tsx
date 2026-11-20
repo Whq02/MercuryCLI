@@ -4,13 +4,13 @@ import { useTimer } from '../effects.js'
 import { getIsRemoteMode, getIsScrollDraining } from '../../bootstrap/state.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import {
   getInitializationStatus,
   getLspServerManager,
 } from '../../services/lsp/manager.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { pollUntil } from '../../utils/deadline.js'
 
 const POLL_INTERVAL_MS = 5000
 const NOTIFICATION_TIMEOUT_MS = 8000
@@ -45,33 +45,48 @@ export function useLspInitializationNotification(): void {
     [addNotification],
   )
 
-  const poll = useCallback((): void => {
-    if (getIsRemoteMode()) return
-    if (getIsScrollDraining()) return
+  const poll = useCallback((): boolean => {
+    if (getIsRemoteMode()) return false
+    if (getIsScrollDraining()) return false
     const initialization = getInitializationStatus()
     if (initialization.status === 'failed') {
       recordError('lsp-manager', String(initialization.error))
       setPollingEnabled(false)
-      return
+      return true
     }
     if (
       initialization.status === 'pending' ||
       initialization.status === 'not-started'
     ) {
-      return
+      return false
     }
     const manager = getLspServerManager()
-    if (!manager) return
+    if (!manager) return false
     for (const [name, server] of manager.getAllServers()) {
       if (server.state === 'error' && server.lastError) {
         recordError(name, String(server.lastError))
       }
     }
+    return false
   }, [recordError])
 
   useTimer(() => {
     if (!pollingEnabled) return
-    const interval = startInterval(poll, POLL_INTERVAL_MS)
-    return () => stopInterval(interval)
+    const controller = new AbortController()
+    let firstLook = true
+    void pollUntil(
+      () => {
+        if (firstLook) {
+          firstLook = false
+          return undefined
+        }
+        return poll() ? true : undefined
+      },
+      POLL_INTERVAL_MS,
+      Infinity,
+      () => undefined,
+      { signal: controller.signal, onAbort: () => undefined },
+    )
+    return () => controller.abort()
   }, [pollingEnabled, poll])
 }

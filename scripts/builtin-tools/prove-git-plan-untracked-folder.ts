@@ -12,7 +12,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const { gitStatus } = await import('../../src/services/gitGraph/observe.ts')
 const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const owner = processMainOwner()
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-untracked-folder-'))

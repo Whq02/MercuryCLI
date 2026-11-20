@@ -1,15 +1,15 @@
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
+import { isRemotePath, remoteIdentity } from '../../utils/remoteFiles/target.js'
 import { getCwd } from '../../utils/cwd.js'
 import { hasControlCharacter } from '../../utils/path.js'
 import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { expandStructuredTargetPath, hostPathOfWriteTarget, isSqliteRowTarget, sqliteRowRewindNote } from '../FileWriteTool/structuredTargets.js'
-import { FILE_EDIT_TOOL_NAME } from './constants.js'
+import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { getEditToolDescription } from './prompt.js'
 import { inputSchema, outputSchema, type FileEditInput } from './types.js'
-import { areFileEditsInputsEquivalent, locateActualString } from './utils.js'
+import { areFileEditsInputsEquivalent, locateActualString } from '../../utils/fileEditUtils.js'
 import { EDIT_RESULT_CLOSE, editResultHead } from './editResult.js'
 import {
   getToolUseSummary,

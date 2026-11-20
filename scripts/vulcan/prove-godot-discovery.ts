@@ -198,7 +198,7 @@ try {
 
   section('6. the words — health row, prompt, plugin guard, optable')
   {
-    const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+    const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
     const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
     const presenceOwner = await import('../../src/services/vulcan/editorPresence.ts')
     const installOwner = await import('../../src/services/vulcan/addonInstaller.ts')

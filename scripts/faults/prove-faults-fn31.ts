@@ -391,7 +391,7 @@ console.log('\nhaltAll.ts — thrown daemonControlRpc error is reported as the r
       ...real,
       daemonControlRpc: async () => { throw new Error('control key unreadable') },
     }))
-    const { haltAll } = await import(SRC + '/utils/haltAll.ts')
+    const { haltAll } = await import(SRC + '/daemon/haltAll.ts')
     out.result = await haltAll({ getAppState: () => ({ tasks: {} }), setAppState: () => {} })
   `)
   const daemon = (r.result as { daemon?: { ok?: boolean; reason?: string } } | undefined)?.daemon
@@ -421,7 +421,7 @@ console.log('\ndurability.ts — EPERM from process.kill(pid, 0) counts journal 
       return origKill(pid, sig)
     })
     try {
-      const { durabilityChecks } = await import(SRC + '/utils/health/sections/durability.ts')
+      const { durabilityChecks } = await import(SRC + '/services/health/sections/durability.ts')
       const spec = durabilityChecks().find(c => c.id === 'durable-journals')
       out.row = await spec.run()
     } finally {
@@ -452,7 +452,7 @@ console.log('\nauth.ts — routing failure does not default to anthropic and usa
       anthropicCredentialPresence: () => ({ credentialed: false, expired: false }),
       providerFamilyPresences: () => { throw new Error('usage read boom') },
     }))
-    const { authChecks } = await import(SRC + '/utils/health/sections/auth.ts')
+    const { authChecks } = await import(SRC + '/services/health/sections/auth.ts')
     const specs = await authChecks()
     const anth = specs.find(c => c.id === 'auth-anthropic')
     try {
@@ -485,7 +485,7 @@ console.log('\nruntime.ts — editOutcomeLedgerEnabled throw emits a throwing Ed
       ...real,
       editOutcomeLedgerEnabled: () => { throw new Error('ledger check boom') },
     }))
-    const { runtimeChecks } = await import(SRC + '/utils/health/sections/runtime.ts')
+    const { runtimeChecks } = await import(SRC + '/services/health/sections/runtime.ts')
     const row = runtimeChecks().find(c => c.id === 'edit-outcomes')
     out.present = Boolean(row)
     out.label = row?.label ?? null
@@ -514,7 +514,7 @@ console.log('\nruntime/services.ts — mcpCheck propagates getMcpPolicyRejects t
       ...realPolicy,
       getMcpPolicyRejects: () => { throw new Error('policy parser boom') },
     }))
-    const { mcpCheck } = await import(SRC + '/utils/health/sections/runtime/services.ts')
+    const { mcpCheck } = await import(SRC + '/services/health/sections/runtime/services.ts')
     try {
       out.row = mcpCheck().run()
       out.err = null
@@ -548,7 +548,7 @@ console.log('\nhealthDeepProbes.ts — probeServiceLifecycle kills child PID if 
       ...realPg,
       endProcessTree: async (pid, sig) => { kills.push({ pid, sig }); return { ended: 1, survivors: [] } },
     }))
-    const { probeServiceLifecycle } = await import(SRC + '/utils/healthDeepProbes.ts')
+    const { probeServiceLifecycle } = await import(SRC + '/services/health/healthDeepProbes.ts')
     try {
       await probeServiceLifecycle()
       out.err = null
@@ -574,7 +574,7 @@ console.log('\nsettings/model.ts — modelCheck propagates getSettingsWithAllErr
       ...realAllErrors,
       getSettingsWithAllErrors: () => { throw new Error('settings read boom') },
     }))
-    const { modelCheck } = await import(SRC + '/utils/health/sections/settings/model.ts')
+    const { modelCheck } = await import(SRC + '/services/health/sections/settings/model.ts')
     try {
       out.row = modelCheck().run()
       out.err = null
@@ -594,7 +594,7 @@ console.log('\nsettings/prompt.ts — hiddenCharactersCheck propagates skill sca
       ...realSkills,
       getSkillDirCommands: async () => { throw new Error('skills scan boom') },
     }))
-    const { hiddenCharactersCheck } = await import(SRC + '/utils/health/sections/settings/prompt.ts')
+    const { hiddenCharactersCheck } = await import(SRC + '/services/health/sections/settings/prompt.ts')
     try {
       out.row = await hiddenCharactersCheck().run()
       out.err = null
@@ -619,7 +619,7 @@ console.log('\nsettings/sources.ts — killsCheck propagates getAgentCapParseRej
       ...realSettings,
       getSettingsForSource: () => { throw new Error('policy read boom') },
     }))
-    const { killsCheck, settingsCheck } = await import(SRC + '/utils/health/sections/settings/sources.ts')
+    const { killsCheck, settingsCheck } = await import(SRC + '/services/health/sections/settings/sources.ts')
     out.settingsRow = settingsCheck().run()
     try {
       out.killsRow = await killsCheck().run()
@@ -642,13 +642,13 @@ console.log('\nproofs.ts — gate check rejects corrupt verdict JSON instead of 
   const r = runScenario(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { gateVerdictPath } = await import(SRC + '/utils/healthReport.ts')
+    const { gateVerdictPath } = await import(SRC + '/services/health/healthReport.ts')
     const vp = gateVerdictPath()
     fs.mkdirSync(path.dirname(vp), { recursive: true })
     fs.writeFileSync(vp, '{not-json')
     fs.mkdirSync(path.join(PROJECT, 'scripts'), { recursive: true })
     fs.writeFileSync(path.join(PROJECT, 'scripts', 'run-all-suites.sh'), '#!/bin/sh\\n')
-    const { proofsChecks } = await import(SRC + '/utils/health/sections/proofs.ts')
+    const { proofsChecks } = await import(SRC + '/services/health/sections/proofs.ts')
     const gate = proofsChecks({ cwd: PROJECT, version: '1.0.0', git: { state: 'unavailable', data: { git: null } }, repo: null, head: { sha: null, branch: null, dirty: null } }).find(c => c.id === 'gate')
     try {
       out.row = await gate.run()
@@ -669,7 +669,7 @@ else {
     const projectsDir = path.join(HOME, 'projects')
     fs.mkdirSync(projectsDir, { recursive: true })
     fs.chmodSync(projectsDir, 0o300)
-    const { transcriptStoreCheck } = await import(SRC + '/utils/health/sections/crew/home.ts')
+    const { transcriptStoreCheck } = await import(SRC + '/services/health/sections/crew/home.ts')
     try {
       out.row = await transcriptStoreCheck().run()
       out.readdirErr = null
@@ -692,7 +692,7 @@ else {
       }),
       harnessArtifactPath: (home, rel) => path.join(home, rel),
     }))
-    const homeMod = await import(SRC + '/utils/health/sections/crew/home.ts?iso')
+    const homeMod = await import(SRC + '/services/health/sections/crew/home.ts?iso')
     const iso = await homeMod.isolationCheck().run()
     out.remedyRes = await iso.remedy.apply()
   `)
@@ -714,7 +714,7 @@ else {
     const lockedHome = path.join(PROJECT, 'locked-home')
     fs.mkdirSync(lockedHome, { recursive: true })
     process.env.MERCURY_CONFIG_DIR = lockedHome
-    const { historyCheck } = await import(SRC + '/utils/health/sections/crew/appends.ts')
+    const { historyCheck } = await import(SRC + '/services/health/sections/crew/appends.ts')
     fs.chmodSync(lockedHome, 0o000)
     try {
       out.row = historyCheck().run()
@@ -738,7 +738,7 @@ else {
     fs.mkdirSync(lockedHome, { recursive: true })
     process.env.MERCURY_CONFIG_DIR = lockedHome
     process.env.MERCURY_TRACE = '1'
-    const { invocationTraceCheck } = await import(SRC + '/utils/health/sections/crew/boot.ts')
+    const { invocationTraceCheck } = await import(SRC + '/services/health/sections/crew/boot.ts')
     fs.chmodSync(lockedHome, 0o000)
     try {
       out.row = await invocationTraceCheck().run()
@@ -759,7 +759,7 @@ else {
     const agentsDir = path.join(HOME, 'agents')
     fs.mkdirSync(agentsDir, { recursive: true })
     fs.chmodSync(agentsDir, 0o000)
-    const { agentDefinitionsCheck } = await import(SRC + '/utils/health/sections/crew/crewmates.ts')
+    const { agentDefinitionsCheck } = await import(SRC + '/services/health/sections/crew/crewmates.ts')
     try {
       out.row = await agentDefinitionsCheck().run()
     } finally {
@@ -779,7 +779,7 @@ else {
     const lockedSub = path.join(PROJECT, 'locked-cleanup-sub')
     fs.mkdirSync(lockedSub, { recursive: true })
     fs.symlinkSync(path.join(lockedSub, 'target'), path.join(HOME, '.last-cleanup'))
-    const { lifecycleCollectionCheck } = await import(SRC + '/utils/health/sections/crew/scratch.ts')
+    const { lifecycleCollectionCheck } = await import(SRC + '/services/health/sections/crew/scratch.ts')
     fs.chmodSync(lockedSub, 0o000)
     try {
       out.row = await lifecycleCollectionCheck().run()
@@ -801,12 +801,12 @@ else {
     const grammarDir = path.join(PROJECT, 'locked-grammars')
     fs.mkdirSync(grammarDir, { recursive: true })
     fs.chmodSync(grammarDir, 0o000)
-    const realGram = await import(SRC + '/services/structure/grammarFacility.ts')
-    mock.module(SRC + '/services/structure/grammarFacility.js', () => ({
+    const realGram = await import(SRC + '/utils/structure/grammarFacility.ts')
+    mock.module(SRC + '/utils/structure/grammarFacility.js', () => ({
       ...realGram,
       resolveGrammarEngineDir: () => ({ state: 'ok', source: 'vendored', dir: grammarDir }),
     }))
-    const { codingLoopFastChecks } = await import(SRC + '/utils/health/sections/coding-loop-fast.ts')
+    const { codingLoopFastChecks } = await import(SRC + '/services/health/sections/coding-loop-fast.ts')
     const spec = codingLoopFastChecks().find(c => c.id === 'anvil-workbench-fast')
     try {
       out.row = await spec.run()

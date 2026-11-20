@@ -64,7 +64,7 @@ process.env.MERCURY_DAP_ADAPTERS_FILE = adaptersFile
 const dapClient = await import('../../src/services/dap/dapClient.ts')
 const { createDapSession, removeDapSession } = dapClient
 const listenerAttachTarget: typeof dapClient.listenerAttachTarget = (dapClient as Partial<typeof dapClient>).listenerAttachTarget ?? (() => null)
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const owner = processMainOwner()
 
 type Frame = Record<string, unknown>

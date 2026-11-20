@@ -55,7 +55,7 @@ console.log('§2 TI-01 — the typed invocation record')
 
 console.log('§3 the wire sites + health consumers (source pins)')
 {
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const milestones = await import('../../src/substrate/launchMilestones.ts')
   const { readInvocationRecords } = await import('../../src/substrate/invocationRecord.ts')
   const spineSays = await crewChecks().find(row => row.id === 'launch-spine')?.run()

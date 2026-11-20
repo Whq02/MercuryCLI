@@ -3,7 +3,7 @@ import type * as React from 'react'
 import { FAINT, SECOND } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { STATE_STYLE, stateStyleOf } from './theme.js'
-import type { SnapshotState } from './theme.js'
+import type { SnapshotState } from '../../utils/cockpit/types.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 interface CardTone {

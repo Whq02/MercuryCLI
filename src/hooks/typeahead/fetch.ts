@@ -6,7 +6,7 @@ import type {
 } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import { getSelectedSuggestion } from '../../components/PromptInput/suggestionSelectionStore.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
-import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../../types/agent.js'
 import type { InlineGhostText, PromptInputMode } from '../../types/textInputTypes.js'
 import { logError } from '../../utils/log.js'
 import {

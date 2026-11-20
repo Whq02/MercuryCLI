@@ -21,7 +21,7 @@ const { resolveConflict, stageSelection } = await import('../../src/services/git
 const { applyResolution, prepareResolution, readConflictRegions } = await import('../../src/services/gitGraph/conflictRegions.ts')
 const { gitAdapter } = await import('../../src/services/resources/adapters/git.ts')
 const { parseMercuryRef } = await import('../../src/services/resources/contracts.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { execFileNoThrowWithCwd } = await import('../../src/utils/execFileNoThrow.ts')
 const { gitArgs } = await import('../../src/utils/git/spawnArgs.ts')
 

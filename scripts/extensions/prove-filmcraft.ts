@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
+import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: 'craft-proof' }
 const root = resolve(import.meta.dir, '../..')

@@ -13,12 +13,12 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { GPT_DISPLAY_PINS, gptDisplayPin } = await import('../../src/services/providers/openai/gptPins.js')
+const { GPT_DISPLAY_PINS, gptDisplayPin } = await import('../../src/utils/model/pins/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
 const { openaiSessionDefault } = await import('../../src/utils/model/providerFrontier.js')
 const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 
 const sol = 'gpt-6.2-sol'

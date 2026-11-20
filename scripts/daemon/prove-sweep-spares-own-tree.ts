@@ -81,7 +81,7 @@ if (role === 'sweeper') {
     })
   }
   const sup = await import('../../src/daemon/concourseWorkers.ts')
-  const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+  const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
   const { endProcessTree } = await import('../../src/utils/processGroup.ts')
   const mine = spawn('/bin/sleep', ['611'], { stdio: 'ignore' })
   const mineApart = spawn('/bin/sleep', ['612'], { stdio: 'ignore', detached: true })
@@ -210,7 +210,7 @@ console.log('U3 the control: a runner this process does not stand under is still
   mkdirSync(dir, { recursive: true })
   process.env.MERCURY_DAEMON_DIR = dir
   const sup = await import('../../src/daemon/concourseWorkers.ts')
-  const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+  const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
   const script = join(world, 'runner.sh')
   writeFileSync(script, ['/bin/sleep 615 &', `echo $! > "${world}/tool.pid"`, 'wait', ''].join('\n'))
   const runner = spawn('/bin/sh', [script], { detached: true, stdio: 'ignore' })

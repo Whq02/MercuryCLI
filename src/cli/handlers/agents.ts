@@ -1,9 +1,6 @@
 import { getAgentSourceDisplayName } from '../../components/agents/utils.js'
-import {
-  getAgentDefinitionsWithOverrides,
-  type AgentDefinition,
-  type AgentSource,
-} from '../../tools/AgentTool/loadAgentsDir.js'
+import { getAgentDefinitionsWithOverrides } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition, AgentSource } from '../../types/agent.js'
 import { getCwd } from '../../utils/cwd.js'
 
 const SOURCE_GROUP_ORDER = [

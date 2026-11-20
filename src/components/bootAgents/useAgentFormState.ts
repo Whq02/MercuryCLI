@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useClaim } from '../../hooks/effects.js';
 import type { useEngineModel } from '../../hooks/useEngineModel.js';
-import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js';
+import type { AgentDefinition } from '../../types/agent.js';
 import type { AgentTrashEntry } from '../../services/agents/store.js';
 import { createStudioEditorMachine, type FieldId, type StudioDraftBase, type StudioEditorMachine, type StudioEditorSnapshot } from '../agents/studio/studioEditorModel.js';
 import type { EffortValue } from '../../utils/effort.js';

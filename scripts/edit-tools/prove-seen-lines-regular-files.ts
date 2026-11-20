@@ -34,7 +34,7 @@ async function runScene(name: string, args: SceneArgs): Promise<void> {
       bound: (ledger.SEEN_LINES_BOUNDS as { fileBytes?: number }).fileBytes ?? null,
     })
   }
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const owner = processMainOwner()
   if (name === 'rebuild') {
     ledger._resetSeenLinesForTesting()

@@ -9,7 +9,7 @@ import { buildRewindRecordIfSettled } from '../../services/compact/checkpointRew
 import {
   createAttachmentMessage,
   getAttachmentMessages,
-} from '../../utils/attachments.js'
+} from '../../services/attachments.js'
 import {
   remove as removeFromQueue,
   getDrainableCommands,

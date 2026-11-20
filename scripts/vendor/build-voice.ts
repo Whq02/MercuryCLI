@@ -17,7 +17,7 @@ import {
   voiceSourceTreeDigest,
   type VoicePackCrate,
   type VoicePackManifest,
-} from '../../src/services/voice/voicePack.ts'
+} from '../../src/utils/voice/voicePack.ts'
 import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')

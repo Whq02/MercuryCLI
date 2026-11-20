@@ -18,14 +18,14 @@ console.log('two gauges say what they measure and whether they know it')
 
 section('§1 the quota owner: an unobserved five-hour window is null, never 0%')
 {
-  const { quotaWindows } = await import('../../src/utils/cockpit/quota.ts')
+  const { quotaWindows } = await import('../../src/services/cockpit/quota.ts')
   const { fiveHour } = quotaWindows()
   check('with nothing observed the five-hour window is unavailable', fiveHour.state === 'unavailable' && fiveHour.usedPct === null, JSON.stringify(fiveHour))
 }
 
 section('§2 the fill owner: the absent state is the em dash')
 {
-  const { contextPercentLabel } = await import('../../src/utils/contextFill.ts')
+  const { contextPercentLabel } = await import('../../src/services/context/contextFill.ts')
   check('a null fill prints the em dash, not 0%', contextPercentLabel(null, null) === '—')
   check('a known fill prints its percent', contextPercentLabel(42.4, 'usage') === '42%')
 }

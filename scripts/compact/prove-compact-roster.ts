@@ -34,14 +34,14 @@ guard.unref?.()
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { getAgentRosterAttachment, queuedNoticeTaskIds } = await import('../../src/utils/attachments/agentRoster.ts')
+const { getAgentRosterAttachment, queuedNoticeTaskIds } = await import('../../src/services/attachments/agentRoster.ts')
 const { createTaskStateBase } = await import('../../src/Task.ts')
 const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
 const { seatWaitWords } = await import('../../src/services/capacity/seatWords.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const { getCompactPrompt, getPartialCompactPrompt } = await import('../../src/services/compact/prompt.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 
 type AnyTask = Record<string, unknown>
 const now = Date.now()

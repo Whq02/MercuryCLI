@@ -6,7 +6,7 @@ import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
-import { padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
+import { padTo, truncateToWidth } from '../../utils/glyphs.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
 import { panelWidth, shedToFit } from '../../components/mercury-ui/geometry.js'
@@ -31,7 +31,7 @@ import {
   type HealthCheck,
   type HealthSection,
   type HealthStatus,
-} from '../../utils/healthReport.js'
+} from '../../services/health/healthReport.js'
 import { isFixable } from '../../utils/healthCertCore.js'
 import { applyRemedy, healthFixEnabled } from '../../utils/healthFix.js'
 import { healthCertificateView, type FixFlow } from './healthCertificate/healthCertificateView.js'

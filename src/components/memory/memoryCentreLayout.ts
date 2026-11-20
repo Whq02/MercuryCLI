@@ -1,6 +1,6 @@
 import { basename } from 'node:path'
 import wrapInkText from '../../ink/wrap-text.js'
-import { GLYPH, displayWidth, padTo, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { GLYPH, displayWidth, padTo, truncateToWidth } from '../../utils/glyphs.js'
 import { formatTextSize } from '../../mneme/mnemeUsage.js'
 import type { LedgerEntry } from '../../mneme/types.js'
 import type { HandoverReceipt } from '../../mneme/mnemeHandover.js'

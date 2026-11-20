@@ -73,7 +73,7 @@ const connector = { modelFacts: () => ({ main: focusedModel, effective: focusedM
 await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
 await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
 await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('src/utils/cockpit/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
 await stub('src/services/engine-connector/focusedConnector.ts', {
   getFocusedSessionConnector: () => connector,
   subscribeThroughFocused: (subscribe: (connection: typeof connector, listener: () => void) => () => void) => (listener: () => void) => subscribe(connector, listener),
@@ -93,7 +93,7 @@ const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/St
 const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
 const { DeckPane } = await import(join(ROOT, 'src/components/DeckPane.tsx'))
 const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
-const { publishContextUsage } = await import(join(ROOT, 'src/utils/cockpit/contextUsageLive.ts'))
+const { publishContextUsage } = await import(join(ROOT, 'src/services/cockpit/contextUsageLive.ts'))
 const { refreshLocalDiscovery } = await import(join(ROOT, 'src/services/providers/local/localDiscovery.ts'))
 const { localRecordFor } = await import(join(ROOT, 'src/services/providers/local/localCatalogue.ts'))
 const w = await import(join(ROOT, 'src/services/providers/local/localWindow.ts'))

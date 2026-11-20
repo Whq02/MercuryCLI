@@ -2,7 +2,7 @@ import type { Message } from '../../types/message.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 import { sharedRuleFormatOf } from './compositionOrder.js'
-import type { InstructionSourceEntry } from './contracts.js'
+import type { InstructionSourceEntry } from '../../utils/instructions/contracts.js'
 
 const OFFERED_RULES_HEAD = 'Rule files offered by description (not loaded; Read one when its description fits the work):'
 

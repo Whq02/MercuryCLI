@@ -16,7 +16,7 @@ const {
   foldStopDecision,
 } = await import('../../src/services/run/progressModel.ts')
 const kernel = await import('../../src/services/run/runKernel.ts')
-const ok = await import('../../src/services/run/ownerKey.ts')
+const ok = await import('../../src/utils/run/ownerKey.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

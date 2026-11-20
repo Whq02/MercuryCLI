@@ -3,7 +3,7 @@ import {
   DEEPSEEK_DISPLAY_PINS,
   DEEPSEEK_EFFORTS,
   deepseekCurrentModelId,
-} from './deepseekPins.js'
+} from '../../../utils/model/pins/deepseekPins.js'
 import { deepseekCatalogueRows } from './deepseekCatalogue.js'
 import type {
   ProviderCatalogueEntry,

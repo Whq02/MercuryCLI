@@ -77,7 +77,7 @@ section('§1 the command roster: an unregistered planning word answers as any un
   check('the probes made no model request', api.messageRequests().length === 0, String(api.messageRequests().length))
 
   const { builtinCommands } = await import('../../src/commands.ts')
-  const { resolveUnknownSlashName } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+  const { resolveUnknownSlashName } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
   type Named = { name: string; aliases?: string[] }
   const roster = builtinCommands() as unknown as Named[]
   const names = new Set(roster.flatMap(c => [c.name, ...(c.aliases ?? [])]))
@@ -146,7 +146,7 @@ section('§4 the mode word: --mode strategy is an unknown value, the lists and s
 
 section('§5 a saved chat that was in a mode this build does not know opens in default')
 {
-  const recovery = await import('../../src/utils/conversationRecovery.ts')
+  const recovery = await import('../../src/services/resume/conversationRecovery.ts')
   const row = (mode: string) => ({ type: 'user', uuid: '11111111-1111-4111-8111-111111111111', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'saved prompt' }, permissionMode: mode }) as never
   const userRow = (rows: unknown[]): { permissionMode?: string } | undefined => (rows as Array<{ type: string; permissionMode?: string }>).find(r => r.type === 'user')
   const restored = userRow(recovery.deserializeMessages([row('strategy')]))

@@ -21,13 +21,13 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 console.log('owner law')
 const { makeOwnerKey, parseOwnerKey, isOwnerKey, ownerEquals, agentLane, MAIN_LANE } =
-  await import('../../src/services/run/ownerKey.ts')
-const { OwnerScopedStore } = await import('../../src/services/run/ownerScopedStore.ts')
+  await import('../../src/utils/run/ownerKey.ts')
+const { OwnerScopedStore } = await import('../../src/utils/run/ownerScopedStore.ts')
 const {
   registerOwnerScopedStore,
   registerOwnerDisposer,
   disposeOwner,
-} = await import('../../src/services/run/ownerLifecycle.ts')
+} = await import('../../src/utils/run/ownerLifecycle.ts')
 
 {
   const id = { workspace: '/w s|p', sessionId: 's|1', lane: MAIN_LANE }
@@ -110,7 +110,7 @@ const ctx = {
 }
 
 console.log('receipt-mint law')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const receiptsMod = await import('../../src/services/changeTransaction/receipts.ts')
 
 {

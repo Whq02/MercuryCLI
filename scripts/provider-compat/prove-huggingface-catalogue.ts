@@ -37,7 +37,7 @@ const {
 } = catalogue
 const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
 const { HUGGINGFACE_DISPLAY_PINS, splitHuggingfaceSlug, huggingfaceDisplayPin } = await import(
-  '../../src/services/providers/huggingface/huggingfacePins.ts'
+  '../../src/utils/model/pins/huggingfacePins.ts'
 )
 const { writeHuggingfaceTokens, huggingfaceChatCompletionsUrl } = await import(
   '../../src/services/providers/huggingface/huggingfaceAccounts.ts'

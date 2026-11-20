@@ -70,8 +70,8 @@ enableConfigs()
 const launch = await import('../../src/services/ide/launchProfiles.js')
 const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
 const dap = await import('../../src/services/dap/dapClient.js')
-const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
+const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
 const ctx = { getAppState: () => ({}) } as never
 
 try {

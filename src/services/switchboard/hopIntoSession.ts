@@ -472,7 +472,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
     const recap = buildAwayRecap(records, Date.now(), gitDelta)
     if (!recap) return
     const { readBranchHeadSync } = await import('../../utils/cockpit/branchHeadSync.js')
-    const { healthCertSnapshot } = await import('../../utils/cockpit/healthCertSnapshot.js')
+    const { healthCertSnapshot } = await import('../health/healthCertSnapshot.js')
     const branch = readBranchHeadSync(connector.workspace().cwd)
     const dirtyCount = gitDelta?.files
     const dirtyDelta =

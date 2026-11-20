@@ -6,7 +6,7 @@ import {
   pythonTestsEnabled,
   type TestRunRecord,
 } from '../../ide/pythonTests.js'
-import { GLYPH } from '../../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { boundedTextView, type ParsedRef, type ResourceAdapter, type ResourceChild, type ResourceResult } from '../contracts.js'
 
 function recordResource(record: TestRunRecord, ref: string, selectors: ParsedRef['selectors']): ResourceResult {

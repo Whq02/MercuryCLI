@@ -13,7 +13,7 @@ import {
   claimContinuation,
   turnBoundaryIndex,
 } from '../services/run/continuationLatch.js'
-import { processMainOwner } from '../services/run/resolveOwner.js'
+import { processMainOwner } from '../utils/run/resolveOwner.js'
 import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
 import { compileGoal, goalWords, readItemisedClose, type GoalStatement } from '../services/mission/goal.js'
 import {
@@ -31,7 +31,7 @@ import {
   type MissionCard,
   type MissionCardState,
   type MissionOutcome,
-} from '../services/mission/missionCard.js'
+} from '../utils/mission/missionCard.js'
 import { MISSION_HOLD_HEAD, missionStatusLine, type ServedMission } from '../services/mission/served.js'
 import { getCwd } from '../utils/cwd.js'
 import { formatDuration } from '../utils/format.js'

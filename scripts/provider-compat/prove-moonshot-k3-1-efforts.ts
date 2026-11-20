@@ -111,7 +111,7 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
 }) as typeof fetch
 
 ;(await import('../../src/utils/config.ts')).enableConfigs()
-const pins = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const pins = await import('../../src/utils/model/pins/kimiPins.ts')
 const replay = await import('../../src/services/providers/openaicompat/kimiReplay.ts')
 const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
 const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')

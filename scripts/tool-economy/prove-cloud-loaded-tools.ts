@@ -43,12 +43,12 @@ type RoutePredicate = (tool: Tool, model: string | undefined, permissionMode?: s
 const isDeferredToolFor: RoutePredicate = (predicates as { isDeferredToolFor?: RoutePredicate }).isDeferredToolFor ?? ((tool, _model, permissionMode) => isDeferredTool(tool, permissionMode))
 const loadsInFullFor: RoutePredicate = (predicates as { loadsInFullFor?: RoutePredicate }).loadsInFullFor ?? (() => false)
 const defersOnCloudFor: RoutePredicate = (predicates as { defersOnCloudFor?: RoutePredicate }).defersOnCloudFor ?? (() => false)
-const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
 const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
 const { openrouterNativeTools } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 

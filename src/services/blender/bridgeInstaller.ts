@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'
-import { BLENDER_BRIDGE_DEFAULT_PORT } from './bridgeProtocol.js'
+import { BLENDER_BRIDGE_DEFAULT_PORT } from '../../utils/blender/bridgeProtocol.js'
 import { BLENDER_BRIDGE_DIGEST, BLENDER_BRIDGE_FILES } from './bridgeFiles.generated.js'
 import {
   getBlenderBridgeClient,
@@ -12,7 +12,7 @@ import {
 import { ensureBlenderBridgeToken, readBlenderBridgeToken } from './bridgeToken.js'
 import { BLENDER_ADDON_MODULE, blenderVersionDir, resolveBlenderAddonHome } from './addonHome.js'
 import { probeBlenderHeadlessRuntime } from './headlessRunner.js'
-import { locateBlender } from '../ide/blenderProject.js'
+import { locateBlender } from '../../utils/blender/blenderProject.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export interface BlenderBridgeInstallStatus {

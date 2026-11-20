@@ -322,7 +322,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W1: exit between run flush and owner disposal — benign (resume reconciles)',
     ],
     failureClass: ['FC6-task-epoch-resurrection'],
-    source: ['src/services/run/ownerLifecycle.ts'],
+    source: ['src/utils/run/ownerLifecycle.ts'],
   },
   {
     id: 'store-interview-sessions',

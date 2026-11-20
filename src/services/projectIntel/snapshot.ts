@@ -2,7 +2,7 @@
 import { statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { projectConfigDirs } from '../../utils/projectConfig.js'
-import { projectOwner, OwnerScopedStore } from '../primitives/owner.js'
+import { projectOwner, OwnerScopedStore } from '../../utils/primitives/owner.js'
 import { gitStatus, gitStatusAsync } from '../gitGraph/observe.js'
 import type { GitStatus, GitUnavailable } from '../gitGraph/contracts.js'
 import {
@@ -17,7 +17,7 @@ import {
   type KnowledgeFacts,
   type ProjectIntelSnapshot,
   type SnapshotRead,
-} from './contracts.js'
+} from '../../utils/projectIntel/contracts.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const CHANGED_CAP = 200

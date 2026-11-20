@@ -3,7 +3,7 @@
 # gate-watch: src/run-core/** src/services/run/** src/substrate/** src/services/primitives/**
 # gate-watch: src/cli/headless/** src/utils/sessionStorage/**
 # gate-watch: src/cli/run.ts
-# gate-watch: src/tools/TaskCreateTool/constants.ts
+# gate-watch: src/constants/tools/taskCreate.ts
 # gate-watch: src/utils/*
 # gate-watch: src/rows/storage.ts
 set -u

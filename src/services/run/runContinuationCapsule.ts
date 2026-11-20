@@ -1,7 +1,7 @@
 
 import { openDeliverables } from './runKernel.js'
 import { getRunSnapshot } from './runCoordinator.js'
-import type { OwnerKey } from './ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_LIST = 12
@@ -88,7 +88,7 @@ export function buildRunContinuationCapsule(
   }
   try {
     const { capsuleContinuationLine } =
-      require('../../utils/attachments/contextCapsule.js') as typeof import('../../utils/attachments/contextCapsule.js')
+      require('../attachments/contextCapsule.js') as typeof import('../attachments/contextCapsule.js')
     const capsuleLine = capsuleContinuationLine(String(owner))
     if (capsuleLine) lines.push(capsuleLine)
   } catch (error) {

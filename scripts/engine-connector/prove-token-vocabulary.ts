@@ -25,12 +25,12 @@ const BARE = /\b\d[\d.]*k? tokens\b/
 await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { getTokenCountFromUsage, contextFill } = await import('../../src/utils/tokens.ts')
+const { getTokenCountFromUsage, contextFill } = await import('../../src/services/context/tokens.ts')
 const { mapOpenaiUsageToAnthropic, buildProviderUsageReceipt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
 const { createProgressTracker, getProgressUpdate, updateProgressFromMessage, getTokenCountFromTracker, getContextTokensFromTracker } = await import(
   '../../src/tasks/LocalAgentTask/LocalAgentTask.tsx'
 )
-const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
 const crew = await import('../../src/services/engine-connector/crewFacts.ts')
 const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { addToTotalSessionCost, formatTotalCost } = await import('../../src/cost-tracker.ts')

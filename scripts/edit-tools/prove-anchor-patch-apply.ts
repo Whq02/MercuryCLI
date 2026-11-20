@@ -34,7 +34,7 @@ const { listJournalOperations } = await import('../../src/substrate/operationJou
 const { changeSetJournalDir } = await import(
   '../../src/services/changeTransaction/changeSetContracts.ts'
 )
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'anchor-patch-apply-fix-')))
 const owner = processMainOwner()

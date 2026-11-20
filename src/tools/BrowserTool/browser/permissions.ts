@@ -9,8 +9,8 @@ import {
   originOf,
   secretPairingApproved,
 } from '../../../services/browser/browserSession.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../../utils/permissions/permissions.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { suggestionForExactCommand } from '../../../utils/permissions/shellRuleMatching.js'

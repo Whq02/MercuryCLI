@@ -10,13 +10,13 @@ import type {
   StreamEvent,
 } from '../../../../types/message.js'
 import { busyRecoveryDetail } from '../../busyRetry.js'
-import { EMPTY_USAGE } from '../../../api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../../../utils/api/emptyUsage.js'
 import {
   normalizeContentFromAPI,
 } from '../../../../utils/messages.js'
 import { logForDebugging } from '../../../../utils/debug.js'
 import { addToTotalSessionCost } from '../../../../cost-tracker.js'
-import { calculateUSDCost } from '../../../../utils/modelCost.js'
+import { calculateUSDCost } from '../../../usage/modelCost.js'
 import { estimateFaultedRequestUsage } from '../../faultUsageEstimate.js'
 import {
   type CompatCompletedToolCall,

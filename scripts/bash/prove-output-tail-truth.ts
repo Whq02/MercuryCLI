@@ -19,7 +19,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
 delete process.env.MERCURY_SHELL_MAX_OUTPUT
-const { formatOutput } = await import('../../src/tools/BashTool/utils.ts')
+const { formatOutput } = await import('../../src/utils/shell/utils.ts')
 const { getMaxOutputLength } = await import('../../src/utils/shell/outputLimits.ts')
 const { generatePreview, PREVIEW_SIZE_CHARS } = await import('../../src/utils/toolResultStorage.ts')
 
@@ -116,7 +116,7 @@ section('§5 the second cut never eats the first cut’s honest notice')
 
 section('§7 the shell-image read is awaited — never a sync read on the tool’s async road')
 {
-  const { resizeShellImageOutput } = await import('../../src/tools/BashTool/utils.ts')
+  const { resizeShellImageOutput } = await import('../../src/utils/shell/utils.ts')
   const dir = mkdtempSync(join(tmpdir(), 'shell-image-'))
   const big = join(dir, 'big.output')
   writeFileSync(big, '')

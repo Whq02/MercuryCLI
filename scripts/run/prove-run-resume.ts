@@ -19,7 +19,7 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/services/run/ownerKey.js')
+  const ok = await import('../../src/utils/run/ownerKey.js')
   const kernel = await import('../../src/services/run/runKernel.js')
   const sidecar = await import('../../src/services/run/runSidecar.js')
   const coordinator = await import('../../src/services/run/runCoordinator.js')

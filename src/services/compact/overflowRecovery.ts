@@ -9,7 +9,7 @@ import {
   overflowWhoClause,
   NEAR_WINDOW_SHARE,
 } from '../api/overflowSignal.js'
-import { tokenCountWithEstimation } from '../../utils/tokens.js'
+import { tokenCountWithEstimation } from '../context/tokens.js'
 import { autoCompactDisabledReason, autoCompactWindowIsInputLimit, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, rapidRefillPauseText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'

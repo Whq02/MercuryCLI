@@ -9,7 +9,7 @@ import {
   readAdvisorSettings,
   resolveAdvisorModel,
   type AdvisorSettings,
-} from '../../services/advisor/advisorSettings.js'
+} from '../../utils/advisor/advisorSettings.js'
 
 export const ADVISOR_SEARCH = 'advisor second model advises working model note cadence interval minutes submodels ask'
 export const ADVISOR_ROW_IDS = ['advisor', 'advisorInterval'] as const

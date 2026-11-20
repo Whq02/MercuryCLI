@@ -3,7 +3,7 @@ import type { RunSnapshot } from '../run/runKernel.js'
 import { isTerminalLifecycle } from '../run/runKernel.js'
 import { getRunSnapshot } from '../run/runCoordinator.js'
 import { loadRunSidecar } from '../run/runSidecar.js'
-import { processMainOwner } from '../run/resolveOwner.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { resolveWorkbenchSnapshot } from './projection.js'
@@ -242,7 +242,7 @@ export async function gatherCurrentWork(opts?: {
 
   let contextPct: number | null = null
   try {
-    const { getLiveContextUsage } = await import('../../utils/cockpit/contextUsageLive.js')
+    const { getLiveContextUsage } = await import('../cockpit/contextUsageLive.js')
     const ctx = getLiveContextUsage()
     contextPct = ctx.usedPct != null ? Math.round(ctx.usedPct) : null
   } catch {

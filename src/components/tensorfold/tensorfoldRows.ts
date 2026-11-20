@@ -6,7 +6,7 @@ import { tensorFoldWillRun } from '../../services/tensorfold/serve.js'
 import { TENSORFOLD_STARTING_POINTS } from '../../services/tensorfold/starting.js'
 import { bytesWords } from '../../services/host/bank.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
-import { displayWidth } from '../mercury-ui/glyphs.js'
+import { displayWidth } from '../../utils/glyphs.js'
 import type { ProviderHeading } from '../../utils/model/modelPickerGroups.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
 

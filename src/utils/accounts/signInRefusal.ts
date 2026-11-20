@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { credentialFingerprint } from '../../services/providers/credentialIdentity.js'
+import { credentialFingerprint } from './credentialIdentity.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'

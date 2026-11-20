@@ -12,7 +12,7 @@ const t = checker()
 const scratch = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-folios-')))
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = join(scratch, 'artifacts')
 
-const store = await import('../../src/utils/artifacts/reviewStore.ts')
+const store = await import('../../src/services/artifacts/reviewStore.ts')
 const contracts = await import('../../src/utils/artifacts/reviewContracts.ts')
 
 const created = store.createReviewArtifact({

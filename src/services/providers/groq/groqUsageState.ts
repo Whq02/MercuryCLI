@@ -1,4 +1,4 @@
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { groqApiBase, resolveGroqApiKey } from './groqAccounts.js'
 
 interface GroqRateWindow {

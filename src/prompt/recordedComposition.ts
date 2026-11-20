@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } from '../bootstrap/state.js'
 import type { BoundPrefixSection } from '../types/message.js'
-import { isOwnerKey, parseOwnerKey } from '../services/run/ownerKey.js'
+import { isOwnerKey, parseOwnerKey } from '../utils/run/ownerKey.js'
 import { prefixLedgerPath } from '../services/providers/anthropic/prefixRecordStore.js'
 import { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } from './mercuryContract.js'
 import { passedOver } from '../utils/passedOver.js'

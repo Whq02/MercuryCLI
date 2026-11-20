@@ -25,7 +25,7 @@ const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
 const failover = await import('../../src/services/capFailover.ts')
-const { formatClock } = await import('../../src/utils/cockpit/quota.ts')
+const { formatClock } = await import('../../src/services/cockpit/quota.ts')
 type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
 
 const OWNER_A = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'

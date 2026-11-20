@@ -23,7 +23,7 @@ const finish = (): never => {
 
 const { seedEmbedPackDirForTest, embedPackDirFor, EMBED_PACK_MANIFEST_FILE } = await import('../../src/mneme/embedPack.js')
 const { seedEmbedModelForTest } = await import('../../src/mneme/embedModels.js')
-const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
 const idx = await import('../../src/mneme/mnemeIndex.js')
 const docs = await import('../../src/mneme/mnemeTopicDocs.js')
 

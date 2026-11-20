@@ -7,7 +7,7 @@ import type { DesktopDriver, DesktopTree } from '../../src/services/desktop/driv
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 const { forgetDesktopOwner } = await import('../../src/services/desktop/desktopSession.ts')
-const { imageDimensionsFromHeader } = await import('../../src/tools/FileReadTool/imageProcessorJs.ts')
+const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
 const scratch = scratchDir('token-budget')
 const scene = join(scratch, 'scene.json')
 writeFileSync(scene, JSON.stringify({

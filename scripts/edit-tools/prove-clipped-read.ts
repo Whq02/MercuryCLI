@@ -152,7 +152,7 @@ try {
     await Write.call({ file_path: numbered, content: body }, writeCtx, null as any, parent)
     check(`Write writes ${JSON.stringify(body)} as given`, readFileSync(numbered, 'utf8') === `${body}\n`, readFileSync(numbered, 'utf8'))
   }
-  const { stripSequentialReadPrefixes } = await import('../../src/tools/FileEditTool/utils.ts')
+  const { stripSequentialReadPrefixes } = await import('../../src/utils/fileEditUtils.ts')
   for (const body of ['1. alpha\n2. beta', '00000010  61 62\n00000020  63 64', '12:00\talpha\n12:01\tbeta', '12\tAlice\n47\tBob', 'cat <<EOF\n1\tAlice\n2\tBob\nEOF']) {
     check(`numbered lists, hex dumps, timestamps, gapped IDs and heredoc rows stay literal: ${JSON.stringify(body)}`, stripSequentialReadPrefixes(body, '') === body && stripSequentialReadPrefixes(body, 'code\n') === body)
   }

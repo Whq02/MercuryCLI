@@ -3,7 +3,7 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 const { connectToServer, fetchToolsForClient, getToolDiscoveryFailure, clearServerCache } = await import('../../src/services/mcp/client.js')
-const config: import('../../src/services/mcp/types.js').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-stdio-server.mjs')], env: { MCP_FIXTURE_MALFORMED_TOOLS: '1', MCP_FIXTURE_TITLE: 'Fixture Tools' } }
+const config: import('../../src/utils/mcp/types.js').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-stdio-server.mjs')], env: { MCP_FIXTURE_MALFORMED_TOOLS: '1', MCP_FIXTURE_TITLE: 'Fixture Tools' } }
 const connection = await connectToServer('mixed-tools', config)
 try {
   assert.equal(connection.type, 'connected')
@@ -19,7 +19,7 @@ try {
   await clearServerCache('mixed-tools', config)
 }
 
-const nullConfig: import('../../src/services/mcp/types.js').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-stdio-server.mjs')], env: { MCP_FIXTURE_NULL_METADATA_TOOLS: '1' } }
+const nullConfig: import('../../src/utils/mcp/types.js').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-stdio-server.mjs')], env: { MCP_FIXTURE_NULL_METADATA_TOOLS: '1' } }
 const nullConnection = await connectToServer('null-metadata-tools', nullConfig)
 try {
   assert.equal(nullConnection.type, 'connected')
