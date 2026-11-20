@@ -248,5 +248,21 @@ console.log('\nmetaAccounts — corrupt or unreadable .meta-auth.json is reporte
   else check('metaAccounts-unreadable-logged: unreadable .meta-auth.json logs error via logError', r.unreadableGrant === null && Array.isArray(r.unreadableLogged) && r.unreadableLogged.length >= 2 && r.unreadableLogged.some(m => String(m).includes('.meta-auth.json') && /EACCES|permission/i.test(String(m))), JSON.stringify(r.unreadableLogged))
 }
 
+console.log('\nminimaxUsageState — non-JSON HTTP 200 plan read reports invalid instead of no-plan')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const usage = await import(path.join(SRC, 'services/providers/minimax/minimaxUsageState.ts'))
+    usage.__resetMinimaxUsageForTest()
+    const probe = await usage.fetchMinimaxPlanUsage('sk-minimax-fixture', {
+      env: { MINIMAX_API_KEY: 'sk-minimax-fixture' },
+      fetchImpl: async () => new Response('<html>gateway error</html>', { status: 200, headers: { 'content-type': 'text/html' } }),
+    })
+    out.probeState = probe.state
+    out.observed = usage.minimaxObservedPlanUsage({ MINIMAX_API_KEY: 'sk-minimax-fixture' })
+  `)
+  check('minimaxUsageState-non-json-200-invalid: HTTP 200 non-JSON reports invalid instead of no-plan', r.probeState === 'invalid' && (r.observed as { failure?: { kind?: string }; plan?: string })?.failure?.kind === 'invalid' && (r.observed as { plan?: string })?.plan !== 'none', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

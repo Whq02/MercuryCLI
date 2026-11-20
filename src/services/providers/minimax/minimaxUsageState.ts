@@ -143,10 +143,12 @@ export async function fetchMinimaxPlanUsage(
       ...(proxyOptions as Record<string, unknown>),
     } as RequestInit)
     let body: unknown
+    let bodyParseFailed = false
     try {
       body = await response.json()
     } catch {
       body = undefined
+      bodyParseFailed = true
     }
     const vendor = minimaxBaseRespFailure(body)
     const verdict = minimaxPlanAnswerVerdict(vendor)
@@ -154,6 +156,7 @@ export async function fetchMinimaxPlanUsage(
     else if (response.status === 401) probe = { state: 'refused', status: 401, ...(vendor ? { message: vendor.message } : {}) }
     else if (response.status === 403 || response.status === 404 || vendor) probe = { state: 'no-plan' }
     else if (!response.ok) probe = { state: 'refused', status: response.status }
+    else if (bodyParseFailed) probe = { state: 'invalid' }
     else {
       const decoded = decodeMinimaxPlanUsage(body, nowMs)
       probe = decoded === undefined ? { state: 'invalid' } : decoded === 'no-plan' ? { state: 'no-plan' } : { state: 'confirmed', usage: decoded }
