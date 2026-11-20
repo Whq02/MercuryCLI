@@ -67,7 +67,7 @@ function ProgressRows({
   }
   const visible = verbose ? rows : rows.slice(-VISIBLE_PROGRESS_TAIL)
   const hidden = rows.length - visible.length
-  const lookups = buildSubagentLookups(rows.map(row => row.data.message) as never)
+  const { lookups } = buildSubagentLookups(rows.map(row => row.data))
   return (
     <SubAgentProvider>
       <MessageResponse>
@@ -87,7 +87,7 @@ function ProgressRows({
               isStatic={true}
               inProgressToolUseIDs={EMPTY_SET}
               progressMessagesForMessage={[]}
-              lookups={lookups as never}
+              lookups={lookups}
               style="condensed"
             />
           </Box>
