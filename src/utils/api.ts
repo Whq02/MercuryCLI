@@ -17,7 +17,7 @@ import { userContextReminderBody } from './userContextReminder.js'
 
 import { BASH_TOOL_NAME } from '../constants/tools/bash.js'
 import { FILE_EDIT_TOOL_NAME } from '../constants/tools/fileEdit.js'
-import { editFormCacheMark } from '../tools/FileEditTool/editForm.js'
+import { editFormCacheMark } from './editForm.js'
 import { normalizeFileEditInput } from '../tools/FileEditTool/utils.js'
 import { FILE_WRITE_TOOL_NAME } from '../constants/tools/fileWrite.js'
 import { resolveShellCwd } from './Shell.js'
