@@ -13,6 +13,7 @@ import {
   deletePermissionRuleFromSettings, shouldAllowManagedPermissionRulesOnly,
   type PermissionRuleFromEditableSettings,
 } from './permissionsLoader.js'
+import { tellHooksHowAToolIsPermitted } from '../hooks/toolPermission.js'
 
 const diskRuleSources = ['userSettings', 'projectSettings', 'localSettings'] as const
 const deletionPolicy: Partial<Record<PermissionRuleSource, 'disk' | 'locked'>> = {
@@ -116,4 +117,3 @@ export {
   filterDeniedAgents, getDenyRuleForAgent,
   getRuleByContentsForTool, getRuleByContentsForToolName, permissionRuleSourceDisplayString,
 } from './decision/rules.js'
-import { tellHooksHowAToolIsPermitted } from '../hooks/toolPermission.js'
