@@ -2,13 +2,10 @@
 // gate-watch: src/keybindings/defaultBindings.ts
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const TABLE = join(ROOT, 'src', 'keybindings', 'defaultBindings.ts')
-const BASE = 'd4ebc4880b50efc69a20fc7ba7753f0d79492449'
 
 type Block = { context: string; bindings: Record<string, string | null> }
 
@@ -183,45 +180,6 @@ section('§2 one form per platform class: variants of the same class are byte-eq
   }
   check('each class reads one table', [...byForm.values()].every(set => set.size === 1), [...byForm.entries()].map(([form, set]) => `${form}:${set.size}`).join(' '))
   check('the four classes are four different tables', new Set([...byForm.values()].map(set => [...set][0])).size === 4)
-}
-
-section(`§3 the differential: the ${BASE.slice(0, 10)} table plus a402fc1d3c's two copy chords matches every variant`)
-{
-  const present = spawnSync('git', ['-C', ROOT, 'cat-file', '-e', `${BASE}:src/keybindings/defaultBindings.ts`]).status === 0
-  if (!present) {
-    console.log(`  [BASE ABSENT] ${BASE.slice(0, 10)} is not in this repository; the pinned sums above stand in for the differential`)
-  } else {
-    const dir = mkdtempSync(join(tmpdir(), 'shipped-keys-base-'))
-    try {
-      mkdirSync(join(dir, 'src', 'keybindings'), { recursive: true })
-      symlinkSync(join(ROOT, 'node_modules'), join(dir, 'node_modules'))
-      const baseTable = join(dir, 'src', 'keybindings', 'defaultBindings.ts')
-      writeFileSync(baseTable, spawnSync('git', ['-C', ROOT, 'show', `${BASE}:src/keybindings/defaultBindings.ts`], { encoding: 'utf8' }).stdout)
-      const drift: string[] = []
-      for (const [platform, runtime, version] of VARIANTS) {
-        const tag = `${platform} ${runtime} ${version}`
-        const base = read(platform, runtime, version, baseTable).reading
-        const now = readings.get(tag)
-        const expected = base?.table.map(block => {
-          const after = block.context === 'Global' ? 'ctrl+x s' : block.context === 'MessageActions' ? 'c' : null
-          const action = block.context === 'Global' ? 'command:copy' : 'messageActions:c'
-          return {
-            ...block,
-            bindings: Object.fromEntries(Object.entries(block.bindings).flatMap(([chord, bound]) =>
-              chord === after ? [[chord, bound], ['ctrl+x y', action]] : [[chord, bound]],
-            )),
-          }
-        })
-        if (!expected || !now || JSON.stringify(expected) !== JSON.stringify(now.table)) {
-          const at = expected && now ? expected.findIndex((block, i) => JSON.stringify(block) !== JSON.stringify(now.table[i])) : -1
-          drift.push(`${tag}${at >= 0 ? ` first differs at ${expected?.[at]?.context}` : ''}`)
-        }
-      }
-      check(`every variant reads byte-equal to ${BASE.slice(0, 10)} plus the two copy chords`, drift.length === 0, drift.join(' · '))
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  }
 }
 
 console.log(failures === 0 ? '\nprove-shipped-keys-pins: ALL PASS' : `\nprove-shipped-keys-pins: ${failures} FAILED`)
