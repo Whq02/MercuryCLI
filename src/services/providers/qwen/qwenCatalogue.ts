@@ -198,6 +198,7 @@ export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeo
       }
       const bound = qwenBoundBase(env)
       if (bound !== undefined) {
+        const result = await fetchQwenLiveModels({ baseUrl: bound, key: key.key, env, ...fetchImpl })
         const snapshot: QwenCatalogueSnapshot = { keySource: key.source, baseUrl: bound, endpointLabel: qwenEndpointLabelOf(bound, env), models: result.models, otherLines: result.otherLines, fetchedAtMs: now() }
         cache.set(identity, snapshot)
         return snapshot
