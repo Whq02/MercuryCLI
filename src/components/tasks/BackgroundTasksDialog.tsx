@@ -1,5 +1,6 @@
 
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useRef, useState, useSyncExternalStore } from 'react'
+import { useDerivedState } from '../../hooks/effects.js'
 import { useInput } from '../../ink.js'
 import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
@@ -204,7 +205,7 @@ export function BackgroundTasksDialog({
     setDetailTaskId(undefined)
   }
 
-  useEffect(() => {
+  useDerivedState(() => {
     if (detailTaskId === undefined) return
     const task = tasks[detailTaskId]
     if (task !== undefined && (isManageableTask(task) || isLocalShellTask(task))) return

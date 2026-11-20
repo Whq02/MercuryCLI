@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useMeasure, usePublish } from '../../hooks/effects.js';
 import { computeUnseenDivider, countUnseenAssistantTurns, useUnseenDivider } from '../../components/FullscreenLayout.js';
 import { setMessageCursor } from '../../components/messageCursorStore.js';
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js';
@@ -48,7 +49,7 @@ export function useChatScroll({
   }, []);
   const [flipGeneration, setFlipGeneration] = useState(0);
   const flipInk = React.useContext(InkInstanceContext);
-  useLayoutEffect(() => {
+  useMeasure(() => {
     const restore = scrollRestoreRef.current;
     if (!restore || !flipInk) return;
     if (!restore.sticky && scrollRef.current) {
@@ -57,7 +58,7 @@ export function useChatScroll({
         style?: { overflowY?: string; paddingTop?: number; paddingBottom?: number };
         scroll?: { scrollTop?: number; scrollViewportHeight?: number };
         layoutNode?: { getComputedWidth: () => number; getComputedHeight: () => number };
-        childNodes?: ScrollNodeLike[];
+        childNodes?: readonly ScrollNodeLike[];
       };
       const syncViewport = (node: ScrollNodeLike | undefined): number | undefined => {
         if (!node) return undefined;
@@ -79,7 +80,7 @@ export function useChatScroll({
         }
         return undefined;
       };
-      const viewport = syncViewport((flipInk as unknown as { rootNode?: ScrollNodeLike }).rootNode) ?? handle.getViewportHeight();
+      const viewport = syncViewport(flipInk.rootNode) ?? handle.getViewportHeight();
       const freshHeight = handle.getFreshScrollHeight();
       if (freshHeight <= viewport) {
         scrollRestoreRef.current = null;
@@ -131,7 +132,7 @@ export function useChatScroll({
 
 export function useChatScrollFollow({ messages, repinToBottom }: { messages: Message[]; repinToBottom: () => void }): void {
   const lastMessage = messages[messages.length - 1];
-  useEffect(() => {
+  usePublish(() => {
     if (lastMessage && isHumanTurn(lastMessage)) repinToBottom();
   }, [lastMessage, repinToBottom]);
 }
