@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -238,6 +238,53 @@ g('restore', '--staged', GENERATED_ASSETS_MAP)
 writeFileSync(mapFile, committedMap)
 writeFileSync(join(repo, 'scripts/gate/generated-assets.tsv'), 'broken row\n')
 check('a map that does not parse refuses, naming the map', (generatedAssetsRefusal('git commit -F m', repo) ?? '').includes('does not parse'))
+
+section('§4 a check the gate could not finish does not refuse the commit: git gives no answer, a file cannot be read')
+{
+  const calm = join(scratch, 'calm')
+  for (const dir of ['scripts/gate', 'lists', 'gen']) mkdirSync(join(calm, dir), { recursive: true })
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
+  const c = (...a: string[]): string => execFileSync('git', a, { cwd: calm, encoding: 'utf8', env })
+  c('init', '-q')
+  writeFileSync(join(calm, GENERATED_ASSETS_MAP), 'gen/a.json\tbun scripts/gen-a.ts\tbun scripts/prove-a.ts\tfiles-of:lists/a.txt\ngen/b.json\tbun scripts/gen-b.ts\tbun scripts/prove-b.ts\tre:MARK_B\n')
+  writeFileSync(join(calm, 'lists/a.txt'), 'src/a.ts\n')
+  writeFileSync(join(calm, 'gen/a.json'), '{}\n')
+  writeFileSync(join(calm, 'gen/b.json'), '{}\n')
+  writeFileSync(join(calm, 'notes.txt'), 'one\n')
+  c('add', '-A')
+  c('commit', '-q', '-m', 'seed')
+  writeFileSync(join(calm, 'notes.txt'), 'two\n')
+  c('add', 'notes.txt')
+  const realGit = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+  const fake = join(scratch, 'fake-git')
+  mkdirSync(fake)
+  writeFileSync(join(fake, 'git'), `#!/bin/sh\nhere="$(dirname "$0")"\nif [ -s "$here/arm" ]; then\n  case " $* " in\n    *"$(cat "$here/arm")"*) if [ -e "$here/slow" ]; then exec sleep 6; fi; kill -KILL $$ ;;\n  esac\nfi\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
+  const path = process.env.PATH
+  const verdict = (arm: string, slow = false): string => {
+    writeFileSync(join(fake, 'arm'), arm)
+    if (slow) writeFileSync(join(fake, 'slow'), '1')
+    else rmSync(join(fake, 'slow'), { force: true })
+    process.env.PATH = `${fake}:${path}`
+    try { return String(generatedAssetsRefusal('git commit -F m', calm)) } catch (error) { return `REFUSED: ${error instanceof Error ? error.message : String(error)}` } finally { process.env.PATH = path }
+  }
+  check('control: with git answering, a commit that touches no generated source owes nothing', verdict('') === 'null', verdict(''))
+  const slowRoot = verdict('rev-parse --show-toplevel', true)
+  check('git rev-parse --show-toplevel gives no answer within the 3 s limit: the commit goes on, as on 1.0.11', slowRoot === 'null', slowRoot)
+  const deadRoot = verdict('rev-parse --show-toplevel')
+  check('git rev-parse --show-toplevel ends without an exit status: the commit goes on', deadRoot === 'null', deadRoot)
+  const deadMap = verdict(` HEAD:${GENERATED_ASSETS_MAP} `)
+  check("git show HEAD:<the map> ends without an exit status: the commit goes on with the working tree's and the index's map", deadMap === 'null', deadMap)
+  const deadPrevious = verdict(' HEAD:notes.txt ')
+  check("git show HEAD:<a committed path> ends without an exit status: the commit goes on, the path's previous content unmatched", deadPrevious === 'null', deadPrevious)
+  chmodSync(join(calm, 'lists/a.txt'), 0o000)
+  const unreadable = verdict('')
+  chmodSync(join(calm, 'lists/a.txt'), 0o644)
+  check('a files-of: list that is there and cannot be read (EACCES): the commit goes on', process.getuid?.() === 0 || unreadable === 'null', unreadable)
+  writeFileSync(join(calm, 'notes.txt'), 'MARK_B\n')
+  c('add', 'notes.txt')
+  const owed = verdict('')
+  check('control: the same gate still refuses what it did read (a staged source that matches re:MARK_B owes gen/b.json)', owed.includes('gen/b.json'), owed)
+}
 rmSync(scratch, { recursive: true, force: true })
 
 

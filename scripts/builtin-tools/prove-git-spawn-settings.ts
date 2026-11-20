@@ -214,6 +214,58 @@ try {
   check('before a repository askPass program is set, the network settings name none', !gitArgs(['ls-remote', 'origin'], root).some(word => word.startsWith('core.askPass=')))
   plain(['config', 'core.askPass', posix(join(home, 'askpass.sh'))])
   check('a repository-scoped askPass program is replaced by the user\'s own, else none, on ls-remote, fetch and remote', ['ls-remote', 'fetch', 'remote'].every(command => gitArgs([command, 'origin'], root).includes('core.askPass=')))
+
+  {
+    const { gitExe } = await import('../../src/utils/git/gitExe.ts')
+    const { gitArgsAsync, gitFilterSkipMessages } = await import('../../src/utils/git/spawnArgs.ts')
+    const realGit = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+    const fake = join(home, 'fake-git')
+    mkdirSync(fake)
+    writeFileSync(join(fake, 'git'), `#!/bin/sh\nhere="$(dirname "$0")"\nif [ -s "$here/arm" ]; then\n  case " $* " in\n    *"$(cat "$here/arm")"*) if [ -e "$here/slow" ]; then exec sleep 9; fi; kill -KILL $$ ;;\n  esac\nfi\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
+    const path = process.env.PATH
+    process.env.PATH = `${fake}:${path}`
+    gitExe.cache.clear?.()
+    const fresh = (name: string): string => {
+      const dir = join(home, name)
+      mkdirSync(dir)
+      plain(['init', '-q'], dir)
+      return dir
+    }
+    const arm = (words: string, slow = false): void => {
+      writeFileSync(join(fake, 'arm'), words)
+      if (slow) writeFileSync(join(fake, 'slow'), '1')
+      else rmSync(join(fake, 'slow'), { force: true })
+    }
+    const went = (run: () => string[]): string => {
+      try { return `went on: ${run().join(' ')}` } catch (error) { return `REFUSED: ${error instanceof Error ? error.message : String(error)}` }
+    }
+    try {
+      check('the rig holds: the product runs the stand-in git', gitExe() === join(fake, 'git'), gitExe())
+      arm('rev-parse --show-toplevel')
+      const deadLayout = went(() => gitArgs(['add', 'x'], fresh('dead-layout')))
+      check('a layout read that ends without an exit status does not stop a git add: its arguments are built with no filter settings, as on 1.0.11', deadLayout.startsWith('went on: ') && deadLayout.endsWith(' add x') && !deadLayout.includes('filter.'), deadLayout)
+      const deadMessages = went(() => gitFilterSkipMessages(fresh('dead-messages')))
+      check('…and the stage detail carries no sentence about filters it could not check', deadMessages === 'went on: ', deadMessages)
+      const deadAsync = await gitArgsAsync(['checkout', 'x'], fresh('dead-async')).then(words => `went on: ${words.join(' ')}`, (error: unknown) => `REFUSED: ${error instanceof Error ? error.message : String(error)}`)
+      check('…the same on the async road (git checkout)', deadAsync.startsWith('went on: ') && deadAsync.endsWith(' checkout x'), deadAsync)
+      arm('config --get-regexp')
+      const deadFilters = went(() => gitArgs(['stash'], fresh('dead-filters')))
+      check('a filter-settings read that ends without an exit status does not stop a git stash', deadFilters.startsWith('went on: ') && deadFilters.endsWith(' stash'), deadFilters)
+      arm('config --show-scope')
+      const deadScoped = went(() => gitArgs(['fetch', 'origin'], fresh('dead-scoped')))
+      check('a config read that ends without an exit status does not stop a git fetch', deadScoped.startsWith('went on: ') && deadScoped.endsWith(' fetch origin'), deadScoped)
+      arm('rev-parse --show-toplevel', true)
+      const startedAt = Date.now()
+      const slowLayout = went(() => gitArgs(['add', 'x'], fresh('slow-layout')))
+      check('a layout read with no answer within its 5 s limit does not stop a git add: a machine under load is not refused for being slow', slowLayout.startsWith('went on: ') && slowLayout.endsWith(' add x') && Date.now() - startedAt >= 4_000, `${slowLayout} after ${Date.now() - startedAt} ms`)
+      arm('')
+      const answered = went(() => gitArgs(['add', 'x'], fresh('answered')))
+      check('control: with git answering, the same call builds the same arguments', answered === deadLayout, `${answered} ≠ ${deadLayout}`)
+    } finally {
+      process.env.PATH = path
+      gitExe.cache.clear?.()
+    }
+  }
 } finally {
   credentialServer.close()
   rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 })
