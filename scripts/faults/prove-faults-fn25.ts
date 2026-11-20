@@ -241,6 +241,33 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const work = join(scratch, 'aseprite-tree')
+  mkdirSync(work, { recursive: true })
+  const loopA = join(work, 'loop-a.aseprite')
+  const loopB = join(work, 'loop-b.aseprite')
+  symlinkSync(loopB, loopA)
+  symlinkSync(loopA, loopB)
+  const prevBin = process.env.MERCURY_ASEPRITE_BIN
+  process.env.MERCURY_ASEPRITE_BIN = '/usr/bin/true'
+  try {
+    const res = await runWithCwdOverride(work, () =>
+      AsepriteTool.call({ op: 'info', file: loopA } as never, {} as never),
+    )
+    const text = (res.data as { result: string }).result
+    check(
+      'AsepriteTool: non-ENOENT realpath failure (ELOOP) refuses inside fencePath instead of running',
+      text.includes('info failed:') && /ELOOP|too many/i.test(text),
+      text.slice(0, 160),
+    )
+  } finally {
+    if (prevBin === undefined) delete process.env.MERCURY_ASEPRITE_BIN
+    else process.env.MERCURY_ASEPRITE_BIN = prevBin
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
