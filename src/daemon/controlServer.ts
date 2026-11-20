@@ -931,7 +931,7 @@ async function answerSessionAdmit(deps: DepsWith<'concourseAdmit'>, sock: net.So
       if (next.ok || next.code !== 'runtime-ceiling' || waitForSeatMs <= 0 || sock.destroyed) return next
       return undefined
     },
-    1000,
+    left => Math.min(1000, Math.max(50, left)),
     waitForSeatMs,
     () => last!,
   )

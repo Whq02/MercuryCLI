@@ -24,7 +24,14 @@ function cross(left: string[], right: string[]): string[] {
   return out
 }
 
+function lastOf(list: Node): Node {
+  const last = list.children.findLast(child => child.type !== '&&' && child.type !== '||' && child.type !== ';' && child.type !== '&')
+  return last === undefined ? list : last.type === 'list' ? lastOf(last) : last
+}
+
 export class PosixWalk {
+  readonly late = new Map<Node, () => void>()
+
   constructor(
     readonly reading: Reading,
     readonly source: string,
@@ -67,6 +74,11 @@ export class PosixWalk {
   }
 
   node(node: Node, frame: Frame): void {
+    const late = this.late.get(node)
+    if (late !== undefined) {
+      this.late.delete(node)
+      late()
+    }
     return posixNode.call(this, node, frame)
   }
 
@@ -211,8 +223,13 @@ export class PosixWalk {
     let input: string | undefined
     let body: Node | undefined
     const continuations: Node[] = []
+    const held: Array<() => void> = []
+    const valued = (run: () => void): void => {
+      if (body?.type === 'list') held.push(run)
+      else run()
+    }
     for (const child of node.children) {
-      if (child.type === 'file_redirect') this.redirect(child, frame, redirects, inputInner)
+      if (child.type === 'file_redirect') valued(() => this.redirect(child, frame, redirects, inputInner))
       else if (child.type === 'herestring_redirect') {
         const content = child.children.find(part => part.type !== '<<<' && part.type !== 'file_descriptor')
         if (content !== undefined) input = this.word(content, frame).values[0]
@@ -223,7 +240,7 @@ export class PosixWalk {
             input = part.text
             this.children(part, frame)
             if (expands) for (const leaf of part.children.length === 0 ? [part] : part.children.filter(piece => piece.type === 'heredoc_content')) this.buried(leaf, frame, false)
-          } else if (part.type === 'file_redirect') this.redirect(part, frame, redirects, inputInner)
+          } else if (part.type === 'file_redirect') valued(() => this.redirect(part, frame, redirects, inputInner))
           else if (part.type !== '<<' && part.type !== '<<-' && part.type !== 'heredoc_start' && part.type !== 'heredoc_end' && part.type !== 'file_descriptor') continuations.push(part)
         }
       } else if (!WRITE_KEEPERS.has(child.type) && body === undefined) body = child
@@ -236,13 +253,18 @@ export class PosixWalk {
     if (body === undefined) this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect, around: frame.around })
     else if (body.type === 'command') this.command(body, inside, redirects, input, inputInner)
     else {
+      const owner = held.length > 0 ? lastOf(body) : undefined
+      if (owner !== undefined) this.late.set(owner, () => held.splice(0).forEach(run => run()))
       this.node(body, inside)
-      const last = this.reading.commands[this.reading.commands.length - 1]
-      if (last !== undefined && this.reading.commands.length > before) {
+      const at = this.reading.commands.length - 1
+      const last = this.reading.commands[at]
+      if (owner !== undefined) this.late.delete(owner)
+      held.splice(0).forEach(run => run())
+      if (last !== undefined && at >= before) {
         last.redirects = [...last.redirects, ...redirects]
         last.input ??= input
         last.inputInner = [...last.inputInner, ...inputInner]
-        this.reading.pending.push(...nestedScripts(last, this.reading.commands.length - 1, this.reading.commands).filter(script => script.text === input))
+        this.reading.pending.push(...nestedScripts(last, at, this.reading.commands).filter(script => script.text === input))
       } else this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect, around: frame.around })
     }
     for (const part of continuations) {

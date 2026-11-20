@@ -18,7 +18,7 @@ console.log('============================================================')
 
 
 section('glyphs: fail=✕ and warn=▲ are DISTINCT (so error≠warning color-stripped) + width-1')
-const glyphs = (await import(join(root, 'src', 'components', 'mercury-ui', 'glyphs.ts'))) as {
+const glyphs = (await import(join(root, 'src', 'utils', 'glyphs.ts'))) as {
   GLYPH: Record<string, string>
   displayWidth: (s: string) => number
 }

@@ -153,7 +153,7 @@ async function awaitDialog(driver: DesktopDriver, signal: AbortSignal, open: boo
       if (signal.aborted) return read ? 'unmet' : 'unread'
       return undefined
     },
-    100,
+    left => Math.min(100, left),
     Math.max(0, deadline - Date.now()),
     () => (read ? 'unmet' : 'unread'),
     { signal, onAbort: () => (read ? 'unmet' : 'unread') },

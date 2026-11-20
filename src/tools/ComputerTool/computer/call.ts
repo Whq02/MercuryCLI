@@ -183,7 +183,7 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
               if (waitConditionPassed(input.until!, after.value, tree.value)) return 'matched'
               return undefined
             },
-            100,
+            left => Math.min(100, left),
             pause,
             () => 'stopped',
             { signal: waitingSignal, onAbort: () => 'stopped' },

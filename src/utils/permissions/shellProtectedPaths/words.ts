@@ -105,11 +105,20 @@ export const RUNTIME_WRITERS = new Set(['tar', 'bsdtar', 'gtar', 'unzip', 'curl'
 export const UNREAD_ADVICE = 'Mercury could not read this command, so it was not checked: write it as separate, simpler commands'
 export const WRITE_REDIRECT = /(?:^|[^-=0-9&>])[0-9]?>>?(?![&=>])/
 
+const UNREAD_WORD = /[^\s;|&<>(){}"'`=,]+/g
+
 export function unreadWords(read: ShellRead, command: string, powershell: boolean): string[] {
   if (read.unread === undefined) return []
   const outside = powershell ? command : shellTextOutsideFileHeredocs(command)
   const nested = read.unread.text === command ? '' : read.unread.text
-  return [...new Set(`${outside} ${nested}`.split(/[\s;|&<>(){}"'`=,]+/).filter(word => word !== '' && word.length < 4096))]
+  const text = `${outside} ${nested}`
+  const words = new Set<string>()
+  for (const found of text.matchAll(UNREAD_WORD)) {
+    const word = found[0]
+    const escape = !powershell && word === '\\' && text[found.index + 1] !== "'"
+    if (word.length < 4096 && !escape) words.add(word)
+  }
+  return [...words]
 }
 
 export function pathLike(word: string): boolean {

@@ -19,7 +19,6 @@
     "src/services/interview/decisionRecord.ts",
     "src/services/mcp/config.ts",
     "src/utils/mission/missionCard.ts",
-    "src/services/privateChannel/installLayout.ts",
     "src/services/projectServices/serviceManager.ts",
     "src/services/providers/anthropic/prefixLedger.ts",
     "src/services/providers/gemini/antigravityClientContract.ts",
