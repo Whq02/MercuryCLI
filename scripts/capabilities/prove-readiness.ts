@@ -33,7 +33,7 @@ if (pub === 'failed') {
 } else if (pub === 'connected') {
   store.publishMcpConnections([{ name: 'probe-server', type: 'connected', config: { type: 'stdio', command: 'true', args: [], env: {}, scope: 'global' }, client: {}, capabilities: {}, cleanup: async () => {} }])
 }
-const r = await import('./src/utils/readiness.ts')
+const r = await import('./src/services/health/readiness.ts')
 console.log(JSON.stringify(r.collectReadiness().records))
 `
 

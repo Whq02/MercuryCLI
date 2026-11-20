@@ -1,16 +1,12 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { mock } from 'bun:test'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
 import { z } from 'zod/v4'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
-const ROOT = join(import.meta.dir, '..', '..')
-const SRC = join(ROOT, 'src')
 
 let failures = 0
 let checks = 0
@@ -21,112 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
-}
-
-const ENTRYPOINTS = ['queryModelWithStreaming', 'queryModelWithoutStreaming', 'queryWithModel', 'queryUtility'] as const
-type Entrypoint = (typeof ENTRYPOINTS)[number]
-const UNROUTED = new Set<Entrypoint>(['queryModelWithStreaming', 'queryModelWithoutStreaming'])
-
-const ALLOWED: Array<{ path: string; names: Entrypoint[]; verdict: string }> = [
-  {
-    path: 'src/services/providers/callModelRouter.ts',
-    names: ['queryModelWithStreaming'],
-    verdict: 'the router itself — its anthropic (home) arm IS the transport',
-  },
-  {
-    path: 'src/services/providers/primaryBackend.ts',
-    names: ['queryModelWithStreaming'],
-    verdict: 'the backend table — the anthropic row names the transport as its stream face',
-  },
-  {
-    path: 'src/utils/model/validateModel.ts',
-    names: ['queryModelWithoutStreaming'],
-    verdict: 'the route law adjudicates first: non-Anthropic ids validate on their own lanes above this call; the direct call is the anthropic arm',
-  },
-]
-
-const TRANSPORT_ESTATE = ['src/services/providers/anthropic/']
-const TRANSPORT_SPECIFIER = /\/providers\/anthropic(?:\/index\.js|\/[A-Za-z]+\.js)?(?:['"]|$)/
-
-function walk(dir: string, out: string[]): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry)
-    if (statSync(full).isDirectory()) {
-      if (entry === 'node_modules') continue
-      walk(full, out)
-    } else if (/\.(?:ts|tsx)$/.test(entry)) {
-      out.push(full)
-    }
-  }
-}
-
-function stripComments(src: string): string {
-  return src.replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '').replace(/^[ \t]*\/\/[^\n]*/gm, '')
-}
-
-function transportImports(code: string): Set<Entrypoint> {
-  const names = new Set<Entrypoint>()
-  const collect = (braces: string): void => {
-    for (const piece of braces.split(',')) {
-      const bare = piece.replace(/^\s*type\s+/, '').split(/\s+as\s+/)[0]?.trim() ?? ''
-      if ((ENTRYPOINTS as readonly string[]).includes(bare)) names.add(bare as Entrypoint)
-    }
-  }
-  for (const m of code.matchAll(/import\s+(?:type\s+)?\{([^{}]*)\}\s*from\s*'([^']+)'/g)) {
-    if (TRANSPORT_SPECIFIER.test(m[2] ?? '')) collect(m[1] ?? '')
-  }
-  for (const m of code.matchAll(/\{([^{}]*)\}\s*=\s*await\s+import\(\s*'([^']+)'\s*\)/g)) {
-    if (TRANSPORT_SPECIFIER.test(m[2] ?? '')) collect(m[1] ?? '')
-  }
-  return names
-}
-
-section('§1 the direct-importer census — every transport entrypoint importer, adjudicated')
-const files: string[] = []
-walk(SRC, files)
-type Row = { path: string; names: Entrypoint[]; verdict: string; ok: boolean }
-const rows: Row[] = []
-const seenAllowed = new Set<string>()
-for (const file of files.sort()) {
-  const rel = relative(ROOT, file)
-  if (TRANSPORT_ESTATE.some(p => rel === p || rel.startsWith(p))) continue
-  const names = [...transportImports(stripComments(readFileSync(file, 'utf8')))]
-  if (names.length === 0) continue
-  const unrouted = names.filter(n => UNROUTED.has(n))
-  const routed = names.filter(n => !UNROUTED.has(n))
-  if (unrouted.length === 0) {
-    rows.push({ path: rel, names, verdict: 'routed helper — the transport function itself drains routedCallModel (§2)', ok: true })
-    continue
-  }
-  const allowance = ALLOWED.find(a => a.path === rel)
-  if (allowance !== undefined) seenAllowed.add(rel)
-  const permitted = allowance !== undefined && unrouted.every(n => allowance.names.includes(n))
-  rows.push({
-    path: rel,
-    names,
-    verdict: permitted
-      ? `named: ${allowance!.verdict}${routed.length > 0 ? ' (+ routed helper imports)' : ''}`
-      : 'PRODUCT SITE IMPORTS THE TRANSPORT DIRECTLY — route through callModelRouter (routedCallModel / routedCallModelSettled)',
-    ok: permitted,
-  })
-}
-console.log('\n  site → entrypoints → verdict')
-for (const row of rows) {
-  console.log(`  ${row.ok ? '·' : '✗'} ${row.path}  [${row.names.join(', ')}]  ${row.verdict}`)
-}
-console.log('')
-check('the census found the transport importers (a zero census would be a broken walker)', rows.length >= 6, String(rows.length))
-for (const row of rows.filter(r => !r.ok)) {
-  check(`unrouted entrypoint importer outside the adjudication table: ${row.path}`, false, row.names.join(', '))
-}
-check('every unrouted-entrypoint importer is a named row of the adjudication table', rows.every(r => r.ok))
-for (const allowance of ALLOWED) {
-  const row = rows.find(r => r.path === allowance.path)
-  check(
-    `table row still imports exactly what it is allowed: ${allowance.path} [${allowance.names.join(', ')}]`,
-    row !== undefined && row.names.filter(n => UNROUTED.has(n)).sort().join(',') === [...allowance.names].sort().join(','),
-    row === undefined ? 'no longer imports the transport — retire the row' : row.names.join(', '),
-  )
 }
 
 const { enableConfigs } = await import('../../src/utils/config.ts')

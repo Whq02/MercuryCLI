@@ -18,7 +18,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 if (process.argv.includes('--live')) {
   const HOME4 = process.argv[process.argv.indexOf('--live') + 1] as string
   process.env.MERCURY_CONFIG_DIR = HOME4
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const storeRow = async (): Promise<{ status: string; evidence: string } | null> => {
     const cert = await report.runHealthReport({ depth: 'fast' })
     const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'transcript-store')
@@ -61,7 +61,7 @@ if (process.argv.includes('--live')) {
   process.exit(failures === 0 ? 0 : 1)
 }
 
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const storeRow = async (): Promise<{ status: string; evidence: string } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'transcript-store')

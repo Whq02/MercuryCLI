@@ -14,9 +14,9 @@ enableConfigs()
 const owner = await import(`${repo}/src/services/projectLocal/paths.js`)
 const { getMercuryHome } = await import(`${repo}/src/utils/envUtils.js`)
 const { apolloSpecDirectory } = await import(`${repo}/src/prompt/apolloMode.js`)
-const { lastCertPath } = await import(`${repo}/src/utils/healthReport.js`)
+const { lastCertPath } = await import(`${repo}/src/services/health/healthReport.js`)
 const { projectHomePath } = await import(`${repo}/src/utils/projectHomeStores.js`)
-const { lastPreflightPath } = await import(`${repo}/src/utils/healthPreflight.js`)
+const { lastPreflightPath } = await import(`${repo}/src/services/health/healthPreflight.js`)
 
 let failures = 0
 const check = (cond: boolean, msg: string, detail = ''): void => {

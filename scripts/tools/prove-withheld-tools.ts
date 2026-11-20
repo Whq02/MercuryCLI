@@ -27,7 +27,7 @@ process.env.MERCURY_DESKTOP_PACK_DIR = join(emptyPacks, 'desktop')
 
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { withheldTools, withheldToolsLine } = await import('../../src/utils/withheldTools.ts')
-const { collectReadiness } = await import('../../src/utils/readiness.ts')
+const { collectReadiness } = await import('../../src/services/health/readiness.ts')
 const dap = await import('../../src/services/dap/dapClient.ts')
 const godot = await import('../../src/services/vulcan/portabilityHealth.ts')
 dap._resetLldbDapForTesting()
@@ -88,7 +88,7 @@ check('MERCURY_DAP=0 is off, not withheld: the census does not name the Debug to
 delete process.env.MERCURY_DAP
 
 section('§5 the wiring: the catalog seats the two tools through their owners')
-const { toolCapabilityFastChecks } = await import('../../src/utils/health/sections/tool-capability-fast.ts')
+const { toolCapabilityFastChecks } = await import('../../src/services/health/sections/tool-capability-fast.ts')
 const withheldRow = toolCapabilityFastChecks().find(row => row.id === 'tools-withheld')
 check("/health's TOOL CAPABILITY section carries the Tools withheld row", withheldRow?.label === 'Tools withheld')
 {

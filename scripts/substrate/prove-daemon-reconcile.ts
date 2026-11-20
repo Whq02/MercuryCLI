@@ -218,7 +218,7 @@ check(
   const fsH = await import('node:fs')
   fsH.mkdirSync(dirname(supPath), { recursive: true })
   fsH.writeFileSync(supPath, JSON.stringify({ pid: deadPid, startedAt: Date.now() - 60_000 }))
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const daemonSays = await crewChecks().find(row => row.id === 'daemon')?.run()
   check(
     'health daemon row runs the reconcile (verb-path cleanup)',

@@ -73,7 +73,7 @@ _resetInterpreterProbeCacheForTesting()
 }
 
 section('one probe serves schema and /health (the row, run here)')
-const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
 const evalRow = runtimeChecks().find(row => row.id === 'eval-kernels')
 check("health carries the 'eval-kernels' check", evalRow !== undefined && evalRow.label === 'Eval languages')
 const evalSays = await evalRow?.run()

@@ -8,7 +8,7 @@
 # gate-watch: src/daemon/**
 # gate-watch: src/utils/daemonBreaker*
 # gate-watch: src/run-core/project-legacy.ts
-# gate-watch: src/commands/swarmchat/** src/utils/conversationRecovery.ts
+# gate-watch: src/commands/swarmchat/** src/services/resume/conversationRecovery.ts
 # gate-watch: src/state/crewLedger.ts
 # gate-watch: src/services/concourse/workerModels.ts
 # gate-watch: src/services/engine-connector/*

@@ -23,7 +23,7 @@ import {
   resolveAdvisorModel,
   type AdvisorSeat,
   type AdvisorSettings,
-} from './advisorSettings.js'
+} from '../../utils/advisor/advisorSettings.js'
 
 export const ADVISOR_NOTE_MAX_LINES = 8
 export const DIGEST_ROW_CLIP = 600

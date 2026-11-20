@@ -12,7 +12,7 @@ import {
   awaitStoredOAuthDaemonRestart,
   daemonRestartFailedNotice,
 } from '../../../services/oauth/refresh.js'
-import type { OAuthTokens } from '../../../services/oauth/types.js'
+import type { OAuthTokens } from '../../../utils/oauth/types.js'
 import { PROFILE_SCOPE } from '../../../constants/oauth.js'
 import {
   loginShadowWarning,

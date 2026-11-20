@@ -44,7 +44,7 @@ const forms = await import('../../src/commands/feedback/issueForms.ts')
 const ghIssue = await import('../../src/services/repoHost/ghIssue.ts')
 const health = await import('../../src/commands/feedback/healthSection.ts')
 const feedback = await import('../../src/components/Feedback.tsx')
-const { lastCertPath } = await import('../../src/utils/healthReport.ts')
+const { lastCertPath } = await import('../../src/services/health/healthReport.ts')
 const { repoSlugFromUrl } = await import('../../src/services/privateChannel/channelCore.ts')
 
 section('B2 the body follows the form: the table equals the yml files')

@@ -9,7 +9,7 @@ import { fileGeneration, recordDisplayedLines } from '../../../services/changeTr
 import { rememberAnchoredSnapshot } from '../../../services/changeTransaction/snapshotRing.js'
 import { mintFileAnchor, mintRangeAnchor } from '../../../services/changeTransaction/snapshotAnchor.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
-import { isRemotePath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { isMnemeFile } from '../../../utils/memoryFileDetection.js'
 import { FileTooLargeError, readFileInRange, type ReadFileRangeResult } from '../../../utils/readFileInRange.js'
 import { openRegularFileSync } from '../../../utils/regularFile.js'

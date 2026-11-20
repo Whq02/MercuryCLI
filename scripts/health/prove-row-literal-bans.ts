@@ -49,8 +49,8 @@ section('1. the reader bites: both arms of a condition, a template around its ho
 section('2. the reader reaches every row of the list')
 {
   const read = healthRowLiterals()
-  const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
+  const { healthContext } = await import('../../src/services/health/healthReport.ts')
   const context = await healthContext()
   check(
     `the compiler program follows the report's import of the list to the list and to each section's module with its parts (${read.files.length} modules for ${HEALTH_SECTIONS.length} sections, ${read.literals.length} strings, ${read.ms}ms)`,

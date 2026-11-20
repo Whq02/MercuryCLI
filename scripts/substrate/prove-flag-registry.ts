@@ -173,7 +173,7 @@ const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
   ['MERCURY_SPAWN_LEDGER', 'daemon/spawnLedger.ts', 'isSpawnLedgerEnabled'],
   ['MERCURY_SPAWN_AUDIT', 'daemon/spawnLedger.ts', 'isSpawnAuditEnabled'],
   ['MERCURY_HEALTH_FIX', 'utils/healthFix.ts', 'healthFixEnabled'],
-  ['MERCURY_BOOT_PREFLIGHT', 'utils/healthPreflight.ts', 'mercuryBootPreflightEnabled'],
+  ['MERCURY_BOOT_PREFLIGHT', 'services/health/healthPreflight.ts', 'mercuryBootPreflightEnabled'],
   ['MERCURY_AGENT_NEEDS_YOU', 'services/agentStateHeuristic.ts', 'agentNeedsYouEnabled'],
   ['MERCURY_COORDINATION_MCP', 'services/mcp/mercuryServer.ts', 'isMercuryServerEnabled'],
 ]

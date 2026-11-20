@@ -19,7 +19,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS'])
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { parseRemotePath } = await import('../../src/services/remoteFiles/target.ts')
+const { parseRemotePath } = await import('../../src/utils/remoteFiles/target.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')

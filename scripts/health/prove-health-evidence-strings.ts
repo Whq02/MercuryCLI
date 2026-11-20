@@ -154,7 +154,7 @@ rmSync(scratch, { recursive: true, force: true })
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
-  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
   const cert = await runHealthReport({ depth: 'fast' })
   if (probeTargets === undefined) delete process.env.MERCURY_LOCAL_PROBE_TARGETS
   else process.env.MERCURY_LOCAL_PROBE_TARGETS = probeTargets
@@ -168,7 +168,7 @@ rmSync(scratch, { recursive: true, force: true })
     slots?.evidence,
   )
   check('FC-095: the LIVE spelling is out of the router row', slots !== undefined && !/\bLIVE\b/.test(slots.evidence), slots?.evidence)
-  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const before = { key: process.env.ZAI_API_KEY, base: process.env.MERCURY_ZAI_API_BASE, targets: process.env.MERCURY_LOCAL_PROBE_TARGETS }
   process.env.ZAI_API_KEY = 'fixture-zai-key'
   process.env.MERCURY_ZAI_API_BASE = 'http://127.0.0.1:9'

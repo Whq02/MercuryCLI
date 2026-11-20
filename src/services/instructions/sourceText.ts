@@ -7,7 +7,7 @@ import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { expandPath } from '../../utils/path.js'
 import { getPlatform } from '../../utils/platform.js'
-import type { InstructionRuleFormat, InstructionRuleReading, InstructionSourceEntry } from './contracts.js'
+import type { InstructionRuleFormat, InstructionRuleReading, InstructionSourceEntry } from '../../utils/instructions/contracts.js'
 
 const COMPOSABLE_EXTENSIONS = {
   prose: ['.md', '.txt', '.text', '.rst', '.adoc', '.asciidoc', '.org', '.tex', '.latex'],

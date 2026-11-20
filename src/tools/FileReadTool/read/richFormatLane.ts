@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises'
 import type { ToolUseContext } from '../../../Tool.js'
 import { lineAnchorsEnabled } from '../../../services/changeTransaction/lineAnchors.js'
-import { isRemotePath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { extractDocumentText } from '../../../utils/documentText.js'
 import type { ReadFileRangeResult } from '../../../utils/readFileInRange.js'
 import type { FileReadingLimits } from '../limits.js'

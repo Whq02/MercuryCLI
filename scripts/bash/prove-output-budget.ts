@@ -59,7 +59,7 @@ const defaultCap = limits.BASH_MAX_OUTPUT_DEFAULT as number
 const floor = typeof limits.BASH_MAX_OUTPUT_FLOOR === 'number' ? (limits.BASH_MAX_OUTPUT_FLOOR as number) : NaN
 type Budget = { effective: number; requested?: number; clampedTo?: string }
 const resolveOutputBudget = limits.resolveOutputBudget as ((requested: number | undefined) => Budget) | undefined
-const bashUtils = (await import('../../src/tools/BashTool/utils.ts')) as Record<string, unknown>
+const bashUtils = (await import('../../src/utils/shell/utils.ts')) as Record<string, unknown>
 const formatOutput = bashUtils.formatOutput as (content: string, opts?: { preExcerpted?: boolean; maxLength?: number }) => { totalLines: number; truncatedContent: string }
 const outputBudgetClause = bashUtils.outputBudgetClause as (budget: Budget) => string | undefined
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')

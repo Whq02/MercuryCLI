@@ -8,7 +8,7 @@ import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { isRunInputClosed } from '../../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../SleepTool/prompt.js'
-import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
+import { TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
 import { exec, resolveShellCwd, settleLoginFiles, signalsCountIn, terminalShellInvocation } from '../../utils/Shell.js'
 import { captureVerificationStart } from '../../utils/verification/verificationState.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
@@ -59,7 +59,7 @@ import {
   redactedCopy,
   sayWhatTheShellOwes,
   truncateForSummary,
-} from './utils.js'
+} from '../../utils/shell/utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
 import { windowedError } from '../../utils/toolErrors.js'

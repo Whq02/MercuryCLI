@@ -16,7 +16,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 const WHEN_RULE = 'Memory is written only when the user asks for something to be remembered'
 try {
-  const { RETAIN_PROMPT, RETAIN_DESCRIPTION } = await import('../../src/tools/MemoryTools/prompt.ts')
+  const { RETAIN_PROMPT, RETAIN_DESCRIPTION } = await import('../../src/constants/tools/memory.ts')
   const { MEMORY_WRITE_VERBS_SENTENCE, emptyMemoryPage, forReader, renderFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
   const { MEMORY_EVIDENCE_CONTRACT } = await import('../../src/mneme/memoryEvidence.ts')
 

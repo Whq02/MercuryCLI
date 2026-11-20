@@ -24,7 +24,7 @@ globalThis.MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config.ts'))})
 enableConfigs()
 const { readTranscriptChainSince } = await import(${JSON.stringify(join(repo, 'src/utils/sessionStorage/transcriptReader.ts'))})
-const { deserializeLiveMessages } = await import(${JSON.stringify(join(repo, 'src/utils/conversationRecovery.ts'))})
+const { deserializeLiveMessages } = await import(${JSON.stringify(join(repo, 'src/services/resume/conversationRecovery.ts'))})
 const listing = await import(${JSON.stringify(join(repo, 'src/services/instructions/listing.ts'))})
 const attached = await import(${JSON.stringify(join(repo, 'src/services/instructions/attachedText.ts'))})
 const selector = await import(${JSON.stringify(join(repo, 'src/components/memory/memoryCentreLayout.ts'))})

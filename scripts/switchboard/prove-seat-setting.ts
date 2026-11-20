@@ -114,7 +114,7 @@ cap._setHeldMachineSeatReadingForTesting(6, SAMPLE)
 
 {
   check("T5 the Boot Menu row is the owner's row: label Seats, no boot-env key, live application", cap.SEATS_MENU_ROW.label === 'Seats' && cap.SEATS_MENU_ROW.env === 'seats' && cap.SEATS_MENU_ROW.applicationClass === 'live' && cap.SEATS_MENU_ROW.options.length === 0)
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const seatsSays = await crewChecks().find(row => row.id === 'seats')?.run()
   const seatFactsNow = cap.seatCeilingFacts()
   const unnumbered = (text: string): string => text.replace(/\d+(?:\.\d+)?/g, '#')

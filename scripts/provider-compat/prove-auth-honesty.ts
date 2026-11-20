@@ -371,7 +371,7 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
 
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   clearOAuthTokenCache()
-  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const { anthropicSignInWords } = await import('../../src/services/providers/anthropicRefusal.ts')
   const expiredRow = await (await authChecks()).find(row => row.id === 'auth-anthropic')?.run()
   check('health AUTH row: expired branch present (warn on the observed or checked state, the one line as the fix)', expiredRow?.status === 'warn' && expiredRow.evidence.endsWith('— sign-in expired') && expiredRow.fix === anthropicSignInWords(), JSON.stringify(expiredRow))

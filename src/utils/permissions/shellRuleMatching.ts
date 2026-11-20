@@ -1,5 +1,5 @@
 import type { PermissionUpdate } from '../../types/permissions.js'
-import { isDestructiveCommandVerb } from '../../tools/BashTool/destructiveCommandWarning.js'
+import { isDestructiveCommandVerb } from '../shell/destructiveCommandWarning.js'
 import { precedingBackslashes } from './permissionRuleParser.js'
 
 const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {

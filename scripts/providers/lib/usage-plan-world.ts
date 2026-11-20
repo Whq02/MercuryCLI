@@ -166,7 +166,7 @@ export async function usagePlanWorld() {
     focusedSessionIdOrNull: () => null,
   })
   await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
-  await stub('src/utils/cockpit/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+  await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let size = { columns: 178, rows: 51 }
   await stub('src/hooks/useTerminalSize.ts', { useTerminalSize: () => size })
   await stub('src/components/mercury-ui/components.tsx', { useNowTick: () => React.useSyncExternalStore(subscribeClock, () => now, () => now) })

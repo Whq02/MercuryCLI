@@ -17,7 +17,7 @@ import { realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, normalize, parse, relative, resolve, sep } from 'node:path'
 
-import { isRemotePath } from '../services/remoteFiles/target.js'
+import { isRemotePath } from './remoteFiles/target.js'
 import { faultPoint, isTransientWin32FsCode, renameWithWin32RetrySync, WIN32_RENAME_RETRY_DELAYS_MS } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'

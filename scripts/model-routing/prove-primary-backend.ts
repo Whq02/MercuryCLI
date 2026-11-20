@@ -45,7 +45,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { resolvePrimaryAgentBackend, describeAgentRuntimeRef, APEX_BACKEND_CONTRACT_VERSION } =
   await import('../../src/services/providers/primaryBackend.js')
 const { classifyModelRoute, declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
-const { collectReadiness } = await import('../../src/utils/readiness.js')
+const { collectReadiness } = await import('../../src/services/health/readiness.js')
 const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.js')
 const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.js')
 

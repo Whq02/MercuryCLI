@@ -194,7 +194,7 @@ section('(5) health `mcp` currency — auth summary + protocol-rev seam')
     auth !== null && auth.tokens === 0 && auth.expired === 0 && auth.expiringSoon === 0,
   )
   ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
   const { describeMcpProtocolCurrency } = await import('../../src/services/mcp/protocolRevision.ts')
   publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])

@@ -1,6 +1,6 @@
 import { buildTool, type CanUseToolFn, type Tool, type ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
+import { isRemotePath, remoteIdentity } from '../../utils/remoteFiles/target.js'
 import { displayAddressedTarget } from '../../utils/file.js'
 import { getCwd } from '../../utils/cwd.js'
 import { referenceReadDecision } from '../../services/resources/referencePaths.js'

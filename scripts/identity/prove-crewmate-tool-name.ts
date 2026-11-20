@@ -45,7 +45,7 @@ const MODEL_FACING: Array<[string, RegExp]> = [
 
 const EXCLUDED_AREAS: Array<[string, string]> = [
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelog.ts', 'past release notes stay as published'],
+  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/interview/baselines/', 'frozen journey capture records'],
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts: the tool names a past run offered'],
@@ -86,7 +86,7 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { findToolByName, getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
-const { RESUME_AGENT_TOOL_NAME } = await import('../../src/tools/ResumeAgentTool/constants.ts')
+const { RESUME_AGENT_TOOL_NAME } = await import('../../src/constants/tools/resumeAgent.ts')
 const tools = getAllBaseTools()
 const names = tools.map(tool => tool.name)
 check(`the launch tool is named ${TOOL} and the resume verb ${RESUME}`, AGENT_TOOL_NAME === TOOL && RESUME_AGENT_TOOL_NAME === RESUME, `${AGENT_TOOL_NAME} · ${RESUME_AGENT_TOOL_NAME}`)

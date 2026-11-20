@@ -16,7 +16,7 @@ console.log('============================================================')
 
 console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
 {
-  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
   const computed = await import('../../src/utils/model/computedDefault.ts')
   const frontier = await import('../../src/utils/model/frontierPolicy.ts')
   const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')

@@ -39,7 +39,7 @@ const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vn
 const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
 const { buildConversationChain } = await import('../../src/utils/sessionStorage/chain.ts')
 const logs = await import('../../src/utils/sessionStorage/logs.ts')
-const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
 
 const MODEL = 'claude-fable-5-1'
 const SID = '00000000-0000-4000-8000-00000000fac7'

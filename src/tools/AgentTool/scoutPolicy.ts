@@ -3,9 +3,9 @@ import { cutPart, describeBashNotReadOnly, type NotReadOnly } from '../BashTool/
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { ENTER_WORKTREE_TOOL_NAME } from '../EnterWorktreeTool/constants.js'
 import { EXIT_WORKTREE_TOOL_NAME } from '../ExitWorktreeTool/constants.js'
-import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
-import { RESUME_AGENT_TOOL_NAME } from '../ResumeAgentTool/constants.js'
-import { SKILL_TOOL_NAME } from '../SkillTool/constants.js'
+import { SEND_MESSAGE_TOOL_NAME } from '../../constants/tools/sendMessage.js'
+import { RESUME_AGENT_TOOL_NAME } from '../../constants/tools/resumeAgent.js'
+import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import { passedOver } from '../../utils/passedOver.js'
 

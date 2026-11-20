@@ -9,7 +9,7 @@
 # gate-watch: mercury-skills/provider-apis/references/models.md
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/substrate/flagRegistry.ts
-# gate-watch: src/utils/health/**
+# gate-watch: src/services/health/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

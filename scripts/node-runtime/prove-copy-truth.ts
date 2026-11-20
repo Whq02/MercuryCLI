@@ -31,7 +31,7 @@ section('(2) the stale-claim ratchet (reviewed allowlist, never a rewrite)')
 const ALLOW: Array<[string, string]> = [
   ['src/skills/bundled/', 'bundled skill content describes third-party tool requirements, not Mercury (category 7)'],
   ['mercury-skills/', 'the same content at its source (category 7)'],
-  ['src/constants/changelog.ts', 'dated release history — 1.1.0 shipped on Node 20 (category 6)'],
+  ['src/constants/changelogArchive.ts', 'dated release history — 1.1.0 shipped on Node 20 (category 6)'],
   ['src/services/providers/anthropic/streamCore.ts', 'eslint justification naming the Node version an API landed in (category 8)'],
   ['src/run-core/turn-machine.ts', 'bug-context comment naming the Node-18-era cause (category 6)'],
   ['src/utils/filePersistence/outputsScanner.ts', 'API-availability comment (parentPath, category 8)'],
