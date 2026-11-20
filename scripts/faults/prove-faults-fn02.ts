@@ -2,14 +2,15 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const HERE = import.meta.dir
+const HERE = dirname(fileURLToPath(import.meta.url))
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
@@ -109,6 +110,60 @@ console.log('\nmercuryModel — failed TensorFold pairing surfaces the error not
   `)
   check('pair failure sets the notice to the error message', Array.isArray(r.notices) && r.notices[0] === 'pair handshake refused', JSON.stringify(r))
   check('pair failure does not publish notice after picker closes', Array.isArray(r.closedNotices) && r.closedNotices.length === 0, JSON.stringify(r))
+}
+
+console.log('\npicker/select — catalogue refresh rejections keep the error detail in the notice')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const nousPath = path.join(SRC, 'services/providers/nous/nousCatalogue.ts')
+    const openaiCatPath = path.join(SRC, 'services/providers/openai/openaiCatalogue.ts')
+    const openaiAcctPath = path.join(SRC, 'services/providers/openai/openaiAccounts.ts')
+    const orCatPath = path.join(SRC, 'services/providers/openrouter/openrouterCatalogue.ts')
+    const orAcctPath = path.join(SRC, 'services/providers/openrouter/openrouterAccounts.ts')
+    const gemCatPath = path.join(SRC, 'services/providers/gemini/geminiCatalogue.ts')
+    const gemAcctPath = path.join(SRC, 'services/providers/gemini/geminiAccounts.ts')
+    const hfCatPath = path.join(SRC, 'services/providers/huggingface/huggingfaceCatalogue.ts')
+    const moonAcctPath = path.join(SRC, 'services/providers/moonshot/moonshotAccounts.ts')
+    const moonCatPath = path.join(SRC, 'services/providers/moonshot/moonshotCatalogue.ts')
+    const optsPath = path.join(SRC, 'utils/model/modelOptions.ts')
+    const [realNous, realOaiCat, realOaiAcct, realOrCat, realOrAcct, realGemCat, realGemAcct, realHfCat, realMoonAcct, realMoonCat, realOpts] = await Promise.all([
+      import(nousPath), import(openaiCatPath), import(openaiAcctPath), import(orCatPath), import(orAcctPath),
+      import(gemCatPath), import(gemAcctPath), import(hfCatPath), import(moonAcctPath), import(moonCatPath), import(optsPath),
+    ])
+    mock.module(optsPath, () => ({ ...realOpts, getGptSeatAvailability: () => ({ state: 'disabled', why: 'catalogue-error' }) }))
+    mock.module(openaiAcctPath, () => ({ ...realOaiAcct, resolveOpenaiAccount: () => ({ kind: 'api-key', label: 'OpenAI key' }) }))
+    mock.module(openaiCatPath, () => ({ ...realOaiCat, refreshOpenaiCatalogue: async () => { throw new Error('openai tls failed') } }))
+    mock.module(orCatPath, () => ({ ...realOrCat, getOpenrouterAvailability: () => ({ state: 'ready' }), refreshOpenrouterCatalogue: async () => { throw new Error('openrouter dns failed') } }))
+    mock.module(orAcctPath, () => ({ ...realOrAcct, resolveOpenrouterRequestAuth: () => ({ account: { keySource: 'stored' } }) }))
+    mock.module(nousPath, () => ({ ...realNous, getNousAvailability: () => ({ state: 'ready' }), refreshNousCatalogue: async () => { throw new Error('nous tls failed') } }))
+    mock.module(gemCatPath, () => ({ ...realGemCat, getGeminiAvailability: () => ({ state: 'ready' }), refreshGeminiCatalogue: async () => { throw new Error('gemini timeout') } }))
+    mock.module(gemAcctPath, () => ({ ...realGemAcct, resolveGeminiAccount: () => ({ kind: 'api-key' }) }))
+    mock.module(hfCatPath, () => ({ ...realHfCat, getHuggingfaceAvailability: () => ({ state: 'ready' }), refreshHuggingfaceCatalogue: async () => { throw new Error('hf 503') } }))
+    mock.module(moonAcctPath, () => ({ ...realMoonAcct, resolveMoonshotAccount: () => ({ label: 'Kimi key' }) }))
+    mock.module(moonCatPath, () => ({ ...realMoonCat, refreshMoonshotCatalogue: async () => { throw new Error('moonshot socket reset') }, moonshotCatalogueRows: () => ({ source: { kind: 'unread' }, rows: [] }) }))
+    const { connectGpt, connectOpenrouter, connectNous, connectGemini, connectHuggingface, selectKeyLane } = await import(path.join(SRC, 'commands/model/picker/select.ts'))
+    const cap = () => { const a = []; return { a, ctx: { setNotice: v => a.push(v), onDone: () => {} } } }
+    const g = cap(); connectGpt(g.ctx)
+    const o = cap(); connectOpenrouter(o.ctx)
+    const n = cap(); connectNous(n.ctx)
+    const gm = cap(); connectGemini(gm.ctx)
+    const h = cap(); connectHuggingface(h.ctx)
+    const m = cap(); selectKeyLane(m.ctx, '__mercury_connect__:moonshot', 'moonshot')
+    await new Promise(resolve => setTimeout(resolve, 60))
+    out.gpt = g.a.at(-1) ?? null
+    out.or = o.a.at(-1) ?? null
+    out.nous = n.a.at(-1) ?? null
+    out.gem = gm.a.at(-1) ?? null
+    out.hf = h.a.at(-1) ?? null
+    out.moon = m.a.at(-1) ?? null
+  `)
+  check('connectGpt surfaces refresh rejection detail', typeof r.gpt === 'string' && r.gpt.includes('(openai tls failed)'), `got ${String(r.gpt)}`)
+  check('connectOpenrouter surfaces refresh rejection detail', typeof r.or === 'string' && r.or.includes('(openrouter dns failed)'), `got ${String(r.or)}`)
+  check('connectNous surfaces refresh rejection detail', typeof r.nous === 'string' && r.nous.includes('(nous tls failed)'), `got ${String(r.nous)}`)
+  check('connectGemini surfaces refresh rejection detail', typeof r.gem === 'string' && r.gem.includes('(gemini timeout)'), `got ${String(r.gem)}`)
+  check('connectHuggingface surfaces refresh rejection detail', typeof r.hf === 'string' && r.hf.includes('(hf 503)'), `got ${String(r.hf)}`)
+  check('moonshot selectKeyLane surfaces refresh rejection detail', typeof r.moon === 'string' && r.moon.includes('(moonshot socket reset)'), `got ${String(r.moon)}`)
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
