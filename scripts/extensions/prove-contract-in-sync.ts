@@ -35,12 +35,23 @@ check('gen-contract --check: the doc section, the skill reference and the bundle
 const template = readFileSync(join(ROOT, 'docs', 'templates', 'extension-source-README.md'), 'utf8')
 const skillTemplate = readFileSync(join(ROOT, 'mercury-skills', 'extension-maker', 'references', 'README-template.md'), 'utf8')
 check('the README template ships identically inside the skill', template === skillTemplate)
-const bundledTemplate = readFileSync(join(ROOT, 'src', 'skills', 'bundled', 'extension-maker', 'references', 'README-template.md'), 'utf8')
-check('…and in the bundled copy', template === bundledTemplate)
 
 const skillSource = readFileSync(join(ROOT, 'mercury-skills', 'extension-maker', 'SKILL.md'), 'utf8')
-const skillBundled = readFileSync(join(ROOT, 'src', 'skills', 'bundled', 'extension-maker', 'SKILL.md'), 'utf8')
-check('the bundled SKILL.md mirrors the mercury-skills source (gen-bundled ran)', skillSource === skillBundled)
+let bundledOut = ''
+let bundledCode = 0
+try {
+  bundledOut = execFileSync(process.execPath.includes('bun') ? process.execPath : `${process.env.HOME}/.bun/bin/bun`, ['run', join(ROOT, 'scripts', 'skills', 'gen-bundled.ts'), '--check', 'extension-maker'], {
+    encoding: 'utf8',
+    cwd: ROOT,
+    timeout: 120_000,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+} catch (error) {
+  const failed = error as { status?: number | null; stdout?: string; stderr?: string }
+  bundledCode = failed.status ?? 1
+  bundledOut = `${failed.stdout ?? ''}${failed.stderr ?? ''}`
+}
+check('gen-bundled --check extension-maker: the bundled SKILL.md and references mirror the mercury-skills source', bundledCode === 0, bundledOut.trim().slice(0, 300))
 
 const description = /description:\s*(.+)/.exec(skillSource)?.[1] ?? ''
 check('the skill carries a non-empty description', description.trim().length > 20, description)
