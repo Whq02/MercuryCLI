@@ -1,6 +1,6 @@
 
 import type { ToolEffectOutcome } from '../../Tool.js'
-import type { OwnerKey } from './ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import {
   emptyProgressState,
   foldEligibleProgress,

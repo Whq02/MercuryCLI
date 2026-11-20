@@ -29,7 +29,7 @@ writeFileSync(
 process.env.MERCURY_DAP_ADAPTERS_FILE = adaptersFile
 
 const { createDapSession, removeDapSession } = await import('../../src/services/dap/dapClient.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const program = path.join(scratch, 'probe.nvb')
 writeFileSync(program, 'x')
 

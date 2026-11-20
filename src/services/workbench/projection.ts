@@ -23,7 +23,7 @@ import {
 import { subscribeExecutionEvents, listExecutions } from '../primitives/executionPlane.js'
 import { getRunSnapshot, subscribeRuns } from '../run/runCoordinator.js'
 import { loadRunSidecar } from '../run/runSidecar.js'
-import { processMainOwner, processOwnerForLane } from '../run/resolveOwner.js'
+import { processMainOwner, processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import type { RunSnapshot } from '../run/runKernel.js'
 import {
   workbenchEnabled,

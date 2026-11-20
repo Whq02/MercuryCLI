@@ -20,7 +20,7 @@ const { renderFoldLedger } = await import('../../src/services/compact/foldLedger
 const { operatorMessagesBlockText } = await import('../../src/utils/compact/operatorMessages.ts')
 const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 
 let checks = 0

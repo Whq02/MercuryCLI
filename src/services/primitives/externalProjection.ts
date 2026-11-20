@@ -12,7 +12,7 @@ import {
   transitionExecution,
   type TransitionOptions,
 } from './executionPlane.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 interface ExternalProjectionSpec {

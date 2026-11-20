@@ -44,7 +44,7 @@ export function section(title: string): void {
 export const sessions = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
 export const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
 const { resolveBrowser } = await import(join(ROOT, 'src/services/browser/browserResolver.ts'))
-const { processOwnerForLane } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
+const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
 
 type ToolInput = Record<string, unknown> & { op: string }
 type ToolContext = { agentId?: string; abortController?: AbortController; getAppState?: () => unknown }

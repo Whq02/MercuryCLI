@@ -19,7 +19,7 @@ const { evidenceFor, _resetEvidencePlaneForTesting } = await import(
   '../../src/services/primitives/evidencePlane.ts'
 )
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const owner = processMainOwner()
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-journeys-'))

@@ -8,7 +8,7 @@ import { lineAnchorsEnabled } from '../../../services/changeTransaction/lineAnch
 import { fileGeneration, recordDisplayedLines } from '../../../services/changeTransaction/seenLines.js'
 import { rememberAnchoredSnapshot } from '../../../services/changeTransaction/snapshotRing.js'
 import { mintFileAnchor, mintRangeAnchor } from '../../../services/changeTransaction/snapshotAnchor.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { isMnemeFile } from '../../../utils/memoryFileDetection.js'
 import { FileTooLargeError, readFileInRange, type ReadFileRangeResult } from '../../../utils/readFileInRange.js'

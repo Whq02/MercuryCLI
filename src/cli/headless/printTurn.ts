@@ -21,7 +21,7 @@ import { LOCAL_FIRST_BYTE_CAP_MS } from '../../services/providers/localLiveness.
 import { keepTurnLiveWhileHostAnswers } from './hostAskLiveness.js'
 import { runWithWorkload } from '../../utils/workloadContext.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import { clearToolRosterLatches, clearToolRosterRestore } from '../../services/providers/toolEconomy.js'
 import { declareLawfulPrefixChange } from '../../services/providers/lawfulPrefixChange.js'
 import { getSessionId } from '../../bootstrap/state.js'

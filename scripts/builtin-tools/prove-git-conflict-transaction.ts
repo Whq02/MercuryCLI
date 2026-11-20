@@ -15,7 +15,7 @@ if (!process.argv.includes('--child')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const { readConflictRegions, prepareResolution, applyResolution, resolutionPreview, storedResolution } = await import('../../src/services/gitGraph/conflictRegions.ts')
   const { _setBeforeRenameHookForProofs } = await import('../../src/services/changeTransaction/changeSetCommit.ts')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
   const { renderToolUseMessage } = await import('../../src/tools/GitTool/UI.tsx')
   const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')

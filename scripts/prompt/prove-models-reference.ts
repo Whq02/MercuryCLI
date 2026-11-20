@@ -61,7 +61,7 @@ function section(title: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { resolveResource, resourceAdapterKinds, listResourceKind } = await import('../../src/services/resources/registry.ts')
-const owner = (await import('../../src/services/run/resolveOwner.ts')).ownerFromToolUseContext({})
+const owner = (await import('../../src/utils/run/resolveOwner.ts')).ownerFromToolUseContext({})
 const pages = (await import('../../src/services/resources/adapters/models.ts').catch(() => null)) as typeof import('../../src/services/resources/adapters/models.ts') | null
 const { reachableModelEntries } = await import('../../src/utils/model/modelNameRoad.ts')
 const { BARE_FAMILY_WORDS } = await import('../../src/utils/model/bareFamilyWords.ts')

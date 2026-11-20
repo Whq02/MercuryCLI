@@ -9,7 +9,7 @@ import { extractDiscoveredToolNames, isToolSearchEnabledOptimistic } from '../..
 import { getToolSchemaCache } from '../../../utils/toolSchemaCache.js'
 import { zodToJsonSchema } from '../../../utils/zodToJsonSchema.js'
 import { inlineLocalSchemaRefs } from '../../../utils/inlineSchemaRefs.js'
-import { processOwnerForLane } from '../../run/resolveOwner.js'
+import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import {
   compatChatCallModel,
   compatDispatchModelId,

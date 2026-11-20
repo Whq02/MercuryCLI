@@ -337,7 +337,7 @@ if (POSIX_MODES) {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const mgr = await import(path.join(SRC, 'services/projectServices/serviceManager.ts'))
-    const lifecycle = await import(path.join(SRC, 'services/run/ownerLifecycle.ts'))
+    const lifecycle = await import(path.join(SRC, 'utils/run/ownerLifecycle.ts'))
     const { projectOwner } = await import(path.join(SRC, 'services/primitives/owner.ts'))
 
     const svcDir = mgr.servicesDir(WORK)

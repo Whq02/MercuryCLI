@@ -16,7 +16,7 @@ const { searchHost, fetchPrDiffFiles, fetchPrDiffPage, fetchRun, _resetRepoHostC
 )
 const { watchRun, cancelRunWatch, _resetRunWatchesForTesting } = await import('../../src/services/repoHost/runWatch.ts')
 const { getExecution } = await import('../../src/services/primitives/executionPlane.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -249,7 +249,7 @@ section('V. slashed refs · quotepath round-trip · binary honesty · bounded di
   writeFileSync(join(stateDir, 'diff.txt'), `${DIFF}\n`)
   _resetRepoHostCacheForTesting()
 
-  const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+  const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
   const owner = makeOwnerKey({ workspace: repo, sessionId: 'lathe-f2-dispose', lane: 'main' })
   const watching = await watchRun(owner, repo, '77')
   check('disposal fixture watch registers', watching.state === 'watching')

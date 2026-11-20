@@ -60,7 +60,7 @@ check('the ChangeSet preflight refusal names the member fault (11 of 12 hex char
 
 const { ChangeSetTool } = await import(join(ROOT, 'src/tools/ChangeSetTool/ChangeSetTool.ts'))
 const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
-const { processMainOwner } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
+const { processMainOwner } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
 {
   const readFileState = new Map<string, unknown>()
   readFileState.set(target, { content: "import test from 'node:test'\ntest('ownerId', () => {})\n", timestamp: Date.now() + 60_000 })

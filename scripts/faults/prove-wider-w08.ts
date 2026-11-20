@@ -365,7 +365,7 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
   plane.transitionExecution(owner, id, 'starting')
   plane.transitionExecution(owner, id, 'running')
   const { GitTool } = await import(join(SRC, 'tools/GitTool/GitTool.ts'))
-  const { ownerFromToolUseContext } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  const { ownerFromToolUseContext } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
   const gitCtx = { abortController: new AbortController(), options: {} } as never
   const gitOwner = ownerFromToolUseContext(gitCtx)
   const gitWatchId = 'run-watch-9992'
@@ -612,7 +612,7 @@ async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
   process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fromEnv: { command: process.execPath, args: [] } })
   const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
   const adapters = await import(join(SRC, 'services/dap/client/adapters.ts'))
-  const { processMainOwner } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
   try {
     check('w08-12: launch still resolves adapters from other sources when adapter file is unreadable', adapters.resolveAdapter('fromEnv')?.command === process.execPath)
     const ctx = {

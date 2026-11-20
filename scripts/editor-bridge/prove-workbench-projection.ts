@@ -250,7 +250,7 @@ section('(4) engine laws — flag gate + stable reference')
 section('(5) the mercury://workbench adapter through the REAL registry')
 {
   const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
 
   const current = await resolveResource('mercury://workbench/current', ctx)

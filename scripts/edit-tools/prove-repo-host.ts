@@ -21,7 +21,7 @@ const {
 } = await import('../../src/services/repoHost/repoHost.ts')
 const { repoAdapter } = await import('../../src/services/resources/adapters/repo.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const owner = processMainOwner()
 

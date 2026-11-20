@@ -11,7 +11,7 @@ export function architectureFastChecks(): CheckSpec[] {
       label: 'Store owners',
       run: async () => {
         await settleToolList()
-        const { ownerLifecycleCounts } = await import('../../run/ownerLifecycle.js')
+        const { ownerLifecycleCounts } = await import('../../../utils/run/ownerLifecycle.js')
         const counts = ownerLifecycleCounts()
         const names = Object.keys(counts.stores)
         return {
@@ -68,7 +68,7 @@ export function architectureFastChecks(): CheckSpec[] {
       run: async () => {
         const { listExecutions } = await import('../../primitives/executionPlane.js')
         const { isTerminalExecutionState } = await import('../../primitives/execution.js')
-        const { processMainOwner } = await import('../../run/resolveOwner.js')
+        const { processMainOwner } = await import('../../../utils/run/resolveOwner.js')
         const { transactionsFor } = await import('../../primitives/transactionPlane.js')
         const owner = processMainOwner()
         const records = listExecutions(owner, { limit: 500 })

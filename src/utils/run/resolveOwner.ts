@@ -6,7 +6,7 @@ import {
   makeOwnerKey,
   type OwnerKey,
 } from './ownerKey.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { passedOver } from '../passedOver.js'
 
 function safeWorkspace(): string {
   try {

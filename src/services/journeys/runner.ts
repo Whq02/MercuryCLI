@@ -4,9 +4,9 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { recordCanonicalEvidence } from '../primitives/evidencePlane.js'
 import {
   registerExecution,

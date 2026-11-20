@@ -8,8 +8,8 @@ import {
 import { isTerminalExecutionState } from '../../primitives/execution.js'
 import type { ExecutionRecord } from '../../primitives/execution.js'
 import { projectOwner } from '../../primitives/owner.js'
-import { processMainOwner } from '../../run/resolveOwner.js'
-import type { OwnerKey } from '../../run/ownerKey.js'
+import { processMainOwner } from '../../../utils/run/resolveOwner.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import {
   formatRef,
   type ParsedRef,

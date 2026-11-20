@@ -19,7 +19,7 @@ delete process.env.NODE_ENV
 
 const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { editOutcomeRows } = await import('../../src/services/changeTransaction/editOutcomeLedger.ts')
-const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')

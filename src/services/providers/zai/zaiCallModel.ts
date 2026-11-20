@@ -1,5 +1,5 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
-import { processOwnerForLane } from '../../run/resolveOwner.js'
+import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import { randomUUID } from 'crypto'
 import type {
   ApiContentBlockDelta,

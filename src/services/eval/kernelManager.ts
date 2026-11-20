@@ -15,7 +15,7 @@ import {
   type DurableOperation,
 } from '../../substrate/operationJournal.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import {
   EVAL_DEFAULT_TIMEOUT_SECONDS,
   EVAL_IDLE_SWEEP_MS,

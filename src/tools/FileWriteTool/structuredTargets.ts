@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { crc32, deflateRawSync } from 'node:zlib'
 
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { recordNoChangeOutcome, serializeIntentDigest } from '../../services/changeTransaction/repetitionPolicy.js'
 import { checkAnchor, mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'

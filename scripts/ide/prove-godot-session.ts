@@ -40,7 +40,7 @@ function restoreEnv(): void {
 for (const k of DRIVEN) delete process.env[k]
 
 const godot = await import('../../src/services/ide/godotSession.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 
 
 console.log('============================================================')

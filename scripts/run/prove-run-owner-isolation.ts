@@ -21,7 +21,7 @@ async function main(): Promise<void> {
 
   section('0. the canonical owner key')
   {
-    const ok = await import('../../src/services/run/ownerKey.js')
+    const ok = await import('../../src/utils/run/ownerKey.js')
     const id = {
       workspace: '/tmp/w s|pipe',
       sessionId: 'sess|A',
@@ -44,7 +44,7 @@ async function main(): Promise<void> {
 
   section('1. verification state is owner-addressed')
   {
-    const ok = await import('../../src/services/run/ownerKey.js')
+    const ok = await import('../../src/utils/run/ownerKey.js')
     const v = await import('../../src/utils/verification/verificationState.js')
     const a = ok.makeOwnerKey({ workspace: tmp, sessionId: 'sess-A', lane: 'main' })
     const b = ok.makeOwnerKey({ workspace: tmp, sessionId: 'sess-B', lane: 'main' })
@@ -81,8 +81,8 @@ async function main(): Promise<void> {
 
   section('3. owner lifecycle: 400 create/dispose cycles return to baseline')
   {
-    const ok = await import('../../src/services/run/ownerKey.js')
-    const lifecycle = await import('../../src/services/run/ownerLifecycle.js')
+    const ok = await import('../../src/utils/run/ownerKey.js')
+    const lifecycle = await import('../../src/utils/run/ownerLifecycle.js')
     const v = await import('../../src/utils/verification/verificationState.js')
     const fc = await import('../../src/services/cockpit/ctxForecast.js')
     const live = await import('../../src/services/cockpit/contextUsageLive.js')

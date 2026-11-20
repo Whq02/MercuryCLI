@@ -80,7 +80,7 @@ async function main(): Promise<void> {
 
   section('3. registries return to baseline after the deep run')
   {
-    const lifecycle = await import('../../src/services/run/ownerLifecycle.js')
+    const lifecycle = await import('../../src/utils/run/ownerLifecycle.js')
     const dap = await import('../../src/services/dap/dapClient.js')
     const counts = lifecycle.ownerLifecycleCounts()
     const fixtureResidue = Object.entries(counts.stores).filter(([, n]) => n > 0)

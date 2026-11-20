@@ -8,15 +8,15 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'axiom-ev-'))
 
 const P = await import('../../src/services/primitives/index.ts')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const { recordEvidence } = await import('../../src/utils/verification/verificationState.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 const { startService, stopService, waitForReady } =
   await import('../../src/services/projectServices/serviceManager.ts')
 const { serviceExecutionOwner } = await import('../../src/services/projectServices/executionProjection.ts')
 const { buildAgentResultEnvelope } = await import('../../src/services/agentResults/normalize.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 
 let pass = 0
 let fail = 0

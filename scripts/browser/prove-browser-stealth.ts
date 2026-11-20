@@ -51,7 +51,7 @@ const {
   setBrowserLaunchDriverForProof,
 } = sessionMod
 const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
-const { processOwnerForLane } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
+const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
 const { decideToolPermission } = await import(join(ROOT, 'src/utils/permissions/decision/engine.ts'))
 const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
 

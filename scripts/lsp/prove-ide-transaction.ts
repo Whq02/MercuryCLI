@@ -21,9 +21,9 @@ async function main(): Promise<void> {
 
   section('1. mutation truth comes from EFFECTS, never apply:true intent')
   {
-    const ok = await import('../../src/services/run/ownerKey.js')
+    const ok = await import('../../src/utils/run/ownerKey.js')
     const v = await import('../../src/utils/verification/verificationState.js')
-    const { observeToolTerminal } = await import('../../src/services/run/effectObserver.js')
+    const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
     const owner = ok.makeOwnerKey({ workspace: tmp, sessionId: 'ide-txn', lane: 'main' })
     v._resetVerificationStateForTesting()
     check(

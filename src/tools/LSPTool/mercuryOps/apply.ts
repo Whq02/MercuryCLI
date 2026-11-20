@@ -4,7 +4,7 @@ import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnch
 import { rememberAnchoredSnapshot } from '../../../services/changeTransaction/snapshotRing.js'
 import { type NormalizedFileEdits } from '../../../services/lsp/workspaceEditApply.js'
 import { noteRunEvent } from '../../../services/run/runCoordinator.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getFileModificationTime } from '../../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../../utils/fileHistory.js'

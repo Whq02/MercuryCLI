@@ -145,7 +145,7 @@ try {
   section('(D) the mercury://ide/python/project resource')
   {
     const { resolveResource } = await import('../../src/services/resources/registry.js')
-    const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+    const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
     const owner = makeOwnerKey({ workspace: arena, sessionId: 'py-res-proof', lane: 'main' })
     const withVenvs = join(arena, 'proj-venvs')
     process.env.MERCURY_PYTHON = SYS_PY

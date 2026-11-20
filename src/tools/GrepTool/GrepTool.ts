@@ -11,7 +11,7 @@ import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'
 import {
   LEFT_DOUBLE_CURLY_QUOTE,

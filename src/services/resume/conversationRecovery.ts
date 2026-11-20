@@ -1,6 +1,6 @@
 import { rebuildSeenLinesFromTranscript } from '../changeTransaction/seenLines.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { mainOwnerOfSession, processMainOwner } from '../run/resolveOwner.js'
+import { mainOwnerOfSession, processMainOwner } from '../../utils/run/resolveOwner.js'
 import type { UUID } from 'crypto'
 import { relative } from 'node:path'
 

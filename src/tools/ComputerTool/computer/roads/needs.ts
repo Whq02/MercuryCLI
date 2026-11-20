@@ -1,5 +1,5 @@
 import type { CanUseToolFn, Tool, ToolEffect, ToolEffectOutcome, ToolUseContext } from '../../../../Tool.js'
-import type { OwnerKey } from '../../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../../utils/run/ownerKey.js'
 import type { PermissionDecision } from '../../../../types/permissions.js'
 import type { DesktopBounds, DesktopDriver } from '../../../../services/desktop/driver.js'
 import type { AssistantMessage } from '../../../../types/message.js'

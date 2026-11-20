@@ -8,7 +8,7 @@ delete process.env.NODE_ENV
 const retention = await import('../../src/services/desktop/screenshotRetention.ts')
 const session = await import('../../src/services/desktop/desktopSession.ts')
 const { stripImagesFromMessages } = await import('../../src/services/compact/compact.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 

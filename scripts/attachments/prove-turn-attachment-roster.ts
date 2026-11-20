@@ -43,7 +43,7 @@ try {
   const { ToolSearchTool } = await import(`${root}/src/tools/ToolSearchTool/ToolSearchTool.ts`)
   const { WebFetchTool } = await import(`${root}/src/tools/WebFetchTool/WebFetchTool.ts`)
   const { planToolPayload, clearToolRosterLatches } = await import(`${root}/src/services/providers/toolEconomy.ts`)
-  const { processOwnerForLane } = await import(`${root}/src/services/run/resolveOwner.ts`)
+  const { processOwnerForLane } = await import(`${root}/src/utils/run/resolveOwner.ts`)
   const deferred = (rows: any[]) => rows.filter(row => row.type === 'deferred_tools_delta')
   const roster = (attachments: any[]) => attachments.filter(row => !row.capsuleReceipt).map(row => ({ kind: row.type, bytes: Buffer.byteLength(normalizeAttachmentForAPI(row).flatMap((message: any) => {
     const content = message.message.content

@@ -7,7 +7,7 @@ process.env.MERCURY_BROWSER = '1'
 process.env.MERCURY_BROWSER_MAX_SESSIONS = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const sessions = await import('../../src/services/browser/browserSession.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 const timers = new Map<object, () => void>()
 const realTimeout = globalThis.setTimeout

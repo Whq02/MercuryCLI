@@ -61,8 +61,8 @@ const { handleSampleCall, keepSample, specOf, SAMPLE_DOC_REFUSAL } = bridge
 const { SAMPLE_HTML_CAP_BYTES } = await import('../../src/utils/samples/contracts.ts')
 const store = await import('../../src/services/samples/store.ts')
 const listener = await import('../../src/services/samples/listener.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 const { SAMPLE_PROMPT_LINES } = await import('../../src/tools/EvalTool/prompt.ts')
 
 interface Fixture {

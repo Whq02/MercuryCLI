@@ -53,7 +53,7 @@ import {
 } from './taskStatus.js'
 import { getMissionStatusAttachment } from './missionStatus.js'
 import type { Attachment } from './types.js'
-import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
 import { firstTurnUserContext } from '../api.js'
 import { getSystemContext, getUserContext } from '../../context.js'

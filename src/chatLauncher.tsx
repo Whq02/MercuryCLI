@@ -38,7 +38,7 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
   }
   try {
     const { foldResumedRunForBoot } = await import('./services/run/runCoordinator.js');
-    const { processMainOwner } = await import('./services/run/resolveOwner.js');
+    const { processMainOwner } = await import('./utils/run/resolveOwner.js');
     const { getCwd } = await import('./utils/cwd.js');
     await withDeadline(foldResumedRunForBoot(processMainOwner(), getCwd()), BOOT_RECOVERY_BUDGET_MS, () => null);
   } catch (error) {

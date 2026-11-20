@@ -6,7 +6,7 @@ import { COMPUTER_TOOL_NAME, peekCheckedActApp, type DesktopJudgedApp } from '..
 import { sessionComputerGrant, timedComputerGrant, writeComputerGrant, type ComputerGrantRecord } from '../../../services/desktop/computerGrant.js'
 import { CAPTCHA_OPERATOR_COMPLETES } from '../../../tools/ComputerTool/captcha.js'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { useAppState } from '../../../state/AppState.js'
 import { writeBootEnvChoice } from '../../../substrate/startupMenu.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'

@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_BROWSER_PATH = process.execPath
 const browser = await import('../../src/services/browser/browserSession.ts')
 const { BrowserTool, driverFailureWords } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 const owner = processOwnerForLane('error-fixture')
 const cdpEvents = new Map<string, (event: any) => void>()
 const cdp = { send: async () => ({}), on: (name: string, fn: (event: any) => void) => { cdpEvents.set(name, fn) } }

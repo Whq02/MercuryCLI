@@ -151,7 +151,7 @@ export async function getContextCapsuleAttachment(
     }
 
     const { ownerFromToolUseContext } =
-      require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
+      require('../run/resolveOwner.js') as typeof import('../run/resolveOwner.js')
     const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
       require('../../services/primitives/owner.js') as typeof import('../../services/primitives/owner.js')
     const { getContextMarks } =
@@ -303,7 +303,7 @@ export function foldAttachmentsIntoCapsule(
     workingSet,
   }
   if (context) {
-    const { ownerFromToolUseContext } = require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
+    const { ownerFromToolUseContext } = require('../run/resolveOwner.js') as typeof import('../run/resolveOwner.js')
     if (lastAttached.size > 64) {
       const oldest = lastAttached.keys().next().value
       if (oldest !== undefined) lastAttached.delete(oldest)

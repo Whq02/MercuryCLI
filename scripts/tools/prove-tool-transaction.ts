@@ -11,7 +11,7 @@ import { z } from 'zod/v4'
 
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 const { subscribeToolStart, subscribeToolTerminal } = await import(
-  '../../src/services/run/effectObserver.ts'
+  '../../src/utils/run/effectObserver.ts'
 )
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { killCapability, clearAllCapabilityKills } = await import(

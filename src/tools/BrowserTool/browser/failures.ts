@@ -1,5 +1,5 @@
 import { BROWSER_PROTOCOL_TIMEOUT_MS, MAIN_TAB, browserTabs, endedTab, sessionGoneAt } from '../../../services/browser/browserSession.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import type { LiveSession } from './page.js'
 
 export function openSchemeRefusal(url: string | undefined): string {

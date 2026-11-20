@@ -6,7 +6,7 @@ import { LRUCache } from 'lru-cache'
 
 import { logForDebugging } from '../../utils/debug.js'
 import type { Diagnostic, DiagnosticFile } from '../diagnosticTracking.js'
-import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
+import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
 
 
 type Lane = OwnerKey | null

@@ -15,8 +15,8 @@ const FIXTURES = mkdtempSync(join(tmpdir(), 'edit-ledger-fixture-'))
 process.chdir(FIXTURES)
 
 const ledger = await import('../../src/services/changeTransaction/editOutcomeLedger.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 const plan = await import('../../src/services/changeTransaction/changeSetPlan.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
@@ -113,7 +113,7 @@ section('§4 the ChangeSet chokepoint through the REAL tool')
     null,
     parent,
   )
-  const owner = (await import('../../src/services/run/resolveOwner.ts')).ownerFromToolUseContext(ctx as never)
+  const owner = (await import('../../src/utils/run/resolveOwner.ts')).ownerFromToolUseContext(ctx as never)
   const afterRefusal = ledger.editOutcomeRows(owner)
   check(
     "the refused apply counted its TYPED code under (model-chokepoint, changeset)",

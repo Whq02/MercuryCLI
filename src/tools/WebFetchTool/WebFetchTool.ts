@@ -17,7 +17,7 @@ import { normaliseForMatch } from '../../utils/text/normaliseForMatch.js'
 import { FetchRefusedError } from './fetchErrors.js'
 import { metadataRefusal } from './privateHost.js'
 import { withFetchSession } from './fetchTransport.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 

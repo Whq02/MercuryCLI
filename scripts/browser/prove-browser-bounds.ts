@@ -24,7 +24,7 @@ watchdog.unref?.()
 
 const session = await import('../../src/services/browser/browserSession.ts')
 const { BrowserTool, driverFailureWords } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 type ToolCtx = Parameters<typeof BrowserTool.call>[1]
 

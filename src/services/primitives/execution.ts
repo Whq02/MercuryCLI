@@ -1,5 +1,5 @@
 
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 
 export const EXECUTION_CONTRACT_VERSION = 1
 

@@ -9,8 +9,8 @@ import {
   buildRequestContextPlan,
   type RequestContextPlan,
 } from '../../services/run/requestContextPlan.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import {
   analyzeContextUsage,

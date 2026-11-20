@@ -49,7 +49,7 @@ console.log('task chokepoint projection')
   const { registerTask, updateTaskState } = await import('../../src/utils/task/framework.ts')
   const { taskExecutionKind, taskExecutionState } =
     await import('../../src/utils/task/executionProjection.ts')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 
   let state = { tasks: {} as Record<string, unknown>, agentNameRegistry: new Map() }

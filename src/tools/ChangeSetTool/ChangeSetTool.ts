@@ -56,7 +56,7 @@ import {
 } from '../../services/changeTransaction/repetitionPolicy.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,

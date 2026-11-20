@@ -52,7 +52,7 @@ function toolTurn(i: number, stampMsAgo: number): AnyMessage[] {
 async function main(): Promise<void> {
   process.env.MERCURY_TIME_BASED_MC = '1'
 
-  const ok = await import('../../src/services/run/ownerKey.js')
+  const ok = await import('../../src/utils/run/ownerKey.js')
   const planMod = await import('../../src/services/run/requestContextPlan.js')
   const { PROTECT_NEWEST_TOOL_OUTPUT_TOKENS } = await import('../../src/services/compact/pruneProtections.js')
   const { getTimeBasedMCConfig } = await import('../../src/services/compact/timeBasedMCConfig.js')

@@ -1,6 +1,6 @@
 
 import type { OwnerKey } from './ownerKey.js'
-import { passedOverAs } from '../../utils/passedOver.js'
+import { passedOverAs } from '../passedOver.js'
 
 interface OwnerScopedStoreOptions<T> {
   name: string

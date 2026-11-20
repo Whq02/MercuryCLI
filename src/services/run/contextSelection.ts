@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { Message } from '../../types/message.js'
 import { PERSISTED_OUTPUT_CLOSING_TAG, PERSISTED_OUTPUT_TAG } from '../../utils/toolResultStorage.js'
-import type { OwnerKey } from './ownerKey.js'
-import { registerOwnerScopedStore } from './ownerLifecycle.js'
-import { OwnerScopedStore } from './ownerScopedStore.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const CONTEXT_SELECTION_VERSION = 1 as const

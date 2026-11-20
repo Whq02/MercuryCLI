@@ -52,9 +52,9 @@ const within = <T>(label: string, ms: number, work: Promise<T>): Promise<T> =>
 
 console.log("crewmate-teardown: a crewmate's processes die with it — the Bash tool's seam (runAgent's finally) given to every tool that starts something")
 
-const lifecycle = (await import('../../src/services/run/ownerLifecycle.ts')) as Record<string, unknown> & typeof import('../../src/services/run/ownerLifecycle.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
-const disposeOwnerProcesses = (lifecycle.disposeOwnerProcesses ?? (async () => undefined)) as (owner: import('../../src/services/run/ownerKey.ts').OwnerKey) => Promise<void>
+const lifecycle = (await import('../../src/utils/run/ownerLifecycle.ts')) as Record<string, unknown> & typeof import('../../src/utils/run/ownerLifecycle.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const disposeOwnerProcesses = (lifecycle.disposeOwnerProcesses ?? (async () => undefined)) as (owner: import('../../src/utils/run/ownerKey.ts').OwnerKey) => Promise<void>
 const CREW = processOwnerForLane('agent-crew-teardown')
 const SEAT = processOwnerForLane(null)
 

@@ -7,7 +7,7 @@ import {
   seenLinesOf,
   SEEN_LINES_BOUNDS,
 } from '../../src/services/changeTransaction/seenLines.ts'
-import type { OwnerKey } from '../../src/services/run/ownerKey.ts'
+import type { OwnerKey } from '../../src/utils/run/ownerKey.ts'
 
 type Range = { start: number; end: number }
 const owner = 'large-text-parity' as OwnerKey

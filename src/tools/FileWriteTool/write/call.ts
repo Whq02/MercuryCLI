@@ -11,7 +11,7 @@ import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnch
 import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../../services/lsp/manager.js'
 import { runtimeKernel } from '../../../services/primitives/runtimeKernel.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../../services/acp/ideToolBridge.js'
 import { isRemotePath, markRemoteRead, remoteMovedSinceRead } from '../../../utils/remoteFiles/target.js'
 import {

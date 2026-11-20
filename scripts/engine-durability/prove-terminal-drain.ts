@@ -24,7 +24,7 @@ mock.module('../../src/run-core/turn-machine.ts', () => ({
   runEventCore: () => scriptedMachine(),
 }))
 
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const sidecar = await import('../../src/services/run/runSidecar.ts')
 const coord = await import('../../src/services/run/runCoordinator.ts')
 const { queryEvents } = await import('../../src/query.ts')

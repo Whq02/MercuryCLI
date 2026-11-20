@@ -1,6 +1,6 @@
 import type { ElementHandle, Frame, Page } from 'puppeteer-core'
 import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin } from '../../../services/browser/browserSession.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
 import { type LiveSession, targetOrigin, targetSurface } from './page.js'

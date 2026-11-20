@@ -278,7 +278,7 @@ section('(5) torn-tail tolerance')
 section('(6) the mercury://artifact adapter forms')
 {
   const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
 
   const head = await resolveResource(`mercury://artifact/${raId}`, ctx)
@@ -412,7 +412,7 @@ console.log(JSON.stringify({ ok: r.ok, version: r.ok ? r.value.version : null })
   check('negative ordinal refused with the reason named', !badOrdinal.ok && badOrdinal.reason.includes('non-negative'), badOrdinal.ok ? 'was OK' : badOrdinal.reason)
 
   const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
   const damagedArt = createReviewArtifact({
     kind: 'plan',

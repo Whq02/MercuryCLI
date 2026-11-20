@@ -34,14 +34,14 @@ const { runTextChangeSetCommit, commitPlanDigest } = await import(
   '../../src/services/changeTransaction/changeSetCommit.ts'
 )
 const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const { receiptsFor, _resetChangeReceiptsForTesting } = await import(
   '../../src/services/changeTransaction/receipts.ts'
 )
 const { transactionsFor, _resetTransactionPlaneForTesting } = await import(
   '../../src/services/primitives/transactionPlane.ts'
 )
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'fulcrum-ap-fix-')))
 function writeFixture(name: string, content: string | Buffer, mode?: number): string {

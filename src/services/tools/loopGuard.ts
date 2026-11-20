@@ -12,9 +12,9 @@ import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { PERSISTED_OUTPUT_TAG, persistToolResult } from '../../utils/toolResultStorage.js'
 import { MC_CLEARED_PLACEHOLDER, MC_DIGEST_PREFIX } from '../compact/microCompactDigest.js'
-import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const IDENTICAL_CALL_REMINDER_STEPS: readonly number[] = [3, 5, 8]
