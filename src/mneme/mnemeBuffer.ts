@@ -1,9 +1,11 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { estimateTokens } from './mnemeTopicDocs.js'
+import { clearMnemeUnread, clearMnemeUnreadWhere, recordMnemeUnread } from './mnemeUnread.js'
 import { validatedApplicability, type MemoryApplicability } from './memoryApplicability.js'
 import { passedOver } from '../utils/passedOver.js'
 
@@ -92,7 +94,10 @@ export function appendObservation(
 
 export function readBuffer(dir: string = mnemeLibraryDir()): MnemeObservation[] {
   const p = currentBufferPath(dir)
-  if (!existsSync(p)) return []
+  if (!existsSync(p)) {
+    clearMnemeUnread(p)
+    return []
+  }
   const out: MnemeObservation[] = []
   try {
     for (const line of readFileSync(p, 'utf8').split('\n')) {
@@ -106,7 +111,10 @@ export function readBuffer(dir: string = mnemeLibraryDir()): MnemeObservation[] 
         logForDebugging('mneme readBuffer: skipped malformed row')
       }
     }
+    clearMnemeUnread(p)
   } catch (error) {
+    if (isENOENT(error)) clearMnemeUnread(p)
+    else recordMnemeUnread(p, error)
     passedOver(error)
     return []
   }
@@ -119,16 +127,28 @@ export function bufferTokens(dir: string = mnemeLibraryDir()): number {
 
 export function readConsumingRows(dir: string = mnemeLibraryDir()): MnemeObservation[] {
   const out: MnemeObservation[] = []
+  const resolvedDir = resolve(dir)
+  const dirPrefix = resolvedDir.endsWith(sep) ? resolvedDir : `${resolvedDir}${sep}`
   let names: string[] = []
   try {
     names = readdirSync(dir).filter(n => /^consuming-.*\.jsonl$/.test(n)).sort()
+    clearMnemeUnread(dir)
   } catch (error) {
+    if (isENOENT(error)) {
+      clearMnemeUnread(dir)
+      clearMnemeUnreadWhere(key => key.startsWith(dirPrefix) && /^consuming-.*\.jsonl$/.test(key.slice(dirPrefix.length)))
+    } else {
+      recordMnemeUnread(dir, error)
+    }
     passedOver(error)
     return []
   }
+  const present = new Set(names.map(name => resolve(join(dir, name))))
+  clearMnemeUnreadWhere(key => key.startsWith(dirPrefix) && /^consuming-.*\.jsonl$/.test(key.slice(dirPrefix.length)) && !present.has(key))
   for (const name of names) {
+    const filePath = join(dir, name)
     try {
-      for (const line of readFileSync(join(dir, name), 'utf8').split('\n')) {
+      for (const line of readFileSync(filePath, 'utf8').split('\n')) {
         if (!line.trim()) continue
         try {
           const row = JSON.parse(line) as MnemeObservation
@@ -137,7 +157,10 @@ export function readConsumingRows(dir: string = mnemeLibraryDir()): MnemeObserva
           logForDebugging('mneme readConsumingRows: skipped malformed row')
         }
       }
+      clearMnemeUnread(filePath)
     } catch (error) {
+      if (isENOENT(error)) clearMnemeUnread(filePath)
+      else recordMnemeUnread(filePath, error)
       passedOver(error)
     }
   }
