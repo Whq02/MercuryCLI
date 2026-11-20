@@ -1,5 +1,5 @@
 import { memoize } from 'lodash-es'
-import { isSessionRunArgv, readSessionOptionValues } from '../cli/sessionArgs.js'
+import { isSessionRunArgv, readSessionOptionValues } from '../utils/sessionArgs.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { enableConfigs } from '../utils/config.js'
 import { findMostRecentBackup } from '../utils/config/globalConfig.js'

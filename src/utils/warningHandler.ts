@@ -1,5 +1,6 @@
 import { logForDebugging } from './debug.js'
 import { passedOver } from './passedOver.js'
+import { toPosixSeparators } from './platform/paths.js'
 
 
 const MAX_TRACKED_WARNING_KEYS = 1000
@@ -14,7 +15,7 @@ function isDevelopmentMode(): boolean {
   const candidates = [process.argv[1], process.execPath || process.argv[0]]
   for (const candidate of candidates) {
     if (!candidate) continue
-    const normalized = process.platform === 'win32' ? candidate.replace(/\\/g, '/') : candidate
+    const normalized = toPosixSeparators(candidate)
     if (BUILD_DIRECTORY_SEGMENTS.some(segment => normalized.includes(segment))) return true
   }
   return false

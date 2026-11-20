@@ -19,7 +19,6 @@ as-unknown-as	src/utils/staticRender.tsx	2
 as-never	src/components/concourse/route/useConcourseAdmissionPump.ts	1
 as-never	src/services/engine-connector/daemonConnector.ts	1
 as-never	src/services/providers/openai/openaiSocketTransport.ts	1
-as-never	src/utils/permissions/permissionExplainer.ts	1
 empty-catch	src/services/privateChannel/vendoredRuntime.ts	1
 empty-catch	src/services/privateChannel/verifyArtifactStandalone.ts	1
 empty-catch	src/tools/FileReadTool/jsonQueryWorker.mjs	1
@@ -46,3 +45,135 @@ env-read	src/utils/gracefulShutdown.ts	2
 env-read	src/utils/sessionStorage/paths.ts	1
 env-read	src/utils/slowOperations.ts	1
 env-read	src/utils/warningHandler.ts	1
+Promise.race	src/boot/launchGraph.ts	2	deadline 1 · events 1
+Promise.race	src/chatLauncher.tsx	2	deadline 2
+Promise.race	src/cli/handlers/mcp.tsx	1	deadline 1
+Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
+Promise.race	src/cli/headless/runnerAsks.ts	1	events 1
+Promise.race	src/commands/feedback/healthSection.ts	1	deadline 1
+Promise.race	src/daemon/processSweepWindows.ts	1	deadline 1
+Promise.race	src/daemon/workerParentWatch.ts	1	deadline 1
+Promise.race	src/main/runLaunch.ts	1	deadline 1
+Promise.race	src/mneme/lineageSession.ts	1	deadline 1
+Promise.race	src/services/acp/acpSignIn.ts	1	events 1
+Promise.race	src/services/browser/session/navigation.ts	2	deadline 2
+Promise.race	src/services/browser/session/owners.ts	3	deadline 3
+Promise.race	src/services/eval/procKernel.ts	1	events 1
+Promise.race	src/services/host/door.ts	1	events 1
+Promise.race	src/services/journeys/runner.ts	1	deadline 1
+Promise.race	src/services/lsp/LSPClient.ts	1	events 1
+Promise.race	src/services/lsp/LSPServerInstance.ts	1	deadline 1
+Promise.race	src/services/lsp/firstCallServer.ts	1	deadline 1
+Promise.race	src/services/mcp/client.ts	2	deadline 2
+Promise.race	src/services/mcp/client/limits.ts	1	deadline 1
+Promise.race	src/services/oauth/index.ts	1	events 1
+Promise.race	src/services/privateChannel/channelTransport.ts	3	deadline 3
+Promise.race	src/services/privateChannel/quietUpdateNotice.ts	1	deadline 1
+Promise.race	src/services/providers/cerebras/cerebrasCallModel.ts	1	events 1
+Promise.race	src/services/providers/cohere/cohereCallModel.ts	1	events 1
+Promise.race	src/services/providers/fireworks/fireworksCallModel.ts	1	events 1
+Promise.race	src/services/providers/gemini/geminiCallModel.ts	1	deadline 1
+Promise.race	src/services/providers/groq/groqCallModel.ts	1	events 1
+Promise.race	src/services/providers/melious/meliousCallModel.ts	1	events 1
+Promise.race	src/services/providers/meta/metaCallModel.ts	1	events 1
+Promise.race	src/services/providers/minimax/minimaxCallModel.ts	1	events 1
+Promise.race	src/services/providers/mistral/mistralCallModel.ts	1	events 1
+Promise.race	src/services/providers/moonshot/moonshotCallModel.ts	1	events 1
+Promise.race	src/services/providers/openai/openaiCatalogue.ts	1	deadline 1
+Promise.race	src/services/providers/qwen/qwenCallModel.ts	1	events 1
+Promise.race	src/services/providers/together/togetherCallModel.ts	1	events 1
+Promise.race	src/services/providers/xai/xaiCallModel.ts	1	events 1
+Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
+Promise.race	src/services/switchboard/hopIntoSession.ts	2	deadline 2
+Promise.race	src/services/voice/capture.ts	1	deadline 1
+Promise.race	src/services/voice/transcribe.ts	1	deadline 1
+Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
+Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
+Promise.race	src/tools/BrowserTool/browser/downloads.ts	1	deadline 1
+Promise.race	src/tools/BrowserTool/browser/page.ts	1	deadline 1
+Promise.race	src/tools/BrowserTool/browser/settle.ts	5	deadline 5
+Promise.race	src/tools/BrowserTool/browser/upload.ts	1	deadline 1
+Promise.race	src/tools/LSPTool/mercuryOps/afterWrite.ts	2	deadline 2
+Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
+Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	2	deadline 1 · events 1
+Promise.race	src/tools/ScheduleCronTool/CronCreateTool.ts	1	events 1
+Promise.race	src/utils/attachments/mentionResolvers.ts	1	deadline 1
+Promise.race	src/utils/attachments/orchestrator.ts	1	deadline 1
+Promise.race	src/utils/exitCliffDrain.ts	1	deadline 1
+Promise.race	src/utils/generators.ts	1	events 1
+Promise.race	src/utils/gracefulShutdown.ts	3	deadline 3
+Promise.race	src/utils/health/sections/interface.ts	1	deadline 1
+Promise.race	src/utils/healthReport.ts	1	deadline 1
+Promise.race	src/utils/model/contextWindowWarmup.ts	1	deadline 1
+Promise.race	src/utils/processGroup.ts	1	deadline 1
+Promise.race	src/utils/wards/wardsRefusals.ts	2	row8 2
+Promise.race	src/utils/worktreeClone.ts	1	deadline 1
+startInterval	src/cli/headless/boot/watchBuildBehind.ts	1	periodic 1
+startInterval	src/cli/headless/boot/wireProcess.ts	1	periodic 1
+startInterval	src/cli/headless/hostAskLiveness.ts	1	heartbeat 1
+startInterval	src/commands/tensorfold/tensorfold.tsx	1	clock 1
+startInterval	src/components/HelmLanesRail.tsx	1	clock 1
+startInterval	src/components/LlmHostDialog.tsx	1	clock 1
+startInterval	src/components/PromptInput/Notifications.tsx	1	clock 1
+startInterval	src/components/Spinner.tsx	1	clock 1
+startInterval	src/components/TerminalProfileCard.tsx	2	poll-loop 2
+startInterval	src/components/concourse/SessionWaitingRoom.tsx	1	clock 1
+startInterval	src/components/concourse/liveTiles.ts	1	clock 1
+startInterval	src/components/concourse/route/useConcourseSnapshot.ts	1	clock 1
+startInterval	src/components/concourse/workerTranscriptFold.ts	2	poll-loop 1 · periodic 1
+startInterval	src/components/mercury-ui/parity/DaemonView.tsx	1	clock 1
+startInterval	src/components/permissions/PermissionExplanation.tsx	1	clock 1
+startInterval	src/components/shell/ShellLiveTail.tsx	1	clock 1
+startInterval	src/components/tasks/ShellDetailDialog.tsx	1	clock 1
+startInterval	src/components/tasks/useCrewmateModel.ts	1	clock 1
+startInterval	src/components/tasks/useCrewmateTranscript.ts	1	clock 1
+startInterval	src/components/tensorfold/tensorfoldModelFacts.ts	1	clock 1
+startInterval	src/daemon/ownerWatch.ts	1	heartbeat 1
+startInterval	src/daemon/run/periodic.ts	1	periodic 1
+startInterval	src/daemon/saturnTicker.ts	1	periodic 1
+startInterval	src/daemon/warmRunner.ts	1	periodic 1
+startInterval	src/daemon/workerParentWatch.ts	1	periodic 1
+startInterval	src/hooks/notifs/useLspInitializationNotification.tsx	1	poll-event 1
+startInterval	src/ink/components/ClockContext.tsx	1	clock 1
+startInterval	src/ink/ink.tsx	1	periodic 1
+startInterval	src/main/interactiveLaunch.ts	1	heartbeat 1
+startInterval	src/services/acp/ideToolBridge.ts	1	poll-loop 1
+startInterval	src/services/blender/bridgeClient.ts	1	heartbeat 1
+startInterval	src/services/compact/compact/summarise.ts	1	heartbeat 1
+startInterval	src/services/concourse/sessionTitleMint.ts	1	periodic 1
+startInterval	src/services/desktop/desktopClaim.ts	1	periodic 1
+startInterval	src/services/engine-connector/daemon/live.ts	1	heartbeat 1
+startInterval	src/services/engine-connector/daemon/transcript.ts	1	periodic 1
+startInterval	src/services/engine-connector/projectionFeed.ts	2	clock 2
+startInterval	src/services/eval/kernelManager.ts	1	periodic 1
+startInterval	src/services/host/bankPull.ts	1	clock 1
+startInterval	src/services/host/index.ts	2	clock 2
+startInterval	src/services/host/keepSafe.ts	1	heartbeat 1
+startInterval	src/services/host/notices.ts	1	periodic 1
+startInterval	src/services/host/worker.ts	1	periodic 1
+startInterval	src/services/mcp/client.ts	1	heartbeat 1
+startInterval	src/services/preventSleep.ts	1	periodic 1
+startInterval	src/services/providers/local/localWarm.ts	1	heartbeat 1
+startInterval	src/services/providers/local/tensorfoldPrefill.ts	1	poll-loop 1
+startInterval	src/services/switchboard/screenPresence.ts	1	heartbeat 1
+startInterval	src/services/tensorfold/pull.ts	1	clock 1
+startInterval	src/services/tools/toolExecution.ts	1	clock 1
+startInterval	src/services/unity/bridgeClient.ts	1	heartbeat 1
+startInterval	src/services/vulcan/engine/liveness.ts	1	heartbeat 1
+startInterval	src/services/vulcan/engine/service.ts	1	periodic 1
+startInterval	src/services/vulcan/vulcanClient.ts	1	heartbeat 1
+startInterval	src/services/workbench/projection.ts	1	heartbeat 1
+startInterval	src/state/vitalsBus.ts	1	heartbeat 1
+startInterval	src/substrate/fileStore.ts	2	periodic 2
+startInterval	src/tasks/LocalShellTask/LocalShellTask.tsx	1	periodic 1
+startInterval	src/tools/AgentTool/runAgent/watch.ts	1	heartbeat 1
+startInterval	src/tools/EvalTool/EvalTool.ts	1	clock 1
+startInterval	src/tools/SleepTool/SleepTool.tsx	1	poll-loop 1
+startInterval	src/utils/ShellCommand.ts	1	periodic 1
+startInterval	src/utils/cockpit/uiClock.ts	1	clock 1
+startInterval	src/utils/eventLoopStallDetector.ts	1	clock 1
+startInterval	src/utils/gracefulShutdown.ts	1	periodic 1
+startInterval	src/utils/settings/changeDetector.ts	1	periodic 1
+startInterval	src/utils/task/TaskOutput.ts	1	periodic 1
+startInterval	src/utils/verification/verificationState.ts	1	periodic 1
+startInterval	src/utils/worktreeClone.ts	1	deadline 1

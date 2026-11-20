@@ -2,10 +2,11 @@ import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { accessSync, constants, mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, delimiter, join } from 'node:path'
+import { basename, join } from 'node:path'
 import { ADAPTER_VERSION, LLAMACPP_RELEASE, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './identity.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { envPathDirs, executableName } from '../../../utils/platform/programs.js'
 
 type LlamaIo = {
   platform?: NodeJS.Platform
@@ -37,8 +38,8 @@ function llamaServerCandidates(io: LlamaIo = {}): string[] {
   const platform = io.platform ?? process.platform
   const env = io.env ?? hostEnv()
   const home = io.home ?? homedir()
-  const name = platform === 'win32' ? 'llama-server.exe' : 'llama-server'
-  const pathDirs = (env.PATH ?? env.Path ?? '').split(platform === 'win32' ? ';' : delimiter).filter(dir => dir !== '')
+  const name = executableName('llama-server', platform)
+  const pathDirs = envPathDirs(env, platform)
   const dirs = [llamaRuntimeBin(home), ...pathDirs]
   return [...new Set(dirs.map(dir => join(dir, name)))]
 }

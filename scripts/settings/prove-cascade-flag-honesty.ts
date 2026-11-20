@@ -18,7 +18,7 @@ const { setFlagSettingsPath, setSessionTrustAccepted: trustTheProofFolder } = aw
 trustTheProofFolder(true)
 const { getSettingsWithErrors } = await import('../../src/utils/settings/settings.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { readSessionOption } = await import('../../src/cli/sessionArgs.ts')
+const { readSessionOption } = await import('../../src/utils/sessionArgs.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

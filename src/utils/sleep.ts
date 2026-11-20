@@ -6,9 +6,13 @@ type SleepOptions = {
   unref?: boolean
 }
 
+export function abortedError(signal: AbortSignal | undefined): Error {
+  return Object.assign(new Error('The operation was aborted', { cause: signal?.reason }), { code: 'ABORT_ERR', name: 'AbortError' })
+}
+
 export function sleep(ms: number, signal?: AbortSignal, opts: SleepOptions = {}): Promise<void> {
   const throwOnAbort = opts.throwOnAbort === true || opts.abortError !== undefined
-  const makeError = (): Error => (opts.abortError ? opts.abortError() : Object.assign(new Error('The operation was aborted', { cause: signal?.reason }), { code: 'ABORT_ERR', name: 'AbortError' }))
+  const makeError = (): Error => (opts.abortError ? opts.abortError() : abortedError(signal))
   if (signal?.aborted) {
     return throwOnAbort ? Promise.reject(makeError()) : Promise.resolve()
   }

@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { strict as assert } from 'node:assert'
-import { rmSync, statSync, readFileSync } from 'node:fs'
+import { statSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.XAI_API_KEY
 delete process.env.XAI_MANAGEMENT_API_KEY
@@ -42,7 +44,7 @@ try {
   writeStoredXaiApiKey(null)
   const saved = await storeXaiApiKeyLogin(key, { env, fetchImpl: reply(200) })
   check('a listed key lands auth-scoped with no secret in its receipt', saved.ok && saved.stored && !saved.receipt.includes(key) && readStoredXaiApiKey() === key && saved.receipt.includes('1 chat model listed'))
-  check('the stored key file is mode 600 and inside the proof home', providerSecretsPathForDisplay().startsWith(proofHome) && (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600)
+  check('the stored key file is mode 600 and inside the proof home', providerSecretsPathForDisplay().startsWith(proofHome) && (process.platform === 'win32' || (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600))
   check('sign-in recency records the xAI key', readSignInLedger().xai?.kind === 'api-key')
   check('the account view has presence, never the secret', resolveXaiApiKey({})?.source === 'stored' && !JSON.stringify(resolveXaiAccount({} as NodeJS.ProcessEnv)).includes(key))
   process.env.XAI_API_KEY = 'xai-fixture-env-not-real-abcdefgh'
@@ -100,11 +102,11 @@ try {
   const io = { env: oauth.env, now: () => clock }
   const sleep = async (ms: number): Promise<void> => { waits.push(ms); clock += ms }
   try {
-    setAuthScope(`${proofHome}/scoped-grok`)
+    setAuthScope(join(proofHome, 'scoped-grok'))
     const events: string[] = []
     const signed = await runXaiDeviceLogin({ io, sleep, onEvent: event => events.push(event.phase) })
     check('device code polls pending and slow_down before storing the approved grant', signed.ok && oauth.state.polls === 3 && waits.join(',') === '1000,1000,6000' && events.includes('waiting') && events.includes('finishing'))
-    check('Grok token file is auth-scoped mode 600; receipt contains no token or device secret', auth.xaiAuthPathForDisplay() === `${proofHome}/scoped-grok/.xai-auth.json` && (statSync(auth.xaiAuthPathForDisplay()).mode & 0o777) === 0o600 && !signed.receipt.includes(oauth.token) && !signed.receipt.includes('fixture-device'))
+    check('Grok token file is auth-scoped mode 600; receipt contains no token or device secret', auth.xaiAuthPathForDisplay() === join(proofHome, 'scoped-grok', '.xai-auth.json') && (process.platform === 'win32' || (statSync(auth.xaiAuthPathForDisplay()).mode & 0o777) === 0o600) && !signed.receipt.includes(oauth.token) && !signed.receipt.includes('fixture-device'))
     check('the sign-in receipt lists on the Grok proxy and names that host, never api.x.ai', signed.receipt.includes('1 chat models listed') && signed.receipt.includes('cli-chat-proxy.grok.com') && !signed.receipt.includes('api.x.ai') && oauth.seen.some(row => row.path === '/proxy/v1/models' && row.bearer === `Bearer ${oauth.token}`) && !oauth.seen.some(row => row.path === '/v1/models'))
     check('the proxy list carries X-XAI-Token-Auth: xai-grok-cli and the CLI client version, as the chat road does (without the header the proxy answers 401 x_xai_token_auth=none)', oauth.seen.filter(row => row.path === '/proxy/v1/models').every(row => row.headers['x-xai-token-auth'] === 'xai-grok-cli' && Boolean(row.headers['x-grok-client-version'])))
     check('OAuth ledger and account identity name Grok, never an invented plan', readSignInLedger().xai?.kind === 'oauth' && resolveXaiAccount()?.kind === 'grok-subscription' && resolveXaiAccount()?.email === 'fixture@example.invalid')
@@ -152,4 +154,11 @@ try {
     check('the outer auth scope never received subscription tokens', !auth.xaiStoredTokens())
   } finally { oauth.stop(); auth.clearStoredXaiSubscription(); clearAuthScope(); delete process.env.XAI_API_KEY }
   console.log(`XAI LOGIN GREEN (${checks} checks; fixture only)`)
-} finally { writeStoredXaiApiKey(null); rmSync(proofHome, { recursive: true, force: true }) }
+} finally {
+  writeStoredXaiApiKey(null)
+  try {
+    removeScratch(proofHome, { maxRetries: 4, retryDelayMs: 50 })
+  } catch (error) {
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EBUSY') throw error
+  }
+}
