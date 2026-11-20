@@ -1,7 +1,7 @@
 import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
 import { TREE_UNANSWERED_REASON } from '../../services/desktop/driver.js'
 import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
 import { passedOver } from '../../utils/passedOver.js'
 
@@ -284,19 +284,21 @@ export function observationChanged(before: DesktopObservation, after: DesktopObs
 }
 
 export async function settledObservation(driver: DesktopDriver, before: DesktopObservation, signal: AbortSignal, settleMs: number, verify = false): Promise<{ observation: DesktopObservation; changed: boolean }> {
-  const deadline = Date.now() + settleMs
   const bounded = settleMs > 0 ? AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(settleMs))]) : signal
   let observation: DesktopObservation = {}
-  for (;;) {
-    const current = await readObservation(driver, bounded, verify, before.app?.identity)
-    if (current.app) observation = current
-    const changed = observationChanged(before, observation)
-    if (changed || bounded.aborted || Date.now() >= deadline) return { observation, changed }
-    try { await sleep(Math.min(50, Math.max(0, deadline - Date.now())), bounded) } catch (error) {
-      if (!bounded.aborted) throw error
-      return { observation, changed }
-    }
-  }
+  let changed = false
+  return pollUntil(
+    async () => {
+      const current = await readObservation(driver, bounded, verify, before.app?.identity)
+      if (current.app) observation = current
+      changed = observationChanged(before, observation)
+      return changed || bounded.aborted ? { observation, changed } : undefined
+    },
+    50,
+    Math.max(0, settleMs),
+    () => ({ observation, changed }),
+    { signal: bounded, onAbort: () => ({ observation, changed }) },
+  )
 }
 
 export const STATE_LINE = /^(?:changed|unchanged|title unchanged, focus not read|not compared) · now:/
@@ -386,21 +388,28 @@ export async function settledCapture(driver: DesktopDriver, display: DesktopDisp
     const bottom = Math.ceil((wanted.y + wanted.height - display.originY) * display.scale)
     bounds = { x: display.originX + left / display.scale, y: display.originY + top / display.scale, width: (right - left) / display.scale, height: (bottom - top) / display.scale }
   }
-  const deadline = Date.now() + settleMs
   let previous: Buffer | undefined
-  for (;;) {
-    if (signal.aborted) throw new Error('interrupted')
-    const nativeRegion = bounds !== undefined && driver.captureRegion !== undefined
-    const answer = nativeRegion ? await driver.captureRegion!(display.index, bounds!, signal) : await driver.capture(display.index, signal)
-    if (!answer.ok) throw new Error(answer.error.note)
-    if (signal.aborted) throw new Error('interrupted')
-    const frame = nativeRegion ? { capture: answer.value, points: { width: answer.value.width / answer.value.scale, height: answer.value.height / answer.value.scale } } : await cropCapture(answer.value, display, bounds)
-    if (signal.aborted) throw new Error('interrupted')
-    if (settleMs === 0) return frame
-    const local = observe && !region ? await observationPixels(frame.capture, frame.points, observe) : null
-    const pixels = local ?? frame.capture.png
-    if (previous?.equals(pixels) || Date.now() >= deadline) return frame
-    previous = pixels
-    await sleep(Math.min(50, Math.max(0, deadline - Date.now())), signal)
-  }
+  let lastFrame: { capture: DesktopCapture; points: { width: number; height: number } } | undefined
+  return pollUntil(
+    async () => {
+      if (signal.aborted) throw new Error('interrupted')
+      const nativeRegion = bounds !== undefined && driver.captureRegion !== undefined
+      const answer = nativeRegion ? await driver.captureRegion!(display.index, bounds!, signal) : await driver.capture(display.index, signal)
+      if (!answer.ok) throw new Error(answer.error.note)
+      if (signal.aborted) throw new Error('interrupted')
+      const frame = nativeRegion ? { capture: answer.value, points: { width: answer.value.width / answer.value.scale, height: answer.value.height / answer.value.scale } } : await cropCapture(answer.value, display, bounds)
+      if (signal.aborted) throw new Error('interrupted')
+      lastFrame = frame
+      if (settleMs === 0) return frame
+      const local = observe && !region ? await observationPixels(frame.capture, frame.points, observe) : null
+      const pixels = local ?? frame.capture.png
+      if (previous?.equals(pixels)) return frame
+      previous = pixels
+      return undefined
+    },
+    50,
+    Math.max(0, settleMs),
+    () => lastFrame!,
+    { signal, onAbort: () => { throw new Error('interrupted') } },
+  )
 }
