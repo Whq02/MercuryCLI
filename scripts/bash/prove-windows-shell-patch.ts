@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { brushPackTreeDigest, readBrushPackManifest } from '../../src/utils/shell/brushPack.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
@@ -95,7 +95,10 @@ try {
 
     const fixture = join(scratch, 'build')
     const cargoHome = join(scratch, 'cargo-home')
-    for (const name of ['scripts/vendor/build-brush.ts', PATCH, 'src/utils/shell/brushPack.ts', 'src/services/privateChannel/releaseTarget.ts', 'vendor/brush.lock.json']) {
+    const followed = await Bun.build({ entrypoints: [join(ROOT, 'scripts/vendor/build-brush.ts')], target: 'bun', packages: 'external', metafile: true })
+    const imported = Object.keys(followed.metafile?.inputs ?? {}).map(p => relative(ROOT, resolve(process.cwd(), p)).split('\\').join('/'))
+    check('the build script and every module it imports are read from the tree', followed.success && imported.includes('scripts/vendor/build-brush.ts') && imported.every(name => !name.startsWith('..')), followed.logs.map(String).join(' | ') || imported.join(' · '))
+    for (const name of [...imported, PATCH, 'vendor/brush.lock.json']) {
       mkdirSync(dirname(join(fixture, name)), { recursive: true })
       cpSync(join(ROOT, name), join(fixture, name))
     }
