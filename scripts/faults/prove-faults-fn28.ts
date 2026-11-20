@@ -364,8 +364,8 @@ function skip(label: string, why: string): void {
     chmodSync(nestedStore, 0o000)
     try {
       check(
-        'bootCardFacts-ground-fails-closed: workspaceRecognizedByGround returns false when nested store is unreadable',
-        boot.workspaceRecognizedByGround(ground, nested) === false,
+        'bootCardFacts-ground: a nested workspace whose store is unreadable counts as inside the project, as before',
+        boot.workspaceRecognizedByGround(ground, nested) === true,
       )
       let parkedErr: NodeJS.ErrnoException | null = null
       try {

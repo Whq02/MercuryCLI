@@ -393,14 +393,14 @@ function isCatalogedGround(canonicalDir: string): boolean {
   const hit = catalogedGroundCache.get(canonicalDir)
   if (hit !== undefined && hit.generation === catalogGeneration && now - hit.at < CATALOGED_GROUND_TTL_MS) return hit.answer
   const store = getProjectDir(canonicalDir)
-  let answer = true
+  let answer = false
   let decided = false
   try {
     answer = readStoreDirFacts(store, null) !== null
     decided = true
   } catch (error) {
-    logError(error)
-    answer = true
+    passedOver(error)
+    answer = false
   }
   if (decided) catalogedGroundCache.set(canonicalDir, { at: now, generation: catalogGeneration, answer })
   return answer
