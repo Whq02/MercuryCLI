@@ -21,29 +21,37 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const { createFrameReader } = await import('../../src/services/lsp/sidecarFraming.js')
 
-console.log('\nsidecarFraming.ts — createFrameReader does not mislabel onMessage errors as unparseable JSON')
+console.log('\nsidecarFraming.ts — createFrameReader reports onMessage error verbatim and keeps reading')
 {
   const protocolErrors: string[] = []
+  const seen: string[] = []
   const reader = createFrameReader(
-    () => {
-      throw new Error('handler bug')
+    msg => {
+      if (msg.method === 'boom') throw new Error('handler bug')
+      seen.push(String(msg.method))
     },
     err => {
       protocolErrors.push(err.message)
     },
   )
-  const payload = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' })
-  const frame = Buffer.from(`Content-Length: ${Buffer.byteLength(payload)}\r\n\r\n${payload}`, 'utf8')
+  const frameOf = (obj: unknown) => {
+    const payload = JSON.stringify(obj)
+    return Buffer.from(`Content-Length: ${Buffer.byteLength(payload)}\r\n\r\n${payload}`, 'utf8')
+  }
   let threw: unknown = null
   try {
-    reader(frame)
+    reader(Buffer.concat([frameOf({ jsonrpc: '2.0', id: 1, method: 'boom' }), frameOf({ jsonrpc: '2.0', id: 2, method: 'after' })]))
   } catch (error) {
     threw = error
   }
   check(
-    'createFrameReader lets onMessage throw instead of reporting unparseable JSON-RPC body',
-    threw instanceof Error && threw.message === 'handler bug' && protocolErrors.length === 0,
-    `threw=${String(threw)} protocolErrors=${JSON.stringify(protocolErrors)}`,
+    'createFrameReader hands onMessage error to onProtocolError with its own message and keeps reading the next frame',
+    threw === null &&
+      protocolErrors.length === 1 &&
+      protocolErrors[0] === 'handler bug' &&
+      seen.length === 1 &&
+      seen[0] === 'after',
+    `threw=${String(threw)} protocolErrors=${JSON.stringify(protocolErrors)} seen=${JSON.stringify(seen)}`,
   )
   const badErrors: string[] = []
   const badReader = createFrameReader(() => {}, err => badErrors.push(err.message))

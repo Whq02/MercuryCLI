@@ -59,7 +59,11 @@ export function createFrameReader(
         onProtocolError(new Error('unparseable JSON-RPC body'))
         continue
       }
-      onMessage(parsed)
+      try {
+        onMessage(parsed)
+      } catch (error) {
+        onProtocolError(error instanceof Error ? error : new Error(String(error)))
+      }
     }
   }
 }
