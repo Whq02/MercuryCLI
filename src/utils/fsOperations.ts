@@ -178,7 +178,7 @@ export function setOriginalFsImplementation(): void {
 
 
 export function isUncLikePath(path: string): boolean {
-  return uncPathRisk(path).risky || isWindowsShareRooted(path)
+  return uncPathRisk(path).risky || isWindowsShareRooted(path, false)
 }
 
 function isSpecialFile(stats: fs.Stats): boolean {

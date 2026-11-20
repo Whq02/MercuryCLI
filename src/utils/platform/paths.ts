@@ -43,8 +43,12 @@ export function toNativeSeparators(filePath: string, platform: NodeJS.Platform =
   return platform === 'win32' ? filePath.replace(/\//g, '\\') : filePath
 }
 
-export function isWindowsShareRooted(filePath: string, platform: Platform = getPlatform()): boolean {
-  return platform === 'windows' && /^[\\/]{2}/.test(filePath)
+export function isWindowsShareRooted(
+  filePath: string,
+  allowMixed = true,
+  platform: Platform = getPlatform(),
+): boolean {
+  return platform === 'windows' && (allowMixed ? /^[\\/]{2}/ : /^(\\\\|\/\/)/).test(filePath)
 }
 
 export function picomatchPathOptions(platform: NodeJS.Platform = process.platform): { dot: true; nocase: boolean } {
@@ -72,6 +76,22 @@ export function expandTildeWithHome(filePath: string, home: string, platform: Pl
 
 export function preferredHomeEnv(env: NodeJS.ProcessEnv, platform: Platform = getPlatform()): string {
   return (platform === 'windows' ? env.USERPROFILE || env.HOME : env.HOME || env.USERPROFILE) || ''
+}
+
+function joinPosixLexical(cwd: string, operand: string): string {
+  const combined = `${cwd}/${operand}`
+  const segments: string[] = []
+  for (const segment of combined.split(pathPosix.sep)) {
+    if (segment === '' || segment === '.') continue
+    if (segment === '..') segments.pop()
+    else segments.push(segment)
+  }
+  return '/' + segments.join('/')
+}
+
+export function resolveLexicalOperandPath(cwd: string, operand: string, platform: Platform = getPlatform()): string {
+  if (operand.startsWith('/') || (platform === 'windows' && /^[a-z]:[/\\]/i.test(operand))) return operand
+  return platform === 'windows' ? pathWin32.resolve(cwd, operand) : joinPosixLexical(cwd, operand)
 }
 
 export function splitPathFromRoot(

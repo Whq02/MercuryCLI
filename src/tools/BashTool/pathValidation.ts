@@ -1,5 +1,5 @@
 import { readdirSync, realpathSync, statSync, type Dirent } from 'node:fs'
-import { join, posix as posixPath, resolve as resolvePath, win32 as win32Path } from 'node:path'
+import { join, posix as posixPath, resolve as resolvePath } from 'node:path'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type {
   PermissionResult,
@@ -23,7 +23,8 @@ import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getShellCwd, resolveShellCwd } from '../../utils/Shell.js'
 import { getPlatform } from '../../utils/platform.js'
-import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
+import { rememberedPlatform } from '../../utils/platform/host.js'
+import { msysDrivePathToNative, resolveLexicalOperandPath } from '../../utils/platform/paths.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
@@ -988,8 +989,8 @@ function checkDangerousRemoval(command: PathCommand, args: string[], cwd: string
     if (/^['"]/.test(operand)) operand = operand.slice(1)
     if (/['"]$/.test(operand)) operand = operand.slice(0, -1)
     operand = expandTilde(operand)
-    if (getPlatform() === 'windows' && /^\/[a-z](?:\/|$)/i.test(operand)) operand = posixPathToWindowsPath(operand + (operand.length === 2 ? '/' : ''))
-    const resolved = operand.startsWith('/') || (getPlatform() === 'windows' && /^[a-z]:[/\\]/i.test(operand)) ? operand : getPlatform() === 'windows' ? win32Path.resolve(cwd, operand) : joinNoSymlink(cwd, operand)
+    operand = msysDrivePathToNative(operand, true, rememberedPlatform())
+    const resolved = resolveLexicalOperandPath(cwd, operand)
     if (isDangerousRemovalPath(resolved)) {
       return {
         behavior: 'ask',
@@ -1000,17 +1001,6 @@ function checkDangerousRemoval(command: PathCommand, args: string[], cwd: string
     }
   }
   return { behavior: 'passthrough', message: 'No dangerous removal.' }
-}
-
-function joinNoSymlink(cwd: string, operand: string): string {
-  const combined = `${cwd}/${operand}`
-  const segments: string[] = []
-  for (const segment of combined.split(posixPath.sep)) {
-    if (segment === '' || segment === '.') continue
-    if (segment === '..') segments.pop()
-    else segments.push(segment)
-  }
-  return '/' + segments.join('/')
 }
 
 function attachSuggestions(result: PermissionResult, operationType: FileOperationType): PermissionResult {
