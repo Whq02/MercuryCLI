@@ -1,4 +1,4 @@
-import { shellCommandSegments } from '../../tools/BashTool/destructiveCommandWarning.js'
+import { shellCommandSegments } from '../../utils/shell/destructiveCommandWarning.js'
 import { peelWrappers } from '../../utils/bash/ast.js'
 
 const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'fish', 'csh', 'tcsh', 'cmd', 'powershell', 'pwsh'])

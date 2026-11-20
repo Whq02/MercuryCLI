@@ -1,10 +1,10 @@
 import type { ToolPermissionContext } from '../../Tool.js'
-import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
+import type { PermissionResult } from '../permissions/PermissionResult.js'
 import {
   splitCommand,
   preparedSecurityParse,
-} from '../../utils/permissions/decision/commandAnalysis.js'
-import { passedOver } from '../../utils/passedOver.js'
+} from '../permissions/decision/commandAnalysis.js'
+import { passedOver } from '../passedOver.js'
 
 function sedWords(command: string): { success: boolean; tokens: string[] } {
   const parsed = preparedSecurityParse(command)

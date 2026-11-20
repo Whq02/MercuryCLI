@@ -45,7 +45,7 @@ import {
   outputBudgetClause,
   resizeShellImageOutput,
   stripEmptyLines,
-} from '../BashTool/utils.js'
+} from '../../utils/shell/utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from '../BashTool/maxOutputChars.js'
 import {
   renderToolResultMessage,
