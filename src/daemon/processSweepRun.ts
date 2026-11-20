@@ -12,6 +12,7 @@ import { daemonControlRpc, daemonDir } from './controlSocket.js'
 import { sessionParkDrainMs } from './idleRetirement.js'
 import { getProcessStartInstantAsync } from './ownerWatch.js'
 import type { DaemonReply, DaemonRequest } from './protocol.js'
+import { posixProcessTableSupported, processTreeEndMethod, processUserSource } from '../utils/platform/processes.js'
 import {
   PROCESS_SWEEP_WORDS,
   bundleArgOf,
@@ -249,7 +250,7 @@ export interface ProcessSweepDeps {
 }
 
 function platformCollector(waitMs: number, nowMs: number): (recordedPids: readonly number[]) => Promise<ProcessSweepTable> {
-  if (process.platform === 'win32') {
+  if (!posixProcessTableSupported()) {
     return async recordedPids => (await import('./processSweepWindows.js')).collectWindowsProcesses(recordedPids)
   }
   return recordedPids => collectPosixProcessTable({ waitMs, recordedPids, nowMs })
@@ -279,7 +280,7 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
     nowMs,
     platform: process.platform,
     selfPid: process.pid,
-    user: process.platform === 'win32'
+    user: processUserSource() === 'table'
       ? table.observations.find(row => row.process.pid === process.pid)?.process.user ?? ''
       : typeof process.getuid === 'function' ? String(process.getuid()) : '',
     configHome: home,
@@ -382,7 +383,7 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
       await pause(Math.min(100, Math.max(1, until - now())))
     }
   }
-  if (process.platform === 'win32') {
+  if (processTreeEndMethod() === 'win32-taskkill') {
     const { signalWindowsProcess } = await import('./processSweepWindows.js')
     windowsEntries: for (const entry of reviewed) {
       if (entry.classification !== 'stale') {

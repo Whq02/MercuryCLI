@@ -1,5 +1,7 @@
 import { inspectSessionArgs as inspectRunArgs } from '../utils/sessionArgs.js'
 import { isProcessStartInstant } from './ownerWatch.js'
+import { foldPathCase } from '../utils/platform/paths.js'
+import { posixProcessTableSupported } from '../utils/platform/processes.js'
 
 export type ProcessSweepClass = 'running' | 'stale' | 'cannot-end' | 'not-ours'
 export type ProcessSweepRead = boolean | null
@@ -235,7 +237,7 @@ export function bundleArgOf(args: readonly string[]): string | null {
 export function sameBundlePath(left: string, right: string, platform: NodeJS.Platform): boolean {
   const fold = (path: string): string => {
     const unified = path.replace(/[\\/]+/g, '/')
-    return platform === 'win32' ? unified.toLowerCase() : unified
+    return foldPathCase(unified, platform)
   }
   return fold(left) === fold(right)
 }
@@ -431,7 +433,7 @@ export function composeProcessSweepFacts(table: ProcessSweepTable, records: Proc
           ownership: binding === 'bound' ? (strangerExe ? false : true) : null,
           sameHome: binding === 'bound' ? true : null,
           liveness: liveness({
-            terminal: records.platform === 'win32' ? false : terminalRead(),
+            terminal: posixProcessTableSupported(records.platform) ? terminalRead() : false,
             registration: runner.warm ? true : ended === undefined,
             owner: runner.warm ? false : seatHolderAlive(runner, observations),
             session,
