@@ -770,7 +770,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
       getFsImplementation: () => ({
         ...realFs,
         readFileSync: (filePath, opts) => {
-          if (blockRead && String(filePath) === cfgPath) {
+          if (blockRead && String(filePath).endsWith('.mercury.json')) {
             throw Object.assign(new Error("EBUSY: resource busy or locked, open '" + cfgPath + "'"), { code: 'EBUSY' })
           }
           return realFs.readFileSync(filePath, opts)
@@ -813,7 +813,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
       getFsImplementation: () => ({
         ...realFs,
         readFileSync: (filePath, opts) => {
-          if (blockRead && String(filePath) === cfgPath) {
+          if (blockRead && String(filePath).endsWith('.mercury.json')) {
             throw Object.assign(new Error("EBUSY: resource busy or locked, open '" + cfgPath + "'"), { code: 'EBUSY' })
           }
           return realFs.readFileSync(filePath, opts)
