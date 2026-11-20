@@ -388,5 +388,74 @@ console.log('\nw06-4: agents/store.listAgentDrafts and studioEditorModel — unr
   check('studioEditorModel surfaces "saved drafts could not be read (<error>)" when drafts folder cannot be read, without throwing', Array.isArray(r.listDraftsArray) && r.listDraftsArray.length === 0 && r.unreadRecover === null && typeof unreadNote?.text === 'string' && unreadNote.text.startsWith('saved drafts could not be read (') && unreadNote.text.endsWith(')'), JSON.stringify({ listDraftsArray: r.listDraftsArray, unreadNote, unreadRecover: r.unreadRecover }))
 }
 
+console.log('\nw06-5: agents/store.discardAgentDraft and studioEditorModel — failed draft removal returns error and surfaces notice')
+{
+  const r = runScenario(`
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const store = await import(path.join(SRC, 'services/agents/store.ts'))
+    const { createStudioEditorMachine } = await import(path.join(SRC, 'components/agents/studio/studioEditorModel.ts'))
+
+    const absentPath = path.join(SCRATCH, 'missing-draft.json')
+    out.absentDiscard = store.discardAgentDraft(absentPath)
+
+    const dirPath = path.join(SCRATCH, 'unremovable-draft-dir')
+    fs.mkdirSync(dirPath)
+    out.dirDiscard = store.discardAgentDraft(dirPath)
+
+    const { serializeAgentMarkdown } = await import(path.join(SRC, 'services/agents/codec.ts'))
+    const draftPath = '/drafts/new.json'
+    const draftRaw = serializeAgentMarkdown({ name: 'scout-one', description: 'Use when testing draft removal.' }, 'You are scout-one, a careful verification agent.')
+    const machine1 = createStudioEditorMachine(
+      {
+        mode: 'create',
+        cwd: SCRATCH,
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-fable-5',
+        onSaved: () => {},
+        onCancel: () => {},
+      },
+      () => {},
+      {
+        listDrafts: () => [{ path: draftPath, draft: { version: 1, savedAt: 'now', raw: draftRaw } }],
+        discardDraft: () => ({ ok: false, error: 'EACCES: permission denied' }),
+      },
+    )
+    machine1.declineRecover()
+    out.declineNote = machine1.snapshot().note
+    machine1.dispose()
+
+    let savedMessage = ''
+    const machine2 = createStudioEditorMachine(
+      {
+        mode: 'create',
+        cwd: SCRATCH,
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-fable-5',
+        onSaved: (msg) => { savedMessage = msg },
+        onCancel: () => {},
+      },
+      () => {},
+      {
+        listDrafts: () => [{ path: draftPath, draft: { version: 1, savedAt: 'now', raw: draftRaw } }],
+        discardDraft: () => ({ ok: false, error: 'EACCES: permission denied' }),
+        saveDocument: async () => ({ path: '/dest/scout-one.md', afterRevision: 'rev-1', semanticChanges: ['name'], bytes: 10, at: 'now' }),
+      },
+    )
+    machine2.loadRaw(draftRaw)
+    await machine2.save()
+    out.savedMessage = savedMessage
+    out.saveNote = machine2.snapshot().note
+    machine2.dispose()
+  `)
+  const absentDiscard = r.absentDiscard as { ok?: boolean } | undefined
+  const dirDiscard = r.dirDiscard as { ok?: boolean; error?: string } | undefined
+  const declineNote = r.declineNote as { text?: string } | null | undefined
+  const saveNote = r.saveNote as { text?: string } | null | undefined
+  const expected = 'the draft at /drafts/new.json could not be removed (EACCES: permission denied) — it will be offered again'
+  check('discardAgentDraft returns { ok: true } on ENOENT and { ok: false, error } on non-ENOENT failure', absentDiscard?.ok === true && dirDiscard?.ok === false && typeof dirDiscard?.error === 'string' && dirDiscard.error.length > 0, JSON.stringify({ absentDiscard, dirDiscard }))
+  check('studioEditorModel surfaces removal failure sentence on declineRecover and save', declineNote?.text === expected && saveNote?.text === expected && String(r.savedMessage ?? '').includes(expected), JSON.stringify({ declineNote, saveNote, savedMessage: r.savedMessage }))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)
