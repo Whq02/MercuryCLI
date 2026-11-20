@@ -9,6 +9,7 @@ import { readKeychainServiceSync } from '../../utils/secureStorage/macOsKeychain
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { readExposedFileModeSync } from '../../utils/platform/files.js'
 
 const BROWSER_SECRET_ENV_PREFIX = 'MERCURY_BROWSER_SECRET_'
 export const BROWSER_SECRET_REF_GRAMMAR = /^[A-Z][A-Z0-9_]{0,63}$/
@@ -110,13 +111,11 @@ export function resolveBrowserSecret(ref: string, opts?: { fileDir?: string; ori
   const service = withAuthScope(dir, () => getMacOsKeychainStorageServiceName(`-browser-secret-${ref}`))
   let raw: string | undefined
   try {
-    if (process.platform !== 'win32') {
-      const mode = fs.statSync(file).mode & 0o777
-      if ((mode & 0o077) !== 0) {
-        return {
-          state: 'refused',
-          note: `${file} is readable beyond its owner (mode ${mode.toString(8)}) — chmod 600 it; the secret was not read`,
-        }
+    const exposedMode = readExposedFileModeSync(file)
+    if (exposedMode !== null) {
+      return {
+        state: 'refused',
+        note: `${file} is readable beyond its owner (mode ${exposedMode.toString(8)}) — chmod 600 it; the secret was not read`,
       }
     }
     raw = fs.readFileSync(file, 'utf8')

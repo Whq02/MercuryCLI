@@ -3,6 +3,7 @@ import { readdirSync, rmSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagSpellings, stampFlagOnEnv } from '../../../substrate/flagRegistry.js'
 import { endProcessTree, endProcessTreeSurvivors, win32TaskkillCommand, type ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
+import { childGetsOwnProcessGroup } from '../../../utils/platform/processes.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
 import { engineChecksDir, engineTreesDir, isEnginePath } from './paths.js'
@@ -106,7 +107,7 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
   const child = spawn(req.executable, req.args, {
     cwd: req.cwd,
     windowsHide: true,
-    detached: process.platform !== 'win32',
+    detached: childGetsOwnProcessGroup(),
     stdio: ['ignore', 'pipe', 'pipe'],
     env,
   })

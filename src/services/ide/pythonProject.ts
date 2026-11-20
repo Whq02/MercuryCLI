@@ -13,6 +13,7 @@ import {
 } from '../dap/debugpyResolver.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { venvPythonPath } from '../../utils/platform/programs.js'
 
 type PythonEnvKind = 'explicit' | 'active-venv' | 'conda' | 'project-venv' | 'system'
 
@@ -163,9 +164,7 @@ function probeInterpreter(command: string): InterpreterProbe {
 }
 
 function venvPython(prefix: string): string {
-  return process.platform === 'win32'
-    ? path.join(prefix, 'Scripts', 'python.exe')
-    : path.join(prefix, 'bin', 'python')
+  return venvPythonPath(prefix)
 }
 
 

@@ -5,6 +5,7 @@ import type { AssistantMessage } from '../../types/message.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 import { hostSpawnWorld, spawnPlanOf } from '../../utils/spawnPlan.js'
+import { childGetsOwnProcessGroup } from '../../utils/platform/processes.js'
 import { throwIfDapAborted } from './dapCancellation.js'
 
 export type DapTerminalRequest = {
@@ -68,7 +69,7 @@ export function createDapTerminalRunner(
           cwd: request.cwd,
           env,
           windowsVerbatimArguments: plan.windowsVerbatimArguments,
-          detached: process.platform !== 'win32',
+          detached: childGetsOwnProcessGroup(),
           windowsHide: true,
           stdio: ['pipe', 'pipe', 'pipe'],
         })

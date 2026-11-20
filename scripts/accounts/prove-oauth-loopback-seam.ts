@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const oauth = await import('../../src/constants/oauth.ts')
 const env = await import('../../src/utils/env.ts')
@@ -48,7 +49,7 @@ check('no pin: the production record', withCustom(undefined, () => oauth.getOaut
 
 section('§4 the files are the same under every pin')
 check('the record carries no file suffix field', !('OAUTH_FILE_SUFFIX' in withCustom('http://127.0.0.1:65000', () => oauth.getOauthConfig())))
-check('the global-config file is the one spelling, whatever the pin', withCustom('http://127.0.0.1:65000', () => env.globalConfigFileIn('/proof-home')) === '/proof-home/.mercury.json' && withCustom('https://evil.example', () => env.globalConfigFileIn('/proof-home')) === '/proof-home/.mercury.json')
+check('the global-config file is the one spelling, whatever the pin', withCustom('http://127.0.0.1:65000', () => env.globalConfigFileIn('/proof-home')) === join('/proof-home', '.mercury.json') && withCustom('https://evil.example', () => env.globalConfigFileIn('/proof-home')) === join('/proof-home', '.mercury.json'))
 
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
