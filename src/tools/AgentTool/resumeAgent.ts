@@ -9,7 +9,6 @@ import { recordAfterResume } from '../../utils/crew/crewmateRecord.js'
 import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
-import { assembleToolPool } from '../../tools.js'
 import { latchSwarmAgent, settleSwarmAgent, swarmResumeAdmitted } from '../../services/crewBoard/seam.js'
 import {
   failAgentTask,
@@ -54,6 +53,7 @@ import { isBuiltInAgent } from './loadAgentsDir.js'
 import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../utils/effort.js'
+import { toolPoolOfTheTable } from '../toolTable.js'
 
 type ResumeAgentResult = {
   agentId: string
@@ -278,7 +278,7 @@ export async function resumeAgentBackground(args: {
   let tools: ReturnType<typeof resolveWorkerTools>
   try {
     await latchSwarmAgent(agentId, meta?.name ?? description, true, undefined, task.abortController?.signal)
-    tools = resolveWorkerTools(definition, workerPermissionMode, assembleToolPool(
+    tools = resolveWorkerTools(definition, workerPermissionMode, toolPoolOfTheTable(
       { ...toolUseContext.getAppState().toolPermissionContext, mode: workerPermissionMode as never },
       toolUseContext.getAppState().mcp?.tools ?? [],
       agentId,

@@ -112,6 +112,7 @@ import { beginLoginFiles } from './utils/shell/shellRecord.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
 import './services/resources/kinds.js'
+import { tellTheToolTable } from './tools/toolTable.js'
 
 
 export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
@@ -284,3 +285,5 @@ export function mcpToolPartition(mcpTools: Tools, permissionContext: ToolPermiss
     .map(withBundledAppInstallConsent)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
+
+tellTheToolTable({ getAllBaseTools, assembleToolPool })
