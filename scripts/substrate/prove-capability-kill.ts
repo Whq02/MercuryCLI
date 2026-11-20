@@ -197,7 +197,7 @@ section('FC-145 — malformed MERCURY_AGENT_CAP: forgive, clamp, name')
   {
     const capBefore = process.env.MERCURY_AGENT_CAP
     process.env.MERCURY_AGENT_CAP = 'worker:max-risk=sideways'
-    const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+    const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
     const { getAgentCapParseRejects: rejectsNow } = await import('../../src/utils/permissions/capabilityGate.ts')
     const killsSays = await settingsChecks().find(row => row.id === 'kills')?.run()
     const capRejects = rejectsNow()

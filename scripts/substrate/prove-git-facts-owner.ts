@@ -269,8 +269,8 @@ console.log('\n§8 a reground drops every entry; the next read recomputes')
 
 console.log('\n§9 the source pins')
 {
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
-  const { gitChecks } = await import('../../src/utils/health/sections/git.ts')
+  const { healthContext } = await import('../../src/services/health/healthReport.ts')
+  const { gitChecks } = await import('../../src/services/health/sections/git.ts')
   const { gitProbeNote: noteNow } = await import('../../src/utils/git.ts')
   await getGitState()
   resetMark()

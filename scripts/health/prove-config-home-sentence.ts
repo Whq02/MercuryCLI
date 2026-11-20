@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const homeRow = async (): Promise<{ status: string; evidence: string }> => {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'config-home')
   return { status: String(row?.status), evidence: String(row?.evidence) }

@@ -79,7 +79,7 @@ console.log('\n§2 no page says the pack is the Apple silicon archive\'s alone')
   const globals = globalThis as Record<string, unknown>
   if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
   ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const embedderSays = await (await import('../../src/utils/health/sections/memory.ts')).memoryChecks().find(row => row.id === 'memory-embedder')?.run()
+  const embedderSays = await (await import('../../src/services/health/sections/memory.ts')).memoryChecks().find(row => row.id === 'memory-embedder')?.run()
   const embedModels = await import('../../src/mneme/embedModels.ts')
   const readiness = embedModels.describeSemanticReadiness()
   const ownersWords = [...(readiness.state === 'ok' ? [readiness.model, String(readiness.dimension)] : [readiness.words, readiness.note]), embedModels.memoryRecallModeWords()].filter(words => words.length > 0).sort((a, b) => b.length - a.length)

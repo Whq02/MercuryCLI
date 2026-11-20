@@ -43,7 +43,7 @@ const { apolloSpecDirectory } = await import('../../src/utils/projectConfig.ts')
 const { persistTestRun, testRunsDir } = await import('../../src/services/ide/pythonTests.ts')
 const { getAgentMemoryDir } = await import('../../src/tools/AgentTool/agentMemory.ts')
 const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.ts')
-const { lastCertPath, projectEstateCheck } = await import('../../src/utils/healthReport.ts')
+const { lastCertPath, projectEstateCheck } = await import('../../src/services/health/healthReport.ts')
 const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
 
 section('H1 — the owner')

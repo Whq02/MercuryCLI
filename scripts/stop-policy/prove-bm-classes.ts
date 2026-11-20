@@ -287,7 +287,7 @@ async function main(): Promise<void> {
     const entryStamp = (JSON.parse(readFileSync(join(entryHome, '.config.json'), 'utf8')) as { headlessActivity?: { print: number; sdk: number } }).headlessActivity
     rmSync(entryHome, { recursive: true, force: true })
     check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', entryStamp?.sdk === 1 && entryStamp.print === 0)
-    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/utils/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'))
+    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/services/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'))
   }
 
   section('WK — the worktree preflight refuses BEFORE allocation, deterministically')

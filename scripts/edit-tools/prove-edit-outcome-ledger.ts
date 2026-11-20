@@ -155,7 +155,7 @@ section('§6 the wiring, structural')
 {
   const ledgerRow = getFlagSpec('MERCURY_EDIT_LEDGER')
   check('the display-tier flag row stands with its off arm', ledgerRow !== undefined && ledgerRow.off.includes('counters are removed entirely'))
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const ledgerFlag = process.env.MERCURY_EDIT_LEDGER
   process.env.MERCURY_EDIT_LEDGER = '0'
   const listedOff = runtimeChecks().some(row => row.id === 'edit-outcomes')

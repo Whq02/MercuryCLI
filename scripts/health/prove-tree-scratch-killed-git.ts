@@ -115,7 +115,7 @@ if (launcherDir !== null) {
   roads.push({ name: 'Git for Windows launcher first', path: [launcherDir, ...others].join(delimiter) })
 }
 
-const { computeWorkingTreeSha } = await import('../../src/utils/healthReport.ts')
+const { computeWorkingTreeSha } = await import('../../src/services/health/healthReport.ts')
 
 section('§1 a read that finishes returns the tree git itself writes and leaves no store behind')
 {
@@ -173,7 +173,7 @@ section('§4 an exit right after the checks gave up, or while reads still run, l
     { label: '[a process still holding the store] a read the check gave up on', dir: join(world, 'exit-pinned'), path: hostPath, pinned: true, giveUp: true },
   ]
   const planFile = join(world, 'plan.json')
-  writeFileSync(planFile, JSON.stringify({ module: join(ROOT, 'src', 'utils', 'healthReport.ts'), repo, hold: holdScript, jobs }))
+  writeFileSync(planFile, JSON.stringify({ module: join(ROOT, 'src', 'services', 'health', 'healthReport.ts'), repo, hold: holdScript, jobs }))
   const run = spawn(process.execPath, [exitScript, planFile], { cwd: ROOT, env: { ...process.env }, stdio: ['ignore', 'ignore', 'pipe'], timeout: 180_000 })
   let err = ''
   run.stderr!.on('data', (chunk: Buffer) => (err += chunk.toString('utf8')))

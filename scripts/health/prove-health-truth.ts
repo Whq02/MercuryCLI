@@ -19,8 +19,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { healthContext } = await import('../../src/utils/healthReport.ts')
-const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
+const { healthContext } = await import('../../src/services/health/healthReport.ts')
+const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
 const { getRipgrepStatus } = await import('../../src/utils/ripgrep.ts')
 const context = await healthContext()

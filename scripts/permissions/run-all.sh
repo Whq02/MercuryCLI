@@ -9,7 +9,7 @@
 # gate-watch: src/utils/bash/parser.ts src/utils/bash/bashParser.ts src/utils/bash/ParsedCommand.ts src/utils/bash/treeSitterAnalysis.ts
 # gate-watch: src/utils/config/**
 # gate-watch: src/utils/errors.ts
-# gate-watch: src/utils/healthReport.ts src/utils/permissions/**
+# gate-watch: src/services/health/healthReport.ts src/utils/permissions/**
 # gate-watch: src/utils/settings/**
 # gate-watch: src/rows/*
 # gate-watch: src/utils/windowsPaths.ts

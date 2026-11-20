@@ -237,8 +237,8 @@ section('§2 GUIDANCE (IP-07/08/09)')
 
 section('§3 WIRING (IP-01/10/12/16)')
 {
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
-  const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+  const { healthContext } = await import('../../src/services/health/healthReport.ts')
+  const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
   const provenance = await import('../../src/services/privateChannel/installProvenance.ts')
   const provenanceRow = identityChecks(await healthContext()).find(row => row.id === 'install-provenance')
   const provenanceSays = await provenanceRow?.run()

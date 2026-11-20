@@ -168,7 +168,7 @@ try {
     ),
   )
 
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const { classifyHarnessHome: classify } = await import('../../src/utils/knownAgentClis.ts')
   const { getMercuryHome: homeNow } = await import('../../src/utils/envUtils.ts')
   const isolationRow = await crewChecks().find(row => row.id === 'isolation')?.run()

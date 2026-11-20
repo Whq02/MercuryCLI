@@ -36,7 +36,7 @@ const {
   createDapSession,
   removeDapSession,
 } = await import('../../src/services/dap/dapClient.js')
-const { collectReadiness } = await import('../../src/utils/readiness.js')
+const { collectReadiness } = await import('../../src/services/health/readiness.js')
 const { whichSync } = await import('../../src/utils/which.js')
 
 const savedEnv = { ...process.env }
