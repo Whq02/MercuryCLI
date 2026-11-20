@@ -15,8 +15,10 @@ import {
   operatorTookSessionBack,
   resolveDefaultedAdmission,
   readSessionWorkers,
+  readSessionWorkersSnapshot,
   recordCollisionEvidence,
   retirementFenced,
+  unwrittenSessionRecordsRefusal,
   withDaemonStoreLock,
   type ConcourseAdmitRequest,
   type ConcourseAdmitResult,
@@ -672,6 +674,7 @@ async function attemptRedirectDelivery(
   prompt: string,
   extras?: ConcoursePromptExtras,
 ): Promise<ConcourseDispatchResult> {
+  if (readSessionWorkersSnapshot(deps.dir).state === 'unavailable') unwrittenSessionRecordsRefusal(deps.dir)
   const workers = readSessionWorkers(deps.dir)
   let targetRec = Object.values(workers).find(w => w.sessionId === target && w.endedAt === undefined)
   const report = isOutsideReportOrigin(extras?.origin)

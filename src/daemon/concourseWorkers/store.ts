@@ -203,8 +203,8 @@ function keepUnusedSessionRecordsAside(path: string, why: string): Record<string
   const held = Object.keys(live)
   console.error(
     held.length === 0
-      ? `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts with no session, none being live in memory; what the file held is in the kept file only`
-      : `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts from the ${held.length} live session(s) held in memory (${held.join(', ')}); what the file held of any other session is in the kept file only`,
+      ? `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts with no session, no live session's record being held in memory; what the file held is in the kept file only`
+      : `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts from the records held in memory of the ${held.length} live session(s) (${held.join(', ')}); what the file held of any other session is in the kept file only`,
   )
   return live
 }

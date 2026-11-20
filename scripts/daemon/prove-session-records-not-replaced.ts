@@ -59,7 +59,7 @@ const sessionsOn = (file: string): string[] => {
   }
 }
 const asides = (file: string): string[] => readdirSync(dirname(file)).filter(name => name.startsWith('concourse-workers.json.corrupt.')).sort()
-const keptLine = (file: string, why: string, aside: string): string => `[daemon] ${file}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts with no session, none being live in memory; what the file held is in the kept file only`
+const keptLine = (file: string, why: string, aside: string): string => `[daemon] ${file}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts with no session, no live session's record being held in memory; what the file held is in the kept file only`
 const refusal = (file: string, why: string): string => `the session records at ${file} were not updated: the file is there and could not be read (${why}); nothing was written`
 const spoken = (file: string, why: string): string => `[daemon] ${file}: the session records are there and could not be read (${why}), so changes to them are refused and the file is left as it stands — make it readable, or move it away and the next change writes a new one`
 
@@ -122,27 +122,34 @@ try {
     }, dir)
     const whole = readFileSync(file, 'utf8')
     const cut = whole.slice(0, Math.floor(whole.length / 2))
-    writeFileSync(file, cut)
-    said.length = 0
-    workers.markConcourseWorkerTurnSettled('concourse-w1', dir)
-    const kept = asides(file)
-    const copy = kept.length === 1 ? join(dir, kept[0]!) : null
-    const now = ((): Record<string, Rec> => {
+    const onDisk = (): Record<string, Rec> => {
       try {
         return (JSON.parse(readFileSync(file, 'utf8')) as { workers: Record<string, Rec> }).workers
       } catch {
         return {}
       }
-    })()
-    const carried = now['concourse-w1']
-    check('the new file holds the live session\'s record as it was, and the change that was being made lands on it', carried !== undefined && carried.sessionId === live.sessionId && carried.pid === process.pid && carried.title === 'the live one' && carried.effort === 'high' && carried.agentName === 'fixture' && carried.birthKey === 'born-live' && typeof carried.lastTurnSettledAt === 'number', `on disk now: ${sessionsOn(file).join(', ') || 'no session'}`)
-    check('the session that is not live is in the kept file only, and the kept file is the cut file byte for byte', now['concourse-w2'] === undefined && copy !== null && readFileSync(copy, 'utf8') === cut, { ids: sessionsOn(file), kept })
-    check('daemon.log says what the kept file is and what the new file starts from', copy !== null && said.filter(line => line === `[daemon] ${file}: the session records could not be used (it is not valid JSON); the file is kept aside at ${copy} as it stood, and the new file starts from the 1 live session(s) held in memory (concourse-w1); what the file held of any other session is in the kept file only`).length === 1, said)
+    }
+    const carriedWhole = (rec: Rec | undefined): boolean => rec !== undefined && rec.sessionId === live.sessionId && rec.pid === process.pid && rec.title === 'the live one' && rec.effort === 'high' && rec.agentName === 'fixture' && rec.birthKey === 'born-live'
+    const startsFromLive = (copy: string): string => `[daemon] ${file}: the session records could not be used (it is not valid JSON); the file is kept aside at ${copy} as it stood, and the new file starts from the records held in memory of the 1 live session(s) (concourse-w1); what the file held of any other session is in the kept file only`
+
+    writeFileSync(file, cut)
+    said.length = 0
     const delivered: string[] = []
     const handler = dispatch.makeConcourseDispatchHandler({ admit: async () => ({ ok: false, code: 'invalid-request', error: 'the fixture admits nothing' }) as never, deliver: async runnerId => (delivered.push(runnerId), true), dir })
     const turn = await handler({ clientMessageId: 'the-next-turn', prompt: 'the next turn', workspaceDir: dir, targetSessionId: live.sessionId })
     await dispatch.flushDeferredDispatchPublishes()
-    check('the live session takes its next turn: the prompt is delivered to its runner', turn.ok === true && delivered.join() === 'concourse-w1', turn.error ?? delivered)
+    const kept = asides(file)
+    const copy = kept.length === 1 ? join(dir, kept[0]!) : null
+    check('the live session takes its next turn, the first thing asked after the cut: the prompt is delivered to its runner', turn.ok === true && delivered.join() === 'concourse-w1', turn.error ?? delivered)
+    check('the new file holds the live session\'s record as it was', carriedWhole(onDisk()['concourse-w1']), `on disk now: ${sessionsOn(file).join(', ') || 'no session'}`)
+    check('the session that is not live is in the kept file only, and the kept file is the cut file byte for byte', onDisk()['concourse-w2'] === undefined && copy !== null && readFileSync(copy, 'utf8') === cut, { ids: sessionsOn(file), kept })
+    check('daemon.log says what the kept file is and what the new file starts from', copy !== null && said.filter(line => line === startsFromLive(copy)).length === 1, said)
+
+    writeFileSync(file, cut)
+    said.length = 0
+    workers.markConcourseWorkerTurnSettled('concourse-w1', dir)
+    const second = asides(file).filter(name => !kept.includes(name))
+    check('cut a second time, a stamp on the live session finds its record: the new file holds it, with the stamp', carriedWhole(onDisk()['concourse-w1']) && typeof onDisk()['concourse-w1']?.lastTurnSettledAt === 'number' && second.length === 1 && said.filter(line => line === startsFromLive(join(dir, second[0] ?? ''))).length === 1, { ids: sessionsOn(file), second, said })
   }
 
   console.log('the session records — two files that cannot be used in one millisecond: the second copy never clobbers the first')
