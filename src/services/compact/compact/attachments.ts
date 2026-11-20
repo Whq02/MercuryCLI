@@ -1,7 +1,7 @@
 import { getInvokedSkillsForAgent } from '../../../bootstrap/state.js'
 import type { ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage, AttachmentMessage, Message, UserMessage } from '../../../types/message.js'
-import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../../utils/attachments/agentRoster.js'
+import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../attachments/agentRoster.js'
 import { getPlannedDeferredToolsAttachment, getMcpInstructionsDeltaAttachment } from '../../../utils/attachments/deltas.js'
 import { generateFileAttachment } from '../../../utils/attachments/fileAttachments.js'
 import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'

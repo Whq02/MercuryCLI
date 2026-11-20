@@ -34,7 +34,7 @@ guard.unref?.()
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { getAgentRosterAttachment, queuedNoticeTaskIds } = await import('../../src/utils/attachments/agentRoster.ts')
+const { getAgentRosterAttachment, queuedNoticeTaskIds } = await import('../../src/services/attachments/agentRoster.ts')
 const { createTaskStateBase } = await import('../../src/Task.ts')
 const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
 const { seatWaitWords } = await import('../../src/services/capacity/seatWords.ts')
