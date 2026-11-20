@@ -177,6 +177,65 @@ try {
       JSON.stringify(r),
     )
   }
+
+  {
+    const r = runIsolated(`
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const { mock } = await import('bun:test')
+      const stopMod = await import(SRC + '/tasks/stopTask.ts')
+      mock.module(SRC + '/tasks/stopTask.ts', () => ({
+        ...stopMod,
+        stopTask: async () => { throw new Error('stopTask-refused') },
+      }))
+      mock.module(SRC + '/tasks/stopTask.js', () => ({
+        ...stopMod,
+        stopTask: async () => { throw new Error('stopTask-refused') },
+      }))
+      const { MonitorTool } = await import(SRC + '/tools/MonitorTool/MonitorTool.ts')
+      const pidFile = path.join(SCRATCH, 'mon.pid')
+      let state = { tasks: {}, toolPermissionContext: { mode: 'default' } }
+      const ctx = {
+        abortController: new AbortController(),
+        toolUseId: 'mon-test-1',
+        getAppState: () => state,
+        setAppState: updater => { state = updater(state) },
+      }
+      await MonitorTool.call({
+        command: 'echo $$ > ' + JSON.stringify(pidFile) + ' && exec sleep 30',
+        description: 'leak-check',
+        timeout_ms: 1000,
+        persistent: false,
+      }, ctx)
+      const deadline = Date.now() + 3000
+      let pid = 0
+      while (Date.now() < deadline) {
+        if (fs.existsSync(pidFile)) {
+          const parsed = Number(fs.readFileSync(pidFile, 'utf8').trim())
+          if (Number.isInteger(parsed) && parsed > 0) { pid = parsed; break }
+        }
+        await Bun.sleep(50)
+      }
+      await Bun.sleep(1600)
+      let alive = false
+      if (pid > 0) {
+        try {
+          process.kill(pid, 0)
+          alive = true
+          try { process.kill(pid, 'SIGKILL') } catch {}
+        } catch {
+          alive = false
+        }
+      }
+      out.pid = pid
+      out.aliveAfterExpiry = alive
+    `)
+    check(
+      'monitor-stop-fallback-kills-process: when stopTask fails on expiry, MonitorTool kills shellCommand directly instead of leaking the process',
+      Number(r.pid) > 0 && r.aliveAfterExpiry === false,
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
