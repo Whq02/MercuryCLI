@@ -14,7 +14,7 @@ import { sessionParkDrainMs } from '../idleRetirement.js'
 import { armOwnerPipe, getProcessStartTokenAsync, isProcessAlive, parseOwnerFd, startOwnerWatch } from '../ownerWatch.js'
 import { decideSessionlessExit } from '../sessionlessExit.js'
 import type { DaemonRunState } from './state.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { errorMessage } from '../../utils/errors.js'
 
 interface OwnerNeeds {
   shutdown: (signal: string) => void
@@ -33,7 +33,7 @@ function passOwnership(state: DaemonRunState, needs: OwnerNeeds, next: number): 
   state.currentOwnerPid = next
   void readDaemonState()
     .then(rec => (rec && rec.pid === process.pid ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
-    .catch(passedOver)
+    .catch(e => console.error(`[daemon] ownership passed to the live cockpit pid ${next}, but the daemon record was not updated and still names the previous owner: ${errorMessage(e)}`))
   void armOwnerWatch(state, needs, next, false)
 }
 
