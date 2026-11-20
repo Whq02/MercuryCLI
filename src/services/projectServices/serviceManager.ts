@@ -229,23 +229,25 @@ export function reconcileRecordStrict(cwd: string, name: string): StrictRecordRe
 
 export function reconcileAllStrict(
   cwd: string,
-): { ok: true; records: ServiceRecord[] } | { ok: false; error: string } {
+): { ok: true; records: ServiceRecord[]; unreadable: Array<{ name: string; error: string }> } | { ok: false; error: string } {
   const dir = servicesDir(cwd)
   let names: string[]
   try {
     names = readFileSyncDirNames(dir)
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { ok: true, records: [] }
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { ok: true, records: [], unreadable: [] }
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
   const records: ServiceRecord[] = []
+  const unreadable: Array<{ name: string; error: string }> = []
   for (const name of names) {
     const loaded = reconcileRecordStrict(cwd, name)
-    if (!loaded.ok) return { ok: false, error: loaded.error }
-    if (loaded.record !== null) records.push(loaded.record)
+    if (!loaded.ok) unreadable.push({ name, error: loaded.error })
+    else if (loaded.record !== null) records.push(loaded.record)
   }
   records.sort((a, b) => a.spec.name.localeCompare(b.spec.name))
-  return { ok: true, records }
+  unreadable.sort((a, b) => a.name.localeCompare(b.name))
+  return { ok: true, records, unreadable }
 }
 
 export function reconcileRecord(cwd: string, name: string): ServiceRecord | null {

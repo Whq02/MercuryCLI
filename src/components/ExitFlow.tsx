@@ -56,9 +56,13 @@ export function ExitFlow({
   if (note !== null) {
     return (
       <ExitHandoff
-        onSettled={() => {
-          onDone(note.message)
-          exitNow(note.message)
+        onSettled={receipt => {
+          const finalLine =
+            receipt.detail !== undefined && receipt.detail !== ''
+              ? `${farewell(note.message)}\n${receipt.detail}`
+              : note.message
+          onDone(finalLine)
+          exitNow(finalLine)
         }}
       />
     )

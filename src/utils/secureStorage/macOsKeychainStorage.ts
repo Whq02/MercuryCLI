@@ -12,11 +12,45 @@ import {
   keychainCacheState,
   keychainReachable,
 } from './macOsKeychainHelpers.js'
-import type { SecureStorage, SecureStorageData } from './types.js'
+import { getErrnoCode } from '../errors.js'
+import type { CredentialStoreUnread, SecureStorage, SecureStorageData } from './types.js'
 import { passedOver } from '../passedOver.js'
 
 
-type SecurityResult = { exitCode: number; stdout: string; stderr: string }
+type SecurityResult = {
+  exitCode: number
+  stdout: string
+  stderr: string
+  errorCode?: string
+  errorMessage?: string
+}
+
+type KeychainReadOutcome =
+  | { kind: 'ok'; raw: string | null }
+  | { kind: 'absent' }
+  | { kind: 'failed'; code: string; message: string }
+
+type ParseOutcome =
+  | { ok: true; data: SecureStorageData }
+  | { ok: false; code: string; message: string }
+
+let keychainUnread: CredentialStoreUnread | null = null
+
+function setKeychainUnread(next: { code: string; message: string } | null): void {
+  if (next === null) {
+    if (keychainUnread !== null) {
+      logForDebugging('credential store: macOS keychain read recovered')
+      keychainUnread = null
+    }
+    return
+  }
+  const warning = `The macOS keychain could not be read (${next.code}): ${next.message}`
+  if (keychainUnread !== null && keychainUnread.code === next.code && keychainUnread.message === next.message) {
+    return
+  }
+  keychainUnread = { warning, code: next.code, message: next.message }
+  logForDebugging(`credential store: ${warning}`, { level: 'error' })
+}
 
 const KEYCHAIN_UNREACHABLE: SecurityResult = {
   exitCode: 1,
@@ -33,45 +67,108 @@ function runSecurity(args: string[], input?: string): SecurityResult {
     env: { ...subprocessEnv() },
     ...(input !== undefined ? { input } : {}),
   })
-  return { exitCode: result.status ?? 1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
+  const errorCode = result.error ? (getErrnoCode(result.error) ?? 'ESPAWN') : undefined
+  const errorMessage = result.error ? result.error.message : undefined
+  return {
+    exitCode: result.status ?? 1,
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    ...(errorCode !== undefined ? { errorCode } : {}),
+    ...(errorMessage !== undefined ? { errorMessage } : {}),
+  }
 }
 
 function credentialServiceNames(): string[] {
   return [getMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)]
 }
 
-export function readKeychainServiceSync(serviceName: string): string | null {
-  const result = runSecurity(['find-generic-password', '-a', getUsername(), '-w', '-s', serviceName])
-  if (result.exitCode !== 0) return null
-  const trimmed = result.stdout.trim()
-  return trimmed === '' ? null : trimmed
+function classifySyncRead(result: SecurityResult): KeychainReadOutcome {
+  if (result.exitCode === 0) {
+    const trimmed = result.stdout.trim()
+    return { kind: 'ok', raw: trimmed === '' ? null : trimmed }
+  }
+  if (result.exitCode === 44) return { kind: 'absent' }
+  const code = result.errorCode ?? (result.exitCode === 36 ? 'KEYCHAIN_LOCKED' : `KEYCHAIN_EXIT_${result.exitCode}`)
+  const stderr = result.stderr.trim().slice(0, 200)
+  const message =
+    result.errorMessage ??
+    (stderr !== '' ? stderr : result.exitCode === 36 ? 'keychain is locked' : `security exited with code ${result.exitCode}`)
+  return { kind: 'failed', code, message }
 }
 
-function readServiceAsync(serviceName: string): Promise<string | null> {
-  if (!keychainReachable()) return Promise.resolve(null)
+function readKeychainServiceOutcomeSync(serviceName: string): KeychainReadOutcome {
+  if (!keychainReachable()) return { kind: 'absent' }
+  const result = runSecurity(['find-generic-password', '-a', getUsername(), '-w', '-s', serviceName])
+  return classifySyncRead(result)
+}
+
+export function readKeychainServiceSync(serviceName: string): string | null {
+  const outcome = readKeychainServiceOutcomeSync(serviceName)
+  if (outcome.kind === 'failed') {
+    setKeychainUnread(outcome)
+    return null
+  }
+  if (outcome.kind === 'ok') {
+    if (keychainUnread !== null && keychainUnread.code !== 'KEYCHAIN_CORRUPT') {
+      setKeychainUnread(null)
+    }
+    return outcome.raw
+  }
+  return null
+}
+
+function readServiceOutcomeAsync(serviceName: string): Promise<KeychainReadOutcome> {
+  if (!keychainReachable()) return Promise.resolve({ kind: 'absent' })
   return new Promise(resolve => {
     execFile(
       'security',
       ['find-generic-password', '-a', getUsername(), '-w', '-s', serviceName],
       { windowsHide: true, env: { ...subprocessEnv() } },
-      (error, stdout) => {
+      (error, stdout, stderr) => {
         if (error) {
-          resolve(null)
+          const rawCode = (error as { code?: unknown }).code
+          if (rawCode === 44) {
+            resolve({ kind: 'absent' })
+            return
+          }
+          const code =
+            typeof rawCode === 'string' && rawCode !== ''
+              ? rawCode
+              : rawCode === 36
+                ? 'KEYCHAIN_LOCKED'
+                : typeof rawCode === 'number'
+                  ? `KEYCHAIN_EXIT_${rawCode}`
+                  : 'KEYCHAIN_ERROR'
+          const stderrText = (stderr ?? '').trim().slice(0, 200)
+          const message =
+            stderrText !== '' ? stderrText : rawCode === 36 ? 'keychain is locked' : error.message
+          resolve({ kind: 'failed', code, message })
           return
         }
         const trimmed = stdout.trim()
-        resolve(trimmed === '' ? null : trimmed)
+        resolve({ kind: 'ok', raw: trimmed === '' ? null : trimmed })
       },
     )
   })
 }
 
-function parseData(raw: string): SecureStorageData | null {
+function parseData(raw: string): ParseOutcome {
   try {
-    return JSON.parse(raw) as SecureStorageData
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { ok: false, code: 'KEYCHAIN_CORRUPT', message: 'keychain entry is not a JSON object' }
+    }
+    return { ok: true, data: parsed as SecureStorageData }
   } catch (error) {
     passedOver(error)
-    return null
+    return { ok: false, code: 'KEYCHAIN_CORRUPT', message: 'keychain entry is not valid JSON' }
+  }
+}
+
+function failureFromError(error: unknown): { code: string; message: string } {
+  return {
+    code: getErrnoCode(error) ?? 'KEYCHAIN_ERROR',
+    message: error instanceof Error ? error.message : String(error),
   }
 }
 
@@ -98,32 +195,50 @@ export const macOsKeychainStorage: SecureStorage = {
       return state.cached.data
     }
     const previous = state.cached.data
+    let lastFailure: { code: string; message: string } | null = null
     for (const serviceName of credentialServiceNames()) {
       try {
-        const raw = readKeychainServiceSync(serviceName)
-        if (raw === null) continue
-        const parsed = parseData(raw)
-        if (parsed === null) continue
-        state.cached = { data: parsed, cachedAt: Date.now() }
-        return parsed
+        const outcome = readKeychainServiceOutcomeSync(serviceName)
+        if (outcome.kind === 'failed') {
+          lastFailure = outcome
+          continue
+        }
+        if (outcome.kind === 'absent' || outcome.raw === null) continue
+        const parsed = parseData(outcome.raw)
+        if (!parsed.ok) {
+          lastFailure = parsed
+          continue
+        }
+        setKeychainUnread(null)
+        state.cached = { data: parsed.data, cachedAt: Date.now() }
+        return parsed.data
       } catch (error) {
         passedOver(error)
+        lastFailure = failureFromError(error)
       }
     }
     const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
     if (rawService !== null) {
       try {
-        const raw = readKeychainServiceSync(rawService)
-        const parsed = raw === null ? null : parseData(raw)
-        if (parsed !== null) {
-          migrateRawKeyedEntry(parsed, rawService)
-          state.cached = { data: parsed, cachedAt: Date.now() }
-          return parsed
+        const outcome = readKeychainServiceOutcomeSync(rawService)
+        if (outcome.kind === 'failed') {
+          lastFailure ??= outcome
+        } else if (outcome.kind === 'ok' && outcome.raw !== null) {
+          const parsed = parseData(outcome.raw)
+          if (parsed.ok) {
+            setKeychainUnread(null)
+            migrateRawKeyedEntry(parsed.data, rawService)
+            state.cached = { data: parsed.data, cachedAt: Date.now() }
+            return parsed.data
+          }
+          lastFailure ??= parsed
         }
       } catch (error) {
         passedOver(error)
+        lastFailure ??= failureFromError(error)
       }
     }
+    setKeychainUnread(lastFailure)
     if (previous !== null) {
       logForDebugging('keychain read failed on both spellings; serving the previous value', {
         level: 'warn',
@@ -143,26 +258,46 @@ export const macOsKeychainStorage: SecureStorage = {
     if (state.readInFlight !== null) return state.readInFlight
     const generation = state.generation
     const readPromise = (async (): Promise<SecureStorageData | null> => {
-      let parsed: SecureStorageData | null = null
+      let data: SecureStorageData | null = null
+      let lastFailure: { code: string; message: string } | null = null
       for (const serviceName of credentialServiceNames()) {
-        const raw = await readServiceAsync(serviceName)
-        if (raw === null) continue
-        parsed = parseData(raw)
-        if (parsed !== null) break
+        const outcome = await readServiceOutcomeAsync(serviceName)
+        if (outcome.kind === 'failed') {
+          lastFailure = outcome
+          continue
+        }
+        if (outcome.kind === 'absent' || outcome.raw === null) continue
+        const parsed = parseData(outcome.raw)
+        if (!parsed.ok) {
+          lastFailure = parsed
+          continue
+        }
+        data = parsed.data
+        break
       }
-      if (parsed === null) {
+      if (data === null) {
         const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
         if (rawService !== null) {
-          const raw = await readServiceAsync(rawService)
-          parsed = raw === null ? null : parseData(raw)
-          if (parsed !== null) migrateRawKeyedEntry(parsed, rawService)
+          const outcome = await readServiceOutcomeAsync(rawService)
+          if (outcome.kind === 'failed') {
+            lastFailure ??= outcome
+          } else if (outcome.kind === 'ok' && outcome.raw !== null) {
+            const parsed = parseData(outcome.raw)
+            if (parsed.ok) {
+              data = parsed.data
+              migrateRawKeyedEntry(data, rawService)
+            } else {
+              lastFailure ??= parsed
+            }
+          }
         }
       }
+      setKeychainUnread(data !== null ? null : lastFailure)
       if (state.generation !== generation) {
-        return parsed
+        return data
       }
       const previous = state.cached.data
-      if (parsed === null && previous !== null) {
+      if (data === null && previous !== null) {
         logForDebugging('keychain async read failed; serving the previous value', {
           level: 'warn',
         })
@@ -170,9 +305,9 @@ export const macOsKeychainStorage: SecureStorage = {
         state.readInFlight = null
         return previous
       }
-      state.cached = { data: parsed, cachedAt: Date.now() }
+      state.cached = { data, cachedAt: Date.now() }
       state.readInFlight = null
-      return parsed
+      return data
     })()
     state.readInFlight = readPromise
     return readPromise
@@ -196,6 +331,7 @@ export const macOsKeychainStorage: SecureStorage = {
         result = runSecurity(['add-generic-password', '-U', '-a', username, '-s', serviceName, '-X', hex])
       }
       if (result.exitCode !== 0) return { success: false }
+      setKeychainUnread(null)
       keychainCacheState.cached = { data, cachedAt: Date.now() }
       return { success: true }
     } catch {
@@ -221,6 +357,10 @@ export const macOsKeychainStorage: SecureStorage = {
       }
     }
     return allSucceeded
+  },
+
+  unread(): CredentialStoreUnread | null {
+    return keychainUnread
   },
 }
 

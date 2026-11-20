@@ -349,8 +349,9 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
   }
   const unparked = await parkSessionById(oldSessionId)
   const { markSessionCleared } = await import('../../utils/sessionStorage/clearedSessions.js')
-  markSessionCleared(oldSessionId)
+  const marked = markSessionCleared(oldSessionId)
   if (unparked !== null) mintImmediateReceipt(`the cleared session could not be parked and is still running (${unparked}) — park it from the Session Concourse`, 'warning')
+  if (!marked.ok) mintImmediateReceipt(`the cleared mark could not be saved (${marked.error}), so this session may show in the list again`, 'warning')
   return { ok: true, cleared: true }
 }
 

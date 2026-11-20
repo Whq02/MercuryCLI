@@ -108,10 +108,21 @@ console.log('\nw06-1: VerbsPart.leave and ExitHandoff — failed abort interrupt
 
     const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
     enableConfigs()
+    const gsPath = path.join(SRC, 'utils/gracefulShutdown.ts')
+    const realGs = await import(gsPath)
+    const shutdownMessages = []
+    mock.module(gsPath, () => ({
+      ...realGs,
+      gracefulShutdown: async (_code, _reason, opts) => {
+        shutdownMessages.push(opts?.finalMessage ?? '')
+      },
+    }))
     const React = await import('react')
     const { Box } = await import(path.join(SRC, 'ink.ts'))
     const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
-    const { ExitHandoff, leaveNoteAtExit } = await import(path.join(SRC, 'components/ExitHandoff.tsx'))
+    const { leaveNoteAtExit } = await import(path.join(SRC, 'components/ExitHandoff.tsx'))
+    const { call: exitCall } = await import(path.join(SRC, 'commands/exit/exit.tsx'))
+    const { ExitFlow } = await import(path.join(SRC, 'components/ExitFlow.tsx'))
     const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
     const { noSessionConnector } = await import(path.join(SRC, 'services/engine-connector/noSessionConnector.ts'))
     const { mountOffscreen, waitFor } = await import(path.join(REPO, 'scripts/lib/settingsPopupHarness.ts'))
@@ -119,36 +130,135 @@ console.log('\nw06-1: VerbsPart.leave and ExitHandoff — failed abort interrupt
     setFocusedSessionConnector({
       ...noSessionConnector(),
       sessionId: () => '00000000-0000-4000-8000-0000000000ab',
+      workRoster: () => ({ rows: [], mission: [], reported: true }),
       leave: async () => ({ note: 'none', detail: detailSentence }),
     })
     out.forwarded = await leaveNoteAtExit(new AbortController().signal)
-    let settledReceipt = null
-    const el = React.createElement(
-      ThemeProvider,
-      {},
-      React.createElement(
-        Box,
-        { flexDirection: 'column', width: 100, height: 6 },
-        React.createElement(ExitHandoff, { onSettled: (rec) => { settledReceipt = rec } }),
-      ),
+
+    let exitDoneMsg = null
+    const exitNode = await exitCall((msg) => { exitDoneMsg = msg ?? '' }, {})
+    const m1 = await mountOffscreen(
+      React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 100, height: 6 }, exitNode)),
+      100,
+      6,
     )
-    const m = await mountOffscreen(el, 100, 6)
-    await waitFor(() => settledReceipt !== null, 3000)
-    await new Promise(resolve => setTimeout(resolve, 60))
-    out.renderedLines = m.lines().map(l => l.trim()).filter(Boolean)
-    out.settledReceipt = settledReceipt
-    m.unmount()
+    await waitFor(() => exitDoneMsg !== null && shutdownMessages.length >= 1, 3000)
+    m1.unmount()
+
+    let flowDoneMsg = null
+    const m2 = await mountOffscreen(
+      React.createElement(
+        ThemeProvider,
+        {},
+        React.createElement(
+          Box,
+          { flexDirection: 'column', width: 100, height: 6 },
+          React.createElement(ExitFlow, { showWorktree: false, onDone: (msg) => { flowDoneMsg = msg ?? '' } }),
+        ),
+      ),
+      100,
+      6,
+    )
+    await waitFor(() => flowDoneMsg !== null && shutdownMessages.length >= 2, 3000)
+    m2.unmount()
     releaseFocusedSessionConnector()
+    out.exitDoneMsg = exitDoneMsg
+    out.flowDoneMsg = flowDoneMsg
+    out.shutdownMessages = shutdownMessages
   `)
   const failed = r.failedReceipt as { note?: string; detail?: string } | undefined
   const ok = r.okReceipt as { note?: string; detail?: string } | undefined
   const forwarded = r.forwarded as { note?: string; detail?: string } | undefined
-  const settled = r.settledReceipt as { note?: string; detail?: string } | undefined
-  const lines = (r.renderedLines as string[] | undefined) ?? []
+  const shutdownMessages = (r.shutdownMessages as string[] | undefined) ?? []
   const expected = 'the handoff could not be interrupted (ECONNREFUSED) — the turn may still be running'
   check('VerbsPart.leave waits for leave RPC (no early race) and returns interrupt failure detail', r.doneEarly === false && failed?.note === 'none' && failed?.detail === expected, JSON.stringify(r))
   check('VerbsPart.leave returns skipped with no error detail when abort interrupt succeeds without outcome field', ok?.note === 'skipped' && ok?.detail === undefined, JSON.stringify(ok))
-  check('ExitHandoff forwards receipt.detail and renders it on screen', forwarded?.detail === expected && settled?.detail === expected && lines.some(l => l.includes('the handoff could not be interrupted (ECONNREFUSED)')), JSON.stringify({ forwarded, settled, lines }))
+  check('ExitHandoff forwards receipt.detail and both /exit and ExitFlow put it in gracefulShutdown finalMessage', forwarded?.detail === expected && shutdownMessages.length === 2 && shutdownMessages.every(msg => msg.includes(expected)), JSON.stringify({ forwarded, shutdownMessages }))
+}
+
+console.log('\nw06-2: daemonConnector.sendWords and sessionSend — unreadable open questions add a one-time note on SendReceiptV1')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const oblPath = path.join(SRC, 'services/crew/obligations.ts')
+    const realObl = await import(oblPath)
+    let failRead = true
+    mock.module(oblPath, () => ({
+      ...realObl,
+      openObligations: async () => {
+        if (failRead) throw new Error('EACCES: obligations unreadable')
+        return []
+      },
+    }))
+    const ensurePath = path.join(SRC, 'services/switchboard/ensureDaemon.ts')
+    const realEnsure = await import(ensurePath)
+    mock.module(ensurePath, () => ({
+      ...realEnsure,
+      ensureOwnedDaemon: async () => true,
+    }))
+    const { DaemonSessionConnector } = await import(path.join(SRC, 'services/engine-connector/daemonConnector.ts'))
+    const rpcCalls = []
+    const connector = new DaemonSessionConnector(
+      {
+        sessionId: 'sess-conn-w06-2',
+        runnerId: 'runner-1',
+        title: 't',
+        projectLabel: 'p',
+        workspaceId: SCRATCH,
+        home: HOME,
+      },
+      {
+        rpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+        armTranscriptWatcher: () => {},
+        armTranscriptTimer: () => {},
+      },
+    )
+    out.first = await connector.sendWords('first reply')
+    out.second = await connector.sendWords('second reply')
+    failRead = false
+    out.recovered = await connector.sendWords('third reply')
+    out.rpcCount = rpcCalls.length
+
+    const { sendToSession } = await import(path.join(SRC, 'screens/chat/submit/sessionSend.ts'))
+    const notices = []
+    const makeDeps = () => ({
+      addNotification: (n) => notices.push(n),
+      repinToBottom: () => {},
+      setSubmitCount: () => {},
+      isLoadingRef: { current: false },
+      getFocusedSeatLive: () => ({ phase: 'idle' }),
+      setInputValue: () => {},
+      setInputMode: () => {},
+      setPastedContents: () => {},
+      armedHandedBackRef: { current: null },
+      setHistoryIndex: () => {},
+      onBeforeSubmit: () => {},
+    })
+    const makeLine = (receipt) => ({
+      input: 'hi',
+      helpers: { setCursorOffset: () => {}, clearBuffer: () => {}, resetHistory: () => {} },
+      options: undefined,
+      submittedAt: new Date().toISOString(),
+      text: 'hi',
+      focusedNow: { sendWords: async () => receipt },
+      seatMode: 'prompt',
+      seatPastes: {},
+      seatCommand: undefined,
+      seat: 'session',
+    })
+    await sendToSession(makeDeps(), makeLine(out.first))
+    const noticesAfterNoted = notices.length
+    await sendToSession(makeDeps(), makeLine(out.second))
+    out.notices = notices
+    out.noticesAfterNoted = noticesAfterNoted
+  `)
+  const first = r.first as { state?: string; note?: string } | undefined
+  const second = r.second as { state?: string; note?: string } | undefined
+  const recovered = r.recovered as { state?: string; note?: string } | undefined
+  const notices = (r.notices as Array<{ text?: string }> | undefined) ?? []
+  const expected = 'open questions could not be read (EACCES: obligations unreadable), so this went out as an ordinary message; answer the question from its card if it still shows.'
+  check('DaemonSessionConnector.sendWords attaches the note once when openObligations fails and still sends', first?.state === 'accepted' && first?.note === expected && second?.state === 'accepted' && second?.note === undefined && recovered?.state === 'accepted' && recovered?.note === undefined && r.rpcCount === 3, JSON.stringify({ first, second, recovered, rpcCount: r.rpcCount }))
+  check('sessionSend surfaces SendReceiptV1.note via addNotification once and stays quiet without a note', r.noticesAfterNoted === 1 && notices.length === 1 && notices[0]?.text === expected, JSON.stringify({ noticesAfterNoted: r.noticesAfterNoted, notices }))
 }
 
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)

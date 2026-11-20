@@ -180,16 +180,32 @@ export async function terminateTensorFoldPod(id: string, options: { client?: Hos
   }
   closeHostTunnel(id)
   const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
-  const { removeLlmHostProvider } = await import('../llmHost/index.js')
-  for (const endpoint of configuredCompatEndpoints()) if (endpoint.hostPodId === id || endpoint.name === record.provider) removeLlmHostProvider(endpoint.name)
-  await unregisterTensorFoldPod(id)
+  const { removeLlmHostProvider, tensorFoldUnregisterFailedNote } = await import('../llmHost/index.js')
+  let unregistered = false
+  let unregisterNote = ''
+  for (const endpoint of configuredCompatEndpoints()) {
+    if (endpoint.hostPodId === id || endpoint.name === record.provider) {
+      if (endpoint.hostPodId === id) unregistered = true
+      const removed = await removeLlmHostProvider(endpoint.name)
+      if (removed.tensorFoldUnregisterError && !unregisterNote) unregisterNote = ' · ' + tensorFoldUnregisterFailedNote(removed.tensorFoldUnregisterError)
+    }
+  }
+  if (!unregistered) {
+    try {
+      await unregisterTensorFoldPod(id)
+    } catch (error) {
+      passedOver(error)
+      const detail = error instanceof SyntaxError ? 'a hosts file is not valid JSON' : error instanceof Error ? error.message : String(error)
+      unregisterNote = ' · ' + tensorFoldUnregisterFailedNote(detail)
+    }
+  }
   const { restoreRentingSessionOutcome } = await import('./worker.js')
   const restored = await restoreRentingSessionOutcome(record)
   removeHostRecord(id)
   const restoreNote = restored.state === 'failed'
     ? ' · this session stays on a model that is gone (' + restored.detail + ') — run /model ' + record.sessionModelBefore
     : ''
-  return { ok: true, words: TENSORFOLD_HOST_WORDS.terminated(machine, spend) + restoreNote }
+  return { ok: true, words: TENSORFOLD_HOST_WORDS.terminated(machine, spend) + restoreNote + unregisterNote }
 }
 
 export async function settleStoppingTensorFoldPods(options: { client?: (record: HostRecord) => HostVendor; signal?: AbortSignal } = {}): Promise<number> {

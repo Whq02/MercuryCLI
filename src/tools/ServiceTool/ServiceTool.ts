@@ -160,16 +160,15 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
     case 'list': {
       const listed = reconcileAllStrict(project)
       if (!listed.ok) return { op: 'list', result: listed.error, state: 'failed' }
-      const records = listed.records
-      if (records.length === 0) {
+      const { records, unreadable } = listed
+      if (records.length === 0 && unreadable.length === 0) {
         return { op: 'list', result: 'no services in this project (start one with op:"start")' }
       }
-      return {
-        op: 'list',
-        result: records
-          .map(r => `${r.spec.name} — ${r.state}${r.pid ? ` (pid ${r.pid})` : ''}${r.restartCount ? ` · ${r.restartCount} restart(s)` : ''} · mercury://service/${r.spec.name}`)
-          .join('\n'),
-      }
+      const lines = [
+        ...records.map(r => `${r.spec.name} — ${r.state}${r.pid ? ` (pid ${r.pid})` : ''}${r.restartCount ? ` · ${r.restartCount} restart(s)` : ''} · mercury://service/${r.spec.name}`),
+        ...unreadable.map(u => `not read: ${u.name} (${u.error})`),
+      ]
+      return { op: 'list', result: lines.join('\n') }
     }
     case 'describe': {
       if (!input.name) need('name')

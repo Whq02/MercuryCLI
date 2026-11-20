@@ -360,10 +360,15 @@ export async function runHostJob(id: string, generation: string, options: { runn
           let listed
           try { listed = await cleanupRead('pod listing', readSignal => cleanupApi.pods(readSignal)) } catch (listing) { throw new HostTerminationUnconfirmed(cleanupApi.label, listing) }
           if (listed.some(row => row.id === id && row.status !== 'TERMINATED')) throw new Error(cleanupApi.label + ' still lists the pod and it may still bill.')
-          if (failedSetup.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(failedSetup.provider) }
+          let unregisterNote = ''
+          if (failedSetup.provider) {
+            const { removeLlmHostProvider, tensorFoldUnregisterFailedNote } = await import('../llmHost/index.js')
+            const removed = await removeLlmHostProvider(failedSetup.provider)
+            if (removed.tensorFoldUnregisterError) unregisterNote = ' · ' + tensorFoldUnregisterFailedNote(removed.tensorFoldUnregisterError)
+          }
           const endedVolume = initial.volumeId && readKeptVolume(initial.volumeId)
           if (endedVolume && endedVolume.preparingPod === id) writeKeptVolume({ ...endedVolume, preparingPod: undefined })
-          const ended = 'the vendor no longer lists pod ' + id + ' · nothing to terminate · ' + (disk ? disk + ' · ' : '') + 'if it still bills, Machines I’m paying for shows it' + (disk ? ' · ' + next : '')
+          const ended = 'the vendor no longer lists pod ' + id + ' · nothing to terminate · ' + (disk ? disk + ' · ' : '') + 'if it still bills, Machines I’m paying for shows it' + (disk ? ' · ' + next : '') + unregisterNote
           log(ended)
           hostNotice(initial, 'failed', initial.name + ' · ' + ended)
           if (initial.prepareWeightsOnly) removeHostRecord(id)

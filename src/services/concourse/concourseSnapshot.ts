@@ -37,6 +37,7 @@ import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.
 import { withoutMissionMetSentinel } from '../mission/sentinel.js'
 import type { ObligationV1 } from '../crew/obligations.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const PARKING_NOW_LEAD = 'parking — '
@@ -741,6 +742,7 @@ export interface OlderChatFact {
 export interface OlderChatsCensusV1 {
   total: number
   entries: OlderChatFact[]
+  readError?: string
 }
 
 const olderFactCache = new Map<string, { mtimeMs: number; size: number; husk: boolean; title: string | null }>()
@@ -812,10 +814,14 @@ export function olderChatsCensus(
     }
     return { total, entries }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
-      logForDebugging(`[concourse] olderChatsCensus failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return { total: 0, entries: [] }
     }
-    return { total: 0, entries: [] }
+    const detail = errorMessage(error)
+    logForDebugging(`[concourse] olderChatsCensus failed: ${detail}`, { level: 'warn' })
+    passedOver(error)
+    return { total: 0, entries: [], readError: detail }
   }
 }
 
@@ -826,6 +832,7 @@ export function parkedBoardRows(
   nowMs: number,
   excludeSessionId?: string,
   sessions?: readonly ParkedSessionFact[],
+  onReadError?: (error: unknown, source?: 'parked' | 'older') => void,
 ): ConcourseRowV1[] {
   const rows: ConcourseRowV1[] = []
   try {
@@ -863,10 +870,12 @@ export function parkedBoardRows(
       ...(excludeSessionId !== undefined ? { excludeSessionId } : {}),
       ...(sessions !== undefined ? { sessions } : {}),
     })
+    if (census.readError !== undefined) onReadError?.(new Error(census.readError), 'older')
     if (census.total > 0) rows.push(olderChatsRow(projectDir, projectLabel, census.total))
   } catch (error) {
     logForDebugging(`[concourse] parkedBoardRows failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     passedOver(error)
+    onReadError?.(error, 'parked')
   }
   return rows
 }
@@ -945,9 +954,10 @@ export async function buildConcourseSnapshot(
   const seenAt = await readSessionSeenAt(opts.draftDir)
   const allRows: ConcourseRowV1[] = allRecords.map(rec => recordRowOf(rec, nowMs, seenAt, needsYouSessions, aliveById, workspaceOfRow, isProcessAlive))
 
+  const sectionNotices: string[] = []
   try {
-    const { readConcourseDispatches, normalizeHoldReason } = await import('../../daemon/concourseDispatch.js')
-    const heldRows = Object.values(readConcourseDispatches(opts.recordsDir))
+    const { readConcourseDispatchesStrict, normalizeHoldReason } = await import('../../daemon/concourseDispatch.js')
+    const heldRows = Object.values(readConcourseDispatchesStrict(opts.recordsDir))
       .filter(d => d.state === 'queued' && d.sessionId === undefined && d.heldReason !== undefined)
       .filter(d => d.workspaceId === undefined || inProject(project, d.workspaceId))
       .map(d => {
@@ -984,11 +994,12 @@ export async function buildConcourseSnapshot(
   } catch (error) {
     logForDebugging(`[concourse] queued dispatches read failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     passedOver(error)
+    sectionNotices.push(`Queued sessions could not be read (${errorMessage(error)}) — waiting work may be hidden; refresh to retry.`)
   }
 
   try {
-    const { readCollisionEvidence } = await import('../../daemon/concourseWorkers.js')
-    const retainedRows = readCollisionEvidence(opts.recordsDir)
+    const { readCollisionEvidenceStrict } = await import('../../daemon/concourseWorkers/collisions.js')
+    const retainedRows = readCollisionEvidenceStrict(opts.recordsDir)
       .filter(e => e.kind === 'authored-work-retained' && e.consumedAt === undefined && e.branchName !== undefined)
       .filter(e => inProject(project, e.workspaceId))
       .slice(-6)
@@ -1010,6 +1021,7 @@ export async function buildConcourseSnapshot(
   } catch (error) {
     logForDebugging(`[concourse] collision evidence read failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     passedOver(error)
+    sectionNotices.push(`Ready-to-review forks could not be read (${errorMessage(error)}) — finished work may be hidden; refresh to retry.`)
   }
 
   const rows = allRows.flatMap(r => {
@@ -1048,6 +1060,12 @@ export async function buildConcourseSnapshot(
     new Set(Object.keys(draftFile.parkedCleared ?? {})),
     nowMs,
     hostSessionId,
+    undefined,
+    (error, source) => sectionNotices.push(
+      source === 'older'
+        ? `Older chats could not be read (${errorMessage(error)}) — check transcript folder permissions.`
+        : `Parked sessions could not be read (${errorMessage(error)}) — refresh or check transcript folder permissions.`,
+    ),
   )
   const parkedRows = [...parkedRecordRows, ...parkedTranscriptRows]
   const parkedGroupRows = [...(foreignParkedRow !== undefined ? [foreignParkedRow] : []), ...parkedRows]
@@ -1115,6 +1133,7 @@ export async function buildConcourseSnapshot(
     counts: snapshotCountsOf(liveAll, openObl, allRows, allRecords),
     needsYou: openObl.map(o => needsYouRowOf(o, allRecords, foreignOf, nowMs, projectLabel)),
     groups,
+    ...(sectionNotices.length > 0 ? { sectionNotices } : {}),
     elsewhere,
     peek: peekRecord
       ? {

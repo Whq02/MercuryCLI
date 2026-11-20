@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { findGodotProjectRoot } from '../services/lsp/godotLane.js'
-import { runningGodotProcesses } from '../services/vulcan/godotProcessCensus.js'
+import { strictGodotCensus, type GodotProcess } from '../services/vulcan/godotProcessCensus.js'
 import { engineTreePath } from '../services/vulcan/engine/paths.js'
 import { engineProcessesFor } from '../services/vulcan/engine/spawn.js'
 import { endProcessTree } from '../utils/processGroup.js'
@@ -209,8 +209,20 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
     case 'jobs': {
       const text = await runEngineOp('engine_jobs', {}, root)
       const snapshot = parsed(text) ?? {}
-      const alive = engineProcessesFor(root, await runningGodotProcesses()).map(p => ({ pid: p.pid, project: p.project, executable: p.executable }))
-      io.out(JSON.stringify({ ...snapshot, enginesAliveUnderProject: alive, note: 'a queue lives in the session that started it; this process lists the runs on disk and the engines alive under the project' }, null, 2))
+      let alive: Array<{ pid: number; project: string | undefined; executable: string }> = []
+      let censusError: string | undefined
+      try {
+        alive = engineProcessesFor(root, await strictGodotCensus()).map(p => ({ pid: p.pid, project: p.project, executable: p.executable }))
+      } catch (error) {
+        passedOver(error)
+        censusError = `the running Godot processes could not be listed (${error instanceof Error ? error.message : String(error)})`
+      }
+      io.out(JSON.stringify({
+        ...snapshot,
+        enginesAliveUnderProject: alive,
+        ...(censusError ? { censusError } : {}),
+        note: censusError ?? 'a queue lives in the session that started it; this process lists the runs on disk and the engines alive under the project',
+      }, null, 2))
       return 0
     }
     case 'cancel': {
@@ -226,7 +238,16 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
         return 0
       }
       const tree = engineTreePath(root, id)
-      const targets = engineProcessesFor(root, await runningGodotProcesses()).filter(p => p.project !== undefined && path.resolve(p.project) === path.resolve(tree))
+      let processes: GodotProcess[]
+      try {
+        processes = await strictGodotCensus()
+      } catch (error) {
+        passedOver(error)
+        const message = `the running Godot processes could not be listed (${error instanceof Error ? error.message : String(error)})`
+        io.out(JSON.stringify({ id, engines: [], error: message, note: message }, null, 2))
+        return 1
+      }
+      const targets = engineProcessesFor(root, processes).filter(p => p.project !== undefined && path.resolve(p.project) === path.resolve(tree))
       const receipts = []
       for (const p of targets) receipts.push({ pid: p.pid, receipt: await endProcessTree(p.pid, 'SIGKILL') })
       io.out(JSON.stringify({ id, engines: receipts, note: receipts.length > 0 ? 'ended by pid from the process census (the job belongs to another session)' : 'no engine of that job is alive on this machine' }, null, 2))

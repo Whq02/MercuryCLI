@@ -46,24 +46,25 @@ const keepWords = (pod: HostPod, vendor: HostVendorId): string => pod.id + ' · 
 
 async function forgetEndedPods(live: readonly HostPod[]): Promise<string[]> {
   const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
-  const { removeLlmHostProvider } = await import('../llmHost/index.js')
+  const { removeLlmHostProvider, tensorFoldUnregisterFailedNote } = await import('../llmHost/index.js')
   const lines: string[] = []
   const listed = (id: string): boolean => live.some(row => row.id === id || row.nodes?.some(node => node.id === id))
-  const removed = (name: string): void => {
-    removeLlmHostProvider(name)
-    lines.push(name + ' is no longer in the account — its model entry was removed')
+  const removed = async (name: string): Promise<void> => {
+    const outcome = await removeLlmHostProvider(name)
+    const note = outcome.tensorFoldUnregisterError ? ' · ' + tensorFoldUnregisterFailedNote(outcome.tensorFoldUnregisterError) : ''
+    lines.push(name + ' is no longer in the account — its model entry was removed' + note)
   }
   for (const record of hostRecords()) {
     if (record.jobKind === 'watch' || record.jobKind === 'bank' || record.creating) continue
     if (listed(record.id)) continue
     if (record.jobState === 'queued' || record.jobState === 'starting' || hostJobRunning(record)) continue
-    if (record.provider) removed(record.provider)
+    if (record.provider) await removed(record.provider)
     closeHostTunnel(record.id)
     removeHostRecord(record.id)
     if (!record.provider) lines.push(record.name + ' · ' + record.id + ' is no longer in the account')
   }
   for (const endpoint of configuredCompatEndpoints()) {
-    if (endpoint.hostPodId && !listed(endpoint.hostPodId) && !readHostRecord(endpoint.hostPodId)) removed(endpoint.name)
+    if (endpoint.hostPodId && !listed(endpoint.hostPodId) && !readHostRecord(endpoint.hostPodId)) await removed(endpoint.name)
   }
   return lines
 }
@@ -609,9 +610,13 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
         }
         closeHostTunnel(run.pod.id)
         const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
-        const { removeLlmHostProvider } = await import('../llmHost/index.js')
+        const { removeLlmHostProvider, tensorFoldUnregisterFailedNote } = await import('../llmHost/index.js')
+        let unregisterNote = ''
         for (const endpoint of configuredCompatEndpoints()) {
-          if (endpoint.hostPodId === run.pod.id || endpoint.name === run.record?.provider) removeLlmHostProvider(endpoint.name)
+          if (endpoint.hostPodId === run.pod.id || endpoint.name === run.record?.provider) {
+            const removed = await removeLlmHostProvider(endpoint.name)
+            if (removed.tensorFoldUnregisterError && !unregisterNote) unregisterNote = ' · ' + tensorFoldUnregisterFailedNote(removed.tensorFoldUnregisterError)
+          }
         }
         let restoreNote = ''
         if (run.record) {
@@ -623,13 +628,13 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
         if (weightsChoice === 'delete' && volumeId) {
           const vastApi = vastClient()
           try { if (readKeptVolume(volumeId)?.kind === 'vast' && vastApi) await deleteVastKeptVolume(vastApi, volumeId); else await deleteKeptVolume(runpodOnly(run.api, 'Fast-load weights disks'), volumeId) } catch (error) {
-            const detail = words.terminatedPod + ' · weights disk ' + volumeId + ' deletion is not verified and it may still bill. Machines I’m paying for → Delete. ' + String(error) + restoreNote
+            const detail = words.terminatedPod + ' · weights disk ' + volumeId + ' deletion is not verified and it may still bill. Machines I’m paying for → Delete. ' + String(error) + restoreNote + unregisterNote
             emit({ title: words.manage, words: detail, host: { id: run.pod.id, price: 0, startedAt: run.pod.createdAt, status: 'TERMINATED' } })
             return { ok: false, words: detail }
           }
         }
         const spent = hostSpendSoFar([{ status: 'RUNNING', cost: run.pod.cost, startedAt: run.pod.startedAt, createdAt: run.pod.createdAt }])
-        const endedWords = (run.api.capabilities.managed ? 'HF endpoint terminated · no compute bills.' : words.terminatedPod.replace(/\.$/, '') + ' · ~$' + spent.toFixed(2) + ' + storage.') + restoreNote
+        const endedWords = (run.api.capabilities.managed ? 'HF endpoint terminated · no compute bills.' : words.terminatedPod.replace(/\.$/, '') + ' · ~$' + spent.toFixed(2) + ' + storage.') + restoreNote + unregisterNote
         emit({ title: words.manage, words: endedWords, host: { id: run.pod.id, managed: run.api.capabilities.managed, price: 0, startedAt: run.pod.createdAt, status: 'TERMINATED' } })
         return { ...(run.saved ?? { ok: true }), words: endedWords }
       }

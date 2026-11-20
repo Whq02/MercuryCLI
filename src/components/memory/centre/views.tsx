@@ -207,7 +207,7 @@ export function centreView({
           {below > 0 ? <Text color={tok.textMuted}>{`  +${below} more below`}</Text> : null}
           <Box marginTop={roomy ? 1 : 0} flexDirection="column">
             {note ? (
-              <Text color={NOTE_COLOR[note.kind]} wrap="truncate-end">{truncateToWidth(`  ${note.text}`, inner)}</Text>
+              legendLines(note.text).map((line, i) => <Text key={i} color={NOTE_COLOR[note.kind]} wrap="truncate-end">{`  ${line}`}</Text>)
             ) : selectedOverview ? (
               legendLines(selectedOverview.detail).map((line, i) => <Text key={i} color={tok.textInstruction} wrap="truncate-end">{`  ${line}`}</Text>)
             ) : searching ? (
