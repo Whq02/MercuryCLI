@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useLayoutEffect } from 'react'
+import { useRef } from 'react'
+import { useDerivedState, useLayoutDerivedState, useLayoutPublish, usePublish, useSubscription } from '../../hooks/effects.js'
 import { Box, Text, useInput, wrapText, type DOMElement } from '../../ink.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -310,7 +311,7 @@ export function NavigablePanes<Row>({
   const notifiedSectionIdRef = useRef(activeSectionId)
   const onSectionChangeRef = useRef(onSectionChange)
   onSectionChangeRef.current = onSectionChange
-  useEffect(() => {
+  usePublish(() => {
     if (activeSectionId === undefined || activeSectionId === notifiedSectionIdRef.current) return
     notifiedSectionIdRef.current = activeSectionId
     onSectionChangeRef.current?.(activeSectionId, sectionRef.current)
@@ -332,14 +333,14 @@ export function NavigablePanes<Row>({
   prevNavSelRef.current = nav.sel
   const selectedRow = sectionRows[sel]
   selKeyRef.current = selectedRow ? rowKey(selectedRow) : null
-  useEffect(() => {
+  useDerivedState(() => {
     if (sel !== nav.sel) nav.selectRow(sel)
   })
 
   useInput(
     (input, key) => {
       if ((key as Record<string, boolean>).escape) return
-      composerSlot?.onInput(input, key as unknown as Record<string, boolean>)
+      composerSlot?.onInput(input, key)
     },
     { isActive: !!composerSlot?.active },
   )
@@ -383,14 +384,14 @@ export function NavigablePanes<Row>({
   )
 
   const scrollRef = useRef<ScrollBoxHandle>(null)
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     if (nav.rowRef.current && scrollRef.current) {
       scrollRef.current.scrollToElement(nav.rowRef.current, SELECTED_ROW_OFFSET)
     }
   }, [sel, nav.section, nav.rowRef])
   const [, followScroll] = React.useReducer((n: number) => n + 1, 0)
   const listMounted = !loading && !emptyState && sectionRows.length > 0
-  useEffect(() => {
+  useSubscription(() => {
     const handle = scrollRef.current
     if (!listMounted || !handle) return
     return handle.subscribe(() => {
@@ -488,7 +489,7 @@ export function NavigablePanes<Row>({
           .join(' · ')
   const footerText = [...footerFullParts, footerTailText].filter(Boolean).join(' · ')
   const measuredFooterRows = regionChrome ? 0 : wrapText(footerText, Math.max(1, innerWidth), 'wrap').split('\n').length
-  useLayoutEffect(() => { setFooterRows(measuredFooterRows) }, [measuredFooterRows])
+  useLayoutDerivedState(() => { setFooterRows(measuredFooterRows) }, [measuredFooterRows])
 
   const body = panesBodyOf({ loading, tokens, emptyState, maxContentWidth, mainWidth, layout, infoVisible, showNav, TabStrip, safeSections, nav, idBase, accent, section, view, sectionRows, ColumnHeader, columns, scrollRef, listHeight, winStart, winEnd, PaneRow, rowKey, sel, N, selectedRow, detailTitle, viewportBudget, renderDetail, sideInfo, detailWidth, regionChrome, splitDetailHeight, SectionNav, NAV_WIDTH, detailVisible, idleSlack })
 

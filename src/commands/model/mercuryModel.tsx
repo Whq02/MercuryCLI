@@ -29,6 +29,7 @@ import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { readModelUseLedger } from '../../utils/model/modelUseLedger.js'
 import { type EffortLevel, type EffortValue, getDisplayedEffortLabel, modelSupportsEffort, parseEffortValue, resolveStampedEffortTruth, selectableEffortLevels, toPersistableEffort, unpinAllLaunchEffort } from '../../utils/effort.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
+import { useClaim } from '../../hooks/effects.js'
 import { persistEffortChoice } from './persistModelChoice.js'
 import { matchReachableModelName, modelNameAskWords } from '../../utils/model/modelNameRoad.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
@@ -124,7 +125,7 @@ function MercuryModelWrapper({
   const tensorFoldPods = React.useMemo(() => tensorFoldPodEndpoints(tensorfold?.pods ?? []), [tensorfold])
   const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas))).filter(choice => !servedByTensorFold(choice, tensorFoldPods))
   const pickerOpen = React.useRef(true)
-  React.useEffect(() => () => { pickerOpen.current = false }, [])
+  useClaim(() => () => { pickerOpen.current = false }, [])
   const uses = readModelUseLedger()
   const recentAt = (group: string): number | undefined => {
     const family = familyOfModelGroup(group)

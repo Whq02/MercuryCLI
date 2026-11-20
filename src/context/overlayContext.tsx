@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
+import { useLayoutClaim, useLayoutPublish } from '../hooks/effects.js';
 import instances from '../ink/instances.js';
 import {
   anyModalOverlayActive,
@@ -28,7 +29,7 @@ export function useRegisterOverlay(
   const ownsPageKeysRef = useRef(opts?.ownsPageKeys);
   ownsPageKeysRef.current = opts?.ownsPageKeys;
 
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (!enabled) {
       return;
     }
@@ -45,7 +46,7 @@ export function useRegisterOverlay(
     };
   }, [id, enabled, token]);
   const ownsPageKeys = opts?.ownsPageKeys;
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     if (enabled) setOverlayPageKeys(token, ownsPageKeys);
   }, [enabled, token, ownsPageKeys]);
 

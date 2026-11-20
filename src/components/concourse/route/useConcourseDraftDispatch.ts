@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
+import { useLoad } from '../../../hooks/effects.js';
 import { basename } from 'node:path';
 import { logForDebugging } from '../../../utils/debug.js';
 import { getCwd } from '../../../utils/cwd.js';
@@ -24,7 +25,7 @@ export function useConcourseDraftDispatch({
   const seedWriteChain = useRef<Promise<unknown>>(Promise.resolve())
   const birthInFlightRef = useRef(false)
   const submitIdRef = useRef<{ key: string; id: string } | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     void import('../../../services/concourse/concourseSnapshot.js').then(async s => {
       if (submitIdRef.current !== null) return
       const held = await s.readConcourseHeldDispatch()
@@ -49,7 +50,7 @@ export function useConcourseDraftDispatch({
           const clientMessageId =
             minted !== null && minted.key === envelopeKey ? minted.id : `concourse-ui-${randomUUID()}`
           submitIdRef.current = { key: envelopeKey, id: clientMessageId }
-          const opInputs: Record<string, unknown> = {
+          const opInputs = {
             workspaceDir: si.workspaceDir,
             ...(si.modelKey !== undefined ? { model: si.modelKey } : {}),
             ...(si.effort !== undefined ? { effort: si.effort } : {}),
@@ -65,7 +66,7 @@ export function useConcourseDraftDispatch({
               by: 'operator',
               prompt: draft,
               ...opInputs,
-            } as never,
+            },
             { timeoutMs: 15_000 },
           )
           const snapshotStore = await import('../../../services/concourse/concourseSnapshot.js')
@@ -185,7 +186,7 @@ export function useConcourseDraftDispatch({
           return
         }
         for (let i = 0; i < 40; i++) {
-          const probe = (await daemonControlRpc({ op: 'concourseList' } as never, { timeoutMs: 500 })) as { code?: string }
+          const probe = (await daemonControlRpc({ op: 'concourseList' }, { timeoutMs: 500 })) as { code?: string }
           if (probe.code !== 'ENOCONN') {
             submitDraft(offer.draft)
             return

@@ -2,10 +2,10 @@
 import React, {
   createContext,
   useContext,
-  useEffect,
   useState,
   type ReactNode,
 } from 'react'
+import { useClaim } from '../hooks/effects.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
 
 type PromptOverlayData = {
@@ -53,7 +53,7 @@ export function usePromptOverlayDialog(): ReactNode {
 
 export function useSetPromptOverlay(data: PromptOverlayData | null): void {
   const set = useContext(SetDataContext)
-  useEffect(() => {
+  useClaim(() => {
     if (!set) return
     set(data)
     return () => set(null)

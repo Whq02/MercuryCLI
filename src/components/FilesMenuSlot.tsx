@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import { useMeasure } from '../hooks/effects.js'
 import { measureElement, type DOMElement } from '../ink.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
@@ -25,7 +26,7 @@ export function FilesMenuSlot({ hostRef, framed }: { hostRef: React.RefObject<DO
   const root = useFocusedWorkspaceCwd()
   const elevatedRef = useElevatedSurface()
   const [host, setHost] = useState<{ columns: number; rows: number } | null>(null)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (!open) return
     const element = hostRef.current
     if (!element) return
