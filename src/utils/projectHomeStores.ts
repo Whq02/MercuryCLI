@@ -1,7 +1,10 @@
 import { cpSync, existsSync, mkdirSync, statSync } from 'node:fs'
-import { join, posix } from 'node:path'
+import { join, posix, resolve, win32 } from 'node:path'
 import { logForDebugging } from './debug.js'
+import { defaultMercuryHome, getMercuryHome } from './envUtils.js'
+import { homeDirectory } from './projectBoundary.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
+import { resolveDirectoryIdentity } from './projectStoreIdentity.js'
 import { getProjectDir } from './sessionStoragePortable.js'
 
 export const PROJECT_HOME_STORES: ReadonlyArray<readonly string[]> = Object.freeze([
@@ -21,10 +24,25 @@ export function projectFolderPath(root: string, ...segments: string[]): string {
   return join(root, MERCURY_PROJECT_DIR, ...segments)
 }
 
+function folderIdentityKey(dir: string): string {
+  const absolute = process.platform === 'win32' ? win32.resolve(dir) : resolve(dir)
+  return resolveDirectoryIdentity(absolute).key
+}
+
+function isConfigHomeFolder(root: string): boolean {
+  const folderKey = folderIdentityKey(projectFolderPath(root))
+  return (
+    folderKey === folderIdentityKey(defaultMercuryHome()) ||
+    folderKey === folderIdentityKey(join(homeDirectory(), MERCURY_PROJECT_DIR)) ||
+    folderKey === folderIdentityKey(getMercuryHome())
+  )
+}
+
 const migrated = new Set<string>()
 
 export function projectHomeStore(root: string, ...segments: string[]): string {
   const home = projectHomePath(root, ...segments)
+  if (isConfigHomeFolder(root)) return home
   const key = JSON.stringify([root, segments])
   if (migrated.has(key)) return home
   migrated.add(key)
@@ -42,6 +60,7 @@ export function projectHomeStore(root: string, ...segments: string[]): string {
 }
 
 export function projectHomeLeftovers(root: string): string[] {
+  if (isConfigHomeFolder(root)) return []
   const out: string[] = []
   for (const segments of PROJECT_HOME_STORES) {
     const folder = projectFolderPath(root, ...segments)

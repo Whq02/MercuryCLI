@@ -135,6 +135,74 @@ section('H5 — the census')
   console.log(`  [record] the config home's project directory: ${relative(HOME, getProjectDir(REPO))}`)
 }
 
+section('H6 — running from the user home or config-home parent never migrates or flags .mercury stores')
+{
+  const FAKE_HOME = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-user-')))
+  const FAKE_PARENT = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-parent-')))
+  const fakeHomeConfig = join(FAKE_HOME, '.mercury')
+  const fakeParentConfig = join(FAKE_PARENT, '.mercury')
+  mkdirSync(join(fakeHomeConfig, 'health', 'other-project'), { recursive: true })
+  writeFileSync(join(fakeHomeConfig, 'health', 'other-project', 'last-preflight.json'), '{"other":true}\n')
+  mkdirSync(join(fakeParentConfig, 'health', 'other-project'), { recursive: true })
+  writeFileSync(join(fakeParentConfig, 'health', 'other-project', 'last-preflight.json'), '{"other":true}\n')
+  const subproject = join(FAKE_HOME, 'child-project')
+  mkdirSync(join(subproject, '.mercury', 'reviews'), { recursive: true })
+  writeFileSync(join(subproject, '.mercury', 'reviews', 'latest.json'), '{"review":1}\n')
+  const savedHome = process.env.HOME
+  const savedConfigDir = process.env.MERCURY_CONFIG_DIR
+  const savedHealthStateDir = process.env.MERCURY_HEALTH_STATE_DIR
+  const withPlatform = <T,>(platform: NodeJS.Platform, fn: () => T): T => {
+    const desc = Object.getOwnPropertyDescriptor(process, 'platform')!
+    Object.defineProperty(process, 'platform', { value: platform, configurable: true })
+    try {
+      return fn()
+    } finally {
+      Object.defineProperty(process, 'platform', desc)
+    }
+  }
+  try {
+    process.env.HOME = FAKE_HOME
+    process.env.MERCURY_CONFIG_DIR = HOME
+    process.env.MERCURY_HEALTH_STATE_DIR = FAKE_HOME
+    const scratchHealth = homeStores.projectHomeStore(FAKE_HOME, 'health')
+    check('from the user home with a scratch config home, ~/.mercury/health is not copied into the scratch store', !existsSync(join(scratchHealth, 'other-project', 'last-preflight.json')), scratchHealth)
+    const scratchLeftovers = homeStores.projectHomeLeftovers(FAKE_HOME)
+    check('from the user home with a scratch config home, leftovers skips ~/.mercury stores', scratchLeftovers.length === 0, JSON.stringify(scratchLeftovers))
+    const scratchEstate = await projectEstateCheck()
+    check('from the user home with a scratch config home, /health Project estate reads ok', scratchEstate.status === 'ok', JSON.stringify(scratchEstate))
+
+    process.env.HOME = savedHome
+    process.env.MERCURY_CONFIG_DIR = fakeParentConfig
+    process.env.MERCURY_HEALTH_STATE_DIR = FAKE_PARENT
+    const ownHealth = homeStores.projectHomeStore(FAKE_PARENT, 'health')
+    check('from the parent of the active config home, <root>/.mercury/health is not copied into projects/', !existsSync(join(ownHealth, 'other-project', 'last-preflight.json')), ownHealth)
+    const ownLeftovers = homeStores.projectHomeLeftovers(FAKE_PARENT)
+    check('from the parent of the active config home, leftovers skips <root>/.mercury stores', ownLeftovers.length === 0, JSON.stringify(ownLeftovers))
+    const ownEstate = await projectEstateCheck()
+    check('from the parent of the active config home, /health Project estate reads ok', ownEstate.status === 'ok', JSON.stringify(ownEstate))
+
+    process.env.MERCURY_CONFIG_DIR = fakeParentConfig.toUpperCase().replaceAll('/', '\\')
+    const win32Leftovers = withPlatform('win32', () => homeStores.projectHomeLeftovers(FAKE_PARENT))
+    check('on win32, case and separator differences between <root>/.mercury and the config home still match', win32Leftovers.length === 0, JSON.stringify(win32Leftovers))
+
+    process.env.HOME = FAKE_HOME
+    process.env.MERCURY_CONFIG_DIR = HOME
+    const childReviews = homeStores.projectHomeStore(subproject, 'reviews')
+    check('a child project under the user home still migrates its own .mercury store', existsSync(join(childReviews, 'latest.json')), childReviews)
+    const childLeftovers = homeStores.projectHomeLeftovers(subproject)
+    check('a child project under the user home still reports its own leftover store', JSON.stringify(childLeftovers) === JSON.stringify(['.mercury/reviews']), JSON.stringify(childLeftovers))
+  } finally {
+    if (savedHome === undefined) delete process.env.HOME
+    else process.env.HOME = savedHome
+    if (savedConfigDir === undefined) delete process.env.MERCURY_CONFIG_DIR
+    else process.env.MERCURY_CONFIG_DIR = savedConfigDir
+    if (savedHealthStateDir === undefined) delete process.env.MERCURY_HEALTH_STATE_DIR
+    else process.env.MERCURY_HEALTH_STATE_DIR = savedHealthStateDir
+    rmSync(FAKE_HOME, { recursive: true, force: true })
+    rmSync(FAKE_PARENT, { recursive: true, force: true })
+  }
+}
+
 rmSync(HOME, { recursive: true, force: true })
 rmSync(REPO, { recursive: true, force: true })
 console.log(`\n ${checks} checks, ${failures} failures`)
