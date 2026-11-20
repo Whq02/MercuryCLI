@@ -85,15 +85,25 @@ function pluralise(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
+type AgentProgressDataWithMessage = AgentProgressData & {
+  message: AssistantMessage | NormalizedUserMessage
+}
+
+function hasProgressMessage(
+  data: AgentProgressData | undefined,
+): data is AgentProgressDataWithMessage {
+  return Boolean(data && data.message)
+}
+
 function messagesOf(progressMessages: readonly ProgressMessage[]): Array<{
   progress: ProgressMessage
-  data: AgentProgressData
+  data: AgentProgressDataWithMessage
 }> {
-  const rows: Array<{ progress: ProgressMessage; data: AgentProgressData }> =
+  const rows: Array<{ progress: ProgressMessage; data: AgentProgressDataWithMessage }> =
     []
   for (const progress of progressMessages) {
     const data = (progress as { data?: AgentProgressData }).data
-    if (!data || !data.message) continue
+    if (!hasProgressMessage(data)) continue
     rows.push({ progress, data })
   }
   return rows
@@ -301,7 +311,7 @@ export function renderToolUseProgressMessage(
         {visible.map((row, index) => (
           <MessageResponse key={index}>
             <MessageComponent
-              message={row.data.message as never}
+              message={row.data.message}
               tools={tools}
               commands={[]}
               verbose={false}
@@ -411,7 +421,7 @@ export function renderToolResultMessage(
               .map((message, index) => (
                 <MessageResponse key={index}>
                   <MessageComponent
-                    message={message as never}
+                    message={message}
                     tools={tools}
                     commands={[]}
                     verbose={false}
