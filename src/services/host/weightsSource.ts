@@ -7,6 +7,7 @@ import { shQuote } from './boxExecution.js'
 import { downloadFailure, downloadWatchScript, keptDownloadMinutes, keptRunMs } from './download.js'
 import { fetchHuggingFaceRepo, huggingFaceHubBase, huggingFaceToken } from './hfRecipes.js'
 import { bankUploadEstimate, bankUploadPreference } from './keepSafe.js'
+import { passedOver } from '../../utils/passedOver.js'
 import { resolvedWeightManifest } from './keptWeights.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostOffer } from './runpod.js'
@@ -76,8 +77,16 @@ function weightsSourceChoices(context: WeightsSourceContext): WeightsSourceChoic
   const privateRepo: WeightsSourceChoice = managed ? unavailable('private-repo', 'Private repository', 'use the endpoint’s repository')
     : !token ? unavailable('private-repo', 'Private repository', '/logins huggingface')
     : { value: 'private-repo', label: 'Private repository' + (context.remembered ? ' · ' + context.remembered : '') }
-  const state = bankState(recipe)
+  let state: ReturnType<typeof bankState> | undefined
+  let bankUnread = ''
+  try {
+    state = bankState(recipe)
+  } catch (error) {
+    passedOver(error)
+    bankUnread = error instanceof Error ? error.message : String(error)
+  }
   const bank: WeightsSourceChoice = managed ? unavailable('bank', 'This computer’s Bank', 'no SSH on HF endpoints')
+    : state === undefined ? unavailable('bank', 'This computer’s Bank', 'could not be read (' + bankUnread + ') · v in Bank')
     : !state.banked ? unavailable('bank', 'This computer’s Bank', 'bank this model first · b in Bank')
     : state.error ? unavailable('bank', 'This computer’s Bank', 'check failed · v in Bank')
     : { value: 'bank', source: { kind: 'bank', folder: state.folder! }, label: 'This computer’s Bank · ' + bytesWords(state.bytes) + ' · upload ' + bankUploadEstimate(recipe) }
