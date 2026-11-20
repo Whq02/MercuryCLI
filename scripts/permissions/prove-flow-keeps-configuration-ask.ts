@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, type Rules } from './floorsKit.ts'
+import { check, decide, fill, fillBash, finish, note, pageText, said, section, shown, type Rules } from './floorsKit.ts'
 
 type Call = [tool: string, input: Record<string, unknown>]
 const RULE = JSON.stringify({ guardrails: { allow: ['Bash(ls *)'] } })
 const written = (path: string): Call[] => [
   ['Write', { file_path: fill(path), content: RULE }],
-  ['Bash', { command: `echo '${RULE}' > ${fill(path)}` }],
-  ['Bash', { command: `cp notes.txt ${fill(path)}` }],
+  ['Bash', { command: `echo '${RULE}' > ${fillBash(path)}` }],
+  ['Bash', { command: `cp notes.txt ${fillBash(path)}` }],
 ]
 const CONFIGURATION = [
   '<PROJECT>/.mercury/settings.local.json', '<PROJECT>/.mercury/settings.json', '<CONFIG>/settings.json',
@@ -174,15 +174,15 @@ section('§5 the reach of the ask: under Flow a shell command that is not read-o
     ['the home\'s keybindings through a line of Python', "python3 -c \"open('<CONFIG>/keybindings.json','w').write('{}')\""],
   ]
   for (const [label, command] of named) {
-    const flow = await decide('Bash', { command: fill(command) }, 'flow')
-    check(`flow · ${label}: ${shown(fill(command)).slice(0, 96)} · asks`, flow.behavior === 'ask', said(flow))
+    const flow = await decide('Bash', { command: fillBash(command) }, 'flow')
+    check(`flow · ${label}: ${shown(fillBash(command)).slice(0, 96)} · asks`, flow.behavior === 'ask', said(flow))
   }
   const sovereign: string[] = []
   const inDefault: string[] = []
   for (const [, command] of named) {
-    const zero = await decide('Bash', { command: fill(command) }, 'sovereign')
+    const zero = await decide('Bash', { command: fillBash(command) }, 'sovereign')
     if (zero.behavior !== 'allow') sovereign.push(`${shown(command)}: ${said(zero)}`)
-    const card = await decide('Bash', { command: fill(command) }, 'default')
+    const card = await decide('Bash', { command: fillBash(command) }, 'default')
     if (card.behavior !== 'ask') inDefault.push(`${shown(command)}: ${said(card)}`)
   }
   check(`sovereign · the same ${named.length} commands ask nothing`, sovereign.length === 0, sovereign.join(' ‖ '))
@@ -202,8 +202,8 @@ section('§5 the reach of the ask: under Flow a shell command that is not read-o
     ['outside this reading: an archive that names nothing', 'tar -xf config.tar'],
   ]
   for (const [label, command] of free) {
-    const flow = await decide('Bash', { command: fill(command) }, 'flow')
-    check(`flow · ${label}: ${shown(fill(command)).slice(0, 96)} · runs unasked`, flow.behavior === 'allow', said(flow))
+    const flow = await decide('Bash', { command: fillBash(command) }, 'flow')
+    check(`flow · ${label}: ${shown(fillBash(command)).slice(0, 96)} · runs unasked`, flow.behavior === 'allow', said(flow))
   }
   const exact = await decide('Bash', { command: `truncate -s 0 ${SETTINGS}` }, 'flow', { allow: ['Bash(truncate *)'] })
   check('flow · a standing allow rule for the command answers it', exact.behavior === 'allow', said(exact))

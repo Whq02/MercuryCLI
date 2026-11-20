@@ -4,6 +4,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { FLAG_REGISTRY, flagSpellings, selfWrittenFlagEnv, stampFlagOnEnv } from './flagRegistry.js'
 import { bootEnvSelfApplied } from './startupMenu.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { samePathCase } from '../utils/platform/paths.js'
 
 export const SPAWN_STAMP_RECEIPT = 'MERCURY_SPAWNED_ENV'
 
@@ -21,7 +22,7 @@ export const COMPILE_CACHE_ENV = 'NODE_COMPILE_CACHE'
 const samePath = (a: string, b: string): boolean => {
   const left = resolve(a)
   const right = resolve(b)
-  return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
+  return samePathCase(left, right)
 }
 
 function compileCacheIsOwn(env: NodeJS.ProcessEnv, home: string = getMercuryHome()): boolean {
