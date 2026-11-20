@@ -175,6 +175,34 @@ async function run(): Promise<void> {
       check('repoFolder-readdir-eacces: unreadable folder refuses with EACCES instead of no git repository', listRes.state === 'refused' && !listRes.note.includes('no git repository') && listRes.note.includes('EACCES'), JSON.stringify(listRes))
     }
   }
+
+  {
+    const { readFileSync } = await import('node:fs')
+    const { noteHostLink, readHostLinkObservation } = await import('../../src/services/host/reliability.ts')
+    const { hostDirectory } = await import('../../src/services/host/store.ts')
+    const relDir = join(hostDirectory(), 'reliability')
+    mkdirSync(relDir, { recursive: true })
+    const corruptPath = join(relDir, 'vast-fn12corrupt.json')
+    writeFileSync(corruptPath, '{ torn json')
+    const afterCorrupt = noteHostLink({ vendor: 'vast', id: 'fn12corrupt', machineId: '8801' }, { outcome: 'reconnecting', attempt: 1, why: 'link down' }, 1_700_000_000_000)
+    check('reliability-corrupt-control: corrupt JSON still starts a fresh observation', afterCorrupt.outages.length === 1 && readHostLinkObservation('vast', 'fn12corrupt')?.machineId === '8801')
+
+    if (!POSIX_MODES) skip('reliability-unreadable-kept', 'needs non-root POSIX')
+    else {
+      noteHostLink({ vendor: 'vast', id: 'fn12locked', machineId: '8802' }, { outcome: 'lost', attempt: 5, why: 'prior outage' }, 1_700_000_000_000)
+      const lockedPath = join(relDir, 'vast-fn12locked.json')
+      const beforeBytes = readFileSync(lockedPath, 'utf8')
+      chmodSync(lockedPath, 0o000)
+      let returned: ReturnType<typeof noteHostLink> | null = null
+      try {
+        returned = noteHostLink({ vendor: 'vast', id: 'fn12locked', machineId: '8802' }, { outcome: 'reconnecting', attempt: 1, why: 'new drop' }, 1_700_000_060_000)
+      } finally {
+        chmodSync(lockedPath, 0o600)
+      }
+      const afterBytes = readFileSync(lockedPath, 'utf8')
+      check('reliability-unreadable-kept: unreadable history file is byte-identical after noteHostLink and returns valid observation', returned !== null && returned.outages.length === 1 && afterBytes === beforeBytes, afterBytes === beforeBytes ? '' : 'file was overwritten')
+    }
+  }
 }
 
 try {
