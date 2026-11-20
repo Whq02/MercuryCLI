@@ -2,6 +2,7 @@ import { localWireId } from '../../services/providers/local/localCatalogue.js'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
+import type { MercuryRecord } from '../../fabric/record.js'
 import { sessionModelOfEntry, servedModelOfAssistantRow, billingSafeRetainedForm } from '../../utils/model/retainedModel.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../../utils/sessionStorage/transcriptReader.js'
@@ -27,12 +28,12 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
     scanTranscriptLinesBackward(transcript, line => {
       if (!line.includes('assistant') && !line.includes('output') && !line.includes('"metaKind":"model"')) return
       try {
-        const row = JSON.parse(line) as Record<string, unknown>
+        const row = JSON.parse(line) as Partial<MercuryRecord> & { type?: unknown; model?: unknown; message?: { model?: unknown } }
         const entry = (
           typeof row.recordId === 'string' && row.payload !== undefined
-            ? (recordToEntry(row as never) as Record<string, unknown>)
+            ? recordToEntry(row as MercuryRecord)
             : row
-        ) as { type?: string; model?: unknown; message?: { model?: unknown } }
+        ) as { type?: unknown; model?: unknown; message?: { model?: unknown } }
         const chosen = sessionModelOfEntry(entry)
         if (chosen !== undefined) {
           retained = chosen

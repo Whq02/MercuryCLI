@@ -1,4 +1,4 @@
-import type { ToolUseBlock } from '../types/wire.js'
+import type { ContentBlock, ToolUseBlock } from '../types/wire.js'
 import type {
   AssistantMessage,
   Message,
@@ -9,24 +9,24 @@ type ToolLike = {
   backfillObservableInput?: (input: Record<string, unknown>) => void
 }
 
-type AssistantLike = {
-  type: string
-  message: { content: Array<Record<string, unknown>> }
-}
+type YieldInput = Message | StreamEvent
 
-export function backfillCloneForYield<M>(
+export function backfillCloneForYield<M extends YieldInput>(
   message: M,
   findTool: (name: string) => ToolLike | undefined,
-): M {
-  const m = message as unknown as AssistantLike
-  if (m.type !== 'assistant') return message
-  let clonedContent: Array<Record<string, unknown>> | undefined
-  for (let i = 0; i < m.message.content.length; i++) {
-    const block = m.message.content[i]!
-    if (block['type'] === 'tool_use' && typeof block['input'] === 'object' && block['input'] !== null) {
-      const tool = findTool(block['name'] as string)
+): M
+export function backfillCloneForYield(
+  message: YieldInput,
+  findTool: (name: string) => ToolLike | undefined,
+): YieldInput {
+  if (message.type !== 'assistant') return message
+  let clonedContent: ContentBlock[] | undefined
+  for (let i = 0; i < message.message.content.length; i++) {
+    const block = message.message.content[i]!
+    if (block.type === 'tool_use' && typeof block.input === 'object' && block.input !== null) {
+      const tool = findTool(block.name)
       if (tool?.backfillObservableInput) {
-        const originalInput = block['input'] as Record<string, unknown>
+        const originalInput = block.input as Record<string, unknown>
         const inputCopy = { ...originalInput }
         try {
           tool.backfillObservableInput(inputCopy)
@@ -35,7 +35,7 @@ export function backfillCloneForYield<M>(
         }
         const addedFields = Object.keys(inputCopy).some(k => !(k in originalInput))
         if (addedFields) {
-          clonedContent ??= [...m.message.content]
+          clonedContent ??= [...message.message.content]
           clonedContent[i] = { ...block, input: inputCopy }
         }
       }
@@ -43,9 +43,9 @@ export function backfillCloneForYield<M>(
   }
   if (clonedContent) {
     return {
-      ...m,
-      message: { ...m.message, content: clonedContent },
-    } as unknown as M
+      ...message,
+      message: { ...message.message, content: clonedContent },
+    }
   }
   return message
 }

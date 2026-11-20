@@ -11,7 +11,6 @@ import type { CallModelParams } from '../../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../../api/errors.js'
 import {
   recordPromptState,
-  type NeutralToolSchema,
 } from '../../../api/promptCacheBreakDetection.js'
 import type { Options } from '../../anthropic/streamCore.js'
 import { toolToAPISchema } from '../../../../utils/api.js'
@@ -213,7 +212,7 @@ export function openOpenaiTurn(opening: TurnOpening, prepared: PreparedOpenaiTur
 
   recordPromptState({
     system: [{ text: request.instructions ?? '' }],
-    toolSchemas: apiTools as unknown as NeutralToolSchema[],
+    toolSchemas: apiTools,
     querySource: options.querySource,
     model: modelId,
     agentId: options.agentId,
