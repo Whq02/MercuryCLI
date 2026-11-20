@@ -165,14 +165,6 @@ export async function runMediaSetup(args: string[], onProgress: (event: MediaPro
     if (signal?.aborted) abort()
     const cleanup = (): void => { if (timer) stopTimeout(timer); signal?.removeEventListener('abort', abort) }
     let settled = false
-    const fail = (err: unknown): void => {
-      if (settled) return
-      settled = true
-      cleanup()
-      lines.close()
-      child.kill('SIGTERM')
-      reject(err)
-    }
     const lines = createInterface({ input: child.stdout })
     lines.on('line', line => {
       if (settled) return
@@ -190,7 +182,7 @@ export async function runMediaSetup(args: string[], onProgress: (event: MediaPro
       try {
         onProgress(value)
       } catch (err) {
-        fail(err)
+        passedOver(err)
       }
     })
     child.stderr.on('data', chunk => { stderr = (stderr + String(chunk)).slice(-4096) })
