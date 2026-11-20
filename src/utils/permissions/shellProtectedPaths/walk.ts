@@ -1,4 +1,4 @@
-import { type Node, PARSE_ABORTED, extractHeredocs, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
+import { PARSE_ABORTED, commandSubstitutionTexts, commandViewTexts, extractHeredocs, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
 import { expandPath, hasNulByte } from '../../path.js'
 import { spelling } from './paths.js'
 import { groups, unwrapCommand, verb } from './words.js'
@@ -112,28 +112,11 @@ export async function walkShellCommands(
     const text = extracted.processedCommand
     const views: string[] = []
     const root = current.powershell ? null : await pinnedCommandAnalysis.parseCommandRaw(text)
-    if (root !== null && root !== PARSE_ABORTED) {
-      const visit = (node: Node): void => {
-        if (['command', 'redirected_statement', 'pipeline', 'file_redirect'].includes(node.type)) {
-          views.push(node.text)
-          const substitutions = (child: Node): void => {
-            if (child.type === 'command_substitution') visit(child)
-            else for (const nested of child.children) substitutions(nested)
-          }
-          for (const child of node.children) substitutions(child)
-        } else for (const child of node.children) visit(child)
-      }
-      visit(root)
-    } else views.push(text)
+    if (root !== null && root !== PARSE_ABORTED) views.push(...commandViewTexts(root))
+    else views.push(text)
     if (!current.powershell && extracted.heredocs.size > 0) {
       const original = await pinnedCommandAnalysis.parseCommandRaw(current.text)
-      if (original !== null && original !== PARSE_ABORTED) {
-        const substitutions = (node: Node): void => {
-          if (node.type === 'command_substitution') views.push(node.text)
-          else for (const child of node.children) substitutions(child)
-        }
-        substitutions(original)
-      }
+      if (original !== null && original !== PARSE_ABORTED) views.push(...commandSubstitutionTexts(original))
     }
     if (!current.powershell && root !== null && root !== PARSE_ABORTED) {
       const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(text, root)
