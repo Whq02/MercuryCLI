@@ -1,3 +1,4 @@
+import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
 
 export function foldPathCase(filePath: string, platform: NodeJS.Platform = process.platform): string {
@@ -10,6 +11,10 @@ export function samePathCase(left: string, right: string, platform: NodeJS.Platf
 
 export function pathModuleFor(platform: NodeJS.Platform = process.platform): typeof pathWin32 | typeof pathPosix {
   return platform === 'win32' ? pathWin32 : pathPosix
+}
+
+export function hostOrWin32PathModule(platform: NodeJS.Platform = process.platform): typeof pathWin32 | typeof hostPath {
+  return platform === 'win32' ? pathWin32 : hostPath
 }
 
 export function stripExtendedLengthPrefixForPlatform(filePath: string, platform: NodeJS.Platform = process.platform): string {

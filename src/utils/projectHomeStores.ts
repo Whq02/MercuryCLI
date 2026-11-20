@@ -7,7 +7,7 @@ import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { resolveDirectoryIdentity } from './projectStoreIdentity.js'
 import { getProjectDir } from './sessionStoragePortable.js'
 import { passedOver } from './passedOver.js'
-import { pathModuleFor } from './platform/paths.js'
+import { hostOrWin32PathModule } from './platform/paths.js'
 
 export const PROJECT_HOME_STORES: ReadonlyArray<readonly string[]> = Object.freeze([
   ['workflows', 'runs'],
@@ -27,7 +27,7 @@ export function projectFolderPath(root: string, ...segments: string[]): string {
 }
 
 function folderIdentityKey(dir: string): string {
-  const absolute = pathModuleFor().resolve(dir)
+  const absolute = hostOrWin32PathModule().resolve(dir)
   return resolveDirectoryIdentity(absolute).key
 }
 
