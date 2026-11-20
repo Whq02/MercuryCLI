@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SELF = fileURLToPath(import.meta.url)
@@ -99,15 +99,19 @@ const DEAD = 'http://127.0.0.1:9'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'tensorfold-first-run-'))
 const FAKE_BIN = join(SCRATCH, 'fake-bin')
 mkdirSync(FAKE_BIN, { recursive: true })
-writeFileSync(join(FAKE_BIN, 'tensorfold'), '#!/bin/sh\necho "tensorfold 1.2.2"\n')
-chmodSync(join(FAKE_BIN, 'tensorfold'), 0o755)
-const BARE_PATH = [dirname(process.execPath), '/usr/bin', '/bin'].join(':')
+if (process.platform === 'win32') {
+  writeFileSync(join(FAKE_BIN, 'tensorfold.cmd'), '@echo off\r\necho tensorfold 1.2.2\r\n')
+} else {
+  writeFileSync(join(FAKE_BIN, 'tensorfold'), '#!/bin/sh\necho "tensorfold 1.2.2"\n')
+  chmodSync(join(FAKE_BIN, 'tensorfold'), 0o755)
+}
+const BARE_PATH = process.platform === 'win32' ? dirname(process.execPath) : [dirname(process.execPath), '/usr/bin', '/bin'].join(':')
 
 const run = (tag: string, opts: { fake: boolean; probe: string }, size = '120x40'): Record<string, string> => {
   const home = mkdtempSync(join(SCRATCH, `${tag}-home-`))
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    PATH: opts.fake ? `${FAKE_BIN}:${BARE_PATH}` : BARE_PATH,
+    PATH: opts.fake ? `${FAKE_BIN}${delimiter}${BARE_PATH}` : BARE_PATH,
     MERCURY_CONFIG_DIR: home,
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LIVE_GLYPHS: '0',
