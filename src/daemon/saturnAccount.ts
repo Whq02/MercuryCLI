@@ -3,6 +3,7 @@ import { anthropicCredentialPresence } from '../services/providers/providerUsage
 import { buildProviderSnapshot } from '../services/providers/modelRegistry.js'
 import { compatModelEndpoint, resolveCompatAccount } from '../services/providers/openaicompat/compatAccounts.js'
 import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../utils/auth.js'
+import { credentialStoreUnread } from '../utils/secureStorage/index.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
 import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccounts.js'
@@ -46,7 +47,12 @@ function productionPresenceOf(family: string, modelKey?: string): FamilyCredenti
   if (family === 'anthropic') {
     try {
       const presence = anthropicCredentialPresence()
-      if (!presence.credentialed) return { credentialed: false, kind: 'none' }
+      if (!presence.credentialed) {
+        const unread = credentialStoreUnread()
+        return unread !== null
+          ? { credentialed: false, kind: 'none', unread: unread.message ?? unread.code }
+          : { credentialed: false, kind: 'none' }
+      }
       const detail = productionAnthropicDetail()
       return { credentialed: true, kind: detail !== null && detail.subscriber ? 'oauth' : 'api-key' }
     } catch (error) {

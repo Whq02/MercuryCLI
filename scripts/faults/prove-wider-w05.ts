@@ -232,5 +232,95 @@ if (!POSIX_MODES) {
   check('w05-1: file store credentialStoreUnread still reports EACCES with path and clears when readable', u !== null && u.code === 'EACCES' && String(u.warning).includes('.credentials.json') && r.recovered === null, JSON.stringify(r))
 }
 
+console.log('\nw05-2 — scopeScan, accountIdentity, anthropicSlots, wallet, saturnAccount surface unread credentials instead of signed-out')
+if (!POSIX_MODES) {
+  skip('w05-2 unreadable file store', 'mode 0200 needs non-root POSIX')
+} else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const ss = await import(path.join(SRC, 'utils/secureStorage/index.ts'))
+    const { scanAccountScopes } = await import(path.join(SRC, 'utils/accounts/scopeScan.ts'))
+    const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import(path.join(SRC, 'utils/accounts/accountIdentity.ts'))
+    const { anthropicSlots } = await import(path.join(SRC, 'services/providers/accountSlots/anthropic.ts'))
+    const { walletEntries, activeWalletEntry, resetWalletEntriesMemo } = await import(path.join(SRC, 'services/wallet/wallet.ts'))
+    const { deriveScheduleAccountForModel } = await import(path.join(SRC, 'daemon/saturnAccount.ts'))
+
+    const file = ss.credentialsPath()
+    fs.writeFileSync(file, JSON.stringify({ claudeAiOauth: { accessToken: 'fake-at-2', refreshToken: 'fake-rt-2', expiresAt: 4102444800000, scopes: ['user:inference'] } }), { mode: 0o600 })
+    fs.chmodSync(file, 0o200)
+
+    _resetIdentityCacheForTesting()
+    resetWalletEntriesMemo()
+    out.scopeUnread = scanAccountScopes()[0]
+    out.liveIdentityUnread = await resolveLiveScopeIdentity(HOME)
+    out.slotsUnread = anthropicSlots({})
+    out.walletUnread = walletEntries().filter(e => e.provider === 'anthropic')
+    out.activeUnread = activeWalletEntry('anthropic') ?? null
+    out.saturnUnread = deriveScheduleAccountForModel('claude-sonnet-4-6')
+
+    fs.chmodSync(file, 0o600)
+    fs.unlinkSync(file)
+    _resetIdentityCacheForTesting()
+    resetWalletEntriesMemo()
+    out.scopeAbsent = scanAccountScopes()[0]
+    out.liveIdentityAbsent = await resolveLiveScopeIdentity(HOME)
+    out.slotsAbsent = anthropicSlots({})
+    out.walletAbsent = walletEntries().filter(e => e.provider === 'anthropic')
+    out.saturnAbsent = deriveScheduleAccountForModel('claude-sonnet-4-6')
+  `)
+  const scopeU = r.scopeUnread as { authed?: boolean; unreadError?: string }
+  check('w05-2: scanAccountScopes carries unreadError when store cannot be read', scopeU.authed === false && typeof scopeU.unreadError === 'string' && scopeU.unreadError.includes('EACCES'), JSON.stringify(scopeU))
+  const liveU = r.liveIdentityUnread as { state?: string; note?: string }
+  check('w05-2: resolveLiveScopeIdentity returns unverified with credentials could not be read (<error>)', liveU.state === 'unverified' && typeof liveU.note === 'string' && liveU.note.startsWith('credentials could not be read ('), JSON.stringify(liveU))
+  const slotsU = r.slotsUnread as Array<{ signedIn: boolean; stateNote?: string }>
+  check('w05-2: anthropicSlots keeps scope with unverified stateNote instead of dropping it', slotsU.length === 1 && slotsU[0]!.signedIn === false && typeof slotsU[0]!.stateNote === 'string' && slotsU[0]!.stateNote.startsWith('credentials could not be read ('), JSON.stringify(slotsU))
+  const walletU = r.walletUnread as Array<{ state?: string; stateNote?: string; label?: string }>
+  const activeU = r.activeUnread as { state?: string; stateNote?: string } | null
+  check('w05-2: walletEntries and activeWalletEntry carry unverified entry with credentials could not be read (<error>)', walletU.length === 1 && walletU[0]!.state === 'unverified' && String(walletU[0]!.stateNote).startsWith('credentials could not be read (') && activeU?.state === 'unverified', JSON.stringify({ walletU, activeU }))
+  const saturnU = r.saturnUnread as { ok: boolean; reason?: string }
+  check('w05-2: saturnAccount returns unread:anthropic — the sign-in could not be read (<error>)', saturnU.ok === false && typeof saturnU.reason === 'string' && saturnU.reason.startsWith('unread:anthropic — the sign-in could not be read ('), JSON.stringify(saturnU))
+  const scopeA = r.scopeAbsent as { authed?: boolean; unreadError?: string }
+  const liveA = r.liveIdentityAbsent as { state?: string }
+  const saturnA = r.saturnAbsent as { ok: boolean; reason?: string }
+  check('w05-2: absent store control stays signed-out without unread error', scopeA.authed === false && scopeA.unreadError === undefined && liveA.state === 'signed-out' && (r.slotsAbsent as unknown[]).length === 0 && (r.walletAbsent as unknown[]).length === 0 && saturnA.ok === false && String(saturnA.reason).startsWith('no-credential:anthropic'), JSON.stringify({ scopeA, liveA, saturnA }))
+}
+
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const po = await import(path.join(SRC, 'utils/passedOver.ts'))
+    mock.module(path.join(SRC, 'services/providers/accountSlots.js'), () => ({
+      deriveFamilySlotGroups: () => { throw new Error('slots-boom') },
+    }))
+    const { providerIdentityLine } = await import(path.join(SRC, 'services/providers/providerIdentityLine.ts'))
+    const before1 = po.passedOverSoFar().count
+    out.idLine = providerIdentityLine('anthropic')
+    const after1 = po.passedOverSoFar()
+    out.idPassed = after1.count > before1 && String(after1.last).includes('slots-boom')
+  `)
+  check('w05-2: providerIdentityLine catch records error via passedOver', r.idPassed === true && (r.idLine as { kind?: string }).kind === 'none', JSON.stringify(r))
+}
+
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const po = await import(path.join(SRC, 'utils/passedOver.ts'))
+    const realAuth = await import(path.join(SRC, 'utils/auth.ts'))
+    mock.module(path.join(SRC, 'utils/auth.js'), () => ({
+      ...realAuth,
+      getAuthTokenSource: () => { throw new Error('bearer-boom') },
+    }))
+    const { anthropicCredentialPresence } = await import(path.join(SRC, 'services/providers/providerUsage.ts'))
+    const before = po.passedOverSoFar().count
+    out.presence = anthropicCredentialPresence()
+    const after = po.passedOverSoFar()
+    out.bearerPassed = after.count > before && String(after.last).includes('bearer-boom')
+  `)
+  check('w05-2: providerUsage readBearerTokenSource catch records error via passedOver', r.bearerPassed === true, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
