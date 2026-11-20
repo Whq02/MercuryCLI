@@ -460,21 +460,29 @@ async function main(): Promise<void> {
       check('a regular file answers its head', reader(regular) === '// @generated\nexport const a = 1\n')
       check('a missing file answers undefined', reader(join(scratch, 'missing.ts')) === undefined)
       check('a directory answers undefined', reader(scratch) === undefined)
-      const fifo = join(scratch, 'pipe')
-      execFileSync('mkfifo', [fifo])
-      const fifoWork: WardWork = {}
-      const fifoHead = reader(fifo, fifoWork)
-      check('a FIFO with no writer uses one nonblocking open and no read', fifoHead === undefined && fifoWork.nonblockingOpens === 1 && (fifoWork.headReads ?? 0) === 0, JSON.stringify(fifoWork))
+      if (process.platform === 'win32') {
+        console.log('  [SKIP] not read on Windows: no mkfifo')
+      } else {
+        const fifo = join(scratch, 'pipe')
+        execFileSync('mkfifo', [fifo])
+        const fifoWork: WardWork = {}
+        const fifoHead = reader(fifo, fifoWork)
+        check('a FIFO with no writer uses one nonblocking open and no read', fifoHead === undefined && fifoWork.nonblockingOpens === 1 && (fifoWork.headReads ?? 0) === 0, JSON.stringify(fifoWork))
+      }
       const regularWork: WardWork = {}
       check('counting the regular-file read does not change its bytes', reader(regular, regularWork) === reader(regular) && regularWork.headReads === 1)
       check('a character device answers undefined', reader('/dev/null') === undefined)
-      const locked = join(scratch, 'locked.ts')
-      writeFileSync(locked, '// @generated\nexport const a = 1\n')
-      chmodSync(locked, 0o000)
-      let lockedHead = 'threw'
-      try { lockedHead = String(reader(locked)) } catch (error) { lockedHead = `threw ${String(error)}` }
-      chmodSync(locked, 0o644)
-      check('a file that is there and cannot be read answers undefined, never a throw: the call is judged without its head', process.getuid?.() === 0 || lockedHead === 'undefined', lockedHead)
+      if (process.platform === 'win32') {
+        console.log('  [SKIP] not read on Windows: chmod 0o000 does not deny read on NTFS')
+      } else {
+        const locked = join(scratch, 'locked.ts')
+        writeFileSync(locked, '// @generated\nexport const a = 1\n')
+        chmodSync(locked, 0o000)
+        let lockedHead = 'threw'
+        try { lockedHead = String(reader(locked)) } catch (error) { lockedHead = `threw ${String(error)}` }
+        chmodSync(locked, 0o644)
+        check('a file that is there and cannot be read answers undefined, never a throw: the call is judged without its head', process.getuid?.() === 0 || lockedHead === 'undefined', lockedHead)
+      }
     }
     const resolver = typeof hook.makeTargetResolver === 'function' ? hook.makeTargetResolver : null
     check('the hook exports the target resolver factory', resolver !== null)
@@ -488,7 +496,7 @@ async function main(): Promise<void> {
       writeFileSync(join(worktree, '.git'), `gitdir: ${repo}/.git/worktrees/w\n`)
       writeFileSync(join(worktree, 'scripts', 'settings', 'settings-schema.json'), '{}\n')
       const link = join(scratch, 'link')
-      symlinkSync(repo, link)
+      symlinkSync(repo, link, process.platform === 'win32' ? 'junction' : 'dir')
       const resolve = resolver(scratch)
       const real = (p: string): string => hook.realTargetPath(p)
       check('a file inside a repository resolves to its own root (a .git directory)', resolve(join(repo, 'src', 'a.ts')).root === real(repo), JSON.stringify(resolve(join(repo, 'src', 'a.ts'))))
@@ -550,7 +558,7 @@ async function main(): Promise<void> {
     }) as never
     const scratch = mkdtempSync(join(tmpdir(), 'wards-hook-'))
     const link = join(scratch, 'link')
-    symlinkSync(ROOT, link)
+    symlinkSync(ROOT, link, process.platform === 'win32' ? 'junction' : 'dir')
     const realRoot = typeof hook.realTargetPath === 'function' ? hook.realTargetPath(ROOT) : ROOT
     const fresh = async (cwd: string, toolName: string, input: Record<string, unknown>, id: string, work?: WardWork): Promise<unknown> => {
       resetWardsEngagedSessionsForTest()

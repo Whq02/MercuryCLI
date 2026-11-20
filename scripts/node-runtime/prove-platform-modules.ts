@@ -19,7 +19,114 @@ const STANDS: readonly Stand[] = [
   { name: 'win32 by getPlatform() alone', node: 'linux', house: 'windows' },
 ]
 
+import * as hostPath from 'node:path'
+import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
+import { foldPathCase, hostOrWin32PathModule, pathModuleFor, samePathCase, splitPathFromRoot, stripExtendedLengthPrefixForPlatform, toPosixSeparators } from '../../src/utils/platform/paths.js'
+
 const PATHS: Row[] = [
+  {
+    name: 'paths.foldPathCase',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\Repo\\', '\\\\Server\\Share\\Dir', '/Users/Alice/Repo', 'File.TS', 'README']
+      return {
+        default: inputs.map(p => foldPathCase(p)),
+        win32: inputs.map(p => foldPathCase(p, 'win32')),
+        darwin: inputs.map(p => foldPathCase(p, 'darwin')),
+        linux: inputs.map(p => foldPathCase(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","c:\\users\\alice\\repo\\","\\\\server\\share\\dir","/users/alice/repo","file.ts","readme"],"win32":["","c:\\users\\alice\\repo\\","\\\\server\\share\\dir","/users/alice/repo","file.ts","readme"],"darwin":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"linux":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"]},"darwin":{"default":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"win32":["","c:\\users\\alice\\repo\\","\\\\server\\share\\dir","/users/alice/repo","file.ts","readme"],"darwin":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"linux":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"]},"linux":{"default":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"win32":["","c:\\users\\alice\\repo\\","\\\\server\\share\\dir","/users/alice/repo","file.ts","readme"],"darwin":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"linux":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"]},"win32 by process.platform alone":{"default":["","c:\\users\\alice\\repo\\","\\\\server\\share\\dir","/users/alice/repo","file.ts","readme"],"win32":["","c:\\users\\alice\\repo\\","\\\\server\\share\\dir","/users/alice/repo","file.ts","readme"],"darwin":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"linux":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"win32":["","c:\\users\\alice\\repo\\","\\\\server\\share\\dir","/users/alice/repo","file.ts","readme"],"darwin":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"],"linux":["","C:\\Users\\Alice\\Repo\\","\\\\Server\\Share\\Dir","/Users/Alice/Repo","File.TS","README"]}},
+  },
+  {
+    name: 'paths.samePathCase',
+    answers: () => {
+      const pairs: ReadonlyArray<[string, string]> = [
+        ['C:\\Repo\\A.ts', 'c:\\repo\\a.ts'],
+        ['/Users/Alice', '/users/alice'],
+        ['\\\\Server\\Share', '\\\\server\\share'],
+        ['', ''],
+        ['C:\\Repo\\', 'C:\\Repo'],
+        ['File.TS', 'file.ts'],
+      ]
+      return {
+        default: pairs.map(([a, b]) => samePathCase(a, b)),
+        win32: pairs.map(([a, b]) => samePathCase(a, b, 'win32')),
+        darwin: pairs.map(([a, b]) => samePathCase(a, b, 'darwin')),
+        linux: pairs.map(([a, b]) => samePathCase(a, b, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[true,true,true,true,false,true],"win32":[true,true,true,true,false,true],"darwin":[false,false,false,true,false,false],"linux":[false,false,false,true,false,false]},"darwin":{"default":[false,false,false,true,false,false],"win32":[true,true,true,true,false,true],"darwin":[false,false,false,true,false,false],"linux":[false,false,false,true,false,false]},"linux":{"default":[false,false,false,true,false,false],"win32":[true,true,true,true,false,true],"darwin":[false,false,false,true,false,false],"linux":[false,false,false,true,false,false]},"win32 by process.platform alone":{"default":[true,true,true,true,false,true],"win32":[true,true,true,true,false,true],"darwin":[false,false,false,true,false,false],"linux":[false,false,false,true,false,false]},"win32 by getPlatform() alone":{"default":[false,false,false,true,false,false],"win32":[true,true,true,true,false,true],"darwin":[false,false,false,true,false,false],"linux":[false,false,false,true,false,false]}},
+  },
+  {
+    name: 'paths.pathModuleFor',
+    answers: () => {
+      const sample = (mod: typeof pathWin32 | typeof pathPosix) => ({
+        sep: mod.sep,
+        join: mod.join('C:\\Users', 'Alice', 'file.ts'),
+        dirname: mod.dirname('C:\\Users\\Alice\\file.ts'),
+        absWin: mod.isAbsolute('C:\\Users\\Alice'),
+        absPosix: mod.isAbsolute('/Users/Alice'),
+        rel: mod.relative('C:\\repo', 'C:\\repo\\src\\a.ts'),
+      })
+      return {
+        default: sample(pathModuleFor()),
+        win32: sample(pathModuleFor('win32')),
+        darwin: sample(pathModuleFor('darwin')),
+        linux: sample(pathModuleFor('linux')),
+      }
+    },
+    recorded: {"win32":{"default":{"sep":"\\","join":"C:\\Users\\Alice\\file.ts","dirname":"C:\\Users\\Alice","absWin":true,"absPosix":true,"rel":"src\\a.ts"},"win32":{"sep":"\\","join":"C:\\Users\\Alice\\file.ts","dirname":"C:\\Users\\Alice","absWin":true,"absPosix":true,"rel":"src\\a.ts"},"darwin":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"linux":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"}},"darwin":{"default":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"win32":{"sep":"\\","join":"C:\\Users\\Alice\\file.ts","dirname":"C:\\Users\\Alice","absWin":true,"absPosix":true,"rel":"src\\a.ts"},"darwin":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"linux":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"}},"linux":{"default":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"win32":{"sep":"\\","join":"C:\\Users\\Alice\\file.ts","dirname":"C:\\Users\\Alice","absWin":true,"absPosix":true,"rel":"src\\a.ts"},"darwin":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"linux":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"}},"win32 by process.platform alone":{"default":{"sep":"\\","join":"C:\\Users\\Alice\\file.ts","dirname":"C:\\Users\\Alice","absWin":true,"absPosix":true,"rel":"src\\a.ts"},"win32":{"sep":"\\","join":"C:\\Users\\Alice\\file.ts","dirname":"C:\\Users\\Alice","absWin":true,"absPosix":true,"rel":"src\\a.ts"},"darwin":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"linux":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"}},"win32 by getPlatform() alone":{"default":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"win32":{"sep":"\\","join":"C:\\Users\\Alice\\file.ts","dirname":"C:\\Users\\Alice","absWin":true,"absPosix":true,"rel":"src\\a.ts"},"darwin":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"},"linux":{"sep":"/","join":"C:\\Users/Alice/file.ts","dirname":".","absWin":false,"absPosix":true,"rel":"../C:\\repo\\src\\a.ts"}}},
+  },
+  {
+    name: 'paths.stripExtendedLengthPrefixForPlatform',
+    answers: () => {
+      const inputs = ['', '\\\\?\\C:\\Users\\Alice\\repo\\', '\\\\?\\UNC\\Server\\Share\\file.txt', '\\\\?\\unc\\Server\\Share', 'C:\\Users\\Alice', '/Users/Alice']
+      return {
+        default: inputs.map(p => stripExtendedLengthPrefixForPlatform(p)),
+        win32: inputs.map(p => stripExtendedLengthPrefixForPlatform(p, 'win32')),
+        darwin: inputs.map(p => stripExtendedLengthPrefixForPlatform(p, 'darwin')),
+        linux: inputs.map(p => stripExtendedLengthPrefixForPlatform(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:\\Users\\Alice\\repo\\","\\\\Server\\Share\\file.txt","\\\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"win32":["","C:\\Users\\Alice\\repo\\","\\\\Server\\Share\\file.txt","\\\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"darwin":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"linux":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"]},"darwin":{"default":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"win32":["","C:\\Users\\Alice\\repo\\","\\\\Server\\Share\\file.txt","\\\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"darwin":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"linux":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"]},"linux":{"default":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"win32":["","C:\\Users\\Alice\\repo\\","\\\\Server\\Share\\file.txt","\\\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"darwin":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"linux":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice\\repo\\","\\\\Server\\Share\\file.txt","\\\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"win32":["","C:\\Users\\Alice\\repo\\","\\\\Server\\Share\\file.txt","\\\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"darwin":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"linux":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"]},"win32 by getPlatform() alone":{"default":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"win32":["","C:\\Users\\Alice\\repo\\","\\\\Server\\Share\\file.txt","\\\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"darwin":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"],"linux":["","\\\\?\\C:\\Users\\Alice\\repo\\","\\\\?\\UNC\\Server\\Share\\file.txt","\\\\?\\unc\\Server\\Share","C:\\Users\\Alice","/Users/Alice"]}},
+  },
+  {
+    name: 'paths.toPosixSeparators',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\Repo\\', 'src\\utils\\a.ts', '\\\\Server\\Share\\file', '/Users/Alice/file\\name', 'plain']
+      return {
+        default: inputs.map(p => toPosixSeparators(p)),
+        win32: inputs.map(p => toPosixSeparators(p, 'win32')),
+        darwin: inputs.map(p => toPosixSeparators(p, 'darwin')),
+        linux: inputs.map(p => toPosixSeparators(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:/Users/Alice/Repo/","src/utils/a.ts","//Server/Share/file","/Users/Alice/file/name","plain"],"win32":["","C:/Users/Alice/Repo/","src/utils/a.ts","//Server/Share/file","/Users/Alice/file/name","plain"],"darwin":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"linux":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"]},"darwin":{"default":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"win32":["","C:/Users/Alice/Repo/","src/utils/a.ts","//Server/Share/file","/Users/Alice/file/name","plain"],"darwin":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"linux":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"]},"linux":{"default":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"win32":["","C:/Users/Alice/Repo/","src/utils/a.ts","//Server/Share/file","/Users/Alice/file/name","plain"],"darwin":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"linux":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"]},"win32 by process.platform alone":{"default":["","C:/Users/Alice/Repo/","src/utils/a.ts","//Server/Share/file","/Users/Alice/file/name","plain"],"win32":["","C:/Users/Alice/Repo/","src/utils/a.ts","//Server/Share/file","/Users/Alice/file/name","plain"],"darwin":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"linux":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"win32":["","C:/Users/Alice/Repo/","src/utils/a.ts","//Server/Share/file","/Users/Alice/file/name","plain"],"darwin":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"],"linux":["","C:\\Users\\Alice\\Repo\\","src\\utils\\a.ts","\\\\Server\\Share\\file","/Users/Alice/file\\name","plain"]}},
+  },
+  {
+    name: 'paths.splitPathFromRoot',
+    answers: () => {
+      const inputs = ['C:\\a\\b', 'C:/a/b', 'c:\\', '\\\\server\\share\\d', '/a/b', '/', 'rel/path', '']
+      return {
+        default: inputs.map(p => splitPathFromRoot(p)),
+        win32: inputs.map(p => splitPathFromRoot(p, 'win32')),
+        darwin: inputs.map(p => splitPathFromRoot(p, 'darwin')),
+        linux: inputs.map(p => splitPathFromRoot(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"darwin":{"default":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"linux":{"default":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"win32 by process.platform alone":{"default":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"win32 by getPlatform() alone":{"default":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]}},
+  },
+  {
+    name: 'paths.hostOrWin32PathModule',
+    answers: stand => ({
+      defaultMatchesExpected: hostOrWin32PathModule() === (stand.node === 'win32' ? pathWin32 : hostPath),
+      win32IsWin32: hostOrWin32PathModule('win32') === pathWin32,
+      darwinIsHost: hostOrWin32PathModule('darwin') === hostPath,
+      linuxIsHost: hostOrWin32PathModule('linux') === hostPath,
+      win32Resolve: hostOrWin32PathModule('win32').resolve('C:\\Users', 'Alice'),
+    }),
+    recorded: {"win32":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"darwin":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"linux":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"win32 by process.platform alone":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"win32 by getPlatform() alone":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"}},
+  },
 ]
 
 import { chmodSync as p02ChmodSync, mkdirSync as p02MkdirSync, mkdtempSync as p02MkdtempSync, rmSync as p02RmSync, writeFileSync as p02WriteFileSync } from 'node:fs'
@@ -158,13 +265,375 @@ const PROGRAMS: Row[] = [
   },
 ]
 
+import {
+  commandShellArgv,
+  commandShellOption,
+  executableNeedsVerbatimArgs,
+  hostScriptDialect,
+  hostShellHint,
+  isBatchShim,
+  shellBinarySpec,
+  shellCommandSpec,
+  shimShellOption,
+} from '../../src/utils/platform/spawn.js'
 const SPAWN: Row[] = [
+  {
+    name: 'spawn.commandShellOption',
+    answers: () => commandShellOption(),
+    recorded: {"win32":true,"darwin":"/bin/sh","linux":"/bin/sh","win32 by process.platform alone":true,"win32 by getPlatform() alone":"/bin/sh"},
+  },
+  {
+    name: 'spawn.shellCommandSpec',
+    answers: () => [
+      shellCommandSpec(['winget', 'upgrade', 'Mercury'], undefined),
+      shellCommandSpec(['brew', 'upgrade', 'mercury'], 'C:\\Windows\\System32\\cmd.exe'),
+      shellCommandSpec([], undefined),
+    ],
+    recorded: {"win32":[{"file":"cmd.exe","args":["/d","/s","/c","\"winget upgrade Mercury\""],"windowsVerbatimArguments":true},{"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/s","/c","\"brew upgrade mercury\""],"windowsVerbatimArguments":true},{"file":"cmd.exe","args":["/d","/s","/c","\"\""],"windowsVerbatimArguments":true}],"darwin":[{"file":"winget","args":["upgrade","Mercury"],"windowsVerbatimArguments":false},{"file":"brew","args":["upgrade","mercury"],"windowsVerbatimArguments":false},{"file":"","args":[],"windowsVerbatimArguments":false}],"linux":[{"file":"winget","args":["upgrade","Mercury"],"windowsVerbatimArguments":false},{"file":"brew","args":["upgrade","mercury"],"windowsVerbatimArguments":false},{"file":"","args":[],"windowsVerbatimArguments":false}],"win32 by process.platform alone":[{"file":"cmd.exe","args":["/d","/s","/c","\"winget upgrade Mercury\""],"windowsVerbatimArguments":true},{"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/s","/c","\"brew upgrade mercury\""],"windowsVerbatimArguments":true},{"file":"cmd.exe","args":["/d","/s","/c","\"\""],"windowsVerbatimArguments":true}],"win32 by getPlatform() alone":[{"file":"winget","args":["upgrade","Mercury"],"windowsVerbatimArguments":false},{"file":"brew","args":["upgrade","mercury"],"windowsVerbatimArguments":false},{"file":"","args":[],"windowsVerbatimArguments":false}]},
+  },
+  {
+    name: 'spawn.shellBinarySpec',
+    answers: () => [
+      shellBinarySpec('C:\\Program Files\\Mercury\\mercury.cmd', ['--version'], undefined),
+      shellBinarySpec('/usr/local/bin/mercury', ['--version'], 'C:\\cmd.exe'),
+      shellBinarySpec('mercury', [], undefined),
+    ],
+    recorded: {"win32":[{"file":"cmd.exe","args":["/d","/s","/c","\"\"C:\\Program Files\\Mercury\\mercury.cmd\" --version\""],"windowsVerbatimArguments":true},{"file":"C:\\cmd.exe","args":["/d","/s","/c","\"\"/usr/local/bin/mercury\" --version\""],"windowsVerbatimArguments":true},{"file":"cmd.exe","args":["/d","/s","/c","\"\"mercury\"\""],"windowsVerbatimArguments":true}],"darwin":[{"file":"C:\\Program Files\\Mercury\\mercury.cmd","args":["--version"],"windowsVerbatimArguments":false},{"file":"/usr/local/bin/mercury","args":["--version"],"windowsVerbatimArguments":false},{"file":"mercury","args":[],"windowsVerbatimArguments":false}],"linux":[{"file":"C:\\Program Files\\Mercury\\mercury.cmd","args":["--version"],"windowsVerbatimArguments":false},{"file":"/usr/local/bin/mercury","args":["--version"],"windowsVerbatimArguments":false},{"file":"mercury","args":[],"windowsVerbatimArguments":false}],"win32 by process.platform alone":[{"file":"cmd.exe","args":["/d","/s","/c","\"\"C:\\Program Files\\Mercury\\mercury.cmd\" --version\""],"windowsVerbatimArguments":true},{"file":"C:\\cmd.exe","args":["/d","/s","/c","\"\"/usr/local/bin/mercury\" --version\""],"windowsVerbatimArguments":true},{"file":"cmd.exe","args":["/d","/s","/c","\"\"mercury\"\""],"windowsVerbatimArguments":true}],"win32 by getPlatform() alone":[{"file":"C:\\Program Files\\Mercury\\mercury.cmd","args":["--version"],"windowsVerbatimArguments":false},{"file":"/usr/local/bin/mercury","args":["--version"],"windowsVerbatimArguments":false},{"file":"mercury","args":[],"windowsVerbatimArguments":false}]},
+  },
+  {
+    name: 'spawn.hostShellHint',
+    answers: () => [
+      hostShellHint({ PSModulePath: 'C:\\Mods', ComSpec: 'C:\\cmd.exe', SHELL: '/bin/zsh' }),
+      hostShellHint({ ComSpec: 'C:\\cmd.exe' }),
+      hostShellHint({ SHELL: '/bin/bash' }),
+      hostShellHint({}),
+      hostShellHint({ PSModulePath: '', ComSpec: 'C:\\cmd.exe', SHELL: '' }),
+    ],
+    recorded: {"win32":["powershell","cmd","unknown","unknown","cmd"],"darwin":["posix-sh","unknown","posix-sh","unknown","unknown"],"linux":["posix-sh","unknown","posix-sh","unknown","unknown"],"win32 by process.platform alone":["powershell","cmd","unknown","unknown","cmd"],"win32 by getPlatform() alone":["posix-sh","unknown","posix-sh","unknown","unknown"]},
+  },
+  {
+    name: 'spawn.isBatchShim',
+    answers: () => [
+      isBatchShim('C:\\tools\\code.cmd'),
+      isBatchShim('C:\\tools\\RUN.BAT'),
+      isBatchShim('C:\\tools\\node.exe'),
+      isBatchShim('/usr/bin/code.cmd'),
+      isBatchShim(''),
+    ],
+    recorded: {"win32":[true,true,false,true,false],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,false,true,false],"win32 by getPlatform() alone":[false,false,false,false,false]},
+  },
+  {
+    name: 'spawn.shimShellOption',
+    answers: () => shimShellOption(),
+    recorded: {"win32":{"shell":true},"darwin":{},"linux":{},"win32 by process.platform alone":{"shell":true},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.commandShellArgv',
+    answers: () => [commandShellArgv('echo hello'), commandShellArgv('')],
+    recorded: {"win32":[["cmd.exe","/d","/s","/c","echo hello"],["cmd.exe","/d","/s","/c",""]],"darwin":[["/bin/sh","-c","echo hello"],["/bin/sh","-c",""]],"linux":[["/bin/sh","-c","echo hello"],["/bin/sh","-c",""]],"win32 by process.platform alone":[["cmd.exe","/d","/s","/c","echo hello"],["cmd.exe","/d","/s","/c",""]],"win32 by getPlatform() alone":[["/bin/sh","-c","echo hello"],["/bin/sh","-c",""]]},
+  },
+  {
+    name: 'spawn.executableNeedsVerbatimArgs',
+    answers: () => [
+      executableNeedsVerbatimArgs('cmd.exe'),
+      executableNeedsVerbatimArgs('C:\\Windows\\System32\\CMD.EXE'),
+      executableNeedsVerbatimArgs('cmd'),
+      executableNeedsVerbatimArgs('/bin/sh'),
+      executableNeedsVerbatimArgs('mycmd.exe'),
+    ],
+    recorded: {"win32":[true,true,true,false,false],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,true,false,false],"win32 by getPlatform() alone":[false,false,false,false,false]},
+  },
+  {
+    name: 'spawn.hostScriptDialect',
+    answers: () => hostScriptDialect(),
+    recorded: {"win32":"powershell","darwin":"posix-sh","linux":"posix-sh","win32 by process.platform alone":"powershell","win32 by getPlatform() alone":"posix-sh"},
+  },
 ]
 
+import {
+  availableMemoryReader,
+  childGetsOwnProcessGroup,
+  processInstantStartForm,
+  processListCommand,
+  processStartFormFor,
+  processStartProbeKind,
+} from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
+  {
+    name: 'childGetsOwnProcessGroup',
+    answers: stand => [childGetsOwnProcessGroup(), childGetsOwnProcessGroup(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'processStartFormFor',
+    answers: stand => [
+      processStartFormFor(true),
+      processStartFormFor(false),
+      processStartFormFor(true, stand.node),
+      processStartFormFor(false, stand.node),
+    ],
+    recorded: {"win32":["instant","token","instant","token"],"darwin":["token","token","token","token"],"linux":["token","token","token","token"],"win32 by process.platform alone":["instant","token","instant","token"],"win32 by getPlatform() alone":["token","token","token","token"]},
+  },
+  {
+    name: 'processInstantStartForm',
+    answers: stand => [processInstantStartForm(), processInstantStartForm(stand.node)],
+    recorded: {"win32":["instant","instant"],"darwin":["token","token"],"linux":["token","token"],"win32 by process.platform alone":["instant","instant"],"win32 by getPlatform() alone":["token","token"]},
+  },
+  {
+    name: 'processStartProbeKind',
+    answers: stand => [processStartProbeKind(), processStartProbeKind(stand.node)],
+    recorded: {"win32":["win32-cim","win32-cim"],"darwin":["posix-ps","posix-ps"],"linux":["linux-proc","linux-proc"],"win32 by process.platform alone":["win32-cim","win32-cim"],"win32 by getPlatform() alone":["linux-proc","linux-proc"]},
+  },
+  {
+    name: 'availableMemoryReader',
+    answers: stand => [availableMemoryReader(), availableMemoryReader(stand.node)],
+    recorded: {"win32":["counter","counter"],"darwin":["vm_stat","vm_stat"],"linux":["meminfo","meminfo"],"win32 by process.platform alone":["counter","counter"],"win32 by getPlatform() alone":["meminfo","meminfo"]},
+  },
+  {
+    name: 'processListCommand',
+    answers: stand => [processListCommand(), processListCommand(stand.node)],
+    recorded: {"win32":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"darwin":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"linux":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"win32 by process.platform alone":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"win32 by getPlatform() alone":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}]},
+  },
 ]
+
+import { chmodSync, constants as fsConstants, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { rememberedPlatform } from '../../src/utils/platform/host.js'
+import {
+  appendNoFollowFlags,
+  exclusiveCreateNoFollowFlags,
+  isDirAbsentOnRmdirError,
+  isOwnedPrivateEntry,
+  isPrivateFileMode,
+  pathEntryKindSync,
+  posixFileModesApply,
+  readExposedFileModeSync,
+  symlinkDeniedByPrivilege,
+  symlinksMayRequirePrivilege,
+} from '../../src/utils/platform/files.js'
 
 const FILES: Row[] = [
+  {
+    name: 'files · posixFileModesApply',
+    answers: () => [
+      posixFileModesApply(),
+      posixFileModesApply('win32'),
+      posixFileModesApply('darwin'),
+      posixFileModesApply('linux'),
+    ],
+    recorded: {
+      win32: [false, false, true, true],
+      darwin: [true, false, true, true],
+      linux: [true, false, true, true],
+      'win32 by process.platform alone': [false, false, true, true],
+      'win32 by getPlatform() alone': [true, false, true, true],
+    },
+  },
+  {
+    name: 'files · isPrivateFileMode',
+    answers: () => [
+      isPrivateFileMode(0o100600),
+      isPrivateFileMode(0o100644),
+      isPrivateFileMode(0o100611),
+      isPrivateFileMode(0o100611, 0o066),
+      isPrivateFileMode(0o100640, 0o066),
+      isPrivateFileMode(0o100644, 0o077, 'win32'),
+      isPrivateFileMode(0o100644, 0o077, 'linux'),
+    ],
+    recorded: {
+      win32: [true, true, true, true, true, true, false],
+      darwin: [true, false, false, true, false, true, false],
+      linux: [true, false, false, true, false, true, false],
+      'win32 by process.platform alone': [true, true, true, true, true, true, false],
+      'win32 by getPlatform() alone': [true, false, false, true, false, true, false],
+    },
+  },
+  {
+    name: 'files · readExposedFileModeSync',
+    answers: () => {
+      const dir = mkdtempSync(join(tmpdir(), 'mercury-plat-files-'))
+      try {
+        const wide = join(dir, 'wide')
+        writeFileSync(wide, 'x')
+        chmodSync(wide, 0o666)
+        const missing = join(dir, 'missing')
+        let missingAnswer: number | null | string
+        try {
+          missingAnswer = readExposedFileModeSync(missing)
+        } catch (err) {
+          missingAnswer = (err as NodeJS.ErrnoException).code ?? 'err'
+        }
+        return [
+          readExposedFileModeSync(wide),
+          readExposedFileModeSync(wide, 0o066),
+          readExposedFileModeSync(wide, 0o077, 'win32'),
+          missingAnswer,
+        ]
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+    recorded: {
+      win32: [null, null, null, null],
+      darwin: [438, 438, null, 'ENOENT'],
+      linux: [438, 438, null, 'ENOENT'],
+      'win32 by process.platform alone': [null, null, null, null],
+      'win32 by getPlatform() alone': [438, 438, null, 'ENOENT'],
+    },
+  },
+  {
+    name: 'files · isOwnedPrivateEntry',
+    answers: () => {
+      const selfUid = process.getuid?.() as number
+      const otherUid = (process.getuid?.() ?? 0) + 1
+      return [
+        isOwnedPrivateEntry({ mode: 0o100600, uid: selfUid }),
+        isOwnedPrivateEntry({ mode: 0o100644, uid: selfUid }),
+        isOwnedPrivateEntry({ mode: 0o100600, uid: otherUid }),
+        isOwnedPrivateEntry({ mode: 0o100644, uid: otherUid }, 'win32'),
+        isOwnedPrivateEntry({ mode: 0o100644, uid: selfUid }, 'linux'),
+      ]
+    },
+    recorded: {
+      win32: [true, true, true, true, false],
+      darwin: [true, false, false, true, false],
+      linux: [true, false, false, true, false],
+      'win32 by process.platform alone': [true, true, true, true, false],
+      'win32 by getPlatform() alone': [true, false, false, true, false],
+    },
+  },
+  {
+    name: 'files · pathEntryKindSync',
+    answers: () => {
+      const dir = mkdtempSync(join(tmpdir(), 'mercury-plat-kind-'))
+      try {
+        const sub = join(dir, 'sub')
+        const file = join(dir, 'file')
+        mkdirSync(sub)
+        writeFileSync(file, 'x')
+        return [
+          pathEntryKindSync(join(dir, 'missing')),
+          pathEntryKindSync(sub),
+          pathEntryKindSync(file),
+        ]
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+    recorded: {
+      win32: ['absent', 'directory', 'other'],
+      darwin: ['absent', 'directory', 'other'],
+      linux: ['absent', 'directory', 'other'],
+      'win32 by process.platform alone': ['absent', 'directory', 'other'],
+      'win32 by getPlatform() alone': ['absent', 'directory', 'other'],
+    },
+  },
+  {
+    name: 'files · isDirAbsentOnRmdirError',
+    answers: () => {
+      const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      const enotdir = Object.assign(new Error('ENOTDIR'), { code: 'ENOTDIR' })
+      const eacces = Object.assign(new Error('EACCES'), { code: 'EACCES' })
+      return [
+        isDirAbsentOnRmdirError(enoent, 'directory'),
+        isDirAbsentOnRmdirError(enoent, 'other'),
+        isDirAbsentOnRmdirError(enoent, 'absent'),
+        isDirAbsentOnRmdirError(enotdir, 'other'),
+        isDirAbsentOnRmdirError(eacces, 'directory'),
+        isDirAbsentOnRmdirError(enoent, 'other', 'win32'),
+        isDirAbsentOnRmdirError(enoent, 'other', 'linux'),
+      ]
+    },
+    recorded: {
+      win32: [true, false, true, false, false, false, true],
+      darwin: [true, true, true, false, false, false, true],
+      linux: [true, true, true, false, false, false, true],
+      'win32 by process.platform alone': [true, false, true, false, false, false, true],
+      'win32 by getPlatform() alone': [true, true, true, false, false, false, true],
+    },
+  },
+  {
+    name: 'files · exclusiveCreateNoFollowFlags',
+    answers: () => {
+      const posixBits = fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | (fsConstants.O_NOFOLLOW ?? 0)
+      const label = (v: string | number): string | number => (v === posixBits ? 'posix-excl-nofollow' : v)
+      return [
+        label(exclusiveCreateNoFollowFlags()),
+        label(exclusiveCreateNoFollowFlags(rememberedPlatform())),
+        label(exclusiveCreateNoFollowFlags('win32')),
+        label(exclusiveCreateNoFollowFlags('linux')),
+      ]
+    },
+    recorded: {
+      win32: ['wx', 'wx', 'wx', 'posix-excl-nofollow'],
+      darwin: ['posix-excl-nofollow', 'posix-excl-nofollow', 'wx', 'posix-excl-nofollow'],
+      linux: ['posix-excl-nofollow', 'posix-excl-nofollow', 'wx', 'posix-excl-nofollow'],
+      'win32 by process.platform alone': ['wx', 'posix-excl-nofollow', 'wx', 'posix-excl-nofollow'],
+      'win32 by getPlatform() alone': ['posix-excl-nofollow', 'wx', 'wx', 'posix-excl-nofollow'],
+    },
+  },
+  {
+    name: 'files · appendNoFollowFlags',
+    answers: () => {
+      const posixBits = fsConstants.O_WRONLY | fsConstants.O_APPEND | fsConstants.O_CREAT | (fsConstants.O_NOFOLLOW ?? 0)
+      const label = (v: string | number): string | number => (v === posixBits ? 'posix-append-nofollow' : v)
+      return [
+        label(appendNoFollowFlags()),
+        label(appendNoFollowFlags('w')),
+        label(appendNoFollowFlags('a', 'windows')),
+        label(appendNoFollowFlags('w', 'windows')),
+        label(appendNoFollowFlags('a', 'macos')),
+        label(appendNoFollowFlags('w', 'linux')),
+      ]
+    },
+    recorded: {
+      win32: ['a', 'w', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      darwin: ['posix-append-nofollow', 'posix-append-nofollow', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      linux: ['posix-append-nofollow', 'posix-append-nofollow', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      'win32 by process.platform alone': ['posix-append-nofollow', 'posix-append-nofollow', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      'win32 by getPlatform() alone': ['a', 'w', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+    },
+  },
+  {
+    name: 'files · symlinksMayRequirePrivilege',
+    answers: () => [
+      symlinksMayRequirePrivilege(),
+      symlinksMayRequirePrivilege(rememberedPlatform()),
+      symlinksMayRequirePrivilege('win32'),
+      symlinksMayRequirePrivilege('darwin'),
+      symlinksMayRequirePrivilege('linux'),
+    ],
+    recorded: {
+      win32: [true, true, true, false, false],
+      darwin: [false, false, true, false, false],
+      linux: [false, false, true, false, false],
+      'win32 by process.platform alone': [true, false, true, false, false],
+      'win32 by getPlatform() alone': [false, true, true, false, false],
+    },
+  },
+  {
+    name: 'files · symlinkDeniedByPrivilege',
+    answers: () => {
+      const eperm = Object.assign(new Error('EPERM'), { code: 'EPERM' })
+      const eacces = Object.assign(new Error('EACCES'), { code: 'EACCES' })
+      const eexist = Object.assign(new Error('EEXIST'), { code: 'EEXIST' })
+      return [
+        symlinkDeniedByPrivilege(eperm),
+        symlinkDeniedByPrivilege(eacces),
+        symlinkDeniedByPrivilege(eexist),
+        symlinkDeniedByPrivilege(eperm, 'win32'),
+        symlinkDeniedByPrivilege(eperm, 'linux'),
+      ]
+    },
+    recorded: {
+      win32: [true, true, false, true, false],
+      darwin: [false, false, false, true, false],
+      linux: [false, false, false, true, false],
+      'win32 by process.platform alone': [true, true, false, true, false],
+      'win32 by getPlatform() alone': [false, false, false, true, false],
+    },
+  },
 ]
 
 const TERMINAL: Row[] = [

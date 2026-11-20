@@ -1,5 +1,5 @@
 import { writeSync } from 'node:fs'
-import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
+import { isSessionRunArgv as isRunArgv } from './sessionArgs.js'
 
 import { onExit } from 'signal-exit'
 

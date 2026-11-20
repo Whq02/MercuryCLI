@@ -26,6 +26,11 @@ const PASS_AS = 'passedOverAs'
 const TIMER_DOOR = 'src/utils/timers.ts'
 const AMBIENT_DOOR = 'src/utils/hostEnv.ts'
 const EFFECT_DOOR = 'src/hooks/effects.ts'
+const DEADLINE_DOOR = 'src/utils/deadline.ts'
+const RACE = 'Promise.race'
+const INTERVAL = 'startInterval'
+const CLASSES = ['deadline', 'poll-event', 'poll-loop', 'events', 'clock', 'heartbeat', 'periodic', 'later', 'row8']
+const MOVING = CLASSES.slice(0, 3)
 const REGISTERED = new Set(FLAG_REGISTRY.map(row => row.env))
 const DOOR_FILE = ((): string => {
   const self = ts.createSourceFile(SELF, readFileSync(import.meta.path, 'utf8'), ts.ScriptTarget.Latest, false)
@@ -73,15 +78,19 @@ const HABITS = {
   'env-read': `a registered flag is read with ${DOOR} or flagEnabled (each line below says whether its name has a row in the flag registry); for another name, ${THROUGH_HOST_ENV}`,
   'env-whole': `a function that needs the environment takes it from its caller as a parameter with no default; ${THROUGH_HOST_ENV}`,
   [LOOSE]: `give the name its row in the flag registry and read it with ${DOOR}`,
+  [RACE]: `a work against a timer is withDeadline(work, ms, atLimit, { signal, onAbort, unref }) from ${DEADLINE_DOOR}, and a race against an inactivity deadline's expiry is its within(work); a race of two real events stays, and its row names the class of each race it holds`,
+  [INTERVAL]: `a wait for something becomes the event it waits for (a promise that settles, an emitter's event, a child's exit), and where nothing can say so, pollUntil(look, everyMs, limitMs, atLimit, { signal }) from ${DEADLINE_DOOR}; ${TICK}; a heartbeat and a job on a cadence stay, and the row names the class of each timer it holds`,
 } as const
 type Habit = keyof typeof HABITS
 const NAMES = Object.keys(HABITS) as Habit[]
+const CLASSED = new Set<Habit>([RACE, INTERVAL])
 const DOORS: Array<{ file: string; opens: string; own: readonly Habit[] }> = [
   { file: DOOR_FILE, opens: DOOR, own: ['env-read', 'env-whole'] },
   { file: AMBIENT_DOOR, opens: 'hostEnv', own: ['env-read', 'env-whole'] },
   { file: TIMER_DOOR, opens: 'startTimeout', own: ['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'Atomics.wait'] },
   { file: EFFECT_DOOR, opens: 'useMount', own: ['useEffect', 'useLayoutEffect'] },
   { file: FAILURE_DOOR, opens: PASS, own: ['empty-catch'] },
+  { file: DEADLINE_DOOR, opens: 'withDeadline', own: [RACE] },
 ]
 const OWN = 'own '
 const BEYOND: Array<[string, string]> = [
@@ -131,6 +140,7 @@ const DIRECTIVE_WORD = /@ts-(?:ignore|expect-error|nocheck)|eslint|biome-ignore|
 
 type Hit = { habit: Habit; file: string; line: number; column: number; print: string; note: string }
 type Rows = Map<Habit, Map<string, number>>
+type Classed = Map<string, string>
 type Over = { file: string; row: number; lines: Array<{ line: number; note: string }> }
 type Verdict = { over: Over[]; total: number; allowed: number; files: number; slack: number }
 type Side = (file: string) => string | null
@@ -210,12 +220,14 @@ function passedOver(statements: readonly ts.Statement[], inFunction: boolean): P
   return undefined
 }
 
-function ofFailureDoor(e: ts.Expression): string | undefined {
+function ofDoor(e: ts.Expression, door: string): string | undefined {
   const x = unwrap(e)
   const decl = ts.isIdentifier(x) ? declarationOf(x) : undefined
   const ref = decl ? importOf(decl) : undefined
-  return decl && ref && ref.module.startsWith('.') && resolve(dirname(decl.getSourceFile().fileName), ref.module).replace(/\.js$/, '.ts') === resolve(ROOT, FAILURE_DOOR) ? ref.name : undefined
+  return decl && ref && ref.module.startsWith('.') && resolve(dirname(decl.getSourceFile().fileName), ref.module).replace(/\.js$/, '.ts') === resolve(ROOT, door) ? ref.name : undefined
 }
+
+const ofFailureDoor = (e: ts.Expression): string | undefined => ofDoor(e, FAILURE_DOOR)
 
 const handsOver = (s: ts.Statement | undefined): boolean => s !== undefined && ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && ofFailureDoor(s.expression.expression) === PASS
 
@@ -584,6 +596,8 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
       if (spec && ts.isStringLiteralLike(spec) && opensDoor(spec.text)) hit(ALIAS, n, `const { sleep } = await import('${spec.text}')`)
     }
     if (ts.isCallExpression(n)) {
+      if (ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'race' && ts.isIdentifier(n.expression.expression) && n.expression.expression.text === 'Promise' && !declarationOf(n.expression.expression)) hit(RACE, n.expression.name)
+      else if (ts.isIdentifier(n.expression) && ofDoor(n.expression, TIMER_DOOR) === INTERVAL) hit(INTERVAL, n.expression)
       const waited = n.arguments.find(a => ts.isObjectLiteralExpression(unwrap(a)))
       const heard = waited ? (unwrap(waited) as ts.ObjectLiteralExpression).properties.find(p => (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) && keyOf(p.name) === 'signal') : undefined
       const signal = heard ? (ts.isPropertyAssignment(heard) ? squeeze(heard.initializer.getText(sf)) : 'signal') : undefined
@@ -678,25 +692,81 @@ function rowsOf(hits: Hit[]): Rows {
 const inOrder = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 const sum = (counts: Map<string, number>): number => [...counts.values()].reduce((n, c) => n + c, 0)
 
-const render = (rows: Rows): string =>
+const rowKey = (habit: Habit, file: string): string => `${habit}\t${file}`
+
+const render = (rows: Rows, classed: Classed = new Map()): string =>
   NAMES.flatMap(habit =>
     [...rows.get(habit)!]
       .sort(([a], [b]) => inOrder(a, b))
-      .map(([file, count]) => `${habit}\t${file}\t${count}\n`),
+      .map(([file, count]) => `${habit}\t${file}\t${count}${classed.has(rowKey(habit, file)) ? `\t${classed.get(rowKey(habit, file))}` : ''}\n`),
   ).join('')
 
-function tableOf(text: string, ofAnotherReader = false): Rows | null {
+function tableOf(text: string, ofAnotherReader = false, classed?: Classed): Rows | null {
   const table = rowsOf([])
   for (const line of text.split('\n')) {
     if (line === '') continue
-    const m = /^([^\t]+)\t(src\/[^\t]+)\t([1-9][0-9]*)$/.exec(line)
+    const m = /^([^\t]+)\t(src\/[^\t]+)\t([1-9][0-9]*)(?:\t([^\t]+))?$/.exec(line)
     const files = m ? table.get(m[1] as Habit) : undefined
     if (m && !files && ofAnotherReader) continue
-    if (!m || !files || files.has(m[2]!)) return null
+    if (!m || !files || files.has(m[2]!) || (m[4] !== undefined && !CLASSED.has(m[1] as Habit))) return null
     files.set(m[2]!, Number(m[3]))
+    if (m[4] !== undefined) classed?.set(rowKey(m[1] as Habit, m[2]!), m[4])
   }
   return table
 }
+
+const CLASS_WORDS = /^([a-z0-9-]+) ([1-9][0-9]*)$/
+
+function unclassed(rows: Rows, classed: Classed): string[] {
+  const out: string[] = []
+  for (const habit of CLASSED) {
+    for (const [file, count] of [...rows.get(habit)!].sort(([a], [b]) => inOrder(a, b))) {
+      const words = classed.get(rowKey(habit, file))
+      const parts = (words ?? '').split(' · ').map(part => CLASS_WORDS.exec(part))
+      const known = words !== undefined && parts.every(part => part !== null && CLASSES.includes(part[1]!))
+      const named = parts.reduce((n, part) => n + Number(part?.[2] ?? 0), 0)
+      if (!known || named !== count) out.push(`${file} ${habit}: the file holds ${count} and its row says ${words === undefined ? 'no class' : `"${words}"`}`)
+    }
+  }
+  return out
+}
+
+function carried(rows: Rows, was: Classed): Classed {
+  const out: Classed = new Map()
+  for (const habit of CLASSED) {
+    for (const [file, count] of rows.get(habit)!) {
+      const words = was.get(rowKey(habit, file))
+      if (words === undefined) continue
+      const parts = words.split(' · ').map(part => CLASS_WORDS.exec(part))
+      const left = parts.flatMap(part => (part ? [[part[1]!, Number(part[2])] as [string, number]] : []))
+      let over = left.reduce((n, [, held]) => n + held, 0) - count
+      if (left.length === 1 && left.length === parts.length) left[0]![1] = count
+      else for (const moving of MOVING) for (const entry of left) if (entry[0] === moving && over > 0) {
+        const taken = Math.min(over, entry[1])
+        entry[1] -= taken
+        over -= taken
+      }
+      out.set(rowKey(habit, file), left.length !== parts.length || (left.length > 1 && over !== 0) ? words : left.filter(([, held]) => held > 0).map(([cls, held]) => `${cls} ${held}`).join(' · '))
+    }
+  }
+  return out
+}
+
+function seeded(hits: Hit[], census: string, was: Classed): Classed {
+  const of = new Map(census.split('\n').flatMap(line => (line.split('\t').length === 2 ? [line.split('\t') as [string, string]] : [])))
+  const tally = new Map<string, Map<string, number>>()
+  for (const h of hits) {
+    const cls = CLASSED.has(h.habit) ? of.get(`${h.file}:${h.line}`) : undefined
+    if (cls === undefined) continue
+    const per = tally.get(rowKey(h.habit, h.file)) ?? new Map<string, number>()
+    tally.set(rowKey(h.habit, h.file), per.set(cls, (per.get(cls) ?? 0) + 1))
+  }
+  const out = new Map(was)
+  for (const [key, per] of tally) out.set(key, [...per].sort(([a], [b]) => CLASSES.indexOf(a) - CLASSES.indexOf(b)).map(([cls, n]) => `${cls} ${n}`).join(' · '))
+  return out
+}
+
+const CLASS_WAY = `write the class of each site in the fourth column of its row in ${TABLE}, as "events 1 · clock 1" (the classes: ${CLASSES.join(', ')}); bun ${SELF} --write keeps the column and moves the count of a row of one class with its file, and --write --classes <a census of file:line and class, one site a line> writes it from a census`
 
 function judge(habit: Habit, hits: Hit[], table: Rows): Verdict {
   const allowed = table.get(habit)!
@@ -876,6 +946,7 @@ function plantedEstate(): void {
   const ambientDoorLines = ['export function hostEnv(): NodeJS.ProcessEnv { return process.env }', 'export const gone = value as never']
   const timerDoorLines = ['export function startTimeout(fn: () => void, ms?: number): ReturnType<typeof setTimeout> { return setTimeout(fn, ms) }', 'export function startInterval(fn: () => void, ms?: number): ReturnType<typeof setInterval> { return setInterval(fn, ms) }', 'export function startImmediate(fn: () => void): unknown { return setImmediate(fn) }', 'export function startMicrotask(fn: () => void): void { queueMicrotask(fn) }', 'export function sleepSync(ms: number): void { Atomics.wait(cells, 0, 0, ms) }', 'export const home = process.env.HOME']
   const effectDoorLines = ["import { useEffect, useLayoutEffect } from 'react'", 'export function useMount(effect: () => void): void { useEffect(effect, []) }', 'export function useMeasure(measure: () => void): void { useLayoutEffect(measure) }', 'export const home = process.env.HOME']
+  const deadlineDoorLines = ['export function withDeadline<T>(work: Promise<T>, limit: Promise<never>): Promise<T> { return Promise.race([work, limit]) }', 'export const home = process.env.HOME']
   const planted: Array<{ file: string; lines: string[]; seen: Array<[number, Habit]> }> = [
     {
       file: 'src/planted/timers.ts',
@@ -984,7 +1055,13 @@ function plantedEstate(): void {
         'function answered(): unknown { try { return work() } catch (error) { passedOver(error); return null } }',
         'work().catch(passedOver).then(done, passedOverAs(null))',
         'work().catch(error => { passedOver(error); return fallback() })',
-        'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern, typed, settle, recovered, store, ticked]',
+        "const said = 'Promise.race([a, b]) and startInterval(tick, 5)'",
+        'const lone = { race: (all: unknown[]) => all[0] }; lone.race([1])',
+        'function settleFirst(Promise: { race(all: unknown[]): unknown }): unknown { return Promise.race([1]) }',
+        'clock.startInterval(() => {}, 5)',
+        "import { startInterval as everyOther } from './timers.js'",
+        'everyOther(() => {}, 5)',
+        'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern, typed, settle, recovered, store, ticked, said, settleFirst]',
       ],
       seen: [],
     },
@@ -1095,6 +1172,21 @@ function plantedEstate(): void {
     { file: 'src/planted/timersTwin.ts', lines: timerDoorLines, seen: [[1, 'setTimeout'], [2, 'setInterval'], [3, 'setImmediate'], [4, 'queueMicrotask'], [5, 'Atomics.wait'], [6, 'env-read']] },
     { file: EFFECT_DOOR, lines: effectDoorLines, seen: [[4, 'env-read']] },
     { file: 'src/planted/hooks.ts', lines: effectDoorLines, seen: [[2, 'useEffect'], [3, 'useLayoutEffect'], [4, 'env-read']] },
+    { file: DEADLINE_DOOR, lines: deadlineDoorLines, seen: [[2, 'env-read']] },
+    { file: 'src/planted/deadlineTwin.ts', lines: deadlineDoorLines, seen: [[1, RACE], [2, 'env-read']] },
+    {
+      file: 'src/planted/waits.ts',
+      lines: [
+        "import { startInterval } from '../utils/timers.js'",
+        'const first = await Promise.race([work(), other()])',
+        'const beat = startInterval(() => {}, 1000)',
+        "const { startInterval: every } = await import('../utils/timers.js')",
+        'const ticking = every(() => {}, 5)',
+        'const both = [await Promise.race([a, b]), await Promise.race([c, d])]',
+        'export const out = [first, beat, ticking, both]',
+      ],
+      seen: [[2, RACE], [3, INTERVAL], [5, INTERVAL], [6, RACE], [6, RACE]],
+    },
     { file: 'src/planted/worker.mjs', lines: ["import { setTimeout as pause } from 'timers/promises'", 'await pause(5)', 'setInterval(() => {}, 5)', 'try { run() } catch {}', 'export const home = process.env.HOME'], seen: [[2, PAUSE], [2, 'setTimeout'], [3, 'setInterval'], [4, 'empty-catch'], [5, 'env-read']] },
     {
       file: 'src/planted/beyond.ts',
@@ -1158,14 +1250,15 @@ function plantedEstate(): void {
     differs,
   )
   check('a plain JavaScript module is read as the TypeScript ones are', stands('src/planted/worker.mjs'), differs)
+  check(`a race of promises is seen as a call of ${RACE}, each call counted, and an interval of the timer door as a call of its ${INTERVAL}, under its own name and taken out of a dynamic import`, stands('src/planted/waits.ts'), differs)
   check(`the registry (${DOOR_FILE}, known by its path and its export of ${DOOR}) is the door of the environment: its own reads are not counted and its other habits are; another file that exports a function of that name is counted like any file`, DOOR_FILE !== '' && existsSync(join(ROOT, DOOR_FILE)) && stands(DOOR_FILE) && stands('src/planted/door.ts'), differs)
   check(
-    `each door of a habit is known by its path and one export, and what it holds of its own habit is not counted while its other habits are: ${FAILURE_DOOR} (${PASS}: the empty catch round its sink), ${AMBIENT_DOOR} (hostEnv: the environment), ${TIMER_DOOR} (startTimeout: the timers, the microtask and the synchronous wait), ${EFFECT_DOOR} (useMount: the two effects); the same lines in another file are counted like any file`,
-    [FAILURE_DOOR, 'src/planted/passed.ts', AMBIENT_DOOR, 'src/planted/ambient.ts', TIMER_DOOR, 'src/planted/timersTwin.ts', EFFECT_DOOR, 'src/planted/hooks.ts'].every(stands),
+    `each door of a habit is known by its path and one export, and what it holds of its own habit is not counted while its other habits are: ${FAILURE_DOOR} (${PASS}: the empty catch round its sink), ${AMBIENT_DOOR} (hostEnv: the environment), ${TIMER_DOOR} (startTimeout: the timers, the microtask and the synchronous wait), ${EFFECT_DOOR} (useMount: the two effects), ${DEADLINE_DOOR} (withDeadline: the race of a work against its limit); the same lines in another file are counted like any file`,
+    [FAILURE_DOOR, 'src/planted/passed.ts', AMBIENT_DOOR, 'src/planted/ambient.ts', TIMER_DOOR, 'src/planted/timersTwin.ts', EFFECT_DOOR, 'src/planted/hooks.ts', DEADLINE_DOOR, 'src/planted/deadlineTwin.ts'].every(stands),
     differs,
   )
   check(
-    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a catch block and a handler that hand the failure to the door first (passedOver as the first statement or as the handler, passedOverAs for a default); a schema fallback; an await of work and a promise resolved with a value; a promise that waits on the timer of a clock; a sleep that is the method of a clock, a helper whose body arms no timer, a list that keeps the resolver, the door under its own name and a sleep of another module',
+    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a catch block and a handler that hand the failure to the door first (passedOver as the first statement or as the handler, passedOverAs for a default); a schema fallback; an await of work and a promise resolved with a value; a promise that waits on the timer of a clock; a sleep that is the method of a clock, a helper whose body arms no timer, a list that keeps the resolver, the door under its own name and a sleep of another module; a race of another object or of a Promise the file declares, and a startInterval of a clock or of another module',
     of('src/planted/lookalikes.ts') === '',
     of('src/planted/lookalikes.ts'),
   )
@@ -1179,8 +1272,23 @@ function plantedEstate(): void {
   const text = render(rows)
   const table = tableOf(text)
   check('the table is one row for each habit and file with its count, in the order of the habits and then of the files, and reads back as written', table !== null && render(table) === text && text.startsWith('setTimeout\tsrc/planted/beyond.ts\t1\nsetTimeout\tsrc/planted/door.ts\t1\nsetTimeout\tsrc/planted/timers.ts\t') && text.includes('\nsetInterval\tsrc/planted/rest.ts\t1\n'), text.replaceAll('\n', ' · ').slice(0, 400))
-  check('a table with a habit the fence does not hold, a file outside src, a count of 0 or a row twice does not read, and the table of another reader is read for the habits this one holds', tableOf('sleep\tsrc/a.ts\t1\n') === null && tableOf('setTimeout\tscripts/a.ts\t1\n') === null && tableOf('setTimeout\tsrc/a.ts\t0\n') === null && tableOf('setTimeout\tsrc/a.ts\t1\nsetTimeout\tsrc/a.ts\t1\n') === null && tableOf('process.env\tsrc/a.ts\t3\nsetTimeout\tsrc/a.ts\t2\n', true)?.get('setTimeout')?.get('src/a.ts') === 2)
+  check('a table with a habit the fence does not hold, a file outside src, a count of 0, a row twice or a class on a habit that takes none does not read, and the table of another reader is read for the habits this one holds', tableOf('sleep\tsrc/a.ts\t1\n') === null && tableOf('setTimeout\tscripts/a.ts\t1\n') === null && tableOf('setTimeout\tsrc/a.ts\t0\n') === null && tableOf('setTimeout\tsrc/a.ts\t1\nsetTimeout\tsrc/a.ts\t1\n') === null && tableOf('setTimeout\tsrc/a.ts\t1\tevents 1\n') === null && tableOf('process.env\tsrc/a.ts\t3\nsetTimeout\tsrc/a.ts\t2\n', true)?.get('setTimeout')?.get('src/a.ts') === 2)
   if (table === null) return
+  const waits = 'src/planted/waits.ts'
+  const marked: Classed = new Map()
+  const markedText = `${RACE}\t${waits}\t3\tdeadline 1 · events 2\n${INTERVAL}\t${waits}\t2\tclock 2\n`
+  const markedTable = tableOf(markedText, false, marked)
+  const waitRows = rowsOf(hits.filter(h => h.file === waits))
+  const fell = rowsOf(hits.filter(h => h.file === waits && h.line !== 2 && h.line !== 5))
+  const kept = carried(fell, marked)
+  const short = carried(rowsOf(hits.filter(h => h.file === waits && h.line === 2)), marked)
+  const census = seeded(hits, `${waits}:2\tdeadline\n${waits}:6\tevents\n${waits}:3\tclock\n${waits}:5\theartbeat\n`, new Map())
+  const loose = [unclassed(waitRows, new Map(marked).set(rowKey(INTERVAL, waits), 'clock 1')), unclassed(waitRows, new Map(marked).set(rowKey(RACE, waits), 'deadline 1 · racing 2')), unclassed(waitRows, new Map())]
+  check(
+    `a row of ${RACE} and of ${INTERVAL} carries the class of each site its file holds, read and written back as it stands; it is named when its classes do not add up to the file's count, hold a word that is not a class, or are missing; --write keeps the classes, moves the count of a row of one class with its file, takes a fall in a row of several classes from the classes that move (${MOVING.join(', ')}) and from no other, and --classes writes them from a census of sites`,
+    markedTable !== null && render(markedTable, marked) === markedText && unclassed(waitRows, marked).length === 0 && loose[0]!.join() === `${waits} ${INTERVAL}: the file holds 2 and its row says "clock 1"` && loose[1]!.length === 1 && loose[2]!.length === 2 && kept.get(rowKey(INTERVAL, waits)) === 'clock 1' && kept.get(rowKey(RACE, waits)) === 'events 2' && short.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(INTERVAL, waits)) === 'clock 1 · heartbeat 1',
+    JSON.stringify({ loose, kept: [...kept], short: [...short], census: [...census] }),
+  )
   check('on its own table the planted estate stands for every habit', NAMES.every(habit => judge(habit, hits, table).over.length === 0 && judge(habit, hits, table).total === judge(habit, hits, table).allowed))
   const unrowed = tableOf(text.replace('env-read\tsrc/planted/Screen.tsx\t1\n', ''))!
   const lone = judge('env-read', hits, unrowed)
@@ -1273,7 +1381,8 @@ const beyond = new Map<string, number>()
 const hits = files.flatMap(file => habitsIn(file, readFileSync(join(ROOT, file), 'utf8'), false, beyond))
 const rows = rowsOf(hits)
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
-const table = text === null ? null : tableOf(text)
+const classed: Classed = new Map()
+const table = text === null ? null : tableOf(text, false, classed)
 const payloads = [...PAYLOAD_FILES].filter(file => existsSync(join(ROOT, file))).length
 console.log(`  ${files.length} code files under src · ${hits.length} occurrences of ${NAMES.length} habits · aside: the ${PAYLOAD_FILES.size} payload files under ${PAYLOADS} (they run outside the product and cannot import its doors) and what each door holds of its own habit (${[...beyond].filter(([form]) => form.startsWith(OWN)).map(([form, count]) => `${form.slice(OWN.length)} ${count}`).join(' · ') || 'none'})`)
 check(
@@ -1290,7 +1399,9 @@ if (process.argv.includes('--list')) {
   if (failures > 0) console.log('  nothing written: the reader failed on its own estate')
   else if (refused.length > 0) check(`a file holds more of a habit only with a statement that left another file (the last written table: ${chain!.from.slice(0, 10)})`, false, `nothing written — ${toldRefusals(refused)}`)
   else {
-    writeFileSync(join(ROOT, TABLE), render(rows))
+    const census = process.argv[process.argv.indexOf('--classes') + 1]
+    const kept = process.argv.includes('--classes') && census !== undefined ? seeded(hits, readFileSync(census, 'utf8'), carried(rows, classed)) : carried(rows, classed)
+    writeFileSync(join(ROOT, TABLE), render(rows, kept))
     console.log(`  wrote ${TABLE}: ${NAMES.reduce((n, habit) => n + rows.get(habit)!.size, 0)} rows, ${hits.length} occurrences${chain === null ? ' (no commit holds a table: the first one)' : ` (the last written table: ${chain.from.slice(0, 10)}; ${chain.span.touched.length} files differ from it)`}`)
   }
 } else if (table === null) {
@@ -1310,6 +1421,8 @@ if (process.argv.includes('--list')) {
     const lifted = handRaised(chain.was, table, rows)
     check('no row stands above both the last written table and what its file holds: a row is written by --write and never by hand', lifted.length === 0, `${lifted.length} row${lifted.length === 1 ? '' : 's'} — bun ${SELF} --write puts each row at what its file holds:` + lifted.slice(0, 40).map(row => `\n      ${row}`).join(''))
   }
+  const loose = unclassed(rows, classed)
+  check(`every row of ${RACE} and ${INTERVAL} names the class of each site its file holds (${CLASSED.size} habits, ${[...CLASSED].reduce((n, habit) => n + rows.get(habit)!.size, 0)} rows)`, loose.length === 0, `${loose.length} row${loose.length === 1 ? '' : 's'} — ${CLASS_WAY}:` + loose.slice(0, 40).map(row => `\n      ${row}`).join(''))
   console.log(`  out of reach, counted here and held by no row: ${BEYOND.map(([form, words]) => `${words} (${beyondCount(form, beyond, hits)} today)`).join('; ')}`)
   if (slack > 0) console.log(`  rows above their file's count: ${slack} (bun ${SELF} --write lowers them)`)
 }

@@ -21,6 +21,7 @@ import {
 } from './pattern.js'
 import { normalizeFileGlobs, posixRelative } from './scanPaths.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { samePathCase } from '../../utils/platform/paths.js'
 
 const MAX_FILES_SCANNED = 3000
 
@@ -130,7 +131,7 @@ export function discoverPolyglotFiles(
   if (trackLinks) {
     try {
       const resolved = realpathSync(root)
-      rootLinked = process.platform === 'win32' ? resolved.toLowerCase() !== root.toLowerCase() : resolved !== root
+      rootLinked = !samePathCase(resolved, root)
     } catch {
       rootLinked = true
     }
