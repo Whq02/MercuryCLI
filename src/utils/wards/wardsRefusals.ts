@@ -204,7 +204,7 @@ function windowsSegments(path: string): { share: boolean; segments: string[]; co
 
 function windowsRoot(path: string, world: RefusalWorld): string | null {
   const { share, segments } = windowsSegments(path)
-  if (share) return segments.length === 2 ? path : null
+  if (share) return segments.length === 2 || (segments.length < 2 && world.platform === 'win32') ? path : null
   const home = world.windowsHome === undefined ? undefined : windowsPath(world.windowsHome, world)
   if (segments.length === 0) return path
   if (home !== undefined && `${path.slice(0, 2)}/${segments.join('/')}` === home) return path
