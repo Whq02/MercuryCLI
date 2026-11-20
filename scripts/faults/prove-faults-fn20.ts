@@ -267,7 +267,7 @@ console.log('\nresources/adapters/artifact.ts — computeWorkingTreeDigest throw
   const r = runSub(`
     const { mock } = await import('bun:test')
     const verPath = path.join(SRC, 'utils/verification/verificationState.ts')
-    const storePath = path.join(SRC, 'utils/artifacts/reviewStore.ts')
+    const storePath = path.join(SRC, 'services/artifacts/reviewStore.ts')
     const realVer = await import(verPath)
     const realStore = await import(storePath)
     mock.module(verPath, () => ({ ...realVer, computeWorkingTreeDigest: () => { throw new Error('digest boom') } }))

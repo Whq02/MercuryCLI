@@ -95,7 +95,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   rmSync(join(lock, 'pid'))
   t('mneme lock: no pid file (pre-pid shape) ⇒ releasable', consolidateLockOwnedBy(lock, process.pid))
 
-  const { artifactLockOwnedBy } = await import('../../src/utils/artifacts/reviewStore.ts')
+  const { artifactLockOwnedBy } = await import('../../src/services/artifacts/reviewStore.ts')
   const fence = join(SCRATCH, '.write-lock')
   mkdirSync(fence)
   writeFileSync(join(fence, 'owner'), '1:abc')

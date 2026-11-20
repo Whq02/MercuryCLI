@@ -8,7 +8,7 @@ import {
 } from '../../utils/sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
-import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
+import { listReviewArtifactHeadsSource } from '../artifacts/reviewStore.js'
 import {
   classifyReadFailure,
   healthOf,

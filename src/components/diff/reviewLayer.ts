@@ -15,7 +15,7 @@ import {
   readReviewArtifactState,
   reviseReviewArtifact,
   setReviewCommentState,
-} from '../../utils/artifacts/reviewStore.js'
+} from '../../services/artifacts/reviewStore.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { getCwd } from '../../utils/cwd.js'
 import type { DiffData } from '../../hooks/useDiffData.js'

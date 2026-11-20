@@ -75,7 +75,7 @@ function skip(label: string, why: string): void {
 {
   console.log('\nreviewStore: unreadable journal fails mutators, heads source, and journal reader instead of answering absent/empty')
   const { readFileSync } = await import('node:fs')
-  const store = await import('../../src/utils/artifacts/reviewStore.ts')
+  const store = await import('../../src/services/artifacts/reviewStore.ts')
   const created = store.createReviewArtifact({
     kind: 'plan',
     title: 'lock-test',
