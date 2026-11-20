@@ -209,16 +209,6 @@ export default class Ink {
       },
       () => {},
     )
-
-    if (process.env.NODE_ENV === 'development') {
-      import('./devtools.js')
-        .then(devtools => {
-          const inject = (devtools as { default?: { injectIntoDevTools?: (config: unknown) => void } })
-            .default?.injectIntoDevTools
-          inject?.({ bundleType: 0, version: '19', rendererPackageName: 'ink' })
-        })
-        .catch(passedOver)
-    }
   }
 
   resetLineCount(): void { resetLineCount.call(this) }

@@ -435,18 +435,6 @@ dispatcher.discreteUpdates = <T,>(fn: () => T): T => {
   }
 }
 
-if (process.env.NODE_ENV === 'development') {
-  import('./devtools.js').catch((error: NodeJS.ErrnoException) => {
-    if (error?.code === 'ERR_MODULE_NOT_FOUND' || error?.code === 'MODULE_NOT_FOUND') {
-      console.warn(
-        'ink devtools bridge missing — install react-devtools-core to enable it',
-      )
-      return
-    }
-    throw error
-  })
-}
-
 export function flushPendingSyncWork(): void {
   reconciler.flushSyncWork()
 }
