@@ -17,15 +17,13 @@ import type {
 } from '../../../types/message.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
-import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
-import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { coldPrefixOf, estimateRequestTokens, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { markUnknownModel } from '../../api/backupEngines.js'
-import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
-import { sleep } from '../../../utils/sleep.js'
+import { openTurnRetries } from '../../api/withRetry.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
-import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
-import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
+import { busyRecoveryDetail, busyRefusalFact, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
@@ -308,12 +306,19 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
 
   const turnStartedAtMs = Date.now()
   let attemptStartedAtMs = turnStartedAtMs
-  let busy: { ladder: BusyRetryLadder; fault: ZaiFault } | undefined
-  let reconnect: ReconnectLadder | undefined
-  let emptyEnds = 0
   let recovery: 'retried' | 'no-new-credential' | undefined
   let planTrial: { from: ZaiKeyPlanWord; fault: ZaiFault } | undefined
-  for (let attempt = 1; attempt <= ZAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
+  const retries = openTurnRetries<ZaiFault>({
+    signal,
+    maxAttempts: ZAI_MAX_ATTEMPTS,
+    backoffMs: attempt => ZAI_RETRY_BACKOFF_MS * attempt,
+    provider: ZAI_FAULT_PROFILE.providerLabel,
+    log: '[zai]',
+    agent: options.agentId !== undefined,
+    singleShot: options.querySource === 'overload_probe',
+    ...(options.onWait !== undefined ? { onWait: options.onWait } : {}),
+  })
+  while (retries.next()) {
     attemptStartedAtMs = Date.now()
     const signInRequest = captureSignInRequest('zai', apiKey)
     let outcome = yield* streamOneZaiAttempt({
@@ -327,7 +332,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       messages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
       effort: effortOnWire,
-      ...(busy !== undefined ? { busy } : {}),
+      ...(retries.busy !== undefined ? { busy: retries.busy } : {}),
     })
     if (outcome.kind === 'done') {
       observeSignInResponse(signInRequest, 200)
@@ -352,7 +357,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       planTrial = { from: dispatch.plan, fault: outcome.fault }
       dispatch = { ...dispatch, plan: otherZaiKeyPlan(dispatch.plan), planSource: 'assumed' }
       logForDebugging(`[zai] the ${planTrial.from} base refused the ${dispatch.source} key (${outcome.fault.code}) — asking the ${dispatch.plan} base once before the fault is reported`)
-      attempt--
+      retries.uncounted()
       continue
     }
     if (planTrial !== undefined && refusedClass(outcome.fault)) {
@@ -360,14 +365,13 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       outcome = { kind: 'fault', fault: planTrial.fault, retryEligible: outcome.retryEligible }
     }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
-    const askedMs = outcome.fault.retryAfterMs
     const typed = compatFaultToTypedError(outcome.fault)
     if (
       typed === 'authentication_failed' &&
       outcome.retryEligible &&
       recovery === undefined &&
       configuredProviderKeyCommand('zai') &&
-      attempt < ZAI_MAX_ATTEMPTS
+      retries.left
     ) {
       const fresh = recoverProviderKeyCommand('zai', apiKey)
       if (fresh) {
@@ -377,88 +381,14 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       }
       recovery = 'no-new-credential'
     }
-    const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
-    const singleShot = options.querySource === 'overload_probe'
-    const outage = outcome.retryEligible && !outcome.invisibleOnly && !singleShot ? outcome.fault.outage : undefined
-    if (outage !== undefined) {
-      const now = Date.now()
-      const ladder = reconnect ?? openReconnectLadder(now, outage)
-      reconnect = ladder
-      const step = nextReconnect(ladder, outage, now)
-      const notice = createSystemAPIErrorMessage(new NetworkOutageError(step, Object.assign(new Error(outcome.fault.message), { code: outage.code })), step.waitMs, step.reconnect, step.of)
-      logForDebugging(`[zai] network outage (${wireDetail}) — ${notice.error.message}`)
-      yield notice
-      options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
-      if (step.waitMs <= 0) {
-        yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code))
-        return
-      }
-      await sleep(step.waitMs, signal)
-      if (signal.aborted) return
-      attempt--
-      continue
+    const verdict = yield* retries.afterFault(outcome.fault, { typed, retryEligible: outcome.retryEligible, invisibleOnly: outcome.invisibleOnly === true })
+    if (verdict.kind === 'again') continue
+    if (verdict.kind === 'cancelled') return
+    if (verdict.kind === 'outage-spent') {
+      yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${verdict.line}`, typed, outcome.fault.code))
+      return
     }
-    if (outcome.fault.status !== undefined) reconnect = undefined
-    if (outcome.retryEligible && !outcome.invisibleOnly && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
-      const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
-      busy = { ladder, fault: outcome.fault }
-      const step = nextBusyRetry(ladder, askedMs, Date.now())
-      if (step !== null) {
-        logForDebugging(`[zai] busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
-        const notice = createSystemAPIErrorMessage(
-          Object.assign(new Error(outcome.fault.message), {
-            ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-            ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-          }),
-          step.waitMs,
-          step.attempt,
-          step.of,
-        )
-        if (!step.quiet) {
-          yield notice
-          options.onWait?.(retryNoticeWait(notice))
-        } else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
-        await sleep(step.waitMs, signal)
-        if (signal.aborted) return
-        continue
-      }
-      logForDebugging(`[zai] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
-    }
-    const emptyEnd = busy === undefined && !singleShot && !outcome.invisibleOnly && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
-    if (emptyEnd) {
-      emptyEnds++
-      if (emptyEnds < EMPTY_STREAM_TRIES) {
-        const waitMs = emptyStreamRetryWaitMs()
-        const notice = emptyStreamRetryNotice({ provider: ZAI_FAULT_PROFILE.providerLabel, detail: outcome.fault.code, attempt: emptyEnds + 1, waitMs })
-        logForDebugging(`[zai] ${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${emptyEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
-        yield notice
-        options.onWait?.(retryNoticeWait(notice))
-        await sleep(waitMs, signal)
-        if (signal.aborted) return
-        attempt--
-        continue
-      }
-      logForDebugging(`[zai] ${emptyStreamSpentWords(ZAI_FAULT_PROFILE.providerLabel, Date.now() - turnStartedAtMs)} (${wireDetail})`, { level: 'error' })
-    }
-    const retryable =
-      !emptyEnd && busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
-    if (retryable) {
-      const delayMs = Math.max(ZAI_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
-      const notice = createSystemAPIErrorMessage(
-        Object.assign(new Error(outcome.fault.message), {
-          ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-          ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-        }),
-        delayMs,
-        attempt,
-        ZAI_MAX_ATTEMPTS - 1,
-      )
-      yield notice
-      options.onWait?.(retryNoticeWait(notice))
-      await sleep(delayMs, signal)
-      if (signal.aborted) return
-      continue
-    }
+    const { busy, emptyEnd } = retries
     if (typed === 'billing_error') {
       recordLaneBillingRefusal('zai', {
         detail: outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code,
