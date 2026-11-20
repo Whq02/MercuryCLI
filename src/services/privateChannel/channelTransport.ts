@@ -156,10 +156,9 @@ async function anonymousGet(url: string, opts: AnonymousGet): Promise<{ response
     onExpire: error => controller.abort(error),
   })
   try {
-    const response = await Promise.race([
+    const response = await deadline.within(
       getApiFetch()(url, { method: 'GET', headers: anonymousHeaders(opts.accept), redirect: 'follow', signal: controller.signal, ...getProxyFetchOptions() } as RequestInit),
-      deadline.expiry,
-    ])
+    )
     deadline.touch()
     return { response, deadline }
   } catch (error) {
@@ -176,7 +175,7 @@ async function readBoundedText(response: Response, deadline: InactivityDeadline,
   const reader = body.getReader()
   try {
     for (;;) {
-      const next = await Promise.race([reader.read(), deadline.expiry])
+      const next = await deadline.within(reader.read())
       if (next.done) break
       deadline.touch()
       total += next.value.byteLength
@@ -320,7 +319,7 @@ async function anonymousDownloadAsset(asset: ChannelAsset, destDir: string): Pro
     }
     const source = Readable.fromWeb(response.body as WebReadableStream)
     source.on('data', () => deadline.touch())
-    await Promise.race([pipeline(source, createWriteStream(join(destDir, asset.name))), deadline.expiry])
+    await deadline.within(pipeline(source, createWriteStream(join(destDir, asset.name))))
     return { state: 'ok' }
   } catch (error) {
     const why = isDeadlineExceeded(error) ? error.message : describeFetchError(error)
