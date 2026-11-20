@@ -1443,6 +1443,7 @@ const FILES: Row[] = [
 ]
 
 import {
+  consoleNeedsUtf8Codepage,
   consoleSizeNeedsPolling,
   isLegacyWindowsConsole,
   isModernWindowsTerminalHost,
@@ -1496,6 +1497,11 @@ const TERMINAL: Row[] = [
   {
     name: 'terminal.consoleSizeNeedsPolling',
     answers: () => consoleSizeNeedsPolling(),
+    recorded: {"win32":true,"darwin":false,"linux":false,"win32 by process.platform alone":true,"win32 by getPlatform() alone":false},
+  },
+  {
+    name: 'terminal.consoleNeedsUtf8Codepage',
+    answers: () => consoleNeedsUtf8Codepage(),
     recorded: {"win32":true,"darwin":false,"linux":false,"win32 by process.platform alone":true,"win32 by getPlatform() alone":false},
   },
 ]

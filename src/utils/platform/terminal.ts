@@ -36,3 +36,7 @@ export function isWindowsTerminalHost(
 export function consoleSizeNeedsPolling(platform: NodeJS.Platform = process.platform): boolean {
   return platform === 'win32'
 }
+
+export function consoleNeedsUtf8Codepage(platform: string = process.platform): boolean {
+  return platform === 'win32'
+}

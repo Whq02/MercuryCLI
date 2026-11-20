@@ -6,6 +6,7 @@ import {
 } from '../utils/runtime/nodePolicy.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { consoleNeedsUtf8Codepage } from '../utils/platform/terminal.js'
 
 hostEnv().COREPACK_ENABLE_AUTO_PIN = '0'
 
@@ -66,7 +67,7 @@ async function main(): Promise<void> {
 
   if (args.length === 0 && process.stdout.isTTY && !hasProjectRoot) {
     if (
-      process.platform === 'win32' &&
+      consoleNeedsUtf8Codepage() &&
       flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'
     ) {
       const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
@@ -123,7 +124,7 @@ async function main(): Promise<void> {
   }
 
   if (
-    process.platform === 'win32' &&
+    consoleNeedsUtf8Codepage() &&
     process.stdout.isTTY &&
     flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'
   ) {
