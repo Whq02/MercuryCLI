@@ -1,8 +1,8 @@
 
-const foldFor = (platform: NodeJS.Platform) => (s: string): string => {
-  const normalised = s.replace(/\\/g, '/')
-  return platform === 'win32' ? normalised.toLowerCase() : normalised
-}
+import { foldPathCase } from './platform/paths.js'
+
+const foldFor = (platform: NodeJS.Platform) => (s: string): string =>
+  foldPathCase(s.replace(/\\/g, '/'), platform)
 
 export function isPathInside(filePath: string, dir: string, platform: NodeJS.Platform = process.platform): boolean {
   const fold = foldFor(platform)
