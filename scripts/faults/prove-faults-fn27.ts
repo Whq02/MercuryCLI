@@ -426,6 +426,49 @@ try {
       )
     }
   }
+
+  {
+    const r = runIsolated(`
+      const { mock } = await import('bun:test')
+      const storageMod = await import(SRC + '/utils/secureStorage/index.ts')
+      let mode = 'throw'
+      const fakeStorage = {
+        ...storageMod,
+        getSecureStorage: () => ({
+          name: 'fake',
+          read: () => {
+            if (mode === 'throw') throw new Error('EACCES: keychain locked')
+            return null
+          },
+          readAsync: async () => null,
+          update: () => ({ success: false }),
+          delete: () => false,
+        }),
+      }
+      mock.module(SRC + '/utils/secureStorage/index.ts', () => fakeStorage)
+      mock.module(SRC + '/utils/secureStorage/index.js', () => fakeStorage)
+      const { readAccountOAuthCreds } = await import(SRC + '/utils/accounts/scopedCredentialRead.ts')
+      try {
+        readAccountOAuthCreds(HOME)
+        out.threw = false
+      } catch (e) {
+        out.threw = true
+        out.message = e instanceof Error ? e.message : String(e)
+      }
+      mode = 'null'
+      out.absentResult = readAccountOAuthCreds(HOME) ?? null
+    `)
+    check(
+      'scoped-credential-read-throws: readAccountOAuthCreds propagates storage read failure instead of returning undefined',
+      r.threw === true && String(r.message ?? '').includes('keychain locked'),
+      JSON.stringify(r),
+    )
+    check(
+      'scoped-credential-read-throws: absent credentials still return undefined',
+      r.absentResult === null,
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
