@@ -1,4 +1,5 @@
 import { binaryName } from '../../../config.js'
+import { errorMessage, isENOENT } from '../../../errors.js'
 import type { CheckSpec } from '../../../healthReport.js'
 
 export function scratchLeasesCheck(): CheckSpec {
@@ -84,8 +85,8 @@ export function lifecycleCollectionCheck(): CheckSpec {
         const mtime = statSentinel(joinPath(homeDir(), '.last-cleanup')).mtimeMs
         const days = (Date.now() - mtime) / 86_400_000
         sentinelAge = days < 2 ? `last complete sweep ${Math.round(days * 24)}h ago` : `last complete sweep ${Math.round(days)}d ago`
-      } catch {
-        sentinelAge = 'no complete sweep recorded yet'
+      } catch (error) {
+        sentinelAge = isENOENT(error) ? 'no complete sweep recorded yet' : `last sweep unreadable (${errorMessage(error)})`
       }
       const { fileHistoryStorage } = await import('../../../cleanup.js')
       const history = await fileHistoryStorage()

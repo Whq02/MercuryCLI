@@ -746,5 +746,26 @@ else {
   check('crew/crewmates:unreadable-agents-dir-reported', Boolean(row?.evidence?.includes('user dir unreadable (')), JSON.stringify(r))
 }
 
+console.log('\ncrew/scratch.ts — lifecycleCollectionCheck reports unreadable cleanup sentinel instead of no sweep recorded')
+if (!POSIX_MODES) skip('crew/scratch:unreadable-cleanup-sentinel-reported', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const lockedSub = path.join(PROJECT, 'locked-cleanup-sub')
+    fs.mkdirSync(lockedSub, { recursive: true })
+    fs.symlinkSync(path.join(lockedSub, 'target'), path.join(HOME, '.last-cleanup'))
+    const { lifecycleCollectionCheck } = await import(SRC + '/utils/health/sections/crew/scratch.ts')
+    fs.chmodSync(lockedSub, 0o000)
+    try {
+      out.row = await lifecycleCollectionCheck().run()
+    } finally {
+      fs.chmodSync(lockedSub, 0o700)
+    }
+  `)
+  const row = r.row as { evidence?: string } | undefined
+  check('crew/scratch:unreadable-cleanup-sentinel-reported', Boolean(row?.evidence?.includes('last sweep unreadable (')), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
