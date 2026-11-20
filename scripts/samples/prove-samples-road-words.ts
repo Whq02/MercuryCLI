@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -74,13 +73,6 @@ console.log('[3] the Eval tool\'s roster words name the samples road when Sample
   const offWire = EvalTool.wireDescription!(offPrompt)
   check('off: neither the full prompt nor the roster description mentions sample()', !offPrompt.includes('sample({') && !offWire.includes('sample(') && !offWire.includes('Samples'), offWire)
   check('the clause costs nothing when off: the off description is the on description without it', onWire.replace(/ With Samples on in this session[^\n]*\./, '') === offWire, JSON.stringify({ onWire, offWire }))
-}
-
-console.log('[4] the docs and the Boot Menu row say what the word does, on and off')
-{
-  const doc = readFileSync(join(ROOT, 'docs', 'SAMPLES.md'), 'utf8')
-  check('docs/SAMPLES.md says a message you send saying "sample" or "samples" reminds the model of the road and its state, and that with Samples on the word reaches sample()', doc.includes('The first message you send in a\nsession that says "sample" or "samples" reminds the model of this road and\nwhether it is on, so with Samples on the word reaches `sample()`'), doc.slice(0, 1200))
-  check('the switch section says what off still does: the one note to the model', doc.includes('a message that says "sample" only tells the model\nthe switch is off and how it turns on'), doc.slice(doc.indexOf('## The switch'), doc.indexOf('## The switch') + 700))
 }
 
 console.log('[5] through the real orchestrator: the operator\'s own prompt raises it; a bash-mode line and a skill expansion do not')

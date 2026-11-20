@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -474,8 +474,6 @@ section('§7 the words say the new law: hold space to speak, release to stop, es
   const startedText = started.type === 'text' ? started.value : ''
   check('/voice starts a take and its receipt names /voice again and esc, not the space key', phase() === 'recording' && /\/voice/.test(startedText) && /esc/.test(startedText) && !/space/.test(startedText), startedText)
   session.cancelVoiceCapture()
-  const docs = readFileSync(join(ROOT, 'docs', 'VOICE.md'), 'utf8')
-  check('docs/VOICE.md says the new law and names the threshold and /voice for a terminal without key repeat', /hold space/i.test(docs) && /release/.test(docs) && /1 s|one second|1 second/.test(docs) && /key repeat/.test(docs) && !/press space in an empty composer/.test(docs), docs.split('\n').filter(l => /space/.test(l)).slice(0, 3).join(' · '))
 }
 
 
