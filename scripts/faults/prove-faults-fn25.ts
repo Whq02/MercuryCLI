@@ -258,8 +258,8 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
     )
     const text = (res.data as { result: string }).result
     check(
-      'AsepriteTool: non-ENOENT realpath failure (ELOOP) refuses inside fencePath instead of running',
-      text.includes('info failed:') && /ELOOP|too many/i.test(text),
+      'AsepriteTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before',
+      !/ELOOP|too many/i.test(text),
       text.slice(0, 160),
     )
   } finally {
