@@ -506,5 +506,22 @@ console.log('\nMercuryContentSearch — non-abort search failure returns failure
   check('aborted loadMatches returns null without surfacing an error', r.aborted === null, JSON.stringify(r))
 }
 
+console.log('\nMercuryFileOpen — failed file listing returns failure sentence instead of 0 files')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/MercuryFileOpen.tsx'))
+    if (typeof mod.runFileOpenLoad !== 'function') {
+      out.missing = true
+    } else {
+      out.failed = await mod.runFileOpenLoad('src', async () => { throw new Error('readdir EACCES') })
+      out.ok = await mod.runFileOpenLoad('src', async () => [{ id: 'a', displayText: 'a.ts' }])
+    }
+  `)
+  const failed = r.failed as { results?: unknown[]; error?: string | null } | undefined
+  const ok = r.ok as { results?: unknown[]; error?: string | null } | undefined
+  check('loadFiles rejection returns failure sentence', failed?.error === 'could not list files (readdir EACCES) — edit the filter or retry', JSON.stringify(failed ?? r))
+  check('control: succeeding loadFiles returns results with null error', ok?.error === null && ok?.results?.length === 1, JSON.stringify(ok ?? r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
