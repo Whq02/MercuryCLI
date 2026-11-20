@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
+import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PassThrough } from 'node:stream'
+import React from 'react'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 import { localFixture } from './localFixture.ts'
-const COMPOSER = join(ROOT, 'src', 'components', 'PromptInput', 'useComposerVoice.ts')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'hold-to-talk-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
@@ -104,34 +106,40 @@ const KEY: Key = {
 }
 const key = (over: Partial<Key> = {}): Key => ({ ...KEY, ...over })
 
-type Filter = (rawInput: string, key: Key) => string
-function extractComposerFilter(): { filter: Filter; source: string } {
-  const src = readFileSync(COMPOSER, 'utf8')
-  const anchor = 'const voiceInputFilter = useCallback('
-  const at = src.indexOf(anchor)
-  if (at < 0) throw new Error('useComposerVoice.ts has no voiceInputFilter useCallback')
-  let i = at + anchor.length
-  let depth = 1
-  for (; i < src.length; i++) {
-    const ch = src[i]
-    if (ch === '(') depth++
-    else if (ch === ')') {
-      depth--
-      if (depth === 0) break
-    }
-  }
-  const inner = src.slice(at + anchor.length, i).replace(/,\s*\[\s*\]\s*$/, '')
-  const js = new Bun.Transpiler({ loader: 'ts' }).transformSync(`const filter = ${inner}`)
-  const scope: Record<string, unknown> = {
-    voiceSnapshot: session.voiceSnapshot,
-    toggleVoiceCapture: session.toggleVoiceCapture,
-    pendingInput,
-    holdToTalkKey: hold === null ? (): never => { throw new Error('holdToTalk module absent') } : hold.holdToTalkKey,
-  }
-  const filter = new Function(...Object.keys(scope), `${js}\nreturn filter`)(...Object.values(scope)) as Filter
-  return { filter, source: inner }
-}
+const { useComposerHoldToTalk } = await import('../../src/components/PromptInput/useComposerVoice.js')
+const { render, flushPendingSyncWork } = await import('../../src/ink.js')
 
+type Filter = (rawInput: string, key: Key) => string
+async function mountComposerHoldToTalk(opts: {
+  cursorRef: { current: number }
+  writeDraft: (text: string) => void
+  setCursorOffset: (offset: number) => void
+}): Promise<{ filter: Filter; unmount: () => void }> {
+  let filter: Filter | null = null
+  function Host(): React.ReactNode {
+    filter = useComposerHoldToTalk(opts)
+    return null
+  }
+  const stdin = Object.assign(new NodeEventEmitter(), {
+    isTTY: true,
+    isRaw: false,
+    setRawMode() { return this },
+    setEncoding() { return this },
+    read() { return null },
+    unref() { return this },
+    ref() { return this },
+    pause() { return this },
+    resume() { return this },
+  }) as unknown as NodeJS.ReadStream
+  const stream = new PassThrough()
+  stream.resume()
+  const stdout = Object.assign(stream, { columns: 80, rows: 24 }) as unknown as NodeJS.WriteStream
+  const instance = await render(React.createElement(Host), { stdin, stdout, patchConsole: false, exitOnCtrlC: false })
+  flushPendingSyncWork()
+  await sleep(10)
+  if (filter === null) throw new Error('useComposerHoldToTalk did not return a filter')
+  return { filter, unmount: () => instance.unmount() }
+}
 interface FakeTimer {
   id: number
   at: number
@@ -174,29 +182,34 @@ class FakeClock {
 }
 
 class Composer {
-  cursor = 0
+  readonly cursorRef = { current: 0 }
   private lastSelfWrite = ''
-  private readonly filter: Filter
-  constructor(filter: Filter) {
-    this.filter = filter
+  private filter: Filter = rawInput => rawInput
+  get cursor(): number {
+    return this.cursorRef.current
+  }
+  set cursor(value: number) {
+    this.cursorRef.current = value
+  }
+  constructor() {
     pendingInput.subscribePendingInput(() => {
       const text = pendingInput.text()
       if (this.lastSelfWrite !== text) {
         this.lastSelfWrite = text
-        this.cursor = text.length
+        this.cursorRef.current = text.length
       }
     })
-    hold?.setHoldToTalkEditor({
-      text: () => pendingInput.text(),
-      cursor: () => this.cursor,
-      splice: (deleteBefore, insert) => {
-        const text = pendingInput.text()
-        const at = Math.max(0, Math.min(this.cursor, text.length))
-        const from = Math.max(0, at - deleteBefore)
-        const next = text.slice(0, from) + insert + text.slice(at)
-        this.write(next, from + insert.length)
-      },
-    })
+  }
+  bindFilter(filter: Filter): void {
+    this.filter = filter
+  }
+  readonly writeDraft = (text: string): void => {
+    this.lastSelfWrite = text
+    pendingInput.edit(text)
+    this.cursorRef.current = Math.max(0, Math.min(this.cursorRef.current, text.length))
+  }
+  readonly setCursorOffset = (offset: number): void => {
+    this.cursorRef.current = Math.max(0, Math.min(offset, pendingInput.text().length))
   }
   text(): string {
     return pendingInput.text()
@@ -207,7 +220,7 @@ class Composer {
   private write(text: string, cursor: number): void {
     this.lastSelfWrite = text
     pendingInput.edit(text)
-    this.cursor = Math.max(0, Math.min(cursor, text.length))
+    this.cursorRef.current = Math.max(0, Math.min(cursor, text.length))
   }
   press(rawInput: string, over: Partial<Key> = {}): string {
     const k = key(over)
@@ -219,7 +232,7 @@ class Composer {
     }
     if (k.return || k.tab || k.backspace || k.delete || k.upArrow || k.downArrow || k.leftArrow || k.rightArrow || k.ctrl || k.meta) return ''
     const text = pendingInput.text()
-    const at = Math.max(0, Math.min(this.cursor, text.length))
+    const at = Math.max(0, Math.min(this.cursorRef.current, text.length))
     this.write(text.slice(0, at) + filtered + text.slice(at), at + filtered.length)
     return filtered
   }
@@ -263,9 +276,14 @@ pendingInput.initOnce({ text: '', mode: 'prompt', pastedContents: {} })
 session.resetVoiceForTest()
 session.setVoiceInputEnabled(true)
 check('voice input is on for the rig', session.voiceInputEnabled())
-const extracted = extractComposerFilter()
-const composer = new Composer(extracted.filter)
-check('the composer filter was lifted from useComposerVoice.ts and runs', typeof extracted.filter === 'function', extracted.source.slice(0, 120))
+const composer = new Composer()
+const mounted = await mountComposerHoldToTalk({
+  cursorRef: composer.cursorRef,
+  writeDraft: composer.writeDraft,
+  setCursorOffset: composer.setCursorOffset,
+})
+composer.bindFilter(mounted.filter)
+check('useComposerHoldToTalk mounts and returns the composer input filter', typeof mounted.filter === 'function')
 console.log(`  · hold module: ${hold === null ? 'ABSENT (the base)' : `present — threshold ${hold.HOLD_TO_TALK_MS} ms, gap floor ${hold.RELEASE_GAP_FLOOR_MS} ms, first-repeat window ${hold.FIRST_REPEAT_WINDOW_MS} ms`}`)
 
 const THRESHOLD = hold?.HOLD_TO_TALK_MS ?? 1_000
@@ -462,8 +480,8 @@ section('§7 the words say the new law: hold space to speak, release to stop, es
 
 
 fx.stop()
+mounted.unmount()
 hold?.setHoldToTalkEditor(null)
-session.resetVoiceForTest()
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-hold-to-talk: green' : `\nprove-hold-to-talk: RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
