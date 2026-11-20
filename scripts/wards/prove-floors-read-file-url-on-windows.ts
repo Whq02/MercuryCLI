@@ -72,12 +72,31 @@ for (const [head, why] of FORMS) {
   check(`${JSON.stringify(command)} (${why}) · refused as a read of the credentials`, refusal !== null, 'not refused')
 }
 
-section('§4 controls')
+const OTHER_FORMS = [
+  ['file://127.0.0.1/C:', 'the host 127.0.0.1'],
+  ['file:/C:', 'one slash after file:'],
+  ['file:///C|', 'three slashes, the drive spelled with a bar'],
+  ['file://C|', 'two slashes, the drive spelled with a bar'],
+] as const
+
+section('§4 the host 127.0.0.1, one slash after file:, a drive spelled with a bar')
+for (const [head, why] of OTHER_FORMS) {
+  const command = `curl '${head}/src/fl110/holder/.mercury/.credentials.json'`
+  const refusal = await readRefusal(command)
+  check(`${JSON.stringify(command)} (${why}) · refused as a read of the credentials`, refusal !== null, 'not refused')
+}
+
+section('§5 controls')
 {
   const spelled = await readRefusal(`cat ${SLASHED}`)
   check('the file spelled as a drive path, no URL · refused', spelled !== null, 'not refused')
   const clear = await readRefusal('curl file://C:/src/fl110/project/notes.txt')
   check('"curl file://C:/src/fl110/project/notes.txt" (a file of the project) · not refused', clear === null, String(clear))
+  for (const [head, why] of OTHER_FORMS) {
+    const command = `curl '${head}/src/fl110/project/notes.txt'`
+    const refusal = await readRefusal(command)
+    check(`${JSON.stringify(command)} (a file of the project, ${why}) · not refused`, refusal === null, String(refusal))
+  }
 }
 
 Object.defineProperty(process, 'platform', descriptor)

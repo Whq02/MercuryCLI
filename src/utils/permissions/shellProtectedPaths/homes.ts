@@ -14,7 +14,7 @@ export const CONVENTIONAL_USER_HOME = '(?:\\/(?:users|home)\\/[^/]+|\\/root|[a-z
 const CONVENTIONAL_HOME = new RegExp(`^${CONVENTIONAL_USER_HOME}\\/\\.mercury$`)
 export const HOLDS_CONVENTIONAL_HOME = new RegExp(`^${CONVENTIONAL_USER_HOME}$`)
 const DYNAMIC_PART = /[*?[{$]/
-const DRIVE_PATH = /^[A-Za-z]:[\\/]/
+const DRIVE_PATH = /^[A-Za-z][:|][\\/]/
 
 function currentUser(): { user?: string; uid?: string } {
   const named = hostEnv().USER || hostEnv().LOGNAME || hostEnv().USERNAME
@@ -130,7 +130,7 @@ export function spellingsOf(word: string): string[] {
   for (const candidate of [...out]) {
     const plain = candidate.startsWith('@') ? candidate.slice(1).split(';')[0]! : candidate
     if (plain !== candidate) out.push(plain)
-    const url = /^file:\/\/(?:localhost(?=\/))?([\s\S]*)$/i.exec(plain)
+    const url = /^file:(?:\/\/(?:(?:localhost|127\.0\.0\.1)(?=\/))?|(?=\/(?!\/)))([\s\S]*)$/i.exec(plain)
     if (url !== null && (url[1]!.startsWith('/') || DRIVE_PATH.test(url[1]!))) {
       const from = out.length
       try {
@@ -139,7 +139,8 @@ export function spellingsOf(word: string): string[] {
         out.push(url[1]!)
       }
       const path = out[from]!
-      if (path.startsWith('/') && DRIVE_PATH.test(path.slice(1))) out.push(path.slice(1))
+      const drive = path.startsWith('/') ? path.slice(1) : path
+      if (DRIVE_PATH.test(drive) && (drive !== path || drive[1] === '|')) out.push(`${drive[0]}:${drive.slice(2)}`)
     }
   }
   return out
