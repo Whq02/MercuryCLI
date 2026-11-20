@@ -249,6 +249,70 @@ try {
     })
     check('mercury-ops-partial-manager: partial manager without revalidateOpenDocuments still succeeds', typeof partialOk.result === 'string', JSON.stringify(partialOk))
   }
+
+  console.log('\n9. LSPTool/mercuryOps/pathRename.ts: source EACCES, claimant start failure, and sync failure refuse cleanly')
+  {
+    const { opPathRename } = await import('../../src/tools/LSPTool/mercuryOps/pathRename.js')
+    const baseCtx = { abortController: new AbortController(), readFileState: new Map(), getAppState: () => ({ toolPermissionContext: {} }) } as never
+    if (POSIX_MODES) {
+      const lockedDir = join(scratch, 'locked-rename')
+      mkdirSync(lockedDir, { recursive: true })
+      const srcInLocked = join(lockedDir, 'a.ts')
+      writeFileSync(srcInLocked, 'export const a = 1\n')
+      chmodSync(lockedDir, 0o000)
+      try {
+        const res = await opPathRename({
+          input: { operation: 'pathRename', filePath: srcInLocked, newPath: join(scratch, 'b.ts') } as never,
+          absolutePath: srcInLocked,
+          cwd: scratch,
+          manager: { getServersForFile: () => [] } as never,
+          tool: { name: 'LspMoveFile' } as never,
+          context: baseCtx,
+        })
+        check('path-rename-source-eacces: refuses with could not be checked instead of does not exist', res.effect.outcome === 'failed' && res.result.includes('could not be checked') && !res.result.includes('does not exist'), res.result)
+      } finally {
+        chmodSync(lockedDir, 0o700)
+      }
+    }
+    const moveSrc = join(scratch, 'move-src.ts')
+    writeFileSync(moveSrc, 'export const m = 1\n')
+    const brokenServer = {
+      name: 'broken-ts',
+      state: 'stopped',
+      capabilities: undefined,
+      start: async () => { throw new Error('start-failed-boom') },
+    }
+    const startFail = await opPathRename({
+      input: { operation: 'pathRename', filePath: moveSrc, newPath: join(scratch, 'move-dst.ts') } as never,
+      absolutePath: moveSrc,
+      cwd: scratch,
+      manager: { getServersForFile: () => [brokenServer] } as never,
+      tool: { name: 'LspMoveFile' } as never,
+      context: baseCtx,
+    })
+    check('path-rename-claimant-start-fail: refuses with claimant start error instead of claiming none advertises', startFail.effect.outcome === 'failed' && startFail.result.includes('broken-ts') && startFail.result.includes('start-failed-boom') && !startFail.result.includes('none advertises'), startFail.result)
+
+    let willRenameCalled = 0
+    const readyServer = {
+      name: 'ready-ts',
+      state: 'running',
+      capabilities: { workspace: { fileOperations: { willRename: { filters: [] } } } },
+      sendRequest: async () => { willRenameCalled++; return null },
+    }
+    const syncFail = await opPathRename({
+      input: { operation: 'pathRename', filePath: moveSrc, newPath: join(scratch, 'move-dst.ts') } as never,
+      absolutePath: moveSrc,
+      cwd: scratch,
+      manager: {
+        getServersForFile: () => [readyServer],
+        isFileOpen: () => false,
+        openFile: async () => { throw new Error('sync-open-boom') },
+      } as never,
+      tool: { name: 'LspMoveFile' } as never,
+      context: baseCtx,
+    })
+    check('path-rename-sync-fail: refuses with sync-open-boom and does not call willRenameFiles', syncFail.effect.outcome === 'failed' && syncFail.result.includes('sync-open-boom') && willRenameCalled === 0, JSON.stringify({ result: syncFail.result, willRenameCalled }))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
