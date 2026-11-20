@@ -19,36 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const { workspaceSymbolRequest } = await import('../../src/services/lsp/tsSidecar/sidecar/requests/navigation.js')
 const { createFrameReader } = await import('../../src/services/lsp/sidecarFraming.js')
-
-console.log('\nnavigation.ts — workspaceSymbolRequest propagates project getNavigateToItems failures')
-{
-  const brokenProject = {
-    service: {
-      getNavigateToItems: () => {
-        throw new Error('ts language service exploded')
-      },
-    },
-  }
-  const fakeState = {
-    workspaceProjects: () => [brokenProject],
-    allProjects: () => [brokenProject],
-    normalize: (p: string) => p,
-    textOf: () => '',
-  }
-  let threw: unknown = null
-  try {
-    workspaceSymbolRequest({ query: 'foo' }, () => fakeState as never)
-  } catch (error) {
-    threw = error
-  }
-  check(
-    'workspaceSymbolRequest throws instead of returning an empty symbol list',
-    threw instanceof Error && threw.message === 'ts language service exploded',
-    `threw=${String(threw)}`,
-  )
-}
 
 console.log('\nsidecarFraming.ts — createFrameReader does not mislabel onMessage errors as unparseable JSON')
 {

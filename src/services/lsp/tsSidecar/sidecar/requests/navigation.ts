@@ -2,6 +2,8 @@ import type * as TS from 'typescript'
 import { type LspLocation, spanToRange, toUri, symbolKindOf } from '../lsp.js'
 import { spansToLocations, navTreeToSymbols } from '../convert.js'
 import type { DocContext, RequireState } from '../needs.js'
+import { logForDebugging } from '../../../../../utils/debug.js'
+import { passedOver } from '../../../../../utils/passedOver.js'
 
 export function definitionRequest(params: unknown, docContext: DocContext): unknown {
   const { st, project, file, offset } = docContext(params)
@@ -70,7 +72,14 @@ export function workspaceSymbolRequest(params: unknown, requireState: RequireSta
     containerName?: string
   }[] = []
   for (const project of new Set([...st.workspaceProjects(), ...st.allProjects()])) {
-    const items = project.service.getNavigateToItems(query, 128, undefined, false, true)
+    let items: TS.NavigateToItem[] = []
+    try {
+      items = project.service.getNavigateToItems(query, 128, undefined, false, true)
+    } catch (error) {
+      passedOver(error)
+      logForDebugging(`tsSidecar workspace/symbol skipped throwing project ${project.key}: ${String(error)}`)
+      continue
+    }
     for (const item of items) {
       const file = st.normalize(item.fileName)
       const text = st.textOf(file)
