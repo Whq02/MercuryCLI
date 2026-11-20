@@ -119,8 +119,8 @@ export function settleAttemptUsage(
   }
   if (usageSeen) {
     addToTotalSessionCost(
-      calculateUSDCost(modelId, finalUsage as never),
-      finalUsage as never,
+      calculateUSDCost(modelId, finalUsage),
+      finalUsage,
       modelId,
     )
   }

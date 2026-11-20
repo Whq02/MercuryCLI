@@ -455,7 +455,7 @@ export async function processSlashCommand(
         }
         try {
           const module = await registered.load()
-          const result = await module.call(args, context as unknown as Parameters<typeof module.call>[1])
+          const result = await module.call(args, context)
           const text = result.type === 'text' ? result.value : ''
           return { messages: [], shouldQuery: false, ...(text !== '' ? { resultText: text } : {}) }
         } catch (error) {

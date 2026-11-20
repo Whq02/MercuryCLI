@@ -43,7 +43,7 @@ function scoutToolRefusal(toolName: string): string {
 
 function readsOnly(tool: Tool, input: Record<string, unknown>): boolean {
   try {
-    return tool.isReadOnly(input as never) === true
+    return tool.isReadOnly(input) === true
   } catch {
     return false
   }

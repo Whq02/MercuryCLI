@@ -1,4 +1,4 @@
-import { unwatchFile, watchFile } from 'node:fs'
+import { unwatchFile, watchFile, type StatsListener } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
@@ -149,7 +149,7 @@ async function readRawSymref(gitDir: string, refPath: string, branchPrefix: stri
 
 const POLL_INTERVAL_MS = process.env.NODE_ENV === 'test' ? 10 : 1000
 
-type WatchListener = (curr: unknown, prev: unknown) => void
+type WatchListener = StatsListener
 
 let watcherStarted = false
 let watcherStarting: Promise<void> | null = null
@@ -195,19 +195,17 @@ function signalChange(signal: GitChangeSignal): void {
 
 function watchPath(path: string, listener: WatchListener): void {
   const guarded: WatchListener = (curr, prev) => {
-    const c = curr as { ino?: number; mtimeMs?: number }
-    const p = prev as { ino?: number; mtimeMs?: number }
-    if (!(c.ino || c.mtimeMs) && !(p.ino || p.mtimeMs)) return
+    if (!(curr.ino || curr.mtimeMs) && !(prev.ino || prev.mtimeMs)) return
     listener(curr, prev)
   }
-  watchFile(path, { interval: POLL_INTERVAL_MS, persistent: false }, guarded as never)
+  watchFile(path, { interval: POLL_INTERVAL_MS, persistent: false }, guarded)
   watchedPaths.set(path, guarded)
 }
 
 function unwatchPath(path: string): void {
   const listener = watchedPaths.get(path)
   if (listener !== undefined) {
-    unwatchFile(path, listener as never)
+    unwatchFile(path, listener)
     watchedPaths.delete(path)
   }
 }
@@ -284,7 +282,7 @@ export function regroundGitWatch(): void {
 
 function teardownWatches(): void {
   for (const [path, listener] of watchedPaths) {
-    unwatchFile(path, listener as never)
+    unwatchFile(path, listener)
   }
   watchedPaths.clear()
 }
