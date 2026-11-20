@@ -523,5 +523,33 @@ console.log('\nMercuryFileOpen — failed file listing returns failure sentence 
   check('control: succeeding loadFiles returns results with null error', ok?.error === null && ok?.results?.length === 1, JSON.stringify(ok ?? r))
 }
 
+console.log('\nMercuryFilesMenu — unreadable folder returns a warning row instead of looking empty')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/MercuryFilesMenu.tsx'))
+    const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    out.posix = posix
+    if (typeof mod.readFolder !== 'function') {
+      out.missing = true
+    } else {
+      const locked = path.join(PROJECT, 'locked')
+      fs.mkdirSync(locked, { recursive: true })
+      fs.writeFileSync(path.join(locked, 'secret.txt'), 'hi\\n')
+      if (posix) fs.chmodSync(locked, 0o000)
+      try {
+        out.locked = mod.readFolder(PROJECT, 'locked')
+        out.absent = mod.readFolder(PROJECT, 'does-not-exist')
+      } finally {
+        if (posix) fs.chmodSync(locked, 0o700)
+      }
+    }
+  `)
+  if (r.posix === true) {
+    const locked = Array.isArray(r.locked) ? (r.locked as Array<{ name?: string; path?: string }>) : []
+    check('unreadable folder produces warning entry instead of empty array', locked.length === 1 && typeof locked[0]?.name === 'string' && locked[0].name.includes('folder could not be read (') && locked[0].name.includes('— check permissions'), JSON.stringify(locked))
+    check('control: absent folder (ENOENT) still returns empty array', Array.isArray(r.absent) && (r.absent as unknown[]).length === 0, JSON.stringify(r.absent))
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
