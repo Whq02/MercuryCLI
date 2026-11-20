@@ -16,7 +16,8 @@ import {
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
 import { MERCURY_PROJECT_DIR } from '../../utils/projectConfig.js'
-import { durableAtomicPublish } from '../../substrate/durablePublish.js'
+import { durableAtomicPublish, DurablePublishError } from '../../substrate/durablePublish.js'
+import { AtomicWriteRefusal } from '../../utils/file.js'
 import { isSettingSourceAllowedAtLaunch } from '../../utils/settings/constants.js'
 import { isRestrictedToExtensionsOnly } from '../../utils/settings/extensionOnlyPolicy.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
@@ -845,7 +846,13 @@ function readProjectMcpDocument(mcpJsonPath: string): ProjectMcpDocument {
   return { ...(value as Record<string, unknown>), mcpServers: { ...((servers ?? {}) as Record<string, unknown>) } }
 }
 
-async function writeProjectMcpFile(document: ProjectMcpDocument): Promise<void> {
+function heldWriteFailure(error: unknown): { path: string; code: string } | null {
+  if (error instanceof DurablePublishError && error.phase === 'rename') return { path: error.targetPath, code: error.fsCode ?? 'write error' }
+  if (error instanceof AtomicWriteRefusal && error.phase === 'rename') return { path: error.targetPath, code: error.code ?? 'write error' }
+  return null
+}
+
+async function writeProjectMcpFile(document: ProjectMcpDocument, action = 'update MCP configuration'): Promise<void> {
   const mcpJsonPath = projectMcpFilePath(getCwd())
   const fs = getFsImplementation()
   let mode = 0o644
@@ -859,6 +866,13 @@ async function writeProjectMcpFile(document: ProjectMcpDocument): Promise<void> 
   try {
     await durableAtomicPublish(mcpJsonPath, `${JSON.stringify(document, null, 2)}\n`, { mode })
   } catch (error) {
+    const held = heldWriteFailure(error)
+    if (held !== null) {
+      logForDebugging(`Failed to write to ${mcpJsonPath}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+      throw new Error(
+        `Could not ${action}: ${held.path} could not be written (${held.code}); nothing was written. Close what holds the file, then try again.`,
+      )
+    }
     throw new Error(
       `Failed to write to ${mcpJsonPath}: ${error instanceof Error ? error.message : String(error)}`,
     )
@@ -920,7 +934,7 @@ export async function addMcpConfig(
         if (Object.hasOwn(document.mcpServers, name)) {
           throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
         }
-        await writeProjectMcpFile({ ...document, mcpServers: { ...document.mcpServers, [name]: stripScope(effective) } })
+        await writeProjectMcpFile({ ...document, mcpServers: { ...document.mcpServers, [name]: stripScope(effective) } }, `add MCP server ${name}`)
       })
       return
     }
@@ -928,10 +942,21 @@ export async function addMcpConfig(
       if (Object.hasOwn(getGlobalConfig().mcpServers ?? {}, name)) {
         throw new Error(`MCP server "${name}" already exists in the user config`)
       }
-      saveGlobalConfig(current => ({
-        ...current,
-        mcpServers: { ...(current.mcpServers ?? {}), [name]: effective },
-      }))
+      try {
+        saveGlobalConfig(current => ({
+          ...current,
+          mcpServers: { ...(current.mcpServers ?? {}), [name]: effective },
+        }))
+      } catch (error) {
+        const held = heldWriteFailure(error)
+        if (held !== null) {
+          logForDebugging(`Failed to save MCP server ${name} to ${held.path}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+          throw new Error(
+            `Could not add MCP server ${name}: ${held.path} could not be written (${held.code}); nothing was written. Close what holds the file, then try again.`,
+          )
+        }
+        throw error
+      }
       return
     }
     case 'local': {

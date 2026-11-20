@@ -227,7 +227,7 @@ export function setSwitch(id: string, on: boolean, scope: SwitchScope = 'everywh
   }
   const source = scope === 'project' ? 'localSettings' : 'userSettings'
   const { error } = updateSettingsForSource(source, id === 'mercury-media@mercury' ? { media: { enabled: on } } : { extensions: { enabled: { [id]: on } } })
-  if (error) return { ok: false, reason: `settings write failed: ${error.message}` }
+  if (error) return { ok: false, reason: error.message.startsWith('Could not ') ? error.message : `settings write failed: ${error.message}` }
   if (on && parsed.label === 'mercury') bundledRoster().find(def => def.name === parsed.name)?.materialize?.()
   logAct(`switch: ${id} ${on ? 'on' : 'off'} (${scope})`)
   return { ok: true }
