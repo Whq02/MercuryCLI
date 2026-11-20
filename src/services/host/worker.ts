@@ -45,36 +45,61 @@ const inferredWeightsSource = (record: HostRecord, recipe: HostRecipe | undefine
   const preference = recipe && (vendor === 'vast' || vendor === 'lambda') ? bankUploadPreference(recipe) : undefined
   return preference ? { kind: 'bank', folder: preference.folder } : { kind: 'huggingface' }
 }
-async function rentingSessionRow(record: Pick<HostRecord, 'sessionId'>): Promise<{ modelKey?: string } | undefined> {
-  if (!record.sessionId) return undefined
+type RentingSessionRowResult =
+  | { state: 'found'; row: { modelKey?: string } }
+  | { state: 'absent' }
+  | { state: 'failed'; detail: string }
+
+export type SessionRestoreOutcome =
+  | { state: 'restored' }
+  | { state: 'skipped' }
+  | { state: 'failed'; detail: string }
+
+async function readRentingSessionRow(record: Pick<HostRecord, 'sessionId'>): Promise<RentingSessionRowResult> {
+  if (!record.sessionId) return { state: 'absent' }
   try {
-    const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
-    return Object.values(readSessionWorkers()).find(row => row.sessionId === record.sessionId && row.endedAt === undefined && row.stoppedAt === undefined && row.parkedAt === undefined)
+    const { readSessionWorkersSnapshot } = await import('../../daemon/concourseWorkers.js')
+    const snapshot = readSessionWorkersSnapshot()
+    if (snapshot.state === 'unavailable') return { state: 'failed', detail: 'session list could not be read' }
+    const row = Object.values(snapshot.workers).find(entry => entry.sessionId === record.sessionId && entry.endedAt === undefined && entry.stoppedAt === undefined && entry.parkedAt === undefined)
+    return row ? { state: 'found', row } : { state: 'absent' }
   } catch (error) {
     passedOver(error)
-    return undefined
+    return { state: 'failed', detail: error instanceof Error ? error.message : String(error) }
   }
 }
 export async function rentingSessionModel(record: Pick<HostRecord, 'sessionId'>): Promise<string | undefined> {
-  return (await rentingSessionRow(record))?.modelKey
+  const result = await readRentingSessionRow(record)
+  return result.state === 'found' ? result.row.modelKey : undefined
 }
-export async function switchRentingSession(record: Pick<HostRecord, 'sessionId'>, model: string): Promise<boolean> {
-  if (!record.sessionId) return false
+async function attemptSwitchRentingSession(record: Pick<HostRecord, 'sessionId'>, model: string): Promise<SessionRestoreOutcome> {
+  if (!record.sessionId) return { state: 'skipped' }
   try {
-    if (!(await rentingSessionRow(record))) return false
+    const row = await readRentingSessionRow(record)
+    if (row.state === 'absent') return { state: 'skipped' }
+    if (row.state === 'failed') return { state: 'failed', detail: row.detail }
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model }, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string }
-    return reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'queued')
+    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model }, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string; error?: string; code?: string }
+    if (reply.ok === true) return reply.outcome === 'applied' || reply.outcome === 'queued' ? { state: 'restored' } : { state: 'skipped' }
+    return { state: 'failed', detail: typeof reply.error === 'string' && reply.error.trim() ? reply.error.trim() : reply.code ?? 'model switch rejected' }
   } catch (error) {
     passedOver(error)
-    return false
+    return { state: 'failed', detail: error instanceof Error ? error.message : String(error) }
   }
 }
+export async function switchRentingSession(record: Pick<HostRecord, 'sessionId'>, model: string): Promise<boolean> {
+  return (await attemptSwitchRentingSession(record, model)).state === 'restored'
+}
+export async function restoreRentingSessionOutcome(record: Pick<HostRecord, 'sessionId' | 'sessionModel' | 'sessionModelBefore'>): Promise<SessionRestoreOutcome> {
+  if (!record.sessionId || !record.sessionModelBefore || !record.sessionModel) return { state: 'skipped' }
+  const row = await readRentingSessionRow(record)
+  if (row.state === 'absent') return { state: 'skipped' }
+  if (row.state === 'failed') return { state: 'failed', detail: row.detail }
+  if (row.row.modelKey !== record.sessionModel) return { state: 'skipped' }
+  return attemptSwitchRentingSession(record, record.sessionModelBefore)
+}
 export async function restoreRentingSession(record: Pick<HostRecord, 'sessionId' | 'sessionModel' | 'sessionModelBefore'>): Promise<boolean> {
-  if (!record.sessionModelBefore || !record.sessionModel) return false
-  const row = await rentingSessionRow(record)
-  if (!row || row.modelKey !== record.sessionModel) return false
-  return switchRentingSession(record, record.sessionModelBefore)
+  return (await restoreRentingSessionOutcome(record)).state === 'restored'
 }
 function watchedSourceFor(source: WeightsSource | undefined, hit: HostVendorId, managed: boolean, volume: KeptVolume | undefined): { source?: WeightsSource; skip?: string } {
   if (!source) return {}

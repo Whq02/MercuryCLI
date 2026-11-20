@@ -210,6 +210,66 @@ try {
       else process.env.MERCURY_BLENDER = prevEnabled
     }
   }
+
+  {
+    const workerMod = await import('../../src/services/host/worker.ts') as {
+      restoreRentingSessionOutcome?: (record: { sessionId?: string; sessionModel?: string; sessionModelBefore?: string }) => Promise<{ state: string; detail?: string }>
+    }
+    const daemonDir = join(home, 'daemon')
+    mkdirSync(daemonDir, { recursive: true, mode: 0o700 })
+    const workersFile = join(daemonDir, 'concourse-workers.json')
+    const hostedModel = 'compat/pod-tf-1/qwen'
+    const priorModel = 'compat/local/base'
+    const sessionId = '11111111-1111-4111-8111-111111111111'
+
+    writeFileSync(workersFile, '{corrupt json', { mode: 0o600 })
+    const unreadOutcome = workerMod.restoreRentingSessionOutcome
+      ? await workerMod.restoreRentingSessionOutcome({ sessionId, sessionModel: hostedModel, sessionModelBefore: priorModel })
+      : { state: 'missing' }
+    check(
+      'restoreRentingSessionOutcome reports failed when session list cannot be read',
+      unreadOutcome.state === 'failed' && Boolean(unreadOutcome.detail),
+      JSON.stringify(unreadOutcome),
+    )
+
+    writeFileSync(
+      workersFile,
+      JSON.stringify({
+        version: 1,
+        workers: {
+          'runner-1': {
+            schema: 1,
+            runnerId: 'runner-1',
+            sessionId,
+            workspaceId: scratch,
+            isolation: 'shared',
+            modelKey: hostedModel,
+            spawnedAt: Date.now() - 1000,
+            lastLiveAt: Date.now(),
+            pid: process.pid,
+          },
+        },
+      }) + '\n',
+      { mode: 0o600 },
+    )
+    const rpcOutcome = workerMod.restoreRentingSessionOutcome
+      ? await workerMod.restoreRentingSessionOutcome({ sessionId, sessionModel: hostedModel, sessionModelBefore: priorModel })
+      : { state: 'missing' }
+    check(
+      'restoreRentingSessionOutcome reports failed with error detail when model switch RPC fails',
+      rpcOutcome.state === 'failed' && Boolean(rpcOutcome.detail),
+      JSON.stringify(rpcOutcome),
+    )
+
+    const movedOutcome = workerMod.restoreRentingSessionOutcome
+      ? await workerMod.restoreRentingSessionOutcome({ sessionId, sessionModel: 'compat/other/model', sessionModelBefore: priorModel })
+      : { state: 'missing' }
+    check(
+      'restoreRentingSessionOutcome reports skipped when session moved to another model',
+      movedOutcome.state === 'skipped',
+      JSON.stringify(movedOutcome),
+    )
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
