@@ -132,7 +132,7 @@ section('T the Eval tool lists the sample it kept and its prompt says when')
   check('T3 the prompt names sample under the bridge, taking doc and never html', prompt.includes('sample({name, title?, doc, ask?})') && !prompt.includes('sample({name, title?, html, ask?})') && prompt.includes('Raw `html` is refused'))
   check('T4 the prompt says when: only when asked, never unasked, never to decorate', /ONLY when the operator asked to see something/.test(prompt) && /never unasked, never to decorate an answer/.test(prompt) && /"show me"/.test(prompt))
   check('T5 the prompt says the same name is the next version and variables survive', /The same name publishes the next version/.test(prompt) && /Variables, imports, functions and classes survive/.test(prompt))
-  check('T6 the search hint names samples', String((EvalTool as { searchHint?: string }).searchHint).includes('sample'))
+  check('T6 the search hint names samples', ((EvalTool as { searchHint?: string }).searchHint ?? '').includes('sample'))
 }
 
 section('G the gate')
