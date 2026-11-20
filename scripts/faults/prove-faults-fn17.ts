@@ -139,5 +139,39 @@ console.log('prefixLedger — ownsSessionRecord lets processMainOwner bugs throw
   check('prefixLedger:ownsSessionRecord throws on processMainOwner bug', r.threw === 'owner-getter-boom', `got ${JSON.stringify(r.threw)}`)
 }
 
+console.log('prefixRecordStore — sweepPrefixRecords fails closed when getSessionId throws')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const statePath = SRC + '/bootstrap/state.ts'
+    const realState = await import(statePath)
+    mock.module(statePath, () => ({
+      ...realState,
+      getSessionId: () => { throw new Error('session-id-boom') },
+    }))
+    const sessionsDir = path.join(HOME, 'sessions', 'sess-1')
+    fs.mkdirSync(sessionsDir, { recursive: true })
+    const ledger = path.join(sessionsDir, 'prefix-ledger.json')
+    fs.writeFileSync(ledger, '{}')
+    const oldTime = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000)
+    fs.utimesSync(ledger, oldTime, oldTime)
+    const store = await import(SRC + '/services/providers/anthropic/prefixRecordStore.ts')
+    try {
+      await store.sweepPrefixRecords({ home: HOME })
+      out.threw = null
+    } catch (e) {
+      out.threw = e instanceof Error ? e.message : String(e)
+    }
+    out.stillExists = fs.existsSync(ledger)
+  `)
+  check(
+    'prefixRecordStore:sweepPrefixRecords aborts without deleting when getSessionId throws',
+    r.threw === 'session-id-boom' && r.stillExists === true,
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
