@@ -543,5 +543,23 @@ console.log('\nhealthDeepProbes.ts — probeServiceLifecycle kills child PID if 
   )
 }
 
+console.log('\nsettings/model.ts — modelCheck propagates getSettingsWithAllErrors throw instead of saying no settings pin')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    mock.module(SRC + '/utils/settings/allErrors.js', () => ({
+      getSettingsWithAllErrors: () => { throw new Error('settings read boom') },
+    }))
+    const { modelCheck } = await import(SRC + '/utils/health/sections/settings/model.ts')
+    try {
+      out.row = modelCheck().run()
+      out.err = null
+    } catch (e) {
+      out.err = e?.message ?? String(e)
+    }
+  `)
+  check('settings/model:getSettingsWithAllErrors-throw-propagates', r.err === 'settings read boom', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
