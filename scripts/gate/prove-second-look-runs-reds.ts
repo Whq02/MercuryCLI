@@ -22,8 +22,8 @@ if (process.platform === 'win32') {
 
 const work = mkdtempSync(join(tmpdir(), 'second-look-'))
 
-type Kind = 'green' | 'red-once' | 'red-always' | 'slow'
-type Run = { member: string; path: string; bun: string | null; leaveOut: string | null }
+type Kind = 'green' | 'red-once' | 'red-always' | 'slow' | 'red-once-when-told-red'
+type Run = { member: string; words?: string[]; path: string; bun: string | null; leaveOut: string | null }
 type World = { dir: string; suites: string; out: string; ledger: string; env: NodeJS.ProcessEnv }
 
 function world(tag: string, extra: NodeJS.ProcessEnv = {}): World {
@@ -64,10 +64,11 @@ function member(w: World, group: string, file: string, kind: Kind): void {
     writeFileSync(join(w.suites, group, file), `import os\nwith open(os.environ['SECOND_LOOK_LEDGER'], 'a') as ledger:\n    ledger.write(${JSON.stringify(`${row}\n`)})\n`)
     return
   }
-  const verdict = kind === 'red-always' ? 'process.exit(1)' : kind === 'red-once' ? `if (!existsSync(${JSON.stringify(seen)})) { writeFileSync(${JSON.stringify(seen)}, ''); process.exit(1) }` : kind === 'slow' ? 'await Bun.sleep(4000)' : ''
+  const redOnce = `if (!existsSync(${JSON.stringify(seen)})) { writeFileSync(${JSON.stringify(seen)}, ''); process.exit(1) }`
+  const verdict = kind === 'red-always' ? 'process.exit(1)' : kind === 'red-once' ? redOnce : kind === 'red-once-when-told-red' ? `if (process.argv[2] === 'red') ${redOnce}` : kind === 'slow' ? 'await Bun.sleep(4000)' : ''
   writeFileSync(
     join(w.suites, group, file),
-    `import { appendFileSync, existsSync, writeFileSync } from 'node:fs'\nappendFileSync(process.env.SECOND_LOOK_LEDGER!, JSON.stringify({ member: ${JSON.stringify(name)}, path: process.env.PATH ?? '', bun: process.env.BUN ?? null, leaveOut: process.env.MERCURY_SUITE_LEAVE_OUT ?? null }) + '\\n')\n${verdict}\n`,
+    `import { appendFileSync, existsSync, writeFileSync } from 'node:fs'\nappendFileSync(process.env.SECOND_LOOK_LEDGER!, JSON.stringify({ member: ${JSON.stringify(name)}, words: process.argv.slice(2), path: process.env.PATH ?? '', bun: process.env.BUN ?? null, leaveOut: process.env.MERCURY_SUITE_LEAVE_OUT ?? null }) + '\\n')\n${verdict}\n`,
   )
 }
 
@@ -92,7 +93,7 @@ function shard(w: World): Promise<{ code: number | null; text: string }> {
   })
 }
 const runsOf = (w: World): Run[] => readFileSync(w.ledger, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as Run)
-const times = (w: World, name: string): number => runsOf(w).filter(run => run.member === name).length
+const times = (w: World, name: string, word?: string): number => runsOf(w).filter(run => run.member === name && (word === undefined || run.words?.[0] === word)).length
 const rowOf = (w: World, name: string): string => {
   const file = join(w.out, 'results.tsv')
   return existsSync(file) ? (readFileSync(file, 'utf8').split('\n').find(line => line.startsWith(`${name}\t`)) ?? '') : ''
@@ -110,7 +111,7 @@ try {
   const a = world('reds')
   const runnerSaw = join(a.dir, 'listed.runner')
   const cutShort = join(a.dir, 'cut-short.runner')
-  group(a, 'listed', [...door, `printf '%s\\t%s\\n' "$PATH" "\${BUN-}" >>'${runnerSaw}'`, joins('listed', 'members.txt'), 'exit "$fail"'], [['prove-green-one.ts', 'green'], ['prove-red-once.ts', 'red-once'], ['prove-green-shell.sh', 'green'], ['prove-green-python.py', 'green']], { 'members.txt': ['prove-green-one.ts', 'prove-red-once.ts', 'prove-green-shell.sh', 'prove-green-python.py'] })
+  group(a, 'listed', [...door, `printf '%s\\t%s\\n' "$PATH" "\${BUN-}" >>'${runnerSaw}'`, joins('listed', 'members.txt'), 'exit "$fail"'], [['prove-green-one.ts', 'green'], ['prove-red-once.ts', 'red-once'], ['prove-green-shell.sh', 'green'], ['prove-green-python.py', 'green'], ['prove-told.ts', 'red-once-when-told-red']], { 'members.txt': ['prove-green-one.ts', 'prove-red-once.ts', 'prove-green-shell.sh', 'prove-green-python.py', 'prove-told.ts green', 'prove-told.ts red'] })
   group(a, 'stays', [...door, joins('stays', 'members.txt', 'run'), 'exit "$fail"'], [['prove-green-two.ts', 'green'], ['prove-red-always.ts', 'red-always']], { 'members.txt': ['prove-green-two.ts', 'prove-red-always.ts'] })
   group(a, 'cut-short', [...door, joins('cut-short', 'first.txt'), `[ -f '${cutShort}' ] || { : >'${cutShort}'; exit 1; }`, joins('cut-short', 'second.txt'), 'exit "$fail"'], [['prove-green-three.ts', 'green'], ['prove-red-once.ts', 'red-once'], ['prove-late.ts', 'green']], { 'first.txt': ['prove-green-three.ts', 'prove-red-once.ts'], 'second.txt': ['prove-late.ts'] })
   group(a, 'unmarked', ['here="$(cd "$(dirname "$0")" && pwd)"', 'bun="${BUN:-$HOME/.bun/bin/bun}"', '"$bun" run "$here/prove-green-six.ts" && "$bun" run "$here/prove-red-once.ts"'], [['prove-green-six.ts', 'green'], ['prove-red-once.ts', 'red-once']])
@@ -122,12 +123,13 @@ try {
 
   const [first, second] = await Promise.all([shard(a), shard(b)])
 
-  section('§1 a group whose tests join by its list: one test red once, three green')
+  section('§1 a group whose tests join by its list: two rows red once, four green')
   check('the group was red, had its second look and came back green', /^listed\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(a, 'listed')), rowOf(a, 'listed') || first.text.slice(-400))
   check('the red test ran twice', times(a, 'listed/prove-red-once.ts') === 2, String(times(a, 'listed/prove-red-once.ts')))
   for (const [file, kind] of [['prove-green-one.ts', 'bun'], ['prove-green-shell.sh', 'shell'], ['prove-green-python.py', 'Python']] as const) {
     check(`a green ${kind} test ran once, in the first attempt only`, times(a, `listed/${file}`) === 1, String(times(a, `listed/${file}`)))
   }
+  check("of a file's two rows the green one ran once and the red one twice", times(a, 'listed/prove-told.ts', 'green') === 1 && times(a, 'listed/prove-told.ts', 'red') === 2, `${times(a, 'listed/prove-told.ts', 'green')} ${times(a, 'listed/prove-told.ts', 'red')}`)
   check('the second look says which tests it did not run again', ['prove-green-one.ts', 'prove-green-shell.sh', 'prove-green-python.py'].every(file => logOf(a, 'listed', true).includes(`second look: scripts/listed/${file} was green in the first attempt and is not run again`)), logOf(a, 'listed', true).slice(0, 600))
   const saw = existsSync(runnerSaw) ? readFileSync(runnerSaw, 'utf8').split('\n').filter(Boolean) : []
   check('the runner saw the same PATH and BUN in both attempts', saw.length === 2 && saw[0] === saw[1] && saw[0]!.endsWith(`\t${process.execPath}`), JSON.stringify(saw.map(line => line.slice(0, 120))))
