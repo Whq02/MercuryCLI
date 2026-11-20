@@ -230,6 +230,32 @@ console.log('\n§5 a failure the code passes over is written to the debug log, o
   check('each distinct failure passed over is in the debug log', ['a rename that was passed over (EPERM)', 'another failure passed over', 'a failure that is a plain string'].every(words => lines.some(line => line.includes(words))), lines.join(' | ').slice(0, 300) || 'no line')
   check('…once each, however often it is passed over', lines.length === 3, String(lines.length))
   check("…at the debug level, the log's floor", lines.length > 0 && lines.every(line => /\[DEBUG\] passed over \(\d+\): row five:/.test(line)), lines[0] ?? 'no line')
+  const { mock } = await import('bun:test')
+  const debug = await import('../../src/utils/debug.js')
+  const write = debug.logForDebugging
+  const handed: Array<[string, string]> = []
+  mock.module(join(import.meta.dir, '..', '..', 'src', 'utils', 'debug.js'), () => ({
+    ...debug,
+    logForDebugging: (message: string, opts?: Parameters<typeof write>[1]) => {
+      handed.push([opts?.level ?? 'debug', message])
+      write(message, opts)
+    },
+  }))
+  const coded = (code: string, words: string): Error => Object.assign(new Error(words), { code })
+  const absent = "ENOENT: no such file or directory, open 'row six/MERCURY.md'"
+  const through = "ENOTDIR: not a directory, open 'row six/a-file/child'"
+  const held = "EACCES: permission denied, open 'row six/held.json'"
+  const plain = 'row six: a failure that is no absence'
+  for (let turn = 0; turn < 2; turn++) passedOver(coded('ENOENT', absent))
+  passedOver(coded('ENOTDIR', through))
+  passedOver(coded('EACCES', held))
+  passedOver(new Error(plain))
+  await flush()
+  const six = debugLines().filter(line => line.includes('row six'))
+  const at = (level: string, words: string): number => handed.filter(([said, message]) => said === level && message.includes(words)).length
+  check('a file or a folder that is not there (ENOENT, ENOTDIR) is an answer: it reaches no line of the debug log', !six.some(line => line.includes(absent) || line.includes(through)), six.join(' | ').slice(0, 300))
+  check('…and is handed on at verbose, under the floor, each time it is passed over, as before', at('verbose', absent) === 2 && at('verbose', through) === 1 && at('debug', absent) === 0 && at('debug', through) === 0, JSON.stringify(handed).slice(0, 300))
+  check('a failure that is no absence (EACCES, a plain Error) still reaches one line at the debug level', [held, plain].every(words => six.filter(line => line.includes(words) && line.includes('[DEBUG] passed over (')).length === 1) && at('debug', held) === 1 && at('debug', plain) === 1, six.join(' | ').slice(0, 300))
 }
 
 console.log(failures === 0 ? '\nprove-error-log-file: all green' : `\nprove-error-log-file: ${failures} FAILURE(S)`)
