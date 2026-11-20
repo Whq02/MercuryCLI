@@ -327,15 +327,18 @@ export async function detachExternalSeat(seatId: string): Promise<boolean> {
   }
   forgetCapabilities(seatId)
   seats.delete(seatId)
+  const sessionId = live.externalSessionId ?? live.seatId
+  const dirOpt = live.dir !== undefined ? { dir: live.dir } : undefined
   try {
-    await endAgentSession(live.externalSessionId ?? live.seatId, live.dir !== undefined ? { dir: live.dir } : undefined)
-    const d = await import('./descriptor.js')
-    await d.retireSessionDescriptor(
-      live.externalSessionId ?? live.seatId,
-      live.dir !== undefined ? { dir: live.dir } : undefined,
-    )
+    await endAgentSession(sessionId, dirOpt)
   } catch (e) {
     logForDebugging(`[crew/seatBridge] session close on detach failed (ignored): ${e}`)
+  }
+  try {
+    const d = await import('./descriptor.js')
+    await d.retireSessionDescriptor(sessionId, dirOpt)
+  } catch (e) {
+    logForDebugging(`[crew/seatBridge] descriptor retire on detach failed, the seat stays listed as live: ${e}`)
   }
   return true
 }

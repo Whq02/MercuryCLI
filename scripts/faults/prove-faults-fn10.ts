@@ -203,6 +203,46 @@ try {
       `firstErr=${firstErr?.message ?? 'null'} moved=${moved} open=${after.length}`,
     )
   }
+
+  console.log('7. src/services/crew/seatBridge.ts')
+  {
+    const { spawnSync } = await import('node:child_process')
+    const dir = join(SCRATCH, 'crew-seatbridge')
+    mkdirSync(dir, { recursive: true })
+    const script = `
+      import { mock } from 'bun:test'
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const realIdentity = await import(${JSON.stringify(join(HERE, '../../src/services/crew/identity.ts'))})
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/identity.ts'))}, () => ({
+        ...realIdentity,
+        endAgentSession: async () => { throw new Error('injected session close error') },
+      }))
+      const { attachExternalSeat, detachExternalSeat } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/seatBridge.ts'))})
+      const { publishSessionDescriptor, readSessionDescriptor } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/descriptor.ts'))})
+      const dir = ${JSON.stringify(dir)}
+      const seat = await attachExternalSeat({
+        adapterKind: 'probe',
+        displayName: 'Probe',
+        mercuryOwnsProcess: true,
+        handshake: async () => ({ protocol: 'p@1', revision: '1', externalSessionId: 'ext-detach-1', declared: {} }),
+        detach: async () => {},
+      }, { dir })
+      await publishSessionDescriptor({ agentId: seat.agentId, sessionId: 'ext-detach-1' }, { dir })
+      await detachExternalSeat(seat.seatId)
+      const desc = await readSessionDescriptor('ext-detach-1', { dir })
+      process.stdout.write('\\n' + JSON.stringify({ retired: desc?.retiredAt !== undefined }))
+    `
+    const res = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' })
+    const out = res.status === 0 ? JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') : { error: res.stderr.slice(-400) }
+    check(
+      'seatBridge.detachExternalSeat still retires session descriptor when endAgentSession fails',
+      out.retired === true,
+      JSON.stringify(out),
+    )
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
