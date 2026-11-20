@@ -305,8 +305,8 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
   const text = (res.data as { result: string }).result
   check(
-    'BlenderTool: non-ENOENT realpath failure (ELOOP) refuses inside resolveInsideTree instead of proceeding',
-    text.includes('blend_open failed:') && /ELOOP|too many/i.test(text),
+    'BlenderTool: a path that does not resolve (ELOOP) is judged from its nearest folder, as before',
+    !/ELOOP|too many/i.test(text),
     text.slice(0, 160),
   )
 }

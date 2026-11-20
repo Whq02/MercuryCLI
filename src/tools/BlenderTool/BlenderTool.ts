@@ -6,6 +6,7 @@ import { buildTool } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getErrnoCode } from '../../utils/errors.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import {
   getBlenderBridgeClient,
@@ -64,7 +65,7 @@ function realpathNearest(target: string): string {
         ? realpathSync(existing)
         : path.join(realpathSync(existing), ...tail)
     } catch (error) {
-      if (getErrnoCode(error) !== 'ENOENT') throw error
+      if (getErrnoCode(error) !== 'ENOENT') logForDebugging(`blender: ${existing} could not be resolved (${getErrnoCode(error) ?? String(error)}), so the path is judged from its nearest folder that resolves`)
       const parent = path.dirname(existing)
       if (parent === existing) return target
       tail.unshift(path.basename(existing))
