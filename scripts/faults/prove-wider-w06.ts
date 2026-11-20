@@ -457,5 +457,119 @@ console.log('\nw06-5: agents/store.discardAgentDraft and studioEditorModel — f
   check('studioEditorModel surfaces removal failure sentence on declineRecover and save', declineNote?.text === expected && saveNote?.text === expected && String(r.savedMessage ?? '').includes(expected), JSON.stringify({ declineNote, saveNote, savedMessage: r.savedMessage }))
 }
 
+console.log('\nw06-6: extensions/load/servers and reload — failed dataDir mkdir and media server env surface in reload receipt')
+{
+  const r = runScenario(`
+    const { setCwdState, setOriginalCwd, setProjectRoot } = await import(path.join(SRC, 'bootstrap/state.ts'))
+    setCwdState(SCRATCH)
+    setOriginalCwd(SCRATCH)
+    setProjectRoot(SCRATCH)
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const { updateSettingsForSource } = await import(path.join(SRC, 'utils/settings/settings.ts'))
+    const { MEDIA_EXTENSION_ID } = await import(path.join(SRC, 'services/media/settings.ts'))
+    const { setSwitch } = await import(path.join(SRC, 'extensions/install.ts'))
+    const { getExtensionDataDir } = await import(path.join(SRC, 'extensions/paths.ts'))
+    const { reloadExtensions } = await import(path.join(SRC, 'extensions/reload.ts'))
+    const { getExtensionMcpServers } = await import(path.join(SRC, 'extensions/load/servers.ts'))
+
+    setSwitch(MEDIA_EXTENSION_ID, true)
+    updateSettingsForSource('userSettings', { media: { serverPath: 'relative/not-absolute.js' } })
+    const dataDir = getExtensionDataDir(MEDIA_EXTENSION_ID)
+    fs.mkdirSync(path.dirname(dataDir), { recursive: true })
+    fs.writeFileSync(dataDir, 'file-blocking-dir', 'utf8')
+
+    const bad = await reloadExtensions({ cwd: SCRATCH })
+    out.badLine = bad.line
+    out.badWarnings = bad.warnings ?? null
+    out.dataDir = dataDir
+    out.serversWhenBad = Object.keys(getExtensionMcpServers())
+
+    fs.rmSync(dataDir, { force: true })
+    const okRoot = path.join(SCRATCH, 'media-root')
+    const okServer = path.join(SCRATCH, 'media-server.js')
+    fs.mkdirSync(okRoot, { recursive: true })
+    fs.writeFileSync(okServer, '', 'utf8')
+    updateSettingsForSource('userSettings', { media: { root: okRoot, serverPath: okServer } })
+    const ok = await reloadExtensions({ cwd: SCRATCH })
+    out.okLine = ok.line
+    out.okWarnings = ok.warnings ?? null
+    out.serversWhenOk = Object.keys(getExtensionMcpServers())
+  `)
+  const dataDir = String(r.dataDir ?? '')
+  const badLine = String(r.badLine ?? '')
+  const okLine = String(r.okLine ?? '')
+  const serversWhenBad = (r.serversWhenBad as string[] | undefined) ?? []
+  const serversWhenOk = (r.serversWhenOk as string[] | undefined) ?? []
+  check('reloadExtensions receipt includes dataDir mkdir failure and media server load failure while keeping other servers', badLine.includes(`mercury-media: its data folder ${dataDir} could not be made (`) && badLine.includes('mercury-media: its media server was not loaded (media.serverPath must be an absolute path.)') && serversWhenBad.length >= 3, JSON.stringify({ badLine, badWarnings: r.badWarnings, serversWhenBad }))
+  check('reloadExtensions stays quiet and loads media server when dataDir and media settings succeed', r.okWarnings === null && !okLine.includes('could not be made') && !okLine.includes('was not loaded') && serversWhenOk.some(s => s.includes('mercury-media')), JSON.stringify({ okLine, okWarnings: r.okWarnings, serversWhenOk }))
+}
+
+console.log('\nw06-7: useDiffData and DiffDialog — failed git diff fetch carries error and displays load failure sentence')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const gitDiffPath = path.join(SRC, 'utils/gitDiff.ts')
+    const realGitDiff = await import(gitDiffPath)
+    let mode = 'throw'
+    mock.module(gitDiffPath, () => ({
+      ...realGitDiff,
+      fetchGitDiff: async () => {
+        if (mode === 'throw') throw new Error('git exited 128: dubious ownership')
+        return null
+      },
+      fetchGitDiffHunks: async () => new Map(),
+      fetchGitDiffFor: async () => {
+        if (mode === 'throw') throw new Error('git exited 128: dubious ownership')
+        return null
+      },
+      fetchGitDiffHunksFor: async () => new Map(),
+    }))
+    const React = await import('react')
+    const { Box } = await import(path.join(SRC, 'ink.ts'))
+    const { AppStateProvider } = await import(path.join(SRC, 'state/AppState.tsx'))
+    const { getDefaultAppState } = await import(path.join(SRC, 'state/AppStateStore.ts'))
+    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
+    const { KeybindingSetup } = await import(path.join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
+    const { DiffDialog } = await import(path.join(SRC, 'components/diff/DiffDialog.tsx'))
+    const { mountOffscreen, waitFor } = await import(path.join(REPO, 'scripts/lib/settingsPopupHarness.ts'))
+
+    const renderDiff = async () => {
+      const el = React.createElement(
+        AppStateProvider,
+        { initialState: getDefaultAppState() },
+        React.createElement(
+          ThemeProvider,
+          {},
+          React.createElement(
+            KeybindingSetup,
+            null,
+            React.createElement(
+              Box,
+              { flexDirection: 'column', width: 120, height: 24 },
+              React.createElement(DiffDialog, { messages: [], onDone: () => {} }),
+            ),
+          ),
+        ),
+      )
+      const m = await mountOffscreen(el, 120, 24)
+      await waitFor(() => !m.lines().some(l => l.includes('Reading the diff')), 3000)
+      const text = m.lines().map(l => l.trim()).filter(Boolean).join('\\n')
+      m.unmount()
+      return text
+    }
+
+    out.errorScreen = await renderDiff()
+    mode = 'clean'
+    out.cleanScreen = await renderDiff()
+  `)
+  const errorScreen = String(r.errorScreen ?? '')
+  const cleanScreen = String(r.cleanScreen ?? '')
+  check('DiffDialog shows "Git diff could not be loaded (<error>) — try again." instead of clean tree on fetch failure', errorScreen.includes('Git diff could not be loaded (git exited 128: dubious ownership) — try again.') && !errorScreen.includes('The working tree is clean.'), errorScreen.slice(0, 300))
+  check('DiffDialog still shows "The working tree is clean." when git diff succeeds with no changes', cleanScreen.includes('The working tree is clean.') && !cleanScreen.includes('Git diff could not be loaded'), cleanScreen.slice(0, 300))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)

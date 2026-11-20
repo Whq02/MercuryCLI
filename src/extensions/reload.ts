@@ -9,7 +9,7 @@ import { clearExtensionAgentCache } from './load/agents.js'
 import { clearExtensionCommandCaches, getExtensionCommands, getExtensionSkills } from './load/commands.js'
 import { loadExtensionHooks } from './load/hooks.js'
 import { clearExtensionLspServerCache, getExtensionLspServers } from './load/language.js'
-import { clearExtensionMcpServerCache, getExtensionMcpServers } from './load/servers.js'
+import { clearExtensionMcpServerCache, loadExtensionMcpServers } from './load/servers.js'
 import { activeEntries, setActiveSnapshot, type ActiveSnapshot } from './roster.js'
 
 type ReloadCounts = {
@@ -26,7 +26,7 @@ type ReloadCounts = {
   keybindings: number
 }
 
-export type ReloadResult = { set: ActiveSet; counts: ReloadCounts; line: string }
+export type ReloadResult = { set: ActiveSet; counts: ReloadCounts; line: string; warnings?: readonly string[] }
 
 function reloadLine(counts: ReloadCounts): string {
   const parts = [
@@ -57,7 +57,7 @@ export async function reloadExtensions(options: { cwd?: string; onServersChanged
       clearAgentDefinitionsCache()
       const hooks = loadExtensionHooks()
       clearExtensionMcpServerCache()
-      const servers = getExtensionMcpServers()
+      const { servers, warnings } = loadExtensionMcpServers()
       options.onServersChanged?.()
       clearExtensionLspServerCache()
       const language = getExtensionLspServers()
@@ -100,9 +100,10 @@ export async function reloadExtensions(options: { cwd?: string; onServersChanged
         language: Object.keys(language).length,
         keybindings,
       }
-      const line = reloadLine(counts)
+      const baseLine = reloadLine(counts)
+      const line = warnings.length > 0 ? `${baseLine} · ${warnings.join(' · ')}` : baseLine
       logForDebugging(line)
-      return { set, counts, line }
+      return warnings.length > 0 ? { set, counts, line, warnings } : { set, counts, line }
     } finally {
       reloading = null
     }
