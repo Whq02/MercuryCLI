@@ -382,5 +382,28 @@ console.log('\n§8 w10-8 — createBaselineWorktree catches scratch lease error,
   check('w10-8: removes newly added baseline worktree on lease error', r.targetLeftBehind === false && r.worktrees === 1, JSON.stringify(r))
 }
 
+console.log('\n§9 w10-9 — getSettingsWithAllErrors passes over ConfigAccessBeforeAllowedError and reports real MCP read throws')
+{
+  const r = runScenario(`
+    delete process.env.NODE_ENV
+    const { mkdirSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { getSettingsWithAllErrors } = await import(SRC + '/utils/settings/allErrors.ts')
+    const { enableConfigs } = await import(SRC + '/utils/config.ts')
+    out.beforeAllowedErrors = getSettingsWithAllErrors().errors
+    enableConfigs()
+    mkdirSync(join(HOME, '.mercury.json'), { recursive: true })
+    out.afterUnreadableErrors = getSettingsWithAllErrors().errors
+  `)
+  const before = Array.isArray(r.beforeAllowedErrors) ? (r.beforeAllowedErrors as Array<{ message?: string }>) : []
+  const after = Array.isArray(r.afterUnreadableErrors) ? (r.afterUnreadableErrors as Array<{ message?: string; mcpErrorMetadata?: { scope?: string } }>) : []
+  check('w10-9: Config accessed before allowed guard is passed over with zero errors', before.length === 0, JSON.stringify(before))
+  check(
+    'w10-9: real MCP config read throw appends Failed to read MCP configuration file error',
+    after.some(e => typeof e.message === 'string' && e.message.startsWith('Failed to read MCP configuration file:') && e.mcpErrorMetadata?.scope === 'user'),
+    JSON.stringify(after),
+  )
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
