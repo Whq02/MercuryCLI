@@ -257,5 +257,53 @@ console.log('5. src/utils/cockpit/healthCertSnapshot.ts — corrupt or unreadabl
   )
 }
 
+console.log('6. src/utils/cockpit/mcpGauge.ts — policy or project MCP read failure reads unavailable')
+{
+  const rPolicy = runIsolated(`
+    const { mock } = await import('bun:test')
+    const realPolicy = await import(SRC + '/services/mcp/toolPolicy.ts')
+    mock.module(SRC + '/services/mcp/toolPolicy.js', () => ({
+      ...realPolicy,
+      getMaxExposedRisk: () => { throw new Error('policy read failed') },
+    }))
+    const { enableConfigs } = await import(SRC + '/utils/config/globalConfig.ts')
+    enableConfigs()
+    const { mcpGauge } = await import(SRC + '/utils/cockpit/mcpGauge.ts')
+    out.snap = mcpGauge()
+  `)
+  const snapPolicy = rPolicy.snap as { state?: string; reason?: string; data?: { mcpPolicyHint?: string } } | undefined
+  check(
+    'mcpGauge: throwing policy read returns unavailable instead of permissive default',
+    snapPolicy?.state === 'unavailable' && snapPolicy.reason === 'mcp config unreadable' && snapPolicy.data?.mcpPolicyHint !== 'high · permissive',
+    JSON.stringify(snapPolicy),
+  )
+
+  const rProj = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { enableConfigs } = await import(SRC + '/utils/config/globalConfig.ts')
+    const { setCwd } = await import(SRC + '/utils/Shell.ts')
+    const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import(SRC + '/bootstrap/state.ts')
+    const { resetTrustDialogAcceptedCacheForTesting } = await import(SRC + '/utils/config/trust.ts')
+    enableConfigs()
+    setCwd(PROJECT)
+    setOriginalCwd(PROJECT)
+    setProjectRoot(PROJECT)
+    setIsInteractive(false)
+    setSessionTrustAccepted(true)
+    resetTrustDialogAcceptedCacheForTesting()
+    fs.mkdirSync(path.join(PROJECT, '.mercury'), { recursive: true })
+    fs.writeFileSync(path.join(PROJECT, '.mercury', 'mcp.json'), '{ broken json')
+    const { mcpGauge } = await import(SRC + '/utils/cockpit/mcpGauge.ts')
+    out.corrupt = mcpGauge()
+  `)
+  const snapCorrupt = rProj.corrupt as { state?: string; reason?: string } | undefined
+  check(
+    'mcpGauge: unreadable or corrupt project MCP config reads unavailable',
+    snapCorrupt?.state === 'unavailable' && snapCorrupt.reason === 'mcp config unreadable',
+    JSON.stringify(snapCorrupt),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
