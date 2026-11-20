@@ -211,5 +211,51 @@ console.log('4. src/utils/cockpit/harnessMap.ts — throwing DAP probe does not 
   )
 }
 
+console.log('5. src/utils/cockpit/healthCertSnapshot.ts — corrupt or unreadable cert reads certificate unreadable')
+{
+  const r = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { lastCertPath } = await import(SRC + '/utils/healthReport.ts')
+    const { healthCertSnapshot } = await import(SRC + '/utils/cockpit/healthCertSnapshot.ts')
+    out.absent = healthCertSnapshot()
+    const certFile = lastCertPath()
+    fs.mkdirSync(path.dirname(certFile), { recursive: true })
+    fs.writeFileSync(certFile, '{ not valid json')
+    out.corrupt = healthCertSnapshot()
+    if (${JSON.stringify(POSIX_MODES)}) {
+      fs.writeFileSync(certFile, '{"verdict":"pass"}', { mode: 0o600 })
+      fs.chmodSync(certFile, 0o200)
+      try {
+        out.unreadable = healthCertSnapshot()
+      } finally {
+        fs.chmodSync(certFile, 0o600)
+      }
+    }
+  `)
+  const absent = r.absent as { state?: string; reason?: string } | undefined
+  const corrupt = r.corrupt as { state?: string; reason?: string } | undefined
+  const unreadable = r.unreadable as { state?: string; reason?: string } | undefined
+  check(
+    'healthCertSnapshot: corrupt cert file reads certificate unreadable',
+    corrupt?.state === 'unavailable' && corrupt.reason === 'certificate unreadable',
+    JSON.stringify(corrupt),
+  )
+  if (POSIX_MODES) {
+    check(
+      'healthCertSnapshot: unreadable cert file reads certificate unreadable',
+      unreadable?.state === 'unavailable' && unreadable.reason === 'certificate unreadable',
+      JSON.stringify(unreadable),
+    )
+  } else {
+    skip('healthCertSnapshot: unreadable cert file', 'needs POSIX non-root chmod')
+  }
+  check(
+    'healthCertSnapshot: control absent cert still reads no certificate issued',
+    absent?.state === 'unavailable' && absent.reason === 'no certificate issued — run /health',
+    JSON.stringify(absent),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
