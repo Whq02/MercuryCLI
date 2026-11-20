@@ -162,5 +162,42 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   )
 }
 
+{
+  console.log('\nexecutionProjection.ts — failed service stop settles execution instead of staying stopping')
+  const r = runSub(`
+    const path = await import('node:path')
+    const proj = await import(path.join(SRC, 'services/projectServices/executionProjection.ts'))
+    const plane = await import(path.join(SRC, 'services/primitives/executionPlane.ts'))
+    const owner = proj.serviceExecutionOwner(WORK)
+    const id1 = proj.serviceExecutionId('svc-reject')
+    const id2 = proj.serviceExecutionId('svc-err')
+    proj.installServiceExecutionDomain({
+      stop: async (_cwd, name) => {
+        if (name === 'svc-reject') throw new Error('kill refused')
+        return { error: 'no permission to stop' }
+      },
+    })
+    plane.registerExecution({ owner, id: id1, kind: 'service', label: 'svc-reject', lifecycle: 'session', cwd: WORK, metadata: { name: 'svc-reject' }, initialState: 'running' })
+    plane.registerExecution({ owner, id: id2, kind: 'service', label: 'svc-err', lifecycle: 'session', cwd: WORK, metadata: { name: 'svc-err' }, initialState: 'running' })
+    plane.requestStopExecution(owner, id1)
+    plane.requestStopExecution(owner, id2)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    out.rec1 = plane.getExecution(owner, id1)
+    out.rec2 = plane.getExecution(owner, id2)
+  `)
+  const rec1 = r.rec1 as { state?: string; outcome?: { reason?: string } } | null
+  const rec2 = r.rec2 as { state?: string; outcome?: { reason?: string } } | null
+  check(
+    'rejected stop settles execution to indeterminate with the error message',
+    rec1?.state === 'indeterminate' && (rec1.outcome?.reason ?? '').includes('kill refused'),
+    JSON.stringify(rec1),
+  )
+  check(
+    'error-result stop settles execution to indeterminate with the error message',
+    rec2?.state === 'indeterminate' && (rec2.outcome?.reason ?? '').includes('no permission to stop'),
+    JSON.stringify(rec2),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
