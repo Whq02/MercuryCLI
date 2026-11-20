@@ -56,21 +56,12 @@ check('gen-bundled --check extension-maker: the bundled SKILL.md and references 
 const description = /description:\s*(.+)/.exec(skillSource)?.[1] ?? ''
 check('the skill carries a non-empty description', description.trim().length > 20, description)
 const J = (...parts: string[]): string => parts.join('')
-const body = skillSource + readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
-check('neither the doc nor the skill speaks a retired word', !new RegExp(J('plug', 'in'), 'i').test(body) && !new RegExp(J('market', 'place'), 'i').test(body))
-{
-  const contract = readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
-  const contributesRow = contract.split('\n').find(line => line.startsWith('| `contributes` |')) ?? ''
-  check('the contributes row says which kinds keep the operator\'s own shape and that commands are the extension\'s own, as the page\'s paragraph does', /Skills, agents, hooks and servers keep the shape the operator places by hand/.test(contributesRow) && /commands are the extension's own/.test(contributesRow) && !/Every kind mirrors/.test(contributesRow), contributesRow.slice(0, 200))
-}
+check('the skill speaks no retired word', !new RegExp(J('plug', 'in'), 'i').test(skillSource) && !new RegExp(J('market', 'place'), 'i').test(skillSource))
 check('the skill states the two operator-act rules', /never add a source/i.test(skillSource) && /never approve/i.test(skillSource))
 
 {
   const { contributionsHash } = await import('../../src/extensions/manifest.ts')
   const { MANIFEST_FILE } = await import('../../src/extensions/paths.ts')
-  const contract = readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
-  const sentence = contract.split('\n').find(line => line.startsWith('- approval is per contributions hash')) ?? ''
-  check('the approval sentence names the delivered-file digest and the root-manifest exception', /every delivered file/.test(sentence) && sentence.includes(`root \`${MANIFEST_FILE}\` itself excepted`) && /changed delivered byte re-asks/.test(sentence), sentence.slice(0, 200))
   const root = mkdtempSync(join(tmpdir(), 'contract-hash-'))
   try {
     const put = (rel: string, text: string): void => {

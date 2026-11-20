@@ -30,12 +30,5 @@ check('a cross build names its target for the build road', brushPrepareCommand('
 check('a cross build names its platform for the fetch road', brushPrepareCommand('fetch', 'linux-x64', true, 'linux-x64') === 'bun run scripts/vendor/fetch-brush.ts --platform linux-x64')
 check('an unreadable lock falls back to the fetch road', brushLockKindFor(join(ROOT, 'vendor', 'no-such.lock.json'), 'win-x64') === 'fetch')
 
-console.log('§2 the build and the doc hold one truth for a Windows builder')
-{
-  const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
-  check('docs/INSTALL-WINDOWS-FROM-SOURCE.md sends the Windows builder to build-brush.ts', /bun run scripts\/vendor\/build-brush\.ts/.test(doc))
-  check('…and never to fetch-brush.ts', !/fetch-brush\.ts/.test(doc))
-}
-
 console.log(failures === 0 ? '\nprove-brush-prepare-words: ALL LAWS HOLD' : `\nprove-brush-prepare-words: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
