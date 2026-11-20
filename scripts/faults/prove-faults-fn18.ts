@@ -283,5 +283,27 @@ console.log('\nmoonshotUsageState — refreshKimiManagedUsage records error when
   check('moonshotUsageState-refresh-records-error: kimiManagedUsageError records thrown credential error', typeof r.error === 'string' && r.error.includes('token-refresh-boom'), JSON.stringify(r.error))
 }
 
+console.log('\nnousCallModel — resolveCredential rejects when credential read throws and returns undefined when absent')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const real = await import(path.join(SRC, 'services/providers/nous/nousAccounts.ts'))
+    let mode = 'throw'
+    mock.module(path.join(SRC, 'services/providers/nous/nousAccounts.js'), () => ({
+      ...real,
+      resolveNousCredential: async () => {
+        if (mode === 'throw') throw new Error('nous-cred-boom')
+        return undefined
+      },
+    }))
+    const mod = await import(path.join(SRC, 'services/providers/nous/nousCallModel.ts'))
+    out.rejected = await Promise.resolve(mod.nousLaneProfile.resolveCredential()).then(() => null, e => String(e?.message ?? e))
+    mode = 'absent'
+    out.absent = (await Promise.resolve(mod.nousLaneProfile.resolveCredential())) ?? null
+  `)
+  check('nousCallModel-resolve-credential-throws: resolveCredential rejects with credential read error and returns undefined when absent', r.rejected === 'nous-cred-boom' && r.absent === null, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
