@@ -99,6 +99,45 @@ try {
       else process.env.MERCURY_COMPAT_BASE_URL = prevCompatUrl
     }
   }
+
+  console.log('4. src/services/crew/dispatch.ts')
+  {
+    const { spawnSync } = await import('node:child_process')
+    const dir = join(SCRATCH, 'crew-dispatch')
+    mkdirSync(dir, { recursive: true })
+    const script = `
+      import { mock } from 'bun:test'
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      mock.module(${JSON.stringify(join(import.meta.dir, '../../src/services/crew/conversations.ts'))}, () => ({
+        appendConversationEvent: async () => { throw new Error('injected conversation store failure') },
+        resolveEventByRef: async () => { throw new Error('injected conversation store failure') },
+        upsertUnresolvedEvent: async () => { throw new Error('injected conversation store failure') },
+      }))
+      const { dispatchToAgent } = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/crew/dispatch.ts'))})
+      const { openObligations } = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/crew/obligations.ts'))})
+      const dir = ${JSON.stringify(dir)}
+      const receipt = await dispatchToAgent({
+        clientMessageId: 'dispatch-iso-1',
+        sourceConversationId: 'cv-iso-1',
+        requestedAddress: { agentId: 'cw-absent' },
+        requestedDisposition: 'hold-next',
+        instruction: 'check isolation',
+        attachments: [],
+      }, { dir })
+      const open = await openObligations({ scope: 'switchboard', dir })
+      process.stdout.write('\\n' + JSON.stringify({ state: receipt.state, recorded: open.some(o => o.ref === 'receipt:dispatch-iso-1') }))
+    `
+    const res = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' })
+    const out = res.status === 0 ? JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') : { error: res.stderr.slice(-400) }
+    check(
+      'dispatch.runDispatchTransaction records retry-or-withdraw obligation even when conversation store fails',
+      out.state === 'not-delivered' && out.recorded === true,
+      JSON.stringify(out),
+    )
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
