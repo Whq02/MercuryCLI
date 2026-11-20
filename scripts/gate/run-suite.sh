@@ -77,7 +77,7 @@ exec bash "$runner"
 second_look_stand_in() {
   {
     printf '#!%s\n' "$suite_bash"
-    printf 'second_look_green=%q\nsecond_look_real=%q\nsecond_look_path=%q\n' "$second_look/green" "$2" "$PATH"
+    printf 'second_look_green=%q\nsecond_look_real=%q\nsecond_look_dir=%q\n' "$second_look/green" "$2" "$second_look/path"
     if [ -n "${BUN+set}" ]; then printf 'export BUN=%q\n' "$BUN"; else printf 'unset BUN\n'; fi
     cat <<'STAND_IN'
 second_look_member=${1:-}
@@ -90,7 +90,10 @@ if [ -n "$second_look_member" ] && grep -qxF -- "$second_look_member" "$second_l
   printf 'second look: %s was green in the first attempt and is not run again\n' "$second_look_member"
   exit 0
 fi
-export PATH="$second_look_path"
+second_look_path=":$PATH:"
+second_look_path=${second_look_path//":$second_look_dir:"/:}
+second_look_path=${second_look_path#:}
+export PATH="${second_look_path%:}"
 exec "$second_look_real" "$@"
 STAND_IN
   } >"$1" && chmod +x "$1"
