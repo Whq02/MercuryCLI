@@ -214,5 +214,41 @@ function threwOf(fn: () => unknown): Error | null {
   }
 }
 
+{
+  console.log('\nuseChatDialogs-exit-failure')
+  const { mock } = await import('bun:test')
+  mock.module('../../src/commands/exit/exit.tsx', () => ({
+    call: async () => {
+      throw new Error('exit hook refused')
+    },
+  }))
+  const { mountPart } = await import('../ui/chatScenarios.ts')
+  const { waitFor } = await import('../lib/settingsPopupHarness.ts')
+  const { restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
+  const { useChatDialogs } = await import('../../src/screens/chat/useChatDialogs.tsx')
+  restoreWorktreeSession(null)
+  const notes: Array<{ key?: string; text?: string; color?: string }> = []
+  const mounted = await mountPart(store =>
+    useChatDialogs({
+      store,
+      addNotification: note => {
+        notes.push(note)
+      },
+    }),
+  )
+  try {
+    mounted.value().handleExit()
+    await waitFor(() => notes.length > 0, 3000)
+    await waitFor(() => mounted.value().isExiting === false, 3000)
+    check(
+      'failed exit command notifies the user instead of silently resetting',
+      notes.some(n => n.text === 'Could not exit (exit hook refused) — press ctrl+c to quit.' && n.color === 'error'),
+      JSON.stringify(notes),
+    )
+  } finally {
+    mounted.unmount()
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
