@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { useLoad } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import { exitNoteCharsKept, exitNoteDue, HANDOFF_EXIT_NOTICE, leaveNoteBeforeExit, type ExitNoteOutcome } from '../mneme/exitHandoff.js'
@@ -12,7 +12,7 @@ export function noteAskedAtExit(): boolean {
   return hasFocusedSession() || exitNoteDue()
 }
 
-export type ExitNoteReceipt = { note: ExitNoteOutcome; noteChars?: number }
+export type ExitNoteReceipt = { note: ExitNoteOutcome; noteChars?: number; detail?: string }
 
 export async function leaveNoteAtExit(signal: AbortSignal): Promise<ExitNoteReceipt> {
   if (!hasFocusedSession()) {
@@ -21,15 +21,21 @@ export async function leaveNoteAtExit(signal: AbortSignal): Promise<ExitNoteRece
     return { note, ...(kept === null ? {} : { noteChars: kept }) }
   }
   const receipt = await getFocusedSessionConnector().leave({ signal })
-  return { note: receipt.note, ...(receipt.noteChars === undefined ? {} : { noteChars: receipt.noteChars }) }
+  return {
+    note: receipt.note,
+    ...(receipt.noteChars === undefined ? {} : { noteChars: receipt.noteChars }),
+    ...(receipt.detail === undefined ? {} : { detail: receipt.detail }),
+  }
 }
 
 export function ExitHandoff({ onSettled }: { onSettled: (receipt: ExitNoteReceipt) => void }): React.ReactNode {
   const controller = useRef(new AbortController())
   const settled = useRef(false)
+  const [detail, setDetail] = useState<string | null>(null)
   const settle = (receipt: ExitNoteReceipt): void => {
     if (settled.current) return
     settled.current = true
+    if (receipt.detail !== undefined && receipt.detail !== '') setDetail(receipt.detail)
     onSettled(receipt)
   }
   useLoad(() => {
@@ -42,8 +48,9 @@ export function ExitHandoff({ onSettled }: { onSettled: (receipt: ExitNoteReceip
     }
   })
   return (
-    <Box>
+    <Box flexDirection="column">
       <Text color={FAINT}>{HANDOFF_EXIT_NOTICE}</Text>
+      {detail !== null && <Text color={FAINT}>{detail}</Text>}
     </Box>
   )
 }

@@ -152,8 +152,21 @@ export class VerbsPart {
   }
 
   async leave(opts?: { signal?: AbortSignal }): Promise<LeaveReceiptV1> {
+    let interruptFailure: string | null = null
     const skip = (): void => {
-      void this.needs.rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID() }).catch(passedOver)
+      void this.needs
+        .rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID() })
+        .then(
+          reply => {
+            if (reply.ok !== true || reply.outcome === 'refused') {
+              interruptFailure = String(reply.detail ?? reply.error ?? 'refused')
+            }
+          },
+          error => {
+            passedOver(error)
+            interruptFailure = error instanceof Error ? error.message : String(error)
+          },
+        )
     }
     if (opts?.signal?.aborted) return { note: 'none', detail: 'the handoff was skipped' }
     opts?.signal?.addEventListener('abort', skip, { once: true })
@@ -164,9 +177,13 @@ export class VerbsPart {
         { op: 'sessionControl', action: 'leave', sessionId: this.needs.record().sessionId, by: 'operator' },
         { timeoutMs: LEAVE_RPC_TIMEOUT_MS },
       )) as Record<string, unknown>
-      if (reply.ok !== true) return { note: 'none', detail: String(reply.error ?? 'the daemon refused the verb') }
+      const interruptDetail =
+        interruptFailure !== null
+          ? `the handoff could not be interrupted (${interruptFailure}) — the turn may still be running`
+          : undefined
+      if (reply.ok !== true) return { note: 'none', detail: interruptDetail ?? String(reply.error ?? 'the daemon refused the verb') }
       const detail = typeof reply.detail === 'string' ? reply.detail : undefined
-      if (reply.outcome !== 'applied') return { note: 'none', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+      if (reply.outcome !== 'applied') return { note: 'none', detail: interruptDetail ?? detail ?? `unexpected outcome ${String(reply.outcome)}` }
       let answer: { note?: unknown; noteChars?: unknown } = {}
       try {
         answer = JSON.parse(detail ?? '{}') as { note?: unknown; noteChars?: unknown }
@@ -174,10 +191,17 @@ export class VerbsPart {
         answer = {}
       }
       if (answer.note === 'stored' || answer.note === 'skipped' || answer.note === 'none') {
-        return { note: answer.note, ...(typeof answer.noteChars === 'number' && Number.isInteger(answer.noteChars) && answer.noteChars >= 0 ? { noteChars: answer.noteChars } : {}) }
+        return {
+          note: answer.note,
+          ...(typeof answer.noteChars === 'number' && Number.isInteger(answer.noteChars) && answer.noteChars >= 0 ? { noteChars: answer.noteChars } : {}),
+          ...(interruptDetail !== undefined ? { detail: interruptDetail } : {}),
+        }
       }
-      return { note: 'none', detail: detail ?? 'the runner answered the leave with a receipt the screen cannot read' }
+      return { note: 'none', detail: interruptDetail ?? detail ?? 'the runner answered the leave with a receipt the screen cannot read' }
     } catch (e) {
+      if (interruptFailure !== null) {
+        return { note: 'none', detail: `the handoff could not be interrupted (${interruptFailure}) — the turn may still be running` }
+      }
       return { note: 'none', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
     } finally {
       opts?.signal?.removeEventListener('abort', skip)
