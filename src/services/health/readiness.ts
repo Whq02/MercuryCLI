@@ -30,7 +30,7 @@ import { unityLaneReadinessRecords } from '../lsp/unityLane.js'
 import { unityBridgeReadinessRecords } from '../ide/unityBridgeSession.js'
 import { blenderBridgeReadinessRecords } from '../ide/blenderBridgeSession.js'
 import { blenderLaneReadinessRecords } from '../../utils/blender/blenderProject.js'
-import { mercuryUnityEnabled } from '../ide/unityProject.js'
+import { mercuryUnityEnabled } from '../../utils/unity/unityProject.js'
 import {
   resolveUnityDebugAdapter,
   UNITY_ADAPTER_ARM_HINT,

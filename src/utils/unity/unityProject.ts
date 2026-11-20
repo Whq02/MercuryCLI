@@ -3,11 +3,11 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
-import { getCwd } from '../../utils/cwd.js'
-import { projectFolderPath } from '../../utils/projectHomeStores.js'
-import { whichSync } from '../../utils/which.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { getCwd } from '../cwd.js'
+import { projectFolderPath } from '../projectHomeStores.js'
+import { whichSync } from '../which.js'
+import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 const ROOT_WALK_LIMIT = 24
 
