@@ -42,7 +42,7 @@ import type { Store } from '../state/store.js'
 import { applyMergedConfigEnv, typedString, writeErr, type RootOptions } from './cli.js'
 import { startDeferredPrefetches } from './deferredPrefetches.js'
 import { passedOver } from '../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { withDeadline } from '../utils/deadline.js'
 
 async function connectMcpBatch(
   configs: Record<string, ScopedMcpServerConfig>,
@@ -336,10 +336,6 @@ async function connectAnthropicConnectors(store: {
 }): Promise<void> {
   const strictOrBare = isBareMode()
   if (strictOrBare || doesEnterpriseMcpConfigExist()) return
-  const timerBox: { timer?: ReturnType<typeof setTimeout> } = {}
-  const bound = new Promise<'timeout'>(resolveTimeout => {
-    timerBox.timer = startTimeout(() => resolveTimeout('timeout'), 5000)
-  })
   const work = (async () => {
     const connectors = await fetchAnthropicConnectorsIfEligible()
     if (!connectors || Object.keys(connectors).length === 0) return
@@ -400,8 +396,7 @@ async function connectAnthropicConnectors(store: {
     }
     await connectMcpBatch(surviving, store.setState)
   })()
-  const raced = await Promise.race([work, bound])
-  if (timerBox.timer !== undefined) stopTimeout(timerBox.timer)
+  const raced = await withDeadline(work, 5000, () => 'timeout' as const)
   if (raced === 'timeout') {
     logForDebugging('claude.ai connectors were not ready within 5s; continuing')
   }
