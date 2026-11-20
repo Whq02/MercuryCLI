@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { type DOMElement } from '../ink.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
+import { useMeasure } from '../hooks/effects.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { closeCrewView, crewViewVersion, isCrewViewOpen, subscribeCrewView } from '../utils/cockpit/crewView.js'
 import { CrewView } from './mercury-ui/screens/CrewView.js'
@@ -26,7 +27,7 @@ export function CrewViewSlot({ hostRef, bandRef, framed }: { hostRef: React.RefO
   const open = isCrewViewOpen()
   const [host, setHost] = useState<ModelPickerPopupHost | null>(null)
   const [band, setBand] = useState<PopupBand | null>(null)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (!open) return
     const element = hostRef.current
     if (!element) return
