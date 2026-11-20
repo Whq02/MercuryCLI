@@ -1,6 +1,6 @@
 
-import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
-import type { RepoSurfaceFacts } from '../../utils/cockpit/repoSurfaceMap.js'
+import { isEnvDefinedFalsy } from '../envUtils.js'
+import type { RepoSurfaceFacts } from '../cockpit/repoSurfaceMap.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function projectIntelEnabled(): boolean {
