@@ -10,7 +10,7 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { DapTerminalRunner } from './dapTerminal.js'
 import { createServer as createNetServer, type Socket } from 'node:net'
 import type { OwnerKey } from '../run/ownerKey.js'
-import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
+import { dormantBuiltinAdapterHints, envAdapterTableError, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 import type { DapStartOptions } from './client/launch.js'
 import { FramePart } from './client/frame.js'
@@ -78,6 +78,7 @@ export {
   dapAdapterProbePending,
   debugToolWithholding,
   dormantBuiltinAdapterHints,
+  envAdapterTableError,
   isDapToolCatalogEnabled,
   knownAdapterKeys,
   mercuryDapEnabled,
@@ -447,6 +448,10 @@ export async function createDapSession(options: {
   terminalRunner?: DapTerminalRunner
 }): Promise<DapSession> {
   throwIfDapAborted(options.signal)
+  if (!options.specOverride) {
+    const envError = envAdapterTableError()
+    if (envError !== null) throw new Error(envError)
+  }
   const resolved = options.specOverride ?? resolveAdapter(options.adapterKey)
   if (!resolved) {
     const dormant = dormantBuiltinAdapterHints()

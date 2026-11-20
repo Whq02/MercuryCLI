@@ -30,6 +30,36 @@ import {
 import type { DapAdapterSpec } from './shared.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
+type EnvAdapterTable =
+  | { state: 'absent' }
+  | { state: 'ok'; table: Record<string, unknown> }
+  | { state: 'invalid'; detail: string }
+
+function readEnvAdapterTable(): EnvAdapterTable {
+  const raw = flagEnv('MERCURY_DAP_ADAPTERS')
+  if (!raw) return { state: 'absent' }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      const detail = 'expected a JSON object'
+      logForDebugging(`dap: MERCURY_DAP_ADAPTERS is not valid JSON (${detail}) — ignored`)
+      return { state: 'invalid', detail }
+    }
+    return { state: 'ok', table: parsed as Record<string, unknown> }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    logForDebugging(`dap: MERCURY_DAP_ADAPTERS is not valid JSON (${detail}) — ignored`)
+    return { state: 'invalid', detail }
+  }
+}
+
+export function envAdapterTableError(): string | null {
+  const envTable = readEnvAdapterTable()
+  return envTable.state === 'invalid'
+    ? `MERCURY_DAP_ADAPTERS is not valid JSON (${envTable.detail}), so the adapters it names are not used — fix or unset it`
+    : null
+}
+
 export function reachableDapAdapterKeys(): string[] {
   const reachable: string[] = []
   try {
@@ -51,14 +81,10 @@ export function reachableDapAdapterKeys(): string[] {
     for (const key of Object.keys(fileAdapterTable())) {
       if (!reachable.includes(key)) reachable.push(key)
     }
-    const raw = flagEnv('MERCURY_DAP_ADAPTERS')
-    if (raw) {
-      try {
-        for (const key of Object.keys(JSON.parse(raw) as Record<string, unknown>)) {
-          if (!reachable.includes(key)) reachable.push(key)
-        }
-      } catch (error) {
-        passedOver(error)
+    const envTable = readEnvAdapterTable()
+    if (envTable.state === 'ok') {
+      for (const key of Object.keys(envTable.table)) {
+        if (!reachable.includes(key)) reachable.push(key)
       }
     }
   } catch (error) {
@@ -96,12 +122,14 @@ export function debugToolWithholding(): { withheld: false } | { withheld: true; 
     ...dormantBuiltinAdapterHints('memo').map(h => `${h.key}: ${h.hint}`),
   ]
   const waiting = [lldbDapProbePending() ? 'xcrun -f lldb-dap' : null, gdbProbePending() ? 'gdb --version' : null].filter((w): w is string => w !== null)
+  const baseWhy =
+    waiting.length > 0
+      ? `no debug adapter is reachable on this machine yet — none of debugpy beside a python, lldb-dap on PATH, dlv, js-debug, rdbg, netcoredbg, dart, flutter, codelldb, php-debug, bash-debug-adapter or a configured adapter table, and the toolchain probe (${waiting.join(', ')}) has not answered — the tool joins at the next catalog build if it finds one`
+      : 'no debug adapter is reachable on this machine — none of debugpy beside a python, lldb-dap, gdb, dlv, js-debug, rdbg, netcoredbg, dart, flutter, codelldb, php-debug, bash-debug-adapter or a configured adapter table — so no launch could work'
+  const envError = envAdapterTableError()
   return {
     withheld: true,
-    why:
-      waiting.length > 0
-        ? `no debug adapter is reachable on this machine yet — none of debugpy beside a python, lldb-dap on PATH, dlv, js-debug, rdbg, netcoredbg, dart, flutter, codelldb, php-debug, bash-debug-adapter or a configured adapter table, and the toolchain probe (${waiting.join(', ')}) has not answered — the tool joins at the next catalog build if it finds one`
-        : 'no debug adapter is reachable on this machine — none of debugpy beside a python, lldb-dap, gdb, dlv, js-debug, rdbg, netcoredbg, dart, flutter, codelldb, php-debug, bash-debug-adapter or a configured adapter table — so no launch could work',
+    why: envError !== null ? `${envError} — ${baseWhy}` : baseWhy,
     remedy: `arm one — ${hints.join(' · ')} — then start a new session or /clear for the tool to join`,
   }
 }
@@ -173,15 +201,10 @@ function fileAdapterTable(): Record<string, DapAdapterSpec> {
 }
 
 export function resolveAdapter(key: string): DapAdapterSpec | null {
-  const raw = flagEnv('MERCURY_DAP_ADAPTERS')
-  if (raw) {
-    try {
-      const table = JSON.parse(raw) as Record<string, unknown>
-      const row = decodeAdapterRow(table?.[key])
-      if (row) return row
-    } catch (error) {
-      passedOver(error)
-    }
+  const envTable = readEnvAdapterTable()
+  if (envTable.state === 'ok') {
+    const row = decodeAdapterRow(envTable.table[key])
+    if (row) return row
   }
   const fromFile = fileAdapterTable()[key]
   if (fromFile) return fromFile
@@ -239,14 +262,10 @@ export function dormantBuiltinAdapterHints(read: 'live' | 'memo' = 'live'): Arra
 export function knownAdapterKeys(): string[] {
   const keys = new Set(Object.keys(builtinAdapters()))
   for (const k of Object.keys(fileAdapterTable())) keys.add(k)
-  const raw = flagEnv('MERCURY_DAP_ADAPTERS')
-  if (raw) {
-    try {
-      for (const k of Object.keys(JSON.parse(raw) as Record<string, unknown>)) {
-        keys.add(k)
-      }
-    } catch (error) {
-      passedOver(error)
+  const envTable = readEnvAdapterTable()
+  if (envTable.state === 'ok') {
+    for (const k of Object.keys(envTable.table)) {
+      keys.add(k)
     }
   }
   return [...keys].sort()
@@ -279,16 +298,11 @@ function isFlutterProgram(program: string): boolean {
 }
 
 export function adapterKeyForExtension(ext: string, program?: string): string | null {
-  const raw = flagEnv('MERCURY_DAP_ADAPTERS')
-  if (raw) {
-    try {
-      const table = JSON.parse(raw) as Record<string, unknown>
-      for (const [key, value] of Object.entries(table)) {
-        const row = decodeAdapterRow(value)
-        if (row?.fileTypes?.includes(ext)) return key
-      }
-    } catch (error) {
-      passedOver(error)
+  const envTable = readEnvAdapterTable()
+  if (envTable.state === 'ok') {
+    for (const [key, value] of Object.entries(envTable.table)) {
+      const row = decodeAdapterRow(value)
+      if (row?.fileTypes?.includes(ext)) return key
     }
   }
   for (const [key, row] of Object.entries(fileAdapterTable())) {
