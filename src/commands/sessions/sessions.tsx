@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { UUID } from 'crypto'
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
@@ -8,6 +8,7 @@ import { Spinner } from '../../components/Spinner.js'
 import { SessionManagerView } from '../../components/mercury-ui/screens/SessionManagerView.js'
 import { useIsInsideModal } from '../../context/modalContext.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { useLoad, useTimer } from '../../hooks/effects.js'
 import type { ResumeEntrypoint } from '../../commands.js'
 import type { LocalJSXCommandCall, LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import type { SessionListing } from '../../types/logs.js'
@@ -56,7 +57,7 @@ function SessionsErrorCard({
   message: string
   onDone: LocalJSXCommandOnDone
 }): React.ReactNode {
-  useEffect(() => {
+  useTimer(() => {
     const timer = setTimeout(() => onDone(undefined, { display: 'skip' }), 0)
     return () => clearTimeout(timer)
   }, [])
@@ -87,7 +88,7 @@ function SessionsLogPicker({
   const [resuming, setResuming] = useState(false)
   const worktreePathsRef = useRef<string[]>([])
 
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false
     void (async () => {
       try {
@@ -183,7 +184,7 @@ function SessionsByArgument({
   const [cardMessage, setCardMessage] = useState<string | null>(null)
   const ranRef = useRef(false)
 
-  useEffect(() => {
+  useLoad(() => {
     if (ranRef.current) return
     ranRef.current = true
     void (async () => {

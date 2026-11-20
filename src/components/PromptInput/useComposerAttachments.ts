@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import * as pendingInput from '../../input-core/pending-input.js'
 import type { Notification } from '../../context/notifications.js'
 import type { Message } from '../../types/message.js'
@@ -8,6 +8,7 @@ import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import type { LiveInputState } from '../../hooks/useTextInput.js'
+import { useClaim } from '../../hooks/effects.js'
 import { normalizePastedLines } from '../../input-core/composer-document.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
@@ -250,7 +251,7 @@ export function useComposerAttachments({
     },
   }
   setComposerInsert(insertAtomic)
-  useEffect(() => {
+  useClaim(() => {
     return () => {
       insertTextRef.current = null
       setComposerInsert(null)

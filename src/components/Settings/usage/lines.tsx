@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react'
+import React, { createContext, useContext, useState } from 'react'
 import { Box, Text } from '../../../ink.js'
+import { useLoad, useMeasure } from '../../../hooks/effects.js'
 import type { RateLimit } from '../../../services/api/usage.js'
 import { getEngineModel, renderModelName } from '../../../utils/model/model.js'
 import type { ProviderFamilyId } from '../../../services/providers/providerAdapter.js'
@@ -21,7 +22,7 @@ export const UsageLayoutContext = createContext<(() => void) | undefined>(undefi
 
 export function useUsageLayout(): void {
   const measure = useContext(UsageLayoutContext)
-  useLayoutEffect(() => { measure?.() })
+  useMeasure(() => { measure?.() })
 }
 
 export function humanizeUsageError(body: unknown): string | null {
@@ -222,7 +223,7 @@ export function FullWindowLine({ usage }: { usage: Pick<ActiveSourceUsage, 'wind
 export function useOwnerUsage(id: ProviderFamilyId, credentialed: boolean): ActiveSourceUsage {
   useUsageLayout()
   const [, setSample] = useState(0)
-  useEffect(() => {
+  useLoad(() => {
     if (!credentialed) return
     let disposed = false
     void refreshProviderUsage(id, { reason: 'open' }).then(() => {
