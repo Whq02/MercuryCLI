@@ -125,6 +125,8 @@ for (const [path, asset] of [
   ['src/components/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
   ['scripts/settings/gen-settings-schema.ts', 'scripts/settings/settings-schema.json'],
 ]) check('the real map covers new inputs, deleted imports and generator changes', generatedAssetsOwed({ rows: map.rows, commitPaths: [path!], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes(asset!)))
+const rampOwed = (text: string): boolean => generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/anywhere/rows.ts'], contentOf: () => text, readFile: () => null, chainedVerifies: [] }).some(owed => owed.row.generator === 'bun scripts/splash/bake-ramp.mjs')
+check("a changed file that holds the truecolor flag's row owes the splash core, wherever the registry keeps it", rampOwed("{ env: 'MERCURY_TRUECOLOR', kind: 'switch' }") && !rampOwed("{ env: 'MERCURY_OTHER', kind: 'switch' }"))
 check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
 
 section('§3 a real repository, through the gate reader')
@@ -437,6 +439,7 @@ section('§6 the build asks the generator of each file it ships')
   check('every row the build checks is a row the gate reads, with the same check', buildRows.every(row => map.rows.some(gateRow => gateRow.generator === row.generator && gateRow.check === row.check)))
   const carried = formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', check: 'bun scripts/check-a.mjs', sources: 'source.txt', build: true })
   check('a generator that sets build writes the fifth column, and the gate reads the row as before', carried.endsWith('\tsource.txt\tbuild') && parseGeneratedAssetsMap(carried).rows[0]?.check === 'bun scripts/check-a.mjs' && buildCheckedRows(carried).length === 1)
+  check('a table checked out with CRLF line ends still names its build rows', buildCheckedRows(`${carried}\r\n${carried.replace('gen-a', 'gen-c')}\r\n`).length === 2)
   let noCheck = ''
   try {
     formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', sources: 'source.txt', build: true })
