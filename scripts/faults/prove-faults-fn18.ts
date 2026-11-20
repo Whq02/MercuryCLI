@@ -218,5 +218,19 @@ console.log('\ntensorfoldUsage — failed served or hosts read answers undefined
   check('tensorfoldUsage-hosts-failed-undefined: throwing hosts read returns undefined instead of absent', JSON.stringify(r.hostsFailed) === JSON.stringify({ value: null }), JSON.stringify(r.hostsFailed))
 }
 
+console.log('\nlocalLiveness — failed pace store rename cleans up its temp file')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const live = await import(path.join(SRC, 'services/providers/localLiveness.ts'))
+    const storePath = live.localPaceStorePath()
+    fs.mkdirSync(storePath, { recursive: true })
+    live.recordLocalIngestPace({ wireModel: 'qwen3-8b', promptTokens: 5000, ingestMs: 10000 })
+    out.leftovers = fs.readdirSync(HOME).filter(name => name.startsWith(live.LOCAL_PACE_STORE_FILE + '.'))
+  `)
+  check('localLiveness-pace-tmp-cleaned: failed rename leaves no temp file behind', Array.isArray(r.leftovers) && r.leftovers.length === 0, JSON.stringify(r.leftovers))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
