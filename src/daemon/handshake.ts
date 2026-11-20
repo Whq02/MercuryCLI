@@ -440,14 +440,18 @@ async function classifyHello(reply: DaemonReply): Promise<HelloOutcome> {
 async function preHandshakeFacts(): Promise<{ live: number; liveSessions: number; pid: number | null; startedAt: number | null }> {
   const rec = await readDaemonState().catch(passedOverAs(null))
   const liveRecords = new Set<string>()
+  let recordsKnown = true
   try {
     const sup = await import('./concourseWorkers.js')
-    for (const r of Object.values(sup.readSessionWorkers())) {
+    const snapshot = sup.readSessionWorkersSnapshot()
+    if (snapshot.state !== 'known') recordsKnown = false
+    for (const r of Object.values(snapshot.state === 'known' ? snapshot.workers : {})) {
       if (r.endedAt !== undefined || r.attachedAt !== undefined) continue
       if (r.pid !== undefined && isProcessAlive(r.pid)) liveRecords.add(r.runnerId)
     }
   } catch (error) {
-    passedOver(error)
+    recordsKnown = false
+    logForDebugging(`[daemon] the session records could not be read for the live count, so every listed session counts as live: ${error}`)
   }
   let liveSessions = liveRecords.size
   let live = liveSessions
@@ -458,7 +462,7 @@ async function preHandshakeFacts(): Promise<{ live: number; liveSessions: number
     for (const j of list.jobs) {
       if (j.outcome) continue
       if (j.short.startsWith('concourse-w')) {
-        if (liveRecords.has(j.short)) liveSessions++
+        if (!recordsKnown || liveRecords.has(j.short)) liveSessions++
       } else {
         others++
       }
