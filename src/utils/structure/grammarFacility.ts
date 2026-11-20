@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
-import { logForDebugging } from '../../utils/debug.js'
+import { logForDebugging } from '../debug.js'
 import { HELD_TIER_NODE_FLAGS, optimisingTierCanBeHeld, withOptimisingTierHeld } from './wasmTiering.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -52,8 +52,8 @@ interface TreeSitterModule {
 
 
 import { GRAMMAR_REGISTRY, type GrammarRegistryEntry } from './grammarRegistry.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export type PolyglotLanguage = GrammarRegistryEntry
 

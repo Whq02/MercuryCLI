@@ -10,7 +10,7 @@ const { engineDir, packPresent } = armEnvironment()
 
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
 const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
-const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
+const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/utils/structure/grammarRegistry.ts'))
 const { astLanguageNames } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-search-'))
@@ -194,7 +194,7 @@ section('§11 — the descriptions')
 section('§12 — the lang field counts only the grammars the build carries')
 {
   const { execFileSync } = await import('node:child_process')
-  const { GRAMMAR_REGISTRY: registry } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
+  const { GRAMMAR_REGISTRY: registry } = await import(join(REPO, 'src/utils/structure/grammarRegistry.ts'))
   const packNames = (registry as Array<{ name: string; source?: string }>).filter(g => g.source === 'grammar-pack').map(g => g.name)
   const vscodeNames = (registry as Array<{ name: string; source?: string }>).filter(g => g.source !== 'grammar-pack').map(g => g.name)
   const probeRoot = mkdtempSync(join(tmpdir(), 'ast-clean-clone-'))

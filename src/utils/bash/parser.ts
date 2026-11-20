@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import type { TSNode } from '../../services/structure/grammarFacility.js'
+import type { TSNode } from '../structure/grammarFacility.js'
 import type { TsNode } from './bashParser.js'
 import { passedOver } from '../passedOver.js'
 
@@ -79,7 +79,7 @@ function snapshot(root: TSNode): Node {
 async function parseRaw(command: string): Promise<RawParse> {
   if (command === '' || command.length > LONGEST_PARSEABLE_COMMAND) return null
   try {
-    const { languageByName, loadGrammarEngine, parsePolyglot } = await import('../../services/structure/grammarFacility.js')
+    const { languageByName, loadGrammarEngine, parsePolyglot } = await import('../structure/grammarFacility.js')
     const engine = await loadGrammarEngine()
     const language = languageByName('bash')
     if (engine.state !== 'ok' || !language) return null

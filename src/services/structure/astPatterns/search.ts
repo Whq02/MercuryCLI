@@ -1,5 +1,5 @@
 import { readFileSync, statSync } from 'node:fs'
-import { loadGrammarEngine, parsePolyglot, type ParseErrorRegion, type TSNode } from '../grammarFacility.js'
+import { loadGrammarEngine, parsePolyglot, type ParseErrorRegion, type TSNode } from '../../../utils/structure/grammarFacility.js'
 import { encodePattern, findPatternMatches, type CaptureSpan, type CompiledPattern } from '../pattern.js'
 import { compileFor, type PatternRefusal } from '../polyglotQuery.js'
 import { AST_BOUNDS, PATTERN_GRAMMAR_LINES, PATTERN_EXAMPLES, LANGUAGE_PATTERN_EXAMPLES } from './languages.js'
