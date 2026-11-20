@@ -136,5 +136,40 @@ console.log('3 · xaiCallModel: resolveCredential propagates credential read or 
   })
 }
 
+console.log('4 · streamIdleBudget: estimateRequestTokens falls back to body length over four when estimator throws')
+{
+  const { spawnSync } = await import('node:child_process')
+  const { dirname, resolve } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const srcRoot = process.env.PROVE_SRC ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../src')
+  const tokenEstPath = join(srcRoot, 'services/tokenEstimation.ts')
+  const budgetPath = join(srcRoot, 'services/providers/streamIdleBudget.ts')
+  const { estimateRequestTokens } = await import('../../src/services/providers/streamIdleBudget.js')
+
+  const circular: Record<string, unknown> = { payload: 'a'.repeat(40_000) }
+  circular.self = circular
+  const circularEst = estimateRequestTokens(circular, 'test-model')
+  check('circular 40k body estimates about length/4 instead of 1', circularEst >= 9_000 && circularEst <= 12_000, `got ${circularEst}`)
+  check('undefined body still estimates as 1', estimateRequestTokens(undefined) === 1)
+
+  const script = `
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    process.env.NODE_ENV = 'test'
+    const { mock } = await import('bun:test')
+    const actual = await import(${JSON.stringify(tokenEstPath)})
+    mock.module(${JSON.stringify(tokenEstPath)}, () => ({
+      ...actual,
+      estimateRequestTokens: () => { throw new Error('estimator boom') },
+    }))
+    const { estimateRequestTokens } = await import(${JSON.stringify(budgetPath)})
+    const big = { messages: [{ role: 'user', content: 'x'.repeat(40_000) }] }
+    const est = estimateRequestTokens(big, 'test-model')
+    process.stdout.write(JSON.stringify({ est }))
+  `
+  const res = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' })
+  const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { est?: number }) : {}
+  check('throwing estimator on 40k body answers about length/4 instead of 1', res.status === 0 && typeof out.est === 'number' && out.est >= 9_000 && out.est <= 12_000, `${res.stderr.slice(-200)} ${JSON.stringify(out)}`)
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
