@@ -189,5 +189,21 @@ console.log('5 · qwenAccounts: malformed DASHSCOPE_BASE_URL refuses dispatch in
   check('valid DASHSCOPE_BASE_URL still resolves normally', ok?.requestUrl === 'https://example.invalid/v1/chat/completions')
 }
 
+console.log('6 · qwenLogin: malformed DASHSCOPE_BASE_URL refuses sign-in without probing or storing')
+{
+  const { storeQwenApiKeyLogin } = await import('../../src/services/providers/qwen/qwenLogin.js')
+  await withScratchConfig(async () => {
+    let fetched = 0
+    const env: NodeJS.ProcessEnv = { DASHSCOPE_BASE_URL: 'not a valid url' }
+    const out = await storeQwenApiKeyLogin('sk-fixture-qwen', {
+      env,
+      fetchImpl: (async () => {
+        fetched++
+        return new Response('{}', { status: 200 })
+      }) as unknown as typeof fetch,
+    })
+    check('malformed DASHSCOPE_BASE_URL refuses login with no network calls and nothing stored', !out.ok && !out.stored && fetched === 0 && out.receipt.includes('DASHSCOPE_BASE_URL is not a valid http(s) URL') && out.receipt.includes('fix or unset DASHSCOPE_BASE_URL, then retry.'), JSON.stringify({ out, fetched }))
+  })
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

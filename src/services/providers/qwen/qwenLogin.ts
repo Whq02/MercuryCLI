@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredQwenApiKey } from '../providerSecrets.js'
-import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenConsoleOfBase, qwenConsoleWords, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase, type QwenConsole } from './qwenAccounts.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenBaseOverrideError, qwenConsoleOfBase, qwenConsoleWords, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase, type QwenConsole } from './qwenAccounts.js'
 import { fetchQwenLiveModels, forgetQwenCatalogue, probeQwenEndpoints, qwenPinRows, QwenCatalogueHttpError } from './qwenCatalogue.js'
 import { qwenDisplayName } from './qwenPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
@@ -28,6 +28,8 @@ export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeo
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   let boundBase: string | undefined
+  const invalidOverride = qwenBaseOverrideError(env)
+  if (invalidOverride !== undefined) return { ok: false, stored: false, receipt: invalidOverride }
   const override = qwenBaseOverride(env)
   if (override !== undefined) {
     try {
