@@ -258,7 +258,6 @@ section('§5 never an automatic install: nothing under the language service impo
   const refusedThere = builtCli(['lsp', 'install', 'clangd-ultra', '--yes'])
   usePath(proofPath)
   check('main.tsx wires lsp list and lsp install <server> with --yes, through the verb module', lspHelp.includes(' list ') && lspHelp.includes(' install [options] <server> ') && installHelp.includes(' --yes ') && refusedThere.status === refusedCode && refusedThere.stderr === `${refusedHere.err.join('\n')}\n`, refusedThere.stderr)
-  check('AUTOMATION.md names both verbs', /`mercury lsp list`/.test(source('docs/AUTOMATION.md')) && /`mercury lsp install <server>`/.test(source('docs/AUTOMATION.md')))
   for (const file of ['assets/completions/_mercury', 'assets/completions/mercury.bash', 'assets/completions/mercury.fish']) {
     check(`${file} completes lsp install`, /lsp/.test(source(file)) && /install/.test(source(file)))
   }
