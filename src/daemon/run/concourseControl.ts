@@ -11,6 +11,7 @@ import { applyConcourseContractOp } from '../sessionContract.js'
 import { controlSessionAgent, applySeatScheduleControl, onSeatSpawned, pushScheduleRosterForSession, refreshSessionFacts, setSessionEffort, setSessionKitDial, actOnSessionMcp, listSessionMcpTools, setSessionModel, setSessionPermissionMode, setSessionSpawnSwitch, withdrawSessionSend, backgroundSessionShell, sendSessionNow, pauseSessionGate, postSessionBoard, leaveSession } from '../sessionSeat.js'
 import type { DaemonRunState } from './state.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { errorMessage } from '../../utils/errors.js'
 
 type ConcourseControlDoor = NonNullable<ControlServerDeps['concourseControl']>
 
@@ -72,7 +73,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
                   )
                 }
               })
-              .catch(err => logForDebugging(`[daemon] git-ready replay failed for ${folder}: ${err}`))
+              .catch(err => console.error(`[daemon] git-ready replay failed for ${folder}, so its held messages were not started: ${errorMessage(err)}`))
             return waiting
           },
           onDenyProceed: folder => {
@@ -86,7 +87,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
                     )
                   }
                 })
-                .catch(err => logForDebugging(`[daemon] deny-proceed replay failed for ${folder}: ${err}`))
+                .catch(err => console.error(`[daemon] deny-proceed replay failed for ${folder}, so its held messages were not started: ${errorMessage(err)}`))
             }
             return proceeding
           },
