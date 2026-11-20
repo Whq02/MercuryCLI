@@ -3,13 +3,16 @@ import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { getCachedPowerShellPath } from '../utils/shell/powershellDetection.js'
+import { foldPathCase } from '../utils/platform/paths.js'
+import { processStartProbeKind } from '../utils/platform/processes.js'
 
 const READ_WAIT_MS = 4_000
 
 async function commandLineOf(pid: number, platform: NodeJS.Platform): Promise<string | null> {
-  const file = platform === 'win32' ? (await getCachedPowerShellPath()) ?? 'powershell.exe' : 'ps'
+  const cim = processStartProbeKind(platform) === 'win32-cim'
+  const file = cim ? (await getCachedPowerShellPath()) ?? 'powershell.exe' : 'ps'
   return new Promise(done => {
-    const args = platform === 'win32'
+    const args = cim
       ? ['-NoProfile', '-Command', `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`]
       : ['-ww', '-o', 'args=', '-p', String(pid)]
     execFile(file, args, { env: { ...subprocessEnv(), LC_ALL: 'C' }, timeout: READ_WAIT_MS, windowsHide: true, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => {
@@ -37,7 +40,7 @@ function realOrResolved(p: string): string {
 
 export function sameScript(a: string | null, b: string | null, platform: NodeJS.Platform = process.platform): boolean {
   if (a === null || b === null || a === '' || b === '') return false
-  const fold = (p: string): string => (platform === 'win32' ? realOrResolved(p).toLowerCase() : realOrResolved(p))
+  const fold = (p: string): string => foldPathCase(realOrResolved(p), platform)
   return fold(a) === fold(b)
 }
 

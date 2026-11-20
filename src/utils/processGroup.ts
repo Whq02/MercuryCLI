@@ -7,6 +7,7 @@ import { sleep } from './sleep.js'
 import { pollUntil, withDeadline } from './deadline.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { processTreeEndMethod } from './platform/processes.js'
 
 
 export type ProcessTreeKillReceipt = {
@@ -523,7 +524,7 @@ export async function endProcessTree(
     }
   }
   try {
-    return process.platform === 'win32' ? await endWin32Tree(pid, spawnfile) : await endPosixTree(pid, signal)
+    return processTreeEndMethod() === 'win32-taskkill' ? await endWin32Tree(pid, spawnfile) : await endPosixTree(pid, signal)
   } catch {
     if (typeof target !== 'number') {
       try {
