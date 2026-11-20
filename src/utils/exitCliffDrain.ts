@@ -2,7 +2,8 @@ import { channel } from 'node:diagnostics_channel'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
 import { sleep } from './sleep.js'
-import { afterMicrotask, startTimeout, stopTimeout } from './timers.js'
+import { withDeadline } from './deadline.js'
+import { afterMicrotask } from './timers.js'
 
 const EXIT_CLIFF_DRAIN_CHANNEL = 'mercury:exit-cliff-drain'
 const drainChannel = channel(EXIT_CLIFF_DRAIN_CHANNEL)
@@ -42,33 +43,24 @@ function emptyReport(skipped: boolean): ExitCliffDrainReport {
 
 type ExitCliffGrace = {
   readonly spent: boolean
-  readonly fired: Promise<void>
+  remainingMs(): number
+  markSpent(): void
   elapsedMs(): number
-  disarm(): void
 }
 
 function armGrace(graceMs: number): ExitCliffGrace {
   const armedAt = performance.now()
-  let spent = false
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const fired = new Promise<void>(resolve => {
-    const fire = (): void => {
-      spent = true
-      resolve()
-    }
-    if (graceMs > 0) timer = startTimeout(fire, graceMs)
-    else fire()
-  })
+  const until = armedAt + graceMs
+  let spent = graceMs <= 0
   return {
     get spent() {
-      return spent
+      return spent || performance.now() >= until
     },
-    fired,
+    remainingMs: () => (spent ? 0 : Math.max(0, until - performance.now())),
+    markSpent: () => {
+      spent = true
+    },
     elapsedMs: () => Math.ceil(performance.now() - armedAt),
-    disarm: () => {
-      if (timer !== undefined) stopTimeout(timer)
-      timer = undefined
-    },
   }
 }
 
@@ -80,7 +72,8 @@ async function drainSeamsUnder(
   for (const phase of [1, 2, 3] as const) {
     const batch = list.filter(seam => seam.phase === phase)
     if (batch.length === 0) continue
-    if (grace.spent) {
+    const left = grace.remainingMs()
+    if (left <= 0) {
       report.abandoned.push(...batch.map(seam => seam.name))
       continue
     }
@@ -98,7 +91,7 @@ async function drainSeamsUnder(
           },
         ),
     )
-    await Promise.race([Promise.all(runs), grace.fired])
+    await withDeadline(Promise.all(runs), left, () => grace.markSpent())
     report.abandoned.push(...pending)
     pending.clear()
   }
@@ -110,11 +103,7 @@ export async function drainNamedSeams(
 ): Promise<ExitCliffDrainReport> {
   const grace = armGrace(graceMs)
   const report = emptyReport(false)
-  try {
-    await drainSeamsUnder(list, grace, report)
-  } finally {
-    grace.disarm()
-  }
+  await drainSeamsUnder(list, grace, report)
   report.elapsedMs = grace.elapsedMs()
   return report
 }
@@ -140,12 +129,8 @@ export async function drainExitCliffSeams(
   }
   const grace = armGrace(graceMs)
   const report = emptyReport(false)
-  try {
-    await drainSeamsUnder(listExitCliffSeams(), grace, report)
-    await turnLoopForTeardown(grace)
-  } finally {
-    grace.disarm()
-  }
+  await drainSeamsUnder(listExitCliffSeams(), grace, report)
+  await turnLoopForTeardown(grace)
   report.elapsedMs = grace.elapsedMs()
   if (report.settled.length + report.failed.length + report.abandoned.length > 0) {
     logForDebugging(

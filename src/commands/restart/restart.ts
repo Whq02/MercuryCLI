@@ -1,7 +1,7 @@
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import type { LocalCommandCall } from '../../types/command.js'
 import { RESTART_DURING_TURN, restartAlreadyCurrentWords } from './words.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 
 type RestartOutcome = { ok: true; line: string } | { ok: false; reason: string }
 
@@ -15,12 +15,20 @@ export async function startInstalledDaemon(installed: import('../../daemon/hando
   const { getCwd } = await import('../../utils/cwd.js')
   const { sameBuildTree } = await import('../../daemon/planeBoot.js')
   spawnOwnedDaemon(getCwd(), { label: 'switchboard', script: installed.script, ...(installed.node !== null ? { node: installed.node } : {}) })
-  let verdict = await handshakeDaemon({ timeoutMs: 500 })
-  for (let round = 0; round < INSTALLED_DAEMON_WAIT_ROUNDS && (verdict.daemon === null || verdict.state === 'starting' || !sameBuildTree(verdict.daemon.buildTree, installed.buildTree)); round++) {
-    await sleep(250)
-    verdict = await handshakeDaemon({ timeoutMs: 500 })
-  }
-  return verdict
+  let rounds = 0
+  let last: import('../../daemon/handshake.js').DaemonHandshakeVerdict | undefined
+  return pollUntil(
+    async () => {
+      const verdict = await handshakeDaemon({ timeoutMs: 500 })
+      last = verdict
+      if (verdict.daemon !== null && verdict.state !== 'starting' && sameBuildTree(verdict.daemon.buildTree, installed.buildTree)) return verdict
+      if (rounds++ >= INSTALLED_DAEMON_WAIT_ROUNDS) return verdict
+      return undefined
+    },
+    250,
+    Infinity,
+    () => last!,
+  )
 }
 
 export async function restartSessionOnInstalledBuild(args: {
@@ -89,13 +97,18 @@ export async function restartSessionOnInstalledBuild(args: {
     if (stop.ok !== true || stop.outcome === 'refused') {
       return { ok: false, reason: `the session was not stopped, so it stays as it is — ${stop.detail ?? stop.error ?? 'the daemon refused the stop'}` }
     }
-    const deadline = Date.now() + STOP_SETTLE_MS
-    let settled = standing()
-    while (settled !== undefined && (settled.stoppedAt === undefined || runnerAlive(settled)) && Date.now() < deadline) {
-      await sleep(100)
-      settled = standing()
-    }
-    if (settled === undefined) return { ok: false, reason: 'the session record left the board while it stopped — /sessions finds its transcript' }
+    const settled: NonNullable<ReturnType<typeof standing>> | null = await pollUntil(
+      () => {
+        const cur = standing()
+        if (cur === undefined) return null
+        if (cur.stoppedAt !== undefined && !runnerAlive(cur)) return cur
+        return undefined
+      },
+      100,
+      STOP_SETTLE_MS,
+      () => standing() ?? null,
+    )
+    if (settled === null) return { ok: false, reason: 'the session record left the board while it stopped — /sessions finds its transcript' }
     if (settled.stoppedAt === undefined || runnerAlive(settled)) {
       return { ok: false, reason: `the stop did not settle within ${STOP_SETTLE_MS / 1000} s — the board's ↵ resumes the session once it reads stopped` }
     }

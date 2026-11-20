@@ -1,6 +1,7 @@
 import { moveOf, programOf, wordKnown } from './layers.js'
 import { UNREAD_PART, type ReadRedirect, type Stage } from './reading.js'
 import type { Frame, Reading } from './total.js'
+import { keepWordsAsWritten } from './written.js'
 
 type PsTable = ReadonlyArray<readonly [string, string]>
 type PsToken = { value: string; text: string; inner: number[]; bare: boolean; other?: string | undefined; table?: PsTable | undefined }
@@ -305,6 +306,8 @@ function powerShellPipeline(this: PowerShellWalk, closer: string | undefined, ou
     const inner: number[][] = []
     const second: string[] = []
     const secondInner: number[][] = []
+    const written: string[] = []
+    const secondWritten: string[] = []
     let varied = false
     for (const [at, word] of (value ? [] : words).entries()) {
       const parts = word.bare && word.value.includes(',') && !word.value.includes(UNREAD_PART) ? word.value.split(',').filter(part => part !== '') : [word.value]
@@ -314,37 +317,40 @@ function powerShellPipeline(this: PowerShellWalk, closer: string | undefined, ou
       for (const part of parts) {
         argv.push(part)
         inner.push(word.inner)
+        written.push(parts.length === 1 ? word.text : part)
       }
       for (const part of splatted !== undefined ? splatted.flatMap(([key, held]) => [`-${key}`, held]) : swapped !== undefined ? [swapped] : parts) {
         second.push(part)
         secondInner.push(word.inner)
+        secondWritten.push(word.text)
       }
     }
     const readings = varied && moveOf({ argv: second, dialect: 'powershell' }) === undefined ? [argv, second] : [argv]
     if (argv.length > 0 || redirects.length > 0)
-      for (const reading of readings)
-        made.push(
-          this.reading.push({
-            argv: reading,
-            env: [],
-            redirects,
-            text: text.slice(start, this.at).trim(),
-            line: this.line(start),
-            cwd: this.reading.cwd,
-            background: background || this.frame.background,
-            stages,
-            input: undefined,
-            inner: reading === argv ? inner : secondInner,
-            inputInner: [],
-            body: this.frame.body,
-            dialect: 'powershell',
-            around: this.frame.around,
-            gates: this.gates.length > 0 ? this.gates : undefined,
-            maybes: this.maybes.length > 0 ? this.maybes : undefined,
-            called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
-            handed: before,
-          }),
-        )
+      for (const reading of readings) {
+        const index = this.reading.push({
+          argv: reading,
+          env: [],
+          redirects,
+          text: text.slice(start, this.at).trim(),
+          line: this.line(start),
+          cwd: this.reading.cwd,
+          background: background || this.frame.background,
+          stages,
+          input: undefined,
+          inner: reading === argv ? inner : secondInner,
+          inputInner: [],
+          body: this.frame.body,
+          dialect: 'powershell',
+          around: this.frame.around,
+          gates: this.gates.length > 0 ? this.gates : undefined,
+          maybes: this.maybes.length > 0 ? this.maybes : undefined,
+          called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
+          handed: before,
+        })
+        made.push(index)
+        keepWordsAsWritten(this.reading.commands[index], reading === argv ? written : secondWritten)
+      }
     if (stage === 0 && given !== null) {
       const table = given[2] === '=' && words.length === 1 ? words[0]!.table : undefined
       if (table === undefined) this.tables.delete(given[1]!.toLowerCase())

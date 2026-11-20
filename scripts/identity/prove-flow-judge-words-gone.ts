@@ -39,7 +39,7 @@ const productFiles = (dir: string): string[] =>
     if (statSync(path).isDirectory()) return productFiles(path)
     return /\.(tsx?|txt)$/.test(entry) && !entry.endsWith('.d.ts') ? [path] : []
   })
-const PUBLISHED_HISTORY = 'src/constants/changelog.ts'
+const PUBLISHED_HISTORY = 'src/constants/changelogArchive.ts'
 const files = productFiles(join(REPO, 'src'))
 const sources = new Map(files.map(path => [relative(REPO, path), readFileSync(path, 'utf8')]).filter(([rel]) => rel !== PUBLISHED_HISTORY))
 
