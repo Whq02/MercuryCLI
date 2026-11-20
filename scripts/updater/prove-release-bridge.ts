@@ -205,6 +205,7 @@ try {
         MERCURY_HOME: '',
         HOMEDRIVE: undefined,
         HOMEPATH: undefined,
+        MERCURY_LOCAL_PROBE_TARGETS: 'none',
         MERCURY_UPDATE_CHANNEL_REPO: 'fixture-owner/fixture-bridge-repo',
         MERCURY_GH_CMD: JSON.stringify(['node', fakeGhJs]),
         GH_SHIM_FIXTURES: fixtures,
@@ -243,6 +244,7 @@ try {
     MERCURY_HOME: '',
     HOMEDRIVE: undefined,
     HOMEPATH: undefined,
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
     CI: '1',
     TERM: 'dumb',
   })
