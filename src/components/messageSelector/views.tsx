@@ -31,6 +31,7 @@ export function pickView({
   tokens,
   messages,
   hasSavedPoint,
+  mutatingShellIds,
 }: {
   selectable: UserMessage[]
   checkpoints: CheckpointFactsV1
@@ -41,6 +42,7 @@ export function pickView({
   tokens: Tokens
   messages: Message[]
   hasSavedPoint: (uuid: string) => boolean
+  mutatingShellIds?: ReadonlySet<string> | null
 }): React.ReactNode {
   const nothingToRewind = selectable.length === 0 && checkpoints.undo === undefined
   const half = Math.floor(VISIBLE_ROWS / 2)
@@ -91,6 +93,7 @@ export function pickView({
               messages,
               entry.uuid,
               selectable[entryIndex + 1]?.uuid,
+              mutatingShellIds,
             )
           : null
         const canRestore = historyOn && hasSavedPoint(entry.uuid)
@@ -110,8 +113,14 @@ export function pickView({
                 {!canRestore
                   ? 'no saved files at this point'
                   : between.files.length === 0
-                    ? 'no code changes'
-                    : `${describeFiles(between.files)} +${between.insertions} -${between.deletions}`}
+                    ? between.shellCommands > 0
+                      ? between.shellCommands === 1
+                        ? '1 shell command ran — changes it made are not put back'
+                        : `${between.shellCommands} shell commands ran — changes they made are not put back`
+                      : 'no code changes'
+                    : between.shellCommands > 0
+                      ? `${describeFiles(between.files)} +${between.insertions} -${between.deletions} · ${between.shellCommands === 1 ? '1 shell command ran (not put back)' : `${between.shellCommands} shell commands ran (not put back)`}`
+                      : `${describeFiles(between.files)} +${between.insertions} -${between.deletions}`}
               </Text>
             ) : null}
           </Box>
@@ -277,6 +286,7 @@ export function confirmView({
   runRestore,
   storeStats,
   elsewhere,
+  shellCommandsAfter,
 }: {
   tokens: Tokens
   preview: ReturnType<typeof previewOf>
@@ -294,6 +304,7 @@ export function confirmView({
   runRestore: (what: 'both' | 'conversation' | 'code', files?: { filePath?: string; undo?: boolean; userMessageId?: string }) => Promise<void>
   storeStats: CodeStats | undefined
   elsewhere: string | null
+  shellCommandsAfter: number
 }): React.ReactNode {
   const codeLine = (value: string): string | null => {
     if (value === 'summarize') return null
@@ -301,7 +312,9 @@ export function confirmView({
     if (value === 'both' || value === 'code') {
       if (storeStats === undefined) return 'Asking the session what a restore would touch…'
       if (storeStats.filesChanged.length === 0) {
-        return 'The files already match this point.'
+        return shellCommandsAfter > 0
+          ? 'No Edit or Write changes to restore; shell commands ran after this point and what they changed is not put back.'
+          : 'The files already match this point.'
       }
       return `Restores ${describeFiles(storeStats.filesChanged)} +${storeStats.insertions} -${storeStats.deletions}.`
     }
@@ -362,6 +375,9 @@ export function confirmView({
         </Text>
         {codeLine(focusedConfirm) !== null ? (
           <Text dimColor>{codeLine(focusedConfirm)}</Text>
+        ) : null}
+        {shellCommandsAfter > 0 && storeStats !== undefined && storeStats.filesChanged.length > 0 && (focusedConfirm === 'both' || focusedConfirm === 'code') ? (
+          <Text dimColor>Shell commands also ran after this point — what they changed is not put back.</Text>
         ) : null}
         {elsewhere !== null && (focusedConfirm === 'both' || focusedConfirm === 'code') ? (
           <Text dimColor>{elsewhere}</Text>
