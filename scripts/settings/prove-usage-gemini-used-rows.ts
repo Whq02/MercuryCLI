@@ -138,6 +138,78 @@ const seeded = { 'claude-opus-4-8': { lastUsedAtMs: 50 }, [FLASH]: { lastUsedAtM
 check('a ledger handed in reads as before', j(geminiLaneModelsByLastUse(seeded)) === j([FLASH, 'google/claude-opus-4-6-thinking', 'gemini-4-argon']))
 state.resetCostState()
 
+section('§4 Gemini plan quota meter: used % matches Anthropic/xAI direction, and unknown is never 0% or 100%')
+{
+  const planQuotaMod = await import('../../src/services/providers/gemini/geminiPlanQuota.ts') as Record<string, unknown>
+  const meterOf = planQuotaMod.geminiPlanQuotaMeter as ((figure: Figure) => { title: string; window: { usedPct?: number; resetsAtMs?: number; source?: string } } | null) | undefined
+  check('geminiPlanQuotaMeter is exported for Gemini usage rows', typeof meterOf === 'function')
+  if (typeof meterOf === 'function') {
+    const fullLeft = meterOf(quotaFigure('gemini-4-neon-xhigh', 100))
+    check('100% left maps to 0% used with stripped title and preserved reset', fullLeft !== null && fullLeft.title === 'gemini-4-neon-xhigh' && fullLeft.window.usedPct === 0 && fullLeft.window.resetsAtMs === RESET, j(fullLeft))
+    const partialLeft = meterOf(quotaFigure('gemini-4-neon-xhigh', 79))
+    check('79% left maps to 21% used (same used/left direction as Anthropic & xAI)', partialLeft !== null && partialLeft.window.usedPct === 21, j(partialLeft))
+    const spent = meterOf(quotaFigure('gemini-4-neon-xhigh', 0))
+    check('0% left maps to 100% used', spent !== null && spent.window.usedPct === 100, j(spent))
+    for (const bad of ['', 'unknown', 'n/a', 'NaN%', '-5%', '120%']) {
+      const none = meterOf({ key: 'plan-quota:gemini-4-neon-xhigh', label: 'Gemini 4 Neon (XHigh) quota left', value: bad, observedAtMs: 1_800_000_000_000, source: 'endpoint', freshForMs: 300_000 })
+      check(`unknown or invalid value ${JSON.stringify(bad)} draws no meter (never 0% or 100%)`, none === null, j(none))
+    }
+  }
+  const { fetchGeminiPlanRoster } = await import('../../src/services/providers/gemini/geminiPlanAccess.ts')
+  const { geminiPlanRosterModels } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
+  const server = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    fetch(req) {
+      if (new URL(req.url).pathname === '/v1internal:fetchAvailableModels') {
+        return Response.json({
+          models: {
+            'gemini-4-neon-xhigh': { displayName: 'Gemini 4 Neon (XHigh)', quotaInfo: { remainingFraction: 1, resetTime: '2026-10-15T00:00:00Z' } },
+            'gemini-4-carbon-high': { displayName: 'Gemini 4 Carbon (High)', quotaInfo: { remainingFraction: 0.79, resetTime: '2026-10-15T00:00:00Z' } },
+            'gemini-4-absent-high': { displayName: 'Gemini 4 Absent', quotaInfo: { resetTime: '2026-10-15T00:00:00Z' } },
+            'gemini-4-null-high': { displayName: 'Gemini 4 Null', quotaInfo: { remainingFraction: null, resetTime: '2026-10-15T00:00:00Z' } },
+            'gemini-4-string-high': { displayName: 'Gemini 4 String', quotaInfo: { remainingFraction: '80', resetTime: '2026-10-15T00:00:00Z' } },
+          },
+          imageGenerationModelIds: [],
+        })
+      }
+      return new Response('not found', { status: 404 })
+    },
+  })
+  try {
+    const roster = await fetchGeminiPlanRoster({
+      accessToken: 'fixture-token',
+      env: { ...process.env, MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE: `http://127.0.0.1:${server.port}` },
+    })
+    const liveModels = geminiPlanRosterModels(roster)
+    const builtFigures: Figure[] = liveModels.flatMap(model => {
+      if (!model.quota || model.quota.remainingFraction === undefined) return []
+      return [{
+        key: `plan-quota:${model.id}`,
+        label: `${model.displayName ?? model.id} quota left`,
+        value: `${Math.round(model.quota.remainingFraction * 100)}%`,
+        observedAtMs: roster.fetchedAtMs,
+        ...(model.quota.resetTime !== undefined ? { resetsAtMs: Date.parse(model.quota.resetTime) } : {}),
+        source: 'endpoint',
+        freshForMs: 300_000,
+      }]
+    })
+    const keys = builtFigures.map(f => f.key)
+    check('loopback fetchAvailableModels omits models whose remainingFraction is absent, null, or string (never invents 0% or 100%)', j(keys) === j(['plan-quota:gemini-4-neon-xhigh', 'plan-quota:gemini-4-carbon-high']), j(keys))
+    const liveView = geminiPlanQuotaView(builtFigures, {
+      model: 'gemini-4-neon',
+      effort: 'xhigh',
+      usedModels: ['gemini-4-carbon-high', 'gemini-4-absent-high', 'gemini-4-null-high', 'gemini-4-string-high'],
+    })
+    check('unreported models (absent/null/string remainingFraction) are listed as unreported with no meter', j(liveView.unreported.map(u => u.model)) === j(['gemini-4-absent-high', 'gemini-4-null-high', 'gemini-4-string-high']), j(liveView.unreported))
+    const neonMeter = typeof meterOf === 'function' && liveView.active ? meterOf(liveView.active) : null
+    const carbonMeter = typeof meterOf === 'function' && liveView.used[0] ? meterOf(liveView.used[0]) : null
+    check('loopback model answering remainingFraction=1 draws 0% used; remainingFraction=0.79 draws 21% used', neonMeter?.window.usedPct === 0 && carbonMeter?.window.usedPct === 21, j({ neonMeter, carbonMeter }))
+  } finally {
+    server.stop(true)
+  }
+}
+
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-gemini-used-rows (${failures} failure${failures === 1 ? '' : 's'})`)
 process.exit(failures === 0 ? 0 : 1)
