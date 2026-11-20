@@ -82,7 +82,7 @@ export function transcriptHeadFacts(rec: { sessionId: string; workspaceId: strin
 }
 
 async function mintOne(rec: ConcourseWorkerRecordV1, description: string, signal: AbortSignal): Promise<boolean> {
-  const { generateSessionTitle } = await import('../../utils/sessionTitle.js')
+  const { generateSessionTitle } = await import('./sessionTitle.js')
   const title = await generateSessionTitle(description, signal)
   if (title === null) return false
   try {
