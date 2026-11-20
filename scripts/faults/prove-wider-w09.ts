@@ -170,5 +170,102 @@ function startFakeVulcanServer(
   }
 }
 
+{
+  console.log('\n2. w09-2: unreadable Vulcan instances dir, instance.json/token, and engine trees dir')
+  const instancesMod = await import(join(SRC, 'services/vulcan/instances.ts'))
+  const vulcanClientMod = await import(join(SRC, 'services/vulcan/vulcanClient.ts'))
+  const { GodotTool } = await import(join(SRC, 'tools/GodotTool/GodotTool.ts'))
+  const { buildGodotIdeSession, discoverGodotLaunchProfiles, _resetGodotSessionForTesting } = await import(join(SRC, 'services/ide/godotSession.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'services/run/ownerKey.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-2-')))
+  const restoreModes: Array<() => void> = []
+  const prevFlag = process.env.MERCURY_GODOT_TOOLS
+  process.env.MERCURY_GODOT_TOOLS = '1'
+  try {
+    const proj = join(scratch, 'proj')
+    const instRoot = join(proj, '.godot', 'mercury-vulcan')
+    mkdirSync(instRoot, { recursive: true })
+    writeFileSync(join(proj, 'project.godot'), 'config_version=5\n[application]\nconfig/name="W09Two"\n')
+
+    const scanFn = (instancesMod as { scanVulcanInstances?: (root: string) => { instances: unknown[]; unreadable: Array<{ path: string; error: string }> } }).scanVulcanInstances
+    check('w09-2 scanVulcanInstances is exported', typeof scanFn === 'function')
+
+    if (POSIX_MODES) {
+      chmodSync(instRoot, 0o000)
+      restoreModes.push(() => chmodSync(instRoot, 0o700))
+
+      const scan = scanFn ? scanFn(proj) : { instances: [], unreadable: [] }
+      check('w09-2 unreadable instances dir recorded in scan while list stays empty', instancesMod.listVulcanInstances(proj).length === 0 && scan.unreadable.some(u => u.path === instRoot), JSON.stringify(scan))
+
+      const toolOut = await runWithCwdOverride(proj, () =>
+        GodotTool.call({ op: 'editor_state' }, {} as never, {} as never, { uuid: '00000000-0000-4000-8000-000000000002' } as never),
+      )
+      const toolText = (toolOut.data as { result: string }).result
+      check('w09-2 GodotTool editor_state reports unreadable instances dir instead of no instance', toolText.includes(`the Godot instance at ${instRoot} could not be read (`), toolText)
+
+      const capOut = await runWithCwdOverride(proj, () =>
+        GodotTool.call({ op: 'project_capsule' }, {} as never, {} as never, { uuid: '00000000-0000-4000-8000-000000000003' } as never),
+      )
+      const capText = (capOut.data as { result: string }).result
+      check('w09-2 GodotTool project_capsule reports unreadable instances dir instead of static fallback', capText.includes(`the Godot instance at ${instRoot} could not be read (`), capText)
+
+      _resetGodotSessionForTesting()
+      const owner = makeOwnerKey({ workspace: proj, sessionId: 'w09-2', lane: 'main' })
+      const sess = await buildGodotIdeSession(owner, proj)
+      check('w09-2 buildGodotIdeSession reports unreadable instances dir instead of no editor', sess.vulcan.detail.includes(`the Godot instance at ${instRoot} could not be read (`), sess.vulcan.detail)
+
+      const disc = await discoverGodotLaunchProfiles(proj) as { instanceError?: string }
+      check('w09-2 discoverGodotLaunchProfiles reports unreadable instances dir', typeof disc.instanceError === 'string' && disc.instanceError.includes(`the Godot instance at ${instRoot} could not be read (`), JSON.stringify(disc))
+
+      chmodSync(instRoot, 0o700)
+
+      const badId = 'c'.repeat(32)
+      const badDir = join(instRoot, badId)
+      mkdirSync(badDir, { recursive: true, mode: 0o700 })
+      chmodSync(badDir, 0o700)
+      writeFileSync(join(badDir, 'instance.json'), '{not-json', { mode: 0o600 })
+      const badOut = await runWithCwdOverride(proj, () =>
+        GodotTool.call({ op: 'editor_state' }, {} as never, {} as never, { uuid: '00000000-0000-4000-8000-000000000004' } as never),
+      )
+      const badText = (badOut.data as { result: string }).result
+      check('w09-2 corrupt instance.json reported by GodotTool', badText.includes(`the Godot instance at ${badDir} could not be read (`), badText)
+
+      writeFileSync(
+        join(badDir, 'instance.json'),
+        JSON.stringify({ version: 1, id: badId, role: 'agent-editor', port: 6019, pid: process.pid, projectRoot: proj, ownerPid: process.pid }),
+        { mode: 0o600 },
+      )
+      writeFileSync(join(badDir, 'token'), 'not-a-valid-token', { mode: 0o600 })
+      const tokOut = await runWithCwdOverride(proj, () =>
+        GodotTool.call({ op: 'editor_state' }, {} as never, {} as never, { uuid: '00000000-0000-4000-8000-000000000005' } as never),
+      )
+      const tokText = (tokOut.data as { result: string }).result
+      check('w09-2 unreadable/invalid token reported by GodotTool while getVulcanClient returns null', vulcanClientMod.getVulcanClient(proj) === null && tokText.includes(`the Godot instance at ${badDir} could not be read (`), tokText)
+      rmSync(badDir, { recursive: true, force: true })
+
+      const treesDir = join(proj, '.mercury', 'engine', 'trees')
+      mkdirSync(treesDir, { recursive: true })
+      chmodSync(treesDir, 0o000)
+      restoreModes.push(() => chmodSync(treesDir, 0o700))
+      const treesOut = await runWithCwdOverride(proj, () =>
+        GodotTool.call({ op: 'editor_state' }, {} as never, {} as never, { uuid: '00000000-0000-4000-8000-000000000006' } as never),
+      )
+      const treesText = (treesOut.data as { result: string }).result
+      check('w09-2 unreadable engine trees dir reported by GodotTool', treesText.includes(`the Godot instance at ${treesDir} could not be read (`), treesText)
+      chmodSync(treesDir, 0o700)
+    }
+  } finally {
+    if (prevFlag === undefined) delete process.env.MERCURY_GODOT_TOOLS
+    else process.env.MERCURY_GODOT_TOOLS = prevFlag
+    vulcanClientMod.resetVulcanClientForTest()
+    for (const fn of restoreModes.reverse()) {
+      try { fn() } catch { void 0 }
+    }
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? 'PASS: prove-wider-w09' : `FAIL: prove-wider-w09 (${failures} failure(s))`)
 process.exit(failures === 0 ? 0 : 1)

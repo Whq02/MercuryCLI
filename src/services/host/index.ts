@@ -613,18 +613,23 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
         for (const endpoint of configuredCompatEndpoints()) {
           if (endpoint.hostPodId === run.pod.id || endpoint.name === run.record?.provider) removeLlmHostProvider(endpoint.name)
         }
-        if (run.record) { const { restoreRentingSession } = await import('./worker.js'); await restoreRentingSession(run.record) }
+        let restoreNote = ''
+        if (run.record) {
+          const { restoreRentingSessionOutcome } = await import('./worker.js')
+          const restored = await restoreRentingSessionOutcome(run.record)
+          if (restored.state === 'failed') restoreNote = ' · this session stays on a model that is gone (' + restored.detail + ') — run /model ' + run.record.sessionModelBefore
+        }
         removeHostRecord(run.pod.id)
         if (weightsChoice === 'delete' && volumeId) {
           const vastApi = vastClient()
           try { if (readKeptVolume(volumeId)?.kind === 'vast' && vastApi) await deleteVastKeptVolume(vastApi, volumeId); else await deleteKeptVolume(runpodOnly(run.api, 'Fast-load weights disks'), volumeId) } catch (error) {
-            const detail = words.terminatedPod + ' · weights disk ' + volumeId + ' deletion is not verified and it may still bill. Machines I’m paying for → Delete. ' + String(error)
+            const detail = words.terminatedPod + ' · weights disk ' + volumeId + ' deletion is not verified and it may still bill. Machines I’m paying for → Delete. ' + String(error) + restoreNote
             emit({ title: words.manage, words: detail, host: { id: run.pod.id, price: 0, startedAt: run.pod.createdAt, status: 'TERMINATED' } })
             return { ok: false, words: detail }
           }
         }
         const spent = hostSpendSoFar([{ status: 'RUNNING', cost: run.pod.cost, startedAt: run.pod.startedAt, createdAt: run.pod.createdAt }])
-        const endedWords = run.api.capabilities.managed ? 'HF endpoint terminated · no compute bills.' : words.terminatedPod.replace(/\.$/, '') + ' · ~$' + spent.toFixed(2) + ' + storage.'
+        const endedWords = (run.api.capabilities.managed ? 'HF endpoint terminated · no compute bills.' : words.terminatedPod.replace(/\.$/, '') + ' · ~$' + spent.toFixed(2) + ' + storage.') + restoreNote
         emit({ title: words.manage, words: endedWords, host: { id: run.pod.id, managed: run.api.capabilities.managed, price: 0, startedAt: run.pod.createdAt, status: 'TERMINATED' } })
         return { ...(run.saved ?? { ok: true }), words: endedWords }
       }

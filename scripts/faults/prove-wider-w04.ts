@@ -176,6 +176,92 @@ try {
       rmSync(secretsFile, { force: true })
     }
   }
+
+  {
+    const { runpodFixture } = await import('../host/runpodFixture.mjs')
+    const { createHostRoad } = await import('../../src/services/host/index.ts')
+    const { sweepHostIdle, HOST_IDLE_LIMIT_MS } = await import('../../src/services/host/idle.ts')
+    const { writeHostRecord, readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
+    const { saveVendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
+    const rp = await runpodFixture()
+    const daemonDir = join(home, 'daemon')
+    mkdirSync(daemonDir, { recursive: true, mode: 0o700 })
+    const workersFile = join(daemonDir, 'concourse-workers.json')
+    writeFileSync(workersFile, '{corrupt json\n', { mode: 0o600 })
+    try {
+      saveVendorKey('runpod', rp.key)
+      const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })
+      const offer = (await api.offers(new AbortController().signal))[0]!
+      const sessionId = '22222222-2222-4222-8222-222222222222'
+      const hostedModel = 'compat/pod-w04/qwen'
+      const priorModel = 'compat/local/base'
+
+      const pod1 = await api.create(offer, 'ssh-ed25519 fixture', 'w04-idle-restore')
+      const oldAt = Date.now() - HOST_IDLE_LIMIT_MS - 60_000
+      writeHostRecord({
+        id: pod1.id,
+        vendor: 'runpod',
+        name: pod1.name,
+        recipe: offer.recipe.id,
+        price: pod1.cost,
+        startedAt: new Date(oldAt).toISOString(),
+        status: 'RUNNING',
+        jobState: 'ready',
+        steps: [{ step: 'ready', at: oldAt }],
+        advancedAt: oldAt,
+        apiBaseUrl: rp.baseUrl,
+        sessionId,
+        sessionModel: hostedModel,
+        sessionModelBefore: priorModel,
+      })
+      await sweepHostIdle({ now: Date.now() })
+      const afterIdle = readHostRecord(pod1.id)
+      check(
+        'w04-2 idle termination adds restore failure sentence when session cannot be switched back',
+        Boolean(afterIdle?.error?.includes(' · this session stays on a model that is gone (')) &&
+          Boolean(afterIdle?.error?.includes(') — run /model ' + priorModel)),
+        afterIdle?.error ?? '(no error)',
+      )
+      removeHostRecord(pod1.id)
+
+      const pod2 = await api.create(offer, 'ssh-ed25519 fixture', 'w04-road-restore')
+      writeHostRecord({
+        id: pod2.id,
+        vendor: 'runpod',
+        name: pod2.name,
+        recipe: offer.recipe.id,
+        price: pod2.cost,
+        startedAt: pod2.createdAt,
+        status: 'RUNNING',
+        jobState: 'ready',
+        apiBaseUrl: rp.baseUrl,
+        sessionId,
+        sessionModel: hostedModel,
+        sessionModelBefore: priorModel,
+      })
+      const road = createHostRoad({ apiBaseUrl: rp.baseUrl, pauseMs: 1 })
+      const result = await road(
+        async q => {
+          if (q.step === 'door-models') return 'pods'
+          if (q.step === 'paid-pods') return pod2.id
+          if (q.step === 'pod-controls' || q.step === 'pod-confirm') return 'terminate'
+          return null
+        },
+        () => {},
+        new AbortController().signal,
+      )
+      check(
+        'w04-2 host road termination adds restore failure sentence when session cannot be switched back',
+        result.ok &&
+          result.words.includes(' · this session stays on a model that is gone (') &&
+          result.words.includes(') — run /model ' + priorModel),
+        result.words,
+      )
+    } finally {
+      rmSync(workersFile, { force: true })
+      await rp.close()
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

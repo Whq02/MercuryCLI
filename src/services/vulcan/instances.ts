@@ -17,6 +17,10 @@ export interface VulcanInstance {
   projectRoot: string
   ownerPid: number
 }
+interface UnreadableVulcanInstance {
+  path: string
+  error: string
+}
 type VulcanInstanceSelection = { ok: true; instance: VulcanInstance } | { ok: false; error: { code: string; message: string } }
 export interface VulcanInstanceLaunch {
   id: string
@@ -89,34 +93,64 @@ export function readVulcanInstanceToken(instance: VulcanInstance): string {
   return token
 }
 
-function discoverRoot(root: string): VulcanInstance[] {
-  const out: VulcanInstance[] = []
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export function formatUnreadableVulcanInstance(instancePath: string, error: string): string {
+  return `the Godot instance at ${instancePath} could not be read (${error})`
+}
+
+function discoverRoot(root: string, out: VulcanInstance[], unreadable: UnreadableVulcanInstance[]): void {
+  const dir = vulcanInstancesDir(root)
   let names: string[]
-  try { names = readdirSync(vulcanInstancesDir(root)) } catch { return out }
+  try {
+    names = readdirSync(dir)
+  } catch (error) {
+    passedOver(error)
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      unreadable.push({ path: dir, error: errorMessage(error) })
+    }
+    return
+  }
   for (const id of names.slice(0, 4096)) {
     if (!/^[a-f0-9]{32}$/.test(id)) continue
+    const instDir = vulcanInstanceDir(root, id)
     try {
-      const row = parseVulcanInstance(JSON.parse(privateFile(path.join(vulcanInstanceDir(root, id), 'instance.json'), 8192)))
+      const row = parseVulcanInstance(JSON.parse(privateFile(path.join(instDir, 'instance.json'), 8192)))
       if (!row || row.id !== id || row.projectRoot !== canonical(root) || !vulcanProcessAlive(row.pid)) continue
       readVulcanInstanceToken(row)
       out.push(row)
-    } catch (error) { passedOver(error); continue }
+    } catch (error) {
+      passedOver(error)
+      unreadable.push({ path: instDir, error: errorMessage(error) })
+      continue
+    }
   }
-  return out
 }
 
-export function listVulcanInstances(projectRoot: string): VulcanInstance[] {
+export function scanVulcanInstances(projectRoot: string): { instances: VulcanInstance[]; unreadable: UnreadableVulcanInstance[] } {
   const root = canonical(projectRoot)
-  const out = discoverRoot(root)
+  const out: VulcanInstance[] = []
+  const unreadable: UnreadableVulcanInstance[] = []
+  discoverRoot(root, out, unreadable)
   const trees = engineTreesDir(root)
   try {
     for (const entry of readdirSync(trees, { withFileTypes: true }).slice(0, 4096)) {
-      if (entry.isDirectory() && !entry.isSymbolicLink()) out.push(...discoverRoot(path.join(trees, entry.name)))
+      if (entry.isDirectory() && !entry.isSymbolicLink()) discoverRoot(path.join(trees, entry.name), out, unreadable)
     }
-  } catch (error) { passedOver(error); void 0 }
-  return out.sort((a, b) => a.id.localeCompare(b.id))
+  } catch (error) {
+    passedOver(error)
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      unreadable.push({ path: trees, error: errorMessage(error) })
+    }
+  }
+  return { instances: out.sort((a, b) => a.id.localeCompare(b.id)), unreadable }
 }
 
+export function listVulcanInstances(projectRoot: string): VulcanInstance[] {
+  return scanVulcanInstances(projectRoot).instances
+}
 export function selectVulcanInstance(projectRoot: string, selector?: unknown, roles: readonly VulcanInstanceRole[] = ['agent-editor']): VulcanInstanceSelection {
   let id: string | undefined
   let role: VulcanInstanceRole | undefined
@@ -149,5 +183,7 @@ export async function prepareVulcanInstance(projectRoot: string, role: VulcanIns
 }
 
 export function vulcanInstancesUnder(root: string): VulcanInstance[] {
-  return discoverRoot(canonical(root))
+  const out: VulcanInstance[] = []
+  discoverRoot(canonical(root), out, [])
+  return out
 }

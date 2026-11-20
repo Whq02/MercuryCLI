@@ -7,8 +7,8 @@ import {
 } from '../../projectServices/contracts.js'
 import {
   readLogs,
-  reconcileAll,
-  reconcileRecord,
+  reconcileAllStrict,
+  reconcileRecordStrict,
 } from '../../projectServices/serviceManager.js'
 import {
   formatRef,
@@ -26,7 +26,9 @@ export const serviceAdapter: ResourceAdapter = {
       return { state: 'unavailable', note: 'project services are disabled (MERCURY_SERVICES=0)' }
     }
     if (ref.id === '') {
-      const records = reconcileAll(getOriginalCwd())
+      const listed = reconcileAllStrict(getOriginalCwd())
+      if (!listed.ok) return { state: 'unavailable', note: listed.error }
+      const records = listed.records
       return {
         state: 'ok',
         resource: {
@@ -43,7 +45,12 @@ export const serviceAdapter: ResourceAdapter = {
         },
       }
     }
-    const record = SERVICE_NAME_RE.test(ref.id) ? reconcileRecord(getOriginalCwd(), ref.id) : null
+    if (!SERVICE_NAME_RE.test(ref.id)) {
+      return { state: 'absent', note: `no service '${ref.id}' in this project` }
+    }
+    const loaded = reconcileRecordStrict(getOriginalCwd(), ref.id)
+    if (!loaded.ok) return { state: 'unavailable', note: loaded.error }
+    const record = loaded.record
     if (!record) {
       return { state: 'absent', note: `no service '${ref.id}' in this project` }
     }

@@ -159,7 +159,7 @@ export async function switchToTensorFold(served: TensorFoldServed, io: RoadIo = 
 export const SHARE_WORDS = 'restarting to share on your network · plain HTTP on your home or office network · keyed'
 export const UNSHARE_WORDS = 'restarting on this Mac only'
 
-export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: number, io: RoadIo = {}, opts: { share?: boolean; servedBy?: string } = {}): Promise<{ served: TensorFoldServed; switched: SwitchOutcome } | null> {
+export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: number, io: RoadIo = {}, opts: { share?: boolean; servedBy?: string } = {}): Promise<{ served: TensorFoldServedByEngine & { warnings: readonly string[] }; switched: SwitchOutcome } | null> {
   const key = row.repo
   const running = actOf(key)
   if (running !== undefined && (running.kind === 'pulling' || running.kind === 'starting')) return null
@@ -195,7 +195,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
     const name = row.shortName
     const focus = supportFocusOf(row, window)
     setAct(key, { kind: 'starting', name, port: 0, seconds: 0 })
-    let served: TensorFoldServedByEngine
+    let served: TensorFoldServedByEngine & { warnings: readonly string[] }
     try {
       served = await startTensorFold(
         { repo: row.repo, window, name, ...(row.port !== undefined ? { port: row.port } : {}), ...(row.drafter !== undefined ? { drafter: row.drafter } : {}), ...(row.promptCacheGib !== undefined ? { promptCacheGib: row.promptCacheGib } : {}), ...(opts.share === true ? { share: true } : {}) },
@@ -237,7 +237,8 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
     const switched = await switchToTensorFold(served, io)
     const busy = readServedRecord(io.serve)?.busy
     mintImmediateReceipt(busy !== undefined ? FEED.servesElsewhere(served.name, served.port, busy.port, served.window, switched.switched, served.servedBy) : FEED.serves(served.name, served.window, served.port, switched.switched, served.servedBy))
-    setTensorFoldNotice(switched.ok && switched.switched ? undefined : switched.words)
+    const noticeParts = [...(switched.ok && switched.switched ? [] : [switched.words]), ...served.warnings]
+    setTensorFoldNotice(noticeParts.length > 0 ? noticeParts.join(' · ') : undefined)
     return { served, switched }
   } finally {
     abortable.delete(key)
@@ -258,10 +259,10 @@ export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo'
   const mine = served.find(candidate => candidate.repo === row.repo)
   if (mine === undefined) return 'nothing to stop · Mercury did not start it'
   setAct(row.repo, undefined)
-  await stopTensorFold(mine.name, io.serve)
+  const { warnings } = await stopTensorFold(mine.name, io.serve)
   await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(passedOverAs(undefined))
   mintImmediateReceipt(FEED.stopped(mine.name, mine.servedBy))
-  return `stopped ${mine.name}`
+  return warnings.length > 0 ? `stopped ${mine.name} · ${warnings.join(' · ')}` : `stopped ${mine.name}`
 }
 
 export async function installTensorFoldThen(plan: TensorFoldInstallPlan, io: RoadIo = {}): Promise<boolean> {
