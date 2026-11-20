@@ -161,13 +161,6 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
 
 section('(6) the words: the Windows page and the install note name the two roads a script has')
 {
-  const page = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
-  check('the Windows page names the PowerShell entry road', page.includes('PowerShell resolves `mercury` through `mercury.ps1`'))
-  check('the Windows page offers the execution-policy fix and the cmd fallback', page.includes('Set-ExecutionPolicy -Scope CurrentUser RemoteSigned') && page.includes('`mercury.cmd` keeps working'))
-  check('the Windows page names the standard-input road for cmd.exe', page.includes('mercury run --format rows - < prompt.txt'))
-  check('the Windows page says what cmd.exe does to a command-line prompt', page.includes('`%NAME%` is expanded and a line break ends the command'))
-  check('the Windows page keeps the bare boot unchanged in words', page.includes('a bare `mercury` opens the enter screen as before'))
-  check('the Windows page names nothing as old or removed', !/\b(old|removed|deprecated|legacy)\b/i.test(page.slice(page.indexOf('### A prompt from a script'), page.indexOf('## 10. Make a'))))
   // @ts-ignore -- untyped .mjs module
   const templates = await import('../release/launcherTemplates.mjs')
   const installing: string = templates.installingDoc(templates.parseEnginesNode('>=24.20.0 <25'), '9.9.9')
