@@ -1,6 +1,6 @@
 import { join } from 'path'
 
-import type { InstructionConvention } from '../contracts.js'
+import type { InstructionConvention } from '../../../utils/instructions/contracts.js'
 import { isProjectInstructionExcluded } from '../nativeSource.js'
 
 export const SHARED_INSTRUCTION_FILE = 'AGENTS.md'

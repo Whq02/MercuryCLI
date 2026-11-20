@@ -7,7 +7,7 @@ import { pathInWorkingPath } from '../../../utils/permissions/filesystem.js'
 import type {
   InstructionAdapter,
   InstructionConvention,
-} from '../contracts.js'
+} from '../../../utils/instructions/contracts.js'
 import { resolveRequestedInstructionProfile } from '../profile.js'
 import { conventionsForProfile as composeNativeFirst } from '../compositionOrder.js'
 import { passedOver } from '../../../utils/passedOver.js'
