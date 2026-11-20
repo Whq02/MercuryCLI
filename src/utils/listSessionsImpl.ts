@@ -119,6 +119,11 @@ async function readCandidate(candidate: Candidate, statRan: boolean): Promise<Se
   return info
 }
 
+function isAbsenceError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
 async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): Promise<Candidate[]> {
   const projectsRoot = getProjectsDir()
   if (!options.dir) {
@@ -126,6 +131,7 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
     try {
       entries = await readdir(projectsRoot)
     } catch (error) {
+      if (!isAbsenceError(error)) throw error
       passedOver(error)
       return []
     }
@@ -135,6 +141,7 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
         try {
           if (!(await stat(dir)).isDirectory()) return []
         } catch (error) {
+          if (!isAbsenceError(error)) throw error
           passedOver(error)
           return []
         }
@@ -174,7 +181,8 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
   let rootEntries: string[]
   try {
     rootEntries = await readdir(projectsRoot)
-  } catch {
+  } catch (error) {
+    if (!isAbsenceError(error)) throw error
     return listSingle()
   }
 
@@ -192,6 +200,7 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
     try {
       if (!(await stat(dir)).isDirectory()) continue
     } catch (error) {
+      if (!isAbsenceError(error)) throw error
       passedOver(error)
       continue
     }
