@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,6 +42,30 @@ async function run(): Promise<void> {
       try { readConflictRegions(owner, root, 'locked.txt') } catch (error) { threw = error as NodeJS.ErrnoException }
       finally { chmodSync(locked, 0o600) }
       check('conflictRegionStore-eacces: unreadable file throws EACCES instead of returning empty regions', threw?.code === 'EACCES', String(threw))
+    }
+  }
+
+  {
+    const { commitIdentityLine } = await import('../../src/services/gitGraph/observe.ts')
+    const root = join(scratch, 'observe-config')
+    const gitHome = join(scratch, 'observe-git-home')
+    mkdirSync(root, { recursive: true })
+    mkdirSync(gitHome, { recursive: true })
+    const saved = { HOME: process.env.HOME, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME, GIT_CONFIG_GLOBAL: process.env.GIT_CONFIG_GLOBAL, GIT_CONFIG_NOSYSTEM: process.env.GIT_CONFIG_NOSYSTEM }
+    Object.assign(process.env, { HOME: gitHome, XDG_CONFIG_HOME: join(gitHome, '.config'), GIT_CONFIG_GLOBAL: join(gitHome, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1' })
+    try {
+      execFileSync('git', ['init', '--quiet', '--initial-branch=main'], { cwd: root, env: process.env })
+      const unset = commitIdentityLine(root)
+      check('observe-config-unset: unset user.name/email returns unset line', Boolean(unset?.includes('user.name and user.email unset')), String(unset))
+      writeFileSync(join(root, '.git', 'config'), '[broken\n')
+      let threw: unknown = null
+      try { commitIdentityLine(root) } catch (error) { threw = error }
+      check('observe-config-corrupt: corrupt .git/config throws instead of reporting identity unset', threw !== null, 'returned without throwing')
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
     }
   }
 }
