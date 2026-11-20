@@ -1,22 +1,26 @@
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import { join, relative, sep } from 'node:path'
+import { isENOENT } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
 
 const SKIP = new Set(['.git', 'node_modules', '__pycache__', '.DS_Store'])
 
-function walk(root: string, dir: string, out: string[]): void {
+function walk(root: string, dir: string, out: string[], bestEffort = false): void {
   let entries: Dirent[]
   try {
     entries = readdirSync(dir, { withFileTypes: true })
   } catch (error) {
-    passedOver(error)
-    return
+    if (isENOENT(error) || bestEffort) {
+      passedOver(error)
+      return
+    }
+    throw error
   }
   for (const entry of entries) {
     if (SKIP.has(entry.name)) continue
     const path = join(dir, entry.name)
-    if (entry.isDirectory()) walk(root, path, out)
+    if (entry.isDirectory()) walk(root, path, out, bestEffort)
     else if (entry.isFile() || entry.isSymbolicLink()) out.push(path)
   }
 }
@@ -59,7 +63,7 @@ export function treeFileDigests(root: string, options: { except?: ReadonlySet<st
 
 export function folderSize(root: string): number {
   const files: string[] = []
-  walk(root, root, files)
+  walk(root, root, files, true)
   let total = 0
   for (const file of files) {
     try {
