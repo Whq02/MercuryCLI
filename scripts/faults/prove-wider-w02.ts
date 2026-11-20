@@ -481,5 +481,87 @@ console.log('\nw02-5 — unreadable/corrupt boot-env.json surfaces could not be 
   )
 }
 
+console.log('\nw02-6 — unreadable workspace config carries deltasReadError on derived/materialized kit and surfaces note without refusing')
+{
+  const cleanRun = runSubprocess(`
+    delete process.env.NODE_ENV
+    const cfg = await import(${JSON.stringify(join(SRC, 'utils/config.ts'))})
+    const sk = await import(${JSON.stringify(join(SRC, 'daemon/sessionKit.ts'))})
+    cfg.enableConfigs()
+    out.cleanDerivedErr = sk.deriveSessionKitForWorkspace(PROJECT).deltasReadError ?? null
+    out.cleanMatErr = sk.materializedKitForWorkspace(PROJECT).deltasReadError ?? null
+  `)
+  if (!POSIX_MODES) skip('unreadable .mercury.json kit deltas', 'chmod 0000 needs non-root POSIX')
+  else {
+    const brokenRun = runSubprocess(`
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      delete process.env.NODE_ENV
+      const cfgPath = path.join(HOME, '.mercury.json')
+      fs.writeFileSync(cfgPath, '{}', 'utf8')
+      const cfg = await import(${JSON.stringify(join(SRC, 'utils/config.ts'))})
+      const sk = await import(${JSON.stringify(join(SRC, 'daemon/sessionKit.ts'))})
+      const skOp = await import(${JSON.stringify(join(SRC, 'daemon/sessionKitOp.ts'))})
+      fs.chmodSync(cfgPath, 0o000)
+      try {
+        try { cfg.enableConfigs() } catch {}
+        const brokenDerived = sk.deriveSessionKitForWorkspace(PROJECT)
+        const brokenMat = sk.materializedKitForWorkspace(PROJECT)
+        out.brokenDerivedErr = brokenDerived.deltasReadError ?? null
+        out.brokenMatErr = brokenMat.deltasReadError ?? null
+
+        const daemonDir = path.join(HOME, 'daemon-w02-6')
+        fs.mkdirSync(daemonDir, { recursive: true })
+        fs.writeFileSync(
+          path.join(daemonDir, 'concourse-workers.json'),
+          JSON.stringify({
+            version: 1,
+            workers: {
+              'w-1': {
+                schema: 1,
+                runnerId: 'w-1',
+                sessionId: 's-w02-6',
+                workspaceId: PROJECT,
+                isolation: 'exclusive',
+                modelKey: 'fable',
+                spawnedAt: 1_700_000_000_000,
+                lastLiveAt: 1_700_000_000_000,
+              },
+            },
+          }),
+        )
+        const opRes = skOp.applyConcourseKitOp('s-w02-6', { mcp: [{ name: 'demo', on: false }] }, 'operator', daemonDir)
+        out.opOutcome = opRes.outcome
+        out.opDetail = opRes.detail ?? null
+      } finally {
+        fs.chmodSync(cfgPath, 0o644)
+      }
+    `)
+    check(
+      'unreadable config sets deltasReadError on deriveSessionKitForWorkspace without throwing',
+      typeof brokenRun.out.brokenDerivedErr === 'string' && (brokenRun.out.brokenDerivedErr as string).length > 0,
+      JSON.stringify(brokenRun.out.brokenDerivedErr),
+    )
+    check(
+      'unreadable config sets deltasReadError on materializedKitForWorkspace without throwing',
+      typeof brokenRun.out.brokenMatErr === 'string' && (brokenRun.out.brokenMatErr as string).length > 0,
+      JSON.stringify(brokenRun.out.brokenMatErr),
+    )
+    check(
+      'applyConcourseKitOp still applies dial and includes the MCP deltas unread note',
+      brokenRun.out.opOutcome === 'applied' &&
+        typeof brokenRun.out.opDetail === 'string' &&
+        (brokenRun.out.opDetail as string).includes("this repo's MCP servers could not be read (") &&
+        (brokenRun.out.opDetail as string).includes('— its MCP deltas are not checked'),
+      JSON.stringify({ opOutcome: brokenRun.out.opOutcome, opDetail: brokenRun.out.opDetail }),
+    )
+  }
+  check(
+    'clean config omits deltasReadError on derived and materialized kits',
+    cleanRun.out.cleanDerivedErr === null && cleanRun.out.cleanMatErr === null,
+    JSON.stringify(cleanRun.out),
+  )
+}
+
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -8,7 +8,7 @@ import type { LongLivedRespawnConfig } from '../longLivedRespawn.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { inheritBuildNotices, carryClearModel } from '../../services/switchboard/sessionReceipts.js'
-import { type SessionKitV1, deriveSessionKitForPreset, deriveSessionKitForWorkspace } from '../sessionKit.js'
+import { type SessionKitV1, deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitDeltasUnreadNote } from '../sessionKit.js'
 import { sessionKindOfAsker, type SessionKind } from '../../utils/sessionKind.js'
 import { type WorkspaceIsolation, type ConcourseMoveV1, canonicalWorkspaceId, resolveDefaultedAdmission } from './admission.js'
 import { readSessionWorkers, unwrittenSessionRecordsRefusal } from './store.js'
@@ -271,7 +271,9 @@ export function makeConcourseAdmitHandler(
           others,
           deps,
         )
-        return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated
+        return reactivated.ok && retainedNote !== undefined
+          ? { ...reactivated, note: reactivated.note !== undefined ? `${retainedNote} — ${reactivated.note}` : retainedNote }
+          : reactivated
       }
     }
     const admissionClaims = liveWorkers.filter(
@@ -296,6 +298,10 @@ export function makeConcourseAdmitHandler(
       }
 
     const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)
+    if (kit.deltasReadError !== undefined) {
+      const kitNote = kitDeltasUnreadNote(kit.deltasReadError)
+      retainedNote = retainedNote !== undefined ? `${retainedNote} — ${kitNote}` : kitNote
+    }
     const inspectedKind = inspectWorkspaceKind(workspaceId)
     if (inspectedKind.kind === 'plain-folder' && inspectedKind.gitCheckError !== undefined) {
       const gitNote = workspaceGitCheckNote(workspaceId, inspectedKind.gitCheckError)

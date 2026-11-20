@@ -6,6 +6,7 @@ import { updateConcourseWorkers } from './concourseWorkers.js'
 import {
   applyKitEdit,
   cloneSessionKit,
+  kitDeltasUnreadNote,
   materializedKitForWorkspace,
   setSessionKit,
   type SessionKitEditV1,
@@ -38,9 +39,13 @@ export function applyConcourseKitOp(sessionId: string, edit: SessionKitEditV1, b
       return
     }
     setSessionKit(rec, next === standing ? cloneSessionKit(standing) : next)
+    const unreadTail =
+      materialized && standing.deltasReadError !== undefined
+        ? ` — ${kitDeltasUnreadNote(standing.deltasReadError)}`
+        : ''
     out = {
       outcome: 'applied',
-      detail: `${describeEdit(edit)}${materialized ? " — the kit was materialized from this session's whole-config reality first (a pre-kit record); the dial edits it" : ''}`,
+      detail: `${describeEdit(edit)}${materialized ? " — the kit was materialized from this session's whole-config reality first (a pre-kit record); the dial edits it" : ''}${unreadTail}`,
     }
     try {
       const home = getProjectDir(rec.workspaceId)
