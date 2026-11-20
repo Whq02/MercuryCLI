@@ -137,6 +137,20 @@ export function focusResumedSession(
 
 type ResumeOptions = { title?: string; firstPaintMs?: number; permissionMode?: string; model?: string; effort?: string; restartReason?: 'update' }
 
+type LaunchWords = { model?: string; effort?: string }
+
+const HELD_LIVE_PING_MS = 500
+
+async function heldLiveUnderDaemon(sessionId: string): Promise<boolean> {
+  const workers = await import('../../daemon/concourseWorkers.js')
+  if (workers.sessionOwnedByLiveWorker(sessionId) === null) return false
+  const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+  const pong = await daemonControlRpc({ op: 'ping' }, { timeoutMs: HELD_LIVE_PING_MS })
+  if (pong.ok !== true) return false
+  const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  return rec !== undefined && rec.parkedAt === undefined && workers.sessionOwnedByLiveWorker(sessionId) !== null
+}
+
 async function focusResumedSessionLanding(
   sessionId: string,
   transcriptPath: string | undefined,
@@ -146,14 +160,24 @@ async function focusResumedSessionLanding(
     const reason = 'no live session record owns this id'
     return { ok: false, reason, admitted: Promise.resolve(false), refusal: Promise.resolve(reason) }
   }
-  const workers = await import('../../daemon/concourseWorkers.js')
-  const launch = { ...(opts?.model !== undefined ? { model: opts.model } : {}), ...(opts?.effort !== undefined ? { effort: opts.effort } : {}) }
+  const launch: LaunchWords = { ...(opts?.model !== undefined ? { model: opts.model } : {}), ...(opts?.effort !== undefined ? { effort: opts.effort } : {}) }
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
-  if (workers.sessionOwnedByLiveWorker(sessionId) !== null) {
+  if (await heldLiveUnderDaemon(sessionId)) {
     const hop = await hopIntoBoardSession(sessionId, opts)
-    if (hop.ok && launchGiven) void applyLaunchWordOnHop(sessionId, launch)
+    if (hop.ok && launchGiven) void applyLaunchWordOnHop(sessionId, launch, () => admitResumedSession(sessionId, transcriptPath, opts, launch))
     return { ...hop, admitted: Promise.resolve(hop.ok), refusal: Promise.resolve(hop.ok ? null : hop.reason) }
   }
+  return admitResumedSession(sessionId, transcriptPath, opts, launch)
+}
+
+async function admitResumedSession(
+  sessionId: string,
+  transcriptPath: string | undefined,
+  opts: ResumeOptions | undefined,
+  launch: LaunchWords,
+): Promise<ResumeOutcome> {
+  const workers = await import('../../daemon/concourseWorkers.js')
+  const launchGiven = launch.model !== undefined || launch.effort !== undefined
   const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   const workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
   const paths = await import('../../utils/sessionStorage/paths.js')
@@ -460,7 +484,7 @@ function launchWonOf(
   return out.model === undefined && out.effort === undefined ? null : out
 }
 
-async function applyLaunchWordOnHop(sessionId: string, launch: { model?: string; effort?: string }): Promise<void> {
+async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resumeWithLaunchWords: () => Promise<unknown>): Promise<void> {
   try {
     const seat = await import('../engine-connector/daemonConnector.js')
     const connector = seat.getDaemonSessionConnector(sessionId)
@@ -468,24 +492,28 @@ async function applyLaunchWordOnHop(sessionId: string, launch: { model?: string;
     const { renderModelName } = await import('../../utils/model/model.js')
     const facts = connector.modelFacts()
     const parts: string[] = []
+    let daemonLeft = false
     if (launch.model !== undefined && launch.model !== facts.effective) {
       const receipt = await connector.setModel(launch.model)
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--model ${renderModelName(launch.model)} wins over the session's ${renderModelName(facts.effective)}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        parts.push(`--model ${renderModelName(launch.model)} was refused, the session keeps ${renderModelName(facts.effective)}: ${receipt.detail}`)
+        daemonLeft = !(await heldLiveUnderDaemon(sessionId))
+        if (!daemonLeft) parts.push(`--model ${renderModelName(launch.model)} was refused, the session keeps ${renderModelName(facts.effective)}: ${receipt.detail}`)
       }
     }
     const sessionEffort = typeof facts.effort === 'string' ? facts.effort : undefined
-    if (launch.effort !== undefined && launch.effort !== sessionEffort) {
+    if (!daemonLeft && launch.effort !== undefined && launch.effort !== sessionEffort) {
       const receipt = await connector.setEffort(launch.effort)
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--effort ${launch.effort} wins over the session's ${sessionEffort ?? 'own effort'}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        parts.push(`--effort ${launch.effort} was refused, the session keeps ${sessionEffort ?? 'its own effort'}: ${receipt.detail}`)
+        daemonLeft = !(await heldLiveUnderDaemon(sessionId))
+        if (!daemonLeft) parts.push(`--effort ${launch.effort} was refused, the session keeps ${sessionEffort ?? 'its own effort'}: ${receipt.detail}`)
       }
     }
     for (const part of parts) mintImmediateReceipt(part)
+    if (daemonLeft) await resumeWithLaunchWords()
   } catch {
   }
 }
