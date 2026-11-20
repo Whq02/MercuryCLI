@@ -24,11 +24,15 @@ import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
 import {
   ensureDriveRootSeparator,
   expandTildeWithHome,
+  extractDoubleSlashPatternRoot,
+  extractPatternDriveRoot,
   foldCaseInsensitivePath,
   foldHostCaseInsensitivePath,
+  foldHostPathCase,
   foldPathCase,
   hostOrWin32PathModule,
   hostPathSpellings,
+  isEscapingRelativePath,
   isWindowsShareRooted,
   msysDrivePathToNative,
   nativeCwdFromRecordedShell,
@@ -380,6 +384,60 @@ const PATHS: Row[] = [
       }
     },
     recorded: {"win32":{"default":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"darwin":{"default":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"linux":{"default":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"win32 by process.platform alone":{"default":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"win32 by getPlatform() alone":{"default":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]}},
+  },
+  {
+    name: 'paths.foldHostPathCase',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice', '/Users/Alice', 'File.TS']
+      return {
+        default: inputs.map(p => foldHostPathCase(p)),
+        windows: inputs.map(p => foldHostPathCase(p, 'windows')),
+        macos: inputs.map(p => foldHostPathCase(p, 'macos')),
+        linux: inputs.map(p => foldHostPathCase(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","c:\\users\\alice","/users/alice","file.ts"],"windows":["","c:\\users\\alice","/users/alice","file.ts"],"macos":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"linux":["","C:\\Users\\Alice","/Users/Alice","File.TS"]},"darwin":{"default":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"windows":["","c:\\users\\alice","/users/alice","file.ts"],"macos":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"linux":["","C:\\Users\\Alice","/Users/Alice","File.TS"]},"linux":{"default":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"windows":["","c:\\users\\alice","/users/alice","file.ts"],"macos":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"linux":["","C:\\Users\\Alice","/Users/Alice","File.TS"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"windows":["","c:\\users\\alice","/users/alice","file.ts"],"macos":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"linux":["","C:\\Users\\Alice","/Users/Alice","File.TS"]},"win32 by getPlatform() alone":{"default":["","c:\\users\\alice","/users/alice","file.ts"],"windows":["","c:\\users\\alice","/users/alice","file.ts"],"macos":["","C:\\Users\\Alice","/Users/Alice","File.TS"],"linux":["","C:\\Users\\Alice","/Users/Alice","File.TS"]}},
+  },
+  {
+    name: 'paths.isEscapingRelativePath',
+    answers: () => {
+      const inputs = ['', '..', '../a', '..\\a', '..foo', 'a/../b']
+      return {
+        default: inputs.map(p => isEscapingRelativePath(p)),
+        windows: inputs.map(p => isEscapingRelativePath(p, 'windows')),
+        macos: inputs.map(p => isEscapingRelativePath(p, 'macos')),
+        linux: inputs.map(p => isEscapingRelativePath(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[false,true,true,true,false,false],"windows":[false,true,true,true,false,false],"macos":[false,true,true,false,false,false],"linux":[false,true,true,false,false,false]},"darwin":{"default":[false,true,true,false,false,false],"windows":[false,true,true,true,false,false],"macos":[false,true,true,false,false,false],"linux":[false,true,true,false,false,false]},"linux":{"default":[false,true,true,false,false,false],"windows":[false,true,true,true,false,false],"macos":[false,true,true,false,false,false],"linux":[false,true,true,false,false,false]},"win32 by process.platform alone":{"default":[false,true,true,false,false,false],"windows":[false,true,true,true,false,false],"macos":[false,true,true,false,false,false],"linux":[false,true,true,false,false,false]},"win32 by getPlatform() alone":{"default":[false,true,true,true,false,false],"windows":[false,true,true,true,false,false],"macos":[false,true,true,false,false,false],"linux":[false,true,true,false,false,false]}},
+  },
+  {
+    name: 'paths.extractPatternDriveRoot',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice/**', '/d:/work/a', '/Users/alice/**', 'src/*.ts']
+      return {
+        default: inputs.map(p => extractPatternDriveRoot(p, '/')),
+        windowsWinSep: inputs.map(p => extractPatternDriveRoot(p, '\\', 'windows')),
+        windowsPosixSep: inputs.map(p => extractPatternDriveRoot(p, '/', 'windows')),
+        macos: inputs.map(p => extractPatternDriveRoot(p, '/', 'macos')),
+        linux: inputs.map(p => extractPatternDriveRoot(p, '/', 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[null,{"root":"C:/","relative":"Users/Alice/**"},{"root":"D:/","relative":"work/a"},null,null],"windowsWinSep":[null,{"root":"C:\\","relative":"Users/Alice/**"},{"root":"D:\\","relative":"work/a"},null,null],"windowsPosixSep":[null,{"root":"C:/","relative":"Users/Alice/**"},{"root":"D:/","relative":"work/a"},null,null],"macos":[null,null,null,null,null],"linux":[null,null,null,null,null]},"darwin":{"default":[null,null,null,null,null],"windowsWinSep":[null,{"root":"C:\\","relative":"Users/Alice/**"},{"root":"D:\\","relative":"work/a"},null,null],"windowsPosixSep":[null,{"root":"C:/","relative":"Users/Alice/**"},{"root":"D:/","relative":"work/a"},null,null],"macos":[null,null,null,null,null],"linux":[null,null,null,null,null]},"linux":{"default":[null,null,null,null,null],"windowsWinSep":[null,{"root":"C:\\","relative":"Users/Alice/**"},{"root":"D:\\","relative":"work/a"},null,null],"windowsPosixSep":[null,{"root":"C:/","relative":"Users/Alice/**"},{"root":"D:/","relative":"work/a"},null,null],"macos":[null,null,null,null,null],"linux":[null,null,null,null,null]},"win32 by process.platform alone":{"default":[null,null,null,null,null],"windowsWinSep":[null,{"root":"C:\\","relative":"Users/Alice/**"},{"root":"D:\\","relative":"work/a"},null,null],"windowsPosixSep":[null,{"root":"C:/","relative":"Users/Alice/**"},{"root":"D:/","relative":"work/a"},null,null],"macos":[null,null,null,null,null],"linux":[null,null,null,null,null]},"win32 by getPlatform() alone":{"default":[null,{"root":"C:/","relative":"Users/Alice/**"},{"root":"D:/","relative":"work/a"},null,null],"windowsWinSep":[null,{"root":"C:\\","relative":"Users/Alice/**"},{"root":"D:\\","relative":"work/a"},null,null],"windowsPosixSep":[null,{"root":"C:/","relative":"Users/Alice/**"},{"root":"D:/","relative":"work/a"},null,null],"macos":[null,null,null,null,null],"linux":[null,null,null,null,null]}},
+  },
+  {
+    name: 'paths.extractDoubleSlashPatternRoot',
+    answers: () => {
+      const inputs = ['//c/Users/Alice/**', '//Users/alice/**', '//D/work']
+      return {
+        default: inputs.map(p => extractDoubleSlashPatternRoot(p, '/')),
+        windowsWinSep: inputs.map(p => extractDoubleSlashPatternRoot(p, '\\', 'windows')),
+        windowsPosixSep: inputs.map(p => extractDoubleSlashPatternRoot(p, '/', 'windows')),
+        macos: inputs.map(p => extractDoubleSlashPatternRoot(p, '/', 'macos')),
+        linux: inputs.map(p => extractDoubleSlashPatternRoot(p, '/', 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"darwin":{"default":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"linux":{"default":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"win32 by process.platform alone":{"default":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"win32 by getPlatform() alone":{"default":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]}},
   },
 ]
 

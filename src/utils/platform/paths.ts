@@ -94,6 +94,38 @@ export function resolveLexicalOperandPath(cwd: string, operand: string, platform
   return platform === 'windows' ? pathWin32.resolve(cwd, operand) : joinPosixLexical(cwd, operand)
 }
 
+export function foldHostPathCase(filePath: string, platform: Platform = getPlatform()): string {
+  return platform === 'windows' ? filePath.toLowerCase() : filePath
+}
+
+export function isEscapingRelativePath(relative: string, platform: Platform = getPlatform()): boolean {
+  if (relative === '..' || relative.startsWith('../')) return true
+  return platform === 'windows' && relative.startsWith('..\\')
+}
+
+export function extractPatternDriveRoot(
+  pattern: string,
+  sep: string,
+  platform: Platform = getPlatform(),
+): { root: string; relative: string } | null {
+  if (platform !== 'windows') return null
+  const drive = pattern.replace(/\\/g, '/').match(/^\/?([A-Za-z]):\/(.*)$/)
+  if (!drive) return null
+  return { root: `${drive[1]!.toUpperCase()}:${sep}`, relative: drive[2]! }
+}
+
+export function extractDoubleSlashPatternRoot(
+  pattern: string,
+  sep: string,
+  platform: Platform = getPlatform(),
+): { root: string; relative: string } {
+  if (platform === 'windows') {
+    const drive = pattern.match(/^\/\/([A-Za-z])\/(.*)$/)
+    if (drive) return { root: `${drive[1]!.toUpperCase()}:${sep}`, relative: drive[2]! }
+  }
+  return { root: '/', relative: pattern.slice(1) }
+}
+
 export function splitPathFromRoot(
   filePath: string,
   grammar: typeof hostPath = hostPath,
