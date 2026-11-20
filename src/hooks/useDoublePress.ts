@@ -1,5 +1,6 @@
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
+import { useClaim } from './effects.js'
 
 export const DOUBLE_PRESS_TIMEOUT_MS = 800
 
@@ -12,7 +13,7 @@ export function useDoublePress(
   windowMs: number = DOUBLE_PRESS_TIMEOUT_MS,
 ): () => void {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  useEffect(
+  useClaim(
     () => () => {
       if (timerRef.current !== null) clearTimeout(timerRef.current)
     },

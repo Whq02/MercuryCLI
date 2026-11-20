@@ -1,5 +1,6 @@
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
+import { useLoad, usePublish } from '../hooks/effects.js'
 import { useNotifications } from '../context/notifications.js'
 import type { InputEvent, Key } from '../ink/events/input-event.js'
 import useInput from '../ink/hooks/use-input.js'
@@ -128,7 +129,7 @@ export function KeybindingSetup({ children }: { children: React.ReactNode }): Re
   const [isReload, setIsReload] = useState(false)
   const { addNotification, removeNotification } = useNotifications()
 
-  useEffect(() => {
+  usePublish(() => {
     const { warnings } = loadResult
     if (warnings.length === 0) {
       removeNotification(WARNING_NOTIFICATION_KEY)
@@ -187,7 +188,7 @@ export function KeybindingSetup({ children }: { children: React.ReactNode }): Re
 
   const handlerRegistryRef = useRef<HandlerRegistry>(new Map())
 
-  useEffect(() => {
+  useLoad(() => {
     void initializeKeybindingWatcher()
     const unsubscribe = subscribeToKeybindingChanges(result => {
       setLoadResult(result)
