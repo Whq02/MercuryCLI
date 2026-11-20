@@ -316,6 +316,23 @@ try {
     check('the revive is refused with the reason, to its caller, and the runner it started is ended', revived.threw === undefined && answer?.outcome === 'refused' && answer.reason === 'respawn-failed' && (answer.detail ?? '').includes(file) && started.join() === 'concourse-w1' && ended.join() === 'concourse-w1', { revived, started, ended })
   }
 
+  console.log('the session records — a turn sent to a live session while they cannot be read: the answer is the refusal, not a session with no runner')
+  if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
+  else {
+    const dispatch = await import('../../src/daemon/concourseDispatch.ts')
+    const { dir, file } = fresh()
+    const live = { ...record(1), pid: process.pid } as Rec
+    workers.updateConcourseWorkers(all => void (all['concourse-w1'] = live), dir)
+    const before = readFileSync(file, 'utf8')
+    chmodSync(file, 0o200)
+    const delivered: string[] = []
+    const handler = dispatch.makeConcourseDispatchHandler({ admit: async () => ({ ok: false, code: 'invalid-request', error: 'the fixture admits nothing' }) as never, deliver: async runnerId => (delivered.push(runnerId), true), dir })
+    const turn = await handler({ clientMessageId: 'a-turn-while-unread', prompt: 'a turn', workspaceDir: dir, targetSessionId: live.sessionId })
+    await dispatch.flushDeferredDispatchPublishes()
+    chmodSync(file, 0o600)
+    check('the turn is refused in the records\' own sentence, nothing is delivered and the file stands', turn.ok === false && turn.error === refusal(file, 'EACCES') && delivered.length === 0 && readFileSync(file, 'utf8') === before, turn.error ?? delivered)
+  }
+
   console.log('the session records — the daemon boots while they cannot be read, says so at the boot, and its reconcile waits')
   if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
   else {

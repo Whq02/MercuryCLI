@@ -674,7 +674,14 @@ async function attemptRedirectDelivery(
   prompt: string,
   extras?: ConcoursePromptExtras,
 ): Promise<ConcourseDispatchResult> {
-  if (readSessionWorkersSnapshot(deps.dir).state === 'unavailable') unwrittenSessionRecordsRefusal(deps.dir)
+  const unwritten = readSessionWorkersSnapshot(deps.dir).state === 'unavailable' ? unwrittenSessionRecordsRefusal(deps.dir) : null
+  if (unwritten !== null) {
+    delete rec.heldReason
+    delete rec.heldOp
+    advance(rec, 'failed', { reason: unwritten.message })
+    publishDispatches(dispatches, deps.dir)
+    return { ok: false, clientMessageId: rec.clientMessageId, state: rec.state, stateRevision: rec.stateRevision, error: unwritten.message }
+  }
   const workers = readSessionWorkers(deps.dir)
   let targetRec = Object.values(workers).find(w => w.sessionId === target && w.endedAt === undefined)
   const report = isOutsideReportOrigin(extras?.origin)
