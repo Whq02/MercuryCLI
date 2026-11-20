@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { totalmem } from 'node:os'
-import { useEffect, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import type { TensorFoldHost, TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
 import { QWEN_2B_GGUF } from '../../services/tensorfold/adapter/models.js'
 import { engineServedByAdapter, findTensorFoldEngine } from '../../services/tensorfold/engine.js'
@@ -191,7 +192,7 @@ export const tensorFoldFactsStamp = (): number => stamp
 
 export function useTensorFoldOffer(): TensorFoldOffer | null | undefined {
   useSyncExternalStore(subscribeTensorFoldFacts, tensorFoldFactsStamp, tensorFoldFactsStamp)
-  useEffect(() => {
+  useLoad(() => {
     void refreshTensorFoldOffer().catch(() => undefined)
   }, [])
   return offerSnapshot

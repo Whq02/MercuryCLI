@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react'
+import React, { useState, useSyncExternalStore } from 'react'
+import { useDerivedState, useLoad } from '../../../hooks/effects.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
 import { isClaudeAISubscriber } from '../../../utils/auth.js'
@@ -192,7 +193,7 @@ export function UsageCompact({ openToken, width, rowBudget }: { openToken?: numb
   const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency(), liveSessionFamily())
   const [, setSample] = useState(0)
   const asks = plan.filter(section => section.family.credentialed).map(section => section.id).join('|')
-  useEffect(() => {
+  useLoad(() => {
     let disposed = false
     for (const id of asks.split('|').filter(Boolean) as ProviderFamilyId[]) {
       const operator = id === 'anthropic' && isClaudeAISubscriber() && openToken !== undefined && markOpenAsked(openToken)
@@ -209,7 +210,7 @@ export function UsageCompact({ openToken, width, rowBudget }: { openToken?: numb
   const [cursor, setCursor] = useState(0)
   const [offset, setOffset] = useState(0)
   const view = settingsPopupWindow(cursor, offset, lines.length, rows)
-  useEffect(() => {
+  useDerivedState(() => {
     if (view.cursor !== cursor) setCursor(view.cursor)
     if (view.offset !== offset) setOffset(view.offset)
   }, [view.cursor, view.offset, cursor, offset])
