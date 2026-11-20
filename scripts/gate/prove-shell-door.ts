@@ -149,7 +149,6 @@ const GRAMMAR_READERS: Array<[string, number]> = [
   ['src/utils/bash/ast.ts', 89],
   ['src/utils/permissions/flowLaw.ts', 27],
   ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
-  ['src/utils/wards/wardsShellRead.ts', 69],
 ]
 
 let failures = 0
