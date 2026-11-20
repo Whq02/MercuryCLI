@@ -30,15 +30,10 @@ const STEM_RE = /^[A-Za-z0-9._-]{1,80}$/
 const MAX_ROWS = 2000
 const SAMPLE = 140
 
-function transcriptPathFor(sessionId: string): string | null {
-  try {
-    const { getTranscriptPathForSession } =
-      require('../../../utils/sessionStorage/paths.js') as typeof import('../../../utils/sessionStorage/paths.js')
-    return getTranscriptPathForSession(sessionId)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+function transcriptPathFor(sessionId: string): string {
+  const { getTranscriptPathForSession } =
+    require('../../../utils/sessionStorage/paths.js') as typeof import('../../../utils/sessionStorage/paths.js')
+  return getTranscriptPathForSession(sessionId)
 }
 
 function entryOfLine(parsed: Record<string, unknown>): Record<string, unknown> | null {
@@ -47,12 +42,7 @@ function entryOfLine(parsed: Record<string, unknown>): Record<string, unknown> |
   if (!validated.ok) return null
   const kind = validated.record.payload.kind
   if (kind !== 'output' && kind !== 'input') return null
-  try {
-    return recordToEntry(validated.record)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  return recordToEntry(validated.record)
 }
 
 export function jsonlConciseRows(file: string): string[] {
@@ -60,8 +50,12 @@ export function jsonlConciseRows(file: string): string[] {
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
-  } catch {
-    return rows
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+      passedOver(error)
+      return rows
+    }
+    throw error
   }
   for (const line of raw.split('\n')) {
     if (rows.length >= MAX_ROWS) {

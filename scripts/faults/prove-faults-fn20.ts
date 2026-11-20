@@ -201,5 +201,43 @@ console.log('\nresources/adapters/health.ts — corrupt gate/cert files throw in
   check('health-adapter-cert-corrupt-unavailable', certCorrupt?.state === 'unavailable', JSON.stringify(certCorrupt))
 }
 
+console.log('\nresources/adapters/transcript.ts — unreadable transcript or subagents dir fails instead of claiming empty')
+if (!POSIX_MODES) {
+  skip('transcript-adapter-unreadable-file-throws', 'needs non-root POSIX')
+  skip('transcript-adapter-unreadable-subagents-dir-fails', 'needs non-root POSIX')
+} else {
+  const r = runSub(`
+    const { jsonlConciseRows } = await import(path.join(SRC, 'services/resources/adapters/transcript.ts'))
+    const { listResourceKind } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'services/run/ownerKey.ts'))
+    const { getTranscriptPathForSession } = await import(path.join(SRC, 'utils/sessionStorage/paths.ts'))
+    const file = path.join(PROJECT, 'locked.jsonl')
+    fs.writeFileSync(file, '{"type":"user","message":{"content":"hi"}}\\n', { mode: 0o600 })
+    fs.chmodSync(file, 0o000)
+    try {
+      out.rows = jsonlConciseRows(file)
+    } catch (e) {
+      out.fileErr = e.code ?? e.name
+    } finally {
+      fs.chmodSync(file, 0o600)
+    }
+    const sid = '11111111-1111-1111-1111-111111111111'
+    const sessionFile = getTranscriptPathForSession(sid)
+    const subDir = path.join(path.dirname(sessionFile), sid, 'subagents')
+    fs.mkdirSync(subDir, { recursive: true })
+    fs.writeFileSync(path.join(subDir, 'agent-1.jsonl'), '')
+    fs.chmodSync(subDir, 0o000)
+    try {
+      const owner = makeOwnerKey({ workspace: PROJECT, sessionId: sid, lane: MAIN_LANE })
+      out.listRes = await listResourceKind('transcript', { owner, cwd: PROJECT })
+    } finally {
+      fs.chmodSync(subDir, 0o700)
+    }
+  `)
+  const listRes = r.listRes as { state?: string; note?: string }
+  check('transcript-adapter-unreadable-file-throws', r.fileErr === 'EACCES', JSON.stringify(r))
+  check('transcript-adapter-unreadable-subagents-dir-fails', listRes?.state === 'unavailable', JSON.stringify(listRes))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
