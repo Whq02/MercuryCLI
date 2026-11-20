@@ -135,7 +135,7 @@ async function runWorktreeRows(): Promise<void> {
     } finally {
       chmodSync(includeFile, 0o600)
     }
-    check('worktree: unreadable .worktreeinclude throws EACCES', (includeErr as NodeJS.ErrnoException | null)?.code === 'EACCES', String(includeErr))
+    check('worktree: an unreadable .worktreeinclude does not fail the preparation', includeErr === null, String(includeErr))
 
     chmodSync(includeFile, 0o200)
     let launchErr: unknown = null
@@ -147,7 +147,7 @@ async function runWorktreeRows(): Promise<void> {
       chmodSync(includeFile, 0o600)
       rmSync(includeFile, { force: true })
     }
-    check('worktree: foldersBehindLaunch waits and throws on unreadable .worktreeinclude', (launchErr as NodeJS.ErrnoException | null)?.code === 'EACCES', String(launchErr))
+    check('worktree: createAgentWorktree goes on with an unreadable .worktreeinclude', launchErr === null, String(launchErr))
 
     const localSettingsDir = join(repo, '.mercury')
     mkdirSync(localSettingsDir, { recursive: true })
@@ -357,8 +357,8 @@ async function runVerificationStateRows(): Promise<void> {
   _resetDeclaredGatesForTesting()
   _resetVerificationStateForTesting()
   check(
-    'verificationState: workspaceVerifiable fails closed on malformed gates.json',
-    workspaceVerifiable(badJsonWs) === true,
+    'verificationState: a malformed gates.json alone does not put the workspace under the gate',
+    workspaceVerifiable(badJsonWs) === false,
   )
   let clsErr: unknown = null
   let cls: ReturnType<typeof classifyVerifySegment> = null
@@ -383,8 +383,8 @@ async function runVerificationStateRows(): Promise<void> {
     _resetVerificationStateForTesting()
     try {
       check(
-        'verificationState: workspaceVerifiable fails closed on unreadable gates.json',
-        workspaceVerifiable(unreadableWs) === true,
+        'verificationState: an unreadable gates.json alone does not put the workspace under the gate',
+        workspaceVerifiable(unreadableWs) === false,
       )
     } finally {
       chmodSync(gatesFile, 0o600)

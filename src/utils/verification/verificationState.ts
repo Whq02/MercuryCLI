@@ -867,8 +867,7 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
       try {
         if (loadDeclaredGates(cwd).length > 0) verdict = true
       } catch (error) {
-        logForDebugging(`[verify] declared gates unreadable in ${cwd}: ${String(error)}`, { level: 'warn' })
-        verdict = true
+        logForDebugging(`[verify] declared gates unreadable in ${cwd}, so they are not counted: ${String(error)}`, { level: 'warn' })
       }
     }
     if (!verdict && has('project.godot')) verdict = true

@@ -233,8 +233,8 @@ async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, 
     patternText = await readFile(join(repoRoot, '.worktreeinclude'), 'utf8')
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'ENOTDIR') return []
-    throw error
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`.worktreeinclude could not be read (${String(error)}), so the files it lists were not copied into ${worktreePath}`, { level: 'warn' })
+    return []
   }
   const patterns = patternText
     .split(/\r?\n/)
@@ -658,9 +658,8 @@ async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
     await stat(join(repoRoot, '.worktreeinclude'))
     return true
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'ENOTDIR') return false
-    return true
+    passedOver(error)
+    return false
   }
 }
 
