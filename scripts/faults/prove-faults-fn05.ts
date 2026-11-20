@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -50,6 +51,43 @@ function throwsWithCode(fn: () => unknown, codes: readonly string[]): { threw: b
     check('tree: hashTree still treats missing root as empty', missingHash.startsWith('sha256:'), missingHash)
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+{
+  const { generatedAssetsRefusal } = await import('../../src/guards/commitGate.ts')
+  const { GENERATED_ASSETS_MAP } = await import('../../src/guards/generatedAssets.ts')
+  const repo = mkdtempSync(join(tmpdir(), 'faults-fn05-commitgate-'))
+  try {
+    const git = (...args: string[]): void => {
+      execFileSync('git', args, { cwd: repo, stdio: 'pipe', env: { ...process.env, GIT_AUTHOR_NAME: 'test', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 'test', GIT_COMMITTER_EMAIL: 't@t' } })
+    }
+    git('init')
+    mkdirSync(join(repo, 'scripts/gate'), { recursive: true })
+    writeFileSync(join(repo, GENERATED_ASSETS_MAP), 'out.txt\tgen.ts\t-\tre:TRIGGER_TOKEN\n')
+    writeFileSync(join(repo, 'src.txt'), 'initial\n')
+    writeFileSync(join(repo, 'out.txt'), 'out\n')
+    git('add', '.')
+    git('commit', '-m', 'init')
+    writeFileSync(join(repo, 'src.txt'), 'TRIGGER_TOKEN\n')
+    git('add', 'src.txt')
+    if (POSIX_MODES) {
+      chmodSync(join(repo, 'src.txt'), 0o000)
+      try {
+        let threw = false
+        let refusal: string | null = null
+        try {
+          refusal = generatedAssetsRefusal('git commit -m "upd" -- src.txt', repo)
+        } catch {
+          threw = true
+        }
+        check('commitGate: unreadable commit candidate refuses instead of passing open', threw || refusal !== null, `threw=${threw} refusal=${String(refusal)}`)
+      } finally {
+        chmodSync(join(repo, 'src.txt'), 0o600)
+      }
+    }
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
   }
 }
 

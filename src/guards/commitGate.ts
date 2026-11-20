@@ -401,25 +401,6 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const workingPaths = new Set(selection.all || selection.paths.length > 0
     ? gitLines(directory, [...prefix, 'ls-files', '--full-name', ...(selection.all ? [] : ['--', ...selection.paths])])
     : [])
-  const staged = new Map<string, string | null>()
-  const contentOf = (path: string): string | null => {
-    if (staged.has(path)) return staged.get(path)!
-    let text: string | null
-    try {
-      text = workingPaths.has(path)
-        ? readFileSync(join(root, path), 'utf8')
-        : execFileSync('git', gitArgs([...prefix, 'show', `:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
-    } catch {
-      try {
-        text = readFileSync(join(root, path), 'utf8')
-      } catch {
-        text = null
-      }
-    }
-    if (text !== null && text.includes('\0')) text = null
-    staged.set(path, text)
-    return text
-  }
   const readFile = (path: string): string | null => {
     try {
       return readFileSync(join(root, path), 'utf8')
@@ -428,6 +409,30 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
       if (code !== undefined && NOT_A_FILE_CODES.has(code)) return null
       throw new Error(`${path} could not be read (${failureReason(error)}), so the generated assets it names or feeds cannot be checked — make it readable, then commit again`)
     }
+  }
+  const staged = new Map<string, string | null>()
+  const contentOf = (path: string): string | null => {
+    if (staged.has(path)) return staged.get(path)!
+    let text: string | null
+    if (workingPaths.has(path)) {
+      text = readFile(path)
+    } else {
+      try {
+        text = execFileSync('git', gitArgs([...prefix, 'show', `:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
+      } catch (error) {
+        if (getErrnoCode(error) === 'ENOBUFS') {
+          logForDebugging(`[commit-gate] :${path} is over the 16 MB the gate reads, so its content is not matched against the map's re: sources`)
+          text = null
+        } else if (gitAnswered(error)) {
+          text = readFile(path)
+        } else {
+          throw new Error(`git show :${path} failed (${failureReason(error)}), so the generated assets its content feeds cannot be checked — run the commit again`)
+        }
+      }
+    }
+    if (text !== null && text.includes('\0')) text = null
+    staged.set(path, text)
+    return text
   }
   const previousContentOf = (path: string): string | null => {
     try { return execFileSync('git', gitArgs([...prefix, 'show', `HEAD:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch (error) {
