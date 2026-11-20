@@ -35,7 +35,7 @@ import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
 import { getToolUseIDFromParentMessage, tagMessagesWithToolUseID } from '../utils.js'
-import { SKILL_TOOL_NAME } from './constants.js'
+import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
 import { getPrompt } from './prompt.js'
 import {
   renderToolResultMessage,

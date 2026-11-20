@@ -28,7 +28,7 @@ import { deriveFamilySlotGroups } from '../services/providers/accountSlots.js';
 import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
-import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js';
+import { healthCertSnapshot } from '../services/health/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
 import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink, peekFaceDoorOpener } from '../substrate/splashHandover.js';

@@ -12,7 +12,7 @@ process.env.MERCURY_HEALTH_STATE_DIR = virginRoot
 const repo = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)
 enableConfigs()
-const { runAndRecordPreflight, _resetBootPreflightForTesting, lastPreflightPath } = await import(`${repo}/src/utils/healthPreflight.js`)
+const { runAndRecordPreflight, _resetBootPreflightForTesting, lastPreflightPath } = await import(`${repo}/src/services/health/healthPreflight.js`)
 const { sanitizePath } = await import(`${repo}/src/utils/sessionStoragePortable.js`)
 
 let failures = 0

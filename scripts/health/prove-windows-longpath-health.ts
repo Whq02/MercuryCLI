@@ -80,7 +80,7 @@ try {
   process.argv[1] = `\\\\?\\${bundleMjs}`
 
   const { runWithCwdOverride } = await import(`${root}/src/utils/cwd.ts`)
-  const { runHealthReport } = await import(`${root}/src/utils/healthReport.ts`)
+  const { runHealthReport } = await import(`${root}/src/services/health/healthReport.ts`)
   const { classifyInstallProvenance, gatherInstallProbeFacts, provenanceLine } = await import(
     `${root}/src/services/privateChannel/installProvenance.ts`
   )

@@ -8,7 +8,7 @@ import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js'
 import type { BaseTextInputProps, VimInputState } from '../types/textInputTypes.js'
 import type { ThemeName } from '../utils/theme.js'
 import { BaseTextInput } from './BaseTextInput.js'
-import { color } from './design-system/color.js'
+import { color } from '../utils/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
 type Props = BaseTextInputProps & { onModeChange?: (mode: VimMode) => void; initialMode?: VimMode }

@@ -42,7 +42,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${port}`
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { analyzeContextUsage } = await import('../../src/utils/analyzeContext.ts')
+const { analyzeContextUsage } = await import('../../src/services/context/analyzeContext.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')

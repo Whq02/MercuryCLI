@@ -1,10 +1,10 @@
 
 import React from 'react'
 import { Box, Text } from '../ink.js'
-import type { ContextData } from '../utils/analyzeContext.js'
+import type { ContextData } from '../services/context/analyzeContext.js'
 import type { RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
-import { generateContextSuggestions } from '../utils/contextSuggestions.js'
+import { generateContextSuggestions } from '../services/context/contextSuggestions.js'
 import { formatNumber } from '../utils/format.js'
 import { Wordmark } from './mercury-ui/assets.js'
 import { ContextSuggestions } from './ContextSuggestions.js'

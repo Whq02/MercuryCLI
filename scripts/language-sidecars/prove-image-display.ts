@@ -14,7 +14,7 @@ if (process.argv[2] === '--no-decoder') {
   mock.module('sharp', () => {
     throw new Error(NO_DECODER)
   })
-  const says = await (await import('../../src/utils/health/sections/crew.ts')).crewChecks().find(row => row.id === 'image-decode')?.run()
+  const says = await (await import('../../src/services/health/sections/crew.ts')).crewChecks().find(row => row.id === 'image-decode')?.run()
   const tier = (await import('../../src/services/visual/imageDisplay.ts')).detectImageProtocol()
   console.log(JSON.stringify({ says, tier }))
   process.exit(0)
@@ -224,7 +224,7 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
   check(
     '/health names the consequence (images render as file links)',
     await (async () => {
-      const says = await (await import('../../src/utils/health/sections/crew.ts')).crewChecks().find(row => row.id === 'image-decode')?.run()
+      const says = await (await import('../../src/services/health/sections/crew.ts')).crewChecks().find(row => row.id === 'image-decode')?.run()
       const tier = (await import('../../src/services/visual/imageDisplay.ts')).detectImageProtocol()
       return says !== undefined && (says.status === 'ok' ? says.evidence === `native decode available · detected tier: ${tier}` : says.status === 'warn' && says.evidence.startsWith('images render as file links on this install') && says.evidence.endsWith(`detected tier: ${tier}`))
     })(),

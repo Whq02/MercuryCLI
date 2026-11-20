@@ -146,7 +146,7 @@ section('§4 the mode word: --mode strategy is an unknown value, the lists and s
 
 section('§5 a saved chat that was in a mode this build does not know opens in default')
 {
-  const recovery = await import('../../src/utils/conversationRecovery.ts')
+  const recovery = await import('../../src/services/resume/conversationRecovery.ts')
   const row = (mode: string) => ({ type: 'user', uuid: '11111111-1111-4111-8111-111111111111', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'saved prompt' }, permissionMode: mode }) as never
   const userRow = (rows: unknown[]): { permissionMode?: string } | undefined => (rows as Array<{ type: string; permissionMode?: string }>).find(r => r.type === 'user')
   const restored = userRow(recovery.deserializeMessages([row('strategy')]))

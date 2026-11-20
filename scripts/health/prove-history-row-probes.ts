@@ -17,7 +17,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 mkdirSync(join(HOME, 'history.jsonl'))
 
 const historyRow = async (): Promise<{ status: string; evidence: string }> => {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'history')
   return { status: String(row?.status), evidence: String(row?.evidence) }

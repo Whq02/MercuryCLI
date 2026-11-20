@@ -2,7 +2,7 @@
 import { strict as assert } from 'node:assert'
 import type { Tools } from '../../src/Tool.ts'
 import type { CollapsedReadSearchGroup, NormalizedAssistantMessage, NormalizedUserMessage, RenderableMessage } from '../../src/types/message.ts'
-import { collapseReadSearchGroups, getSearchReadSummaryText, getToolUseIdsFromCollapsedGroup } from '../../src/utils/collapseReadSearch.ts'
+import { collapseReadSearchGroups, getSearchReadSummaryText, getToolUseIdsFromCollapsedGroup } from '../../src/components/messages/collapseReadSearch.ts'
 import { applyGrouping } from '../../src/utils/groupToolUses.ts'
 
 process.env.MERCURY_FULLSCREEN = '1'

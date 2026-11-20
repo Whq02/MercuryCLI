@@ -42,7 +42,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const { setCwd } = await import('../../src/utils/Shell.js')
 const { regroundGitWatch } = await import('../../src/utils/git/gitFilesystem.js')
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 setCwd(PROJECT)
 process.chdir(PROJECT)
 regroundGitWatch()

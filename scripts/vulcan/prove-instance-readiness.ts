@@ -33,7 +33,7 @@ for (const file of VULCAN_ADDON_FILES) {
   writeFileSync(target, file.content)
 }
 
-const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
 const vulcanSpec = runtimeChecks().find(row => row.id === 'vulcan')
 if (!vulcanSpec) throw new Error('health Godot row was not found')
 const healthRow = vulcanSpec.run as () => Promise<{ status: string; evidence: string; fix?: string }>

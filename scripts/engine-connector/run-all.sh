@@ -9,7 +9,7 @@
 # gate-watch: src/tools/AgentTool/*
 # gate-watch: src/utils/*
 # gate-watch: src/rows/*
-# gate-watch: src/utils/health/sections/*
+# gate-watch: src/services/health/sections/*
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

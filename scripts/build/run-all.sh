@@ -6,7 +6,7 @@
 # gate-watch: src/tools/**
 # gate-watch: src/utils/caCerts*
 # gate-watch: src/entrypoints/init*
-# gate-watch: src/utils/health/sections/interface.ts
+# gate-watch: src/services/health/sections/interface.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

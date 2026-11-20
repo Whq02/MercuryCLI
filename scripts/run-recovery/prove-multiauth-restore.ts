@@ -17,7 +17,7 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
 const { restoreConversationModelFromMessages } = await import(
   '../../src/utils/sessionRestore.ts'
 )

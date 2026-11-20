@@ -62,7 +62,7 @@ try {
     doctrine.includes('under your session scratchpad') &&
     doctrine.includes('never bare /tmp or the project tree') &&
     /delet\w* what your run created/i.test(doctrine))
-  const { crewChecks } = await import(join(ROOT, 'src/utils/health/sections/crew.ts'))
+  const { crewChecks } = await import(join(ROOT, 'src/services/health/sections/crew.ts'))
   const leasesRow = crewChecks().find((row: { id: string }) => row.id === 'scratch-leases')
   const rootH = join(projTemp, 'health-row-scratch')
   mkdirSync(rootH, { recursive: true })

@@ -147,9 +147,9 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
 {
   const fsF = await import('node:fs')
   const { execFileSync } = await import('node:child_process')
-  const { gateVerdictPath, healthContext } = await import('../../src/utils/healthReport.ts')
-  const { proofsChecks } = await import('../../src/utils/health/sections/proofs.ts')
-  const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+  const { gateVerdictPath, healthContext } = await import('../../src/services/health/healthReport.ts')
+  const { proofsChecks } = await import('../../src/services/health/sections/proofs.ts')
+  const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
   const project = mkdtempSync(join(tmpdir(), 'health-fix-gate-'))
   fsF.mkdirSync(join(project, 'scripts'), { recursive: true })
   fsF.writeFileSync(join(project, 'scripts', 'run-all-suites.sh'), '#!/bin/bash\nexit 1\n')

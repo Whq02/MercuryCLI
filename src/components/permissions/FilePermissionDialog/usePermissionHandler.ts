@@ -1,4 +1,4 @@
-import { FILE_EDIT_TOOL_NAME } from '../../../tools/FileEditTool/constants.js'
+import { FILE_EDIT_TOOL_NAME } from '../../../constants/tools/fileEdit.js'
 import { generateSuggestions } from '../../../utils/permissions/filesystem.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'

@@ -1,6 +1,6 @@
 import { TASK_GET_TOOL_NAME } from '../TaskGetTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
-import { TASK_UPDATE_TOOL_NAME } from './constants.js'
+import { TASK_UPDATE_TOOL_NAME } from '../../constants/tools/taskUpdate.js'
 
 export { TASK_UPDATE_TOOL_NAME }
 

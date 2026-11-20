@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../../Tool.js'
-import { isRemotePath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { compressImageBufferWithTokenLimit, createImageMetadataText, detectImageFormatFromBuffer, ImageResizeError, maybeResizeAndDownsampleImageBuffer, type ImageDimensions } from '../../../utils/imageResizer.js'
 import { logError } from '../../../utils/log.js'
 import { recogniseImage, renderOcr } from '../../../utils/ocr.js'

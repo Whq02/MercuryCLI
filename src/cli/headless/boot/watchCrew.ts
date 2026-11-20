@@ -2,7 +2,7 @@ import { getSessionId, isSessionPersistenceDisabled } from '../../../bootstrap/s
 import { partyFeed } from '../../../services/crewBoard/party.js'
 import { swarmSessionEnabled, swarmStore, watchSwarmBoard, watchSwarmResumes, watchSwarmLead, enqueueBoardWake } from '../../../services/crewBoard/seam.js'
 import { peekProject, adoptResumedSessionFile, recordTranscript } from '../../../utils/sessionStorage/writer.js'
-import { hasConversationTurn } from '../../../utils/conversationRecovery.js'
+import { hasConversationTurn } from '../../../services/resume/conversationRecovery.js'
 import { getLastCacheSafeParams } from '../../../utils/forkedAgent.js'
 import type { ToolUseContext } from '../../../Tool.js'
 import { isShuttingDown } from '../../../utils/gracefulShutdown.js'

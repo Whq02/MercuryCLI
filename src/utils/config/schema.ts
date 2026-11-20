@@ -1,6 +1,6 @@
 import type { EffortLevel } from '../effortLadder.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
-import type { BillingType } from '../../services/oauth/types.js'
+import type { BillingType } from '../oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
 import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
@@ -175,7 +175,7 @@ type Credentials = {
   anthropicPreferredSource?: 'subscription' | 'api-key'
   defaultProvider?: string
   compatProvider?: import('../settings/compatProvider.js').CompatProviderSettings
-  videoProvider?: import('../../services/video/types.js').VideoProviderSettings
+  videoProvider?: import('../video/types.js').VideoProviderSettings
 }
 
 type Servers = {

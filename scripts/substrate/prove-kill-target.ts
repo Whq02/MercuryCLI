@@ -4,8 +4,8 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { FILE_READ_TOOL_NAME } from '../../src/tools/FileReadTool/prompt.js'
-import { FILE_EDIT_TOOL_NAME } from '../../src/tools/FileEditTool/constants.js'
-import { FILE_WRITE_TOOL_NAME } from '../../src/tools/FileWriteTool/prompt.js'
+import { FILE_EDIT_TOOL_NAME } from '../../src/constants/tools/fileEdit.js'
+import { FILE_WRITE_TOOL_NAME } from '../../src/constants/tools/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../src/tools/NotebookEditTool/constants.js'
 
 let failures = 0

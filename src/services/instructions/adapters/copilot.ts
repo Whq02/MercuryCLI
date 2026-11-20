@@ -2,7 +2,7 @@ import { join } from 'path'
 
 import { getOriginalCwd } from '../../../bootstrap/state.js'
 import { expandPath } from '../../../utils/path.js'
-import type { InstructionConvention } from '../contracts.js'
+import type { InstructionConvention } from '../../../utils/instructions/contracts.js'
 import { describedBy, scopeOf, sharedFormat, vendorPatterns } from './shared.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

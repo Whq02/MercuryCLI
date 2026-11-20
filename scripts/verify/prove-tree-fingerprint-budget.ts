@@ -313,7 +313,7 @@ section('§7 the same tree, both forms — and the certificate sha byte-identica
   const expected = run(['write-tree']).trim()
   rmSync(idx, { recursive: true, force: true })
   const before = countObjects(A)
-  const { computeWorkingTreeSha } = await import('../../src/utils/healthReport.ts')
+  const { computeWorkingTreeSha } = await import('../../src/services/health/healthReport.ts')
   const got = await computeWorkingTreeSha(A)
   const after = countObjects(A)
   check('the health certificate names the same tree with its objects redirected', got === expected, `${got} vs ${expected}`)

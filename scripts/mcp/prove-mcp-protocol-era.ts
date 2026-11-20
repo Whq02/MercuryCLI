@@ -201,7 +201,7 @@ section('(5) the health row reading')
     `${MCP_LEGACY_REVISION} vs ${MCP_PROTOCOL_REVISION}`,
   )
   ;(await import('../../src/utils/config/globalConfig.js')).enableConfigs()
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
   const { describeMcpProtocolCurrency: currencyNow } = await import('../../src/services/mcp/protocolRevision.ts')
   publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])

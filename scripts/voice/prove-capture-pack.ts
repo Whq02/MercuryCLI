@@ -38,7 +38,7 @@ const build = spawnSync(BUN, ['run', 'scripts/vendor/build-voice.ts'], { cwd: RO
 const buildOut = `${build.stdout ?? ''}\n${build.stderr ?? ''}`
 
 async function healthRowSaysNone(): Promise<boolean> {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'iface-voice')
   return row !== undefined && String(row.evidence).includes('backend: none')
