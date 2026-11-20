@@ -6,7 +6,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
-import { parseForSecurity, checkSemantics, extractShellCScript, preparedCommandRoot, preparedSecurityParse, prepareShellCScripts, shellCommandText, withBashParseScope, SHELL_C_MAX_DEPTH, type Node } from '../../utils/permissions/decision/commandAnalysis.js'
+import { parseForSecurity, checkSemantics, extractShellCScript, preparedCommandSpans, preparedSecurityParse, prepareShellCScripts, shellCommandText, withBashParseScope, SHELL_C_MAX_DEPTH } from '../../utils/permissions/decision/commandAnalysis.js'
 import { boxLockDirOfScript } from '../../utils/boxLock.js'
 import { quote } from '../../utils/bash/shellQuote.js'
 import { rewriteReadOnlyGitCommand } from '../BashTool/bashPermissions.js'
@@ -151,25 +151,22 @@ function plainGitArgs(hardened: string[], cwd: string, text: string): string[] |
 
 function plainGitSpelling(command: string, cwd: string, depth = 0): string {
   if (depth > SHELL_C_MAX_DEPTH) return command
-  const root = preparedCommandRoot(command)
-  if (!root || root.type === 'ERROR') return command
+  const commands = preparedCommandSpans(command)
+  if (commands === null) return command
   const spans: Array<{ start: number; end: number; text: string }> = []
-  const visit = (node: Node): void => {
-    if (node.type === 'command') {
-      const parsed = preparedSecurityParse(node.text)
-      const simple = parsed.kind === 'simple' && parsed.commands.length === 1 ? parsed.commands[0] : undefined
-      if (simple?.argv[0] === 'git') {
-        const plain = plainGitArgs(simple.argv.slice(1), cwd, node.text)
-        if (plain !== null) spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText(['git', ...plain]) })
-      } else if (simple) {
-        const script = extractShellCScript(simple)
-        const plain = script === null ? null : plainGitSpelling(script, cwd, depth + 1)
-        if (plain !== null && plain !== script) spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText([simple.argv[0] as string, simple.argv[1] as string, plain]) })
-      }
+  for (const node of commands) {
+    if (node.declaration) continue
+    const parsed = preparedSecurityParse(node.text)
+    const simple = parsed.kind === 'simple' && parsed.commands.length === 1 ? parsed.commands[0] : undefined
+    if (simple?.argv[0] === 'git') {
+      const plain = plainGitArgs(simple.argv.slice(1), cwd, node.text)
+      if (plain !== null) spans.push({ start: node.start, end: node.end, text: shellCommandText(['git', ...plain]) })
+    } else if (simple) {
+      const script = extractShellCScript(simple)
+      const plain = script === null ? null : plainGitSpelling(script, cwd, depth + 1)
+      if (plain !== null && plain !== script) spans.push({ start: node.start, end: node.end, text: shellCommandText([simple.argv[0] as string, simple.argv[1] as string, plain]) })
     }
-    for (const child of node.children) visit(child)
   }
-  visit(root)
   let plain = command
   for (const span of spans.sort((a, b) => b.start - a.start)) plain = plain.slice(0, span.start) + span.text + plain.slice(span.end)
   return plain
