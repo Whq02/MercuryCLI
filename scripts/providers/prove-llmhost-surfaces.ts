@@ -28,6 +28,7 @@ try {
   for (const fact of ['SSH tunnel', 'compat/llmhost/<model>', 'sessionAffinityHeader', 'contextWindow', 'Change the address', 'Remove the provider', 'whole-turn tokens/s']) assert.ok(page.includes(fact), `the user page explains ${fact}`)
   const { generateSettingsJSONSchema } = await import(`${f.root}/src/utils/settings/schemaOutput.ts`)
   assert.deepEqual(JSON.parse(readFileSync(join(f.root, 'scripts/settings/settings-schema.json'), 'utf8')), JSON.parse(generateSettingsJSONSchema()), 'the generated settings snapshot matches the live schema')
-  assert.ok(readFileSync(join(f.root, 'scripts/compositor/fixtures/surface-census.md'), 'utf8').includes('`/llmhost`'), 'the generated surface census includes the new command')
+  const { surfaceCensus } = await import(`${f.root}/scripts/compositor/prove-surface-census.ts`)
+  assert.ok(surfaceCensus(f.root).includes('`/llmhost`'), 'the surface census includes the new command')
   console.log('LLMHOST SURFACES GREEN — live catalogue, private command, help category, README, user guide, generated schema and surface row')
 } finally { f.close() }
