@@ -231,5 +231,30 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   check('healthReport: skillsRefusedEvidence rejects when skill loading fails instead of reporting all loaded', rSkills.err === 'skills boom', JSON.stringify(rSkills))
 }
 
+{
+  const label = 'imagePaste: getImageFromClipboard rejects when artifact dir cannot be created instead of returning null'
+  if (!POSIX_MODES) skip(label, 'needs non-root POSIX chmod')
+  else {
+    const fixture = join(SCRATCH, 'clip.png')
+    const roTmp = join(SCRATCH, 'clip-ro-tmp')
+    writeFileSync(fixture, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    mkdirSync(roTmp, { recursive: true })
+    chmodSync(roTmp, 0o500)
+    try {
+      const r = runIsolated(`
+        const { getImageFromClipboard } = await import(${JSON.stringify(join(SRC, 'utils/imagePaste.ts'))})
+        try {
+          out.val = await getImageFromClipboard()
+        } catch (e) {
+          out.code = e && typeof e === 'object' ? e.code : null
+        }
+      `, { MERCURY_CLIPBOARD_IMAGE_FILE: fixture, MERCURY_TMPDIR: roTmp })
+      check(label, r.code === 'EACCES', JSON.stringify(r))
+    } finally {
+      chmodSync(roTmp, 0o700)
+    }
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

@@ -130,15 +130,17 @@ async function saveClipboardImage(platform: ClipboardPlatform, path: string): Pr
     ['wl-paste', ['--type', 'image/bmp']],
   ]
   for (const [tool, args] of attempts) {
+    let stdout: Buffer
     try {
       const result = await execa(tool, args, { encoding: 'buffer', windowsHide: true, timeout: 2000 })
-      if (result.exitCode === 0 && result.stdout.length > 0) {
-        await writeFile(path, result.stdout)
-        return true
-      }
+      if (result.exitCode !== 0 || result.stdout.length === 0) continue
+      stdout = result.stdout
     } catch (error) {
       passedOver(error)
+      continue
     }
+    await writeFile(path, stdout)
+    return true
   }
   return false
 }
@@ -196,14 +198,9 @@ async function normalizeBmp(buffer: Buffer): Promise<Buffer> {
 export async function getImageFromClipboard(): Promise<ImageWithDimensions | null> {
   const platform = clipboardPlatform()
   const path = nextPasteArtifactPath()
-  try {
-    if (!(await checkClipboardImage(platform))) return null
-    await mkdir(pasteArtifactDir(), { recursive: true })
-    if (!(await saveClipboardImage(platform, path))) return null
-  } catch (error) {
-    logForDebugging(`imagePaste: clipboard save failed: ${String(error)}`)
-    return null
-  }
+  if (!(await checkClipboardImage(platform))) return null
+  await mkdir(pasteArtifactDir(), { recursive: true })
+  if (!(await saveClipboardImage(platform, path))) return null
   try {
     const raw = await getFsImplementation().readFileBytes(path)
     const normalized = await normalizeBmp(raw)
