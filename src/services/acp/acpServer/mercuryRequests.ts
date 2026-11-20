@@ -11,7 +11,7 @@ import { isOwnerKey, type OwnerKey } from '../../run/ownerKey.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { resolveWorkbenchSnapshot } from '../../workbench/projection.js'
 import { attentionWireFromSnapshot } from './attention.js'
-import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function mercuryRequests(app: AgentApp): AgentApp {
   return app
@@ -82,11 +82,28 @@ export function mercuryRequests(app: AgentApp): AgentApp {
         ])
       const snap = await resolveCrewSnapshot()
       const operatorId = identityMod.operatorPrincipal().id
+      const readErrors: Partial<Record<'conversations' | 'readCursors' | 'descriptors' | 'graph', string>> = {}
+      const recordError = (key: 'conversations' | 'readCursors' | 'descriptors' | 'graph', error: unknown): void => {
+        passedOver(error)
+        readErrors[key] = error instanceof Error ? error.message : String(error)
+      }
       const [conversations, cursors, descriptors, graph] = await Promise.all([
-        conversationsMod.listConversations().catch((error) => { passedOver(error); return [] }),
-        conversationsMod.listReadCursors(operatorId).catch(() => new Map<string, number>()),
-        descriptorMod.listSessionDescriptors().catch((error) => { passedOver(error); return [] }),
-        graphMod.assembleSessionGraph().catch(passedOverAs(null)),
+        conversationsMod.listConversations().catch(error => {
+          recordError('conversations', error)
+          return []
+        }),
+        conversationsMod.listReadCursors(operatorId).catch(error => {
+          recordError('readCursors', error)
+          return new Map<string, number>()
+        }),
+        descriptorMod.listSessionDescriptors().catch(error => {
+          recordError('descriptors', error)
+          return []
+        }),
+        graphMod.assembleSessionGraph().catch(error => {
+          recordError('graph', error)
+          return null
+        }),
       ])
       const inbox = deriveInbox(conversations, id => (cursors as Map<string, number>).get(id) ?? 0)
       const labels = new Map((snap?.members ?? []).map(m => [m.agentId as string, m.label]))
@@ -157,6 +174,7 @@ export function mercuryRequests(app: AgentApp): AgentApp {
         ...(graph !== null ? { graph } : {}),
         folioHeads,
         folioSource: healthOf(folioSrc),
+        ...(Object.keys(readErrors).length > 0 ? { readErrors } : {}),
       }
     })
     .onRequest('_mercury/run', (v: unknown) => (v ?? {}), async ctx => {

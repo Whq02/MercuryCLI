@@ -64,10 +64,14 @@ console.log('\ngatewayTrust.ts — a failed TLS fingerprint probe says so once a
     await new Promise(resolve => srv.close(resolve))
     const { mock } = await import('bun:test')
     const logs = []
+    const realDebug = await import(SRC + '/utils/debug.ts')
     mock.module(SRC + '/utils/debug.js', () => ({
+      ...realDebug,
       logForDebugging: (msg) => { logs.push(String(msg)) },
     }))
+    const realStorage = await import(SRC + '/utils/secureStorage/index.ts')
     mock.module(SRC + '/utils/secureStorage/index.js', () => ({
+      ...realStorage,
       getSecureStorage: () => ({
         readAsync: async () => ({
           enterpriseGateway: { url: 'https://127.0.0.1:' + port, expiresAt: Date.now() + 60_000 },
@@ -76,7 +80,9 @@ console.log('\ngatewayTrust.ts — a failed TLS fingerprint probe says so once a
         update: () => ({ success: true }),
       }),
     }))
+    const realState = await import(SRC + '/bootstrap/state.ts')
     mock.module(SRC + '/bootstrap/state.js', () => ({
+      ...realState,
       getIsNonInteractiveSession: () => false,
     }))
     const stderrLines = []
@@ -305,16 +311,24 @@ console.log('\ngracefulShutdown.ts — background hooks end on fireHooks throw a
   const r1 = runScenario(`
     const { mock } = await import('bun:test')
     let backgroundEnded = false
+    const realFire = await import(SRC + '/utils/hooks/fire.ts')
     mock.module(SRC + '/utils/hooks/fire.js', () => ({
+      ...realFire,
       fireHooks: async () => { throw new Error('fire boom') },
     }))
+    const realBg = await import(SRC + '/utils/hooks/background.ts')
     mock.module(SRC + '/utils/hooks/background.js', () => ({
+      ...realBg,
       endBackgroundHooks: async () => { backgroundEnded = true },
     }))
+    const realLin = await import(SRC + '/mneme/lineageSession.ts')
     mock.module(SRC + '/mneme/lineageSession.js', () => ({
+      ...realLin,
       closeLineageSession: async () => {},
     }))
+    const realDrain = await import(SRC + '/utils/exitCliffDrain.ts')
     mock.module(SRC + '/utils/exitCliffDrain.js', () => ({
+      ...realDrain,
       drainExitCliffSeams: async () => {},
     }))
     const origExit = process.exit
@@ -339,12 +353,16 @@ console.log('\ngracefulShutdown.ts — background hooks end on fireHooks throw a
 
   const r2 = runScenario(`
     const { mock } = await import('bun:test')
+    const realRestore = await import(SRC + '/utils/shutdownRestoration.ts')
     mock.module(SRC + '/utils/shutdownRestoration.js', () => ({
+      ...realRestore,
       cleanupTerminalModes: () => { throw new Error('tty restore boom') },
       printResumeHint: () => {},
       drainStdinForExit: () => {},
     }))
+    const realInk = await import(SRC + '/ink/instances.ts')
     mock.module(SRC + '/ink/instances.js', () => ({
+      ...realInk,
       default: { get: () => ({ awaitTerminalQueries: async () => {} }) },
     }))
     Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
@@ -388,7 +406,9 @@ console.log('\ndurability.ts — EPERM from process.kill(pid, 0) counts journal 
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
+    const realJournal = await import(SRC + '/substrate/operationJournal.ts')
     mock.module(SRC + '/substrate/operationJournal.js', () => ({
+      ...realJournal,
       listJournalOperations: async () => [{ state: 'applying', writerPid: 424242 }],
     }))
     const origKill = process.kill
@@ -509,10 +529,14 @@ console.log('\nhealthDeepProbes.ts — probeServiceLifecycle kills child PID if 
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
+    const realContracts = await import(SRC + '/services/projectServices/contracts.ts')
     mock.module(SRC + '/services/projectServices/contracts.js', () => ({
+      ...realContracts,
       servicesEnabled: () => true,
     }))
+    const realSvc = await import(SRC + '/services/projectServices/serviceManager.ts')
     mock.module(SRC + '/services/projectServices/serviceManager.js', () => ({
+      ...realSvc,
       startService: async () => ({ record: { pid: 424243, state: 'running' } }),
       waitForReady: async () => { throw new Error('wait boom') },
       readLogs: async () => ({ lines: [] }),
@@ -545,7 +569,9 @@ console.log('\nsettings/model.ts — modelCheck propagates getSettingsWithAllErr
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
+    const realAllErrors = await import(SRC + '/utils/settings/allErrors.ts')
     mock.module(SRC + '/utils/settings/allErrors.js', () => ({
+      ...realAllErrors,
       getSettingsWithAllErrors: () => { throw new Error('settings read boom') },
     }))
     const { modelCheck } = await import(SRC + '/utils/health/sections/settings/model.ts')

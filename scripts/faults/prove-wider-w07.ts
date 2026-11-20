@@ -401,4 +401,313 @@ console.log('\nw07-4 · json.ts parseJSONL + fabric/transcriptDecode.ts — skip
   )
 }
 
+console.log('\nw07-5 · promptDraft — autosave refuses unreadable draft/scoped files; failed delete retries at next send')
+{
+  const rIo = runSubprocess(`
+    const fs = await import('node:fs')
+    const fsp = await import('node:fs/promises')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const s1 = '11111111-1111-4111-8111-111111111101'
+    const s2 = '11111111-1111-4111-8111-111111111102'
+    const s3 = '11111111-1111-4111-8111-111111111103'
+    let failPaths = new Set()
+    const realReadFile = fsp.readFile
+    mock.module('node:fs/promises', () => ({
+      ...fsp,
+      readFile: async (p, ...rest) => {
+        if (failPaths.has(String(p))) {
+          const err = new Error('EIO: i/o error, read')
+          err.code = 'EIO'
+          throw err
+        }
+        return realReadFile(p, ...rest)
+      },
+    }))
+    mock.module('fs/promises', () => ({
+      ...fsp,
+      readFile: async (p, ...rest) => {
+        if (failPaths.has(String(p))) {
+          const err = new Error('EIO: i/o error, read')
+          err.code = 'EIO'
+          throw err
+        }
+        return realReadFile(p, ...rest)
+      },
+    }))
+    const drafts = await import(path.join(SRC, 'utils/promptDraft.ts'))
+    drafts.saveDraftDebounced(s1, { text: 'important draft 1', cursorOffset: 5, mode: 'prompt', pastedContents: {} })
+    await drafts.flushDraftSaves()
+    await drafts.saveScopedDoc(s1, { v: 1, scope: 'main', body: 'scoped body 1', items: [] })
+    await drafts.flushScopedDocSaves()
+
+    const draftsDir = path.join(HOME, 'drafts')
+    const draftFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('.json') && !f.endsWith('-scoped.json')))
+    const scopedFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('-scoped.json')))
+    const beforeDraft = fs.readFileSync(draftFile, 'utf8')
+    const beforeScoped = fs.readFileSync(scopedFile, 'utf8')
+
+    failPaths = new Set([draftFile, scopedFile])
+    drafts.saveDraftDebounced(s3, { text: 'overwrite attempt', cursorOffset: 2, mode: 'prompt', pastedContents: {} })
+    await drafts.flushDraftSaves()
+    await drafts.saveScopedDoc(s2, { v: 1, scope: 'main', body: 'scoped overwrite', items: [] })
+    await drafts.flushScopedDocSaves()
+    failPaths = new Set()
+
+    out.draftPreserved = fs.readFileSync(draftFile, 'utf8') === beforeDraft
+    out.scopedPreserved = fs.readFileSync(scopedFile, 'utf8') === beforeScoped
+  `)
+  check('w07-5 autosave does not overwrite a draft file that fails I/O read (EIO)', rIo.out.draftPreserved === true, JSON.stringify(rIo.out.draftPreserved))
+  check('w07-5 autosave does not overwrite a scoped-doc file that fails I/O read (EIO)', rIo.out.scopedPreserved === true, JSON.stringify(rIo.out.scopedPreserved))
+
+  if (!POSIX_MODES) skip('w07-5 failed deleteDraft retry', 'chmod 0000 needs non-root POSIX')
+  else {
+    const rRetry = runSubprocess(`
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const drafts = await import(path.join(SRC, 'utils/promptDraft.ts'))
+      const pendingInput = await import(path.join(SRC, 'input-core/pending-input.ts'))
+      const s1 = '11111111-1111-4111-8111-111111111101'
+      const s2 = '11111111-1111-4111-8111-111111111102'
+
+      drafts.saveDraftDebounced(s1, { text: 'sent draft 1', cursorOffset: 4, mode: 'prompt', pastedContents: {} })
+      await drafts.flushDraftSaves()
+      drafts.saveDraftDebounced(s2, { text: 'sent draft 2', cursorOffset: 4, mode: 'prompt', pastedContents: {} })
+      await drafts.flushDraftSaves()
+
+      const draftsDir = path.join(HOME, 'drafts')
+      const draftFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('.json') && !f.endsWith('-scoped.json')))
+      fs.chmodSync(draftFile, 0o000)
+      try {
+        drafts.deleteDraft(s1)
+        await drafts.flushDraftSaves()
+        await new Promise(r => setTimeout(r, 80))
+      } finally {
+        fs.chmodSync(draftFile, 0o600)
+      }
+      out.s1StayedAfterFailedDelete = drafts.readDraftSync(s1)?.text ?? null
+
+      pendingInput.initSession(s2, '')
+      pendingInput.clearForSubmit('sent s2')
+      await drafts.flushDraftSaves()
+      await new Promise(r => setTimeout(r, 80))
+      out.s1AfterNextSend = drafts.readDraftSync(s1)
+      out.s2AfterNextSend = drafts.readDraftSync(s2)
+    `)
+    check(
+      'w07-5 failed deleteDraft for s1 is retried at next send (clearForSubmit on s2)',
+      rRetry.out.s1StayedAfterFailedDelete === 'sent draft 1' && rRetry.out.s1AfterNextSend === null && rRetry.out.s2AfterNextSend === null,
+      JSON.stringify(rRetry.out),
+    )
+  }
+}
+
+console.log('\nw07-1 · session listing roads + BootResumeScreen + sessionManager + ResumeConversation — unreadable folders/sessions counted and shown')
+if (!POSIX_MODES) skip('w07-1 session listing unreadable', 'chmod 0000 needs non-root POSIX')
+else {
+  const rRoads = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { encodeSeedTranscript } = await import(path.join(LIB, 'seedTranscript.ts'))
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const logs = await import(path.join(SRC, 'utils/sessionStorage/logs.ts'))
+    const { listSessionsImpl } = await import(path.join(SRC, 'utils/listSessionsImpl.ts'))
+
+    const projectsDir = portable.getProjectsDir()
+    const absentPage = await logs.listSessionsAcrossProjectsProgressive()
+    out.absentFailures = absentPage.readFailures ?? null
+
+    fs.mkdirSync(projectsDir, { recursive: true })
+    fs.chmodSync(projectsDir, 0o000)
+    try {
+      const rootPage = await logs.listSessionsAcrossProjectsProgressive()
+      out.rootPage = { count: rootPage.logs.length, readFailures: rootPage.readFailures ?? null, projectsDir }
+    } finally {
+      fs.chmodSync(projectsDir, 0o700)
+    }
+
+    const goodStore = path.join(projectsDir, '-good-project-11111111')
+    const badStore = path.join(projectsDir, '-bad-project-22222222')
+    fs.mkdirSync(goodStore, { recursive: true })
+    fs.mkdirSync(badStore, { recursive: true })
+    const sidGood = '11111111-1111-4111-8111-111111111111'
+    const sidBad = '22222222-2222-4222-8222-222222222222'
+    const mkLines = (sid, text) => encodeSeedTranscript([
+      {
+        uuid: '00000000-0000-4000-8000-' + sid.slice(0, 12).replace(/-/g, '').padEnd(12, '1'),
+        parentUuid: null,
+        timestamp: '2026-11-20T06:00:00.000Z',
+        isSidechain: false,
+        sessionId: sid,
+        cwd: PROJECT,
+        version: '1.0.0',
+        type: 'user',
+        message: { role: 'user', content: text },
+      },
+    ], sid)
+    const goodFile = path.join(goodStore, sidGood + '.jsonl')
+    const badFile = path.join(goodStore, sidBad + '.jsonl')
+    fs.writeFileSync(goodFile, mkLines(sidGood, 'readable session prompt'))
+    fs.writeFileSync(badFile, mkLines(sidBad, 'unreadable session prompt'))
+
+    logs.invalidateSessionListingMemo()
+    fs.chmodSync(badStore, 0o000)
+    fs.chmodSync(badFile, 0o000)
+    try {
+      const partialPage = await logs.listSessionsAcrossProjectsProgressive()
+      out.partialPage = {
+        ids: partialPage.logs.map(l => l.sessionId),
+        readFailures: partialPage.readFailures ?? null,
+        badStore,
+        badFile,
+      }
+      const liteErrors = []
+      const liteNull = await portable.readSessionLite(badFile, (p, e) => liteErrors.push({ path: p, msg: String(e?.message ?? e) }))
+      out.liteCheck = { liteNull, liteErrors }
+      const implRows = await listSessionsImpl()
+      out.implCount = implRows.length
+    } finally {
+      fs.chmodSync(badStore, 0o700)
+      fs.chmodSync(badFile, 0o600)
+    }
+  `)
+  const rootPage = rRoads.out.rootPage as { count: number; readFailures: { count: number; firstPath: string; firstError: string } | null; projectsDir: string }
+  const partialPage = rRoads.out.partialPage as { ids: string[]; readFailures: { count: number; firstPath: string; firstError: string } | null; badStore: string; badFile: string }
+  const liteCheck = rRoads.out.liteCheck as { liteNull: unknown; liteErrors: Array<{ path: string; msg: string }> }
+  check('w07-1 absent projects root (ENOENT) reports no readFailures', rRoads.out.absentFailures === null, JSON.stringify(rRoads.out.absentFailures))
+  check(
+    'w07-1 unreadable projects root reports readFailures with count=1 and path',
+    rootPage.count === 0 && rootPage.readFailures !== null && rootPage.readFailures.count === 1 && rootPage.readFailures.firstPath === rootPage.projectsDir && rootPage.readFailures.firstError.length > 0,
+    JSON.stringify(rootPage),
+  )
+  check(
+    'w07-1 unreadable store and transcript keep readable session and report count=2',
+    partialPage.ids.includes('11111111-1111-4111-8111-111111111111') &&
+      !partialPage.ids.includes('22222222-2222-4222-8222-222222222222') &&
+      partialPage.readFailures !== null &&
+      partialPage.readFailures.count === 2,
+    JSON.stringify(partialPage),
+  )
+  check(
+    'w07-1 readSessionLite keeps returning null and reports non-ENOENT error to callback',
+    liteCheck.liteNull === null && liteCheck.liteErrors.length === 1 && liteCheck.liteErrors[0]!.path === partialPage.badFile,
+    JSON.stringify(liteCheck),
+  )
+  check('w07-1 listSessionsImpl does not throw on unreadable transcript', rRoads.out.implCount === 1, JSON.stringify(rRoads.out.implCount))
+
+  const rUi = runSubprocess(`
+    const React = await import('react')
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const harness = await import(path.join(LIB, 'settingsPopupHarness.ts'))
+    harness.pinSourceRef()
+    process.env.MERCURY_LIVE_GLYPHS = '0'
+    process.env.MERCURY_LIVE_CLOCK = '0'
+    process.env.MERCURY_REDUCED_MOTION = '1'
+    process.env.MERCURY_FULLSCREEN = '0'
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const { Box } = await import(path.join(SRC, 'ink.ts'))
+    const { AppStateProvider, getDefaultAppState } = await import(path.join(SRC, 'state/AppState.tsx'))
+    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
+    const { TerminalSizeContext } = await import(path.join(SRC, 'ink/components/TerminalSizeContext.tsx'))
+    const { KeybindingSetup } = await import(path.join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
+    const { BootResumeScreen } = await import(path.join(SRC, 'components/BootResumeScreen.tsx'))
+    const { sessionListView } = await import(path.join(SRC, 'components/mercury-ui/screens/sessionManager/views.tsx'))
+    const { ResumeConversation } = await import(path.join(SRC, 'screens/ResumeConversation.tsx'))
+    const { useMercuryTokens } = await import(path.join(SRC, 'components/mercury-ui/useMercuryTokens.ts'))
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const h = React.createElement
+
+    const projectsDir = portable.getProjectsDir()
+    fs.mkdirSync(projectsDir, { recursive: true })
+    fs.chmodSync(projectsDir, 0o000)
+    try {
+      const bootTree = h(AppStateProvider, {
+        initialState: getDefaultAppState(),
+        children: h(KeybindingSetup, null, h(ThemeProvider, null, h(TerminalSizeContext.Provider, { value: { columns: 180, rows: 30 } }, h(Box, { width: 180, height: 30, flexDirection: 'column' }, h(BootResumeScreen, { fullScene: { columns: 180, rows: 30 } }))))),
+      })
+      const bootView = await harness.mountOffscreen(bootTree, 180, 30)
+      try {
+        await harness.waitFor(() => !bootView.screen().includes('reading the session store'), 3000)
+        await harness.settle(80)
+        out.bootScreen = bootView.screen()
+      } finally {
+        bootView.unmount()
+      }
+    } finally {
+      fs.chmodSync(projectsDir, 0o700)
+    }
+
+    const notice = '2 sessions or folders could not be read and are not listed (first: /tmp/bad: EACCES)'
+    const SmProbe = () => sessionListView({
+      onClose: () => {},
+      footer: 'esc back',
+      accent: '#00aaff',
+      ownState: { parked: false, glyph: '●', state: 'live', tail: '' },
+      flat: [],
+      scope: 'all',
+      pendingMore: 0,
+      logs: [],
+      elsewhereCount: 0,
+      newerHidden: 0,
+      shown: [],
+      winStart: 0,
+      sel: 0,
+      confirming: null,
+      navKeys: [],
+      moveTo: () => {},
+      setConfirmingKey: () => {},
+      tokens: useMercuryTokens(),
+      olderHidden: 0,
+      targetAt: () => null,
+      targetLabel: () => '',
+      W: 160,
+      readNotice: notice,
+    })
+    const smTree = h(AppStateProvider, {
+      initialState: getDefaultAppState(),
+      children: h(KeybindingSetup, null, h(ThemeProvider, null, h(TerminalSizeContext.Provider, { value: { columns: 180, rows: 24 } }, h(Box, { width: 180, height: 24, flexDirection: 'column' }, h(SmProbe, null))))),
+    })
+    const smView = await harness.mountOffscreen(smTree, 180, 24)
+    try {
+      await harness.settle(60)
+      out.smScreen = smView.screen()
+    } finally {
+      smView.unmount()
+    }
+
+    const resumeTree = h(AppStateProvider, {
+      initialState: getDefaultAppState(),
+      children: h(KeybindingSetup, null, h(ThemeProvider, null, h(TerminalSizeContext.Provider, { value: { columns: 180, rows: 24 } }, h(Box, { width: 180, height: 24, flexDirection: 'column' }, h(ResumeConversation, { commands: [], worktreePaths: [], initialTools: [], worktreeReadError: 'git worktree list failed' }))))),
+    })
+    const resumeView = await harness.mountOffscreen(resumeTree, 180, 24)
+    try {
+      await harness.waitFor(() => !resumeView.screen().includes('Loading conversations'), 3000)
+      await harness.settle(80)
+      out.resumeScreen = resumeView.screen()
+    } finally {
+      resumeView.unmount()
+    }
+  `)
+  const bootScreen = String(rUi.out.bootScreen ?? '').replace(/\s+/g, ' ')
+  const smScreen = String(rUi.out.smScreen ?? '').replace(/\s+/g, ' ')
+  const resumeScreen = String(rUi.out.resumeScreen ?? '').replace(/\s+/g, ' ')
+  check(
+    'w07-1 BootResumeScreen displays the unreadable sessions/folders notice',
+    bootScreen.includes('1 sessions or folders could not be read and are not listed (first:'),
+    bootScreen.slice(0, 220),
+  )
+  check(
+    'w07-1 sessionManager sessionListView displays the unreadable sessions/folders notice',
+    smScreen.includes('2 sessions or folders could not be read and are not listed (first: /tmp/bad: EACCES)'),
+    smScreen.slice(0, 220),
+  )
+  check(
+    'w07-1 ResumeConversation displays the unreadable worktrees/sessions notice',
+    resumeScreen.includes('1 sessions or folders could not be read and are not listed (first:') && resumeScreen.includes('git worktree list failed'),
+    resumeScreen.slice(0, 220),
+  )
+}
+
 process.exit(failures === 0 ? 0 : 1)

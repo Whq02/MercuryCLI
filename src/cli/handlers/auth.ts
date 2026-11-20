@@ -30,6 +30,10 @@ import {
   shouldUseClaudeAIAuth,
   storeOAuthAccountInfo,
 } from '../../services/oauth/client.js'
+import {
+  awaitStoredOAuthDaemonRestart,
+  daemonRestartFailedNotice,
+} from '../../services/oauth/refresh.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
@@ -54,7 +58,7 @@ function logoutPreservingOnboarding(): void {
   }
 }
 
-export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
+export async function installOAuthTokens(tokens: OAuthTokens): Promise<{ daemonRestartError?: string }> {
   logoutPreservingOnboarding()
 
   const rawProfile = tokens.profile
@@ -115,6 +119,8 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
 
   clearOAuthTokenCache()
   clearApiKeyHelperCache()
+  const daemonRestartError = await awaitStoredOAuthDaemonRestart()
+  return daemonRestartError !== null ? { daemonRestartError } : {}
 }
 
 function sslHintFor(error: unknown): string | undefined {
@@ -149,7 +155,7 @@ export async function authLogin(opts: {
       const tokens = await refreshSignInGrant(envRefreshToken, {
         scopes: parseScopes(scopesRaw),
       })
-      await installOAuthTokens(tokens)
+      const installed = await installOAuthTokens(tokens)
       const validation = await validateForceLoginOrg()
       if (!validation.valid) {
         console.error(validation.message)
@@ -160,6 +166,9 @@ export async function authLogin(opts: {
         writeSync(1, 'Signed in with the environment refresh token\n')
         const shadow = loginShadowWarning()
         if (shadow) writeSync(1, `${shadow}\n`)
+        if (installed.daemonRestartError !== undefined) {
+          writeSync(1, `${daemonRestartFailedNotice(installed.daemonRestartError)}\n`)
+        }
       } catch (error) {
         passedOver(error)
       }
@@ -189,7 +198,7 @@ export async function authLogin(opts: {
         ...(forcedOrgUUID ? { orgUUID: forcedOrgUUID } : {}),
       },
     )
-    await installOAuthTokens(tokens)
+    const installed = await installOAuthTokens(tokens)
     const validation = await validateForceLoginOrg()
     if (!validation.valid) {
       console.error(validation.message)
@@ -199,6 +208,9 @@ export async function authLogin(opts: {
       writeSync(1, 'Signed in\n')
       const shadow = loginShadowWarning()
       if (shadow) writeSync(1, `${shadow}\n`)
+      if (installed.daemonRestartError !== undefined) {
+        writeSync(1, `${daemonRestartFailedNotice(installed.daemonRestartError)}\n`)
+      }
     } catch (error) {
       passedOver(error)
     }

@@ -593,6 +593,149 @@ try {
       rmSync(epochFile, { force: true })
     }
   }
+
+  {
+    const { setActiveMission, clearActiveMission, missionCardView } = await import('../../src/guards/mission.ts')
+    const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
+    const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+    const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { dirname } = await import('node:path')
+
+    const projCwd = join(scratch, 'mission-write-fail-proj')
+    mkdirSync(projCwd, { recursive: true })
+    setOriginalCwd(projCwd)
+    const missionsBlocker = join(getProjectDir(projCwd), 'missions')
+    mkdirSync(dirname(missionsBlocker), { recursive: true })
+    writeFileSync(missionsBlocker, 'blocker file\n', { mode: 0o600 })
+    const sid = 'mission-write-fail-session'
+    const expectedPath = join(missionsBlocker, `${sid}.json`)
+    try {
+      const writeRes = writeMissionCard(
+        {
+          schema: 1,
+          sessionId: sid,
+          goal: 'finish',
+          state: 'armed',
+          nextStep: null,
+          iterations: 0,
+          setAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        projCwd,
+      ) as unknown as { ok?: boolean; path?: string; error?: string } | undefined
+      check(
+        'w04-6 writeMissionCard returns { ok: false, path, error } instead of void when write fails',
+        writeRes !== undefined && writeRes.ok === false && writeRes.path === expectedPath && Boolean(writeRes.error),
+        JSON.stringify(writeRes),
+      )
+
+      const directive = setActiveMission('ship cleanly', { sessionId: sid })
+      check(
+        'w04-6 setActiveMission appends save-failure sentence when mission card cannot be written',
+        directive.includes(`the mission could not be saved to ${expectedPath} (`) &&
+          directive.includes('), so it will not survive this session'),
+        directive,
+      )
+
+      const cleared = clearActiveMission(sid)
+      const viewAfterClear = missionCardView(sid)
+      check(
+        'w04-6 clearActiveMission appends save-failure sentence and updates in-session cardMemo to cleared',
+        Boolean(cleared?.includes(`the mission could not be saved to ${expectedPath} (`)) &&
+          Boolean(cleared?.includes('), so it will not survive this session')) &&
+          viewAfterClear?.state === 'cleared',
+        JSON.stringify({ cleared, viewAfterClear }),
+      )
+    } finally {
+      rmSync(missionsBlocker, { force: true })
+    }
+  }
+
+  {
+    const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    const { createOrAppendSample, listSamples, listSamplesStrict, samplesRoot, setSampleListenerAddress } = await import('../../src/services/samples/store.ts')
+    const { sampleRowsOf } = await import('../../src/services/samples/facts.ts')
+    const prevSamples = process.env.MERCURY_SAMPLES
+    process.env.MERCURY_SAMPLES = '1'
+    try {
+      const absent = listSamplesStrict('w04-absent-samples')
+      check('w04-7 listSamplesStrict returns [] for ENOENT', absent.length === 0, JSON.stringify(absent))
+
+      const sid = 'w04-samples-session'
+      createOrAppendSample({ sessionId: sid, name: 'card', title: 'Keep Me', html: '<p>hi</p>' })
+      const firstRows = await sampleRowsOf(sid)
+      if (POSIX_MODES) {
+        const root = samplesRoot(sid)
+        chmodSync(root, 0o300)
+        setSampleListenerAddress(null)
+        try {
+          let strictThrew = false
+          try {
+            listSamplesStrict(sid)
+          } catch {
+            strictThrew = true
+          }
+          const nonStrict = listSamples(sid)
+          const created = createOrAppendSample({ sessionId: sid, name: 'second', title: 'Still Created', html: '<p>2</p>' })
+          const secondRows = await sampleRowsOf(sid)
+          check(
+            'w04-7 listSamplesStrict throws on non-ENOENT, sampleRowsOf keeps last published rows, and createOrAppendSample still succeeds',
+            strictThrew &&
+              nonStrict.length === 0 &&
+              created.record.title === 'Still Created' &&
+              firstRows.length === 1 &&
+              secondRows.length === 1 &&
+              secondRows[0]?.title === 'Keep Me',
+            JSON.stringify({ strictThrew, nonStrictLen: nonStrict.length, createdTitle: created.record.title, firstRows, secondRows }),
+          )
+        } finally {
+          chmodSync(root, 0o700)
+        }
+      }
+    } finally {
+      if (prevSamples === undefined) delete process.env.MERCURY_SAMPLES
+      else process.env.MERCURY_SAMPLES = prevSamples
+    }
+  }
+
+  {
+    const { armLocalWake: armInputLocalWake } = await import('../../src/cli/headless/inputDoor.ts')
+    const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
+    const { armLocalWake: armBridgeWake, _resetScheduleBridgeForTesting } = await import('../../src/services/saturn/sessionScheduleBridge.ts')
+    const { getCommandQueue, remove } = await import('../../src/utils/messageQueueManager.ts')
+
+    _resetScheduleBridgeForTesting()
+    remove([...getCommandQueue()])
+    try {
+      const enqueuedRows: Array<{ type?: string; level?: string; text?: string }> = []
+      const live = createRunnerState()
+      const ports = {
+        live,
+        streamingInput: true,
+        driver: {
+          kick: () => { throw new Error('driver kick failed') },
+          isRunning: () => false,
+        },
+        enqueueRow: (row: { type?: string; level?: string; text?: string }) => { enqueuedRows.push(row) },
+        liveScope: () => ({ session_id: 'w04-wake-session' }),
+      } as unknown as Parameters<typeof armInputLocalWake>[0]
+
+      armInputLocalWake(ports)
+      const armed = armBridgeWake(1, 'wake prompt', { spelling: 'in 1s' })
+      await new Promise(resolve => setTimeout(resolve, 1200))
+      const notice = enqueuedRows.find(r => r.level === 'warning')
+      check(
+        'w04-8 throwing local wake sink surfaces warning notice to session instead of dropping wake silently',
+        armed.ok &&
+          notice !== undefined &&
+          notice.text === 'a scheduled wake could not be delivered (driver kick failed) — send it again',
+        JSON.stringify({ armed, enqueuedRows }),
+      )
+    } finally {
+      _resetScheduleBridgeForTesting()
+      remove([...getCommandQueue()])
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

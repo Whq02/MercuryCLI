@@ -54,7 +54,56 @@ import { readSessionLabelFacts, sessionFiles, sessionPromptFromWindow, type Inde
 import { transcriptRows } from './rowGraph.js'
 import type { SessionMetaFields } from './sessionMeta.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
+import { errorMessage, getErrnoCode } from '../errors.js'
 import { passedOver } from '../passedOver.js'
+
+export type SessionReadFailures = {
+  count: number
+  firstPath: string
+  firstError: string
+}
+
+export function formatSessionReadFailures(failures: SessionReadFailures | undefined | null): string | null {
+  if (!failures || failures.count <= 0) return null
+  return `${failures.count} sessions or folders could not be read and are not listed (first: ${failures.firstPath}: ${failures.firstError})`
+}
+
+export function mergeSessionReadFailures(
+  a: SessionReadFailures | undefined,
+  b: SessionReadFailures | undefined,
+): SessionReadFailures | undefined {
+  if (!a || a.count <= 0) return b && b.count > 0 ? b : undefined
+  if (!b || b.count <= 0) return a
+  return { count: a.count + b.count, firstPath: a.firstPath, firstError: a.firstError }
+}
+
+function isAbsenceError(error: unknown): boolean {
+  const code = getErrnoCode(error)
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
+type FailureCollector = {
+  add: (path: string, error: unknown) => void
+  summary: () => SessionReadFailures | undefined
+}
+
+function createFailureCollector(): FailureCollector {
+  let count = 0
+  let firstPath = ''
+  let firstError = ''
+  return {
+    add(path: string, error: unknown): void {
+      count++
+      if (count === 1) {
+        firstPath = path
+        firstError = errorMessage(error)
+      }
+    },
+    summary(): SessionReadFailures | undefined {
+      return count > 0 ? { count, firstPath, firstError } : undefined
+    },
+  }
+}
 
 export async function loadTranscriptFromFile(
   filePath: string,
@@ -484,14 +533,20 @@ async function projectDirectories(projectsDir: string, failed?: (error: unknown)
     const dirents = await readdir(projectsDir, { withFileTypes: true })
     return dirents.filter(dirent => dirent.isDirectory()).map(dirent => join(projectsDir, dirent.name))
   } catch (error) {
+    passedOver(error)
     failed?.(error)
     return null
   }
 }
 
-async function progressivePage(allStatLogs: SessionListing[], initialEnrichCount: number): Promise<SessionPage> {
-  const { logs, nextIndex } = await enrichSessionListings(allStatLogs, 0, initialEnrichCount)
-  return { logs: renumbered(logs), allStatLogs, nextIndex }
+async function progressivePage(
+  allStatLogs: SessionListing[],
+  initialEnrichCount: number,
+  priorFailures?: SessionReadFailures,
+): Promise<SessionPage> {
+  const { logs, nextIndex, readFailures: enrichFailures } = await enrichSessionListings(allStatLogs, 0, initialEnrichCount)
+  const readFailures = mergeSessionReadFailures(priorFailures, enrichFailures)
+  return { logs: renumbered(logs), allStatLogs, nextIndex, ...(readFailures ? { readFailures } : {}) }
 }
 
 async function loadAllProjectsMessageLogsFull(
@@ -538,6 +593,7 @@ function shareListing(result: SessionPage): SessionPage {
     logs: result.logs.map(log => ({ ...log })),
     allStatLogs: result.allStatLogs.map(log => ({ ...log })),
     nextIndex: result.nextIndex,
+    ...(result.readFailures ? { readFailures: { ...result.readFailures } } : {}),
   }
 }
 
@@ -550,8 +606,14 @@ export async function listSessionsAcrossProjectsProgressive(
   initialEnrichCount: number = INITIAL_ENRICH_COUNT,
 ): Promise<SessionPage> {
   const projectsDir = getProjectsDir()
-  const projectDirs = await projectDirectories(projectsDir)
-  if (!projectDirs) return { logs: [], allStatLogs: [], nextIndex: 0 }
+  const rootFailures = createFailureCollector()
+  const projectDirs = await projectDirectories(projectsDir, error => {
+    if (!isAbsenceError(error)) rootFailures.add(projectsDir, error)
+  })
+  if (!projectDirs) {
+    const readFailures = rootFailures.summary()
+    return { logs: [], allStatLogs: [], nextIndex: 0, ...(readFailures ? { readFailures } : {}) }
+  }
 
   const key = `${projectsDir}\x1f${limit ?? ''}\x1f${initialEnrichCount}`
   const truth = await listingTruth(projectsDir, projectDirs)
@@ -565,7 +627,7 @@ export async function listSessionsAcrossProjectsProgressive(
     return shareListing(await listingFlight.promise)
   }
   const promise = sweepAllProjectsProgressive(projectDirs, limit, initialEnrichCount).then(result => {
-    if (truth !== null) listingMemo = { key, truth, at: Date.now(), result }
+    if (truth !== null && !result.readFailures) listingMemo = { key, truth, at: Date.now(), result }
     return result
   })
   listingFlight = { key, promise }
@@ -582,16 +644,22 @@ async function sweepAllProjectsProgressive(
   initialEnrichCount: number,
 ): Promise<SessionPage> {
   listingCensus.sweeps++
+  const collector = createFailureCollector()
   const perProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
-    sessionFilesLite(projectDir, limit),
+    sessionFilesLite(projectDir, limit, undefined, collector.add),
   )
-  return progressivePage(numbered(newestPerKey(perProject.flat(), log => log.sessionId)), initialEnrichCount)
+  return progressivePage(
+    numbered(newestPerKey(perProject.flat(), log => log.sessionId)),
+    initialEnrichCount,
+    collector.summary(),
+  )
 }
 
 export type SessionPage = {
   logs: SessionListing[]
   allStatLogs: SessionListing[]
   nextIndex: number
+  readFailures?: SessionReadFailures
 }
 
 export async function listRepoSessions(
@@ -611,9 +679,10 @@ export async function listRepoSessionsProgressive(
   logForDebugging(
     `/sessions: loading sessions for cwd=${getOriginalCwd()}, worktrees=[${worktreePaths.join(', ')}]`,
   )
-  const allStatLogs = await getStatOnlyLogsForWorktrees(worktreePaths, limit)
+  const collector = createFailureCollector()
+  const allStatLogs = await getStatOnlyLogsForWorktrees(worktreePaths, limit, collector.add)
   logForDebugging(`/sessions: found ${allStatLogs.length} session files on disk`)
-  return progressivePage(allStatLogs, initialEnrichCount)
+  return progressivePage(allStatLogs, initialEnrichCount, collector.summary())
 }
 
 function worktreeStores(projectDirs: string[], worktreePaths: string[]): Array<{ dir: string; wtPath: string }> {
@@ -637,17 +706,19 @@ function worktreeStores(projectDirs: string[], worktreePaths: string[]): Array<{
 async function getStatOnlyLogsForWorktrees(
   worktreePaths: string[],
   limit?: number,
+  onReadError?: (path: string, error: unknown) => void,
 ): Promise<SessionListing[]> {
   const cwd = getOriginalCwd()
-  if (worktreePaths.length <= 1) return sessionFilesLite(getProjectDir(cwd), undefined, cwd)
+  if (worktreePaths.length <= 1) return sessionFilesLite(getProjectDir(cwd), undefined, cwd, onReadError)
   const projectsDir = getProjectsDir()
-  const projectDirs = await projectDirectories(projectsDir, e =>
-    logForDebugging(`The projects folder ${projectsDir} could not be listed; only the current project's sessions are shown (${e})`),
-  )
-  if (!projectDirs) return sessionFilesLite(getProjectDir(cwd), limit, cwd)
+  const projectDirs = await projectDirectories(projectsDir, e => {
+    logForDebugging(`The projects folder ${projectsDir} could not be listed; only the current project's sessions are shown (${e})`)
+    if (!isAbsenceError(e)) onReadError?.(projectsDir, e)
+  })
+  if (!projectDirs) return sessionFilesLite(getProjectDir(cwd), limit, cwd, onReadError)
   const matched = worktreeStores(projectDirs, worktreePaths)
   const perDir = await mapWithConcurrency(matched, discoveryPoolWidth(), ({ dir, wtPath }) =>
-    sessionFilesLite(dir, undefined, wtPath),
+    sessionFilesLite(dir, undefined, wtPath, onReadError),
   )
   return numbered(newestPerKey(perDir.flat(), log => log.sessionId))
 }
@@ -754,15 +825,25 @@ export async function findUnresolvedToolUse(
   }
 }
 
-function statSessionFiles(projectDir: string): Promise<IndexedSession[]> {
+function statSessionFiles(
+  projectDir: string,
+  onReadError?: (path: string, error: unknown) => void,
+): Promise<IndexedSession[]> {
   return sessionFiles(projectDir, {
     concurrency: discoveryPoolWidth(),
-    failed: path => logForDebugging(`Failed to stat session file: ${path}`),
+    failed: (path, error) => {
+      logForDebugging(`Failed to stat session file: ${path}`)
+      if (error !== undefined) onReadError?.(path, error)
+    },
   })
 }
 
-async function newestSessionFiles(projectDir: string, limit?: number): Promise<IndexedSession[]> {
-  const files = (await statSessionFiles(projectDir)).sort((a, b) => b.mtime - a.mtime)
+async function newestSessionFiles(
+  projectDir: string,
+  limit?: number,
+  onReadError?: (path: string, error: unknown) => void,
+): Promise<IndexedSession[]> {
+  const files = (await statSessionFiles(projectDir, onReadError)).sort((a, b) => b.mtime - a.mtime)
   return limit && files.length > limit ? files.slice(0, limit) : files
 }
 
@@ -868,8 +949,9 @@ async function readLiteMetadata(
   filePath: string,
   fileSize: number,
   buf: Buffer,
+  onReadError?: (path: string, error: unknown) => void,
 ): Promise<LiteMetadata> {
-  return readSessionLabelFacts(filePath, fileSize, buf, isBuiltInCommandName)
+  return readSessionLabelFacts(filePath, fileSize, buf, isBuiltInCommandName, onReadError)
 }
 
 export function extractFirstPromptFromChunk(chunk: string): string {
@@ -897,17 +979,24 @@ export async function sessionFilesLite(
   projectDir: string,
   limit?: number,
   projectPath?: string,
+  onReadError?: (path: string, error: unknown) => void,
 ): Promise<SessionListing[]> {
-  const files = await newestSessionFiles(projectDir, limit)
+  const files = await newestSessionFiles(projectDir, limit, onReadError)
   return numbered(files.map(file => liteLogOption(file, projectPath)))
 }
 
 async function enrichLog(
   log: SessionListing,
   readBuf: Buffer,
+  onReadError?: (path: string, error: unknown) => void,
 ): Promise<SessionListing | null> {
   if (!log.isLite || !log.fullPath) return log
-  const meta = await readLiteMetadata(log.fullPath, log.fileSize ?? 0, readBuf)
+  let failed = false
+  const meta = await readLiteMetadata(log.fullPath, log.fileSize ?? 0, readBuf, (path, error) => {
+    failed = true
+    onReadError?.(path, error)
+  })
+  if (failed) return null
   const enriched: SessionListing = {
     ...log,
     isLite: false,
@@ -937,12 +1026,13 @@ export async function enrichSessionListings(
   allLogs: SessionListing[],
   startIndex: number,
   count: number,
-): Promise<{ logs: SessionListing[]; nextIndex: number }> {
+): Promise<{ logs: SessionListing[]; nextIndex: number; readFailures?: SessionReadFailures }> {
   const readBuf = Buffer.alloc(LITE_READ_BUF_SIZE)
+  const collector = createFailureCollector()
   const logs: SessionListing[] = []
   let nextIndex = startIndex
   while (nextIndex < allLogs.length && logs.length < count) {
-    const enriched = await enrichLog(allLogs[nextIndex++]!, readBuf)
+    const enriched = await enrichLog(allLogs[nextIndex++]!, readBuf, collector.add)
     if (enriched) logs.push(enriched)
   }
   const scanned = nextIndex - startIndex
@@ -952,5 +1042,6 @@ export async function enrichSessionListings(
       `/sessions: enriched ${scanned} sessions, ${filtered} filtered out, ${logs.length} visible (${allLogs.length - nextIndex} remaining on disk)`,
     )
   }
-  return { logs, nextIndex }
+  const readFailures = collector.summary()
+  return { logs, nextIndex, ...(readFailures ? { readFailures } : {}) }
 }

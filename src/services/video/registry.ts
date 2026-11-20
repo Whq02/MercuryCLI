@@ -11,8 +11,22 @@ function configuredVideoProviders(): VideoProviderSettings {
   return stored === undefined ? {} : VideoProviderSettingsSchema.parse(stored)
 }
 
+let lastVideoSettingError: string | null = null
+
 export function videoToolEnabled(): boolean {
-  try { return Object.keys(configuredVideoProviders()).length > 0 } catch (error) { passedOver(error); return false }
+  try {
+    const enabled = Object.keys(configuredVideoProviders()).length > 0
+    lastVideoSettingError = null
+    return enabled
+  } catch (error) {
+    passedOver(error)
+    lastVideoSettingError = error instanceof Error ? error.message : String(error)
+    return false
+  }
+}
+
+export function videoProviderReadError(): string | null {
+  return lastVideoSettingError
 }
 
 export function videoProviderSelection(name?: string): { name: string; config: VideoProviderConfig; baseUrl: string; model: string } {

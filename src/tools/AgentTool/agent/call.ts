@@ -1,9 +1,9 @@
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../../bootstrap/state.js'
 import { enhanceSystemPromptWithEnvDetails } from '../../../constants/prompts.js'
-import { agentFanoutCap, buildSubagentMercurySections } from '../../../constants/subagentDoctrine.js'
+import { agentFanoutCap, buildSubagentMercurySectionsWithOutcome, subagentMemoryLoadNote } from '../../../constants/subagentDoctrine.js'
 import type { MercuryAgentSeat } from '../../../prompt/mercuryContract.js'
 import { evaluateLaunchAuthority } from '../../../services/switchboard/launchAuthority.js'
-import { registerAgentName, registerAsyncAgent, setAgentPendingAsks, setAgentWaitLine } from '../../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { enqueueAgentReceiptRow, registerAgentName, registerAsyncAgent, setAgentPendingAsks, setAgentWaitLine } from '../../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalAgentTask } from '../../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getRunningTasks } from '../../../utils/task/framework.js'
 import { toolMatchesName, type Tool as ToolShape, type ToolUseContext } from '../../../Tool.js'
@@ -202,9 +202,10 @@ export async function agentToolCall(
   let backgroundOwnsEnrollment = false
   try {
   const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined
+  let memoryLoadNote: string | undefined
   if (!willOverrideCwd) {
     try {
-      systemPromptOverride = await buildDefaultSystemPrompt(
+      const built = await buildDefaultSystemPrompt(
         agentDef,
         context,
         plan.model,
@@ -212,6 +213,10 @@ export async function agentToolCall(
         new Set(workerTools.map(tool => tool.name)),
         CREWMATE_SEAT,
       )
+      systemPromptOverride = built.prompt
+      if (built.memoryLoadError !== undefined) {
+        memoryLoadNote = subagentMemoryLoadNote(built.memoryLoadError)
+      }
     } catch (error) {
       logForDebugging(
         `AgentTool: system prompt build failed: ${errorMessage(error)}`,
@@ -311,6 +316,8 @@ export async function agentToolCall(
 
   const agentContext = agentContextOf(earlyAgentId, agentDef, parentAssistantMessage)
 
+  const launchModelNote = [plan.modelNote, memoryLoadNote].filter(Boolean).join('\n') || undefined
+
   if (plan.shouldRunAsync) {
     const lifecycle = asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan, context, runAgentParams, metadata, cleanupWorktreeIfNeeded, canUseTool })
 
@@ -321,7 +328,7 @@ export async function agentToolCall(
         : runWithOwnShellCwd(lifecycle),
     ).finally(releaseEnrollment)
 
-    return asyncLaunchAnswerOf(options, earlyAgentId, input, plan, agentDef)
+    return asyncLaunchAnswerOf(options, earlyAgentId, input, plan, agentDef, launchModelNote)
   }
 
   const result = await runWithAgentContext(agentContext, () => {
@@ -332,7 +339,7 @@ export async function agentToolCall(
         prompt: input.prompt,
         description: input.description,
         name: input.name,
-        ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
+        ...(launchModelNote ? { modelNote: launchModelNote } : {}),
         metadata,
         startTime,
         syncAgentId: earlyAgentId,
@@ -353,6 +360,14 @@ export async function agentToolCall(
   if (result.detached !== undefined) {
     backgroundOwnsEnrollment = true
     void result.detached.finally(releaseEnrollment)
+  }
+  if (memoryLoadNote !== undefined && result.data.status !== 'async_launched') {
+    enqueueAgentReceiptRow({
+      taskId: earlyAgentId,
+      description: input.description,
+      status: result.data.status === 'failed' ? 'failed' : 'completed',
+      summary: memoryLoadNote,
+    })
   }
   return { data: result.data }
   } finally {
@@ -482,7 +497,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
   return lifecycle
 }
 
-function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition): { data: AgentToolOutput } {
+function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition, modelNote?: string): { data: AgentToolOutput } {
   const canReadOutputFile = options.tools.some(
     tool =>
       toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
@@ -497,7 +512,7 @@ function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: A
       prompt: input.prompt,
       outputFile: getTaskOutputPath(earlyAgentId),
       canReadOutputFile,
-      ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
+      ...(modelNote ? { modelNote } : {}),
       ...(input.name ? { agentName: input.name } : {}),
       ...(input.run_in_background === false && agentDef.background === true
         ? { backgroundReason: 'agent-type' as const }
@@ -514,20 +529,21 @@ async function buildDefaultSystemPrompt(
   agentId: AgentId,
   toolNames: ReadonlySet<string>,
   seat: MercuryAgentSeat,
-): Promise<string[]> {
+): Promise<{ prompt: string[]; memoryLoadError?: string }> {
   const ownPrompt = isBuiltInAgent(definition)
     ? definition.getSystemPrompt({ toolUseContext: context })
     : definition.getSystemPrompt()
-  const doctrine = buildSubagentMercurySections({
+  const doctrine = buildSubagentMercurySectionsWithOutcome({
     agentDefinition: definition,
     toolUseContext: context,
     toolNames,
     seat,
   })
-  return enhanceSystemPromptWithEnvDetails(
-    [...doctrine, ownPrompt],
+  const prompt = await enhanceSystemPromptWithEnvDetails(
+    [...doctrine.sections, ownPrompt],
     childModel,
     undefined,
     agentId,
   )
+  return doctrine.memoryLoadError !== undefined ? { prompt, memoryLoadError: doctrine.memoryLoadError } : { prompt }
 }

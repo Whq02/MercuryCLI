@@ -10,11 +10,12 @@ import { mediaEnvironment, readMediaSettings, MEDIA_EXTENSION_ID } from '../../s
 import { registerBundledAppInstall, clearBundledAppInstalls } from '../installConsent.js'
 import { bundledMetadata } from '../bundled/content.generated.js'
 import { passedOver } from '../../utils/passedOver.js'
-let memo: Record<string, ScopedMcpServerConfig> | null = null
+let memo: { servers: Record<string, ScopedMcpServerConfig>; warnings: string[] } | null = null
 
-export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> {
+export function loadExtensionMcpServers(): { servers: Record<string, ScopedMcpServerConfig>; warnings: string[] } {
   if (memo) return memo
   const out: Record<string, ScopedMcpServerConfig> = {}
+  const warnings: string[] = []
   for (const ext of activeFor('servers')) {
     const id = ext.entry.id
     const root = ext.root
@@ -28,6 +29,7 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
           mkdirSync(dataDir, { recursive: true })
         } catch (error) {
           passedOver(error)
+          warnings.push(`${ext.manifest.name}: its data folder ${dataDir} could not be made (${error instanceof Error ? error.message : String(error)})`)
         }
         const declaredEnv: Record<string, string> = {}
         for (const [key, value] of Object.entries(declared.env ?? {})) declaredEnv[key] = resolve(value)
@@ -52,14 +54,22 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
         try {
           const server = media.serverPath ?? config.args?.[0]
           config = { ...config, ...(server ? { args: [media.host ? join(dirname(server), 'remote-client.js') : server] } : {}), env: { ...config.env, ...mediaEnvironment(media) } }
-        } catch (error) { passedOver(error); continue }
+        } catch (error) {
+          passedOver(error)
+          warnings.push(`${ext.manifest.name}: its media server was not loaded (${error instanceof Error ? error.message : String(error)})`)
+          continue
+        }
       }
       const bootstrap = ext.entry.home === 'bundled' ? bundledMetadata[ext.manifest.name]?.bootstrap : undefined
       out[server.runtimeName] = { ...config, scope: 'dynamic', extensionSource: id, ...(bootstrap ? { bundledBootstrap: bootstrap } : {}) }
     }
   }
-  memo = out
-  return out
+  memo = { servers: out, warnings }
+  return memo
+}
+
+export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> {
+  return loadExtensionMcpServers().servers
 }
 
 export function clearExtensionMcpServerCache(): void {

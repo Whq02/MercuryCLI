@@ -7,6 +7,8 @@ import { emptyKitDeltas, kitDeltasForWorkspace, type KitDeltasV1 } from '../serv
 import { kitPresetDeltas } from '../services/mcp/presetStore.js'
 import type { ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { isRecord } from '../utils/isRecord.js'
+import { errorMessage } from '../utils/errors.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export interface SessionKitV1 {
   schema: 1
@@ -18,6 +20,11 @@ export interface SessionKitV1 {
   extensions?: Record<string, 'on' | 'off'>
   resolved?: false
   deltas?: KitDeltasV1
+  deltasReadError?: string
+}
+
+export function kitDeltasUnreadNote(error: string): string {
+  return `this repo's MCP servers could not be read (${error}) — its MCP deltas are not checked`
 }
 
 const KIT_MCP_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
@@ -116,6 +123,9 @@ export function validateSessionKit(raw: unknown): KitValidation {
     kit.deltas = deltas.deltas
   } else if (raw.deltas !== undefined) {
     return { ok: false, reason: 'deltas ride only an unresolved kit (resolved: false)' }
+  }
+  if (typeof raw.deltasReadError === 'string' && raw.deltasReadError.length > 0) {
+    kit.deltasReadError = raw.deltasReadError
   }
   return { ok: true, kit }
 }
@@ -255,8 +265,9 @@ export function materializedKitForWorkspace(workspaceDir: string): SessionKitV1 
   try {
     return materializedWholeConfigKit(kitDeltasForWorkspace(workspaceDir).mcpOff)
   } catch (err) {
+    passedOver(err)
     logForDebugging(`[kit] the materialization for ${workspaceDir} fell to empty deltas: ${err}`)
-    return materializedWholeConfigKit()
+    return { ...materializedWholeConfigKit(), deltasReadError: errorMessage(err) }
   }
 }
 
@@ -356,10 +367,13 @@ export function resolveSessionKitOnRecord(rec: ConcourseWorkerRecordV1, resolved
 export function deriveSessionKitForWorkspace(workspaceDir: string): SessionKitV1 {
   let deltas: KitDeltasV1 = emptyKitDeltas()
   let known: string[] = []
+  let deltasReadError: string | undefined
   try {
     deltas = kitDeltasForWorkspace(workspaceDir)
     known = knownMcpNamesForWorkspace(workspaceDir)
   } catch (err) {
+    passedOver(err)
+    deltasReadError = errorMessage(err)
     logForDebugging(`[kit] the derivation for ${workspaceDir} fell to the empty deltas: ${err}`)
   }
   return {
@@ -369,6 +383,7 @@ export function deriveSessionKitForWorkspace(workspaceDir: string): SessionKitV1
     invocable: [],
     resolved: false,
     deltas,
+    ...(deltasReadError !== undefined ? { deltasReadError } : {}),
   }
 }
 
@@ -398,7 +413,7 @@ export function deriveSessionKitForPreset(presetName: string, workspaceDir: stri
   const unbiting = unread === null ? deltas.mcpOff.filter(name => !known.includes(name)) : []
   const parts: string[] = []
   if (unread !== null && deltas.mcpOff.length > 0) {
-    parts.push(`this repo's MCP servers could not be read (${unread}) — its MCP deltas are not checked`)
+    parts.push(kitDeltasUnreadNote(unread))
   }
   if (unbiting.length > 0) {
     parts.push(

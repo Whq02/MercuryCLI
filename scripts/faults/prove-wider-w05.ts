@@ -437,5 +437,188 @@ exit 44
   )
 }
 
+console.log('\nw05-4 — storeOAuthAccountInfo keeps daemon restart failure for auth CLI and login screen')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const cfg = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    cfg.enableConfigs()
+    let failRestart = true
+    mock.module(path.join(SRC, 'daemon/ownedDaemon.js'), () => ({
+      restartOwnedDaemonForFreshSignin: async () => {
+        if (failRestart) throw new Error('daemon-socket-gone')
+        return 'asked'
+      },
+    }))
+    const refresh = await import(path.join(SRC, 'services/oauth/refresh.ts'))
+    const authCli = await import(path.join(SRC, 'cli/handlers/auth.ts'))
+    const { createAnthropicLoginMachine } = await import(path.join(SRC, 'components/mercury-ui/screens/anthropicLoginModel.ts'))
+
+    out.hasAwaitExport = typeof refresh.awaitStoredOAuthDaemonRestart === 'function'
+    const ret = refresh.storeOAuthAccountInfo({ accountUuid: 'u-1', emailAddress: 'fake1@example.com' })
+    out.syncReturn = ret === undefined
+    out.firstRestartErr = out.hasAwaitExport ? await refresh.awaitStoredOAuthDaemonRestart() : null
+
+    const installed = await authCli.installOAuthTokens({
+      accessToken: 'fake-at-4',
+      refreshToken: 'fake-rt-4',
+      expiresAt: 4102444800000,
+      scopes: ['user:inference'],
+      subscriptionType: 'pro',
+      rateLimitTier: null,
+      tokenAccount: { uuid: 'u-2', emailAddress: 'fake2@example.com' },
+    })
+    out.installed = installed ?? null
+
+    let snapshot = null
+    const ctrl = createAnthropicLoginMachine(
+      { onDone: () => {} },
+      next => { snapshot = next },
+      {
+        createService: () => ({
+          startOAuthFlow: async () => ({
+            accessToken: 'fake-at-5',
+            refreshToken: 'fake-rt-5',
+            expiresAt: 4102444800000,
+            scopes: ['user:inference'],
+            subscriptionType: 'pro',
+            rateLimitTier: null,
+            tokenAccount: { uuid: 'u-3', emailAddress: 'fake3@example.com' },
+          }),
+          handleManualAuthCodeInput: () => {},
+          cleanup: () => {},
+        }),
+        saveTokens: () => ({ success: true }),
+        usesClaudeAiAuth: () => true,
+        mintApiKey: async () => null,
+        validateOrg: async () => ({ valid: true }),
+        storeAccount: account => refresh.storeOAuthAccountInfo(account),
+        shadowWarning: () => null,
+        recordSignIn: () => {},
+        settings: () => ({}),
+        clipboard: async () => null,
+        writeStdout: () => {},
+        log: () => {},
+        setTimer: (fn) => { queueMicrotask(fn); return 1 },
+        clearTimer: () => {},
+      },
+    )
+    ctrl.start(true)
+    for (let i = 0; i < 40 && snapshot?.flow?.name !== 'success'; i++) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    out.loginFlow = snapshot?.flow ?? null
+
+    failRestart = false
+    refresh.storeOAuthAccountInfo({ accountUuid: 'u-4', emailAddress: 'fake4@example.com' })
+    out.okRestartErr = out.hasAwaitExport ? await refresh.awaitStoredOAuthDaemonRestart() : 'missing'
+  `)
+  check('w05-4: storeOAuthAccountInfo stays synchronous and exposes failed daemon restart error', r.hasAwaitExport === true && r.syncReturn === true && r.firstRestartErr === 'daemon-socket-gone' && r.okRestartErr === null, JSON.stringify({ has: r.hasAwaitExport, sync: r.syncReturn, first: r.firstRestartErr, ok: r.okRestartErr }))
+  const inst = r.installed as { daemonRestartError?: string } | null
+  check('w05-4: installOAuthTokens returns daemonRestartError when daemon restart fails', inst !== null && inst.daemonRestartError === 'daemon-socket-gone', JSON.stringify(inst))
+  const lf = r.loginFlow as { name?: string; warning?: string } | null
+  check(
+    'w05-4: anthropicLoginModel success receipt carries the daemon restart warning sentence',
+    lf !== null &&
+      lf.name === 'success' &&
+      lf.warning === 'signed in, but the background daemon could not be restarted (daemon-socket-gone) — run `mercury daemon restart` so it uses this sign-in',
+    JSON.stringify(lf),
+  )
+}
+
+console.log('\nw05-5 — unreadable MERCURY_CLIENT_CERT / MERCURY_CLIENT_KEY warned once at start and shown in /status')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mtls = await import(path.join(SRC, 'utils/mtls.ts'))
+    const status = await import(path.join(SRC, 'utils/status.tsx'))
+
+    const missingCert = path.join(SCRATCH, 'missing-cert.pem')
+    const missingKey = path.join(SCRATCH, 'missing-key.pem')
+    process.env.MERCURY_CLIENT_CERT = missingCert
+    process.env.MERCURY_CLIENT_KEY = missingKey
+    mtls.clearMTLSCache()
+
+    const stderrChunks = []
+    const origWrite = process.stderr.write
+    process.stderr.write = (chunk => { stderrChunks.push(String(chunk)); return true })
+    try {
+      out.configMissing = mtls.getMTLSConfig() ?? null
+      mtls.configureGlobalMTLS()
+      const afterFirst = stderrChunks.join('')
+      mtls.configureGlobalMTLS()
+      const afterSecond = stderrChunks.join('')
+      out.stderrFirst = afterFirst
+      out.stderrRepeatSame = afterSecond === afterFirst
+    } finally {
+      process.stderr.write = origWrite
+    }
+
+    const propsMissing = status.buildAPIProviderProperties().map(p => ({ label: p.label, text: status.propertyValueToText(p.value) }))
+    out.propsMissing = propsMissing
+    out.missingCert = missingCert
+    out.missingKey = missingKey
+
+    const okCert = path.join(SCRATCH, 'ok-cert.pem')
+    const okKey = path.join(SCRATCH, 'ok-key.pem')
+    fs.writeFileSync(okCert, 'FAKE-CERT-MATERIAL-NEVER-LEAK')
+    fs.writeFileSync(okKey, 'FAKE-KEY-MATERIAL-NEVER-LEAK')
+    process.env.MERCURY_CLIENT_CERT = okCert
+    process.env.MERCURY_CLIENT_KEY = okKey
+    mtls.clearMTLSCache()
+    const okChunks = []
+    process.stderr.write = (chunk => { okChunks.push(String(chunk)); return true })
+    try {
+      out.configOk = Boolean(mtls.getMTLSConfig()?.cert && mtls.getMTLSConfig()?.key)
+      mtls.configureGlobalMTLS()
+      out.stderrOk = okChunks.join('')
+    } finally {
+      process.stderr.write = origWrite
+    }
+    const propsOk = status.buildAPIProviderProperties().map(p => ({ label: p.label, text: status.propertyValueToText(p.value) }))
+    out.propsOk = propsOk
+    out.okCert = okCert
+    out.okKey = okKey
+    out.leakedMaterial = JSON.stringify({ propsOk, okChunks }).includes('FAKE-KEY-MATERIAL-NEVER-LEAK')
+  `)
+  const stderrFirst = String(r.stderrFirst ?? '')
+  const missingCert = String(r.missingCert ?? '')
+  const missingKey = String(r.missingKey ?? '')
+  check(
+    'w05-5: unreadable mTLS files keep getMTLSConfig non-throwing and warn once on stderr at startup',
+    r.configMissing === null &&
+      stderrFirst.includes(`MERCURY_CLIENT_CERT is set to ${missingCert}, which could not be read (`) &&
+      stderrFirst.includes('so requests go out without the client certificate — fix the path or unset it.') &&
+      stderrFirst.includes(`MERCURY_CLIENT_KEY is set to ${missingKey}, which could not be read (`) &&
+      r.stderrRepeatSame === true,
+    JSON.stringify({ cfg: r.configMissing, stderrFirst, repeatSame: r.stderrRepeatSame }),
+  )
+  const propsM = r.propsMissing as Array<{ label?: string; text: string }>
+  const certRow = propsM.find(p => p.label === 'mTLS client cert')
+  const keyRow = propsM.find(p => p.label === 'mTLS client key')
+  check(
+    'w05-5: /status buildAPIProviderProperties shows unread sentences for MERCURY_CLIENT_CERT and MERCURY_CLIENT_KEY',
+    certRow !== undefined &&
+      certRow.text.startsWith(`MERCURY_CLIENT_CERT is set to ${missingCert}, which could not be read (`) &&
+      certRow.text.endsWith(') , so requests go out without the client certificate — fix the path or unset it.'.replace(') ,', '),')) &&
+      keyRow !== undefined &&
+      keyRow.text.startsWith(`MERCURY_CLIENT_KEY is set to ${missingKey}, which could not be read (`) &&
+      keyRow.text.endsWith('), so requests go out without the client certificate — fix the path or unset it.'),
+    JSON.stringify(propsM),
+  )
+  const propsOk = r.propsOk as Array<{ label?: string; text: string }>
+  check(
+    'w05-5: readable mTLS files control prints nothing to stderr, shows paths in /status, and leaks no material',
+    r.configOk === true &&
+      r.stderrOk === '' &&
+      propsOk.some(p => p.label === 'mTLS client cert' && p.text === r.okCert) &&
+      propsOk.some(p => p.label === 'mTLS client key' && p.text === r.okKey) &&
+      r.leakedMaterial === false,
+    JSON.stringify({ configOk: r.configOk, stderrOk: r.stderrOk, propsOk, leaked: r.leakedMaterial }),
+  )
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -148,7 +148,7 @@ function LiveSessionManager({
   const [switching, setSwitching] = useState<'swapping' | { failed: string } | null>(null)
   const switchGenRef = useRef(0)
   const [scope, setScope] = useState<SessionScope>(initialScope)
-  const { logs, pendingMore, flat, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
+  const { logs, pendingMore, readNotice, flat, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
   const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
   const [prune, setPrune] = useState<
     | { stage: 'card'; offer: PruneOffer; answer: 'no' | 'yes' }
@@ -355,5 +355,5 @@ function LiveSessionManager({
     return prunePaneOf({ prune, setPrune, accent })
   }
 
-  return sessionListView({ onClose, footer, accent, ownState, flat, scope, pendingMore, logs, elsewhereCount, newerHidden, shown, winStart, sel, confirming, navKeys, moveTo, setConfirmingKey, tokens, olderHidden, targetAt, targetLabel, W })
+  return sessionListView({ onClose, footer, accent, ownState, flat, scope, pendingMore, logs, elsewhereCount, newerHidden, shown, winStart, sel, confirming, navKeys, moveTo, setConfirmingKey, tokens, olderHidden, targetAt, targetLabel, W, readNotice })
 }

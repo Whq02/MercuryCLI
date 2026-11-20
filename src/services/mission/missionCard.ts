@@ -46,11 +46,24 @@ function persistMissionCard(card: MissionCard, cwd?: string): void {
   durableAtomicPublishSync(missionCardPath(card.sessionId, cwd), JSON.stringify(card, null, 1))
 }
 
-export function writeMissionCard(card: MissionCard, cwd?: string): void {
+type MissionCardWriteResult =
+  | { ok: true; path: string }
+  | { ok: false; path: string; error: string }
+
+export function missionCardUnwrittenWords(path: string, error: string): string {
+  return `the mission could not be saved to ${path} (${error}), so it will not survive this session`
+}
+
+export function writeMissionCard(card: MissionCard, cwd?: string): MissionCardWriteResult {
+  const path = missionCardPath(card.sessionId, cwd)
   try {
     persistMissionCard(card, cwd)
+    return { ok: true, path }
   } catch (error) {
+    passedOver(error)
+    const message = error instanceof Error ? error.message : String(error)
     logForDebugging(`missionCard: write failed: ${String(error)}`)
+    return { ok: false, path, error: message }
   }
 }
 

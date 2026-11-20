@@ -214,7 +214,21 @@ export function isInvalidGrantError(error: unknown): boolean {
   return oauthErrorType(error) === 'invalid_grant'
 }
 
+let pendingDaemonRestart: Promise<string | null> | null = null
+
+export async function awaitStoredOAuthDaemonRestart(): Promise<string | null> {
+  const pending = pendingDaemonRestart
+  pendingDaemonRestart = null
+  if (pending === null) return null
+  return pending
+}
+
+export function daemonRestartFailedNotice(error: string): string {
+  return `signed in, but the background daemon could not be restarted (${error}) — run \`mercury daemon restart\` so it uses this sign-in`
+}
+
 export function storeOAuthAccountInfo(info: AccountInfo): void {
+  pendingDaemonRestart = null
   const existing = getGlobalConfig().oauthAccount
   if (existing !== undefined) {
     const keys = new Set([...Object.keys(existing), ...Object.keys(info)])
@@ -240,7 +254,15 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
     }
   }
   saveGlobalConfig(current => ({ ...current, oauthAccount: info }))
-  void import('../../daemon/ownedDaemon.js')
+  const restart = import('../../daemon/ownedDaemon.js')
     .then(m => m.restartOwnedDaemonForFreshSignin())
-    .catch(passedOver)
+    .then(
+      () => null,
+      (error: unknown) => {
+        passedOver(error)
+        return error instanceof Error ? error.message : String(error)
+      },
+    )
+  pendingDaemonRestart = restart
+  void restart
 }

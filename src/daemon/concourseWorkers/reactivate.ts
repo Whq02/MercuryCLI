@@ -2,7 +2,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getProcessStartInstantAsync } from '../ownerWatch.js'
 import type { RunnerChildSpec } from '../headlessRun.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { deriveSessionKitForWorkspace, restampSessionKit, type SessionKitV1, type KitStampSource } from '../sessionKit.js'
+import { deriveSessionKitForWorkspace, kitDeltasUnreadNote, restampSessionKit, type SessionKitV1, type KitStampSource } from '../sessionKit.js'
 import { sessionKindOfAsker, type SessionKind } from '../../utils/sessionKind.js'
 import { workerPidAlive } from '../workerIdentity.js'
 import { turnInFlightOf, sessionActivityOf, type ConcourseWorkerRecordV1, clearParkedFields, stampParked } from './record.js'
@@ -120,6 +120,7 @@ export async function reactivateConcourseSession(
   const isolationDrift = claimIsolation !== (rec.isolation ?? 'exclusive')
   const effort = args.effort ?? rec.effort ?? 'high'
   const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)
+  const kitNote = kit.deltasReadError !== undefined ? kitDeltasUnreadNote(kit.deltasReadError) : undefined
   const kitSource: KitStampSource = args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'
   const restartReason = runnerRestartReasonOf(rec, args.restartReason)
   if (
@@ -181,6 +182,7 @@ export async function reactivateConcourseSession(
       }
       return {
         ok: true,
+        ...(kitNote !== undefined ? { note: kitNote } : {}),
         runnerId: short,
         sessionId: rec.sessionId,
         workspaceId: rec.workspaceId,
@@ -274,6 +276,7 @@ export async function reactivateConcourseSession(
   )
   return {
     ok: true,
+    ...(kitNote !== undefined ? { note: kitNote } : {}),
     runnerId: rec.runnerId,
     sessionId: rec.sessionId,
     workspaceId: rec.workspaceId,
