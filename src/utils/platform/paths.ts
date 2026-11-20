@@ -137,7 +137,7 @@ export function splitPathFromRoot(
   return { root, segments, sep: grammar.sep }
 }
 
-function posixToWin32Path(posixPath: string): string {
+export function posixToWin32Path(posixPath: string): string {
   if (posixPath.startsWith('//')) return `\\\\${posixPath.slice(2).replace(/\//g, '\\')}`
   const cygdriveMatch = posixPath.match(/^\/cygdrive\/([A-Za-z])(\/.*)?$/s)
   if (cygdriveMatch) {
@@ -152,7 +152,7 @@ function posixToWin32Path(posixPath: string): string {
   return posixPath.replace(/\//g, '\\')
 }
 
-function win32ToPosixPath(windowsPath: string): string {
+export function win32ToPosixPath(windowsPath: string): string {
   if (windowsPath.startsWith('\\\\')) return `//${windowsPath.slice(2).replace(/\\/g, '/')}`
   const driveMatch = windowsPath.match(/^([A-Za-z]):([\\/])(.*)$/s)
   if (driveMatch) {

@@ -42,6 +42,7 @@ import {
   pathModuleFor,
   pathSeparatorRegex,
   picomatchPathOptions,
+  posixToWin32Path,
   preferredHomeEnv,
   resolveLexicalOperandPath,
   samePathCase,
@@ -50,7 +51,9 @@ import {
   stripExtendedLengthPrefixForPlatform,
   toNativeSeparators,
   toPosixSeparators,
+  win32ToPosixPath,
 } from '../../src/utils/platform/paths.js'
+import { posixPathToWindowsPath, windowsPathToPosixPath } from '../../src/utils/windowsPaths.js'
 
 const PATHS: Row[] = [
   {
@@ -438,6 +441,19 @@ const PATHS: Row[] = [
       }
     },
     recorded: {"win32":{"default":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"darwin":{"default":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"linux":{"default":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"win32 by process.platform alone":{"default":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]},"win32 by getPlatform() alone":{"default":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"windowsWinSep":[{"root":"C:\\","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:\\","relative":"work"}],"windowsPosixSep":[{"root":"C:/","relative":"Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"D:/","relative":"work"}],"macos":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}],"linux":[{"root":"/","relative":"/c/Users/Alice/**"},{"root":"/","relative":"/Users/alice/**"},{"root":"/","relative":"/D/work"}]}},
+  },
+  {
+    name: 'paths.posixWin32ConversionParity',
+    answers: () => {
+      const inputs = ['//server/share', '/cygdrive/c/x', '/c', '/c/x', 'relative/x', 'C:\\x', '\\\\server\\share']
+      return {
+        toWin32: inputs.map(p => posixToWin32Path(p)),
+        toWin32Memo: inputs.map(p => posixPathToWindowsPath(p)),
+        toPosix: inputs.map(p => win32ToPosixPath(p)),
+        toPosixMemo: inputs.map(p => windowsPathToPosixPath(p)),
+      }
+    },
+    recorded: {"win32":{"toWin32":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toWin32Memo":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toPosix":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"],"toPosixMemo":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"]},"darwin":{"toWin32":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toWin32Memo":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toPosix":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"],"toPosixMemo":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"]},"linux":{"toWin32":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toWin32Memo":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toPosix":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"],"toPosixMemo":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"]},"win32 by process.platform alone":{"toWin32":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toWin32Memo":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toPosix":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"],"toPosixMemo":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"]},"win32 by getPlatform() alone":{"toWin32":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toWin32Memo":["\\\\server\\share","C:\\x","C:\\","C:\\x","relative\\x","C:\\x","\\\\server\\share"],"toPosix":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"],"toPosixMemo":["//server/share","/cygdrive/c/x","/c","/c/x","relative/x","/c/x","//server/share"]}},
   },
 ]
 
