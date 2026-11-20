@@ -196,35 +196,81 @@ if (!POSIX_MODES) {
   check('changeSetCommit-readOrNull-delete-recovery: journal recovery marks unreadable delete target unrecoverable instead of rolling forward', recovery.rolledForward.length === 0 && recovery.unrecoverable.includes('delete-unreadable'), JSON.stringify(recovery))
 }
 
-console.log('\nconcourseSnapshot — resolveHarnessGround rejects when the draft store cannot be read or parsed')
+console.log('\nconcourseSnapshot — a repo choice that cannot be read starts the new session in the current folder and says so')
 if (!POSIX_MODES) {
-  skip('concourseSnapshot-resolveHarnessGround', 'needs non-root POSIX chmod')
+  skip('concourseSnapshot-readHarnessGround', 'needs non-root POSIX chmod')
 } else {
   const r = runSub(`
     const snapMod = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
     const draftDir = path.join(PROJECT, 'drafts')
     fs.mkdirSync(draftDir, { recursive: true })
-    out.absentGround = await snapMod.resolveHarnessGround(draftDir)
+    out.cwd = process.cwd()
+    out.absent = await snapMod.readHarnessGround(draftDir)
     const draftPath = path.join(draftDir, 'concourse-draft.json')
     fs.writeFileSync(draftPath, '{not valid json', { mode: 0o600 })
-    try {
-      await snapMod.resolveHarnessGround(draftDir)
-      out.corruptGround = null
-    } catch (e) {
-      out.corruptGround = String(e?.message ?? e)
-    }
+    out.corrupt = await snapMod.readHarnessGround(draftDir)
+    out.corruptGround = await snapMod.resolveHarnessGround(draftDir)
     fs.writeFileSync(draftPath, JSON.stringify({ _v: 1, draft: '', updatedAtMs: 1, seedOverrides: { projectDir: '/other', projectDirAt: Date.now() } }), { mode: 0o600 })
     fs.chmodSync(draftPath, 0o200)
     try {
-      await snapMod.resolveHarnessGround(draftDir)
-      out.unreadableGround = null
-    } catch (e) {
-      out.unreadableGround = String(e?.message ?? e)
+      out.unreadable = await snapMod.readHarnessGround(draftDir)
     } finally {
       fs.chmodSync(draftPath, 0o600)
     }
   `)
-  check('concourseSnapshot-resolveHarnessGround-corrupt-unreadable: absent returns cwd while corrupt or unreadable rejects', typeof r.absentGround === 'string' && r.corruptGround !== null && r.unreadableGround !== null, JSON.stringify(r))
+  const absent = r.absent as { ground?: string; unread?: string } | undefined
+  const corrupt = r.corrupt as { ground?: string; unread?: string } | undefined
+  const unreadable = r.unreadable as { ground?: string; unread?: string } | undefined
+  check(
+    'concourseSnapshot-readHarnessGround: an absent draft answers the current folder with nothing to say; a corrupt or unreadable one answers the current folder and why, with no throw',
+    typeof absent?.ground === 'string' &&
+      absent.unread === undefined &&
+      corrupt?.ground === absent.ground &&
+      typeof corrupt?.unread === 'string' &&
+      corrupt.unread.length > 0 &&
+      r.corruptGround === absent.ground &&
+      unreadable?.ground === absent.ground &&
+      typeof unreadable?.unread === 'string' &&
+      unreadable.unread.length > 0,
+    JSON.stringify(r),
+  )
+}
+
+console.log('\nlaunchControls — the new session is born where it can be and its note says the repo choice could not be read')
+{
+  const r = runSub(`
+    const { mock } = await import('bun:test')
+    const snapPath = ${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))}
+    const realSnap = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
+    mock.module(snapPath, () => ({ ...realSnap, readHarnessGround: async () => ({ ground: '/work/elsewhere', unread: 'EACCES: permission denied' }) }))
+    mock.module(${JSON.stringify(join(SRC, 'services/switchboard/bornSession.ts'))}, () => ({
+      bornSession: async ({ workspaceDir }) => {
+        out.bornIn = workspaceDir
+        return { ok: true, title: 'Session one', sessionId: 's-1' }
+      },
+    }))
+    const { newSession } = await import(${JSON.stringify(join(SRC, 'components/concourse/route/launchControls.ts'))})
+    const notes = []
+    newSession({
+      noteControl: (control, state) => { notes.push({ control, ...state }) },
+      splitFrameStands: () => true,
+      birthInFlightRef: { current: false },
+      seedWriteChain: { current: Promise.resolve() },
+      snapshotRef: { current: null },
+    })
+    await new Promise(resolve => setTimeout(resolve, 120))
+    out.notes = notes
+  `)
+  const notes = (r.notes as Array<{ control?: string; state?: string; reason?: string }> | undefined) ?? []
+  const applied = notes.find(note => note.state === 'applied')
+  check(
+    'launchControls-newSession-repo-choice-unread: the session is born, not refused, and the note carries the sentence once',
+    r.bornIn === '/work/elsewhere' &&
+      notes.filter(note => note.state === 'applied').length === 1 &&
+      !notes.some(note => note.state === 'failed' || note.state === 'refused') &&
+      applied?.reason === 'Session one — in the chat pane — the repo choice could not be read (EACCES: permission denied), so it starts in elsewhere',
+    JSON.stringify(r),
+  )
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)

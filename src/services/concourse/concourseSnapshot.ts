@@ -572,14 +572,24 @@ export async function readConcourseSeedOverrides(dir?: string): Promise<Concours
   return bootScopedSeedOverrides((await draftStore(dir).read()).seedOverrides ?? {})
 }
 
-export async function resolveHarnessGround(dir?: string): Promise<string> {
-  const res = await draftStore(dir).readResult()
-  if (res.state === 'recoverable') {
-    throw new Error(res.reason)
+export async function readHarnessGround(dir?: string): Promise<{ ground: string; unread?: string }> {
+  try {
+    const res = await draftStore(dir).readResult()
+    if (res.state === 'recoverable') {
+      logForDebugging(`[concourse] the repo choice could not be read (${res.reason}), so a new session starts in the current folder`)
+      return { ground: getCwd(), unread: res.reason }
+    }
+    const seeds = bootScopedSeedOverrides(res.value.seedOverrides ?? {})
+    if (typeof seeds.projectDir === 'string' && seeds.projectDir.length > 0) return { ground: seeds.projectDir }
+  } catch (error) {
+    passedOver(error)
+    return { ground: getCwd(), unread: error instanceof Error ? error.message : String(error) }
   }
-  const seeds = bootScopedSeedOverrides(res.value.seedOverrides ?? {})
-  if (typeof seeds.projectDir === 'string' && seeds.projectDir.length > 0) return seeds.projectDir
-  return getCwd()
+  return { ground: getCwd() }
+}
+
+export async function resolveHarnessGround(dir?: string): Promise<string> {
+  return (await readHarnessGround(dir)).ground
 }
 
 export async function writeConcourseDraft(draft: string, dir?: string, caret?: number): Promise<void> {
