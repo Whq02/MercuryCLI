@@ -732,12 +732,22 @@ function declaredGenerator(lines: string[]): string | undefined {
   return undefined
 }
 
+function wardPattern(rule: WardRule, source: string, flags?: string): RegExp | null {
+  try {
+    return new RegExp(source, flags)
+  } catch (error) {
+    passedOver(new Error(`ward ${rule.name}: the pattern ${source} does not compile (${error instanceof Error ? error.message : String(error)}), so it is skipped`, { cause: error }))
+    return null
+  }
+}
+
 function cachedGeneratedPaths(rule: WardRule): Array<{ re: RegExp; row: GeneratedPath }> {
   let rows = compiledGeneratedPaths.get(rule)
   if (rows === undefined) {
     rows = []
     for (const row of rule.generatedPaths ?? []) {
-      rows.push({ re: new RegExp(row.pattern), row })
+      const re = wardPattern(rule, row.pattern)
+      if (re !== null) rows.push({ re, row })
     }
     compiledGeneratedPaths.set(rule, rows)
   }
@@ -747,7 +757,7 @@ function cachedGeneratedPaths(rule: WardRule): Array<{ re: RegExp; row: Generate
 function cachedLeadingMarker(rule: WardRule): RegExp | null {
   let re = compiledLeadingMarkers.get(rule)
   if (re === undefined) {
-    re = rule.leadingMarker === undefined ? null : new RegExp(rule.leadingMarker, 'i')
+    re = rule.leadingMarker === undefined ? null : wardPattern(rule, rule.leadingMarker, 'i')
     compiledLeadingMarkers.set(rule, re)
   }
   return re
@@ -773,7 +783,7 @@ function cachedPathRegex(
 ): RegExp | null {
   let re = map.get(rule)
   if (re === undefined) {
-    re = new RegExp(source)
+    re = wardPattern(rule, source)
     map.set(rule, re)
   }
   return re
@@ -784,7 +794,8 @@ function compile(rule: WardRule): RegExp[] {
   if (cached !== undefined) return cached
   const out: RegExp[] = []
   for (const src of rule.patterns) {
-    out.push(new RegExp(src, rule.flags ?? 'u'))
+    const re = wardPattern(rule, src, rule.flags ?? 'u')
+    if (re !== null) out.push(re)
   }
   compiledPatterns.set(rule, out)
   return out
@@ -1175,7 +1186,7 @@ function lineResolvesInsideProject(
     try {
       resolved = resolvePath(expanded)
     } catch (error) {
-      passedOver(error); return false
+      passedOver(new Error(`a ward skipped the operand ${operand}, which could not be resolved (${error instanceof Error ? error.message : String(error)})`, { cause: error })); continue
     }
     const root = resolved.root?.replace(/\\/g, '/')
     if (root === undefined || root === '') continue
@@ -1205,7 +1216,7 @@ function lineResolvesInsideFolder(
     try {
       resolved = resolvePath(expanded)
     } catch (error) {
-      passedOver(error); return false
+      passedOver(new Error(`a ward skipped the operand ${operand}, which could not be resolved (${error instanceof Error ? error.message : String(error)})`, { cause: error })); continue
     }
     resolvedAny = true
     if (!slashed(resolved.path).startsWith(base)) return false

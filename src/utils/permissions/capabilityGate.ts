@@ -56,7 +56,12 @@ export function restoreCapability(
 }
 
 function currentAgentTypeSafe(): string | undefined {
-  return getMainThreadAgentType()
+  try {
+    return getMainThreadAgentType()
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
 }
 
 export function isCapabilityKilled(
@@ -237,8 +242,8 @@ function agentPolicyDenies(
     }
     return false
   } catch (error) {
-    passedOver(error)
-    return true
+    passedOver(new Error(`the agent cap could not be checked for ${tool.name} (${error instanceof Error ? error.message : String(error)}), so it is not applied to this call`, { cause: error }))
+    return false
   }
 }
 
@@ -328,8 +333,7 @@ function seedFromEnv(): void {
       }
     }
   } catch (error) {
-    passedOver(error)
-    killCapability(ALL_AGENTS, ALL_TOOLS)
+    passedOver(new Error(`MERCURY_KILL could not be read (${error instanceof Error ? error.message : String(error)}), so it switches no tool off`, { cause: error }))
   }
 }
 

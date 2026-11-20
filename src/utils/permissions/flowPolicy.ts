@@ -3,7 +3,7 @@ import { logForDebugging } from '../debug.js'
 import { flowAskFor, flowAskSentence, type FlowAsk } from './flowLaw.js'
 import type { PermissionAskDecision, PermissionDecision, PermissionDecisionReason } from './PermissionResult.js'
 
-type FlowFloor = 'ask-rule' | 'safety' | 'interaction' | 'ask-ceiling' | 'hook' | 'unread'
+type FlowFloor = 'ask-rule' | 'safety' | 'interaction' | 'ask-ceiling' | 'hook'
 
 type FlowVerdict =
   | { stage: 'flowFloors'; floor: FlowFloor; decision: PermissionAskDecision }
@@ -47,8 +47,8 @@ export async function decideUnderFlow(tool: Tool, input: Record<string, unknown>
   try {
     ask = await flowAskFor(tool, input, rules)
   } catch (error) {
-    logForDebugging(`flow: the ${tool.name} call could not be read (${error instanceof Error ? error.message : String(error)}), so it is asked`)
-    return { stage: 'flowFloors', floor: 'unread', decision: engineDecision }
+    logForDebugging(`flow: the ${tool.name} call could not be checked (${error instanceof Error ? error.message : String(error)}), so it goes on unasked`, { level: 'warn' })
+    ask = null
   }
   if (ask !== null) {
     const message = flowAskSentence(ask)

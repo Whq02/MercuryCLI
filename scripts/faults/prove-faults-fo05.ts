@@ -9,9 +9,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 const HERE = import.meta.dir
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 
-async function capPolicyThatThrowsRefuses(): Promise<void> {
+async function capPolicyThatThrowsGoesOn(): Promise<void> {
   const before = process.env.MERCURY_AGENT_CAP
-  process.env.MERCURY_AGENT_CAP = '*:max-risk=high'
+  process.env.MERCURY_AGENT_CAP = '*:max-risk=low'
   try {
     const m = await import(join(SRC, 'utils/permissions/capabilityGate.ts'))
     const tool = new Proxy({ name: 'FixtureTool', aliases: [] } as Record<string, unknown>, {
@@ -20,20 +20,24 @@ async function capPolicyThatThrowsRefuses(): Promise<void> {
         throw new Error('fixture: tool property unreadable')
       },
     })
-    let killed: unknown
-    try {
-      killed = m.isToolKilled(tool, 'fixture-agent')
-    } catch (error) {
-      killed = error
+    const judged = (candidate: unknown): unknown => {
+      try {
+        return m.isToolKilled(candidate, 'fixture-agent')
+      } catch (error) {
+        return error
+      }
     }
-    check('cap-policy-throw-refuses: an agent-cap check that throws refuses the tool', killed === true, `got ${String(killed)}`)
+    const unread = judged(tool)
+    const evaluated = judged({ name: 'FixtureTool', aliases: [] })
+    check('cap-policy-throw-goes-on: an agent-cap check that throws does not switch the tool off', unread === false, `got ${String(unread)}`)
+    check('cap-policy-throw-goes-on: a cap that was evaluated and says no still refuses', evaluated === true, `got ${String(evaluated)}`)
   } finally {
     if (before === undefined) delete process.env.MERCURY_AGENT_CAP
     else process.env.MERCURY_AGENT_CAP = before
   }
 }
 
-async function flowCheckThatThrowsAsks(): Promise<void> {
+async function flowCheckThatThrowsGoesOn(): Promise<void> {
   const m = await import(join(SRC, 'utils/permissions/flowPolicy.ts'))
   const tool = {
     name: 'FixtureWrite',
@@ -44,22 +48,26 @@ async function flowCheckThatThrowsAsks(): Promise<void> {
   }
   const engineDecision = { behavior: 'ask', message: 'fixture engine ask' }
   const verdict = await m.decideUnderFlow(tool, { file_path: '/elsewhere/x' }, engineDecision, { mode: 'flow' })
-  check('flow-throw-asks: a flow check that throws asks instead of allowing', verdict.stage !== 'flowAllow' && verdict.decision.behavior === 'ask', `got ${verdict.stage}/${verdict.decision.behavior}`)
+  check('flow-throw-goes-on: a flow check that throws lets the call go on unasked', verdict.stage === 'flowAllow' && verdict.decision.behavior === 'allow', `got ${verdict.stage}/${verdict.decision.behavior}`)
 }
 
-async function wardPatternThatFailsIsNotDropped(): Promise<void> {
+async function wardPatternThatFailsIsSkipped(): Promise<void> {
   const m = await import(join(SRC, 'utils/wards/wards.ts'))
-  const rule = { name: 'fixture-ward', scope: 'bash', teach: 'fixture', patterns: ['rm -rf (', 'never-matches-fixture'] }
-  let verdict: unknown
-  try {
-    verdict = m.evaluateWards([rule], { toolName: 'Bash', input: { command: 'rm -rf (' }, shellCommand: 'rm -rf (' })
-  } catch (error) {
-    verdict = error
+  const rule = { name: 'fixture-ward', scope: 'bash', teach: 'fixture', patterns: ['rm -rf (', 'fixture-danger'] }
+  const judged = (command: string): unknown => {
+    try {
+      return m.evaluateWards([rule], { toolName: 'Bash', input: { command }, shellCommand: command })
+    } catch (error) {
+      return error
+    }
   }
-  check('ward-pattern-not-dropped: a ward pattern that does not compile is not dropped as if it allowed', (verdict as { allow?: unknown })?.allow !== true, JSON.stringify(verdict))
+  const skipped = judged('rm -rf (')
+  const other = judged('fixture-danger now')
+  check('ward-pattern-skipped: a ward pattern that does not compile is skipped and the call goes on', (skipped as { allow?: unknown })?.allow === true, JSON.stringify(skipped))
+  check('ward-pattern-skipped: the other pattern of the same ward still judges', (other as { allow?: unknown })?.allow === false, JSON.stringify(other))
 }
 
-const rows: Array<() => Promise<void>> = [capPolicyThatThrowsRefuses, flowCheckThatThrowsAsks, wardPatternThatFailsIsNotDropped]
+const rows: Array<() => Promise<void>> = [capPolicyThatThrowsGoesOn, flowCheckThatThrowsGoesOn, wardPatternThatFailsIsSkipped]
 for (const row of rows) {
   try {
     await row()
