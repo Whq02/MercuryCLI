@@ -1,5 +1,4 @@
 import { isIP } from 'node:net'
-import { runpodOnly } from './vendors/client.js'
 import type { HostVendor } from './vendors/vendor.js'
 import { HostCreateError } from './vendors/http.js'
 import { sleep } from '../../utils/sleep.js'
@@ -10,6 +9,7 @@ import { patchHostRecord, readHostRecord, type HostRecord } from './store.js'
 import { sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostJobReadOnly, HostTerminationUnconfirmed, type HostReadOnly } from './retry.js'
 import { shQuote as quote } from './boxExecution.js'
+import { runpodOnly } from './vendors/runpodOnly.js'
 
 const clusterPlacementMs = 30 * 60_000
 

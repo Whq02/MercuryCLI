@@ -1,9 +1,5 @@
-import { randomBytes } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
-import { join } from 'node:path'
 import { sleep } from '../../utils/sleep.js'
 import { hostMachineName } from '../../commands/llmhost/words.js'
-import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { forgetTensorFoldHost, rememberTensorFoldHost } from '../providers/local/tensorfoldHosts.js'
 import { TENSORFOLD_NOT_BUILT, type TensorFoldHost } from '../tensorfold/contracts.js'
 import { listBoxes, writeBox, type HostBox } from './boxes.js'
@@ -11,16 +7,17 @@ import { hostPodBills, hostSpendSoFar } from './costs.js'
 import { stopHostSetup } from './jobs.js'
 import type { HostRecipe } from './recipes.js'
 import { closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
-import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, removeHostRecord, type HostRecord } from './store.js'
+import { hostRecords, patchHostRecord, readHostRecord, removeHostRecord, type HostRecord } from './store.js'
 import { terminateHostResource } from './cluster.js'
 import { TENSORFOLD_CARDS, TENSORFOLD_HOST_PORT, TENSORFOLD_HOST_VERSION, tensorFoldCardFor, tensorFoldClassWords, tensorFoldKeyPath, tensorFoldKeyWriteCommand, tensorFoldReadyCommand, tensorFoldServedName, tensorFoldStartingPoint, tensorFoldTitle, tensorFoldWindowWords, type TensorFoldCard } from './tensorfoldRelease.js'
 import { vendorClient, vendorLabel } from './vendors/client.js'
 import type { HostPod, HostVendor } from './vendors/vendor.js'
 import { HostVendorHttpError } from './vendors/http.js'
 import { RunpodHttpError } from './runpod.js'
+import { tensorFoldPodHostName, unregisterTensorFoldPod } from './tensorfoldPodKey.js'
+export { forgetTensorFoldPodKey, tensorFoldPodHostName, tensorFoldPodKey, unregisterTensorFoldPod } from './tensorfoldPodKey.js'
 
 export const isTensorFoldRecipe = (recipe: Pick<HostRecipe, 'engine'> | undefined): boolean => recipe?.engine === 'tensorfold'
-export const tensorFoldPodHostName = (id: string): string => ('pod-' + id.toLowerCase().replaceAll('_', '-')).slice(0, 28)
 export const isTensorFoldPodBox = (box: Pick<HostBox, 'name' | 'engines'>): boolean => box.name.startsWith('pod-') && box.engines.some(engine => engine.kind === 'tensorfold')
 
 export const TENSORFOLD_HOST_WORDS = {
@@ -40,26 +37,6 @@ export const TENSORFOLD_HOST_WORDS = {
   serves: (title: string, window: number): string => title + ' at ' + tensorFoldWindowWords(window) + ' with TensorFold ' + TENSORFOLD_HOST_VERSION + ' for CUDA',
 } as const
 
-const keysDirectory = (): string => {
-  const dir = join(hostDirectory(), 'tensorfold')
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  return dir
-}
-const keyFile = (id: string): string => {
-  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid host record id')
-  return join(keysDirectory(), id + '.key')
-}
-export function tensorFoldPodKey(id: string): string {
-  const path = keyFile(id)
-  if (existsSync(path)) { chmodSync(path, 0o600); return readFileSync(path, 'utf8').trim() }
-  const key = randomBytes(24).toString('base64url')
-  publishAtomicSync(path, key + '\n', { mode: 0o600 })
-  chmodSync(path, 0o600)
-  return key
-}
-export function forgetTensorFoldPodKey(id: string): void {
-  try { unlinkSync(keyFile(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
-}
 export const tensorFoldPodDir = (recipe: Pick<HostRecipe, 'id'>): string => '/workspace/mercury-host/' + recipe.id
 export const tensorFoldPodAnsweringCommand = (recipe: Pick<HostRecipe, 'id'>): string => tensorFoldReadyCommand(tensorFoldPodDir(recipe))
 export const tensorFoldPodService = (key: string): { port: number; path: string; headers: Record<string, string> } => ({ port: TENSORFOLD_HOST_PORT, path: '/v1/models', headers: { Authorization: 'Bearer ' + key } })
@@ -92,13 +69,6 @@ export async function registerTensorFoldPod(registration: TensorFoldPodRegistrat
     write(box)
   }
   return { hostName, host, box, remembered }
-}
-export async function unregisterTensorFoldPod(id: string, forget: (name: string) => Promise<void> = forgetTensorFoldHost): Promise<void> {
-  const hostName = tensorFoldPodHostName(id)
-  try { await forget(hostName) } catch (error) { if (!String(error).includes(TENSORFOLD_NOT_BUILT)) throw error }
-  const box = join(hostDirectory(), 'boxes', hostName + '.json')
-  try { unlinkSync(box) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
-  forgetTensorFoldPodKey(id)
 }
 
 export type TensorFoldPodState = 'starting' | 'serving' | 'stopping' | 'stopped' | 'paused' | 'failed'

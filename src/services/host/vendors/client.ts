@@ -11,6 +11,8 @@ import { LambdaClient, LAMBDA_STORAGE_NOTICE, LAMBDA_KEY_NOTICE } from './lambda
 import { HuggingfaceClient, HF_ENDPOINTS_STORAGE_NOTICE, HF_ENDPOINTS_KEY_NOTICE } from './huggingface.js'
 import { resolveHuggingfaceApiKey } from '../../providers/huggingface/huggingfaceAccounts.js'
 import { hostHuggingfaceCredential, hostHuggingfaceDispatchCredential } from '../jobCredentials.js'
+import { runpodClients } from './runpodOnly.js'
+export { runpodOnly } from './runpodOnly.js'
 
 export type HostVendorId = HostVendor['vendor']
 export const HOST_VENDORS: readonly HostVendorId[] = ['runpod', 'vast', 'lambda', 'huggingface', 'hyperstack', 'verda', 'digitalocean']
@@ -22,7 +24,6 @@ export const saveVendorKey = (vendor: HostVendorId, key: string | null): void =>
 }
 export const vendorStorage = (vendor: HostVendorId): string => vendor === 'hyperstack' ? HYPERSTACK_STORAGE_NOTICE : vendor === 'verda' ? VERDA_STORAGE_NOTICE : vendor === 'digitalocean' ? DIGITALOCEAN_STORAGE_NOTICE : vendor === 'huggingface' ? HF_ENDPOINTS_STORAGE_NOTICE : vendor === 'vast' ? VAST_STORAGE_NOTICE : vendor === 'lambda' ? LAMBDA_STORAGE_NOTICE : 'Stop keeps the volume disk and its storage bill; terminate deletes the pod’s volume disk. Attached weights disks bill separately.'
 export const vendorKeyNotice = (vendor: HostVendorId): string => vendor === 'hyperstack' ? HYPERSTACK_KEY_NOTICE : vendor === 'verda' ? VERDA_KEY_NOTICE : vendor === 'digitalocean' ? DIGITALOCEAN_KEY_NOTICE : vendor === 'huggingface' ? HF_ENDPOINTS_KEY_NOTICE : vendor === 'vast' ? VAST_KEY_NOTICE : vendor === 'lambda' ? LAMBDA_KEY_NOTICE : 'Mercury’s SSH key is added to this pod only, never to your Runpod account.'
-const runpodClients = new WeakMap<HostVendor, RunpodClient>()
 const recordKey = (record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 'id' | 'huggingfaceCredential'>, vendor: HostVendorId): string | undefined => {
   if (vendor !== 'huggingface') return vendorKey(vendor)
   try { return hostHuggingfaceCredential(record)?.key } catch { return undefined }
@@ -45,10 +46,4 @@ export function vendorClient(record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 
   const client = runpodVendor(raw)
   runpodClients.set(client, raw)
   return client
-}
-export function runpodOnly(client: HostVendor | RunpodClient, feature: string): RunpodClient {
-  if (client instanceof RunpodClient) return client
-  const raw = runpodClients.get(client)
-  if (!raw) throw new Error(feature + ' is Runpod-only; ' + client.label + ' does not offer it. Nothing was changed.')
-  return raw
 }
