@@ -262,5 +262,78 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
   }
 }
 
+{
+  console.log('\n6. src/substrate/invocationRecord.ts')
+  const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-invrec-'))
+  try {
+    const bunBin = process.env.BUN ?? process.execPath
+    const runInv = (home: string, body: string): Record<string, unknown> => {
+      mkdirSync(home, { recursive: true })
+      const script = `
+        import { readFileSync, writeFileSync, chmodSync } from 'node:fs'
+        import { join } from 'node:path'
+        const src = ${JSON.stringify(SRC)}
+        const inv = await import(join(src, 'substrate/invocationRecord.ts'))
+        const file = join(${JSON.stringify(home)}, 'invocation-record.json')
+        const attempt = (fn: () => unknown) => {
+          try { return { ok: true, value: fn() } }
+          catch (e) { const err = e as NodeJS.ErrnoException; return { ok: false, code: err?.code ?? null, name: err?.name ?? null, message: String(err?.message ?? e) } }
+        }
+        const out: Record<string, unknown> = {}
+        ${body}
+        process.stdout.write(JSON.stringify(out))
+        process.exit(0)
+      `
+      const res = spawnSync(bunBin, ['-e', script], {
+        encoding: 'utf8',
+        env: { ...process.env, MERCURY_CONFIG_DIR: home },
+      })
+      if (res.status !== 0) throw new Error(`invrec child failed: ${res.stderr.slice(-300)}`)
+      return JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as Record<string, unknown>
+    }
+
+    const absent = runInv(join(scratch, 'absent'), `out.read = attempt(() => inv.readInvocationRecords())`)
+    const absentRead = absent.read as { ok: boolean; value?: unknown[] }
+    check('invocationRecord: absent file returns empty array', absentRead.ok && Array.isArray(absentRead.value) && absentRead.value.length === 0)
+
+    const corrupt = runInv(
+      join(scratch, 'corrupt'),
+      `
+      const broken = '{broken json'
+      writeFileSync(file, broken, { mode: 0o600 })
+      out.read = attempt(() => inv.readInvocationRecords())
+      inv.recordInvocation()
+      out.healed = attempt(() => inv.readInvocationRecords())
+      `,
+    )
+    const corruptRead = corrupt.read as { ok: boolean; name?: string | null }
+    const corruptHealed = corrupt.healed as { ok: boolean; value?: unknown[] }
+    check('invocationRecord: corrupt JSON throws from readInvocationRecords', !corruptRead.ok && corruptRead.name === 'SyntaxError', JSON.stringify(corruptRead))
+    check('invocationRecord: corrupt JSON heals on next recordInvocation', corruptHealed.ok && Array.isArray(corruptHealed.value) && corruptHealed.value.length === 1, JSON.stringify(corruptHealed))
+
+    if (!POSIX_MODES) {
+      skip('invocationRecord: unreadable file is not overwritten and throws on read', 'requires non-root POSIX')
+    } else {
+      const unreadable = runInv(
+        join(scratch, 'unreadable'),
+        `
+        const prior = JSON.stringify({ version: 1, rows: [{ schema: 1, pid: 1, recordedAtMs: 1, platform: 'darwin', argv0: 'node', execBasename: 'node', stdinTTY: false, stdoutTTY: false, stderrTTY: false, shellHint: 'posix-sh' }] }) + '\\n'
+        writeFileSync(file, prior, { mode: 0o600 })
+        chmodSync(file, 0o200)
+        inv.recordInvocation()
+        out.read = attempt(() => inv.readInvocationRecords())
+        chmodSync(file, 0o600)
+        out.keptAfterWrite = readFileSync(file, 'utf8') === prior
+        `,
+      )
+      const unreadableRead = unreadable.read as { ok: boolean; code?: string | null }
+      check('invocationRecord: unreadable file is not overwritten by recordInvocation', unreadable.keptAfterWrite === true, JSON.stringify(unreadable))
+      check('invocationRecord: unreadable file throws EACCES from readInvocationRecords', !unreadableRead.ok && unreadableRead.code === 'EACCES', JSON.stringify(unreadableRead))
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
