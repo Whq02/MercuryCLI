@@ -6,7 +6,7 @@ import type { AssistantMessage } from '../../types/message.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
 import type { ChangeRecordRoad } from '../../services/vulcan/addonInstaller.js'
-import { getVulcanClient, type VulcanResult } from '../../services/vulcan/vulcanClient.js'
+import { resolveVulcanClient, type VulcanResult } from '../../services/vulcan/vulcanClient.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
 import { VULCAN_STEP_WALL_MS_PER_FRAME, vulcanOp, vulcanCategories } from '../../utils/vulcan/optable.generated.js'
@@ -150,11 +150,13 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   }
   if (spec.side === 'mercury') return runLocalOp(input.op, input.args, context, parentMessage)
 
-  const client = getVulcanClient(undefined, input.args?.instance)
-  if (!client) {
+  const resolved = resolveVulcanClient(undefined, input.args?.instance)
+  if (!resolved.ok) {
+    if (resolved.reason === 'unreadable') return resolved.message
     if (input.op === 'project_capsule' && input.args?.instance === undefined) return staticCapsuleAnswer(input)
     return `no unique Godot instance is available for this call — op:"vulcan_status" lists instances; pass args.instance with an id or role. The operator's editor is never selected implicitly`
   }
+  const client = resolved.client
   const baseMs = input.op === 'playtest_run' ? 120_000 : 30_000
   const { instance: _instance, ...wireArgs } = input.args ?? {}
   const r: VulcanResult = await client.request(input.op, wireArgs, baseMs + vulcanDeclaredBudgetMs(input.op, input.args))

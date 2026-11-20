@@ -1,8 +1,18 @@
 
 import * as net from 'node:net'
+import * as path from 'node:path'
 import { findGodotProjectRoot } from '../lsp/godotLane.js'
 import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
-import { parseVulcanInstance, readVulcanInstanceToken, sameVulcanInstance, selectVulcanInstance, type VulcanInstance } from './instances.js'
+import {
+  formatUnreadableVulcanInstance,
+  parseVulcanInstance,
+  readVulcanInstanceToken,
+  sameVulcanInstance,
+  scanVulcanInstances,
+  selectVulcanInstance,
+  vulcanInstanceDir,
+  type VulcanInstance,
+} from './instances.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
@@ -390,13 +400,53 @@ function clientFor(instance: VulcanInstance): VulcanClient {
   return client
 }
 
-export function getVulcanClient(projectRoot?: string, selector?: unknown): VulcanClient | null {
-  if (!vulcanEnabled()) return null
+type VulcanClientResolution =
+  | { ok: true; client: VulcanClient }
+  | { ok: false; reason: 'disabled' | 'no-project' | 'not-found' | 'ambiguous' | 'bad-selector' | 'unreadable'; message: string }
+
+function selectorIdOf(selector: unknown): string | undefined {
+  if (typeof selector === 'string' && /^[a-f0-9]{32}$/.test(selector)) return selector
+  if (selector && typeof selector === 'object' && !Array.isArray(selector)) {
+    const id = (selector as Record<string, unknown>).id
+    if (typeof id === 'string' && /^[a-f0-9]{32}$/.test(id)) return id
+  }
+  return undefined
+}
+
+export function resolveVulcanClient(projectRoot?: string, selector?: unknown): VulcanClientResolution {
+  if (!vulcanEnabled()) return { ok: false, reason: 'disabled', message: 'VULCAN is disabled' }
   const root = projectRoot ?? findGodotProjectRoot()
-  if (!root) return null
+  if (!root) return { ok: false, reason: 'no-project', message: 'no project.godot found' }
   const selected = selectVulcanInstance(root, selector)
-  if (!selected.ok) return null
-  try { return clientFor(selected.instance) } catch (error) { passedOver(error); return null }
+  if (!selected.ok) {
+    if (selected.error.code === 'INSTANCE_NOT_FOUND') {
+      const scan = scanVulcanInstances(root)
+      if (scan.unreadable.length > 0) {
+        const wanted = selectorIdOf(selector)
+        const hit = (wanted ? scan.unreadable.find(u => path.basename(u.path) === wanted) : undefined) ?? scan.unreadable[0]!
+        return { ok: false, reason: 'unreadable', message: formatUnreadableVulcanInstance(hit.path, hit.error) }
+      }
+      return { ok: false, reason: 'not-found', message: selected.error.message }
+    }
+    return {
+      ok: false,
+      reason: selected.error.code === 'INSTANCE_AMBIGUOUS' ? 'ambiguous' : 'bad-selector',
+      message: selected.error.message,
+    }
+  }
+  try {
+    return { ok: true, client: clientFor(selected.instance) }
+  } catch (error) {
+    passedOver(error)
+    const instPath = vulcanInstanceDir(selected.instance.projectRoot, selected.instance.id)
+    const msg = error instanceof Error ? error.message : String(error)
+    return { ok: false, reason: 'unreadable', message: formatUnreadableVulcanInstance(instPath, msg) }
+  }
+}
+
+export function getVulcanClient(projectRoot?: string, selector?: unknown): VulcanClient | null {
+  const resolved = resolveVulcanClient(projectRoot, selector)
+  return resolved.ok ? resolved.client : null
 }
 
 export async function requestVulcanInstance(root: string, op: string, args: Record<string, unknown> = {}, timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS): Promise<VulcanResult> {
