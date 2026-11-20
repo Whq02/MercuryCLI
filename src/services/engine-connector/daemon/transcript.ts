@@ -39,6 +39,24 @@ interface TranscriptNeeds {
   echoes(tailSeq: number | null): { held: Array<{ seq: number; row: Message }>; afterTail: Message[] }
   reconcileSends(): boolean
   placeDelivered(rows: readonly Message[]): readonly Message[]
+  landingsAfter(seq: number | null): ReadonlyMap<string, number>
+}
+
+function placeEarlierArrivals(rows: readonly Message[], waiting: ReadonlyArray<{ seq: number; row: Message }>, landings: ReadonlyMap<string, number>): readonly Message[] {
+  if (landings.size === 0) return rows
+  const seqs = new Map(waiting.map(entry => [entry.row.uuid, entry.seq]))
+  const placed: Message[] = []
+  let moved = false
+  for (const row of rows) {
+    const seq = seqs.get(row.uuid)
+    const at = seq === undefined ? -1 : placed.findIndex(above => (landings.get(above.uuid) ?? seq) > seq)
+    if (at === -1) placed.push(row)
+    else {
+      placed.splice(at, 0, row)
+      moved = true
+    }
+  }
+  return moved ? placed : rows
 }
 
 export class TranscriptPart {
@@ -315,7 +333,8 @@ export class TranscriptPart {
     if (this.clearModelReceipt != null && !this.rawRecords.some(row => row.uuid === this.clearModelReceipt!.uuid)) {
       this.painted = [this.clearModelReceipt, ...this.painted]
     }
-    this.painted = placeLocalCommandRows(this.needs.placeDelivered(this.painted))
+    const waiting = held.filter(entry => (entry.row as { queued?: true }).queued === true)
+    this.painted = placeEarlierArrivals(placeLocalCommandRows(this.needs.placeDelivered(this.painted)), waiting, this.needs.landingsAfter(waiting[0]?.seq ?? null))
     connectorTrace({ ev: 'paint', sid: this.needs.record().sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
   }

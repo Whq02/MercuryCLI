@@ -595,7 +595,7 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
       if (!weightsChoice) continue
       if (run.record) { await stopHostSetup(run.pod.id); run.record = readHostRecord(run.pod.id) }
       const progress = (step: string): void => emit({ title: words.manage, words: run.pod!.id + ' · ' + step, host: { id: run.pod!.id, price: run.pod!.cost, startedAt: run.pod!.startedAt ?? run.pod!.createdAt, status: run.pod!.status, step } })
-      const confirming = hostJobReadOnly({ label: run.api.label, pauseMs, timeoutMs: 4 * 60_000, signal, mark: progress })
+      const confirming = hostJobReadOnly({ label: run.api.label, pauseMs, timeoutMs: options.readyTimeoutMs ?? 4 * 60_000, signal, mark: progress })
       const plain = (error: unknown): string => { const text = error instanceof Error ? error.message : String(error); return run.key ? text.split(run.key).join('[redacted]') : text }
       if (action === 'terminate') {
         progress('terminating')

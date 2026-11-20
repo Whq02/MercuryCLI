@@ -130,7 +130,7 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
         child.stdin!.end()
       } catch {
       }
-      const code = await Promise.race([exited, new Promise<number | null>(r => setTimeout(() => r(null), 60_000))])
+      const code = await exitWithin(exited, 60_000)
       if (!done) child.kill('SIGKILL')
       return code
     },
@@ -139,11 +139,18 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
         child.kill('SIGTERM')
       } catch {
       }
-      const code = await Promise.race([exited, new Promise<number | null>(r => setTimeout(() => r(null), 60_000))])
+      const code = await exitWithin(exited, 60_000)
       if (!done) child.kill('SIGKILL')
       return code
     },
   }
+}
+
+async function exitWithin(exited: Promise<number | null>, ms: number): Promise<number | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const code = await Promise.race([exited, new Promise<number | null>(r => { timer = setTimeout(() => r(null), ms) })])
+  clearTimeout(timer)
+  return code
 }
 
 function bootLeadOnDoor(world: World, extraArgv: string[], allowedTools: string[]): Session & { host: HostedRunner } {
@@ -181,7 +188,7 @@ function bootLeadOnDoor(world: World, extraArgv: string[], allowedTools: string[
     }
   }
   const settle = async (): Promise<number | null> => {
-    const code = await Promise.race([exited, new Promise<number | null>(r => setTimeout(() => r(null), 60_000))])
+    const code = await exitWithin(exited, 60_000)
     if (!done) host.child.kill('SIGKILL')
     return code
   }

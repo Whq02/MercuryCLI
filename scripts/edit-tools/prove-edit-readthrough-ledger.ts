@@ -2,14 +2,20 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+const refusingProvider = createServer((request, response) => {
+  request.resume().on('end', () => response.writeHead(404, { 'content-type': 'application/json' }).end('{"type":"error","error":{"type":"not_found_error","message":"not found"}}'))
+})
+await new Promise<void>(resolve => refusingProvider.listen(0, '127.0.0.1', () => resolve()))
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'edit-readthrough-home-'))
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
+process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(refusingProvider.address() as { port: number }).port}`
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS

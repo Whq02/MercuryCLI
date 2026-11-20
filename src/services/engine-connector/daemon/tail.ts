@@ -22,6 +22,7 @@ export class TailPart {
   private tailSeq: number | null = null
   private tailSinceMs = 0
   private textRows: CommittedTextRow[] = []
+  private landings = new Map<string, number>()
 
   constructor(private readonly needs: TailNeeds) {}
 
@@ -39,6 +40,21 @@ export class TailPart {
 
   dropCommittedRows(): void {
     this.textRows = []
+  }
+
+  landingsAfter(seq: number | null): ReadonlyMap<string, number> {
+    for (const [uuid, place] of this.landings) if (seq === null || place <= seq) this.landings.delete(uuid)
+    return this.landings
+  }
+
+  private landedAt(messageId: string, text: string, seq: number): boolean {
+    for (let i = this.needs.rows().length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
+      const row = this.needs.rows()[i]!
+      if (!textRowLanded(row, messageId, text)) continue
+      this.landings.set(row.uuid, Math.max(seq, this.landings.get(row.uuid) ?? seq))
+      return true
+    }
+    return false
   }
 
   detached(): void {
@@ -144,13 +160,7 @@ export class TailPart {
   retireTextRows(): boolean {
     if (this.textRows.length === 0) return false
     const now = Date.now()
-    const kept = this.textRows.filter(committed => {
-      if (now - committed.atMs > ECHO_RETIRE_MS) return false
-      for (let i = this.needs.rows().length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
-        if (textRowLanded(this.needs.rows()[i]!, committed.messageId, committed.text)) return false
-      }
-      return true
-    })
+    const kept = this.textRows.filter(committed => now - committed.atMs <= ECHO_RETIRE_MS && !this.landedAt(committed.messageId, committed.text, committed.seq))
     if (kept.length === this.textRows.length) return false
     connectorTrace({ ev: 'text-row-landed', sid: this.needs.sessionId(), count: this.textRows.length - kept.length })
     this.textRows = kept
@@ -169,7 +179,11 @@ export class TailPart {
     if (ids.current === null && ids.settled === null) return
     const release = computeTailRelease(this.needs.rows(), ids)
     if (!release.publishedShown && !release.settledShown) return
-    if (release.publishedShown) this.tailStore.reset(null)
+    if (release.publishedShown) {
+      const held = this.tailStore.read()
+      if (ids.current !== null && held !== null && held !== '' && this.tailSeq !== null) this.landedAt(ids.current, held, this.tailSeq)
+      this.tailStore.reset(null)
+    }
     this.tailStore.dropSettled()
     this.tailSeq = null
   }
