@@ -53,7 +53,7 @@ import {
   daemonControlRpc,
   daemonDir,
   mintControlKey,
-  readControlKey,
+  readLiveControlKey,
   readDaemonState,
   daemonExitTeardownSync,
   daemonStatePath,
@@ -299,7 +299,7 @@ async function daemonRun(args: string[]): Promise<void> {
       roster = atBootStep(state, 'the roster')(makeDaemonRoster(state))
       state.roster = roster
       if (handoverPredecessor === null) resetSeatProjections(dir)
-      const controlKey = atBootStep(state, 'the control key')(handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey())))
+      const controlKey = atBootStep(state, 'the control key')(handoverPredecessor === null ? await mintControlKey() : ((await readLiveControlKey()) ?? (await mintControlKey())))
       const warmDeps = {
         roster: () => roster ?? undefined,
         onWarmSpawned: (short: string, workspaceId: string, pid: number | undefined) => {

@@ -32,9 +32,22 @@ import { initGitRepository } from './concourseWorktrees.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { countEntriesBounded, entryCountWords, gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 import { passedOver } from '../utils/passedOver.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
 
 function gitInitAsksPath(): string {
   return join(daemonDir(), 'git-init-asks.json')
+}
+
+function readGitInitAsksToRewrite(): Record<string, string> | null {
+  try {
+    readFileSync(gitInitAsksPath())
+  } catch (error) {
+    if (!isENOENT(error)) {
+      logForDebugging(`[daemon] the git-init asks at ${gitInitAsksPath()} could not be read (${errorMessage(error)}), so they are not written over`)
+      return null
+    }
+  }
+  return readGitInitAsks()
 }
 
 function readGitInitAsks(): Record<string, string> {
@@ -343,7 +356,8 @@ export function mintGitInitAsk(folder: string): { requestId: string } | { refuse
     if (a.local === 'git-init' && a.workspaceId === folder) return { requestId: id }
   }
   const requestId = `git-init:${createHash('sha1').update(folder).digest('hex').slice(0, 12)}`
-  writeGitInitAsks({ ...readGitInitAsks(), [requestId]: folder })
+  const held = readGitInitAsksToRewrite()
+  if (held !== null) writeGitInitAsks({ ...held, [requestId]: folder })
   if (pending.size >= MAX_PENDING) {
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue
@@ -452,8 +466,8 @@ export function answerPermissionAsk(
   if (ask.local === 'git-init') {
     const settleObligation = (): void => settleGitOffer(requestId, { kind: 'answered', by }, ask)
     const dropSidecar = (): void => {
-      const map = readGitInitAsks()
-      if (map[requestId] !== undefined) {
+      const map = readGitInitAsksToRewrite()
+      if (map !== null && map[requestId] !== undefined) {
         delete map[requestId]
         writeGitInitAsks(map)
       }
