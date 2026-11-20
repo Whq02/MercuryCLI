@@ -1,6 +1,6 @@
 export { assignLlamacppSlot } from './compatSlots.js'
 import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
-import { deepestErrorDetail, isStaleSocketCode } from '../../api/transportEvidence.js'
+import { deepestErrorDetail, isStaleSocketCode } from '../../../utils/api/transportEvidence.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { CompatEndpointSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'

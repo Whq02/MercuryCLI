@@ -67,7 +67,7 @@ import {
   getPinnedCacheEdits,
 } from '../../compact/microCompact.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
-import { transportCutOf } from '../../api/transportEvidence.js'
+import { transportCutOf } from '../../../utils/api/transportEvidence.js'
 import { captureModelRefusalRequest, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,

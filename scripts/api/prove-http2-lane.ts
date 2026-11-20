@@ -13,7 +13,7 @@ writeFileSync(
   entry,
   [
     `export * from '${join(repo, 'src/utils/proxy.ts')}'`,
-    `export { deepestErrorDetail, isStaleSocketCode, transportCutOf } from '${join(repo, 'src/services/api/transportEvidence.ts')}'`,
+    `export { deepestErrorDetail, isStaleSocketCode, transportCutOf } from '${join(repo, 'src/utils/api/transportEvidence.ts')}'`,
     '',
   ].join('\n'),
 )

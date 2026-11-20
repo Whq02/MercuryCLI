@@ -35,7 +35,7 @@ import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow, re
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
 import { jitterRetryDelay } from './retryJitter.js'
 import { APIError, APIUserAbortError } from '../../utils/api/sdkErrors.js'
-import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
+import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from '../../utils/api/transportEvidence.js'
 import { messageEffortRefusedBy } from '../providers/anthropic/messageEffort.js'
 import { passedOverAs } from '../../utils/passedOver.js'
 

@@ -11,7 +11,7 @@ import {
   createStreamCutMessage,
   createSystemAPIErrorMessage,
 } from '../../../../utils/messages.js'
-import { transportCutOf, transportCutWords } from '../../../api/transportEvidence.js'
+import { transportCutOf, transportCutWords } from '../../../../utils/api/transportEvidence.js'
 import { createStreamIdleWatchdog } from '../../streamIdleBudget.js'
 import { patienceSeconds } from '../../patience.js'
 import type { Options } from '../streamCore.js'
