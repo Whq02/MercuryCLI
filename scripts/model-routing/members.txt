@@ -31,3 +31,4 @@ prove-stream-cut-forensics.ts
 prove-stream-fault-recovery.ts
 prove-subagent-effort-default.ts
 prove-zero-codex-census.ts
+prove-agent-family-drive.ts
