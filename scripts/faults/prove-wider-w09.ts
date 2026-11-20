@@ -267,5 +267,88 @@ function startFakeVulcanServer(
   }
 }
 
+{
+  console.log('\n3. w09-3: failed process census surfaced in godotEngineCli jobs/cancel and portabilityHealth')
+  const { godotEngineCli } = await import(join(SRC, 'cli/godotEngineCli.ts'))
+  const { resolveGodotExecutable } = await import(join(SRC, 'services/vulcan/portabilityHealth.ts'))
+  const { runningGodotProcesses } = await import(join(SRC, 'services/vulcan/godotProcessCensus.ts'))
+
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-3-')))
+  const prevPath = process.env.PATH
+  const prevPin = process.env.MERCURY_GODOT_EXECUTABLE
+  try {
+    const proj = join(scratch, 'proj')
+    const fakeBin = join(scratch, 'fake-bin')
+    mkdirSync(proj, { recursive: true })
+    mkdirSync(fakeBin, { recursive: true })
+    writeFileSync(join(proj, 'project.godot'), 'config_version=5\n[application]\nconfig/name="W09Three"\n')
+
+    if (POSIX_MODES) {
+      const fakePs = join(fakeBin, 'ps')
+      writeFileSync(fakePs, '#!/bin/sh\nexit 7\n', { mode: 0o755 })
+      chmodSync(fakePs, 0o755)
+      delete process.env.MERCURY_GODOT_EXECUTABLE
+      process.env.PATH = `${fakeBin}:${prevPath ?? ''}`
+
+      const silentList = await runningGodotProcesses()
+      check('w09-3 runningGodotProcesses keeps returning empty list on failure', Array.isArray(silentList) && silentList.length === 0, JSON.stringify(silentList))
+
+      const jobsOut: string[] = []
+      const jobsErr: string[] = []
+      const jobsRc = await godotEngineCli(['jobs', '--project', proj], {
+        out: s => jobsOut.push(s),
+        err: s => jobsErr.push(s),
+        cliName: 'mercury',
+      })
+      const jobsText = jobsOut.join('\n')
+      check(
+        'w09-3 godotEngineCli jobs reports process census failure instead of empty alive list',
+        jobsRc === 0 && jobsText.includes('the running Godot processes could not be listed ('),
+        `rc=${jobsRc} out=${jobsText} err=${jobsErr.join('\n')}`,
+      )
+
+      const cancelOut: string[] = []
+      const cancelErr: string[] = []
+      const cancelRc = await godotEngineCli(['cancel', 'job-nonexistent', '--project', proj], {
+        out: s => cancelOut.push(s),
+        err: s => cancelErr.push(s),
+        cliName: 'mercury',
+      })
+      const cancelText = cancelOut.join('\n')
+      check(
+        'w09-3 godotEngineCli cancel reports process census failure instead of no engine alive',
+        cancelRc === 1 && cancelText.includes('the running Godot processes could not be listed (') && !cancelText.includes('no engine of that job is alive'),
+        `rc=${cancelRc} out=${cancelText} err=${cancelErr.join('\n')}`,
+      )
+
+      const emptyFs = {
+        exists: () => false,
+        executable: () => false,
+        isDir: () => false,
+        list: () => [] as string[],
+      }
+      const receipt = await resolveGodotExecutable({ projectRoot: proj, env: { PATH: '' }, fs: emptyFs }) as {
+        source: string
+        note: string
+        censusError?: string
+      }
+      check(
+        'w09-3 portabilityHealth resolveGodotExecutable reports process census failure',
+        receipt.source === 'not-found' &&
+          receipt.note.includes('the running Godot processes could not be listed (') &&
+          typeof receipt.censusError === 'string' &&
+          receipt.censusError.includes('the running Godot processes could not be listed ('),
+        JSON.stringify(receipt),
+      )
+    }
+  } finally {
+    if (prevPath === undefined) delete process.env.PATH
+    else process.env.PATH = prevPath
+    if (prevPin === undefined) delete process.env.MERCURY_GODOT_EXECUTABLE
+    else process.env.MERCURY_GODOT_EXECUTABLE = prevPin
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? 'PASS: prove-wider-w09' : `FAIL: prove-wider-w09 (${failures} failure(s))`)
 process.exit(failures === 0 ? 0 : 1)
