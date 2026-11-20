@@ -261,14 +261,18 @@ export function figuresLine(usage: ActiveSourceUsage): string | undefined {
 export function ObservedWindowMeter({
   window: w,
   title,
+  tail,
   maxWidth,
 }: {
   window: UsageWindowView
   title?: string
+  tail?: string
   maxWidth?: number
 }): React.ReactNode {
   if (w.usedPct === undefined) return null
   const observed = usageSourceWords(w)
+  const parts = [observed, tail].filter((part): part is string => part !== undefined && part !== '')
+  const subtext = parts.length > 0 ? parts.join(' · ') : undefined
   return (
     <Meter
       title={title ?? (w.label === 'wk' ? 'Current week' : `Window (${w.label})`)}
@@ -276,7 +280,7 @@ export function ObservedWindowMeter({
         utilization: w.usedPct,
         resets_at: w.resetsAtMs !== undefined ? new Date(w.resetsAtMs).toISOString() : null,
       }}
-      {...(observed !== undefined ? { subtext: observed } : {})}
+      {...(subtext !== undefined ? { subtext } : {})}
       {...(maxWidth !== undefined ? { maxWidth } : {})}
     />
   )
