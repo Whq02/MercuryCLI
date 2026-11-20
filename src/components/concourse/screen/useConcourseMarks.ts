@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useClaim, useDerivedState } from '../../../hooks/effects.js'
 import type { ConcourseRowV1 } from '../contracts.js'
 import { OLDER_CHATS_ROW_PREFIX } from '../../../services/concourse/concourseSnapshot.js'
 import { COMPACT_DOOR_NOTE_MS } from '../compactBoard.js'
@@ -6,7 +7,7 @@ import { consumeSignInPickerReturn } from './signInPicker.js'
 import type { Filter, Panes, ScreenProps, Selection } from './state.js'
 
 export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessionRows, setOlderList }: Pick<ScreenProps, 'snapshot'> & Pick<Selection, 'boardSel' | 'olderList' | 'setOlderList'> & Pick<Panes, 'region'> & Pick<Filter, 'sessionRows'>) {
-  useEffect(() => {
+  useDerivedState(() => {
     if (olderList !== null && (boardSel === null || !boardSel.startsWith(OLDER_CHATS_ROW_PREFIX))) setOlderList(null)
   }, [boardSel, olderList])
   const [boardArmed, setBoardArmed] = useState<string | null>(null)
@@ -38,13 +39,13 @@ export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessi
     timer.unref?.()
     doorNoteTimerRef.current = timer
   }
-  useEffect(() => () => {
+  useClaim(() => () => {
     if (doorNoteTimerRef.current !== null) clearTimeout(doorNoteTimerRef.current)
   }, [])
-  useEffect(() => {
+  useDerivedState(() => {
     if (doorNoteRef.current) clearDoorNote()
   }, [boardSel, region])
-  useEffect(() => {
+  useDerivedState(() => {
     if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)
   }, [boardSel, boardArmed])
   const [markedIds, setMarkedIds] = useState<ReadonlySet<string>>(() => new Set())
@@ -61,7 +62,7 @@ export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessi
     })
   }
   const markProjectRef = useRef(snapshot.context.projectLabel)
-  useEffect(() => {
+  useDerivedState(() => {
     if (markProjectRef.current === snapshot.context.projectLabel) return
     markProjectRef.current = snapshot.context.projectLabel
     setMarkedIds(new Set())

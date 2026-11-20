@@ -1,5 +1,6 @@
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { useNotifications } from '../../context/notifications.js'
 import { getSettingsWithAllErrors } from '../../utils/settings/allErrors.js'
@@ -19,7 +20,7 @@ export function useSettingsErrors(): ValidationError[] {
     setErrors(getSettingsWithAllErrors().errors)
   })
 
-  useEffect(() => {
+  usePublish(() => {
     if (getIsRemoteMode()) return
     if (errors.length > 0) {
       addNotification({

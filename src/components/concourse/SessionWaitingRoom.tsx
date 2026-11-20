@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { useTimer } from '../../hooks/effects.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
@@ -83,7 +84,7 @@ export function SessionWaitingRoom({
     } catch {
     }
   }, [dispatchId, onAdmitted])
-  useEffect(() => {
+  useTimer(() => {
     void load()
     const iv = setInterval(() => void load(), 1200)
     iv.unref?.()

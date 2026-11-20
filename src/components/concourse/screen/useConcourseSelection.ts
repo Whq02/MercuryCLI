@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDerivedState, useTimer } from '../../../hooks/effects.js'
 import { CONTROL_NOTE_REFUSED_MS, stableSelectionFallback } from '../contracts.js'
 import type { OlderChatFact } from '../../../services/concourse/concourseSnapshot.js'
 import { NEW_SESSION_ROW_ID } from '../ConcourseLayout.js'
@@ -29,14 +30,14 @@ export function useConcourseSelection({ presentationCapsule, compact, newSession
       )
     : null
   const compactParkNoteExpiresAt = compactParkNote?.expiresAtMs ?? null
-  useEffect(() => {
+  useTimer(() => {
     if (compactParkNoteExpiresAt === null) return
     const timer = setTimeout(() => setParkNoteEpoch(epoch => epoch + 1), Math.max(0, compactParkNoteExpiresAt - Date.now()) + 1)
     timer.unref?.()
     return () => clearTimeout(timer)
   }, [compactParkNoteExpiresAt, parkNoteEpoch])
   const lastIdxRef = useRef(0)
-  useEffect(() => {
+  useDerivedState(() => {
     if (newSessionLine && boardSel === NEW_SESSION_ROW_ID) {
       lastIdxRef.current = 0
       return
