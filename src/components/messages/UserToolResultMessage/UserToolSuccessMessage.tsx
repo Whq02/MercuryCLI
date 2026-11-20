@@ -19,7 +19,7 @@ import { useTheme } from '../../design-system/ThemeProvider.js'
 import { RowErrorBoundary } from '../../RowErrorBoundary.js'
 import { HookProgressMessage } from '../HookProgressMessage.js'
 import { OutputLine } from '../../shell/OutputLine.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 
 export function UserToolSuccessMessage({
   message,

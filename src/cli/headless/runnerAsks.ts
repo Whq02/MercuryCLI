@@ -14,7 +14,7 @@ import { encodeDecisionReasonForWire } from '../../utils/permissions/decisionRea
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/permissions/PermissionUpdate.js'
 import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/permissions/askClock.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { passedOver } from '../../utils/passedOver.js'

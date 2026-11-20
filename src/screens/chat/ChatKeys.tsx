@@ -3,7 +3,7 @@ import { MessageActionsKeybindings } from '../../components/messageActions.js';
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js';
 import { isVimModeEnabled } from '../../components/PromptInput/utils.js';
 import { ScrollKeybindingHandler } from '../../components/ScrollKeybindingHandler.js';
-import type { SpinnerMode } from '../../components/Spinner/types.js';
+import type { SpinnerMode } from '../../types/spinner.js';
 import { SwitchboardAttributionProvider } from '../../components/SwitchboardTagBar.js';
 import type { CompactWorkControls } from '../../components/tasks/CompactWorkSummary.js';
 import { CancelRequestHandler } from '../../hooks/useCancelRequest.js';

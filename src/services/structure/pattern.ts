@@ -1,5 +1,5 @@
 
-import type { TSNode } from './grammarFacility.js'
+import type { TSNode } from '../../utils/structure/grammarFacility.js'
 
 
 const MV_SINGLE = /^__MV_([A-Za-z0-9_]*?)__$/

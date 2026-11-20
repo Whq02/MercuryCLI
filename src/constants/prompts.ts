@@ -35,7 +35,7 @@ import {
   resolveSystemPromptSections,
   systemPromptSection,
 } from './systemPromptSections.js'
-import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from './tools/bash.js'
 import { beginLoginFiles, shellLineWords } from '../utils/shell/shellRecord.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from './tools/memory.js'

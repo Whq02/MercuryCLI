@@ -408,7 +408,7 @@ const CORPUS = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'gramma
 const corpusText = (lang: string, file: string): string => `${CORPUS[lang]![file]!.join('\n')}\n`
 const admitted = Object.keys(ADMITTED)
 
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/services/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
 type Row = (typeof GRAMMAR_REGISTRY)[number]
 const rowOf = (name: string): Row | undefined => GRAMMAR_REGISTRY.find((g: Row) => g.name === name)
 
@@ -469,7 +469,7 @@ section('§1 — an edit\'s parse note and a read\'s outline of an admitted lang
   check('control: the same edit of a Python file is read by its grammar and named (the trap has teeth)', existsSync(marker) && /^Python parse error at line 1: .+\(the edit introduced it\)$/.test(note ?? ''), `${existsSync(marker) ? 'engine loaded' : 'engine NOT loaded'} · ${note}`)
 }
 
-const facility = await import('../../src/services/structure/grammarFacility.ts')
+const facility = await import('../../src/utils/structure/grammarFacility.ts')
 const { languageForFile, patternLanguageForFile, loadGrammarEngine, parsePolyglot } = facility
 const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames, AST_BOUNDS } = await import('../../src/services/structure/astPatterns.ts')
 const { compileFor } = await import('../../src/services/structure/polyglotQuery.ts')

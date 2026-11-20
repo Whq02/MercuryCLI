@@ -1,7 +1,7 @@
 
 import sliceAnsi from './sliceAnsi.js'
 import { stringWidth } from '../ink/stringWidth.js'
-import { ctrlOToExpand } from '../components/CtrlOToExpand.js'
+import { ctrlOToExpand } from './ctrlOToExpand.js'
 
 const VISIBLE_LINES = 3
 

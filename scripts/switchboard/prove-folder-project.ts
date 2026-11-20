@@ -54,7 +54,7 @@ function treeHash(root: string): string {
 
 
 const facts = await import('../../src/utils/bootCardFacts.ts')
-const paths = await import('../../src/services/projectLocal/paths.ts')
+const paths = await import('../../src/utils/projectLocal/paths.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const portable = await import('../../src/utils/sessionStoragePortable.ts')
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))

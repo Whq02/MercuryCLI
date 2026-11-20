@@ -65,7 +65,7 @@ console.log(' an exact id of a signed-in family needs no catalogue row: live row
 console.log('============================================================')
 
 ;(await import('../../src/utils/config.ts')).enableConfigs()
-const engine = await import('../../src/utils/crew/engineDispatch.ts')
+const engine = await import('../../src/services/crew/engineDispatch.ts')
 const { MODEL_LOOKUP_LADDER } = await import('../../src/utils/model/modelLookup.ts')
 const roadModule = await import('../../src/utils/model/modelNameRoad.ts')
 const discovery = await import('../../src/services/providers/providerDiscovery.ts')

@@ -137,7 +137,7 @@ export function interfaceChecks(): CheckSpec[] {
       id: 'iface-image-processor',
       label: 'Image processor',
       run: async () => {
-        const { describeImageProcessor } = await import('../../../tools/FileReadTool/imageProcessor.js')
+        const { describeImageProcessor } = await import('../../../utils/imageProcessor/imageProcessor.js')
         const road = await describeImageProcessor()
         return { status: road.ready ? ('ok' as const) : ('warn' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
       },

@@ -15,7 +15,7 @@ const { checkAnchor, formatAnchorFailure, mintFileAnchor } = await import(join(R
 const { planChangeSet } = await import(join(ROOT, 'src/services/changeTransaction/changeSetPlan.ts'))
 const { FileReadTool } = await import(join(ROOT, 'src/tools/FileReadTool/FileReadTool.ts'))
 const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { FILE_UNCHANGED_STUB } = await import(join(ROOT, 'src/tools/FileReadTool/prompt.ts'))
+const { FILE_UNCHANGED_STUB } = await import(join(ROOT, 'src/constants/tools/fileRead.ts'))
 const { matchExactEdit } = await import(join(ROOT, 'src/tools/FileEditTool/FileEditTool.ts'))
 
 let failures = 0

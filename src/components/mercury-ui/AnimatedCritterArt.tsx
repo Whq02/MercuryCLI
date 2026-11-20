@@ -28,7 +28,7 @@ import {
   critterSleepMode,
   critterSleepSince,
   subscribeCritterSleep,
-} from '../../utils/cockpit/critterSleep.js'
+} from '../../services/cockpit/critterSleep.js'
 import { lerpHex } from '../../utils/theme.js'
 import { effectiveSwayPhase, type ArtForm, type CritterDef } from '../../utils/cockpit/critterData.js'
 import { FAINT, TEAL } from '../mercuryPalette.js'

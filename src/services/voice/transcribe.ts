@@ -5,7 +5,7 @@ import { voiceCheckoutRoot } from '../../utils/voice/voicePack.js'
 import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon, type WhisperSegment } from './whisperPack.js'
 import { checkWhisperModel, downloadWhisperModel, resolveWhisperModelPin, whisperModelsDir, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 export function localTranscribeDeadlineMs(audioMs: number): number {
   return 120_000 + Math.max(0, Math.round(audioMs))
@@ -188,19 +188,6 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
   }
   const deadlineMs = opts.deadlineMs ?? localTranscribeDeadlineMs(pcmDurationMs(read.pcm))
   const queued = decodesHeld > 0
-  let timer: ReturnType<typeof setTimeout> | null = null
-  const bound = new Promise<never>((_, reject) => {
-    timer = startTimeout(() => reject(new TranscribeError('local', queued
-      ? `the on-device transcriber is still decoding the previous take — this one waited ${Math.round(deadlineMs / 1000)}s for it (${model.name})`
-      : `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`)), deadlineMs)
-    timer.unref?.()
-  })
-  let abort: (() => void) | undefined
-  const cancelled = new Promise<never>((_, reject) => {
-    abort = () => reject(new TranscribeError('local', 'Transcription cancelled.'))
-    if (opts.signal?.aborted) abort()
-    else opts.signal?.addEventListener('abort', abort, { once: true })
-  })
   const pcm = Buffer.from(read.pcm)
   decodesHeld += 1
   const decode = decodeTail
@@ -211,15 +198,27 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
     .finally(() => { decodesHeld -= 1 })
   decodeTail = decode.catch(passedOver)
   try {
-    const answer = await Promise.race([decode, bound, cancelled])
+    const answer = await withDeadline(
+      decode,
+      deadlineMs,
+      () => {
+        throw new TranscribeError('local', queued
+          ? `the on-device transcriber is still decoding the previous take — this one waited ${Math.round(deadlineMs / 1000)}s for it (${model.name})`
+          : `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`)
+      },
+      {
+        signal: opts.signal,
+        onAbort: () => {
+          throw new TranscribeError('local', 'Transcription cancelled.')
+        },
+        unref: true,
+      },
+    )
     return { text: stripNonSpeechMarkers(answer.text), kind: 'local', family: null, model: model.name, ms: answer.ms,
       ...(answer.timedSegments ? { segments: answer.timedSegments.map(segment => ({ ...segment, text: stripNonSpeechMarkers(segment.text) })) } : {}) }
   } catch (error) {
     if (error instanceof TranscribeError) throw error
     throw new TranscribeError('local', error instanceof Error ? error.message : String(error))
-  } finally {
-    if (timer !== null) stopTimeout(timer)
-    if (abort) opts.signal?.removeEventListener('abort', abort)
   }
 }
 

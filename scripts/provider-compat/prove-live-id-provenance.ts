@@ -93,7 +93,7 @@ globalThis.fetch = (async (url: string | URL | Request) => {
 const idSpaces = await import('../../src/services/providers/idSpaces.ts')
 const { classifyModelRoute, recognizeModelId } = idSpaces
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const engine = await import('../../src/utils/crew/engineDispatch.ts')
+const engine = await import('../../src/services/crew/engineDispatch.ts')
 const { getModelOptions, isProviderActionRow, MOONSHOT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
 const { GEMINI_MODEL_GROUP } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')

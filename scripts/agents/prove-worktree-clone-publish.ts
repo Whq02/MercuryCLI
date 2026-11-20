@@ -24,7 +24,7 @@ const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/utils/worktree.ts')
 const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourseWorktrees.ts')
-const { crewLeftoverWorktrees } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
+const { crewLeftoverWorktrees } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-publish-')))
 const links = accountLinks(scratch)

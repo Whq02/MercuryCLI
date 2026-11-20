@@ -10,8 +10,8 @@ import {
   publishHelmRows,
   subscribeHelmFocus,
 } from '../utils/cockpit/helmFocus.js'
-import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../utils/cockpit/index.js'
-import { ctxForecastEnabled, ctxGrowthHistory, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
+import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../services/cockpit/index.js'
+import { ctxForecastEnabled, ctxGrowthHistory, estimateTurnsToCompact } from '../services/cockpit/ctxForecast.js'
 import { windowSourceUsages } from '../services/providers/providerUsage.js'
 import { usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
@@ -26,12 +26,12 @@ import { requestCommandDispatch, requestHelmRowActivationByLabel, setHelmCursor 
 import { usageActivityBins } from '../utils/cockpit/usageActivity.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { RailPanel } from './mercury-ui/RailPanel.js'
-import { fitPointerRows } from '../utils/cockpit/helmLanesModel.js'
+import { fitPointerRows } from '../services/cockpit/helmLanesModel.js'
 import { Sparkline, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { CURSOR_NUDGE_MS, ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
-import { buildVitalsModel, type VitalsInput, type VitalsRowSpec, type VitalsSectionSpec } from '../utils/cockpit/helmVitalsModel.js'
+import { buildVitalsModel, type VitalsInput, type VitalsRowSpec, type VitalsSectionSpec } from '../services/cockpit/helmVitalsModel.js'
 
 const subscribeFocusedRailModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedRailModel = (): string => getFocusedSessionConnector().modelFacts().main

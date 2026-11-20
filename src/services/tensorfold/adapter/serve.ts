@@ -11,7 +11,7 @@ import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { ADAPTER_CHILD_PREFIX, ADAPTER_SERVED_BY, ADAPTER_SPEAKER, ADAPTER_VERSION, adapterChildPidFile, cpuModelWords, llamaCppWords } from './identity.js'
 import { readLlamaServerVersion, resolveLlamaServer, type LlamaServerVersion } from './llama.js'
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from './models.js'
-import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { isENOENT } from '../../../utils/errors.js'
 import { passedOver } from '../../../utils/passedOver.js'
@@ -567,11 +567,17 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
     process.exit(1)
   })
   const poll = io.readyPollMs ?? 250
-  for (;;) {
-    if (child.exitCode !== null || child.signalCode !== null) return exitCode ?? 1
-    if (await innerHealthy(innerPort)) break
-    await sleep(poll)
-  }
+  const exited = await pollUntil<number | null, number>(
+    async () => {
+      if (child.exitCode !== null || child.signalCode !== null) return exitCode ?? 1
+      if (await innerHealthy(innerPort)) return null
+      return undefined
+    },
+    poll,
+    Infinity,
+    () => exitCode ?? 1,
+  )
+  if (exited !== null) return exited
   served = (await innerContext(innerPort)) ?? args.window
   state = 'ready'
   say(`serving ${name} at http://${args.host}:${args.port}/v1 (Mercury's engine: ${llamaCppWords(llama)} on the CPU; context: ${served}; prompt cache: ${args.promptCacheGib} GiB; loaded in ${((Date.now() - begun) / 1000).toFixed(1)}s)`)

@@ -30,7 +30,7 @@ const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { getModelCosts, calculateUSDCost, resolveModelPricing, COST_TIER_5_25 } = await import('../../src/utils/modelCost.ts')
+const { getModelCosts, calculateUSDCost, resolveModelPricing, COST_TIER_5_25 } = await import('../../src/services/usage/modelCost.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')

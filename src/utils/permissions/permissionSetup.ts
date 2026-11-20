@@ -1,7 +1,7 @@
 import type { ToolPermissionContext } from '../../Tool.js'
 import { lspPermissionNote, lspCliNote, lspHookNote } from '../../services/lsp/toolFamily.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { setSessionPermissionModeResolution } from '../../bootstrap/state.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'

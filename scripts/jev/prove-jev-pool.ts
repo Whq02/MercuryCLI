@@ -29,7 +29,7 @@ const { setJevEnabled, setJevSubagents } = await import('../../src/services/jev/
 const { storeJevApiKey } = await import('../../src/services/jev/jevKey.js')
 const { JevEvalTool } = await import('../../src/tools/JevEvalTool/JevEvalTool.js')
 const { filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.js')
-const { buildToolCensus } = await import('../../src/utils/capability/census.js')
+const { buildToolCensus } = await import('../../src/services/capability/census.js')
 
 type ToolLike = { name: string }
 const names = (tools: readonly ToolLike[]): string[] => tools.map(tool => tool.name)

@@ -18,8 +18,8 @@ const deferred = <T,>() => {
 }
 
 await import('../../src/tools/AgentTool/AgentTool.js')
-const reader = await import('../../src/utils/crew/agentTranscriptReader.js')
-mock.module('../../src/utils/crew/agentTranscriptReader.js', () => ({
+const reader = await import('../../src/services/crew/agentTranscriptReader.js')
+mock.module('../../src/services/crew/agentTranscriptReader.js', () => ({
   ...reader,
   readAgentTranscript: async () => ({ finalText: 'initial transcript' } as never),
 }))

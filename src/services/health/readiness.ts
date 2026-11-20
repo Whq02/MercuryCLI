@@ -46,7 +46,7 @@ import { shellRowNow } from '../../utils/shell/shellRecord.js'
 import { describeWindowsShellRoad } from '../../utils/shell/windowsShellRoad.js'
 import { extensionReadinessRows } from '../../extensions/boot.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
-import { mcpGauge } from '../../utils/cockpit/mcpGauge.js'
+import { mcpGauge } from '../cockpit/mcpGauge.js'
 import { whichSync } from '../../utils/which.js'
 import { withheldTools } from '../../utils/withheldTools.js'
 

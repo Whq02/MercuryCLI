@@ -1,7 +1,7 @@
 import { constants, closeSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { inflateSync } from 'node:zlib'
-import { decodePng, downscaleRgba, encodePng, type RgbaImage } from '../../../tools/FileReadTool/imageProcessorJs.js'
+import { decodePng, downscaleRgba, encodePng, type RgbaImage } from '../../../utils/imageProcessor/imageProcessorJs.js'
 import { engineFramesDirPrefix, engineRunPath, engineRunResultFile, engineRunsDir, ensureEngineEstate, isEngineJobId } from './paths.js'
 
 const MAX_FILE_BYTES = 32 * 1024 * 1024

@@ -391,7 +391,7 @@ console.log('\nhaltAll.ts — thrown daemonControlRpc error is reported as the r
       ...real,
       daemonControlRpc: async () => { throw new Error('control key unreadable') },
     }))
-    const { haltAll } = await import(SRC + '/utils/haltAll.ts')
+    const { haltAll } = await import(SRC + '/daemon/haltAll.ts')
     out.result = await haltAll({ getAppState: () => ({ tasks: {} }), setAppState: () => {} })
   `)
   const daemon = (r.result as { daemon?: { ok?: boolean; reason?: string } } | undefined)?.daemon
@@ -801,8 +801,8 @@ else {
     const grammarDir = path.join(PROJECT, 'locked-grammars')
     fs.mkdirSync(grammarDir, { recursive: true })
     fs.chmodSync(grammarDir, 0o000)
-    const realGram = await import(SRC + '/services/structure/grammarFacility.ts')
-    mock.module(SRC + '/services/structure/grammarFacility.js', () => ({
+    const realGram = await import(SRC + '/utils/structure/grammarFacility.ts')
+    mock.module(SRC + '/utils/structure/grammarFacility.js', () => ({
       ...realGram,
       resolveGrammarEngineDir: () => ({ state: 'ok', source: 'vendored', dir: grammarDir }),
     }))

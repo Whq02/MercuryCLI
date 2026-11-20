@@ -54,6 +54,7 @@ const AREAS: Record<string, string> = {
   'src/substrate/startupMenu.ts': 'boot.ts',
   'src/utils/envUtils.ts': 'boot.ts',
   'src/services/agentNeedsYou.ts': 'cockpit.ts',
+  'src/services/cockpit/': 'cockpit.ts',
   'src/utils/cockpit/': 'cockpit.ts',
   'src/constants/localPromptProfile.ts': 'context.ts',
   'src/prompt/': 'context.ts',

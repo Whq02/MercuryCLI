@@ -1,7 +1,7 @@
 import { stringWidth } from '../../ink/stringWidth.js'
 import { formatDuration } from '../../utils/format.js'
 import type { LiveCounterWords } from './liveCounterWords.js'
-import type { SpinnerMode } from './types.js'
+import type { SpinnerMode } from '../../types/spinner.js'
 
 export const STACK_EXIT_SLACK = 6
 

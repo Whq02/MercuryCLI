@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-inv-'))
 
 const OUT = 'scripts/project-services/fixtures/inventory.json'
 
-const { buildToolCensus } = await import('../../src/utils/capability/census.ts')
+const { buildToolCensus } = await import('../../src/services/capability/census.ts')
 const taskMod = await import('../../src/Task.ts')
 
 const baseToolNames = buildToolCensus().rows.map(row => row.name).sort()

@@ -1,7 +1,7 @@
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { classifyModelRoute } from '../services/providers/idSpaces.js'
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
-import { forcedShortForm } from '../tools/FileEditTool/editForm.js'
+import { forcedShortForm } from '../utils/editForm.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 import { passedOver } from '../utils/passedOver.js'
 

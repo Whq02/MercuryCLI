@@ -37,7 +37,7 @@ const PREVIOUS = 'claude-sonnet-5'
 
 section("§1 the price row: the vendor's tier for claude-sonnet-5-5 is recorded, never a family estimate")
 {
-  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const pricing = resolveModelPricing(ID)
   check('the cost tier is recorded: $2 in, $10 out, $2.50 5m write, $0.10 cache read (0.05x, platform.claude.com/docs/en/about-claude/pricing read 2026-10-25)', pricing.basis === 'recorded' && pricing.costs.inputTokens === 2 && pricing.costs.outputTokens === 10 && pricing.costs.promptCacheWriteTokens === 2.5 && pricing.costs.promptCacheReadTokens === 0.1, JSON.stringify(pricing))
   check("the price string reads '$2/$10 per Mtok'", getModelPricingString(ID) === '$2/$10 per Mtok', String(getModelPricingString(ID)))

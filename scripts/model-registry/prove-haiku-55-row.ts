@@ -27,7 +27,7 @@ try {
   const configs = await import('../../src/utils/model/configs.ts')
   const caps = await import('../../src/utils/model/capabilities.ts')
   const effort = await import('../../src/utils/effort.ts')
-  const cost = await import('../../src/utils/modelCost.ts')
+  const cost = await import('../../src/services/usage/modelCost.ts')
   const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
   const { getModelOptions, focusedOptionSupports1m } = await import('../../src/utils/model/modelOptions.ts')
   const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')

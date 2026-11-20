@@ -18,7 +18,7 @@ async function main(): Promise<void> {
 
   section('1. live context usage is owner-addressed')
   {
-    const live = await import('../../src/utils/cockpit/contextUsageLive.js')
+    const live = await import('../../src/services/cockpit/contextUsageLive.js')
     live.publishContextUsage(40, 200_000, 90, A)
     live.publishContextUsage(42, 200_000, 90, B)
     check('owner A reads its own 40%', live.getLiveContextUsage(A).usedPct === 40)
@@ -32,7 +32,7 @@ async function main(): Promise<void> {
 
   section('2. forecast growth histories are independent at similar usage')
   {
-    const fc = await import('../../src/utils/cockpit/ctxForecast.js')
+    const fc = await import('../../src/services/cockpit/ctxForecast.js')
     fc.resetCtxForecastForTest()
     fc.recordCtxSample(40, A)
     fc.noteCtxTurnBoundary(A)

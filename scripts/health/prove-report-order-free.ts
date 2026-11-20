@@ -18,7 +18,7 @@ interface Run {
 }
 
 const ROTATE = 11
-const FOLDER = 'src/utils/health/sections'
+const FOLDER = 'src/services/health/sections'
 const PLANTED = 'op-planted.json'
 
 if (process.argv[2] === '--child') {

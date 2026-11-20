@@ -121,7 +121,7 @@ section('C the census: every reader that recognised an interrupt result still do
 
 section('D the crewmate transcript reader, and the cut lines a stored transcript may hold')
 {
-  const { readAgentTranscript } = await import('../../src/utils/crew/agentTranscriptReader.ts')
+  const { readAgentTranscript } = await import('../../src/services/crew/agentTranscriptReader.ts')
   const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   const dir = mkdtempSync(join(tmpdir(), 'interrupt-result-'))

@@ -1,4 +1,4 @@
-import { type parsePolyglot, type PolyglotLanguage, type TSNode } from '../grammarFacility.js'
+import { type parsePolyglot, type PolyglotLanguage, type TSNode } from '../../../utils/structure/grammarFacility.js'
 import type { encodePattern } from '../pattern.js'
 import { compileFor } from '../polyglotQuery.js'
 import type { CompileCache } from './search.js'

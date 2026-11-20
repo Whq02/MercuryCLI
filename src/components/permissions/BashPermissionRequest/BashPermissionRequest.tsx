@@ -8,7 +8,7 @@ import { Select } from '../../CustomSelect/select.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import { resolveThemeName } from '../resolveThemeName.js'
 import { BashTool } from '../../../tools/BashTool/BashTool.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import {
   getFirstWordPrefix,
   getSimpleCommandPrefix,

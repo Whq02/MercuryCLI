@@ -1,6 +1,6 @@
 import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
 import { TREE_UNANSWERED_REASON } from '../../services/desktop/driver.js'
-import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
+import { getImageProcessor } from '../../utils/imageProcessor/imageProcessor.js'
 import { sleep } from '../../utils/sleep.js'
 import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
 import { passedOver } from '../../utils/passedOver.js'

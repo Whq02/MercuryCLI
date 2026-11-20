@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { ToolUseContext } from '../../../Tool.js'
-import { imageDimensionsFromHeader } from '../../FileReadTool/imageProcessorJs.js'
+import { imageDimensionsFromHeader } from '../../../utils/imageProcessor/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../../utils/imageResizer.js'
-import { getImageProcessor } from '../../FileReadTool/imageProcessor.js'
+import { getImageProcessor } from '../../../utils/imageProcessor/imageProcessor.js'
 import { modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import {
   compatImageRefusalWords,

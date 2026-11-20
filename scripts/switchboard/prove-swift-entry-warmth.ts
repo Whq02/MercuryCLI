@@ -91,7 +91,7 @@ check('unarmed → no loading line', w.entryLoadingLineOf(w.enteringWarmth(), tr
 console.log('\n§4 the first frame paints content (static render through the real pipeline)')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { renderMessagesToPlainText } = await import('../../src/utils/exportRenderer.tsx')
+const { renderMessagesToPlainText } = await import('../../src/components/exportRenderer.tsx')
 const { getAllBaseTools } = await import('../../src/tools.ts')
 w._resetSessionWarmthForTesting()
 w.rememberSessionWarmth('s1', Array.from({ length: 6 }, (_, i) => row(i, `the mirror held row ${i}`)) as never, 0)

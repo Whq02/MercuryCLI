@@ -124,7 +124,7 @@ export function codingLoopFastChecks(): CheckSpec[] {
           ? `repo host: ${ghOnPath ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`
           : `repo host: OFF (${flagAsSet('MERCURY_REPO_HOST')})`
         const { structureEnabled, structurePolyglotEnabled } = await import('../../structure/contracts.js')
-        const { resolveGrammarEngineDir, POLYGLOT_LANGUAGES } = await import('../../structure/grammarFacility.js')
+        const { resolveGrammarEngineDir, POLYGLOT_LANGUAGES } = await import('../../../utils/structure/grammarFacility.js')
         let engineLine: string
         if (!structurePolyglotEnabled()) {
           engineLine = `AstSearch and AstEdit: OFF (${flagAsSet(structureEnabled() ? 'MERCURY_STRUCTURE_POLYGLOT' : 'MERCURY_STRUCTURE')})`

@@ -88,7 +88,7 @@ const { fetchMinimaxPlanUsage, refreshMinimaxPlanUsage, minimaxObservedPlanUsage
 const { minimaxPlanWindowViews, usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
 const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')

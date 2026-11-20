@@ -22,7 +22,7 @@ const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts'
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 const { TRANSCRIPT_FORMAT_REFUSAL } = await import('../../src/fabric/transcriptDecode.ts')
 const boot = await import('../../src/utils/bootCardFacts.ts')
-const { readUsageHistory } = await import('../../src/utils/usageHistory.ts')
+const { readUsageHistory } = await import('../../src/services/usage/usageHistory.ts')
 
 const SESSION = '009c13c0-b123-4fae-ad0b-25e6060405e4'
 const PROJ = join(SCRATCH, 'Café Ledger')

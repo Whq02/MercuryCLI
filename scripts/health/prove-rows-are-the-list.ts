@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const LIST = 'src/utils/health/sections.ts'
-const FOLDER = 'src/utils/health/sections'
-const REPORT = 'src/utils/healthReport.ts'
+const LIST = 'src/services/health/sections.ts'
+const FOLDER = 'src/services/health/sections'
+const REPORT = 'src/services/health/healthReport.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail: string[] = []): void {

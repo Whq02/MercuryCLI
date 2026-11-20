@@ -297,7 +297,7 @@ section('§2 the words')
   const nullRows = await import('../../src/components/messages/nullRenderingAttachments.ts').catch(() => null)
   const hides = (row: unknown): boolean => nullRows !== null && typeof nullRows.isNullRenderingSystemRow === 'function' && nullRows.isNullRenderingSystemRow(row as never)
   check('the transcript row filter hides the receipt at either level and the legacy dead row, never a user row', hides(note) && hides(warning) && hides({ type: 'system', subtype: 'thinking_dead', dead: [], content: '', level: 'info' }) && !hides(user('a question')) && !hides({ type: 'system', subtype: 'informational', content: 'a real notice', level: 'warning' }))
-  const { renderMessagesToPlainText } = await import('../../src/utils/exportRenderer.tsx')
+  const { renderMessagesToPlainText } = await import('../../src/components/exportRenderer.tsx')
   const drawn = await renderMessagesToPlainText([user('a question the operator typed'), note, warning] as never, [] as never, 80)
   check('drawn through the transcript pipeline, the operator row paints and neither receipt does', drawn.includes('a question the operator typed') && !drawn.includes('Preserved thinking') && !drawn.includes('dropped 1 thinking block'), j(drawn.slice(0, 400)))
   const { createDeadThinkingAttachment, deadThinkingMarks, stripDeadThinking } = binding

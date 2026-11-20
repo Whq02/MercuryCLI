@@ -20,7 +20,7 @@ const section = (t: string): void => {
 
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { lastToolCallsOf } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { noteCrewWorktreeLeftover, CREW_JANITOR_DAYS } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
+const { noteCrewWorktreeLeftover, CREW_JANITOR_DAYS } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const { enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { dequeueAll } = await import('../../src/utils/messageQueueManager.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')

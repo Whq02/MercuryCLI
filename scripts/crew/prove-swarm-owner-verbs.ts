@@ -10,7 +10,7 @@ assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(suiteHome, 'owner-verbs-home-'))
 process.env.MERCURY_CONFIG_DIR = home
 const { open } = await import('../../src/services/crewBoard/store.ts')
-const { CHANNEL_USAGE, parseChannelArgs } = await import('../../src/utils/crew/channelCommand.ts')
+const { CHANNEL_USAGE, parseChannelArgs } = await import('../../src/services/crew/channelCommand.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
 
@@ -103,7 +103,7 @@ const { updateSettingsForSource } = await import('../../src/utils/settings/setti
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 const seam = await import('../../src/services/crewBoard/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const { runChannelCommand } = await import('../../src/utils/crew/channelCommand.ts')
+const { runChannelCommand } = await import('../../src/services/crew/channelCommand.ts')
 runSwarmCommand('off')
 check('with swarm off for the session the verb answers the /swarm on door', (await runChannelCommand('general', 'hello')).type === 'text' && JSON.stringify(await runChannelCommand('general', 'hello')).includes('/swarm on'))
 runSwarmCommand('on')

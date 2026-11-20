@@ -56,7 +56,7 @@ const { controlKeyPath, daemonStatePath, setBoxReadingForTesting } = (await impo
 const { composeSignInView } = (await import(`${root}/src/daemon/signInView.ts`)) as {
   composeSignInView: (opts?: { refresh?: boolean }) => unknown
 }
-const { daemonSnapshot } = (await import(`${root}/src/utils/cockpit/daemonSnapshot.ts`)) as {
+const { daemonSnapshot } = (await import(`${root}/src/services/cockpit/daemonSnapshot.ts`)) as {
   daemonSnapshot: () => { state: string; reason?: string }
 }
 const { runWithCwdOverride } = (await import(`${root}/src/utils/cwd.ts`)) as {

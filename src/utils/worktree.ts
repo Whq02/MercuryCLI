@@ -20,7 +20,7 @@ import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { startCommandHook } from './hooks/commandRunner.js'
 import { logError } from './log.js'
-import { projectLocalPath } from '../services/projectLocal/paths.js'
+import { projectLocalPath } from './projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'

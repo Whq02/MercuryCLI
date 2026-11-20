@@ -680,9 +680,9 @@ section("§6 the resume: a finished crewmate's recorded compaction reaches the t
   check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']))
   const plain = registerAsyncAgent({ agentId: 'a-plain', description: 'Lane plain', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL })
   check('a task registered without it does not', !compactionRequestedOf(plain))
-  type RecordMerge = typeof import('../../src/utils/crew/crewmateRecord.ts')
+  type RecordMerge = typeof import('../../src/services/crew/crewmateRecord.ts')
   const absent = (): never => { throw new Error('the record merge does not exist on this tree') }
-  const merge = await import('../../src/utils/crew/crewmateRecord.ts').catch((): RecordMerge => ({ recordAfterResume: absent, recordAtRunStart: absent }))
+  const merge = await import('../../src/services/crew/crewmateRecord.ts').catch((): RecordMerge => ({ recordAfterResume: absent, recordAtRunStart: absent }))
   const recordAfterResume: RecordMerge['recordAfterResume'] = (...args) => { try { return merge.recordAfterResume(...args) } catch { return { agentType: 'absent' } } }
   const recordAtRunStart: RecordMerge['recordAtRunStart'] = (...args) => { try { return merge.recordAtRunStart(...args) } catch { return { agentType: 'absent' } } }
   const fresh = { agentType: 'mercury-crew', swarm: false, description: 'Lane resumed' }
