@@ -172,6 +172,8 @@ function pageSays(pattern: RegExp): boolean {
 section('the page, docs/TRUST.md')
 check('floor 1: writes to credential stores are refused unless an exact path rule grants them', pageSays(/Writes to credential stores are refused unless an exact path rule grants them/))
 check("floor 2: agent reads of Mercury's own stored credentials are refused", pageSays(/Agent reads of Mercury's own stored credentials are refused/))
+check("the page says the credential and runtime floors read a shell command's text before it runs, in every permission mode, as the commands a shell would run", pageSays(/For a shell command the credential and runtime floors read the command's text before it runs, in every permission mode, as the commands a shell would run, so many other spellings of a command are refused like the plain one:/))
+check('the page says what stands between a session and a secret: the permission question, in the modes that ask it', pageSays(/What stands between a session and a secret is the permission question, in the modes that ask it\./))
 check('the page says of the system store what its seal is and no more: a secret kept there is in no file in the clear', pageSays(/Where Mercury keeps the secret in the system's credential store, it is sealed at rest as well: no file holds it in the clear\./) && !pageSays(/that store's seal at rest/))
 check('the page says the file Mercury falls back to when that store does not answer is a plain file', pageSays(/The file Mercury falls back to when that store does not answer is a plain file\./))
 
@@ -288,6 +290,7 @@ if (runs('READS')) {
 
 if (runs('TREE')) {
   section('TREE · a tree reader whose root holds the credential store is refused like one rooted at the config home; a listing, a folder beside the store and a project stay clear')
+  check('the page: a folder read whole is refused like the plain spelling', pageSays(/so many other spellings of a command are refused like the plain one: for a read of the credentials, a wildcard, the folder read whole, a `cd` into the folder first, or a script handed to a nested shell\./))
   const whole: Call[] = [
     bash('grep -r token ~', 'the home'),
     bash('grep -r token $HOME'),

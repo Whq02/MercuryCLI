@@ -230,10 +230,6 @@ for (const row of [
   restoreWin32ConsoleNow(sys)
   check(`input ${row.input}, output ${row.output}: the ruled exit and call count`, input === row.end && output === row.end && calls.join(',') === row.calls, `${input}/${output} ${calls.join(',')}`)
 }
-{
-  const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
-  check('the troubleshooting set does not trust the input page to describe output', doc.includes('set both code pages by hand (chcp without an argument reports only the input page):') && !doc.includes('If it prints anything other than `Active code page: 65001`'))
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

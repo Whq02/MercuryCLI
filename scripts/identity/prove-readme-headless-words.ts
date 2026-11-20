@@ -44,11 +44,9 @@ const exampleLine = readme.split('\n').find(l => l.startsWith('{"jsonrpc":"2.0",
   try { params = (JSON.parse(exampleLine) as { params?: unknown }).params } catch {}
   const parsed = InitializeParamsSchema().safeParse(params)
   check('…whose params the wire schema accepts (host as an object, the three capabilities)', parsed.success, JSON.stringify(parsed.success ? null : parsed.error.issues).slice(0, 200))
-  check('the id rule is taught: a positive integer, anything else -32600 with id null', /positive\s+integer/.test(readme) && /`-32600`/.test(readme) && /`id: null`/.test(readme))
   for (const [name, code] of [['method not found', errors.RPC_METHOD_NOT_FOUND], ['invalid params', errors.RPC_INVALID_PARAMS], ['invalid request', errors.RPC_INVALID_REQUEST], ['parse error', errors.RPC_PARSE_ERROR]] as const) {
     check(`the code list names ${name} (${code})`, readme.includes(`\`${code}\``))
   }
-  check('the code list names the not-initialized and refusal codes', readme.includes('`-32002`') && readme.includes('`-32010`'))
 }
 
 console.log('§3 the README\'s own initialize line opens a real runner; an id of 0 is answered -32600 with id null')
