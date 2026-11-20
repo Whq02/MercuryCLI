@@ -841,7 +841,9 @@ function writeOneShim(path: string, desired: string, executable: boolean, isWind
   try {
     existing = readFileSync(path, 'utf8')
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      return { state: 'refused-foreign', path, note: errorMessage(error) }
+    }
     existing = null
   }
   if (existing === desired) return { state: 'current', path }
@@ -1030,6 +1032,7 @@ function layoutMembers(versionsDir: string): { members: string[]; marked: boolea
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }
+      if (!isDir) continue
       if (existsSync(join(dir, 'manifest.json'))) marked = true
       members.push(entry)
     }

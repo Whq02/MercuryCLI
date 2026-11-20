@@ -240,14 +240,7 @@ if (POSIX_MODES) {
     fs.writeFileSync(foreignShim, '#!/bin/sh\\necho foreign\\n')
     fs.chmodSync(foreignShim, 0o000)
     try {
-      let writeErr = null
-      try {
-        layout.writeShim(roots)
-      } catch (e) {
-        writeErr = e.code ?? String(e)
-      }
-      out.writeShimErr = writeErr
-
+      out.writeShimOutcome = layout.writeShim(roots)
       let uninstallShimErr = null
       try {
         layout.uninstallLayout({ ...roots, versionsDir: path.join(WORK, 'absent-versions') })
@@ -276,6 +269,14 @@ if (POSIX_MODES) {
     } finally {
       fs.chmodSync(roVersions, 0o700)
     }
+
+    const mixedVersions = path.join(WORK, 'mixed-versions')
+    fs.mkdirSync(mixedVersions, { recursive: true })
+    fs.writeFileSync(path.join(mixedVersions, 'current.txt'), '1.0.0\\n')
+    const versionNamedFile = path.join(mixedVersions, '2.0.0')
+    fs.writeFileSync(versionNamedFile, 'not a dir')
+    layout.uninstallLayout({ ...roots, versionsDir: mixedVersions, shimPath: path.join(WORK, 'no-shim') })
+    out.versionNamedFileKept = fs.existsSync(versionNamedFile) && fs.readFileSync(versionNamedFile, 'utf8') === 'not a dir'
   `)
   check(
     'uninstallLayout throws EACCES on unreadable versionsDir and preserves it and its files',
@@ -283,14 +284,20 @@ if (POSIX_MODES) {
     JSON.stringify(r),
   )
   check(
+    'uninstallLayout preserves a non-directory file whose name parses as a version',
+    r.versionNamedFileKept === true,
+    JSON.stringify(r),
+  )
+  check(
     'pruneSupersededVersions throws EACCES on unreadable versionsDir',
     r.pruneErr === 'EACCES',
     JSON.stringify(r),
   )
+  const writeShimOutcome = r.writeShimOutcome as { state?: string; note?: string } | undefined
   check(
-    'writeShim throws EACCES on unreadable foreign shim and leaves it untouched',
-    r.writeShimErr === 'EACCES' && r.foreignKept === true,
-    JSON.stringify(r),
+    'writeShim returns refused-foreign on unreadable foreign shim and leaves it untouched',
+    writeShimOutcome?.state === 'refused-foreign' && (writeShimOutcome.note ?? '').length > 0 && r.foreignKept === true,
+    JSON.stringify({ writeShimOutcome, foreignKept: r.foreignKept }),
   )
   check(
     'uninstallLayout throws EACCES on unreadable shim instead of treating it as absent',
