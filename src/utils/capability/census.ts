@@ -107,7 +107,7 @@ const PROOF_MAP: Record<string, string> = {
 
 function extractOperations(tool: Tool): string[] | null {
   try {
-    const schema = tool.inputSchema as unknown as {
+    const schema = tool.inputSchema as Tool['inputSchema'] & {
       shape?: Record<string, unknown> | (() => Record<string, unknown>)
     }
     const shapeRaw = schema?.shape

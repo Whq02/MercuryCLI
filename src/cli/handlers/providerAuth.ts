@@ -1,5 +1,5 @@
 import { writeSync } from 'node:fs'
-import { createInterface } from 'node:readline'
+import { createInterface, type Interface } from 'node:readline'
 import { loginFamilyRows, keyPageLine, type KeyFamilyValue } from '../../components/loginFamilyRows.js'
 import { deriveFamilySlotGroups, executeSlotRemoval, type AccountSlot } from '../../services/providers/accountSlots.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
@@ -75,7 +75,7 @@ export async function promptSecretWithoutEcho(promptText: string, input: NodeJS.
   output.write(promptText)
   return new Promise<string>(resolve => {
     const rl = createInterface({ input, output, terminal: true })
-    ;(rl as unknown as { _writeToOutput?: (s: string) => void })._writeToOutput = (str: string) => {
+    ;(rl as Interface & { _writeToOutput?: (s: string) => void })._writeToOutput = (str: string) => {
       if (str.includes('\n') || str.includes('\r')) output.write('\n')
     }
     rl.question('', answer => {

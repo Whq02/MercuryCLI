@@ -458,9 +458,8 @@ export function queuedNoticeIds(messages: readonly Message[]): Set<string> {
   const ids = new Set<string>()
   for (const message of messages) {
     if (message.type !== 'attachment') continue
-    const attachment = message.attachment as unknown as { type?: unknown; prompt?: unknown }
-    if (attachment.type !== 'queued_command') continue
-    for (const notice of textOf(attachment.prompt).match(NOTICE_BLOCK) ?? []) {
+    if (message.attachment.type !== 'queued_command') continue
+    for (const notice of textOf(message.attachment.prompt).match(NOTICE_BLOCK) ?? []) {
       if (pickTag(notice, STATUS_TAG) === 'resumed') continue
       const toolUseId = pickTag(notice, TOOL_USE_ID_TAG)
       const taskId = pickTag(notice, TASK_ID_TAG)
@@ -487,8 +486,7 @@ function endedNoticeIds(messages: readonly Message[]): Set<string> {
   for (const message of messages) {
     if (message.type === 'user') read(textOf(message.message.content))
     if (message.type !== 'attachment') continue
-    const attachment = message.attachment as unknown as { type?: unknown; prompt?: unknown }
-    if (attachment.type === 'queued_command') read(textOf(attachment.prompt))
+    if (message.attachment.type === 'queued_command') read(textOf(message.attachment.prompt))
   }
   return ids
 }

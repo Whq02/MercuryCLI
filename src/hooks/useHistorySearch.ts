@@ -114,7 +114,7 @@ export function useHistorySearch(
   pastesRef.current = currentPastedContents
 
   const closeReader = useCallback((): void => {
-    void readerRef.current?.return?.(undefined as never)
+    void readerRef.current?.return?.(undefined)
     readerRef.current = null
   }, [])
 
