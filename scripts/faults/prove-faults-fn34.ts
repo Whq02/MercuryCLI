@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const HERE = import.meta.dir
+const HERE = dirname(fileURLToPath(import.meta.url))
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const BUN = process.env.BUN ?? (process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun'))
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
@@ -167,6 +168,26 @@ function runScenario(body: string): Record<string, unknown> {
     const threw = r.threw as { code: string | null; message: string } | null
     check('writer-agent-messages-unreadable-rejects', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.occurrences === 1, JSON.stringify(r))
   }
+}
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const mcpConfigPath = path.join(SRC, 'services/mcp/config.ts')
+    const realMcp = await import(mcpConfigPath)
+    mock.module(mcpConfigPath, () => ({
+      ...realMcp,
+      getMcpConfigsByScope: (scope) => {
+        if (scope === 'project') throw new Error('EACCES: permission denied')
+        return { servers: {}, errors: [], notices: [] }
+      },
+    }))
+    const { getSettingsWithAllErrors } = await import(path.join(SRC, 'utils/settings/allErrors.ts'))
+    const result = getSettingsWithAllErrors()
+    out.errors = result.errors
+  `)
+  const errors = r.errors as Array<{ message?: string; mcpErrorMetadata?: { scope?: string; severity?: string } }>
+  const hit = errors.find(e => e.mcpErrorMetadata?.scope === 'project' && e.message?.includes('EACCES'))
+  check('all-errors-mcp-throw-reported', hit !== undefined, JSON.stringify(r))
 }
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
