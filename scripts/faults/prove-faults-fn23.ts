@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -124,6 +125,37 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
+}
+
+{
+  console.log('\n3. src/services/workbench/projection.ts')
+  const bunBin = process.env.BUN ?? process.execPath
+  const script = `
+    import { mock } from 'bun:test'
+    import { join } from 'node:path'
+    const src = ${JSON.stringify(SRC)}
+    const coord = join(src, 'services/run/runCoordinator.ts')
+    mock.module(coord, () => ({
+      getRunSnapshot: (owner: string) => {
+        if (String(owner).includes('lane-agent-1')) throw new TypeError('lane run snapshot bug')
+        return null
+      },
+      subscribeRuns: () => () => {},
+    }))
+    const { gatherWorkbenchInputs } = await import(join(src, 'services/workbench/projection.ts'))
+    try {
+      await gatherWorkbenchInputs({
+        getAppState: () => ({ tasks: { t1: { type: 'agent', agentId: 'lane-agent-1' } } }),
+      })
+      process.stdout.write(JSON.stringify({ threw: null }))
+    } catch (error) {
+      process.stdout.write(JSON.stringify({ threw: (error as Error).message }))
+    }
+    process.exit(0)
+  `
+  const res = spawnSync(bunBin, ['-e', script], { encoding: 'utf8' })
+  const parsed = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { threw: string | null }) : { threw: `exit ${res.status}: ${res.stderr.slice(-200)}` }
+  check('projection: in-memory lane run snapshot bug surfaces instead of being swallowed', parsed.threw === 'lane run snapshot bug', JSON.stringify(parsed))
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
