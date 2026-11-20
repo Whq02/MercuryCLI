@@ -64,15 +64,21 @@ function refreshCache(notify?: () => void): void {
     .catch(e => logForDebugging(`[obligations] bridge cache refresh failed: ${e}`))
 }
 
-registerAttentionGatherer(
-  () => ({ attention: obligationFacts(cachedOpen, getOperatorName(), Date.now()) }),
-  {
-    subscribe: cb => {
-      refreshCache(cb)
-      const unsub = subscribeObligations(() => refreshCache(cb), { scope: 'switchboard' })
-      return () => {
-        unsub()
-      }
+let registered = false
+
+export function registerObligationsAttentionGatherer(): void {
+  if (registered) return
+  registered = true
+  registerAttentionGatherer(
+    () => ({ attention: obligationFacts(cachedOpen, getOperatorName(), Date.now()) }),
+    {
+      subscribe: cb => {
+        refreshCache(cb)
+        const unsub = subscribeObligations(() => refreshCache(cb), { scope: 'switchboard' })
+        return () => {
+          unsub()
+        }
+      },
     },
-  },
-)
+  )
+}
