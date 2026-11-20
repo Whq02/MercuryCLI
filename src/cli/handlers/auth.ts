@@ -367,9 +367,25 @@ function routedProviderRows(anthropicPresent: boolean): {
 
 export async function authLogout(): Promise<void> {
   let refused: string[]
+  let othersSignedOut = false
   try {
     const { performLogout } = await import('../../commands/logout/logout.js')
+    const { deriveFamilySlotGroups, familiesRefusedIn } = await import('../../services/providers/accountSlots.js')
+    const signedIn = (): Map<string, string> => {
+      try {
+        return new Map(deriveFamilySlotGroups().flatMap(group => group.slots).filter(slot => slot.signedIn).map(slot => [slot.id, slot.family]))
+      } catch (error) {
+        logError(error)
+        return new Map()
+      }
+    }
+    const before = signedIn()
     refused = await performLogout()
+    if (refused.length > 0) {
+      const after = signedIn()
+      const refusedFamilies = familiesRefusedIn(refused)
+      othersSignedOut = refusedFamilies !== null && [...before].some(([id, family]) => !after.has(id) && !refusedFamilies.includes(family))
+    }
   } catch (error) {
     console.error(
       `Sign-out failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -378,6 +394,7 @@ export async function authLogout(): Promise<void> {
   }
   if (refused.length > 0) {
     console.error(refused.join('\n'))
+    if (othersSignedOut) console.error('The other providers are signed out.')
     process.exit(1)
   }
   cliOk('Signed out')

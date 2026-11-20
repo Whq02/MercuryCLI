@@ -110,6 +110,16 @@ export function signOutAccountFileNoSlotReads(family: string): string | null {
   return null
 }
 
+export function familiesRefusedIn(notes: readonly string[]): string[] | null {
+  const families: string[] = []
+  for (const note of notes) {
+    const family = Object.keys(ACCOUNT_FILE_SIGN_OUTS).find(name => note.includes(ACCOUNT_FILE_SIGN_OUTS[name]!.path()))
+    if (family === undefined) return null
+    families.push(family)
+  }
+  return families
+}
+
 function afterCredentialLeft(slot: AccountSlot): void {
   forgetFamilyObservations(slot.family, slot.kind)
   try {

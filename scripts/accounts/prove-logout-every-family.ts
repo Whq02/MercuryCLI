@@ -206,17 +206,30 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   check('performLogout answers the one family it could not sign out, in the sign-out\'s own sentence', JSON.stringify(refused) === JSON.stringify([words]), `answered ${JSON.stringify(refused)}`)
   check('that family\'s file stands byte for byte, and the other families are signed out', readFileSync(hfPath, 'utf8') === held && othersSignedOut())
 
+  const OTHERS = 'The other providers are signed out.'
+  const signOutByTheVerb = () => {
+    const ran = spawnSync(process.execPath, ['-e', `
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+      enableConfigs()
+      const { authLogout } = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/auth.ts'))})
+      await authLogout()
+    `], { encoding: 'utf8', env: process.env })
+    chmodSync(hfPath, 0o600)
+    return ran
+  }
   seed()
-  const verb = spawnSync(process.execPath, ['-e', `
-    globalThis.MACRO = { VERSION: '1.0.0' }
-    const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
-    enableConfigs()
-    const { authLogout } = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/auth.ts'))})
-    await authLogout()
-  `], { encoding: 'utf8', env: process.env })
-  chmodSync(hfPath, 0o600)
+  const verb = signOutByTheVerb()
   check('mercury auth logout says it on the error stream, does not say Signed out, and exits 1', verb.status === 1 && verb.stderr.includes(words) && !verb.stdout.includes('Signed out'), `exit ${verb.status} · stdout ${JSON.stringify(verb.stdout.slice(-200))} · stderr ${JSON.stringify(verb.stderr.slice(-400))}`)
   check('…the file stands and the other families are signed out', readFileSync(hfPath, 'utf8') === held && othersSignedOut())
+  check('…and, two other providers having been signed out by it, one line after the refusal says so', verb.stderr.includes(`${words}\n${OTHERS}\n`), `stderr ${JSON.stringify(verb.stderr.slice(-500))}`)
+  chmodSync(hfPath, 0o200)
+  const alone = signOutByTheVerb()
+  check('with no other provider signed in, the refusal stands alone: nothing is said of others', alone.status === 1 && alone.stderr.includes(words) && !alone.stderr.includes(OTHERS) && !alone.stdout.includes('Signed out'), `exit ${alone.status} · stderr ${JSON.stringify(alone.stderr.slice(-500))}`)
+  secrets.writeStoredHuggingfaceApiKey('hf_fixture_stored')
+  chmodSync(hfPath, 0o200)
+  const sameProvider = signOutByTheVerb()
+  check('a stored token of the refused provider itself, signed out by the command, is not another provider', sameProvider.status === 1 && sameProvider.stderr.includes(words) && !sameProvider.stderr.includes(OTHERS) && secrets.readStoredHuggingfaceApiKey() === undefined, `exit ${sameProvider.status} · stderr ${JSON.stringify(sameProvider.stderr.slice(-500))}`)
 }
 
 try {
