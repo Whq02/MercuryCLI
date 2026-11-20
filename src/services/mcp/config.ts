@@ -35,7 +35,7 @@ import {
   type McpServerConfig,
   type McpUnexpandedStrings,
   type ScopedMcpServerConfig,
-} from './types.js'
+} from '../../utils/mcp/types.js'
 import { getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
 import { PROJECT_MCP_FILE, getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
 import { passedOver } from '../../utils/passedOver.js'

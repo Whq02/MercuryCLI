@@ -1,15 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { StdioClientTransport, type Implementation, type JSONRPCMessage, type ServerCapabilities, type Tool } from '../../utils/mcp/sdk.js'
+import { StdioClientTransport, type JSONRPCMessage } from '../../utils/mcp/sdk.js'
+import type { McpBootstrapManifest } from '../../utils/mcp/types.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { missingSpawnCommandError } from '../../utils/platform/programs.js'
 import { startMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
-
-export type McpBootstrapManifest = {
-  serverInfo: Implementation
-  capabilities: ServerCapabilities
-  instructions: string
-  tools: Tool[]
-}
 
 export class LazyStdioClientTransport extends StdioClientTransport {
   private initialize: JSONRPCMessage | undefined

@@ -1,7 +1,7 @@
 
 import type { Message } from 'src/types/message.js'
 import type { Tools, ToolUseContext } from '../../Tool.js'
-import type { MCPServerConnection } from '../../services/mcp/types.js'
+import type { MCPServerConnection } from '../mcp/types.js'
 import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
 import { conversationRosterKey, heldToolsAtLastPlan, planToolPayloadUnseeded, type ToolPayloadPlan } from '../../services/providers/toolEconomy.js'
 import { isDeferredToolFor } from '../../tools/ToolSearchTool/prompt.js'

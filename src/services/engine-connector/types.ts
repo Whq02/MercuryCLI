@@ -4,7 +4,7 @@ import type { PermissionMode, PermissionUpdate } from '../../types/permissions.j
 import type { ModelSetting } from '../../utils/model/model.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config/schema.js'
-import type { MCPServerConnection } from '../mcp/types.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'

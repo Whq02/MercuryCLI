@@ -5,7 +5,7 @@ import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
 import { commandShellOption } from '../../utils/platform/spawn.js'
-import type { McpServerConfig, ScopedMcpServerConfig } from './types.js'
+import type { McpServerConfig, ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 
 const HELPER_TIMEOUT_MS = 10_000
 

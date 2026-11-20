@@ -1,4 +1,4 @@
-import type { MCPServerConnection } from '../mcp/types.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createSignal } from '../../utils/signal.js'
 import { passedOver } from '../../utils/passedOver.js'

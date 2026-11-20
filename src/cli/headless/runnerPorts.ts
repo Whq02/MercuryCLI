@@ -5,7 +5,7 @@ import type { CompactionRow, InputRow, OutcomeRow, Row } from '../../rows/vocabu
 import type { AnthropicLimits } from '../../services/anthropicLimits.js'
 import type { NoticeRecord } from '../../services/notices/unreadLedger.js'
 import type { Peer } from '../../runner/wire/peer.js'
-import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } from '../../services/mcp/types.js'
+import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'

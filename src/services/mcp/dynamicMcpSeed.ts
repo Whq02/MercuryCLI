@@ -1,4 +1,4 @@
-import type { ScopedMcpServerConfig } from './types.js'
+import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 import { getGlobalConfig, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 
