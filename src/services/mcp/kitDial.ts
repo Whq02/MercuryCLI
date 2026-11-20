@@ -1,6 +1,6 @@
 import type { AppState } from '../../state/AppStateStore.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
-import { getMcpPrefix } from './mcpStringUtils.js'
+import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
 import { isMcpOrgan, kitMembership } from './membership.js'
 import type { ScopedMcpServerConfig } from './types.js'
 

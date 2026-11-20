@@ -5,8 +5,8 @@ import { getCwd } from '../../utils/cwd.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
 import { getEnabledSettingsForSource, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
-import { getMcpPrefix } from './mcpStringUtils.js'
-import { normalizeNameForMCP } from './normalization.js'
+import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
+import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
 import type {
   ConfigScope,
   McpServerConfig,

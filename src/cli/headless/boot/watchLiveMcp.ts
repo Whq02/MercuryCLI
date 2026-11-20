@@ -1,7 +1,7 @@
 import type { ScopedMcpServerConfig, MCPServerConnection } from '../../../services/mcp/types.js'
 import { getMcpConfigByName, getMercuryMcpConfigs, filterMcpServersByPolicy } from '../../../services/mcp/config.js'
 import { fetchToolsForClient, fetchCommandsForClient, fetchResourcesForClient, reconnectMcpServerImpl, clearServerCache } from '../../../services/mcp/client.js'
-import { getMcpPrefix } from '../../../services/mcp/mcpStringUtils.js'
+import { getMcpPrefix } from '../../../utils/mcp/mcpStringUtils.js'
 import { requestDeliberateToolChange } from '../../../services/providers/lawfulPrefixChange.js'
 import { processMainOwner } from '../../../utils/run/resolveOwner.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../../../services/mcp/dynamicMcpSeed.js'
