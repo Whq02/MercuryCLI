@@ -159,9 +159,14 @@ export async function mcpRemoveHandler(
     }
     const removeFrom = async (scope: CliScope): Promise<void> => {
       const cleaned: { revoked: Promise<void> | null } = { revoked: null }
-      await removeMcpConfig(name, scope, () => {
-        cleaned.revoked = cleanSecureStorage(existing as McpServerConfig | null)
-      })
+      try {
+        await removeMcpConfig(name, scope, () => {
+          cleaned.revoked = cleanSecureStorage(existing as McpServerConfig | null)
+        })
+      } catch (error) {
+        if (cleaned.revoked !== null) await revocationAnswered(name, cleaned.revoked)
+        throw error
+      }
       process.stdout.write(`Removed MCP server ${name} from ${scope} scope\n`)
       if (cleaned.revoked !== null) await revocationAnswered(name, cleaned.revoked)
       return cliOk(`Modified: ${scopeConfigFileLabel(scope)}`)
