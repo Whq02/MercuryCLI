@@ -194,6 +194,28 @@ console.log('\nroster — unreadable project extension entries and directory rep
   }
 }
 
+console.log('\nsources — unreadable local archive reports archive unreadable instead of archive missing')
+if (!POSIX_MODES) skip('sources unreadable local archive', 'chmod 0o200 needs non-root POSIX')
+else {
+  const r = runScenario(`
+    const mod = await import(path.join(SRC, 'extensions/sources.ts'))
+    const locked = path.join(SCRATCH, 'locked.zip')
+    const missing = path.join(SCRATCH, 'absent.zip')
+    fs.writeFileSync(locked, 'not-a-zip')
+    fs.chmodSync(locked, 0o200)
+    try {
+      out.unreadable = await mod.addSource(locked)
+      out.missing = await mod.addSource(missing)
+    } finally {
+      fs.chmodSync(locked, 0o600)
+    }
+  `)
+  const unreadable = r.unreadable as { ok?: boolean; step?: string; reason?: string }
+  const missing = r.missing as { ok?: boolean; step?: string; reason?: string }
+  check('sources reports unreadable local archive as archive unreadable, not archive missing', unreadable?.ok === false && unreadable?.step === 'read' && String(unreadable?.reason).startsWith('archive unreadable · '), JSON.stringify(unreadable))
+  check('sources keeps absent local archive as archive missing', missing?.ok === false && missing?.step === 'read' && String(missing?.reason).startsWith('archive missing · '), JSON.stringify(missing))
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
