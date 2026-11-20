@@ -174,5 +174,24 @@ console.log('prefixRecordStore — sweepPrefixRecords fails closed when getSessi
   )
 }
 
+console.log('faultUsageEstimate — non-JSON-serializable requests still estimate input tokens')
+{
+  const r = runScenario(`
+    const mod = await import(SRC + '/services/providers/faultUsageEstimate.ts')
+    const circular = { model: 'm', prompt: 'x'.repeat(400) }
+    circular.self = circular
+    const cUsage = mod.estimateFaultedRequestUsage({ lane: 'test', model: 'm', request: circular, minted: [], faultCode: 'cut' })
+    const big = { model: 'm', prompt: 'y'.repeat(400), count: 42n }
+    const bUsage = mod.estimateFaultedRequestUsage({ lane: 'test', model: 'm', request: big, minted: [], faultCode: 'cut' })
+    out.circularInput = cUsage.input_tokens
+    out.bigintInput = bUsage.input_tokens
+  `)
+  check(
+    'faultUsageEstimate:requestCharsOf measures circular and BigInt requests instead of returning 0',
+    typeof r.circularInput === 'number' && r.circularInput > 0 && typeof r.bigintInput === 'number' && r.bigintInput > 0,
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
