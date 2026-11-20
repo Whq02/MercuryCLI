@@ -25,7 +25,8 @@ import {
   changeSetBundleRoot,
   changeSetJournalDir,
 } from './changeSetContracts.js'
-import { canonicalPathKey, sha256Hex } from './changeSetPlan.js'
+import { canonicalPathKey } from './changeSetPlan.js'
+import { sha256Hex } from '../../utils/hash.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver } from '../../utils/passedOver.js'
 
