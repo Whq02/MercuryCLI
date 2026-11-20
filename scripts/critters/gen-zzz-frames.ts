@@ -13,7 +13,7 @@ const ROW = {
   assets: 'scripts/critters/fixtures/zzz-frames.json',
   generator: 'bun scripts/critters/gen-zzz-frames.ts',
   check: 'bun scripts/critters/prove-critter-sleep.ts',
-  sources: 'scripts/critters/gen-zzz-frames.ts scripts/critters/zzzFrames.ts src/utils/cockpit/critterData.ts',
+  sources: 'scripts/critters/gen-zzz-frames.ts scripts/critters/zzzFrames.ts src/utils/cockpit/critterData.ts src/utils/cockpit/critterIdle.ts src/components/mercury-ui/CritterArt.tsx src/utils/staticRender.tsx src/utils/config/globalConfig.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 const rerecord = process.argv.includes('--rerecord')
