@@ -277,8 +277,15 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
               try {
                 holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
                 report.held++
-              } catch {
-                logForDebugging(`[saturn] session ${sessionId}: held fire ${h.scheduleId} could not be banked again`)
+              } catch (bankError) {
+                const words = bankError instanceof Error ? bankError.message : String(bankError)
+                logForDebugging(`[saturn] session ${sessionId}: held fire ${h.scheduleId} could not be banked again: ${words}`)
+                rowSaturnTickReceipt(rec, by, 'schedule-fire', `fire failed — held since ${new Date(h.heldAt).toISOString()}, it could not be held again (${words}); not fired`, {
+                  outcome: 'failed',
+                  scheduleId: h.scheduleId,
+                  dueAt: h.dueAt,
+                  detail: words,
+                })
               }
             }
           }
