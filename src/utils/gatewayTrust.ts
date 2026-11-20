@@ -122,9 +122,10 @@ export async function restoreGatewayAuth(): Promise<void> {
       }
     } catch (err) {
       logForDebugging(
-        `[gateway] TLS fingerprint probe failed on restore for ${host} (${errorMessage(err)}); proceeding without re-verify`,
+        `[gateway] TLS fingerprint probe failed on restore for ${host} (${errorMessage(err)}); refusing to activate without re-verify`,
         { level: 'warn' },
       )
+      return
     }
 
     activateEnterpriseGateway(gateway)
