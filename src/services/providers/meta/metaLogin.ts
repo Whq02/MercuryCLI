@@ -8,6 +8,7 @@ import {
   metaEnvKey,
   metaMuseCodeFacts,
   pollMetaDeviceToken,
+  readPreferredMetaSource,
   requestMuseCodeKey,
   resolveMetaAccount,
   resolveMetaRawApiKey,
@@ -377,9 +378,15 @@ export async function storeMetaApiKeyLogin(key: string, io?: { fetchImpl?: typeo
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }
+  const previousSource = readPreferredMetaSource()
   try {
-    writeStoredMetaApiKey(key)
     writePreferredMetaSource('api-key')
+    try {
+      writeStoredMetaApiKey(key)
+    } catch (error) {
+      writePreferredMetaSource(previousSource ?? null)
+      throw error
+    }
   } catch (error) {
     return { ok: false, stored: false, receipt: `Could not store the key: ${safe(errorMessageWithCause(error))}` }
   }

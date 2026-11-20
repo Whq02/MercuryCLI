@@ -1,9 +1,10 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
-import { writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
+import { readStoredHuggingfaceApiKey, writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import {
   fetchHuggingfaceIdentity,
+  huggingfaceStoredTokenIdentity,
   pollHuggingfaceDeviceToken,
   startHuggingfaceDeviceAuth,
   writeHuggingfaceTokenIdentity,
@@ -199,9 +200,16 @@ export async function storeHuggingfaceTokenLogin(
     }
   }
   const identity: HuggingfaceIdentity | undefined = probe.state === 'confirmed' ? probe.identity : undefined
+  const previousToken = readStoredHuggingfaceApiKey()
+  const previousIdentity = huggingfaceStoredTokenIdentity(previousToken)
   try {
-    writeStoredHuggingfaceApiKey(token)
     writeHuggingfaceTokenIdentity(token, identity ?? null)
+    try {
+      writeStoredHuggingfaceApiKey(token)
+    } catch (error) {
+      writeHuggingfaceTokenIdentity(previousToken ?? '', previousIdentity ?? null)
+      throw error
+    }
   } catch (error) {
     return {
       ok: false,

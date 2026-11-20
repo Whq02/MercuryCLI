@@ -265,6 +265,48 @@ else {
   check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
 }
 
+console.log('\na key sign-in that the auth file refuses — nothing of it is stored, so the receipt is true')
+if (!POSIX_MODES) skip('the refused key sign-in', 'a mode-0200 file needs a POSIX process that is not root')
+else {
+  for (const [family, module, call, field, said] of [
+    [FAMILIES[0]!, 'services/providers/gemini/geminiLogin.ts', `login.storeGeminiApiKeyLogin('fixture-new-gemini-key-0123', { refreshCatalogue: async () => null })`, 'geminiApiKey', 'Could not store the key: '],
+    [FAMILIES[1]!, 'services/providers/huggingface/huggingfaceLogin.ts', `login.storeHuggingfaceTokenLogin('hf_fixturenewtoken0123', { fetchImpl: async () => new Response(JSON.stringify({ name: 'fixture' }), { status: 200, headers: { 'content-type': 'application/json' } }) }, async () => null)`, 'huggingfaceApiKey', 'Could not store the token: '],
+  ] as const) {
+    const r = runIn(family, `
+      const login = await import(${JSON.stringify(join(SRC, module))})
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(file, FULL, { mode: 0o600 })
+      fs.chmodSync(file, 0o200)
+      out.outcome = await ${call}
+      fs.chmodSync(file, 0o600)
+      out.same = raw(file) === FULL
+      out.storedKey = (parsed(path.join(dir, '.provider-secrets.json')) ?? {})[${JSON.stringify(field)}] ?? null
+      out.ledger = Object.keys((parsed(path.join(dir, '.sign-ins.json')) ?? {}).signIns ?? {})
+    `)
+    const outcome = r.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
+    const words = `${said}The ${family.label} auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
+    check(`${family.label}: the sign-in is refused in the receipt's words, and the auth file stands`, outcome?.ok === false && outcome.stored === false && outcome.receipt === words && r.same === true, JSON.stringify(outcome))
+    check(`${family.label}: the key is not in the secrets store and the sign-in ledger records no sign-in`, r.storedKey === null && (r.ledger as string[]).length === 0, `the secrets store holds the key (${JSON.stringify(r.storedKey)}) and the ledger records ${JSON.stringify(r.ledger)}: "nothing was written" is not true`)
+    const other = runIn(family, `
+      const login = await import(${JSON.stringify(join(SRC, module))})
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(file, FULL, { mode: 0o600 })
+      const secrets = path.join(dir, '.provider-secrets.json')
+      const SECRETS = JSON.stringify({ version: 1, zaiApiKey: 'fixture-other-key' })
+      fs.writeFileSync(secrets, SECRETS, { mode: 0o600 })
+      fs.chmodSync(secrets, 0o200)
+      out.outcome = await ${call}
+      fs.chmodSync(secrets, 0o600)
+      out.secretsSame = raw(secrets) === SECRETS
+      out.before = JSON.parse(FULL)
+      out.after = parsed(file)
+      out.ledger = Object.keys((parsed(path.join(dir, '.sign-ins.json')) ?? {}).signIns ?? {})
+    `)
+    const refusedBySecrets = other.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
+    check(`${family.label}: refused by the secrets store instead, the sign-in leaves the auth file's fields as they were and records nothing`, refusedBySecrets?.ok === false && refusedBySecrets.stored === false && (refusedBySecrets.receipt ?? '').startsWith(`${said}The provider secrets store at `) && other.secretsSame === true && JSON.stringify(other.after) === JSON.stringify(other.before) && (other.ledger as string[]).length === 0, JSON.stringify({ outcome: refusedBySecrets, after: other.after, ledger: other.ledger }))
+  }
+}
+
 console.log('\nMoonshot — the served-model note, whose caller drops the refusal, leaves an unreadable file as it stands')
 if (!POSIX_MODES) skip('the dropped refusal', 'a mode-0200 file needs a POSIX process that is not root')
 else {

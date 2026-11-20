@@ -99,8 +99,13 @@ export async function storeGeminiApiKeyLogin(
   const previousKey = readStoredGeminiApiKey() ?? null
   const previousSource = readPreferredGeminiSource()
   try {
-    writeStoredGeminiApiKey(key)
     writePreferredGeminiSource('api-key')
+    try {
+      writeStoredGeminiApiKey(key)
+    } catch (error) {
+      writePreferredGeminiSource(previousSource ?? null)
+      throw error
+    }
   } catch (error) {
     return {
       ok: false,

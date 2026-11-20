@@ -174,6 +174,20 @@ else {
     out.same = raw(metaFile) === FULL
   `)
   const answered = activate.answered as { ok?: boolean; receipt?: string } | undefined
+  const signIn = runIn(`
+    const login = await import(${JSON.stringify(join(SRC, 'services/providers/meta/metaLogin.ts'))})
+    const FULL = ${JSON.stringify(JSON.stringify(FULL_META, null, 2) + '\n')}
+    fs.writeFileSync(metaFile, FULL, { mode: 0o600 })
+    fs.chmodSync(metaFile, 0o200)
+    out.outcome = await login.storeMetaApiKeyLogin('fixture-new-meta-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })
+    fs.chmodSync(metaFile, 0o600)
+    out.same = raw(metaFile) === FULL
+    out.storedKey = (parsed(secretsFile) ?? {}).metaApiKey ?? null
+    out.ledger = Object.keys((parsed(path.join(dir, '.sign-ins.json')) ?? {}).signIns ?? {})
+  `)
+  const refused = signIn.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
+  check('a Meta key sign-in that the auth file refuses says so, and the file stands', refused?.ok === false && refused.stored === false && refused.receipt === `Could not store the key: ${words.replace(String(r.metaFile), String(signIn.metaFile))}` && signIn.same === true, JSON.stringify(refused))
+  check('…and nothing of it is stored: no key in the secrets store, no sign-in in the ledger', signIn.storedKey === null && (signIn.ledger as string[]).length === 0, `the secrets store holds the key (${JSON.stringify(signIn.storedKey)}) and the ledger records ${JSON.stringify(signIn.ledger)}: "nothing was written" is not true`)
   check('making a Meta source active answers a receipt that says why and is not ok, and the file stands', activate.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: ${words.replace(String(r.metaFile), String(activate.metaFile))}` && activate.same === true, `${JSON.stringify(activate.outcome ?? answered)} · file ${activate.same === true ? 'kept' : 'replaced'}`)
 }
 
