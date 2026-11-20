@@ -7,7 +7,6 @@ import { toolMatchesName } from '../Tool.js'
 import { formatDeferredToolLine, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
 import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import type { Message } from '../types/message.js'
-import { countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD } from './analyzeContext.js'
 import { getMergedBetas } from './betas.js'
 import { getContextWindowForModel } from './context.js'
 import { logForDebugging } from './debug.js'
@@ -102,6 +101,19 @@ export function isToolSearchToolAvailable(tools: readonly { name: string }[]): b
   return tools.some(tool => toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME))
 }
 
+type ToolDefinitionCount = (
+  tools: readonly Tool[],
+  getToolPermissionContext: () => Promise<ToolPermissionContext>,
+  agentInfo: AgentDefinitionsResult,
+  model?: string,
+) => Promise<number>
+
+let toolDefinitionCount: { count: ToolDefinitionCount; overhead: number } | undefined
+
+export function tellHowToolDefinitionsAreCounted(count: ToolDefinitionCount, overhead: number): void {
+  toolDefinitionCount = { count, overhead }
+}
+
 const memoizedDeferredToolTokens = memoize(
   async (
     _cacheKey: string,
@@ -111,11 +123,13 @@ const memoizedDeferredToolTokens = memoize(
     model: string,
   ): Promise<number | null> => {
     if (deferrableTools.length === 0) return 0
+    const counted = toolDefinitionCount
+    if (counted === undefined) return null
     try {
       const agentInfo = { allAgents: agents, activeAgents: agents } as AgentDefinitionsResult
-      const total = await countToolDefinitionTokens(deferrableTools, getToolPermissionContext, agentInfo, model)
+      const total = await counted.count(deferrableTools, getToolPermissionContext, agentInfo, model)
       if (total === 0) return null
-      return Math.max(0, total - TOOL_TOKEN_COUNT_OVERHEAD)
+      return Math.max(0, total - counted.overhead)
     } catch {
       return null
     }

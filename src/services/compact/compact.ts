@@ -51,7 +51,7 @@ import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run/r
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import '../tokenEstimation.js'
 import { estimateRequestGauge, readRequestGauge } from '../run/requestGauge.js'
-import { getTurnReserveTokens } from './autoCompact.js'
+import { getTurnReserveTokens } from './autoCompactWindow.js'
 import '../../utils/toolResultStorage.js'
 import '../../tools/FileReadTool/FileReadTool.js'
 import '../../constants/toolLimits.js'

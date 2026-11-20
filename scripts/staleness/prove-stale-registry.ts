@@ -214,7 +214,7 @@ src/services/switchboard/capacityCheck.ts :: memorySampleMemo :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
 src/services/tensorfold/engine.ts :: machineCache :: ttl-bounded
-src/services/tokenEstimation.ts :: pdfPageCountMemo :: keyed-by-truth
+src/services/roughTokenEstimation.ts :: pdfPageCountMemo :: keyed-by-truth
 src/services/vulcan/portabilityHealth.ts :: presenceMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: entriesMemo :: ttl-bounded

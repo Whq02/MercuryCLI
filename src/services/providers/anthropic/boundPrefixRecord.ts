@@ -2,7 +2,7 @@ import { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } from '.
 import { getSystemContext } from '../../../context.js'
 import type { BoundPrefixSection, BoundPrefixToolMark, AttachmentMessage, Message } from '../../../types/message.js'
 import type { Attachment } from '../../../utils/attachments/types.js'
-import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../../../utils/attachments/attachmentMessage.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { armToolRosterRestore, conversationRosterKey, toolRosterLatchFor, type RosterRestore } from '../toolEconomy.js'
 import { getConversationToolSchemas } from '../../../utils/toolSchemaCache.js'

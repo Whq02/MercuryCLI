@@ -2,7 +2,7 @@ import type { AssistantMessage, Message, UserMessage } from '../../types/message
 import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../../utils/attachments/attachmentMessage.js'
 import {
   createCompactBoundaryMessage,
   createUserMessage,

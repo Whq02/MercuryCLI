@@ -43,10 +43,10 @@ import { contextFill, getCurrentUsage } from './tokens.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getEngineModel } from './model/model.js'
 import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
-import { isToolSearchEnabled } from './toolSearch.js'
+import { isToolSearchEnabled, tellHowToolDefinitionsAreCounted } from './toolSearch.js'
 
 
-export const TOOL_TOKEN_COUNT_OVERHEAD = 500
+const TOOL_TOKEN_COUNT_OVERHEAD = 500
 
 interface DeferredBuiltinTool {
   name: string
@@ -222,7 +222,7 @@ async function projectToolSchemas(
   )
 }
 
-export async function countToolDefinitionTokens(
+async function countToolDefinitionTokens(
   tools: readonly Tool[],
   getToolPermissionContext: GetToolPermissionContext,
   agentInfo: AgentDefinitionsResult,
@@ -231,6 +231,8 @@ export async function countToolDefinitionTokens(
   const schemas = await projectToolSchemas(tools, getToolPermissionContext, agentInfo, model)
   return (await countMessagesTokens([], schemas)) ?? 0
 }
+
+tellHowToolDefinitionsAreCounted(countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD)
 
 async function countMcpToolTokens(
   tools: readonly Tool[],
