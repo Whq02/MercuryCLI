@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useDerivedState, useLoad, useSubscription, useTimer } from '../hooks/effects.js';
 import 'figures';
 import { getCwd } from '../utils/cwd.js';
 import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
@@ -142,7 +143,7 @@ export function BootSplashScreen(): React.ReactNode {
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
   const [updateLine, setUpdateLine] = useState(() => takeFaceUpdateNotice());
-  useEffect(() => {
+  useTimer(() => {
     if (updateLine === null) return;
     const timer = setTimeout(() => setUpdateLine(null), UPDATE_NOTICE_STAY_MS);
     return () => clearTimeout(timer);
@@ -157,7 +158,7 @@ export function BootSplashScreen(): React.ReactNode {
   const keyMapHint = faceKeyMapHintOf(stripHint, modelDefaultDoor);
 
   const [birthReceipt, setBirthReceipt] = useState<string | null>(() => recentWarningReceipt()?.text ?? null);
-  useEffect(
+  useSubscription(
     () =>
       subscribeSeatReceipts(r => {
         if (r.level === 'warning') setBirthReceipt(r.text);
@@ -166,7 +167,7 @@ export function BootSplashScreen(): React.ReactNode {
   );
 
   const [liveCount, setLiveCount] = useState<number>(0);
-  useEffect(() => {
+  useLoad(() => {
     if (chatBoot) return;
     let cancelled = false;
     void import('../daemon/concourseWorkers.js')
@@ -179,7 +180,7 @@ export function BootSplashScreen(): React.ReactNode {
     };
   }, [chatBoot]);
   const [runningByKey, setRunningByKey] = useState<ReadonlyMap<string, number>>(() => new Map());
-  useEffect(() => {
+  useLoad(() => {
     if (chatOnlyBoot()) return;
     let cancelled = false;
     void import('../services/concourse/projectActivity.js')
@@ -201,7 +202,7 @@ export function BootSplashScreen(): React.ReactNode {
   };
 
   const [saturnCtx, setSaturnCtx] = useState<string | null>(null);
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false;
     void (async () => {
       try {
@@ -227,7 +228,7 @@ export function BootSplashScreen(): React.ReactNode {
 
   const [agentsCtx, setAgentsCtx] = useState<string | null>(null);
   const [agentsEpoch, setAgentsEpoch] = useState(0);
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false;
     void import('../tools/AgentTool/loadAgentsDir.js')
       .then(async loader => {
@@ -331,7 +332,7 @@ export function BootSplashScreen(): React.ReactNode {
   });
   const selIdx = list.selectedIndex;
   const prevSelRef = useRef(selIdx);
-  useEffect(() => {
+  useDerivedState(() => {
     if (prevSelRef.current !== selIdx) {
       prevSelRef.current = selIdx;
       setSelCleared(false);
@@ -354,7 +355,7 @@ export function BootSplashScreen(): React.ReactNode {
   const mainModel = useEngineModel();
 
   const catalogueEpoch = useCatalogueEpoch();
-  useEffect(() => {
+  useLoad(() => {
     let pending = false;
     try {
       const decision = computedDefault();

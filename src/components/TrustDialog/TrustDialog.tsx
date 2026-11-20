@@ -2,6 +2,7 @@ import { homedir } from 'os';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
 import React from 'react';
+import { useTimer } from '../../hooks/effects.js';
 import { setSessionTrustAccepted } from '../../bootstrap/state.js';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
 import { Box, Text } from '../../ink.js';
@@ -22,7 +23,7 @@ export function TrustDialog({ onDone }: Props): React.ReactNode {
   const { rows } = useTerminalSize();
   const boxTone = useFirstRunCardsCentred() ? 'cardBrown' : 'warning';
   const hasTrustDialogAccepted = checkHasTrustDialogAccepted();
-  React.useEffect(() => {
+  useTimer(() => {
     if (!hasTrustDialogAccepted) return;
     const timer = setTimeout(onDone);
     return () => clearTimeout(timer);

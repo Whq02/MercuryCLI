@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useDerivedState, useSubscription } from '../../hooks/effects.js'
 import 'node:path'
 import { useInput } from '../../ink.js'
 import { useSessionConnector } from '../../hooks/useSessionConnector.js'
@@ -68,7 +69,7 @@ export function PromptsPanel({
 
   const [section, setSection] = useState<SectionId>(initialSection)
   const [, refreshBoard] = useState(0)
-  useEffect(() => connector.subscribeWork(() => refreshBoard(value => value + 1)), [connector])
+  useSubscription(() => connector.subscribeWork(() => refreshBoard(value => value + 1)), [connector])
   const board = connector.swarmBoard?.() ?? null
   const [editor, setEditor] = useState<Editor>(null)
   const [editorCursor, setEditorCursor] = useState(0)
@@ -229,7 +230,7 @@ export function PromptsPanel({
 
   const confirmDeleteLive = useRef<string | null>(null)
   confirmDeleteLive.current = confirmDelete
-  useEffect(() => {
+  useDerivedState(() => {
     setConfirmDelete(null)
     if (confirmDeleteLive.current !== null) {
       confirmDeleteLive.current = null

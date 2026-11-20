@@ -1,6 +1,7 @@
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js';
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useDerivedState } from '../hooks/effects.js'
 import type { Command } from '../commands.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
@@ -115,7 +116,7 @@ export function MercuryCommandPalette({
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
   const [unreachable, setUnreachable] = useState<string | null>(null)
-  useEffect(() => {
+  useDerivedState(() => {
     setUnreachable(null)
   }, [query, sel])
   const [cursorOffset, setCursorOffset] = useState(0)
@@ -226,7 +227,7 @@ export function MercuryCommandPalette({
 
   const pastOpenEvent = useOpenEventGate()
 
-  useEffect(() => {
+  useDerivedState(() => {
     setSel(s => Math.min(s, Math.max(0, filtered.length - 1)))
   }, [filtered.length])
 
