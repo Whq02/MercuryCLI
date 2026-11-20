@@ -17,7 +17,7 @@ import {
   type KnowledgeFacts,
   type ProjectIntelSnapshot,
   type SnapshotRead,
-} from './contracts.js'
+} from '../../utils/projectIntel/contracts.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const CHANGED_CAP = 200

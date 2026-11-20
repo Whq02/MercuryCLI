@@ -119,7 +119,7 @@ export async function getContextCapsuleAttachment(
 ): Promise<Attachment[]> {
   try {
     const { projectIntelEnabled } =
-      require('../../services/projectIntel/contracts.js') as typeof import('../../services/projectIntel/contracts.js')
+      require('../projectIntel/contracts.js') as typeof import('../projectIntel/contracts.js')
     if (!projectIntelEnabled()) return []
     const inputTask = (() => {
       const trimmed = (input ?? '').trim()
