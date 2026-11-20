@@ -265,5 +265,54 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
   )
 }
 
+console.log('\nWorktreeExitDialog.tsx:43,48 — failed directory restore reports the failure sentence instead of silent exit')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/WorktreeExitDialog.tsx'))})
+    if (typeof mod.restoreWorktreeDirectories !== 'function') {
+      out.missing = true
+    } else {
+      let setCwdCalledAfterChdirFail = false
+      out.chdirFail = mod.restoreWorktreeDirectories(
+        { originalCwd: '/repo/main' },
+        {
+          chdir: () => { throw new Error('ENOENT: no such directory') },
+          setCwd: () => { setCwdCalledAfterChdirFail = true },
+        },
+      )
+      out.setCwdCalledAfterChdirFail = setCwdCalledAfterChdirFail
+      out.setCwdFail = mod.restoreWorktreeDirectories(
+        { originalCwd: '/repo/main' },
+        {
+          chdir: () => {},
+          setCwd: () => { throw new Error('EACCES: permission denied') },
+        },
+      )
+      out.ok = mod.restoreWorktreeDirectories(
+        { originalCwd: '/repo/main' },
+        { chdir: () => {}, setCwd: () => {} },
+      )
+    }
+  `)
+  check(
+    'worktree-exit-chdir-fail-reports-sentence',
+    res.missing !== true &&
+      res.setCwdCalledAfterChdirFail === true &&
+      res.chdirFail === 'Could not return to /repo/main (ENOENT: no such directory) — switch back to that folder before continuing.',
+    JSON.stringify(res),
+  )
+  check(
+    'worktree-exit-setcwd-fail-reports-sentence',
+    res.missing !== true &&
+      res.setCwdFail === 'Could not return to /repo/main (EACCES: permission denied) — switch back to that folder before continuing.',
+    JSON.stringify(res),
+  )
+  check(
+    'worktree-exit-restore-ok-silent',
+    res.missing !== true && res.ok === null,
+    JSON.stringify(res),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
