@@ -1,7 +1,13 @@
-import type { Client, Implementation, Resource, ServerCapabilities } from '../../utils/mcp/sdk.js'
-import type { McpBootstrapManifest } from './lazyStdio.js'
+import type { Client, Implementation, Resource, ServerCapabilities, Tool } from './sdk.js'
 import { z } from 'zod'
-import { passedOver } from '../../utils/passedOver.js'
+import { passedOver } from '../passedOver.js'
+
+export type McpBootstrapManifest = {
+  serverInfo: Implementation
+  capabilities: ServerCapabilities
+  instructions: string
+  tools: Tool[]
+}
 
 function once<T>(build: () => T): () => T {
   const held: T[] = []

@@ -27,7 +27,7 @@ import { jsonStringify } from './slowOperations.js'
 import { getConversationToolSchemas, getToolSchemaCache } from './toolSchemaCache.js'
 import { windowsPathToPosixPath } from './windowsPaths.js'
 import type { Tool, Tools, ToolPermissionContext } from '../Tool.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../types/wire.js'
 import type { Message } from '../types/message.js'
 

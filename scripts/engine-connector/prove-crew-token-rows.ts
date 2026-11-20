@@ -21,7 +21,7 @@ const ROW = {
     'src/utils/staticRender.tsx',
     'src/tasks/LocalAgentTask/LocalAgentTask.tsx',
     'src/fabric/transcriptDecode.ts',
-    'src/utils/task/workRoster.ts',
+    'src/services/engine-connector/workRoster.ts',
     'src/services/engine-connector/seatWire.ts',
     'src/state/AppState.tsx',
     'src/ink/components/TerminalSizeContext.tsx',
@@ -45,7 +45,7 @@ const React = (await import('react')).default
 const { renderToString } = await import('../../src/utils/staticRender.tsx')
 const { createProgressTracker, getProgressUpdate, updateProgressFromMessage } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
-const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
 const crew = await import('../../src/services/engine-connector/crewFacts.ts')
 const wire = await import('../../src/services/engine-connector/seatWire.ts')
 const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')

@@ -3,17 +3,17 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { AttachmentMessage, Message } from 'src/types/message.js'
 import type { QueuedCommand } from 'src/types/textInputTypes.js'
 import type { ToolUseContext } from '../../Tool.js'
-import { getHarnessMapDelta } from '../cockpit/harnessMap.js'
+import { getHarnessMapDelta } from '../../utils/cockpit/harnessMap.js'
 import type { QuerySource } from '../../constants/querySource.js'
-import { createAbortController } from '../abortController.js'
-import { isEnvTruthy } from '../envUtils.js'
-import { logError } from '../log.js'
+import { createAbortController } from '../../utils/abortController.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
+import { logError } from '../../utils/log.js'
 import { getLSPDiagnosticAttachments } from './diagnostics.js'
 import { getChangedFiles } from './fileAttachments.js'
 import {
   getCapsuleDateChange,
   getModePackAttachments,
-} from './modeLifecycles.js'
+} from '../../utils/attachments/modeLifecycles.js'
 import { foldAttachmentsIntoCapsule, getContextCapsuleAttachment } from './contextCapsule.js'
 import { getNestedMemoryAttachments } from './nestedMemory.js'
 import {
@@ -46,24 +46,24 @@ import {
 import {
   getDynamicSkillAttachments,
   getSkillListingAttachments,
-} from './skillListing.js'
+} from '../../utils/attachments/skillListing.js'
 import {
   getBackgroundHookAttachments,
   getUnifiedTaskAttachments,
-} from './taskStatus.js'
-import { getMissionStatusAttachment } from './missionStatus.js'
-import type { Attachment } from './types.js'
-import { rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
-import { getUserContextAttachment } from './userContext.js'
-import { firstTurnUserContext } from '../api.js'
+} from '../../utils/attachments/taskStatus.js'
+import { getMissionStatusAttachment } from '../../utils/attachments/missionStatus.js'
+import type { Attachment } from '../../utils/attachments/types.js'
+import { rosterOwnerFromToolUseContext } from '../../utils/run/resolveOwner.js'
+import { getUserContextAttachment } from '../../utils/attachments/userContext.js'
+import { firstTurnUserContext } from '../../utils/api.js'
 import { getSystemContext, getUserContext } from '../../context.js'
-import { getToolManualAttachments } from './toolManuals.js'
-import { samplesRoadAttachment } from './samplesRoad.js'
-import { createAttachmentMessage } from './attachmentMessage.js'
-import { passedOver } from '../passedOver.js'
-import { withDeadline } from '../deadline.js'
-import { startTimeout, stopTimeout } from '../timers.js'
-export { createAttachmentMessage } from './attachmentMessage.js'
+import { getToolManualAttachments } from '../../utils/attachments/toolManuals.js'
+import { samplesRoadAttachment } from '../../utils/attachments/samplesRoad.js'
+import { createAttachmentMessage } from '../../utils/attachments/attachmentMessage.js'
+import { passedOver } from '../../utils/passedOver.js'
+import { withDeadline } from '../../utils/deadline.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
+export { createAttachmentMessage } from '../../utils/attachments/attachmentMessage.js'
 
 export async function getAttachments(
   input: string | null,
@@ -104,7 +104,7 @@ export async function getAttachments(
           { inputScoped: true },
         ),
         maybe('samples_road', () => Promise.resolve(options?.operatorPrompt ? samplesRoadAttachment(input, messages) : []), { inputScoped: true }),
-        maybe('remote_files', async () => (input.includes('ssh://') ? (await import('../remoteFiles/notice.js')).remoteFilesNotice(input, messages) : []), { inputScoped: true }),
+        maybe('remote_files', async () => (input.includes('ssh://') ? (await import('../../utils/remoteFiles/notice.js')).remoteFilesNotice(input, messages) : []), { inputScoped: true }),
         maybe(
           'agent_mentions',
           () =>

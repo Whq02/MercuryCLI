@@ -75,7 +75,7 @@ function skip(label: string, why: string): void {
 {
   console.log('\nreviewStore: unreadable journal fails mutators, heads source, and journal reader instead of answering absent/empty')
   const { readFileSync } = await import('node:fs')
-  const store = await import('../../src/utils/artifacts/reviewStore.ts')
+  const store = await import('../../src/services/artifacts/reviewStore.ts')
   const created = store.createReviewArtifact({
     kind: 'plan',
     title: 'lock-test',
@@ -248,7 +248,7 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nfileAttachments: unreadMention reports non-ENOENT stat failure instead of dropping at-mention')
-  const { generateFileAttachment } = await import('../../src/utils/attachments/fileAttachments.ts')
+  const { generateFileAttachment } = await import('../../src/services/attachments/fileAttachments.ts')
   const sealedDir = join(SCRATCH, 'sealed-dir')
   mkdirSync(sealedDir, { recursive: true })
   const sealedFile = join(sealedDir, 'secret.txt')
@@ -291,7 +291,7 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nmentionResolvers: unreadable directory mention reports failure and readMentionedResource lets bugs throw')
-  const { processAtMentionedFiles, processMcpResourceAttachments } = await import('../../src/utils/attachments/mentionResolvers.ts')
+  const { processAtMentionedFiles, processMcpResourceAttachments } = await import('../../src/services/attachments/mentionResolvers.ts')
   const unreadDir = join(SCRATCH, 'unreadable-mention-dir')
   mkdirSync(unreadDir, { recursive: true })
   const ctx = {

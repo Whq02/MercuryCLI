@@ -335,7 +335,7 @@ section('§2 THE MINUTES CLOCK: a note falls due once `minutes` have passed sinc
   check("the note's words are the fixture's answer, clamped to the line cap", note1.text === 'Verify the pin on the base before you cut.', j(note1))
   check("the note's origin: { kind: 'advisor', model, minutes, at } — a MessageOrigin member the guard admits, the stamp on the seam clock", rows.isAdvisorOrigin(origin) && origin.kind === 'advisor' && origin.model === ADVISOR_MODEL && origin.minutes === 5 && origin.seats === undefined && origin.at === new Date(T0 + 5 * MINUTE).toISOString() && !rows.isSaturnOrigin(origin), j(origin))
   check('the guard refuses the other origins and a bare kind', !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: 'x' }) && !rows.isAdvisorOrigin(undefined))
-  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/services/attachments/queuedCommands.ts'))
   advisor.setAdvisorEnabled(true)
   advisor.stashAdvisorNote(String(state.getSessionId()), note1 as never)
   const drained = getAdvisorNoteAttachments({ agentId: undefined }, { querySource: 'sdk' }) as Raw[]

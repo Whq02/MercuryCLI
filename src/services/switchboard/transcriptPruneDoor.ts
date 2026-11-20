@@ -1,8 +1,8 @@
-import { getFsImplementation } from '../fsOperations.js'
-import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js'
-import { receiptsPathBesideTranscript } from '../../services/switchboard/sessionReceipts.js'
-import { snapshotPathFor } from './resumeSnapshot.js'
-import { passedOver } from '../passedOver.js'
+import { getFsImplementation } from '../../utils/fsOperations.js'
+import { removePrefixRecord } from '../providers/anthropic/prefixRecordStore.js'
+import { receiptsPathBesideTranscript } from './sessionReceipts.js'
+import { snapshotPathFor } from '../../utils/sessionStorage/resumeSnapshot.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type PruneCandidate = {
   sessionId: string

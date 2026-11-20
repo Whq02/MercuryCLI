@@ -1,12 +1,12 @@
 
-export * from './attachments/types.js'
+export * from '../utils/attachments/types.js'
 
 export {
   extractAgentMentions,
   extractAtMentionedFiles,
   extractMcpResourceMentions,
   parseAtMentionedFileLines,
-} from './attachments/mentions.js'
+} from '../utils/attachments/mentions.js'
 
 export {
   getDirectoriesToProcess,
@@ -19,7 +19,7 @@ export {
   tryGetPDFReference,
 } from './attachments/fileAttachments.js'
 
-export { getDateChangeAttachments } from './attachments/modeLifecycles.js'
+export { getDateChangeAttachments } from '../utils/attachments/modeLifecycles.js'
 
 export {
   getContextEfficiencyAttachment,
@@ -38,7 +38,7 @@ export {
 export {
   resetSentSkillNames,
   suppressNextSkillListing,
-} from './attachments/skillListing.js'
+} from '../utils/attachments/skillListing.js'
 
 export {
   createAttachmentMessage,

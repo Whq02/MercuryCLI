@@ -27,7 +27,7 @@ import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './bootstr
 import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
 import type { ApiUsage } from './types/wire.js'
-import { usageCount } from './services/api/emptyUsage.js'
+import { usageCount } from './utils/api/emptyUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'

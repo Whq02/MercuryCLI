@@ -5,7 +5,7 @@ import { useAppStateMaybeOutsideOfProvider, type AppState } from '../../state/Ap
 import { composerTargetTaskId } from '../../state/selectors.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { TaskState } from '../../tasks/types.js'
-import { projectWorkRoster } from '../../utils/task/workRoster.js'
+import { projectWorkRoster } from '../../services/engine-connector/workRoster.js'
 import { useCrewLedgerRow } from './useCrewLedger.js'
 import { focusedSessionIdOrNull, useFocusedWorkRoster } from './useFocusedWork.js'
 

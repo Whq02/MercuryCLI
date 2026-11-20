@@ -25,7 +25,7 @@ const attachMsg = (attachment: Record<string, unknown>): AnyMsg => ({ type: 'att
 async function main(): Promise<void> {
   delete process.env.MERCURY_PROJECT_INTEL
   const { materializeFixture } = await import('./fixtures/materialize.js')
-  const producer = await import('../../src/utils/attachments/contextCapsule.js')
+  const producer = await import('../../src/services/attachments/contextCapsule.js')
   const intel = await import('../../src/services/projectIntel/snapshot.js')
 
   const dir = materializeFixture('ts')
@@ -149,7 +149,7 @@ async function main(): Promise<void> {
   enableConfigs()
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
-  const { getAttachments } = await import('../../src/utils/attachments/orchestrator.js')
+  const { getAttachments } = await import('../../src/services/attachments/orchestrator.js')
   const { createUserMessage } = await import('../../src/utils/messages/factories.js')
   const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.js')
   const state = bootstrap as unknown as { setProjectRoot?: (p: string) => void; setCwdState?: (p: string) => void; setSessionTrustAccepted?: (v: boolean) => void }

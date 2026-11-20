@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import * as path from 'node:path'
-import { getMercuryHome } from '../envUtils.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
 import {
   classifyReadFailure,
   sourceEmpty,
@@ -21,7 +21,7 @@ import {
   valueOr,
   type SourceState,
 } from '../../substrate/sourceState.js'
-import { relocateAnchor, validateAnchor } from './anchors.js'
+import { relocateAnchor, validateAnchor } from '../../utils/artifacts/anchors.js'
 import {
   canTransitionStatus,
   foldScopeDecisions,
@@ -40,9 +40,9 @@ import {
   type ReviewScope,
   type ReviewScopeDecisionKind,
   type ScopeDecisionFold,
-} from './reviewContracts.js'
-import { passedOver } from '../passedOver.js'
-import { sleepSync } from '../timers.js'
+} from '../../utils/artifacts/reviewContracts.js'
+import { passedOver } from '../../utils/passedOver.js'
+import { sleepSync } from '../../utils/timers.js'
 
 const BODY_MAX_BYTES = 512 * 1024
 
@@ -94,7 +94,7 @@ export function artifactLockOwnedBy(lock: string, token: string): boolean {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true
     const message = error instanceof Error ? error.message : String(error)
-    void import('../log.js').then(({ logError }) => logError(new Error(`review artifact lock ${lock}: its owner could not be read, so the lock is left in place — ${message}`)))
+    void import('../../utils/log.js').then(({ logError }) => logError(new Error(`review artifact lock ${lock}: its owner could not be read, so the lock is left in place — ${message}`)))
     return false
   }
 }
@@ -445,9 +445,9 @@ function mirrorReviewStatusToCrew(
   const prior = mirrorChains.get(artifactId) ?? Promise.resolve()
   const next = prior
     .then(async () => {
-      const { crewDirectoryEnabled, resolveAgent } = await import('../../services/crew/identity.js')
+      const { crewDirectoryEnabled, resolveAgent } = await import('../crew/identity.js')
       if (!crewDirectoryEnabled()) return
-      const conv = await import('../../services/crew/conversations.js')
+      const conv = await import('../crew/conversations.js')
       const ref = `mercury://artifact/${artifactId}`
       if (status === 'ready-for-review') {
         await conv.upsertUnresolvedEvent(conv.MAIN_CONVERSATION_ID, {
@@ -460,7 +460,7 @@ function mirrorReviewStatusToCrew(
       }
       const mainAgent = await resolveAgent('principal:agent-mercury')
       if (mainAgent) {
-        const { ingestActivity } = await import('../../services/crew/activity.js')
+        const { ingestActivity } = await import('../crew/activity.js')
         ingestActivity({
           event: {
             sourceEventId: `review-${artifactId}-v${version}-${status}`,

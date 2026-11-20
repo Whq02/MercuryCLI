@@ -3,7 +3,7 @@ import { getCwd } from '../../utils/cwd.js'
 import {
   createReviewArtifact,
   type ReviewWriteResult,
-} from '../../utils/artifacts/reviewStore.js'
+} from '../artifacts/reviewStore.js'
 import type {
   JourneyBodyStep,
   WalkthroughClaim,

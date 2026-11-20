@@ -1,4 +1,4 @@
-import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js';
+import type { AgentDefinition } from '../../types/agent.js';
 import { resolveEffectiveAgentRuntime, type AgentEstateEntry } from '../../services/agents/resolver.js';
 import type { AgentTrashEntry } from '../../services/agents/store.js';
 import type { StudioRow } from '../agents/studio/studioData.js';

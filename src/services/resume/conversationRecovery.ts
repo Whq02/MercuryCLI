@@ -39,7 +39,7 @@ import {
   openToolUseIDs,
   type OpenToolUses,
 } from '../../utils/messages/openToolUses.js'
-import { runSessionStartHooks } from '../../utils/sessionStart.js'
+import { runSessionStartHooks } from '../sessionStart.js'
 import { resumeFactsOf, type ResumeFacts } from '../../utils/sessionStorage/logs.js'
 import {
   buildConversationChain,

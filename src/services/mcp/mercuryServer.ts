@@ -4,7 +4,7 @@ import { serveStdio, type CallToolResult, type Transport } from '../../utils/mcp
 import { z } from 'zod/v4'
 import { errorMessage } from '../../utils/errors.js'
 import { logMCPDebug } from '../../utils/log.js'
-import type { McpServerConfig } from './types.js'
+import type { McpServerConfig } from '../../utils/mcp/types.js'
 import { renderTui } from './renderTuiTool.js'
 import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
 import { describeProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from '../vulcan/engine/leases.js'

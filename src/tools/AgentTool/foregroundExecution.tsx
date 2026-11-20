@@ -80,7 +80,7 @@ import {
   type AgentToolResult,
 } from './agentToolUtils.js'
 import type { BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
-import type { AgentDefinition } from './loadAgentsDir.js'
+import type { AgentDefinition } from '../../types/agent.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 

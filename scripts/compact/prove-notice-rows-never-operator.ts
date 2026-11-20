@@ -55,7 +55,7 @@ section('§2 the fold carries his words, never a notice, and the budget is his')
 
 section('§4 a carry written before the move is filtered on read: the first fold after the move re-admits his words only (the field row 2B-03)')
 {
-  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
   const { OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/utils/compact/operatorMessages.ts')
   const assistant = (text: string): AnyMsg => createAssistantMessage({ content: text }) as unknown as AnyMsg
   const olderCarry = createAttachmentMessage({

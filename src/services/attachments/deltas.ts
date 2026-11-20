@@ -1,30 +1,28 @@
 
 import type { Message } from 'src/types/message.js'
 import type { Tools, ToolUseContext } from '../../Tool.js'
-import type { MCPServerConnection } from '../../services/mcp/types.js'
-import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
-import { conversationRosterKey, heldToolsAtLastPlan, planToolPayloadUnseeded, type ToolPayloadPlan } from '../../services/providers/toolEconomy.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
+import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral } from '../providers/deferralWire.js'
+import { conversationRosterKey, heldToolsAtLastPlan, planToolPayloadUnseeded, type ToolPayloadPlan } from '../providers/toolEconomy.js'
 import { isDeferredToolFor } from '../../tools/ToolSearchTool/prompt.js'
-import { rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
+import { rosterOwnerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import {
   getMcpInstructionsDelta,
   isMcpInstructionsDeltaEnabled,
-} from '../mcpInstructionsDelta.js'
-import { mcpServerFailedWords, mcpServersFailed } from '../../services/mcp/utils.js'
+} from '../../utils/mcpInstructionsDelta.js'
+import { mcpServerFailedWords, mcpServersFailed } from '../mcp/utils.js'
 import {
   getDeferredToolsDelta,
   isToolSearchEnabledOptimistic,
   isToolSearchToolAvailable,
   modelSupportsToolReference,
   type DeferredToolsDeltaScanContext,
-} from '../toolSearch.js'
-import type { Attachment } from './types.js'
+} from '../../utils/toolSearch.js'
+import { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } from '../../constants/tools/toolSearch.js'
+import type { Attachment } from '../../utils/attachments/types.js'
 
 export const SERVER_SEARCH_ANNOUNCEMENT_HEAD =
   'The following tools are available in this session but their definitions are not loaded yet. Before calling one, load it with the tool-search tool: pass the tool name as the pattern (a plain unanchored name such as WebFetch — the pattern is matched against the name and description together, so never use ^ or $), then call the tool as usual:'
-
-export const DEFERRED_TOOLS_ANNOUNCEMENT_HEAD =
-  'Deferred tools: offered in this session, but their definitions are not loaded. To call one, first load it with ToolSearch — query "select:<name>", or "select:<name>,<name>" for several — then call it.'
 
 export async function getPlannedDeferredToolsAttachment(
   context: ToolUseContext,

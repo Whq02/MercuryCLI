@@ -7,7 +7,7 @@ import { GLYPH } from '../../utils/glyphs.js'
 import { Box, Text } from '../../ink.js'
 import { getLargeMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from '../../services/instructions/engine.js'
 import type { InstructionSourceEntry } from '../../utils/instructions/contracts.js'
-import type { AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinitionsResult } from '../../types/agent.js'
 import {
   getAnthropicApiKeyWithSource,
   getApiKeyFromConfigOrMacOSKeychain,

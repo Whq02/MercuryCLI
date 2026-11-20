@@ -9,7 +9,7 @@ import { popupListWindow, usePopupListPaging } from '../CustomSelect/popup-list.
 import useInput from '../../ink/hooks/use-input.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { getEnumLabels, getEnumValues, getMultiSelectLabels, getMultiSelectValues, isDateTimeSchema, isEnumSchema, isMultiSelectEnumSchema, validateElicitationInput, type MultiSelectEnumSchema } from '../../utils/mcp/elicitationValidation.js'
+import { getEnumLabels, getEnumValues, getMultiSelectLabels, getMultiSelectValues, isDateTimeSchema, isEnumSchema, isMultiSelectEnumSchema, validateElicitationInput, type MultiSelectEnumSchema } from '../../services/mcp/elicitationValidation.js'
 import { openBrowser } from '../../utils/browser.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { useNowTick } from '../mercury-ui/components.js'

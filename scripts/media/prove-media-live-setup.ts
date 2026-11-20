@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 import type { LocalJSXCommandContext } from '../../src/types/command.js'
-import type { MCPServerConnection } from '../../src/services/mcp/types.js'
+import type { MCPServerConnection } from '../../src/utils/mcp/types.js'
 
 process.chdir(proofHome)
 process.env.NODE_ENV = 'test'

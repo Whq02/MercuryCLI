@@ -11,7 +11,7 @@ import { useAppState, useAppStateStore, type AppState } from '../../state/AppSta
 import { getVitals, subscribeVitals, type SessionGlanceSnapshot } from '../../state/vitalsBus.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { EngineCarrierKind } from '../../services/engine-connector/types.js'
-import { projectWorkRoster } from '../../utils/task/workRoster.js'
+import { projectWorkRoster } from '../../services/engine-connector/workRoster.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 
 const subscribeFocusedWork = subscribeThroughFocused((connector, listener) =>

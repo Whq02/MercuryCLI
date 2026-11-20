@@ -2,10 +2,10 @@ import type { AppState } from '../../state/AppState.js'
 import type { TaskState } from '../../tasks/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
-import type { WorkRowV1 } from '../../services/engine-connector/types.js'
-import { unreadNoticeCount } from '../../services/notices/unreadLedger.js'
-import { crewStartOf } from '../crew/crewStart.js'
-import { clipWithEllipsis } from '../stringUtils.js'
+import type { WorkRowV1 } from './types.js'
+import { unreadNoticeCount } from '../notices/unreadLedger.js'
+import { crewStartOf } from '../../utils/crew/crewStart.js'
+import { clipWithEllipsis } from '../../utils/stringUtils.js'
 
 
 const MAX_NAME = 120

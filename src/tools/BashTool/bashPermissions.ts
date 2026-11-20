@@ -26,7 +26,7 @@ import {
 import {
   withBashParseScope,
   parseForSecurity,
-  preparedCommandRoot,
+  preparedCommandSpans,
   extractShellCScript,
   prepareShellCScripts,
   shellCCommands,
@@ -34,11 +34,10 @@ import {
   preparedSecurityParse,
   peelWrappers,
   shellCommandText,
-  PARSE_ABORTED,
+  commandSpans,
   pinnedCommandAnalysis,
   splitListSegments,
   WILDCARD_REASON,
-  type Node,
   type SimpleCommand,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import {
@@ -451,17 +450,17 @@ async function checkCommandAndSuggestRules(
 
 export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 0): string {
   if (depth > SHELL_C_MAX_DEPTH) return command
-  const root = preparedCommandRoot(command)
-  if (!root || root.type === 'ERROR') return command
+  const commands = preparedCommandSpans(command)
+  if (commands === null) return command
   const spans: Array<{ start: number; end: number; text: string }> = []
-  const visit = (node: Node): void => {
-    if (node.type === 'command') {
+  for (const node of commands) {
+    if (!node.declaration) {
       const parsed = preparedSecurityParse(node.text)
       const simple = parsed.kind === 'simple' && parsed.commands.length === 1 ? parsed.commands[0] : undefined
       if (simple && simple.envVars.length === 0 && simple.globOperand !== true && checkPreparedReadOnlyConstraints({ command: node.text, cwd }, false).behavior === 'allow') {
         if (simple.argv[0] === 'git') {
           const text = shellCommandText(['git', ...gitArgs(simple.argv.slice(1), cwd)])
-          if (text !== node.text) spans.push({ start: node.startIndex, end: node.endIndex, text })
+          if (text !== node.text) spans.push({ start: node.start, end: node.end, text })
         } else {
           const script = extractShellCScript(simple)
           if (script !== null) {
@@ -469,15 +468,13 @@ export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 
             if (rewritten !== script) {
               const argv = [...simple.argv]
               argv[2] = rewritten
-              spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText(argv) })
+              spans.push({ start: node.start, end: node.end, text: shellCommandText(argv) })
             }
           }
         }
       }
     }
-    for (const child of node.children) visit(child)
   }
-  visit(root)
   let rewritten = command
   for (const span of spans.sort((a, b) => b.start - a.start)) rewritten = rewritten.slice(0, span.start) + span.text + rewritten.slice(span.end)
   return rewritten
@@ -903,31 +900,25 @@ function wildcardAnswered(command: SimpleCommand, context: ToolPermissionContext
   return context.mode === 'flow' && checkPreparedReadOnlyConstraints({ command: text }, compoundHasCd, { ...command, redirects: [] }).behavior === 'allow'
 }
 
-function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: Node | typeof PARSE_ABORTED): PermissionResult | null {
+function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: unknown): PermissionResult | null {
   const early = earlyExitDenyCheck(input, context)
-  if (early || root === PARSE_ABORTED) return early
-  const stack = [root]
-  while (stack.length) {
-    const node = stack.pop()!
-    if (node.type === 'command' || node.type === 'declaration_command') {
-      const candidates = [node.text]
-      if (/\\\r?\n/.test(node.text)) candidates.push(node.text.replace(/\\\r?\n/g, ''))
-      const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(node.text, node)
-      if (parsed.kind === 'simple') candidates.push(...parsed.commands.flatMap(simple => restrictedCommandCandidates(simple)))
-      const name = node.children.find(child => child.type === 'command_name')
-      if (name) {
-        const named = pinnedCommandAnalysis.parseForSecurityFromAst(name.text, { ...node, children: [name] })
-        const rest = node.text.slice(name.endIndex - node.startIndex)
-        if (named.kind === 'simple' && named.commands[0]?.argv[0]) candidates.push(named.commands[0].argv[0] + rest)
-        const decoded = name.children[0]?.type === 'ansi_c_string' ? decodeAnsiCString(name.text) : null
-        if (decoded !== null && decoded !== '') candidates.push(decoded + rest)
-      }
-      for (const candidate of candidates) {
-        const deny = matchRules(candidate, context, 'deny', 'prefix', true)
-        if (deny !== null) return denyByRule(context, input.command, deny, () => matchAllRules(candidate, context, 'deny', 'prefix', true))
-      }
+  if (early) return early
+  for (const node of commandSpans(root, 'lastFirst')) {
+    const candidates = [node.text]
+    if (/\\\r?\n/.test(node.text)) candidates.push(node.text.replace(/\\\r?\n/g, ''))
+    const parsed = node.exact()
+    if (parsed.kind === 'simple') candidates.push(...parsed.commands.flatMap(simple => restrictedCommandCandidates(simple)))
+    const name = node.name
+    if (name) {
+      const named = name.word()
+      if (named) candidates.push(named + name.rest)
+      const decoded = name.ansiC ? decodeAnsiCString(name.text) : null
+      if (decoded !== null && decoded !== '') candidates.push(decoded + name.rest)
     }
-    stack.push(...node.children)
+    for (const candidate of candidates) {
+      const deny = matchRules(candidate, context, 'deny', 'prefix', true)
+      if (deny !== null) return denyByRule(context, input.command, deny, () => matchAllRules(candidate, context, 'deny', 'prefix', true))
+    }
   }
   return null
 }

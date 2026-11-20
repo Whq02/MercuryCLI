@@ -1,5 +1,5 @@
 import type { ExtensionManifest } from "../manifest.js"
-import type { McpBootstrapManifest } from "../../services/mcp/lazyStdio.js"
+import type { McpBootstrapManifest } from "../../utils/mcp/types.js"
 
 export const bundledMetadata: Record<string, { digest: string; contentHash: string; contributionsHash: string; manifest: ExtensionManifest; bootstrap?: McpBootstrapManifest }> = {
   "filmcraft": {

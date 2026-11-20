@@ -8,7 +8,7 @@ import {
 import type { AgentDocument } from '../../../services/agents/contracts.js'
 import { newAgentPath } from '../../../services/agents/store.js'
 import type { Tools } from '../../../Tool.js'
-import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../../../types/agent.js'
 import { type EffortValue, resolveEffortTruth } from '../../../utils/effort.js'
 import type { ModelName } from '../../../utils/model/model.js'
 import { offeredDefinitionModes } from '../../../tools/AgentTool/agentPermissionPosture.js'

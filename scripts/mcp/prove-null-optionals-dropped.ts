@@ -69,7 +69,7 @@ check('nested arguments without a null come back as the same object', withoutNul
 check('an array of scalars rides unchanged', JSON.stringify(withoutNullOptionals({ prompt: 'p', tags: ['a', null] }, { properties: { tags: { type: 'array', items: { type: 'string' } } } }).tags) === '["a",null]')
 
 console.log('\nend to end: a strict server never sees the nested null')
-const config: import('../../src/services/mcp/types.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-strict-args-server.mjs')] }
+const config: import('../../src/utils/mcp/types.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-strict-args-server.mjs')] }
 const connection = await connectToServer('strict-args', config)
 try {
   check('the strict fixture connects', connection.type === 'connected')

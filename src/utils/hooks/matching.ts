@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { logForDebugging } from '../debug.js'
-import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
+import { lspFamilyMatches } from '../lsp/toolFamily.js'
 import { getRegisteredHooks } from '../../bootstrap/state.js'
 import { matcherShape, ruleArgumentOf, ruleClausesOf } from './matcherGrammar.js'
 import { hookMatchValue, type HookEvent, type HookPayload } from './contract.js'

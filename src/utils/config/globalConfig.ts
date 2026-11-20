@@ -56,7 +56,14 @@ function armDeferredExitFlush(): void {
   process.once('exit', () => {
     const alreadyReported = globalConfigRefusalSaid
     try {
-      if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)
+      if (hasPendingDeferredGlobalConfigSaves()) {
+        const readRefusal = saveGlobalConfigOutcome(current => current)
+        if (readRefusal !== null && !alreadyReported) {
+          process.stderr.write(
+            `\nCould not save the settings changed in this session: ${readRefusal.filePath} could not be read (${readRefusal.code}); nothing was written and those changes were lost. Close what holds the file, then try again.\n`,
+          )
+        }
+      }
     } catch (error) {
       if (!alreadyReported) {
         if (error instanceof AtomicWriteRefusal && error.phase === 'rename') {
@@ -116,17 +123,17 @@ export function hasPendingDeferredGlobalConfigSaves(): boolean {
   return pendingDeferredUpdaters.length > 0
 }
 
-export function saveGlobalConfig(
+function saveGlobalConfigOutcome(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
-): void {
-  if (isReadOnlyDiagnostic()) return
+): ConfigReadError | null {
+  if (isReadOnlyDiagnostic()) return null
   if (process.env.NODE_ENV === 'test') {
     const config = updater(TEST_GLOBAL_CONFIG_FOR_TESTING)
     if (config === TEST_GLOBAL_CONFIG_FOR_TESTING) {
-      return
+      return null
     }
     Object.assign(TEST_GLOBAL_CONFIG_FOR_TESTING, config)
-    return
+    return null
   }
 
   let written: GlobalConfig | null = null
@@ -146,17 +153,18 @@ export function saveGlobalConfig(
     if (didWrite && written) {
       writeThroughGlobalConfigCache(written)
     }
+    return null
   } catch (error) {
     if (error instanceof ConfigReadError) {
       logForDebugging(
         `saveGlobalConfig: refusing the write — ${error.message}`,
         { level: 'error' },
       )
-      return
+      return error
     }
     if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
       noteConfigContentionRefusal('saveGlobalConfig')
-      return
+      return null
     }
     logForDebugging(`Failed to save config with lock: ${error}`, {
       level: 'error',
@@ -171,7 +179,7 @@ export function saveGlobalConfig(
           `saveGlobalConfig fallback: refusing the write — ${readError.message}`,
           { level: 'error' },
         )
-        return
+        return readError
       }
       throw readError
     }
@@ -180,16 +188,23 @@ export function saveGlobalConfig(
         'saveGlobalConfig fallback: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).',
         { level: 'error' },
       )
-      return
+      return null
     }
     const config = updater(foldPendingUpdaters(currentConfig))
     if (config === currentConfig) {
-      return
+      return null
     }
     written = config
     saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
     writeThroughGlobalConfigCache(written)
+    return null
   }
+}
+
+export function saveGlobalConfig(
+  updater: (currentConfig: GlobalConfig) => GlobalConfig,
+): void {
+  saveGlobalConfigOutcome(updater)
 }
 
 let globalConfigCache: { config: GlobalConfig | null; mtime: number } = {

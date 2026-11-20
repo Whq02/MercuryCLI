@@ -112,3 +112,5 @@ export { absolutePath, layersOf, moveOf, programOf, wordKnown } from './commandA
 export { printedBy, scriptSentToProgram, stdinProgram } from './commandAnalysis/scripts.js'
 export { failShellReadingForTesting, readShellCommands } from './commandAnalysis/total.js'
 export { wordsAsWritten } from './commandAnalysis/written.js'
+export { commandSpans, preparedCommandSpans, type CommandSpan } from './commandAnalysis/commandSpans.js'
+export { commandViews } from './commandAnalysis/commandViews.js'

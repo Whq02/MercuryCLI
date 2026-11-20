@@ -4,7 +4,7 @@ import {
   mcpInfoFromString,
 } from '../../mcp/mcpStringUtils.js'
 import type { Tool, ToolPermissionContext } from '../../../Tool.js'
-import { lspFamilyMatches } from '../../../services/lsp/toolFamily.js'
+import { lspFamilyMatches } from '../../lsp/toolFamily.js'
 import {
   getSettingSourceDisplayNameLowercase,
   SETTING_SOURCES,

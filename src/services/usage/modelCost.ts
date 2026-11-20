@@ -1,5 +1,5 @@
 import { setHasUnknownModelCost } from '../../bootstrap/state.js'
-import { usageCount } from '../api/emptyUsage.js'
+import { usageCount } from '../../utils/api/emptyUsage.js'
 import { operatorModelFacts } from '../../utils/model/modelOverrides.js'
 import { deepseekDisplayPin, deepseekRatePeriod } from '../../utils/model/pins/deepseekPins.js'
 import { xaiModelFacts } from '../providers/xai/xaiCatalogue.js'

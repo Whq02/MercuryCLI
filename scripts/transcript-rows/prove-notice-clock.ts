@@ -60,7 +60,7 @@ function freezeClock(at: Date): () => void {
   }
 }
 
-const { createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
 const notices = await import(join(ROOT, 'src/services/engine-connector/queuedNotices.ts'))
 type Row = { type: 'attachment'; uuid: string; timestamp: string; queued?: true; attachment: { type: string; prompt: string; commandMode: string; sentAt?: string; deliveredAt?: string } }
 

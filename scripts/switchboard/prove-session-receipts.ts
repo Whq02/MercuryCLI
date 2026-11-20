@@ -24,7 +24,7 @@ const {
   receiptsPathBesideTranscript,
 } = await import('../../src/services/switchboard/sessionReceipts.ts')
 const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/utils/sessionStorage/transcriptPruneDoor.ts')
+const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
 
 const DAEMON_DIR = join(SCRATCH, 'daemon')
 mkdirSync(DAEMON_DIR, { recursive: true })

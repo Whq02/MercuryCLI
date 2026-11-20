@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { AttachmentMessage, Message } from '../../types/message.js'
 import type { ApiUsage } from '../../types/wire.js'
 import type { Attachment } from '../../utils/attachments/types.js'
-import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../attachments/orchestrator.js'
 import { conversationRosterKey } from '../providers/toolEconomy.js'
 import { carriesRecordedWhole, staticCompositionChanged } from '../../prompt/recordedComposition.js'
 

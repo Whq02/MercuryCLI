@@ -32,8 +32,8 @@ import {
 import type {
   McpServerConfig,
   ScopedMcpServerConfig,
-} from '../../services/mcp/types.js'
-import { McpServerConfigSchema } from '../../services/mcp/types.js'
+} from '../../utils/mcp/types.js'
+import { McpServerConfigSchema } from '../../utils/mcp/types.js'
 import { binaryName } from '../../utils/config.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { errorMessage } from '../../utils/errors.js'

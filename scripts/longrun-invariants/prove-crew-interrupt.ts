@@ -255,7 +255,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 the counter\'s spelling', agentWaitElapsed(12_000) === '12s' && agentWaitElapsed(130_000) === '2m 10s' && agentWaitElapsed(3_900_000) === '1h 5m')
   const tracker = createProgressTracker()
   check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
-  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
+  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.js')
   const crew = await import('../../src/services/engine-connector/crewFacts.js')
   const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
   const rows = projectWorkRoster({ 'ag-w': running } as never)

@@ -45,7 +45,7 @@ import {
 import { StreamChantWatch } from '../../services/tools/chantGuard.js'
 import { prependUserContext, firstTurnUserContext } from '../../utils/api.js'
 import { latestUserContextBody } from '../../utils/attachments/userContext.js'
-import { createAttachmentMessage } from '../../utils/attachments.js'
+import { createAttachmentMessage } from '../../services/attachments.js'
 import { reconcileAppliedPlanUsage } from '../../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../services/run/contextCalibration.js'
 import { bindRequestGauge, settleRequestGauge } from '../../services/run/requestGauge.js'

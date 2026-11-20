@@ -18,7 +18,7 @@ import type { BatchedPrompt } from '../../types/textInputTypes.js'
 import {
   createAttachmentMessage,
   getAttachmentMessages,
-} from '../../utils/attachments.js'
+} from '../attachments.js'
 import { readToolCallChain } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { fireHooks } from '../../utils/hooks/fire.js'

@@ -1,10 +1,10 @@
 import { addToTotalDurationState } from '../../bootstrap/state.js'
-import type { NonNullableUsage } from './emptyUsage.js'
+import type { NonNullableUsage } from '../../utils/api/emptyUsage.js'
 import { consumeInvokingRequestId } from '../../utils/agentContext.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { extractConnectionErrorDetails } from './errorUtils.js'
-import { EMPTY_USAGE } from './emptyUsage.js'
+import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 
 
 export { EMPTY_USAGE }
