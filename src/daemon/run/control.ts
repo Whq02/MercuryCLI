@@ -66,7 +66,7 @@ export function controlServerDeps(state: DaemonRunState, { roster, handover, han
         ...r,
         workerId: r.runnerId,
         ...(livePid.get(r.runnerId) !== undefined ? { pid: livePid.get(r.runnerId) } : {}),
-      })) as unknown as ReadonlyArray<Record<string, unknown>>
+      }))
     },
     concourseRelease: runnerId => {
       const killed = state.roster ? state.roster.kill(runnerId) : false

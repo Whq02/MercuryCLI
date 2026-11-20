@@ -176,10 +176,10 @@ function appendEvents(id: string, events: ReviewJournalEvent[]): void {
 
 function decodeEvent(line: string): ReviewJournalEvent | null {
   try {
-    const raw = JSON.parse(line) as Record<string, unknown>
+    const raw = JSON.parse(line) as Partial<ReviewJournalEvent> | null
     if (raw === null || typeof raw !== 'object' || raw.v !== 1) return null
     if (typeof raw.type !== 'string' || typeof raw.at !== 'number') return null
-    return raw as unknown as ReviewJournalEvent
+    return raw as ReviewJournalEvent
   } catch {
     return null
   }

@@ -5,6 +5,7 @@ import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from
 import { defineStore } from '../../substrate/fileStore.js'
 import { workerTranscriptPath } from './workerTranscript.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
+import type { MercuryRecord } from '../../fabric/record.js'
 import { retiredNowLabel } from '../../daemon/idleRetirement.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getGraphemeSegmenter } from '../../utils/intl.js'
@@ -76,7 +77,7 @@ function entryShapeOf(entry: unknown): { type?: unknown; message?: { content?: u
   const env = entry as { schemaVersion?: unknown; payload?: unknown }
   if (typeof env.schemaVersion === 'number' && env.payload && typeof env.payload === 'object') {
     try {
-      return recordToEntry(entry as never) as { type?: unknown; message?: { content?: unknown }; timestamp?: unknown }
+      return recordToEntry(entry as MercuryRecord) as { type?: unknown; message?: { content?: unknown }; timestamp?: unknown }
     } catch {
       return null
     }

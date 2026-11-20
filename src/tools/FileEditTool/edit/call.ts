@@ -1,6 +1,6 @@
 import { dirname } from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import type { ToolUseContext } from '../../../Tool.js'
+import type { Tool, ToolUseContext, ValidationResult } from '../../../Tool.js'
 import { changeTransactionEnabled } from '../../../services/changeTransaction/contracts.js'
 import type { EditHunkInput } from '../../../services/changeTransaction/hunks.js'
 import { columnCutsOf, retainColumnCuts, fileGeneration, generationOfWrittenBytes, seenLinesOf } from '../../../services/changeTransaction/seenLines.js'
@@ -37,7 +37,11 @@ import { withoutReadPrefixes } from './exactMatch.js'
 import type { AssistantMessage } from '../../../types/message.js'
 import { sameCallKnowledge, hunksEdit, appendSectionEdit, carriageReturnEdit, noChangeAnswer, editedAnswer } from './callParts.js'
 
-export async function editFileCall(input: FileEditInput, context: ToolUseContext, canUseTool: CanUseToolFn, parentMessage: AssistantMessage, editToolItself: () => unknown) {
+export type EditToolSelf = Tool & {
+  validateInput(input: FileEditInput, context: ToolUseContext, held?: FarHeld): Promise<ValidationResult> | ValidationResult
+}
+
+export async function editFileCall(input: FileEditInput, context: ToolUseContext, canUseTool: CanUseToolFn, parentMessage: AssistantMessage, editToolItself: () => EditToolSelf) {
   const startedAt = Date.now()
   const far = isRemotePath(input.file_path) ? await import('../../../services/remoteFiles/bridge.js') : null
   const structuredTarget = far !== null ? null : parseStructuredWriteTarget(input.file_path)
@@ -61,7 +65,7 @@ export async function editFileCall(input: FileEditInput, context: ToolUseContext
           input.file_path,
           context,
           typeof canUseTool === 'function' && parentMessage !== undefined
-            ? path => (canUseTool as CanUseToolFn)(editToolItself() as never, { ...input, file_path: path }, context, parentMessage as never, `${context.toolUseId ?? 'edit'}-resolved`)
+            ? path => canUseTool(editToolItself(), { ...input, file_path: path }, context, parentMessage, `${context.toolUseId ?? 'edit'}-resolved`)
             : null,
         )
   if (farTarget !== null && farTarget.kind === 'folder') throw new Error(`The path is a directory, not a file: ${input.file_path}`)
@@ -113,7 +117,7 @@ export async function editFileCall(input: FileEditInput, context: ToolUseContext
       fileExists = false
     }
     const held: FarHeld = { path: expandedPath, fileExists, content: freshContent, lossless, mtimeMs: currentMtimeMs, missing: farTarget!.missing }
-    const verdict = await (editToolItself() as { validateInput(input: FileEditInput, context: ToolUseContext, held: FarHeld): Promise<{ result: boolean; message?: string }> }).validateInput(input, context, held)
+    const verdict = await editToolItself().validateInput(input, context, held)
     if (verdict.result === false) throw new Error(verdict.message)
   } else if (ideReadTextAvailable()) {
     try {

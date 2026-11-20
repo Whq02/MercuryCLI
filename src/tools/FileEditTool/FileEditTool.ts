@@ -21,7 +21,7 @@ import {
 } from './UI.js'
 import { HUNK_SPAN_ELISION, type Output, type FarHeld, hasText, editMode } from './edit/fileFacts.js'
 import { validateEditInput } from './edit/validate.js'
-import { editFileCall } from './edit/call.js'
+import { editFileCall, type EditToolSelf } from './edit/call.js'
 export { isFullReadEntry } from './edit/fileFacts.js'
 export { readKnowledgeRefusal } from './edit/readKnowledge.js'
 export { matchExactEdit, linesOfHunks } from './edit/exactMatch.js'
@@ -31,7 +31,7 @@ export type { Output }
 export const APPLIED_NO_REREAD_NOTE =
   'The change is applied and its lines count as read (a failed call would have errored); no Read is needed before the next edit.'
 
-function editToolItself(): unknown {
+function editToolItself(): EditToolSelf {
   return FileEditTool
 }
 
