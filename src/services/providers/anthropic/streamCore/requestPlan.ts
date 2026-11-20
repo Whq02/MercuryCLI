@@ -42,7 +42,7 @@ import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
 import { getPromptCachingEnabled } from '../requestParams.js'
 import type { RequestImageFit } from '../../../../utils/imageResizer.js'
 import type { Options } from '../streamCore.js'
-import type { AnthropicMessageParams } from '../anthropicWire.js'
+import type { AnthropicMessageParams } from '../../../../types/anthropicWire.js'
 
 const GATEWAY_PROBE_TIMEOUT_MS = 8_000
 async function sendGatewayProbe(

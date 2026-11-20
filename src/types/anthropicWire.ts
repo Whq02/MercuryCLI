@@ -1,4 +1,4 @@
-import type { ApiToolUnion, JsonOutputFormat, MessageParam, TextBlockParam } from '../../../types/wire.js'
+import type { ApiToolUnion, JsonOutputFormat, MessageParam, TextBlockParam } from './wire.js'
 
 export type AnthropicOutputConfig = {
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | null

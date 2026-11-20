@@ -3,7 +3,7 @@ import {
   APIUserAbortError,
 } from '../../../api/sdkErrors.js'
 import type { ApiMessage as BetaMessage } from '../../../../types/wire.js'
-import type { AnthropicMessageParams as BetaMessageStreamParams } from '../anthropicWire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams } from '../../../../types/anthropicWire.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import type { ThinkingConfig } from 'src/utils/thinking.js'
