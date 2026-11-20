@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { endProcessTree, registerProcessTreeGuard, runsInAnMsysRuntime, type ProcessTreeKillReceipt } from '../processGroup.js'
 import { startTimeout, stopTimeout } from '../timers.js'
+import { canReraiseOwnSignal, msysSignalExitCode } from '../platform/processes.js'
 
 const SHELL_PARENT_GUARD = '--tool-shell-parent'
 const SHELL_PARENT_GUARD_BUNDLE = 'shell-parent-guard.mjs'
@@ -13,11 +14,9 @@ type ShellLaunch = { file: string; args: string[]; detached?: boolean; windowsVe
 type GuardMessage = { kind: 'spawned'; pid: number } | { kind: 'spawn-error'; message: string; code?: string } | { kind: 'ended'; receipt: ProcessTreeKillReceipt } | { kind: 'signalled'; status: number; leaves: number }
 
 const MSYS_COUNTS_A_SIGNAL_BY = 256
-const MSYS_SIGNALS = 64
 
 export function statusAnMsysShellLeaves(status: number, underMsys: boolean, platform: string = process.platform): number {
-  const signal = status / MSYS_COUNTS_A_SIGNAL_BY
-  return platform === 'win32' && underMsys && Number.isInteger(signal) && signal >= 1 && signal <= MSYS_SIGNALS ? 128 + signal : status
+  return msysSignalExitCode(status, underMsys, platform)
 }
 
 let saysWhatTheGuardRead: ((line: string) => void) | undefined
@@ -103,7 +102,7 @@ export async function runShellParentGuard(): Promise<void> {
   let child: ChildProcess | undefined
   let ending = false
   const exitLikeChild = (code: number | null, signal: NodeJS.Signals | null): void => {
-    if (signal !== null && process.platform !== 'win32') {
+    if (signal !== null && canReraiseOwnSignal()) {
       process.kill(process.pid, signal)
       return
     }

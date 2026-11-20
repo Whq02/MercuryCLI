@@ -334,11 +334,17 @@ const SPAWN: Row[] = [
 
 import {
   availableMemoryReader,
+  canReraiseOwnSignal,
   childGetsOwnProcessGroup,
+  isOwnKillExitCode,
+  killSignalForChild,
+  msysSignalExitCode,
+  posixExitSignalsCount,
   processInstantStartForm,
   processListCommand,
   processStartFormFor,
   processStartProbeKind,
+  wasEndedByProcessTreeKill,
 } from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
   {
@@ -375,6 +381,59 @@ const PROCESSES: Row[] = [
     name: 'processListCommand',
     answers: stand => [processListCommand(), processListCommand(stand.node)],
     recorded: {"win32":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"darwin":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"linux":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"win32 by process.platform alone":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"win32 by getPlatform() alone":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}]},
+  },
+  {
+    name: 'posixExitSignalsCount',
+    answers: stand => [posixExitSignalsCount(), posixExitSignalsCount(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'isOwnKillExitCode',
+    answers: stand => [
+      isOwnKillExitCode(true, 1),
+      isOwnKillExitCode(true, 137),
+      isOwnKillExitCode(true, 0),
+      isOwnKillExitCode(false, 1),
+      isOwnKillExitCode(true, 1, stand.node),
+    ],
+    recorded: {"win32":[true,true,false,false,true],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,false,false,true],"win32 by getPlatform() alone":[false,false,false,false,false]},
+  },
+  {
+    name: 'wasEndedByProcessTreeKill',
+    answers: stand => [
+      wasEndedByProcessTreeKill('SIGTERM', 0, null),
+      wasEndedByProcessTreeKill(null, 1, 1),
+      wasEndedByProcessTreeKill(null, 0, 1),
+      wasEndedByProcessTreeKill(null, 1, 0),
+      wasEndedByProcessTreeKill(null, 2, 1, stand.node),
+    ],
+    recorded: {"win32":[true,true,false,false,true],"darwin":[true,false,false,false,false],"linux":[true,false,false,false,false],"win32 by process.platform alone":[true,true,false,false,true],"win32 by getPlatform() alone":[true,false,false,false,false]},
+  },
+  {
+    name: 'msysSignalExitCode',
+    answers: stand => [
+      msysSignalExitCode(9 * 256, true),
+      msysSignalExitCode(9 * 256, false),
+      msysSignalExitCode(1, true),
+      msysSignalExitCode(65 * 256, true),
+      msysSignalExitCode(15 * 256, true, stand.node),
+    ],
+    recorded: {"win32":[137,2304,1,16640,143],"darwin":[2304,2304,1,16640,3840],"linux":[2304,2304,1,16640,3840],"win32 by process.platform alone":[137,2304,1,16640,143],"win32 by getPlatform() alone":[2304,2304,1,16640,3840]},
+  },
+  {
+    name: 'canReraiseOwnSignal',
+    answers: stand => [canReraiseOwnSignal(), canReraiseOwnSignal(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'killSignalForChild',
+    answers: stand => [
+      killSignalForChild('SIGKILL'),
+      killSignalForChild('SIGTERM'),
+      killSignalForChild('SIGINT'),
+      killSignalForChild('SIGKILL', stand.node),
+    ],
+    recorded: {"win32":["undefined","undefined","undefined","undefined"],"darwin":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"linux":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"win32 by process.platform alone":["undefined","undefined","undefined","undefined"],"win32 by getPlatform() alone":["SIGKILL","SIGTERM","SIGINT","SIGKILL"]},
   },
 ]
 
