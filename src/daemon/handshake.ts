@@ -10,7 +10,7 @@ import {
   noteDaemonProto,
   readDaemonState,
 } from './controlSocket.js'
-import { isProcessAlive, OWNER_PID_ENV } from './ownerWatch.js'
+import { isProcessAlive, OWNER_PID_ENV } from '../utils/ownerWatch.js'
 import { MERCURY_DAEMON_PROTO, MIN_PROTO, type DaemonReply } from './protocol.js'
 import { sleep } from '../utils/sleep.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'

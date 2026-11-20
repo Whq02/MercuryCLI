@@ -1,4 +1,4 @@
-import { getProcessStartTokenCachedOrRefresh } from '../daemon/ownerWatch.js'
+import { getProcessStartTokenCachedOrRefresh } from './ownerWatch.js'
 import { passedOver } from './passedOver.js'
 
 export function pidAlive(pid: number, startToken?: string): boolean {

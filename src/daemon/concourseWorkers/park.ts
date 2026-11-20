@@ -1,6 +1,6 @@
 import { randomUUID } from '../../utils/crypto.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isProcessAlive, getProcessStartTokenAsync } from '../ownerWatch.js'
+import { isProcessAlive, getProcessStartTokenAsync } from '../../utils/ownerWatch.js'
 import { RetirementFence } from '../runnerQuiescence.js'
 import type { RunnerDoor } from '../runnerConnection.js'
 import { workerPidAlive } from '../workerIdentity.js'

@@ -13,7 +13,7 @@ import {
   stopConcourseSession,
   type ConcourseWorkerRecordV1,
 } from './concourseWorkers.js'
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 import { passedOver } from '../utils/passedOver.js'
 
 export const DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES = 10

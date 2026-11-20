@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getProcessStartTokenCachedOrRefresh, getProcessStartTokenAsync, isProcessAlive } from '../../../daemon/ownerWatch.js'
+import { getProcessStartTokenCachedOrRefresh, getProcessStartTokenAsync, isProcessAlive } from '../../../utils/ownerWatch.js'
 import { publishAtomicSync } from '../../../substrate/fileStore.js'
 import { acquirePidLockWithRetry } from '../../../substrate/pidLock.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'

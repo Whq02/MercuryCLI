@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
-import { isProcessAlive } from '../ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import type { RunnerChildSpec } from '../headlessRun.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'

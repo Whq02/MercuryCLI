@@ -16,7 +16,7 @@ import {
 } from 'node:fs'
 import { connect } from 'node:net'
 import * as path from 'node:path'
-import { getProcessStartToken, getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh } from '../../daemon/ownerWatch.js'
+import { getProcessStartToken, getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh } from '../../utils/ownerWatch.js'
 import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'

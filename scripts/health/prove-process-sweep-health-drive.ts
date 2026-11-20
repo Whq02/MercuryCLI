@@ -44,7 +44,7 @@ const { guardLoginDriverWrite } = await import('../lib/loginDriverGuard.ts')
 guardLoginDriverWrite('the process sweep health drive', process.env)
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const scenarios = await import('../ui/renderScenarios.ts')
-const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
 seedFirstRun(HOME, [CWD])
 
 const childEnv: NodeJS.ProcessEnv = {

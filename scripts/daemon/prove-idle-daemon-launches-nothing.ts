@@ -287,7 +287,7 @@ try {
   }
 
   section('the reap still works with no process on the beat: the owner dies, every daemon parks and leaves within the grace')
-  const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+  const ownerWatch = await import('../../src/utils/ownerWatch.ts')
   const ceilingMs = ownerWatch.OWNER_WATCH_INTERVAL_MS * ownerWatch.OWNER_WATCH_GRACE_CHECKS + ownerWatch.OWNER_WATCH_INTERVAL_MS + 3_000
   const killedAt = Date.now()
   owner.kill('SIGKILL')

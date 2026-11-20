@@ -1,6 +1,6 @@
 import type { makeConcourseDispatchHandler } from '../concourseDispatch.js'
 import { makeConcourseAdmitHandler, readSessionWorkers } from '../concourseWorkers.js'
-import { isProcessAlive } from '../ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { deriveScheduleAccountForModel, liveFactsForSessionFire } from '../saturnAccount.js'
 import { makeSaturnBirthPort } from '../saturnBirth.js'
 import { startSaturnTicker } from '../saturnTicker.js'

@@ -58,7 +58,7 @@ const promises = await import('fs/promises')
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
 const daemonHome = await import('../../src/daemon/daemonHome.ts')
 const handover = await import('../../src/daemon/handover.ts')
-const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const ownerWatch = await import('../../src/utils/ownerWatch.ts')
 const planeRecords = await import('../../src/daemon/planeRecords.ts')
 const status = await import('../../src/daemon/status.ts')
 const restart = await import('../../src/daemon/run/restart.ts')
@@ -74,7 +74,7 @@ mock.module('../../src/daemon/handover.ts', () => ({
     return neighbour(what, asked.op === 'hello' ? script.hello : { ok: true, op: 'shutdown' })
   },
 }))
-mock.module('../../src/daemon/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive.has(pid) }))
+mock.module('../../src/utils/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive.has(pid) }))
 mock.module('../../src/daemon/planeRecords.ts', () => ({
   ...planeRecords,
   lockHeldByLivePidSync: () => {

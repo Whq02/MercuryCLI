@@ -1,5 +1,5 @@
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
-import { isProcessAlive } from '../ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { stampedTerminalPid, withdrawTerminalParkRequest } from './record.js'
 

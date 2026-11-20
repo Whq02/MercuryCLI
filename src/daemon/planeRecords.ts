@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonDir, daemonStatePath } from './controlSocket.js'
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 import { passedOver } from '../utils/passedOver.js'
 
 function daemonLockPath(): string {

@@ -1,5 +1,5 @@
 
-import { isProcessAlive } from '../../daemon/ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { concourseRecordState, concourseWorkersPath, readSessionWorkersSnapshot, unreadSessionRecordsRefusal } from '../../daemon/concourseWorkers.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import { inProject, projectDisplayName, type ProjectIdentity } from '../../utils/bootCardFacts.js'

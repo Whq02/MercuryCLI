@@ -86,7 +86,7 @@ export async function restartSessionOnInstalledBuild(args: {
   const { endingWorkWords } = await import('../../tools/MonitorTool/watchReceipts.js')
   const ending = endingWorkWords(args.work)
   args.tell(`Restarting this session on the installed build (${tree}) — this ends ${ending}`)
-  const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
+  const { isProcessAlive } = await import('../../utils/ownerWatch.js')
   const runnerAlive = (r: { pid?: number }): boolean => r.pid !== undefined && isProcessAlive(r.pid)
   if (runnerAlive(rec)) {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
