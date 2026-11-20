@@ -1,17 +1,44 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const scratch = mkdtempSync(join(tmpdir(), 'updater-layout-'))
-process.env.HOME = join(scratch, 'home')
-process.env.MERCURY_CONFIG_DIR = join(scratch, 'home', '.mercury')
-process.env.MERCURY_VERSIONS_DIR = join(scratch, 'home', '.mercury', 'versions')
-delete process.env.MERCURY_HOME
+if (!process.env.MERCURY_PROOF_LAYOUT_SCRATCH) {
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'updater-layout-')))
+  const userHome = join(scratch, 'home')
+  const configDir = join(userHome, '.mercury')
+  const localAppData = join(userHome, 'AppData', 'Local')
+  const appData = join(userHome, 'AppData', 'Roaming')
+  for (const d of [userHome, configDir, localAppData, appData]) mkdirSync(d, { recursive: true })
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    MERCURY_PROOF_LAYOUT_SCRATCH: scratch,
+    HOME: userHome,
+    USERPROFILE: userHome,
+    LOCALAPPDATA: localAppData,
+    APPDATA: appData,
+    XDG_CONFIG_HOME: join(userHome, '.config'),
+    MERCURY_CONFIG_DIR: configDir,
+    MERCURY_VERSIONS_DIR: join(configDir, 'versions'),
+  }
+  delete env.MERCURY_HOME
+  delete env.HOMEDRIVE
+  delete env.HOMEPATH
+  delete env.MERCURY_UPDATE_FAULT
+  try {
+    const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: 'inherit', env })
+    process.exit(child.status ?? 1)
+  } finally {
+    removeScratch(scratch)
+  }
+}
+
+const scratch = process.env.MERCURY_PROOF_LAYOUT_SCRATCH!
 delete process.env.MERCURY_UPDATE_FAULT
 
 const {
@@ -68,7 +95,17 @@ function makePayload(dir: string, version: string, opts: { broken?: boolean; bun
   execFileSync('chmod', ['755', join(dir, 'mercury')])
 }
 
-check('resolver honors MERCURY_VERSIONS_DIR', resolveLayoutRoots().versionsDir === process.env.MERCURY_VERSIONS_DIR)
+const resolvedRoots = resolveLayoutRoots()
+const scratchBase = resolve(scratch)
+for (const p of [resolvedRoots.versionsDir, resolvedRoots.binDir, resolvedRoots.shimPath, ...(resolvedRoots.shimSetPaths ?? [])]) {
+  const rel = relative(scratchBase, resolve(p))
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    console.log(`  [FAIL] SAFETY: resolved layout root escapes scratch: ${p}`)
+    process.exit(1)
+  }
+}
+check('every resolved layout root lies under scratch', true)
+check('resolver honors MERCURY_VERSIONS_DIR', resolvedRoots.versionsDir === process.env.MERCURY_VERSIONS_DIR)
 const roots = {
   versionsDir: process.env.MERCURY_VERSIONS_DIR!,
   binDir: join(scratch, 'home', '.local', 'bin'),
@@ -81,7 +118,6 @@ for (const p of [roots.versionsDir, roots.binDir, roots.shimPath]) {
     process.exit(1)
   }
 }
-
 console.log('── §1 payload validation ──')
 const goodPayload = join(scratch, 'payload-good')
 makePayload(goodPayload, '9.9.0-beta.1')

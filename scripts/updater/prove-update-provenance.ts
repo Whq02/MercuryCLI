@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { IS_WIN, makeFixtures as mintFixtures, makePayload, spawnFixtureReleaseServer } from './journeyFixtures.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -33,7 +33,15 @@ for (const p of [home, configHome, versionsDir, fixturesRoot, tools, otherBin]) 
 
 const binDir = IS_WIN ? join(home, 'AppData', 'Local', 'Mercury', 'bin') : join(home, '.local', 'bin')
 const shim = join(binDir, IS_WIN ? 'mercury.cmd' : 'mercury')
-
+const scratchBase = resolve(scratch)
+for (const p of [home, configHome, versionsDir, binDir, shim]) {
+  const rel = relative(scratchBase, resolve(p))
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    console.log(`  [FAIL] SAFETY: layout root escapes scratch: ${p}`)
+    process.exit(1)
+  }
+}
+check('every layout and home root lies under scratch', true)
 const which = (globalThis as { Bun?: { which?: (command: string) => string | null } }).Bun?.which
 if (!IS_WIN) {
   for (const name of ['node', 'tar', 'git', 'sh', 'uname', 'env']) {
@@ -56,26 +64,35 @@ const userPathEnv = (path: string): Record<string, string> => {
   writeFileSync(userPathFile, JSON.stringify({ kind: 'ExpandString', value: path }))
   return { MERCURY_USER_PATH_FILE: userPathFile }
 }
-const env = (path: string, extra: Record<string, string> = {}): Record<string, string> => ({
-  ...(IS_WIN ? (process.env as Record<string, string>) : {}),
-  PATH: path,
-  ...userPathEnv(path),
-  HOME: home,
-  ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
-  SHELL: '/bin/zsh',
-  MERCURY_CONFIG_DIR: configHome,
-  MERCURY_VERSIONS_DIR: versionsDir,
-  MERCURY_UPDATE_API_BASE_URL: server.url,
-  MERCURY_GH_CMD: JSON.stringify(['node', FAKE_GH]),
-  GH_SHIM_FIXTURES: fixtures,
-  GH_SHIM_LOG: ghLog,
-  MERCURY_CREDENTIAL_STORE: 'file',
-  MERCURY_LOCAL_PROBE_TARGETS: 'none',
-  BROWSER: '/usr/bin/true',
-  CI: '1',
-  TERM: 'dumb',
-  ...extra,
-})
+const env = (path: string, extra: Record<string, string> = {}): Record<string, string> => {
+  const out: Record<string, string> = {
+    ...(IS_WIN ? (process.env as Record<string, string>) : {}),
+    PATH: path,
+    ...userPathEnv(path),
+    HOME: home,
+    USERPROFILE: home,
+    LOCALAPPDATA: join(home, 'AppData', 'Local'),
+    APPDATA: join(home, 'AppData', 'Roaming'),
+    XDG_CONFIG_HOME: join(home, '.config'),
+    SHELL: '/bin/zsh',
+    MERCURY_CONFIG_DIR: configHome,
+    MERCURY_VERSIONS_DIR: versionsDir,
+    MERCURY_UPDATE_API_BASE_URL: server.url,
+    MERCURY_GH_CMD: JSON.stringify(['node', FAKE_GH]),
+    GH_SHIM_FIXTURES: fixtures,
+    GH_SHIM_LOG: ghLog,
+    MERCURY_CREDENTIAL_STORE: 'file',
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    BROWSER: '/usr/bin/true',
+    CI: '1',
+    TERM: 'dumb',
+    ...extra,
+  }
+  delete out.MERCURY_HOME
+  delete out.HOMEDRIVE
+  delete out.HOMEPATH
+  return out
+}
 
 const run = (bundle: string, args: string[], environment: Record<string, string>): { code: number; stdout: string; stderr: string; all: string } => {
   const r = spawnSync('node', [bundle, ...args], { encoding: 'utf8', timeout: 180_000, env: environment })
