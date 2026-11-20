@@ -46,7 +46,7 @@ import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpel
 import { feedbackView, type Step } from './feedback/feedbackView.js'
 import { getErrnoCode } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { withDeadline } from '../utils/deadline.js'
 
 
 export function redactSensitiveInfo(text: string): string {
@@ -130,12 +130,9 @@ async function generateTitle(
 ): Promise<string> {
   const generic = `${form.name} from Mercury`
   const controller = new AbortController()
-  const onOuter = (): void => controller.abort(outer.reason)
-  outer.addEventListener('abort', onOuter, { once: true })
-  const timer = startTimeout(() => controller.abort(new Error('title deadline')), TITLE_DEADLINE_MS)
   try {
     const { thinkingConfig, ...call } = utilityCallFor()
-    const answer = await Promise.race([
+    const answer = await withDeadline(
       routedCallModelSettled({
         messages: [createUserMessage({ content: description })],
         systemPrompt: asSystemPrompt([titleSystemPrompt(form)]),
@@ -155,10 +152,20 @@ async function generateTitle(
           mcpTools: [],
         },
       }),
-      new Promise<never>((_, reject) => {
-        controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true })
-      }),
-    ])
+      TITLE_DEADLINE_MS,
+      () => {
+        const error = new Error('title deadline')
+        controller.abort(error)
+        throw error
+      },
+      {
+        signal: outer,
+        onAbort: () => {
+          controller.abort(outer.reason)
+          throw outer.reason
+        },
+      },
+    )
     if ((answer as { isApiErrorMessage?: boolean }).isApiErrorMessage) {
       return fallbackTitle(description, generic)
     }
@@ -172,9 +179,6 @@ async function generateTitle(
     return text
   } catch {
     return fallbackTitle(description, generic)
-  } finally {
-    stopTimeout(timer)
-    outer.removeEventListener('abort', onOuter)
   }
 }
 
