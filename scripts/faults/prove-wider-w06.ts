@@ -505,5 +505,71 @@ console.log('\nw06-6: extensions/load/servers and reload — failed dataDir mkdi
   check('reloadExtensions stays quiet and loads media server when dataDir and media settings succeed', r.okWarnings === null && !okLine.includes('could not be made') && !okLine.includes('was not loaded') && serversWhenOk.some(s => s.includes('mercury-media')), JSON.stringify({ okLine, okWarnings: r.okWarnings, serversWhenOk }))
 }
 
+console.log('\nw06-7: useDiffData and DiffDialog — failed git diff fetch carries error and displays load failure sentence')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const gitDiffPath = path.join(SRC, 'utils/gitDiff.ts')
+    const realGitDiff = await import(gitDiffPath)
+    let mode = 'throw'
+    mock.module(gitDiffPath, () => ({
+      ...realGitDiff,
+      fetchGitDiff: async () => {
+        if (mode === 'throw') throw new Error('git exited 128: dubious ownership')
+        return null
+      },
+      fetchGitDiffHunks: async () => new Map(),
+      fetchGitDiffFor: async () => {
+        if (mode === 'throw') throw new Error('git exited 128: dubious ownership')
+        return null
+      },
+      fetchGitDiffHunksFor: async () => new Map(),
+    }))
+    const React = await import('react')
+    const { Box } = await import(path.join(SRC, 'ink.ts'))
+    const { AppStateProvider } = await import(path.join(SRC, 'state/AppState.tsx'))
+    const { getDefaultAppState } = await import(path.join(SRC, 'state/AppStateStore.ts'))
+    const { ThemeProvider } = await import(path.join(SRC, 'components/design-system/ThemeProvider.tsx'))
+    const { KeybindingSetup } = await import(path.join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
+    const { DiffDialog } = await import(path.join(SRC, 'components/diff/DiffDialog.tsx'))
+    const { mountOffscreen, waitFor } = await import(path.join(REPO, 'scripts/lib/settingsPopupHarness.ts'))
+
+    const renderDiff = async () => {
+      const el = React.createElement(
+        AppStateProvider,
+        { initialState: getDefaultAppState() },
+        React.createElement(
+          ThemeProvider,
+          {},
+          React.createElement(
+            KeybindingSetup,
+            null,
+            React.createElement(
+              Box,
+              { flexDirection: 'column', width: 120, height: 24 },
+              React.createElement(DiffDialog, { messages: [], onDone: () => {} }),
+            ),
+          ),
+        ),
+      )
+      const m = await mountOffscreen(el, 120, 24)
+      await waitFor(() => !m.lines().some(l => l.includes('Reading the diff')), 3000)
+      const text = m.lines().map(l => l.trim()).filter(Boolean).join('\\n')
+      m.unmount()
+      return text
+    }
+
+    out.errorScreen = await renderDiff()
+    mode = 'clean'
+    out.cleanScreen = await renderDiff()
+  `)
+  const errorScreen = String(r.errorScreen ?? '')
+  const cleanScreen = String(r.cleanScreen ?? '')
+  check('DiffDialog shows "Git diff could not be loaded (<error>) — try again." instead of clean tree on fetch failure', errorScreen.includes('Git diff could not be loaded (git exited 128: dubious ownership) — try again.') && !errorScreen.includes('The working tree is clean.'), errorScreen.slice(0, 300))
+  check('DiffDialog still shows "The working tree is clean." when git diff succeeds with no changes', cleanScreen.includes('The working tree is clean.') && !cleanScreen.includes('Git diff could not be loaded'), cleanScreen.slice(0, 300))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)

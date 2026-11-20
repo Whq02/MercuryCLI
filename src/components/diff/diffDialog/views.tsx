@@ -332,6 +332,9 @@ export function diffDialogViewOf({ composer, setComposer, viewMode, setViewMode,
 
   const emptyMessage = (() => {
     if (diffData.loading) return null
+    if (diffData.error !== undefined && diffData.error !== '') {
+      return `Git diff could not be loaded (${diffData.error}) — try again.`
+    }
     if (source.type === 'turn') return 'This turn changed no files.'
     if (stats && stats.filesCount > 0) {
       return 'Stats report changes, but the details were suppressed (too many files).'
@@ -387,6 +390,8 @@ export function diffDialogViewOf({ composer, setComposer, viewMode, setViewMode,
                 <WorkingGlyph color={tokens.info} />
                 <Text dimColor> Reading the diff…</Text>
               </>
+            ) : diffData.error !== undefined && diffData.error !== '' ? (
+              <Text color="error">{emptyMessage}</Text>
             ) : (
               <Text dimColor>{emptyMessage}</Text>
             )}
