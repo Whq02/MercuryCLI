@@ -39,6 +39,26 @@ export function toPosixSeparators(filePath: string, platform: NodeJS.Platform = 
   return platform === 'win32' ? filePath.replace(/\\/g, '/') : filePath
 }
 
+export function toNativeSeparators(filePath: string, platform: NodeJS.Platform = process.platform): string {
+  return platform === 'win32' ? filePath.replace(/\//g, '\\') : filePath
+}
+
+export function isWindowsShareRooted(filePath: string, platform: Platform = getPlatform()): boolean {
+  return platform === 'windows' && /^[\\/]{2}/.test(filePath)
+}
+
+export function picomatchPathOptions(platform: NodeJS.Platform = process.platform): { dot: true; nocase: boolean } {
+  return { dot: true, nocase: platform === 'win32' }
+}
+
+export function normalizedDriveRoot(filePath: string, platform: Platform = getPlatform()): string | null {
+  return filePath.startsWith('/') ? '/' : platform === 'windows' && /^[A-Za-z]:\//.test(filePath) ? filePath.slice(0, 3) : null
+}
+
+export function ensureDriveRootSeparator(baseDir: string, platform: Platform = getPlatform()): string {
+  return platform === 'windows' && /^[A-Za-z]:$/.test(baseDir) ? `${baseDir}\\` : baseDir
+}
+
 export function splitPathFromRoot(
   filePath: string,
   grammar: typeof hostPath = hostPath,

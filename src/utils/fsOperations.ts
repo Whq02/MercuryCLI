@@ -5,7 +5,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { getErrnoCode } from './errors.js'
 import { slowLogging } from './slowOperations.js'
 import { uncPathRisk } from './permissions/uncPath.js'
-import { getPlatform } from './platform.js'
+import { isWindowsShareRooted } from './platform/paths.js'
 import { passedOver } from './passedOver.js'
 
 
@@ -178,7 +178,7 @@ export function setOriginalFsImplementation(): void {
 
 
 export function isUncLikePath(path: string): boolean {
-  return uncPathRisk(path).risky || (getPlatform() === 'windows' && /^(\\\\|\/\/)/.test(path))
+  return uncPathRisk(path).risky || isWindowsShareRooted(path)
 }
 
 function isSpecialFile(stats: fs.Stats): boolean {
