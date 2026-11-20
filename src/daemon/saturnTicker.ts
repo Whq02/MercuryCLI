@@ -277,8 +277,8 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
               try {
                 holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
                 report.held++
-              } catch {
-                logForDebugging(`[saturn] session ${sessionId}: held fire ${h.scheduleId} could not be banked again`)
+              } catch (bankError) {
+                heldFireLost(rec, by, h, bankError)
               }
             }
           }
@@ -620,6 +620,17 @@ function settleSessionFire({ report, rec, ports, sessionId, schedule, by, dueAt,
       detail: effect.detail ?? null,
     })
   }
+}
+
+function heldFireLost(rec: { workspaceId: string; sessionId: string }, by: string, h: HeldFireV1, error: unknown): void {
+  const words = error instanceof Error ? error.message : String(error)
+  logForDebugging(`[saturn] session ${rec.sessionId}: held fire ${h.scheduleId} could not be banked again: ${words}`)
+  rowSaturnTickReceipt(rec, by, 'schedule-fire', `fire failed — held since ${new Date(h.heldAt).toISOString()}, it could not be held again (${words}); not fired`, {
+    outcome: 'failed',
+    scheduleId: h.scheduleId,
+    dueAt: h.dueAt,
+    detail: words,
+  })
 }
 
 function releasableBoxHoldsOf(box: ReturnType<typeof readBoxSchedules>, now: number, ports: SaturnTickerPortsV1) {
