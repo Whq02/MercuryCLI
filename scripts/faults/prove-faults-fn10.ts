@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
+const HERE = dirname(fileURLToPath(import.meta.url))
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'prove-faults-fn10-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
@@ -111,13 +113,13 @@ try {
       process.env.NODE_ENV = 'test'
       delete process.env.MERCURY_HOME
       globalThis.MACRO = { VERSION: '1.0.0' }
-      mock.module(${JSON.stringify(join(import.meta.dir, '../../src/services/crew/conversations.ts'))}, () => ({
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/conversations.ts'))}, () => ({
         appendConversationEvent: async () => { throw new Error('injected conversation store failure') },
         resolveEventByRef: async () => { throw new Error('injected conversation store failure') },
         upsertUnresolvedEvent: async () => { throw new Error('injected conversation store failure') },
       }))
-      const { dispatchToAgent } = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/crew/dispatch.ts'))})
-      const { openObligations } = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/crew/obligations.ts'))})
+      const { dispatchToAgent } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/dispatch.ts'))})
+      const { openObligations } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/obligations.ts'))})
       const dir = ${JSON.stringify(dir)}
       const receipt = await dispatchToAgent({
         clientMessageId: 'dispatch-iso-1',
@@ -137,6 +139,49 @@ try {
       out.state === 'not-delivered' && out.recorded === true,
       JSON.stringify(out),
     )
+  }
+
+  console.log('5. src/services/crew/graph.ts')
+  {
+    const { spawnSync } = await import('node:child_process')
+    const runGraphFault = (mockBlock: string): { rejected: boolean; message?: string; error?: string } => {
+      const script = `
+        import { mock } from 'bun:test'
+        process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+        process.env.NODE_ENV = 'test'
+        delete process.env.MERCURY_HOME
+        globalThis.MACRO = { VERSION: '1.0.0' }
+        ${mockBlock}
+        const { assembleSessionGraph } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/graph.ts'))})
+        try {
+          await assembleSessionGraph()
+          process.stdout.write('\\n' + JSON.stringify({ rejected: false }))
+        } catch (error) {
+          process.stdout.write('\\n' + JSON.stringify({ rejected: true, message: error instanceof Error ? error.message : String(error) }))
+        }
+      `
+      const res = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' })
+      return res.status === 0 ? JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') : { rejected: false, error: res.stderr.slice(-400) }
+    }
+    const sessionsFail = runGraphFault(`
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/identity.ts'))}, () => ({ crewStoreRoot: () => ${JSON.stringify(HOME)}, listAgentSessions: async () => { throw new Error('injected sessions read error') } }))
+    `)
+    check('graph.assembleSessionGraph rejects when listAgentSessions fails', sessionsFail.rejected && (sessionsFail.message ?? '').includes('injected sessions read error'), JSON.stringify(sessionsFail))
+
+    const convsFail = runGraphFault(`
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/conversations.ts'))}, () => ({ listConversations: async () => { throw new Error('injected conversations read error') } }))
+    `)
+    check('graph.assembleSessionGraph rejects when listConversations fails', convsFail.rejected && (convsFail.message ?? '').includes('injected conversations read error'), JSON.stringify(convsFail))
+
+    const artifactsFail = runGraphFault(`
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/utils/artifacts/reviewStore.ts'))}, () => ({
+        listReviewArtifactHeadsSource: () => ({ state: 'unavailable', reason: 'injected artifacts EACCES', retryable: true }),
+      }))
+    `)
+    check('graph.assembleSessionGraph rejects when review artifacts are unavailable', artifactsFail.rejected && (artifactsFail.message ?? '').includes('injected artifacts EACCES'), JSON.stringify(artifactsFail))
   }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
