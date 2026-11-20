@@ -423,6 +423,44 @@ async function w08_8_contextUnserializableToolAndMessageBlockNoted(): Promise<vo
   check('w08-8: ContextVisualization shows message block unmeasured notice', rendered.includes('Some message blocks could not be measured; message breakdown figures may be understated.'), rendered.slice(0, 400))
 }
 
+async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
+  const { chmodSync, mkdirSync, symlinkSync } = await import('node:fs')
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-7-'))
+  const okFile = join(dir, 'ok.ts')
+  const lockedDir = join(dir, 'locked')
+  const brokenLink = join(dir, 'broken.ts')
+  writeFileSync(okFile, 'export const ok = 1\n')
+  mkdirSync(lockedDir)
+  writeFileSync(join(lockedDir, 'hidden.ts'), 'export const hidden = 2\n')
+  symlinkSync(join(dir, 'nonexistent-target.ts'), brokenLink)
+  chmodSync(lockedDir, 0o000)
+  const { resolveAstScope } = await import(join(SRC, 'utils/astPatterns/scope.ts'))
+  const { renderSearchTrailer } = await import(join(SRC, 'utils/astPatterns/render.ts'))
+  try {
+    const scope = resolveAstScope({ cwd: dir })
+    check('w08-7: resolveAstScope counts unreadable folder and dangling stat entry', !('refused' in scope) && scope.skippedUnreadable?.count === 2 && typeof scope.skippedUnreadable.firstPath === 'string' && typeof scope.skippedUnreadable.firstError === 'string', JSON.stringify(scope))
+    if (!('refused' in scope)) {
+      const trailer = renderSearchTrailer(scope, {
+        matches: [],
+        capped: false,
+        filesParsed: 1,
+        filesWithMatches: 0,
+        parseFailures: [],
+        patternRefusals: [],
+        captureNamesByLang: new Map(),
+        skippedLarge: 0,
+        truncatedParse: false,
+        languagesSearched: [['typescript', 1]],
+        compiledSomewhere: true,
+      }).join('\n')
+      check('w08-7: renderSearchTrailer adds unreadable folders/files note with count and first error', trailer.includes('2 folders or files could not be read and were not searched (first: '), trailer)
+    }
+  } finally {
+    chmodSync(lockedDir, 0o755)
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
@@ -430,6 +468,7 @@ const rows: Array<() => Promise<void>> = [
   w08_4_invalidMercuryLspServersReportedOnce,
   w08_5_tsSidecarWorkspaceSymbolIncompleteReported,
   w08_6_executionStopHookFailureSurfaced,
+  w08_7_polyglotUnreadableDirAndStatNoted,
   w08_8_contextUnserializableToolAndMessageBlockNoted,
 ]
 for (const row of rows) {
