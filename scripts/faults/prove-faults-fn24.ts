@@ -253,6 +253,35 @@ async function proveSplashHandover(): Promise<void> {
   })
 }
 
+async function proveStartupMenu(): Promise<void> {
+  const sm = await import('../../src/substrate/startupMenu.js')
+  const bn = await import('../../src/substrate/bootNotes.js')
+  await withScratchHome(home => {
+    const file = join(home, 'boot-env.json')
+    const corrupt = '{not-json'
+    writeFileSync(file, corrupt, { mode: 0o600 })
+    const rCorrupt = sm.writeBootEnvChoice('MERCURY_COMPUTER_ACCESS', 'full', file)
+    check('startupMenu: writeBootEnvChoice refuses corrupt file', !rCorrupt.ok && readFileSync(file, 'utf8') === corrupt, JSON.stringify(rCorrupt))
+    const sCorrupt = sm.saveBootDefaultsProfile({ MERCURY_COMPUTER_ACCESS: 'full' }, file)
+    check('startupMenu: saveBootDefaultsProfile refuses corrupt file', !sCorrupt.ok && readFileSync(file, 'utf8') === corrupt, JSON.stringify(sCorrupt))
+
+    if (POSIX_MODES) {
+      const saved = JSON.stringify({ version: 1, savedAt: new Date().toISOString(), env: { MERCURY_COMPUTER_ACCESS: 'permissive', MERCURY_SKIP_PERMISSIONS: '1' }, revision: 4, digest: 'abc', receipt: 'ok' })
+      writeFileSync(file, saved, { mode: 0o600 })
+      chmodSync(file, 0o200)
+      bn._resetBootNotesForTesting()
+      const env: NodeJS.ProcessEnv = { MERCURY_ENTER_MENU: '1' }
+      const applied = sm.applyBootMenuEnv(file, env)
+      const wRes = sm.writeBootEnvChoice('MERCURY_COMPUTER_ACCESS', 'full', file)
+      const sRes = sm.saveBootDefaultsProfile({ MERCURY_COMPUTER_ACCESS: 'full' }, file)
+      chmodSync(file, 0o600)
+      check('startupMenu: applyBootMenuEnv reports unreadable file in refused and boot notes', applied !== null && applied.refused.length === 1 && bn.bootNotes().some(n => n.text.includes('could not be read')), JSON.stringify({ applied, notes: bn.bootNotes() }))
+      check('startupMenu: writeBootEnvChoice refuses unreadable file and preserves bytes', !wRes.ok && readFileSync(file, 'utf8') === saved, JSON.stringify(wRes))
+      check('startupMenu: saveBootDefaultsProfile refuses unreadable file and preserves bytes', !sRes.ok && readFileSync(file, 'utf8') === saved, JSON.stringify(sRes))
+    }
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
@@ -260,6 +289,7 @@ async function main(): Promise<void> {
   await proveStoreRecovery()
   await proveRecoveryOrchestrator()
   await proveSplashHandover()
+  await proveStartupMenu()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }
