@@ -36,23 +36,7 @@ function runIn(body: string): Record<string, unknown> {
     const path = await import('node:path')
     const keyFile = await import(${JSON.stringify(join(SRC, 'services/providers/local/tensorfoldKeyFile.ts'))})
     const recovery = await import(${JSON.stringify(join(SRC, 'substrate/storeRecovery.ts'))})
-    const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(SRC, 'Tool.ts'))})
-    const { decideToolPermission } = await import(${JSON.stringify(join(SRC, 'utils/permissions/decision/engine.ts'))})
-    const { FileReadTool } = await import(${JSON.stringify(join(SRC, 'tools/FileReadTool/FileReadTool.ts'))})
-    const { BashTool } = await import(${JSON.stringify(join(SRC, 'tools/BashTool/BashTool.tsx'))})
-    const ctx = (mode, allow) => {
-      const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { userSettings: allow }, alwaysAskRules: { userSettings: [] } }, tasks: {}, sessionHooks: new Map() }
-      return { getAppState: () => state, setAppState: () => {}, abortController: new AbortController(), readFileState: new Map(), messages: [], options: { tools: [] } }
-    }
-    const floorOf = async target => {
-      const answers = {}
-      for (const mode of ['default', 'sovereign']) {
-        const read = (await decideToolPermission(FileReadTool, { file_path: target }, ctx(mode, ['Read']))).decision
-        const cat = (await decideToolPermission(BashTool, { command: "cat '" + target + "'" }, ctx(mode, ['Bash']))).decision
-        answers[mode] = { read: read.behavior, cat: cat.behavior }
-      }
-      return answers
-    }
+    const { floorOf } = await import(${JSON.stringify(join(HERE, '../lib/permissionFloor.ts'))})
     const home = ${JSON.stringify(home)}
     const file = keyFile.tensorFoldKeyFilePath()
     const dir = path.dirname(file)
