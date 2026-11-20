@@ -282,8 +282,8 @@ export function renderToolUseProgressMessage(
   const revealAll = isTranscriptMode || verbose
   const visible = revealAll ? rows : rows.slice(-VISIBLE_TAIL)
   const hiddenToolUseCount = revealAll ? 0 : hiddenAgentToolUses(progressMessages, tools)
-  const lookups = buildSubagentLookups(
-    messagesOf(progressMessages).map(row => row.data.message!) as never,
+  const { lookups } = buildSubagentLookups(
+    messagesOf(progressMessages).map(row => row.data),
   )
 
   const firstPrompt = (progressMessages[0] as { data?: AgentProgressData })
@@ -324,7 +324,7 @@ export function renderToolUseProgressMessage(
               isStatic={true}
               inProgressToolUseIDs={EMPTY_SET}
               progressMessagesForMessage={[]}
-              lookups={lookups as never}
+              lookups={lookups}
             />
           </MessageResponse>
         ))}
@@ -407,8 +407,9 @@ export function renderToolResultMessage(
       formatDuration(record.totalDurationMs ?? 0),
     ]
     const stats = result.join(' · ')
-    const rows = messagesOf(progressMessages).map(row => row.data.message!)
-    const lookups = buildSubagentLookups(rows as never)
+    const progressRows = messagesOf(progressMessages)
+    const rows = progressRows.map(row => row.data.message!)
+    const { lookups } = buildSubagentLookups(progressRows.map(row => row.data))
     return (
       <Box flexDirection="column">
         {isTranscriptMode && record.prompt ? (
@@ -434,7 +435,7 @@ export function renderToolResultMessage(
                     isStatic={true}
                     inProgressToolUseIDs={EMPTY_SET}
                     progressMessagesForMessage={[]}
-                    lookups={lookups as never}
+                    lookups={lookups}
                   />
                 </MessageResponse>
               ))}
