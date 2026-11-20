@@ -176,7 +176,7 @@ async function admitAndEnter(
         ...(facts.runnerArgv.length > 0 ? { runnerArgv: [...facts.runnerArgv] } : {}),
         ...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),
         ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),
-      } as never,
+      },
       { timeoutMs: 60_000 },
     ) as Promise<Record<string, unknown>>
     reply = await admitWithDaemonRecheck(() => admit(), ensureOwnedDaemon)

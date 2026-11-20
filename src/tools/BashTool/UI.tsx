@@ -5,7 +5,7 @@ import { FAINT } from '../../components/mercuryPalette.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { ShellProgressMessage } from '../../components/shell/ShellProgressMessage.js'
-import BashToolResultMessage from './BashToolResultMessage.js'
+import BashToolResultMessage, { type BashResultContent } from './BashToolResultMessage.js'
 import { KeyboardShortcutHint } from '../../components/design-system/KeyboardShortcutHint.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
@@ -97,14 +97,14 @@ export function renderToolUseQueuedMessage(): React.ReactNode {
 }
 
 export function renderToolResultMessage(
-  content: unknown,
+  content: BashResultContent,
   progressMessages: ProgressMessage<BashProgress>[],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   const timeoutMs = progressMessages[progressMessages.length - 1]?.data?.timeoutMs
   return (
     <BashToolResultMessage
-      content={content as never}
+      content={content}
       verbose={verbose}
       timeoutMs={timeoutMs}
     />

@@ -83,13 +83,13 @@ const anchoredSchemaFactory = () =>
 
 type WidestSchema = ReturnType<typeof widestSchemaFactory>
 
-export const inputSchema = lazySchema((): WidestSchema => {
-  if (!changeTransactionEnabled()) return stockSchemaFactory() as unknown as WidestSchema
-  if (!editHunksEnabled()) return anchoredSchemaFactory() as unknown as WidestSchema
+export type FileEditInput = z.infer<WidestSchema>
+
+export const inputSchema = lazySchema((): z.ZodType<FileEditInput> => {
+  if (!changeTransactionEnabled()) return stockSchemaFactory()
+  if (!editHunksEnabled()) return anchoredSchemaFactory()
   return widestSchemaFactory()
 })
-
-export type FileEditInput = z.infer<WidestSchema>
 
 export type FileEdit = {
   old_string: string

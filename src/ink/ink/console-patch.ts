@@ -22,27 +22,31 @@ const CONSOLE_DEBUG_METHODS = [
 
 const CONSOLE_ERROR_METHODS = ['warn', 'error', 'trace'] as const
 
+type ConsoleMethod = (typeof CONSOLE_DEBUG_METHODS)[number] | (typeof CONSOLE_ERROR_METHODS)[number]
+
+function patchMethod<K extends ConsoleMethod>(
+  restorers: Array<() => void>,
+  method: K,
+  replacement: (...args: unknown[]) => void,
+): void {
+  const original = console[method]
+  if (typeof original !== 'function') return
+  console[method] = replacement
+  restorers.push(() => {
+    console[method] = original
+  })
+}
+
 export function patchConsole(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
   const restorers: Array<() => void> = []
-  const consoleRecord = console as unknown as Record<string, (...args: unknown[]) => void>
   for (const method of CONSOLE_DEBUG_METHODS) {
-    const original = consoleRecord[method]
-    if (typeof original !== 'function') continue
-    consoleRecord[method] = (...args: unknown[]) => {
+    patchMethod(restorers, method, (...args: unknown[]) => {
       logForDebugging(`[console.${method}] ${formatArgs(...args)}`)
-    }
-    restorers.push(() => {
-      consoleRecord[method] = original
     })
   }
   for (const method of CONSOLE_ERROR_METHODS) {
-    const original = consoleRecord[method]
-    if (typeof original !== 'function') continue
-    consoleRecord[method] = (...args: unknown[]) => {
+    patchMethod(restorers, method, (...args: unknown[]) => {
       logError(new Error(`[console.${method}] ${formatArgs(...args)}`))
-    }
-    restorers.push(() => {
-      consoleRecord[method] = original
     })
   }
   const originalAssert = console.assert
