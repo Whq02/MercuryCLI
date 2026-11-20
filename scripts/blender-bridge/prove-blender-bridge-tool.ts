@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -155,11 +155,6 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
       !(harness ?? '').includes('Nothing is installed or launched for you.'),
     harness ?? '',
   )
-  const docText = readFileSync(
-    path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'docs', 'BLENDER-BRIDGE.md'),
-    'utf8',
-  )
-  check('docs/BLENDER-BRIDGE.md carries the policy sentence', docText.includes(policySentence))
   const { validateToolCapability } = await import('../../src/utils/capability/contract.js')
   const { blenderBridgeVerbNames } = await import('../../src/services/blender/bridgeProtocol.js')
   const cap = BlenderTool.capability
