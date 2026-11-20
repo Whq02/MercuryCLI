@@ -115,12 +115,21 @@ function writeRows(rows: LaunchMilestoneRowV1[]): void {
   }
 }
 
+function readAllSafe(): LaunchMilestoneRowV1[] {
+  try {
+    return readAll()
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
+}
+
 export function readLaunchMilestones(): LaunchMilestoneRowV1[] {
-  return readAll()
+  return readAllSafe()
 }
 
 export function lastInteractiveBootSpine(): LaunchMilestoneRowV1[] {
-  const rows = readAll()
+  const rows = readAllSafe()
   const headless = new Set(rows.filter(r => r.boot === 'headless').map(r => r.pid))
   for (let i = rows.length - 1; i >= 0; i--) {
     const pid = rows[i]!.pid
