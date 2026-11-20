@@ -120,7 +120,15 @@ export function resolveBrowserSecret(ref: string, opts?: { fileDir?: string; ori
       }
     }
     raw = fs.readFileSync(file, 'utf8')
-  } catch (error) { passedOver(error) }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      const detail = error instanceof Error ? error.message : String(error)
+      return {
+        state: 'refused',
+        note: `${file} could not be read (${detail}) — check its permissions and try again; the secret was not read`,
+      }
+    }
+  }
   if (raw !== undefined) {
     let parsed: unknown
     try {
@@ -138,10 +146,29 @@ export function resolveBrowserSecret(ref: string, opts?: { fileDir?: string; ori
     }
   }
   if (keychainReachable()) {
+    let stored: string | null
     try {
-      const stored = readKeychainServiceSync(service)
-      if (stored !== null) return resolvedEntry(JSON.parse(stored), 'keychain', opts?.origin, note)
-    } catch (error) { passedOver(error) }
+      stored = readKeychainServiceSync(service)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      return {
+        state: 'refused',
+        note: `secret ${ref} could not be read from the keychain (${detail}) — check keychain access and try again`,
+      }
+    }
+    if (stored !== null) {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(stored)
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
+        return {
+          state: 'refused',
+          note: `secret ${ref} in the keychain is not valid JSON (${detail}) — save it again and try again`,
+        }
+      }
+      return resolvedEntry(parsed, 'keychain', opts?.origin, note)
+    }
   }
   return { state: 'missing', note }
 }

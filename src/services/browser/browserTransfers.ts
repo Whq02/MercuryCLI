@@ -99,8 +99,18 @@ function safeName(name: string): string {
   return RESERVED_WIN_NAME.test(joined) ? `_${boundBytes(joined, MAX_SAFE_NAME_BYTES - 1)}` : joined
 }
 
+async function destinationExists(to: string): Promise<boolean> {
+  try {
+    await fs.promises.lstat(to)
+    return true
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return false
+    throw err
+  }
+}
+
 async function moveFile(from: string, to: string): Promise<void> {
-  if (await fs.promises.lstat(to).then(() => true, passedOverAs(false))) {
+  if (await destinationExists(to)) {
     throw new Error(`refusing to overwrite existing destination ${to}`)
   }
   try {
@@ -111,7 +121,7 @@ async function moveFile(from: string, to: string): Promise<void> {
     const part = `${to}.part-${process.pid}-${Date.now()}`
     try {
       await fs.promises.copyFile(from, part, fs.constants.COPYFILE_EXCL)
-      if (await fs.promises.lstat(to).then(() => true, passedOverAs(false))) {
+      if (await destinationExists(to)) {
         throw new Error(`refusing to overwrite existing destination ${to}`)
       }
       await fs.promises.rename(part, to)

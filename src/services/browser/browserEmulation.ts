@@ -187,6 +187,7 @@ interface PageEmulation {
   environment: Environment | null
   unsettled: Set<Aspect>
   grants: Set<string>
+  grantError: { origin: string; message: string } | null
   regrant: ((frame: Frame) => void) | null
   answering: boolean
   credentials: Environment['credentials']
@@ -211,7 +212,7 @@ const rememberedAuth = new WeakMap<object, Set<string>>()
 function stateOf(page: Page): PageEmulation {
   let state = emulations.get(page)
   if (state === undefined) {
-    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), regrant: null, answering: false, credentials: null, answered: new Set(), usedFor: new Set() }
+    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), grantError: null, regrant: null, answering: false, credentials: null, answered: new Set(), usedFor: new Set() }
     emulations.set(page, state)
   }
   return state
@@ -401,20 +402,31 @@ async function grantLocation(page: Page, state: PageEmulation): Promise<void> {
   if (holders.size === 0) await setGrant(page, origin, 'granted')
   holders.add(page)
   state.grants.add(origin)
+  state.grantError = null
 }
 
 async function releaseLocation(page: Page, state: PageEmulation): Promise<void> {
   const context: object = typeof page.browserContext === 'function' ? page.browserContext() : page
   const byOrigin = grantHolders.get(context)
+  const kept = new Set<string>()
+  let firstError: unknown
   for (const origin of state.grants) {
     const holders = byOrigin?.get(origin)
     holders?.delete(page)
     if (holders !== undefined && holders.size === 0) {
-      byOrigin!.delete(origin)
-      await setGrant(page, origin, 'prompt').catch(passedOverAs(undefined))
+      try {
+        await setGrant(page, origin, 'prompt')
+        byOrigin!.delete(origin)
+      } catch (err) {
+        holders.add(page)
+        kept.add(origin)
+        firstError ??= err
+      }
     }
   }
-  state.grants.clear()
+  state.grants = kept
+  if (firstError !== undefined) throw firstError
+  state.grantError = null
   if (state.regrant !== null) {
     page.off('framenavigated', state.regrant)
     state.regrant = null
@@ -546,7 +558,11 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       await grantLocation(page, state)
       if (state.regrant === null) {
         state.regrant = (frame: Frame): void => {
-          if (frame.parentFrame() === null) void grantLocation(page, state).catch(passedOverAs(undefined))
+          if (frame.parentFrame() === null) {
+            void grantLocation(page, state).catch(err => {
+              state.grantError = { origin: originOf(page.url()), message: browserWords(err) }
+            })
+          }
         }
         page.on('framenavigated', state.regrant)
         page.once('close', () => void releaseLocation(page, state).catch(passedOverAs(undefined)))
@@ -598,6 +614,11 @@ function describe(state: PageEmulation, kit: PageKit | null): string[] {
         state.grants.size > 0 ? [...state.grants].join(', ') : 'no web origin yet'
       }`,
     )
+    if (state.grantError !== null) {
+      lines.push(
+        `geolocation: location permission could not be granted to ${state.grantError.origin} (${state.grantError.message}) — emulated location may not apply on that origin`,
+      )
+    }
   }
   if (environment.media.length > 0) lines.push(`media: ${environment.media.map(feature => `${feature.name} ${feature.value}`).join('; ')}`)
   if (fields.headers !== undefined) lines.push(`headers: ${Object.keys(fields.headers).map(name => name.toLowerCase()).join(', ') || 'none'}`)
@@ -795,7 +816,16 @@ export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean
   const reloads = Boolean(wanted.isMobile) !== Boolean(baseline.viewport.isMobile) || Boolean(wanted.hasTouch) !== Boolean(baseline.viewport.hasTouch)
   const whole = reloadSafe || !reloads
   const outcome = await settle(to, kit, state, next, new Set<Aspect>(whole ? [] : ['viewport']))
-  if (born !== null && born.headers !== null) await ownSession(kit).send('Network.setExtraHTTPHeaders', { headers: {} }).catch(passedOverAs(undefined))
+  if (born !== null && born.headers !== null) {
+    try {
+      await ownSession(kit).send('Network.setExtraHTTPHeaders', { headers: {} })
+    } catch (err) {
+      state.unsettled.add('headers')
+      outcome.failures.push(
+        `headers: the earlier value could not be put back either (${browserWords(err)}) — the next emulation call applies it again`,
+      )
+    }
+  }
   if (!whole) outcome.notes.push('its size, mobile and touch did not come: this tab holds the answer to a form post, and applying them reloads the page, which would send the form again — op:"viewport" on this tab applies them when that is safe')
   return outcome
 }

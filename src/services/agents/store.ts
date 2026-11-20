@@ -111,6 +111,7 @@ async function appendReceipt(record: Record<string, unknown>): Promise<void> {
         logForDebugging(
           `agent receipts unreadable at ${receiptsPath()}: ${e instanceof Error ? e.message : String(e)}`,
         )
+        return
       }
     }
     existing.push(JSON.stringify(record))
@@ -241,11 +242,19 @@ function trashDir(): string {
 
 const TRASH_KEEP = 50
 
-function listTrashSidecars(): { path: string; entry: AgentTrashEntry }[] {
+function listTrashSidecars(strict = false): { path: string; entry: AgentTrashEntry }[] {
   let names: string[]
   try {
     names = readdirSync(trashDir())
   } catch (error) {
+    if (isENOENT(error)) return []
+    if (strict) {
+      throw new AgentStoreError(
+        'io',
+        `Could not read agent trash at ${trashDir()}: ${error instanceof Error ? error.message : String(error)}`,
+        { path: trashDir() },
+      )
+    }
     passedOver(error)
     return []
   }
@@ -345,7 +354,7 @@ export async function restoreAgentFromTrash(
   id: string,
   opts?: { toPath?: string; overwrite?: boolean },
 ): Promise<{ path: string; revision: string }> {
-  const sidecar = listTrashSidecars().find(s => s.entry.id === id)
+  const sidecar = listTrashSidecars(true).find(s => s.entry.id === id)
   if (!sidecar) {
     throw new AgentStoreError('source-missing', `No trash entry '${id}'`)
   }

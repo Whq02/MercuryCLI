@@ -10,6 +10,7 @@ import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSourc
 import { formatFileSize } from '../../utils/format.js'
 import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { logError } from '../../utils/log.js'
 import { NO_RESPONSE_REQUESTED } from '../../utils/messages/rejectionText.js'
 import { createAssistantAPIErrorMessage } from '../../utils/messages/factories.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -185,7 +186,7 @@ function routeOfModel(model: string): string {
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     return declaredRouteOf(model) ?? 'gateway'
   } catch (error) {
-    passedOver(error)
+    logError(new Error(`routeOfModel: ${error instanceof Error ? error.message : String(error)}`))
     return 'anthropic'
   }
 }
@@ -196,7 +197,8 @@ function providerNameOfModel(model: string): string {
     const { providerDisplayName } =
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     return providerDisplayName(route)
-  } catch {
+  } catch (error) {
+    logError(new Error(`providerNameOfModel: ${error instanceof Error ? error.message : String(error)}`))
     return route
   }
 }
@@ -782,8 +784,8 @@ function overflowFamilyOfModel(model: string): OverflowFamily {
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     return declaredRouteOf(model) ?? 'unknown'
   } catch (error) {
-    passedOver(error)
-    return 'anthropic'
+    logError(new Error(`overflowFamilyOfModel: ${error instanceof Error ? error.message : String(error)}`))
+    return 'unknown'
   }
 }
 
