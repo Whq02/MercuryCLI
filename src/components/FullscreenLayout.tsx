@@ -23,7 +23,8 @@ import { modelPickerPopupClaimed, subscribeModelPickerPopup } from '../utils/coc
 import { commandPopupClaim, subscribeCommandPopup } from '../utils/cockpit/commandPopup.js'
 import { SettingsPopupSlot } from './SettingsPopupSlot.js'
 import { useViewedCrewmate } from './tasks/useCrewmateView.js'
-import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
+import { AppStoreContext, useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
+import { enqueueNotification } from '../context/notifications.js'
 import type { Message as WireMessage, NormalizedMessage } from '../types/message.js'
 import { isNullRenderingAttachment, isNullRenderingSystemRow } from './messages/nullRenderingAttachments.js'
 import type { UnseenDivider } from './fullscreenLayout/panes.js'
@@ -237,26 +238,38 @@ export function FullscreenLayout({
   const { columns, rows } = useTerminalSize()
   const tokens = useMercuryTokens()
   const fullscreen = isFullscreenEnvEnabled()
+  const appStore = useContext(AppStoreContext)
 
   useClaim(() => {
     if (!fullscreen) return
     const ink = instances.get(process.stdout)
     if (!ink) return
+    const notifyOpenFailed = (target: string, error: string): void => {
+      if (!appStore) return
+      enqueueNotification(appStore.setState, {
+        key: 'hyperlink-open-failed',
+        text: `${target} could not be opened (${error}) — open it yourself`,
+        color: 'warning',
+        priority: 'high',
+      })
+    }
     ink.onHyperlinkClick = (url: string) => {
       if (url.startsWith('file:')) {
         try {
-          void openPath(fileURLToPath(url))
+          const target = fileURLToPath(url)
+          void openPath(target, error => notifyOpenFailed(target, error))
         } catch (error) {
           logError(error)
+          notifyOpenFailed(url, error instanceof Error ? error.message : String(error))
         }
       } else {
-        void openBrowser(url)
+        void openBrowser(url, error => notifyOpenFailed(url, error))
       }
     }
     return () => {
       ink.onHyperlinkClick = undefined
     }
-  }, [fullscreen])
+  }, [fullscreen, appStore])
 
   const terminalRows = rows
   const { chrome, isCompact } = useLayoutChrome()

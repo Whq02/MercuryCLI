@@ -3,18 +3,20 @@ import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
 
 
-export async function openPath(path: string): Promise<boolean> {
+export async function openPath(path: string, onError?: (error: string) => void): Promise<boolean> {
   try {
     const opener =
       process.platform === 'win32' ? 'explorer' : process.platform === 'darwin' ? 'open' : 'xdg-open'
     const result = await execFileNoThrow(opener, [path])
-    return result.code === 0
+    if (result.code === 0) return true
+    onError?.(result.stderr.trim() || `exit code ${result.code}`)
+    return false
   } catch (error) {
     passedOver(error)
+    onError?.(error instanceof Error ? error.message : String(error))
     return false
   }
 }
-
 function assertValidBrowserUrl(url: string): void {
   let parsed: URL
   try {
@@ -27,23 +29,30 @@ function assertValidBrowserUrl(url: string): void {
   }
 }
 
-export async function openBrowser(url: string): Promise<boolean> {
+export async function openBrowser(url: string, onError?: (error: string) => void): Promise<boolean> {
   try {
     assertValidBrowserUrl(url)
     if (process.platform === 'win32') {
       const browserEnv = hostEnv().BROWSER
       if (browserEnv) {
         const result = await execFileNoThrow(browserEnv, [url])
-        return result.code === 0
+        if (result.code === 0) return true
+        onError?.(result.stderr.trim() || `exit code ${result.code}`)
+        return false
       }
       const result = await execFileNoThrow('rundll32', ['url,OpenURL', url], {})
-      return result.code === 0
+      if (result.code === 0) return true
+      onError?.(result.stderr.trim() || `exit code ${result.code}`)
+      return false
     }
     const handler = hostEnv().BROWSER || (process.platform === 'darwin' ? 'open' : 'xdg-open')
     const result = await execFileNoThrow(handler, [url])
-    return result.code === 0
+    if (result.code === 0) return true
+    onError?.(result.stderr.trim() || `exit code ${result.code}`)
+    return false
   } catch (error) {
     passedOver(error)
+    onError?.(error instanceof Error ? error.message : String(error))
     return false
   }
 }

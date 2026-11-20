@@ -603,7 +603,19 @@ export function Feedback({
         return
       }
       if (step === 'unavailable') {
-        if (key.return && formUrl !== null) void openBrowser(formUrl)
+        if (key.return && formUrl !== null) {
+          let openErr: string | null = null
+          void openBrowser(formUrl, error => {
+            openErr = error
+          }).then(ok => {
+            finish(
+              ok
+                ? doneMessageRef.current
+                : `${doneMessageRef.current}\n${formUrl} could not be opened (${openErr ?? 'could not open browser'}) — open it yourself`,
+            )
+          })
+          return
+        }
         finish(doneMessageRef.current)
       }
     },
