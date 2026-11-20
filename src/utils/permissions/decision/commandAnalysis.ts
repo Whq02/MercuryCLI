@@ -106,3 +106,4 @@ export function shellCCommands(commands: SimpleCommand[], depth = 0): SimpleComm
     return inner.kind === 'simple' ? [command, ...shellCCommands(inner.commands, depth + 1)] : [command]
   })
 }
+export { retainPreparedCommand } from './commandAnalysis/sequence.js'
