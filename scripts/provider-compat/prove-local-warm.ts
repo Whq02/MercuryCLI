@@ -477,6 +477,45 @@ section('9 · a warm that fails says nothing: the server goes away, the warm fai
   check('disarmed: the clock is gone and nothing is armed', warmModule === null || (warmModule.localWarmFacts().clock === null && warmModule.localWarmFacts().armed === false))
 }
 
+section('10 · an unclaimed warm runner (live false) never starts the helper model; once claimed (live true), the helper starts')
+{
+  const helperModule = await import('../../src/services/providers/local/tensorfoldHelper.ts')
+  helperModule.__resetHelperForTest()
+  helperModule.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: true })
+  let helperStarts = 0
+  let helperRecord: { repo: string; name: string; port: number; window: number; pid: number; startedAt: string } | undefined
+  helperModule.__pinHelperServeSeamForTest(() => ({
+    start: async request => {
+      helperStarts += 1
+      helperRecord = { repo: request.repo, name: request.name ?? 'qwen3.5-2b', port: request.port ?? 52175, window: request.window, pid: 777, startedAt: new Date(fixtureNow()).toISOString() }
+      return helperRecord
+    },
+    stop: async () => {
+      helperRecord = undefined
+    },
+    served: () => (helperRecord === undefined ? [] : [helperRecord]),
+  }))
+  helperModule.writeHelperModelSetting({ size: '2b' })
+  live = false
+  setEngineModelOverride('claude-fable-5-1')
+  const disarmHelper = warmModule?.armLocalWarm(context as never, { live: () => live, io: { now: fixtureNow, settleMs: 20, tickMs: 120, ceilingMs: 30_000 } })
+  await sleep(100)
+  const startsWhileUnclaimedCloud = helperStarts
+  setEngineModelOverride(PERSISTED)
+  await sleep(100)
+  const startsWhileUnclaimedLocal = helperStarts
+  check('an unclaimed runner (live false) does not start the helper model on either cloud or local models', startsWhileUnclaimedCloud === 0 && startsWhileUnclaimedLocal === 0, `cloud=${startsWhileUnclaimedCloud}, local=${startsWhileUnclaimedLocal}`)
+  setEngineModelOverride('claude-fable-5-1')
+  live = true
+  const startedAfterClaim = await waitFor(() => helperStarts === 1, 2_000)
+  check('once claimed (live true), the runner starts the helper model', startedAfterClaim && helperStarts === 1, `starts=${helperStarts}`)
+  disarmHelper?.()
+  helperModule.__resetHelperForTest()
+  helperModule.__pinHelperServeSeamForTest(undefined)
+  helperModule.__pinHelperReadsForTest(undefined)
+  helperModule.writeHelperModelSetting({ size: 'off' })
+}
+
 live = false
 process.chdir(ROOT)
 rmSync(HOME, { recursive: true, force: true })
