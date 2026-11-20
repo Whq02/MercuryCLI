@@ -57,7 +57,83 @@ const PATHS: Row[] = [
   },
 ]
 
+import { chmodSync as p02ChmodSync, mkdirSync as p02MkdirSync, mkdtempSync as p02MkdtempSync, rmSync as p02RmSync, writeFileSync as p02WriteFileSync } from 'node:fs'
+import { tmpdir as p02Tmpdir } from 'node:os'
+import * as p02Path from 'node:path'
+import {
+  executableSuffixes,
+  isExecutableFile,
+  isExecutablePath,
+  pathExtensions,
+  resolveProgramInPath,
+  spawnableCommandSpellings,
+} from '../../src/utils/platform/programs.js'
+
+function withProgramFixture<T>(run: (dir: string) => T): T {
+  const dir = p02MkdtempSync(p02Path.join(p02Tmpdir(), 'mercury-p02-'))
+  try {
+    const execFile = p02Path.join(dir, 'run-x')
+    p02WriteFileSync(execFile, '#!/bin/sh\n')
+    p02ChmodSync(execFile, 0o755)
+    p02WriteFileSync(p02Path.join(dir, 'run-x.exe'), 'mz')
+    p02ChmodSync(p02Path.join(dir, 'run-x.exe'), 0o644)
+    p02WriteFileSync(p02Path.join(dir, 'only-plain'), 'txt')
+    p02ChmodSync(p02Path.join(dir, 'only-plain'), 0o644)
+    p02WriteFileSync(p02Path.join(dir, 'shim.cmd'), '@echo ok\r\n')
+    p02ChmodSync(p02Path.join(dir, 'shim.cmd'), 0o644)
+    p02MkdirSync(p02Path.join(dir, 'subdir'))
+    return run(dir)
+  } finally {
+    p02RmSync(dir, { recursive: true, force: true })
+  }
+}
+
 const PROGRAMS: Row[] = [
+  {
+    name: 'programs: spawnableCommandSpellings',
+    answers: () => ['', 'git', 'tool.exe', 'C:\\bin\\git'].map(cmd => spawnableCommandSpellings(cmd)),
+    recorded: {"win32":[[".exe",".com",".cmd",".bat",""],["git.exe","git.com","git.cmd","git.bat","git"],["tool.exe.exe","tool.exe.com","tool.exe.cmd","tool.exe.bat","tool.exe"],["C:\\bin\\git.exe","C:\\bin\\git.com","C:\\bin\\git.cmd","C:\\bin\\git.bat","C:\\bin\\git"]],"darwin":[[""],["git"],["tool.exe"],["C:\\bin\\git"]],"linux":[[""],["git"],["tool.exe"],["C:\\bin\\git"]],"win32 by process.platform alone":[[".exe",".com",".cmd",".bat",""],["git.exe","git.com","git.cmd","git.bat","git"],["tool.exe.exe","tool.exe.com","tool.exe.cmd","tool.exe.bat","tool.exe"],["C:\\bin\\git.exe","C:\\bin\\git.com","C:\\bin\\git.cmd","C:\\bin\\git.bat","C:\\bin\\git"]],"win32 by getPlatform() alone":[[""],["git"],["tool.exe"],["C:\\bin\\git"]]},
+  },
+  {
+    name: 'programs: pathExtensions and executableSuffixes',
+    answers: () => ({
+      defaultExts: pathExtensions({}),
+      customExts: pathExtensions({ PATHEXT: '.EXE;.CMD' }),
+      exeSuffixes: executableSuffixes(['.exe', '']),
+      threeSuffixes: executableSuffixes(['.exe', '.cmd', '.bat', '']),
+    }),
+    recorded: {"win32":{"defaultExts":[".EXE",".CMD",".BAT",".COM"],"customExts":[".EXE",".CMD"],"exeSuffixes":[".exe",""],"threeSuffixes":[".exe",".cmd",".bat",""]},"darwin":{"defaultExts":[""],"customExts":[""],"exeSuffixes":[""],"threeSuffixes":[""]},"linux":{"defaultExts":[""],"customExts":[""],"exeSuffixes":[""],"threeSuffixes":[""]},"win32 by process.platform alone":{"defaultExts":[".EXE",".CMD",".BAT",".COM"],"customExts":[".EXE",".CMD"],"exeSuffixes":[".exe",""],"threeSuffixes":[".exe",".cmd",".bat",""]},"win32 by getPlatform() alone":{"defaultExts":[""],"customExts":[""],"exeSuffixes":[""],"threeSuffixes":[""]}},
+  },
+  {
+    name: 'programs: isExecutableFile and isExecutablePath',
+    answers: () =>
+      withProgramFixture(dir => {
+        const targets = ['run-x', 'run-x.exe', 'only-plain', 'subdir', 'missing'].map(name => p02Path.join(dir, name))
+        return {
+          file: targets.map(t => isExecutableFile(t)),
+          path: targets.map(t => isExecutablePath(t)),
+        }
+      }),
+    recorded: {"win32":{"file":[true,true,true,false,false],"path":[true,true,true,true,false]},"darwin":{"file":[true,false,false,false,false],"path":[true,false,false,true,false]},"linux":{"file":[true,false,false,false,false],"path":[true,false,false,true,false]},"win32 by process.platform alone":{"file":[true,true,true,false,false],"path":[true,true,true,true,false]},"win32 by getPlatform() alone":{"file":[true,false,false,false,false],"path":[true,false,false,true,false]}},
+  },
+  {
+    name: 'programs: resolveProgramInPath',
+    answers: () =>
+      withProgramFixture(dir => {
+        const rel = (found: string | null): string | null => (found === null ? null : p02Path.relative(dir, found))
+        const pathValue = process.platform === 'win32' ? `"${dir}";${dir}` : `${dir}:`
+        return {
+          empty: rel(resolveProgramInPath('', pathValue)),
+          both: rel(resolveProgramInPath('run-x', pathValue)),
+          shim: rel(resolveProgramInPath('shim', pathValue)),
+          plain: rel(resolveProgramInPath('only-plain', pathValue)),
+          explicit: rel(resolveProgramInPath(p02Path.join(dir, 'run-x'), '')),
+          quotedOnly: rel(resolveProgramInPath('shim', `"${dir}"`)),
+          missing: rel(resolveProgramInPath('missing', pathValue)),
+        }
+      }),
+    recorded: {"win32":{"empty":null,"both":"run-x.exe","shim":"shim.cmd","plain":"only-plain","explicit":"run-x.exe","quotedOnly":"shim.cmd","missing":null},"darwin":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null},"linux":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null},"win32 by process.platform alone":{"empty":null,"both":"run-x.exe","shim":"shim.cmd","plain":"only-plain","explicit":"run-x.exe","quotedOnly":"shim.cmd","missing":null},"win32 by getPlatform() alone":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null}},
+  },
 ]
 
 const SPAWN: Row[] = [
