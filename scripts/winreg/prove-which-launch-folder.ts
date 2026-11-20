@@ -48,7 +48,7 @@ function lookupFrom(pathValue: string): Record<string, string | null> {
   const env: Record<string, string | undefined> = {}
   for (const [key, value] of Object.entries(process.env)) if (key.toUpperCase() !== 'PATH') env[key] = value
   env.PATH = pathValue
-  const run = spawnSync(node, [probe, resolve(import.meta.dir, '../../src/utils/which.ts')], { cwd: launch, env, encoding: 'utf8' })
+  const run = spawnSync(node, [probe, whichForNode], { cwd: launch, env, encoding: 'utf8' })
   try {
     return JSON.parse(run.stdout.trim())
   } catch {
@@ -62,6 +62,10 @@ const inLaunchFolder = (found: string | null): boolean =>
 console.log('============================================================')
 console.log(' which() and the launch folder')
 console.log('============================================================')
+
+const built = await Bun.build({ entrypoints: [resolve(import.meta.dir, '../../src/utils/which.ts')], target: 'node', format: 'esm', outdir: join(root, 'built') })
+check('which.ts and the modules it imports build for Node', built.success && built.outputs.length === 1, built.logs.map(String).join(' | '))
+const whichForNode = built.outputs[0]?.path ?? ''
 
 const plain = lookupFrom(`${listed}${delimiter}${basePath}`)
 check('a command that exists only in the launch folder is not found', plain.zzplanted === null, JSON.stringify(plain))
