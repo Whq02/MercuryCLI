@@ -109,6 +109,7 @@ export class FactsPart {
 
   modelFacts(): ModelFactsV1 {
     const retained = this.needs.awaitingRunner() ? this.needs.recordModel() : undefined
+    const retainedEffort = this.needs.awaitingRunner() ? this.needs.recordEffort() : undefined
     const effective = retained ?? this.facts?.model.effective ?? this.needs.recordModel() ?? getEngineModel()
     const effectiveSource: 'live' | 'record' | 'ambient' =
       this.facts !== null && !this.needs.awaitingRunner() ? 'live' : this.facts !== null || this.needs.recordModel() !== undefined ? 'record' : 'ambient'
@@ -118,8 +119,8 @@ export class FactsPart {
       main: effective,
       setting: retained ?? this.facts?.model.setting ?? this.needs.recordModel() ?? null,
       sessionPin: retained ?? this.facts?.model.setting ?? this.needs.recordModel() ?? null,
-      effort: this.facts?.effort ?? this.needs.recordEffort() ?? null,
-      ...(this.facts?.effortSent !== undefined ? { effortSent: this.facts.effortSent } : {}),
+      effort: retainedEffort ?? this.facts?.effort ?? this.needs.recordEffort() ?? null,
+      ...(retainedEffort === undefined && this.facts?.effortSent !== undefined ? { effortSent: this.facts.effortSent } : {}),
       pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null,
     }
   }
