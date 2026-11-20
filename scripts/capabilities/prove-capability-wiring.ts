@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { builtinCommands } from '../../src/commands.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '..', '..')
@@ -57,7 +58,7 @@ const WIRING: Array<{ cap: string; symbol: string }> = [
 const COMMANDS = ['help', 'verify']
 
 let fail = 0
-const commandsTs = readFileSync(resolve(REPO, 'src/commands.ts'), 'utf8')
+const registeredCommands = new Set(builtinCommands().map(cmd => cmd.name))
 
 console.log('— capability wiring (severed-loop detector) —')
 for (const { cap, symbol } of WIRING) {
@@ -72,12 +73,10 @@ for (const { cap, symbol } of WIRING) {
 
 console.log('— command registration —')
 for (const name of COMMANDS) {
-  const reByDir = new RegExp(`(import|require)\\b[^\\n]*commands/${name}/index`)
-  const reByFile = new RegExp(`(import|require)\\b[^\\n]*commands/${name}(\\.js|')`)
-  if (reByDir.test(commandsTs) || reByFile.test(commandsTs)) {
-    console.log(`  ✓ /${name} registered in src/commands.ts`)
+  if (registeredCommands.has(name)) {
+    console.log(`  ✓ /${name} registered in builtinCommands()`)
   } else {
-    console.error(`  ✗ /${name} NOT registered in src/commands.ts`)
+    console.error(`  ✗ /${name} NOT registered in builtinCommands()`)
     fail = 1
   }
 }
