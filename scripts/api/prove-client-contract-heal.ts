@@ -132,7 +132,7 @@ const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.j
 const health = await import('../../src/services/health/healthReport.js')
 const ledger = await import('../../src/services/providers/anthropic/prefixLedger.js')
 const { getAttributionHeader } = await import('../../src/constants/system.js')
-const { sideQuery } = await import('../../src/utils/sideQuery.js')
+const { sideQuery } = await import('../../src/services/api/sideQuery.js')
 
 const CONTRACT = oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION
 const NEWER = bump(CONTRACT, 9)

@@ -1,16 +1,16 @@
 
-import type { ApiMessage } from '../types/wire.js'
-import { setLastApiCompletionTimestamp } from '../bootstrap/state.js'
-import { STRUCTURED_OUTPUTS_BETA_HEADER } from '../constants/betas.js'
-import { getAttributionHeader } from '../constants/system.js'
-import type { QuerySource } from '../constants/querySource.js'
-import { getAnthropicClient } from '../services/api/client.js'
-import { isClientContractRefusalError } from './api/clientContractGate.js'
-import { healClientContractRefusal, noteClientContractHeal } from '../services/api/clientContractLearned.js'
-import { getAPIMetadata } from '../services/providers/anthropic/requestParams.js'
-import type { AnthropicMessageParams, AnthropicOutputConfig } from '../types/anthropicWire.js'
-import type { ApiToolUnion, JsonOutputFormat, MessageParam, TextBlockParam } from '../types/wire.js'
-import { computeFingerprint } from './fingerprint.js'
+import type { ApiMessage } from '../../types/wire.js'
+import { setLastApiCompletionTimestamp } from '../../bootstrap/state.js'
+import { STRUCTURED_OUTPUTS_BETA_HEADER } from '../../constants/betas.js'
+import { getAttributionHeader } from '../../constants/system.js'
+import type { QuerySource } from '../../constants/querySource.js'
+import { getAnthropicClient } from './client.js'
+import { isClientContractRefusalError } from '../../utils/api/clientContractGate.js'
+import { healClientContractRefusal, noteClientContractHeal } from './clientContractLearned.js'
+import { getAPIMetadata } from '../providers/anthropic/requestParams.js'
+import type { AnthropicMessageParams, AnthropicOutputConfig } from '../../types/anthropicWire.js'
+import type { ApiToolUnion, JsonOutputFormat, MessageParam, TextBlockParam } from '../../types/wire.js'
+import { computeFingerprint } from '../../utils/fingerprint.js'
 import {
   foldToolChoiceForModel,
   getMergedBetas,
@@ -18,8 +18,8 @@ import {
   modelSupportsStructuredOutputs,
   modelSupportsTemperature,
   modelThinkingAlwaysOn,
-} from './model/capabilities.js'
-import { normalizeModelStringForAPI } from './model/model.js'
+} from '../../utils/model/capabilities.js'
+import { normalizeModelStringForAPI } from '../../utils/model/model.js'
 
 
 type SideQueryOptions = {
