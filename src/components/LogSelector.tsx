@@ -2,11 +2,11 @@
 import { truncateToWidth } from '../utils/truncate.js'
 import React, {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
+import { useLoad, usePublish } from '../hooks/effects.js'
 import { useInput } from '../ink.js'
 import type { SessionListing } from '../types/logs.js'
 import { getLogDisplayTitle } from '../utils/log.js'
@@ -113,7 +113,7 @@ export function LogSelector({
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
 
   const [branch, setBranch] = useState<string | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false
     getBranch(getCwd())
       .then(value => {
@@ -127,7 +127,7 @@ export function LogSelector({
 
   const [multipleWorktrees, setMultipleWorktrees] = useState(false)
   const multipleWorktreesRef = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false
     getWorktreePaths(getOriginalCwd())
       .then(paths => {
@@ -227,7 +227,7 @@ export function LogSelector({
     () => grouped.findIndex(row => row.log === focusedLog),
     [grouped, focusedLog],
   )
-  useEffect(() => {
+  usePublish(() => {
     if (!onLoadMore) return
     if (focusedIndex >= 0 && focusedIndex + 2 * visibleCount >= grouped.length) {
       onLoadMore(3 * visibleCount)

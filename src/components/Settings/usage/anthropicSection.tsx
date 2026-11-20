@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
+import { useClaim, useLoad } from '../../../hooks/effects.js'
 import { Box, Text } from '../../../ink.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import type { Utilization } from '../../../services/api/usage.js'
@@ -30,7 +31,7 @@ export function AnthropicUsageSection({ width, openToken }: { width?: number; op
   }>({ loading: subscriber, error: null, data: null })
 
   const disposedRef = useRef(false)
-  useEffect(() => () => {
+  useClaim(() => () => {
     disposedRef.current = true
   }, [])
 
@@ -44,7 +45,7 @@ export function AnthropicUsageSection({ width, openToken }: { width?: number; op
     setState(previous => ({ ...previous, loading: true, error: null }))
     void refreshProviderUsage('anthropic', { reason: 'operator' }).then(settle)
   }, [subscriber, settle])
-  useEffect(() => {
+  useLoad(() => {
     if (!subscriber) return
     if (openToken !== undefined && !markOpenAsked(openToken)) {
       void refreshProviderUsage('anthropic', { reason: 'open' }).then(settle)

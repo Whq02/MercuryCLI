@@ -1,5 +1,6 @@
 import chalk from 'chalk'
-import React, { useEffect } from 'react'
+import React from 'react'
+import { useDerivedState } from '../hooks/effects.js'
 import { useBlink } from '../hooks/useBlink.js'
 import { useClipboardImageHint } from '../hooks/useClipboardImageHint.js'
 import { useVimInput, type UseVimInputProps, type VimMode } from '../hooks/useVimInput.js'
@@ -42,7 +43,7 @@ function vimInputOptions(props: Props, paint: Paint): UseVimInputProps {
 
 function useFollowedMode(inputState: VimInputState, initialMode: VimMode | undefined): void {
   const { mode, setMode } = inputState
-  useEffect(() => {
+  useDerivedState(() => {
     if (initialMode !== undefined && initialMode !== mode) setMode(initialMode)
   }, [initialMode, mode, setMode])
 }
