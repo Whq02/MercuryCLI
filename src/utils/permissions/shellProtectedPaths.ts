@@ -4,22 +4,24 @@ import { runtimeProcessRefusal, runtimeWritePath } from './runtimeProtection.js'
 import { credentialStorePath, mercurySecretPath } from './shellProtectedPaths/paths.js'
 import { inlineScriptReads, inlineScriptWrites, normalizeInlineScript } from './shellProtectedPaths/inlineScripts.js'
 import { couldNameSecret, mercuryHomes, spellingsOf } from './shellProtectedPaths/homes.js'
-import { readCredentialWrite } from './shellProtectedPaths/credentialWrite.js'
-import { readSecretReach } from './shellProtectedPaths/secretReach.js'
-import { killOfNamedPid, readSelfProtection } from './shellProtectedPaths/selfProtection.js'
+import { credentialWriteAfterMove, credentialWriteInBlocks, credentialWriteWalked } from './shellProtectedPaths/credentialWrite.js'
+import { namedMercurySecretPath, readSecretReach } from './shellProtectedPaths/secretReach.js'
+import { killOfNamedPid, namedSelfProtectionReason, readSelfProtection } from './shellProtectedPaths/selfProtection.js'
 export { inlineScriptWriteTargets } from './shellProtectedPaths/inlineScripts.js'
 
 export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  return readCredentialWrite(command, powershell, cwd)
+  return (await credentialWriteWalked(command, powershell, cwd)) ?? (await credentialWriteAfterMove(command, powershell, cwd)) ?? credentialWriteInBlocks(command, powershell, cwd)
 }
 
 export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  const reached = await readSecretReach(command, powershell, cwd)
+  const named = await namedMercurySecretPath(command, powershell, cwd)
+  const reached = named ?? (await readSecretReach(command, powershell, cwd))
   return reached === null ? null : reached.replaceAll(UNREAD_PART, '$(…)')
 }
 
 export async function shellSelfProtectionReason(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  return readSelfProtection(command, powershell, cwd)
+  const named = await namedSelfProtectionReason(command, powershell, cwd)
+  return named ?? readSelfProtection(command, powershell, cwd)
 }
 
 export async function evalCodePermission(code: string, cwd = getShellCwd()): Promise<{ behavior: 'deny'; message: string; decisionReason: { type: 'other'; reason: string } } | null> {

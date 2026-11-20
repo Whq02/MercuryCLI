@@ -127,6 +127,7 @@ const UNREAD: Array<[string, number]> = [
 ]
 
 const GRAMMAR_READERS: Array<[string, number]> = [
+  ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
 ]
 
 let failures = 0

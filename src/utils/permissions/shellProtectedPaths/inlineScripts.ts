@@ -1,18 +1,5 @@
 import { getMercuryHome } from '../../envUtils.js'
 import { hostEnv } from '../../hostEnv.js'
-import type { Layer } from '../decision/commandAnalysis.js'
-
-const SCRIPT_LANGUAGES = /^(?:node|nodejs|bun|deno|python[\d.]*|ruby|perl|php|lua)$/
-
-export function inlineScriptOfArgv(program: string, argv: readonly string[]): string | null {
-  if (!SCRIPT_LANGUAGES.test(program)) return null
-  const flag = argv.findIndex((word, i) => i > 0 && /^-(?:e|c|p|E|r|command)$/i.test(word))
-  return flag >= 0 ? argv.slice(flag + 1).join(' ') : null
-}
-
-export function inlineScriptOf(layer: Layer): string | null {
-  return inlineScriptOfArgv(layer.program, layer.argv)
-}
 
 export function normalizeInlineScript(script: string): string {
   const home = (hostEnv().HOME || hostEnv().USERPROFILE || '').replace(/\\/g, '/')
