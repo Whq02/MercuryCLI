@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { roughTokenCountEstimationForMessages } from '../roughTokenEstimation.js'
-import { messageContextFill } from '../../utils/messageContextFill.js'
+import { messageContextFill } from '../context/messageContextFill.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 
 export type RequestGaugeFixed = { digest: string; tokens: number }

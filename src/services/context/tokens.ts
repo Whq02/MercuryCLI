@@ -2,8 +2,8 @@ import { readRequestGauge } from '../run/requestGauge.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { getTokenCountFromUsage } from '../../utils/tokenUsage.js'
 export { getTokenCountFromUsage } from '../../utils/tokenUsage.js'
-import { getTokenUsage, messageContextFill, type ContentBlockLike, type ContextFill } from '../../utils/messageContextFill.js'
-export { getTokenUsage, messageContextFill } from '../../utils/messageContextFill.js'
+import { getTokenUsage, messageContextFill, type ContentBlockLike, type ContextFill } from './messageContextFill.js'
+export { getTokenUsage, messageContextFill } from './messageContextFill.js'
 
 export function usageAnchorModel(messages: readonly Message[]): string | undefined {
   for (let index = messages.length - 1; index >= 0; index--) {
