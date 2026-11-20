@@ -458,6 +458,7 @@ export async function runExclusiveOnFileSync<T>(file: string, section: () => Pro
       release?.()
     } catch (error) {
       passedOver(error)
+      logForDebugging(`Failed to release config lock for ${file}: ${error}`, { level: 'error' })
     }
   }
 }
@@ -694,8 +695,11 @@ function quarantineConfigRead(file: string, disk: ReturnType<typeof getFsImpleme
   try {
     disk.copyFileSync(file, copy)
     logForDebugging(`Corrupted config backed up to: ${copy}`, { level: 'error' })
-  } catch (error) { passedOver(error) }
-  return { directory, copy, matched }
+    return { directory, copy, matched }
+  } catch (error) {
+    logForDebugging(`Failed to back up corrupted config to ${copy}: ${error}`, { level: 'error' })
+    return { directory, matched }
+  }
 }
 
 function reportConfigCorruption(file: string, error: ConfigParseError, disk: ReturnType<typeof getFsImplementation>): void {

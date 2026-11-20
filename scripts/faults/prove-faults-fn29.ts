@@ -364,5 +364,62 @@ console.log('8. src/utils/commitAttribution.ts — throwing git deleted-file pro
   )
 }
 
+console.log('9. src/utils/config/globalConfig.ts — failed quarantine copy does not claim bytes were kept')
+if (!POSIX_MODES) skip('globalConfig: failed quarantine copy', 'needs POSIX non-root chmod')
+else {
+  const r = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const {
+      enableConfigs,
+      getConfig,
+      getConfigBackupDir,
+    } = await import(SRC + '/utils/config/globalConfig.ts')
+    const { createDefaultGlobalConfig } = await import(SRC + '/utils/config/schema.ts')
+    enableConfigs()
+    const target = path.join(HOME, 'corrupt-test.json')
+    fs.writeFileSync(target, '{ broken json', { mode: 0o600 })
+    const backupDir = getConfigBackupDir()
+    fs.mkdirSync(backupDir, { recursive: true })
+    let captured = ''
+    const origWrite = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (chunk => {
+      captured += String(chunk)
+      return true
+    })
+    fs.chmodSync(backupDir, 0o500)
+    try {
+      getConfig(target, createDefaultGlobalConfig)
+    } finally {
+      fs.chmodSync(backupDir, 0o700)
+      process.stderr.write = origWrite
+    }
+    out.stderrOnFail = captured
+    let capturedOk = ''
+    process.stderr.write = (chunk => {
+      capturedOk += String(chunk)
+      return true
+    })
+    try {
+      getConfig(target, createDefaultGlobalConfig)
+    } finally {
+      process.stderr.write = origWrite
+    }
+    out.stderrOnOk = capturedOk
+  `)
+  const stderrOnFail = String(r.stderrOnFail ?? '')
+  const stderrOnOk = String(r.stderrOnOk ?? '')
+  check(
+    'globalConfig: failed quarantine copy does not claim bytes were kept at path',
+    !stderrOnFail.includes('The unreadable bytes were kept at'),
+    stderrOnFail,
+  )
+  check(
+    'globalConfig: control succeeded quarantine copy still states where bytes were kept',
+    stderrOnOk.includes('The unreadable bytes were kept at'),
+    stderrOnOk,
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
