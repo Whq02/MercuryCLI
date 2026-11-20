@@ -56,7 +56,7 @@ function bindSchema(schema: object): SchemaBoundResult {
         structured_output: input as Output,
       }
     },
-  } as unknown as Tool
+  }
 
   return { tool }
 }

@@ -120,7 +120,7 @@ export function estimateContentTokens(content: unknown, model?: string): number 
 function messageTokenWeight(message: Message, model?: string): number {
   if (message.type === 'assistant' || message.type === 'user') return contentTokenWeight(message.message.content, model)
   if (message.type === 'attachment') {
-    const normalized = normalizeAttachmentForAPI(message.attachment as never)
+    const normalized = normalizeAttachmentForAPI(message.attachment)
     return normalized.reduce((sum, entry) => sum + messageTokenWeight(entry as Message, model), 0)
   }
   if (message.type === 'system') return contentTokenWeight('content' in message ? message.content : '', model)

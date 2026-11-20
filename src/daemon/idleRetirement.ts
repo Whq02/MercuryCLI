@@ -5,6 +5,7 @@ import { formatLimit, minutesKnobToMs } from '../utils/deadline.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
+import type { MercuryRecord } from '../fabric/record.js'
 import { workerTranscriptPath } from '../services/concourse/workerTranscript.js'
 import { readConcourseDispatches } from './concourseDispatch.js'
 import {
@@ -104,7 +105,7 @@ function lineIsConversation(raw: string): boolean {
   }
   let shape: { type?: unknown }
   try {
-    shape = recordToEntry(entry as never) as { type?: unknown }
+    shape = recordToEntry(entry as MercuryRecord)
   } catch (err) {
     const kind = (env.payload as { kind?: unknown }).kind
     if (kind !== 'input' && kind !== 'output') return false

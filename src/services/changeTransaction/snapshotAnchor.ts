@@ -46,7 +46,7 @@ export function anchorSpellingFault(anchor: string): string {
   if (parts === null) {
     return `starts with ${JSON.stringify(anchor.slice(0, 3))} where an anchor starts with "fa:" (the whole file) or "ra:" (a line range)`
   }
-  const [, kind, digest, rest] = parts as unknown as [string, string, string, string]
+  const [, kind, digest, rest] = parts
   if (!/^[0-9a-f]*$/.test(digest)) return `has a character outside 0-9 and a-f in its digest ${JSON.stringify(digest)}`
   if (digest.length !== 12) return `has ${digest.length} hex characters after "${kind}:" where the digest has exactly 12`
   if (kind === 'fa') return `carries ${JSON.stringify(rest)} after the 12-character digest; a whole-file anchor ends with the digest`

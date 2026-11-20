@@ -23,13 +23,14 @@ type TimingOverrides = {
 }
 
 type SkillWatcher = {
-  on: (event: string, cb: (arg: never) => void) => unknown
+  on(event: 'add' | 'addDir' | 'change' | 'unlink', cb: (path: string) => void): unknown
+  on(event: 'error', cb: (error: unknown) => void): unknown
   close: () => Promise<void>
 }
 type WatcherFactory = (paths: string[], options: Parameters<typeof chokidar.watch>[1]) => SkillWatcher
 
 const defaultWatcherFactory: WatcherFactory = (paths, options) =>
-  chokidar.watch(paths, options) as unknown as SkillWatcher
+  chokidar.watch(paths, options)
 
 let stabilityThresholdMs = 1000
 let pollIntervalMs = 500
@@ -158,8 +159,8 @@ async function armWatcher(gen: number): Promise<string[]> {
       scheduleReload(resolve(rawPath))
       void rearmWatchRoots()
     }
-    birthBuilt.on('addDir', path => onBirth(path as string))
-    birthBuilt.on('add', path => onBirth(path as string))
+    birthBuilt.on('addDir', path => onBirth(path))
+    birthBuilt.on('add', path => onBirth(path))
     birthBuilt.on('error', error => logForDebugging(`skill birth watcher error: ${String(error)}`))
     if (disposed || gen !== watcherGeneration) {
       void birthBuilt.close()
@@ -189,12 +190,7 @@ async function armWatcher(gen: number): Promise<string[]> {
       const normalized = resolve(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
       try {
-        const stats = statSync(normalized) as unknown as {
-          isSocket?(): boolean
-          isFIFO?(): boolean
-          isCharacterDevice?(): boolean
-          isBlockDevice?(): boolean
-        }
+        const stats = statSync(normalized)
         if (stats.isSocket?.() || stats.isFIFO?.() || stats.isCharacterDevice?.() || stats.isBlockDevice?.()) {
           return true
         }
@@ -204,9 +200,9 @@ async function armWatcher(gen: number): Promise<string[]> {
       return false
     }),
   })
-  built.on('add', path => scheduleReload(path as string))
-  built.on('change', path => scheduleReload(path as string))
-  built.on('unlink', path => scheduleReload(path as string))
+  built.on('add', path => scheduleReload(path))
+  built.on('change', path => scheduleReload(path))
+  built.on('unlink', path => scheduleReload(path))
   built.on('error', error => {
     logError(error as Error)
   })
