@@ -805,12 +805,12 @@ const HIDDEN_FILE_READERS: Partial<Record<PathCommand, (args: string[]) => boole
 }
 const ENV_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
 
-function namedBy(glob: string, name: string): boolean {
+function namedBy(glob: string, name: string, unread: boolean): boolean {
   try {
     return new RegExp(`^${glob.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`).test(name)
   } catch (error) {
     passedOver(error)
-    return false
+    return unread
   }
 }
 
@@ -870,7 +870,7 @@ function envFileBeneath(command: PathCommand, args: string[], roots: string[], c
         continue
       }
       if (!isProjectEnvFileName(entry.name)) continue
-      if ((includes.length > 0 && !includes.some(glob => namedBy(glob, entry.name))) || excludes.some(glob => namedBy(glob, entry.name))) continue
+      if ((includes.length > 0 && !includes.some(glob => namedBy(glob, entry.name, true))) || excludes.some(glob => namedBy(glob, entry.name, false))) continue
       const ask = envFileReadAsk(full, context)
       if (ask) return { behavior: 'ask', message: ask.message, decisionReason: ask.decisionReason }
     }
