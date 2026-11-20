@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -82,6 +82,33 @@ async function run(): Promise<void> {
       check('samples-readMarks-eacces-keeps-file', errUnreadable !== null && readFileSync(marksPath, 'utf8') === valid, 'overwrote unreadable marks file')
     } else {
       skip('samples-readMarks-eacces-keeps-file', 'needs POSIX non-root')
+    }
+  }
+
+  const structureQuery = await import('../../src/services/structure/query.ts')
+  {
+    const root = join(SCRATCH, 'struct-query')
+    const sub = join(root, 'locked-dir')
+    mkdirSync(sub, { recursive: true })
+    writeFileSync(join(root, 'ok.ts'), 'export function okFn() { return 1 }\n', 'utf8')
+    const lockedFile = join(root, 'locked.ts')
+    writeFileSync(lockedFile, 'export function secretFn() { return 2 }\n', 'utf8')
+    const brokenLink = join(root, 'broken.ts')
+    symlinkSync(join(root, 'does-not-exist.ts'), brokenLink)
+    if (POSIX_NON_ROOT) {
+      chmodSync(sub, 0o000)
+      chmodSync(lockedFile, 0o000)
+      const res = structureQuery.runStructureQuery(root, { select: 'function' })
+      chmodSync(sub, 0o700)
+      chmodSync(lockedFile, 0o600)
+      const failedFiles = 'parseFailures' in res ? res.parseFailures.map(f => f.file) : []
+      check('structure-query-unreadable-dir-reported', failedFiles.includes('locked-dir'), `parseFailures=${JSON.stringify(failedFiles)}`)
+      check('structure-query-broken-stat-reported', failedFiles.includes('broken.ts'), `parseFailures=${JSON.stringify(failedFiles)}`)
+      check('structure-query-unreadable-file-reported', failedFiles.includes('locked.ts'), `parseFailures=${JSON.stringify(failedFiles)}`)
+    } else {
+      skip('structure-query-unreadable-dir-reported', 'needs POSIX non-root')
+      skip('structure-query-broken-stat-reported', 'needs POSIX non-root')
+      skip('structure-query-unreadable-file-reported', 'needs POSIX non-root')
     }
   }
 }

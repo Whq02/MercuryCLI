@@ -18,6 +18,7 @@ import {
   resolveStructureTypescript,
   type TsModule,
 } from './tsFacility.js'
+import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_FILES_SCANNED = 3000
@@ -58,8 +59,9 @@ export function admitsScannedFile(rel: string, globs: readonly string[] | undefi
 export function discoverSourceFiles(
   root: string,
   fileGlobs: string[] | undefined,
-): { files: string[]; scanned: number; truncatedWalk: boolean } {
+): { files: string[]; scanned: number; truncatedWalk: boolean; readFailures: { file: string; message: string }[] } {
   const files: string[] = []
+  const readFailures: { file: string; message: string }[] = []
   let scanned = 0
   let truncatedWalk = false
   const globs = normalizeFileGlobs(fileGlobs)
@@ -70,7 +72,7 @@ export function discoverSourceFiles(
     try {
       entries = readdirSync(dir).sort()
     } catch (error) {
-      passedOver(error)
+      readFailures.push({ file: posixRelative(root, dir) || '.', message: errorMessage(error) })
       return
     }
     for (const entry of entries) {
@@ -81,7 +83,9 @@ export function discoverSourceFiles(
       try {
         stat = statSync(full)
       } catch (error) {
-        passedOver(error)
+        if (!isENOENT(error) || isSupportedSourceFile(entry)) {
+          readFailures.push({ file: posixRelative(root, full), message: errorMessage(error) })
+        }
         continue
       }
       if (stat.isDirectory()) {
@@ -102,7 +106,7 @@ export function discoverSourceFiles(
   }
   walk(root)
   files.sort()
-  return { files, scanned, truncatedWalk }
+  return { files, scanned, truncatedWalk, readFailures }
 }
 
 function preFilterToken(query: StructureQuery): string | null {
@@ -390,11 +394,11 @@ export function runStructureQuery(
   const ts = loadTs(resolution.modulePath)
 
   const limit = Math.min(Math.max(query.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT)
-  const { files, scanned, truncatedWalk } = discoverSourceFiles(root, query.files)
+  const { files, scanned, truncatedWalk, readFailures } = discoverSourceFiles(root, query.files)
   const preToken = preFilterToken(query)
 
   const matches: StructureMatch[] = []
-  const parseFailures: { file: string; message: string }[] = []
+  const parseFailures: { file: string; message: string }[] = [...readFailures]
   let parsed = 0
   let truncated = truncatedWalk
 
@@ -413,7 +417,7 @@ export function runStructureQuery(
     try {
       text = readFileSync(full, 'utf8')
     } catch (error) {
-      passedOver(error)
+      parseFailures.push({ file: rel, message: errorMessage(error) })
       continue
     }
     if (text.length > 2_000_000) continue
