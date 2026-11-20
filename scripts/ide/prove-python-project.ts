@@ -39,7 +39,15 @@ delete process.env.CONDA_PREFIX
 
 const proj = await import('../../src/services/ide/pythonProject.js')
 
+function venvPy(dir: string): string {
+  return process.platform === 'win32' ? join(dir, 'Scripts', 'python.exe') : join(dir, 'bin', 'python')
+}
+
 function makeFakeVenv(dir: string): string {
+  if (process.platform === 'win32') {
+    execFileSync(SYS_PY, ['-m', 'venv', '--without-pip', dir], { windowsHide: true, timeout: 60_000 })
+    return venvPy(dir)
+  }
   mkdirSync(join(dir, 'bin'), { recursive: true })
   const py = join(dir, 'bin', 'python')
   writeFileSync(py, `#!/bin/sh\nexec ${SYS_PY} "$@"\n`)
@@ -87,7 +95,7 @@ try {
     proj._resetPythonProjectForTesting()
     const active = proj.selectPythonInterpreter(bare)
     check('A4 $VIRTUAL_ENV selected (active-venv rung)',
-      active.state === 'ok' && active.command === join(activeVenv, 'bin', 'python') && active.envKind === 'active-venv',
+      active.state === 'ok' && active.command === venvPy(activeVenv) && active.envKind === 'active-venv',
       JSON.stringify(active).slice(0, 160))
     delete process.env.VIRTUAL_ENV
 
@@ -98,7 +106,7 @@ try {
     proj._resetPythonProjectForTesting()
     const projVenv = proj.selectPythonInterpreter(withVenvs)
     check('A5 project .venv selected over venv/ and PATH',
-      projVenv.state === 'ok' && projVenv.command === join(withVenvs, '.venv', 'bin', 'python') && projVenv.envKind === 'project-venv',
+      projVenv.state === 'ok' && projVenv.command === venvPy(join(withVenvs, '.venv')) && projVenv.envKind === 'project-venv',
       JSON.stringify(projVenv).slice(0, 160))
 
     const rooted = proj.findPythonProjectRoot(withVenvs)

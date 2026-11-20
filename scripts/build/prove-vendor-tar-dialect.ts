@@ -79,7 +79,9 @@ console.log('[3] the census: every fetch script extracts through the one helper'
 }
 
 console.log('[4] live: the faked dialect aborts the old shape, the helper extracts whole')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: live tar dialect stand-in uses /usr/bin/tar and POSIX #!/bin/sh')
+} else {
   const bin = join(scratch, 'bin')
   mkdirSync(bin, { recursive: true })
   const argvLog = join(scratch, 'argv.log')

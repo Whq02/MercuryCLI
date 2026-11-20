@@ -15,7 +15,12 @@ import { mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, dirname, join } from 'node:path'
 import { passedOver } from '../utils/passedOver.js'
-import { dirFsyncErrorIsFatal, heldFileRetryDelayMs } from '../utils/platform/files.js'
+import {
+  dirFsyncErrorIsFatal,
+  HELD_FILE_RETRY_DELAYS_MS,
+  heldFileRetryDelayMs,
+  isHeldFileErrnoCode,
+} from '../utils/platform/files.js'
 import { sleepSync } from '../utils/timers.js'
 
 export type PublishFailurePhase =
@@ -97,11 +102,9 @@ export function isDurableTempName(name: string): boolean {
 }
 
 
-export const WIN32_RENAME_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200]
+export const WIN32_RENAME_RETRY_DELAYS_MS = HELD_FILE_RETRY_DELAYS_MS
 
-export function isTransientWin32FsCode(code: string | undefined): boolean {
-  return code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
-}
+export const isTransientWin32FsCode = isHeldFileErrnoCode
 
 export function renameRetryDelayMs(
   code: string | undefined,

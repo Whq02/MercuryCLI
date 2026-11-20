@@ -70,11 +70,13 @@ const fixtureBin = join(scratch, 'fixture-bin')
 mkdirSync(fixtureBin, { recursive: true })
 const daemon = spawn(realExe, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })
 await new Promise<void>((resolve, reject) => { daemon.once('spawn', resolve); daemon.once('error', reject) })
-writeFileSync(join(fixtureBin, 'ps'), `#!/bin/sh\n/bin/ps "$@" 2>/dev/null && exit 0\ncase "$*" in\n  *lstart=*) echo "Sun Oct 18 07:00:00 2026"; exit 0 ;;\n  *ppid=*) echo "${process.pid}"; exit 0 ;;\nesac\nexit 1\n`)
-chmodSync(join(fixtureBin, 'ps'), 0o755)
-writeFileSync(join(fixtureBin, 'launchctl'), '#!/bin/sh\ncase "$2" in */fixture.mercury.daemon) echo "pid = ' + daemon.pid + '";; *) echo "pid = 2147480000";; esac\n')
-chmodSync(join(fixtureBin, 'launchctl'), 0o755)
-process.env.PATH = fixtureBin + ':' + pathBefore
+if (process.platform !== 'win32') {
+  writeFileSync(join(fixtureBin, 'ps'), `#!/bin/sh\n/bin/ps "$@" 2>/dev/null && exit 0\ncase "$*" in\n  *lstart=*) echo "Sun Oct 18 07:00:00 2026"; exit 0 ;;\n  *ppid=*) echo "${process.pid}"; exit 0 ;;\nesac\nexit 1\n`)
+  chmodSync(join(fixtureBin, 'ps'), 0o755)
+  writeFileSync(join(fixtureBin, 'launchctl'), '#!/bin/sh\ncase "$2" in */fixture.mercury.daemon) echo "pid = ' + daemon.pid + '";; *) echo "pid = 2147480000";; esac\n')
+  chmodSync(join(fixtureBin, 'launchctl'), 0o755)
+  process.env.PATH = fixtureBin + ':' + pathBefore
+}
 const daemonState = { pid: daemon.pid!, startedAt: Date.now(), startToken: await getProcessStartTokenAsync(daemon.pid!) }
 writeFileSync(join(config, 'daemon/daemon.json'), JSON.stringify(daemonState))
 writeFileSync(join(dist, 'manifest.json'), JSON.stringify({ buildTree: 'fixture-runtime-build', buildTime: 'fixture' }))
@@ -82,8 +84,13 @@ writeFileSync(join(dist, 'mercury.mjs'), 'fixture-original\n')
 writeFileSync(exe, 'fixture-interpreter\n')
 symlinkSync(dist, join(runtime, 'current'), process.platform === 'win32' ? 'junction' : 'dir')
 symlinkSync(runtime, join(project, 'linked-runtime'), process.platform === 'win32' ? 'junction' : 'dir')
-symlinkSync(join(dist, 'missing.mjs'), join(project, 'linked-missing'))
-symlinkSync(join(project, 'linked-missing'), join(project, 'linked-missing-two'))
+let fileLinks = true
+try {
+  symlinkSync(join(dist, 'missing.mjs'), join(project, 'linked-missing'))
+  symlinkSync(join(project, 'linked-missing'), join(project, 'linked-missing-two'))
+} catch {
+  fileLinks = false
+}
 Object.defineProperty(process, 'execPath', { value: exe, configurable: true })
 process.argv[1] = join(dist, 'mercury.mjs')
 const bodies = (path: string): Array<[any, Record<string, unknown>]> => [
@@ -96,8 +103,9 @@ try {
   console.log('refusals')
   const paths = [
     join(runtime, 'current'), join(runtime, 'current/mercury.mjs'), join(runtime, 'new-build/part'),
-    join(project, 'linked-runtime/current/mercury.mjs'), join(project, 'linked-missing'),
-    join(project, 'linked-missing-two'), ` ${join(dist, 'mercury.mjs')} `,
+    join(project, 'linked-runtime/current/mercury.mjs'),
+    ...(fileLinks ? [join(project, 'linked-missing'), join(project, 'linked-missing-two')] : []),
+    ` ${join(dist, 'mercury.mjs')} `,
     join(dist, 'mercury.mjs'), dirname(dist), exe, join(dirname(exe), 'sibling'),
     '~/.mercury/runtime/current', '~/.mercury/runtime/../runtime/current',
     String.raw`%USERPROFILE%\.mercury\runtime\current`, String.raw`$env:USERPROFILE\.mercury\runtime\current`,

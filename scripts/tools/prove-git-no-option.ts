@@ -30,7 +30,8 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_READ_TARGETS
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: project, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } })
+const nullDev = process.platform === 'win32' ? 'NUL' : '/dev/null'
+const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: project, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: nullDev, GIT_CONFIG_SYSTEM: nullDev } })
 git('init', '-q', '-b', 'main')
 writeFileSync(join(project, 'src/f.ts'), 'export const one = 1\n')
 git('add', '-A', '.')
@@ -196,7 +197,9 @@ console.log('nothing an honest revision does moves')
 }
 
 console.log('whichever git is installed: the marker that ends the options goes only where that git reads it, and the refusal does not rest on it')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: version-spoofing git stand-in uses POSIX #!/bin/sh')
+} else {
   const STAND_IN = `#!/bin/sh
 here=$(dirname "$0")
 real=$(cat "$here/real")

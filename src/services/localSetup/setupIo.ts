@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
 import { accessSync, closeSync, constants, existsSync, mkdirSync, openSync, realpathSync } from 'node:fs'
 import { homedir, totalmem } from 'node:os'
-import { delimiter, dirname, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { getApiFetch } from '../../utils/proxy.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { sleep } from '../../utils/sleep.js'
@@ -25,6 +25,8 @@ import {
 } from './setupTypes.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { envPathDirs, pathLookupExtensions } from '../../utils/platform/programs.js'
+import { commandShellArgv, executableNeedsVerbatimArgs } from '../../utils/platform/spawn.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export interface ResolvedSetupIo {
@@ -73,7 +75,7 @@ function lastLineOf(text: string): string {
 }
 
 export function shellArgv(platform: NodeJS.Platform, command: string): string[] {
-  return platform === 'win32' ? ['cmd.exe', '/d', '/s', '/c', command] : ['/bin/sh', '-c', command]
+  return commandShellArgv(command, platform)
 }
 
 function executable(path: string): boolean {
@@ -87,14 +89,13 @@ function executable(path: string): boolean {
 }
 
 function whichOnPath(name: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform, exists: (path: string) => boolean = executable): string | undefined {
-  const dirs = (env.PATH ?? env.Path ?? '').split(platform === 'win32' ? ';' : delimiter).filter(dir => dir !== '')
-  const exts = platform === 'win32' ? (env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(ext => ext !== '') : ['']
+  const dirs = envPathDirs(env, platform)
+  const exts = pathLookupExtensions(env, platform)
   for (const dir of dirs) {
     for (const ext of exts) {
       const candidate = join(dir, `${name}${ext}`)
       if (exists(candidate)) return candidate
     }
-    if (platform === 'win32' && exists(join(dir, name))) return join(dir, name)
   }
   return undefined
 }
@@ -135,7 +136,7 @@ function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Prom
   }
   return new Promise(resolve => {
     try {
-      const verbatim = process.platform === 'win32' && /(?:^|[\\/])cmd(?:\.exe)?$/i.test(file)
+      const verbatim = executableNeedsVerbatimArgs(file)
       execFile(file, args, { timeout: opts.timeoutMs ?? SETUP_EXEC_TIMEOUT_MS, maxBuffer: 1 << 24, cwd: opts.cwd, env: opts.env ?? hostEnv(), windowsHide: true, ...(verbatim ? { windowsVerbatimArguments: true } : {}) }, (error, stdout, stderr) => {
         const out = String(stdout)
         const err = String(stderr)

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { basename, dirname, extname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 import memoize from 'lodash-es/memoize.js'
 
@@ -13,6 +13,8 @@ import type { ShellEngineResolution } from './engineSession.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
 import type { ShellOrigin, ShellRecord } from './shellRecord.js'
 import { hostEnv } from '../hostEnv.js'
+import { hasRequiredProgramExtension, pathDelimiter } from '../platform/programs.js'
+import { envVarKey } from '../platform/spawn.js'
 
 
 export type ShippedBash = { path: string; programsDir: string | null }
@@ -168,12 +170,12 @@ type ProgramsWorld = { platform: string; gitBash: GitBashLocation; packDir?: str
 
 function lsResolves(path: string, platform: string): boolean {
   const found = resolveExecutable('ls', { platform, path })
-  return found !== null && (platform !== 'win32' || extname(found) !== '')
+  return found !== null && hasRequiredProgramExtension(found, platform)
 }
 
-const pathKeyOf = (env: NodeJS.ProcessEnv, platform: string): string => Object.keys(env).find(name => (platform === 'win32' ? name.toUpperCase() : name) === 'PATH') ?? 'PATH'
+const pathKeyOf = (env: NodeJS.ProcessEnv, platform: string): string => Object.keys(env).find(name => envVarKey(name, platform) === 'PATH') ?? 'PATH'
 
-const pathLedBy = (dir: string, rest: string, platform: string): string => (rest === '' ? dir : `${dir}${platform === 'win32' ? ';' : ':'}${rest}`)
+const pathLedBy = (dir: string, rest: string, platform: string): string => (rest === '' ? dir : `${dir}${pathDelimiter(platform)}${rest}`)
 
 export function toolPrograms(
   env: NodeJS.ProcessEnv,
@@ -200,7 +202,7 @@ export function withGitPrograms(env: NodeJS.ProcessEnv, world?: ProgramsWorld | 
 export function withProgramsFirst(env: NodeJS.ProcessEnv, dir: string, platform: string = process.platform): NodeJS.ProcessEnv {
   const key = pathKeyOf(env, platform)
   const rest = env[key] ?? ''
-  const separator = platform === 'win32' ? ';' : ':'
+  const separator = pathDelimiter(platform)
   if (rest === dir || rest.startsWith(`${dir}${separator}`)) return env
   return { ...env, [key]: pathLedBy(dir, rest, platform) }
 }
@@ -209,7 +211,7 @@ const SHELL_START_FILE_VARIABLES = ['BASH_ENV', 'ENV']
 const ENGINE_REFUSES = ['BASH_ENV']
 
 export function withoutShellStartFiles(env: NodeJS.ProcessEnv, platform: string = process.platform, names: readonly string[] = SHELL_START_FILE_VARIABLES): NodeJS.ProcessEnv {
-  const named = Object.keys(env).filter(name => names.includes(platform === 'win32' ? name.toUpperCase() : name))
+  const named = Object.keys(env).filter(name => names.includes(envVarKey(name, platform)))
   if (named.length === 0) return env
   const kept = { ...env }
   for (const name of named) delete kept[name]

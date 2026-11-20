@@ -11,6 +11,7 @@ import { releaseLauncherAltHoldNow } from '../ink/launcherAltHold.js'
 import { logForDebugging } from './debug.js'
 import { memoizeWithLRU } from './memoize.js'
 import { passedOver } from './passedOver.js'
+import { posixToWin32Path, win32ToPosixPath } from './platform/paths.js'
 
 
 function pathExists(candidate: string): boolean {
@@ -128,18 +129,7 @@ export function findGitBashPath(): string {
 }
 
 export const windowsPathToPosixPath = memoizeWithLRU(
-  (windowsPath: string): string => {
-    if (windowsPath.startsWith('\\\\')) {
-      return `//${windowsPath.slice(2).replace(/\\/g, '/')}`
-    }
-    const driveMatch = windowsPath.match(/^([A-Za-z]):([\\/])(.*)$/s)
-    if (driveMatch) {
-      const drive = (driveMatch[1] as string).toLowerCase()
-      const rest = (driveMatch[3] as string).replace(/\\/g, '/')
-      return `/${drive}/${rest}`
-    }
-    return windowsPath.replace(/\\/g, '/')
-  },
+  win32ToPosixPath,
   windowsPath => windowsPath,
   500,
 )
@@ -188,22 +178,7 @@ export function stripExtendedLengthPrefix(path: string): string {
 }
 
 export const posixPathToWindowsPath = memoizeWithLRU(
-  (posixPath: string): string => {
-    if (posixPath.startsWith('//')) {
-      return `\\\\${posixPath.slice(2).replace(/\//g, '\\')}`
-    }
-    const cygdriveMatch = posixPath.match(/^\/cygdrive\/([A-Za-z])(\/.*)?$/s)
-    if (cygdriveMatch) {
-      const rest = (cygdriveMatch[2] ?? '').replace(/\//g, '\\')
-      return `${(cygdriveMatch[1] as string).toUpperCase()}:${rest === '' ? '\\' : rest}`
-    }
-    const msysMatch = posixPath.match(/^\/([A-Za-z])(\/.*)?$/s)
-    if (msysMatch) {
-      const rest = (msysMatch[2] ?? '').replace(/\//g, '\\')
-      return `${(msysMatch[1] as string).toUpperCase()}:${rest === '' ? '\\' : rest}`
-    }
-    return posixPath.replace(/\//g, '\\')
-  },
+  posixToWin32Path,
   posixPath => posixPath,
   500,
 )

@@ -123,7 +123,10 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   check('the comment-free launcher carries the comment-free block once, between the same markers, ahead of the anchor', inStripped.begins === 1 && inStripped.ends === 1 && inStripped.span === strippedBlock && inStripped.next === 'args=()')
   check('the retired comment markers are gone from the launcher', !launcher.includes('# MERCURY-SPLASH-ACTION'))
   const arena = mkdtempSync(join(tmpdir(), 'direct-splash-block-'))
-  const stub = join(arena, 'node-stub')
+  if (process.platform === 'win32') {
+    console.log('not read on Windows: launcher-action-block.sh runs under POSIX sh')
+  } else {
+    const stub = join(arena, 'node-stub')
   writeFileSync(stub, '#!/bin/sh\nprintf \'%s\' "$2" > "$MERCURY_TEST_HEAL_OUT"\n')
   chmodSync(stub, 0o755)
   const strippedPath = join(arena, 'launcher-action-block.stripped.sh')
@@ -174,6 +177,7 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
     }
   }
   check('the heal constant is the block\'s exact bytes', runBlock(7, undefined).heal === SPLASH_ABNORMAL_HEAL)
+  }
   {
     const env: Record<string, string | undefined> = {}
     let wrote = ''
@@ -185,45 +189,49 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   check('a splash killed by SIGTERM reads 143 — abnormal, as a shell reports it', shellExitCodeOf({ status: null, signal: 'SIGTERM' }) === 143)
   check('a spawn that never ran reads 127 — abnormal', shellExitCodeOf({ status: null, signal: null, error: new Error('ENOENT') }) === 127)
   check('no status and no signal reads 127 — abnormal, never a false handoff', shellExitCodeOf({ status: null, signal: null }) === 127)
-  const deployHome = join(arena, 'home')
-  mkdirSync(deployHome, { recursive: true })
-  const runDeploy = (text: string): { out: string; status: number | null; after: string } => {
-    const launcherPath = join(arena, 'launcher.sh')
-    writeFileSync(launcherPath, text)
-    const r = spawnSync('bash', [join(ROOT, 'scripts', 'splash', 'deploy.sh')], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: arena, MERCURY_CONFIG_DIR: deployHome, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LAUNCHER: launcherPath }, timeout: 30_000 })
-    return { out: `${r.stdout ?? ''}${r.stderr ?? ''}`, status: r.status, after: readFileSync(launcherPath, 'utf8') }
+  if (process.platform === 'win32') {
+    console.log('not read on Windows: scripts/splash/deploy.sh requires POSIX bash')
+  } else {
+    const deployHome = join(arena, 'home')
+    mkdirSync(deployHome, { recursive: true })
+    const runDeploy = (text: string): { out: string; status: number | null; after: string } => {
+      const launcherPath = join(arena, 'launcher.sh')
+      writeFileSync(launcherPath, text)
+      const r = spawnSync('bash', [join(ROOT, 'scripts', 'splash', 'deploy.sh')], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: arena, MERCURY_CONFIG_DIR: deployHome, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LAUNCHER: launcherPath }, timeout: 30_000 })
+      return { out: `${r.stdout ?? ''}${r.stderr ?? ''}`, status: r.status, after: readFileSync(launcherPath, 'utf8') }
+    }
+    const captureLines = 'MERCURY_SA_EXIT=0\n"$MERCURY_NODE_BIN" "$MERCURY_HOME/splash.mjs" </dev/tty || MERCURY_SA_EXIT=$?\n'
+    const tail = '\nargs=()\nexec node "$@"\n'
+    const body = strippedLines.slice(1, -1).join('\n')
+    const marked = `#!/usr/bin/env bash\n${captureLines}\n${block.trimEnd()}\n${tail}`
+    const current = runDeploy(marked)
+    check('deploy: a launcher already carrying the block is left byte-identical and reported current', current.status === 0 && current.after === marked && current.out.includes('already current'), current.out)
+    const staleBody = body.replace('\\x1b[?2026l', '')
+    const stale = `#!/usr/bin/env bash\n${captureLines}\n${BEGIN}\n${staleBody}\n${END}\n${tail}`
+    const refreshed = runDeploy(stale)
+    check('deploy: an older body between the markers is refreshed to the canonical block', staleBody !== body && refreshed.status === 0 && refreshed.after === marked && refreshed.out.includes('refreshed'), refreshed.out)
+    const again = runDeploy(refreshed.after)
+    check('deploy: the refreshed launcher is current on the next run (idempotent)', again.status === 0 && again.after === marked && again.out.includes('already current'), again.out)
+    const oldMarked = `#!/usr/bin/env bash\n${captureLines}\n# MERCURY-SPLASH-ACTION-START (managed)\n${body}\n# MERCURY-SPLASH-ACTION-END\n${tail}`
+    const fromOld = runDeploy(oldMarked)
+    check('deploy: the retired comment markers migrate to one marked block', fromOld.status === 0 && fromOld.after === marked && fromOld.out.includes('migrated'), fromOld.out)
+    const stacked = `#!/usr/bin/env bash\n${captureLines}\n${body}\n\n${body}\n\n${body}\n${tail}`
+    const fromStack = runDeploy(stacked)
+    check('deploy: three stacked marker-less bodies migrate to one marked block', fromStack.status === 0 && fromStack.after === marked && fromStack.out.includes('migrated'), fromStack.out)
+    const foreign = '#!/usr/bin/env bash\necho not a launcher\n'
+    const refused = runDeploy(foreign)
+    check('deploy: an unrelated launcher is skipped untouched', refused.status === 0 && refused.after === foreign && refused.out.includes('skipped — not ours:'), refused.out)
+    const stray = `#!/usr/bin/env bash\n${captureLines}\n${block.trimEnd()}\n\n${body}\n${tail}`
+    const withStray = runDeploy(stray)
+    check('deploy: a body outside the managed span is refused untouched, naming the launcher redeploy', withStray.status === 1 && withStray.after === stray && withStray.out.includes('REFUSED') && withStray.out.includes('deploy-launcher.sh'), withStray.out)
+    const torn = `#!/usr/bin/env bash\n${captureLines}\n${BEGIN}\n${body}\n${tail}`
+    const withTorn = runDeploy(torn)
+    check('deploy: a torn marker pair (no end) is refused untouched', withTorn.status === 1 && withTorn.after === torn && withTorn.out.includes('REFUSED') && withTorn.out.includes('deploy-launcher.sh'), withTorn.out)
+    const reversed = `#!/usr/bin/env bash\n${captureLines}\n${END}\n${body}\n${BEGIN}\n${tail}`
+    const withReversed = runDeploy(reversed)
+    check('deploy: an end marker above the begin marker is refused untouched', withReversed.status === 1 && withReversed.after === reversed && withReversed.out.includes('REFUSED'), withReversed.out)
+    check('deploy: the deployed splash reads as current on every later run (no spurious previous-splash backup)', existsSync(join(deployHome, 'splash.mjs')) && !existsSync(join(deployHome, 'splash.mjs.crab-bak')))
   }
-  const captureLines = 'MERCURY_SA_EXIT=0\n"$MERCURY_NODE_BIN" "$MERCURY_HOME/splash.mjs" </dev/tty || MERCURY_SA_EXIT=$?\n'
-  const tail = '\nargs=()\nexec node "$@"\n'
-  const body = strippedLines.slice(1, -1).join('\n')
-  const marked = `#!/usr/bin/env bash\n${captureLines}\n${block.trimEnd()}\n${tail}`
-  const current = runDeploy(marked)
-  check('deploy: a launcher already carrying the block is left byte-identical and reported current', current.status === 0 && current.after === marked && current.out.includes('already current'), current.out)
-  const staleBody = body.replace('\\x1b[?2026l', '')
-  const stale = `#!/usr/bin/env bash\n${captureLines}\n${BEGIN}\n${staleBody}\n${END}\n${tail}`
-  const refreshed = runDeploy(stale)
-  check('deploy: an older body between the markers is refreshed to the canonical block', staleBody !== body && refreshed.status === 0 && refreshed.after === marked && refreshed.out.includes('refreshed'), refreshed.out)
-  const again = runDeploy(refreshed.after)
-  check('deploy: the refreshed launcher is current on the next run (idempotent)', again.status === 0 && again.after === marked && again.out.includes('already current'), again.out)
-  const oldMarked = `#!/usr/bin/env bash\n${captureLines}\n# MERCURY-SPLASH-ACTION-START (managed)\n${body}\n# MERCURY-SPLASH-ACTION-END\n${tail}`
-  const fromOld = runDeploy(oldMarked)
-  check('deploy: the retired comment markers migrate to one marked block', fromOld.status === 0 && fromOld.after === marked && fromOld.out.includes('migrated'), fromOld.out)
-  const stacked = `#!/usr/bin/env bash\n${captureLines}\n${body}\n\n${body}\n\n${body}\n${tail}`
-  const fromStack = runDeploy(stacked)
-  check('deploy: three stacked marker-less bodies migrate to one marked block', fromStack.status === 0 && fromStack.after === marked && fromStack.out.includes('migrated'), fromStack.out)
-  const foreign = '#!/usr/bin/env bash\necho not a launcher\n'
-  const refused = runDeploy(foreign)
-  check('deploy: an unrelated launcher is skipped untouched', refused.status === 0 && refused.after === foreign && refused.out.includes('skipped — not ours:'), refused.out)
-  const stray = `#!/usr/bin/env bash\n${captureLines}\n${block.trimEnd()}\n\n${body}\n${tail}`
-  const withStray = runDeploy(stray)
-  check('deploy: a body outside the managed span is refused untouched, naming the launcher redeploy', withStray.status === 1 && withStray.after === stray && withStray.out.includes('REFUSED') && withStray.out.includes('deploy-launcher.sh'), withStray.out)
-  const torn = `#!/usr/bin/env bash\n${captureLines}\n${BEGIN}\n${body}\n${tail}`
-  const withTorn = runDeploy(torn)
-  check('deploy: a torn marker pair (no end) is refused untouched', withTorn.status === 1 && withTorn.after === torn && withTorn.out.includes('REFUSED') && withTorn.out.includes('deploy-launcher.sh'), withTorn.out)
-  const reversed = `#!/usr/bin/env bash\n${captureLines}\n${END}\n${body}\n${BEGIN}\n${tail}`
-  const withReversed = runDeploy(reversed)
-  check('deploy: an end marker above the begin marker is refused untouched', withReversed.status === 1 && withReversed.after === reversed && withReversed.out.includes('REFUSED'), withReversed.out)
-  check('deploy: the deployed splash reads as current on every later run (no spurious previous-splash backup)', existsSync(join(deployHome, 'splash.mjs')) && !existsSync(join(deployHome, 'splash.mjs.crab-bak')))
   rmSync(arena, { recursive: true, force: true })
 }
 

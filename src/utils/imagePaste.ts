@@ -17,6 +17,7 @@ import { logForDebugging } from './debug.js'
 import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { normalizedOsPlatform } from './platform/programs.js'
 
 export const PASTE_THRESHOLD = 800
 
@@ -33,9 +34,7 @@ type ImageWithDimensions = {
 type ClipboardPlatform = 'darwin' | 'linux' | 'win32'
 
 function clipboardPlatform(): ClipboardPlatform {
-  if (process.platform === 'darwin') return 'darwin'
-  if (process.platform === 'win32') return 'win32'
-  return 'linux'
+  return normalizedOsPlatform()
 }
 
 function tempDir(): string {

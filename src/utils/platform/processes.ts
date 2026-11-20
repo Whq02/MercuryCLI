@@ -120,3 +120,15 @@ export function ancestorPidsCommand(
   const script = `p=${pid}; i=0; while [ $i -lt ${maxDepth} ]; do pp=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' '); if [ -z "$pp" ] || [ "$pp" = "0" ] || [ "$pp" = "1" ]; then break; fi; echo "$pp"; p=$pp; i=$((i+1)); done`
   return { file: 'sh', args: ['-c', script] }
 }
+
+type ProcessQueryTool = 'tasklist' | 'ps'
+
+export function processQueryTool(platform: NodeJS.Platform = process.platform): ProcessQueryTool {
+  return platform === 'win32' ? 'tasklist' : 'ps'
+}
+
+type ProcessUserSource = 'table' | 'uid'
+
+export function processUserSource(platform: NodeJS.Platform = process.platform): ProcessUserSource {
+  return platform === 'win32' ? 'table' : 'uid'
+}

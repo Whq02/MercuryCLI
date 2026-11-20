@@ -294,11 +294,13 @@ if (ladderModule !== null) {
   check('the same id with no backup is the refusal it is today', unplaceableAlone.vote === null && unplaceableAlone.errors.length === 1, j(unplaceableAlone))
   fixtureScript.status = 429
   fixtureScript.body = { error: { message: 'Rate limit reached for this window', type: 'rate_limit_error', code: 'rate_limit_exceeded' } }
+  process.env.MERCURY_MAX_RETRIES = '1'
   const windowed = await (async () => {
     const started = Date.now()
     const out = await drive('deepseek-chat', 'deepseek-reasoner')
     return { ...out, ms: Date.now() - started }
   })()
+  delete process.env.MERCURY_MAX_RETRIES
   check('a rate limit the lane answers without a spent busy ladder is never a hop: the usage window stays the cap failover\u2019s', windowed.vote === null || windowed.vote.trigger === 'overloaded', j(windowed))
   fixtureScript.status = 402
   fixtureScript.body = { error: { message: 'Insufficient Balance', type: 'insufficient_quota', code: 'insufficient_balance' } }

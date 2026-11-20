@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://github.com/example/mercury' }
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { fakeCommand } from '../dap/fakeCommand.ts'
 import { runTurns } from '../lib/rows.ts'
 import { handoffTurn, isHandoffRequest, startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
@@ -371,9 +372,7 @@ section('§4 tail announcements in-process — harness_map_delta + deferred_tool
   const { settleDapAdapterProbes } = await import('../../src/services/dap/dapClient.ts')
   await settleDapAdapterProbes()
 
-  const fakeBlender = join(SCRATCH, 'fake-blender-inproc')
-  writeFileSync(fakeBlender, '#!/bin/sh\necho "Blender 4.3.0"\nexit 0\n')
-  chmodSync(fakeBlender, 0o755)
+  const fakeBlender = fakeCommand(SCRATCH, 'fake-blender-inproc', 'Blender 4.3.0\n', SCRATCH)
   process.env.MERCURY_BLENDER_BIN = fakeBlender
   const liveFile = join(SCRATCH, 'inproc-boot-env.json')
   menu.saveBootDefaultsProfile({}, liveFile)
@@ -478,9 +477,7 @@ if (!existsSync(DIST) || !nodeBin) {
       })
       .join('\n')
 
-  const fakeBlender = join(SCRATCH, 'fake-blender-wire')
-  writeFileSync(fakeBlender, '#!/bin/sh\necho "Blender 4.3.0"\nexit 0\n')
-  chmodSync(fakeBlender, 0o755)
+  const fakeBlender = fakeCommand(SCRATCH, 'fake-blender-wire', 'Blender 4.3.0\n', SCRATCH)
 
   {
     const home = mkdtempSync(join(SCRATCH, 'wire-home-'))
@@ -504,7 +501,7 @@ if (!existsSync(DIST) || !nodeBin) {
       HOME: home,
       TMPDIR: home,
       MERCURY_TMPDIR: home,
-      PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
+      PATH: process.platform === 'win32' ? dirname(nodeBin) : `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: configDir,
       MERCURY_CREDENTIAL_STORE: 'file',
@@ -627,7 +624,7 @@ if (!existsSync(DIST) || !nodeBin) {
         HOME: home,
         TMPDIR: home,
         MERCURY_TMPDIR: home,
-        PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
+        PATH: process.platform === 'win32' ? dirname(nodeBin) : `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'dumb',
         MERCURY_CONFIG_DIR: configDir,
         MERCURY_CREDENTIAL_STORE: 'file',

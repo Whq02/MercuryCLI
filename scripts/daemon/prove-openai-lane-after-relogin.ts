@@ -233,6 +233,7 @@ const daemon: ChildProcess = spawn('node', [DIST, 'daemon', 'run', work], {
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
+    MERCURY_MAX_RETRIES: '3',
     MERCURY_DAEMON_OWNER_FD: '3',
     MERCURY_DAEMON_OWNER_PID: String(process.pid),
   },

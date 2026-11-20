@@ -133,6 +133,53 @@ console.log('\nw02-1 — Concourse snapshot reports unreadable parked, queued, a
       }
       walk(node)
       out.renderedText = texts.join('\\n')
+
+      const React = await import('react')
+      const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'components/design-system/ThemeProvider.tsx'))})
+      const { switchboardGeometry } = await import(${JSON.stringify(join(SRC, 'components/concourse/ConcourseLayout.tsx'))})
+      const { mountOffscreen, waitFor } = await import(${JSON.stringify(join(HERE, '../lib/settingsPopupHarness.ts'))})
+      const geo120 = switchboardGeometry(120, 36, 0, 0, 0, 1)
+      const rightWidth = geo120.rightCols[1] - geo120.rightCols[0] + 1
+      const listRows = geo120.listBand[1] - geo120.listBand[0] + 1
+      const pane120 = listPaneOf({
+        wide: true,
+        rightWidth,
+        listRows,
+        geo: geo120,
+        managerFocused: true,
+        t: resolveMercuryTokens('dark', '#DD4444'),
+        filtering: false,
+        filterText: '',
+        filterCaret: 0,
+        interior: geo120.interior,
+        sessionRows: [],
+        win: { start: 0, end: 0, above: 0, below: 0 },
+        boardSelectedId: null,
+        region: 'list',
+        wiring: { selectSession: () => {}, enterSession: () => {}, selectObligation: () => {}, answerObligation: () => {}, openObligation: () => {} },
+        newSessionNote: undefined,
+        colProject: 10,
+        colAge: 5,
+        nowWidth: 12,
+        door: undefined,
+        lineShown: false,
+        lineSelected: false,
+        boardGroups: [],
+        showHeadings: true,
+        groupRole: () => 'white',
+        askBySession: new Map(),
+        stateCellShown: false,
+        markedIds: undefined,
+        rowPeekNode: undefined,
+        snapshot: { ...broken, sectionNotices: (broken.sectionNotices ?? []).filter(n => n.startsWith('Parked sessions')) },
+        railIndex: 0,
+        listInner: Math.max(8, rightWidth - 4),
+      })
+      const mounted = await mountOffscreen(React.createElement(ThemeProvider, { initialState: 'dark' }, pane120), 120, 36)
+      await waitFor(() => mounted.screen().includes('Parked sessions'), 1500)
+      out.pane120 = mounted.screen()
+      out.pane120RightWidth = rightWidth
+      mounted.unmount()
     } finally {
       if (canChmod) fs.chmodSync(storeDir, 0o755)
     }
@@ -153,9 +200,20 @@ console.log('\nw02-1 — Concourse snapshot reports unreadable parked, queued, a
   if (!POSIX_MODES) skip('parked sessions unreadable dir notice', 'chmod 0000 needs non-root POSIX')
   else {
     check(
-      'parked sessions unreadable dir emits notice',
-      notices.some(n => n.startsWith('Parked sessions could not be read (') && n.includes('refresh or check transcript folder permissions.')),
+      'parked sessions unreadable dir emits notice with advice before error',
+      notices.some(n => n.startsWith('Parked sessions could not be read — refresh or check transcript folder permissions (') && n.endsWith(').')),
       JSON.stringify(notices),
+    )
+    const pane120 = String(r.out.pane120 ?? '')
+    const paneJoined = pane120
+      .split('\n')
+      .map(line => line.replace(/[┃┏┓┗┛━│╭╮╰╯─]/g, '').trim())
+      .filter(Boolean)
+      .join(' ')
+    check(
+      'concourse right pane at 120x36 paints parked-sessions advice and error without cutting them off',
+      paneJoined.includes('Parked sessions could not be read — refresh or check transcript folder permissions') && paneJoined.includes('EACCES'),
+      `rightWidth=${String(r.out.pane120RightWidth)} pane=${paneJoined.slice(0, 300)}`,
     )
   }
   check(

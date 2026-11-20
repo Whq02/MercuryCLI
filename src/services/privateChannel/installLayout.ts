@@ -2,10 +2,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import {
-  isTransientWin32FsCode,
-  WIN32_RENAME_RETRY_DELAYS_MS,
-} from '../../substrate/durablePublish.js'
+import { heldFileRetryDelayMs, isHeldFileErrnoCode } from '../../utils/platform/files.js'
 import {
   chmodSync,
   cpSync,
@@ -20,10 +17,11 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join, win32 as pathWin32 } from 'node:path'
+import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
+import { hostOrWin32PathModule, stripExtendedLengthPrefixForPlatform } from '../../utils/platform/paths.js'
 import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { NODE_SUPPORT } from '../../utils/runtime/nodePolicy.js'
 import { TEARDOWN_SUITE } from '../../ink/root/teardown.js'
@@ -141,8 +139,6 @@ function injectFault(point: string): boolean {
   return false
 }
 
-const isTransientFsCode = isTransientWin32FsCode
-
 function renameWithRetry(from: string, to: string, faultPoint: string, isWindows: boolean): void {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -155,8 +151,9 @@ function renameWithRetry(from: string, to: string, faultPoint: string, isWindows
       return
     } catch (e) {
       const code = (e as NodeJS.ErrnoException).code
-      if (!isWindows || !isTransientFsCode(code) || attempt >= WIN32_RENAME_RETRY_DELAYS_MS.length) throw e
-      sleepSync(WIN32_RENAME_RETRY_DELAYS_MS[attempt]!)
+      const delay = heldFileRetryDelayMs(code, attempt + 1, isWindows ? 'win32' : 'linux')
+      if (delay === null) throw e
+      sleepSync(delay)
     }
   }
 }
@@ -173,8 +170,9 @@ function removeWithRetry(path: string, faultPoint: string, isWindows: boolean): 
       return
     } catch (e) {
       const code = (e as NodeJS.ErrnoException).code
-      if (!isWindows || !isTransientFsCode(code) || attempt >= WIN32_RENAME_RETRY_DELAYS_MS.length) throw e
-      sleepSync(WIN32_RENAME_RETRY_DELAYS_MS[attempt]!)
+      const delay = heldFileRetryDelayMs(code, attempt + 1, isWindows ? 'win32' : 'linux')
+      if (delay === null) throw e
+      sleepSync(delay)
     }
   }
 }
@@ -260,14 +258,14 @@ function writePointerFile(path: string, value: string, isWindows: boolean): void
         pointerStep(`pointer-rename-${pointerName}`, () => renameSync(tmp, path))
         return
       } catch (renameErr) {
-        if (!isWindows || !isTransientFsCode((renameErr as NodeJS.ErrnoException).code)) throw renameErr
+        if (!isWindows || !isHeldFileErrnoCode((renameErr as NodeJS.ErrnoException).code)) throw renameErr
       }
       try {
         pointerStep(`pointer-overwrite-${pointerName}`, () => writeFileSync(path, line))
         return
       } catch (overwriteErr) {
         const code = (overwriteErr as NodeJS.ErrnoException).code
-        if (!isTransientFsCode(code)) throw overwriteErr
+        if (!isHeldFileErrnoCode(code)) throw overwriteErr
         if (round >= POINTER_SWAP_RETRY_DELAYS_MS.length) throw new PointerHeldError(path, code)
         sleepSync(POINTER_SWAP_RETRY_DELAYS_MS[round]!)
       }
@@ -487,7 +485,7 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
     } catch (promoteErr) {
       rmSync(staging, { recursive: true, force: true })
       const promoteNote = promoteErr instanceof Error ? promoteErr.message.slice(0, 200) : String(promoteErr)
-      const retryable = isTransientFsCode((promoteErr as NodeJS.ErrnoException).code)
+      const retryable = isHeldFileErrnoCode((promoteErr as NodeJS.ErrnoException).code)
       if (displaced && !existsSync(versionDir)) {
         try {
           if (injectFault('restore-rename')) {
@@ -522,7 +520,7 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
   } catch (e) {
     rmSync(staging, { recursive: true, force: true })
     const code = (e as NodeJS.ErrnoException).code
-    return { state: 'failed', retryable: isTransientFsCode(code) || undefined, note: e instanceof Error ? e.message : String(e) }
+    return { state: 'failed', retryable: isHeldFileErrnoCode(code) || undefined, note: e instanceof Error ? e.message : String(e) }
   }
 }
 
@@ -1181,5 +1179,5 @@ export function formatUninstallReport(roots: LayoutRoots, report: UninstallRepor
 
 export function runningPayloadDir(): string {
   const raw = process.argv[1] ?? ''
-  return process.platform === 'win32' ? pathWin32.dirname(stripExtendedLengthPrefix(raw)) : dirname(raw)
+  return hostOrWin32PathModule().dirname(stripExtendedLengthPrefixForPlatform(raw))
 }

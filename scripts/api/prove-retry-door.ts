@@ -6,6 +6,7 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const home = mkdtempSync(join(tmpdir(), 'retry-door-'))
 Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCURY_RECOVERY_BUDGET_MINUTES: '1', MERCURY_BUSY_RETRY_SCALE: '0.01', MERCURY_RECONNECT_SCALE: '0.01', MERCURY_RECONNECT_BUDGET_MINUTES: '0' })
+delete process.env.MERCURY_MAX_RETRIES
 const realRandom = Math.random
 Math.random = () => 0.5
 const { openTurnRetries } = await import('../../src/services/api/withRetry.ts')
@@ -23,6 +24,7 @@ type Notice = { retryInMs: number; retryAttempt: number; maxRetries: number; err
 type Row = { kind: string; attempt: number; of: number; delayMs: number; held?: unknown; reconnecting?: boolean } | null
 const rateLimit = (retryAfterMs?: number): Fault => ({ kind: 'http-error', code: 'http-429', message: 'rate limited', retryable: true, status: 429, ...(retryAfterMs !== undefined ? { retryAfterMs } : {}) })
 const busy: Fault = { kind: 'http-error', code: 'http-503', message: 'overloaded', retryable: true, status: 503 }
+const broke: Fault = { kind: 'http-error', code: 'http-500', message: 'broke', retryable: true, status: 500 }
 const empty: Fault = { kind: 'truncated-stream', code: 'no-finish', message: 'closed with no events', retryable: true }
 const cut: Fault = { kind: 'transport-error', code: 'read-failed', message: 'socket closed', retryable: true }
 const unreachable: Fault = { kind: 'transport-error', code: 'fetch-failed', message: 'connect refused', retryable: true, outage: { code: 'ECONNREFUSED', words: 'connection refused' } }
@@ -50,19 +52,58 @@ async function scaled<T>(name: string, value: string, run: () => Promise<T>): Pr
   try {
     return await run()
   } finally {
-    process.env[name] = kept
+    if (kept === undefined) delete process.env[name]
+    else process.env[name] = kept
   }
+}
+
+console.log('── a rate limit is said at once and retried up to MERCURY_MAX_RETRIES')
+{
+  const named = door()
+  named.retries.next()
+  const first = await named.after(rateLimit(300), 'rate_limit')
+  check('a rate limit that names 300 ms is said at once on the main thread: one notice, attempt 1 of 10, in 300 ms, and it waits 300 ms', first.verdict === 'again' && first.tookMs >= 290 && first.notices.length === 1 && first.notices[0]?.retryInMs === 300 && first.notices[0]?.retryAttempt === 1 && first.notices[0]?.maxRetries === 10, JSON.stringify(first))
+  check('its row is a retry row that nothing holds back, and no busy ladder is opened', named.rows.length === 1 && named.rows[0]?.kind === 'retry' && named.rows[0]?.delayMs === 300 && named.rows[0]?.held === undefined && named.retries.busy === undefined, JSON.stringify(named.rows))
+  const second = (named.retries.next(), await named.after(rateLimit(300), 'rate_limit'))
+  check("each retry is a counted attempt and requests stay open past the road's own cap of two: attempt 2 of 10, then attempt 3", second.verdict === 'again' && second.notices[0]?.retryAttempt === 2 && second.notices[0]?.maxRetries === 10 && !named.retries.left && named.retries.next() && named.retries.attempt === 3, JSON.stringify([second, named.retries.attempt]))
+  const agent = door({ agent: true })
+  agent.retries.next()
+  const onAgent = await agent.after(rateLimit(300), 'rate_limit')
+  check("on an agent's call it is the same notice at once, not a held row", onAgent.verdict === 'again' && onAgent.notices.length === 1 && onAgent.notices[0]?.retryInMs === 300 && agent.rows.length === 1 && agent.rows[0]?.held === undefined, JSON.stringify([onAgent, agent.rows]))
+  const unnamed = await scaled('MERCURY_MAX_RETRIES', '2', async () => {
+    const d = door({ backoffMs: 30_000 })
+    const steps: Array<Awaited<ReturnType<typeof d.after>>> = []
+    for (let i = 0; i < 3; i++) {
+      d.retries.next()
+      steps.push(await d.after(rateLimit(), 'rate_limit'))
+    }
+    return steps
+  })
+  check("a rate limit that names no wait backs off 562.5 ms, then 1125 ms, never the road's own 30 s: attempt 1 of 2, then 2 of 2", unnamed[0]?.verdict === 'again' && unnamed[0].notices[0]?.retryInMs === 562.5 && unnamed[0].notices[0]?.retryAttempt === 1 && unnamed[0].notices[0]?.maxRetries === 2 && unnamed[1]?.verdict === 'again' && unnamed[1].notices[0]?.retryInMs === 1125 && unnamed[1].notices[0]?.retryAttempt === 2 && unnamed[1].tookMs < 5000, JSON.stringify(unnamed))
+  check('the refusal after MERCURY_MAX_RETRIES retries is spent at once with nothing said', unnamed[2]?.verdict === 'spent' && unnamed[2].notices.length === 0 && unnamed[2].tookMs < 300, JSON.stringify(unnamed[2]))
+  for (const value of ['0', 'ten']) {
+    const none = await scaled('MERCURY_MAX_RETRIES', value, async () => {
+      const d = door()
+      d.retries.next()
+      return d.after(rateLimit(300), 'rate_limit')
+    })
+    check(`with MERCURY_MAX_RETRIES=${value} a rate limit is not retried: spent at once, nothing said`, none.verdict === 'spent' && none.notices.length === 0 && none.tookMs < 250, JSON.stringify(none))
+  }
+  const overloaded = door()
+  overloaded.retries.next()
+  const rung = await overloaded.after({ kind: 'api-error', code: 'zai-1305', message: 'the service is overloaded', retryable: true, status: 429 }, 'rate_limit')
+  check('a busy refusal that is typed a rate limit keeps the busy ladder: quiet on the main thread', rung.verdict === 'again' && rung.notices.length === 0 && overloaded.rows.length === 0 && overloaded.retries.busy !== undefined, JSON.stringify([rung, overloaded.rows]))
+  const probe = door({ singleShot: true })
+  probe.retries.next()
+  const single = await probe.after(rateLimit(300), 'rate_limit')
+  check("a single-shot call's rate limit is never retried", single.verdict === 'spent' && single.notices.length === 0 && single.tookMs < 250, JSON.stringify(single))
 }
 
 console.log('── an explicit Retry-After is followed first')
 {
-  const d = door({ agent: true })
-  d.retries.next()
-  const waited = await d.after(rateLimit(300), 'rate_limit')
-  check('a rate limit that names 300 ms waits 300 ms on the ladder whose first rung is 10 ms', waited.verdict === 'again' && waited.tookMs >= 290 && d.rows[0]?.delayMs === 300 && d.rows[0]?.held !== undefined, JSON.stringify([waited, d.rows]))
   const plain = door()
   plain.retries.next()
-  const server: Fault = { kind: 'http-error', code: 'http-500', message: 'broke', retryable: true, status: 500, retryAfterMs: 200 }
+  const server: Fault = { ...broke, retryAfterMs: 200 }
   const again = await plain.after(server, 'server_error')
   check('a fault off the ladder that names 200 ms waits 200 ms where its own backoff is 5 ms, and says attempt 1 of 1', again.verdict === 'again' && again.tookMs >= 190 && again.notices[0]?.retryInMs === 200 && again.notices[0]?.retryAttempt === 1 && again.notices[0]?.maxRetries === 1, JSON.stringify(again))
   const window = door()
@@ -84,9 +125,9 @@ console.log('── what counts as an attempt')
   check('the third empty stream in a row is spent, and the door says the turn ended on one', second.verdict === 'again' && third.verdict === 'spent' && third.notices.length === 0 && d.retries.emptyEnd, JSON.stringify([second.verdict, third.verdict, d.retries.emptyEnd]))
   const p = door()
   p.retries.next()
-  const first = await p.after(rateLimit(), 'rate_limit')
+  const first = await p.after(broke, 'server_error')
   check('a retry off the ladder counts: the next request is attempt 2, the last one left', first.verdict === 'again' && p.retries.left && p.retries.next() && p.retries.attempt === 2 && !p.retries.left, JSON.stringify([first.verdict, p.retries.attempt]))
-  const last = await p.after(rateLimit(), 'rate_limit')
+  const last = await p.after(broke, 'server_error')
   check('the second refusal of two attempts is spent and no third request is opened', last.verdict === 'spent' && !p.retries.next(), last.verdict)
   const probe = door({ singleShot: true })
   probe.retries.next()
@@ -123,7 +164,7 @@ console.log('── a cancel ends every wait at once')
   cases.push(['a 30 s wait a rate limit named', () => onLadder.after(rateLimit(30_000), 'rate_limit', 30), () => onLadder.rows])
   const offLadder = door({ backoffMs: 30_000 })
   offLadder.retries.next()
-  cases.push(['a 30 s backoff', () => offLadder.after(rateLimit(), 'rate_limit', 30), () => offLadder.rows])
+  cases.push(['a 30 s backoff', () => offLadder.after(broke, 'server_error', 30), () => offLadder.rows])
   const emptied = door()
   emptied.retries.next()
   cases.push(['a 30 s empty-stream wait', () => scaled('MERCURY_BUSY_RETRY_SCALE', '30', () => emptied.after(empty, 'server_error', 30)), () => emptied.rows])

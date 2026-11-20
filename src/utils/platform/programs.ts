@@ -195,3 +195,31 @@ export function normalizedOsPlatform(platform: string = process.platform): 'win3
   if (platform === 'darwin') return 'darwin'
   return 'linux'
 }
+
+export function pathExtensionsForName(
+  name: string,
+  env: NodeJS.ProcessEnv = hostEnv(),
+  platform: string = process.platform,
+): string[] {
+  const extensions = (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
+  const hasExtension = extensions.some(ext => name.toLowerCase().endsWith(ext.toLowerCase()))
+  const exts: string[] = platform === 'win32' && !hasExtension ? [] : ['']
+  if (platform === 'win32' && !hasExtension) {
+    for (const raw of (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';')) {
+      if (raw.length === 0) continue
+      const lower = raw.toLowerCase()
+      if (!exts.includes(lower)) exts.push(lower)
+      if (!exts.includes(raw)) exts.push(raw)
+    }
+  }
+  return exts
+}
+
+export function pathLookupExtensions(env: NodeJS.ProcessEnv = hostEnv(), platform: string = process.platform): string[] {
+  if (platform !== 'win32') return ['']
+  return [...(env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(ext => ext !== ''), '']
+}
+
+export function hasRequiredProgramExtension(filePath: string, platform: string = process.platform): boolean {
+  return platform !== 'win32' || path.extname(filePath) !== ''
+}

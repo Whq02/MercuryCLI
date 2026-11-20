@@ -39,6 +39,93 @@ export function toPosixSeparators(filePath: string, platform: NodeJS.Platform = 
   return platform === 'win32' ? filePath.replace(/\\/g, '/') : filePath
 }
 
+export function toNativeSeparators(filePath: string, platform: NodeJS.Platform = process.platform): string {
+  return platform === 'win32' ? filePath.replace(/\//g, '\\') : filePath
+}
+
+export function isWindowsShareRooted(
+  filePath: string,
+  allowMixed = true,
+  platform: Platform = getPlatform(),
+): boolean {
+  return platform === 'windows' && (allowMixed ? /^[\\/]{2}/ : /^(\\\\|\/\/)/).test(filePath)
+}
+
+export function picomatchPathOptions(platform: NodeJS.Platform = process.platform): { dot: true; nocase: boolean } {
+  return { dot: true, nocase: platform === 'win32' }
+}
+
+export function normalizedDriveRoot(filePath: string, platform: Platform = getPlatform()): string | null {
+  return filePath.startsWith('/') ? '/' : platform === 'windows' && /^[A-Za-z]:\//.test(filePath) ? filePath.slice(0, 3) : null
+}
+
+export function ensureDriveRootSeparator(baseDir: string, platform: Platform = getPlatform()): string {
+  return platform === 'windows' && /^[A-Za-z]:$/.test(baseDir) ? `${baseDir}\\` : baseDir
+}
+
+export function pathSeparatorRegex(platform: Platform = getPlatform()): RegExp {
+  return platform === 'windows' ? /[/\\]/g : /\//g
+}
+
+export function expandTildeWithHome(filePath: string, home: string, platform: Platform = getPlatform()): string {
+  if (filePath === '~') return home
+  if (filePath.startsWith('~/')) return home + filePath.slice(1)
+  if (platform === 'windows' && filePath.startsWith('~\\')) return home + filePath.slice(1)
+  return filePath
+}
+
+export function preferredHomeEnv(env: NodeJS.ProcessEnv, platform: Platform = getPlatform()): string {
+  return (platform === 'windows' ? env.USERPROFILE || env.HOME : env.HOME || env.USERPROFILE) || ''
+}
+
+function joinPosixLexical(cwd: string, operand: string): string {
+  const combined = `${cwd}/${operand}`
+  const segments: string[] = []
+  for (const segment of combined.split(pathPosix.sep)) {
+    if (segment === '' || segment === '.') continue
+    if (segment === '..') segments.pop()
+    else segments.push(segment)
+  }
+  return '/' + segments.join('/')
+}
+
+export function resolveLexicalOperandPath(cwd: string, operand: string, platform: Platform = getPlatform()): string {
+  if (operand.startsWith('/') || (platform === 'windows' && /^[a-z]:[/\\]/i.test(operand))) return operand
+  return platform === 'windows' ? pathWin32.resolve(cwd, operand) : joinPosixLexical(cwd, operand)
+}
+
+export function foldHostPathCase(filePath: string, platform: Platform = getPlatform()): string {
+  return platform === 'windows' ? filePath.toLowerCase() : filePath
+}
+
+export function isEscapingRelativePath(relative: string, platform: Platform = getPlatform()): boolean {
+  if (relative === '..' || relative.startsWith('../')) return true
+  return platform === 'windows' && relative.startsWith('..\\')
+}
+
+export function extractPatternDriveRoot(
+  pattern: string,
+  sep: string,
+  platform: Platform = getPlatform(),
+): { root: string; relative: string } | null {
+  if (platform !== 'windows') return null
+  const drive = pattern.replace(/\\/g, '/').match(/^\/?([A-Za-z]):\/(.*)$/)
+  if (!drive) return null
+  return { root: `${drive[1]!.toUpperCase()}:${sep}`, relative: drive[2]! }
+}
+
+export function extractDoubleSlashPatternRoot(
+  pattern: string,
+  sep: string,
+  platform: Platform = getPlatform(),
+): { root: string; relative: string } {
+  if (platform === 'windows') {
+    const drive = pattern.match(/^\/\/([A-Za-z])\/(.*)$/)
+    if (drive) return { root: `${drive[1]!.toUpperCase()}:${sep}`, relative: drive[2]! }
+  }
+  return { root: '/', relative: pattern.slice(1) }
+}
+
 export function splitPathFromRoot(
   filePath: string,
   grammar: typeof hostPath = hostPath,
@@ -50,7 +137,7 @@ export function splitPathFromRoot(
   return { root, segments, sep: grammar.sep }
 }
 
-function posixToWin32Path(posixPath: string): string {
+export function posixToWin32Path(posixPath: string): string {
   if (posixPath.startsWith('//')) return `\\\\${posixPath.slice(2).replace(/\//g, '\\')}`
   const cygdriveMatch = posixPath.match(/^\/cygdrive\/([A-Za-z])(\/.*)?$/s)
   if (cygdriveMatch) {
@@ -65,7 +152,7 @@ function posixToWin32Path(posixPath: string): string {
   return posixPath.replace(/\//g, '\\')
 }
 
-function win32ToPosixPath(windowsPath: string): string {
+export function win32ToPosixPath(windowsPath: string): string {
   if (windowsPath.startsWith('\\\\')) return `//${windowsPath.slice(2).replace(/\\/g, '/')}`
   const driveMatch = windowsPath.match(/^([A-Za-z]):([\\/])(.*)$/s)
   if (driveMatch) {

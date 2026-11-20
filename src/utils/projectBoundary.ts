@@ -1,10 +1,10 @@
 import { readdirSync, realpathSync, type Dirent } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, dirname, resolve } from 'node:path'
 import { isENOENT } from './errors.js'
 import { findGitRoot } from './git/gitRoot.js'
 import { passedOver } from './passedOver.js'
-import { hostEnv } from './hostEnv.js'
+import { envUserHomeDir } from './platform/files.js'
+import { samePathCase } from './platform/paths.js'
 
 export const PROJECT_ENTRY_CEILING = 20_000
 
@@ -50,7 +50,7 @@ function sameFolder(a: string, b: string): boolean {
   const x = realOrSelf(a)
   const y = realOrSelf(b)
   if (x === y) return true
-  return process.platform === 'win32' && x.toLowerCase() === y.toLowerCase()
+  return samePathCase(x, y)
 }
 
 function nameMatches(name: string, list: readonly string[]): boolean {
@@ -59,8 +59,7 @@ function nameMatches(name: string, list: readonly string[]): boolean {
 }
 
 function rawHome(): string {
-  const named = process.platform === 'win32' ? hostEnv().USERPROFILE : hostEnv().HOME
-  return named !== undefined && named !== '' ? named : homedir()
+  return envUserHomeDir()
 }
 
 export function homeDirectory(): string {
