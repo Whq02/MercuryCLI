@@ -62,7 +62,9 @@ const IMPORTERS = [
   'src/services/health/healthReport.ts',
   'src/services/health/readiness.ts',
   'src/services/mcp/stdioCommandSafety.ts',
+  'src/services/processUserInput/processBashCommand.tsx',
   'src/services/switchboard/sessionReceipts.ts',
+  'src/services/tools/promptShellExecution.ts',
   'src/setup.ts',
   'src/tasks.ts',
   'src/tasks/stopTask.ts',
@@ -94,8 +96,6 @@ const IMPORTERS = [
   'src/utils/permissions/flowLaw.ts',
   'src/utils/permissions/shellProtectedPaths.ts',
   'src/utils/permissions/shellRuleMatching.ts',
-  'src/utils/processUserInput/processBashCommand.tsx',
-  'src/utils/promptShellExecution.ts',
   'src/utils/spawnPlan.ts',
   'src/utils/task/TaskOutput.ts',
   'src/utils/task/workRoster.ts',
@@ -115,7 +115,6 @@ const UNREAD: Array<[string, number]> = [
   ['src/services/media/host.ts', 1],
   ['src/services/media/settings.ts', 2],
   ['src/services/structure/tsFacility.ts', 1],
-  ['src/services/voice/voicePack.ts', 1],
   ['src/services/voice/whisperPack.ts', 1],
   ['src/services/vulcan/engine/leases.ts', 1],
   ['src/tools/FileReadTool/jsonQueryWorker.mjs', 1],
@@ -123,6 +122,7 @@ const UNREAD: Array<[string, number]> = [
   ['src/utils/bash/registry.ts', 1],
   ['src/utils/pdfTextWorker.mjs', 1],
   ['src/utils/structure/grammarFacility.ts', 1],
+  ['src/utils/voice/voicePack.ts', 1],
 ]
 
 let failures = 0
