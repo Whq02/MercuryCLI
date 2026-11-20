@@ -1164,6 +1164,7 @@ const FILES: Row[] = [
   },
   {
     name: 'files · readExposedFileModeSync',
+    hostArm: 'node',
     answers: () => {
       const dir = mkdtempSync(join(tmpdir(), 'mercury-plat-files-'))
       try {
