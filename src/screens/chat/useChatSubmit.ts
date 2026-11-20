@@ -1,8 +1,9 @@
 import type { UUID } from 'node:crypto';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { getCommandName, type Command, type ResumeEntrypoint } from '../../commands.js';
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js';
 import type { useNotifications } from '../../context/notifications.js';
+import { useLoad, usePublish } from '../../hooks/effects.js';
 import type { useApiKeyVerification } from '../../hooks/useApiKeyVerification.js';
 import type { useAuthWallHold } from '../../hooks/useAuthWallHold.js';
 import { interruptFocusedTurn } from '../../hooks/useCancelRequest.js';
@@ -247,7 +248,7 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
   }, [addNotification, authWallHold, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
-  useEffect(() => {
+  usePublish(() => {
     if (toolJSX !== null) return;
     const slot = dialogInFlightRef.current;
     if (slot !== null && slot.mounted) dialogInFlightRef.current = null;
@@ -260,7 +261,7 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
 
   const landing = useSyncExternalStore(subscribeFocusedSessionConnector, landingInFlight, landingInFlight);
   const armedMessage = useAppState(state => state.initialMessage);
-  useEffect(() => {
+  useLoad(() => {
     if (armedMessage === null) return;
     if (landing) return;
     setAppState(prev => (prev.initialMessage === null ? prev : { ...prev, initialMessage: null }));

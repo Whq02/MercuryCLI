@@ -1,9 +1,10 @@
 
 import figures from 'figures'
 import { GLYPH } from './mercury-ui/glyphs.js'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
+import { useTimer } from '../hooks/effects.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { isTaskToolsEnabled } from '../utils/tasks.js'
 
@@ -57,7 +58,7 @@ export function TaskListV2({
     return at !== undefined && now - at < RECENT_COMPLETION_MS
   }
 
-  useEffect(() => {
+  useTimer(() => {
     let earliest: number | null = null
     for (const task of tasks) {
       const at = completedAtRef.current.get(task.id)
