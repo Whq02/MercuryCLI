@@ -65,6 +65,10 @@ export function ConcourseScreen({
         .map(r => r.sessionId),
     )
     const census = olderChatsCensus(projectDir, excluded, Date.now(), { entryCap: PARKED_CAP })
+    if (census.readError !== undefined) {
+      setNote({ tone: 'warning', text: `Older chats could not be read (${census.readError}) — check transcript folder permissions.` })
+      return
+    }
     const wouldAsk = Math.max(2, Math.min(ROW_PEEK_DESIRED_ROWS, census.entries.length + 1))
     const wouldGrant = switchboardGeometry(
       cols,
