@@ -8,7 +8,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
 import { PYTHON } from './runtime.ts'
 
-export const root = resolve(import.meta.dir, '../..')
+const root = resolve(import.meta.dir, '../..')
 export const mercury = ['node', process.env.SDK_PARITY_CLI ?? join(root, 'dist/mercury.mjs')]
 export const anthropicModel = 'claude-opus-4-8'
 type CompatTurn = { text?: string; reasoning?: string; call?: { name: string; input: Record<string, unknown> }; when?: string }
