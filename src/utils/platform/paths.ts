@@ -22,3 +22,15 @@ export function stripExtendedLengthPrefixForPlatform(filePath: string, platform:
 export function toPosixSeparators(filePath: string, platform: NodeJS.Platform = process.platform): string {
   return platform === 'win32' ? filePath.replace(/\\/g, '/') : filePath
 }
+
+export function splitPathFromRoot(
+  filePath: string,
+  platform: NodeJS.Platform = process.platform,
+): { root: string; segments: string[]; sep: string } {
+  const mod = pathModuleFor(platform)
+  const parsedRoot = mod.parse(filePath).root
+  const root = parsedRoot || mod.sep
+  const rest = filePath.slice(parsedRoot.length)
+  const segments = (platform === 'win32' ? rest.split(/[\\/]+/) : rest.split(mod.sep)).filter(Boolean)
+  return { root, segments, sep: mod.sep }
+}

@@ -1,7 +1,7 @@
 
 import { resolveProjectConfigPath } from '../utils/projectConfig.js'
 import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs'
-import { dirname, isAbsolute, join, sep } from 'node:path'
+import { join, sep } from 'node:path'
 import { enqueueNotification } from '../context/notifications.js'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { untrustedWorkspaceHeadless } from '../utils/config/trust.js'
@@ -11,6 +11,7 @@ import { errorMessage, getErrnoCode } from '../utils/errors.js'
 import type { SetAppState } from '../utils/messageQueueManager.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import { expandPath } from '../utils/path.js'
+import { pathModuleFor, splitPathFromRoot } from '../utils/platform/paths.js'
 import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
@@ -67,17 +68,21 @@ export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEA
 
 export const TARGET_PATH_MAX = 4096
 
-function deepestExisting(path: string, work?: WardWork): { real: string; tail: string[] } {
+function deepestExisting(
+  path: string,
+  work?: WardWork,
+  resolveReal: (candidate: string) => string = realpathSync,
+): { real: string; tail: string[] } {
   if (work) countWardWork(work, 'characters', path.length)
-  const segments = path.split(sep).filter(Boolean)
+  const { root, segments, sep: pathSep } = splitPathFromRoot(path)
   const realAt = (depth: number): string | null => {
-    const candidate = depth === 0 ? sep : sep + segments.slice(0, depth).join(sep)
+    const candidate = depth === 0 ? root : root + segments.slice(0, depth).join(pathSep)
     try {
       if (work) {
         countWardWork(work, 'characters', candidate.length)
         countWardWork(work, 'realpathCalls')
       }
-      return realpathSync(candidate)
+      return resolveReal(candidate)
     } catch (error) {
       const code = getErrnoCode(error)
       if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`wards: ${candidate} could not be resolved (${code ?? errorMessage(error)}), so it is judged as a path not made yet`)
@@ -108,13 +113,14 @@ function deepestExisting(path: string, work?: WardWork): { real: string; tail: s
       real = seen
     }
   }
-  return { real: real ?? realAt(0) ?? sep, tail: segments.slice(found) }
+  return { real: real ?? realAt(0) ?? root, tail: segments.slice(found) }
 }
 
-export function realTargetPath(path: string): string {
-  if (!isAbsolute(path) || path.length > TARGET_PATH_MAX) return path
-  const { real, tail } = deepestExisting(path)
-  return tail.length === 0 ? real : join(real, ...tail)
+export function realTargetPath(path: string, resolveReal: (candidate: string) => string = realpathSync): string {
+  const mod = pathModuleFor()
+  if (!mod.isAbsolute(path) || path.length > TARGET_PATH_MAX) return path
+  const { real, tail } = deepestExisting(path, undefined, resolveReal)
+  return tail.length === 0 ? real : mod.join(real, ...tail)
 }
 
 let homeSpellingsCache: { home: string; spellings: string[] } | undefined
@@ -151,14 +157,15 @@ export function makeTargetResolver(fallbackRoot: string, work?: WardWork): (path
       return { path, root: undefined }
     }
     if (expanded.length > TARGET_PATH_MAX) return { path: expanded, root: fallback }
+    const mod = pathModuleFor()
     const { real, tail } = deepestExisting(expanded, work)
-    const resolved = tail.length === 0 ? real : join(real, ...tail)
+    const resolved = tail.length === 0 ? real : mod.join(real, ...tail)
     if (work && tail.length > 0) countWardWork(work, 'characters', resolved.length)
-    let dir = tail.length === 0 ? dirname(real) : real
+    let dir = tail.length === 0 ? mod.dirname(real) : real
     for (;;) {
       if (work) countWardWork(work, 'existsCalls')
-      if (existsSync(join(dir, '.git'))) return { path: resolved, root: dir }
-      const parent = dirname(dir)
+      if (existsSync(mod.join(dir, '.git'))) return { path: resolved, root: dir }
+      const parent = mod.dirname(dir)
       if (parent === dir) return { path: resolved, root: fallback }
       dir = parent
     }
