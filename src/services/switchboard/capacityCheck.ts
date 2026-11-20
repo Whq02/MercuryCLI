@@ -11,6 +11,7 @@ import { logError } from '../../utils/log.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { nextMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
+import { availableMemoryReader, processListCommand, type AvailableMemoryReader } from '../../utils/platform/processes.js'
 
 export type SeatKind = 'agent' | 'runner'
 export const SEAT_COST_BYTES: Readonly<Record<SeatKind, number>> = {
@@ -25,7 +26,7 @@ const MB = 2 ** 20
 const GB = 2 ** 30
 
 
-export type MemoryRead = 'vm_stat' | 'meminfo' | 'counter' | 'free'
+export type MemoryRead = AvailableMemoryReader
 
 export interface MemorySample {
   availableBytes: number
@@ -73,16 +74,17 @@ export function sampleAvailableMemory(): MemorySample {
   const totalBytes = totalmem()
   const fallback = runtimeMemorySample()
   try {
-    if (process.platform === 'darwin') {
+    const reader = availableMemoryReader()
+    if (reader === 'vm_stat') {
       const text = execFileSync('vm_stat', [], { encoding: 'utf8', timeout: 2000, env: { ...subprocessEnv() }, windowsHide: true })
       const available = availableFromVmStat(text)
       return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'vm_stat' })
     }
-    if (process.platform === 'linux') {
+    if (reader === 'meminfo') {
       const available = availableFromMeminfo(readFileSync('/proc/meminfo', 'utf8'))
       return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'meminfo' })
     }
-    if (process.platform === 'win32') {
+    if (reader === 'counter') {
       const available = availableFromCounter(freemem())
       return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' })
     }
@@ -123,12 +125,13 @@ async function takeMemorySample(): Promise<MemorySample> {
   const totalBytes = totalmem()
   const fallback = runtimeMemorySample()
   try {
-    if (process.platform === 'darwin') {
+    const reader = availableMemoryReader()
+    if (reader === 'vm_stat') {
       const result = await execFileNoThrow('vm_stat', [], { timeout: 2000, useCwd: false })
       const available = result.code === 0 ? availableFromVmStat(result.stdout) : null
       return available === null ? fallback : { availableBytes: available, totalBytes, read: 'vm_stat' }
     }
-    if (process.platform === 'linux') {
+    if (reader === 'meminfo') {
       const controller = new AbortController()
       const deadline = startTimeout(() => controller.abort(), 2000)
       try {
@@ -138,7 +141,7 @@ async function takeMemorySample(): Promise<MemorySample> {
         stopTimeout(deadline)
       }
     }
-    if (process.platform === 'win32') {
+    if (reader === 'counter') {
       const available = availableFromCounter(freemem())
       return available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' }
     }
@@ -296,22 +299,8 @@ export function looksLikeAgentCli(command: string): boolean {
 
 async function countOtherAgentClis(): Promise<number> {
   try {
-    const r =
-      process.platform === 'win32'
-        ? await execFileNoThrow(
-            'powershell.exe',
-            [
-              '-NoProfile',
-              '-NonInteractive',
-              '-Command',
-              "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }",
-            ],
-            { useCwd: false, timeout: 8000 },
-          )
-        : await execFileNoThrow('ps', ['-axo', 'pid=,command='], {
-            useCwd: false,
-            timeout: 3000,
-          })
+    const cmd = processListCommand()
+    const r = await execFileNoThrow(cmd.file, cmd.args, { useCwd: false, timeout: cmd.timeoutMs })
     if (r.code !== 0 && r.error?.startsWith(PROCESS_LISTER_NOT_FOUND) === true) return 0
     if (r.code !== 0) return otherAgentClisUnread(r.error ?? (r.stderr.split('\n')[0] || `exit ${r.code}`))
     let n = 0
