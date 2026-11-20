@@ -302,6 +302,28 @@ function runIsolated(body: string): Record<string, unknown> {
   check('wardsGuard: homeSpellings throws when expandPath fails instead of answering empty', r.threw === true, JSON.stringify(r))
 }
 
+if (POSIX_MODES) {
+  const r = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const historyMod = await import(${JSON.stringify(join(SRC, 'history.ts'))})
+    const empty = await historyMod.historyPasteHashes()
+    out.absentSize = empty.size
+    const histFile = path.join(process.env.MERCURY_CONFIG_DIR, 'history.jsonl')
+    fs.writeFileSync(histFile, JSON.stringify({ display: 'hi', pastedContents: { 1: { id: 1, type: 'text', contentHash: 'abc123' } }, timestamp: 1, project: '/' }) + '\\n')
+    fs.chmodSync(histFile, 0o000)
+    try {
+      await historyMod.historyPasteHashes()
+      out.unreadableThrew = false
+    } catch (e) {
+      out.unreadableThrew = e && (e.code === 'EACCES' || e.code === 'EPERM')
+    } finally {
+      fs.chmodSync(histFile, 0o600)
+    }
+  `)
+  check('history: historyPasteHashes rejects when history.jsonl is unreadable instead of answering empty', r.absentSize === 0 && r.unreadableThrew === true, JSON.stringify(r))
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
