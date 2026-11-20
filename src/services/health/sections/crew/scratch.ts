@@ -31,7 +31,7 @@ export function sessionScratchCheck(): CheckSpec {
     id: 'session-scratch',
     label: 'Session scratchpads',
     run: async () => {
-      const { idleScratchpads, scratchpadFootprint, sweepIdleScratchpads, SCRATCHPAD_WALK_ENTRIES } = await import('../../../../utils/scratchpadRetention.js')
+      const { idleScratchpads, scratchpadFootprint, sweepIdleScratchpads, SCRATCHPAD_WALK_ENTRIES } = await import('../../../../daemon/scratchpadRetention.js')
       const { retentionCutoffMs, retentionWindowDays } = await import('../../../../utils/cleanup.js')
       const { formatFileSize } = await import('../../../../utils/format.js')
       const none = 'only running sessions hold scratch'
