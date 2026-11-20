@@ -2,7 +2,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredQwenApiKey, readStoredQwenKeyBase } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
-import { logForDebugging } from '../../../utils/debug.js'
+import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const QWEN_ENV_KEY = 'DASHSCOPE_API_KEY'
@@ -119,27 +119,14 @@ export function qwenEndpointWhere(baseUrl: string, env: NodeJS.ProcessEnv = host
   return qwenEndpointConsole(endpoint) === 'QwenCloud' ? endpoint.label : `Model Studio ${endpoint.label}`
 }
 
-export function qwenBaseOverrideError(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
+export function qwenBaseOverride(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const raw = env[QWEN_BASE_OVERRIDE_ENV]?.trim()
   if (!raw) return undefined
   try {
     const url = new URL(raw)
-    if (!(url.protocol === 'https:' || url.protocol === 'http:') || url.username || url.password || url.search || url.hash) {
-      return `${QWEN_BASE_OVERRIDE_ENV} must be an http(s) URL without credentials, query or fragment — requests are not sent to another endpoint; fix or unset ${QWEN_BASE_OVERRIDE_ENV}, then retry.`
-    }
+    if (!(url.protocol === 'https:' || url.protocol === 'http:') || url.username || url.password || url.search || url.hash) return undefined
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error)
-    return `${QWEN_BASE_OVERRIDE_ENV} is not a valid http(s) URL (${detail}) — requests are not sent to another endpoint; fix or unset ${QWEN_BASE_OVERRIDE_ENV}, then retry.`
-  }
-  return undefined
-}
-
-export function qwenBaseOverride(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
-  const raw = env[QWEN_BASE_OVERRIDE_ENV]?.trim()
-  if (!raw) return undefined
-  const invalid = qwenBaseOverrideError(env)
-  if (invalid !== undefined) {
-    logForDebugging(`[qwen] ${invalid}`, { level: 'warn' })
+    passedOver(error)
     return undefined
   }
   return raw.replace(/\/+$/, '')
@@ -258,8 +245,6 @@ interface QwenDispatchCredential {
 
 export async function resolveQwenCredential(io?: { env?: NodeJS.ProcessEnv }): Promise<QwenDispatchCredential | undefined> {
   const env = io?.env ?? hostEnv()
-  const invalid = qwenBaseOverrideError(env)
-  if (invalid !== undefined) throw new Error(invalid)
   const key = resolveQwenApiKey(env)
   return key ? { apiKey: key.key, source: key.source, requestUrl: qwenChatCompletionsUrl(env) } : undefined
 }

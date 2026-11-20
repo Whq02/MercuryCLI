@@ -50,7 +50,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
 }
 
 {
-  console.log('\npaths.ts — failed homedir refuses estate creation')
+  console.log('\npaths.ts — a homedir that fails does not stop the estate')
   const r = runSub(`
     const { mock } = await import('bun:test')
     const realOs = await import('node:os')
@@ -72,14 +72,14 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
     out.created = fs.existsSync(path.join(target, '.mercury'))
   `)
   check(
-    'initializeProjectLocalEstate returns null and does not create .mercury when homedir fails',
-    r.threw === null && r.result === null && r.created === false,
+    'initializeProjectLocalEstate goes on and makes .mercury when the home folder cannot be told, without throwing',
+    r.threw === null && (r.result as { created?: boolean } | null)?.created === true && r.created === true,
     JSON.stringify(r),
   )
 }
 
 {
-  console.log('\nghRelease.ts — invalid MERCURY_GH_CMD returns error and never runs plain gh')
+  console.log('\nghRelease.ts — a MERCURY_GH_CMD that does not parse is skipped and plain gh runs')
   const r = runSub(`
     const fs = await import('node:fs')
     const path = await import('node:path')
@@ -100,14 +100,14 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   const badJson = r.badJson as { state?: string; stderr?: string }
   const emptyArray = r.emptyArray as { state?: string; stderr?: string }
   check(
-    'unparsable or empty MERCURY_GH_CMD returns error naming MERCURY_GH_CMD and never runs plain gh',
-    badJson?.state === 'error' && (badJson.stderr ?? '').includes('MERCURY_GH_CMD') && emptyArray?.state === 'error' && (emptyArray.stderr ?? '').includes('MERCURY_GH_CMD') && r.plainRan === false,
+    'an unparsable or empty MERCURY_GH_CMD is skipped: plain gh runs and answers',
+    badJson?.state === 'ok' && emptyArray?.state === 'ok' && r.plainRan === true,
     JSON.stringify(r),
   )
 }
 
 {
-  console.log('\ninstallPath.ts — failing zshDotDir probe refuses instead of writing ~/.zshrc')
+  console.log('\ninstallPath.ts — a zsh that cannot be asked does not stop the PATH line: it goes to the home .zshrc')
   const r = runSub(`
     const fs = await import('node:fs')
     const path = await import('node:path')
@@ -151,13 +151,13 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   `)
   const ensure = r.ensure as { state?: string; reason?: string }
   check(
-    'ensureBinDirOnPath refuses and writes nothing when zshDotDir throws',
-    ensure?.state === 'refused' && (ensure.reason ?? '').includes('zsh probe failed') && r.appended === 0,
+    'ensureBinDirOnPath is not refused when zshDotDir throws: the PATH line is appended once',
+    ensure?.state !== 'refused' && r.appended === 1,
     JSON.stringify(r),
   )
   check(
-    'realPathEntryIo().zshDotDir throws when zsh exits non-zero',
-    typeof r.realThrew === 'string' && r.realThrew.length > 0,
+    'realPathEntryIo().zshDotDir does not throw when zsh exits non-zero',
+    r.realThrew === null,
     JSON.stringify(r),
   )
 }

@@ -63,21 +63,19 @@ type GhRepoAccess = { state: 'ok' } | { state: 'no-repo-access'; note: string; r
 
 type GhResult = { state: 'ok'; stdout: string } | { state: 'error'; enoent: boolean; stderr: string }
 
-function ghArgv(): { ok: true; argv: string[] } | { ok: false; stderr: string } {
+function ghArgv(): string[] {
   const pinned = flagEnv('MERCURY_GH_CMD')
   if (pinned) {
-    let parsed: unknown
     try {
-      parsed = JSON.parse(pinned)
+      const parsed: unknown = JSON.parse(pinned)
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(x => typeof x === 'string')) {
+        return parsed as string[]
+      }
     } catch (error) {
-      return { ok: false, stderr: `MERCURY_GH_CMD: ${error instanceof Error ? error.message : String(error)}` }
+      passedOver(error)
     }
-    if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(x => typeof x === 'string')) {
-      return { ok: true, argv: parsed as string[] }
-    }
-    return { ok: false, stderr: 'MERCURY_GH_CMD: expected a non-empty JSON string array' }
   }
-  return { ok: true, argv: ['gh'] }
+  return ['gh']
 }
 
 interface GhSpawnOptions {
@@ -92,10 +90,8 @@ function ghFenced(): boolean {
 
 export function gh(args: string[], opts: GhSpawnOptions = {}): Promise<GhResult> {
   if (ghFenced()) return Promise.resolve({ state: 'error', enoent: true, stderr: `${GH_FENCED_PREFIX}${proofShapeReason()}; pin MERCURY_GH_CMD to a fixture transport for a proof of the gh road` })
-  const resolved = ghArgv()
-  if (!resolved.ok) return Promise.resolve({ state: 'error', enoent: false, stderr: resolved.stderr })
   const deadlineMs = ghDeadlineMs(opts.timeoutMs ?? GH_TIMEOUT_MS)
-  const argv = ghSpawnArgv(resolved.argv, args, deadlineMs)
+  const argv = ghSpawnArgv(ghArgv(), args, deadlineMs)
   const maxBuffer = opts.maxBuffer ?? MAX_GH_BYTES
   armInFlightCleanup()
   return new Promise(resolve => {

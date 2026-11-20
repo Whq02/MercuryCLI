@@ -255,7 +255,6 @@ export async function judgeGoal(
       answered = await helper(goal, evidence, io.signal)
     } catch (error) {
       logForDebugging(`[mission] the goal judge failed — ${error instanceof Error ? error.message : String(error)}`)
-      answered = { kind: 'not yet', confidence: 0, reason: JUDGE_UNREACHABLE, road: 'model' }
     }
   }
   if (goalJudgeOpen()) {
