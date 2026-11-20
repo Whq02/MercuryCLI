@@ -4,7 +4,6 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { nousAccountIdentity, nousAccountUrl, resolveNousCredential, type NousCredentialSource } from './nousAccounts.js'
-import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 import { nextMicrotask } from '../../../utils/timers.js'
 
@@ -209,9 +208,14 @@ export function refreshNousAccount(io?: NousUsageIo & { force?: boolean }): Prom
   const work = (async (): Promise<NousObservedAccount | null> => {
     await nextMicrotask()
     try {
-      const credential = await resolveNousCredential(io).catch(passedOverAs(undefined))
+      const credential = await resolveNousCredential(io)
       if (!credential) return observed
       await fetchNousAccount(credential.key, io, credential.source, activeIdentity(env))
+      return observed
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      failure = { kind: 'unreachable', atMs: now, message }
+      observedIdentity = activeIdentity(env)
       return observed
     } finally {
       inFlight = null

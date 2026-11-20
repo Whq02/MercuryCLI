@@ -349,5 +349,25 @@ console.log('\nnousClientContract — unreadable file is not overwritten, torn c
   }
 }
 
+console.log('\nnousUsageState — refreshNousAccount records failure when credential resolution throws')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const real = await import(path.join(SRC, 'services/providers/nous/nousAccounts.ts'))
+    mock.module(path.join(SRC, 'services/providers/nous/nousAccounts.js'), () => ({
+      ...real,
+      nousAccountIdentity: () => 'fixture-nous-id',
+      resolveNousCredential: async () => { throw new Error('nous-usage-cred-boom') },
+    }))
+    const usage = await import(path.join(SRC, 'services/providers/nous/nousUsageState.ts'))
+    usage.__resetNousUsageForTest()
+    await usage.refreshNousAccount({ force: true })
+    out.failure = usage.nousAccountFailure()
+  `)
+  const fail = r.failure as { kind?: string; message?: string } | null
+  check('nousUsageState-refresh-records-failure: nousAccountFailure records thrown credential error', fail?.kind === 'unreachable' && typeof fail.message === 'string' && fail.message.includes('nous-usage-cred-boom'), JSON.stringify(r.failure))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
