@@ -64,21 +64,16 @@ export function safeParseJSONC(json: string | null | undefined): unknown {
 export function addItemToJSONCArray(content: string, newItem: unknown): string {
   const single = jsonStringify([newItem], null, 4)
   if (content.trim() === '') return single
-  try {
-    const stripped = stripBOM(content)
-    const parsed = parseJsonc(stripped, [], { allowTrailingComma: true }) as unknown
-    if (!Array.isArray(parsed)) return single
-    const index = parsed.length === 0 ? 0 : parsed.length
-    const edits = modify(stripped, [index], newItem, {
-      isArrayInsertion: true,
-      formattingOptions: { insertSpaces: true, tabSize: 4 },
-    })
-    if (edits.length === 0) return jsonStringify([...parsed, newItem], null, 4)
-    return applyEdits(stripped, edits)
-  } catch (error) {
-    logError(error)
-    return single
-  }
+  const stripped = stripBOM(content)
+  const parsed = parseJsonc(stripped, [], { allowTrailingComma: true }) as unknown
+  if (!Array.isArray(parsed)) return single
+  const index = parsed.length === 0 ? 0 : parsed.length
+  const edits = modify(stripped, [index], newItem, {
+    isArrayInsertion: true,
+    formattingOptions: { insertSpaces: true, tabSize: 4 },
+  })
+  if (edits.length === 0) return jsonStringify([...parsed, newItem], null, 4)
+  return applyEdits(stripped, edits)
 }
 
 

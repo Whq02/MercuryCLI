@@ -306,5 +306,24 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   check('imageStore: cleanupOldImageCaches keeps cache dir when child stat fails in newestMtime', rStat.stillExists === true, JSON.stringify(rStat))
 }
 
+{
+  const { addItemToJSONCArray } = await import('../../src/utils/json.ts')
+  let calls = 0
+  const item = {
+    toJSON() {
+      calls++
+      if (calls > 1) throw new Error('serialize boom')
+      return { ok: true }
+    },
+  }
+  let threw: unknown = null
+  try {
+    addItemToJSONCArray('[{"keep": 1}]', item)
+  } catch (error) {
+    threw = error
+  }
+  check('json: addItemToJSONCArray rethrows edit error instead of wiping array to single item', threw instanceof Error && threw.message === 'serialize boom', String(threw))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
