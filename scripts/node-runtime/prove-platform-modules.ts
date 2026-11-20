@@ -1205,7 +1205,19 @@ const FILES: Row[] = [
 const TERMINAL: Row[] = [
 ]
 
+import { desktopOpenPathCommand, desktopOpenUrlCommand } from '../../src/utils/platform/desktop.js'
+
 const DESKTOP: Row[] = [
+  {
+    name: 'desktop: desktopOpenPathCommand and desktopOpenUrlCommand',
+    answers: () => ({
+      openPath: desktopOpenPathCommand('/tmp/report.pdf'),
+      openUrlDefault: desktopOpenUrlCommand('https://example.com', undefined),
+      openUrlEmpty: desktopOpenUrlCommand('https://example.com', ''),
+      openUrlCustom: desktopOpenUrlCommand('https://example.com', 'firefox'),
+    }),
+    recorded: {"win32":{"openPath":{"file":"explorer","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlEmpty":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"darwin":{"openPath":{"file":"open","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"open","args":["https://example.com"]},"openUrlEmpty":{"file":"open","args":["https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"linux":{"openPath":{"file":"xdg-open","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"xdg-open","args":["https://example.com"]},"openUrlEmpty":{"file":"xdg-open","args":["https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"win32 by process.platform alone":{"openPath":{"file":"explorer","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlEmpty":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"win32 by getPlatform() alone":{"openPath":{"file":"xdg-open","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"xdg-open","args":["https://example.com"]},"openUrlEmpty":{"file":"xdg-open","args":["https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}}},
+  },
 ]
 
 const ROWS = [...PATHS, ...PROGRAMS, ...SPAWN, ...PROCESSES, ...FILES, ...TERMINAL, ...DESKTOP]
