@@ -1,0 +1,9 @@
+prove-prompt-input-async-note.ts
+prove-newline-hint-latch.ts
+prove-backslash-path-enter.ts
+prove-suggestion-platform-and-project.ts
+prove-name-anchored-enter.ts
+prove-history-scan-debounce.ts
+prove-typing-survives-rekey.ts
+prove-stash-carries-mode.ts
+prove-edit-sanitises.ts

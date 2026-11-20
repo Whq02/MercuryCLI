@@ -16,23 +16,16 @@
 # gate-watch: src/run-core/turn/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "$0")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/provauth"
 fail=0
 export MERCURY_EVOLUTION_LEDGER=0
 echo "############################################################"
 echo "# PROVAUTH — provider auth proof harness"
 echo "############################################################"
-shopt -s nullglob
-for proof in "$here"/prove-*.ts; do
-  echo ""
-  __t=$SECONDS; __rc=0; if ! { "$bun" run "$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-    fail=$((fail + 1))
-  fi
-  prover_mark "$proof" "$__t" "$__rc"
-done
+drive_members provauth 'scripts/provauth/$name' "$here/members.txt" || fail=1
 echo ""
 if [ "$fail" -gt 0 ]; then
   echo "❌ provauth suite: $fail prover(s) red"
