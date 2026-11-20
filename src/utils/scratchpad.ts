@@ -6,6 +6,7 @@ import { registerCleanup } from './cleanupRegistry.js'
 import { getMercuryHome } from './envUtils.js'
 import { getMercuryTempDir, getScratchpadDir, scratchpadDirFor } from './permissions/filesystem.js'
 import { passedOver } from './passedOver.js'
+import { samePathCase } from './platform/paths.js'
 
 export { scratchpadDirFor }
 
@@ -46,7 +47,7 @@ export function isSessionScratchpad(dir: string): boolean {
   try {
     const real = realpathSync.native(dir)
     const expected = join(realpathSync.native(getMercuryTempDir()), segments[0], segments[1], SCRATCHPAD_SEGMENT)
-    return process.platform === 'win32' ? real.toLowerCase() === expected.toLowerCase() : real === expected
+    return samePathCase(real, expected)
   } catch (error) {
     passedOver(error)
     return false

@@ -5,6 +5,7 @@ import { basename, dirname, join } from 'node:path'
 import { preserveUntouchedLineEndings } from '../../utils/file.js'
 import { detectLineEndingsForString, LOSSY_DECODE_MESSAGE } from '../../utils/fileRead.js'
 import { expandPath } from '../../utils/path.js'
+import { foldCaseInsensitivePath } from '../../utils/platform/paths.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import {
   CHANGESET_BOUNDS,
@@ -54,10 +55,8 @@ export function sha256Hex(data: Buffer | string): string {
   return createHash('sha256').update(data).digest('hex')
 }
 
-const CASE_INSENSITIVE_FS = process.platform === 'darwin' || process.platform === 'win32'
-
 export function canonicalPathKey(canonical: string): string {
-  return CASE_INSENSITIVE_FS ? canonical.toLowerCase() : canonical
+  return foldCaseInsensitivePath(canonical)
 }
 
 function canonicalize(

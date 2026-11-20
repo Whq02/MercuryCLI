@@ -4,7 +4,7 @@ import type { Tool, ToolUseContext } from '../../Tool.js'
 import { findToolByName } from '../../Tool.js'
 import type { ToolUseBlock } from '../../types/wire.js'
 import { expandPath } from '../../utils/path.js'
-import { getPlatform } from '../../utils/platform.js'
+import { foldHostCaseInsensitivePath } from '../../utils/platform/paths.js'
 
 export type BatchClaim =
   | { kind: 'exclusive' }
@@ -14,11 +14,6 @@ export type BatchClaim =
 
 const EXCLUSIVE: BatchClaim = { kind: 'exclusive' }
 const FREE: BatchClaim = { kind: 'free' }
-
-function foldsCase(): boolean {
-  const platform = getPlatform()
-  return platform === 'macos' || platform === 'windows' || platform === 'wsl'
-}
 
 export function canonicalPath(raw: string): string {
   let probe = expandPath(raw)
@@ -35,7 +30,7 @@ export function canonicalPath(raw: string): string {
     }
   }
   const resolved = tail.length === 0 ? probe : join(probe, ...tail)
-  return foldsCase() ? resolved.toLowerCase() : resolved
+  return foldHostCaseInsensitivePath(resolved)
 }
 
 export function pathsOverlap(a: string, b: string): boolean {

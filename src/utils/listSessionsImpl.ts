@@ -15,6 +15,7 @@ import {
   type LiteSessionFile,
 } from './sessionStoragePortable.js'
 import { passedOver } from './passedOver.js'
+import { foldPathCase } from './platform/paths.js'
 
 
 type SessionInfo = {
@@ -170,11 +171,7 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
 
   if (worktrees.length <= 1) return listSingle()
 
-  const isWindows = process.platform === 'win32'
-  const formOf = (path: string): string => {
-    const form = sanitizePath(path)
-    return isWindows ? form.toLowerCase() : form
-  }
+  const formOf = (path: string): string => foldPathCase(sanitizePath(path))
   const worktreeForms = worktrees
     .map(path => ({ path, form: formOf(path) }))
     .sort((a, b) => b.form.length - a.form.length)
@@ -192,10 +189,10 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
   const ownDir = await findProjectDir(canonical)
   if (ownDir) {
     results.push(await listCandidates(ownDir, doStat, canonical))
-    seen.add(isWindows ? ownDir.split(/[\\/]/).pop()!.toLowerCase() : ownDir.split(/[\\/]/).pop()!)
+    seen.add(foldPathCase(ownDir.split(/[\\/]/).pop()!))
   }
   for (const entry of rootEntries) {
-    const entryKey = isWindows ? entry.toLowerCase() : entry
+    const entryKey = foldPathCase(entry)
     if (seen.has(entryKey)) continue
     const dir = join(projectsRoot, entry)
     try {
