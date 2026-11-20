@@ -3,7 +3,7 @@ import { isRemotePath, remoteShellPath } from '../../../services/remoteFiles/tar
 import { getFileModificationTime } from '../../../utils/file.js'
 import { formatFileSize } from '../../../utils/format.js'
 import { readNotebook } from '../../../utils/notebook.js'
-import type { FileReadingLimits } from '../limits.js'
+import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'
 import type { Input, LaneResult } from './schema.js'
 import { MaxFileReadTokenExceededError, tokensOverCap } from './window.js'
 

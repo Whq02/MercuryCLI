@@ -4,7 +4,7 @@ import { lineAnchorsEnabled } from '../../../services/changeTransaction/lineAnch
 import { isRemotePath } from '../../../services/remoteFiles/target.js'
 import { extractDocumentText } from '../../../utils/documentText.js'
 import type { ReadFileRangeResult } from '../../../utils/readFileInRange.js'
-import type { FileReadingLimits } from '../limits.js'
+import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'
 import { MAX_LINES_TO_READ } from '../prompt.js'
 import { renderArchiveTarget, renderSqliteTarget, type ParsedRichTarget, type RichRender } from '../readRichFormats.js'
 import type { FileState } from '../../../utils/fileStateCache.js'

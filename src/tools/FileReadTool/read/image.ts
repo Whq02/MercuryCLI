@@ -4,7 +4,7 @@ import { compressImageBufferWithTokenLimit, createImageMetadataText, detectImage
 import { logError } from '../../../utils/log.js'
 import { recogniseImage, renderOcr } from '../../../utils/ocr.js'
 import { readRegularFileSync } from '../../../utils/regularFile.js'
-import type { FileReadingLimits } from '../limits.js'
+import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'
 import type { Output, CropBox, LaneResult } from './schema.js'
 import { passedOver } from '../../../utils/passedOver.js'
 

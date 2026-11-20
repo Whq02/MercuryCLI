@@ -1,7 +1,7 @@
 import { parse, relative } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
 import { getSnippetForTwoFileDiff } from 'src/tools/FileEditTool/utils.js'
-import { getDefaultFileReadingLimits } from 'src/tools/FileReadTool/limits.js'
+import { getDefaultFileReadingLimits } from 'src/utils/fileReadLimits.js'
 import { MAX_LINES_TO_READ } from 'src/tools/FileReadTool/prompt.js'
 import { PDF_AT_MENTION_INLINE_THRESHOLD } from '../../constants/apiLimits.js'
 import { isRemotePath } from '../../services/remoteFiles/target.js'
