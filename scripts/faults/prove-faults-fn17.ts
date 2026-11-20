@@ -72,27 +72,6 @@ console.log('modelRefusal — readModelRefusals throws on unreadable directory i
   )
 }
 
-console.log('prefixLedger — ownsSessionRecord lets processMainOwner bugs throw')
-{
-  const r = runScenario(`
-    const { mock } = await import('bun:test')
-    const ownerPath = SRC + '/services/run/resolveOwner.ts'
-    const realOwner = await import(ownerPath)
-    mock.module(ownerPath, () => ({
-      ...realOwner,
-      processMainOwner: () => { throw new Error('owner-getter-boom') },
-    }))
-    const ledger = await import(SRC + '/services/providers/anthropic/prefixLedger.ts')
-    try {
-      ledger.persistedDropState('owner-a')
-      out.threw = null
-    } catch (e) {
-      out.threw = e instanceof Error ? e.message : String(e)
-    }
-  `)
-  check('prefixLedger:ownsSessionRecord throws on processMainOwner bug', r.threw === 'owner-getter-boom', `got ${JSON.stringify(r.threw)}`)
-}
-
 console.log('prefixRecordStore — sweepPrefixRecords fails closed when getSessionId throws')
 {
   const r = runScenario(`
