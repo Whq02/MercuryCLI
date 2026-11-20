@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../../Tool.js'
-import { isRemotePath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { referenceReadPaths } from '../../../services/resources/referencePaths.js'
 import { controlCharacterPathRefusal, expandPath } from '../../../utils/path.js'

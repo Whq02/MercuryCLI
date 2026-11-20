@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, parse } from 'node:path'
 import picomatch from 'picomatch'
-import { authorityText, parseRemotePath } from './target.js'
+import { authorityText, parseRemotePath } from '../../utils/remoteFiles/target.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 

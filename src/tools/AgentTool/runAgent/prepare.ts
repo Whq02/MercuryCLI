@@ -1,7 +1,7 @@
 import { getCwd } from '../../../utils/cwd.js'
 import { getInstructionSliceForProfile } from '../../../services/instructions/engine.js'
 import { isInstructionProfile, resolveRequestedInstructionProfile } from '../../../services/instructions/profile.js'
-import type { InstructionProfile } from '../../../services/instructions/contracts.js'
+import type { InstructionProfile } from '../../../utils/instructions/contracts.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../../utils/userContextReminder.js'
 import type { Message } from '../../../types/message.js'
 import type { AgentId } from '../../../types/ids.js'

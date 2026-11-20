@@ -204,7 +204,7 @@ console.log('\nresources/adapters/health.ts — corrupt gate/cert files throw in
   const r = runSub(`
     const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
     const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
-    const { gateVerdictPath, lastCertPath } = await import(path.join(SRC, 'utils/healthReport.ts'))
+    const { gateVerdictPath, lastCertPath } = await import(path.join(SRC, 'services/health/healthReport.ts'))
     const ctx = { owner: processMainOwner(), cwd: PROJECT }
     out.gateAbsent = await resolveResource('mercury://health/gate', ctx)
     out.certAbsent = await resolveResource('mercury://health/cert', ctx)

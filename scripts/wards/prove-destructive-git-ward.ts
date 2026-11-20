@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/tools/BashTool/destructiveCommandWarning* src/services/tools/toolExecution.ts
+// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/utils/shell/destructiveCommandWarning* src/services/tools/toolExecution.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -22,7 +22,7 @@ type WardVerdict = import('../../src/utils/wards/wards.js').WardVerdict
 const { AUTONOMOUS_WARDS, BUILTIN_WARDS, REFUSAL_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
 const { deleteWardActive, WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')
 const { deleteFlagEnv, setFlagEnv } = await import('../../src/substrate/flagRegistry.js')
-const { getDestructiveCommandWarning } = await import('../../src/tools/BashTool/destructiveCommandWarning.js')
+const { getDestructiveCommandWarning } = await import('../../src/utils/shell/destructiveCommandWarning.js')
 const { judgeToolCall } = await import('../../src/guards/guards.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 

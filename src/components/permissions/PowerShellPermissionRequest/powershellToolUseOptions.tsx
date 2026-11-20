@@ -1,5 +1,5 @@
 import { Text } from '../../../ink.js'
-import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
+import { POWERSHELL_TOOL_NAME } from '../../../constants/tools/powershell.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
 import { generateShellSuggestionsLabel } from '../shellPermissionHelpers.js'

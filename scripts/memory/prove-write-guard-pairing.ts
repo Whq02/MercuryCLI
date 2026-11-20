@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts src/mneme/mnemeStemmer.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/prompt.ts
+// gate-watch: src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts src/mneme/mnemeStemmer.ts src/mneme/memoryVerbs.ts src/constants/tools/memory.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 import { cpSync, existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -36,7 +36,7 @@ const { listTopicDocs, listArchiveDocs } = await import('../../src/mneme/mnemeLi
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
 const { pinFact, readPins } = await import('../../src/mneme/mnemeUsage.ts')
 const { USER_ASKED_RULE_ROAD } = await import('../../src/mneme/mnemeCorrect.ts')
-const { RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
 
 const stems = (n: number): Set<string> => new Set(Array.from({ length: n }, (_, i) => `w${i}`))
 

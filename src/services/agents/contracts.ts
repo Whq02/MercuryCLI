@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { InstructionProfile } from '../../services/instructions/contracts.js'
+import type { InstructionProfile } from '../../utils/instructions/contracts.js'
 import type { AgentColorName } from '../../tools/AgentTool/agentColorManager.js'
 import type { AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
 import type { EffortValue } from '../../utils/effort.js'

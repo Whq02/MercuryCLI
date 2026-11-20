@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/prompt.ts docs/MNEME.md
+// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/constants/tools/memory.ts docs/MNEME.md
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,7 +20,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${title}`)
 
 const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
 const pinIntentModule = await import('../../src/mneme/memoryPinIntent.ts') as Record<string, unknown>
 const retainAskRefusal = (pinIntentModule.retainAskRefusal ?? (() => 'absent on this base')) as (latest: string | undefined) => string
 const CREWMATE_RETAIN_REFUSAL = (pinIntentModule.CREWMATE_RETAIN_REFUSAL ?? 'absent on this base') as string

@@ -74,7 +74,7 @@ for (const tool of [BashTool, PowerShellTool, GrepTool, GlobTool, FileReadTool])
 
 console.log('── 2. collapse walk ──')
 {
-  const { collapseReadSearchGroups, getToolSearchOrReadInfo } = await import('../../src/utils/collapseReadSearch.ts')
+  const { collapseReadSearchGroups, getToolSearchOrReadInfo } = await import('../../src/components/messages/collapseReadSearch.ts')
   const tools = [BashTool, GrepTool, FileReadTool] as never
   let n = 0
   const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
@@ -134,7 +134,7 @@ console.log('── 3. the seam ──')
   t('a tool without a classifier reads as undefined', safeSearchOrReadClassification(plain as never, { command: 'ls' }) === undefined)
   t('an absent tool reads as undefined', safeSearchOrReadClassification(undefined, { command: 'ls' }) === undefined)
   t('a real classifier still answers through the seam', safeSearchOrReadClassification(GrepTool as never, {})?.isSearch === true)
-  const { collapseReadSearchGroups } = await import('../../src/utils/collapseReadSearch.ts')
+  const { collapseReadSearchGroups } = await import('../../src/components/messages/collapseReadSearch.ts')
   const row = {
     type: 'assistant', uuid: '00000000-0000-4000-8000-00000000ffff', timestamp: new Date().toISOString(),
     message: { id: 'mx', role: 'assistant', type: 'message', model: 'x', stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'tool_use', id: 'tx', name: 'ThrowingClassifier', input: {} }] },

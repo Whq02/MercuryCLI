@@ -371,7 +371,7 @@ section('§4b a stored key the provider refuses is skipped by the default until 
 section('§5 the sign-in owners — every credential-landing site records; the refresh path never does; every consumer reads the one owner')
 {
   {
-    const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+    const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
     const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/utils/model/computedDefault.ts')
     const { providerDisplayName: nameOf } = await import('../../src/services/providers/routeLaw.ts')
     const frontier = await settingsChecks().find(row => row.id === 'frontier')?.run()

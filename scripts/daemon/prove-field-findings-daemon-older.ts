@@ -183,7 +183,7 @@ section('§5 one owner: the verb ages, /health\'s sentence, the connector\'s rec
     process.env.MERCURY_DAEMON_DIR = rowPlane
     const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
     fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
-    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
     const signInRow = await crewChecks().find(row => row.id === 'daemon-sign-ins')?.run()
     if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
     else process.env.MERCURY_DAEMON_DIR = planeBefore

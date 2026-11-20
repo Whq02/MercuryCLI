@@ -1,6 +1,6 @@
 import { foregroundNotKeptLine } from '../../../tasks/LocalAgentTask/launchReceipts.js'
 import { crewWorktreeLeftoverNoted, crewWorktreeReminderTail } from '../../../services/crew/crewWorktreeReminder.js'
-import { RESUME_AGENT_TOOL_NAME } from '../../ResumeAgentTool/constants.js'
+import { RESUME_AGENT_TOOL_NAME } from '../../../constants/tools/resumeAgent.js'
 import { PROMOTED_NARRATION_NOTE, structuredResultBlock } from '../agentToolUtils.js'
 import { ONE_SHOT_BUILTIN_AGENT_TYPES } from '../constants.js'
 import { envelopeFor } from '../../../services/agentResults/ingest.js'

@@ -204,7 +204,7 @@ section("§6 the chat's notice: a 401 on a dead sign-in speaks the sign-in line;
 
 section('§7 the roads read the one classification')
 {
-  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const usageOwner = await import('../../src/services/providers/providerUsage.ts')
   seed(DEAD_SIGN_IN)
   const authSays = await (await authChecks()).find(row => row.id === 'auth-anthropic')?.run()

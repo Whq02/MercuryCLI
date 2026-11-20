@@ -1,6 +1,6 @@
 import { ASK_ADVISOR_TOOL_NAME } from '../../AskAdvisorTool/constants.js'
 import { COMPUTER_TOOL_NAME } from '../../../services/desktop/toolName.js'
-import type { InstructionProfile } from '../../../services/instructions/contracts.js'
+import type { InstructionProfile } from '../../../utils/instructions/contracts.js'
 import { createSubagentContext } from '../../../utils/forkedAgent.js'
 import { claimDiagnosticsRoot } from '../../../services/lsp/LSPDiagnosticRegistry.js'
 import { processOwnerForLane } from '../../../services/run/resolveOwner.js'

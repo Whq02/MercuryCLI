@@ -6,7 +6,7 @@ import { armEnvironment, check, drive, enterRoot, finish, makeContext, REPO } fr
 const env = armEnvironment()
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
 const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
-const { resolveAstScope, isAstRefusal } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { resolveAstScope, isAstRefusal } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
 const root = mkdtempSync(join(tmpdir(), 'ast-braces-'))
 try {
   mkdirSync(join(root, 'src'))

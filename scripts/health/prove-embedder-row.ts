@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/healthReport.ts src/mneme/embedModels.ts src/mneme/embedPack.ts
+// gate-watch: src/services/health/healthReport.ts src/mneme/embedModels.ts src/mneme/embedPack.ts
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,7 +20,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const { seedEmbedPackDirForTest, embedPackDirFor, EMBED_PACK_MANIFEST_FILE } = await import('../../src/mneme/embedPack.js')
 const { seedEmbedModelForTest, memoryRecallModeWords, WORD_MATCH_ONLY_WORDS, embedDefaultModel } = await import('../../src/mneme/embedModels.js')
 type Row = { id: string; label: string; status: string; evidence: string; link?: string }

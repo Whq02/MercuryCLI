@@ -13,7 +13,7 @@ import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
 import type { BaseTextInputProps } from '../types/textInputTypes.js'
 import { getTheme } from '../utils/theme.js'
-import { color } from './design-system/color.js'
+import { color } from '../utils/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
 type Props = BaseTextInputProps & {

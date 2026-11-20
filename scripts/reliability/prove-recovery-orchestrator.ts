@@ -126,7 +126,7 @@ console.log('— boot 3: bounded epoch GC stays quiet —')
 
 console.log('— health deep probe: disposable transaction —')
 {
-  const probes = await import('../../src/utils/healthDeepProbes.ts')
+  const probes = await import('../../src/services/health/healthDeepProbes.ts')
   const res = await probes.probeDurableTransaction()
   ok(res.status === 'ok', `probeDurableTransaction ok (${res.evidence})`)
   ok(process.env.MERCURY_FAULT_INJECT === undefined, 'fault-inject seam restored after the probe')

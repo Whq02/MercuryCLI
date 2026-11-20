@@ -137,7 +137,7 @@ check(
   liveBox.live !== undefined && liveBox.own.lock?.dir === lockDir && j(still(liveBox.live)) === j(still(liveBox.own)) && liveBox.live.atMs >= liveBox.from && liveBox.live.atMs <= liveBox.to && waitDrift <= 5,
   j({ ...liveBox, waitDrift }),
 )
-const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
 const lockDirBefore = process.env.MERCURY_BOX_LOCK_DIR
 process.env.MERCURY_BOX_LOCK_DIR = lockDir
 const boxRow = await runtimeChecks().find(row => row.id === 'box-lock')?.run()

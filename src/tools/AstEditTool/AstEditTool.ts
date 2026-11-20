@@ -35,7 +35,7 @@ import {
   resolveAstScope,
   type AstRewritePlan,
   type AstScope,
-} from '../../utils/astPatterns.js'
+} from '../../services/structure/astPatterns.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'

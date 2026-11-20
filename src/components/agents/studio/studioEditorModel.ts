@@ -293,7 +293,7 @@ export function buildReviewFacts(
       logError(error)
       return {
         changed: ['(existing file unreadable)'],
-        diffLines: [`Could not read existing agent file (${errorMessage(error)}) — check permissions before saving.`],
+        diffLines: [`Could not read existing agent file — check permissions before saving (${errorMessage(error)}).`],
       }
     }
   }

@@ -11,7 +11,7 @@
 # gate-watch: src/services/host/store.ts
 # gate-watch: assets/splash/splash-core.mjs
 # gate-watch: docs/CREW.md docs/ENGINES.md docs/HEALTH-CERTIFICATE.md docs/KIT.md docs/MCP-SERVER.md docs/SESSIONS.md docs/SETTINGS.md
-# gate-watch: src/utils/health/sections/identity.ts
+# gate-watch: src/services/health/sections/identity.ts
 # gate-watch: src/run-core/turn/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

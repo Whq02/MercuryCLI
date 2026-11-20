@@ -18,7 +18,7 @@ const {
   remoteRulePattern,
   remoteSessionRule,
   RemotePathError,
-} = await import('../../src/services/remoteFiles/target.ts')
+} = await import('../../src/utils/remoteFiles/target.ts')
 
 let failures = 0
 let checks = 0

@@ -11,7 +11,7 @@ import {
   type EditHunkInput,
 } from '../../../services/changeTransaction/hunks.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
-import { isRemotePath, remoteLastRead } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, remoteLastRead } from '../../../utils/remoteFiles/target.js'
 import { isENOENT } from '../../../utils/errors.js'
 import { displayAddressedTarget } from '../../../utils/file.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'

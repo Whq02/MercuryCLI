@@ -82,7 +82,7 @@ section('§3 the reading when no request has gone out: the gate of this home is 
   const off = snapshot()
   check('with the clock off the reading names the flag', off.engaged === false && off.reason === 'the clock is off (MERCURY_CACHE_CLOCK=0)', j(off))
   delete process.env.MERCURY_CACHE_CLOCK
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const clockRow = crewChecks().find(row => row.id === 'cache-clock')
   const unsent = await clockRow?.run()
   process.env.MERCURY_CACHE_CLOCK = '0'

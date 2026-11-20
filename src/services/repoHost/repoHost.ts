@@ -319,7 +319,7 @@ export async function composeReviewContext(
   let impactRef = 'mercury://project/impact (project intelligence disabled)'
   try {
     const { projectIntelEnabled } =
-      require('../projectIntel/contracts.js') as { projectIntelEnabled?: () => boolean }
+      require('../../utils/projectIntel/contracts.js') as { projectIntelEnabled?: () => boolean }
     if (projectIntelEnabled?.()) impactRef = 'mercury://project/impact'
     else unavailable.push('project-intel impact (MERCURY_PROJECT_INTEL=0)')
   } catch {

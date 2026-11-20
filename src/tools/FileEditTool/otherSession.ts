@@ -1,7 +1,7 @@
 import { getSessionId } from '../../bootstrap/state.js'
 import { liveSessions } from '../../mneme/ledger.js'
 import { mnemeProjectKey } from '../../mneme/paths.js'
-import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from './constants.js'
+import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from '../../constants/tools/fileEdit.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const UNREAD_EXISTING_FILE_NOTE = "it exists and was not read in this session, so it may be another session's work"
