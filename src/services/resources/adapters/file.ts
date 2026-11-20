@@ -38,16 +38,23 @@ export const fileAdapter: ResourceAdapter = {
     }
     let abs = candidates[0]!
     let info
+    let firstError: { path: string; error: unknown } | undefined
     for (const candidate of candidates) {
       try {
         info = statSync(candidate)
         abs = candidate
         break
       } catch (error) {
-        passedOver(error)
+        const code = (error as NodeJS.ErrnoException | null)?.code
+        if (code === 'ENOENT' || code === 'ENOTDIR') {
+          passedOver(error)
+        } else {
+          firstError ??= { path: candidate, error }
+        }
       }
     }
     if (!info) {
+      if (firstError !== undefined) throw firstError.error
       return {
         state: 'absent',
         note: `no such file or directory: ${candidates.join(' · ')}`,

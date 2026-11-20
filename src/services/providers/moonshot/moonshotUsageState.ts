@@ -404,7 +404,13 @@ export function refreshKimiManagedUsage(io?: MoonshotUsageIo & MoonshotOauthIo):
       const region = io?.region ?? moonshotLoginRegion()
       await fetchKimiManagedUsage(credential.apiKey, region, io)
       return observedManaged
-    } catch {
+    } catch (error) {
+      const identity = activeSignInIdentity()
+      if (identity !== 'none') {
+        observedManagedIdentity = identity
+        lastManagedError = `Kimi /usages unavailable: ${error instanceof Error ? error.message : String(error)}`
+        noteUsageRecordChanged()
+      }
       return observedManaged
     } finally {
       managedInFlight = null

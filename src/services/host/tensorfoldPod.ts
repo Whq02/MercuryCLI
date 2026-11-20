@@ -183,10 +183,13 @@ export async function terminateTensorFoldPod(id: string, options: { client?: Hos
   const { removeLlmHostProvider } = await import('../llmHost/index.js')
   for (const endpoint of configuredCompatEndpoints()) if (endpoint.hostPodId === id || endpoint.name === record.provider) removeLlmHostProvider(endpoint.name)
   await unregisterTensorFoldPod(id)
-  const { restoreRentingSession } = await import('./worker.js')
-  await restoreRentingSession(record)
+  const { restoreRentingSessionOutcome } = await import('./worker.js')
+  const restored = await restoreRentingSessionOutcome(record)
   removeHostRecord(id)
-  return { ok: true, words: TENSORFOLD_HOST_WORDS.terminated(machine, spend) }
+  const restoreNote = restored.state === 'failed'
+    ? ' · this session stays on a model that is gone (' + restored.detail + ') — run /model ' + record.sessionModelBefore
+    : ''
+  return { ok: true, words: TENSORFOLD_HOST_WORDS.terminated(machine, spend) + restoreNote }
 }
 
 export async function settleStoppingTensorFoldPods(options: { client?: (record: HostRecord) => HostVendor; signal?: AbortSignal } = {}): Promise<number> {

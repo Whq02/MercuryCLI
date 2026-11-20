@@ -59,14 +59,25 @@ async function publishRunSidecar(
   writer?: SidecarWriter,
 ): Promise<void> {
   if (!writeSeqByOwner.has(owner)) {
+    let raw: string | null = null
     try {
-      const raw = await readFile(runSidecarPath(owner), 'utf8')
-      const prior = (JSON.parse(raw) as { writeSeq?: unknown }).writeSeq
-      if (typeof prior === 'number' && Number.isFinite(prior)) {
-        writeSeqByOwner.set(owner, prior)
-      }
+      raw = await readFile(runSidecarPath(owner), 'utf8')
     } catch (error) {
-      passedOver(error)
+      if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+        passedOver(error)
+      } else {
+        throw error
+      }
+    }
+    if (raw !== null) {
+      try {
+        const prior = (JSON.parse(raw) as { writeSeq?: unknown }).writeSeq
+        if (typeof prior === 'number' && Number.isFinite(prior)) {
+          writeSeqByOwner.set(owner, prior)
+        }
+      } catch (error) {
+        passedOver(error)
+      }
     }
   }
   const seq = (writeSeqByOwner.get(owner) ?? 0) + 1
@@ -208,6 +219,10 @@ export async function deleteRunSidecar(owner: OwnerKey): Promise<void> {
   try {
     await unlink(runSidecarPath(owner))
   } catch (error) {
-    passedOver(error)
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+      passedOver(error)
+      return
+    }
+    throw error
   }
 }

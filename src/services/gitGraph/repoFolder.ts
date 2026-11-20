@@ -1,6 +1,5 @@
 import { readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { passedOver } from '../../utils/passedOver.js'
 
 type RepoFolder =
   | { state: 'ok'; root: string; folder: string; via: 'folder' | 'below' }
@@ -13,8 +12,9 @@ function hasGitEntry(path: string): boolean {
     const entry = statSync(path)
     return entry.isDirectory() || entry.isFile()
   } catch (error) {
-    passedOver(error)
-    return false
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false
+    throw error
   }
 }
 
@@ -35,27 +35,36 @@ function repositoriesDirectlyBelow(folder: string): string[] {
       .filter(entry => entry.isDirectory() && entry.name !== '.git')
       .map(entry => entry.name)
   } catch (error) {
-    passedOver(error)
-    return []
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return []
+    throw error
   }
   return names.filter(name => hasGitEntry(join(folder, name, '.git'))).sort()
 }
 
 export function resolveRepoFolder(folder: string): RepoFolder {
-  if (insideRepository(folder)) return { state: 'ok', root: folder, folder, via: 'folder' }
-  const below = repositoriesDirectlyBelow(folder)
-  if (below.length === 1) return { state: 'ok', root: join(folder, below[0]!), folder, via: 'below' }
-  if (below.length === 0) {
+  try {
+    if (insideRepository(folder)) return { state: 'ok', root: folder, folder, via: 'folder' }
+    const below = repositoriesDirectlyBelow(folder)
+    if (below.length === 1) return { state: 'ok', root: join(folder, below[0]!), folder, via: 'below' }
+    if (below.length === 0) {
+      return {
+        state: 'refused',
+        folder,
+        note: `no git repository at ${folder}, above it, or directly below it — pass cwd naming a repository folder`,
+      }
+    }
+    const named = below.slice(0, NAMED_AT_MOST).join(', ') + (below.length > NAMED_AT_MOST ? ` and ${below.length - NAMED_AT_MOST} more` : '')
     return {
       state: 'refused',
       folder,
-      note: `no git repository at ${folder}, above it, or directly below it — pass cwd naming a repository folder`,
+      note: `${folder} is not inside a git repository and holds ${below.length} repositories directly below it: ${named} — pass cwd naming one`,
     }
-  }
-  const named = below.slice(0, NAMED_AT_MOST).join(', ') + (below.length > NAMED_AT_MOST ? ` and ${below.length - NAMED_AT_MOST} more` : '')
-  return {
-    state: 'refused',
-    folder,
-    note: `${folder} is not inside a git repository and holds ${below.length} repositories directly below it: ${named} — pass cwd naming one`,
+  } catch (error) {
+    return {
+      state: 'refused',
+      folder,
+      note: error instanceof Error ? error.message : String(error),
+    }
   }
 }

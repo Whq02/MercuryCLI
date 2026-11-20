@@ -156,8 +156,8 @@ export function parseGodotProjectFile(root: string): ParsedProjectGodot {
     parseCache = { file, mtimeMs: st.mtimeMs, parsed }
     return parsed
   } catch (error) {
-    passedOver(error)
-    return {}
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return {}
+    throw error
   }
 }
 

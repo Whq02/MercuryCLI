@@ -294,6 +294,15 @@ export function syncVerification(owner: OwnerKey, cwd: string): void {
     }
   } catch (error) {
     passedOver(error)
+    logError(error instanceof Error ? error : new Error(String(error)))
+    if (state.snapshot.verification.state === 'verified') {
+      noteRunEvent(owner, {
+        type: 'evidence',
+        at: Date.now(),
+        state: 'unverified',
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 }
 

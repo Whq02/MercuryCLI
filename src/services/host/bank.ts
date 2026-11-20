@@ -6,6 +6,7 @@ import { basename, dirname, isAbsolute, join, posix, resolve, sep } from 'node:p
 import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { parseBankSums } from './boxBank.js'
@@ -31,8 +32,28 @@ interface BankReceipt { sha256: string; bytes: number; files: number; check: 'ma
 export const BANK_DOOR = 'Bank · your weights'
 const registryPath = (): string => join(hostDirectory(), 'bank.json')
 const homeDirectory = (): string => process.platform === 'win32' ? homedir() : hostEnv().HOME?.trim() || homedir()
-const isDirectory = (path: string): boolean => { try { return statSync(path).isDirectory() } catch (error) { passedOver(error); return false } }
-const fileSize = (path: string): number | undefined => { try { const stat = lstatSync(path); return stat.isFile() ? stat.size : undefined } catch (error) { passedOver(error); return undefined } }
+const isDirectory = (path: string): boolean => {
+  try { return statSync(path).isDirectory() } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false
+    throw error
+  }
+}
+const probeDirectory = (path: string): boolean => {
+  try { return statSync(path).isDirectory() } catch (error) {
+    passedOver(error)
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`[host] bank folder ${path} could not be checked (${error instanceof Error ? error.message : String(error)})`, { level: 'warn' })
+    return false
+  }
+}
+const fileSize = (path: string): number | undefined => {
+  try { const stat = lstatSync(path); return stat.isFile() ? stat.size : undefined } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return undefined
+    throw error
+  }
+}
 const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex')
 export function readBankRegistry(): BankRegistry {
   try { return registrySchema.parse(JSON.parse(readFileSync(registryPath(), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { models: {} }; throw error }
@@ -49,7 +70,7 @@ export function bankedHostRecipes(folder = bankFolder()): HostRecipe[] {
   if (!folder) return []
   return Object.entries(readBankRegistry().models).flatMap(([model, entry]) => {
     const recipe = entry.recipeRow
-    return recipe && model === volumeModel(recipe) && dirname(resolve(entry.path)) === resolve(folder) && isDirectory(entry.path) ? [recipe] : []
+    return recipe && model === volumeModel(recipe) && dirname(resolve(entry.path)) === resolve(folder) && probeDirectory(entry.path) ? [recipe] : []
   })
 }
 export function bankCandidates(): string[] {
@@ -61,8 +82,8 @@ export function bankCandidates(): string[] {
 export const bankCandidateWords = (): string => process.platform === 'win32' ? '~\\mercury-model-bank or ~\\models' : '~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank'
 export function bankFolder(): string | undefined {
   const remembered = readBankRegistry().folder
-  if (remembered && isDirectory(remembered)) return remembered
-  return bankCandidates().find(isDirectory)
+  if (remembered && probeDirectory(remembered)) return remembered
+  return bankCandidates().find(probeDirectory)
 }
 export function rememberBankFolder(path: string): string {
   const named = path.trim()
@@ -81,7 +102,11 @@ export function bankModelPath(folder: string, recipe: HostRecipe): string {
   const entry = readBankRegistry().models[volumeModel(recipe)]
   if (entry && dirname(resolve(entry.path)) === resolve(folder) && isDirectory(entry.path)) return entry.path
   let children: string[]
-  try { children = readdirSync(folder).sort() } catch { return canonical }
+  try { children = readdirSync(folder).sort() } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return canonical
+    throw error
+  }
   const matching = children.map(name => join(folder, name)).filter(path => {
     try {
       if (!lstatSync(path).isDirectory()) return false
@@ -150,11 +175,15 @@ export function bankFiles(recipe: HostRecipe, path: string): { files: BankFile[]
     return { files: shards.map(file => ({ path: file })), pinned: false, sealedByBank: false }
   }
   const named = ['config.json', 'model.safetensors.index.json']
-  try {
-    const index = JSON.parse(readFileSync(join(path, 'model.safetensors.index.json'), 'utf8')) as { weight_map?: Record<string, string> }
-    const shards = [...new Set(Object.values(index.weight_map ?? {}))].filter(file => /^[a-zA-Z0-9_.-]+$/.test(file)).sort()
-    return { files: [...named, ...shards].map(file => ({ path: file })), pinned: false, sealedByBank: false }
-  } catch { return { files: named.map(file => ({ path: file })), pinned: false, sealedByBank: false } }
+  let indexText: string
+  try { indexText = readFileSync(join(path, 'model.safetensors.index.json'), 'utf8') } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { files: named.map(file => ({ path: file })), pinned: false, sealedByBank: false }
+    throw error
+  }
+  const index = JSON.parse(indexText) as { weight_map?: Record<string, string> }
+  const shards = [...new Set(Object.values(index.weight_map ?? {}))].filter(file => /^[a-zA-Z0-9_.-]+$/.test(file)).sort()
+  return { files: [...named, ...shards].map(file => ({ path: file })), pinned: false, sealedByBank: false }
 }
 export function bankState(recipe: HostRecipe, folder = bankFolder()): BankState {
   if (!folder) return { banked: false, sealed: false, pinned: false, files: 0, missing: 0, bytes: 0 }
@@ -236,7 +265,11 @@ export async function sealBank(recipe: HostRecipe, folder: string, signal: Abort
   const { files, pinned, sealedByBank } = bankFiles(recipe, path)
   if (!files.length) throw new Error('This recipe names no weight files to seal.')
   const rows = new Map<string, string>()
-  try { for (const [file, hash] of parseBankSums(readFileSync(join(path, 'SHA256SUMS'), 'utf8'))) rows.set(file, hash) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') rows.clear() }
+  let existingSums: string | undefined
+  try { existingSums = readFileSync(join(path, 'SHA256SUMS'), 'utf8') } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+  if (existingSums !== undefined) {
+    try { for (const [file, hash] of parseBankSums(existingSums)) rows.set(file, hash) } catch (error) { passedOver(error); rows.clear() }
+  }
   let bytes = 0
   for (const [index, file] of files.entries()) {
     progress('hashing ' + (index + 1) + '/' + files.length + ' · ' + posix.basename(file.path))

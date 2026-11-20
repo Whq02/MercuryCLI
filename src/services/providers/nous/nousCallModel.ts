@@ -24,13 +24,8 @@ export const nousLaneProfile: CompatLaneProfile = {
   lane: 'nous',
   providerLabel: 'Nous Portal',
   resolveCredential: async () => {
-    try {
-      const credential = await resolveNousCredential()
-      return credential ? { apiKey: credential.key, requestUrl: nousChatCompletionsUrl(undefined, credential.source) } : undefined
-    } catch (error) {
-      passedOver(error)
-      return undefined
-    }
+    const credential = await resolveNousCredential()
+    return credential ? { apiKey: credential.key, requestUrl: nousChatCompletionsUrl(undefined, credential.source) } : undefined
   },
   recoverCredential: async () => {
     if (!configuredProviderKeyCommand('nous')) return null

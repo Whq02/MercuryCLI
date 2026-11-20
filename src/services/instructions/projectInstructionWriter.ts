@@ -44,17 +44,30 @@ type ParsedEstateFile = {
   includePaths: string[]
 }
 
-function readEstateFile(path: string): ParsedEstateFile | null {
+type EstateRead =
+  | { ok: true; file: ParsedEstateFile | null }
+  | { ok: false; error: unknown }
+
+function readEstateFileStrict(path: string): EstateRead {
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { ok: true, file: null }
+    return { ok: false, error }
   }
   const { info, includePaths, bareMentionPaths } = parseInstructionFileContent(raw, path, 'Project', path)
-  if (info === null) return null
-  return { path, raw, content: info.content, includePaths: [...includePaths, ...bareMentionPaths] }
+  if (info === null) return { ok: true, file: null }
+  return { ok: true, file: { path, raw, content: info.content, includePaths: [...includePaths, ...bareMentionPaths] } }
+}
+
+function readEstateFile(path: string): ParsedEstateFile | null {
+  const read = readEstateFileStrict(path)
+  if (!read.ok) {
+    passedOver(read.error)
+    return null
+  }
+  return read.file
 }
 
 function proseLineCount(content: string): number {
@@ -175,8 +188,12 @@ export function planProjectInstruction(options: {
     }
   }
 
-  const closure = estateClosure(entry.path, root)
+  const entryRead = readEstateFileStrict(entry.path)
+  if (!entryRead.ok) {
+    return { write: false, result: { action: 'invalid', reason: entryRead.error instanceof Error ? entryRead.error.message : String(entryRead.error) } }
+  }
 
+  const closure = estateClosure(entry.path, root)
   if (options.replaces !== undefined) {
     const needle = options.replaces.trim()
     if (needle === '') return { write: false, result: { action: 'invalid', reason: 'an empty replaces matches nothing' } }
@@ -201,8 +218,11 @@ export function planProjectInstruction(options: {
   }
 
   const { targetPath } = followPointerLaw(entry.path, root)
-  const target = readEstateFile(targetPath)
-  const currentRaw = target?.raw ?? ''
+  const targetRead = readEstateFileStrict(targetPath)
+  if (!targetRead.ok) {
+    return { write: false, result: { action: 'invalid', reason: targetRead.error instanceof Error ? targetRead.error.message : String(targetRead.error) } }
+  }
+  const currentRaw = targetRead.file?.raw ?? ''
   return {
     write: true,
     result: { action: 'recorded', path: targetPath, created: false },

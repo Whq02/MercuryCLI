@@ -48,7 +48,16 @@ function isHostName(name: string): boolean {
   }
 }
 
-function includedFiles(pattern: string, base: string): string[] {
+function isAbsentPathError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
+function unreadWords(path: string, error: unknown): string {
+  return `${path} (${error instanceof Error ? error.message : String(error)})`
+}
+
+function includedFiles(pattern: string, base: string, unread: string[]): string[] {
   const home = pattern === '~' || pattern.startsWith('~/') || pattern.startsWith('~\\') ? join(homedir(), pattern.slice(1)) : pattern
   const whole = isAbsolute(home) ? home : join(base, home)
   if (!/[*?[]/.test(whole)) return [whole]
@@ -67,6 +76,7 @@ function includedFiles(pattern: string, base: string): string[] {
         names = readdirSync(folder)
       } catch (error) {
         passedOver(error)
+        if (!isAbsentPathError(error)) unread.push(unreadWords(folder, error))
         continue
       }
       for (const name of names.sort()) if (matches(name)) next.push(join(folder, name))
@@ -76,7 +86,7 @@ function includedFiles(pattern: string, base: string): string[] {
   return found
 }
 
-export function remoteHostNames(mayRead: (file: string) => boolean): string[] {
+export function remoteHostNames(mayRead: (file: string) => boolean, unread: string[] = []): string[] {
   const names = new Set<string>()
   const opened = new Set<string>()
   const walk = (file: string, base: string, depth: number): void => {
@@ -89,6 +99,7 @@ export function remoteHostNames(mayRead: (file: string) => boolean): string[] {
       text = readFileSync(file, 'utf8')
     } catch (error) {
       passedOver(error)
+      if (!isAbsentPathError(error)) unread.push(unreadWords(file, error))
       return
     }
     for (const line of text.split(/\r?\n/)) {
@@ -98,7 +109,7 @@ export function remoteHostNames(mayRead: (file: string) => boolean): string[] {
       if (keyword === 'host') {
         for (const name of wordsOf(row[2]!)) if (isHostName(name)) names.add(name)
       } else if (keyword === 'include') {
-        for (const pattern of wordsOf(row[2]!)) for (const included of includedFiles(pattern, base)) walk(included, base, depth + 1)
+        for (const pattern of wordsOf(row[2]!)) for (const included of includedFiles(pattern, base, unread)) walk(included, base, depth + 1)
       }
     }
   }
@@ -109,10 +120,11 @@ export function remoteHostNames(mayRead: (file: string) => boolean): string[] {
   return [...names]
 }
 
-export function renderRemoteHosts(names: readonly string[]): { content: string; numLines: number } {
+export function renderRemoteHosts(names: readonly string[], unread: readonly string[] = []): { content: string; numLines: number } {
   const lines = [
     `(target: ssh hosts · owner: Read · ${names.length} from the ssh configuration)`,
     ...names.map(name => `ssh://${authorityText({ host: name })}/`),
+    ...unread.map(words => `Not read, so its hosts are not listed: ${words} — make it readable to list them.`),
     'Any destination ssh accepts is a path too: ssh://user@host:port/absolute/path.',
   ]
   return { content: lines.join('\n'), numLines: lines.length }

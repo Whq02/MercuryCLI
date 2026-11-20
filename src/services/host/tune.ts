@@ -240,7 +240,7 @@ export async function reconcileHostTune(id: string, runner: HostRunner, signal: 
   const claim = typeof record.retuning === 'object' ? record.retuning : undefined
   const recipe = hostRecipeOfRecord(record)
   let engine: Awaited<ReturnType<typeof readHostEngine>> | undefined
-  try { if (record.target && recipe) engine = await readHostEngine(record.target, recipe, runner, signal) } catch (error) { passedOver(error) }
+  try { if (record.target && recipe) engine = await readHostEngine(record.target, recipe, runner, signal) } catch (error) { passedOver(error); return record }
   if (signal.aborted) return record
   if (engine?.alive && !engine.conversations) return patchHostRecord(id, { step: 'engine starting after an interrupted reload' })
   if (!engine?.conversations || !engine.contextPerConversation) return patchHostRecord(id, { retuning: undefined, tune: claim?.from ?? record.tune, step: 'engine reload interrupted', error: 'Mercury stopped during an engine reload and the engine is not answering · Tune again, or Resume setup' })

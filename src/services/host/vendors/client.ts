@@ -25,13 +25,13 @@ export const saveVendorKey = (vendor: HostVendorId, key: string | null): void =>
 }
 export const vendorStorage = (vendor: HostVendorId): string => vendor === 'hyperstack' ? HYPERSTACK_STORAGE_NOTICE : vendor === 'verda' ? VERDA_STORAGE_NOTICE : vendor === 'digitalocean' ? DIGITALOCEAN_STORAGE_NOTICE : vendor === 'huggingface' ? HF_ENDPOINTS_STORAGE_NOTICE : vendor === 'vast' ? VAST_STORAGE_NOTICE : vendor === 'lambda' ? LAMBDA_STORAGE_NOTICE : 'Stop keeps the volume disk and its storage bill; terminate deletes the pod’s volume disk. Attached weights disks bill separately.'
 export const vendorKeyNotice = (vendor: HostVendorId): string => vendor === 'hyperstack' ? HYPERSTACK_KEY_NOTICE : vendor === 'verda' ? VERDA_KEY_NOTICE : vendor === 'digitalocean' ? DIGITALOCEAN_KEY_NOTICE : vendor === 'huggingface' ? HF_ENDPOINTS_KEY_NOTICE : vendor === 'vast' ? VAST_KEY_NOTICE : vendor === 'lambda' ? LAMBDA_KEY_NOTICE : 'Mercury’s SSH key is added to this pod only, never to your Runpod account.'
-const recordKey = (record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 'id' | 'huggingfaceCredential'>, vendor: HostVendorId): string | undefined => {
+const savedRecordKey = (record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 'id' | 'huggingfaceCredential'>, vendor: HostVendorId): string | undefined => {
   if (vendor !== 'huggingface') return vendorKey(vendor)
   try { return hostHuggingfaceCredential(record)?.key } catch (error) { passedOver(error); return undefined }
 }
 export function vendorClient(record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 'id' | 'huggingfaceCredential'> | HostVendorId = 'runpod', options: { key?: string; apiBaseUrl?: string } = {}): HostVendor {
   const vendor = typeof record === 'string' ? record : record.vendor ?? 'runpod'
-  const key = options.key ?? (typeof record === 'string' ? vendorKey(vendor) : recordKey(record, vendor))
+  const key = options.key ?? (typeof record === 'string' ? vendorKey(vendor) : vendor === 'huggingface' ? hostHuggingfaceCredential(record)?.key : vendorKey(vendor))
   if (!key) throw new Error('The saved ' + vendorLabel(vendor) + ' key is unavailable. Connect ' + vendorLabel(vendor) + ' from /llmhost.')
   const base = options.apiBaseUrl ?? (typeof record === 'string' ? undefined : record.apiBaseUrl)
   if (vendor === 'vast') return new VastClient(key, base)
@@ -40,7 +40,7 @@ export function vendorClient(record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 
   if (vendor === 'verda') return new VerdaClient(key, base)
   if (vendor === 'digitalocean') return new DigitalOceanClient(key, base)
   if (vendor === 'huggingface') {
-    const saved = typeof record === 'string' ? vendorKey(vendor) : recordKey(record, vendor)
+    const saved = options.key ? (typeof record === 'string' ? vendorKey(vendor) : savedRecordKey(record, vendor)) : key
     return new HuggingfaceClient(key, base, {}, !options.key || options.key === saved ? refresh => hostHuggingfaceDispatchCredential(typeof record === 'string' ? undefined : record, refresh) : undefined)
   }
   const raw = new RunpodClient(key, base)

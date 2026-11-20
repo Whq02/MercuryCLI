@@ -9,6 +9,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { mediaCheckpointFile, mediaCheckpointInstalled, mediaFileInstalled, mediaModelFiles, mediaModelJoined, mediaPartialBytes, readMediaCatalogue, type MediaCatalogue, type MediaModel } from './catalogue.js'
 import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServerPath, readMediaSettings, type MediaConfig, type MediaSettings } from './settings.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isENOENT } from '../../utils/errors.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 type MediaFit = { residentBytes: number; peakMetalBytes: number; fits: boolean; diskFits: boolean }
@@ -163,20 +164,32 @@ export async function runMediaSetup(args: string[], onProgress: (event: MediaPro
     signal?.addEventListener('abort', abort, { once: true })
     if (signal?.aborted) abort()
     const cleanup = (): void => { if (timer) stopTimeout(timer); signal?.removeEventListener('abort', abort) }
+    let settled = false
     const lines = createInterface({ input: child.stdout })
     lines.on('line', line => {
+      if (settled) return
+      let value: MediaProgress
       try {
-        const value = JSON.parse(line) as MediaProgress
-        if (value.event === 'done') done = true
-        else if (value.event === 'cancelled') paused = value
-        else if (value.event === 'error') error = value.message ?? 'Media download failed.'
-        else if (value.event !== 'progress') return
+        value = JSON.parse(line) as MediaProgress
+      } catch {
+        error = 'Media setup returned an unreadable response.'
+        return
+      }
+      if (value.event === 'done') done = true
+      else if (value.event === 'cancelled') paused = value
+      else if (value.event === 'error') error = value.message ?? 'Media download failed.'
+      else if (value.event !== 'progress') return
+      try {
         onProgress(value)
-      } catch { error = 'Media setup returned an unreadable response.' }
+      } catch (err) {
+        passedOver(err)
+      }
     })
     child.stderr.on('data', chunk => { stderr = (stderr + String(chunk)).slice(-4096) })
-    child.once('error', error => { cleanup(); reject(error) })
+    child.once('error', error => { if (settled) return; settled = true; cleanup(); reject(error) })
     child.once('close', code => {
+      if (settled) return
+      settled = true
       cleanup()
       lines.close()
       if (paused) {
@@ -202,8 +215,13 @@ export function mediaProgressWords(event: MediaProgress): string {
 }
 
 function runtimeRecord(root: string): { tag?: string; variant?: string; requestedVariant?: string } | undefined {
+  let raw: string
   try {
-    const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag?: unknown; variant?: unknown; requestedVariant?: unknown }
-    return { ...(typeof record.tag === 'string' ? { tag: record.tag } : {}), ...(typeof record.variant === 'string' ? { variant: record.variant } : {}), ...(typeof record.requestedVariant === 'string' ? { requestedVariant: record.requestedVariant } : {}) }
-  } catch (error) { passedOver(error); return undefined }
+    raw = readFileSync(join(root, 'runtime.json'), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return undefined
+    throw error
+  }
+  const record = JSON.parse(raw) as { tag?: unknown; variant?: unknown; requestedVariant?: unknown }
+  return { ...(typeof record.tag === 'string' ? { tag: record.tag } : {}), ...(typeof record.variant === 'string' ? { variant: record.variant } : {}), ...(typeof record.requestedVariant === 'string' ? { requestedVariant: record.requestedVariant } : {}) }
 }

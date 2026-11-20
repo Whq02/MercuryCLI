@@ -17,7 +17,6 @@ import type {
   GitUnavailable,
   GitWorktreeInfo,
 } from './contracts.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_BUFFER = 16 * 1024 * 1024
 const MAX_HUNKS = 200
@@ -174,8 +173,8 @@ function configValue(root: string, key: string): string {
   try {
     return git(root, ['config', key]).trim()
   } catch (error) {
-    passedOver(error)
-    return ''
+    if ((error as { status?: unknown }).status === 1) return ''
+    throw error
   }
 }
 
@@ -412,18 +411,22 @@ export function gitConflicts(root: string, owner?: import('../run/ownerKey.js').
   const status = gitStatus(root)
   if ('state' in status) return status
   const unmerged = status.files.filter(f => f.kind === 'unmerged')
-  return unmerged.map(f => {
-    const stage = (n: number): string[] =>
-      (tryGit(root, ['show', `:${n}:${f.path}`]) ?? '').split('\n').slice(0, MAX_CONFLICT_LINES)
-    return {
-      id: conflictId(f.path),
-      path: f.path,
-      base: stage(1),
-      ours: stage(2),
-      theirs: stage(3),
-      ...(owner ? { regions: readConflictRegions(owner, root, f.path) } : {}),
-    }
-  })
+  try {
+    return unmerged.map(f => {
+      const stage = (n: number): string[] =>
+        (tryGit(root, ['show', `:${n}:${f.path}`]) ?? '').split('\n').slice(0, MAX_CONFLICT_LINES)
+      return {
+        id: conflictId(f.path),
+        path: f.path,
+        base: stage(1),
+        ours: stage(2),
+        theirs: stage(3),
+        ...(owner ? { regions: readConflictRegions(owner, root, f.path) } : {}),
+      }
+    })
+  } catch (error) {
+    return { state: 'unavailable', note: error instanceof Error ? error.message : String(error) }
+  }
 }
 
 

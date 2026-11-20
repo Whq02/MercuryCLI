@@ -45,8 +45,11 @@ export const healthAdapter: ResourceAdapter = {
       let raw: unknown
       try {
         raw = JSON.parse(readFileSync(gateVerdictPath(), 'utf8'))
-      } catch {
-        return { state: 'absent', note: 'no gate verdict has been written (run scripts/run-all-suites.sh)' }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+          return { state: 'absent', note: 'no gate verdict has been written (run scripts/run-all-suites.sh)' }
+        }
+        throw error
       }
       const v = decodeGateVerdict(raw)
       if (!v) {
@@ -68,8 +71,12 @@ export const healthAdapter: ResourceAdapter = {
     let summary
     try {
       summary = decodeLastCertSummary(JSON.parse(readFileSync(lastCertPath(), 'utf8')))
-    } catch {
-      summary = null
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+        summary = null
+      } else {
+        throw error
+      }
     }
     if (!summary) {
       return { state: 'absent', note: 'no certificate has been issued (run /health)' }

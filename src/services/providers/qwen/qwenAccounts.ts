@@ -119,6 +119,17 @@ export function qwenEndpointWhere(baseUrl: string, env: NodeJS.ProcessEnv = host
   return qwenEndpointConsole(endpoint) === 'QwenCloud' ? endpoint.label : `Model Studio ${endpoint.label}`
 }
 
+export function qwenBaseOverrideSkipped(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
+  const raw = env[QWEN_BASE_OVERRIDE_ENV]?.trim()
+  if (!raw || qwenBaseOverride(env) !== undefined) return undefined
+  try {
+    new URL(raw)
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
+  return 'an http(s) URL without credentials, query or fragment is needed'
+}
+
 export function qwenBaseOverride(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const raw = env[QWEN_BASE_OVERRIDE_ENV]?.trim()
   if (!raw) return undefined

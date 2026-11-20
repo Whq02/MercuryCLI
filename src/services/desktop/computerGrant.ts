@@ -43,8 +43,11 @@ export function clearComputerGrant(sessionId: string, home: string = getMercuryH
   try {
     unlinkSync(computerGrantPath(sessionId, home))
   } catch (error) {
-    passedOver(error)
-    return
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+      passedOver(error)
+      return
+    }
+    throw error
   }
 }
 
@@ -80,7 +83,11 @@ export function readComputerGrant(sessionId: string, now: number = Date.now(), h
     return null
   }
   if (record.kind === 'timed' && record.until <= now) {
-    clearComputerGrant(sessionId, home)
+    try {
+      clearComputerGrant(sessionId, home)
+    } catch (error) {
+      logForDebugging(`computer grant: failed to clear expired grant ${computerGrantPath(sessionId, home)} — ${error instanceof Error ? error.message : String(error)}`)
+    }
     return null
   }
   return record

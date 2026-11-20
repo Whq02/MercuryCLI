@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredQwenApiKey } from '../providerSecrets.js'
-import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenConsoleOfBase, qwenConsoleWords, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase, type QwenConsole } from './qwenAccounts.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenBaseOverrideSkipped, qwenConsoleOfBase, qwenConsoleWords, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase, type QwenConsole } from './qwenAccounts.js'
 import { fetchQwenLiveModels, forgetQwenCatalogue, probeQwenEndpoints, qwenPinRows, QwenCatalogueHttpError } from './qwenCatalogue.js'
 import { qwenDisplayName } from './qwenPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
@@ -61,6 +61,8 @@ export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeo
   }
   const ambient = qwenEnvKey(env)
   const shadow = ambient ? ` NOTE: ${ambient.name} is set and wins over this stored key.` : ''
+  const skipped = qwenBaseOverrideSkipped(env)
+  const unused = skipped !== undefined ? ` NOTE: ${QWEN_BASE_OVERRIDE_ENV} is not a usable URL (${skipped}), so it is not used and requests go to the endpoint above; fix or unset it.` : ''
   const origin = qwenConsoleOfBase(boundBase, env)
-  return { ok: true, stored: true, receipt: `${qwenConsoleWords(origin)} API key stored (auth-scoped, mode 600) · ${note}. ${qwenKeyReceiptTail(origin)}${shadow}` }
+  return { ok: true, stored: true, receipt: `${qwenConsoleWords(origin)} API key stored (auth-scoped, mode 600) · ${note}. ${qwenKeyReceiptTail(origin)}${shadow}${unused}` }
 }
