@@ -34,7 +34,7 @@ export function tensorFoldKeyFilePath(home: string = getMercuryHome()): string {
 function probeTensorFoldKeyFile(path: string): TensorFoldKeyFileRead {
   let line: string | undefined
   try {
-    if ((statSync(path).mode & 0o066) !== 0) return { state: 'unusable', why: 'can be read by other users' }
+    if (process.platform !== 'win32' && (statSync(path).mode & 0o066) !== 0) return { state: 'unusable', why: 'can be read by other users' }
     line = readFileSync(path, 'utf8').split('\n').find(row => row.trim() !== '' && !row.trim().startsWith('#'))
   } catch (error) {
     const code = getErrnoCode(error)
@@ -69,7 +69,7 @@ function keyToKeep(path: string, home: string): string | undefined {
       { code: read.code },
     )
   }
-  if (read.state === 'unusable' && process.platform !== 'win32') {
+  if (read.state === 'unusable') {
     const { keepDamagedFileAsideSync } = require('../../../substrate/storeRecovery.js') as typeof import('../../../substrate/storeRecovery.js')
     try {
       keepDamagedFileAsideSync({ store: 'tensorfold-key', path, reason: read.why, by: 'copy', asideAt: stamp => join(home, `.tensorfold-key.corrupt.${stamp}-auth.json`) })
