@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { check, cleanup, finish, section, setup } from './lib.js'
 
 setup()
@@ -12,8 +10,6 @@ const { evalAvailability, primeEvalAvailability, _resetInterpreterProbeCacheForT
 )
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 await primeEvalAvailability(process.cwd())
-
-const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', ...p), 'utf-8')
 
 const languagesOf = (): string[] => {
   const schema = EvalTool.inputSchema as unknown as {
@@ -89,7 +85,8 @@ const flagNames = new Set((FLAG_REGISTRY as ReadonlyArray<{ env: string }>).map(
 for (const flag of ['MERCURY_EVAL', 'MERCURY_EVAL_PY', 'MERCURY_EVAL_JS', 'MERCURY_EVAL_PYTHON']) {
   check(`flag registry row ${flag}`, flagNames.has(flag))
 }
-check('census fixture carries Eval', src('scripts', 'builtin-tools', 'fixtures', 'tool-census.json').includes('"Eval"'))
+const { toolCensus } = await import('../builtin-tools/census-gen.ts')
+check('census carries Eval', toolCensus().anchor.rows.some(row => row.name === 'Eval'))
 
 cleanup()
 finish('EVAL-CATALOGUE')

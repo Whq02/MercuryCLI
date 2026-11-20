@@ -72,8 +72,6 @@ check('every generator and check names a script that exists', deadScripts.length
 check('every files-of source exists', deadSources.length === 0, deadSources.join(', '))
 const settingsRow = map.rows.find(r => r.assets.includes('scripts/settings/settings-schema.json'))
 check('settings types map to the schema snapshot with its generator and check', settingsRow !== undefined && settingsRow.sources.includes('src/utils/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
-const inkRow = map.rows.find(r => r.assets.includes('scripts/ink-runtime/facade-inventory.json'))
-check('the facade inventory is a row', inkRow !== undefined && inkRow.sources.includes('src/ink.ts'))
 check('repoPathsIn reads the paths a census names', repoPathsIn('{"sites":[{"file":"src/a/b.ts","line":3},{"file":"scripts/x/y.sh"}]}').join(',') === 'src/a/b.ts,scripts/x/y.sh')
 check('repoPathsIn reads the keys of the contract inventory', repoPathsIn(readFileSync(join(ROOT, 'scripts/ownership/contract-inventory.json'), 'utf8')).includes('src/utils/settings/types.ts'))
 const badMap = parseGeneratedAssetsMap('# c\na.json\tgen a\n')
@@ -120,10 +118,9 @@ for (const text of ['printf scripts/x/prove-y.ts --strict', 'echo bun scripts/x/
 check('the actual invocation accepts an equivalent bun run spelling', checkChained('bun scripts/check-schema.ts', ['bun run "scripts/check-schema.ts"']))
 check('a removed content match still owes its generated output', generatedAssetsOwed({ rows, commitPaths: ['src/plain.ts'], contentOf: () => '', previousContentOf: () => "import { x } from '../ink/frame.js'", readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('gen/imports.json')))
 for (const [path, asset] of [
-  ['src/new-component.tsx', 'scripts/consistency-census/lockup-census.json'],
-  ['scripts/new/prove-spawn.ts', 'scripts/consistency-census/shellstring-census.json'],
+  ['src/utils/settings/newKey.ts', 'scripts/settings/settings-schema.json'],
   ['src/components/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
-  ['scripts/consistency-census/gen-lockup-census.ts', 'scripts/consistency-census/lockup-census.json'],
+  ['scripts/settings/gen-settings-schema.ts', 'scripts/settings/settings-schema.json'],
 ]) check('the real map covers new inputs, deleted imports and generator changes', generatedAssetsOwed({ rows: map.rows, commitPaths: [path!], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes(asset!)))
 check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
 
@@ -378,6 +375,41 @@ for (const [file, generator] of [
   ['assets/splash/splash-core.mjs', 'scripts/splash/bake-menu.mjs'],
   ['scripts/builtin-tools/fixtures/RESULTS.md', 'scripts/builtin-tools/bench-builtin-tools.ts'],
 ]) check(`${file} is a row of ${generator}`, (assetRowFor(file!, map.rows)?.generator ?? '').includes(generator!))
+
+section('§6 the build asks the generator of each file it ships')
+{
+  const { buildCheckedRows, staleBuildAssets } = await import('../lib/generated-assets-map.mjs')
+  const buildRows: Array<{ assets: string; generator: string; check: string }> = buildCheckedRows(mapText)
+  for (const bake of ['bun scripts/splash/bake-menu.mjs', 'bun scripts/splash/bake-ramp.mjs']) {
+    check(`the build checks the splash core through ${bake}`, buildRows.some(row => row.assets === 'assets/splash/splash-core.mjs' && row.generator === bake && row.check === `${bake} --check`))
+  }
+  check('every row the build checks is a row the gate reads, with the same check', buildRows.every(row => map.rows.some(gateRow => gateRow.generator === row.generator && gateRow.check === row.check)))
+  const carried = formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', check: 'bun scripts/check-a.mjs', sources: 'source.txt', build: true })
+  check('a generator that sets build writes the fifth column, and the gate reads the row as before', carried.endsWith('\tsource.txt\tbuild') && parseGeneratedAssetsMap(carried).rows[0]?.check === 'bun scripts/check-a.mjs' && buildCheckedRows(carried).length === 1)
+  let noCheck = ''
+  try {
+    formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', sources: 'source.txt', build: true })
+  } catch (error) {
+    noCheck = String(error)
+  }
+  check('a row that asks for the build and names no check is refused', noCheck.includes('names no check'))
+  const buildScratch = realpathSync(mkdtempSync(join(tmpdir(), 'generated-build-')))
+  mkdirSync(join(buildScratch, 'scripts', 'gate'), { recursive: true })
+  writeFileSync(join(buildScratch, 'scripts/check-a.mjs'), "import { readFileSync } from 'node:fs'\nif (readFileSync('made.txt', 'utf8') !== readFileSync('source.txt', 'utf8')) {\n  console.error('made.txt trails source.txt')\n  process.exit(1)\n}\n")
+  writeFileSync(join(buildScratch, 'source.txt'), 'one\n')
+  writeFileSync(join(buildScratch, 'made.txt'), 'one\n')
+  check('a tree with no map has nothing for the build to check', staleBuildAssets(buildScratch).length === 0)
+  writeFileSync(join(buildScratch, GENERATED_ASSETS_MAP), `${carried}\nother.txt\tbun scripts/gen-b.mjs\tbun scripts/check-b.mjs\tsource.txt\n`)
+  check('a current file: the build has nothing to say, and a row without the column is not run', staleBuildAssets(buildScratch).length === 0)
+  writeFileSync(join(buildScratch, 'source.txt'), 'two\n')
+  const staleRows: Array<{ assets: string; generator: string; output: string }> = staleBuildAssets(buildScratch)
+  check('one feeding source changed: the row is stale at once, with the command to run and the words of its check', staleRows.length === 1 && staleRows[0]!.assets === 'made.txt' && staleRows[0]!.generator === 'bun scripts/gen-a.mjs' && staleRows[0]!.output.includes('made.txt trails source.txt'), JSON.stringify(staleRows))
+  writeFileSync(join(buildScratch, 'made.txt'), 'two\n')
+  check('the regenerated file settles it', staleBuildAssets(buildScratch).length === 0)
+  rmSync(buildScratch, { recursive: true, force: true })
+  const staleHere: Array<{ assets: string; generator: string }> = staleBuildAssets(ROOT)
+  check('every file the build checks is current on this tree', staleHere.length === 0, staleHere.map(row => `${row.assets}: run ${row.generator}`).join(' | '))
+}
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

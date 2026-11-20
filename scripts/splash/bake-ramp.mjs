@@ -10,7 +10,8 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-ramp.mjs',
   check: 'bun scripts/splash/bake-ramp.mjs --check',
-  sources: 'src/utils/mercuryTokens.ts src/components/mercury-ui/focalRamp.ts',
+  sources: 'src/utils/mercuryTokens.ts src/components/mercury-ui/focalRamp.ts src/components/mercuryPalette.ts src/ink/colorize.ts src/utils/envUtils.ts src/substrate/flagRegistry.ts src/utils/cockpit/critterData.ts',
+  build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 

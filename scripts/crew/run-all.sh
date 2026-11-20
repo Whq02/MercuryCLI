@@ -21,7 +21,7 @@
 # gate-watch: src/utils/task/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts
-# gate-watch: package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
+# gate-watch: package.json scripts/project-services/fixtures/inventory.json
 # gate-watch: src/utils/capability/declarations.ts src/utils/crew/agentLaunchPlan.ts
 # gate-watch: src/utils/hooks/hookEvents.ts src/utils/hooks/fire.ts src/services/oauth/client.ts
 # gate-watch: src/utils/tasks.ts src/utils/agentContext.ts
