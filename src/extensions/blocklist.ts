@@ -62,7 +62,7 @@ export function blockReason(match: NonNullable<BlockMatch>, surface: BlockSurfac
 export function block(entry: string): { ok: true } | { ok: false; error: string } {
   const current = entriesFor('userSettings')
   if (current.includes(entry.trim())) return { ok: true }
-  const { error } = updateSettingsForSource('userSettings', { extensions: { blocked: [...current, entry.trim()] } } as never)
+  const { error } = updateSettingsForSource('userSettings', { extensions: { blocked: [...current, entry.trim()] } })
   if (error) return { ok: false, error: String(error) }
   return { ok: true }
 }
@@ -73,7 +73,7 @@ export function unblock(entry: string): { ok: true } | { ok: false; error: strin
   const current = entriesFor('userSettings')
   const next = current.filter(e => e !== entry.trim())
   if (next.length === current.length) return { ok: true }
-  const { error } = updateSettingsForSource('userSettings', { extensions: { blocked: next } } as never)
+  const { error } = updateSettingsForSource('userSettings', { extensions: { blocked: next } })
   if (error) return { ok: false, error: String(error) }
   return { ok: true }
 }

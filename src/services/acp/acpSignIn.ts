@@ -151,7 +151,7 @@ function isDeviceFamily(id: string): id is AcpDeviceFamily {
 
 function urlElicitation(client: AgentContext, requestId: string | number | null, elicitationId: string, url: string, message: string): Promise<boolean> {
   return client
-    .request(methods.client.elicitation.create, { mode: 'url', url, elicitationId, requestId, message } as never)
+    .request(methods.client.elicitation.create, { mode: 'url', url, elicitationId, requestId, message })
     .then(result => (result as { action?: unknown } | null)?.action === 'accept')
     .catch(() => false)
 }

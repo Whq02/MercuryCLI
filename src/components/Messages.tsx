@@ -12,7 +12,7 @@ import { type MessageActionsState, InVirtualListContext } from './messageActions
 import { setMessageCursor, useMessageCursor } from './messageCursorStore.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
 import { LiveStreamingTail } from './LiveStreamingTail.js'
-import { FoldStatusRow, type FoldLandingRowFacts } from './FoldStatusRow.js'
+import { FoldStatusRow } from './FoldStatusRow.js'
 import { VirtualMessageList } from './VirtualMessageList.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
@@ -151,7 +151,7 @@ function MessagesInner({
         />
       ) : null}
       {}
-      <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} conversationId={conversationId} />
+      <FoldStatusRow rows={visible} conversationId={conversationId} />
       {liveReceipt !== null ? renderRow(liveReceipt, visible.length) : null}
       {afterRows.map((message, index) => (
         <React.Fragment key={itemKey(message)}>{renderRowIn(afterRows, message, index)}</React.Fragment>

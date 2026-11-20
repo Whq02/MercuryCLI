@@ -1,4 +1,5 @@
-import type { ToolUseContext } from '../../Tool.js'
+import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
+import type { AssistantMessage } from '../../types/message.js'
 import type { Input } from './FileReadTool.js'
 import type { FileReadingLimits } from './limits.js'
 import type { ReadQueryTarget } from './readQueryTarget.js'
@@ -10,8 +11,8 @@ export interface ReadQueryRequest {
   input: Input
   context: ToolUseContext
   limits: FileReadingLimits
-  canUseTool?: unknown
-  parentMessage?: unknown
+  canUseTool?: CanUseToolFn
+  parentMessage?: AssistantMessage
 }
 
 export interface ReadQueryResult {

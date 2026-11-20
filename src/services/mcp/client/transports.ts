@@ -42,35 +42,35 @@ export function buildStdioTransport(name: string, serverRef: ScopedMcpServerConf
 }
 
 export async function sseTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider | null): Promise<Transport> {
-  const headers = await getMcpServerHeaders(name, config as never)
+  const headers = await getMcpServerHeaders(name, config)
   const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
   return new SSEClientTransport(new URL(config.url as string), {
     authProvider: provider as never,
-    fetch: wrapped as never,
+    fetch: wrapped,
     requestInit: { headers: { 'User-Agent': getMCPUserAgent(), ...headers } },
     eventSourceInit: {
-      fetch: async (input: string | URL, init?: RequestInit) => {
+      fetch: async (input, init) => {
         const tokens = await (provider as MercuryMcpAuthProvider).tokens()
         const streamHeaders = new Headers(init?.headers)
         streamHeaders.set('User-Agent', getMCPUserAgent())
         if (tokens?.access_token) streamHeaders.set('Authorization', `Bearer ${tokens.access_token}`)
         for (const [key, value] of Object.entries(headers)) streamHeaders.set(key, value)
         streamHeaders.set('Accept', 'text/event-stream')
-        return getApiFetch()(input as string, { ...init, headers: streamHeaders, ...getProxyFetchOptions() } as never)
+        return getApiFetch()(input as string, { ...init, headers: streamHeaders, ...getProxyFetchOptions() })
       },
-    } as never,
+    },
   })
 }
 
 export async function wsTransportFor(name: string, config: RemoteConfig): Promise<Transport> {
   const wsHeaders: Record<string, string> = { 'User-Agent': getMCPUserAgent() }
-  Object.assign(wsHeaders, await getMcpServerHeaders(name, config as never))
+  Object.assign(wsHeaders, await getMcpServerHeaders(name, config))
   logMCPDebug(name, `WebSocket connection options: ${JSON.stringify({ headers: loggedHeadersOf(wsHeaders), tls: Boolean(getWebSocketTLSOptions()), proxy: Boolean(getProxyUrl()) })}`)
   return await createWsTransport(config.url as string, wsHeaders)
 }
 
 export async function httpTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider | null): Promise<Transport> {
-  const headers = await getMcpServerHeaders(name, config as never)
+  const headers = await getMcpServerHeaders(name, config)
   const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
   const requestInit = { headers: { 'User-Agent': getMCPUserAgent(), ...headers }, ...getProxyFetchOptions() }
   const proxyUrl = getProxyUrl()
@@ -79,8 +79,8 @@ export async function httpTransportFor(name: string, config: RemoteConfig, provi
   void Boolean(await (provider as MercuryMcpAuthProvider).tokens())
   return new StreamableHTTPClientTransport(new URL(config.url as string), {
     authProvider: provider as never,
-    fetch: wrapped as never,
-    requestInit: requestInit as never,
+    fetch: wrapped,
+    requestInit,
   })
 }
 
@@ -90,7 +90,7 @@ export function proxyTransportFor(name: string, config: RemoteConfig): Transport
   const oauth = getOauthConfig()
   const url = `${oauth.MCP_PROXY_URL}${oauth.MCP_PROXY_PATH.replace('{server_id}', (config as { id?: string }).id ?? '')}`
   return new StreamableHTTPClientTransport(new URL(url), {
-    fetch: wrapFetchWithTimeout(createAnthropicProxyFetch(fetch as FetchLike)) as never,
+    fetch: wrapFetchWithTimeout(createAnthropicProxyFetch(fetch as FetchLike)),
     requestInit: { headers: { 'User-Agent': getMCPUserAgent(), 'X-Mcp-Client-Session-Id': getSessionId() } },
   })
 }

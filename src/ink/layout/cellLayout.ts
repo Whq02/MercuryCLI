@@ -967,10 +967,7 @@ function traceContamination(node: CellLayoutNode, w: number, h: number): void {
       typeof process !== 'undefined' ? process.env['INK_YOGA_TRACE'] : undefined
   }
   if (!_traceFile) return
-  const n = node as unknown as {
-    children: Array<{ final: { left: number; top: number; width: number; height: number } }>
-  }
-  for (const c of n.children) {
+  for (const c of node.children) {
     if (c.final.left + c.final.width > w + 1e-6 || c.final.top + c.final.height > h + 1e-6) {
       try {
         appendFileSync(

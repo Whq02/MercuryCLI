@@ -25,6 +25,10 @@ type FileStamp = { mtimeMs: number; ctimeMs: number; size: number } | null
 export const SHOW_SHAPE_RULE =
   'show is a list of pictures the script writes, each a path or {path, crop, scale} with crop and scale as Read takes them'
 
+function isBox(value: unknown): value is Box {
+  return Array.isArray(value) && value.length === 4 && !value.some(n => typeof n !== 'number')
+}
+
 function entryOf(value: unknown): ShowEntry | null {
   if (typeof value === 'string') return value.length > 0 ? { path: value } : null
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
@@ -33,8 +37,8 @@ function entryOf(value: unknown): ShowEntry | null {
   if (Object.keys(row).some(key => key !== 'path' && key !== 'crop' && key !== 'scale')) return null
   const entry: ShowEntry = { path: row.path }
   if (row.crop !== undefined) {
-    if (!Array.isArray(row.crop) || row.crop.length !== 4 || row.crop.some(n => typeof n !== 'number')) return null
-    entry.crop = row.crop as unknown as Box
+    if (!isBox(row.crop)) return null
+    entry.crop = row.crop
   }
   if (row.scale !== undefined) {
     if (typeof row.scale !== 'number' || !Number.isFinite(row.scale) || row.scale < 1) return null

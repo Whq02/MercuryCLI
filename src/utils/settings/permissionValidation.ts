@@ -180,6 +180,6 @@ export const PermissionRuleSchema = lazySchema(() =>
     if (result.examples && result.examples.length > 0) {
       message += `. Examples: ${result.examples.join(', ')}`
     }
-    ctx.addIssue({ code: 'custom', message, received: rule } as never)
+    ctx.addIssue({ code: 'custom', message, received: rule })
   }),
 )

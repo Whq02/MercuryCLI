@@ -1,4 +1,5 @@
-import { buildTool, type ToolUseContext } from '../../Tool.js'
+import { buildTool, type CanUseToolFn, type Tool, type ToolUseContext } from '../../Tool.js'
+import type { AssistantMessage } from '../../types/message.js'
 import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
 import { displayAddressedTarget } from '../../utils/file.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -116,7 +117,7 @@ export const FileReadTool = buildTool({
   validateInput(input: Input, context: ToolUseContext) {
     return validateReadInput(input, context)
   },
-  call(input: Input, context: ToolUseContext, canUseTool?: unknown, parentMessage?: unknown) {
+  call(input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentMessage?: AssistantMessage) {
     return readFileCall(input, context, canUseTool, parentMessage, readToolItself)
   },
   mapToolResultToToolResultBlockParam,
@@ -129,7 +130,7 @@ export const FileReadTool = buildTool({
   renderToolUseErrorMessage,
 })
 
-function readToolItself(): unknown {
+function readToolItself(): Tool {
   return FileReadTool
 }
 

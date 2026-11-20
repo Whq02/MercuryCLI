@@ -8,7 +8,7 @@ export type AcceptedInput =
 export type InputVerdict = { accepted: true } | { accepted: false; reason: 'duplicate' }
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { ParamsOf } from '../../runner/wire/methods.js'
-import type { ContentBlockParam } from '../../types/wire.js'
+import type { Base64ImageSource, ContentBlockParam } from '../../types/wire.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { doesMessageExistInSession } from '../../utils/sessionStorage.js'
 import { type UUID, randomUUID } from 'node:crypto'
@@ -41,10 +41,10 @@ export const taskNotificationPayloads = (command: QueuedCommand): string[] => {
 
 const promptContentOf = (content: Extract<ParamsOf<'queue/add'>, { type: 'prompt' }>['content']): string | ContentBlockParam[] => {
   if (typeof content === 'string') return content
-  return (content as Array<{ type: string; text?: string; media_type?: string; data?: string }>).map(block =>
+  return content.map(block =>
     block.type === 'image'
-      ? ({ type: 'image', source: { type: 'base64', media_type: block.media_type, data: block.data } } as unknown as ContentBlockParam)
-      : ({ type: 'text', text: block.text ?? '' } as ContentBlockParam),
+      ? { type: 'image', source: { type: 'base64', media_type: block.media_type as Base64ImageSource['media_type'], data: block.data } }
+      : { type: 'text', text: block.text ?? '' },
   )
 }
 
@@ -86,7 +86,7 @@ export async function acceptInput(input: AcceptedInput, ports: RunnerPorts): Pro
     enqueue({
       value: input.content,
       mode: 'task-notification',
-      agentId: input.to as never,
+      agentId: input.to,
       origin: { kind: 'human' },
       priority: 'next',
       ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),

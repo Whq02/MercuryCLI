@@ -12,7 +12,7 @@ export type TextPhase = 'commentary' | 'final_answer'
 type TextBlock = {
   type: 'text'
   text: string
-  citations: Array<TextCitation> | null
+  citations?: Array<TextCitation> | null
   phase?: TextPhase
 }
 
