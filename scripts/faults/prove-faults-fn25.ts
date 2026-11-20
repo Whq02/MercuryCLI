@@ -268,6 +268,29 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   }
 }
 
+{
+  const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const work = join(scratch, 'ast-edit-fail')
+  mkdirSync(work, { recursive: true })
+  const ctx = {
+    getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
+    abortController: new AbortController(),
+    readFileState: new Map(),
+  }
+  const decision = await runWithCwdOverride(work, () =>
+    AstEditTool.checkPermissions(
+      { apply: true, plan: 'p1', lang: 'no-such-language-xyz', pattern: 'foo', rewrite: 'bar', path: work } as never,
+      ctx as never,
+    ),
+  )
+  check(
+    'AstEditTool: checkPermissions denies when planFor throws instead of failing open with allow',
+    decision.behavior === 'deny' && typeof decision.message === 'string' && decision.message.length > 0,
+    JSON.stringify(decision),
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

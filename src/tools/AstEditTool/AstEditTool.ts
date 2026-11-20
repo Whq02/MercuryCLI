@@ -586,8 +586,9 @@ export const AstEditTool = buildTool({
     let planned: { scope: AstScope; plan: AstRewritePlan }
     try {
       planned = await planFor(input, context)
-    } catch {
-      return { behavior: 'allow', updatedInput: input } as PermissionDecision
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } } as PermissionDecision
     }
     const targets = planned.plan.files
     if (targets.length === 0 || input.plan?.trim() !== planned.plan.token) {
