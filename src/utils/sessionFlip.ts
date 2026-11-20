@@ -3,6 +3,7 @@ import { getProjectRoot } from '../bootstrap/state.js'
 import { conversationIdHere } from '../services/engine-connector/focusedConnector.js'
 import { filterResumableSessions } from './sessionResumeFilter.js'
 import { isProjectSession, isSubstantiveSession } from './sessionFilter.js'
+import { errorMessage } from './errors.js'
 import { isSessionCleared } from './sessionStorage/clearedSessions.js'
 import { validateUuid } from './uuid.js'
 import {
@@ -66,7 +67,7 @@ export async function flipToSession(
       : resolved.target
     await resume(resolved.sessionId, fullLog, 'slash_command_picker')
     return { flipped: true }
-  } catch {
-    return { flipped: false }
+  } catch (error) {
+    return { flipped: false, note: `Could not flip to that session (${errorMessage(error)}) — /sessions reaches the full history.` }
   }
 }

@@ -361,6 +361,36 @@ async function runClearedSessions(): Promise<void> {
   resetClearedSessionsMemo()
 }
 
+async function runSessionFlip(): Promise<void> {
+  console.log('\nsessionFlip — failure returns a note carrying the error instead of silent false')
+  const { flipToSession } = await import('../../src/utils/sessionFlip.ts')
+  const projectsDir = join(HOME, 'projects')
+  const projDir = join(projectsDir, 'flip-proof-proj')
+  mkdirSync(projDir, { recursive: true })
+  const sid = '11111111-1111-4111-8111-111111111111'
+  const cwd = process.cwd()
+  const now = new Date().toISOString()
+  writeFileSync(
+    join(projDir, `${sid}.jsonl`),
+    JSON.stringify({
+      type: 'user',
+      uuid: '22222222-2222-4222-8222-222222222222',
+      sessionId: sid,
+      timestamp: now,
+      cwd,
+      message: { role: 'user', content: 'hello flip proof' },
+    }) + '\n',
+  )
+  const outcome = await flipToSession(async () => {
+    throw new Error('resume-boom')
+  }, sid)
+  check(
+    'flipToSession returns flipped:false with a note carrying the error message',
+    outcome.flipped === false && typeof outcome.note === 'string' && outcome.note.includes('resume-boom'),
+    JSON.stringify(outcome),
+  )
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
@@ -372,6 +402,7 @@ try {
   await runScratchLeases()
   await runSessionEnvironment()
   await runClearedSessions()
+  await runSessionFlip()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
