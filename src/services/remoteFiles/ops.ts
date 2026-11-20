@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { FileTooLargeError, type ReadFileRangeResult } from '../../utils/readFileInRange.js'
 import { remoteOpening, remoteRun, RemoteConnectionError } from './connection.js'
 import { remoteQuote } from './prelude.js'
-import { authorityText, formatRemotePath, noteRemoteGeneration, type RemoteAuthority, type RemoteTarget } from './target.js'
+import { authorityText, formatRemotePath, noteRemoteGeneration, type RemoteAuthority, type RemoteTarget } from '../../utils/remoteFiles/target.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' | 'other' | 'dangling'

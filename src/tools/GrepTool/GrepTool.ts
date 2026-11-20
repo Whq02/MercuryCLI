@@ -7,7 +7,7 @@ import { z } from 'zod/v4'
 
 import { buildTool, type CanUseToolFn, type Tool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'

@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../../Tool.js'
-import { isRemotePath, remoteShellPath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, remoteShellPath } from '../../../utils/remoteFiles/target.js'
 import { getFileModificationTime } from '../../../utils/file.js'
 import { formatFileSize } from '../../../utils/format.js'
 import { readNotebook } from '../../../utils/notebook.js'

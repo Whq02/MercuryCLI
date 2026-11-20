@@ -2,7 +2,7 @@ import axios from 'axios'
 
 import { anthropicAccountApiBase } from '../../constants/oauth.js'
 import { logForDebugging } from '../../utils/debug.js'
-import type { OAuthProfileResponse } from './types.js'
+import type { OAuthProfileResponse } from '../../utils/oauth/types.js'
 
 const PROFILE_TIMEOUT_MS = 10_000
 

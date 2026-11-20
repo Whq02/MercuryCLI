@@ -19,7 +19,6 @@ as-unknown-as	src/utils/staticRender.tsx	2
 as-never	src/components/concourse/route/useConcourseAdmissionPump.ts	1
 as-never	src/services/engine-connector/daemonConnector.ts	1
 as-never	src/services/providers/openai/openaiSocketTransport.ts	1
-as-never	src/utils/permissions/permissionExplainer.ts	1
 empty-catch	src/services/privateChannel/vendoredRuntime.ts	1
 empty-catch	src/services/privateChannel/verifyArtifactStandalone.ts	1
 empty-catch	src/tools/FileReadTool/jsonQueryWorker.mjs	1

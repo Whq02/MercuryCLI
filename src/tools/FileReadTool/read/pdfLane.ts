@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises'
 import type { ToolUseContext } from '../../../Tool.js'
-import { isRemotePath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { PDF_TARGET_RAW_SIZE } from '../../../constants/apiLimits.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../../utils/imageResizer.js'
 import { createUserMessage } from '../../../utils/messages/factories.js'

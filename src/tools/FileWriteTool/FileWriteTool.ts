@@ -1,6 +1,6 @@
 import { buildTool, type Tool, type ToolUseContext } from '../../Tool.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
-import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
+import { isRemotePath, remoteIdentity } from '../../utils/remoteFiles/target.js'
 import { getCwd } from '../../utils/cwd.js'
 import { controlCharacterPathRefusal, hasControlCharacter } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'

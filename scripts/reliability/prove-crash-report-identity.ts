@@ -67,7 +67,7 @@ section('§4 the boot-notice latch')
 
 section('§5 the wiring (structural)')
 {
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const crashOwner = await import('../../src/utils/crashReport.ts')
   const crashSays = await runtimeChecks().find(row => row.id === 'crash-reports')?.run()
   const recent = crashOwner.listCrashReports(3)
@@ -109,7 +109,7 @@ section('§6 session + project ride the read boundary (FN-013 CRASH-03)')
 
 section('§7 the re-entry offer and the display latch (structural)')
 {
-  const { runtimeChecks: runtimeRows } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks: runtimeRows } = await import('../../src/services/health/sections/runtime.ts')
   writeFileSync(
     join(crash.crashReportDir(), `crash-${Date.now() + 500}-app-root.json`),
     JSON.stringify({ origin: 'app-root', at: '2026-09-02T05:00:00.000Z', message: 'located fixture', component: 'LocatedCard', sessionId: '00000000-cccc-dddd-eeee-000000000c04', cwd: '/tmp/project-q' }),

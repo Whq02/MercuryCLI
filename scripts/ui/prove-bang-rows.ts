@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/conversationRecovery* src/services/engine-connector/daemonConnector*
+// gate-watch: src/services/resume/conversationRecovery* src/services/engine-connector/daemonConnector*
 // gate-watch: src/components/shell/OutputLine* src/components/permissions/**
 // gate-watch: src/components/messages/UserBashInputMessage* src/components/messages/UserTextMessage*
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -35,7 +35,7 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
 await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 
 const { createUserMessage } = await import('../../src/utils/messages/factories.js')
-const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.js')
+const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.js')
 const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.js')
 const { OutputLine } = await import('../../src/components/shell/OutputLine.js')
 const { PermissionExplainerContent } = await import('../../src/components/permissions/PermissionExplanation.js')

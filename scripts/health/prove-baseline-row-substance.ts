@@ -14,7 +14,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const ROOT = join(import.meta.dir, '..', '..')
 
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const rowAt = async (dir: string): Promise<{ status: string; evidence: string }> => {
   process.chdir(dir)
   const cert = await report.runHealthReport({ depth: 'fast' })

@@ -17,7 +17,7 @@ if (process.argv.includes('--cycle')) {
   process.exit(0)
 }
 if (process.argv.includes('--health')) {
-  const report = await import('../../src/utils/healthReport.ts')
+  const report = await import('../../src/services/health/healthReport.ts')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(section => section.checks).find(check => check.id === 'session-scratch')
   let fixed: unknown = null

@@ -1,6 +1,6 @@
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
+import { isRemotePath, remoteIdentity } from '../../utils/remoteFiles/target.js'
 import { getCwd } from '../../utils/cwd.js'
 import { hasControlCharacter } from '../../utils/path.js'
 import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'

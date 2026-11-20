@@ -9,7 +9,7 @@ import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
 import { generateVideo, prepareVideo, projectVideoPath } from '../../services/video/generate.js'
 import { videoToolEnabled } from '../../services/video/registry.js'
-import type { VideoInput, VideoOutput } from '../../services/video/types.js'
+import type { VideoInput, VideoOutput } from '../../utils/video/types.js'
 import { VIDEO_PROMPT } from './prompt.js'
 import { VideoToolResult } from './VideoToolResult.js'
 

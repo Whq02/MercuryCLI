@@ -221,7 +221,7 @@ console.log('\nclaimSession.ts — loadConversationForResume error reports resum
     fs.writeFileSync(file, '{"type":"user"}\\n')
     const shutdownCodes = []
     const emitted = []
-    mock.module(path.join(SRC, 'utils/conversationRecovery.js'), () => ({
+    mock.module(path.join(SRC, 'services/resume/conversationRecovery.js'), () => ({
       loadConversationForResume: async () => { throw new Error('disk read fault') },
     }))
     mock.module(path.join(SRC, 'utils/gracefulShutdown.js'), () => ({
@@ -267,11 +267,11 @@ console.log('\nhealthJson.ts — serialization failure emits cert-failed error a
   const r = runSubprocess(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    mock.module(path.join(SRC, 'utils/healthReport.js'), () => ({
+    mock.module(path.join(SRC, 'services/health/healthReport.js'), () => ({
       healthCertEnabled: () => true,
       runAndRecordHealthReport: async () => ({ verdict: 'sound', broken: 1n }),
     }))
-    mock.module(path.join(SRC, 'utils/readiness.js'), () => ({
+    mock.module(path.join(SRC, 'services/health/readiness.js'), () => ({
       collectReadiness: () => ({ records: [] }),
     }))
     const { runHealthJsonCli } = await import(${JSON.stringify(join(SRC, 'cli/healthJson.ts'))})

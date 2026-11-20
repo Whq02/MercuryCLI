@@ -31,8 +31,8 @@ if (process.argv[2] === '--child') {
     mkdirSync(changeSetJournalDir(), { recursive: true })
     writeFileSync(join(changeSetJournalDir(), PLANTED), 'not an operation')
   }
-  const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
-  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
+  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
   const inOrder = [...HEALTH_SECTIONS]
   const ordered = mode === 'reversed' ? [...inOrder].reverse() : mode === 'rotated' ? [...inOrder.slice(ROTATE), ...inOrder.slice(0, ROTATE)] : inOrder
   const called: string[] = []

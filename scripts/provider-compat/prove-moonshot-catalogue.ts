@@ -91,7 +91,7 @@ if (catalogue) {
   const deadSpecialist = await resolveEngineDispatch('kimi-k3').then(() => '', error => String(error))
   check('a retired specialist id is refused by the same catalogue', deadSpecialist.includes("model 'kimi-k3' is not offered by the"))
   check("a served id passes the tool's word check; the live admission decides the retired one", unrecognisedModelWordRefusal('kimi-fixture-next') === null && unrecognisedModelWordRefusal('kimi-k3') === null)
-  const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
   check('typing a model reads the same live admission', (await validateModel('kimi-fixture-next')).valid && !(await validateModel('kimi-k3')).valid)
   clock += 1000
   await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch(), now })

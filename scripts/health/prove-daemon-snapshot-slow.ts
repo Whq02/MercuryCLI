@@ -62,7 +62,7 @@ const { daemonSnapshot } = (await import(`${root}/src/utils/cockpit/daemonSnapsh
 const { runWithCwdOverride } = (await import(`${root}/src/utils/cwd.ts`)) as {
   runWithCwdOverride: <T>(cwd: string, fn: () => Promise<T>) => Promise<T>
 }
-const { runHealthReport } = (await import(`${root}/src/utils/healthReport.ts`)) as {
+const { runHealthReport } = (await import(`${root}/src/services/health/healthReport.ts`)) as {
   runHealthReport: () => Promise<{ sections: Array<{ checks: Array<{ id: string; status: string; evidence: string }> }> }>
 }
 

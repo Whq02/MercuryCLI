@@ -216,7 +216,7 @@ let parentEnv: NodeJS.ProcessEnv = {}
     JSON.stringify(r),
   )
   check('default env: the owner reads process.env — the applied row is not a pin', menu.realEnvPin(B) === null)
-  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
   const flagsRow = await settingsChecks().find(row => row.id === 'flags')?.run()
   check(
     "reader /health's Env overrides row: the applied row is a saved boot default, never an override",

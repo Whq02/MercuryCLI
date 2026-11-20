@@ -79,7 +79,7 @@ section('§1 the per-model pools ride the active-source view, and every renderer
     check(`${family}: a family that reports no per-model pools shows none`, Array.isArray(u.pools) && u.pools.length === 0)
   }
 
-  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const zaiKey = process.env.ZAI_API_KEY
   process.env.ZAI_API_KEY = 'fixture-zai-key'
   const authRows = await authChecks()
@@ -484,7 +484,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const delegated = usability.delegationDispatchBlocker('openai', map)
   check('a delegated dispatch proceeds while the reading still names credits', delegated === null && map.openai.usable && map.openai.limitBlocker?.includes('on credits') === true, delegated ?? '(null)')
 
-  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const { standingAnthropicRefusal } = await import('../../src/services/providers/anthropicRefusal.ts')
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   if (!owner.anthropicCredentialPresence().credentialed) process.env.ANTHROPIC_API_KEY = 'fixture-anthropic-key'

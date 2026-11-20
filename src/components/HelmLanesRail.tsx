@@ -20,7 +20,7 @@ import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowS
 import { openFilesMenu } from '../utils/cockpit/filesMenu.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../utils/cockpit/contextUsageLive.js'
-import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
+import { healthCertSnapshot } from '../services/health/healthCertSnapshot.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'

@@ -12,7 +12,7 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
 
   section('1. the fast depth: no deep rows, streaming progress')
   {

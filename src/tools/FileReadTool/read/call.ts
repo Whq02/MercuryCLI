@@ -8,7 +8,7 @@ import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnch
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { ideReadTextAvailable } from '../../../services/acp/ideToolBridge.js'
 import type { RemoteRead } from '../../../services/remoteFiles/bridge.js'
-import { isRemotePath, remoteReadGeneration } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, remoteReadGeneration } from '../../../utils/remoteFiles/target.js'
 import { activateConditionalSkillsForPaths, addSkillDirectories, discoverSkillDirsForPaths } from '../../../skills/loadSkillsDir.js'
 import { hasBinaryExtension } from '../../../constants/files.js'
 import { logForDebugging } from '../../../utils/debug.js'

@@ -21,7 +21,7 @@ const SCOPE_TOP_FILES = ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md
 
 const EXCLUDED_PATHS: Array<{ prefix: string } & Why> = [
   { prefix: 'docs/releases/', why: 'published release pages are history' },
-  { prefix: 'src/constants/changelog.ts', why: 'past release notes stay as published' },
+  { prefix: 'src/constants/changelogArchive.ts', why: 'past release notes stay as published' },
   { prefix: 'scripts/mission-runner/corpus/', why: 'fixture repositories of foreign source' },
   { prefix: 'scripts/interview/baselines/', why: 'frozen journey capture records keep their recorded bytes' },
   { prefix: 'scripts/visual-contract/baselines/', why: 'frozen capture records of earlier screens' },

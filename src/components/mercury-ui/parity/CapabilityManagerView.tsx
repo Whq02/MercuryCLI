@@ -8,7 +8,7 @@ import {
   collectReadiness,
   type ReadinessKind,
   type ReadinessRecord,
-} from '../../../utils/readiness.js'
+} from '../../../services/health/readiness.js'
 import { CommandCenter, EmptyState, StateBadge } from '../components.js'
 import { padTo, truncateToWidth } from '../glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'

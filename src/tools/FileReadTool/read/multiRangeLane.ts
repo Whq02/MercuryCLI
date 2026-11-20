@@ -10,7 +10,7 @@ import { rememberAnchoredSnapshot } from '../../../services/changeTransaction/sn
 import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnchor.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { ideReadTextAvailable } from '../../../services/acp/ideToolBridge.js'
-import { isRemotePath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { readFileInRange, type ReadFileRangeResult } from '../../../utils/readFileInRange.js'
 import { openRegularFileSync } from '../../../utils/regularFile.js'
 import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'

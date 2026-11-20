@@ -9,7 +9,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { deserializeLiveMessages } = await import('../../src/utils/conversationRecovery.js')
+const { deserializeLiveMessages } = await import('../../src/services/resume/conversationRecovery.js')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.js')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.js')
 type Msg = ReturnType<typeof createUserMessage>

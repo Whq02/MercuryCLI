@@ -5,7 +5,7 @@
 # gate-watch: src/commands/mcp/* src/components/mcp/*
 # gate-watch: src/utils/projectConfig.ts
 # gate-watch: src/utils/staticRender.tsx src/ink/components/TerminalSizeContext.tsx
-# gate-watch: src/utils/readiness.ts
+# gate-watch: src/services/health/readiness.ts
 # gate-watch: src/rows/* sdk/src/** src/cli/headless/projectQuery.ts
 # gate-watch: src/types/message.ts src/utils/attachments/types.ts
 # gate-watch: src/cli/headless/*

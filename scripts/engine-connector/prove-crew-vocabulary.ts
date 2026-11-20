@@ -25,7 +25,7 @@ console.log('— §1c the words the health rows print —')
 {
   const globals = globalThis as Record<string, unknown>
   if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
-  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
   const cert = await runHealthReport({ depth: 'fast' })
   const fsV = await import('node:fs')
   const osV = await import('node:os')

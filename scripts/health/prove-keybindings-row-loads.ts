@@ -17,7 +17,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 writeFileSync(join(HOME, 'keybindings.json'), '{ "bindings": [ { "key": "ctrl+')
 
 const kbRow = async (): Promise<{ status: string; evidence: string }> => {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'keybindings')
   return { status: String(row?.status), evidence: String(row?.evidence) }

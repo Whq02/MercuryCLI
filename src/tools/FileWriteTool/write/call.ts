@@ -13,7 +13,7 @@ import { getLspServerManager } from '../../../services/lsp/manager.js'
 import { runtimeKernel } from '../../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../../services/acp/ideToolBridge.js'
-import { isRemotePath, markRemoteRead, remoteMovedSinceRead } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, markRemoteRead, remoteMovedSinceRead } from '../../../utils/remoteFiles/target.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,

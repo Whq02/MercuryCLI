@@ -5,7 +5,7 @@ underScratchHome(import.meta.path)
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const notice = (await import('../../src/services/remoteFiles/notice.ts').catch(() => ({}))) as { remoteFilesNotice?: (input: string, messages?: unknown[]) => Array<{ type: string; content?: string }> }
+const notice = (await import('../../src/utils/remoteFiles/notice.ts').catch(() => ({}))) as { remoteFilesNotice?: (input: string, messages?: unknown[]) => Array<{ type: string; content?: string }> }
 
 let failures = 0
 let checks = 0

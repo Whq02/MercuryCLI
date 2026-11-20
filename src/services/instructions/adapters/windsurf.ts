@@ -1,7 +1,7 @@
 import { join } from 'path'
 
 import { getFsImplementation } from '../../../utils/fsOperations.js'
-import type { InstructionConvention } from '../contracts.js'
+import type { InstructionConvention } from '../../../utils/instructions/contracts.js'
 import { sharedFormat, threeFields, triggered } from './shared.js'
 
 const LEGACY_GLOBAL = '.windsurf/global_rules.md'

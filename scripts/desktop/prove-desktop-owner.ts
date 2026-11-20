@@ -273,7 +273,7 @@ console.log('\n[10] the pure arithmetic of the contract')
 
 console.log('\n[11] the health row')
 {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const rowOf = async (): Promise<{ status: string; fix?: string; evidence: string; section: string } | null> => {
     const cert = await report.runHealthReport({ depth: 'fast' })
     for (const section of cert.sections) {
