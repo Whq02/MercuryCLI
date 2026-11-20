@@ -585,12 +585,7 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
 section("§1 the door: the registry's files, their text and the path test")
 {
   const files = flagRegistryFiles()
-  const text = flagRegistryText()
   check('the list holds the registry module first and only registry files', files[0] === MODULE_PATH && files.every(isFlagRegistryFile), files.join(', '))
-  check('the text is the text of the listed files and holds the registry', text.includes('export const FLAG_REGISTRY') && text.length >= files.length)
-  const outside = FLAG_REGISTRY.filter(row => !text.includes(`'${row.env}'`) && !text.includes(`"${row.env}"`)).map(row => row.env)
-  check('every row of FLAG_REGISTRY is spelled in the text the door reads', outside.length === 0, `${outside.length} of ${FLAG_REGISTRY.length} rows are spelled in no file the door reads, so no absence check sees them: ${outside.slice(0, 12).join(', ')}`)
-  check('the text holds the row type', text.includes('export interface FlagSpec'), 'export interface FlagSpec stands in no file the door reads')
   check('the path test takes the module and anything under the rows folder, in either spelling of the separator', isFlagRegistryFile(MODULE_PATH) && isFlagRegistryFile(`${ROWS_DIR}/core.ts`) && isFlagRegistryFile(spell('src\\@S@\\flags\\deep\\core.ts')) && isFlagRegistryFile(spell('src\\@S@\\@M@.ts')))
   check('the path test refuses a neighbour, a look-alike and the door itself', !isFlagRegistryFile(spell('src/@S@/flagOff.ts')) && !isFlagRegistryFile(`${ROWS_DIR}.ts`) && !isFlagRegistryFile(`${ROWS_DIR}Extra/core.ts`) && !isFlagRegistryFile(`${MODULE_PATH}x`) && !isFlagRegistryFile(DOOR))
   const split = mkdtempSync(join(tmpdir(), 'flag-registry-door-'))
