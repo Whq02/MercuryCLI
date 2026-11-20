@@ -169,7 +169,7 @@ export function readUnityTestResults(
     }
     return {
       state: 'rejected',
-      reason: `${file} could not be read (${(error as NodeJS.ErrnoException)?.code ?? 'error'}): ${error instanceof Error ? error.message : String(error)}`,
+      reason: error instanceof Error ? error.message : String(error),
     }
   }
   return parseUnityTestResults(xml)

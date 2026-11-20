@@ -188,7 +188,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
       chmodSync(file, 0o200)
       try {
         const res = readUnityTestResults(dir, 'EditMode')
-        check('unityTests: unreadable results file returns rejected instead of absent', res.state === 'rejected' && /could not be read/i.test(res.reason), JSON.stringify(res))
+        check('unityTests: unreadable results file returns rejected instead of absent', res.state === 'rejected' && /EACCES|permission/i.test(res.reason), JSON.stringify(res))
       } finally {
         chmodSync(file, 0o600)
       }
