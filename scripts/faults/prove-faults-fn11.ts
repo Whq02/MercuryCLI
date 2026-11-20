@@ -256,5 +256,46 @@ console.log('\nkernelManager.recoverEvalKernels — failed reap does not claim a
   check('recoverEvalKernels marks aborted and says already gone when orphan is actually gone', r.goneState === 'aborted' && goneNotes.length === 1 && goneNotes[0]!.includes('already gone'), JSON.stringify(r))
 }
 
+console.log('\nprocKernel.interrupt — non-ESRCH kill failure throws instead of dropping interrupt')
+{
+  const r = runScenario(`
+    const { ProcKernel } = await import(path.join(SRC, 'services/eval/procKernel.ts'))
+    const kernel = await ProcKernel.launch({
+      command: process.execPath,
+      args: ['-e', 'setInterval(() => {}, 1000)'],
+      cwd: SCRATCH,
+      env: { ...process.env },
+      transport: 'fd',
+    })
+    const realKill = process.kill
+    try {
+      process.kill = ((_pid, _sig) => {
+        throw Object.assign(new Error('Operation not permitted'), { code: 'EPERM' })
+      })
+      try {
+        kernel.interrupt()
+        out.epermThrew = false
+      } catch (e) {
+        out.epermThrew = true
+        out.epermCode = e.code ?? null
+      }
+      process.kill = ((_pid, _sig) => {
+        throw Object.assign(new Error('No such process'), { code: 'ESRCH' })
+      })
+      try {
+        kernel.interrupt()
+        out.esrchThrew = false
+      } catch (e) {
+        out.esrchThrew = true
+      }
+    } finally {
+      process.kill = realKill
+      kernel.killNow()
+    }
+  `)
+  check('ProcKernel.interrupt throws on non-ESRCH process.kill failure (EPERM)', r.epermThrew === true && r.epermCode === 'EPERM', JSON.stringify(r))
+  check('ProcKernel.interrupt still passes over ESRCH when process is already gone', r.esrchThrew === false, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
