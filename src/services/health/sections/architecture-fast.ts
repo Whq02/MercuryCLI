@@ -45,7 +45,7 @@ export function architectureFastChecks(): CheckSpec[] {
       run: async () => {
         await settleToolList()
         const { executionDomainKinds, executionPlaneCounts } = await import(
-          '../../primitives/executionPlane.js'
+          '../../../utils/primitives/executionPlane.js'
         )
         const { censusPlaneKinds } = await import('../../primitives/executionCensus.js')
         const registered = executionDomainKinds()
@@ -66,7 +66,7 @@ export function architectureFastChecks(): CheckSpec[] {
       id: 'primitive-consistency',
       label: 'Record consistency',
       run: async () => {
-        const { listExecutions } = await import('../../primitives/executionPlane.js')
+        const { listExecutions } = await import('../../../utils/primitives/executionPlane.js')
         const { isTerminalExecutionState } = await import('../../../utils/primitives/execution.js')
         const { processMainOwner } = await import('../../../utils/run/resolveOwner.js')
         const { transactionsFor } = await import('../../primitives/transactionPlane.js')

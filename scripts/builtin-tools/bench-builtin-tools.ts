@@ -49,7 +49,7 @@ const { preparePlan, applyPlan, resolveConflict, _resetGitPlanStoreForTesting } 
 const { runJourney, cancelJourney, _resetJourneysForTesting } = await import(
   '../../src/services/journeys/runner.ts'
 )
-const { getExecution } = await import('../../src/services/primitives/executionPlane.ts')
+const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
 const { transactionsFor, _resetTransactionPlaneForTesting } = await import(
   '../../src/services/primitives/transactionPlane.ts'
 )

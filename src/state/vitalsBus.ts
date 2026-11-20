@@ -12,7 +12,7 @@ import {
   traceSnapshot,
 } from '../services/cockpit/index.js'
 import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
-import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
+import { subscribeExecutionEvents } from '../utils/primitives/executionPlane.js'
 import { readSessionWorkersSnapshot, workerPidAlive } from '../daemon/concourseWorkers.js'
 import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
 import { passedOver } from '../utils/passedOver.js'

@@ -117,7 +117,7 @@ section('§2 modelGauge — label, window provenance and provider from their own
 section('§3 fleetGauge — solo reads off; the roster still lists a live execution')
 {
   const f = await import('../../src/services/cockpit/fleetGauge.ts')
-  const plane = await import('../../src/services/primitives/executionPlane.ts')
+  const plane = await import('../../src/utils/primitives/executionPlane.ts')
   const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const owner = processMainOwner()
   const solo = await f.fleetGauge()

@@ -20,7 +20,7 @@ import {
   valueOr,
   type SourceState,
 } from '../../substrate/sourceState.js'
-import { subscribeExecutionEvents, listExecutions } from '../primitives/executionPlane.js'
+import { subscribeExecutionEvents, listExecutions } from '../../utils/primitives/executionPlane.js'
 import { getRunSnapshot, subscribeRuns } from '../run/runCoordinator.js'
 import { loadRunSidecar } from '../run/runSidecar.js'
 import { processMainOwner, processOwnerForLane } from '../../utils/run/resolveOwner.js'

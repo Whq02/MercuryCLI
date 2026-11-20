@@ -14,7 +14,7 @@ import {
   requestStopExecution,
   settleExecution,
   transitionExecution,
-} from '../primitives/executionPlane.js'
+} from '../../utils/primitives/executionPlane.js'
 import {
   readLogs,
   startService,

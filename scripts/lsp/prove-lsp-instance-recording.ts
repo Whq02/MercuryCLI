@@ -191,7 +191,7 @@ replaced.push(CLIENT)
 const door = await import(`../../${DOOR}`)
 const { runWithLspAbortSignal, lspRequestFaultCount } = await import('../../src/services/lsp/lspAbort.ts')
 const { _setLspLedgerClockForTesting } = await import('../../src/services/lsp/failureLedger.ts')
-const { getExecution } = await import('../../src/services/primitives/executionPlane.ts')
+const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
 const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { attachErrorLogSink } = await import('../../src/utils/log.ts')
 type Instance = ReturnType<typeof door.createLSPServerInstance>
