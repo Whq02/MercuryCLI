@@ -340,12 +340,12 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
     const torn = '{corrupt-gguf-registry'
     writeFileSync(regFile, torn, { mode: 0o600 })
     const rRead = ggufServerRoots()
-    const rRem = throwsMatching(() => rememberGgufServer('http://127.0.0.1:8082'), /JSON|parse|unexpected/i)
-    const rFgt = throwsMatching(() => forgetGgufServer('http://127.0.0.1:8081'), /JSON|parse|unexpected/i)
+    rememberGgufServer('http://127.0.0.1:8082')
+    const afterHeal = ggufServerRoots()
     check(
-      'ggufServers: corrupt registry keeps reader empty and refuses remember/forget without overwriting',
-      rRead.length === 0 && rRem.threw && rFgt.threw && readFileSync(regFile, 'utf8') === torn,
-      `read=${JSON.stringify(rRead)} rem=${rRem.message} fgt=${rFgt.message}`,
+      'ggufServers: torn list is healed by next remember',
+      rRead.length === 0 && afterHeal.length === 1 && afterHeal[0] === 'http://127.0.0.1:8082',
+      `read=${JSON.stringify(rRead)} afterHeal=${JSON.stringify(afterHeal)}`,
     )
     if (POSIX_MODES) {
       const saved = '["http://127.0.0.1:8081"]\n'
