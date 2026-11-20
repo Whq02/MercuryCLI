@@ -17,6 +17,7 @@ import { type LiveSession, bounded, bytesWords, pageWhere } from './page.js'
 import { actConsequences, markAct, settleAfterAct } from './settle.js'
 import { actDeadline, clickGate, resolveActTarget, resolveReadTarget, settleBoundingBox } from './targets.js'
 import { humanClickPoint, pickTargetPoint } from './human.js'
+import { pollUntil, withDeadline } from '../../../utils/deadline.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 
 const CHOOSER_WAIT_MS = 2000
@@ -93,8 +94,17 @@ export async function sendUpload(
     }
     const read = (): Promise<HeldFile[]> =>
       target.evaluate(el => Array.from((el as HTMLInputElement).files ?? []).map(file => ({ name: file.webkitRelativePath || file.name, size: file.size, type: file.type })))
-    let held = await read()
-    for (const until = Date.now() + Math.min(deadline, 5000); held.length < staged.files && Date.now() < until; held = await read()) await bounded(25)
+    let held: HeldFile[] = []
+    held = await pollUntil(
+      async () => {
+        held = await read()
+        return held.length >= staged.files ? held : undefined
+      },
+      25,
+      Math.min(deadline, 5000),
+      () => held,
+      { signal, onAbort: () => held, unref: true },
+    )
     return after(`upload: ${selector} holds ${heldWords(held)} at ${pageWhere(s)} (set on the page; nothing reaches the site until the page sends it)`)
   }
   if (given.length === 0) return refused(`an empty list clears a file input, and ${selector} is not one`)
@@ -175,12 +185,14 @@ export async function sendUpload(
       const at = await pickTargetPoint(s, handle)
       await humanClickPoint(s, at.x, at.y)
       if (opened === null) {
-        await Promise.race([
+        await withDeadline(
           new Promise<void>(resolve => {
             wake = resolve
           }),
-          bounded(Math.min(deadline, CHOOSER_WAIT_MS)),
-        ])
+          Math.min(deadline, CHOOSER_WAIT_MS),
+          () => {},
+          { signal, onAbort: () => {}, unref: true },
+        )
       }
       const chooser = opened as Protocol.Page.FileChooserOpenedEvent | null
       if (chooser === null) {
@@ -212,8 +224,17 @@ export async function sendUpload(
       }
       await own.send('DOM.setFileInputFiles', { files: staged.paths, backendNodeId: chooser.backendNodeId })
       delivered = true
-      let held = await call<HeldFile[]>(HELD_FILES)
-      for (const until = Date.now() + Math.min(deadline, 5000); held.length < staged.files && Date.now() < until; held = await call<HeldFile[]>(HELD_FILES)) await bounded(25)
+      let held: HeldFile[] = []
+      held = await pollUntil(
+        async () => {
+          held = await call<HeldFile[]>(HELD_FILES)
+          return held.length >= staged.files ? held : undefined
+        },
+        25,
+        Math.min(deadline, 5000),
+        () => held,
+        { signal, onAbort: () => held, unref: true },
+      )
       return after(`upload: ${field.desc} holds ${heldWords(held)}, chosen through the file chooser that ${selector} opened at ${pageWhere(s)} (set on the page; nothing reaches the site until the page sends it)`)
     } finally {
       own.off('Page.fileChooserOpened', onOpen)
