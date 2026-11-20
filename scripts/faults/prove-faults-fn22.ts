@@ -318,5 +318,32 @@ console.log('\n7. vulcan/engine/leases.ts — caseInsensitiveProject throws on n
   check('leases-caseInsensitiveProject: ENOENT on alternate-case stat treats project as case-sensitive', enoent.ok && enoentVal?.ok === true && enoentVal.leases?.[0]?.path === 'Foo.gd', JSON.stringify(enoent))
 }
 
+console.log('\n8. vulcan/engine/liveness.ts — unreadable stamp fails safe as alive instead of absent, and non-job-id entries skip run stamps without catching bugs')
+if (!POSIX_MODES) skip('liveness', 'needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const m = await import(path.join(SRC, 'services/vulcan/engine/liveness.ts'))
+    const paths = await import(path.join(SRC, 'services/vulcan/engine/paths.ts'))
+    const treesDir = paths.engineTreesDir(PROJECT)
+    const jobTree = path.join(treesDir, '1234-ab12')
+    fs.mkdirSync(jobTree, { recursive: true })
+    const oldTime = new Date(Date.now() - 48 * 3600_000)
+    fs.utimesSync(jobTree, oldTime, oldTime)
+    out.absent = m.engineTreeLiveness(PROJECT, path.join(treesDir, '9999-ffff'))
+    fs.chmodSync(treesDir, 0o000)
+    out.unreadable = m.engineTreeLiveness(PROJECT, jobTree)
+    fs.chmodSync(treesDir, 0o700)
+    const weird = path.join(treesDir, 'bad!name')
+    fs.mkdirSync(weird, { recursive: true })
+    out.nonJobId = await attempt(() => m.engineTreeLiveness(PROJECT, weird))
+  `)
+  const absent = r.absent as { alive: boolean; why: string }
+  const unreadable = r.unreadable as { alive: boolean; why: string }
+  const nonJobId = r.nonJobId as Attempt
+  check('liveness-unreadable-stamp: absent tree still reports alive=false why=absent', absent.alive === false && absent.why === 'absent', JSON.stringify(absent))
+  check('liveness-unreadable-stamp: unreadable tree stamp fails safe as alive=true why=unreadable', unreadable.alive === true && unreadable.why === 'unreadable', JSON.stringify(unreadable))
+  check('liveness-non-job-id: non-job-id entry under trees skips run stamps cleanly', nonJobId.ok && (nonJobId.value as { alive?: boolean })?.alive === true, JSON.stringify(nonJobId))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

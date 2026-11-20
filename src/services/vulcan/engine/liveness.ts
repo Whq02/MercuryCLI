@@ -2,7 +2,8 @@ import { realpathSync, statSync, utimesSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { vulcanInstancesUnder, vulcanProcessAlive, type VulcanInstance } from '../instances.js'
-import { engineCheckTreeDir, engineChecksDir, engineRunPath, engineRunResultFile, engineTreesDir } from './paths.js'
+import { engineCheckTreeDir, engineChecksDir, engineRunPath, engineRunResultFile, engineTreesDir, isEngineJobId } from './paths.js'
+import { logForDebugging } from '../../../utils/debug.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../../utils/timers.js'
 
@@ -19,6 +20,7 @@ interface EngineEstateEntry {
 type EngineTreeLiveness =
   | { alive: true; why: 'instance'; instance: VulcanInstance }
   | { alive: true; why: 'grace'; ageMs: number }
+  | { alive: true; why: 'unreadable' }
   | { alive: false; why: 'owner-gone'; instance: VulcanInstance }
   | { alive: false; why: 'grace-over'; ageMs: number }
   | { alive: false; why: 'absent' }
@@ -61,12 +63,14 @@ export function engineEstateEntry(projectRoot: string, candidate: string, platfo
   return null
 }
 
-function mtimeOf(file: string): number | null {
+function mtimeOf(file: string): { kind: 'ok'; mtimeMs: number } | { kind: 'absent' } | { kind: 'unreadable' } {
   try {
-    return statSync(file).mtimeMs
+    return { kind: 'ok', mtimeMs: statSync(file).mtimeMs }
   } catch (error) {
-    passedOver(error)
-    return null
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { kind: 'absent' }
+    logForDebugging(`engine tree liveness could not stat ${file}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+    return { kind: 'unreadable' }
   }
 }
 
@@ -83,22 +87,19 @@ export function engineTreeLiveness(projectRoot: string, candidate: string, now: 
   }
   if (ownerGone) return { alive: false, why: 'owner-gone', instance: ownerGone }
   const stamps = [entry.path, `${entry.path}.index`]
-  if (entry.kind === 'tree') {
-    try {
-      const runDir = engineRunPath(projectRoot, entry.id)
-      stamps.push(runDir, engineRunResultFile(runDir))
-    } catch (error) {
-      passedOver(error)
-      void 0
-    }
+  if (entry.kind === 'tree' && isEngineJobId(entry.id)) {
+    const runDir = engineRunPath(projectRoot, entry.id)
+    stamps.push(runDir, engineRunResultFile(runDir))
   }
   let newest: number | null = null
+  let unreadable = false
   for (const stamp of stamps) {
     const at = mtimeOf(stamp)
-    if (at !== null && (newest === null || at > newest)) newest = at
+    if (at.kind === 'unreadable') unreadable = true
+    else if (at.kind === 'ok' && (newest === null || at.mtimeMs > newest)) newest = at.mtimeMs
   }
+  if (unreadable) return { alive: true, why: 'unreadable' }
   if (newest === null) return { alive: false, why: 'absent' }
-  const ageMs = Math.max(0, now - newest)
   return ageMs <= engineOrphanGraceMs() ? { alive: true, why: 'grace', ageMs } : { alive: false, why: 'grace-over', ageMs }
 }
 
