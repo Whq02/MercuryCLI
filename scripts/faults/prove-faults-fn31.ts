@@ -681,5 +681,28 @@ else {
   )
 }
 
+console.log('\ncrew/appends.ts — historyCheck propagates non-ENOENT statSync failure on history.jsonl or its lock')
+if (!POSIX_MODES) skip('crew/appends:history-stat-eacces-throws', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const lockedHome = path.join(PROJECT, 'locked-home')
+    fs.mkdirSync(lockedHome, { recursive: true })
+    process.env.MERCURY_CONFIG_DIR = lockedHome
+    const { historyCheck } = await import(SRC + '/utils/health/sections/crew/appends.ts')
+    fs.chmodSync(lockedHome, 0o000)
+    try {
+      out.row = historyCheck().run()
+      out.err = null
+    } catch (e) {
+      out.err = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(lockedHome, 0o700)
+    }
+  `)
+  check('crew/appends:history-stat-eacces-throws', r.err === 'EACCES', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
