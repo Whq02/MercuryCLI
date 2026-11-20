@@ -11,6 +11,7 @@ import { ensureDirInDaemonHome } from './daemonHome.js'
 import { gitArgs, gitArgsAsync } from '../utils/git/spawnArgs.js'
 import { discardSetAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones } from '../utils/worktreeClone.js'
 import { passedOver } from '../utils/passedOver.js'
+import { errorMessage } from '../utils/errors.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
@@ -23,14 +24,28 @@ export function workerWorktreePath(runnerId: string, dir?: string): string {
   return join(workerWorktreeRoot(dir), runnerId)
 }
 
-export function workspaceKindOf(workspaceId: string): 'git' | 'plain-folder' {
+export function inspectWorkspaceKind(
+  workspaceId: string,
+): { kind: 'git' } | { kind: 'plain-folder'; gitCheckError?: string } {
   try {
     statSync(join(workspaceId, '.git'))
-    return 'git'
+    return { kind: 'git' }
   } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return { kind: 'plain-folder' }
+    }
     passedOver(error)
-    return 'plain-folder'
+    return { kind: 'plain-folder', gitCheckError: errorMessage(error) }
   }
+}
+
+export function workspaceGitCheckNote(workspaceId: string, error: string): string {
+  return `${workspaceId} could not be checked for git (${error}), so this session works in the folder itself, not in a worktree`
+}
+
+export function workspaceKindOf(workspaceId: string): 'git' | 'plain-folder' {
+  return inspectWorkspaceKind(workspaceId).kind
 }
 
 function git(
