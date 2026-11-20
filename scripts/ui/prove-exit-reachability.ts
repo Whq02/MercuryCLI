@@ -1,20 +1,15 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { mock } from 'bun:test'
+import { statSync } from 'node:fs'
 import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.ts')
-const { KEYBINDING_CONTEXTS } = await import('../../src/keybindings/schema.ts')
-const { parseBindings } = await import('../../src/keybindings/parser.ts')
-const { resolveKeyWithChordState } = await import('../../src/keybindings/resolver.ts')
-const { actionAffordance } = await import('../../src/keybindings/atlas.ts')
-const { composeFooterHint, packFooter } = await import('../../src/components/mercury-ui/footerHint.ts')
-type Key = import('../../src/ink/events/input-event.ts').Key
+const HOME = pinScratchHome('exit-reachability')
+process.env.MERCURY_REDUCED_MOTION = '1'
+process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -23,367 +18,653 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const note = (label: string): void => console.log(`  [NOTE] ${label}`)
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const has = (src: string, needle: string | RegExp): boolean =>
-  typeof needle === 'string' ? src.includes(needle) : needle.test(src)
 
-function keyOf(partial: Partial<Key>): Key {
-  return {
-    upArrow: false, downArrow: false, leftArrow: false, rightArrow: false,
-    pageDown: false, pageUp: false, wheelUp: false, wheelDown: false,
-    home: false, end: false, return: false, escape: false,
-    ctrl: false, shift: false, fn: false, tab: false, backspace: false,
-    delete: false, meta: false, super: false, isPasted: false,
-    ...partial,
-  } as Key
-}
-const ESCAPE = keyOf({ escape: true, meta: true })
-const CTRL_D = keyOf({ ctrl: true })
+try {
+  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
+  const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.ts')
+  const { KEYBINDING_CONTEXTS } = await import('../../src/keybindings/schema.ts')
+  const { parseBindings } = await import('../../src/keybindings/parser.ts')
+  const { resolveKeyWithChordState } = await import('../../src/keybindings/resolver.ts')
+  const { actionAffordance } = await import('../../src/keybindings/atlas.ts')
+  const { composeFooterHint, packFooter } = await import('../../src/components/mercury-ui/footerHint.ts')
+  const { MODEL_PICKER_EXIT_WORDS, modelPickerFooter } = await import('../../src/utils/model/modelPickerFooter.ts')
+  type Key = import('../../src/ink/events/input-event.ts').Key
+  type KeybindingContextName = import('../../src/keybindings/types.ts').KeybindingContextName
+  type LlmHostRoad = import('../../src/services/llmHost/index.ts').LlmHostRoad
+  type LlmHostEvent = import('../../src/services/llmHost/index.ts').LlmHostEvent
+  type LlmHostQuestion = import('../../src/services/llmHost/index.ts').LlmHostQuestion
 
-type Hint = { file: string; needles: Array<string | RegExp> }
-type Exit =
-  | { kind: 'binding'; action: string; input?: string; key?: Key; hints: Hint[]; hintExempt?: string; drawn?: () => Promise<string[]> }
-  | { kind: 'raw'; route?: Hint; hints: Hint[] }
-  | { kind: 'host'; owner: string; reason: string }
-  | { kind: 'root'; reason: string }
+  const React = await import('react')
+  const h = React.createElement
+  const { Text } = await import('../../src/ink.ts')
+  const { App } = await import('../../src/components/App.tsx')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+  const { useRegisterKeybindingContext } = await import('../../src/keybindings/KeybindingContext.tsx')
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
+  const { openSettingsPopup, closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Settings } = await import('../../src/components/Settings/Settings.tsx')
+  const { PermissionPrompt } = await import('../../src/components/permissions/PermissionPrompt.tsx')
+  const { Dialog } = await import('../../src/components/design-system/Dialog.tsx')
+  const { TranscriptFooter } = await import('../../src/screens/chat/useChatSearch.tsx')
+  const { ThemePicker } = await import('../../src/components/ThemePicker.tsx')
+  const { HelpV2 } = await import('../../src/components/HelpV2/HelpV2.tsx')
+  const { SelectInputOption } = await import('../../src/components/CustomSelect/select-input-option.tsx')
+  const { Select } = await import('../../src/components/CustomSelect/select.tsx')
+  const { MessageSelector } = await import('../../src/components/MessageSelector.tsx')
+  const { MessageActionsBar } = await import('../../src/components/messageActions.tsx')
+  const { DiffDialog } = await import('../../src/components/diff/DiffDialog.tsx')
+  const { MercuryInputAtlas } = await import('../../src/components/MercuryInputAtlas.tsx')
+  const { NavigablePanes } = await import('../../src/components/mercury-ui/NavigablePanes.tsx')
+  const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')
+  const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
+  const { CommandCenter } = await import('../../src/components/mercury-ui/components.tsx')
 
-const EXIT_TABLE: Record<string, Exit> = {
-  Global: { kind: 'root', reason: 'the process root — ctrl+d (app:exit) leaves; no screen stands above it' },
-  Chat: {
-    kind: 'binding',
-    action: 'chat:cancel',
-    hints: [],
-    hintExempt: 'the chat is the root bridge, never a screen to leave; esc cancels the input or the transient surface (the composer help lists it)',
-  },
-  Autocomplete: {
-    kind: 'binding',
-    action: 'autocomplete:dismiss',
-    hints: [],
-    hintExempt: 'a non-modal completion menu — typing continues, esc dismisses; the composer keeps its own vocabulary',
-  },
-  Settings: {
-    kind: 'binding',
-    action: 'confirm:no',
-    hints: [
-      { file: 'src/components/Settings/Settings.tsx', needles: ['settingsPopupHintText(hint ?? request.hint, inner)', 'wrap="truncate-end">{text}</Text>'] },
-    ],
-  },
-  Confirmation: {
-    kind: 'binding',
-    action: 'confirm:no',
-    hints: [
-      { file: 'src/components/permissions/PermissionPrompt.tsx', needles: ["escapeHint = 'esc cancel'", '↑↓ choose · ↵ confirm · ${escapeHint}'] },
-      { file: 'src/components/design-system/Dialog.tsx', needles: ["useShortcutDisplay('confirm:no', 'Confirmation', 'esc')", '<KeyboardShortcutHint shortcut={cancelKey} action="cancel" />'] },
-    ],
-  },
-  Tabs: { kind: 'host', owner: 'src/components/design-system/Tabs.tsx', reason: 'a tab strip inside a dialog — the dialog (Confirmation) owns esc' },
-  Transcript: {
-    kind: 'binding',
-    action: 'transcript:exit',
-    hints: [],
-    drawn: async () => {
-      const React = await import('react')
-      const { mountPart } = await import('./chatScenarios.ts')
-      const { waitFor } = await import('../lib/settingsPopupHarness.ts')
-      const { TranscriptFooter } = await import('../../src/screens/chat/useChatSearch.tsx')
-      const props = { toggleChord: 'ctrl+o', expandChord: 'ctrl+e', hasSearchBadge: false, virtualScroll: true, showAllSuppressed: false, showAll: false, status: null, badge: null }
-      const footer = await mountPart(() => props, { columns: 120, rows: 4, draw: value => React.createElement(TranscriptFooter, value) })
-      await waitFor(() => footer.view.lines().some(line => line.includes('detailed transcript')), 3000)
-      const drawn = footer.view.lines().join('\n')
-      footer.unmount()
-      return ['q quits', 'ctrl+o to toggle'].filter(words => !drawn.includes(words))
+  const delivery = { ...(await import('../../src/ink/session/delivery.ts')) }
+  mock.module('../../src/ink/session/delivery.ts', () => ({
+    ...delivery,
+    writeAllSync: (fd: number, data: Buffer, syscalls?: Parameters<typeof delivery.writeAllSync>[2]): boolean =>
+      fd === 1 ? true : delivery.writeAllSync(fd, data, syscalls),
+  }))
+
+  const sessionModel = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
+  const fixtureSessionId = '00000000-0000-4000-8000-000000000001'
+  const fixtureLog = {
+    sessionId: fixtureSessionId,
+    projectPath: ROOT,
+    cwd: ROOT,
+    modified: new Date().toISOString(),
+    created: new Date().toISOString(),
+    firstPrompt: 'fixture session row',
+    customTitle: 'fixture session row',
+    messageCount: 2,
+    fullPath: join(HOME, 'never-read-before-hop.jsonl'),
+  }
+  const fixtureFlat = [{ project: 'fixture', head: true, row: { project: 'fixture', label: fixtureLog.customTitle, seen: 'now', log: fixtureLog } }]
+  mock.module('../../src/components/mercury-ui/screens/sessionPickerModel.ts', () => ({
+    ...sessionModel,
+    useSessionPickerModel: () => ({ logs: [fixtureLog], pendingMore: 0, projectKey: 'fixture', flat: fixtureFlat, elsewhereCount: 0, dropSessions() {} }),
+  }))
+  const { SessionManagerView } = await import('../../src/components/mercury-ui/screens/SessionManagerView.tsx')
+
+  enableConfigs()
+
+  function ContextScope({ contexts, children }: { contexts: readonly KeybindingContextName[]; children?: React.ReactNode }): React.ReactNode {
+    for (const ctx of contexts) useRegisterKeybindingContext(ctx, true)
+    return children
+  }
+
+  async function mountScreen(
+    node: React.ReactNode,
+    opts: { columns?: number; rows?: number; contexts?: readonly KeybindingContextName[]; mouseTracking?: boolean } = {},
+  ): Promise<Mounted> {
+    resetOverlayStackForTests()
+    const body = opts.contexts && opts.contexts.length > 0 ? h(ContextScope, { contexts: opts.contexts }, node) : node
+    const wrapped = h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, body))
+    const view = await mountOffscreen(wrapped, opts.columns ?? 120, opts.rows ?? 30, { mouseTracking: opts.mouseTracking })
+    await settle(60)
+    return view
+  }
+
+  function clickAt(view: Mounted, col1: number, row1: number): void {
+    view.push(`\x1b[<0;${col1};${row1}M\x1b[<0;${col1};${row1}m`)
+  }
+
+  function keyOf(partial: Partial<Key>): Key {
+    return {
+      upArrow: false, downArrow: false, leftArrow: false, rightArrow: false,
+      pageDown: false, pageUp: false, wheelUp: false, wheelDown: false,
+      home: false, end: false, return: false, escape: false,
+      ctrl: false, shift: false, fn: false, tab: false, backspace: false,
+      delete: false, meta: false, super: false, isPasted: false,
+      ...partial,
+    } as Key
+  }
+  const ESCAPE = keyOf({ escape: true, meta: true })
+  const CTRL_D = keyOf({ ctrl: true })
+  const CTRL_L = '\x0c'
+  const CTRL_R = '\x12'
+
+  type ProbeResult = { label: string; ok: boolean; detail?: string }
+  type Exit =
+    | { kind: 'binding'; action: string; input?: string; key?: Key; hintExempt?: string; prove?: () => Promise<ProbeResult[]> }
+    | { kind: 'raw'; prove?: () => Promise<ProbeResult[]> }
+    | { kind: 'host'; owner: string; reason: string }
+    | { kind: 'root'; reason: string }
+
+  const EXIT_TABLE: Record<string, Exit> = {
+    Global: { kind: 'root', reason: 'the process root — ctrl+d (app:exit) leaves; no screen stands above it' },
+    Chat: {
+      kind: 'binding',
+      action: 'chat:cancel',
+      hintExempt: 'the chat is the root bridge, never a screen to leave; esc cancels the input or the transient surface (the composer help lists it)',
     },
-  },
-  HistorySearch: {
-    kind: 'binding',
-    action: 'historySearch:accept',
-    hints: [],
-    hintExempt: 'the search field leaves on esc (accept) and ctrl+c (cancel); its own row prints no key hint — src/components/PromptInput/HistorySearchInput.tsx is another lane’s file (noted in §6)',
-  },
-  Task: { kind: 'host', owner: 'src/keybindings/defaultBindings.ts', reason: 'ctrl+b backgrounds the foreground task — not a screen' },
-  ThemePicker: {
-    kind: 'raw',
-    route: { file: 'src/components/ThemePicker.tsx', needles: ['onCancel={() => {'] },
-    hints: [{ file: 'src/components/ThemePicker.tsx', needles: ['esc to cancel'] }],
-  },
-  Scroll: { kind: 'host', owner: 'src/components/ScrollKeybindingHandler.tsx', reason: 'the transcript scroller — a handler, not a screen' },
-  Help: {
-    kind: 'binding',
-    action: 'help:dismiss',
-    hints: [{ file: 'src/components/HelpV2/HelpV2.tsx', needles: ['closeKeys="esc"', "useKeybinding('help:dismiss', dismiss, { context: 'Help' })"] }],
-  },
-  Attachments: {
-    kind: 'binding',
-    action: 'attachments:exit',
-    hints: [{ file: 'src/components/CustomSelect/select-input-option.tsx', needles: ["useShortcutDisplay('attachments:exit', 'Attachments', 'esc')"] }],
-  },
-  Footer: {
-    kind: 'binding',
-    action: 'footer:clearSelection',
-    hints: [],
-    hintExempt: 'the footer indicators are a focus mode of the composer (↑ into the task/crew rows); esc clears it and the composer keeps the frame',
-  },
-  MessageSelector: {
-    kind: 'binding',
-    action: 'messageSelector:close',
-    hints: [{ file: 'src/components/MessageSelector.tsx', needles: ['esc to close'] }],
-  },
-  MessageActions: {
-    kind: 'binding',
-    action: 'messageActions:escape',
-    hints: [{ file: 'src/components/messageActions.tsx', needles: ['<Text bold>esc</Text>', '<Text dimColor> back</Text>'] }],
-  },
-  DiffDialog: {
-    kind: 'binding',
-    action: 'diff:dismiss',
-    hints: [{ file: 'src/components/diff/DiffDialog.tsx', needles: ["bind('diff:dismiss', closeOneLevel)"] }],
-  },
-  ModelPicker: {
-    kind: 'raw',
-    hints: [{ file: 'src/utils/model/modelPickerFooter.ts', needles: ["MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'"] }],
-  },
-  Select: {
-    kind: 'binding',
-    action: 'select:cancel',
-    hints: [{ file: 'src/components/design-system/Dialog.tsx', needles: ["useShortcutDisplay('confirm:no', 'Confirmation', 'esc')"] }],
-  },
-  Extensions: { kind: 'raw', hints: [] },
-  Atlas: {
-    kind: 'raw',
-    route: { file: 'src/components/MercuryInputAtlas.tsx', needles: ['if (key.escape && pending === null) {'] },
-    hints: [{ file: 'src/components/MercuryInputAtlas.tsx', needles: ['esc back', 'esc cancel'] }],
-  },
-  Workbench: {
-    kind: 'raw',
-    route: { file: 'src/components/mercury-ui/NavigablePanes.tsx', needles: ['escOverride'] },
-    hints: [{ file: 'src/components/mercury-ui/NavigablePanes.tsx', needles: ["closeHint ?? 'esc close'"] }],
-  },
-}
-
-const bindings = parseBindings(DEFAULT_BINDINGS)
-const graph = ACTION_GRAPH as Record<string, { contexts: readonly string[] }>
-
-section('§1 totality — every context the estate names declares its exit')
-{
-  const named = new Set<string>()
-  for (const c of KEYBINDING_CONTEXTS) named.add(c)
-  for (const block of DEFAULT_BINDINGS) named.add(block.context)
-  for (const meta of Object.values(graph)) for (const c of meta.contexts) named.add(c)
-  const undeclared = [...named].filter(c => !(c in EXIT_TABLE))
-  check('every schema · default-block · graph context is in the exit table', undeclared.length === 0, undeclared.join(', '))
-  const stale = Object.keys(EXIT_TABLE).filter(c => !named.has(c))
-  check('the table names no context the estate has retired', stale.length === 0, stale.join(', '))
-  const exits = Object.values(EXIT_TABLE).filter(e => e.kind === 'binding').length
-  check('the table is populated (binding exits ≥ 12)', exits >= 12, `${exits}`)
-}
-
-const exitActions = new Set<string>()
-for (const e of Object.values(EXIT_TABLE)) if (e.kind === 'binding') exitActions.add(e.action)
-
-section('§2 registry exits — bound, resolved in the hook\'s own order, unshadowed')
-for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
-  if (exit.kind !== 'binding') continue
-  const input = exit.input ?? ''
-  const key = exit.key ?? ESCAPE
-  const own = resolveKeyWithChordState(input, key, [ctx, 'Global'], bindings, null)
-  check(
-    `${ctx}: escape resolves to ${exit.action} for [${ctx}, Global]`,
-    own.type === 'match' && own.action === exit.action,
-    JSON.stringify(own),
-  )
-  const afford = actionAffordance(exit.action, ctx, bindings, 'linux')
-  check(
-    `${ctx}: the affordance oracle calls ${exit.action} bound (nothing later unbinds it) — via ${afford.kind === 'unbound' ? '—' : afford.chord}`,
-    afford.kind === 'bound',
-    JSON.stringify(afford),
-  )
-  check(`${ctx}: ${exit.action} exists in the action graph under this context`, ctx in EXIT_TABLE && (graph[exit.action]?.contexts ?? []).includes(ctx), JSON.stringify(graph[exit.action]?.contexts))
-}
-{
-  const all = Object.keys(EXIT_TABLE)
-  const wide = resolveKeyWithChordState('', ESCAPE, all, bindings, null)
-  check('escape over EVERY context at once is an exit-class match', wide.type === 'match' && exitActions.has(wide.action), JSON.stringify(wide))
-  const root = resolveKeyWithChordState('d', CTRL_D, ['Global'], bindings, null)
-  check('the root leaves: ctrl+d resolves to app:exit in Global', root.type === 'match' && root.action === 'app:exit', JSON.stringify(root))
-  const blocksWithEscape = new Set(
-    bindings.filter(b => b.chord.length === 1 && b.chord[0]!.key === 'escape' && b.action !== null).map(b => b.context),
-  )
-  const leaning = Object.entries(EXIT_TABLE)
-    .filter(([ctx, e]) => e.kind === 'binding' && !blocksWithEscape.has(ctx))
-    .map(([ctx]) => ctx)
-  check('every registry exit lives in its OWN block (no context leans on a foreign escape row)', leaning.length === 0, leaning.join(', '))
-}
-
-section('§3 the printed way out — the consumer that mounts the context says so')
-for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
-  if (exit.kind === 'host') {
-    check(`${ctx}: host-owned (${exit.reason})`, statSync(join(ROOT, exit.owner)).isFile())
-    continue
+    Autocomplete: {
+      kind: 'binding',
+      action: 'autocomplete:dismiss',
+      hintExempt: 'a non-modal completion menu — typing continues, esc dismisses; the composer keeps its own vocabulary',
+    },
+    Settings: {
+      kind: 'binding',
+      action: 'confirm:no',
+      prove: async () => {
+        const req = { view: 'config' as const, width: 60, rows: 10, line: 'probe', hint: '↑↓ choose · esc or click outside closes', body: () => h(Text, null, 'body') }
+        openSettingsPopup(req)
+        const wide = await mountScreen(
+          h(Settings, { request: req, geometry: { width: 60, inner: 56, rows: 10, rowBudget: 4, compact: false, left: 0, top: 0 } }),
+          { columns: 80, rows: 14, contexts: ['Settings'] },
+        )
+        try {
+          const shown = await waitFor(() => wide.screen().includes('esc or click outside closes'), 3000)
+          wide.push(KEY.esc)
+          const closed = await waitFor(() => !isSettingsPopupOpen(), 3000)
+          return [{ label: 'Settings: renders its footer hint and closes on esc', ok: shown && closed, detail: `shown=${shown} closed=${closed} screen=${wide.screen().slice(0, 300)}` }]
+        } finally {
+          wide.unmount()
+          closeSettingsPopup()
+        }
+      },
+    },
+    Confirmation: {
+      kind: 'binding',
+      action: 'confirm:no',
+      prove: async () => {
+        const out: ProbeResult[] = []
+        const promptView = await mountScreen(
+          h(PermissionPrompt, { options: [{ value: 'allow', label: 'Allow' }], onSelect: () => {} }),
+          { columns: 100, rows: 12, contexts: ['Confirmation'] },
+        )
+        try {
+          const ok = await waitFor(() => promptView.screen().includes('↑↓ choose · ↵ confirm · esc cancel'), 3000)
+          out.push({ label: 'Confirmation: PermissionPrompt renders its exit hint', ok, detail: promptView.screen().slice(0, 300) })
+        } finally {
+          promptView.unmount()
+        }
+        let cancelled = false
+        const dialogView = await mountScreen(
+          h(Dialog, { title: 'Confirm', onCancel: () => { cancelled = true } }, h(Text, null, 'body')),
+          { columns: 100, rows: 14, contexts: ['Confirmation'] },
+        )
+        try {
+          const hasHint = await waitFor(() => /\besc\b/i.test(dialogView.screen()) && dialogView.screen().includes('cancel'), 3000)
+          dialogView.push(KEY.esc)
+          const fired = await waitFor(() => cancelled, 3000)
+          out.push({ label: 'Confirmation: Dialog renders its cancel hint and cancels on esc', ok: hasHint && fired, detail: `hint=${hasHint} fired=${fired} screen=${dialogView.screen().slice(0, 300)}` })
+        } finally {
+          dialogView.unmount()
+        }
+        return out
+      },
+    },
+    Tabs: { kind: 'host', owner: 'src/components/design-system/Tabs.tsx', reason: 'a tab strip inside a dialog — the dialog (Confirmation) owns esc' },
+    Transcript: {
+      kind: 'binding',
+      action: 'transcript:exit',
+      prove: async () => {
+        const props = { toggleChord: 'ctrl+o', expandChord: 'ctrl+e', hasSearchBadge: false, virtualScroll: true, showAllSuppressed: false, showAll: false, status: null, badge: null }
+        const footer = await mountScreen(h(TranscriptFooter, props), { columns: 120, rows: 4 })
+        try {
+          await waitFor(() => footer.lines().some(line => line.includes('detailed transcript')), 3000)
+          const drawn = footer.lines().join('\n')
+          const missing = ['q quits', 'ctrl+o to toggle'].filter(words => !drawn.includes(words))
+          return [{ label: 'Transcript: the hint is rendered (drawn by its mounted footer)', ok: missing.length === 0, detail: missing.join(' · ') }]
+        } finally {
+          footer.unmount()
+        }
+      },
+    },
+    HistorySearch: {
+      kind: 'binding',
+      action: 'historySearch:accept',
+      hintExempt: 'the search field leaves on esc (accept) and ctrl+c (cancel); its own row prints no key hint',
+    },
+    Task: { kind: 'host', owner: 'src/keybindings/defaultBindings.ts', reason: 'ctrl+b backgrounds the foreground task — not a screen' },
+    ThemePicker: {
+      kind: 'raw',
+      prove: async () => {
+        let cancelled = false
+        const view = await mountScreen(
+          h(ThemePicker, { onThemeSelect: () => {}, onCancel: () => { cancelled = true } }),
+          { columns: 100, rows: 28, contexts: ['Select'] },
+        )
+        try {
+          const hasHint = await waitFor(() => view.screen().includes('esc to cancel'), 3000)
+          view.push(KEY.esc)
+          const exited = await waitFor(() => cancelled, 3000)
+          return [
+            { label: 'ThemePicker: pressing esc cancels the picker', ok: exited, detail: view.screen().slice(0, 300) },
+            { label: 'ThemePicker: the hint is rendered', ok: hasHint, detail: view.screen().slice(0, 300) },
+          ]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    Scroll: { kind: 'host', owner: 'src/components/ScrollKeybindingHandler.tsx', reason: 'the transcript scroller — a handler, not a screen' },
+    Help: {
+      kind: 'binding',
+      action: 'help:dismiss',
+      prove: async () => {
+        let closed = false
+        const view = await mountScreen(
+          h(HelpV2, { commands: [], onClose: () => { closed = true } }),
+          { columns: 120, rows: 30, contexts: ['Help'] },
+        )
+        try {
+          const hasHint = await waitFor(() => view.screen().includes('esc close'), 3000)
+          view.push(KEY.esc)
+          const exited = await waitFor(() => closed, 3000)
+          return [{ label: 'Help: renders esc close and dismisses on esc', ok: hasHint && exited, detail: `hint=${hasHint} exited=${exited} screen=${view.screen().slice(0, 300)}` }]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    Attachments: {
+      kind: 'binding',
+      action: 'attachments:exit',
+      prove: async () => {
+        let exited = false
+        const view = await mountScreen(
+          h(SelectInputOption, {
+            option: { type: 'input', value: 'other', label: 'Other' },
+            isFocused: true,
+            value: '',
+            onChange: () => {},
+            onSubmit: () => {},
+            reservedIndexWidth: 2,
+            index: 1,
+            pastedContents: { 1: { id: 1, type: 'image', content: 'abc', mediaType: 'image/png' } },
+            isImageSelectionMode: true,
+            selectedImageIndex: 0,
+            onExitImageSelection: () => { exited = true },
+          }),
+          { columns: 100, rows: 10, contexts: ['Attachments'] },
+        )
+        try {
+          const hasHint = await waitFor(() => /\besc\b\s+cancel/i.test(view.screen()), 3000)
+          view.push(KEY.esc)
+          const left = await waitFor(() => exited, 3000)
+          return [{ label: 'Attachments: renders esc cancel and exits image selection on esc', ok: hasHint && left, detail: `hint=${hasHint} left=${left} screen=${view.screen().slice(0, 300)}` }]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    Footer: {
+      kind: 'binding',
+      action: 'footer:clearSelection',
+      hintExempt: 'the footer indicators are a focus mode of the composer (↑ into the task/crew rows); esc clears it and the composer keeps the frame',
+    },
+    MessageSelector: {
+      kind: 'binding',
+      action: 'messageSelector:close',
+      prove: async () => {
+        let closed = false
+        const view = await mountScreen(
+          h(MessageSelector, {
+            messages: [],
+            onPreRestore: () => {},
+            onRestore: async () => ({ outcome: 'applied' } as never),
+            onSummarize: () => {},
+            onClose: () => { closed = true },
+          }),
+          { columns: 100, rows: 16, contexts: ['MessageSelector'] },
+        )
+        try {
+          const hasHint = await waitFor(() => view.screen().includes('esc close'), 3000)
+          view.push(KEY.esc)
+          const exited = await waitFor(() => closed, 3000)
+          return [{ label: 'MessageSelector: renders esc close and closes on esc', ok: hasHint && exited, detail: `hint=${hasHint} exited=${exited} screen=${view.screen().slice(0, 300)}` }]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    MessageActions: {
+      kind: 'binding',
+      action: 'messageActions:escape',
+      prove: async () => {
+        const view = await mountScreen(
+          h(MessageActionsBar, { cursor: { uuid: 'u1', type: 'assistant', expanded: false } }),
+          { columns: 100, rows: 8 },
+        )
+        try {
+          const hasHint = await waitFor(() => view.screen().includes('esc back'), 3000)
+          return [{ label: 'MessageActions: MessageActionsBar renders esc back', ok: hasHint, detail: view.screen().slice(0, 300) }]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    DiffDialog: {
+      kind: 'binding',
+      action: 'diff:dismiss',
+      prove: async () => {
+        let closed = false
+        const view = await mountScreen(
+          h(DiffDialog, { messages: [], onDone: () => { closed = true } }),
+          { columns: 120, rows: 24, contexts: ['DiffDialog'] },
+        )
+        try {
+          const hasHint = await waitFor(() => view.screen().includes('esc close'), 3000)
+          view.push(KEY.esc)
+          const exited = await waitFor(() => closed, 3000)
+          return [{ label: 'DiffDialog: renders esc close and dismisses on esc', ok: hasHint && exited, detail: `hint=${hasHint} exited=${exited} screen=${view.screen().slice(0, 300)}` }]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    ModelPicker: {
+      kind: 'raw',
+      prove: async () => {
+        const wide = modelPickerFooter({ gated: false }, 120)
+        const narrow = modelPickerFooter({ gated: false }, 30)
+        const ok = wide.includes(MODEL_PICKER_EXIT_WORDS) && wide.includes('esc or click outside closes') && narrow.includes('esc closes')
+        return [{ label: 'ModelPicker: footer emits exit hint at wide and narrow widths', ok, detail: `wide=${JSON.stringify(wide)} narrow=${JSON.stringify(narrow)}` }]
+      },
+    },
+    Select: {
+      kind: 'binding',
+      action: 'select:cancel',
+      prove: async () => {
+        let cancelled = false
+        const view = await mountScreen(
+          h(Dialog, { title: 'Choose', onCancel: () => {} }, h(Select, { options: [{ label: 'Alpha', value: 'a' }], onChange: () => {}, onCancel: () => { cancelled = true } })),
+          { columns: 100, rows: 14, contexts: ['Select'] },
+        )
+        try {
+          const hasHint = await waitFor(() => /\besc\b/i.test(view.screen()) && view.screen().includes('cancel'), 3000)
+          view.push(KEY.esc)
+          const exited = await waitFor(() => cancelled, 3000)
+          return [{ label: 'Select: renders cancel hint and cancels on esc', ok: hasHint && exited, detail: `hint=${hasHint} exited=${exited} screen=${view.screen().slice(0, 300)}` }]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    Extensions: { kind: 'raw' },
+    Atlas: {
+      kind: 'raw',
+      prove: async () => {
+        let closed = false
+        const view = await mountScreen(
+          h(MercuryInputAtlas, { onClose: () => { closed = true } }),
+          { columns: 120, rows: 28 },
+        )
+        try {
+          const browse = await waitFor(() => view.screen().includes('tab context'), 3000)
+          view.push(CTRL_L)
+          const lookupHint = await waitFor(() => view.screen().includes('esc back'), 3000)
+          view.push(KEY.esc)
+          const backFromLookup = await waitFor(() => view.screen().includes('tab context'), 3000)
+          view.push(CTRL_R)
+          const rebindHint = await waitFor(() => view.screen().includes('esc cancel'), 3000)
+          view.push(KEY.esc)
+          const backFromRebind = await waitFor(() => view.screen().includes('rebind cancelled'), 3000)
+          view.push(KEY.esc)
+          const closedOnEsc = await waitFor(() => closed, 3000)
+          return [
+            { label: 'Atlas: esc leaves lookup and rebind capture and closes browse', ok: browse && backFromLookup && backFromRebind && closedOnEsc, detail: `browse=${browse} lookup=${backFromLookup} rebind=${backFromRebind} closed=${closedOnEsc}` },
+            { label: 'Atlas: renders esc back in lookup and esc cancel in rebind', ok: lookupHint && rebindHint, detail: `lookupHint=${lookupHint} rebindHint=${rebindHint}` },
+          ]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
+    Workbench: {
+      kind: 'raw',
+      prove: async () => {
+        let closed = false
+        const rows = [{ id: 'r1', name: 'Item One' }]
+        const view = await mountScreen(
+          h(NavigablePanes, {
+            view: 'workbench',
+            sections: [{ id: 's1', label: 'Items', rows }],
+            columns: [{ key: 'name', header: 'Name', cell: (row: { id: string; name: string }) => h(Text, null, row.name) }],
+            rowKey: (row: { id: string; name: string }) => row.id,
+            renderDetail: (row: { id: string; name: string }) => h(Text, null, row.name),
+            onClose: () => { closed = true },
+          }),
+          { columns: 120, rows: 24 },
+        )
+        try {
+          const hasHint = await waitFor(() => view.screen().includes('esc close'), 3000)
+          view.push(KEY.esc)
+          const exited = await waitFor(() => closed, 3000)
+          return [
+            { label: 'Workbench: NavigablePanes closes on esc', ok: exited, detail: view.screen().slice(0, 300) },
+            { label: 'Workbench: NavigablePanes renders esc close', ok: hasHint, detail: view.screen().slice(0, 300) },
+          ]
+        } finally {
+          view.unmount()
+        }
+      },
+    },
   }
-  if (exit.kind === 'root') {
-    note(`${ctx}: ${exit.reason}`)
-    continue
-  }
-  if (exit.kind === 'raw' && exit.route !== undefined) {
-    const src = read(exit.route.file)
-    const missing = exit.route.needles.filter(n => !has(src, n))
-    check(`${ctx}: the surface decodes escape itself (${exit.route.file})`, missing.length === 0, missing.map(String).join(' · '))
-  }
-  if (exit.kind === 'binding' && exit.drawn !== undefined) {
-    const missing = await exit.drawn()
-    check(`${ctx}: the hint is rendered (drawn by its mounted footer)`, missing.length === 0, missing.join(' · '))
-    continue
-  }
-  if (exit.kind === 'binding' && exit.hints.length === 0) {
-    note(`${ctx}: no printed hint by design — ${exit.hintExempt ?? 'UNEXPLAINED'}`)
-    check(`${ctx}: a hint exemption carries its reason`, typeof exit.hintExempt === 'string' && exit.hintExempt.length > 20)
-    continue
-  }
-  for (const hint of exit.hints) {
-    const src = read(hint.file)
-    const missing = hint.needles.filter(n => !has(src, n))
-    check(`${ctx}: the hint is rendered (${hint.file})`, missing.length === 0, missing.map(String).join(' · '))
-  }
-}
 
-section('§4 raw-input census — every useInput surface decodes an exit and prints it')
-{
-  const files: string[] = []
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(join(ROOT, dir))) {
-      const rel = `${dir}/${e}`
-      const st = statSync(join(ROOT, rel))
-      if (st.isDirectory()) walk(rel)
-      else if (/\.(ts|tsx)$/.test(e) && !/\.test\./.test(e)) files.push(rel)
+  const bindings = parseBindings(DEFAULT_BINDINGS)
+  const graph = ACTION_GRAPH as Record<string, { contexts: readonly string[] }>
+
+  section('§1 totality — every context the estate names declares its exit')
+  {
+    const named = new Set<string>()
+    for (const c of KEYBINDING_CONTEXTS) named.add(c)
+    for (const block of DEFAULT_BINDINGS) named.add(block.context)
+    for (const meta of Object.values(graph)) for (const c of meta.contexts) named.add(c)
+    const undeclared = [...named].filter(c => !(c in EXIT_TABLE))
+    check('every schema · default-block · graph context is in the exit table', undeclared.length === 0, undeclared.join(', '))
+    const stale = Object.keys(EXIT_TABLE).filter(c => !named.has(c))
+    check('the table names no context the estate has retired', stale.length === 0, stale.join(', '))
+    const exits = Object.values(EXIT_TABLE).filter(e => e.kind === 'binding').length
+    check('the table is populated (binding exits ≥ 12)', exits >= 12, `${exits}`)
+  }
+
+  const exitActions = new Set<string>()
+  for (const e of Object.values(EXIT_TABLE)) if (e.kind === 'binding') exitActions.add(e.action)
+
+  section('§2 registry exits — bound, resolved in the hook\'s own order, unshadowed')
+  for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
+    if (exit.kind !== 'binding') continue
+    const input = exit.input ?? ''
+    const key = exit.key ?? ESCAPE
+    const own = resolveKeyWithChordState(input, key, [ctx, 'Global'], bindings, null)
+    check(
+      `${ctx}: escape resolves to ${exit.action} for [${ctx}, Global]`,
+      own.type === 'match' && own.action === exit.action,
+      JSON.stringify(own),
+    )
+    const afford = actionAffordance(exit.action, ctx, bindings, 'linux')
+    check(
+      `${ctx}: the affordance oracle calls ${exit.action} bound (nothing later unbinds it) — via ${afford.kind === 'unbound' ? '—' : afford.chord}`,
+      afford.kind === 'bound',
+      JSON.stringify(afford),
+    )
+    check(`${ctx}: ${exit.action} exists in the action graph under this context`, ctx in EXIT_TABLE && (graph[exit.action]?.contexts ?? []).includes(ctx), JSON.stringify(graph[exit.action]?.contexts))
+  }
+  {
+    const all = Object.keys(EXIT_TABLE)
+    const wide = resolveKeyWithChordState('', ESCAPE, all, bindings, null)
+    check('escape over EVERY context at once is an exit-class match', wide.type === 'match' && exitActions.has(wide.action), JSON.stringify(wide))
+    const root = resolveKeyWithChordState('d', CTRL_D, ['Global'], bindings, null)
+    check('the root leaves: ctrl+d resolves to app:exit in Global', root.type === 'match' && root.action === 'app:exit', JSON.stringify(root))
+    const blocksWithEscape = new Set(
+      bindings.filter(b => b.chord.length === 1 && b.chord[0]!.key === 'escape' && b.action !== null).map(b => b.context),
+    )
+    const leaning = Object.entries(EXIT_TABLE)
+      .filter(([ctx, e]) => e.kind === 'binding' && !blocksWithEscape.has(ctx))
+      .map(([ctx]) => ctx)
+    check('every registry exit lives in its OWN block (no context leans on a foreign escape row)', leaning.length === 0, leaning.join(', '))
+  }
+
+  section('§3 the printed way out — the consumer that mounts the context renders and honours it')
+  for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
+    if (exit.kind === 'host') {
+      check(`${ctx}: host-owned (${exit.reason})`, statSync(join(ROOT, exit.owner)).isFile())
+      continue
+    }
+    if (exit.kind === 'root') {
+      note(`${ctx}: ${exit.reason}`)
+      continue
+    }
+    if (exit.prove !== undefined) {
+      const results = await exit.prove()
+      for (const r of results) check(r.label, r.ok, r.detail ?? '')
+      continue
+    }
+    if (exit.kind === 'binding') {
+      note(`${ctx}: no printed hint by design — ${exit.hintExempt ?? 'UNEXPLAINED'}`)
+      check(`${ctx}: a hint exemption carries its reason`, typeof exit.hintExempt === 'string' && exit.hintExempt.length > 20)
     }
   }
-  for (const tree of ['src/components', 'src/screens', 'src/commands']) walk(tree)
-  const inputFiles = files.filter(rel => /\buseInput\(/.test(read(rel)))
-  check('the census is populated (≥ 80 raw-input files)', inputFiles.length >= 80, `${inputFiles.length}`)
 
-  const stripComments = (src: string): string =>
-    src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  section('§4 /llmhost — contextual footer hints and dialog exit states')
+  {
+    let emitEvent: ((event: LlmHostEvent) => void) | null = null
+    let askNow: ((plan: LlmHostQuestion) => Promise<string | null>) | null = null
+    let finishRoad: ((result: { ok: boolean; words: string }) => void) | null = null
+    const popupRoad: LlmHostRoad = (ask, emit) => {
+      askNow = ask
+      emitEvent = emit
+      return new Promise(resolve => { finishRoad = resolve })
+    }
+    const req = llmHostPopupRequest(popupRoad)
+    openSettingsPopup(req)
+    const popup = await mountScreen(
+      h(Settings, { request: req, geometry: { width: 90, inner: 86, rows: 16, rowBudget: 10, compact: false, left: 0, top: 0 } }),
+      { columns: 100, rows: 20, contexts: ['Settings'] },
+    )
+    try {
+      await waitFor(() => emitEvent !== null && askNow !== null, 3000)
+      emitEvent!({ title: 'watch', words: 'watching stock', host: { id: 'p1', status: 'WATCHING', price: 1.5, startedAt: new Date().toISOString() } })
+      const watchHint = await waitFor(() => popup.screen().includes('esc closes · watch continues'), 3000)
+      emitEvent!({ title: 'bill', words: 'machine running', host: { id: 'p1', status: 'RUNNING', price: 1.5, startedAt: new Date().toISOString() } })
+      const billingHint = await waitFor(() => popup.screen().includes('esc closes · billing continues'), 3000)
+      check('/llmhost sends its contextual running hint to the popup footer', watchHint && billingHint, `watch=${watchHint} billing=${billingHint} screen=${popup.screen().slice(0, 400)}`)
+      finishRoad?.({ ok: true, words: 'done' })
+    } finally {
+      popup.unmount()
+      closeSettingsPopup()
+    }
 
-  const ROUTE_NEEDLES: RegExp[] = [
-    /(?:key|pressed)\.escape/, /decodeNavKey\(/, /decodeDomNavKey\(/,
-    /useInteractiveList\b/, /useFlatList\b/, /useNavigablePanes\b/, /<NavigablePanes\b/,
-    /onCancel/, /'confirm:no'/, /useExitOnCtrlCD/, /'select:cancel'/,
-    /:dismiss'/, /:close'/, /:exit'/, /\bescape:/, /<Dialog\b/,
-  ]
-  const shellOwned = (src: string): boolean => /<CommandCenter\b/.test(src) && !/captureInput=\{false\}/.test(src)
-  const HINT_NEEDLES: RegExp[] = [
-    /\besc\b/i, /⇧←/, /shift\+←/,
-    /<CommandCenter\b/, /<Dialog\b/, /KeyboardShortcutHint/, /ConfigurableShortcutHint/, /useShortcutDisplay\(/,
-    /\blegend\b/, /\bfooter\b/, /footerHints/, /modelPickerFooter\(/,
-  ]
-  const ROUTE_ROSTER: Record<string, string> = {
-    'src/components/BaseTextInput.tsx': 'a text-field primitive; the hosting card or shell owns the exit',
-    'src/components/ScrollKeybindingHandler.tsx': 'the scroll/selection handler — renders nothing',
-    'src/components/SurfaceExitChord.tsx': 'a chord handler — renders nothing',
-    'src/components/concourse/SessionMirror.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
-    'src/components/prompts-panel/CrewChatPanel.tsx': 'the Workbench crew-chat section — its own keys switch sections; the board view it hosts decodes esc and hands it to the panel (onBack closes the panel)',
-    'src/components/Settings/Usage.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
-    'src/components/Settings/usage/compact.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
-    'src/components/Settings/usage/sections.tsx': 'the usage popup body (its key opens the other accounts) — the settings shell owns esc and the click outside',
-    'src/components/prompts-panel/PromptsPanel.tsx': 'the panel’s own key adds a prompt; the panes that decode esc are mounted by src/components/prompts-panel/panelParts.tsx',
-    'src/components/concourse/screen/useConcourseKeys.ts': 'the board’s key ladder; esc is decoded by the rungs it calls in src/components/concourse/screen/keys/ (escapeKeys.ts, filterKeys.ts, modalKeys.ts)',
-    'src/components/consoleOAuth/openaiLegs.tsx': 'the key leg decodes esc itself as k.escape and goes back — k is not a name the needles know',
-    'src/components/PopupForm.tsx': 'the popup body frame (its keys page the window) — the settings shell owns esc and the click outside',
-    'src/components/ExitHandoff.tsx': 'the exit handoff notice — the session is already leaving; its one key, ctrl-c, skips the wait for the note; there is no surface to exit',
-  }
-  const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
-    'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
-    'src/components/PromptInput/useComposerRawKeys.ts': { reason: 'the composer’s raw key ladder; the composer’s footer prints the way out', witness: 'src/components/PromptInput/PromptInputFooterLeftSide.tsx' },
-    'src/components/ScrollKeybindingHandler.tsx': { reason: 'renders nothing' },
-    'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },
-    'src/components/concourse/SessionMirror.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/screen/modals.tsx' },
-    'src/components/concourse/screen/useConcourseKeys.ts': { reason: 'the board’s key ladder; the board’s key atlas prints the way out', witness: 'src/components/concourse/screen/modals.tsx' },
-    'src/components/Settings/config/useConfigKeys.ts': { reason: 'the config popup’s key ladder; the popup’s layout carries the footer words', witness: 'src/components/Settings/config/configLayout.ts' },
-    'src/components/Settings/usage/compact.tsx': { reason: 'a usage popup body; the usage popup prints the way out', witness: 'src/components/Settings/Usage.tsx' },
-    'src/components/Settings/usage/sections.tsx': { reason: 'a usage popup section; the usage popup prints the way out', witness: 'src/components/Settings/Usage.tsx' },
-    'src/components/prompts-panel/PromptsPanel.tsx': { reason: 'the panel’s panes print the footer', witness: 'src/components/prompts-panel/panelParts.tsx' },
-    'src/components/consoleOAuth/enterKeys.tsx': { reason: 'two key listeners that render nothing; the sign-in flow that mounts them prints the way out', witness: 'src/components/ConsoleOAuthFlow.tsx' },
-    'src/components/BootAgentsScreen.tsx': { reason: 'the face’s legend words stand with the face', witness: 'src/components/bootAgents/face.ts' },
-    'src/components/Feedback.tsx': { reason: 'the feedback view prints the way out', witness: 'src/components/feedback/feedbackView.tsx' },
-    'src/components/BootLoginsScreen.tsx': { reason: 'the menu model carries the legend', witness: 'src/components/bootLogins/menuModel.ts' },
-    'src/components/BootSettingsScreen.tsx': { reason: 'the menu model carries the legend', witness: 'src/components/bootSettings/menuModel.ts' },
-    'src/components/CustomSelect/use-multi-select-state.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
-    'src/components/CustomSelect/use-select-input.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
-    'src/components/CustomSelect/popup-list.tsx': { reason: 'the popup list engine (page keys and the viewport markers); the hosting popup prints its footer', witness: 'src/components/mercury-ui/components.tsx' },
-    'src/components/PopupForm.tsx': { reason: 'the settings shell prints the request\'s hint; its words come from the popup owner', witness: 'src/utils/cockpit/settingsPopup.ts' },
-    'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
-    'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
-    'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },
-    'src/components/ExitHandoff.tsx': { reason: 'prints the one notice it has — "writing the handoff for the next session… (ctrl-c skips)" — through the constant the mneme module owns; ctrl-c is not a spelling the needles know' },
+    let emitDialog: ((event: LlmHostEvent) => void) | null = null
+    let askDialog: ((plan: LlmHostQuestion) => Promise<string | null>) | null = null
+    let finishDialog: ((result: { ok: boolean; words: string }) => void) | null = null
+    const dialogRoad: LlmHostRoad = (ask, emit) => {
+      askDialog = ask
+      emitDialog = emit
+      return new Promise(resolve => { finishDialog = resolve })
+    }
+    const dialog = await mountScreen(
+      h(LlmHostDialog, { width: 80, rowBudget: 12, road: dialogRoad }),
+      { columns: 90, rows: 16 },
+    )
+    try {
+      await waitFor(() => emitDialog !== null && askDialog !== null, 3000)
+      emitDialog!({ title: 'step', words: 'working' })
+      const runningShown = await waitFor(() => dialog.lines().some(line => line.trim() === '…'), 3000)
+      const pendingAnswer = askDialog!({ step: 'address', title: 'Server address', found: 'found', willRun: 'will run' })
+      const inputShown = await waitFor(() => dialog.screen().includes('↵ continue · esc closes'), 3000)
+      dialog.push(KEY.enter)
+      await pendingAnswer
+      finishDialog!({ ok: true, words: 'all done' })
+      const finishedShown = await waitFor(() => dialog.screen().includes('all done') && dialog.screen().includes('esc closes'), 3000)
+      check('/llmhost renders the running, input and finished exit hints', runningShown && inputShown && finishedShown, `running=${runningShown} input=${inputShown} finished=${finishedShown} screen=${dialog.screen().slice(0, 400)}`)
+    } finally {
+      dialog.unmount()
+    }
   }
 
-  const DRAWN_BY_EXIT: Record<string, string> = {
-    'src/screens/chat/useChatSearch.tsx': 'Transcript',
+  section('§5 the session switcher keeps its exit live while the swap lands (the dead-esc trap, closed)')
+  {
+    let closeAllCalls = 0
+    let resumeCalls: Array<{ id: string; entrypoint: string }> = []
+    let resolveResume: (() => void) | null = null
+    const switcher = await mountScreen(
+      h(SessionManagerView, {
+        onClose: () => {},
+        onCloseAll: () => { closeAllCalls++ },
+        onNewSession: () => {},
+        onResume: (sessionId, _log, entrypoint) => {
+          resumeCalls.push({ id: sessionId, entrypoint })
+          return new Promise<void>(resolve => { resolveResume = resolve })
+        },
+      }),
+      { columns: 120, rows: 24 },
+    )
+    try {
+      const listed = await waitFor(() => switcher.screen().includes('fixture session row'), 3000)
+      switcher.push(KEY.enter)
+      const confirming = await waitFor(() => switcher.screen().includes('↵ yes, switch · esc / n cancel'), 3000)
+      switcher.push(KEY.enter)
+      const swapStarted = await waitFor(() => resumeCalls.length === 1, 3000)
+      const swappingFooter = await waitFor(() => switcher.screen().includes('switching — the swap keeps going · esc back to the chat'), 3000)
+      check(
+        'the switch calls onResume directly without reading the transcript before the hop',
+        listed && confirming && swapStarted && resumeCalls[0]!.id === fixtureSessionId && resumeCalls[0]!.entrypoint === 'slash_command_picker',
+        JSON.stringify({ listed, confirming, resumeCalls }),
+      )
+      check('the swapping footer names the leave', swappingFooter, switcher.screen().slice(0, 400))
+      switcher.push(KEY.esc)
+      const leftOnEsc = await waitFor(() => closeAllCalls === 1, 3000)
+      const confirmDisarmed = await waitFor(() => switcher.screen().includes('fixture session row') && !switcher.screen().includes('↵ yes, switch'), 3000)
+      check('esc during the swap stays live and leaves the panel while the swap keeps going', leftOnEsc, `closeAllCalls=${closeAllCalls}`)
+      check('a cancelled switch disarms the confirm it came from', confirmDisarmed, switcher.screen().slice(0, 400))
+      resolveResume?.()
+      await settle(100)
+      check('a generation fence drops the late land', closeAllCalls === 1, `closeAllCalls=${closeAllCalls}`)
+    } finally {
+      switcher.unmount()
+    }
+
+    check('the phase footer passes the shell’s composer untouched',
+      composeFooterHint('switching — the swap keeps going · esc back to the chat', { closeKeys: 'esc-arrow', captureInput: false }) === 'switching — the swap keeps going · esc back to the chat')
+    check('the deleting footer under closeKeys none gains no appended esc',
+      composeFooterHint('deleting the named set…', { closeKeys: 'none', captureInput: false }) === 'deleting the named set…' &&
+      packFooter(composeFooterHint('deleting the named set…', { closeKeys: 'none', captureInput: false }), 60) === 'deleting the named set…')
+    check('closeKeys none appends nothing even to a bare dir footer',
+      composeFooterHint('orchard-src', { closeKeys: 'none', captureInput: true }) === 'orchard-src')
+
+    let blockedCloses = 0
+    const lockedShell = await mountScreen(
+      h(CommandCenter, { view: 'sessions', footer: 'deleting the named set…', closeKeys: 'none', captureInput: true, onClose: () => { blockedCloses++ } }, h(Text, null, 'working')),
+      { columns: 100, rows: 12, mouseTracking: true },
+    )
+    let allowedCloses = 0
+    const liveShell = await mountScreen(
+      h(CommandCenter, { view: 'sessions', footer: 'done', closeKeys: 'esc-arrow', captureInput: true, onClose: () => { allowedCloses++ } }, h(Text, null, 'ready')),
+      { columns: 100, rows: 12, mouseTracking: true },
+    )
+    try {
+      const lockedShown = await waitFor(() => lockedShell.screen().includes('deleting the named set…'), 3000)
+      const lockedFooterRow = lockedShell.lines().findIndex(line => line.includes('deleting the named set…'))
+      lockedShell.push(KEY.esc)
+      lockedShell.push(KEY.left)
+      if (lockedFooterRow >= 0) clickAt(lockedShell, 6, lockedFooterRow + 1)
+      await settle(100)
+      const liveShown = await waitFor(() => liveShell.screen().includes('esc / ← close'), 3000)
+      const liveFooterRow = liveShell.lines().findIndex(line => line.includes('esc / ← close'))
+      if (liveFooterRow >= 0) clickAt(liveShell, 6, liveFooterRow + 1)
+      const clickedClosed = await waitFor(() => allowedCloses === 1, 3000)
+      liveShell.push(KEY.esc)
+      const escClosed = await waitFor(() => allowedCloses === 2, 3000)
+      liveShell.push(KEY.left)
+      const leftClosed = await waitFor(() => allowedCloses === 3, 3000)
+      check(
+        'the shell’s esc/← listener and its footer click target stand down under none',
+        lockedShown && blockedCloses === 0 && liveShown && clickedClosed && escClosed && leftClosed,
+        JSON.stringify({ lockedShown, blockedCloses, liveShown, allowedCloses, lockedFooterRow, liveFooterRow }),
+      )
+    } finally {
+      lockedShell.unmount()
+      liveShell.unmount()
+    }
   }
-
-  const routeMissing: string[] = []
-  const hintMissing: string[] = []
-  const spelled = new Set<string>()
-  for (const rel of inputFiles) {
-    const src = read(rel)
-    const routed = ROUTE_NEEDLES.some(n => n.test(src)) || shellOwned(src)
-    if (!routed && !(rel in ROUTE_ROSTER)) routeMissing.push(rel)
-    const code = stripComments(src)
-    const hinted = HINT_NEEDLES.some(n => n.test(code))
-    if (hinted) spelled.add(rel)
-    if (!hinted && !(rel in HINT_ROSTER) && !(rel in DRAWN_BY_EXIT)) hintMissing.push(rel)
-  }
-  check('every raw-input surface decodes an exit (or is a rostered non-surface)', routeMissing.length === 0, routeMissing.join(' · '))
-  check('every raw-input surface prints its way out (or is a rostered non-surface, or its exit row reads the hint off its mounted footer)', hintMissing.length === 0, hintMissing.join(' · '))
-  const staleDrawn = Object.entries(DRAWN_BY_EXIT)
-    .filter(([rel, ctx]) => {
-      const exit = EXIT_TABLE[ctx]
-      return !inputFiles.includes(rel) || spelled.has(rel) || exit === undefined || exit.kind !== 'binding' || exit.drawn === undefined
-    })
-    .map(([rel, ctx]) => `${rel} → ${ctx}`)
-  check('every surface whose hint is read off its mounted footer is a raw-input surface, and its exit row draws it (no stale row)', staleDrawn.length === 0, staleDrawn.join(' · '))
-  const staleRoute = Object.keys(ROUTE_ROSTER).filter(rel => !inputFiles.includes(rel) || ROUTE_NEEDLES.some(n => n.test(read(rel))) || shellOwned(read(rel)))
-  check('the route roster is closed and current (no stale row)', staleRoute.length === 0, staleRoute.join(' · '))
-  const staleHint = Object.keys(HINT_ROSTER).filter(rel => !inputFiles.includes(rel) || HINT_NEEDLES.some(n => n.test(stripComments(read(rel)))))
-  check('the hint roster is closed and current (no stale row)', staleHint.length === 0, staleHint.join(' · '))
-  const blindWitness = Object.entries(HINT_ROSTER)
-    .filter(([, row]) => row.witness !== undefined && !HINT_NEEDLES.some(n => n.test(stripComments(read(row.witness!)))))
-    .map(([rel, row]) => `${rel} → ${row.witness}`)
-  check('every roster witness prints a hint itself', blindWitness.length === 0, blindWitness.join(' · '))
-  const llmHost = read('src/components/LlmHostDialog.tsx')
-  const llmHostWords = read('src/commands/llmhost/words.ts')
-  check('/llmhost sends its contextual running hint to the popup footer', llmHost.includes('esc closes · billing continues') && llmHost.includes('esc closes · watch continues') && llmHost.includes('onHint?.(hint)') && read('src/commands/llmhost/llmhost.tsx').includes('onHint={frame.setHint}'))
-  check('/llmhost renders the imported running, input and finished exit hints', llmHost.includes("import { LLM_HOST_SEARCH_MIN_CHARS, LLM_HOST_SEARCH_SETTLE_MS, LLM_HOST_WORDS as words } from '../commands/llmhost/words.js'") && ['words.running', '{words.finished}', 'words.choose : words.input'].every(text => llmHost.includes(text)) && ["running: '…'", "input: '↵ continue · esc closes'", "finished: 'esc closes'"].every(text => llmHostWords.includes(text)))
-}
-
-section('§5 the session switcher keeps its exit live while the swap lands (the dead-esc trap, closed)')
-{
-  const view = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
-  check('the switch is a named phase, never a boolean that gates the handler off', view.includes("useState<'swapping' | null>(null)") && !view.includes('isActive: !switching'))
-  check('esc during the swap leaves the panel while the swap keeps going', view.includes('if (key.escape) leaveSwitch()') && view.includes("if (phase === 'swapping') onCloseAll()"))
-  const fences = (view.match(/if \(gen !== switchGenRef\.current\) return/g) ?? []).length
-  check(`a generation fence drops the late land (1 fence, found ${fences})`, fences === 1)
-  check('the switch reads no transcript before the hop (no whole-file load, no loading phase)', !view.includes('fillSessionListing') && !view.includes("'loading'") && view.includes("await onResume(sessionId, log, 'slash_command_picker')"))
-  check('the swapping footer names the leave', view.includes('switching — the swap keeps going · esc back to the chat'))
-  check('a cancelled switch disarms the confirm it came from', /switchGenRef\.current\+\+\s*\n\s*setSwitching\(null\)\s*\n\s*setConfirmingKey\(null\)/.test(view))
-  check('the phase footer passes the shell’s composer untouched',
-    composeFooterHint('switching — the swap keeps going · esc back to the chat', { closeKeys: 'esc-arrow', captureInput: false }) === 'switching — the swap keeps going · esc back to the chat')
-  check('the deleting footer under closeKeys none gains no appended esc',
-    composeFooterHint('deleting the named set…', { closeKeys: 'none', captureInput: false }) === 'deleting the named set…' &&
-    packFooter(composeFooterHint('deleting the named set…', { closeKeys: 'none', captureInput: false }), 60) === 'deleting the named set…')
-  check('closeKeys none appends nothing even to a bare dir footer',
-    composeFooterHint('orchard-src', { closeKeys: 'none', captureInput: true }) === 'orchard-src')
-  const shell = read('src/components/mercury-ui/components.tsx')
-  check('the shell’s esc/← listener and its footer click target stand down under none',
-    shell.includes("const closable = closeKeys !== 'none'") &&
-    shell.includes('{ isActive: captureInput && !embedded && closable }') &&
-    shell.includes('onActivate={closable ? onClose : undefined}'))
-}
-
-section('§6 notes for other owners')
-{
-  const hs = read('src/components/PromptInput/HistorySearchInput.tsx')
-  if (!/\besc\b/i.test(hs)) note('HistorySearchInput prints no exit hint (esc accepts · ctrl+c cancels both work) — the file is owned by another lane; recorded, not failed')
+} finally {
+  await releaseScratchHome(HOME)
 }
 
 console.log(failures === 0 ? '\nprove-exit-reachability: EVERY WAY OUT STANDS' : `\nprove-exit-reachability: ${failures} FAILURE(S)`)
