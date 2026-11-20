@@ -4,6 +4,34 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
+
+const ROW = {
+  assets: ['scripts/engine-connector/fixtures/crew-tokens/*.txt'],
+  generator: 'bun scripts/engine-connector/prove-crew-token-rows.ts --write',
+  check: 'bun scripts/engine-connector/prove-crew-token-rows.ts --stills',
+  sources: [
+    'scripts/engine-connector/prove-crew-token-rows.ts',
+    'src/components/mercury-ui/screens/CrewView.tsx',
+    'src/components/AgentProgressLine.tsx',
+    'src/tools/AgentTool/UI.tsx',
+    'src/services/engine-connector/crewFacts.ts',
+    'src/tools/AgentTool/AgentTool.tsx',
+    'src/utils/config/globalConfig.ts',
+    'src/utils/staticRender.tsx',
+    'src/tasks/LocalAgentTask/LocalAgentTask.tsx',
+    'src/fabric/transcriptDecode.ts',
+    'src/utils/task/workRoster.ts',
+    'src/services/engine-connector/seatWire.ts',
+    'src/state/AppState.tsx',
+    'src/ink/components/TerminalSizeContext.tsx',
+    'src/services/engine-connector/focusedConnector.ts',
+    'src/services/engine-connector/noSessionConnector.ts',
+    'src/fabric/entryCodec.ts',
+    'src/fabric/ordinal.ts',
+  ],
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const scratch = mkdtempSync(join(tmpdir(), 'crew-token-rows-'))
@@ -116,10 +144,7 @@ const cachedOnlyTracker = createProgressTracker()
 updateProgressFromMessage(cachedOnlyTracker, { type: 'assistant', message: { id: 'cached-only', model: 'fixture/crew', content: [], usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 500 } } } as never)
 const cachedOnly = crew.crewAgentFactsOf(projectWorkRoster({ cached: { ...task, id: 'cached', progress: getProgressUpdate(cachedOnlyTracker) } } as never)[0]!, null)!
 check('a measured cache-only response is not mistaken for missing usage', cachedOnly.tokens?.context === 500 && cachedOnly.tokens?.cached === 500 && cachedOnly.tokens?.total === 0, JSON.stringify(cachedOnly.tokens))
-if (writing) {
-  const { registerGeneratedAsset } = await import('../lib/generated-assets-map.mjs')
-  registerGeneratedAsset({ assets: ['scripts/engine-connector/fixtures/crew-tokens/*.txt'], generator: 'bun scripts/engine-connector/prove-crew-token-rows.ts --write', check: 'bun scripts/engine-connector/prove-crew-token-rows.ts --stills', sources: ['scripts/engine-connector/prove-crew-token-rows.ts', 'src/components/mercury-ui/screens/CrewView.tsx', 'src/components/AgentProgressLine.tsx', 'src/tools/AgentTool/UI.tsx', 'src/services/engine-connector/crewFacts.ts'] })
-}
+if (writing) registerGeneratedAsset(ROW)
 _resetFocusedSessionConnectorForTesting()
 rmSync(scratch, { recursive: true, force: true })
 console.log(`crew-token-rows: ${failures} failures`)

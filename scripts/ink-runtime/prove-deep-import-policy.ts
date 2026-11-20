@@ -10,7 +10,7 @@ const ROW = {
   assets: 'scripts/ink-runtime/deep-import-inventory.json',
   generator: 'bun scripts/ink-runtime/prove-deep-import-policy.ts --record',
   check: 'bun scripts/ink-runtime/prove-deep-import-policy.ts',
-  sources: 'src/**/*.{ts,tsx} scripts/**/*.{ts,tsx}',
+  sources: 'src/!(ink|ink/**).{ts,tsx,mts,mjs}',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
