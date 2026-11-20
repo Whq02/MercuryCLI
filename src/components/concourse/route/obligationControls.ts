@@ -55,7 +55,7 @@ export function answerPermission({ noteControl, refresh }: RouteControls, reques
           by: 'operator',
           requestId,
           allow,
-        } as never,
+        },
         { timeoutMs: 15_000 },
       )) as { ok?: boolean; outcome?: string; detail?: string }
       if (reply.ok === true && reply.outcome === 'applied') {
