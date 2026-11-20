@@ -1,17 +1,11 @@
-import shippedManifests from '../../../assets/host/weights.json' with { type: 'json' }
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { z } from 'zod/v4'
-import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { HostRecipe, HostWeightManifest as WeightManifest } from './recipes.js'
 import { hostWeightManifestSchema } from './recipesFile.js'
 import type { HostRecord } from './store.js'
 import { patchHostRecord, removeHostRecord } from './store.js'
 import { hostNotice } from './notices.js'
-import { fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, readKeptVolume, volumeModel, volumePrice, writeKeptVolume } from './volumes.js'
-import { bankFolder, bankModelPath } from './bank.js'
-import { bankManifest, bytesMatchRecipe, manifestBytes, type BankManifest } from './bankManifest.js'
+import { fullCheckMinutes, keptDiskPrice, readKeptVolume, volumePrice, writeKeptVolume } from './volumes.js'
+import { bankWeightManifest, resolvedWeightManifest, shippedWeightManifest } from './bank.js'
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
 import { RunpodHttpError } from './runpod.js'
 import { HostTerminationUnconfirmed, hostJobReadOnly, type HostReadOnly } from './retry.js'
@@ -20,50 +14,11 @@ import type { HostVendor } from './vendors/vendor.js'
 import { downloadFailure, downloadWatchScript, keptDownloadMinutes, keptRunMs, type DownloadWatchOptions } from './download.js'
 import { shQuote as quote } from './boxExecution.js'
 export { keptDownloadMinutes, keptStallWords } from './download.js'
+export { resolvedWeightManifest } from './bank.js'
 export class HostPreparationCleanupFailed extends Error {}
 interface WeightScriptOptions extends DownloadWatchOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string }
-const manifestsSchema = z.array(z.object({ model: z.string(), include: z.string(), revision: z.string(), files: z.array(z.object({ path: z.string(), size: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), git: z.string().regex(/^[a-f0-9]{40}$/).optional() })) }))
 const KEPT_MISMATCH = 'Kept weights failed pinned SHA256/sizes verification'
 export const keptWeightsPath = (recipe: HostRecipe): string => '/workspace/mercury-weights/' + createHash('sha256').update(recipe.model + '\n' + (recipe.include ?? '')).digest('hex').slice(0, 24)
-function weightManifests(): WeightManifest[] {
-  const localPath = flagEnv('MERCURY_HOST_WEIGHTS_FILE')?.trim()
-  if (localPath) return manifestsSchema.parse(JSON.parse(readFileSync(resolve(localPath), 'utf8')))
-  return shippedManifests
-}
-const manifestFits = (row: WeightManifest, recipe: HostRecipe): boolean => row.model === recipe.model && row.include === (recipe.include ?? '') && bytesMatchRecipe(manifestBytes(row), recipe.weightsGb)
-const shippedWeightManifest = (recipe: HostRecipe): WeightManifest | undefined => weightManifests().find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
-function keptVolumeManifest(recipe: HostRecipe): WeightManifest | undefined {
-  for (const volume of keptVolumes()) {
-    if (volume.state === 'gone' || !matchesVolume(volume, recipe)) continue
-    const row = hostWeightManifestSchema.safeParse(volume.recipeRow?.weightManifest)
-    if (row.success && manifestFits(row.data, recipe)) return row.data
-  }
-  return undefined
-}
-const resolvingBank = new Set<string>()
-function bankWeightManifest(recipe: HostRecipe): BankManifest {
-  const key = volumeModel(recipe)
-  if (resolvingBank.has(key)) return { reason: 'the bank folder is still being read' }
-  resolvingBank.add(key)
-  try {
-    const folder = bankFolder()
-    if (!folder) return { reason: 'no bank folder on this computer · b banks the weights' }
-    return bankManifest(recipe, bankModelPath(folder, recipe))
-  } catch (error) {
-    return { reason: 'the bank cannot be read: ' + (error instanceof Error ? error.message : String(error)) }
-  } finally { resolvingBank.delete(key) }
-}
-type WeightManifestSource = 'recipe' | 'shipped' | 'volume' | 'bank'
-export function resolvedWeightManifest(recipe: HostRecipe): { manifest: WeightManifest; source: WeightManifestSource } | undefined {
-  const embedded = hostWeightManifestSchema.safeParse(recipe.weightManifest)
-  if (embedded.success) return manifestFits(embedded.data, recipe) ? { manifest: embedded.data, source: 'recipe' } : undefined
-  const shipped = shippedWeightManifest(recipe)
-  if (shipped) return manifestFits(shipped, recipe) ? { manifest: shipped, source: 'shipped' } : undefined
-  const volume = keptVolumeManifest(recipe)
-  if (volume) return { manifest: volume, source: 'volume' }
-  const bank = bankWeightManifest(recipe).manifest
-  return bank ? { manifest: bank, source: 'bank' } : undefined
-}
 export const pinnedWeightManifest = (recipe: HostRecipe): WeightManifest | undefined => resolvedWeightManifest(recipe)?.manifest
 export function weightManifestWords(recipe: HostRecipe): string {
   if (hostWeightManifestSchema.safeParse(recipe.weightManifest).success) return 'the recipe’s own file manifest names another model or size'
