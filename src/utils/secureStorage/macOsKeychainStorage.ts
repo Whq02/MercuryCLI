@@ -123,7 +123,7 @@ function readServiceOutcomeAsync(serviceName: string): Promise<KeychainReadOutco
     execFile(
       'security',
       ['find-generic-password', '-a', getUsername(), '-w', '-s', serviceName],
-      { windowsHide: true, timeout: 10_000, env: { ...subprocessEnv() } },
+      { windowsHide: true, env: { ...subprocessEnv() } },
       (error, stdout, stderr) => {
         if (error) {
           const rawCode = (error as { code?: unknown }).code
@@ -138,9 +138,7 @@ function readServiceOutcomeAsync(serviceName: string): Promise<KeychainReadOutco
                 ? 'KEYCHAIN_LOCKED'
                 : typeof rawCode === 'number'
                   ? `KEYCHAIN_EXIT_${rawCode}`
-                  : error.killed
-                    ? 'ETIMEDOUT'
-                    : 'KEYCHAIN_ERROR'
+                  : 'KEYCHAIN_ERROR'
           const stderrText = (stderr ?? '').trim().slice(0, 200)
           const message =
             stderrText !== '' ? stderrText : rawCode === 36 ? 'keychain is locked' : error.message
