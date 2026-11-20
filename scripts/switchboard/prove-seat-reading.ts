@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -170,6 +170,27 @@ const COST = cap.SEAT_COST_BYTES[cap.SEAT_COST_KIND]
   check('R5 the CLI shave takes one seat', base - shaved === 1, `${base} → ${shaved}`)
   const probe = await cap.probeCapacity()
   check('R5 the live probe carries the available figure (never a bare free)', probe.availableMemBytes > 0 && probe.availableMemBytes <= probe.totalMemBytes && Number.isInteger(probe.otherAgentClis), JSON.stringify({ ...probe }))
+}
+
+if (process.platform !== 'win32') {
+  const fake = join(process.env.MERCURY_CONFIG_DIR!, 'fake-ps')
+  mkdirSync(fake)
+  const path = process.env.PATH
+  process.env.PATH = `${fake}:${path}`
+  try {
+    writeFileSync(join(fake, 'ps'), '#!/bin/sh\nexec sleep 8\n', { mode: 0o755 })
+    const startedAt = Date.now()
+    const slow = await cap.probeCapacity()
+    check('R6 a process list with no answer within its 3 s limit counts no other agent CLI: no seat is held back for a slow machine', slow.otherAgentClis === 0 && Date.now() - startedAt >= 2_500 && cap.recommendSeats({ ...slow, cores: 8, availableMemBytes: COST * 10 }) === cap.machineSeatReading(8, COST * 10), `${JSON.stringify({ ...slow })} after ${Date.now() - startedAt} ms`)
+    writeFileSync(join(fake, 'ps'), '#!/bin/sh\necho "ps: cannot read the process table" >&2\nexit 1\n', { mode: 0o755 })
+    const failed = await cap.probeCapacity()
+    check('R6 a process list that ends with an error counts no other agent CLI', failed.otherAgentClis === 0, JSON.stringify({ ...failed }))
+    writeFileSync(join(fake, 'ps'), '#!/bin/sh\nprintf "101 /usr/local/bin/codex\\n102 /usr/local/bin/claude\\n103 /bin/zsh\\n"\n', { mode: 0o755 })
+    const read = await cap.probeCapacity()
+    check('R6 control: a process list that was read still counts the other agent CLIs it names', read.otherAgentClis === 2, JSON.stringify({ ...read }))
+  } finally {
+    process.env.PATH = path
+  }
 }
 
 console.log(failures === 0 ? '\nprove-seat-reading: ALL LAWS HOLD' : `\nprove-seat-reading: ${failures} FAILURE(S)`)
