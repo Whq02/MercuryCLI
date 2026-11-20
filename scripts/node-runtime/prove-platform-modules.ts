@@ -1105,6 +1105,7 @@ import {
   dirFsyncErrorIsFatal,
   envUserHomeDir,
   exclusiveCreateNoFollowFlags,
+  heldFileRetriesApply,
   heldFileRetryDelayMs,
   isDirAbsentOnRmdirError,
   isOwnedPrivateEntry,
@@ -1537,6 +1538,22 @@ const FILES: Row[] = [
       linux: ['c:/Users/Alice', 'C:\\', '\\\\server\\share\\', '/Users/alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
       'win32 by process.platform alone': ['C:\\Users\\Alice', 'C:\\', '\\\\server\\share\\', '\\Users\\alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
       'win32 by getPlatform() alone': ['c:/Users/Alice', 'C:\\', '\\\\server\\share\\', '/Users/alice', '/', '', 'C:\\Users\\Alice', '/Users/alice'],
+    },
+  },
+  {
+    name: 'files · heldFileRetriesApply',
+    answers: () => [
+      heldFileRetriesApply(),
+      heldFileRetriesApply('win32'),
+      heldFileRetriesApply('darwin'),
+      heldFileRetriesApply('linux'),
+    ],
+    recorded: {
+      win32: [true, true, false, false],
+      darwin: [false, true, false, false],
+      linux: [false, true, false, false],
+      'win32 by process.platform alone': [true, true, false, false],
+      'win32 by getPlatform() alone': [false, true, false, false],
     },
   },
 ]

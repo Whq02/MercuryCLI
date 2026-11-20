@@ -40,6 +40,8 @@ import { sleep } from '../../utils/sleep.js'
 import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { heldFileRetriesApply } from '../../utils/platform/files.js'
+import { childGetsOwnProcessGroup, processTreeEndMethod } from '../../utils/platform/processes.js'
 import { sleepSync } from '../../utils/timers.js'
 
 const treeScratchDirs = new Set<string>()
@@ -60,10 +62,10 @@ function removeTreeScratch(dir: string): boolean {
 }
 
 function sweepTreeScratch(): void {
-  const windows = process.platform === 'win32'
+  const method = processTreeEndMethod()
   for (const child of treeScratchGits) {
     if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) continue
-    if (windows) void endProcessTree(child, 'SIGKILL')
+    if (method === 'win32-taskkill') void endProcessTree(child, 'SIGKILL')
     else strikeProcessGroupNow(child)
   }
   const giveUpAt = Date.now() + TREE_SCRATCH_RELEASE_MS
@@ -106,18 +108,18 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
   const run = async (args: string[]): Promise<string | null> => {
     const argv = await gitArgsAsync(args, cwdDir)
     return new Promise(resolvePromise => {
-      const windows = process.platform === 'win32'
+      const ownGroup = childGetsOwnProcessGroup()
       const child = execFile(
         'git',
         argv,
-        { windowsHide: true, cwd: cwdDir, env, ...(windows ? {} : { detached: true, timeout: 15_000, ...(signal ? { signal } : {}) }) },
+        { windowsHide: true, cwd: cwdDir, env, ...(ownGroup ? { detached: true, timeout: 15_000, ...(signal ? { signal } : {}) } : {}) },
         (err, stdout) => {
           treeScratchGits.delete(child)
           resolvePromise(err ? null : stdout.trim())
         },
       )
       treeScratchGits.add(child)
-      if (windows) void settleChildRun(child, { timeoutMs: 15_000, ...(signal ? { signal } : {}) })
+      if (!ownGroup) void settleChildRun(child, { timeoutMs: 15_000, ...(signal ? { signal } : {}) })
     })
   }
   try {
@@ -130,7 +132,7 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
     passedOver(error)
     return null
   } finally {
-    if (!removeTreeScratch(idxDir) && process.platform === 'win32') {
+    if (!removeTreeScratch(idxDir) && heldFileRetriesApply()) {
       const giveUpAt = Date.now() + TREE_SCRATCH_RELEASE_MS
       while (treeScratchDirs.has(idxDir) && Date.now() < giveUpAt) {
         await sleep(TREE_SCRATCH_RETRY_MS)
