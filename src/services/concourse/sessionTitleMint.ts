@@ -72,8 +72,12 @@ export function transcriptHeadFacts(rec: { sessionId: string; workspaceId: strin
       if (assistantTurns >= 2 && parts.length >= 3) break
     }
     return { assistantTurns, description: parts.join(String.fromCharCode(10)).slice(0, 1000) }
-  } catch {
-    return { assistantTurns: 0, description: '' }
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return { assistantTurns: 0, description: '' }
+    }
+    throw error
   }
 }
 
@@ -117,7 +121,13 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
           const last = attempted.get(rec.sessionId)
           if (last !== undefined && Date.now() - last < RETRY_MS) continue
           if (!shouldMintTitle(rec, Number.POSITIVE_INFINITY)) continue
-          const facts = transcriptHeadFacts(rec)
+          let facts: HeadFacts
+          try {
+            facts = transcriptHeadFacts(rec)
+          } catch (e) {
+            logForDebugging(`[session-title] transcript read failed for ${rec.sessionId}: ${e}`)
+            continue
+          }
           if (!shouldMintTitle(rec, facts.assistantTurns)) continue
           if (facts.description.trim().length === 0) continue
           attempted.set(rec.sessionId, Date.now())
