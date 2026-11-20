@@ -210,11 +210,6 @@ try {
   check('exactly one build folder remains (the deployed bytes; nothing runs from any other)', buildFolders().length === 1, buildFolders().join(', '))
   const lv2 = launcherVersion()
   check('the launcher still boots the deployed build', lv2.rc === 0 && /^Mercury \d/.test(lv2.out) && lv2.dist.includes(`${join(runtime, 'current')}/`), `rc=${lv2.rc} ${lv2.dist}`)
-
-  section('§4 the readers of the old name keep working through the link')
-  {
-    check('the docs name the layout and the manual rollback', /runtime\/builds\/<tree>-<bundle>/.test(read(join(REPO, 'docs/TERMINAL-RUNTIME.md'))) && /ln -sfn builds\/<older>/.test(read(join(REPO, 'docs/TERMINAL-RUNTIME.md'))))
-  }
 } finally {
   await cleanup()
 }

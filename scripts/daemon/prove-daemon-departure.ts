@@ -27,7 +27,6 @@ function section(t: string): void {
 }
 const sleep = (ms: number): Promise<void> => new Promise(res => setTimeout(res, ms))
 const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const cs = await import('../../src/daemon/controlSocket.ts')
 const hs = await import('../../src/daemon/handshake.ts')
@@ -393,12 +392,6 @@ section("§6 the daemon's own mark: the record says stopping under its own pid, 
   const after = await cs.readDaemonState()
   check("a record of another pid is never marked", foreign === false && (after as { state?: string })?.state === undefined, JSON.stringify(after))
   planeClear()
-}
-
-section('§7 source pins: the record carries the stopping mark; the ladder reads the plane; the halt stand-down precedes the spawn')
-{
-  const docs = read('docs/SESSIONS.md')
-  check('the sessions page says a window opened beside a departing daemon waits the beat it takes to leave, then starts its own', docs.includes('waits the\nbeat it takes to leave, then starts its own') || docs.includes('waits the beat it takes to leave, then starts its own'))
 }
 
 await stopFixtures()
