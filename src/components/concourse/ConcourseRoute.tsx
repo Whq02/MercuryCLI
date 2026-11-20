@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { usePublish } from '../../hooks/effects.js';
 import { armFaceDoorDeepLink } from '../../substrate/splashHandover.js';
 import {
   chatOnlyBoot,
@@ -78,7 +79,7 @@ function LiveConcourse(): React.ReactNode {
   const snapshotRef = useRef<typeof snapshot>(null)
   snapshotRef.current = snapshot
   const stopAwaitingStampRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
+  usePublish(() => {
     const waiting = stopAwaitingStampRef.current
     if (waiting.size === 0) return
     for (const row of (snapshot?.groups ?? []).flatMap(g => g.rows)) {

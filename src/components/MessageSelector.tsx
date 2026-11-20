@@ -1,12 +1,12 @@
 
 import React, {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
+import { useClaim, useLoad } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import type {
   Message,
@@ -173,7 +173,7 @@ export function MessageSelector({
     mountClaimed = true
     return true
   })
-  useEffect(
+  useClaim(
     () => () => {
       if (claimed) mountClaimed = false
     },
@@ -214,7 +214,7 @@ export function MessageSelector({
 
   const [storeStats, setStoreStats] = useState<CodeStats | undefined>(undefined)
   const chosen = index < selectable.length ? selectable[index] : undefined
-  useEffect(() => {
+  useLoad(() => {
     if (!claimed || phase !== 'confirm' || !chosen || !historyOn || !hasSavedPoint(chosen.uuid)) {
       setStoreStats(undefined)
       return

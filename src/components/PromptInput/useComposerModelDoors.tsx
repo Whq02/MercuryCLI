@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useRef, useState, useSyncExternalStore } from 'react'
+import { useDerivedState } from '../../hooks/effects.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
@@ -198,7 +199,7 @@ export function useComposerModelDoors({
     applyModelSelection(value, persist)
   }
 
-  useEffect(() => {
+  useDerivedState(() => {
     const posture = resolveCapPosture()
     {
       const factsNow = getFocusedSessionConnector().modelFacts()

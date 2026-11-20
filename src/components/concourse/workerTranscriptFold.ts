@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { recordToEntry } from '../../fabric/entryCodec.js'
+import type { MercuryRecord } from '../../fabric/record.js'
+import { useLoad, useTimer } from '../../hooks/effects.js'
 import type { Tools } from '../../Tool.js'
 import type { Message as MessageType } from '../../types/message.js'
 import {
@@ -26,16 +28,17 @@ const RECORD_CAP = 500
 export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageType | null {
   if (!rec || typeof rec !== 'object') return null
   const env = rec as { schemaVersion?: unknown; payload?: unknown }
+  let entry: Record<string, unknown>
   if (typeof env.schemaVersion === 'number' && env.payload && typeof env.payload === 'object') {
     try {
-      rec = recordToEntry(rec as never)
+      entry = recordToEntry(rec as MercuryRecord)
     } catch {
       return null
     }
   } else {
     return null
   }
-  const r = rec as {
+  const r = entry as {
     type?: unknown
     uuid?: unknown
     timestamp?: unknown
@@ -44,7 +47,12 @@ export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageTyp
   if (r.type !== 'user' && r.type !== 'assistant' && r.type !== 'system') return null
   if (r.type !== 'system' && (!r.message || typeof r.message !== 'object')) return null
   const uuid = typeof r.uuid === 'string' && r.uuid.length > 0 ? r.uuid : fallbackUuid
-  const out: Record<string, unknown> = { ...(rec as Record<string, unknown>), uuid }
+  const out: {
+    type: 'user' | 'assistant' | 'system'
+    uuid: string
+    timestamp?: unknown
+    message?: unknown
+  } = { ...entry, type: r.type, uuid }
   if (typeof r.timestamp !== 'string') out.timestamp = new Date(0).toISOString()
   if (r.type === 'assistant') {
     const msg = r.message as { content?: unknown }
@@ -58,7 +66,7 @@ export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageTyp
     const msg = r.message as { content?: unknown }
     if (typeof msg.content !== 'string' && !Array.isArray(msg.content)) return null
   }
-  return out as unknown as MessageType
+  return out as MessageType
 }
 
 interface TranscriptFold {
@@ -92,7 +100,7 @@ export function useWorkerTranscriptFold(
 ): { fold: TranscriptFold | null; malformed: number } {
   const [fold, setFold] = useState<TranscriptFold | null>(null)
   const [malformed, setMalformed] = useState(0)
-  useEffect(() => {
+  useTimer(() => {
     setFold(null)
     setMalformed(0)
     let cancelled = false
@@ -201,7 +209,7 @@ export function useCoordinatorAttribution(
 ): (m: { type?: string }) => 'user' | 'coordinator' {
   const [coordDigests, setCoordDigests] = useState<ReadonlySet<string>>(new Set())
   const ledgerStampRef = useRef('')
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false
     void import('../../daemon/concourseDispatch.js').then(d => {
       if (cancelled) return

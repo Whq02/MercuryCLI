@@ -1,5 +1,6 @@
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useClaim, useTimer } from './effects.js'
 import { useNotifications } from '../context/notifications.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { hasImageInClipboard } from '../utils/imagePaste.js'
@@ -22,7 +23,7 @@ export function useClipboardImageHint(
   const lastShownRef = useRef(0)
   const pendingRef = useRef<NodeJS.Timeout | null>(null)
   const mountedRef = useRef(true)
-  useEffect(
+  useClaim(
     () => () => {
       mountedRef.current = false
       if (pendingRef.current !== null) clearTimeout(pendingRef.current)
@@ -30,7 +31,7 @@ export function useClipboardImageHint(
     [],
   )
 
-  useEffect(() => {
+  useTimer(() => {
     const was = wasFocusedRef.current
     wasFocusedRef.current = isFocused
     if (!enabled || !isFocused || was) return
