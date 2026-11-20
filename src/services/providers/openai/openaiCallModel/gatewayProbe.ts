@@ -12,7 +12,7 @@ import type {
 const OPENAI_GATEWAY_PROBE_TIMEOUT_MS = 15_000
 
 export async function sendOpenaiGatewayProbe(
-  body: OpenaiResponsesRequest | Record<string, unknown>,
+  body: OpenaiResponsesRequest,
   auth: OpenaiRequestAuth,
   outer: AbortSignal,
 ): Promise<GatewayProbeAnswer> {
@@ -25,7 +25,7 @@ export async function sendOpenaiGatewayProbe(
     const events = streamOpenaiResponses({
       baseUrl: auth.baseUrl,
       headers: auth.headers,
-      request: body as unknown as OpenaiResponsesRequest,
+      request: body,
       signal: controller.signal,
       idleTimeoutMs: OPENAI_GATEWAY_PROBE_TIMEOUT_MS,
       skipFaultCapture: true,
