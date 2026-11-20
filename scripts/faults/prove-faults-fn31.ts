@@ -352,5 +352,25 @@ console.log('\ngracefulShutdown.ts — background hooks end on fireHooks throw a
   )
 }
 
+console.log('\nhaltAll.ts — thrown daemonControlRpc error is reported as the reason instead of no daemon running')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const real = await import(SRC + '/daemon/controlSocket.ts')
+    mock.module(SRC + '/daemon/controlSocket.js', () => ({
+      ...real,
+      daemonControlRpc: async () => { throw new Error('control key unreadable') },
+    }))
+    const { haltAll } = await import(SRC + '/utils/haltAll.ts')
+    out.result = await haltAll({ getAppState: () => ({ tasks: {} }), setAppState: () => {} })
+  `)
+  const daemon = (r.result as { daemon?: { ok?: boolean; reason?: string } } | undefined)?.daemon
+  check(
+    'haltAll:reports-rpc-throw-reason',
+    daemon?.ok === false && daemon.reason === 'control key unreadable',
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

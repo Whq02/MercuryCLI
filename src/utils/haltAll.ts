@@ -1,6 +1,7 @@
 import { daemonControlRpc } from '../daemon/controlSocket.js'
 import { markDaemonHaltStanddown } from './daemonStanddown.js'
 import { stopTask } from '../tasks/stopTask.js'
+import { errorMessage } from './errors.js'
 import { runningTaskIds, type HaltResult } from './haltDecide.js'
 
 export { summarizeHalt } from './haltDecide.js'
@@ -30,8 +31,8 @@ export async function haltAll(ctx: HaltContext): Promise<HaltResult> {
       reply.ok && reply.op === 'shutdown'
         ? { ok: true, reaped: reply.reaped, workers: reply.workers }
         : { ok: false, reason: 'no daemon running' }
-  } catch {
-    daemon = { ok: false, reason: 'no daemon running' }
+  } catch (error) {
+    daemon = { ok: false, reason: errorMessage(error) }
   }
   return { tasksStopped, tasksFailed, daemon }
 }
