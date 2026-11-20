@@ -79,7 +79,7 @@ function threwOf(fn: () => unknown): Error | null {
 }
 
 {
-  console.log('\nmnemeUsage-readPins-unreadable')
+  console.log('\nmnemeUsage-pinWriters-unreadable')
   const { readPins, pinFact, unpinFact, movePin, pinsPath } = await import('../../src/mneme/mnemeUsage.ts')
   const dir = makeScratch('pins')
   try {
@@ -90,19 +90,19 @@ function threwOf(fn: () => unknown): Error | null {
     check('valid pins.json reads prior pin', readPins(dir).length === 1 && readPins(dir)[0]!.seq === 7)
 
     writeFileSync(p, '{corrupt', { mode: 0o600 })
-    check('corrupt pins.json throws on readPins', threwOf(() => readPins(dir)) !== null)
+    check('corrupt pins.json keeps readPins non-throwing for outside callers', readPins(dir).length === 0)
     check('corrupt pins.json throws on pinFact without replacing file', threwOf(() => pinFact(9, dir)) !== null && readFileSync(p, 'utf8') === '{corrupt')
 
     if (POSIX_MODES) {
       writeFileSync(p, prior, { mode: 0o600 })
       chmodSync(p, 0o200)
-      const readErr = threwOf(() => readPins(dir))
+      const list = readPins(dir)
       const pinErr = threwOf(() => pinFact(9, dir))
       const unpinErr = threwOf(() => unpinFact(7, dir))
       const moveErr = threwOf(() => movePin(7, 8, dir))
       chmodSync(p, 0o600)
-      check('unreadable pins.json throws EACCES on readPins', readErr !== null && (readErr as NodeJS.ErrnoException).code === 'EACCES', String(readErr))
-      check('pinFact/unpinFact/movePin refuse unreadable pins.json and keep file intact', pinErr !== null && unpinErr !== null && moveErr !== null && readFileSync(p, 'utf8') === prior)
+      check('unreadable pins.json keeps readPins non-throwing for outside callers', list.length === 0)
+      check('pinFact/unpinFact/movePin refuse unreadable pins.json with EACCES and keep file intact', (pinErr as NodeJS.ErrnoException | null)?.code === 'EACCES' && (unpinErr as NodeJS.ErrnoException | null)?.code === 'EACCES' && (moveErr as NodeJS.ErrnoException | null)?.code === 'EACCES' && readFileSync(p, 'utf8') === prior)
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -110,7 +110,7 @@ function threwOf(fn: () => unknown): Error | null {
 }
 
 {
-  console.log('\nmnemeUsage-readUsage-unreadable')
+  console.log('\nmnemeUsage-bumpUsage-unreadable')
   const { readUsage, bumpUsage, usagePath } = await import('../../src/mneme/mnemeUsage.ts')
   const dir = makeScratch('usage')
   try {
@@ -121,17 +121,17 @@ function threwOf(fn: () => unknown): Error | null {
     check('valid usage.json reads prior count', readUsage(dir)['5']?.count === 12)
 
     writeFileSync(p, '{corrupt', { mode: 0o600 })
-    check('corrupt usage.json throws on readUsage', threwOf(() => readUsage(dir)) !== null)
+    check('corrupt usage.json keeps readUsage non-throwing for outside callers', Object.keys(readUsage(dir)).length === 0)
     bumpUsage([9], dir)
     check('bumpUsage leaves corrupt usage.json untouched', readFileSync(p, 'utf8') === '{corrupt', readFileSync(p, 'utf8'))
 
     if (POSIX_MODES) {
       writeFileSync(p, prior, { mode: 0o600 })
       chmodSync(p, 0o200)
-      const readErr = threwOf(() => readUsage(dir))
+      const rows = readUsage(dir)
       bumpUsage([9], dir)
       chmodSync(p, 0o600)
-      check('unreadable usage.json throws EACCES on readUsage', readErr !== null && (readErr as NodeJS.ErrnoException).code === 'EACCES', String(readErr))
+      check('unreadable usage.json keeps readUsage non-throwing for outside callers', Object.keys(rows).length === 0)
       check('bumpUsage leaves unreadable usage.json untouched', readFileSync(p, 'utf8') === prior, readFileSync(p, 'utf8'))
     }
   } finally {
