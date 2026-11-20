@@ -6,10 +6,10 @@ import {
   deriveCapabilityDescriptor,
   type CapabilityCategory,
   type CapabilityRisk,
-} from './manifest.js'
-import type { ToolCapability } from './contract.js'
-import { declaredCapability } from './contract.js'
-import { passedOver } from '../passedOver.js'
+} from '../../utils/capability/manifest.js'
+import type { ToolCapability } from '../../utils/capability/contract.js'
+import { declaredCapability } from '../../utils/capability/contract.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const CENSUS_VERSION = 1
 
@@ -201,7 +201,7 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/PowerShellTool/PowerShellTool.js').PowerShellTool,
     () => require('../../tools/JevEvalTool/JevEvalTool.js').JevEvalTool,
     () => require('../../tools/AskAdvisorTool/AskAdvisorTool.js').AskAdvisorTool,
-    () => require('../../services/crewBoard/seam.js').swarmCensusTool(),
+    () => require('../crewBoard/seam.js').swarmCensusTool(),
   ]
   const out: Tool[] = []
   for (const load of loaders) {
