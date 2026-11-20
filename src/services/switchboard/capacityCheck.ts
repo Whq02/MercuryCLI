@@ -329,8 +329,8 @@ async function countOtherAgentClis(): Promise<number> {
 }
 
 function otherAgentClisUnread(reason: string): number {
-  logError(new Error(`other agent CLIs could not be counted (${reason}), so one seat is held back`))
-  return OTHER_AGENT_CLIS_HOLDING_A_SEAT
+  logError(new Error(`other agent CLIs could not be counted (${reason}), so none is counted`))
+  return 0
 }
 
 export async function probeCapacity(): Promise<CapacityProbe> {
