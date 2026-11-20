@@ -6,8 +6,7 @@ import {
   shellCCommands,
   SHELL_C_MAX_DEPTH,
   withBashParseScope,
-  preparedCommandRoot,
-  type Node,
+  retainPreparedCommand,
   preparedSecurityParse,
   checkSemantics,
   shellCommandText,
@@ -37,7 +36,7 @@ export type NotReadOnly = {
 
 type ReadOnlyVerdict = PermissionResult & { notReadOnly?: NotReadOnly }
 const PART_WIDTH = 120
-type PreparedRead = { root: Node | null; command: string; cwd: string; originalCwd: string; platform: string; bare: ReturnType<typeof isCurrentDirectoryBareGitRepo>; verdict: ReadOnlyVerdict; children: PreparedRead[] }
+type PreparedRead = { root: unknown; command: string; cwd: string; originalCwd: string; platform: string; bare: ReturnType<typeof isCurrentDirectoryBareGitRepo>; verdict: ReadOnlyVerdict; children: PreparedRead[] }
 const preparedReads = new Map<string, WeakRef<PreparedRead>>()
 const inputReads = new WeakMap<object, PreparedRead>()
 const reclaimedReads = new FinalizationRegistry<{ command: string; reference: WeakRef<PreparedRead> }>(({ command, reference }) => {
@@ -49,7 +48,7 @@ export async function prepareBashReadOnly(input: { command: string; cwd?: string
     const command = input.command
     const parsed = await parseForSecurity(command)
     await prepareShellCScripts(parsed)
-    const root = preparedCommandRoot(command)
+    const root = retainPreparedCommand(command)
     const cwd = resolveShellCwd(input.cwd)
     const snapshot = { root, cwd, originalCwd: getOriginalCwd(), platform: getPlatform(), bare: isCurrentDirectoryBareGitRepo(cwd) }
     const remember = (text: string, verdict: ReadOnlyVerdict, children: PreparedRead[] = []): PreparedRead => {

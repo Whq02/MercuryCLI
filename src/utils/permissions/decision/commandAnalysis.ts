@@ -107,3 +107,4 @@ export function shellCCommands(commands: SimpleCommand[], depth = 0): SimpleComm
   })
 }
 export { stateStatements } from './commandAnalysis/stateStatements.js'
+export { retainPreparedCommand } from './commandAnalysis/sequence.js'
