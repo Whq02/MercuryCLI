@@ -25,9 +25,11 @@ export interface AddonPresenceFacts {
   installed: boolean
   enabled: boolean
   digestMatch?: boolean
+  projectReadError?: string
 }
 
 function installStep(addon: AddonPresenceFacts): string | null {
+  if (addon.projectReadError) return `project.godot could not be read (${addon.projectReadError}); `
   if (!addon.installed) return 'op:"vulcan_install" writes the addon and enables it; then '
   if (!addon.enabled) return 'the addon is on disk but not enabled in project.godot — op:"vulcan_install" enables it; then '
   if (addon.digestMatch === false) return 'the installed addon is out of date — op:"vulcan_install" refreshes it; then '

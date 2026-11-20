@@ -6,6 +6,7 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { globalConfigFileIn } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
+import { credentialStoreUnread } from '../secureStorage/index.js'
 import { readAccountOAuthCreds } from './scopedCredentialRead.js'
 import { isForeignHarnessDir, readScopeIdentity, scopeIdentityFile } from './scopeScan.js'
 import { signInLedgerEpoch } from './signInLedger.js'
@@ -74,7 +75,20 @@ async function resolveUncached(
       note: `credentials could not be read (${err instanceof Error ? err.message : String(err)})`,
     }
   }
-  if (!creds?.accessToken) return { state: 'signed-out' }
+  if (!creds?.accessToken) {
+    if (deps.readCreds === undefined && isSessionHome(dir)) {
+      const unread = credentialStoreUnread()
+      if (unread !== null) {
+        const snap = snapshotEmail(dir)
+        return {
+          state: 'unverified',
+          ...(snap !== undefined && { email: snap }),
+          note: `credentials could not be read (${unread.message ?? unread.code})`,
+        }
+      }
+    }
+    return { state: 'signed-out' }
+  }
 
   const fetchImpl = deps.fetchImpl ?? fetch
   const timeoutMs = deps.timeoutMs ?? 4_000

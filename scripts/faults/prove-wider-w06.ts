@@ -261,5 +261,95 @@ console.log('\nw06-2: daemonConnector.sendWords and sessionSend — unreadable o
   check('sessionSend surfaces SendReceiptV1.note via addNotification once and stays quiet without a note', r.noticesAfterNoted === 1 && notices.length === 1 && notices[0]?.text === expected, JSON.stringify({ noticesAfterNoted: r.noticesAfterNoted, notices }))
 }
 
+console.log('\nw06-3: mcp/client.clearServerCache and runLaunch — failed duplicate server cleanup is returned and noted at start')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const mcpClient = await import(path.join(SRC, 'services/mcp/client.ts'))
+    const dupConfig = { type: 'http', url: 'https://example.invalid/mcp-dup', scope: 'dynamic' }
+    const directKey = mcpClient.getServerCacheKey('ext:direct', dupConfig)
+    mcpClient.connectToServer.cache.set(directKey, Promise.resolve({
+      type: 'connected',
+      name: 'ext:direct',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => { throw new Error('EPERM: process locked') },
+    }))
+    out.directFail = await mcpClient.clearServerCache('ext:direct', dupConfig)
+    const cleanKey = mcpClient.getServerCacheKey('ext:clean', dupConfig)
+    mcpClient.connectToServer.cache.set(cleanKey, Promise.resolve({
+      type: 'connected',
+      name: 'ext:clean',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => {},
+    }))
+    out.directOk = await mcpClient.clearServerCache('ext:clean', dupConfig)
+
+    mock.module(path.join(SRC, 'services/mcp/anthropicConnectors.ts'), () => ({
+      fetchAnthropicConnectorsIfEligible: async () => ({ 'claudeai:dup': dupConfig }),
+    }))
+    mock.module(path.join(SRC, 'cli/run.ts'), () => ({
+      runHeadless: async () => {},
+    }))
+    mcpClient.connectToServer.cache.set(mcpClient.getServerCacheKey('ext:dup', dupConfig), Promise.resolve({
+      type: 'connected',
+      name: 'ext:dup',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => { throw new Error('EPERM: process locked') },
+    }))
+    mcpClient.fetchToolsForClient.cache.set('ext:dup', Promise.resolve([]))
+    mcpClient.fetchCommandsForClient.cache.set('ext:dup', Promise.resolve([]))
+    mcpClient.connectToServer.cache.set(mcpClient.getServerCacheKey('claudeai:dup', dupConfig), Promise.resolve({
+      type: 'connected',
+      name: 'claudeai:dup',
+      config: dupConfig,
+      client: {},
+      capabilities: {},
+      cleanup: async () => {},
+    }))
+    mcpClient.fetchToolsForClient.cache.set('claudeai:dup', Promise.resolve([]))
+    mcpClient.fetchCommandsForClient.cache.set('claudeai:dup', Promise.resolve([]))
+
+    const stderrLines = []
+    const realStderrWrite = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (chunk) => { stderrLines.push(String(chunk)); return true }
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const { runLaunch } = await import(path.join(SRC, 'main/runLaunch.ts'))
+    await runLaunch({
+      opts: { continue: true, onlyMcp: true },
+      commands: [],
+      prompt: 'hi',
+      permissionMode: 'default',
+      toolPermissionContext: getEmptyToolPermissionContext(),
+      allowDangerousSkip: false,
+      mcpConfigPromise: Promise.resolve({ 'ext:dup': dupConfig }),
+      thinkingConfig: { type: 'disabled' },
+      userSpecifiedModel: undefined,
+      fallbackModel: undefined,
+      mainThreadAgentDefinition: undefined,
+      activeAgents: [],
+      allAgents: [],
+      customSystemPrompt: undefined,
+      appendSystemPrompt: undefined,
+      inputFormat: 'text',
+      outputFormat: 'text',
+      includePartialMessages: false,
+      door: 'rows',
+    })
+    process.stderr.write = realStderrWrite
+    out.stderr = stderrLines.join('')
+  `)
+  const directFail = r.directFail as { cleanupError?: string } | undefined
+  const directOk = r.directOk as { cleanupError?: string } | undefined
+  const expected = 'the duplicate MCP server ext:dup could not be closed (EPERM: process locked) and may still be running'
+  check('clearServerCache returns cleanupError without throwing when cleanup fails, and none when it succeeds', directFail?.cleanupError === 'EPERM: process locked' && directOk?.cleanupError === undefined, JSON.stringify({ directFail, directOk }))
+  check('runLaunch writes the duplicate server close-failure note to stderr at start', String(r.stderr ?? '').includes(expected), String(r.stderr ?? '').slice(0, 300))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)

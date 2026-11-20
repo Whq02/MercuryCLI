@@ -13,6 +13,7 @@ export type AccountScope = {
   isCurrent: boolean
   hasConfig: boolean
   authed: boolean
+  unreadError?: string
   email?: string
   uuid?: string
   foreignHarness: boolean
@@ -59,28 +60,35 @@ export function scopeIdentityFile(dir: string): string {
 export function probeScopeAuth(
   dir: string,
   reads: ScopeAuthReads = {},
-): { authed: boolean; email?: string; uuid?: string } {
+): { authed: boolean; unreadError?: string; email?: string; uuid?: string } {
   const id = readScopeIdentity(scopeIdentityFile(dir))
-  const authed = (reads.storedLogin ?? storedLoginLive)(dir)
+  const login = reads.storedLogin ? { authed: reads.storedLogin(dir) } : storedLoginLive(dir)
   return {
-    authed,
+    authed: login.authed,
+    ...(login.unreadError !== undefined ? { unreadError: login.unreadError } : {}),
     ...(id.uuid ? { uuid: id.uuid } : {}),
     ...(id.email ? { email: id.email } : {}),
   }
 }
 
-function storedLoginLive(dir: string): boolean {
+function storedLoginLive(dir: string): { authed: boolean; unreadError?: string } {
   try {
     if (resolve(dir) === resolve(getMercuryHome())) {
       const { hasStoredOAuthToken } = require('../auth.js') as typeof import('../auth.js')
-      return hasStoredOAuthToken()
+      if (hasStoredOAuthToken()) return { authed: true }
+      const { credentialStoreUnread } =
+        require('../secureStorage/index.js') as typeof import('../secureStorage/index.js')
+      const unread = credentialStoreUnread()
+      return unread !== null
+        ? { authed: false, unreadError: unread.message ?? unread.code }
+        : { authed: false }
     }
     const { readAccountOAuthCreds } =
       require('./scopedCredentialRead.js') as typeof import('./scopedCredentialRead.js')
-    return readAccountOAuthCreds(dir) !== undefined
+    return { authed: readAccountOAuthCreds(dir) !== undefined }
   } catch (error) {
     passedOver(error)
-    return false
+    return { authed: false, unreadError: error instanceof Error ? error.message : String(error) }
   }
 }
 

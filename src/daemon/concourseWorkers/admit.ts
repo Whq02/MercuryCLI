@@ -26,7 +26,7 @@ import { warmSeatAnswer } from './admitWarm.js'
 import { coldRunnerIdOf, coldSpecOf, coldSeatAnswer } from './admitCold.js'
 import { randomUUID } from '../../utils/crypto.js'
 import { getProcessStartInstantAsync } from '../ownerWatch.js'
-import { workspaceKindOf, ensureWorkerWorktree } from '../concourseWorktrees.js'
+import { inspectWorkspaceKind, workspaceGitCheckNote, ensureWorkerWorktree } from '../concourseWorktrees.js'
 import { describeSeatReading } from '../../services/switchboard/capacityCheck.js'
 import { effectiveSeatCeiling } from './admission.js'
 import { pidFieldsOf } from './marks.js'
@@ -296,6 +296,11 @@ export function makeConcourseAdmitHandler(
       }
 
     const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)
+    const inspectedKind = inspectWorkspaceKind(workspaceId)
+    if (inspectedKind.kind === 'plain-folder' && inspectedKind.gitCheckError !== undefined) {
+      const gitNote = workspaceGitCheckNote(workspaceId, inspectedKind.gitCheckError)
+      retainedNote = retainedNote !== undefined ? `${retainedNote} — ${gitNote}` : gitNote
+    }
     const carryBuildNotices = (sessionId: string): void => {
       if (req.vacatingSessionId === undefined) return
       const previous = Object.values(records).find(row => row.sessionId === req.vacatingSessionId && row.workspaceId === workspaceId)
@@ -350,7 +355,7 @@ export function makeConcourseAdmitHandler(
     }
 
     const sessionId = req.resumeSessionId ?? randomUUID()
-    const workspaceKind = workspaceKindOf(workspaceId)
+    const workspaceKind = inspectedKind.kind
     let workerCwd = workspaceId
     let worktreePath: string | undefined
     let worktreeBranch: string | undefined

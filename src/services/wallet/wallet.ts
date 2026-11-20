@@ -1,6 +1,6 @@
 import { scanAccountScopes, type AccountScope } from '../../utils/accounts/scopeScan.js'
 import { getAnthropicApiKeyWithSource, isClaudeAISubscriber } from '../../utils/auth.js'
-import { getSecureStorage } from '../../utils/secureStorage/index.js'
+import { credentialStoreUnread, getSecureStorage } from '../../utils/secureStorage/index.js'
 import type { OAuthTokens } from '../oauth/types.js'
 import {
   openaiSubscriptionRef,
@@ -59,6 +59,8 @@ export interface WalletEntry {
   identity?: { email?: string; name?: string; accountId?: string; plan?: string; source?: WalletIdentitySource }
   keyTail?: string
   host?: string
+  state?: 'unverified'
+  stateNote?: string
   custodian:
     | 'anthropic-slots'
     | 'anthropic-auth'
@@ -117,6 +119,30 @@ export function anthropicScopeEntry(
   }
 }
 
+function anthropicUnreadScopeEntry(
+  scope: Pick<AccountScope, 'name' | 'uuid' | 'email'>,
+  unreadError: string,
+): WalletEntry {
+  const note = `credentials could not be read (${unreadError})`
+  return {
+    id: `anthropic:oauth:${scope.name}`,
+    provider: 'anthropic',
+    kind: 'subscription-oauth',
+    label: `Claude account (unverified — ${note})`,
+    ...(scope.email || scope.uuid
+      ? {
+          identity: {
+            ...(scope.email ? { email: scope.email } : {}),
+            ...(scope.uuid ? { accountId: scope.uuid } : {}),
+          },
+        }
+      : {}),
+    state: 'unverified',
+    stateNote: note,
+    custodian: 'anthropic-slots',
+  }
+}
+
 function storedAnthropicCredential(): AnthropicCredentialFacts | undefined {
   try {
     return getSecureStorage().read()?.claudeAiOauth ?? undefined
@@ -132,7 +158,8 @@ let entriesMemo: { at: number; key: string; entries: WalletEntry[] } | null = nu
 function entriesKey(): string {
   let env = ''
   for (const name of credentialEnvNames()) env += `${name}=${hostEnv()[name] ?? ''}\u0000`
-  return `${signInLedgerEpoch()}:${env}`
+  const unread = credentialStoreUnread()
+  return `${signInLedgerEpoch()}:${unread ? `${unread.code}:${unread.message ?? ''}` : ''}:${env}`
 }
 
 export function resetWalletEntriesMemo(): void {
@@ -153,8 +180,12 @@ function composeWalletEntries(): WalletEntry[] {
   const entries: WalletEntry[] = []
 
   for (const scope of scanAccountScopes()) {
-    if (scope.foreignHarness || !scope.authed) continue
-    entries.push(anthropicScopeEntry(scope, scope.isCurrent ? storedAnthropicCredential() : undefined))
+    if (scope.foreignHarness) continue
+    if (scope.authed) {
+      entries.push(anthropicScopeEntry(scope, scope.isCurrent ? storedAnthropicCredential() : undefined))
+    } else if (scope.unreadError !== undefined) {
+      entries.push(anthropicUnreadScopeEntry(scope, scope.unreadError))
+    }
   }
 
   try {
@@ -425,5 +456,11 @@ function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undef
   if (current) {
     return entries.find(e => e.id === `anthropic:oauth:${current.name}`)
   }
-  return entries.find(e => e.provider === 'anthropic' && e.kind === 'api-key')
+  const apiKeyEntry = entries.find(e => e.provider === 'anthropic' && e.kind === 'api-key')
+  if (apiKeyEntry) return apiKeyEntry
+  const unreadCurrent = scopes.find(s => s.isCurrent && !s.foreignHarness && s.unreadError !== undefined)
+  if (unreadCurrent) {
+    return entries.find(e => e.id === `anthropic:oauth:${unreadCurrent.name}`)
+  }
+  return undefined
 }
