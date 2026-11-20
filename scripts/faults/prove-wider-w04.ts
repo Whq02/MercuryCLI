@@ -648,6 +648,46 @@ try {
       rmSync(missionsBlocker, { force: true })
     }
   }
+
+  {
+    const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    const { createOrAppendSample, listSamples, samplesRoot, setSampleListenerAddress } = await import('../../src/services/samples/store.ts')
+    const { sampleRowsOf } = await import('../../src/services/samples/facts.ts')
+    const prevSamples = process.env.MERCURY_SAMPLES
+    process.env.MERCURY_SAMPLES = '1'
+    try {
+      const absent = listSamples('w04-absent-samples')
+      check('w04-7 listSamples returns [] for ENOENT', absent.length === 0, JSON.stringify(absent))
+
+      const sid = 'w04-samples-session'
+      createOrAppendSample({ sessionId: sid, name: 'card', title: 'Keep Me', html: '<p>hi</p>' })
+      const firstRows = await sampleRowsOf(sid)
+      if (POSIX_MODES) {
+        const root = samplesRoot(sid)
+        chmodSync(root, 0o000)
+        setSampleListenerAddress(null)
+        try {
+          let threw = false
+          try {
+            listSamples(sid)
+          } catch {
+            threw = true
+          }
+          const secondRows = await sampleRowsOf(sid)
+          check(
+            'w04-7 listSamples throws on non-ENOENT and sampleRowsOf keeps last published rows',
+            threw && firstRows.length === 1 && secondRows.length === 1 && secondRows[0]?.title === 'Keep Me',
+            JSON.stringify({ threw, firstRows, secondRows }),
+          )
+        } finally {
+          chmodSync(root, 0o700)
+        }
+      }
+    } finally {
+      if (prevSamples === undefined) delete process.env.MERCURY_SAMPLES
+      else process.env.MERCURY_SAMPLES = prevSamples
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
