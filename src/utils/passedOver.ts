@@ -1,20 +1,23 @@
 type PassedOverSink = (error: unknown) => void
+type Held = { count: number; last: unknown; sink: PassedOverSink | undefined; telling: boolean }
+type HeldDoor = { (): Held; state?: Held }
 
-let sink: PassedOverSink | undefined
-let count = 0
-let last: unknown
-let telling = false
+function held(): Held {
+  const door: HeldDoor = held
+  return (door.state ??= { count: 0, last: undefined, sink: undefined, telling: false })
+}
 
 export function passedOver(error: unknown): void {
-  count++
-  last = error
-  if (sink === undefined || telling) return
-  telling = true
+  const state = held()
+  state.count++
+  state.last = error
+  if (state.sink === undefined || state.telling) return
+  state.telling = true
   try {
-    sink(error)
+    state.sink(error)
   } catch {
   } finally {
-    telling = false
+    state.telling = false
   }
 }
 
@@ -26,9 +29,10 @@ export function passedOverAs<T>(value: T): (error: unknown) => T {
 }
 
 export function setPassedOverSink(next: PassedOverSink | undefined): void {
-  sink = next
+  held().sink = next
 }
 
 export function passedOverSoFar(): { count: number; last: unknown } {
+  const { count, last } = held()
   return { count, last }
 }
