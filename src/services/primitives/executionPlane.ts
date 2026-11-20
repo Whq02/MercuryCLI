@@ -15,6 +15,7 @@ import {
   type ExecutionSpec,
   type ExecutionState,
 } from './execution.js'
+import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const SETTLED_RING_CAP = 128
