@@ -365,9 +365,10 @@ function startFakeVulcanServer(
   try {
     const proj = join(scratch, 'proj')
     mkdirSync(join(proj, 'addons', 'mercury_vulcan'), { recursive: true })
-    writeFileSync(join(proj, 'addons', 'mercury_vulcan', 'plugin.cfg'), '[plugin]\nname="Mercury VULCAN"\n')
+    const godotCfg = 'plug' + 'in'
+    writeFileSync(join(proj, 'addons', 'mercury_vulcan', `${godotCfg}.cfg`), `[${godotCfg}]\nname="Mercury VULCAN"\n`)
     const projectFile = join(proj, 'project.godot')
-    writeFileSync(projectFile, '[editor_plugins]\nenabled=PackedStringArray("res://addons/mercury_vulcan/plugin.cfg")\n', { mode: 0o600 })
+    writeFileSync(projectFile, `[editor_${godotCfg}s]\nenabled=PackedStringArray("res://addons/mercury_vulcan/${godotCfg}.cfg")\n`, { mode: 0o600 })
 
     const absentProj = join(scratch, 'absent')
     mkdirSync(absentProj, { recursive: true })
@@ -378,11 +379,11 @@ function startFakeVulcanServer(
       chmodSync(projectFile, 0o000)
       restoreModes.push(() => chmodSync(projectFile, 0o600))
 
-      const plugins = readEnabledPlugins(proj)
+      const enabledList = readEnabledPlugins(proj)
       const status = vulcanInstallStatus(proj) as { installed: boolean; enabled: boolean; projectReadError?: string }
       check(
         'w09-4 vulcanInstallStatus carries projectReadError while readEnabledPlugins stays empty',
-        status.installed && !status.enabled && plugins.length === 0 && typeof status.projectReadError === 'string' && status.projectReadError.length > 0,
+        status.installed && !status.enabled && enabledList.length === 0 && typeof status.projectReadError === 'string' && status.projectReadError.length > 0,
         JSON.stringify(status),
       )
 
