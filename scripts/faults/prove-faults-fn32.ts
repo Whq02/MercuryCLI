@@ -436,5 +436,20 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   check('listSessionsImpl: worktree entry stat EIO rejects instead of silently skipping', rWt.code === 'EIO', JSON.stringify(rWt))
 }
 
+{
+  const rMcp = runIsolated(`
+    const { mock } = await import('bun:test')
+    const te = await import(${JSON.stringify(join(SRC, 'services/tokenEstimation.ts'))})
+    mock.module(${JSON.stringify(join(SRC, 'services/tokenEstimation.ts'))}, () => ({
+      ...te,
+      countMessagesTokensWithAPI: async () => { throw new Error('token count api down') },
+    }))
+    const { mcpContentNeedsTruncation } = await import(${JSON.stringify(join(SRC, 'utils/mcpValidation.ts'))})
+    const huge = 'x'.repeat(200_000)
+    out.needs = await mcpContentNeedsTruncation(huge)
+  `)
+  check('mcpValidation: mcpContentNeedsTruncation fails closed using local estimate when API count throws', rMcp.needs === true, JSON.stringify(rMcp))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

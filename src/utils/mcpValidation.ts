@@ -37,14 +37,15 @@ export function getContentSizeEstimate(content: MCPToolResult): number {
 export async function mcpContentNeedsTruncation(content: MCPToolResult): Promise<boolean> {
   if (content === undefined) return false
   const cap = getMaxMcpOutputTokens()
-  if (getContentSizeEstimate(content) <= cap * MCP_TOKEN_COUNT_THRESHOLD_FACTOR) return false
+  const estimate = getContentSizeEstimate(content)
+  if (estimate <= cap * MCP_TOKEN_COUNT_THRESHOLD_FACTOR) return false
   try {
     const message: MessageParam = { role: 'user', content }
     const count = await countMessagesTokensWithAPI([message], [])
     return count !== null && count > cap
   } catch (err) {
     logError(err)
-    return false
+    return estimate > cap
   }
 }
 
