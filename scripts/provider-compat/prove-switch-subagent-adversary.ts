@@ -198,6 +198,7 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { query: startTurn } = await import('../../src/query.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+await import('../../src/tools.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
 const { settleModelSelection, settlePendingAtBoundary } = await import(

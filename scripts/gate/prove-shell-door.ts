@@ -113,7 +113,6 @@ const IMPORTERS = [
   'src/utils/permissions/flowLaw.ts',
   'src/utils/permissions/permissionSetup.ts',
   'src/utils/permissions/ruleReason.ts',
-  'src/utils/permissions/runtimeProtection.ts',
   'src/utils/permissions/shellProtectedPaths.ts',
   'src/utils/permissions/shellRuleMatching.ts',
   'src/utils/processUserInput/processBashCommand.tsx',
