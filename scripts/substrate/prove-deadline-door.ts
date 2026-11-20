@@ -116,8 +116,14 @@ if (mode === 'loose') {
   {
     let looks = 0
     const t0 = performance.now()
-    const got = await settle(pollUntil(() => { looks++; return undefined }, 40, 150, () => 'fallback'))
+    const got = await settle(pollUntil(() => { looks++; return undefined }, 300, 350, () => 'fallback'))
     out.pollLimit = { got, looks, ms: since(t0), after: timers() - out.base }
+  }
+  {
+    let looks = 0
+    const t0 = performance.now()
+    const got = await settle(pollUntil(() => { looks++; return undefined }, left => Math.min(300, left), 350, () => 'fallback'))
+    out.pollCut = { got, looks, ms: since(t0), after: timers() - out.base }
   }
   {
     const ac = new AbortController()
@@ -177,7 +183,8 @@ try {
 
   section('pollUntil: a look that nothing can announce, bounded and cancellable')
   check('the poll ends on the look that finds, after two waits of its period, and leaves no timer', row('pollFound').got.value === 'found' && row('pollFound').looks === 3 && row('pollFound').ms >= 55 && row('pollFound').after === 0, said('pollFound'))
-  check("at its limit the poll settles with the caller's value, its last look made at the limit", row('pollLimit').got.value === 'fallback' && row('pollLimit').looks >= 4 && row('pollLimit').ms >= 149 && row('pollLimit').ms < 1150 && row('pollLimit').after === 0, said('pollLimit'))
+  check("at its limit the poll settles with the caller's value, after whole pauses: its last look is the first one at or past the limit (300 ms pauses, a 350 ms limit: looks at 0, 300 and 600)", row('pollLimit').got.value === 'fallback' && row('pollLimit').looks === 3 && row('pollLimit').ms >= 599 && row('pollLimit').ms < 1600 && row('pollLimit').after === 0, said('pollLimit'))
+  check('a pause the caller cuts to what is left makes its last look at the limit (looks at 0, 300 and 350)', row('pollCut').got.value === 'fallback' && row('pollCut').looks === 3 && row('pollCut').ms >= 349 && row('pollCut').ms < 590 && row('pollCut').after === 0, said('pollCut'))
   check('an abort 40 ms into a 10 s period ends the poll at once with an AbortError', row('pollAbort').got.error === 'AbortError' && row('pollAbort').ms < 1040 && row('pollAbort').after === 0, said('pollAbort'))
 
   section('a timer asked not to hold the process does not hold it')

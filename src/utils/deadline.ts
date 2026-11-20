@@ -190,7 +190,7 @@ export function withDeadline<T, F = never, A = never>(work: PromiseLike<T>, limi
   })
 }
 
-export async function pollUntil<T, F = never, A = never>(look: () => T | undefined | PromiseLike<T | undefined>, everyMs: number, limitMs: number, atLimit: () => F, opts: WaitEnds<A> = {}): Promise<T | NoInfer<F> | NoInfer<A>> {
+export async function pollUntil<T, F = never, A = never>(look: () => T | undefined | PromiseLike<T | undefined>, everyMs: number | ((leftMs: number) => number), limitMs: number, atLimit: () => F, opts: WaitEnds<A> = {}): Promise<T | NoInfer<F> | NoInfer<A>> {
   const { signal } = opts
   const until = Date.now() + limitMs
   for (;;) {
@@ -202,7 +202,7 @@ export async function pollUntil<T, F = never, A = never>(look: () => T | undefin
     if (seen !== undefined) return seen
     const left = until - Date.now()
     if (left <= 0) return atLimit()
-    await sleep(Math.min(everyMs, left), signal, { unref: opts.unref })
+    await sleep(typeof everyMs === 'number' ? everyMs : everyMs(left), signal, { unref: opts.unref })
   }
 }
 

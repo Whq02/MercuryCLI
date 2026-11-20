@@ -294,7 +294,7 @@ export async function settledObservation(driver: DesktopDriver, before: DesktopO
       changed = observationChanged(before, observation)
       return changed || bounded.aborted ? { observation, changed } : undefined
     },
-    50,
+    left => Math.min(50, left),
     Math.max(0, settleMs),
     () => ({ observation, changed }),
     { signal: bounded, onAbort: () => ({ observation, changed }) },
@@ -407,7 +407,7 @@ export async function settledCapture(driver: DesktopDriver, display: DesktopDisp
       previous = pixels
       return undefined
     },
-    50,
+    left => Math.min(50, left),
     Math.max(0, settleMs),
     () => lastFrame!,
     { signal, onAbort: () => { throw new Error('interrupted') } },

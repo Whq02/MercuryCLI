@@ -867,7 +867,7 @@ export async function awaitOutput(
       if (lastGrowth !== null && Date.now() - lastGrowth >= OUTPUT_QUIET_MS) return { record, grew: true }
       return undefined
     },
-    OUTPUT_POLL_MS,
+    left => Math.min(OUTPUT_POLL_MS, left),
     timeoutMs,
     () => ({ record: lastRecord, grew: seen > cursor }),
   )

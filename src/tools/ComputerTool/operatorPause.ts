@@ -29,7 +29,7 @@ export async function waitForOperatorPause(driver: DesktopDriver, signal: AbortS
       const typing = await operatorIsTyping(driver)
       return signal.aborted ? false : typing ? undefined : true
     },
-    100,
+    left => Math.min(100, left),
     OPERATOR_PAUSE_CAP_MS,
     () => false,
     { signal, onAbort: () => false },
