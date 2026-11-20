@@ -114,3 +114,4 @@ export { failShellReadingForTesting, readShellCommands } from './commandAnalysis
 export { wordsAsWritten } from './commandAnalysis/written.js'
 export { commandSpans, preparedCommandSpans, type CommandSpan } from './commandAnalysis/commandSpans.js'
 export { commandViews } from './commandAnalysis/commandViews.js'
+export { commandSubstitutionTexts, commandViewTexts } from './commandAnalysis/shellViews.js'
