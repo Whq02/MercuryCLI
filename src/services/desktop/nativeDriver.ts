@@ -6,7 +6,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { sleep } from '../../utils/sleep.js'
-import { voiceCheckoutRoot } from '../voice/voicePack.js'
+import { voiceCheckoutRoot } from '../../utils/voice/voicePack.js'
 import { computerAccessWords } from './computerAccess.js'
 import { bundleWebEngine } from './webEngine.js'
 import {

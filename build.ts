@@ -654,7 +654,7 @@ let pythonMeta: { version: string; release: string; platform: string; license: s
   }
 }
 
-const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/services/voice/voicePack.ts');
+const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/utils/voice/voicePack.ts');
 let voiceVendored = false;
 let voiceMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
 {

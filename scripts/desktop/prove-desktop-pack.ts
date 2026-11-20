@@ -31,7 +31,7 @@ const finish = (note: string): never => {
 const pack = await import('../../src/services/desktop/pack.js')
 const native = await import('../../src/services/desktop/nativeDriver.js')
 const driverContract = await import('../../src/services/desktop/driver.js')
-const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
 
 const PLATFORM = voicePackPlatform()
 const PACK_DIR = pack.desktopPackDirFor(ROOT, PLATFORM)

@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from './voicePack.js'
+import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../../utils/voice/voicePack.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const WHISPER_PACK_SEGMENTS = ['vendor', 'whisper'] as const

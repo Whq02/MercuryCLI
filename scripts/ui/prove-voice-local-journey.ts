@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { voicePackPlatform } from '../../src/services/voice/voicePack.ts'
+import { voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
 import { checkWhisperPackDir, whisperPackDirFor } from '../../src/services/voice/whisperPack.ts'
 import { WHISPER_MODELS_SEGMENTS, WHISPER_MODELS_VENDOR_PATH, checkWhisperModel, whisperDefaultModel, type WhisperModelPin } from '../../src/services/voice/whisperModels.ts'
 

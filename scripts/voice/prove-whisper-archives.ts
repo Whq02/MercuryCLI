@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { bundledVendorPacks, checkBundledVendorPacks, vendorPackTreeDigest } from '../release/payloadContract.mjs'
 import { RELEASE_TARGETS, buildPlatformOf } from '../../src/services/privateChannel/releaseTarget.ts'
-import { voiceCargoTriple, voicePackPlatform } from '../../src/services/voice/voicePack.ts'
+import { voiceCargoTriple, voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'whisper-archives-'))

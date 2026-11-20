@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { voicePackPlatform } from '../../src/services/voice/voicePack.ts'
+import { voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
 import { whisperCpuFloorWords } from '../../src/services/voice/whisperPack.ts'
 
 export function localFixture(dir: string, text = 'world', delayMs = 0): { env: Record<string, string>; calls: () => number; ledger: string } {
