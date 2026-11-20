@@ -1,7 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../providerSecrets.js'
 import { resolveXaiApiKey, xaiApiBase, xaiInferenceBase } from './xaiAccounts.js'
-import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
+import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, xaiAuthPathForDisplay, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
@@ -30,9 +30,15 @@ export async function storeXaiApiKeyLogin(
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }
+  const restoreAuthFile = credentialFileRestorer(xaiAuthPathForDisplay())
   try {
-    writeStoredXaiApiKey(key)
     writePreferredXaiSource('api-key')
+    try {
+      writeStoredXaiApiKey(key)
+    } catch (error) {
+      restoreAuthFile()
+      throw error
+    }
   } catch (error) {
     return { ok: false, stored: false, receipt: `Could not store the key: ${safe(errorMessageWithCause(error))}` }
   }

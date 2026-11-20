@@ -7,14 +7,14 @@ import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { resetUserCache } from '../../../utils/user.js'
 import { revokeOAuthToken } from '../../oauth/client.js'
 import type { AccountSlot, SlotRemovalOwners, AccountSlotKind } from './shapes.js'
-import { disconnectOpenaiSubscription, resolveOpenaiApiKey } from '../openai/openaiAccounts.js'
+import { disconnectOpenaiSubscription, openaiAuthPathForDisplay, resolveOpenaiApiKey } from '../openai/openaiAccounts.js'
 import { writeStoredOpenaiApiKey, writeStoredZaiApiKey, writeStoredOpenrouterApiKey, writeStoredGeminiApiKey, writeStoredMoonshotApiKey, writeStoredMetaApiKey, writeStoredZenApiKey, writeStoredMinimaxApiKey, writeStoredTogetherApiKey, writeStoredCohereApiKey, writeStoredGroqApiKey, writeStoredMeliousApiKey, writeStoredOrcarouterApiKey, writeStoredCerebrasApiKey, writeStoredFireworksApiKey, writeStoredQwenApiKey, writeStoredDeepseekApiKey, writeStoredXaiApiKey, writeStoredXaiManagementApiKey, writeStoredNousApiKey, writeStoredCompatApiKey, writeStoredHuggingfaceApiKey, writeStoredLocalApiKey, writeStoredMistralApiKey, writeStoredMistralAdminApiKey, clearEveryStoredCompatKey, probeCredentialJson, refuseUnreadSecretsStore, takeCredentialKeptAside } from '../providerSecrets.js'
-import { disconnectOpenrouterOauthKey } from '../openrouter/openrouterAccounts.js'
+import { disconnectOpenrouterOauthKey, openrouterAuthPathForDisplay } from '../openrouter/openrouterAccounts.js'
 import { disconnectGeminiOauth, disconnectGeminiPlan, geminiAuthPathForDisplay } from '../gemini/geminiAccounts.js'
 import { disconnectMoonshotOauth, moonshotAuthPathForDisplay } from '../moonshot/moonshotAccounts.js'
 import { disconnectMetaMuseCode, metaAuthPathForDisplay } from '../meta/metaAccounts.js'
-import { clearStoredXaiSubscription } from '../xai/xaiOauth.js'
-import { clearStoredNousSignin } from '../nous/nousOauth.js'
+import { clearStoredXaiSubscription, xaiAuthPathForDisplay } from '../xai/xaiOauth.js'
+import { clearStoredNousSignin, nousAuthPathForDisplay } from '../nous/nousOauth.js'
 import { disconnectHuggingfaceOauth, huggingfaceAuthPathForDisplay } from '../huggingface/huggingfaceAccounts.js'
 
 export interface AnthropicSlotSignOutIo {
@@ -91,6 +91,10 @@ const ACCOUNT_FILE_SIGN_OUTS: Readonly<Record<string, { path: () => string; sign
   huggingface: { path: huggingfaceAuthPathForDisplay, signOuts: [disconnectHuggingfaceOauth] },
   moonshot: { path: moonshotAuthPathForDisplay, signOuts: [disconnectMoonshotOauth] },
   meta: { path: metaAuthPathForDisplay, signOuts: [disconnectMetaMuseCode] },
+  openai: { path: openaiAuthPathForDisplay, signOuts: [disconnectOpenaiSubscription] },
+  openrouter: { path: openrouterAuthPathForDisplay, signOuts: [disconnectOpenrouterOauthKey] },
+  xai: { path: xaiAuthPathForDisplay, signOuts: [clearStoredXaiSubscription] },
+  nous: { path: nousAuthPathForDisplay, signOuts: [clearStoredNousSignin] },
 }
 
 export function signOutAccountFileNoSlotReads(family: string): { refused: string } | { keptAside: string } | null {

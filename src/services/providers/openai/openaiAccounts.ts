@@ -25,7 +25,7 @@ import {
   generateCodeVerifier,
   generateState,
 } from '../../oauth/crypto.js'
-import { readStoredOpenaiApiKey } from '../providerSecrets.js'
+import { credentialFileUnwritten, credentialJsonToWriteOver, readStoredOpenaiApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
@@ -92,10 +92,14 @@ function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
   const dir = getAuthConfigHomeDir()
   refuseProofWriteIntoAccountStore(dir, `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(dir, { recursive: true })
-  const existing = readAuthFile() ?? { version: OPENAI_AUTH_VERSION }
+  const existing = (credentialJsonToWriteOver('The OpenAI auth file', 'openai-auth', authFilePath()) as OpenaiAuthFile | null) ?? { version: OPENAI_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENAI_AUTH_VERSION })
   const path = authFilePath()
-  durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  try {
+    durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  } catch (error) {
+    throw credentialFileUnwritten('The OpenAI auth file', path, error)
+  }
   try {
     chmodSync(path, 0o600)
   } catch {

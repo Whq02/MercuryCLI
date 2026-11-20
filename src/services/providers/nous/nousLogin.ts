@@ -1,10 +1,10 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredNousApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredNousApiKey } from '../providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
 import { NOUS_API_KEY_ENV, nousApiBase, nousSigninIdentity } from './nousAccounts.js'
 import { peekNousClient } from './nousClientContract.js'
-import { pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
+import { nousAuthPathForDisplay, pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
 import { fetchNousAccount, nousCreditsDisplay, type NousObservedAccount, type NousUsageIo } from './nousUsageState.js'
 
 export interface NousKeyLoginOutcome {
@@ -33,9 +33,15 @@ export function nousAccountReceiptLine(account: NousObservedAccount): string {
 
 export async function storeNousApiKeyLogin(key: string, io?: NousUsageIo): Promise<NousKeyLoginOutcome> {
   const env = io?.env ?? process.env
+  const restoreAuthFile = credentialFileRestorer(nousAuthPathForDisplay())
   try {
-    writeStoredNousApiKey(key)
     writePreferredNousSource('api-key')
+    try {
+      writeStoredNousApiKey(key)
+    } catch (error) {
+      restoreAuthFile()
+      throw error
+    }
   } catch (error) {
     return { ok: false, stored: false, receipt: `Could not store the key: ${errorMessageWithCause(error)}` }
   }

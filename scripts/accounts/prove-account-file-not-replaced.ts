@@ -55,6 +55,54 @@ const FAMILIES: Family[] = [
     aside: /^\.moonshot\.corrupt\.\d+-auth\.json$/,
     store: 'moonshot-auth',
   },
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    mod: 'services/providers/openai/openaiAccounts.ts',
+    pathFn: 'openaiAuthPathForDisplay',
+    write: `m.writePreferredOpenaiSource('api-key')`,
+    wrote: `after.preferredSource === 'api-key'`,
+    full: { version: 1, tokens: { idToken: '', accessToken: 'fixture-access-openai', refreshToken: 'fixture-refresh-openai', accountId: 'acct_fixture', planType: 'plus' }, preferredSource: 'chatgpt-subscription' },
+    secret: 'fixture-refresh-openai',
+    aside: /^\.openai\.corrupt\.\d+-auth\.json$/,
+    store: 'openai-auth',
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    mod: 'services/providers/openrouter/openrouterAccounts.ts',
+    pathFn: 'openrouterAuthPathForDisplay',
+    write: `m.disconnectOpenrouterOauthKey()`,
+    wrote: `after.version === 1 && after.minted === undefined`,
+    full: { version: 1, minted: { key: 'sk-or-fixture-minted-key', mintedAtMs: 1, label: 'Mercury' }, refused: { fingerprint: 'fixture-refusal-mark', source: 'stored', status: 401, message: 'kept', observedAtMs: 1 } },
+    secret: 'fixture-refusal-mark',
+    aside: /^\.openrouter\.corrupt\.\d+-auth\.json$/,
+    store: 'openrouter-auth',
+  },
+  {
+    id: 'xai',
+    label: 'xAI',
+    mod: 'services/providers/xai/xaiOauth.ts',
+    pathFn: 'xaiAuthPathForDisplay',
+    write: `m.writePreferredXaiSource('api-key')`,
+    wrote: `after.preferredSource === 'api-key'`,
+    full: { version: 1, tokens: { accessToken: 'fixture-access-xai', refreshToken: 'fixture-refresh-xai' }, preferredSource: 'grok-subscription' },
+    secret: 'fixture-refresh-xai',
+    aside: /^\.xai\.corrupt\.\d+-auth\.json$/,
+    store: 'xai-auth',
+  },
+  {
+    id: 'nous',
+    label: 'Nous',
+    mod: 'services/providers/nous/nousOauth.ts',
+    pathFn: 'nousAuthPathForDisplay',
+    write: `m.writePreferredNousSource('api-key')`,
+    wrote: `after.preferredSource === 'api-key'`,
+    full: { version: 1, tokens: { accessToken: 'fixture-access-nous', refreshToken: 'fixture-refresh-nous' }, preferredSource: 'signin' },
+    secret: 'fixture-refresh-nous',
+    aside: /^\.nous\.corrupt\.\d+-auth\.json$/,
+    store: 'nous-auth',
+  },
 ]
 
 const FLOOR = `
@@ -313,6 +361,8 @@ else {
   for (const [family, module, call, field, said] of [
     [FAMILIES[0]!, 'services/providers/gemini/geminiLogin.ts', `login.storeGeminiApiKeyLogin('fixture-new-gemini-key-0123', { refreshCatalogue: async () => null })`, 'geminiApiKey', 'Could not store the key: '],
     [FAMILIES[1]!, 'services/providers/huggingface/huggingfaceLogin.ts', `login.storeHuggingfaceTokenLogin('hf_fixturenewtoken0123', { fetchImpl: async () => new Response(JSON.stringify({ name: 'fixture' }), { status: 200, headers: { 'content-type': 'application/json' } }) }, async () => null)`, 'huggingfaceApiKey', 'Could not store the token: '],
+    [FAMILIES[5]!, 'services/providers/xai/xaiLogin.ts', `login.storeXaiApiKeyLogin('fixture-new-xai-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })`, 'xaiApiKey', 'Could not store the key: '],
+    [FAMILIES[6]!, 'services/providers/nous/nousLogin.ts', `login.storeNousApiKeyLogin('fixture-new-nous-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })`, 'nousApiKey', 'Could not store the key: '],
   ] as const) {
     const r = runIn(family, `
       const login = await import(${JSON.stringify(join(SRC, module))})

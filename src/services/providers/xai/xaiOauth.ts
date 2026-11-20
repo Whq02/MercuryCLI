@@ -40,7 +40,14 @@ function readAuth(): AuthFile {
 function writeAuth(file: AuthFile): void {
   refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), 'the auth file .xai-auth.json')
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
-  durableAtomicPublishSync(xaiAuthPathForDisplay(), JSON.stringify({ ...file, version: 1 }) + '\n', { mode: 0o600 })
+  const { credentialFileUnwritten, credentialJsonToWriteOver } = require('../providerSecrets.js') as typeof import('../providerSecrets.js')
+  const path = xaiAuthPathForDisplay()
+  credentialJsonToWriteOver('The xAI auth file', 'xai-auth', path)
+  try {
+    durableAtomicPublishSync(path, JSON.stringify({ ...file, version: 1 }) + '\n', { mode: 0o600 })
+  } catch (error) {
+    throw credentialFileUnwritten('The xAI auth file', path, error)
+  }
   noteCredentialChange()
 }
 export function xaiStoredTokens(): XaiTokens | undefined {
