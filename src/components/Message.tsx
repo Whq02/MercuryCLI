@@ -3,6 +3,7 @@ import React, { memo } from 'react'
 import { Box } from '../ink.js'
 import type { ToolResultBlockParam } from '../types/wire.js'
 import type {
+  AssistantMessage,
   NormalizedMessage,
   ProgressMessage,
   RenderableMessage,
@@ -33,7 +34,7 @@ import { SYNTHETIC_MODEL } from '../utils/messages/factories.js'
 import { parseReferences } from '../history.js'
 
 type Props = {
-  message: RenderableMessage
+  message: RenderableMessage | AssistantMessage
   messages?: RenderableMessage[]
   tools: Tools
   commands?: Command[]
@@ -56,7 +57,7 @@ type Props = {
   streamFaultRecovered?: boolean
 }
 
-function hasThinkingContent(m: RenderableMessage): boolean {
+function hasThinkingContent(m: RenderableMessage | AssistantMessage): boolean {
   if (m.type !== 'assistant') return false
   const content = m.message.content
   if (!Array.isArray(content)) return false
@@ -65,14 +66,14 @@ function hasThinkingContent(m: RenderableMessage): boolean {
   )
 }
 
-function displayMessageOf(message: RenderableMessage): NormalizedMessage | null {
+function displayMessageOf(message: RenderableMessage | AssistantMessage): NormalizedMessage | AssistantMessage | null {
   if (message.type === 'grouped_tool_use') {
     return (message as { displayMessage?: NormalizedMessage }).displayMessage ?? null
   }
   if (message.type === 'collapsed_read_search') {
     return (message as { displayMessage?: NormalizedMessage }).displayMessage ?? null
   }
-  return message as NormalizedMessage
+  return message as NormalizedMessage | AssistantMessage
 }
 
 function MessageInner({
