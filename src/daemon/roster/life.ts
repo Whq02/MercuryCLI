@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
 import { logForDebugging } from '../../utils/debug.js'
-import { recordSpawnExit } from '../../utils/spawnLedger.js'
+import { recordSpawnExit } from '../spawnLedger.js'
 import { flagPair } from '../../substrate/flagRegistry.js'
 import {
   decideRespawn,

@@ -19,7 +19,7 @@ delete process.env.MERCURY_SPAWN_LEDGER
 
 const { reconcileDaemonRecords } = await import('../../src/daemon/reconcileRecords.ts')
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const ledger = await import('../../src/utils/spawnLedger.ts')
+const ledger = await import('../../src/daemon/spawnLedger.ts')
 
 const deadPid = spawnSync(process.execPath, ['-e', ''], { stdio: 'ignore' }).pid as number
 if (!deadPid || deadPid <= 1) {
