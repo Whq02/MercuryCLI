@@ -72,6 +72,29 @@ function writeRecord(cwd: string, record: ServiceRecord): void {
   projectServiceExecution(cwd, record)
 }
 
+type StrictRecordRead = { ok: true; record: ServiceRecord | null } | { ok: false; error: string }
+
+function readRecordStrict(cwd: string, name: string): StrictRecordRead {
+  const file = recordPath(cwd, name)
+  let text: string
+  try {
+    text = readFileSync(file, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { ok: true, record: null }
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+  let raw: ServiceRecord
+  try {
+    raw = JSON.parse(text) as ServiceRecord
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+  if (raw === null || typeof raw !== 'object' || raw.schema !== 1 || !raw.spec?.name) {
+    return { ok: false, error: `invalid service record at ${file}` }
+  }
+  return { ok: true, record: raw }
+}
+
 export function readRecord(cwd: string, name: string): ServiceRecord | null {
   try {
     const raw = JSON.parse(readFileSync(recordPath(cwd, name), 'utf8')) as ServiceRecord
@@ -147,8 +170,7 @@ function processAlive(pid: number | null, startToken: string | null): boolean {
   try {
     process.kill(pid, 0)
   } catch (error) {
-    passedOver(error)
-    return false
+    if ((error as NodeJS.ErrnoException).code !== 'EPERM') return false
   }
   if (startToken) {
     const current = getProcessStartTokenCachedOrRefresh(pid, undefined, startToken)
@@ -182,9 +204,7 @@ function ownedLiveChild(cwd: string, name: string, pid: number): boolean {
   return child !== undefined && child.pid === pid && child.exitCode === null && child.signalCode === null
 }
 
-export function reconcileRecord(cwd: string, name: string): ServiceRecord | null {
-  const record = readRecord(cwd, name)
-  if (!record) return null
+function reconcileLoadedRecord(cwd: string, record: ServiceRecord): ServiceRecord {
   const liveStates = new Set(['starting', 'ready', 'running', 'stopping'])
   if (liveStates.has(record.state) && !processAlive(record.pid, record.startToken)) {
     const reconciled: ServiceRecord = {
@@ -199,6 +219,18 @@ export function reconcileRecord(cwd: string, name: string): ServiceRecord | null
     return reconciled
   }
   return record
+}
+
+function reconcileRecordStrict(cwd: string, name: string): StrictRecordRead {
+  const loaded = readRecordStrict(cwd, name)
+  if (!loaded.ok || loaded.record === null) return loaded
+  return { ok: true, record: reconcileLoadedRecord(cwd, loaded.record) }
+}
+
+export function reconcileRecord(cwd: string, name: string): ServiceRecord | null {
+  const record = readRecord(cwd, name)
+  if (!record) return null
+  return reconcileLoadedRecord(cwd, record)
 }
 
 export function reconcileAll(cwd: string): ServiceRecord[] {
@@ -405,8 +437,30 @@ export interface StartOptions {
 
 async function stopServicesOf(owner: OwnerKey): Promise<void> {
   const mine = [...startedBy].filter(([, row]) => row.owner === owner)
-  for (const [key] of mine) startedBy.delete(key)
-  await Promise.all(mine.map(([, row]) => stopService(row.cwd, row.name).then(() => undefined, passedOverAs(undefined))))
+  await Promise.all(
+    mine.map(async ([key, row]) => {
+      let ok = false
+      try {
+        const res = await stopService(row.cwd, row.name)
+        ok = !('error' in res) && res.note === undefined
+        if (!ok) logForDebugging(`service ${row.name}: owner stop did not complete: ${'error' in res ? res.error : res.note}`)
+      } catch (error) {
+        logForDebugging(`service ${row.name}: owner stop failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+      if (!ok) {
+        const child = liveChildren.get(key)
+        if (child && child.exitCode === null && child.signalCode === null) {
+          try {
+            await endProcessTree(child, 'SIGTERM')
+            ok = true
+          } catch (error) {
+            logForDebugging(`service ${row.name}: owner fallback stop failed: ${error instanceof Error ? error.message : String(error)}`)
+          }
+        }
+      }
+      if (ok) startedBy.delete(key)
+    }),
+  )
 }
 
 registerOwnerScopedStore({
@@ -441,7 +495,9 @@ export async function startService(
   const invalid = validateSpec(spec)
   if (invalid) return { error: invalid }
   const project = projectKeyOf(spec)
-  const existing = reconcileRecord(project, spec.name)
+  const loaded = reconcileRecordStrict(project, spec.name)
+  if (!loaded.ok) return { error: loaded.error }
+  const existing = loaded.record
   if (existing && ['starting', 'ready', 'running', 'stopping'].includes(existing.state)) {
     return {
       error: `service '${spec.name}' is already ${existing.state} (pid ${existing.pid}) — stop or restart it instead`,
@@ -597,7 +653,9 @@ export async function stopService(
   cwd: string,
   name: string,
 ): Promise<{ record: ServiceRecord; note?: string } | { error: string }> {
-  const record = reconcileRecord(cwd, name)
+  const loaded = reconcileRecordStrict(cwd, name)
+  if (!loaded.ok) return { error: loaded.error }
+  const record = loaded.record
   if (!record) return { error: `no service '${name}' in this project` }
   const pending = restartTimers.get(childKey(cwd, name))
   if (pending) {
@@ -671,7 +729,9 @@ export async function restartService(
   sessionId: string,
   owner?: OwnerKey,
 ): Promise<{ record: ServiceRecord } | { error: string }> {
-  const record = readRecord(cwd, name)
+  const loaded = readRecordStrict(cwd, name)
+  if (!loaded.ok) return { error: loaded.error }
+  const record = loaded.record
   if (!record) return { error: `no service '${name}' in this project — start it first` }
   const keeper = startedBy.get(childKey(cwd, name))?.owner ?? owner
   const stopped = await stopService(cwd, name)
@@ -697,7 +757,9 @@ export function sendInput(
   sessionId: string,
   mode: ServiceInputMode = 'submit',
 ): { ok: true; pty: boolean } | { error: string } {
-  const record = reconcileRecord(cwd, name)
+  const loaded = reconcileRecordStrict(cwd, name)
+  if (!loaded.ok) return { error: loaded.error }
+  const record = loaded.record
   if (!record) return { error: `no service '${name}' in this project` }
   if (!record.pid) return { error: `service '${name}' is ${record.state} — nothing to write to` }
   const child = liveChildren.get(childKey(cwd, name))
@@ -763,13 +825,18 @@ export async function readLogs(
   | { lines: string[]; nextCursor: number; eof: boolean; totalBytes: number }
   | { error: string }
 > {
-  const record = readRecord(cwd, name)
+  const loaded = readRecordStrict(cwd, name)
+  if (!loaded.ok) return { error: loaded.error }
+  const record = loaded.record
   if (!record) return { error: `no service '${name}' in this project` }
   let size = 0
   try {
     size = statSync(record.logFile).size
-  } catch {
-    return { lines: [], nextCursor: 0, eof: true, totalBytes: 0 }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { lines: [], nextCursor: 0, eof: true, totalBytes: 0 }
+    }
+    return { error: error instanceof Error ? error.message : String(error) }
   }
   const limit = Math.min(opts.limitLines ?? 100, 1000)
   let start = opts.cursor ?? 0
@@ -777,15 +844,20 @@ export async function readLogs(
     start = Math.max(0, size - 64 * 1024)
   }
   if (start >= size) return { lines: [], nextCursor: size, eof: true, totalBytes: size }
-  const text = await new Promise<string>((resolve, reject) => {
-    const chunks: Buffer[] = []
-    createReadStream(record.logFile, { start, end: Math.min(size - 1, start + 512 * 1024) })
-      .on('data', chunk => {
-        chunks.push(chunk as Buffer)
-      })
-      .on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
-      .on('error', reject)
-  }).catch(passedOverAs(''))
+  let text: string
+  try {
+    text = await new Promise<string>((resolve, reject) => {
+      const chunks: Buffer[] = []
+      createReadStream(record.logFile, { start, end: Math.min(size - 1, start + 512 * 1024) })
+        .on('data', chunk => {
+          chunks.push(chunk as Buffer)
+        })
+        .on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+        .on('error', reject)
+    })
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
   let lines = text.split('\n')
   const consumedBytes = Buffer.byteLength(text, 'utf8')
   const atEof = start + consumedBytes >= size

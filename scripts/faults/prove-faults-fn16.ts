@@ -304,5 +304,133 @@ if (POSIX_MODES) {
   )
 }
 
+{
+  console.log('\nserviceManager.ts — strict record read, EPERM alive, unreadable logs, owner stop')
+  const r = runSub(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mgr = await import(path.join(SRC, 'services/projectServices/serviceManager.ts'))
+    const lifecycle = await import(path.join(SRC, 'services/run/ownerLifecycle.ts'))
+    const { projectOwner } = await import(path.join(SRC, 'services/primitives/owner.ts'))
+
+    const svcDir = mgr.servicesDir(WORK)
+    fs.mkdirSync(svcDir, { recursive: true })
+    const badPath = path.join(svcDir, 'corrupt-svc.json')
+    fs.writeFileSync(badPath, '{not valid json')
+    out.startCorrupt = await mgr.startService({
+      spec: { name: 'corrupt-svc', command: process.execPath, args: ['-e', ''], cwd: WORK, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' },
+      sessionId: 's1',
+    })
+    out.corruptBytesKept = fs.readFileSync(badPath, 'utf8') === '{not valid json'
+    out.stopCorrupt = await mgr.stopService(WORK, 'corrupt-svc')
+    out.readLogsCorrupt = await mgr.readLogs(WORK, 'corrupt-svc', {})
+
+    const epermRecord = {
+      schema: 1,
+      spec: { name: 'eperm-svc', command: process.execPath, args: [], cwd: WORK, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' },
+      state: 'running',
+      pid: 999999,
+      startToken: null,
+      startedAt: Date.now(),
+      stoppedAt: null,
+      lastExitCode: null,
+      explicitStop: false,
+      restartCount: 0,
+      readiness: [],
+      logFile: path.join(svcDir, 'eperm-svc.log'),
+      ownerSessionId: 's1',
+      logStartByte: 0,
+      updatedAt: Date.now(),
+    }
+    fs.writeFileSync(path.join(svcDir, 'eperm-svc.json'), JSON.stringify(epermRecord))
+    const realKill = process.kill
+    process.kill = ((pid, sig) => {
+      if (pid === 999999 && sig === 0) {
+        const e = new Error('operation not permitted')
+        e.code = 'EPERM'
+        throw e
+      }
+      return realKill(pid, sig)
+    })
+    try {
+      out.reconciledEperm = mgr.reconcileRecord(WORK, 'eperm-svc')
+    } finally {
+      process.kill = realKill
+    }
+
+    const logFile = path.join(svcDir, 'log-svc.log')
+    fs.writeFileSync(logFile, 'hello from service\\n')
+    const logRecord = { ...epermRecord, spec: { ...epermRecord.spec, name: 'log-svc' }, state: 'stopped', pid: null, logFile }
+    fs.writeFileSync(path.join(svcDir, 'log-svc.json'), JSON.stringify(logRecord))
+    if (${JSON.stringify(POSIX_MODES)}) {
+      fs.chmodSync(logFile, 0o000)
+      try {
+        out.unreadableLogs = await mgr.readLogs(WORK, 'log-svc', {})
+      } finally {
+        fs.chmodSync(logFile, 0o600)
+      }
+    }
+
+    const owner = projectOwner(path.join(WORK, 'owned'))
+    const ownedDir = path.join(WORK, 'owned')
+    fs.mkdirSync(ownedDir, { recursive: true })
+    const started = await mgr.startService({
+      spec: { name: 'owned-svc', command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], cwd: ownedDir, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' },
+      sessionId: 's-own',
+      owner,
+    })
+    const ownedPid = 'record' in started ? started.record.pid : null
+    const ownedRecPath = path.join(mgr.servicesDir(ownedDir), 'owned-svc.json')
+    fs.writeFileSync(ownedRecPath, '{broken')
+    await lifecycle.disposeOwner(owner)
+    await new Promise(resolve => setTimeout(resolve, 150))
+    let stillAlive = false
+    if (ownedPid) {
+      try { process.kill(ownedPid, 0); stillAlive = true } catch {}
+    }
+    if (stillAlive && ownedPid) {
+      try { process.kill(ownedPid, 'SIGKILL') } catch {}
+    }
+    out.ownedStoppedAfterCorruptRecord = ownedPid !== null && !stillAlive
+  `)
+  const startCorrupt = r.startCorrupt as { error?: string }
+  const stopCorrupt = r.stopCorrupt as { error?: string }
+  const readLogsCorrupt = r.readLogsCorrupt as { error?: string }
+  const reconciledEperm = r.reconciledEperm as { state?: string; pid?: number | null } | null
+  check(
+    'startService refuses over a corrupt record and leaves the file untouched',
+    typeof startCorrupt?.error === 'string' && r.corruptBytesKept === true,
+    JSON.stringify(r.startCorrupt),
+  )
+  check(
+    'stopService returns the parse error instead of saying no service exists',
+    typeof stopCorrupt?.error === 'string' && !stopCorrupt.error.includes('no service'),
+    JSON.stringify(r.stopCorrupt),
+  )
+  check(
+    'readLogs returns the parse error instead of saying no service exists',
+    typeof readLogsCorrupt?.error === 'string' && !readLogsCorrupt.error.includes('no service'),
+    JSON.stringify(r.readLogsCorrupt),
+  )
+  check(
+    'reconcileRecord treats EPERM from process.kill(pid, 0) as alive',
+    reconciledEperm?.state === 'running' && reconciledEperm.pid === 999999,
+    JSON.stringify(reconciledEperm),
+  )
+  if (POSIX_MODES) {
+    const unreadableLogs = r.unreadableLogs as { error?: string; lines?: string[] }
+    check(
+      'readLogs returns an error on an unreadable log file instead of empty lines',
+      typeof unreadableLogs?.error === 'string' && unreadableLogs.error.length > 0,
+      JSON.stringify(unreadableLogs),
+    )
+  }
+  check(
+    'disposeOwner ends a live owned child even when its service record is corrupt',
+    r.ownedStoppedAfterCorruptRecord === true,
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
