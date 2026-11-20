@@ -317,7 +317,8 @@ else {
     const other = runIn(family, `
       const login = await import(${JSON.stringify(join(SRC, module))})
       fs.mkdirSync(dir, { recursive: true })
-      fs.writeFileSync(file, FULL, { mode: 0o600 })
+      const WITH = JSON.stringify({ ...JSON.parse(FULL), tokenIdentity: { username: 'kept', observedAtMs: 1, keyTail: 'ab12' } }, null, 2) + '\\n'
+      fs.writeFileSync(file, WITH, { mode: 0o600 })
       const secrets = path.join(dir, '.provider-secrets.json')
       const SECRETS = JSON.stringify({ version: 1, zaiApiKey: 'fixture-other-key' })
       fs.writeFileSync(secrets, SECRETS, { mode: 0o600 })
@@ -325,12 +326,20 @@ else {
       out.outcome = await ${call}
       fs.chmodSync(secrets, 0o600)
       out.secretsSame = raw(secrets) === SECRETS
-      out.before = JSON.parse(FULL)
+      out.before = JSON.parse(WITH)
       out.after = parsed(file)
+      out.byteSame = raw(file) === WITH
       out.ledger = Object.keys((parsed(path.join(dir, '.sign-ins.json')) ?? {}).signIns ?? {})
+      fs.unlinkSync(file)
+      fs.chmodSync(secrets, 0o200)
+      out.again = await ${call}
+      fs.chmodSync(secrets, 0o600)
+      out.madeAFile = fs.existsSync(file)
     `)
     const refusedBySecrets = other.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
     check(`${family.label}: refused by the secrets store instead, the sign-in leaves the auth file's fields as they were and records nothing`, refusedBySecrets?.ok === false && refusedBySecrets.stored === false && (refusedBySecrets.receipt ?? '').startsWith(`${said}The provider secrets store at `) && other.secretsSame === true && JSON.stringify(other.after) === JSON.stringify(other.before) && (other.ledger as string[]).length === 0, JSON.stringify({ outcome: refusedBySecrets, after: other.after, ledger: other.ledger }))
+    check(`${family.label}: …the auth file is byte for byte what it was, the identity kept for another token with it`, other.byteSame === true, JSON.stringify(other.after))
+    check(`${family.label}: …and where there was no auth file, the refused sign-in leaves none`, (other.again as { ok?: boolean } | undefined)?.ok === false && other.madeAFile === false, `a refused sign-in left an auth file where there was none (${JSON.stringify(other.again)})`)
   }
 }
 

@@ -118,6 +118,27 @@ export function credentialJsonToWriteOver(what: string, store: string, path: str
   return null
 }
 
+export function credentialFileRestorer(path: string): () => void {
+  let before: Buffer | 'absent' | undefined
+  try {
+    before = readFileSync(path)
+  } catch (error) {
+    if (isENOENT(error)) before = 'absent'
+  }
+  return () => {
+    if (before === undefined) return
+    if (before !== 'absent') durableAtomicPublishSync(path, before, { mode: 0o600 })
+    else {
+      try {
+        unlinkSync(path)
+      } catch (error) {
+        if (!isENOENT(error)) throw error
+      }
+    }
+    noteCredentialChange()
+  }
+}
+
 function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   const dir = getAuthConfigHomeDir()
   refuseProofWriteIntoAccountStore(dir, 'the provider secrets store')

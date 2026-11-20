@@ -1,7 +1,7 @@
 import { KEY_PAGES } from '../../../components/loginFamilyRows.js'
 import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
-import { readStoredGeminiApiKey, writeStoredGeminiApiKey } from '../providerSecrets.js'
-import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
+import { credentialFileRestorer, readStoredGeminiApiKey, writeStoredGeminiApiKey } from '../providerSecrets.js'
+import { geminiAuthPathForDisplay, geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
 
@@ -98,12 +98,13 @@ export async function storeGeminiApiKeyLogin(
     io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('api-key', { force: true }).catch(() => null))
   const previousKey = readStoredGeminiApiKey() ?? null
   const previousSource = readPreferredGeminiSource()
+  const restoreAuthFile = credentialFileRestorer(geminiAuthPathForDisplay())
   try {
     writePreferredGeminiSource('api-key')
     try {
       writeStoredGeminiApiKey(key)
     } catch (error) {
-      writePreferredGeminiSource(previousSource ?? null)
+      restoreAuthFile()
       throw error
     }
   } catch (error) {
