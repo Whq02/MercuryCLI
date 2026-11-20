@@ -94,17 +94,8 @@ function hasGlob(word: string): boolean {
   return /[*?[]/.test(word)
 }
 
-const MATCHES_NOTHING = /^(?!)$/
 
 function segmentPattern(segment: string): RegExp {
-  try {
-    return segmentPatternOf(segment)
-  } catch {
-    return MATCHES_NOTHING
-  }
-}
-
-function segmentPatternOf(segment: string): RegExp {
   let source = ''
   for (let i = 0; i < segment.length; i++) {
     const char = segment[i] as string
@@ -463,12 +454,7 @@ export function startedProgramIsShell(command: string | undefined, args: readonl
 }
 
 function fileUrlPath(url: string): string {
-  const path = url.slice('file://'.length)
-  try {
-    return decodeURI(path)
-  } catch {
-    return path
-  }
+  return decodeURI(url.slice('file://'.length))
 }
 
 function operandPaths(args: readonly string[]): string[] {
