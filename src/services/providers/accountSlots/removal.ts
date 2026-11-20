@@ -2,7 +2,7 @@ import { credentialStoreUnread, credentialsPath, getSecureStorage, removeSecureS
 import { logError } from '../../../utils/log.js'
 import { saveGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
-import { dropCredentialMemos, removeApiKey } from '../../../utils/auth.js'
+import { dropCredentialMemos, removeApiKeySync } from '../../../utils/auth.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { resetUserCache } from '../../../utils/user.js'
 import { revokeOAuthToken } from '../../oauth/client.js'
@@ -231,7 +231,7 @@ function routeSlotRemoval(
           }
     }
     case 'anthropic-managed-key':
-      ;(owners.clearManagedAnthropicKey ?? (() => void removeApiKey()))()
+      ;(owners.clearManagedAnthropicKey ?? removeApiKeySync)()
       return { note: 'clearing the /logins managed key (config + keychain)', mutated: true }
     case 'openai-subscription': {
       ;(owners.disconnectOpenaiSubscription ?? disconnectOpenaiSubscription)()
