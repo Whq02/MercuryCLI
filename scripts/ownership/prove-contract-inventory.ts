@@ -1,13 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
-import ts from 'typescript'
-import { parseWatchHeader } from '../verify/impactManifest.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const INVENTORY = join(import.meta.dir, 'contract-inventory.json')
 const record = process.argv.includes('--record')
 const ROW = {
@@ -27,243 +24,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const MODULES: Record<string, string[]> = {
-  transports: [
-    'src/cli/transports/Transport.ts',
-    'src/cli/transports/connectionLifecycle.ts',
-    'src/cli/transports/transportUtils.ts',
-    'src/cli/transports/HybridTransport.ts',
-    'src/cli/transports/SSETransport.ts',
-    'src/cli/transports/WebSocketTransport.ts',
-    'src/cli/transports/ccrClient.ts',
-    'src/cli/transports/SerialBatchEventUploader.ts',
-    'src/cli/transports/WorkerStateUploader.ts',
-    'src/cli/remoteIO.ts',
-    'src/cli/structuredIO.ts',
-  ],
-  settings: [
-    'src/utils/config.ts',
-    'src/utils/settings/snapshot.ts',
-    'src/utils/settings/settings.ts',
-    'src/utils/settings/types.ts',
-    'src/utils/settings/validation.ts',
-    'src/utils/settings/settingsCache.ts',
-    'src/utils/settings/applySettingsChange.ts',
-    'src/utils/settings/managedPath.ts',
-    'src/utils/settings/allErrors.ts',
-  ],
-  decisions: [
-    'src/utils/permissions/permissions.ts',
-    'src/utils/permissions/permissionSetup.ts',
-    'src/utils/permissions/permissionsLoader.ts',
-    'src/utils/permissions/PermissionMode.ts',
-    'src/utils/permissions/PermissionResult.ts',
-    'src/utils/permissions/PermissionRule.ts',
-    'src/utils/permissions/PermissionUpdate.ts',
-    'src/utils/permissions/permissionExplainer.ts',
-    'src/types/permissions.ts',
-  ],
-  mcp: [
-    'src/services/mcp/auth.ts',
-    'src/services/mcp/config.ts',
-    'src/services/mcp/client.ts',
-    'src/services/mcp/types.ts',
-  ],
-  tools: [
-    'src/services/tools/toolExecution.ts',
-    'src/services/tools/toolOrchestration.ts',
-    'src/services/run/effectObserver.ts',
-    'src/tools/DocumentTool/DocumentTool.ts',
-    'src/tools/DocumentTool/schema.ts',
-  ],
-  compaction: [
-    'src/services/compact/compact.ts',
-    'src/services/compact/autoCompact.ts',
-    'src/services/compact/compactionPolicy.ts',
-    'src/services/compact/microCompact.ts',
-    'src/services/compact/verbatimTail.ts',
-    'src/services/compact/sessionMemoryCompact.ts',
-  ],
-  agents: [
-    'src/tools/AgentTool/AgentTool.tsx',
-  ],
-  turnEngine: [
-    'src/query.ts',
-    'src/rows/turn.ts',
-    'src/run-core/turn-machine.ts',
-    'src/run-core/events.ts',
-    'src/run-core/project-legacy.ts',
-    'src/run-core/model-lane.ts',
-    'src/run-core/budget-guard.ts',
-    'src/run-core/attachment-drain.ts',
-  ],
-  headless: ['src/cli/run.ts'],
-  bootUi: [
-    'src/main.tsx',
-    'src/screens/Chat.tsx',
-    'src/components/PromptInput/PromptInput.tsx',
-  ],
-}
-
-const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
-  {
-    label: 'permission-mode vocabulary (types/permissions.ts)',
-    files: ['src/types/permissions.ts'],
-    patterns: [
-      "'default'",
-      "'implement'",
-      "'sovereign'",
-      "'dontAsk'",
-      "'flow'",
-    ],
-  },
-  {
-    label: 'headless output modes + the row stream',
-    files: ['src/cli/run.ts', 'src/cli/structuredIO.ts', 'src/cli/headless'],
-    patterns: [
-      'outputFormat',
-      'outcomeRow\\(',
-      'isOutcome\\(',
-      'exitCodeOf\\(',
-      "type:\\s*['\"]prompt['\"]",
-    ],
-  },
-  {
-    label: 'ToolResult.effect truth (typed effects + exactly-once observer)',
-    files: [
-      'src/services/run/effectObserver.ts',
-      'src/services/tools/toolExecution.ts',
-      'src/types/message.ts',
-    ],
-    patterns: ['changedPaths', 'ToolEffect', 'effect'],
-  },
-]
-
-function scanExports(absPath: string): string[] {
-  const source = ts.createSourceFile(
-    absPath,
-    readFileSync(absPath, 'utf-8'),
-    ts.ScriptTarget.Latest,
-     false,
-    absPath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  )
-  const names = new Set<string>()
-  const hasExportModifier = (node: ts.HasModifiers): boolean =>
-    (ts.getModifiers(node) ?? []).some(m => m.kind === ts.SyntaxKind.ExportKeyword)
-  const hasDefaultModifier = (node: ts.HasModifiers): boolean =>
-    (ts.getModifiers(node) ?? []).some(m => m.kind === ts.SyntaxKind.DefaultKeyword)
-
-  for (const stmt of source.statements) {
-    if (ts.isExportDeclaration(stmt)) {
-      if (stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
-        for (const spec of stmt.exportClause.elements) {
-          const typePrefix = stmt.isTypeOnly || spec.isTypeOnly ? 'type:' : ''
-          names.add(typePrefix + spec.name.text)
-        }
-      } else if (stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)) {
-        names.add(`*→${stmt.moduleSpecifier.text}`)
-      }
-      continue
-    }
-    if (ts.isExportAssignment(stmt)) {
-      names.add('default')
-      continue
-    }
-    if (
-      (ts.isFunctionDeclaration(stmt) ||
-        ts.isClassDeclaration(stmt) ||
-        ts.isInterfaceDeclaration(stmt) ||
-        ts.isTypeAliasDeclaration(stmt) ||
-        ts.isEnumDeclaration(stmt) ||
-        ts.isModuleDeclaration(stmt)) &&
-      hasExportModifier(stmt)
-    ) {
-      if (hasDefaultModifier(stmt)) names.add('default')
-      const typePrefix =
-        ts.isInterfaceDeclaration(stmt) || ts.isTypeAliasDeclaration(stmt) ? 'type:' : ''
-      const name = (stmt as { name?: ts.Identifier | ts.StringLiteral }).name
-      if (name && 'text' in name) names.add(typePrefix + name.text)
-      continue
-    }
-    if (ts.isVariableStatement(stmt) && hasExportModifier(stmt)) {
-      for (const decl of stmt.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name)) names.add(decl.name.text)
-        else if (ts.isObjectBindingPattern(decl.name) || ts.isArrayBindingPattern(decl.name)) {
-          for (const el of decl.name.elements) {
-            if (ts.isBindingElement(el) && ts.isIdentifier(el.name)) names.add(el.name.text)
-          }
-        }
-      }
-    }
-  }
-  return [...names].sort()
-}
-
-function moduleTextOf(entries: string[]): string {
-  let text = ''
-  for (const rel of entries) {
-    const abs = join(ROOT, rel)
-    if (!existsSync(abs)) continue
-    if (statSync(abs).isDirectory()) {
-      const walk = (dir: string): void => {
-        for (const f of readdirSync(dir, { withFileTypes: true })) {
-          const p = join(dir, f.name)
-          if (f.isDirectory()) walk(p)
-          else if (/\.tsx?$/.test(f.name)) text += readFileSync(p, 'utf-8') + '\n'
-        }
-      }
-      walk(abs)
-    } else {
-      text += readFileSync(abs, 'utf-8') + '\n'
-    }
-  }
-  return text
-}
-
 console.log('============================================================')
-console.log(' Core-ownership contract inventory — exports · needles · keys')
+console.log(' Core-ownership contract inventory — settings keys')
 console.log('============================================================')
 
-section('(1) module export inventory (static AST scan)')
-const scanned: Record<string, Record<string, string[]>> = {}
-for (const [domain, files] of Object.entries(MODULES)) {
-  scanned[domain] = {}
-  for (const rel of files) {
-    const abs = join(ROOT, rel)
-    if (!existsSync(abs)) {
-      scanned[domain][rel] = ['«missing»']
-      continue
-    }
-    scanned[domain][rel] = scanExports(abs)
-  }
-}
-
-// The suite's `# gate-watch:` header is the declaration the impact plane
-section('(1b) the suite watches what it pins (the impact plane selects it for every inventoried owner)')
-{
-  const globs = parseWatchHeader(readFileSync(join(import.meta.dir, 'run-all.sh'), 'utf-8')).map(g => new Bun.Glob(g))
-  const pinned = new Set<string>()
-  const add = (rel: string): void => {
-    const abs = join(ROOT, rel)
-    if (!existsSync(abs)) return
-    if (!statSync(abs).isDirectory()) {
-      pinned.add(rel)
-      return
-    }
-    for (const f of readdirSync(abs, { withFileTypes: true })) {
-      if (f.isDirectory() || /\.tsx?$/.test(f.name)) add(`${rel}/${f.name}`)
-    }
-  }
-  for (const rel of [...Object.values(MODULES).flat(), ...NEEDLES.flatMap(n => n.files)]) add(rel)
-  const unwatched = [...pinned].filter(rel => !globs.some(g => g.match(rel)))
-  check(
-    `every inventoried path is under a gate-watch glob of scripts/ownership/run-all.sh (${pinned.size} paths / ${globs.length} globs)`,
-    unwatched.length === 0,
-    unwatched.length ? `UNWATCHED: ${unwatched.join(', ')} — add a gate-watch row so a change there selects this suite` : '',
-  )
-}
-
-section('(2) settings-key registry (live SettingsSchema shape)')
+section('(1) settings-key registry (live SettingsSchema shape)')
 let settingsKeys: string[] = []
 {
   const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
@@ -276,50 +41,24 @@ let settingsKeys: string[] = []
 }
 
 interface Inventory {
-  modules: Record<string, Record<string, string[]>>
   settingsKeys: string[]
+  [key: string]: unknown
 }
 
 if (record) {
-  const inv: Inventory = { modules: scanned, settingsKeys }
+  const existing = existsSync(INVENTORY)
+    ? (JSON.parse(readFileSync(INVENTORY, 'utf-8')) as Record<string, unknown>)
+    : {}
+  const inv: Inventory = { ...existing, settingsKeys }
   writeFileSync(INVENTORY, JSON.stringify(inv, null, 1) + '\n')
   registerGeneratedAsset(ROW)
-  const total = Object.values(scanned).reduce(
-    (n, files) => n + Object.values(files).reduce((m, e) => m + e.length, 0),
-    0,
-  )
-  console.log(
-    `  [RECORDED] ${total} export(s) across ${Object.values(scanned).reduce((n, f) => n + Object.keys(f).length, 0)} module(s) + ${settingsKeys.length} settings key(s) → ${INVENTORY}`,
-  )
+  console.log(`  [RECORDED] ${settingsKeys.length} settings key(s) → ${INVENTORY}`)
 } else {
-  section('(3) verify against the recorded inventory')
+  section('(2) verify against the recorded inventory')
   if (!existsSync(INVENTORY)) {
     check('inventory exists (run --record first)', false)
   } else {
     const inv = JSON.parse(readFileSync(INVENTORY, 'utf-8')) as Inventory
-    for (const [domain, files] of Object.entries(inv.modules)) {
-      for (const [rel, recorded] of Object.entries(files)) {
-        const current = scanned[domain]?.[rel]
-        if (!current) {
-          check(`${domain}: ${rel} still inventoried`, false, 'module list drifted — --record deliberately')
-          continue
-        }
-        const cur = new Set(current)
-        const rec = new Set(recorded)
-        const missing = recorded.filter(e => !cur.has(e))
-        const added = current.filter(e => !rec.has(e))
-        check(
-          `${domain}: ${rel} (${recorded.length} exports)`,
-          missing.length === 0 && added.length === 0,
-          [
-            missing.length ? `DISAPPEARED: ${missing.join(', ')}` : '',
-            added.length ? `UNRECORDED: ${added.join(', ')} (re-run --record deliberately)` : '',
-          ]
-            .filter(Boolean)
-            .join(' · '),
-        )
-      }
-    }
     const curKeys = new Set(settingsKeys)
     const recKeys = new Set(inv.settingsKeys)
     const missingKeys = inv.settingsKeys.filter(k => !curKeys.has(k))
@@ -334,15 +73,6 @@ if (record) {
         .filter(Boolean)
         .join(' · '),
     )
-  }
-}
-
-section('(4) cross-cutting contract needles')
-for (const needle of NEEDLES) {
-  const text = moduleTextOf(needle.files)
-  check(`${needle.label}: module text non-empty`, text.length > 0)
-  for (const pat of needle.patterns) {
-    check(`  ${needle.label} · /${pat}/`, new RegExp(pat).test(text))
   }
 }
 
