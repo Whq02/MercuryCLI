@@ -10,9 +10,9 @@ import { cacheDirOfRepo, ggufOnDisk, hfCacheRoot } from './hfCache.js'
 import { servedTensorFold } from './serve.js'
 import { QWEN_27B, QWEN_27B_SECOND_WORDS, QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, tensorFoldStartingOrder, type TensorFoldCheckpoint } from './starting.js'
 import { configFactsOf, rec, type ConfigFacts } from './configFacts.js'
+import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-
 export { cacheDirOfRepo, hfCacheRoot } from './hfCache.js'
 export { configFactsOf, type ConfigFacts } from './configFacts.js'
 
@@ -26,6 +26,8 @@ type HfSnapshot = {
   incompleteBytes: number
 }
 
+export type TensorFoldInventoryReadError = { path: string; error: string }
+
 export type InventoryIo = EngineIo & {
   cacheRoot?: string
   machine?: TensorFoldMachineTruth
@@ -34,35 +36,39 @@ export type InventoryIo = EngineIo & {
   listDir?: (path: string) => string[]
   readText?: (path: string) => string | undefined
   sizeOf?: (path: string) => number | undefined
+  onReadError?: (failure: TensorFoldInventoryReadError) => void
 }
 
 export function hfCacheWords(root: string, home: string = homedir()): string {
   return root.startsWith(home) ? `~${root.slice(home.length)}` : root
 }
 
-function defaultListDir(path: string): string[] {
+function defaultListDir(path: string, onReadError?: (failure: TensorFoldInventoryReadError) => void): string[] {
   try {
     return readdirSync(path)
   } catch (error) {
     passedOver(error)
+    if (!isENOENT(error)) onReadError?.({ path, error: errorMessage(error) })
     return []
   }
 }
 
-function defaultReadText(path: string): string | undefined {
+function defaultReadText(path: string, onReadError?: (failure: TensorFoldInventoryReadError) => void): string | undefined {
   try {
     return readFileSync(path, 'utf8')
   } catch (error) {
     passedOver(error)
+    if (!isENOENT(error)) onReadError?.({ path, error: errorMessage(error) })
     return undefined
   }
 }
 
-function defaultSizeOf(path: string): number | undefined {
+function defaultSizeOf(path: string, onReadError?: (failure: TensorFoldInventoryReadError) => void): number | undefined {
   try {
     return statSync(path).size
   } catch (error) {
     passedOver(error)
+    if (!isENOENT(error)) onReadError?.({ path, error: errorMessage(error) })
     return undefined
   }
 }
@@ -75,10 +81,10 @@ function repoOfCacheDir(name: string): string | undefined {
   return `${rest.slice(0, cut)}/${rest.slice(cut + 2)}`
 }
 
-export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'readText' | 'sizeOf'> = {}): HfSnapshot | undefined {
-  const listDir = io.listDir ?? defaultListDir
-  const readText = io.readText ?? defaultReadText
-  const sizeOf = io.sizeOf ?? defaultSizeOf
+export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'readText' | 'sizeOf' | 'onReadError'> = {}): HfSnapshot | undefined {
+  const listDir = io.listDir ?? (path => defaultListDir(path, io.onReadError))
+  const readText = io.readText ?? (path => defaultReadText(path, io.onReadError))
+  const sizeOf = io.sizeOf ?? (path => defaultSizeOf(path, io.onReadError))
   const base = join(root, cacheDirOfRepo(repo))
   const snapshots = join(base, 'snapshots')
   const main = readText(join(base, 'refs', 'main'))?.trim()
@@ -108,8 +114,8 @@ export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo,
   return { repo, dir, config, weightsBytes, incompleteBytes }
 }
 
-function listHfRepos(root: string, io: Pick<InventoryIo, 'listDir'> = {}): string[] {
-  const listDir = io.listDir ?? defaultListDir
+function listHfRepos(root: string, io: Pick<InventoryIo, 'listDir' | 'onReadError'> = {}): string[] {
+  const listDir = io.listDir ?? (path => defaultListDir(path, io.onReadError))
   return listDir(root)
     .map(repoOfCacheDir)
     .filter((repo): repo is string => repo !== undefined)
