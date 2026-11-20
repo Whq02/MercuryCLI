@@ -21,40 +21,42 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
-function throwsWithCode(fn: () => unknown, codes: readonly string[]): { threw: boolean; code: string | undefined; message: string } {
-  try {
-    fn()
-    return { threw: false, code: undefined, message: '' }
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException | null)?.code
-    return { threw: true, code, message: error instanceof Error ? error.message : String(error) }
-  }
-}
-
 {
   const { hashTree, treeFileDigests, folderSize } = await import('../../src/extensions/tree.ts')
   const dir = mkdtempSync(join(tmpdir(), 'faults-fn05-tree-'))
+  const withoutSub = mkdtempSync(join(tmpdir(), 'faults-fn05-tree-nosub-'))
   try {
     mkdirSync(join(dir, 'sub'))
     writeFileSync(join(dir, 'root.txt'), 'root')
     writeFileSync(join(dir, 'sub', 'hidden.txt'), 'secret')
+    writeFileSync(join(withoutSub, 'root.txt'), 'root')
+    const readableHash = hashTree(dir)
+    const noSubHash = hashTree(withoutSub)
+    const readableDigests = treeFileDigests(dir)
+    const noSubDigests = treeFileDigests(withoutSub)
     if (POSIX_MODES) {
       chmodSync(join(dir, 'sub'), 0o000)
       try {
-        const hashRes = throwsWithCode(() => hashTree(dir), ['EACCES', 'EPERM'])
-        const digestsRes = throwsWithCode(() => treeFileDigests(dir), ['EACCES', 'EPERM'])
+        const unreadableHash = hashTree(dir)
+        const unreadableDigests = treeFileDigests(dir)
         const size = folderSize(dir)
-        check('tree: hashTree throws on unreadable subfolder', hashRes.threw && (hashRes.code === 'EACCES' || hashRes.code === 'EPERM'), JSON.stringify(hashRes))
-        check('tree: treeFileDigests throws on unreadable subfolder', digestsRes.threw && (digestsRes.code === 'EACCES' || digestsRes.code === 'EPERM'), JSON.stringify(digestsRes))
+        check('tree: hashTree with unreadable subfolder differs from readable tree and from tree without subfolder', unreadableHash !== readableHash && unreadableHash !== noSubHash, `${unreadableHash} vs ${readableHash} vs ${noSubHash}`)
+        check('tree: treeFileDigests records unreadable subfolder marker', unreadableDigests['sub/'] === '<unreadable-dir>' && JSON.stringify(unreadableDigests) !== JSON.stringify(readableDigests) && JSON.stringify(unreadableDigests) !== JSON.stringify(noSubDigests), JSON.stringify(unreadableDigests))
         check('tree: folderSize stays best-effort on unreadable subfolder', size === 4, String(size))
       } finally {
         chmodSync(join(dir, 'sub'), 0o700)
       }
     }
     const missingHash = hashTree(join(dir, 'absent'))
-    check('tree: hashTree still treats missing root as empty', missingHash.startsWith('sha256:'), missingHash)
+    const emptyDir = mkdtempSync(join(tmpdir(), 'faults-fn05-tree-empty-'))
+    try {
+      check('tree: hashTree still treats missing root same as empty folder', missingHash === hashTree(emptyDir), missingHash)
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true })
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(withoutSub, { recursive: true, force: true })
   }
 }
 
