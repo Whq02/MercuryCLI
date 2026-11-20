@@ -3,7 +3,7 @@ import { execFile, execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 
 const home = mkdtempSync(join(tmpdir(), 'git-spawn-settings-'))
 process.env.HOME = home
@@ -215,15 +215,16 @@ try {
   plain(['config', 'core.askPass', posix(join(home, 'askpass.sh'))])
   check('a repository-scoped askPass program is replaced by the user\'s own, else none, on ls-remote, fetch and remote', ['ls-remote', 'fetch', 'remote'].every(command => gitArgs([command, 'origin'], root).includes('core.askPass=')))
 
-  {
+  if (process.platform === 'win32') console.log("  [SKIP] the eight rows of the stand-in git (the rig holds; a layout, filter-settings or config read that ends without an exit status, or gives no answer within its limit, does not stop the call; the control) — not read on Windows: the rows plant a shell-script git on PATH, which Windows does not start")
+  else {
     const { gitExe } = await import('../../src/utils/git/gitExe.ts')
     const { gitArgsAsync, gitFilterSkipMessages } = await import('../../src/utils/git/spawnArgs.ts')
-    const realGit = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+    const realGit = Bun.which('git') ?? 'git'
     const fake = join(home, 'fake-git')
     mkdirSync(fake)
     writeFileSync(join(fake, 'git'), `#!/bin/sh\nhere="$(dirname "$0")"\nif [ -s "$here/arm" ]; then\n  case " $* " in\n    *"$(cat "$here/arm")"*) if [ -e "$here/slow" ]; then exec sleep 9; fi; kill -KILL $$ ;;\n  esac\nfi\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
     const path = process.env.PATH
-    process.env.PATH = `${fake}:${path}`
+    process.env.PATH = `${fake}${delimiter}${path}`
     gitExe.cache.clear?.()
     const fresh = (name: string): string => {
       const dir = join(home, name)
