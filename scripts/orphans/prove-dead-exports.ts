@@ -27,8 +27,7 @@ function section(title: string): void {
 type Dead = { key: string; what: string }
 type CensusResult = { found: Dead[]; dead: Dead[] }
 
-function unusedDeclarations(fileNames: string[], options: ts.CompilerOptions, root: string): Dead[] {
-  const program = ts.createProgram(fileNames, { ...options, noUnusedLocals: true, noUnusedParameters: false, noEmit: true })
+function collectUnusedDeclarations(program: ts.Program, root: string): Dead[] {
   const out: Dead[] = []
   for (const sf of program.getSourceFiles()) {
     if (sf.isDeclarationFile || !sf.fileName.startsWith(root + '/')) continue
@@ -43,14 +42,18 @@ function unusedDeclarations(fileNames: string[], options: ts.CompilerOptions, ro
   return out
 }
 
+function unusedDeclarations(fileNames: string[], options: ts.CompilerOptions, root: string): Dead[] {
+  const program = ts.createProgram(fileNames, { ...options, noUnusedLocals: true, noUnusedParameters: false, noEmit: true })
+  return collectUnusedDeclarations(program, root)
+}
+
 function treeProgramInputs(): { fileNames: string[]; options: ts.CompilerOptions } {
   const cfg = ts.readConfigFile(join(GRAPH_ROOT, 'tsconfig.json'), ts.sys.readFile)
   const parsed = ts.parseJsonConfigFileContent(cfg.config, ts.sys, GRAPH_ROOT)
   return { fileNames: parsed.fileNames, options: parsed.options }
 }
 
-function schemaKeys(text: string): string[] {
-  const sf = ts.createSourceFile(SCHEMA, text, ts.ScriptTarget.Latest, true)
+function schemaKeysFromSourceFile(sf: ts.SourceFile): string[] {
   const keys = new Set<string>()
   const visit = (node: ts.Node): void => {
     if (ts.isPropertySignature(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))) keys.add(node.name.text)
@@ -58,6 +61,10 @@ function schemaKeys(text: string): string[] {
   }
   visit(sf)
   return [...keys].sort()
+}
+
+function schemaKeys(text: string): string[] {
+  return schemaKeysFromSourceFile(ts.createSourceFile(SCHEMA, text, ts.ScriptTarget.Latest, true))
 }
 
 function* walk(dir: string): Generator<string> {
@@ -116,15 +123,18 @@ function selfTest(): void {
   }
 }
 
-function declarationCensus(): CensusResult {
+function declarationCensus(): CensusResult & { schemaFile: ts.SourceFile } {
   section('§1 every declaration under src/ that nothing reads: an import, a local, a function, a type (the checker with noUnusedLocals)')
   const { fileNames, options } = treeProgramInputs()
-  const found = unusedDeclarations(fileNames, options, GRAPH_ROOT)
+  const program = ts.createProgram(fileNames, { ...options, noUnusedLocals: true, noUnusedParameters: false, noEmit: true })
+  const found = collectUnusedDeclarations(program, GRAPH_ROOT)
+  const schemaFile = program.getSourceFile(join(GRAPH_ROOT, SCHEMA))
+  if (!schemaFile) throw new Error(`${SCHEMA} missing from the TypeScript program`)
   const dead = found.filter(f => !allowed.has(f.key))
   console.log(`  program ${fileNames.length} files · unread declarations ${found.length} · allowed ${found.length - dead.length}`)
   check(`zero unread declarations (found ${dead.length})`, dead.length === 0, `\n    ${dead.slice(0, 60).map(d => d.what).join('\n    ')}${dead.length > 60 ? `\n    … ${dead.length - 60} more (--report lists them)` : ''}`)
   if (REPORT && dead.length) for (const d of dead) console.log(`    ${d.what}`)
-  return { found, dead }
+  return { found, dead, schemaFile }
 }
 
 function exportCensus(): CensusResult {
@@ -137,9 +147,9 @@ function exportCensus(): CensusResult {
   return { found, dead }
 }
 
-function settingsCensus(): CensusResult {
+function settingsCensus(schemaFile: ts.SourceFile): CensusResult {
   section(`§3 every key the settings schema carries (${SCHEMA}) is read by name somewhere under src/`)
-  const keys = schemaKeys(readFileSync(join(GRAPH_ROOT, SCHEMA), 'utf8'))
+  const keys = schemaKeysFromSourceFile(schemaFile)
   const readers: Array<{ file: string; text: string }> = []
   for (const p of walk(join(GRAPH_ROOT, 'src'))) {
     const rel = relative(GRAPH_ROOT, p)
@@ -172,7 +182,7 @@ console.log('============================================================')
 selfTest()
 const r1 = declarationCensus()
 const r2 = exportCensus()
-const r3 = settingsCensus()
+const r3 = settingsCensus(r1.schemaFile)
 allowListIsHonest([r1, r2, r3])
 const total = r1.dead.length + r2.dead.length + r3.dead.length
 console.log(failures === 0 ? `\n✅ DEAD-CODE CENSUS GREEN — ${checks} checks, nothing unread` : `\n❌ DEAD-CODE CENSUS RED — ${total} unread (${r1.dead.length} declarations · ${r2.dead.length} exports · ${r3.dead.length} settings keys); ${failures} of ${checks} checks failed`)
