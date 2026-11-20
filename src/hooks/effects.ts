@@ -52,10 +52,6 @@ export function useMeasure(
   useLayoutEffect(measure, deps)
 }
 
-export function useLayoutMount(effect: EffectCallback): void {
-  useLayoutEffect(effect, [])
-}
-
 export function useLayoutTimer(
   start: EffectCallback,
   deps?: DependencyList,
