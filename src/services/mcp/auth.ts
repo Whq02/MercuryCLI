@@ -27,7 +27,7 @@ import { openBrowser } from '../../utils/browser.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
-import { getMercuryHome } from '../../utils/envUtils.js'
+import { getAuthConfigHomeDir, getMercuryHome } from '../../utils/envUtils.js'
 import { lock } from '../../utils/lockfile.js'
 import { clearKeychainCache, getSecureStorage } from '../../utils/secureStorage/index.js'
 import { getMcpServerHeaders } from './headersHelper.js'
@@ -129,13 +129,22 @@ async function readEntryAsync(serverKey: string): Promise<StoredOAuthEntry | und
   return (data?.mcpOAuth as Record<string, StoredOAuthEntry> | undefined)?.[serverKey]
 }
 
-function writeEntry(serverKey: string, entry: StoredOAuthEntry | undefined): void {
+function writeEntry(serverKey: string, entry: StoredOAuthEntry | undefined): { success: boolean; code?: string } {
   const storage = getSecureStorage()
   const data = storage.read() ?? {}
   const map = { ...((data.mcpOAuth as Record<string, StoredOAuthEntry> | undefined) ?? {}) }
   if (entry === undefined) delete map[serverKey]
   else map[serverKey] = entry
-  storage.update({ ...data, mcpOAuth: map })
+  return storage.update({ ...data, mcpOAuth: map })
+}
+
+function refuseUnwrittenClear(serverName: string, written: { success: boolean; code?: string }): void {
+  if (written.success) return
+  const code = written.code ?? 'EUNKNOWN'
+  throw Object.assign(
+    new Error(`The credential store at ${join(getAuthConfigHomeDir(), '.credentials.json')} could not be written (${code}); the tokens of ${serverName} are still stored here. Close what holds the file, then run the command again.`),
+    { code },
+  )
 }
 
 function newEntry(serverName: string, serverUrl: string): StoredOAuthEntry {
@@ -1064,7 +1073,7 @@ export async function revokeServerTokens(
 
 export function clearServerTokensFromLocalStorage(serverName: string, serverConfig: McpServerConfig): void {
   const serverKey = getServerKey(serverName, serverConfig)
-  if (readEntry(serverKey) !== undefined) writeEntry(serverKey, undefined)
+  if (readEntry(serverKey) !== undefined) refuseUnwrittenClear(serverName, writeEntry(serverKey, undefined))
 }
 
 export function hasMcpDiscoveryButNoToken(serverName: string, serverConfig: McpServerConfig): boolean {
@@ -1129,7 +1138,7 @@ export function clearMcpClientConfig(serverName: string, serverConfig: McpServer
   const key = getServerKey(serverName, serverConfig)
   if (!(key in map)) return
   delete map[key]
-  storage.update({ ...data, mcpOAuthClientConfig: map })
+  refuseUnwrittenClear(serverName, storage.update({ ...data, mcpOAuthClientConfig: map }))
 }
 
 export function getMcpClientConfig(serverName: string, serverConfig: McpServerConfig): { clientSecret?: string } | undefined {
