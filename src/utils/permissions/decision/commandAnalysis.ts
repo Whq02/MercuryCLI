@@ -2,7 +2,7 @@ import { parseCommandRaw } from '../../bash/parser.js'
 import { checkSemantics, nodeTypeId, parseForSecurityFromAst, parseForSecurity, preparedSecurityParse, type ParseForSecurityResult, type SimpleCommand } from '../../bash/ast.js'
 import { extractOutputRedirections, splitCommand } from '../../bash/commands.js'
 import { tryParseShellCommand } from '../../bash/shellQuote.js'
-import { readShellCommands } from '../../wards/wardsShellRead.js'
+import { readShellCommands } from './commandAnalysis/total.js'
 import type { CommandReading, ReadWorld, ShellDialect } from './commandAnalysis/reading.js'
 import {
   classifyCommandName,
@@ -108,3 +108,6 @@ export function shellCCommands(commands: SimpleCommand[], depth = 0): SimpleComm
 }
 export { stateStatements } from './commandAnalysis/stateStatements.js'
 export { retainPreparedCommand } from './commandAnalysis/sequence.js'
+export { absolutePath, layersOf, moveOf, programOf, wordKnown } from './commandAnalysis/layers.js'
+export { printedBy, scriptSentToProgram, stdinProgram } from './commandAnalysis/scripts.js'
+export { failShellReadingForTesting, readShellCommands } from './commandAnalysis/total.js'
