@@ -551,5 +551,36 @@ console.log('\nMercuryFilesMenu — unreadable folder returns a warning row inst
   }
 }
 
+console.log('\nOnboarding — failed terminal setup shows failure sentence instead of advancing silently')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/Onboarding.tsx'))
+    if (typeof mod.runOnboardingTerminalSetup !== 'function') {
+      out.missing = true
+    } else {
+      let doneOnFail = 0
+      let errMsg = null
+      await mod.runOnboardingTerminalSetup(
+        async () => { throw new Error('permission denied') },
+        () => { doneOnFail++ },
+        msg => { errMsg = msg },
+      )
+      let doneOnOk = 0
+      let errOnOk = null
+      await mod.runOnboardingTerminalSetup(
+        async () => {},
+        () => { doneOnOk++ },
+        msg => { errOnOk = msg },
+      )
+      out.doneOnFail = doneOnFail
+      out.errMsg = errMsg
+      out.doneOnOk = doneOnOk
+      out.errOnOk = errOnOk
+    }
+  `)
+  check('failed setupTerminal holds the step and surfaces the failure sentence', r.doneOnFail === 0 && r.errMsg === 'Terminal setup failed (permission denied) — run /terminal-setup later; press Enter to continue', JSON.stringify(r))
+  check('control: succeeding setupTerminal calls onDone without error', r.doneOnOk === 1 && r.errOnOk === null, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
