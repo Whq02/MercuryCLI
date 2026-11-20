@@ -339,5 +339,30 @@ else {
   )
 }
 
+console.log('8. src/utils/commitAttribution.ts — throwing git deleted-file probe propagates')
+{
+  const r = runIsolated(`
+    const { mock } = await import('bun:test')
+    const realExec = await import(SRC + '/utils/execFileNoThrow.ts')
+    mock.module(SRC + '/utils/execFileNoThrow.js', () => ({
+      ...realExec,
+      execFileNoThrowWithCwd: async () => {
+        throw new Error('git spawn exploded')
+      },
+    }))
+    const { calculateCommitAttribution, createEmptyAttributionState } = await import(SRC + '/utils/commitAttribution.ts')
+    try {
+      out.data = await calculateCommitAttribution([createEmptyAttributionState()], ['gone.ts'])
+    } catch (e) {
+      out.err = e instanceof Error ? e.message : String(e)
+    }
+  `)
+  check(
+    'commitAttribution: throwing git probe in isFileDeleted rejects instead of dropping file',
+    r.err === 'git spawn exploded',
+    `err=${String(r.err)} data=${JSON.stringify(r.data)}`,
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
