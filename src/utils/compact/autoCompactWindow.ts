@@ -1,6 +1,6 @@
 import { getSdkBetas } from '../../bootstrap/state.js'
-import { getGlobalConfig } from '../../utils/config.js'
-import { getContextWindowForModel, getModelInputCeiling, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
+import { getGlobalConfig } from '../config.js'
+import { getContextWindowForModel, getModelInputCeiling, getModelMaxOutputTokens } from '../model/capabilities.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 
 export const MIN_AUTOCOMPACT_WINDOW = 100_000

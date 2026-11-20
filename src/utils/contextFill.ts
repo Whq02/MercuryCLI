@@ -1,6 +1,6 @@
 
 import { getSdkBetas } from '../bootstrap/state.js'
-import { calculateTokenWarningState, getAutoCompactThreshold, isAutoCompactEnabled } from '../services/compact/autoCompactWindow.js'
+import { calculateTokenWarningState, getAutoCompactThreshold, isAutoCompactEnabled } from './compact/autoCompactWindow.js'
 import type { Message } from '../types/message.js'
 import { contextFillPercent } from './context.js'
 import { type ContextResolution, resolveContextWindow } from './model/capabilities.js'

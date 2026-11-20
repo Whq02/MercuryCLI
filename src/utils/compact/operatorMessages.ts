@@ -1,8 +1,8 @@
 import { TERMINAL_OUTPUT_TAGS } from '../../constants/xml.js'
 import type { Message, UserMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
-import type { Attachment } from '../../utils/attachments/types.js'
-import { isCommandEcho, isOperatorTurn } from '../../utils/messages/operatorTurns.js'
+import type { Attachment } from '../attachments/types.js'
+import { isCommandEcho, isOperatorTurn } from '../messages/operatorTurns.js'
 
 export const OPERATOR_MESSAGES_ATTACHMENT_TYPE = 'compact_operator_messages' as const
 
