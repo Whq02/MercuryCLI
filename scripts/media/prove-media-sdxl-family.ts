@@ -1,14 +1,15 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { closeSync, ftruncateSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { closeSync, ftruncateSync, mkdirSync, openSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import bundledCatalog from '../../src/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
 import { mediaCheckpointFile, mediaCheckpointInstalled, mediaModelJoined, mediaModelSupported, parseMediaCatalogue } from '../../src/services/media/catalogue.js'
 import { mediaGenerationDetails } from '../../src/services/media/generation.js'
 import { mediaPullPlan, mediaRows, mediaRuntimeChoice, type MediaSnapshot } from '../../src/services/media/setup.js'
 import { removeProofHome, root } from './fixture.ts'
 
 try {
-  const bundled = JSON.parse(readFileSync(resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server/catalog.json'), 'utf8')) as { runtime: { tag: string; families: string[]; componentFamilies: string[] }; recipes: Array<{ id: string; slots: Array<{ id: string; required: boolean }>; checkpoint?: { recipe: string; layout: string } }>; models: Array<{ id: string; recipe?: string; checkpoint?: { bytes: number } }> }
+  const bundled = bundledCatalog as { runtime: { tag: string; families: string[]; componentFamilies: string[] }; recipes: Array<{ id: string; slots: Array<{ id: string; required: boolean }>; checkpoint?: { recipe: string; layout: string } }>; models: Array<{ id: string; recipe?: string; checkpoint?: { bytes: number } }> }
   const family = bundled.recipes.find(recipe => recipe.id === 'sdxl')
   assert.ok(family, 'the vendored engine carries the sdxl recipe family')
   assert.deepEqual(family.slots.map(slot => [slot.id, slot.required]), [['diffusion_model', true], ['clip_l', true], ['clip_g', true], ['vae', true]])
