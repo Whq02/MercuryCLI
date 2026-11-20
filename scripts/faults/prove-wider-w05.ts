@@ -19,6 +19,30 @@ function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)
 }
 
+const SCRUBBED_ENV_KEYS = [
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_OAUTH_BASE',
+  'MERCURY_OAUTH_TOKEN',
+  'MERCURY_OAUTH_REFRESH_TOKEN',
+  'MERCURY_OAUTH_TOKEN_FD',
+  'MERCURY_API_KEY_FD',
+  'MERCURY_AUTH_SCOPE_DIR',
+  'MERCURY_HOME',
+  'MERCURY_CLIENT_CERT',
+  'MERCURY_CLIENT_KEY',
+  'MERCURY_CLIENT_KEY_PASSPHRASE',
+  'OPENAI_API_KEY',
+  'ZAI_API_KEY',
+  'OPENROUTER_API_KEY',
+  'GOOGLE_API_KEY',
+  'GEMINI_API_KEY',
+  'MOONSHOT_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'HF_TOKEN',
+] as const
+
 function runScenario(
   body: string,
   options: { extraEnv?: Record<string, string | undefined>; fakeSecurityScript?: string } = {},
@@ -52,15 +76,20 @@ function runScenario(
     process.stdout.write('\\n' + JSON.stringify(out))
     process.exit(0)
   `
-  const env: Record<string, string | undefined> = {
-    ...process.env,
-    MERCURY_CONFIG_DIR: home,
-    MERCURY_HOME: '',
-    MERCURY_LOCAL_PROBE_TARGETS: 'none',
-    ...(useKeychain ? { MERCURY_CREDENTIAL_STORE: undefined, PATH: `${bin}:${process.env.PATH ?? ''}` } : { MERCURY_CREDENTIAL_STORE: 'file' }),
-    ...(options.extraEnv ?? {}),
+  const env: Record<string, string | undefined> = { ...process.env }
+  for (const key of SCRUBBED_ENV_KEYS) delete env[key]
+  env.MERCURY_CONFIG_DIR = home
+  env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  if (useKeychain) {
+    delete env.MERCURY_CREDENTIAL_STORE
+    env.PATH = `${bin}:${process.env.PATH ?? ''}`
+  } else {
+    env.MERCURY_CREDENTIAL_STORE = 'file'
   }
-  if (env.MERCURY_CREDENTIAL_STORE === undefined) delete env.MERCURY_CREDENTIAL_STORE
+  for (const [key, value] of Object.entries(options.extraEnv ?? {})) {
+    if (value === undefined) delete env[key]
+    else env[key] = value
+  }
   try {
     const res = spawnSync(BUN, ['-e', src], { encoding: 'utf8', env, timeout: 30_000 })
     if (res.status !== 0) throw new Error(`scenario exited ${res.status}: ${res.stderr.slice(-1500)}`)

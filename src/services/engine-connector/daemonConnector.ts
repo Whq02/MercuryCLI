@@ -220,22 +220,6 @@ abstract class ConnectorHandOffs {
   protected abstract readonly livePart: LivePart
   protected abstract readonly verbsPart: VerbsPart
   protected abstract readonly dialsPart: DialsPart
-  protected openQuestionFailure: string | null = null
-  protected openQuestionNoted = false
-
-  protected async withOpenQuestionNote(send: Promise<SendReceiptV1>): Promise<SendReceiptV1> {
-    const receipt = await send
-    const failure = this.openQuestionFailure
-    this.openQuestionFailure = null
-    if (receipt.state === 'accepted' && failure !== null && !this.openQuestionNoted) {
-      this.openQuestionNoted = true
-      return {
-        state: 'accepted',
-        note: `open questions could not be read (${failure}), so this went out as an ordinary message; answer the question from its card if it still shows.`,
-      }
-    }
-    return receipt
-  }
 
   turnChars(): number {
     return this.livePart.turnChars()
@@ -306,8 +290,7 @@ abstract class ConnectorHandOffs {
   }
 
   sendWords(text: string, opts?: SendWordsOptions): Promise<SendReceiptV1> {
-    this.openQuestionFailure = null
-    return this.withOpenQuestionNote(this.deliveryPart.sendWords(text, opts))
+    return this.deliveryPart.sendWords(text, opts)
   }
 
   sendAgentNote(agentId: string, text: string): Promise<SendReceiptV1> {
@@ -659,12 +642,11 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
   protected async openQuestion(): Promise<string | null> {
     try {
       const id = await questionOpenFor(this.record.sessionId)
-      this.openQuestionFailure = null
-      this.openQuestionNoted = false
+      this.deliveryPart.noteOpenQuestionRead()
       return id
     } catch (error) {
       passedOver(error)
-      this.openQuestionFailure = error instanceof Error ? error.message : String(error)
+      this.deliveryPart.noteOpenQuestionUnread(error instanceof Error ? error.message : String(error))
       return null
     }
   }

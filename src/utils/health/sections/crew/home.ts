@@ -9,7 +9,7 @@ import { getGlobalMercuryFile } from '../../../env.js'
 import { getMacOsKeychainStorageServiceName } from '../../../secureStorage/macOsKeychainHelpers.js'
 import { healthFixEnabled } from '../../../healthFix.js'
 import type { CheckSpec } from '../../../healthReport.js'
-import { isENOENT } from '../../../errors.js'
+import { errorMessage, isENOENT } from '../../../errors.js'
 import { passedOver } from '../../../passedOver.js'
 
 export function configHomeCheck(): CheckSpec {
@@ -216,7 +216,7 @@ export function isolationCheck(): CheckSpec {
                         ? { ok: true, note: `archived ${movedCount} foreign record(s) → ${archiveDest}` }
                         : { ok: false, note: 'no foreign records matched at apply time (already clean?)' }
                     } catch (e) {
-                      return { ok: false, note: `archive failed: ${e}` }
+                      return { ok: false, note: `archive failed: ${errorMessage(e)}` }
                     }
                   },
                   verify: async () => {

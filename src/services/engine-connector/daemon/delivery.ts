@@ -45,12 +45,35 @@ interface DeliveryNeeds {
 export class DeliveryPart {
   private retainedSend: { text: string; id: string } | null = null
   private settleWaiters = new Map<string, Array<() => void>>()
+  private unreadQuestion: string | null = null
+  private unreadQuestionNoted = false
 
   constructor(private readonly needs: DeliveryNeeds) {}
 
+  noteOpenQuestionRead(): void {
+    this.unreadQuestion = null
+    this.unreadQuestionNoted = false
+  }
+
+  noteOpenQuestionUnread(why: string): void {
+    this.unreadQuestion = why
+  }
+
+  private accepted(notes: boolean): SendReceiptV1 {
+    if (!notes) return { state: 'accepted' }
+    const unread = this.unreadQuestion
+    this.unreadQuestion = null
+    if (unread === null || this.unreadQuestionNoted) return { state: 'accepted' }
+    this.unreadQuestionNoted = true
+    return {
+      state: 'accepted',
+      note: `open questions could not be read (${unread}), so this went out as an ordinary message; answer the question from its card if it still shows.`,
+    }
+  }
+
   async deliver(
     text: string,
-    opts: { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[]; metaFrom?: { command: string } },
+    opts: { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[]; metaFrom?: { command: string }; notesUnreadQuestion?: boolean },
   ): Promise<SendReceiptV1> {
     const { expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } = await import('../../../history.js')
     const resolved = await resolvePastedContents(text, opts.pastedContents ?? {})
@@ -90,8 +113,9 @@ export class DeliveryPart {
       if (state === 'delivered') this.needs.sendDelivered()
       this.needs.wakeLive()
       if (state === 'delivered') {
-        return { state: 'accepted' }
+        return this.accepted(opts.notesUnreadQuestion === true)
       }
+      if (opts.notesUnreadQuestion === true) this.unreadQuestion = null
       return { state: 'refused', detail: detail ?? (state === 'held' ? 'held — ↵ again replays it' : 'the session did not take it') }
     }
     try {
@@ -141,10 +165,12 @@ export class DeliveryPart {
   }
 
   sendWords(text: string, opts?: SendWordsOptions): Promise<SendReceiptV1> {
+    this.unreadQuestion = null
     return this.deliver(text, {
       ...(opts?.mode === 'bash' ? { mode: 'bash' as const } : {}),
       ...(opts?.pastedContents !== undefined ? { pastedContents: opts.pastedContents } : {}),
       ...(opts?.metaFrom !== undefined ? { metaFrom: opts.metaFrom } : {}),
+      notesUnreadQuestion: true,
     })
   }
 
