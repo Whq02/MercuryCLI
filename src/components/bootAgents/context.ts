@@ -1,5 +1,5 @@
 import type { useEngineModel } from '../../hooks/useEngineModel.js';
-import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js';
+import type { AgentDefinition } from '../../types/agent.js';
 import type { AgentTrashEntry } from '../../services/agents/store.js';
 import type { StudioRow } from '../agents/studio/studioData.js';
 import type { FieldId } from '../agents/studio/studioEditorModel.js';

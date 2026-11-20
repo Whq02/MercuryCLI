@@ -11,7 +11,7 @@ import type { ToolCapability } from './utils/capability/contract.js'
 import type { ContentReplacementState } from './utils/toolResultStorage.js'
 import type { AppState } from './state/AppState.js'
 import type { MCPServerConnection } from './services/mcp/types.js'
-import type { AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from './types/agent.js'
 import type { FileHistoryState } from './types/fileHistory.js'
 import type { FileStateCache } from './utils/fileStateCache.js'
 import type {

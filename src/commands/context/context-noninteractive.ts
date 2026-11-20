@@ -1,7 +1,7 @@
 import type { QuerySource } from '../../constants/querySource.js'
 import type { AppState } from '../../state/AppState.js'
 import type { Message } from '../../types/message.js'
-import type { AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinitionsResult } from '../../types/agent.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Tools } from '../../Tool.js'
 import type { EffortValue } from '../../utils/effort.js'

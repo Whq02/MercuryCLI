@@ -1,6 +1,6 @@
 
 import Fuse from 'fuse.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import { generateFileSuggestions } from './fileSuggestions.js'
 import { truncateToWidth } from '../utils/glyphs.js'
 import { logForDebugging } from '../utils/debug.js'

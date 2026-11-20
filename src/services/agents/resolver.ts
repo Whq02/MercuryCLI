@@ -2,7 +2,7 @@ import type { Tools } from '../../Tool.js'
 import type {
   AgentDefinition,
   AgentDefinitionsResult,
-} from '../../tools/AgentTool/loadAgentsDir.js'
+} from '../../types/agent.js'
 import {
   resolveAgentTools,
   type ResolvedAgentTools,

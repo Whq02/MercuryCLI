@@ -28,7 +28,7 @@ import {
   type ToolPermissionContext,
   type Tools,
 } from '../../../Tool.js'
-import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../../../types/agent.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { planToolPayload } from '../toolEconomy.js'
 import type { ConnectorTextBlock } from '../../../types/connectorText.js'

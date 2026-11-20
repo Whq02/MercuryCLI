@@ -9,7 +9,7 @@ import { markLaunchBegun } from '../substrate/launchMilestones.js'
 import { markExplicitBootJourney, retractExplicitBootJourney } from '../substrate/splashHandover.js'
 import { getCwd } from '../utils/cwd.js'
 import { getTools } from '../tools.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import {
   exitWithError,
   getRenderContext,

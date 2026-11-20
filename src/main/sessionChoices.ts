@@ -1,6 +1,7 @@
 import { setMainThreadAgentType } from '../bootstrap/state.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { logError } from '../utils/log.js'

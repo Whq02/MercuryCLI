@@ -126,7 +126,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
       source: 'projectSettings',
       ...over,
     }) as AgentFixtureDef
-  type AgentFixtureDef = import('../../src/tools/AgentTool/loadAgentsDir.js').AgentDefinition
+  type AgentFixtureDef = import('../../src/types/agent.js').AgentDefinition
   const scout = mk({
     agentType: 'fixture-scout',
     whenToUse: 'Use this agent to scout the fixture estate when frames need every field painted.',
@@ -150,7 +150,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   const result = {
     activeAgents: [scout, builtin],
     allAgents: [scout, keeper, builtin],
-  } as import('../../src/tools/AgentTool/loadAgentsDir.js').AgentDefinitionsResult
+  } as import('../../src/types/agent.js').AgentDefinitionsResult
   const built = buildStudioRows(result, { tab: 'all', filter: 'all', query: '' })
   const counts = { active: 2, disabled: 1, issues: 0 }
   const environment = { model: 'fable', critter: 'Crab', critterHue: '#DD4444', dirBase: 'orchard', dirTail: '' }

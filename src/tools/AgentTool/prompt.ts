@@ -1,6 +1,6 @@
 
 import { MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
-import type { AgentDefinition } from './loadAgentsDir.js'
+import type { AgentDefinition } from '../../types/agent.js'
 import { SCOUT_TOOLS_DESCRIPTION } from './scoutPolicy.js'
 
 function describeTools(agent: AgentDefinition): string {

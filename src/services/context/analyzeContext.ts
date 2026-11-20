@@ -23,7 +23,7 @@ import {
 } from '../instructions/engine.js'
 import type { Tool, Tools, ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { findToolByName, toolMatchesName } from '../../Tool.js'
-import { isBuiltInAgent, type AgentDefinition, type AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
+import { isBuiltInAgent, type AgentDefinition, type AgentDefinitionsResult } from '../../types/agent.js'
 import { SkillTool } from '../../tools/SkillTool/SkillTool.js'
 import { getSkillToolInfo, getLimitedSkillToolCommands } from '../../tools/SkillTool/prompt.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'

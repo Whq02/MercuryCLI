@@ -1,7 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import type { AgentDefinition } from './loadAgentsDir.js'
+import type { AgentDefinition } from '../../types/agent.js'
 import { MERCURY_CREW_AGENT } from './built-in/mercuryCrewAgent.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 

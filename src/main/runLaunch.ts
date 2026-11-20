@@ -18,7 +18,7 @@ import { completeProcessSessionKit, consumeSessionKitPin, noteRefusedKitOnSessio
 import { doesEnterpriseMcpConfigExist, getMcpServerSignature, getMercuryMcpConfigs } from '../services/mcp/config.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getTools } from '../tools.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import { validateForceLoginOrg } from '../utils/auth.js'
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js'
 import { getGlobalConfig } from '../utils/config.js'

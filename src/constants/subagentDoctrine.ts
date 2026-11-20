@@ -1,6 +1,6 @@
 
 import { flagEnv } from '../substrate/flagRegistry.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import type { ToolUseContext } from '../Tool.js'
 import { MERCURY_CONSTITUTION, mercurySubagentContract, type MercuryAgentSeat } from '../prompt/mercuryContract.js'
 import { getRuntimePostureDoctrineLine } from '../utils/cockpit/runtimePosture.js'
