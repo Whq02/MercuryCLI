@@ -496,10 +496,19 @@ async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> 
 
 async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
   const { chmodSync, mkdirSync } = await import('node:fs')
+  const { spawnSync } = await import('node:child_process')
   const dir = mkdtempSync(join(tmpdir(), 'prove-w08-10-'))
-  const fakeBrowser = join(dir, 'fail-browser.sh')
-  writeFileSync(fakeBrowser, '#!/bin/sh\necho "no display available" >&2\nexit 1\n')
-  chmodSync(fakeBrowser, 0o755)
+  let fakeBrowser = join(dir, 'fail-browser.sh')
+  if (process.platform === 'win32') {
+    const src = join(dir, 'fail-browser.ts')
+    fakeBrowser = join(dir, 'fail-browser.exe')
+    writeFileSync(src, 'console.error("no display available"); process.exit(1)\n')
+    const built = spawnSync(process.execPath, ['build', '--compile', src, '--outfile', fakeBrowser], { encoding: 'utf8', windowsHide: true, timeout: 120_000 })
+    if (built.status !== 0) throw new Error(`fail-browser compile failed: ${built.stderr}`)
+  } else {
+    writeFileSync(fakeBrowser, '#!/bin/sh\necho "no display available" >&2\nexit 1\n')
+    chmodSync(fakeBrowser, 0o755)
+  }
   const prevBrowser = process.env.BROWSER
   process.env.BROWSER = fakeBrowser
   const browser = await import(join(SRC, 'utils/browser.ts'))
