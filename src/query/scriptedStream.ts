@@ -21,7 +21,7 @@ export function scriptedCallModel(
   }
   if (script !== 'slow-text') return null
   return async function* scriptedSlowText(params) {
-    yield { type: 'stream_event', event: { type: 'ping' } } as never
+    yield { type: 'stream_event', event: { type: 'ping' } }
     await sleep(SLOW_TEXT_ACTIVE_MS, params.signal)
     if (params.signal.aborted) return
     yield createAssistantMessage({
@@ -36,7 +36,7 @@ const HAMMER_BREAKER_FILE = 'definitely-missing-file-for-the-hammer-proof.txt'
 let hammerCalls = 0
 
 const scriptedHammerBreaker: CallModel = async function* scriptedHammerBreaker(params) {
-  yield { type: 'stream_event', event: { type: 'ping' } } as never
+  yield { type: 'stream_event', event: { type: 'ping' } }
   await sleep(HAMMER_ROUND_MS, params.signal)
   if (params.signal.aborted) return
   const message = createAssistantMessage({
@@ -89,7 +89,7 @@ function oneToolUse(script: OneToolScript): { name: string; input: Record<string
 
 function scriptedOneTool(script: OneToolScript): CallModel {
   return async function* scriptedOneTool(params) {
-    yield { type: 'stream_event', event: { type: 'ping' } } as never
+    yield { type: 'stream_event', event: { type: 'ping' } }
     if (params.signal.aborted) return
     const call = (oneToolCalls.get(script) ?? 0) + 1
     oneToolCalls.set(script, call)
@@ -109,7 +109,7 @@ function scriptedOneTool(script: OneToolScript): CallModel {
 }
 
 const scriptedAnswerText: CallModel = async function* scriptedAnswerText(params) {
-  yield { type: 'stream_event', event: { type: 'ping' } } as never
+  yield { type: 'stream_event', event: { type: 'ping' } }
   if (params.signal.aborted) return
   yield createAssistantMessage({ content: ONE_TOOL_SETTLED_TEXT })
 }
@@ -203,7 +203,7 @@ const scriptedOpeningText: CallModel = async function* scriptedOpeningText(param
 
 let chattyBashCalls = 0
 const scriptedChattyBash: CallModel = async function* scriptedChattyBash(params) {
-  yield { type: 'stream_event', event: { type: 'ping' } } as never
+  yield { type: 'stream_event', event: { type: 'ping' } }
   if (params.signal.aborted) return
   chattyBashCalls += 1
   if (chattyBashCalls > 1) {
