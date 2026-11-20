@@ -14,6 +14,7 @@ import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { utilityCallFor } from '../../utils/model/utilityModel.js'
 import type { EffortValue } from '../../utils/effort.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
+import { runToolUse } from '../tools/toolExecution.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
 import { governorCeilings } from '../capacity/governor.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
@@ -29,7 +30,6 @@ import { handleSampleCall } from '../samples/bridge.js'
 import { rekeyScreenshot } from '../desktop/desktopSession.js'
 import { COMPUTER_TOOL_NAME } from '../desktop/toolName.js'
 import { PERSISTED_OUTPUT_CLOSING_TAG, PERSISTED_OUTPUT_TAG, readPersistedToolResult } from '../../utils/toolResultStorage.js'
-import { toolCallForEval } from './toolCalls.js'
 
 const toolPayload = z.object({ name: z.string(), input: z.record(z.string(), z.unknown()).default({}) })
 const agentPayload = z.object({
@@ -219,7 +219,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
         } as typeof tool),
       },
     }
-    for await (const update of toolCallForEval(block as never, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), callContext)) {
+    for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), callContext)) {
       const message = (update as { message?: Message }).message
       if (!message || message.type !== 'user') continue
       const extracted = extractToolResult(message as UserMessage, toolUseId, carriesScreenshot ? SCREENSHOT_NOTE : IMAGE_NOTE)
