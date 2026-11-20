@@ -83,6 +83,42 @@ export class LifePart {
           outcome,
           ...(reason ? { reason } : {}),
         })
+      const keptText = ll.lastErrorText || lastStderrLine(ll.stderrTail)
+      const tellCrashed = (): void => {
+        try {
+          this.opts.onChildCrashed?.(short)
+        } catch (e) {
+          logForDebugging(`[daemon] onChildCrashed(${short}) hook threw (ignored): ${e}`)
+        }
+      }
+      const stampCrash = (respawning: boolean, detail?: string): void => {
+        if (!short.startsWith('concourse-w')) return
+        const exitWords = `exit ${code ?? 'none'}${signal ? ` · signal ${signal}` : ''}`
+        const reason =
+          detail ??
+          `crashed mid-run (${exitWords})${keptText ? ` — ${keptText}` : ''}${respawning ? ' · resumed — the interrupted ask needs a re-send' : ''}`
+        void import('../concourseWorkers.js')
+          .then(sup => sup.markConcourseWorkerCrash(short, { reason, respawning }))
+          .catch(passedOver)
+      }
+      const degrade = (reason: string): void => {
+        this.degradedSeats.set(short, reason)
+        const degradedReason = `${short}: ${reason}`
+        h.entry.state = 'crashed'
+        h.entry.outcome = 'degraded'
+        ledgerExit('degraded', reason)
+        stampCrash(false, `crashed — respawns exhausted (${reason})`)
+        logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${degradedReason}`)
+        tellCrashed()
+        try {
+          this.opts.onDegraded?.(degradedReason, short)
+        } catch (error) {
+          passedOver(error)
+        }
+      }
+      const respawn = (): void => {
+        if (this.needs.spawnLongLived(short) === undefined && h.entry.outcome === undefined && h.entry.state === 'spawning') degrade('spawn failed (no pid)')
+      }
       if (ll.intentionalStop) {
         h.entry.state = 'settled'
         h.entry.outcome = 'killed'
@@ -98,11 +134,10 @@ export class LifePart {
         )
         ledgerExit('reconfigure-respawn')
         h.entry.state = 'spawning'
-        ll.respawnTimer = startTimeout(() => this.needs.spawnLongLived(short), 0)
+        ll.respawnTimer = startTimeout(respawn, 0)
         ll.respawnTimer.unref?.()
         return
       }
-      const keptText = ll.lastErrorText || lastStderrLine(ll.stderrTail)
       if (
         Date.now() - ll.lastSpawnAt >
         (ll.cfg.healthyResetMs ?? DEFAULT_HEALTHY_RESET_MS)
@@ -115,43 +150,14 @@ export class LifePart {
       ll.ready = false
       ll.crashedAt = Date.now()
       const decision = decideRespawn(ll.respawns, ll.cfg, ll.lifetimeCrashes)
-      const tellCrashed = (): void => {
-        try {
-          this.opts.onChildCrashed?.(short)
-        } catch (e) {
-          logForDebugging(`[daemon] onChildCrashed(${short}) hook threw (ignored): ${e}`)
-        }
-      }
       logForDebugging(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})`,
       )
       console.error(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})${keptText ? ` — ${keptText}` : ''}`,
       )
-      const stampCrash = (respawning: boolean, detail?: string): void => {
-        if (!short.startsWith('concourse-w')) return
-        const exitWords = `exit ${code ?? 'none'}${signal ? ` · signal ${signal}` : ''}`
-        const reason =
-          detail ??
-          `crashed mid-run (${exitWords})${keptText ? ` — ${keptText}` : ''}${respawning ? ' · resumed — the interrupted ask needs a re-send' : ''}`
-        void import('../concourseWorkers.js')
-          .then(sup => sup.markConcourseWorkerCrash(short, { reason, respawning }))
-          .catch(passedOver)
-      }
       if (decision.action === 'degrade') {
-        this.degradedSeats.set(short, decision.reason)
-        const degradedReason = `${short}: ${decision.reason}`
-        h.entry.state = 'crashed'
-        h.entry.outcome = 'degraded'
-        ledgerExit('degraded', decision.reason)
-        stampCrash(false, `crashed — respawns exhausted (${decision.reason})`)
-        logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${degradedReason}`)
-        tellCrashed()
-        try {
-          this.opts.onDegraded?.(degradedReason, short)
-        } catch (error) {
-          passedOver(error)
-        }
+        degrade(decision.reason)
         return
       }
       if (ll.respawns === 2 && !ll.stormNotified) {
@@ -162,7 +168,7 @@ export class LifePart {
       ll.spec = { ...ll.spec, extraEnv: { ...(ll.spec.extraEnv ?? {}), ...flagPair('MERCURY_RUNNER_RESTART_REASON', 'crash') } }
       h.entry.state = 'spawning'
       tellCrashed()
-      ll.respawnTimer = startTimeout(() => this.needs.spawnLongLived(short), decision.delayMs)
+      ll.respawnTimer = startTimeout(respawn, decision.delayMs)
       ll.respawnTimer.unref?.()
     }
     let drainBackstop: ReturnType<typeof setTimeout> | undefined
