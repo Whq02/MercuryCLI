@@ -16,7 +16,7 @@ import {
 import { getIsNonInteractiveSession, preferThirdPartyAuthentication } from '../bootstrap/state.js'
 import { getGlobalConfig, saveGlobalConfig, checkHasTrustDialogAccepted, untrustedWorkspaceHeadless } from './config.js'
 import { getGlobalConfigCacheStamp, isConfigReadingAllowed, readGlobalConfigAgain } from './config/globalConfig.js'
-import { clearBetasCaches } from './betas.js'
+import { clearBetasWhereKept } from './model/betasClearing.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage } from './errors.js'
@@ -663,7 +663,7 @@ export function dropCredentialMemos(): void {
   managedKeyMemoStamp = null
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
-  clearBetasCaches()
+  clearBetasWhereKept()
   clearToolSchemaCache()
 }
 
@@ -686,7 +686,7 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
       },
     })
     clearOAuthTokenCache()
-    clearBetasCaches()
+    clearBetasWhereKept()
     clearToolSchemaCache()
     if (result.success) unsavedRefresh = null
     return result

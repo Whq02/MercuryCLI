@@ -76,6 +76,7 @@ import { openrouterListedModel } from '../../services/providers/openrouter/openr
 import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
+import { tellWhatClearsTheBetas } from './betasClearing.js'
 
 
 export function modelSupportsTemperature(model: string): boolean {
@@ -1153,6 +1154,7 @@ export function clearBetasCaches(): void {
   getAllModelBetas.cache?.clear?.()
   getModelBetas.cache?.clear?.()
 }
+tellWhatClearsTheBetas(clearBetasCaches)
 
 
 export function getModelKnowledgeCutoff(modelId: string): string | null {
