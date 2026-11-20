@@ -1,6 +1,6 @@
 import { parse, relative } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
-import { getSnippetForTwoFileDiff } from 'src/tools/FileEditTool/utils.js'
+import { getSnippetForTwoFileDiff } from 'src/utils/fileEditUtils.js'
 import { getDefaultFileReadingLimits } from 'src/utils/fileReadLimits.js'
 import { MAX_LINES_TO_READ } from 'src/constants/tools/fileRead.js'
 import { PDF_AT_MENTION_INLINE_THRESHOLD } from '../../constants/apiLimits.js'

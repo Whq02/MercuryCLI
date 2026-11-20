@@ -35,7 +35,7 @@ import {
   loadAgentMemoryPrompt,
   withMemoryVerbs,
   type AgentMemoryScope,
-} from './agentMemory.js'
+} from '../../utils/agentMemory.js'
 
 
 export type AgentMcpServerSpec = string | Record<string, McpServerConfig>

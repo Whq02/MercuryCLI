@@ -6,7 +6,7 @@ import { EXIT_WORKTREE_TOOL_NAME } from '../ExitWorktreeTool/constants.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../constants/tools/sendMessage.js'
 import { RESUME_AGENT_TOOL_NAME } from '../../constants/tools/resumeAgent.js'
 import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
-import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
+import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const SCOUT_SHELL_REFUSAL_TAIL = 'Read-only commands do run here, with pipes, 2>&1 and input redirects (< file) — for example wc, grep, head, tail and sort — and Read, Grep and Glob read files.'

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
 import { findToolByName } from '../../Tool.js'
-import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { PermissionDecision } from '../../types/permissions.js'
 import type { ToolUseBlock } from '../../types/wire.js'

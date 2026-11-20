@@ -46,7 +46,7 @@ import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from 
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { automaticResumePending, cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
-import { MERCURY_CREW_AGENT_TYPE } from './constants.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../constants/tools/agent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'

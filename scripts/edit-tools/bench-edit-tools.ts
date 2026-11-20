@@ -20,7 +20,7 @@ const DAEMON_HOME = mkdtempSync(join(tmpdir(), 'anvil-bench-daemon-'))
 if (!process.env.MERCURY_CONFIG_DIR) process.env.MERCURY_CONFIG_DIR = CONFIG_HOME
 if (!process.env.MERCURY_DAEMON_DIR) process.env.MERCURY_DAEMON_DIR = DAEMON_HOME
 
-const { applyEditToFile } = await import('../../src/tools/FileEditTool/utils.ts')
+const { applyEditToFile } = await import('../../src/utils/fileEditUtils.ts')
 const { mintFileAnchor, checkAnchor, formatAnchorFailure } = await import(
   '../../src/services/changeTransaction/snapshotAnchor.ts'
 )

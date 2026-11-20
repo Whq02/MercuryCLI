@@ -4,21 +4,26 @@ import {
   convertLeadingTabsToSpaces,
   addLineNumbers,
   readFileSyncCached,
-} from '../../utils/file.js'
-import { DIFF_TIMEOUT_MS, getPatchFromContents, type StructuredPatchHunk } from '../../utils/diff.js'
-import { isENOENT } from '../../utils/errors.js'
-import { logError } from '../../utils/log.js'
-import { expandPath } from '../../utils/path.js'
-import { plural } from '../../utils/stringUtils.js'
+} from './file.js'
+import { DIFF_TIMEOUT_MS, getPatchFromContents, type StructuredPatchHunk } from './diff.js'
+import { isENOENT } from './errors.js'
+import { logError } from './log.js'
+import { expandPath } from './path.js'
+import { plural } from './stringUtils.js'
 import {
   LEFT_DOUBLE_CURLY_QUOTE,
   LEFT_SINGLE_CURLY_QUOTE,
   RIGHT_DOUBLE_CURLY_QUOTE,
   RIGHT_SINGLE_CURLY_QUOTE,
   straightenQuotes,
-} from '../../utils/curlyQuotes.js'
-import { plainTypography } from '../../utils/typography.js'
-import type { FileEdit } from './types.js'
+} from './curlyQuotes.js'
+import { plainTypography } from './typography.js'
+
+export type FileEdit = {
+  old_string: string
+  new_string: string
+  replace_all: boolean
+}
 
 
 
@@ -385,7 +390,7 @@ export async function preserveQuoteStyleForFile(
 ): Promise<string> {
   const { exact, styled } = preserveQuoteStyleCandidates(oldString, actualOldString, newString)
   if (exact === styled) return exact
-  const { fileLanguageKind } = await import('../../native-ts/color-diff/index.js')
+  const { fileLanguageKind } = await import('../native-ts/color-diff/index.js')
   return fileLanguageKind(filePath, fileContent.split('\n', 1)[0]) === 'prose' ? styled : exact
 }
 

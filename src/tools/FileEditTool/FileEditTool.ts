@@ -9,7 +9,7 @@ import { expandStructuredTargetPath, hostPathOfWriteTarget, isSqliteRowTarget, s
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { getEditToolDescription } from './prompt.js'
 import { inputSchema, outputSchema, type FileEditInput } from './types.js'
-import { areFileEditsInputsEquivalent, locateActualString } from './utils.js'
+import { areFileEditsInputsEquivalent, locateActualString } from '../../utils/fileEditUtils.js'
 import { EDIT_RESULT_CLOSE, editResultHead } from './editResult.js'
 import {
   getToolUseSummary,

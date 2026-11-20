@@ -1,6 +1,6 @@
 import type { Message } from '../../types/message.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
-import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { contextFillView } from '../../utils/contextFill.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
 import { persistToolResult, PERSISTED_OUTPUT_TAG, type ContentReplacementState, type ToolResultReplacementRecord } from '../../utils/toolResultStorage.js'

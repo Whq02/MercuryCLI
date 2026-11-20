@@ -85,7 +85,7 @@ import { emitTaskProgress as emitSdkTaskProgress } from '../../utils/task/sdkPro
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import type { CanUseToolFn } from '../../Tool.js'
-import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
+import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
 import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { passedOver } from '../../utils/passedOver.js'

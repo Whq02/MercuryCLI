@@ -490,7 +490,7 @@ export function checkReadableInternalPath(absolutePath: string, _input?: Record<
 
 function isAgentMemory(path: string): boolean {
   try {
-    return (require('../../tools/AgentTool/agentMemory.js') as { isAgentMemoryPath(p: string): boolean }).isAgentMemoryPath(path)
+    return (require('../agentMemory.js') as { isAgentMemoryPath(p: string): boolean }).isAgentMemoryPath(path)
   } catch (error) {
     passedOver(error)
     return false

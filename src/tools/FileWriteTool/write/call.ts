@@ -41,7 +41,7 @@ import type { UUID } from 'node:crypto'
 
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../../FileEditTool/otherSession.js'
 import type { CanUseToolFn } from '../../../Tool.js'
-import { stripSequentialReadPrefixes } from '../../FileEditTool/utils.js'
+import { stripSequentialReadPrefixes } from '../../../utils/fileEditUtils.js'
 import { spellLineRanges } from '../../FileEditTool/readThrough.js'
 import { isFullReadEntry } from '../../FileEditTool/FileEditTool.js'
 import { checkIntroducedParseError } from '../parseCheck.js'

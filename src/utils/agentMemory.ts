@@ -1,11 +1,11 @@
 
 import { normalize, join, relative, sep } from 'node:path'
-import { getMemoryBaseDir, isMnemeEnabled } from '../../mneme/paths.js'
-import { getCwd } from '../../utils/cwd.js'
-import { projectConfigDirs } from '../../utils/projectConfig.js'
-import { projectLocalPath } from '../../utils/projectLocal/paths.js'
-import { projectHomePath, projectHomeStore } from '../../utils/projectHomeStores.js'
-import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../constants/tools/memory.js'
+import { getMemoryBaseDir, isMnemeEnabled } from '../mneme/paths.js'
+import { getCwd } from './cwd.js'
+import { projectConfigDirs } from './projectConfig.js'
+import { projectLocalPath } from './projectLocal/paths.js'
+import { projectHomePath, projectHomeStore } from './projectHomeStores.js'
+import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../constants/tools/memory.js'
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
 

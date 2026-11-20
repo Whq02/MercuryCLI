@@ -3,7 +3,7 @@ import type { ChangeSetMemberEdit, ExactEditOutcome } from '../../../services/ch
 import type { EditHunkInput } from '../../../services/changeTransaction/hunks.js'
 import { lineCountOfText as lineCountOf } from '../../../services/changeTransaction/seenLines.js'
 import type { FileEditInput } from '../types.js'
-import { editSearchString, locateActualString, preserveQuoteStyleCandidates, stripSequentialReadPrefixes, type ActualMatchOutcome } from '../utils.js'
+import { editSearchString, locateActualString, preserveQuoteStyleCandidates, stripSequentialReadPrefixes, type ActualMatchOutcome } from '../../../utils/fileEditUtils.js'
 import { matchRangesOf, notUniqueMessage, spellNamedRanges } from '../editResult.js'
 import { coalesceLineRanges, type LineRange } from '../readThrough.js'
 import { noMatchWords } from './readKnowledge.js'
