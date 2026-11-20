@@ -326,6 +326,46 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
   }
 }
 
+{
+  const { readFileSync } = await import('node:fs')
+  const { ggufServerRoots, rememberGgufServer, forgetGgufServer } = await import('../../src/services/localSetup/ggufServers.ts')
+  const regDir = join(scratchHome, 'local-setup')
+  const regFile = join(regDir, 'gguf-servers.json')
+  mkdirSync(regDir, { recursive: true })
+  try {
+    const torn = '{corrupt-gguf-registry'
+    writeFileSync(regFile, torn, { mode: 0o600 })
+    const rRead = ggufServerRoots()
+    const rRem = throwsMatching(() => rememberGgufServer('http://127.0.0.1:8082'), /JSON|parse|unexpected/i)
+    const rFgt = throwsMatching(() => forgetGgufServer('http://127.0.0.1:8081'), /JSON|parse|unexpected/i)
+    check(
+      'ggufServers: corrupt registry keeps reader empty and refuses remember/forget without overwriting',
+      rRead.length === 0 && rRem.threw && rFgt.threw && readFileSync(regFile, 'utf8') === torn,
+      `read=${JSON.stringify(rRead)} rem=${rRem.message} fgt=${rFgt.message}`,
+    )
+    if (POSIX_MODES) {
+      const saved = '["http://127.0.0.1:8081"]\n'
+      writeFileSync(regFile, saved, { mode: 0o600 })
+      chmodSync(regFile, 0o200)
+      try {
+        const uRead = ggufServerRoots()
+        const uRem = throwsMatching(() => rememberGgufServer('http://127.0.0.1:8082'), /EACCES|permission/i)
+        const uFgt = throwsMatching(() => forgetGgufServer('http://127.0.0.1:8081'), /EACCES|permission/i)
+        chmodSync(regFile, 0o600)
+        check(
+          'ggufServers: unreadable registry keeps reader empty and refuses remember/forget without overwriting',
+          uRead.length === 0 && uRem.threw && uFgt.threw && readFileSync(regFile, 'utf8') === saved,
+          `read=${JSON.stringify(uRead)} rem=${uRem.message} fgt=${uFgt.message}`,
+        )
+      } finally {
+        chmodSync(regFile, 0o600)
+      }
+    }
+  } finally {
+    rmSync(regFile, { force: true })
+  }
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
