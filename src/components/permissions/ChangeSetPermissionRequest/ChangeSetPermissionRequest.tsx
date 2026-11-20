@@ -18,6 +18,7 @@ import type { ChangeSetPlan } from '../../../services/changeTransaction/changeSe
 import { planChangeSet, formatChangeSetRefusal } from '../../../services/changeTransaction/changeSetPlan.js';
 import { getChangeSetPlan } from '../../../services/changeTransaction/changeSetStore.js';
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js';
+import type { OwnerKey } from '../../../services/run/ownerKey.js';
 import { ChangeSetTool } from '../../../tools/ChangeSetTool/ChangeSetTool.js';
 import { matchExactEdit } from '../../../tools/FileEditTool/FileEditTool.js';
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js';
@@ -42,7 +43,7 @@ interface PreviewData {
   planMissing?: boolean;
 }
 
-function computePreview(input: ChangeSetInput, owner: string): PreviewData {
+function computePreview(input: ChangeSetInput, owner: OwnerKey): PreviewData {
   if (input.changes !== undefined && input.changes.length > 0) {
     const planned = planChangeSet(input.changes, {
       ownerKey: owner,
@@ -53,7 +54,7 @@ function computePreview(input: ChangeSetInput, owner: string): PreviewData {
     return { plan: planned.plan };
   }
   if (input.plan_id) {
-    const plan = getChangeSetPlan(owner as never, input.plan_id);
+    const plan = getChangeSetPlan(owner, input.plan_id);
     if (!plan) return { planMissing: true };
     return { plan };
   }

@@ -1,5 +1,5 @@
 import type { Message } from '../types/message.js'
-import type { TextBlockParam } from '../types/wire.js'
+import type { ApiToolUnion, ContentBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { normalizeMessagesForAPI } from '../utils/messages.js'
@@ -22,7 +22,7 @@ export { roughTokenCountEstimation, bytesPerTokenForFileType, roughTokenCountEst
 
 
 const THINKING_BUDGET_TOKENS = 1024
-const PLACEHOLDER_MESSAGES = [{ role: 'user' as const, content: 'hi' }]
+const PLACEHOLDER_MESSAGES: MessageParam[] = [{ role: 'user', content: 'hi' }]
 export const COUNT_RETRY_BUDGET_MS = 15_000
 const COUNT_SOURCE = 'count_tokens'
 
@@ -91,7 +91,7 @@ function hasThinkingBlocks(messages: ReadonlyArray<{ role?: string; content?: un
   return false
 }
 
-function apiMessagesFor(messages: Message[]): Array<{ role: string; content: unknown }> {
+function apiMessagesFor(messages: Message[]): MessageParam[] {
   return normalizeMessagesForAPI(messages).map(message => ({
     role: message.message.role,
     content: message.message.content,
@@ -110,7 +110,7 @@ function toProductMessage(message: CountableMessage): Message {
 
 export async function countMessagesTokensWithAPI(
   rawMessages: CountableMessage[],
-  tools: unknown[],
+  tools: ApiToolUnion[],
   system?: readonly TextBlockParam[],
 ): Promise<number | null> {
   if (!firstPartyCountApplies()) return null
@@ -128,9 +128,9 @@ export async function countMessagesTokensWithAPI(
         client.beta.messages.countTokens(
           {
             model,
-            messages: body as never,
-            tools: tools as never,
-            ...(carried !== undefined ? { system: carried as never } : {}),
+            messages: body,
+            tools,
+            ...(carried !== undefined ? { system: carried } : {}),
             ...(betas.length > 0 ? { betas } : {}),
             ...(thinking
               ? {
@@ -154,41 +154,32 @@ export async function countMessagesTokensWithAPI(
 
 export async function countTokensWithAPI(content: string): Promise<number | null> {
   if (content === '') return 0
-  const message = {
-    type: 'user',
-    message: { role: 'user', content },
-  } as unknown as Message
-  return countMessagesTokensWithAPI([message], [])
+  return countMessagesTokensWithAPI([{ role: 'user', content }], [])
 }
 
 
-type LooseBlock = Record<string, unknown>
-
-function stripToolSearchFields(
-  messages: Array<{ role: string; content: unknown }>,
-): Array<{ role: string; content: unknown }> {
+function stripToolSearchFields(messages: MessageParam[]): MessageParam[] {
   return messages.map(message => {
     const content = message.content
     if (!Array.isArray(content)) return message
-    const rebuilt = content.map(block => {
-      const record = block as LooseBlock
-      if (record.type === 'tool_use') {
-        return { type: 'tool_use', id: record.id, name: record.name, input: record.input }
+    const rebuilt = content.map((block): ContentBlockParam => {
+      if (block.type === 'tool_use') {
+        return { type: 'tool_use', id: block.id, name: block.name, input: block.input }
       }
-      if (record.type === 'tool_result' && Array.isArray(record.content)) {
-        const kept = (record.content as LooseBlock[]).filter(
+      if (block.type === 'tool_result' && Array.isArray(block.content)) {
+        const kept = block.content.filter(
           inner => !isToolReferenceBlock(inner),
         )
-        if (kept.length === record.content.length) return record
+        if (kept.length === block.content.length) return block
         if (kept.length === 0) {
           return {
-            ...record,
+            ...block,
             content: [{ type: 'text', text: '[tool references removed]' }],
           }
         }
-        return { ...record, content: kept }
+        return { ...block, content: kept }
       }
-      return record
+      return block
     })
     return { ...message, content: rebuilt }
   })
@@ -196,7 +187,7 @@ function stripToolSearchFields(
 
 export async function countTokensViaHaikuFallback(
   rawMessages: CountableMessage[],
-  tools: unknown[],
+  tools: ApiToolUnion[],
 ): Promise<number | null> {
   if (!firstPartyCountApplies()) return null
   const messages = rawMessages.map(toProductMessage)
@@ -207,7 +198,7 @@ export async function countTokensViaHaikuFallback(
   const response = await countWithBusyRetry(`${COUNT_SOURCE} (create probe)`, () =>
     sideQuery({
       model,
-      messages: body as never,
+      messages: body,
       max_tokens: thinking ? 2048 : 1,
       ...(Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
       thinking: thinking ? THINKING_BUDGET_TOKENS : false,
@@ -217,7 +208,7 @@ export async function countTokensViaHaikuFallback(
       source: COUNT_SOURCE,
     }),
   )
-  const usage = (response as unknown as { usage?: Record<string, number | undefined> }).usage
+  const usage = response.usage
   if (!usage || typeof usage.input_tokens !== 'number') return null
   try {
     const [{ addToTotalSessionCost }, { calculateUSDCost }, { EMPTY_USAGE }] = await Promise.all([

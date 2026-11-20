@@ -28,7 +28,7 @@ import { SkillTool } from '../tools/SkillTool/SkillTool.js'
 import { getSkillToolInfo, getLimitedSkillToolCommands } from '../tools/SkillTool/prompt.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
 import type { Message } from '../types/message.js'
-import type { TextBlockParam } from '../types/wire.js'
+import type { ApiToolUnion, TextBlockParam } from '../types/wire.js'
 import { appendSystemContext, toolToAPISchema } from './api.js'
 import { getContextWindowForModel } from './context.js'
 import { awaitContextWindowSource } from './model/contextWindowWarmup.js'
@@ -150,7 +150,7 @@ function noteCounterAnsweredNothing(): null {
   return null
 }
 
-async function apiCount(messages: CountableMessage[], tools: unknown[], system?: readonly TextBlockParam[]): Promise<number | null> {
+async function apiCount(messages: CountableMessage[], tools: ApiToolUnion[], system?: readonly TextBlockParam[]): Promise<number | null> {
   if (counterRoadDown) return null
   const count = await countMessagesTokensWithAPI(messages, tools, system)
   return count ?? noteCounterAnsweredNothing()
@@ -158,7 +158,7 @@ async function apiCount(messages: CountableMessage[], tools: unknown[], system?:
 
 async function countMessagesTokens(
   messages: CountableMessage[],
-  tools: unknown[],
+  tools: ApiToolUnion[],
 ): Promise<number | null> {
   if (counterRoadDown) return null
   try {
@@ -208,7 +208,7 @@ async function projectToolSchemas(
   getToolPermissionContext: GetToolPermissionContext,
   agentInfo: AgentDefinitionsResult,
   model?: string,
-): Promise<unknown[]> {
+): Promise<ApiToolUnion[]> {
   return Promise.all(
     tools.map(tool =>
       toolToAPISchema(tool, {
@@ -747,13 +747,10 @@ export async function analyzeContextUsage(
     if (skillTool) {
       const commands = await getLimitedSkillToolCommands(getCwd())
       const skillFrontmatter = commands.map(command => {
-        const record = command as unknown as { type?: string; source?: ContextItemSource }
-        const name =
-          (command as unknown as { userFacingName?: () => string }).userFacingName?.() ??
-          String((command as unknown as { name?: string }).name ?? UNKNOWN_NAME)
+        const name = command.userFacingName?.() ?? String(command.name ?? UNKNOWN_NAME)
         return {
           name,
-          source: (record.type === 'prompt' ? (record.source ?? 'extension') : 'extension') as ContextItemSource,
+          source: (command.type === 'prompt' ? (command.source ?? 'extension') : 'extension') as ContextItemSource,
           tokens: estimateSkillFrontmatterTokens(command),
         }
       })

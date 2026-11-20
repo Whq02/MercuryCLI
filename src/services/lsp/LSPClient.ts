@@ -2,7 +2,7 @@ import { type ChildProcess, type ChildProcessWithoutNullStreams, spawn } from 'n
 import { createInterface } from 'node:readline'
 import type { Writable } from 'node:stream'
 
-import { type CancellationToken, type Message, type MessageWriter } from 'vscode-jsonrpc'
+import { type CancellationToken, type GenericRequestHandler, type Message, type MessageWriter } from 'vscode-jsonrpc'
 import {
   createMessageConnection,
   type MessageConnection,
@@ -39,7 +39,7 @@ export type LSPClient = {
 const DEFAULT_GRACEFUL_TIMEOUT_MS = 2000
 
 type QueuedNotification = { method: string; handler: (params: unknown) => void }
-type QueuedRequest = { method: string; handler: (params: never) => unknown }
+type QueuedRequest = { method: string; handler: GenericRequestHandler<unknown, unknown> }
 
 export function createLspMessageWriter(output: Writable): MessageWriter {
   const writer = new StreamMessageWriter(output)
@@ -115,7 +115,7 @@ function applyQueuedHandlers(conn: MessageConnection, serverName: string, notifi
     logForDebugging(`LSP server ${serverName}: applied notification handler ${entry.method}`)
   }
   for (const entry of requestHandlers) {
-    conn.onRequest(entry.method, entry.handler as never)
+    conn.onRequest(entry.method, entry.handler)
     logForDebugging(`LSP server ${serverName}: applied request handler ${entry.method}`)
   }
 }
@@ -306,13 +306,14 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
   }
 
   function onRequest<P, R>(method: string, handler: (params: P) => R | Promise<R>): void {
-    requestHandlers.push({ method, handler: handler as (params: never) => unknown })
+    const queued: GenericRequestHandler<unknown, unknown> = handler
+    requestHandlers.push({ method, handler: queued })
     if (connection === null) {
       logForDebugging(`LSP server ${serverName}: queued request handler ${method} (no connection yet)`)
       return
     }
     checkStartFailure()
-    connection.onRequest(method, handler as never)
+    connection.onRequest(method, queued)
   }
 
   function serverStillHears(): boolean {

@@ -23,7 +23,9 @@ export type SharpInstance = {
   toBuffer(): Promise<Buffer>
 }
 
-export type SharpFunction = (input?: Buffer | string) => SharpInstance
+export type SharpFunction = ((input?: Buffer | string) => SharpInstance) & {
+  versions?: { sharp?: string; vips?: string }
+}
 
 type ImageProcessorState =
   | {
@@ -75,7 +77,7 @@ async function loadProcessor(): Promise<Loaded> {
     const arm = armImagePack(packPlatform)
     const source: 'vendored' | 'node_modules' = arm.armed ? 'vendored' : 'node_modules'
     const native = unwrapModule(await import('sharp'))
-    const versions = (native as unknown as { versions?: { sharp?: string; vips?: string } }).versions
+    const versions = native.versions
     return {
       processor: native,
       state: { road: 'native', source, sharp: versions?.sharp ?? 'unknown', libvips: versions?.vips ?? 'unknown', packDir },

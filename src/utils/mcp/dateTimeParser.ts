@@ -62,10 +62,9 @@ export async function parseNaturalLanguageDateTime(
         hasAppendSystemPrompt: false,
         agents: [],
         mcpTools: [],
-        disablePromptCaching: true,
-      } as unknown as Parameters<typeof queryUtility>[0]['options'],
+        enablePromptCaching: false,
+      },
     })
-
     const text = extractTextContent(response.message.content, '\n').trim()
     if (text === '' || text === 'INVALID') {
       return { success: false, error: UNPARSEABLE_MESSAGE }

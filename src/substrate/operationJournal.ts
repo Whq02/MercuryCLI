@@ -122,6 +122,24 @@ function isStep(v: unknown): v is DurableOperationStep {
   )
 }
 
+function isDurableOperation(v: unknown): v is DurableOperation {
+  return (
+    isRecord(v) &&
+    v.schema === 1 &&
+    typeof v.operationId === 'string' &&
+    typeof v.ownerKey === 'string' &&
+    typeof v.kind === 'string' &&
+    typeof v.idempotencyKey === 'string' &&
+    typeof v.state === 'string' &&
+    OPERATION_STATES.has(v.state) &&
+    Array.isArray(v.steps) &&
+    v.steps.every(isStep) &&
+    typeof v.createdAt === 'string' &&
+    typeof v.updatedAt === 'string' &&
+    typeof v.writerPid === 'number'
+  )
+}
+
 function decodeOp(raw: string): DurableOperation | null {
   let parsed: unknown
   try {
@@ -129,22 +147,8 @@ function decodeOp(raw: string): DurableOperation | null {
   } catch {
     return null
   }
-  if (
-    isRecord(parsed) &&
-    parsed.schema === 1 &&
-    typeof parsed.operationId === 'string' &&
-    typeof parsed.ownerKey === 'string' &&
-    typeof parsed.kind === 'string' &&
-    typeof parsed.idempotencyKey === 'string' &&
-    typeof parsed.state === 'string' &&
-    OPERATION_STATES.has(parsed.state) &&
-    Array.isArray(parsed.steps) &&
-    parsed.steps.every(isStep) &&
-    typeof parsed.createdAt === 'string' &&
-    typeof parsed.updatedAt === 'string' &&
-    typeof parsed.writerPid === 'number'
-  ) {
-    return parsed as unknown as DurableOperation
+  if (isDurableOperation(parsed)) {
+    return parsed
   }
   return null
 }
