@@ -598,7 +598,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
       ...router,
       declaredRouteOf: () => { throw new Error('route lookup failed') },
     }))
-    const { getLogoDisplayData } = await import(${JSON.stringify(join(SRC, 'utils/logoV2Utils.ts'))})
+    const { getLogoDisplayData } = await import(${JSON.stringify(join(SRC, 'components/logoV2Utils.ts'))})
     out.data = getLogoDisplayData()
   `)
   const billing = String((rLogo.data as { billingType?: string })?.billingType ?? '')
