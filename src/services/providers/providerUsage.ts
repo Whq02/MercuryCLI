@@ -33,7 +33,7 @@ import {
 } from '../anthropicLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { readSignInRecord, subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
-import { recordUsageObservations } from '../../utils/usageHistory.js'
+import { recordUsageObservations } from '../usage/usageHistory.js'
 import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
 import { credentialFingerprint } from './credentialIdentity.js'
 import { activeWalletEntry, anthropicCredentialAccount, walletEntries, type WalletEntry } from '../wallet/wallet.js'

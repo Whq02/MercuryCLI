@@ -83,7 +83,7 @@ const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/mo
 const { readStoredTogetherApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { resolveContextWindow, modelThinkingAlwaysOn, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'together/moonshotai/Kimi-K3', effortValue: string | undefined = 'high', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,

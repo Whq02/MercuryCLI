@@ -1,28 +1,28 @@
-import { setHasUnknownModelCost } from '../bootstrap/state.js'
-import { usageCount } from '../services/api/emptyUsage.js'
-import { operatorModelFacts } from './model/modelOverrides.js'
-import { deepseekDisplayPin, deepseekRatePeriod } from '../services/providers/deepseek/deepseekPins.js'
-import { xaiModelFacts } from '../services/providers/xai/xaiCatalogue.js'
-import { metaDisplayPin } from '../services/providers/meta/metaPins.js'
-import { mistralDisplayPin } from '../services/providers/mistral/mistralPins.js'
-import { geminiPricePin, geminiPriceTierFor } from '../services/providers/gemini/geminiPins.js'
-import { huggingfaceDisplayPin } from '../services/providers/huggingface/huggingfacePins.js'
-import type { CallModelRoute } from '../services/providers/idSpaces.js'
-import { kimiDisplayPin } from '../services/providers/moonshot/kimiPins.js'
-import { gptDisplayPin, gptPriceTierFor } from '../services/providers/openai/gptPins.js'
-import { declaredRouteOf } from '../services/providers/routeLaw.js'
-import { glmPricePin } from '../services/providers/zai/glmPins.js'
-import { zenDisplayPin } from '../services/providers/zen/zenPins.js'
-import { minimaxDisplayPin } from '../services/providers/minimax/minimaxPins.js'
-import { togetherDisplayPin } from '../services/providers/together/togetherPins.js'
-import { cohereDisplayPin } from '../services/providers/cohere/coherePins.js'
-import { groqDisplayPin } from '../services/providers/groq/groqPins.js'
-import { cerebrasDisplayPin } from '../services/providers/cerebras/cerebrasPins.js'
-import { fireworksDisplayPin } from '../services/providers/fireworks/fireworksPins.js'
-import { qwenRegionalPrice, qwenResolvedPricing } from '../services/providers/qwen/qwenPricing.js'
-import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
-import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
-import { passedOver } from './passedOver.js'
+import { setHasUnknownModelCost } from '../../bootstrap/state.js'
+import { usageCount } from '../api/emptyUsage.js'
+import { operatorModelFacts } from '../../utils/model/modelOverrides.js'
+import { deepseekDisplayPin, deepseekRatePeriod } from '../providers/deepseek/deepseekPins.js'
+import { xaiModelFacts } from '../providers/xai/xaiCatalogue.js'
+import { metaDisplayPin } from '../providers/meta/metaPins.js'
+import { mistralDisplayPin } from '../providers/mistral/mistralPins.js'
+import { geminiPricePin, geminiPriceTierFor } from '../providers/gemini/geminiPins.js'
+import { huggingfaceDisplayPin } from '../providers/huggingface/huggingfacePins.js'
+import type { CallModelRoute } from '../providers/idSpaces.js'
+import { kimiDisplayPin } from '../providers/moonshot/kimiPins.js'
+import { gptDisplayPin, gptPriceTierFor } from '../providers/openai/gptPins.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import { glmPricePin } from '../providers/zai/glmPins.js'
+import { zenDisplayPin } from '../providers/zen/zenPins.js'
+import { minimaxDisplayPin } from '../providers/minimax/minimaxPins.js'
+import { togetherDisplayPin } from '../providers/together/togetherPins.js'
+import { cohereDisplayPin } from '../providers/cohere/coherePins.js'
+import { groqDisplayPin } from '../providers/groq/groqPins.js'
+import { cerebrasDisplayPin } from '../providers/cerebras/cerebrasPins.js'
+import { fireworksDisplayPin } from '../providers/fireworks/fireworksPins.js'
+import { qwenRegionalPrice, qwenResolvedPricing } from '../providers/qwen/qwenPricing.js'
+import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from '../../utils/model/model.js'
+import { ALL_MODEL_CONFIGS, familyHeadOf } from '../../utils/model/configs.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export type ModelCosts = {
@@ -201,7 +201,7 @@ function openrouterCataloguePricing(model: string): ResolvedModelPricing | undef
   let listed: { pricing?: { prompt?: string; completion?: string; inputCacheRead?: string; inputCacheWrite?: string } } | undefined
   try {
     const { openrouterListedModel } =
-      require('../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../services/providers/openrouter/openrouterCatalogue.js')
+      require('../providers/openrouter/openrouterCatalogue.js') as typeof import('../providers/openrouter/openrouterCatalogue.js')
     listed = openrouterListedModel(model)
   } catch (error) {
     passedOver(error)
@@ -229,7 +229,7 @@ function nousCataloguePricing(model: string, promptTokens: number | undefined): 
   let listed: { pricing?: Rates & { overrides?: ReadonlyArray<Rates & { minPromptTokens: number }> } } | undefined
   try {
     const { nousListedModel } =
-      require('../services/providers/nous/nousCatalogue.js') as typeof import('../services/providers/nous/nousCatalogue.js')
+      require('../providers/nous/nousCatalogue.js') as typeof import('../providers/nous/nousCatalogue.js')
     listed = nousListedModel(model)
   } catch (error) {
     passedOver(error)
@@ -295,7 +295,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   openrouter: model => openrouterCataloguePricing(model),
   huggingface: model => huggingfaceFloorPricing(model),
   local: model => {
-    const { localRecordFor } = require('../services/providers/local/localCatalogue.js') as typeof import('../services/providers/local/localCatalogue.js')
+    const { localRecordFor } = require('../providers/local/localCatalogue.js') as typeof import('../providers/local/localCatalogue.js')
     const record = localRecordFor(model)
     return record === undefined || record.executionOrigin?.kind === 'remote' ? undefined : { costs: COST_LOCAL_SERVER, basis: 'recorded' }
   },
@@ -315,7 +315,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   groq: model => recorded(engineTier(groqDisplayPin(model))),
   melious: () => undefined,
   orcarouter: model => {
-    const { orcarouterListedModel } = require('../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../services/providers/orcarouter/orcarouterCatalogue.js')
+    const { orcarouterListedModel } = require('../providers/orcarouter/orcarouterCatalogue.js') as typeof import('../providers/orcarouter/orcarouterCatalogue.js')
     const price = orcarouterListedModel(model)?.pricing
     if (price?.prompt === undefined || price.completion === undefined) return undefined
     return recorded({ inputTokens: price.prompt * 1e6, outputTokens: price.completion * 1e6, promptCacheReadTokens: price.prompt * 1e6, promptCacheWriteTokens: price.prompt * 1e6, webSearchRequests: 0 })
@@ -396,7 +396,7 @@ export function formatModelPricing(costs: ModelCosts): string {
 }
 
 export function getModelPricingString(model: string): string | undefined {
-  if (declaredRouteOf(model) === 'melious') return (require('../services/providers/melious/meliousCatalogue.js') as typeof import('../services/providers/melious/meliousCatalogue.js')).meliousPricingString(model)
+  if (declaredRouteOf(model) === 'melious') return (require('../providers/melious/meliousCatalogue.js') as typeof import('../providers/melious/meliousCatalogue.js')).meliousPricingString(model)
   const resolved = resolveModelPricing(model)
   if (declaredRouteOf(model) === 'qwen' && qwenRegionalPrice(model) !== undefined) return formatModelPricing(resolved.costs)
   return resolved.basis === 'recorded' || resolved.basis === 'floor' ? formatModelPricing(resolved.costs) : undefined

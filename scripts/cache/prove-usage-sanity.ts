@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.2' }
 const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 const { mapCompatUsageToAnthropic } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { calculateUSDCost } = await import('../../src/utils/modelCost.ts')
+const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
 const ledger = await import('../../src/cost-tracker.ts')
 for (const raw of ['{"prompt_tokens":-10,"completion_tokens":-50}', '{"prompt_tokens":1e999,"completion_tokens":5}', '{"prompt_tokens":10,"completion_tokens":1e999,"cost":-3}']) {
   const decoded = decodeCompatUsage(JSON.parse(raw))

@@ -48,7 +48,7 @@ import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingS
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
-import { calculateUSDCost } from '../../../utils/modelCost.js'
+import { calculateUSDCost } from '../../usage/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import { resolveZaiDispatch } from './zaiAccounts.js'
 import { learnZaiKeyPlan } from './zaiCatalogue.js'

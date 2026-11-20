@@ -127,7 +127,7 @@ try {
   const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
   const { bareFamilyWordOf } = await import('../../src/utils/model/bareFamilyWords.ts')
   const { getContextWindowForModel, getModelMaxOutputTokens, modelSupportsThinking } = await import('../../src/utils/model/capabilities.ts')
-  const { getModelCosts, modelPricingBasis } = await import('../../src/utils/modelCost.ts')
+  const { getModelCosts, modelPricingBasis } = await import('../../src/services/usage/modelCost.ts')
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
   const { writeFileSync, mkdirSync } = await import('node:fs')
