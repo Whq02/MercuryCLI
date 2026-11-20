@@ -42,6 +42,18 @@ if (process.platform !== 'win32' && process.getuid?.() !== 0) {
   check('the resume answers not ok with the read error itself', !outcome.ok && /EACCES/.test(outcome.reason), outcome.reason)
 }
 
+section('harnessGround: a folder that cannot be entered is not recorded as the ground')
+{
+  const state = await import('../../src/bootstrap/state.ts')
+  const { applyHarnessGround } = await import('../../src/services/switchboard/harnessGround.ts')
+  const before = { original: state.getOriginalCwd(), root: state.getProjectRoot(), cwd: process.cwd() }
+  const missing = fill('<PROJECT>/no-such-ground')
+  const answered = await Promise.race([applyHarnessGround(missing), new Promise<string>(done => setTimeout(() => done('still grounding'), 10000))])
+  const after = { original: state.getOriginalCwd(), root: state.getProjectRoot(), cwd: process.cwd() }
+  check('the original cwd and project root stay where the process is', after.original === before.original && after.root === before.root && after.cwd === before.cwd, JSON.stringify(after))
+  check('the answer is the folder the process stayed in', answered === before.cwd, answered)
+}
+
 section('matching: one hook matcher that throws does not drop the other hooks of the event')
 {
   const { mock } = await import('bun:test')
