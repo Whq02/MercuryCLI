@@ -26,7 +26,7 @@ type NeutralSystemBlock = {
   cache_control?: unknown
 }
 
-export type NeutralToolSchema = {
+type NeutralToolSchema = {
   name: unknown
   description?: unknown
   input_schema?: unknown
