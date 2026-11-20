@@ -8,6 +8,7 @@ import { delimiter, join } from 'node:path'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../utils/timers.js'
+import { processInstantStartForm, processStartFormFor, processStartProbeKind, type ProcessStartForm } from '../utils/platform/processes.js'
 
 export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
 
@@ -45,7 +46,7 @@ const startInstantArgs = (pid: number): string[] => [
   `$d = (Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CreationDate; if ($d) { $d.ToUniversalTime().ToString('o') }`,
 ]
 
-type StartForm = 'token' | 'instant'
+type StartForm = ProcessStartForm
 
 const START_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?Z$/
 
@@ -54,11 +55,11 @@ export function isProcessStartInstant(token: string | null | undefined): boolean
 }
 
 function startFormLike(like: string | null | undefined): StartForm {
-  return process.platform === 'win32' && isProcessStartInstant(like) ? 'instant' : 'token'
+  return processStartFormFor(isProcessStartInstant(like))
 }
 
 function startInstantForm(): StartForm {
-  return process.platform === 'win32' ? 'instant' : 'token'
+  return processInstantStartForm()
 }
 
 const win32StartArgs = (pid: number, form: StartForm): string[] => (form === 'instant' ? startInstantArgs(pid) : startTokenArgs(pid))
@@ -126,7 +127,8 @@ export function getProcessStartInstant(pid: number): string | null {
 
 function startTokenOf(pid: number, form: StartForm): string | null {
   try {
-    if (process.platform === 'win32') {
+    const probe = processStartProbeKind()
+    if (probe === 'win32-cim') {
       const r = spawnSync(win32PsExe(), win32StartArgs(pid, form), {
         encoding: 'utf-8',
         timeout: 2000,
@@ -135,7 +137,7 @@ function startTokenOf(pid: number, form: StartForm): string | null {
       })
       return invalidateDeadStartToken(pid, win32StartTokenVerdict({ ran: !r.error, exitCode: r.status, stdout: r.stdout, stderr: r.stderr }))
     }
-    if (process.platform === 'linux') return invalidateDeadStartToken(pid, linuxProcessStartToken(pid))
+    if (probe === 'linux-proc') return invalidateDeadStartToken(pid, linuxProcessStartToken(pid))
     const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
       windowsHide: true,
       encoding: 'utf-8',
@@ -167,7 +169,8 @@ function startTokenOfAsync(pid: number, form: StartForm): Promise<string | null>
       return e?.code === 'ENOENT' || e?.killed === true
     }
     try {
-      if (process.platform === 'win32') {
+      const probe = processStartProbeKind()
+      if (probe === 'win32-cim') {
         execFile(
           win32PsExe(),
           win32StartArgs(pid, form),
@@ -183,7 +186,7 @@ function startTokenOfAsync(pid: number, form: StartForm): Promise<string | null>
         )
         return
       }
-      if (process.platform === 'linux') {
+      if (probe === 'linux-proc') {
         resolve(linuxProcessStartToken(pid))
         return
       }
@@ -293,22 +296,23 @@ const WIN32_BATCH_TOKEN: Record<StartForm, string> = {
 }
 
 async function probeStartTokens(pids: readonly number[], form: StartForm): Promise<Map<number, string | null>> {
-  if (process.platform === 'linux') return new Map(pids.map(pid => [pid, linuxProcessStartToken(pid)]))
+  const probe = processStartProbeKind()
+  if (probe === 'linux-proc') return new Map(pids.map(pid => [pid, linuxProcessStartToken(pid)]))
   const deadline = performance.now() + PROCESS_START_PROBE_TIMEOUT_MS
-  const windows = process.platform === 'win32'
-  const file = windows ? win32PsExe() : 'ps'
-  const args = windows ? [
+  const cim = probe === 'win32-cim'
+  const file = cim ? win32PsExe() : 'ps'
+  const args = cim ? [
     '-NoProfile', '-NonInteractive', '-Command',
     `$ErrorActionPreference='Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "${pids.map(pid => `ProcessId=${pid}`).join(' OR ')}" -ErrorAction Stop | ForEach-Object { [pscustomobject]@{ pid=[int]$_.ProcessId; token=${WIN32_BATCH_TOKEN[form]} } })`,
   ] : ['-o', 'pid=', '-o', 'lstart=', '-p', pids.join(',')]
   const reply = await runStartProbe(file, args, deadline)
-  const batch = parseStartBatch(pids, reply, windows)
+  const batch = parseStartBatch(pids, reply, cim)
   if (batch) return batch
   if (reply.kind === 'timeout' || performance.now() >= deadline) return new Map(pids.map(pid => [pid, null]))
   const tokens = new Map<number, string | null>()
   for (const pid of pids) {
-    const single = await runStartProbe(file, windows ? win32StartArgs(pid, form) : ['-o', 'lstart=', '-p', String(pid)], deadline)
-    const token = single.kind !== 'reply' ? null : windows
+    const single = await runStartProbe(file, cim ? win32StartArgs(pid, form) : ['-o', 'lstart=', '-p', String(pid)], deadline)
+    const token = single.kind !== 'reply' ? null : cim
       ? win32StartTokenVerdict({ ran: true, exitCode: single.code, stdout: single.stdout, stderr: single.stderr })
       : single.code === 0 ? single.stdout.trim() : single.code === 1 && !single.stderr.trim() ? '' : null
     tokens.set(pid, token)

@@ -19,6 +19,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
+const hostPlatform = process.platform
+const bashPath = (path: string): string => (hostPlatform === 'win32' ? path.replaceAll('\\', '/') : path)
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
 function pinPlatform(value: NodeJS.Platform): void {
   Object.defineProperty(process, 'platform', { value, configurable: true })
@@ -168,6 +170,7 @@ try {
 }
 
 section('§4 the Mac and Linux shape (the own home /Users/proofowner): /Users/<other> and /home/<other> are refused the same way; the own home and the reads pass')
+if (hostPlatform === 'win32') pinPlatform('darwin')
 process.env.HOME = '/Users/proofowner'
 delete process.env.USERPROFILE
 setHomeSpellings(() => ['/Users/proofowner'])
@@ -180,6 +183,7 @@ try {
   check('a session started in /Users/Shared/proj deletes its own build folder without the ward', !refusedByRule('rm -rf /Users/Shared/proj/build', 'Bash', posix('/Users/Shared/proj')), ruleOf('rm -rf /Users/Shared/proj/build', 'Bash', posix('/Users/Shared/proj')))
   check('…and still may not delete beside it', refusedByRule('rm -rf /Users/Shared/other-proj', 'Bash', posix('/Users/Shared/proj')))
 } finally {
+  if (hostPlatform === 'win32') restorePlatform()
   if (savedHome === undefined) delete process.env.HOME
   else process.env.HOME = savedHome
   if (savedProfile === undefined) delete process.env.USERPROFILE
@@ -223,9 +227,15 @@ section('§5 the hook road: the refusal rides the guard that runs before the per
   }
   const beside = join(scratch, 'beside')
   mkdirSync(beside)
-  const offWindows = await runWithCwdOverride(beside, () => judge('Remove-Item -Recurse -Force C:\\Users\\Public\\m36-decoy', 'PowerShell'))
+  if (hostPlatform === 'win32') pinPlatform('darwin')
+  let offWindows: string | true
+  try {
+    offWindows = await runWithCwdOverride(beside, () => judge('Remove-Item -Recurse -Force C:\\Users\\Public\\m36-decoy', 'PowerShell'))
+  } finally {
+    if (hostPlatform === 'win32') restorePlatform()
+  }
   check('off win32 the Windows spelling is no Windows path: a name under the folder the call stands in, it passes from a folder of this proof\'s world that lies outside the starting folder, where a Windows reading of it would be refused (the Mac road is unchanged, as the recursive-delete ward\'s Windows set)', offWindows === true, shown(offWindows))
-  const inside = await judge(`rm -rf ${join(project, 'build')}`)
+  const inside = await judge(`rm -rf ${bashPath(join(project, 'build'))}`)
   check('a delete inside the starting folder passes the guard (the card decides)', inside === true, shown(inside))
   const listing = await judge('ls -la /Users/m37-other/decoy')
   check('a listing of another user\'s folder passes the guard (the card decides)', listing === true, shown(listing))
@@ -242,15 +252,15 @@ for (const posture of ['default', 'allowed', 'sovereign'] as const) {
   const escapedShell = join(cwd, 'ESCAPED-SHELL')
   const escapedSplit = join(cwd, 'ESCAPED-SPLIT')
   const ran = join(cwd, 'RAN')
-  const command = `rm -rf /Users/m37-other/decoy && echo escaped > ${escaped}`
-  const shellCommand = `sh -c "rm -rf /Users/m37-other/decoy && echo escaped > ${escapedShell}"`
-  const splitCommand = `rm -rf \\\n/Users/m37-other/decoy && echo escaped > ${escapedSplit}`
+  const command = `rm -rf /Users/m37-other/decoy && echo escaped > ${bashPath(escaped)}`
+  const shellCommand = `sh -c "rm -rf /Users/m37-other/decoy && echo escaped > ${bashPath(escapedShell)}"`
+  const splitCommand = `rm -rf \\\n/Users/m37-other/decoy && echo escaped > ${bashPath(escapedSplit)}`
   const withMark = posture !== 'default'
   const turns: ScriptedTurn[] = [
     { kind: 'tool_use', name: 'Bash', input: { command, description: 'Delete the decoy folder' } },
     { kind: 'tool_use', name: 'Bash', input: { command: shellCommand, description: 'Delete the decoy folder through an inline shell' } },
     { kind: 'tool_use', name: 'Bash', input: { command: splitCommand, description: 'Delete the decoy folder with the path on a continuation line' } },
-    ...(withMark ? [{ kind: 'tool_use' as const, name: 'Bash', input: { command: `echo ran > ${ran}`, description: 'Leave a mark inside the project' } }] : []),
+    ...(withMark ? [{ kind: 'tool_use' as const, name: 'Bash', input: { command: `echo ran > ${bashPath(ran)}`, description: 'Leave a mark inside the project' } }] : []),
     { kind: 'text', text: withMark ? 'The delete was refused by the ward; the mark was left.' : 'The delete was refused by the ward.' },
     handoffTurn(),
     handoffTurn(),
@@ -261,7 +271,7 @@ for (const posture of ['default', 'allowed', 'sovereign'] as const) {
     const args = [join(ROOT, 'dist', 'mercury.mjs'), 'run', '--format', 'rows', 'delete the decoy folder, then leave the mark', ...flags]
     const child = spawn('node', args, {
       windowsHide: true, cwd, stdio: ['ignore', 'pipe', 'pipe'],
-      env: { HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url },
+      env: { ...(hostPlatform === 'win32' ? { USERPROFILE: home, SystemRoot: process.env.SystemRoot, SYSTEMROOT: process.env.SYSTEMROOT, ComSpec: process.env.ComSpec, COMSPEC: process.env.COMSPEC, TEMP: tmpdir(), TMP: tmpdir() } : {}), HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url },
     })
     let stdout = ''
     let stderr = ''

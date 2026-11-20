@@ -20,6 +20,7 @@ import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { startCommandHook } from './hooks/commandRunner.js'
 import { logError } from './log.js'
+import { symlinkDeniedByPrivilege } from './platform/files.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
@@ -508,8 +509,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
       try {
         await symlink(source, target, 'dir')
       } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code
-        if (process.platform !== 'win32' || (code !== 'EPERM' && code !== 'EACCES')) throw error
+        if (!symlinkDeniedByPrivilege(error)) throw error
         const present = await lstat(target).then(() => true, (probe: NodeJS.ErrnoException) => { if (probe.code !== 'ENOENT') throw probe; return false })
         if (present) throw Object.assign(new Error(`${target} already exists`), { code: 'EEXIST' })
         const under = await heldUnder()

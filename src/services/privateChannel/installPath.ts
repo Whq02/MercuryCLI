@@ -10,6 +10,7 @@ import { pathEntryEquals, resolveLayoutRoots, type LayoutRoots } from './install
 import { isNpmWrapperCommand, resolveInstallProvenance } from './installProvenance.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { stripExtendedLengthPrefixForPlatform } from '../../utils/platform/paths.js'
 
 export const PATH_SENTINEL = 'mercury-managed-path'
 export const WIN32_USER_PATH_STORE = 'the user PATH (HKCU\\Environment)'
@@ -158,9 +159,9 @@ export function ownCommandWord(facts: OwnCommandFacts): string {
   if (facts.provenanceKind === 'managed' && facts.found.state === 'stable') return 'mercury'
   if ((facts.provenanceKind === 'homebrew' || facts.provenanceKind === 'npm') && facts.found.state !== 'absent') return 'mercury'
   if (facts.bundle === undefined || facts.bundle.trim() === '') return 'mercury'
-  const isWindows = facts.isWindows ?? process.platform === 'win32'
-  const node = isWindows ? stripExtendedLengthPrefix(facts.node) : facts.node
-  const bundle = isWindows ? stripExtendedLengthPrefix(facts.bundle) : facts.bundle
+  const platform: NodeJS.Platform | undefined = facts.isWindows === undefined ? undefined : facts.isWindows ? 'win32' : 'linux'
+  const node = stripExtendedLengthPrefixForPlatform(facts.node, platform)
+  const bundle = stripExtendedLengthPrefixForPlatform(facts.bundle, platform)
   if (bundle.trim() === '') return 'mercury'
   const quote = (part: string): string => (/[\s"']/.test(part) ? JSON.stringify(part) : part)
   return `${quote(node)} ${quote(bundle)}`
