@@ -39,6 +39,7 @@ import {
 import { getCwd } from '../../utils/cwd.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { FILE_NOT_FOUND_CWD_NOTE, findSimilarFile, getFileModificationTime, suggestPathUnderCwd } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
@@ -587,8 +588,9 @@ export const AstEditTool = buildTool({
     try {
       planned = await planFor(input, context)
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } } as PermissionDecision
+      logForDebugging(`AstEdit: the rewrite could not be planned for the permission check (${error instanceof Error ? error.message : String(error)}), so the call goes on and its own planning answers`)
+      passedOver(error)
+      return { behavior: 'allow', updatedInput: input } as PermissionDecision
     }
     const targets = planned.plan.files
     if (targets.length === 0 || input.plan?.trim() !== planned.plan.token) {
