@@ -243,6 +243,41 @@ try {
       JSON.stringify(out),
     )
   }
+
+  console.log('8. src/services/dap/dapClient.ts')
+  {
+    const { createDapSession, getDapSession } = await import('../../src/services/dap/dapClient.ts')
+    const { getExecution, requestStopExecution } = await import('../../src/services/primitives/executionPlane.ts')
+    const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+    const owner = processMainOwner()
+    const mockAdapter = join(HERE, '../dap/mock-dap-adapter.mjs')
+    const program = join(SCRATCH, 'dummy.py')
+    writeFileSync(program, 'x = 1\n')
+    const session = await createDapSession({
+      owner,
+      id: 'stop-leak',
+      adapterKey: 'mock',
+      program,
+      cwd: SCRATCH,
+      specOverride: { command: process.execPath, args: [mockAdapter] },
+    })
+    try {
+      session.dispose = async () => {
+        throw new Error('injected dispose failure')
+      }
+      requestStopExecution(owner, 'debug:stop-leak')
+      await new Promise(resolve => setTimeout(resolve, 50))
+      const stillRegistered = getDapSession(owner, 'stop-leak') !== undefined
+      const execState = getExecution(owner, 'debug:stop-leak')?.state
+      check(
+        'dapClient.requestStop terminates adapter and projects stopped even when dispose fails',
+        session.terminated === true && !stillRegistered && execState === 'stopped',
+        `terminated=${session.terminated} registered=${stillRegistered} execState=${String(execState)}`,
+      )
+    } finally {
+      session.killSync()
+    }
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

@@ -86,8 +86,8 @@ export {
   settleDapAdapterProbes,
 } from './client/adapters.js'
 import { DapSessionPublicLayer } from './client/publicLayer.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
-
 export class DapSession extends DapSessionPublicLayer {
   readonly adapterKey: string
   readonly program: string
@@ -374,7 +374,20 @@ registerExecutionDomain('debug-adapter', {
   requestStop: record => {
     const alias = record.spec.metadata?.alias
     if (typeof alias !== 'string') return
-    void removeDapSession(record.spec.owner, alias).catch(passedOver)
+    void removeDapSession(record.spec.owner, alias).catch(error => {
+      logForDebugging(`dap: stop request for ${alias} failed: ${error instanceof Error ? error.message : String(error)}`)
+      const key = registryKey(record.spec.owner, alias)
+      const live = sessions.get(key)
+      if (live) {
+        sessions.delete(key)
+        unregisterOwnerDisposer(record.spec.owner, `dap:${alias}`)
+        try {
+          live.killSync()
+        } catch (killError) {
+          passedOver(killError)
+        }
+      }
+    })
   },
 })
 
@@ -534,10 +547,20 @@ export async function removeDapSession(owner: OwnerKey, id: string, signal?: Abo
   if (!session) return false
   sessions.delete(key)
   unregisterOwnerDisposer(owner, `dap:${id}`)
-  await session.dispose(signal)
-  projectExternalState(owner, dapExecutionSpec(id, session.adapterKey), 'stopped', {
-    outcome: { reason: 'session disconnected' },
-  })
+  try {
+    await session.dispose(signal)
+  } finally {
+    if (!session.terminated) {
+      try {
+        session.killSync()
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    projectExternalState(owner, dapExecutionSpec(id, session.adapterKey), 'stopped', {
+      outcome: { reason: 'session disconnected' },
+    })
+  }
   return true
 }
 
