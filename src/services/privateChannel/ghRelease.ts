@@ -63,17 +63,31 @@ type GhRepoAccess = { state: 'ok' } | { state: 'no-repo-access'; note: string; r
 
 type GhResult = { state: 'ok'; stdout: string } | { state: 'error'; enoent: boolean; stderr: string }
 
+let skippedGhCmdNotice: string | null = null
+
+export function consumeSkippedGhCmdNotice(): string | null {
+  const notice = skippedGhCmdNotice
+  skippedGhCmdNotice = null
+  return notice
+}
+
 function ghArgv(): string[] {
   const pinned = flagEnv('MERCURY_GH_CMD')
   if (pinned) {
     try {
       const parsed: unknown = JSON.parse(pinned)
       if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(x => typeof x === 'string')) {
+        skippedGhCmdNotice = null
         return parsed as string[]
       }
+      skippedGhCmdNotice = 'MERCURY_GH_CMD is not a JSON list of strings (expected a non-empty JSON array of strings), so it is not used and plain gh ran; fix or unset it.'
     } catch (error) {
       passedOver(error)
+      const msg = error instanceof Error ? error.message : String(error)
+      skippedGhCmdNotice = `MERCURY_GH_CMD is not a JSON list of strings (${msg}), so it is not used and plain gh ran; fix or unset it.`
     }
+  } else {
+    skippedGhCmdNotice = null
   }
   return ['gh']
 }

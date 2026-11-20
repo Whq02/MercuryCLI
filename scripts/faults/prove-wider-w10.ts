@@ -106,5 +106,45 @@ console.log('\n§1 w10-1 — channelStatus and mercury update --status report un
   check('w10-1: update --status prints unreadable launcher sentence', printed.includes(`the launcher at ${String(r.shimPath)} could not be read (`), printed)
 }
 
+console.log('\n§2 w10-2 — unparseable MERCURY_GH_CMD runs plain gh and prints notice once in cli/update')
+{
+  const r = runScenario(`
+    const { chmodSync, existsSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const binDir = join(PROJECT, 'fakebin')
+    const marker = join(PROJECT, 'plain-gh-ran')
+    mkdirSync(binDir, { recursive: true })
+    const fakeGh = join(binDir, 'gh')
+    writeFileSync(fakeGh, '#!/bin/sh\\necho ran >> ' + JSON.stringify(marker) + '\\necho true\\n')
+    chmodSync(fakeGh, 0o755)
+    process.env.PATH = binDir + ':' + (process.env.PATH ?? '')
+    process.env.MERCURY_UPDATE_CHANNEL_REPO = 'example/mercury'
+    process.env.MERCURY_GH_CMD = '{bad json'
+    const { update } = await import(SRC + '/cli/update.ts')
+    const errs = []
+    const origOut = process.stdout.write.bind(process.stdout)
+    const origErr = console.error
+    const origExit = process.exit
+    process.stdout.write = (() => true)
+    console.error = ((...a) => { errs.push(a.map(String).join(' ')) })
+    process.exit = (() => { throw new Error('__EXIT__') })
+    try {
+      await update({ status: true })
+    } catch {} finally {
+      process.stdout.write = origOut
+      console.error = origErr
+      process.exit = origExit
+    }
+    out.plainRan = existsSync(marker)
+    out.errs = errs
+  `)
+  const errs = Array.isArray(r.errs) ? (r.errs as string[]) : []
+  const matches = errs.filter(
+    l => l.includes('MERCURY_GH_CMD is not a JSON list of strings (') && l.includes('), so it is not used and plain gh ran; fix or unset it.'),
+  )
+  check('w10-2: plain gh still ran', r.plainRan === true, JSON.stringify(r))
+  check('w10-2: cli/update prints skipped MERCURY_GH_CMD sentence once', matches.length === 1, JSON.stringify(errs))
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
