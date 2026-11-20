@@ -525,7 +525,7 @@ section('§10 the command — /crewmates on|off, the grammar, the no-chat senten
   const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
   const { runSpawnSwitchCommand } = await import('../../src/commands/crewmates/spawnSwitch.ts')
   const { builtinCommands } = await import('../../src/commands.ts')
-  check('/crewmates carries the on|off hint and stays the crew view (one word for one thing: /subagents ceased in .34 — no alias, no refusal line)', crewmates.type === 'local-jsx' && crewmates.name === 'crewmates' && crewmates.argumentHint === '[on|off]' && String(crewmates.description).includes('on or off') && !builtinCommands().some(c => c.name === 'subagents'))
+  check('/crewmates carries the on|off hint and stays the crew view (one word for one thing: /subagents ceased in .34 — no alias, no refusal line)', crewmates.type === 'local-jsx' && crewmates.name === 'crewmates' && crewmates.argumentHint === '[on|off]' && crewmates.description.includes('on or off') && !builtinCommands().some(c => c.name === 'subagents'))
   check('/crewmates is registered in the command table', builtinCommands().some(c => c.name === 'crewmates'))
   check('/crewmates sits in the crew & delegation domain, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)
   check('the README roster names /crewmates in crew & delegation and no longer the retired word', /\| crew & delegation \|[^\n]*`\/crewmates`/.test(src('README.md')) && !src('README.md').includes('/subagents'))
