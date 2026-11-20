@@ -52,7 +52,7 @@ import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { getCwdState } from '../../bootstrap/state.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
-import { clearAgentPauseRecord, writeAgentPauseRecord } from '../../tasks/LocalAgentTask/pauseCarry.js'
+import { agentPauseRecordPath, clearAgentPauseRecord, writeAgentPauseRecord } from '../../tasks/LocalAgentTask/pauseCarry.js'
 import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../utils/crew/crewAccountChange.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
@@ -779,14 +779,25 @@ async function whileFiring(taskId: string, fire: () => Promise<void>): Promise<v
   }
 }
 
-function dropPauseRecord(taskId: string): void {
+function dropPauseRecord(taskId: string, description?: string): void {
   void clearAgentPauseRecord(taskId).catch((error: unknown) => {
-    logForDebugging(`agent lifecycle: the pause record of ${taskId} could not be removed, so the next session start arms it again: ${errorMessage(error)}`)
+    const reason = errorMessage(error)
+    logForDebugging(`agent lifecycle: the pause record of ${taskId} could not be removed, so the next session start arms it again: ${reason}`)
+    const who = description ? `Crewmate "${description}"` : `Crewmate ${taskId}`
+    enqueueAgentReceiptRow({ taskId, description: description ?? taskId, status: 'paused', summary: `${who}: its pause record ${agentPauseRecordPath(taskId)} could not be removed (${reason}) — delete it, or the next session start resumes it` })
   })
 }
 
-export function cancelAutomaticResume(taskId: string): boolean {
-  dropPauseRecord(taskId)
+function savePauseRecord(taskId: string, description: string, record: Parameters<typeof writeAgentPauseRecord>[1]): void {
+  void writeAgentPauseRecord(taskId, record).catch((error: unknown) => {
+    const reason = errorMessage(error)
+    logForDebugging(`agent lifecycle: the pause of ${taskId} could not be recorded: ${reason}`)
+    enqueueAgentReceiptRow({ taskId, description, status: 'paused', summary: `Crewmate "${description}": its pause record ${agentPauseRecordPath(taskId)} could not be saved (${reason}) — it will not resume on its own after a restart` })
+  })
+}
+
+export function cancelAutomaticResume(taskId: string, description?: string): boolean {
+  dropPauseRecord(taskId, description)
   const timer = pendingAutomaticResumes.get(taskId)
   if (timer === undefined) return false
   stopTimeout(timer)
@@ -828,7 +839,7 @@ export function armBudgetCutResume(args: {
     if (armed !== undefined) stopTimeout(armed)
     pendingAutomaticResumes.delete(args.taskId)
     cutsAlreadyResumed.add(args.registration)
-    dropPauseRecord(args.taskId)
+    dropPauseRecord(args.taskId, args.description)
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
       tasksNow = prev.tasks
@@ -871,9 +882,7 @@ export function armBudgetCutResume(args: {
   pendingAutomaticResumes.set(args.taskId, timer)
   if (args.pause !== undefined && args.pause.why !== 'provider overloaded' && args.pause.resumesAtMs !== undefined) {
     const toolUseId = args.toolUseContext.toolUseId
-    void writeAgentPauseRecord(args.taskId, { pause: { ...args.pause, resumesAtMs: args.pause.resumesAtMs }, description: args.description, armedAt: Date.now(), ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) }).catch((error: unknown) => {
-      logForDebugging(`agent lifecycle: the pause of ${args.taskId} could not be recorded: ${errorMessage(error)}`)
-    })
+    savePauseRecord(args.taskId, args.description, { pause: { ...args.pause, resumesAtMs: args.pause.resumesAtMs }, description: args.description, armedAt: Date.now(), ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) })
   }
   if (args.pause !== undefined && args.pause.why !== 'provider overloaded') {
     unsubscribeAccount = subscribeCrewAccountChange(() => {
@@ -975,7 +984,7 @@ export function armOverloadProbe(args: {
   if (delayMs === null) {
     unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
     closeOverloadEpisode(args.taskId)
-    dropPauseRecord(args.taskId)
+    dropPauseRecord(args.taskId, args.description)
     return null
   }
   pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
@@ -998,7 +1007,7 @@ export function armOverloadProbe(args: {
       armOverloadProbe({ ...args, afterDeath: false, recorded: true })
       return
     }
-    dropPauseRecord(args.taskId)
+    dropPauseRecord(args.taskId, args.description)
     const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
@@ -1031,9 +1040,7 @@ export function armOverloadProbe(args: {
   pendingAutomaticResumes.set(args.taskId, timer)
   if (args.recorded !== true) {
     const toolUseId = args.toolUseContext.toolUseId
-    void writeAgentPauseRecord(args.taskId, { pause: { why: 'provider overloaded', words: args.pause.words }, model: args.model, description: args.description, armedAt: nowMs, ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) }).catch((error: unknown) => {
-      logForDebugging(`agent lifecycle: the pause of ${args.taskId} could not be recorded: ${errorMessage(error)}`)
-    })
+    savePauseRecord(args.taskId, args.description, { pause: { why: 'provider overloaded', words: args.pause.words }, model: args.model, description: args.description, armedAt: nowMs, ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) })
   }
   return timer
 }
