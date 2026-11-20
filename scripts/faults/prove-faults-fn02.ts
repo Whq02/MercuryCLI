@@ -462,5 +462,30 @@ console.log('\nSelectInputOption — failed clipboard image paste reports the fa
   check('clipboard paste rejection produces the error sentence', r.error === 'Could not paste image from clipboard (clipboard unavailable) — copy the image again and retry', JSON.stringify(r))
 }
 
+console.log('\nLogSelector — failed session rename reports the failure sentence instead of closing silently')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/LogSelector.tsx'))
+    if (typeof mod.commitLogRename !== 'function') {
+      out.missing = true
+    } else {
+      const errors = []
+      let renamed = 0
+      await mod.commitLogRename(
+        { sessionId: '11111111-1111-4111-8111-111111111111', fullPath: '/tmp/session.jsonl' },
+        'my-name',
+        {
+          save: async () => { throw new Error('disk full') },
+          onRenamed: () => { renamed++ },
+          onError: msg => errors.push(msg),
+        },
+      )
+      out.error = errors.at(-1) ?? null
+      out.renamed = renamed
+    }
+  `)
+  check('rename failure produces the error sentence and does not call onRenamed', r.error === 'Could not rename session (disk full) — press ctrl+r to try again' && r.renamed === 0, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

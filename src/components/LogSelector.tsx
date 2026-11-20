@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react'
 import { useLoad, usePublish } from '../hooks/effects.js'
-import { useInput } from '../ink.js'
+import { Box, Text, useInput } from '../ink.js'
 import type { SessionListing } from '../types/logs.js'
 import { getLogDisplayTitle } from '../utils/log.js'
 import { SessionPreview } from './SessionPreview.js'
@@ -31,6 +31,29 @@ import { logError } from '../utils/log.js'
 import type { UUID } from 'crypto'
 import { logSelectorView } from './logSelector/views.js'
 import { passedOver } from '../utils/passedOver.js'
+
+export function commitLogRename(
+  target: Pick<SessionListing, 'sessionId' | 'fullPath'>,
+  trimmed: string,
+  io: {
+    save?: typeof saveCustomTitle
+    onRenamed: () => void
+    onError: (sentence: string | null) => void
+  },
+): Promise<void> {
+  if (trimmed === '' || target.sessionId === undefined) return Promise.resolve()
+  io.onError(null)
+  return (io.save ?? saveCustomTitle)(target.sessionId as UUID, trimmed, target.fullPath)
+    .then(() => {
+      io.onRenamed()
+    })
+    .catch(error => {
+      logError(error)
+      io.onError(
+        `Could not rename session (${error instanceof Error ? error.message : String(error)}) — press ctrl+r to try again`,
+      )
+    })
+}
 
 type LogSelectorProps = {
   logs: SessionListing[]
@@ -110,6 +133,7 @@ export function LogSelector({
   const [renameTarget, setRenameTarget] = useState<SessionListing | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [renameCursor, setRenameCursor] = useState(0)
+  const [renameError, setRenameError] = useState<string | null>(null)
   const [previewLog, setPreviewLog] = useState<SessionListing | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
 
@@ -303,12 +327,13 @@ export function LogSelector({
       const target = renameTarget
       setRenameTarget(null)
       if (!target || trimmed === '' || target.sessionId === undefined) return
-      void saveCustomTitle(target.sessionId as UUID, trimmed, target.fullPath)
-        .then(() => {
+      void commitLogRename(target, trimmed, {
+        onRenamed: () => {
           if (onLogRenamed !== undefined) onLogRenamed(String(target.sessionId), trimmed)
           else onLogsChanged?.()
-        })
-        .catch(logError)
+        },
+        onError: setRenameError,
+      })
     },
     [renameTarget, onLogsChanged, onLogRenamed],
   )
@@ -372,7 +397,14 @@ export function LogSelector({
 
   const emptyReasons: string[] = [...filterParts]
   if (query.trim() !== '') emptyReasons.push(`search: ${query.trim()}`)
-  return logSelectorView({ grouped, emptyReasons, renaming, searchMode, rowLabel, describeLogFitted, showAllProjects, labelWidth, MIN_LABEL_WIDTH, visibleCount, forceExpanded, expanded, setExpanded, setFocusedLog, onSelect, onCancel, setSearchMode, tokens, tagTabs, selectedTag, columns, positionSuffix, query, search, filterParts, inRename, renameValue, setRenameValue, submitRename, renameCursor, setRenameCursor, exitState, hints, expandHint })
+  const view = logSelectorView({ grouped, emptyReasons, renaming, searchMode, rowLabel, describeLogFitted, showAllProjects, labelWidth, MIN_LABEL_WIDTH, visibleCount, forceExpanded, expanded, setExpanded, setFocusedLog, onSelect, onCancel, setSearchMode, tokens, tagTabs, selectedTag, columns, positionSuffix, query, search, filterParts, inRename, renameValue, setRenameValue, submitRename, renameCursor, setRenameCursor, exitState, hints, expandHint })
+  if (renameError === null) return view
+  return (
+    <Box flexDirection="column">
+      {view}
+      <Text color={tokens.warning}>{renameError}</Text>
+    </Box>
+  )
 }
 
 export default LogSelector
