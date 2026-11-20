@@ -54,7 +54,7 @@ export function resolveBlockAt(filePath: string, content: string, line: number):
     if (found) return
     const start = node.getStart(sourceFile)
     const startLine = lineOf(start)
-    if (startLine === line && node !== (sourceFile as unknown as import('typescript').Node)) {
+    if (startLine === line && node !== sourceFile) {
       found = { start, end: node.getEnd(), kind: ts.SyntaxKind[node.kind] ?? String(node.kind) }
       return
     }
