@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { codeOnlyText, syntaxShape } from '../lib/codeText.ts'
-
+import { shellstringCensus } from './gen-shellstring-census.ts'
 const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -79,11 +79,19 @@ const PLANTED_BASENAME = [
   '',
 ]
 
-const CENSUSES = [
+type CensusSpec = {
+  name: string
+  run?: (root: string) => Census
+  generator?: string
+  asset?: string
+  planted: string
+  text: string
+  codeRows: number
+}
+const CENSUSES: CensusSpec[] = [
   {
     name: 'shellstring',
-    generator: 'scripts/consistency-census/gen-shellstring-census.ts',
-    asset: 'scripts/consistency-census/shellstring-census.json',
+    run: shellstringCensus,
     planted: 'src/planted/plantedShell.ts',
     text: PLANTED_SHELL.join('\n'),
     codeRows: 7,
@@ -166,10 +174,9 @@ function writeTree(to: string, files: Map<string, string>): void {
 const scratch = mkdtempSync(join(tmpdir(), 'census-comment-invariance-'))
 try {
   for (const c of CENSUSES) {
-    const committed = JSON.parse(readFileSync(join(ROOT, c.asset), 'utf8')) as Census
-    const files = representativeFiles(committed)
-    check(`${c.name}: three representative sources carry committed rows`, files.length === 3, files.join(', '))
-
+    const baseline = c.run ? c.run(ROOT) : (JSON.parse(readFileSync(join(ROOT, c.asset!), 'utf8')) as Census)
+    const files = representativeFiles(baseline)
+    check(`${c.name}: three representative sources carry census rows`, files.length === 3, files.join(', '))
     const original = new Map<string, string>()
     for (const rel of files) original.set(rel, readFileSync(join(ROOT, rel), 'utf8'))
     original.set(c.planted, c.text)
@@ -196,8 +203,8 @@ try {
     const strippedRoot = join(scratch, c.name, 'stripped')
     writeTree(originalRoot, original)
     writeTree(strippedRoot, stripped)
-    const a = generate(c.generator, originalRoot)
-    const b = generate(c.generator, strippedRoot)
+    const a = c.run ? JSON.stringify(c.run(originalRoot)) : generate(c.generator!, originalRoot)
+    const b = c.run ? JSON.stringify(c.run(strippedRoot)) : generate(c.generator!, strippedRoot)
     const rowsA = (JSON.parse(a) as Census).sites
     const rowsB = (JSON.parse(b) as Census).sites
     check(`${c.name}: comment-free copies regenerate byte-identical output`, a === b, `${rowsA.length} vs ${rowsB.length} rows`)
@@ -206,13 +213,12 @@ try {
     const fromSources = rowsA.filter(r => r.file !== c.planted)
     check(`${c.name}: the representative sources yield rows (${fromSources.length})`, fromSources.length > 0)
     check(
-      `${c.name}: every row of the representative sources is a committed row`,
-      fromSources.every(r => committed.sites.some(s => JSON.stringify(s) === JSON.stringify(r))),
-      fromSources.filter(r => !committed.sites.some(s => JSON.stringify(s) === JSON.stringify(r))).map(r => r.excerpt).join(' | ').slice(0, 300),
+      `${c.name}: every row of the representative sources is a census row`,
+      fromSources.every(r => baseline.sites.some(s => JSON.stringify(s) === JSON.stringify(r))),
+      fromSources.filter(r => !baseline.sites.some(s => JSON.stringify(s) === JSON.stringify(r))).map(r => r.excerpt).join(' | ').slice(0, 300),
     )
-    const committedFromSources = committed.sites.filter(s => files.includes(s.file))
-    check(`${c.name}: the representative sources reproduce every committed row of theirs`, committedFromSources.length === fromSources.length, `${committedFromSources.length} committed, ${fromSources.length} regenerated`)
-
+    const baselineFromSources = baseline.sites.filter(s => files.includes(s.file))
+    check(`${c.name}: the representative sources reproduce every census row of theirs`, baselineFromSources.length === fromSources.length, `${baselineFromSources.length} baseline, ${fromSources.length} regenerated`)
     const plantedRows = rowsA.filter(r => r.file === c.planted)
     check(
       `${c.name}: every planted code site is counted once (strings, a regex, a template, jsx text, a continuation line)`,
