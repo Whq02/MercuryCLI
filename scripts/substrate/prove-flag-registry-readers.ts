@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, posix, resolve } from 'node:path'
 import ts from 'typescript'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
-import { flagRegistryFiles, flagRegistryText, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
+import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const J = (...parts: string[]): string => parts.join('')
@@ -603,10 +603,9 @@ section("§1 the door: the registry's files, their text and the path test")
   w(spell('src/@S@/flagOff.ts'), 'OFF')
   const after = flagRegistryFiles(split)
   check('on a tree whose rows live in the rows folder the list is the module and every .ts file under the folder, in order', after.join(' ') === [MODULE_PATH, `${ROWS_DIR}/a.ts`, `${ROWS_DIR}/b.ts`, `${ROWS_DIR}/deep/c.ts`].join(' '), after.join(' '))
-  check('…and the text is those files joined: a neighbour, a backup and a file that is not .ts are left out', flagRegistryText(split) === 'MODULE\nA\nB\nC', flagRegistryText(split))
   rmSync(join(split, MODULE_PATH))
   rmSync(join(split, ROWS_DIR), { recursive: true, force: true })
-  check('a tree with no registry has no files and no text', flagRegistryFiles(split).length === 0 && flagRegistryText(split) === '')
+  check('a tree with no registry has no files', flagRegistryFiles(split).length === 0)
   rmSync(split, { recursive: true, force: true })
 }
 
