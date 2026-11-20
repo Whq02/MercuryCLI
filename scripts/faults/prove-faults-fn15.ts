@@ -180,6 +180,61 @@ console.log('\nmissionCard.ts — migrateOrphanedMissionCard never clobbers corr
   }
 }
 
+const { mediaCheckpointInstalled, mediaFileInstalled, mediaPartialBytes } = await import('../../src/services/media/catalogue.js')
+
+console.log('\nmedia/catalogue.ts — path guard and non-absence stat errors propagate instead of reading as absent')
+{
+  const mediaDir = join(scratch, 'media-cat')
+  mkdirSync(join(mediaDir, 'models', 'checkpoints'), { recursive: true })
+  const recipeCat = { recipes: [{ id: 'sdxl', slots: [{ id: 'd', required: true }], checkpoint: { recipe: 'sdxl-checkpoint', layout: 'sdxl' } }] }
+
+  const threwOf = (fn: () => unknown): unknown => {
+    try {
+      fn()
+      return null
+    } catch (error) {
+      return error
+    }
+  }
+
+  const badCheckpoint = threwOf(() => mediaCheckpointInstalled(mediaDir, recipeCat, { id: '../escape', recipe: 'sdxl', checkpoint: { bytes: 8 } }))
+  const badPartial = threwOf(() => mediaPartialBytes(mediaDir, { path: '../escape.bin', bytes: 8 }))
+  const badFile = threwOf(() => mediaFileInstalled(mediaDir, { path: '../escape.bin', bytes: 8 }))
+  check(
+    'path traversal throws from mediaCheckpointInstalled, mediaPartialBytes, and mediaFileInstalled',
+    badCheckpoint instanceof Error &&
+      badCheckpoint.message.includes('models folder') &&
+      badPartial instanceof Error &&
+      badPartial.message.includes('models folder') &&
+      badFile instanceof Error &&
+      badFile.message.includes('models folder'),
+    `checkpoint=${String(badCheckpoint)} partial=${String(badPartial)} file=${String(badFile)}`,
+  )
+
+  check(
+    'absent files still return false / 0',
+    mediaCheckpointInstalled(mediaDir, recipeCat, { id: 'missing', recipe: 'sdxl', checkpoint: { bytes: 8 } }) === false &&
+      mediaPartialBytes(mediaDir, { path: 'missing.bin', bytes: 8 }) === 0 &&
+      mediaFileInstalled(mediaDir, { path: 'missing.bin', bytes: 8 }) === false,
+  )
+
+  if (POSIX_MODES) {
+    const blockedModels = join(mediaDir, 'models')
+    chmodSync(blockedModels, 0o000)
+    const e1 = threwOf(() => mediaCheckpointInstalled(mediaDir, recipeCat, { id: 'ok', recipe: 'sdxl', checkpoint: { bytes: 8 } }))
+    const e2 = threwOf(() => mediaPartialBytes(mediaDir, { path: 'ok.bin', bytes: 8 }))
+    const e3 = threwOf(() => mediaFileInstalled(mediaDir, { path: 'ok.bin', bytes: 8 }))
+    chmodSync(blockedModels, 0o700)
+    check(
+      'EACCES on models dir throws from mediaCheckpointInstalled, mediaPartialBytes, and mediaFileInstalled',
+      (e1 as NodeJS.ErrnoException | null)?.code === 'EACCES' &&
+        (e2 as NodeJS.ErrnoException | null)?.code === 'EACCES' &&
+        (e3 as NodeJS.ErrnoException | null)?.code === 'EACCES',
+      `e1=${String(e1)} e2=${String(e2)} e3=${String(e3)}`,
+    )
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
