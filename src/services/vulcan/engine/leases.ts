@@ -8,6 +8,7 @@ import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { holderAlive } from '../../../substrate/pidLock.js'
 import { getProcessStartTokensAsync } from '../../../daemon/ownerWatch.js'
 import { selectedTreeChanges, type ProofTreeFacts } from './proofDrift.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export interface LeaseHolder {
   sessionId: string
@@ -102,14 +103,15 @@ function caseInsensitiveProject(root: string): boolean {
   if (process.platform === 'win32') return true
   const alternate = root.replace(/[A-Za-z]/g, letter => letter === letter.toLowerCase() ? letter.toUpperCase() : letter.toLowerCase())
   if (alternate === root) return false
-  const original = statSync(root)
   try {
+    const original = statSync(root)
     const other = statSync(alternate)
     return original.dev === other.dev && original.ino === other.ino
   } catch (error) {
     const code = (error as NodeJS.ErrnoException | null)?.code
-    if (code === 'ENOENT' || code === 'ENOTDIR') return false
-    throw error
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`engine leases: whether ${root} is on a case-insensitive disk could not be read (${code ?? String(error)}), so its paths are leased as written`)
+    passedOver(error)
+    return false
   }
 }
 

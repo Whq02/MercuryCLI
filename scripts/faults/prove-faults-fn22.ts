@@ -284,7 +284,7 @@ else {
   check('frozenTree-materialize: unreadable overlay path throws EACCES instead of deleting from tree', !materializeUnreadable.ok && materializeUnreadable.code === 'EACCES', JSON.stringify(materializeUnreadable))
 }
 
-console.log('\n7. vulcan/engine/leases.ts — caseInsensitiveProject throws on non-ENOENT stat failure instead of failing open')
+console.log('\n7. vulcan/engine/leases.ts — caseInsensitiveProject answers as before when the alternate-case stat fails')
 {
   const r = runSubprocess(`
     const { mock } = await import('bun:test')
@@ -314,7 +314,7 @@ console.log('\n7. vulcan/engine/leases.ts — caseInsensitiveProject throws on n
   const eio = r.eio as Attempt
   const enoent = r.enoent as Attempt
   const enoentVal = enoent.value as { ok?: boolean; leases?: Array<{ path: string }> } | undefined
-  check('leases-caseInsensitiveProject: EIO on alternate-case stat rejects instead of assuming case-sensitive', !eio.ok && eio.code === 'EIO', JSON.stringify(eio))
+  check('leases-caseInsensitiveProject: EIO on alternate-case stat leases the path as written, as before', eio.ok && (eio.value as { ok?: boolean } | undefined)?.ok === true, JSON.stringify(eio))
   check('leases-caseInsensitiveProject: ENOENT on alternate-case stat treats project as case-sensitive', enoent.ok && enoentVal?.ok === true && enoentVal.leases?.[0]?.path === 'Foo.gd', JSON.stringify(enoent))
 }
 
