@@ -166,5 +166,20 @@ console.log('\npicker/select — catalogue refresh rejections keep the error det
   check('moonshot selectKeyLane surfaces refresh rejection detail', typeof r.moon === 'string' && r.moon.includes('(moonshot socket reset)'), `got ${String(r.moon)}`)
 }
 
+console.log('\nsessions — failed clipboard copy omits the false copied-to-clipboard line')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'commands/sessions/sessions.tsx'))
+    if (typeof mod.crossProjectResumeNotice !== 'function') {
+      out.missing = true
+    } else {
+      out.failed = await mod.crossProjectResumeNotice('cd /other && mercury --resume abc', async () => { throw new Error('pbcopy failed') })
+      out.ok = await mod.crossProjectResumeNotice('cd /other && mercury --resume abc', async () => '')
+    }
+  `)
+  check('failed clipboard copy omits (copied to the clipboard)', typeof r.failed === 'string' && !r.failed.includes('(copied to the clipboard)') && r.failed.includes('cd /other && mercury --resume abc'), JSON.stringify(r))
+  check('control: succeeding clipboard copy keeps (copied to the clipboard)', typeof r.ok === 'string' && r.ok.includes('(copied to the clipboard)'), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
