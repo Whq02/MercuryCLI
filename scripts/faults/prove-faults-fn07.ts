@@ -169,5 +169,50 @@ function threwOf(fn: () => unknown): Error | null {
   check('throwing loadRunSidecar answers unavailable instead of run: null', throwRes.unavailable === 'sidecar EIO' && throwRes.retryable === false && !('run' in throwRes), JSON.stringify(throwRes))
 }
 
+{
+  console.log('\nResumeConversation-load-failure')
+  const { mock } = await import('bun:test')
+  const React = await import('react')
+  const realLogs = await import('../../src/utils/sessionStorage/logs.ts')
+  let loadMode: 'empty' | 'throw' = 'throw'
+  mock.module('../../src/utils/sessionStorage/logs.ts', () => ({
+    ...realLogs,
+    listRepoSessionsProgressive: async () => {
+      if (loadMode === 'throw') throw new Error('sessions dir unreadable')
+      return { logs: [], allStatLogs: [], nextIndex: 0 }
+    },
+  }))
+  const { mountPart } = await import('../ui/chatScenarios.ts')
+  const { waitFor } = await import('../lib/settingsPopupHarness.ts')
+  const { ResumeConversation } = await import('../../src/screens/ResumeConversation.tsx')
+  const mounted = await mountPart(() => null, {
+    draw: () => React.createElement(ResumeConversation, { commands: [], worktreePaths: [], initialTools: [] }),
+  })
+  try {
+    await waitFor(() => {
+      const s = mounted.view.screen()
+      return s.includes('Could not load conversations') || s.includes('No conversations to resume')
+    }, 3000)
+    const screen = mounted.view.screen().replace(/\s+/g, ' ')
+    check(
+      'failed conversation load shows load error sentence instead of No conversations',
+      screen.includes('Could not load conversations (sessions dir unreadable) — press ctrl+c to exit and start fresh.') && !screen.includes('No conversations to resume'),
+      screen.trim().slice(0, 200),
+    )
+  } finally {
+    mounted.unmount()
+  }
+  loadMode = 'empty'
+  const emptyMounted = await mountPart(() => null, {
+    draw: () => React.createElement(ResumeConversation, { commands: [], worktreePaths: [], initialTools: [] }),
+  })
+  try {
+    await waitFor(() => emptyMounted.view.screen().includes('No conversations to resume'), 3000)
+    check('empty conversation list still shows No conversations to resume', emptyMounted.view.screen().includes('No conversations to resume'))
+  } finally {
+    emptyMounted.unmount()
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
