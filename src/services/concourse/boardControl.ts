@@ -50,7 +50,7 @@ export async function executeBoardControl(
             by: decision.by,
             ...(decision.verb === 'session.pause' ? { reason: decision.reason } : {}),
             ...(decision.clientOpId !== undefined ? { clientOpId: decision.clientOpId } : {}),
-          } as never,
+          },
           { timeoutMs: 15_000 },
         )) as { ok?: boolean; outcome?: 'applied' | 'noop' | 'refused'; detail?: string; error?: string; code?: string }
         const lost = reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN'
@@ -80,7 +80,7 @@ export async function executeBoardControl(
             workspaceDir: '',
             targetSessionId: decision.sessionId,
             by: decision.by,
-          } as never,
+          },
           { timeoutMs: 15_000 },
         )) as { ok?: boolean; state?: string; error?: string; code?: string; heldReason?: string }
         const lost = reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN'
@@ -130,7 +130,7 @@ export async function executeBoardControl(
               targetSessionId: decision.sessionId,
               by: decision.by,
               ...(decision.content !== undefined && decision.content.length > 0 ? { content: decision.content } : {}),
-            } as never,
+            },
             { timeoutMs: 15_000 },
           )) as { ok?: boolean; state?: string; stateRevision?: number; error?: string; replay?: string; code?: string }
           if (reply.ok !== true && reply.replay !== undefined && reply.state === 'failed') {

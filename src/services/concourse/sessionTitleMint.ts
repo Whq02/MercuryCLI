@@ -80,7 +80,7 @@ async function mintOne(rec: ConcourseWorkerRecordV1, description: string, signal
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const reply = (await daemonControlRpc(
-      { op: 'sessionControl', action: 'set-title', sessionId: rec.sessionId, by: 'title-mint', title, titleSource: 'minted' } as never,
+      { op: 'sessionControl', action: 'set-title', sessionId: rec.sessionId, by: 'title-mint', title, titleSource: 'minted' },
       { timeoutMs: 10_000 },
     )) as { ok?: boolean; outcome?: string }
     return reply.ok === true && reply.outcome === 'applied'
