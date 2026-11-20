@@ -166,14 +166,29 @@ export function useConcourseAdmissionPump({
           cleared = rec.workspaceId !== undefined && workspaceKindOf(rec.workspaceId) === 'git'
         }
         if (!cleared) return
+        const op = held.op ?? {}
+        const isolation =
+          op.isolation === 'exclusive' || op.isolation === 'worktree-isolated' || op.isolation === 'read-only'
+            ? op.isolation
+            : undefined
+        const seatsMax = op.seatsMax === 1 || op.seatsMax === 2 ? op.seatsMax : undefined
         const reply = (await daemonControlRpc(
           {
             op: 'concourseDispatch',
             clientMessageId: held.clientMessageId,
-            by: 'operator',
+            by: typeof op.by === 'string' ? op.by : 'operator',
             prompt: held.prompt,
-            ...(held.op ?? {}),
-          } as never,
+            workspaceDir: typeof op.workspaceDir === 'string' ? op.workspaceDir : '',
+            ...(typeof op.targetSessionId === 'string' ? { targetSessionId: op.targetSessionId } : {}),
+            ...(isolation !== undefined ? { isolation } : {}),
+            ...(typeof op.model === 'string' ? { model: op.model } : {}),
+            ...(typeof op.effort === 'string' ? { effort: op.effort } : {}),
+            ...(typeof op.title === 'string' ? { title: op.title } : {}),
+            ...(typeof op.agentName === 'string' ? { agentName: op.agentName } : {}),
+            ...(seatsMax !== undefined ? { seatsMax } : {}),
+            ...(typeof op.resumeSessionId === 'string' ? { resumeSessionId: op.resumeSessionId } : {}),
+            ...(typeof op.kitPreset === 'string' ? { kitPreset: op.kitPreset } : {}),
+          },
           { timeoutMs: 15_000 },
         )) as { ok?: boolean; sessionId?: string; branchName?: string }
         if (reply.ok === true) {
