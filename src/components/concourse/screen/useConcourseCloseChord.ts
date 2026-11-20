@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useClaim } from '../../../hooks/effects.js'
 import { boardSelectionClassOf, closeChordReceiptOf, closeChordRungOf } from '../controlManifest.js'
 import { claimConcourseCloseChord } from '../../../services/concourse/closeChordSlot.js'
 import { createCloseChordStage, type CloseChordStage } from '../../../services/concourse/closeChordStage.js'
@@ -10,7 +11,7 @@ export function useConcourseCloseChord({ callbacks, boardSelRef, closeChordBlock
   const closeChordStageRef = useRef<CloseChordStage | null>(null)
   if (closeChordStageRef.current === null) closeChordStageRef.current = createCloseChordStage()
   const closeChordStage = closeChordStageRef.current
-  useEffect(() => () => closeChordStage.dispose(), [closeChordStage])
+  useClaim(() => () => closeChordStage.dispose(), [closeChordStage])
   const closeChordGesture = (): void => {
     if (closeChordBlocked()) return
     const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
@@ -63,6 +64,6 @@ export function useConcourseCloseChord({ callbacks, boardSelRef, closeChordBlock
   }
   const closeChordRoutineRef = useRef(closeChordGesture)
   closeChordRoutineRef.current = closeChordGesture
-  useEffect(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])
+  useClaim(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])
   return { closeChordStage }
 }

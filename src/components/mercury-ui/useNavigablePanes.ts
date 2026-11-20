@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDerivedState } from '../../hooks/effects.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import type { DOMElement } from '../../ink.js'
 import { useInput } from '../../ink.js'
@@ -90,7 +91,7 @@ export function useNavigablePanes({
   const keyedCount = sectionRowKeys?.[clampedSection]?.length
   const maxSel = Math.max(0, (keyedCount ?? rowCount) - 1)
   const clampedSel = Math.min(sel, maxSel)
-  useEffect(() => {
+  useDerivedState(() => {
     if (section !== clampedSection) setSectionState(clampedSection)
     if (sel !== clampedSel) setSel(clampedSel)
   }, [section, clampedSection, sel, clampedSel])

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTimer } from '../hooks/effects.js';
 import { Text } from '../ink.js';
 import type { ValidationError } from '../utils/settings/validation.js';
 import { Select } from './CustomSelect/index.js';
@@ -26,7 +27,7 @@ export function InvalidSettingsDialog({
   onRemove,
 }: Props): React.ReactNode {
   const [inputArmed, setInputArmed] = React.useState(false);
-  React.useEffect(() => {
+  useTimer(() => {
     const timer = setTimeout(() => setInputArmed(true), 350);
     return () => clearTimeout(timer);
   }, []);

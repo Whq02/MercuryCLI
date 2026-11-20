@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
 import type { PromptInputProps } from './PromptInput.js'
 import { useComposerAttachments } from './useComposerAttachments.js'
@@ -69,7 +69,7 @@ export function useComposerWiring({
   const suggestionDisplayable =
     suggestionApi.suggestion !== null && mode === 'prompt' && !viewedAgentName
   const markSuggestionShown = suggestionApi.markShown
-  useEffect(() => {
+  usePublish(() => {
     if (suggestionDisplayable) markSuggestionShown()
   }, [suggestionDisplayable, markSuggestionShown])
 

@@ -1,5 +1,6 @@
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useSubscription } from './effects.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import type { SettingSource } from '../utils/settings/constants.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -10,7 +11,7 @@ export function useSettingsChange(
 ): void {
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
-  useEffect(() => {
+  useSubscription(() => {
     return settingsChangeDetector.subscribe(source => {
       onChangeRef.current(source, getInitialSettings())
     })
