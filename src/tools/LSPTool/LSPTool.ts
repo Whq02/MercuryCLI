@@ -244,6 +244,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
       }
       return { data, effect: makeEffect(operation, op.effect.outcome, opResult, startedAt, { changedPaths: op.effect.changedPaths, evidence: op.effect.evidence, ...(op.effect.details !== undefined ? { details: op.effect.details } : {}) }) }
     } catch (err) {
+      if (context.abortController.signal.aborted && (err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
       logError(err)
       return fail(failureWords(err, filePath))
     }
@@ -293,6 +294,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
       const counts = locationCounts(bounded.shown.map(symbol => ({ uri: symbol.location?.uri })))
       return { data: { operation, result, filePath, ...counts }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
     } catch (err) {
+      if (context.abortController.signal.aborted && (err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
       logError(err)
       if (isLspStartFailure(err)) return fail(failureWords(err, startPath))
       return fail(`The workspaceSymbol search for "${query}" failed: ${err instanceof Error ? err.message : String(err)}`)
@@ -366,6 +368,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
     }
     return { data: { operation, result, filePath, ...counts, outcome: 'succeeded' }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
   } catch (err) {
+    if (context.abortController.signal.aborted && (err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
     logError(err)
     return fail(failureWords(err, filePath))
   }

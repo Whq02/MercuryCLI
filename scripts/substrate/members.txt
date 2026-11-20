@@ -61,3 +61,5 @@ prove-deadline-door.ts
 prove-deadlines-d06.ts
 prove-deadlines-d04.ts
 prove-deadlines-d01.ts
+prove-deadlines-d03.ts
+prove-deadlines-d05.ts

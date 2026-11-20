@@ -11,7 +11,7 @@ import { extractAgentMentions, extractAtMentionedFiles, extractMcpResourceMentio
 import { isFileReadDenied } from './shared.js'
 import type { Attachment } from './types.js'
 import { passedOverAs } from '../passedOver.js'
-import { startTimeout, stopTimeout } from '../timers.js'
+import { withDeadline } from '../deadline.js'
 
 export function processAgentMentions(input: string, agents: AgentDefinition[]): Attachment[] {
   return extractAgentMentions(input).flatMap(word => {
@@ -79,23 +79,20 @@ async function readMention(path: string, range: ReturnType<typeof parseAtMention
 
 async function fileMention(word: string, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
   const reading = createChildAbortController(context.abortController)
-  let ceiling: ReturnType<typeof setTimeout> | undefined
   try {
     const range = parseAtMentionedFileLines(word)
     const path = expandPath(range.filename)
     if ([range.filename, path].some(networkPath) || reading.signal.aborted) return []
-    return await Promise.race([
+    return await withDeadline(
       readMention(path, range, { ...context, abortController: reading }, state),
-      new Promise<Attachment[]>(resolve => {
-        ceiling = startTimeout(() => resolve([mentionPastCeiling(path, MENTION_READ_CEILING_MS / 1000)]), MENTION_READ_CEILING_MS)
-        reading.signal.addEventListener('abort', () => resolve([]), { once: true })
-      }),
-    ])
+      MENTION_READ_CEILING_MS,
+      () => [mentionPastCeiling(path, MENTION_READ_CEILING_MS / 1000)],
+      { signal: reading.signal, onAbort: () => [] },
+    )
   } catch (error) {
     logError(error)
     return []
   } finally {
-    stopTimeout(ceiling)
     reading.abort()
   }
 }

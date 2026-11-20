@@ -41,7 +41,8 @@ import { isBuiltInAgent } from '../loadAgentsDir.js'
 import { runAgent, type RunAgentParams } from '../runAgent.js'
 import { reserveSwarmLaunch, watchSwarmLaunch } from '../../../services/crewBoard/seam.js'
 import { setAgentColor } from '../agentColorManager.js'
-import { sleep } from '../../../utils/sleep.js'
+import { subscribeMcpClientsChange } from '../../../state/onChangeAppState.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput, type AgentToolOutput } from './schema.js'
 import { resolveAgentCwd } from './cwd.js'
 import { toolPoolOfTheTable } from '../../toolTable.js'
@@ -61,22 +62,38 @@ async function waitForRequiredMcpServers(
 ): Promise<void> {
   const required = definition.requiredMcpServers
   if (!required || required.length === 0) return
-  const deadline = Date.now() + 30_000
   const clients = () => context.getAppState().mcp.clients ?? []
   const matchesRequired = (name: string) =>
     required.some(pattern =>
       name.toLowerCase().includes(pattern.toLowerCase()),
     )
-  while (Date.now() < deadline) {
-    const pendingRequired = clients().some(
+  const settled = (): boolean => {
+    const current = clients()
+    const pendingRequired = current.some(
       client => client.type === 'pending' && matchesRequired(client.name),
     )
-    if (!pendingRequired) break
-    const failedRequired = clients().some(
+    if (!pendingRequired) return true
+    return current.some(
       client => client.type === 'failed' && matchesRequired(client.name),
     )
-    if (failedRequired) break
-    await sleep(500)
+  }
+  if (!settled()) {
+    let unsubscribe: (() => void) | undefined
+    try {
+      await withDeadline(
+        new Promise<void>(resolve => {
+          unsubscribe = subscribeMcpClientsChange(() => {
+            if (settled()) resolve()
+          })
+          if (settled()) resolve()
+        }),
+        30_000,
+        () => {},
+        { signal: context.abortController?.signal },
+      )
+    } finally {
+      unsubscribe?.()
+    }
   }
   const serversWithTools = mcpServerNamesWithTools(
     context.getAppState().mcp.tools ?? [],
