@@ -127,6 +127,7 @@ const UNREAD: Array<[string, number]> = [
 ]
 
 const GRAMMAR_READERS: Array<[string, number]> = [
+  ['src/utils/permissions/flowLaw.ts', 27],
   ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
 ]
 
