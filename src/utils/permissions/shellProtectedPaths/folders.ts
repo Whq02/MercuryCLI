@@ -113,23 +113,6 @@ export function foldersAfter(read: ShellRead, at: number, cwd: string): { folder
     if (ran && moved) continue
     stayed.push(posix.join(turn.cwd, stands.slice(named.length)), turn.cwd)
   }
-  const called = new Set<string>()
-  for (let index = 0; index < at; index++) {
-    const turn = read.commands[index]!
-    if (turn.body === undefined && turn.argv[0] !== undefined) called.add(turn.argv[0])
-  }
-  if (called.size > 0) {
-    for (let index = 0; index < at; index++) {
-      const turn = read.commands[index]!
-      if (turn.body === undefined || !called.has(turn.body) || turn.cwd === undefined) continue
-      const move = moveOf(turn)
-      if (move === undefined || !CD_PROGRAMS.has(move.program)) continue
-      const target = move.operands[0]
-      if (target === undefined || target === '-' || !wordKnown(target)) continue
-      const named = absolutePath(target, turn.cwd, floorsWorld(turn.cwd))
-      if (named !== undefined) stayed.push(named)
-    }
-  }
   return stayed.length === 0 ? reached : { folders: [...new Set([...reached.folders, ...stayed])], lost: reached.lost }
 }
 
@@ -137,10 +120,8 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
   const simple = read.commands[at]
   if (simple === undefined) return { folders: [cwd], lost: false }
   if (simple.cwd !== undefined) {
-    const envAt = simple.cwd.search(/%(?:USERPROFILE|HOME|MERCURY_CONFIG_DIR)%|\$env:(?:USERPROFILE|MERCURY_CONFIG_DIR)/i)
-    const standing = envAt >= 0 ? spelling(simple.cwd.slice(envAt)) : simple.cwd
-    if (!GLOB_PART.test(standing)) return { folders: [standing], lost: false }
-    return { folders: [...foldersNamedBy(standing), standing], lost: false }
+    if (!GLOB_PART.test(simple.cwd)) return { folders: [simple.cwd], lost: false }
+    return { folders: [...foldersNamedBy(simple.cwd), simple.cwd], lost: false }
   }
   for (let index = at - 1; index >= 0; index--) {
     const turn = read.commands[index]!
