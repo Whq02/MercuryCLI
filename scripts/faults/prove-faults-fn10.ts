@@ -183,6 +183,26 @@ try {
     `)
     check('graph.assembleSessionGraph rejects when review artifacts are unavailable', artifactsFail.rejected && (artifactsFail.message ?? '').includes('injected artifacts EACCES'), JSON.stringify(artifactsFail))
   }
+
+  console.log('6. src/services/crew/obligations.ts')
+  {
+    const { upsertObligation, openObligations, foldLegacyObligationsIntoSwitchboardScope } = await import('../../src/services/crew/obligations.ts')
+    const dir = join(SCRATCH, 'crew-obligations')
+    mkdirSync(dir, { recursive: true })
+    await upsertObligation({ ref: 'legacy-fold-1', sessionId: 's-leg', question: 'still waiting?', owner: 'operator', dir })
+    const blocker = join(dir, 'obligations-switchboard.json')
+    mkdirSync(blocker, { recursive: true })
+    writeFileSync(join(blocker, 'keep'), 'x')
+    const firstErr = await rejects(() => foldLegacyObligationsIntoSwitchboardScope(dir))
+    rmSync(blocker, { recursive: true, force: true })
+    const moved = await foldLegacyObligationsIntoSwitchboardScope(dir)
+    const after = await openObligations({ scope: 'switchboard', dir })
+    check(
+      'obligations.foldLegacyObligationsIntoSwitchboardScope rejects on failure and retries on next call',
+      firstErr !== null && moved === 1 && after.some(o => o.ref === 'legacy-fold-1'),
+      `firstErr=${firstErr?.message ?? 'null'} moved=${moved} open=${after.length}`,
+    )
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

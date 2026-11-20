@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getCwd } from '../../utils/cwd.js'
 import { crewStoreRoot } from './identity.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 export const OBLIGATION_STATUSES = ['open', 'answered', 'resolved', 'withdrawn', 'superseded'] as const
 export type ObligationStatus = (typeof OBLIGATION_STATUSES)[number]
@@ -380,33 +379,28 @@ export function subscribeObligations(cb: () => void, opts?: { dir?: string; scop
 let legacyFoldDone = false
 export async function foldLegacyObligationsIntoSwitchboardScope(dir?: string): Promise<number> {
   if (legacyFoldDone) return 0
-  legacyFoldDone = true
-  try {
-    const ambient = await obligationStore(dir).read()
-    const open = Object.values(ambient.obligations).filter(o => o.status === 'open')
-    let moved = 0
-    for (const row of open) {
-      await upsertObligation({
-        ref: row.ref,
-        sessionId: row.sessionId,
-        question: row.question,
-        owner: row.owner,
-        ...(row.principals.length > 0 ? { principals: row.principals } : {}),
-        ...(row.urgency !== undefined ? { urgency: row.urgency } : {}),
-        ...(row.expiresAtMs !== undefined ? { expiresAtMs: row.expiresAtMs } : {}),
-        ...(dir !== undefined ? { dir } : {}),
-        scope: 'switchboard',
-      })
-      await resolveObligation(row.obligationId, {
-        kind: 'superseded',
-        by: 'switchboard-scope-fold',
-        ...(dir !== undefined ? { dir } : {}),
-      })
-      moved += 1
-    }
-    return moved
-  } catch (error) {
-    passedOver(error)
-    return 0
+  const ambient = await obligationStore(dir).read()
+  const open = Object.values(ambient.obligations).filter(o => o.status === 'open')
+  let moved = 0
+  for (const row of open) {
+    await upsertObligation({
+      ref: row.ref,
+      sessionId: row.sessionId,
+      question: row.question,
+      owner: row.owner,
+      ...(row.principals.length > 0 ? { principals: row.principals } : {}),
+      ...(row.urgency !== undefined ? { urgency: row.urgency } : {}),
+      ...(row.expiresAtMs !== undefined ? { expiresAtMs: row.expiresAtMs } : {}),
+      ...(dir !== undefined ? { dir } : {}),
+      scope: 'switchboard',
+    })
+    await resolveObligation(row.obligationId, {
+      kind: 'superseded',
+      by: 'switchboard-scope-fold',
+      ...(dir !== undefined ? { dir } : {}),
+    })
+    moved += 1
   }
+  legacyFoldDone = true
+  return moved
 }
