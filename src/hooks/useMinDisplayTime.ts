@@ -1,12 +1,13 @@
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useTimer } from './effects.js'
 
 export function useMinDisplayTime<T>(value: T, minMs: number): T {
   const [shown, setShown] = useState(value)
   const shownAtRef = useRef(Date.now())
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
+  useTimer(() => {
     if (Object.is(value, shown)) return
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)

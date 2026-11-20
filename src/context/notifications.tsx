@@ -1,6 +1,7 @@
 
 import type * as React from 'react'
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { useMount } from '../hooks/effects.js'
 import { useAppStateStore, useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { Theme } from '../utils/theme.js'
@@ -215,11 +216,11 @@ export function useNotifications(): {
     [setAppState],
   )
 
-  useEffect(() => {
+  useMount(() => {
     if (store.getState().notifications.queue.length > 0) {
       promote(setAppState)
     }
-  }, [])
+  })
 
   return { addNotification, removeNotification }
 }

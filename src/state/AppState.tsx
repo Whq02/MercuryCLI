@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useContext, useMemo, useRef, useSyncExternalStore } from 'react'
+import { useMount, useSubscription } from '../hooks/effects.js'
 import { createStore } from './store.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import {
@@ -57,7 +58,7 @@ export function AppStateProvider({
   }
   const store = storeRef.current
 
-  useEffect(() => {
+  useMount(() => {
     const context = store.getState().toolPermissionContext
     if (context.isBypassPermissionsModeAvailable && isSovereignDisabled()) {
       logForDebugging(
@@ -70,12 +71,12 @@ export function AppStateProvider({
         ),
       }))
     }
-  }, [])
+  })
 
   const applyChangedSourceRef = useRef((source: Parameters<typeof applySettingsChange>[0]) => {
     applySettingsChange(source, store.setState)
   })
-  useEffect(() => {
+  useSubscription(() => {
     const unsubscribe = settingsChangeDetector.subscribe(source => {
       applyChangedSourceRef.current(source)
     })
