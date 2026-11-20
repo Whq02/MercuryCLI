@@ -4,7 +4,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { Text } from '../ink.js'
 import { getAccountInformation } from './auth.js'
 
-import { getMTLSConfig } from './mtls.js'
+import { getMTLSConfig, getMTLSReadErrors, mtlsReadFailureSentence } from './mtls.js'
 import { extraCaCertsStatusLine } from './caCerts.js'
 import { getProxyUrl } from './proxy.js'
 import { familyDisplayName } from '../services/providers/accountSlots.js'
@@ -146,13 +146,18 @@ export function buildAPIProviderProperties(): Property[] {
     properties.push({ label: 'Additional CA cert(s)', value: <Text>{extraCaCertsStatusLine() ?? hostEnv().NODE_EXTRA_CA_CERTS!}</Text> })
   }
   const mtlsConfig = getMTLSConfig()
-  if (mtlsConfig) {
-    if (mtlsConfig.cert && flagEnv('MERCURY_CLIENT_CERT')) {
-      properties.push({ label: 'mTLS client cert', value: <Text>{flagEnv('MERCURY_CLIENT_CERT')}</Text> })
-    }
-    if (mtlsConfig.key && flagEnv('MERCURY_CLIENT_KEY')) {
-      properties.push({ label: 'mTLS client key', value: <Text>{flagEnv('MERCURY_CLIENT_KEY')}</Text> })
-    }
+  const mtlsErrors = new Map(getMTLSReadErrors().map(failure => [failure.variable, failure]))
+  const certErr = mtlsErrors.get('MERCURY_CLIENT_CERT')
+  if (certErr !== undefined) {
+    properties.push({ label: 'mTLS client cert', value: <Text>{mtlsReadFailureSentence(certErr)}</Text> })
+  } else if (mtlsConfig?.cert && flagEnv('MERCURY_CLIENT_CERT')) {
+    properties.push({ label: 'mTLS client cert', value: <Text>{flagEnv('MERCURY_CLIENT_CERT')}</Text> })
+  }
+  const keyErr = mtlsErrors.get('MERCURY_CLIENT_KEY')
+  if (keyErr !== undefined) {
+    properties.push({ label: 'mTLS client key', value: <Text>{mtlsReadFailureSentence(keyErr)}</Text> })
+  } else if (mtlsConfig?.key && flagEnv('MERCURY_CLIENT_KEY')) {
+    properties.push({ label: 'mTLS client key', value: <Text>{flagEnv('MERCURY_CLIENT_KEY')}</Text> })
   }
   return properties
 }

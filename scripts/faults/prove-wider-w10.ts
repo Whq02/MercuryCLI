@@ -452,5 +452,115 @@ console.log('\n§10 w10-10 — unreadable hook settings file goes on without ref
   )
 }
 
+console.log('\n§11 w10-11 — rootForSource remembers last good root on throw, and falls back to original cwd for deny only when never computed')
+{
+  const rA = runScenario(`
+    const { mock } = await import('bun:test')
+    const { join } = await import('node:path')
+    const realEnv = await import(SRC + '/utils/envUtils.ts')
+    const origGetMercuryHome = realEnv.getMercuryHome
+    let failHome = false
+    mock.module(SRC + '/utils/envUtils.js', () => ({
+      ...realEnv,
+      getMercuryHome: () => {
+        if (failHome) throw new Error('homedir unavailable')
+        return origGetMercuryHome()
+      },
+    }))
+    const { matchingRuleForInput } = await import(SRC + '/utils/permissions/filesystem.ts')
+    const ctx = {
+      mode: 'default',
+      additionalWorkingDirectories: new Map(),
+      alwaysAllowRules: { userSettings: ['Read(/allowed/**)'] },
+      alwaysDenyRules: { userSettings: ['Read(/secret/**)'] },
+      alwaysAskRules: {},
+      isBypassPermissionsModeAvailable: false,
+    }
+    const secretInHome = join(HOME, 'secret', 'k.txt')
+    const allowedInHome = join(HOME, 'allowed', 'ok.txt')
+    out.beforeDeny = matchingRuleForInput(secretInHome, ctx, 'read', 'deny') !== null
+    out.beforeAllow = matchingRuleForInput(allowedInHome, ctx, 'read', 'allow') !== null
+    failHome = true
+    out.afterDeny = matchingRuleForInput(secretInHome, ctx, 'read', 'deny') !== null
+    out.afterAllow = matchingRuleForInput(allowedInHome, ctx, 'read', 'allow') !== null
+  `)
+  check('w10-11(a): after computing userSettings root once, throw still denies true target under HOME', rA.beforeDeny === true && rA.afterDeny === true, JSON.stringify(rA))
+  check('w10-11(a): after computing userSettings root once, throw still allows true target under HOME', rA.beforeAllow === true && rA.afterAllow === true, JSON.stringify(rA))
+
+  const rB = runScenario(`
+    const { mock } = await import('bun:test')
+    const { mkdirSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const realEnv = await import(SRC + '/utils/envUtils.ts')
+    mock.module(SRC + '/utils/envUtils.js', () => ({
+      ...realEnv,
+      getMercuryHome: () => {
+        throw new Error('homedir unavailable')
+      },
+    }))
+    const sub = join(PROJECT, 'sub')
+    mkdirSync(sub, { recursive: true })
+    const state = await import(SRC + '/bootstrap/state.ts')
+    state.setOriginalCwd(PROJECT)
+    state.setCwdState(sub)
+    process.chdir(sub)
+    const { matchingRuleForInput } = await import(SRC + '/utils/permissions/filesystem.ts')
+    const ctx = {
+      mode: 'default',
+      additionalWorkingDirectories: new Map(),
+      alwaysAllowRules: { userSettings: ['Read(/allowed/**)'] },
+      alwaysDenyRules: { userSettings: ['Read(/secret/**)'] },
+      alwaysAskRules: {},
+      isBypassPermissionsModeAvailable: false,
+    }
+    out.denyUnderOriginal = matchingRuleForInput(join(PROJECT, 'secret', 'k.txt'), ctx, 'read', 'deny') !== null
+    out.allowUnderOriginal = matchingRuleForInput(join(PROJECT, 'allowed', 'ok.txt'), ctx, 'read', 'allow') !== null
+    out.allowUnderSub = matchingRuleForInput(join(sub, 'allowed', 'ok.txt'), ctx, 'read', 'allow') !== null
+  `)
+  check('w10-11(b): never-computed throw roots deny rule at original cwd so it bites', rB.denyUnderOriginal === true, JSON.stringify(rB))
+  check('w10-11(b): never-computed throw skips allow rule', rB.allowUnderOriginal === false && rB.allowUnderSub === false, JSON.stringify(rB))
+}
+
+console.log('\n§12 w10-12 — extension hook reports real stat error instead of does not exist for unreachable folder')
+{
+  const r = runScenario(`
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { startCommandHook } = await import(SRC + '/utils/hooks/commandRunner.ts')
+    const runWithRoot = async (root) => {
+      const proc = await startCommandHook({
+        command: 'echo hi',
+        event: 'tool.before',
+        index: 0,
+        timeoutMs: 5000,
+        payload: {},
+        source: { kind: 'extension', name: 'demo', id: 'demo@local', root },
+      })
+      return proc.result
+    }
+    const missing = join(PROJECT, 'no-such-ext')
+    out.missing = await runWithRoot(missing)
+
+    const blockedParent = join(PROJECT, 'blocked-parent')
+    const unreachable = join(blockedParent, 'ext-dir')
+    mkdirSync(unreachable, { recursive: true })
+    chmodSync(blockedParent, 0o000)
+    try {
+      out.unreachable = await runWithRoot(unreachable)
+    } finally {
+      chmodSync(blockedParent, 0o700)
+    }
+    out.unreachablePath = unreachable
+  `)
+  const missingDetail = String((r.missing as { ending?: { detail?: string } } | undefined)?.ending?.detail ?? '')
+  const unreachDetail = String((r.unreachable as { ending?: { detail?: string } } | undefined)?.ending?.detail ?? '')
+  check('w10-12: ENOENT still says Extension folder does not exist', missingDetail.startsWith('Extension folder does not exist:'), missingDetail)
+  check(
+    'w10-12: non-ENOENT stat error replaces does not exist with error message',
+    !unreachDetail.includes('does not exist') && unreachDetail.startsWith('Extension folder ') && unreachDetail.includes(String(r.unreachablePath)) && unreachDetail.includes('EACCES'),
+    unreachDetail,
+  )
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

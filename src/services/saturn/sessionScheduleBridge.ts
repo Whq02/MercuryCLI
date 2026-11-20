@@ -28,6 +28,7 @@ let rosterCache: SaturnFactsRowV1[] | null = null
 let rosterPushedAtMs: number | null = null
 let seatObserved = false
 let wakeSink: ((prompt: string, facts?: LocalWakeFacts) => void) | null = null
+let wakeFailureSink: ((error: unknown, prompt: string, facts?: LocalWakeFacts) => void) | null = null
 const localWakeTimers = new Set<ReturnType<typeof setTimeout>>()
 
 export const PENDING_SCHEDULE_EDIT_CAP = 20
@@ -79,8 +80,12 @@ export function sessionScheduleRosterPushedAtMs(): number | null {
 }
 
 
-export function registerLocalWakeSink(sink: (prompt: string, facts?: LocalWakeFacts) => void): void {
+export function registerLocalWakeSink(
+  sink: (prompt: string, facts?: LocalWakeFacts) => void,
+  onFailure?: (error: unknown, prompt: string, facts?: LocalWakeFacts) => void,
+): void {
   wakeSink = sink
+  wakeFailureSink = onFailure ?? null
 }
 
 export function localWakeAvailable(): boolean {
@@ -90,6 +95,7 @@ export function localWakeAvailable(): boolean {
 export function armLocalWake(delaySeconds: number, prompt: string, facts?: LocalWakeFacts): { ok: true; atMs: number } | { ok: false; reason: string } {
   const sink = wakeSink
   if (sink === null) return { ok: false, reason: 'this surface has no wake queue — nothing can deliver a local wake here' }
+  const onFailure = wakeFailureSink
   const atMs = Date.now() + Math.max(1, Math.round(delaySeconds)) * 1000
   const timer = startTimeout(() => {
     localWakeTimers.delete(timer)
@@ -97,6 +103,13 @@ export function armLocalWake(delaySeconds: number, prompt: string, facts?: Local
       sink(prompt, facts)
     } catch (err) {
       logError(new Error(`the local wake armed for ${facts?.spelling ?? `${Math.round(delaySeconds)}s`} could not be queued and was not delivered: ${errorMessage(err)}`))
+      if (onFailure !== null) {
+        try {
+          onFailure(err, prompt, facts)
+        } catch (notifyErr) {
+          logError(notifyErr)
+        }
+      }
     }
   }, Math.max(1000, Math.round(delaySeconds) * 1000))
   timer.unref?.()
@@ -125,6 +138,7 @@ export function _resetScheduleBridgeForTesting(): void {
   rosterPushedAtMs = null
   seatObserved = false
   wakeSink = null
+  wakeFailureSink = null
   for (const t of localWakeTimers) stopTimeout(t)
   localWakeTimers.clear()
 }

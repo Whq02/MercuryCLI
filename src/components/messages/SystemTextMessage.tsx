@@ -107,6 +107,7 @@ export function SystemTextMessage({
   const { columns } = useTerminalSize()
   const tokens = useMercuryTokens()
   const selectedBg = useSelectedMessageBg()
+  const [openError, setOpenError] = useState<string | null>(null)
 
   switch (message.subtype) {
     case 'turn_duration':
@@ -135,7 +136,10 @@ export function SystemTextMessage({
                 directActivate
                 selectionBand={false}
                 onActivate={() => {
-                  void openPath(path)
+                  setOpenError(null)
+                  void openPath(path, error => {
+                    setOpenError(`${path} could not be opened (${error}) — open it yourself`)
+                  })
                 }}
               >
                 <Text dimColor>
@@ -147,6 +151,7 @@ export function SystemTextMessage({
               </InteractiveRow>
             )
           })}
+          {openError !== null ? <Text color="warning">{openError}</Text> : null}
         </Box>
       )
     }

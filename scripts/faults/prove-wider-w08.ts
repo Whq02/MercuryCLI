@@ -494,6 +494,163 @@ async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> 
   }
 }
 
+async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
+  const { chmodSync, mkdirSync } = await import('node:fs')
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-10-'))
+  const fakeBrowser = join(dir, 'fail-browser.sh')
+  writeFileSync(fakeBrowser, '#!/bin/sh\necho "no display available" >&2\nexit 1\n')
+  chmodSync(fakeBrowser, 0o755)
+  const prevBrowser = process.env.BROWSER
+  process.env.BROWSER = fakeBrowser
+  const browser = await import(join(SRC, 'utils/browser.ts'))
+  const { openMemoryFolder } = await import(join(SRC, 'components/memory/MemoryFileSelector.tsx'))
+  const { ElicitationDialog } = await import(join(SRC, 'components/mcp/ElicitationDialog.tsx'))
+  const { AppStoreContext } = await import(join(SRC, 'state/AppState.tsx'))
+  const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
+  const { createStore } = await import(join(SRC, 'state/store.ts'))
+  const { TerminalSizeContext } = await import(join(SRC, 'ink/components/TerminalSizeContext.tsx'))
+  const { Box, render, flushPendingSyncWork } = await import(join(SRC, 'ink.ts'))
+  const { KeybindingSetup } = await import(join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
+  try {
+    let browserErr: string | null = null
+    const bOk = await browser.openBrowser('https://example.test/doc', (err: string) => { browserErr = err })
+    const gotBrowserErr = browserErr as string | null
+    check('w08-10: openBrowser hands error message beside false', bOk === false && gotBrowserErr !== null && gotBrowserErr.includes('no display available'), JSON.stringify({ bOk, gotBrowserErr }))
+
+    let pathErr: string | null = null
+    const pOk = await browser.openPath(join(dir, 'does-not-exist-w08-10'), (err: string) => { pathErr = err })
+    const gotPathErr = pathErr as string | null
+    check('w08-10: openPath hands error message beside false for missing path', pOk === false && gotPathErr !== null && gotPathErr.length > 0, JSON.stringify({ pOk, gotPathErr }))
+
+    let folderOpenErr: string | null = null
+    const notesDir = join(dir, 'notes')
+    mkdirSync(notesDir)
+    openMemoryFolder(
+      notesDir,
+      { mkdirSync, openPath: async () => false },
+      (msg: string) => { folderOpenErr = msg },
+    )
+    await new Promise<void>(resolve => setTimeout(resolve, 30))
+    const gotFolderErr = folderOpenErr as string | null
+    check('w08-10: MemoryFileSelector openMemoryFolder reports failed open via callback', gotFolderErr !== null && gotFolderErr.includes('could not be opened (') && gotFolderErr.includes('open it yourself'), JSON.stringify(gotFolderErr))
+
+    const stdinStream = new PassThrough()
+    const stdin = Object.assign(stdinStream, { isTTY: true, isRaw: false, setRawMode() { return this }, unref() { return this }, ref() { return this } }) as unknown as NodeJS.ReadStream
+    const stream = new PassThrough()
+    stream.resume()
+    const stdout = Object.assign(stream, { columns: 120, rows: 40 }) as unknown as NodeJS.WriteStream
+    const controller = new AbortController()
+    const node = React.createElement(ElicitationDialog, {
+      event: {
+        serverName: 'demo-mcp',
+        params: { mode: 'url', message: 'Sign in', url: 'https://example.test/oauth' },
+        signal: controller.signal,
+      } as never,
+      onResponse() {},
+      onWaitingDismiss() {},
+    })
+    const store = createStore(getDefaultAppState())
+    const tree = React.createElement(
+      TerminalSizeContext.Provider,
+      { value: { columns: 120, rows: 40 } },
+      React.createElement(
+        AppStoreContext.Provider,
+        { value: store as never },
+        React.createElement(KeybindingSetup, null, React.createElement(Box, { flexDirection: 'column', width: 120 }, node)),
+      ),
+    )
+    const instance = await render(tree, { stdin, stdout, patchConsole: false, exitOnCtrlC: false })
+    for (let i = 0; i < 6; i++) { flushPendingSyncWork(); await new Promise<void>(resolve => setTimeout(resolve, 10)) }
+    stdinStream.write('\r')
+    for (let i = 0; i < 20; i++) { flushPendingSyncWork(); await new Promise<void>(resolve => setTimeout(resolve, 20)) }
+    const frame = stripAnsi(instance.lastFrame() ?? '')
+    check('w08-10: ElicitationDialog shows open failure sentence when browser fails', frame.includes('https://example.test/oauth could not be opened (no display available) — open it yourself'), frame.slice(0, 400))
+    instance.unmount()
+    instance.cleanup()
+    stream.destroy()
+  } finally {
+    if (prevBrowser === undefined) delete process.env.BROWSER
+    else process.env.BROWSER = prevBrowser
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+async function w08_11_videoProviderSettingReadErrorWithheldWhy(): Promise<void> {
+  const { enableConfigs, saveGlobalConfig } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+  const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
+  const { videoToolEnabled } = await import(join(SRC, 'services/video/registry.ts'))
+  const { withheldTools } = await import(join(SRC, 'utils/withheldTools.ts'))
+  enableConfigs()
+  saveGlobalConfig((prev: Record<string, unknown>) => ({ ...prev, videoProvider: { bad: { kind: 'unknown-provider' } } }))
+  resetSettingsCache()
+  try {
+    check('w08-11: videoToolEnabled returns false without throwing on invalid videoProvider', videoToolEnabled() === false)
+    const videoRow = withheldTools().find((w: { tool: string }) => w.tool === 'Video')
+    check('w08-11: withheldTools explains videoProvider setting could not be read', videoRow !== undefined && videoRow.why.includes('the videoProvider setting could not be read (') && videoRow.why.includes('fix it in settings'), JSON.stringify(videoRow))
+  } finally {
+    saveGlobalConfig((prev: Record<string, unknown>) => {
+      const next = { ...prev }
+      delete next.videoProvider
+      return next
+    })
+    resetSettingsCache()
+  }
+}
+
+async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
+  const { chmodSync, mkdirSync } = await import('node:fs')
+  const { spawnSync } = await import('node:child_process')
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-12-'))
+  const lockedFile = join(dir, 'dap-adapters.json')
+  writeFileSync(lockedFile, '{"custom":{"command":"echo"}}')
+  chmodSync(lockedFile, 0o000)
+  const program = join(dir, 'dummy.py')
+  writeFileSync(program, 'x = 1\n')
+  const prevFile = process.env.MERCURY_DAP_ADAPTERS_FILE
+  const prevEnv = process.env.MERCURY_DAP_ADAPTERS
+  process.env.MERCURY_DAP_ADAPTERS_FILE = lockedFile
+  process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fromEnv: { command: process.execPath, args: [] } })
+  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
+  const adapters = await import(join(SRC, 'services/dap/client/adapters.ts'))
+  const { processMainOwner } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  try {
+    check('w08-12: launch still resolves adapters from other sources when adapter file is unreadable', adapters.resolveAdapter('fromEnv')?.command === process.execPath)
+    const ctx = {
+      owner: processMainOwner(),
+      abortController: new AbortController(),
+      getAppState: () => ({ toolPermissionContext: {} }),
+    } as never
+    const res = await DebugTool.call({ op: 'launch', adapter: 'custom', program, cwd: dir, session: 'w08-12-bad' } as never, ctx)
+    check('w08-12: DebugTool unknown adapter refusal names unreadable adapter file and read error', res.data.outcome === 'failed' && res.data.result.includes(lockedFile) && res.data.result.includes('could not be read (') && res.data.result.includes("unknown adapter 'custom'"), JSON.stringify(res.data))
+
+    const emptyBin = join(dir, 'empty-bin')
+    mkdirSync(emptyBin)
+    const child = spawnSync(process.execPath, ['-e', `
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(join(dir, 'cfg'))}
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      delete process.env.MERCURY_DAP_ADAPTERS
+      process.env.PATH = ${JSON.stringify(emptyBin)}
+      process.env.MERCURY_DEBUGPY_VENDOR_DIR = ${JSON.stringify(join(dir, 'no-debugpy'))}
+      process.env.MERCURY_PYTHON_VENDOR_DIR = ${JSON.stringify(join(dir, 'no-python'))}
+      process.env.MERCURY_JS_DEBUG_DAP = ${JSON.stringify(join(dir, 'no-js-debug.js'))}
+      process.env.MERCURY_DAP_ADAPTERS_FILE = ${JSON.stringify(lockedFile)}
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'utils/withheldTools.ts'))})
+      const debug = withheldTools().find(w => w.tool === 'Debug')
+      process.stdout.write('\\n' + JSON.stringify(debug ?? null))
+    `], { encoding: 'utf8' })
+    const debugRow = child.status === 0 ? JSON.parse(child.stdout.trim().split('\n').pop() ?? 'null') : { error: child.stderr.slice(-300) }
+    check('w08-12: withheld Debug tool message names unreadable adapter file and read error', debugRow !== null && typeof debugRow.why === 'string' && debugRow.why.includes(lockedFile) && debugRow.why.includes('could not be read ('), JSON.stringify(debugRow))
+  } finally {
+    chmodSync(lockedFile, 0o644)
+    if (prevFile === undefined) delete process.env.MERCURY_DAP_ADAPTERS_FILE
+    else process.env.MERCURY_DAP_ADAPTERS_FILE = prevFile
+    if (prevEnv === undefined) delete process.env.MERCURY_DAP_ADAPTERS
+    else process.env.MERCURY_DAP_ADAPTERS = prevEnv
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
@@ -504,6 +661,9 @@ const rows: Array<() => Promise<void>> = [
   w08_7_polyglotUnreadableDirAndStatNoted,
   w08_8_contextUnserializableToolAndMessageBlockNoted,
   w08_9_gitOperationTrackingPrLinkFailureSurfaced,
+  w08_10_browserAndPathOpenFailuresSurfaced,
+  w08_11_videoProviderSettingReadErrorWithheldWhy,
+  w08_12_dapAdapterFileReadErrorSurfaced,
 ]
 for (const row of rows) {
   try {

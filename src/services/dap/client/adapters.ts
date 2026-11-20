@@ -54,10 +54,13 @@ function readEnvAdapterTable(): EnvAdapterTable {
 }
 
 export function envAdapterTableError(): string | null {
+  const parts: string[] = []
   const envTable = readEnvAdapterTable()
-  return envTable.state === 'invalid'
-    ? `MERCURY_DAP_ADAPTERS is not valid JSON (${envTable.detail}), so the adapters it names are not used — fix or unset it`
-    : null
+  if (envTable.state === 'invalid') {
+    parts.push(`MERCURY_DAP_ADAPTERS is not valid JSON (${envTable.detail}), so the adapters it names are not used — fix or unset it`)
+  }
+  parts.push(...fileAdapterTableWithErrors().errors)
+  return parts.length > 0 ? parts.join('; ') : null
 }
 
 export function reachableDapAdapterKeys(): string[] {
@@ -158,46 +161,69 @@ function decodeAdapterRow(spec: unknown): DapAdapterSpec | null {
   return out
 }
 
-function readAdapterFile(filePath: string): Record<string, DapAdapterSpec> {
+function readAdapterFileDetailed(filePath: string): { table: Record<string, DapAdapterSpec>; error?: string } {
   let raw: string
   try {
     raw = readFileSync(filePath, 'utf8')
   } catch (error) {
     passedOver(error)
-    return {}
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { table: {} }
+    return {
+      table: {},
+      error: `${filePath} could not be read (${error instanceof Error ? error.message : String(error)}), so the adapters it names are not used`,
+    }
   }
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
   } catch (e) {
+    passedOver(e)
     logForDebugging(`dap: ${filePath} is not valid JSON — ignored (${String(e)})`)
-    return {}
+    return {
+      table: {},
+      error: `${filePath} is not valid JSON (${e instanceof Error ? e.message : String(e)}), so the adapters it names are not used`,
+    }
   }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return {
+      table: {},
+      error: `${filePath} is not a JSON object, so the adapters it names are not used`,
+    }
+  }
   const out: Record<string, DapAdapterSpec> = {}
   for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
     const row = decodeAdapterRow(value)
     if (row) out[key] = row
     else logForDebugging(`dap: adapter-config row '${key}' invalid — skipped`)
   }
-  return out
+  return { table: out }
 }
 
-function fileAdapterTable(): Record<string, DapAdapterSpec> {
+function fileAdapterTableWithErrors(): { table: Record<string, DapAdapterSpec>; errors: string[] } {
   const pinned = flagEnv('MERCURY_DAP_ADAPTERS_FILE')
-  if (pinned) return readAdapterFile(pinned)
-  const user = readAdapterFile(join(getMercuryHome(), 'dap-adapters.json'))
+  if (pinned) {
+    const res = readAdapterFileDetailed(pinned)
+    return { table: res.table, errors: res.error !== undefined ? [res.error] : [] }
+  }
+  const user = readAdapterFileDetailed(join(getMercuryHome(), 'dap-adapters.json'))
+  const errors = user.error !== undefined ? [user.error] : []
   try {
     const cwd = getCwd()
     const trusted = isPathTrusted(cwd) || (getSessionTrustAccepted() && path.resolve(cwd) === path.resolve(getOriginalCwd()))
-    if (!isSettingSourceEnabled('projectSettings') || !trusted) return user
+    if (!isSettingSourceEnabled('projectSettings') || !trusted) return { table: user.table, errors }
     const projectFile = join(projectConfigDirs(cwd)[0], 'dap-adapters.json')
-    const project = readAdapterFile(projectFile)
-    if (Object.keys(project).length > 0) logForDebugging(`dap: loaded trusted project adapter file ${projectFile}`)
-    return { ...user, ...project }
-  } catch {
-    return user
+    const project = readAdapterFileDetailed(projectFile)
+    if (project.error !== undefined) errors.push(project.error)
+    if (Object.keys(project.table).length > 0) logForDebugging(`dap: loaded trusted project adapter file ${projectFile}`)
+    return { table: { ...user.table, ...project.table }, errors }
+  } catch (error) {
+    passedOver(error)
+    return { table: user.table, errors }
   }
+}
+
+function fileAdapterTable(): Record<string, DapAdapterSpec> {
+  return fileAdapterTableWithErrors().table
 }
 
 export function resolveAdapter(key: string): DapAdapterSpec | null {

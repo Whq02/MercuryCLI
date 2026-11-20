@@ -108,6 +108,13 @@ function UrlElicitationDialog({
   const [phase, setPhase] = useState<'prompt' | 'waiting'>('prompt')
   const [promptButton, setPromptButton] = useState<0 | 1>(0)
   const [waitingButton, setWaitingButton] = useState(0)
+  const [openError, setOpenError] = useState<string | null>(null)
+  const openUrl = (): void => {
+    setOpenError(null)
+    void openBrowser(url, error => {
+      setOpenError(`${url} could not be opened (${error}) — open it yourself`)
+    })
+  }
 
   const showCancel = event.waitingState?.showCancel === true
   const actionLabel =
@@ -146,7 +153,7 @@ function UrlElicitationDialog({
       else if (key.rightArrow) setPromptButton(1)
       else if (key.return) {
         if (promptButton === 0) {
-          void openBrowser(url)
+          openUrl()
           onResponse('accept')
           setWaitingButton(0)
           setPhase('waiting')
@@ -164,7 +171,7 @@ function UrlElicitationDialog({
       setWaitingButton(index => (index + 1) % waitingButtons.length)
     } else if (key.return) {
       if (waitingButton === 0) {
-        void openBrowser(url)
+        openUrl()
       } else if (showCancel && waitingButton === waitingButtons.length - 1) {
         onWaitingDismiss('cancel')
       } else {
@@ -207,6 +214,7 @@ function UrlElicitationDialog({
             </Box>
           </>
         )}
+        {openError !== null ? <Text color="warning">{openError}</Text> : null}
       </Box>
     </Dialog>
   )

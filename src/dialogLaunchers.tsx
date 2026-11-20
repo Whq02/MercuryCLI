@@ -7,6 +7,7 @@ import type { FpsMetrics } from './utils/fpsTracker.js'
 import type { ValidationError } from './utils/settings/validation.js'
 import { gracefulShutdownSync } from './utils/gracefulShutdown.js'
 import { SetupScreenHost } from './interactiveHelpers.js'
+import { errorMessage } from './utils/errors.js'
 import { passedOver } from './utils/passedOver.js'
 
 export async function launchInvalidSettingsDialog(
@@ -79,12 +80,17 @@ export async function launchResumeChooser(
   worktreePathsPromise: Promise<string[]>,
   resumeProps: ResumeChooserProps,
 ): Promise<void> {
+  let worktreeReadError: string | undefined
   const [{ ResumeConversation }, { App }, { KeybindingSetup }, worktreePaths] =
     await Promise.all([
       import('./screens/ResumeConversation.js'),
       import('./components/App.js'),
       import('./keybindings/KeybindingProviderSetup.js'),
-      worktreePathsPromise.catch((error) => { passedOver(error); return [] as string[] }),
+      worktreePathsPromise.catch((error) => {
+        passedOver(error)
+        worktreeReadError = errorMessage(error)
+        return [] as string[]
+      }),
     ])
   root.render(
     <App {...appProps}>
@@ -92,6 +98,7 @@ export async function launchResumeChooser(
         <ResumeConversation
           commands={resumeProps.commands}
           worktreePaths={worktreePaths}
+          worktreeReadError={worktreeReadError}
           initialTools={resumeProps.initialTools}
           debug={resumeProps.debug}
           disableSlashCommands={resumeProps.disableSlashCommands}

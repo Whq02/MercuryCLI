@@ -31,6 +31,7 @@ export type DiffData = {
   files: DiffFile[]
   hunks: Map<string, StructuredPatchHunk[]>
   loading: boolean
+  error?: string
 }
 
 function classify(
@@ -74,7 +75,7 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
 
   useLoad(() => {
     let dropped = false
-    setData(prev => ({ ...prev, loading: true }))
+    setData(prev => ({ stats: prev.stats, files: prev.files, hunks: prev.hunks, loading: true }))
     void (async () => {
       try {
         const currentSpec = specRef.current
@@ -96,7 +97,13 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
       } catch (error) {
         logError(error)
         if (dropped) return
-        setData({ stats: null, files: [], hunks: new Map(), loading: false })
+        setData({
+          stats: null,
+          files: [],
+          hunks: new Map(),
+          loading: false,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     })()
     return () => {

@@ -14,6 +14,14 @@ import {
   sessionIdOfListing,
   listSessionsAcrossProjectsProgressive,
 } from '../../../utils/sessionStorage.js'
+import {
+  formatSessionReadFailures,
+  mergeSessionReadFailures,
+  type SessionReadFailures,
+} from '../../../utils/sessionStorage/logs.js'
+import { getProjectsDir } from '../../../utils/sessionStoragePortable.js'
+import { errorMessage } from '../../../utils/errors.js'
+import { passedOver } from '../../../utils/passedOver.js'
 import { useNowTick } from '../components.js'
 
 
@@ -91,11 +99,13 @@ const ENRICH_BATCH = 50
 function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
   logs: SessionListing[] | null
   pendingMore: number
+  readNotice: string | null
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
   const enabled = opts.enabled !== false
   const [logs, setLogs] = useState<SessionListing[] | null>(null)
   const [pendingMore, setPendingMore] = useState(0)
+  const [readFailures, setReadFailures] = useState<SessionReadFailures | undefined>(undefined)
   useLoad(() => {
     if (!enabled) return
     let alive = true
@@ -107,19 +117,29 @@ function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
         }
         let acc = first.logs
         let next = first.nextIndex
+        let failures = first.readFailures
         publish(acc)
-        if (alive) setPendingMore(Math.max(0, first.allStatLogs.length - next))
+        if (alive) {
+          setPendingMore(Math.max(0, first.allStatLogs.length - next))
+          setReadFailures(failures)
+        }
         while (alive && next < first.allStatLogs.length) {
           const batch = await enrichSessionListings(first.allStatLogs, next, ENRICH_BATCH)
           next = batch.nextIndex
           acc = [...acc, ...batch.logs]
+          failures = mergeSessionReadFailures(failures, batch.readFailures)
           publish(acc)
-          if (alive) setPendingMore(Math.max(0, first.allStatLogs.length - next))
+          if (alive) {
+            setPendingMore(Math.max(0, first.allStatLogs.length - next))
+            setReadFailures(failures)
+          }
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
         if (alive) {
           setLogs([])
           setPendingMore(0)
+          setReadFailures({ count: 1, firstPath: getProjectsDir(), firstError: errorMessage(error) })
         }
       }
     })()
@@ -130,7 +150,7 @@ function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
   const dropSessions = (sessionIds: ReadonlySet<string>): void => {
     setLogs(prev => (prev === null ? prev : prev.filter(l => !sessionIds.has(sessionIdOfListing(l) ?? ''))))
   }
-  return { logs, pendingMore, dropSessions }
+  return { logs, pendingMore, readNotice: formatSessionReadFailures(readFailures), dropSessions }
 }
 
 export function useSessionPickerModel(
@@ -139,12 +159,13 @@ export function useSessionPickerModel(
 ): {
   logs: SessionListing[] | null
   pendingMore: number
+  readNotice: string | null
   projectKey: string
   flat: SessionPickerFlatRow[]
   elsewhereCount: number
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
-  const { logs, pendingMore, dropSessions } = useResumableSessionLogs(opts)
+  const { logs, pendingMore, readNotice, dropSessions } = useResumableSessionLogs(opts)
   const projectKey = useSyncExternalStore(subscribeCurrentProject, () => currentProject().key, () => currentProject().key)
   const nowTick = useNowTick(30_000)
   const { flat, elsewhereCount } = useMemo(
@@ -160,5 +181,5 @@ export function useSessionPickerModel(
           }),
     [logs, nowTick, scope, projectKey, opts.filterDir],
   )
-  return { logs, pendingMore, projectKey, flat, elsewhereCount, dropSessions }
+  return { logs, pendingMore, readNotice, projectKey, flat, elsewhereCount, dropSessions }
 }

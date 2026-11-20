@@ -24,6 +24,7 @@ import { memoryFileListLayout } from './memoryCentreLayout.js'
 export function openMemoryFolder(
   dir: string,
   ops: { mkdirSync: typeof mkdirSync; openPath: typeof openPath } = { mkdirSync, openPath },
+  onOpenError?: (message: string) => void,
 ): string | null {
   try {
     ops.mkdirSync(dir, { recursive: true })
@@ -31,7 +32,17 @@ export function openMemoryFolder(
     logError(error)
     return `Could not open the memory folder at ${toTildePath(dir)} (${errorMessage(error)}) — check folder permissions.`
   }
-  void ops.openPath(dir)
+  let reported = false
+  void ops
+    .openPath(dir, error => {
+      reported = true
+      onOpenError?.(`${toTildePath(dir)} could not be opened (${error}) — open it yourself`)
+    })
+    .then(ok => {
+      if (!ok && !reported) {
+        onOpenError?.(`${toTildePath(dir)} could not be opened (could not start file manager) — open it yourself`)
+      }
+    })
   return null
 }
 let lastSelectedPath: string | null = null
@@ -200,7 +211,7 @@ export function MemoryFileSelector({
   const activate = (value: string) => {
     lastSelectedPath = value
     if (value.startsWith('::open:')) {
-      setOpenError(openMemoryFolder(getMnemeHome()))
+      setOpenError(openMemoryFolder(getMnemeHome(), undefined, setOpenError))
       return
     }
     setOpenError(null)

@@ -238,7 +238,7 @@ function runScenario(body: string): Record<string, unknown> {
       }
 
       const baseFile = path.join(managedRoot, 'managed-settings.json')
-      fs.writeFileSync(baseFile, '{"display":{"theme":"light"}}', { mode: 0o600 })
+      fs.writeFileSync(baseFile, '{"display":{"theme":"true-black"}}', { mode: 0o600 })
       fs.chmodSync(baseFile, 0o000)
       try {
         mdm.clearMdmSettingsCache()
