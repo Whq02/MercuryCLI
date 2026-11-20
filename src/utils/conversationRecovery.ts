@@ -78,12 +78,11 @@ type LegacyAttachmentRecord = {
   path?: string
   skillDir?: string
   displayPath?: string
-  [key: string]: unknown
 }
 
 function migrateLegacyAttachment(message: Message): Message {
   if (message.type !== 'attachment') return message
-  const attachment = message.attachment as unknown as LegacyAttachmentRecord
+  const attachment = message.attachment as LegacyAttachmentRecord
   let migrated: LegacyAttachmentRecord | null = null
   if (attachment.type === 'new_file' && typeof attachment.filename === 'string') {
     migrated = { ...attachment, type: 'file', displayPath: relative(getCwd(), attachment.filename) }
@@ -96,7 +95,7 @@ function migrateLegacyAttachment(message: Message): Message {
     }
   }
   if (!migrated) return message
-  return { ...message, attachment: migrated as unknown as AttachmentMessage['attachment'] }
+  return { ...message, attachment: migrated as AttachmentMessage['attachment'] }
 }
 
 const noticedPermissionModes = new Set<string>()
@@ -283,7 +282,7 @@ export function deserializeMessages(serialized: Message[]): Message[] {
   return deserializeMessagesWithInterruptDetection(serialized).messages
 }
 
-export function deserializeLiveMessages(serialized: Message[]): Message[] {
+export function deserializeLiveMessages(serialized: readonly Message[]): Message[] {
   return serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)
 }
 
@@ -545,7 +544,7 @@ export async function loadConversationForResume(
       if (sessionId === undefined) sessionId = sessionIdOfListing(log) as SessionId
       void copyFileHistoryForResume(log)
       messages = log.messages as SerializedMessage[]
-      checkResumeConsistency(messages as unknown as Message[])
+      checkResumeConsistency(messages)
       fullPath = log.fullPath
       facts = {
         fileHistorySnapshots: log.fileHistorySnapshots,
@@ -573,7 +572,7 @@ export async function loadConversationForResume(
       }
     }
 
-    const asMessages = (messages ?? []) as unknown as Message[]
+    const asMessages: Message[] = messages ?? []
     if (!hasConversationTurn(asMessages)) return null
     restoreSkillStateFromMessages(asMessages)
     restoreBoundPrefixFromMessages(asMessages)
@@ -594,7 +593,7 @@ export async function loadConversationForResume(
     return {
       messages: [...deserialized, ...dedupedHooks],
       turnInterruptionState,
-      sessionId: sessionId as unknown as UUID,
+      sessionId: sessionId as UUID,
       ...facts,
       fullPath,
     }
