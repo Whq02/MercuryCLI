@@ -1014,11 +1014,11 @@ Run `/accounts` to see every connected account and API key across all providers:
   with eligible premium devices), Google AI Ultra and Enterprise, but not
   Free or Google AI Plus; read again on 2026-11-11 it lists Gemini 4 Carbon
   on Google AI Ultra and Enterprise alone; read again on 2026-11-20 it lists
-  Gemini 4 Hydrogen on paid Google AI Pro plans (not trials), Google AI
-  Ultra and Enterprise, but not Free or Google AI Plus, and Gemini 4 Neon on
-  paid Google AI Pro plans (or trials with eligible premium devices), Google
-  AI Ultra and Enterprise, but not Free or Google AI Plus, both with a
-  fourth thinking level (Extra, the row `…-xhigh`). Claude Sonnet 5.5
+  Gemini 4 Hydrogen on paid Google AI Pro plans (not trials) and Gemini 4
+  Neon on paid Google AI Pro plans (or trials with eligible premium
+  devices), each of them on Ultra and Enterprise too and neither on Free or
+  Google AI Plus, both with a fourth thinking level (Extra, the row
+  `…-xhigh`). Claude Sonnet 5.5
   and Opus 5.5 require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus
   4.6 and GPT-OSS-120b leave the roster on November 18, 2026 (the table read
   on 2026-11-15). A disabled row is
