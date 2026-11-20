@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -77,9 +78,76 @@ async function proveOperationJournal(): Promise<void> {
   })
 }
 
+async function provePidLock(): Promise<void> {
+  const bun = process.execPath
+  const pidLockPath = realpathSync(join(import.meta.dir, '../../src/substrate/pidLock.ts'))
+  await withScratchHome(home => {
+    const script = `
+      import { mock } from 'bun:test'
+      import * as realFsp from 'node:fs/promises'
+      import * as fs from 'node:fs'
+      import { join } from 'node:path'
+
+      const home = ${JSON.stringify(home)}
+      const liveRecord = JSON.stringify({ owner: 'live-owner', pid: process.pid, acquiredAt: Date.now() })
+      const deadRecord = JSON.stringify({ owner: 'dead-owner', pid: 99999999, acquiredAt: Date.now() - 60000 })
+      let failLinkCode = 'EPERM'
+      let swapOnRename = true
+      let unreadableTaken = false
+
+      const origRename = realFsp.rename
+      const origReadFile = realFsp.readFile
+      const mocked = {
+        ...realFsp,
+        rename: async (src, dst) => {
+          await origRename(src, dst)
+          if (swapOnRename) fs.writeFileSync(dst, liveRecord)
+        },
+        readFile: async (p, enc) => {
+          if (unreadableTaken && String(p).includes('.reap-')) {
+            throw Object.assign(new Error('EACCES'), { code: 'EACCES' })
+          }
+          return origReadFile(p, enc)
+        },
+        link: async () => {
+          throw Object.assign(new Error(failLinkCode), { code: failLinkCode })
+        },
+      }
+      mock.module('fs/promises', () => mocked)
+      mock.module('node:fs/promises', () => mocked)
+
+      const { probePidLock } = await import(${JSON.stringify(pidLockPath)})
+
+      const lock1 = join(home, 'a.lock')
+      fs.writeFileSync(lock1, deadRecord)
+      await probePidLock(lock1, { liveness: 'assume-dead', reclaimStale: true })
+      const restoredA = fs.existsSync(lock1) && fs.readFileSync(lock1, 'utf8') === liveRecord
+
+      failLinkCode = 'EIO'
+      swapOnRename = false
+      unreadableTaken = true
+      const lock2 = join(home, 'b.lock')
+      fs.writeFileSync(lock2, deadRecord)
+      await probePidLock(lock2, { liveness: 'assume-dead', reclaimStale: true })
+      const leftoverB = fs.readdirSync(home).filter(n => n.startsWith('b.lock.reap-'))
+
+      process.stdout.write('\\n' + JSON.stringify({ restoredA, keptB: leftoverB.length === 1 }))
+    `
+    const res = spawnSync(bun, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home } })
+    if (res.status !== 0) {
+      check('pidLock: probePidLock relink fallback subprocess ran', false, res.stderr.slice(-400))
+      return
+    }
+    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { restoredA?: boolean; keptB?: boolean }
+    check('pidLock: EPERM relink restores live holder via wx write', out.restoredA === true, JSON.stringify(out))
+    check('pidLock: failed relink of unreadable record preserves moved file', out.keptB === true, JSON.stringify(out))
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
+  await provePidLock()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }
