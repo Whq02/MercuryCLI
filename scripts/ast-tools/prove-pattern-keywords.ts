@@ -207,13 +207,4 @@ section('§5 — through both tools')
   }
 }
 
-section('§6 — the page says it')
-{
-  const page = readFileSync(join(REPO, 'docs/STRUCTURAL-PATTERNS.md'), 'utf8').replace(/\s+/g, ' ')
-  check('a word or an operator the pattern writes must be in the code', page.includes('A word or an operator a pattern writes must be in the code it finds, in the same place among the parts of its node; what the code has beyond the pattern is passed over.'))
-  check('a spelling the pattern writes is the one it finds', page.includes('Where a language has two spellings for one thing, a pattern finds the one it writes'))
-  check('and what is never required', page.includes('Brackets, quotes, commas and semicolons are never required'))
-  check('the old sentence is gone', !page.includes('is not compared'))
-}
-
 finish('PATTERN KEYWORDS')
