@@ -754,6 +754,83 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     errLinesD.some(l => expectedFlushRe.test(l)) && !r10d.stderr.includes('rename step'),
     `rc=${r10d.status} lines=${JSON.stringify(errLinesD)}`,
   )
+
+  const initialBodyE = `${JSON.stringify({ numStartups: 11 }, null, 2)}\n`
+  const r10e = runR10Child(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const cfgPath = path.join(HOME, '.mercury.json')
+    fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyE)}, 'utf8')
+    const { mock } = await import('bun:test')
+    const realFsOps = await import(SRC + '/utils/fsOperations.ts')
+    const realFs = realFsOps.getFsImplementation()
+    let blockRead = false
+    mock.module(SRC + '/utils/fsOperations.js', () => ({
+      ...realFsOps,
+      getFsImplementation: () => ({
+        ...realFs,
+        readFileSync: (filePath, opts) => {
+          if (blockRead && String(filePath).endsWith('.mercury.json')) {
+            throw Object.assign(new Error("EBUSY: resource busy or locked, open '" + cfgPath + "'"), { code: 'EBUSY' })
+          }
+          return realFs.readFileSync(filePath, opts)
+        },
+      }),
+    }))
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
+    blockRead = true
+    process.exit(0)
+  `)
+  const errLinesE = r10e.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  const expectedReadFlushRe =
+    /^Could not save the settings changed in this session: .+[/\\]\.mercury\.json could not be read \(EBUSY\); nothing was written and those changes were lost\. Close what holds the file, then try again\.$/
+  check(
+    'w10-13(R10e): with no prior refusal, a read-refused exit flush with deferred saves prints the sentence once and keeps .mercury.json byte-equal',
+    errLinesE.length === 1 &&
+      expectedReadFlushRe.test(errLinesE[0] ?? '') &&
+      r10e.mercuryJson === initialBodyE,
+    `rc=${r10e.status} lines=${JSON.stringify(errLinesE)} sameBytes=${String(r10e.mercuryJson === initialBodyE)}`,
+  )
+  check(
+    'w10-13(R10f): read-refused exit flush ends with the same exit status as rename-refused exit flush (R10c)',
+    r10e.status === r10c.status,
+    `r10e=${String(r10e.status)} r10c=${String(r10c.status)}`,
+  )
+
+  const r10g = runR10Child(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const cfgPath = path.join(HOME, '.mercury.json')
+    fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyE)}, 'utf8')
+    const { mock } = await import('bun:test')
+    const realFsOps = await import(SRC + '/utils/fsOperations.ts')
+    const realFs = realFsOps.getFsImplementation()
+    let blockRead = false
+    mock.module(SRC + '/utils/fsOperations.js', () => ({
+      ...realFsOps,
+      getFsImplementation: () => ({
+        ...realFs,
+        readFileSync: (filePath, opts) => {
+          if (blockRead && String(filePath).endsWith('.mercury.json')) {
+            throw Object.assign(new Error("EBUSY: resource busy or locked, open '" + cfgPath + "'"), { code: 'EBUSY' })
+          }
+          return realFs.readFileSync(filePath, opts)
+        },
+      }),
+    }))
+    const { enableConfigs } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    blockRead = true
+    process.exit(0)
+  `)
+  const errLinesG = r10g.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  check(
+    'w10-13(R10g): control — a read refusal at exit with no deferred save pending prints nothing',
+    r10g.status === 0 && errLinesG.length === 0 && r10g.mercuryJson === initialBodyE,
+    `rc=${r10g.status} lines=${JSON.stringify(errLinesG)}`,
+  )
 }
 
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
