@@ -1,7 +1,8 @@
 
 import 'figures'
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useClaim, usePublish, useSubscription } from '../../hooks/effects.js'
 import type { PrimitiveSchemaDefinition } from '../../services/mcp/sdk.js'
 import { Box, Text } from '../../ink.js'
 import { popupListWindow, usePopupListPaging } from '../CustomSelect/popup-list.js'
@@ -119,7 +120,7 @@ function UrlElicitationDialog({
 
   const phaseRef = useRef(phase)
   phaseRef.current = phase
-  useEffect(() => {
+  useSubscription(() => {
     const onAbort = () => {
       if (phaseRef.current === 'waiting') onWaitingDismiss('cancel')
       else onResponse('cancel')
@@ -132,7 +133,7 @@ function UrlElicitationDialog({
     return () => event.signal.removeEventListener('abort', onAbort)
   }, [event.signal, onResponse, onWaitingDismiss])
 
-  useEffect(() => {
+  usePublish(() => {
     if (phase === 'waiting' && event.completed) {
       onWaitingDismiss(settledDismissal)
     }
@@ -271,7 +272,7 @@ function FormElicitationDialog({
   const typedSinceResolveRef = useRef(new Set<string>())
   const unmountedRef = useRef(false)
 
-  useEffect(
+  useClaim(
     () => () => {
       unmountedRef.current = true
       for (const timer of resolveTimersRef.current.values()) clearTimeout(timer)
@@ -282,7 +283,7 @@ function FormElicitationDialog({
     [],
   )
 
-  useEffect(() => {
+  useSubscription(() => {
     const onAbort = () => onResponse('cancel')
     if (event.signal.aborted) {
       onAbort()

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useMemo, useRef } from 'react'
+import { useClaim } from '../../hooks/effects.js'
 import { boardModalOwner, type BoardModalFactsV1 } from './boardModalOwner.js'
 import { type ConcourseCallbacks, type ConcourseRowV1, type ConcourseSnapshotV1, concourseWaitCopy } from './contracts.js'
 import { OLDER_CHATS_ROW_PREFIX, olderChatsCensus } from '../../services/concourse/concourseSnapshot.js'
@@ -245,7 +246,7 @@ export function ConcourseScreen({
   const { regionsInOrder } = useConcourseRegions({ snapshot, reducedStage, compact, geo, olderList, region, setNote, setOlderList, setRegion, splitActive, termCols, termRows })
   const capsuleRef = useRef<ConcourseCapsuleV2 | null>(null)
   capsuleRef.current = { region, filtering, filter, boardSel, railSel, boardScroll }
-  useEffect(() => {
+  useClaim(() => {
     presentationCapsule = null
     return () => {
       presentationCapsule = capsuleRef.current

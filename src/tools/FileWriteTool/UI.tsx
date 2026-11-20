@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useLoad } from '../../hooks/effects.js'
 
 import { truncatePathMiddle } from '../../utils/truncate.js'
 import { CtrlOToExpand } from '../../components/CtrlOToExpand.js'
@@ -189,7 +190,7 @@ function WriteRejectionPreview({
   const far = isRemotePath(input.file_path)
   const [preview, setPreview] = React.useState<RejectionPreviewState>({ state: far ? 'create' : 'loading' })
 
-  React.useEffect(() => {
+  useLoad(() => {
     if (far) return
     let cancelled = false
     void (async () => {

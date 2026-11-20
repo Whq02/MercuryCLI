@@ -1,9 +1,9 @@
 import React, {
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from 'react'
+import { useLayoutClaim, useLoad } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import { SetupFrameBody } from './MercurySetupFrame.js'
 import { useSettingsPopupFrameIfAny } from './Settings/Settings.js'
@@ -86,14 +86,14 @@ export function ConsoleOAuthFlow({
   useSignInEpoch()
   useCatalogueEpoch()
   const walkHost = onSkip !== undefined
-  useEffect(() => {
+  useLoad(() => {
     if (walkHost) void refreshLocalDiscovery().catch(() => undefined)
   }, [walkHost])
   const localRoad = walkHost ? localDiscoverySummary() : null
   const menuUp = leg === null && accountFamily === null && state.name === 'idle'
   const settingsFrame = useSettingsPopupFrameIfAny()
   const listUp = menuUp || accountFamily !== null || leg === 'anthropic' || leg === 'openai'
-  React.useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (listUp) settingsFrame?.setHint('↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes')
     else settingsFrame?.setHint(null)
     return () => settingsFrame?.setHint(null)

@@ -1,5 +1,6 @@
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useLoad, useSubscription } from './effects.js'
 import { useNotifications } from '../context/notifications.js'
 import { useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppState.js'
@@ -21,7 +22,7 @@ export function useExtensions({ enabled = true }: { enabled?: boolean } = {}): v
   addNotificationRef.current = addNotification
   const loadedRef = useRef(false)
 
-  useEffect(() => {
+  useLoad(() => {
     if (!enabled || loadedRef.current) return
     loadedRef.current = true
     void (async () => {
@@ -51,7 +52,7 @@ export function useExtensions({ enabled = true }: { enabled?: boolean } = {}): v
     })()
   }, [enabled, setAppState])
 
-  useEffect(() => {
+  useSubscription(() => {
     if (!enabled) return
     return onExtensionsPending(pending => {
       setAppState(prev => (prev.extensions.pending === pending ? prev : { ...prev, extensions: { ...prev.extensions, pending } }))
