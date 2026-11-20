@@ -15,7 +15,7 @@ export function daemonSignInsCheck(): CheckSpec {
       }
       const { daemonControlRpc, restartDaemonWords } = await import('../../../../daemon/controlSocket.js')
       const { compareSignInViews, composeSignInView, summarizeSignInView } = await import('../../../../daemon/signInView.js')
-      const reply = (await daemonControlRpc({ op: 'signIns', refresh: true } as never, { timeoutMs: 3000 })) as
+      const reply = (await daemonControlRpc({ op: 'signIns', refresh: true }, { timeoutMs: 3000 })) as
         | { ok: true; view: DaemonSignInViewV1 }
         | { ok: false; code?: string; error?: string }
       const restart = restartDaemonWords(binaryName())
