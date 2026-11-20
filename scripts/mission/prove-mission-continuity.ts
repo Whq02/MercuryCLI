@@ -34,7 +34,7 @@ const {
 const { readFileSync } = await import('node:fs')
 const { _setMissionJudgeForTesting } = await import('../../src/services/mission/goalJudge.js')
 _setMissionJudgeForTesting(null)
-const { readMissionCard, writeMissionCard } = await import('../../src/services/mission/missionCard.js')
+const { readMissionCard, writeMissionCard } = await import('../../src/utils/mission/missionCard.js')
 const { composeMissionView } = await import('../../src/services/mission/projection.js')
 
 const { guardsEngaged, judgeTurnEnd } = await import('../../src/guards/guards.js')

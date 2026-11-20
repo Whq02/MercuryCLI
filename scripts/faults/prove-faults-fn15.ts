@@ -93,7 +93,7 @@ console.log('\ngoalJudge.ts — a helper judge that throws does not hold the goa
 
 const { chmodSync, readFileSync, writeFileSync } = await import('node:fs')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
-const { migrateOrphanedMissionCard, readMissionCard, writeMissionCard } = await import('../../src/services/mission/missionCard.js')
+const { migrateOrphanedMissionCard, readMissionCard, writeMissionCard } = await import('../../src/utils/mission/missionCard.js')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 console.log('\nmissionCard.ts — migrateOrphanedMissionCard never clobbers corrupt/unreadable cards and never reports success on failed write')

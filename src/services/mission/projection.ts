@@ -155,7 +155,7 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let card: MissionCardView | null = null
   try {
-    const { readMissionCard } = await import('./missionCard.js')
+    const { readMissionCard } = await import('../../utils/mission/missionCard.js')
     const { getSessionId } = await import('../../bootstrap/state.js')
     const record = readMissionCard(getSessionId())
     card = record

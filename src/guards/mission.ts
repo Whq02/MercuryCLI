@@ -31,7 +31,7 @@ import {
   type MissionCard,
   type MissionCardState,
   type MissionOutcome,
-} from '../services/mission/missionCard.js'
+} from '../utils/mission/missionCard.js'
 import { MISSION_HOLD_HEAD, missionStatusLine, type ServedMission } from '../services/mission/served.js'
 import { getCwd } from '../utils/cwd.js'
 import { formatDuration } from '../utils/format.js'
