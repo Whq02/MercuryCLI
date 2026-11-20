@@ -108,14 +108,22 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
     },
   })
   const threwVerdict = await judgeToolCall('fn05-throw', { tool: 'Bash', input: { command: 'rm -rf /' }, callId: 'c1', messages: [] })
-  check('guards: judgeToolCall refuses when a tool guard throws', threwVerdict.refused === true && threwVerdict.guard === 'throwing-guard' && threwVerdict.reason === 'The Bash call was not made: its checks could not be completed (guard exploded) — retry it.', JSON.stringify(threwVerdict))
+  const threwAgain = await judgeToolCall('fn05-throw', { tool: 'Bash', input: { command: 'ls' }, callId: 'c1b', messages: [] })
+  check(
+    'guards: a tool guard that throws lets the call go on and says so once',
+    threwVerdict.refused === false &&
+      JSON.stringify(threwVerdict.notes).includes('One check of this Bash call could not be completed (guard exploded), so this call and any later one it cannot finish run without it.') &&
+      threwAgain.refused === false &&
+      threwAgain.notes.length === 0,
+    JSON.stringify([threwVerdict, threwAgain]),
+  )
   engageToolGuard('fn05-timeout', {
     id: 'slow-guard',
     timeoutMs: 25,
     judge: () => new Promise(() => {}),
   })
   const timeoutVerdict = await judgeToolCall('fn05-timeout', { tool: 'Bash', input: { command: 'echo hi' }, callId: 'c2', messages: [] })
-  check('guards: judgeToolCall refuses when a tool guard times out', timeoutVerdict.refused === true && timeoutVerdict.guard === 'slow-guard' && timeoutVerdict.reason === 'The Bash call was not made: its checks could not be completed (the guard was cut) — retry it.', JSON.stringify(timeoutVerdict))
+  check('guards: a tool guard cut at its time limit lets the call go on and says so once', timeoutVerdict.refused === false && timeoutVerdict.notes.length === 1 && JSON.stringify(timeoutVerdict.notes).includes('(the guard was cut)'), JSON.stringify(timeoutVerdict))
   resetGuardsForTesting()
 }
 

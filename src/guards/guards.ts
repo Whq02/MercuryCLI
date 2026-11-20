@@ -3,6 +3,7 @@ import type { Tool } from '../Tool.js'
 import { createCombinedAbortSignal } from '../utils/combinedAbortSignal.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
+import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import { afterMicrotask } from '../utils/timers.js'
 
 export type ToolCallUnderGuard = {
@@ -52,6 +53,7 @@ const DEFAULT_GUARD_TIMEOUT_MS = 5_000
 const toolGuards = new Map<string, ToolGuard[]>()
 const turnGuards = new Map<string, TurnGuard[]>()
 const turnNotes = new Map<string, TurnNote[]>()
+const unjudgedSaid = new Set<string>()
 
 function engage<G extends { id: string }>(store: Map<string, G[]>, key: string, guard: G): void {
   const list = (store.get(key) ?? []).filter(entry => entry.id !== guard.id)
@@ -109,6 +111,7 @@ export function resetGuardsForTesting(): void {
   toolGuards.clear()
   turnGuards.clear()
   turnNotes.clear()
+  unjudgedSaid.clear()
 }
 
 async function judged<T>(timeoutMs: number, signal: AbortSignal | undefined, run: (signal: AbortSignal) => Promise<T> | T): Promise<T> {
@@ -149,8 +152,12 @@ export async function judgeToolCall(keys: string | readonly string[], call: Tool
         if (verdict.note) notes.push(verdict.note)
       } catch (error) {
         const message = errorMessage(error)
-        logForDebugging(`guard ${guard.id} did not judge ${call.tool} (${message}); the call is refused`, { level: 'error' })
-        return { refused: true, guard: guard.id, reason: `The ${call.tool} call was not made: its checks could not be completed (${message}) — retry it.`, notes }
+        logForDebugging(`guard ${guard.id} did not judge ${call.tool} (${message}); the call proceeds`, { level: 'error' })
+        const said = `${key}\n${guard.id}`
+        if (signal?.aborted !== true && !unjudgedSaid.has(said)) {
+          unjudgedSaid.add(said)
+          notes.push(createSystemMessage(`One check of this ${call.tool} call could not be completed (${message}), so this call and any later one it cannot finish run without it.`, 'warning', call.callId))
+        }
       }
     }
   }
