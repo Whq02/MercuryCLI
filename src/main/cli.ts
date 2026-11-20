@@ -6,7 +6,7 @@ import { binaryName } from '../utils/config.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import chalk from 'chalk'
 import { formatPrintsOutcomeRow, refusedOutcome } from '../cli/headless/refusalEnvelope.js'
-import { inspectSessionArgs as inspectRunArgs } from '../cli/sessionArgs.js'
+import { inspectSessionArgs as inspectRunArgs } from '../utils/sessionArgs.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
 

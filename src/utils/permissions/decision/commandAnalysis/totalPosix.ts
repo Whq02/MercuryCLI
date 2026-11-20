@@ -3,6 +3,7 @@ import { layersOf, programOf } from './layers.js'
 import { POSIX_SHELLS, ansiC, buriedScripts, nestedScripts, printedBy, readsStdin } from './scripts.js'
 import { UNREAD_PART, type ReadRedirect } from './reading.js'
 import type { Frame, Reading } from './total.js'
+import { keepWordsAsWritten } from './written.js'
 
 const PASSTHROUGH = new Set(['cat', 'tee'])
 
@@ -143,6 +144,7 @@ export class PosixWalk {
 
   command(node: Node, frame: Frame, redirects: ReadRedirect[], input: string | undefined, inputInner: number[]): number {
     const words: Words[] = []
+    const written: string[] = []
     const env: Array<{ name: string; value: string }> = []
     const own = [...redirects]
     const ownInner = [...inputInner]
@@ -157,6 +159,7 @@ export class PosixWalk {
         }
         case 'command_name':
           words.push(this.word(child.children[0] ?? child, frame))
+          written.push((child.children[0] ?? child).text)
           break
         case 'file_redirect':
           this.redirect(child, frame, own, ownInner)
@@ -167,8 +170,10 @@ export class PosixWalk {
           break
         }
         default:
-          if (WORD_KINDS.has(child.type)) words.push(this.word(child, frame))
-          else this.node(child, frame)
+          if (WORD_KINDS.has(child.type)) {
+            words.push(this.word(child, frame))
+            written.push(child.text)
+          } else this.node(child, frame)
       }
     }
     const readings = Math.min(READING_CAP, Math.max(1, ...words.map(word => word.values.length)))
@@ -193,6 +198,7 @@ export class PosixWalk {
         maybes: frame.maybes,
         substituted: frame.substituted,
       })
+      keepWordsAsWritten(this.reading.commands[index], written)
       if (first < 0) first = index
     }
     return first

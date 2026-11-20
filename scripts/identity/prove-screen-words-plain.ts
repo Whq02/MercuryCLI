@@ -63,7 +63,7 @@ for (const row of RETIRED) {
     const lines = text.split('\n')
     lines.forEach((line, index) => {
       if (/^\s*(\/\/|\*|\/\*)/.test(line)) return
-      if (path === 'src/constants/changelog.ts') return
+      if (path === 'src/constants/changelogArchive.ts') return
       if (row.spelling.test(line)) hits.push(`${path}:${index + 1}`)
     })
   }

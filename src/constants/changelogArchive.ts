@@ -1,0 +1,351 @@
+export const EARLY_DOC_RELEASES = `## 1.0.0-beta.16
+- Fixed the Anthropic sign-in showing the previous account after a switch: every screen shows the new account the moment its credential is saved
+- Fixed the Edit tool restyling quotes in a file of no known language: only prose gets typographic quotes; everything else lands byte for byte
+- Changed an edit of unread lines in a file the session has read to land in one call, its result carrying the edited lines with fresh anchors; a file not read at all still asks for one read first
+- Fixed a pasted text chip losing its bytes when its send crashed: the bytes are stored at the paste and found again by their hash, and a chip whose bytes are gone says so
+- Fixed a usage cap on the session's own turn not raising the failover offer card: the card appears and marks that provider's row
+- Fixed the rail's context figure staying stale until the model picker opened: it follows the live model list as soon as the runner has fetched it
+- Fixed the mode chip and the mode band painting nothing for a new chat's first second: a chat shows its model, effort and mode from its first frame
+- Fixed a new Gemini chat refusing with "no credential" while the account or key was present: the refusal names the source it tried, the status it got and how to recover
+- Fixed pressing x twice on a running sub-agent's row not stopping a named teammate while reporting success: the stop reaches every kind of row, and the receipt says applied only once the row has ended
+- Changed the shell result's note about scrubbed session variables to appear once per session, then only as a short line when a command names one
+- Fixed the THEMIS blocklist refusing a read-only git config query for the hooks path: the rule matches a write of the key alone
+- Added an ISO timestamp to every line of the daemon's log
+- Fixed the cache-clock record landing under a mirrored copy of the config home's path: it lands beside the session's transcript
+- Fixed WebFetch refusing when its summariser model is not signed in: it summarises with the session's own model, or returns the page with a note
+- Fixed /status exiting Mercury when CI is set with no API key: it reads the refusal as no key and paints the stored account
+- Fixed a background command's completion reaching the agent only at the end of its turn: it is offered at the next tool boundary
+- Fixed a new chat refusing to start when the saved default model's family had no credential: the chat starts on the newest signed-in family with one warning naming the way back, and /model in that chat saves a new default
+- Changed the Gemini model picker's refusal to name the source it tried and the HTTP status, with the remedy on its own line
+- Fixed a test fixture key reaching a real credential store: a login write is refused when the config home is the operator's, and a stored key of the fixture's shape is named as a test key with the command to remove it
+- Fixed a Mercury window opened during the previous daemon's shutdown waiting thirty seconds and then refusing to start a chat: the new window starts its own daemon as soon as the old one has left
+- Changed a typed message and a background completion waiting together at the end of a turn: the message starts the next turn and the completion is read inside it
+- Fixed a confirmed failover losing its note when the model landed: the landing publishes the switched model, so the note and the strip's mark stay
+- Changed the model picker to open at once on the GPT rows it has and refresh the live list in the background, replacing changed rows in place with a one-line notice
+- Added messages between agents: a background sub-agent can message its main agent and the main agent can reach a sub-agent, each read at the receiver's next tool boundary or turn end, with a receipt when it is read
+- Fixed a Google account's Gemini chat refused with HTTP 401 while its model list worked: the chat uses Google's native generation call with tool calls and thought signatures preserved, a Gemini API key keeps the compatibility call, and a refusal carries Google's own reason
+- Changed the Gemini sign-in card to walk you through it: the API key first (the AI Studio key page opens, one paste), or a Google account as six numbered steps that each open their Console page; a refused sign-in returns to the step that answers it
+- Changed a Gemini busy refusal to be retried quietly for about a minute before the red error, with one calm line above a recovered answer and Escape ending a wait at once; other providers keep today's single retry, and "Retrying in 0 seconds" reads "Retrying now"
+- Fixed every side job of a GPT session (the chat's title, the away summary, the tool summaries, the web fetch summary and the rest) asking for a helper model OpenAI had retired: the helper comes from the account's live model list, or the session's own model when the list has none
+- Fixed the web fetch tool returning its summariser's error as the page summary: an error counts as a failed attempt and the session's own model is asked; a release-day check compares every typed model id with the live lists
+- Added a Mercury processes row to the doctor: it lists stale Mercury processes with their pid, terminal, age and reason and ends them only after showing the list and asking; nothing is ended at boot; mercury doctor processes with --end-stale does the same headless; on Windows the row reads processes through the system's management interface
+- Fixed a Moonshot sign-in's default model and picker rows coming from a typed table instead of the live model list, so a retired model became a refused chat: the default and the rows follow the fetched list, and a model the list lacks is refused before the call with the catalogue's own words; three retired GPT ids left the typed table
+- Added a Model lists row to the doctor that checks every typed model id against the live list its family served: a typed id the list lacks is a warning; Z.AI publishes no list and keeps its dated table, and the release-day check can probe its ids by one minimal completion each behind --probe-by-completion
+- Changed the DeepSeek and Moonshot model-list readers to say in one sentence when a body is not JSON or an endpoint could not be reached, with the cause's code
+- Fixed four things the Windows walk found: the capture config read as UTF-8, a read-only git config query cleared by the write block, the Gemini catalogue's unreachable state naming the source and the remedy, and the rail's context row read after the picker closes
+- Changed a stream cut the model continued from to paint one calm line, Continued after 1 stream cut, in place of the red error card; the red card stays only when the recovery fails; every cut writes its details to the debug log
+- Changed two lines typed in a row behind a finished background command to share one turn, with the command's notice read inside it; a shell line still ends the batch
+
+## 1.0.0-beta.15
+- Added one update command for every install channel: mercury update inside a Homebrew or npm install asks once and runs that channel's own upgrade with its output streamed, then re-reads the installed version; --yes skips the question; --check, --status, --rollback and the doctor say the same in every channel; an npm-made install is named for what it is
+- Added a once-per-release line to the boot screen's bottom-right corner, "vX.Y.Z available · mercury update", from the update notice's cached answer; the chat's expiring line stays
+- Fixed the shared daemon shutting down when the Mercury that started it closed, which cost every other open Mercury its runner: the daemon now passes to the oldest open Mercury still holding a session and stops only when the last one closes; a restart armed by a new build waits for every live session, including one opened after the arming
+- Fixed a refused send dropping the pasted text: the pastes come back with the words, so the next send carries them
+- Renamed /release-notes to /update-notes (the old name still answers for one release): the card shows the running release's section with the earlier releases one key away in the transcript pager, and a headless print carries every release
+- Fixed a long command result ending in a tall empty band, and the last character of a full-width line hiding under the pane's edge: the text is measured at whole cells and the gutter keeps its width, so a line that filled the old span wraps one column earlier at 120 columns and above
+- Removed Minerva, the notepad curator: its room and /tabula, the /minerva command, the ask line on the rail's notes card, the MINERVA tab of the prompts panel, the boot-menu row and the minerva sub-model container are gone; the notepad and /note stay as manual capture under a TABULA card, the prompts panel keeps its three tabs, and /submodels is the Console's picker; a configuration that still carries Minerva's settings is read without complaint
+- Added one notice into a session's own context when its provider's usage window is about to close: the provider, the window, the percent used, the reset and what to do before the stop; once per window, and never from a provider that states no usage
+- Fixed the context figure on the rail reading a provider's published window as a fact: it carries a mark until the account's live list answers, then shows the list's figure
+- Fixed the command palette, the file opener and the content search vanishing when opened in the first seconds of a session: the layout no longer remounts when the session's process connects
+- Fixed the words on a closed chat that never held a message: its stopped row says it is removed, not archived, and its receipt no longer promises a transcript; a queued row's state fits its cell at 120 columns
+- Added to the doctor's sandbox row on Linux whether unix sockets are blocked, from the sandbox's own facts: blocked with the helper, open without it, open when the setting allows all unix sockets
+- Added a card for a failed Workshop cell with its code, the whole error and the output tail, one keystroke from its row through /tasks and the cell's id
+- Added the Sleep tool to a background sub-agent's roster; its wait ends when the shells it launched settle, never on a bare timer
+- Fixed a receipt on the composer's hint row being cut off at ordinary widths: while a receipt or notice stands the hints step aside and it takes the whole row, so a default-provider change reads its model id whole at 80 columns
+- Changed the failover route's amber sentence to stand two minutes after the switch and after each change of state instead of the whole week; the strip's model segment carries a failover mark for as long as the session runs on the failover route, and /model is still the way home
+- Fixed the running turn's token figure counting the reply's characters instead of tokens: it reads the wire's output tokens for every provider once usage has arrived, thinking included, and shows its estimate mark until then
+- Fixed the Edit tool turning straight quotes into typographic ones inside code when the file already held some: the quote-style preservation applies to prose alone, and code lands byte for byte in every language
+- Fixed the rail not showing a new mission's card until something else repainted it
+- Fixed a new chat starting at high effort although the operator had saved another level: a chat born from the boot screen or the New Session strip takes the saved level, and the daemon's high stands only when nothing is saved
+- Fixed words typed after a mid-turn model or effort change running on the old model when the turn still had tool rounds ahead: they wait for the turn's end and run as the next turn on the switched model; a sub-agents or workflows switch made mid-turn lands at the turn's end too, with the record following the runner's word
+- Fixed a mission set in a chat's first seconds being lost: a mission armed while the chat is still landing follows the session at admission, so its card, its rail row and the runner's stop check see it
+- Fixed the rate-limit fixture seam (/mock-limits, armed builds only) arming the runner's latch instead of the screen's on a daemon-hosted chat, so the failover offer card's scenarios read the process the card derives from; the cap latch logs its observe, clear and read on the debug log
+- Fixed the first caret move after typing in a chat's first seconds being undone: a click or an arrow key placed before the session's process connects now holds, instead of the caret jumping back to the end of the text one render later
+
+## 1.0.0-beta.14
+- Removed the dead and stale provider beta headers from every request, and removed the context-management and cache-scope estates, the server-side refusal fallback opt-in with its advisor, and the experimental betas with task budgets and redact-thinking; a request on the default path is byte-equal to before but for the headers named
+- Fixed an empty reply on the OpenAI and Z.AI routes printing one note and re-sending every time: the note says why the reply carried no words (silence, the output cap, or an empty stream) and only the empty stream is sent again, once
+- Added the shell card for a hosted shell's row in Runs: the whole command, its directory, the elapsed time, the exit code and the last lines of output with a count of the lines shown; a long command is clipped so the output stays visible on a short window
+- Fixed Continue Last Session calling a session the daemon still holds runner-less: it re-attaches
+- Fixed the effort chip, and the model and permission-mode words on the strip, missing a change when the facts feed dropped the event: they catch it within a bounded window
+- Updated the DeepSeek rows to the pricing page, and DeepSeek's models now come from its live list with the dated rows standing in when the list is refused; the retired Flash id opens the Flash card
+- Fixed a pasted image arriving as text when the message answered an open question
+- Fixed the /config row for /seats needing a keystroke before it showed the capacity, and a rewind on a resumed session losing its chain
+- Fixed a session that finished elsewhere minting a note the next message answered: it mints none, and a finished session not yet opened wears its state glyph in amber on the board until it is opened
+- Fixed background commands that finished together starting one turn each: they start one turn
+- Fixed the enter screen's ready glyph painting as an emoji; the narrow board carries a park refusal's words; a notice of several rows stacks under the composer for its moment; the spinner's phase byline and the trace timing that never painted are gone
+- Fixed a dialog command's result of more than one line painting as one clipped line: it paints as rows on the chat; closing the only chat before its first message leaves two screens, not a third stop on a dead chat
+- Fixed a model or effort change made while a turn runs applying only after the messages waiting for the next turn: it lands at the turn boundary, before them
+- Fixed the Computer tool refusing every window of the terminal application: it refuses the window that holds the session and checks the window again before each act
+- Fixed an edit refusal claiming the lines it refused were read: it names which check failed and what to read next
+- Fixed a filename pattern with no separator walking the whole tree: it walks only as deep as it says; an over-cap read carries its next window on every path, and a notebook names a bounded cell slice
+- Fixed the sandbox dependency check on Linux creating a process at boot, and added the sandbox's unix-socket filter helper to the Linux archive so a Linux sandbox blocks unix sockets and /sandbox no longer warns
+
+## 1.0.0-beta.13
+- Removed the run governor that ended a turn for repeating a tool call with nothing written in between, and the repetition breaker that ended a turn on repeated identical results: a session is never stopped for repeating itself, and an empty provider reply is announced and the request sent again once
+- Fixed the live token counter reading near zero while a tool call's input streams: it counts the streamed input, and the wide layout's count keeps pace with the stream
+- Fixed an edit refused for lines the model had not read costing a read and a retry: the refusal carries those lines, numbered with their anchor, and a read past the window cap answers its first window with the offset to continue
+- Added a prune of superseded file results when the context reaches forty percent of the model's window, a setting, so a long session no longer carries dead results until it overflows
+- Fixed the lease verbs disagreeing on their argument's name: claim and release both take paths, read the older word as the same list, and a claim with neither is refused naming both
+- Fixed an empty shell command accepted as a background task: it is refused before it spawns
+- Fixed a background agent's background command recorded from defaults, missing from the tasks board and never reported back to the agent: the record carries its launch facts, the board lists it, and the agent is told when it finishes
+- Fixed a lookup's empty answer from grep, pgrep, cmp, diff or test reported as a failure: it is a result naming the exit code, and a real failure keeps its error
+- Fixed the JavaScript kernel's environment going unstated: the Eval tool says it is an ES module without require, where Node's crypto lives and how long an idle kernel is kept; a failed cell names the fact and the import; a declaration whose initializer threw is no longer reported as surviving, and a declaration after a block's closing brace persists
+- Fixed a script run from inside a Mercury session refusing the session's own environment stamp as foreign
+- Fixed a failed Workshop cell reporting the runtime's plumbing instead of its error: a syntax error carries the parser's diagnosis with line and column, a failed bridge call names the call and the cell line, and the transcript's error wrapper no longer rides inside the cell's message
+- Updated the eleven bundled skills, rewritten from current documentation at about half their length
+- Fixed the DeepSeek route sending the reasoning effort inside the thinking object where the API takes it at the top level
+- Fixed the summary line under a turn counting repeated reads of one file as files read: it counts reads
+- Fixed the Boot face's MCPs & Skills page calling the session empty while the bundled skills and the built-in server load: its empty states name what they list
+- Fixed --model and --effort on the command line losing to a resumed session's saved values, and /model forgetting its choice at the next boot: an explicit flag wins, the resume card names which won, and /model saves the choice as the default
+- Fixed a rejected credential retried ten times with growing waits: it is refreshed once, then the request settles as a sign-in blocker naming the account and the remedy
+- Fixed a run recording completed with deliverables still open: no run reports complete while requested deliverables stay open, and an older record that does reopens on resume
+`
+
+export const PRE_DOC_RELEASES = `## 1.0.0-beta.12
+- Fixed the Git tool refusing a session opened in a folder above its repository: it takes a folder, finds the repository above or directly below it, and names the folder when it refuses
+- Fixed stopping a background shell run that had already finished: the answer names when it completed, its exit code and its output file, and is not an error
+- Fixed a model switch overflowing the new model's context window: the switch card counts the conversation against the target's window and compacts it first, the summary is written by a model whose window holds the history, and the overflow notice carries Mercury's own count
+- Fixed the image limits on the OpenAI route: the pre-send check follows the provider's own rule per image and per request, and an image the provider refused leaves every later request, including after a resume
+- Fixed the notice for an agent stopped by a runner restart: it names the reason, after a crash, a settings change or a relaunch
+- Fixed the daemon spawning a throwaway warm runner at every boot: the first chat claims the runner that was warmed
+- Fixed a boot from a folder that no longer exists: one plain line instead of a crash screen and a crash notice on the next boot
+- Fixed the doctor writing the global config and a verify index on every run: a health check is read-only, and its daemon sign-in row no longer calls a catalogue timing gap a fault or asks for a daemon restart
+- Fixed a teammate that died at its first request being reported as running, a team lost when its lead restarted, and a workflow failure line that carried no cause
+- Fixed delegated agents refused on the OpenAI route after a usage window reset and a sign-in again: the session follows the current sign-in's window and model list, and a refusal names the window alone
+- Fixed the account board's family headers reading a slot ceiling as a count: they name the family alone
+- Added the Godot scene tree read over the engine debugger during a profile boot, plain answers for queries during a capture or profile boot, and a doctor warning for a retired Godot setting still set
+- Changed shutdown to write nothing to a terminal that is gone, and verified the release-channel check's timeout
+
+## 1.0.0-beta.11
+- Fixed a line sent while a sub-agent was running being taken by that sub-agent and shown twice in the chat: it now reaches the session's own model once, with the time it was sent
+- Removed the daemon's memory limit on session runners: a session is never parked or restarted for its memory use, and its sub-agents are never stopped by it
+
+## 1.0.0-beta.10
+- Fixed the GPT route's tool calls: empty optional fields dropped at the decode, curly quotes straightened where a command, a pattern, a symbol or a path never wants one, and an Edit refusal that names the lines already read
+- Added a bundled shell to the Windows archive: a box with no bash runs the shell tool through Mercury's own bash-compatible engine
+- Fixed delegated agents refused long after a usage window reset, and an expired sign-in reported as a used-up window
+- Fixed the first-run screen, the enter screen and the mascot painting wrong colours in Apple's Terminal and other 256-colour terminals
+
+## 1.0.0-beta.9
+- Fixed a woken session losing its preserved thinking: the history it sends is the one the live session sent, and the record of what was sent survives the wake
+- Fixed a new sign-in not reaching the engine behind an open chat, which kept refusing delegated agents with the old account's usage window
+- Fixed the cockpit losing the top of its rail after a long notice, and not following the window's size on Windows
+- Fixed a task notification redrawn under every new message until it aged out, and a boot that waited on a tool probe
+- Added a ledger of unread notices: an idle agent that missed a completion is nudged after three minutes, and its crew row shows the count
+- Added refactors through the language service: rename, move a declaration, and code actions by kind, each previewed as data before it is applied
+- Added Godot captures, frame statistics and settled profiles as engine jobs, a bridge per Godot instance, a runtime query surface, file leases without a team, a proof-drift check, and the engine's own profiler over the debugger protocol
+- Changed the catalog to withhold a tool whose machine dependency is absent, with a doctor row naming why
+- Changed the words a message sent mid-turn arrives with, and its row now carries the time it was sent
+- Added the box's state and the session's scratchpad to what the model is told
+
+## 1.0.0-beta.8
+- Changed sovereign mode to be the one bypass: the Boot Menu's Sovereign mode row skips every permission question, computer use included, and the computer-use ask card's fifth answer turns it on
+- Added the computer-use access type under it: asks, permissive or full, with asks as the default; with sovereign mode on the default is full, and a saved value wins either way; permissive lets the model work in the application in front when the turn began and asks once before any other
+- Fixed a line sent during a compaction standing under the composer for good when the session's runner was replaced before it took the line: the row is removed and a notice names the words to send again; a line the runner keeps is delivered once, in order, and its plate reads held while the compaction runs
+- Added the engine job service to the Godot tooling: Mercury runs headless Godot workers itself, in parallel, each on a frozen copy of the project, with a compile gate in seconds and results as data; \`mercury godot run|check|jobs|cancel|result\` for scripts
+- Changed the preserved-thinking notice: the chat no longer shows it; the doctor and health rows carry the count and the cause
+
+## 1.0.0-beta.7
+- Added Samples, off by default: ask the model to show you something and it opens a page in your browser; mark it up, and your marks come back into the chat; every version is kept; the Boot Menu's Samples row turns it on
+- Changed computer use to be on by default where the desktop driver is present; the ask offers one-hour and 24-hour grants and a sovereign mode that stops the asks; the Boot Menu turns it off
+- Changed the stream watchdog: the "may be stuck" notice waits five minutes, a silent Anthropic connection is redialled after two, OpenAI keeps fifteen, and waits of a minute or more are shown in minutes
+- Fixed the status row calling a stream stuck while the provider's heartbeats were still arriving
+- Fixed \`mercury update\` inside a Homebrew or npm install installing a second copy the shell never runs; it now names the command that updates that install, and the doctor says which \`mercury\` your shell runs
+- Fixed the composer's mouse: a click lands on the character under it, a drag selects the typed words and never the frame, and two clicks select everything
+- Fixed notices under the composer pushing it up; they now ride the hint line
+- Fixed frames at a large window costing about three times what they should: the renderer remembers the slices of clipped lines, with nothing on screen changed
+- Fixed a new chat on a busy machine booting its session runner twice
+
+## 1.0.0-beta.6
+- Added computer use behind \`MERCURY_COMPUTER_USE\`: the model takes screenshots and drives the mouse and keyboard on every provider route that carries images; the first act in each application asks by name, Esc stops it, one session drives at a time, and screenshots never enter the saved conversation
+- Added stop, pause and kill controls to the workflows views, from any session and after a compaction or a clear
+- Changed the cockpit on a small or resized terminal to a compact layout: the session's critter and facts in a band at the top, the chat takes the space, one line under the composer for the sessions and agents, the Session Concourse as a split view, and no minimum window size
+- Changed rarely used tools to load on demand; a first request carries a third less definition text, and on the OpenAI route a third of its former bytes
+- Changed the child-memory guard to be on by default and to park a session instead of killing it
+- Changed the model's guidance to batch independent reads
+- Fixed preserved reasoning being dropped after an idle hour, a large prune, a resume, a credential refresh, a reconnect, or a mid-conversation tool mount
+- Fixed the streamed reply hiding for a moment when its reasoning lands before its words
+- Fixed a finished agent's report arriving more than once
+- Fixed a shell command with an ampersand and a glob ending with exit 127
+- Fixed planning without an interactive approval channel trapping a headless run; it is refused instead
+- Fixed tool descriptions directing a sub-agent to a tool it does not have
+- Fixed the Edit tool refusing an edit from a model that sends every field, empty ones included
+- Fixed a spurious input-stream error shown while recording voice
+- Fixed the doctor's bug-report link
+- Removed internal checks that no longer applied
+
+## 1.0.0-beta.5
+- Removed an internal configuration table that no longer did anything; nothing you can see changes
+- Changed the sign-in list to open on the right row
+- Changed /model to list real models only, in the order OpenAI, Anthropic, OpenRouter, then the rest
+- Removed three environment variables that had no effect: MERCURY_IDLE_THRESHOLD_MINUTES, MERCURY_IDLE_TOKEN_THRESHOLD and MERCURY_AGENT_ID
+- Changed commands run from a session to see your own environment, not Mercury's internal stamps; the proof suites refuse to start under such stamps
+- Added append and section modes to the Edit tool, and Eval cells that keep their state and report every nested call when something fails
+- Added a write scope for sibling worktrees through --add-dir, a reviewer agent that works on a frozen copy of a commit, and a held state for a message sent during a compaction
+- Fixed a GPT reply cut off after a tool call breaking every later request of the session, and automatic compaction retrying a summary the provider had refused; the refusal is now reported once with the way out
+- Changed the line shown when sub-agents are still running to say how to stop one
+
+## 1.0.0-beta.4
+- Added an optional built-in shell engine (the /config row "Shell engine" set to brush, or MERCURY_SHELL_ENGINE=brush): one persistent shell for the conversation and one per sub-agent, the same shell on every platform, and Windows no longer needs Git for Windows
+- Added a "Shell engine sessions" setting that caps how many shell sessions stay alive (8 by default; MERCURY_SHELL_ENGINE_SESSIONS overrides it); an agent past the cap waits for a free one
+- Added on-device speech-to-text: /speak on, space to talk, space to stop, no API key and nothing leaving the machine, once the install carries the on-device pack and you have fetched its 60 MB English model with /speak download
+- Added /speak options to list the transcribers this install can use and save the one you pick
+- Added a "Patience with a quiet model" setting in /config (normal, patient, custom) that sets the wait on a silent model, the retry ceiling and the recovery budget together, with environment variables as overrides
+- Added a Motion setting (auto, full, reduced, off) in /config and the Boot Menu; auto slows the idle animations only while painting falls behind and says "reduced" in the status line
+- Added an effort field to the Agent tool, and sub-agent defaults (model, effort, how many at once) as /config rows
+- Added a browser fallback for /bug: when the GitHub CLI cannot file the report, the prefilled issue form opens in the browser
+- Changed /supercode to delegate to parallel agents only when that helps, with the agents' tokens and cost shown in the turn summary
+- Changed a sub-agent that hits a short provider throttle to wait it out and finish; only a limit hours away stops it, with its work kept and the parent told
+- Changed a sub-agent that hits a usage limit to pause and resume at the reset; its row says why and when
+- Changed the parent agent to hear from each sub-agent the moment it finishes or fails, and a wait on several agents to return at the first failure
+- Changed an agent stopped mid-stream to hand back its partial work, the files it touched and the reason, resumable; one stopped by the retry budget resumes by itself once
+- Changed the notice for a stream that ends with no error code and no message to name the provider, the stream's closing reason and what Mercury did next
+- Changed a shell-engine command that times out, ends the shell or is stopped by you to reset that session and tell the model; a message typed during a command waits until it ends
+- Changed a session to make no request of its own before your first turn; sign-in, the model requests and the update check are the only calls that leave the machine
+- Changed a provider's model list to load only when something on screen needs it, once per sign-in
+- Changed the usage meters to read only when shown or after a retry, never on a timer; a meter not shown for two minutes reads stale until it is shown again
+- Changed a permission ask on a session you are not looking at to wait with no time limit; a sub-agent's ask still expires after ten minutes
+- Changed finished background commands to collapse into one transcript line while the model is busy; a failed one keeps its title
+- Changed the sign-in list in the Logins screen, /logins and the first run to put OpenAI first
+- Changed voice input to prefer the on-device transcriber when its pack and model are present; a signed-in cloud transcriber serves otherwise, or when chosen with /speak options or MERCURY_VOICE_TRANSCRIBER
+- Changed an option Mercury does not know to be refused with exit code 2
+- Changed the stream-json feed to spell every key it defines in snake_case at every depth (feed contract 3); provider, tool, hook and permission-rule shapes keep their own spellings
+- Changed a settings file written for an older version to be rewritten in place the first time it is read, a project's checked-in file included; it shows as modified once
+- Changed the macOS keychain to one entry per config home; a sign-in stored by a much older build asks for one fresh sign-in
+- Changed the MCP connection memory to keep a server's fingerprint instead of its full configuration
+- Removed the "ultra" effort level; effort now ends at max
+- Removed the .mercury/commands folder from the project command search; move a command to .mercury/skills/<name>/SKILL.md
+- Updated the MCP client to the 2026-07-28 protocol revision; older servers still connect and the doctor names the revision in use
+- Fixed agents stopping with "provider throttled" after a quiet or dropped stream when nothing was refused; a retry now counts only the time waited, and the stop line says how to resume
+- Fixed a live but quiet model stream being cut after 90 seconds; keep-alive signals now count as signs of life
+- Fixed a sub-agent with no sign of life from the model and no tool running being left as running; it is now stopped with its reason
+- Fixed the crew row reading "no tokens yet" beside a growing context
+- Fixed the exit prompt counting agents that had already ended and disagreeing with the crew view
+- Fixed a "still running" notice lingering after a compaction for an agent that had finished, and a workflow being counted as a sub-agent
+- Fixed a compaction with an OpenAI model sending a shorter request than the session, which left most of the context uncached afterwards
+- Fixed a session with only an OpenAI sign-in being refused at its start
+- Fixed a message to a worker inside a running workflow starting a second copy of it, and a late result from an earlier run marking a resumed agent finished
+- Fixed a resumed agent losing one of its two completion notices when queued guidance restarted it
+- Fixed a named foreground agent never getting its name for SendMessage, and retired names lingering after eviction
+- Fixed an agent stopping without a reason after an interruption during a Stop hook or a workflow permission ask that timed out
+- Fixed a workflow child's capped report ending with a bare "[outcome truncated at cap]" instead of saying where the full text is
+- Fixed the /model picker dropping keys typed in its first second while a chat was still loading
+- Fixed the idle screen keeping a CPU core busy on a slow machine
+- Fixed the "back to the bottom" pill never appearing after PgUp or PgDn
+- Fixed a background file count started at boot outliving a Mercury that exits right away
+- Fixed on-device voice loading its speed-optimised pack on a CPU that cannot run it, which could end Mercury on the doctor's voice row or the first take
+- Fixed the first use of voice on Windows stalling while it checked the CPU
+- Fixed a file read from offset 0 numbering its lines from 0, which broke them as Edit targets
+- Fixed the fallback image reader labelling PNG bytes as JPEG when the image processor is absent
+- Fixed the Bash tool inserting a backslash before every ! once a command contained a single quote, which corrupted commit messages
+- Fixed the Transaction tool refusing agent, transcript and workbench evidence references when noting a step or resuming
+- Fixed a repeat install that changed nothing still telling you to open a new terminal
+- Fixed Godot validation of a script with a class_name reporting a duplicate global class
+- Fixed Workshop cells with statements and an await on one line failing with a syntax error, and braces inside strings returning the wrong value
+- Fixed a Workshop workspace failing to find TypeScript when node_modules is a link
+- Fixed the render_tui tool failing outside the source checkout; on a release install it now says there is no render script instead of failing
+- Known on Windows with the shell engine at this version: a .cmd shim such as npm fails (run cmd /c npm … or node on the script) and a program named by a relative path after a cd is not found (use its absolute path)
+
+## 1.0.0-beta.3
+- Added GPT-6 Astra as a first-class model: it appears once a connected OpenAI account serves it, effort reaches max, and each turn is priced at the published rate
+- Updated GPT-5.6 pricing to the current published rates, including the long-context tier
+- Added a sixth effort level, ultra, above max, wherever the account serves it; a level the provider refuses is remembered and the nearest served level runs, with a note in the transcript
+- Fixed a model switch on a stopped runner doing nothing; it now restarts the runner on the requested model, and an agent paused by a rate limit resumes when the window resets
+- Fixed /model, /effort, /status, the strip, the picker, /config and /accounts disagreeing about the model being served
+- Fixed the preserved-thinking notice appearing after a resume or restart even though the session kept its reasoning
+- Changed the notice for dropped older reasoning after a model switch or a context trim to one quiet line instead of a warning on every message
+- Fixed usage meters going stale without saying so; they now refresh themselves, show their age, and say when a read failed
+- Fixed the Anthropic usage panel getting stuck on "Failed to load … HTTP 429"; it now honours the server's retry wait and says how long to wait
+- Fixed a refused API key or token reading "Not logged in"; the error now names the setting to fix
+- Fixed removing or switching an account being announced more than once, and added c on the sign-in cards to copy the code
+- Added image paste in the composer on every platform (ctrl+v; alt+v on Windows) at any size; a large image is resized to the provider's limits and the composer says what it attached
+- Changed Esc to interrupt the chat's own turn only: sub-agents and workflows keep running and the transcript says how many; in the Crew view x x stops one agent and r resumes it
+- Added up arrow on an empty composer to take back a message sent while the turn was busy, before the model reads it; once read, the up arrow says so
+- Changed the text before a tool call to a one-line working note that the final answer never restates
+- Fixed deepthink and supercode glowing in a rainbow or mixed theme colours; they now glow in your critter's colour, in the composer and in the sent message
+- Fixed selected text not following the view while scrolling, and the highlight painting outside the chat pane
+- Fixed mouse drags repainting on every report, and made /mouse off stick across boots
+- Fixed a mis-bound shortcut flashing "Unknown command" for a line you never typed, and a split key sequence leaking characters into the input
+- Changed the chat's title bar to show the session's name instead of a ticking clock, and added how long your sub-agents have worked under the composer
+- Fixed /rename being refused in every session; it now renames the session everywhere it is shown
+- Added compaction progress in the chat (the stage, a bar, a clock); Esc cancels it cleanly, and a stalled or cancelled compaction keeps no half summary
+- Fixed Mercury re-spawning or forgetting agents, workflows and shells after a compaction
+- Fixed a false "rewrote sent history" warning when old tool results are trimmed to fit the window; it is now named as routine cleanup
+- Changed the seat ceiling to one number everywhere: /seats, the Boot Menu and /config set it, idle agents no longer hold a seat, and the reading counts available memory
+- Fixed a waiting agent's row not saying what it waits for, and a throttled agent's retries each spending their own budget
+- Fixed sub-agents ending without saying how; they now report the real cause and what they wrote once, and a timeout is never blamed on you
+- Fixed a background agent's completion arriving late in the chat; it now shows the moment it arrives, marked queued until the model reads it
+- Fixed the workflow panel, the board, the crew view and the chip disagreeing about what is running, and reading "idle" right after a start instead of "not reported yet"
+- Added "waiting for your answer" in the crew view and the tasks list for a sub-agent waiting on your permission
+- Fixed a blocked team task not reading blocked on every screen, and creating a team hiding earlier tasks
+- Fixed the Concourse close chord's hint going stale; it now does exactly what it says (stop, then archive, then delete), and a parked session reopens on one Enter
+- Fixed a silent workflow stream waiting on the provider's guard instead of being cut at the stall budget
+- Changed Sovereign mode to ask nothing: sensitive-file edits, ask rules and a server's ask ceiling run without a card, and the transcript says what would have asked
+- Fixed the mode band showing a mode the runner did not hold; it now paints the real mode from the first frame, and a refused mode change reaches the screen with its reason
+- Fixed a consent answer switching Apollo mode off; it now ends only through the review's approval or shift+tab, and writes outside the spec directory are refused
+- Fixed Flow's safety check denying an action when it could not read its own verdict; it now keeps the evidence and says so
+- Changed a Flow block in a session you are not looking at to wait for your answer there instead of being denied on the spot; a sub-agent's ask waits the same way
+- Fixed a hook's deny decision leaving no audit row in the transcript
+- Fixed consent cards overflowing the screen; a long edit or command is cut with a "+N more lines" line and ctrl+f shows the whole thing
+- Fixed web search failing on a throttled request; it now cools down, answers a repeated query from the cache, and names what refused in one line
+- Added Godot runtime pause, step and resume to drive a game frame by frame, and fixed the editor not being found where it lives and action presses not reaching the game's callbacks
+- Fixed Unity test results landing where the editor could not write them; a bridged test run is no longer refused
+- Fixed the interrupt not ending a running Bash command, and a request accepted with nothing arriving hanging instead of being named and ended
+- Added /bug to show the exact report and file it through your own signed-in GitHub CLI, with every provider's key shape and GitHub tokens masked; /feedback opens the three-form chooser
+- Added the Intel Mac build (macos-x64) to the release; mercury update names it on an Intel Mac
+- Added release signing: archives are signed and verified before they publish, an unsigned build is announced once per install, and the archive carries the licence documents
+- Changed mercury update to read the release channel anonymously, so no GitHub CLI or sign-in is needed; an update whose signature does not verify is refused
+- Changed mercury install to put the command on your PATH once, and to say so when the version is already in place
+- Fixed the doctor judging a headless run as a broken boot and reading the boot's rungs out of order
+- Fixed a git init offer for the home directory, a drive root or a huge folder without a project marker; the doctor now names a home-directory repository and how to remove it
+- Changed the project's .mercury folder to hold shared config only; machine-local files live in your Mercury home, and the doctor names any leftovers
+- Fixed git and process spawns in the idle loop and at boot, and the daemon polling its own files instead of watching them
+- Fixed a piped doctor --json printing more than one record or exiting before the reader drained
+- Fixed a headless stream-json run not opening with its init line
+- Fixed a fresh /logins not reaching hosted sessions until the daemon restarted
+- Changed the companion's tips so every one is true today and teaches one thing
+
+## 1.0.0-beta.2
+- The first published build of the public line; 1.0.0-beta.1 was tagged and never published
+- The repository is github.com/Whq02/MercuryCLI; the app's update channel and the release bridge read it
+- The daemon runs the model a dispatch names under either field spelling; an unknown id refuses, never the default in silence
+- A permission ask that expires or is withdrawn always settles its needs-you row, even when the row was still being written
+- Background start-up probes never hold the process open at exit
+- On the Concourse board, Enter on an example prompt fills the composer and never sends it; the next Enter sends
+- The close chord is a ladder: stop, then archive, then delete; the --chat face always shows the shift-arrow key row
+- The split view's size floor is the viewport's (80 columns by 22 rows)
+- The status row keeps a wait's budget word on a narrow terminal; a cold model switch names its first-byte budget
+- Twelve Bash tool fixes: the sandbox allows its own temp dir, pipes keep the special parameters, here-strings read, the timeout note reaches the model, an unavailable sandbox is refused and named
+
+## 1.0.0-beta.1
+- The first build published from this repository; README.md says what is inside
+- Release notes ship inside the build: this bundled changelog is the only source
+- The scribe and router party modes are retired; the concourse is the multi-agent path
+- Release archives carry their own Node runtime; a release install needs git only
+- A direct node dist/mercury.mjs start paints the launch splash before the Boot face, as the launcher does; the build ships the splash beside the bundle
+- Voice input: /speak on, then space in an empty composer dictates into it through the OpenAI or Gemini API key you signed in with; audio leaves only after you stop, and Mercury never speaks aloud
+- True Black is the default appearance: the same palette on a pure-black ground, on the launch splash and in the terminal; the oasis dark ground stays one row away in the first-run walk and /appearance, and a saved choice always wins
+- Two per-session switches in the boot menu's Agents section, Sub-agents and Workflows: off removes the Agent or Workflow tool from that session's roster and every spawn road answers one receipt; /subagents on|off and /workflows on|off flip a running session at its next turn boundary, and the doctor names both switches with their source
+`
+
+type DocDelta = { replace?: readonly [string, string]; first?: string; insert?: readonly [number, string]; last?: readonly string[] }
+
+export const DOC_RELEASE_DELTAS: Readonly<Record<string, DocDelta>> = {
+  '1.0.0-beta.17': { replace: ['"⇧→ concourse', '"shift+→ concourse'] },
+  '1.0.0-beta.19': {
+    last: [
+      'Changed token counts to one number everywhere. Rows add up',
+      'Changed resumed sessions to send the same prompt as the first time',
+      'Changed the workflow stall clock to count a live stream as alive, and stalled attempts to resume in place',
+      'Changed Workshop and Eval cells to get a failed command back as a value instead of stopping',
+      'Changed the update notice to only offer newer versions',
+    ],
+  },
+  '1.0.0-beta.21': {
+    first: 'Added /jevor on, which runs Jev through the existing OpenRouter sign-in with its own stated-cost meter and cap; /jev on keeps the official TypeSafe service, and signing in never switches JEV on',
+    replace: ['Changed every wait with a ceiling (TaskOutput, Monitor, Sleep, Service)', 'Changed every wait with a ceiling (TaskOutput, Monitor, Sleep, Service, Workshop)'],
+  },
+  '1.0.0-beta.28': { replace: ['showing a\\b\\c where', 'showing a\bc where'] },
+  '1.0.0-beta.42': { insert: [8, 'Changed repeated tool failures: the second identical failing call gets a reminder with the error text; crewmates and headless runs stop after the third with the repeated call and its error, while foreground sessions continue'] },
+}
