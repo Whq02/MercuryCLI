@@ -137,13 +137,23 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
     }
   }
   if (!daemonHomeStands('the session records', dir)) return
-  publishInDaemonHome(
-    'the session records',
-    concourseWorkersPath(dir),
-    `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`,
-    { dir },
-  )
+  const path = concourseWorkersPath(dir)
+  const text = `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`
+  if (publishInDaemonHome('the session records', path, text, { dir }) === 'published') sessionRecordsLastPublished.set(path, text)
   stampConcourseDelta(dir)
+}
+
+const sessionRecordsLastPublished = new Map<string, string>()
+
+function liveSessionRecordsLastPublished(path: string): Record<string, ConcourseWorkerRecordV1> {
+  const text = sessionRecordsLastPublished.get(path)
+  if (text === undefined) return {}
+  const { workerPidAlive } = require('../workerIdentity.js') as typeof import('../workerIdentity.js')
+  const live: Record<string, ConcourseWorkerRecordV1> = {}
+  for (const [runnerId, rec] of Object.entries((JSON.parse(text) as ConcourseWorkerFileV1).workers)) {
+    if (rec.endedAt === undefined && (rec.attachedAt !== undefined || workerPidAlive(rec))) live[runnerId] = rec
+  }
+  return live
 }
 
 let sessionRecordsInFlight: { path: string; workers: Record<string, ConcourseWorkerRecordV1> } | null = null
@@ -165,7 +175,7 @@ export function unreadSessionRecordsRefusal(dir?: string): Error | null {
   return fresh.kind === 'unavailable' ? sessionRecordsRefusal(path, fresh.why) : null
 }
 
-function keepUnusedSessionRecordsAside(path: string, why: string): void {
+function keepUnusedSessionRecordsAside(path: string, why: string): Record<string, ConcourseWorkerRecordV1> {
   const { keepDamagedFileAsideSync } = require('../../substrate/storeRecovery.js') as typeof import('../../substrate/storeRecovery.js')
   let aside: string
   try {
@@ -174,7 +184,14 @@ function keepUnusedSessionRecordsAside(path: string, why: string): void {
     const code = (error as NodeJS.ErrnoException).code ?? (error instanceof Error ? error.message : String(error))
     throw new Error(`the session records at ${path} were not updated: the file could not be used (${why}) and could not be kept aside (${code}); nothing was written`)
   }
-  console.error(`[daemon] ${path}: the session records could not be used (${why}); they are kept aside at ${aside} with every session's record, and a new file is written`)
+  const live = liveSessionRecordsLastPublished(path)
+  const held = Object.keys(live)
+  console.error(
+    held.length === 0
+      ? `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts with no session, none being live in memory; what the file held is in the kept file only`
+      : `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts from the ${held.length} live session(s) held in memory (${held.join(', ')}); what the file held of any other session is in the kept file only`,
+  )
+  return live
 }
 
 function noteSessionRecordsRead(path: string): void {
@@ -196,9 +213,8 @@ export function updateConcourseWorkers(
   const workers = withDaemonStoreLock('the session records', path, dir, ({ assertStillHeld }) => {
     const fresh = readMutableSessionWorkersFromDisk(path)
     if (fresh.kind === 'unavailable') throw sessionRecordsRefusal(path, fresh.why)
-    if (fresh.kind === 'unusable') keepUnusedSessionRecordsAside(path, fresh.why)
+    const next = fresh.kind === 'known' ? fresh.workers : fresh.kind === 'unusable' ? keepUnusedSessionRecordsAside(path, fresh.why) : {}
     noteSessionRecordsRead(path)
-    const next = fresh.kind === 'known' ? fresh.workers : {}
     const outer = sessionRecordsInFlight
     sessionRecordsInFlight = { path, workers: next }
     try {
