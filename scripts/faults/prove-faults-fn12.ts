@@ -240,6 +240,62 @@ async function run(): Promise<void> {
       check('bankManifest-subdir-eacces: unreadable subdir inside bank reports bank cannot be read instead of missing file', Boolean(subRes.reason?.startsWith('the bank cannot be read:')), JSON.stringify(subRes))
     }
   }
+
+  {
+    const { bankFiles, bankFolder, bankModelPath, bankState, sealBank, verifyBank, writeBankRegistry } = await import('../../src/services/host/bank.ts')
+    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const safetensorsRecipe = { ...HOST_RECIPES[0]!, id: 'fn12-st', model: 'fn12/st-model', weightFile: undefined, weightManifest: undefined, include: undefined }
+    const stDir = join(scratch, 'bank-st-corrupt')
+    mkdirSync(stDir, { recursive: true })
+    writeFileSync(join(stDir, 'model.safetensors.index.json'), '{ torn json')
+    let stErr: unknown = null
+    try { bankFiles(safetensorsRecipe, stDir) } catch (error) { stErr = error }
+    check('bank-safetensors-index-corrupt: corrupt model.safetensors.index.json throws instead of omitting shards', stErr instanceof SyntaxError, String(stErr))
+
+    const stAbsent = bankFiles(safetensorsRecipe, join(scratch, 'bank-st-absent'))
+    check('bank-safetensors-index-absent: absent index falls back to config and index names', stAbsent.files.length === 2, JSON.stringify(stAbsent.files))
+
+    if (!POSIX_MODES) skip('bank-eacces', 'needs non-root POSIX')
+    else {
+      const parentLocked = join(scratch, 'bank-dir-locked-parent')
+      const remembered = join(parentLocked, 'mybank')
+      mkdirSync(remembered, { recursive: true })
+      writeBankRegistry({ folder: remembered, models: {} })
+      chmodSync(parentLocked, 0o000)
+      let dirErr: NodeJS.ErrnoException | null = null
+      try { bankFolder() } catch (error) { dirErr = error as NodeJS.ErrnoException } finally { chmodSync(parentLocked, 0o700) }
+      check('bank-isDirectory-eacces: unsearchable remembered bank throws EACCES instead of being ignored', dirErr?.code === 'EACCES', String(dirErr))
+
+      const noListBank = join(scratch, 'bank-nolist')
+      mkdirSync(noListBank, { recursive: true })
+      chmodSync(noListBank, 0o111)
+      let readdirErr: NodeJS.ErrnoException | null = null
+      try { bankModelPath(noListBank, safetensorsRecipe) } catch (error) { readdirErr = error as NodeJS.ErrnoException } finally { chmodSync(noListBank, 0o700) }
+      check('bank-readdir-eacces: unreadable bank folder throws EACCES instead of returning canonical path', readdirErr?.code === 'EACCES', String(readdirErr))
+
+      const fileBank = join(scratch, 'bank-filesize')
+      const ggufRecipe = { ...HOST_RECIPES[0]!, id: 'fn12-gguf', model: 'fn12/gguf-model', weightFile: 'sub/weights.gguf', weightManifest: undefined, include: undefined }
+      const modelDir = join(fileBank, 'fn12--gguf-model')
+      const subDir = join(modelDir, 'sub')
+      mkdirSync(subDir, { recursive: true })
+      writeFileSync(join(subDir, 'weights.gguf'), 'data')
+      writeFileSync(join(modelDir, 'SHA256SUMS'), 'a'.repeat(64) + '  sub/weights.gguf\n')
+      chmodSync(subDir, 0o000)
+      let stateErr: NodeJS.ErrnoException | null = null
+      try { bankState(ggufRecipe, fileBank) } catch (error) { stateErr = error as NodeJS.ErrnoException }
+      let verifyErr: NodeJS.ErrnoException | null = null
+      try { await verifyBank(ggufRecipe, fileBank, new AbortController().signal) } catch (error) { verifyErr = error as NodeJS.ErrnoException }
+      finally { chmodSync(subDir, 0o700) }
+      check('bank-fileSize-eacces: unsearchable weight subdir throws EACCES in bankState and verifyBank instead of missing', stateErr?.code === 'EACCES' && verifyErr?.code === 'EACCES', JSON.stringify({ state: stateErr?.code ?? stateErr?.message, verify: verifyErr?.code ?? verifyErr?.message }))
+
+      const sumsPath = join(modelDir, 'SHA256SUMS')
+      chmodSync(sumsPath, 0o000)
+      let sealErr: NodeJS.ErrnoException | null = null
+      try { await sealBank(ggufRecipe, fileBank, new AbortController().signal) } catch (error) { sealErr = error as NodeJS.ErrnoException }
+      finally { chmodSync(sumsPath, 0o644) }
+      check('bank-seal-sums-eacces: unreadable SHA256SUMS throws EACCES in sealBank instead of clearing prior entries', sealErr?.code === 'EACCES', String(sealErr))
+    }
+  }
 }
 
 try {
