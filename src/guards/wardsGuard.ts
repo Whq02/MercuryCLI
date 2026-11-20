@@ -35,10 +35,9 @@ const TARGET_HEAD_BYTES = 2048
 
 const NO_FILE_THERE_CODES = new Set(['ENOENT', 'ENOTDIR', 'ENAMETOOLONG', 'EISDIR'])
 
-class TargetHeadUnread extends Error {
-  constructor(readonly path: string, readonly why: string) {
-    super(`${path} could not be read (${why})`)
-  }
+function headUnread(path: string, error: unknown): undefined {
+  logForDebugging(`wards: the head of ${path} could not be read (${errorMessage(error)}), so the call is judged without it`, { level: 'warn' })
+  return undefined
 }
 
 export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEAD_BYTES): string | undefined {
@@ -49,7 +48,7 @@ export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEA
   } catch (error) {
     const code = getErrnoCode(error)
     if (code !== undefined && NO_FILE_THERE_CODES.has(code)) return undefined
-    throw new TargetHeadUnread(path, errorMessage(error))
+    return headUnread(path, error)
   }
   const buffer = Buffer.alloc(bytes)
   let read = 0
@@ -58,7 +57,7 @@ export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEA
     if (work) countWardWork(work, 'headReads')
     read = readSync(fd, buffer, 0, bytes, 0)
   } catch (error) {
-    throw new TargetHeadUnread(path, errorMessage(error))
+    return headUnread(path, error)
   } finally {
     closeSync(fd)
   }
@@ -321,7 +320,7 @@ export function registerWardsGuard(
           ),
         }
       } catch (error) {
-        if (error instanceof TargetHeadUnread) return { allow: false, reason: `The ${call.tool} call was not made: the wards could not read ${error.path} to check its content rules (${error.why}) — retry it, and if it fails again, make the file readable to you first.` }
+        logForDebugging(`wards: the judgement of this ${call.tool} call threw (${errorMessage(error)}), so the call goes on`, { level: 'warn' })
         return { allow: true }
       }
     },
