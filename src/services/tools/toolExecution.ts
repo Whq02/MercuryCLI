@@ -12,9 +12,9 @@ import { completionIdentity } from '../agentResults/summaryRoom.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
 import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
-import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
+import type { PermissionAllowDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
-import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
+import type { ContentBlockParam, ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -194,7 +194,7 @@ function errorResultUpdate(args: {
   content: string
   toolUseResult: unknown
   sourceToolAssistantUUID: AssistantMessage['uuid']
-  extraBlocks?: unknown[]
+  extraBlocks?: ContentBlockParam[]
   imagePasteIds?: number[]
 }): MessageUpdateLazy {
   const block: ToolResultBlockParam = {
@@ -205,9 +205,9 @@ function errorResultUpdate(args: {
   }
   return {
     message: createUserMessage({
-      content: [block, ...((args.extraBlocks as never[]) ?? [])] as never,
+      content: [block, ...(args.extraBlocks ?? [])],
       toolUseResult: args.toolUseResult,
-      sourceToolAssistantUUID: args.sourceToolAssistantUUID as never,
+      sourceToolAssistantUUID: args.sourceToolAssistantUUID,
       ...(args.imagePasteIds !== undefined ? { imagePasteIds: args.imagePasteIds } : {}),
     }),
   }
@@ -224,9 +224,9 @@ function interruptResultUpdate(
   }
   return {
     message: createUserMessage({
-      content: [block] as never,
+      content: [block],
       toolUseResult: text,
-      sourceToolAssistantUUID: sourceToolAssistantUUID as never,
+      sourceToolAssistantUUID,
     }),
   }
 }
@@ -467,11 +467,11 @@ async function runTransactionBody(args: {
   const sourceUUID = assistantMessage.uuid
 
   let traceEmitted = false
-  const traceOnce = (opts: { killed?: boolean; durationMs?: number; ok?: boolean }): void => {
+  const traceOnce = (opts: { killed?: boolean; durationMs?: number; ok?: boolean; outputMismatch?: boolean }): void => {
     if (traceEmitted) return
     traceEmitted = true
     try {
-      emitInvocationTrace(tool as never, opts as never)
+      emitInvocationTrace(tool, opts)
     } catch {
     }
   }
@@ -506,7 +506,7 @@ async function runTransactionBody(args: {
   let parsedInput = parsed.data as AnyObject
 
   if (tool.validateInput) {
-    const verdict = await tool.validateInput(parsedInput as never, toolUseContext)
+    const verdict = await tool.validateInput(parsedInput, toolUseContext)
     if (verdict && verdict.result === false) {
       traceOnce({ ok: false })
       try {
@@ -545,7 +545,7 @@ async function runTransactionBody(args: {
   if (tool.backfillObservableInput) {
     const clone = { ...parsedInput }
     try {
-      tool.backfillObservableInput(clone as never)
+      tool.backfillObservableInput(clone)
       observableInput = clone
       if (typeof clone.file_path === 'string' && clone.file_path !== parsedInput.file_path) {
         backfilledPath = clone.file_path
@@ -680,7 +680,7 @@ async function runTransactionBody(args: {
     const cannotPrompt =
       (toolUseContext.options.isNonInteractiveSession === true && getSessionKind() !== 'oculus') ||
       toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts === true
-    const asksTheOperator = tool.requiresUserInteraction?.(input as never) === true
+    const asksTheOperator = tool.requiresUserInteraction?.(input) === true
     const headlessAskNote =
       decision.behavior === 'ask' && cannotPrompt
         ? asksTheOperator
@@ -730,7 +730,7 @@ async function runTransactionBody(args: {
   await runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool, toolUseContext, push, signal, sourceUUID, traceOnce, settleHookWait, announceHooks, decision, callInput, observableInput, decidedRows, allowanceRow, hookNotes, stopReason })
 }
 
-type TraceOnce = (opts: { killed?: boolean; durationMs?: number; ok?: boolean }) => void
+type TraceOnce = (opts: { killed?: boolean; durationMs?: number; ok?: boolean; outputMismatch?: boolean }) => void
 
 function refuseKilledTool(tool: Tool, toolUseContext: ToolUseContext, input: AnyObject, traceOnce: TraceOnce, push: (update: MessageUpdateLazy) => void, toolUseID: string, sourceUUID: AssistantMessage['uuid']): void {
   const reason = toolKillReason(tool, toolUseContext.agentType)
@@ -781,7 +781,7 @@ interface ToolCallNeeds {
   traceOnce: TraceOnce
   settleHookWait: () => void
   announceHooks: (event: 'tool.before' | 'tool.after') => HookAnnounce
-  decision: PermissionDecision
+  decision: PermissionAllowDecision
   callInput: AnyObject
   observableInput: AnyObject
   decidedRows: { message: ReturnType<typeof createAttachmentMessage> }[]
@@ -815,15 +815,15 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
       ...toolUseContext,
       toolUseId: toolUseID,
       roundHandle: args.roundHandle,
-      userModifiedInput: (decision as { userModified?: boolean }).userModified,
+      userModifiedInput: decision.userModified,
     }
     let callAbandoned = false
     result = await settleUnderAbort(
       Promise.resolve(
         tool.call(
-          callInput as never,
+          callInput,
           contextForCall,
-          canUseTool as never,
+          canUseTool,
           assistantMessage,
           progress => {
             if (callAbandoned) return
@@ -831,7 +831,7 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
               message: createProgressMessage({
                 toolUseID: progress.toolUseID,
                 parentToolUseID: toolUseID,
-                data: progress.data as never,
+                data: progress.data,
               }),
             })
           },
@@ -856,7 +856,7 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
         message: createAttachmentMessage({
           type: 'structured_output',
           data: structuredOutput,
-        } as never),
+        }),
       })
     }
     success = effect?.outcome === 'failed' ? false : true
@@ -864,11 +864,11 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
     if (outputMismatch !== undefined) logForDebugging(`tool output mismatch for ${tool.name}: ${outputMismatch}`)
 
     let mappedBlock = tool.mapToolResultToToolResultBlockParam(
-      result.data as never,
+      result.data,
       toolUseID,
     )
     try {
-      await clampToolResultImageBlocks(mappedBlock as never)
+      await clampToolResultImageBlocks(mappedBlock)
     } catch (error) {
       logError(error)
     }
@@ -879,8 +879,8 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
     const isSubagent =
       toolUseContext.agentId !== undefined && toolUseContext.preserveToolResults !== true
 
-    const acceptFeedback = (decision as { acceptFeedback?: string }).acceptFeedback
-    const allowBlocks = (decision as { contentBlocks?: unknown[] }).contentBlocks ?? []
+    const acceptFeedback = decision.acceptFeedback
+    const allowBlocks = decision.contentBlocks ?? []
 
     const postStartedAt = Date.now()
     const returnedError = effect?.outcome === 'failed' || mappedBlock.is_error === true
@@ -987,10 +987,10 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
             is_error: true,
             tool_use_id: toolUseID,
           },
-        ] as never,
+        ],
         toolUseResult: `Error: ${message}`,
         ...(isSubagent || mcpMeta === undefined ? {} : { mcpMeta }),
-        sourceToolAssistantUUID: sourceUUID as never,
+        sourceToolAssistantUUID: sourceUUID,
       }),
       ...(shellRun === null ? {} : { shellRun }),
     })
@@ -1061,7 +1061,7 @@ interface ResultUpdateNeeds {
   toolUseID: string
   toolUseContext: ToolUseContext
   acceptFeedback: string | undefined
-  allowBlocks: unknown[]
+  allowBlocks: ContentBlockParam[]
   isSubagent: boolean
   result: ToolResult<unknown> | undefined
   sourceUUID: AssistantMessage['uuid']
@@ -1080,7 +1080,7 @@ async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assis
     const landed = (processed as { content?: unknown }).content
     room.settle(toolUseID, tokensOfResultText(typeof landed === 'string' ? landed : JSON.stringify(landed ?? '')))
   }
-  const blocks: unknown[] = [processed]
+  const blocks: ContentBlockParam[] = [processed]
   if (acceptFeedback) blocks.push({ type: 'text', text: acceptFeedback })
   blocks.push(...allowBlocks)
   const imageCount = allowBlocks.filter(isImageBlock).length
@@ -1088,12 +1088,12 @@ async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assis
     imageCount > 0 ? nextImagePasteIds(toolUseContext.messages, imageCount) : undefined
   return {
     message: createUserMessage({
-      content: blocks as never,
+      content: blocks,
       ...(isSubagent ? tool.name === AGENT_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
       ...(isSubagent || result!.mcpMeta === undefined
         ? {}
         : { mcpMeta: result!.mcpMeta }),
-      sourceToolAssistantUUID: sourceUUID as never,
+      sourceToolAssistantUUID: sourceUUID,
       ...(imagePasteIds !== undefined ? { imagePasteIds } : {}),
     }),
     ...(result!.contextModifier !== undefined

@@ -185,7 +185,7 @@ export class StructuredIO {
   write(message: OutboundLine): Promise<Row | null> {
     return new Promise((resolve, reject) => {
       if (this.stdoutPipeBroken || !isRowLine(message)) return resolve(null)
-      const line: Row = this.rows.stamp(message as never)
+      const line: Row = this.rows.stamp<Row>(message)
       process.stdout.write(`${ndjsonSafeStringify(line)}\n`, error => {
         if (error) {
           if (isBrokenPipeError(error)) {

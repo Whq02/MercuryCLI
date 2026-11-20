@@ -145,6 +145,10 @@ export function isSupportedSourceFile(fileName: string): boolean {
   return path.extname(fileName).toLowerCase() in EXT_TO_KIND
 }
 
+interface SourceFileWithParseDiagnostics extends TS.SourceFile {
+  parseDiagnostics?: TS.Diagnostic[]
+}
+
 export interface ParsedSource {
   sourceFile: TS.SourceFile
   parseErrors: string[]
@@ -159,7 +163,7 @@ export function parseSource(ts: TsModule, fileName: string, text: string): Parse
      true,
     kind,
   )
-  const rawDiags = (sourceFile as unknown as { parseDiagnostics?: TS.Diagnostic[] })
+  const rawDiags = (sourceFile as SourceFileWithParseDiagnostics)
     .parseDiagnostics
   const parseErrors = (rawDiags ?? [])
     .filter(d => d.category === ts.DiagnosticCategory.Error)

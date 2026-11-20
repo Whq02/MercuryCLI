@@ -201,7 +201,7 @@ export const AskUserQuestionTool = buildTool({
   name: ASK_USER_QUESTION_TOOL_NAME,
   inputSchema: inputSchemaObject,
   get inputJSONSchema() {
-    return zodToJsonSchema(modelInputSchemaObject) as never
+    return zodToJsonSchema(modelInputSchemaObject)
   },
   outputSchema: outputSchemaObject,
   maxResultSizeChars: RESULT_SIZE_CAP,

@@ -43,7 +43,7 @@ function canonicalize(value: unknown): unknown {
 
 export function materializationDigest(fold: TranscriptFoldState): string {
   return createHash('sha256')
-    .update(JSON.stringify(canonicalize(fold as unknown as Record<string, unknown>)))
+    .update(JSON.stringify(canonicalize(fold)))
     .digest('hex')
 }
 
