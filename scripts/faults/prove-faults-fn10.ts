@@ -315,6 +315,49 @@ try {
       JSON.stringify(out),
     )
   }
+
+  console.log('10. src/services/dap/dapClient.ts (invalid MERCURY_DAP_ADAPTERS on Debug launch)')
+  {
+    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+    const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+    const owner = processMainOwner()
+    const program = join(SCRATCH, 'dummy.py')
+    writeFileSync(program, 'x = 1\n')
+    const prevEnv = process.env.MERCURY_DAP_ADAPTERS
+    process.env.MERCURY_DAP_ADAPTERS = '{broken'
+    try {
+      const ctx = {
+        owner,
+        abortController: new AbortController(),
+        getAppState: () => ({ toolPermissionContext: {} }),
+      }
+      const namedLaunch = await (DebugTool as { call: Function }).call(
+        { op: 'launch', adapter: 'custom', program, cwd: SCRATCH, session: 'bad-env-named' },
+        ctx,
+      ) as { data: { result: string; outcome: string } }
+      check(
+        'dapClient.createDapSession refuses Debug launch with invalid MERCURY_DAP_ADAPTERS JSON sentence',
+        namedLaunch.data.outcome === 'failed' &&
+          namedLaunch.data.result.includes('MERCURY_DAP_ADAPTERS is not valid JSON (') &&
+          namedLaunch.data.result.includes('so the adapters it names are not used — fix or unset it'),
+        JSON.stringify(namedLaunch.data),
+      )
+      const extLaunch = await (DebugTool as { call: Function }).call(
+        { op: 'launch', program, cwd: SCRATCH, session: 'bad-env-ext' },
+        ctx,
+      ) as { data: { result: string; outcome: string } }
+      check(
+        'dapClient.createDapSession refuses extension-inferred Debug launch instead of silently picking a builtin',
+        extLaunch.data.outcome === 'failed' &&
+          extLaunch.data.result.includes('MERCURY_DAP_ADAPTERS is not valid JSON (') &&
+          extLaunch.data.result.includes('so the adapters it names are not used — fix or unset it'),
+        JSON.stringify(extLaunch.data),
+      )
+    } finally {
+      if (prevEnv === undefined) delete process.env.MERCURY_DAP_ADAPTERS
+      else process.env.MERCURY_DAP_ADAPTERS = prevEnv
+    }
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
