@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { projectDisplayName, type BootProjectFact } from '../../utils/bootCardFacts.js'
@@ -28,7 +29,7 @@ export function GroundPicker({
   useRegisterOverlay('concourse-ground')
   const { columns } = useTerminalSize()
   const [known, setKnown] = useState<BootProjectFact[] | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     void import('../../utils/bootCardFacts.js')
       .then(m => {

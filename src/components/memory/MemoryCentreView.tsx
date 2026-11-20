@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useDerivedState, useLayoutDerivedState, useLayoutPublish, usePublish } from '../../hooks/effects.js'
 import { useInput } from '../../ink.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -285,7 +286,7 @@ export function MemoryCentreView({
     rowId: r => r.id,
   })
   const listLength = fl.list.length
-  React.useLayoutEffect(() => {
+  useLayoutDerivedState(() => {
     setOverflow(listLength > listRoom)
   }, [listLength, listRoom])
 
@@ -293,7 +294,7 @@ export function MemoryCentreView({
   reloadRef.current = fl.reload
   const setNoteRef = React.useRef(fl.setNote)
   setNoteRef.current = fl.setNote
-  React.useEffect(() => {
+  useDerivedState(() => {
     setNoteRef.current(null)
     if (view === 'overview' && cameFromRef.current !== null) {
       const at = cameFromRef.current
@@ -330,7 +331,7 @@ export function MemoryCentreView({
   const openLines = page ? page.lines : detail ? detailLines : []
   const pageWin = pageWindow(openLines.length, pageOffset, pageRows)
   const openedPage = React.useRef<{ page: Page | null; seqs: Set<number> }>({ page: null, seqs: new Set() })
-  React.useEffect(() => {
+  usePublish(() => {
     if (openedPage.current.page !== page) openedPage.current = { page, seqs: new Set() }
     if (page?.kind !== 'topic') return
     const live = liveEntryIndex([...listTopicDocs(), ...listArchiveDocs()])
@@ -372,7 +373,7 @@ export function MemoryCentreView({
               }
             : { kind: 'overview', action: selectedOverview?.action ?? null }
   const footer = memoryFooter(footerState)
-  React.useLayoutEffect(() => {
+  useLayoutPublish(() => {
     onHint?.(footer)
   }, [footer, onHint])
 

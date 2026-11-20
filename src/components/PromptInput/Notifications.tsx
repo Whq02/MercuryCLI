@@ -8,7 +8,8 @@ export function footerNoticeLine(text: string): string {
 }
 
 import { basename } from 'node:path'
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useClaim, useTimer } from '../../hooks/effects.js'
 import { Box, Text } from '../../ink.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { Message } from '../../types/message.js'
@@ -144,7 +145,7 @@ function NotificationsColumn({
 
   const helperConfigured = getConfiguredApiKeyHelper() !== undefined
   const [helperElapsedMs, setHelperElapsedMs] = useState(0)
-  useEffect(() => {
+  useTimer(() => {
     if (!helperConfigured) return
     const timer = setInterval(() => {
       setHelperElapsedMs(getApiKeyHelperElapsedMs())
@@ -191,7 +192,7 @@ function NotificationsColumn({
   addRef.current = addNotification
   const removeRef = useRef(removeNotification)
   removeRef.current = removeNotification
-  useEffect(() => {
+  useClaim(() => {
     if (!editorHintLive) {
       removeRef.current('external-editor-hint')
       return
