@@ -197,5 +197,29 @@ console.log('\n3. voice/voiceSession.ts — cancelVoiceCapture keeps active hand
   check('voiceSession-cancelVoiceCapture-retry: retry cancels the kept handle and returns to idle', second.ok && second.value === true && r.phaseAfterRetry === 'idle' && r.cancelCalls === 2, JSON.stringify(r))
 }
 
+console.log('\n4. vulcan/addonInstaller.ts — unreadable project.godot is never overwritten by mutateProjectGodot and throws in readRuntimeAutoloadEntry')
+if (!POSIX_MODES) skip('addonInstaller-projectGodot', 'needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const m = await import(path.join(SRC, 'services/vulcan/addonInstaller.ts'))
+    const file = path.join(PROJECT, 'project.godot')
+    out.absentAutoload = await attempt(() => m.readRuntimeAutoloadEntry(PROJECT))
+    const original = 'config_version=5\\n\\n[application]\\n\\nconfig/name="KeepMe"\\n'
+    fs.writeFileSync(file, original, { mode: 0o600 })
+    fs.chmodSync(file, 0o200)
+    out.autoloadUnreadable = await attempt(() => m.readRuntimeAutoloadEntry(PROJECT))
+    out.mutateUnreadable = await attempt(() => m.mutateProjectGodot(PROJECT, text => ({ text: text + '\\n[autoload]\\nX="*res://x.gd"\\n', edits: [] })))
+    fs.chmodSync(file, 0o600)
+    out.contentAfter = fs.readFileSync(file, 'utf8')
+    out.tmps = fs.readdirSync(PROJECT).filter(n => n.includes('.mercury-tmp-'))
+  `)
+  const absentAutoload = r.absentAutoload as Attempt
+  const autoloadUnreadable = r.autoloadUnreadable as Attempt
+  const mutateUnreadable = r.mutateUnreadable as Attempt
+  check('addonInstaller-readRuntimeAutoloadEntry: absent project.godot returns undefined', absentAutoload.ok && absentAutoload.value === undefined, JSON.stringify(absentAutoload))
+  check('addonInstaller-readRuntimeAutoloadEntry: unreadable project.godot throws EACCES', !autoloadUnreadable.ok && autoloadUnreadable.code === 'EACCES', JSON.stringify(autoloadUnreadable))
+  check('addonInstaller-mutateProjectGodot: unreadable project.godot throws EACCES, preserves bytes, and leaves no temp file', !mutateUnreadable.ok && mutateUnreadable.code === 'EACCES' && typeof r.contentAfter === 'string' && r.contentAfter.includes('config/name="KeepMe"') && Array.isArray(r.tmps) && r.tmps.length === 0, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
