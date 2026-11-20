@@ -325,5 +325,24 @@ console.log('\nresources/adapters/project.ts — context marks/owner bug propaga
   check('project-adapter-context-marks-bug-propagates', res?.state === 'unavailable' && String(res?.note).includes('not a canonical owner key'), JSON.stringify(res))
 }
 
+console.log('\nrun/runCoordinator.ts — syncVerification drops verified state when verificationSummary throws')
+{
+  const r = runSub(`
+    const { mock } = await import('bun:test')
+    const verPath = path.join(SRC, 'utils/verification/verificationState.ts')
+    const realVer = await import(verPath)
+    mock.module(verPath, () => ({ ...realVer, verificationSummary: () => { throw new Error('verify boom') } }))
+    const coord = await import(path.join(SRC, 'services/run/runCoordinator.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'services/run/ownerKey.ts'))
+    const owner = makeOwnerKey({ workspace: PROJECT, sessionId: 'sync-ver-test', lane: MAIN_LANE })
+    coord.acceptUserRequest(owner, { objective: 'test', rootMessageId: 'u1' })
+    coord.noteRunEvent(owner, { type: 'evidence', at: 1, state: 'verified', detail: 'tests green' })
+    coord.syncVerification(owner, PROJECT)
+    out.verification = coord.getRunSnapshot(owner)?.verification
+  `)
+  const v = r.verification as { state?: string; detail?: string }
+  check('runCoordinator-syncVerification-clears-verified-on-throw', v?.state === 'unverified' && String(v?.detail).includes('verify boom'), JSON.stringify(v))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
