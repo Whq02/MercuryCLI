@@ -125,5 +125,64 @@ console.log('faultUsageEstimate — non-JSON-serializable requests still estimat
   )
 }
 
+const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+
+console.log('antigravityClientContract — unreadable contract file is not overwritten and failed write answers learned:false')
+if (POSIX_MODES) {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import(SRC + '/services/providers/gemini/antigravityClientContract.ts')
+    const file = mod.antigravityClientContractPath()
+    const original = JSON.stringify({ version: 1, learned: { version: '9.9.9', learnedAtMs: 1, from: 'http://127.0.0.1' } }) + '\\n'
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, original, { mode: 0o600 })
+    fs.chmodSync(file, 0o200)
+    try {
+      out.readerEmpty = Object.keys(mod.readAntigravityClientRecord()).length === 0
+      const peek = await mod.peekAntigravityClient({
+        force: true,
+        env: { ...process.env, MERCURY_ANTIGRAVITY_MANIFEST_BASE: 'http://127.0.0.1:9' },
+        fetchImpl: async () => new Response('version: 99.0.0\\n', { status: 200 }),
+      })
+      out.peekLearned = peek.kind === 'read' ? peek.learned : null
+    } finally {
+      fs.chmodSync(file, 0o600)
+    }
+    out.sameBytes = fs.readFileSync(file, 'utf8') === original
+  `)
+  check(
+    'antigravityClientContract:peekAntigravityClient keeps unreadable contract file intact and answers learned:false',
+    r.readerEmpty === true && r.sameBytes === true && r.peekLearned === false,
+    JSON.stringify(r),
+  )
+
+  const w = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import(SRC + '/services/providers/gemini/antigravityClientContract.ts')
+    const file = mod.antigravityClientContractPath()
+    const dir = path.dirname(file)
+    fs.mkdirSync(dir, { recursive: true })
+    fs.chmodSync(dir, 0o500)
+    try {
+      const peek = await mod.peekAntigravityClient({
+        force: true,
+        env: { ...process.env, MERCURY_ANTIGRAVITY_MANIFEST_BASE: 'http://127.0.0.1:9' },
+        fetchImpl: async () => new Response('version: 99.0.0\\n', { status: 200 }),
+      })
+      out.peekKind = peek.kind
+      out.peekLearned = peek.kind === 'read' ? peek.learned : null
+    } finally {
+      fs.chmodSync(dir, 0o700)
+    }
+  `)
+  check(
+    'antigravityClientContract:peekAntigravityClient answers learned:false when write fails',
+    w.peekKind === 'read' && w.peekLearned === false,
+    JSON.stringify(w),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
