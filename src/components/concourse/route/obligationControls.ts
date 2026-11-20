@@ -1,4 +1,5 @@
 import { logForDebugging } from '../../../utils/debug.js';
+import { errorMessage } from '../../../utils/errors.js';
 import { resolveObligation } from '../../../services/crew/obligations.js';
 import type { RouteControls } from './controlContext.js';
 import { noteFromReceipt } from './receipts.js';
@@ -125,7 +126,7 @@ export function withdrawObligation({ noteControl, refresh }: RouteControls, obli
   })()
 }
 
-export function claimObligation({ refresh }: RouteControls, obligationId: string): void {
+export function claimObligation({ noteControl, refresh }: RouteControls, obligationId: string): void {
   void (async () => {
     try {
       const o = await import('../../../services/crew/obligations.js')
@@ -133,6 +134,7 @@ export function claimObligation({ refresh }: RouteControls, obligationId: string
       await o.redirectObligation(obligationId, getOperatorName() || 'operator', { by: 'operator', scope: 'switchboard' })
     } catch (e) {
       logForDebugging(`[concourse] claim failed: ${e}`)
+      noteControl('strip:composer', { state: 'failed', reason: `the claim failed (${errorMessage(e)})`, next: 'try claiming again' })
     }
     refresh()
   })()

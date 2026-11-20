@@ -173,6 +173,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     const { postLoginSettleOf } = await import(${JSON.stringify(join(SRC, 'components/bootLogins/runs.ts'))})
     let state = {
       authVersion: 0,
+      notifications: { current: null, queue: [] },
       toolPermissionContext: {
         mode: 'sovereign',
         isBypassPermissionsModeAvailable: true,
@@ -186,11 +187,17 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     out.mode = state.toolPermissionContext.mode
     out.available = state.toolPermissionContext.isBypassPermissionsModeAvailable
     out.authVersion = state.authVersion
+    out.notice = state.notifications.current ?? state.notifications.queue[0] ?? null
   `)
+  const rejectedNotice = rejected.notice as { key?: string; color?: string; text?: string } | null
   check(
     'bootlogins-killswitch-reject-fails-closed',
-    rejected.mode === 'default' && rejected.available === false,
-    `mode=${String(rejected.mode)} available=${String(rejected.available)}`,
+    rejected.mode === 'default' &&
+      rejected.available === false &&
+      rejectedNotice?.key === 'bypass-killswitch' &&
+      rejectedNotice?.color === 'warning' &&
+      rejectedNotice?.text === "bypass permissions was turned off: your organization's security policy could not be checked (killswitch probe failed)",
+    `mode=${String(rejected.mode)} available=${String(rejected.available)} notice=${JSON.stringify(rejectedNotice)}`,
   )
 
   const outerThrow = runScenario(`
@@ -202,6 +209,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     const { postLoginSettleOf } = await import(${JSON.stringify(join(SRC, 'components/bootLogins/runs.ts'))})
     let state = {
       authVersion: 0,
+      notifications: { current: null, queue: [] },
       toolPermissionContext: {
         mode: 'sovereign',
         isBypassPermissionsModeAvailable: true,
@@ -214,13 +222,18 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     await new Promise(resolve => setTimeout(resolve, 60))
     out.mode = state.toolPermissionContext.mode
     out.available = state.toolPermissionContext.isBypassPermissionsModeAvailable
+    out.notice = state.notifications.current ?? state.notifications.queue[0] ?? null
   `)
+  const outerNotice = outerThrow.notice as { key?: string; color?: string; text?: string } | null
   check(
     'bootlogins-settle-throw-fails-closed',
-    outerThrow.mode === 'default' && outerThrow.available === false,
-    `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)}`,
+    outerThrow.mode === 'default' &&
+      outerThrow.available === false &&
+      outerNotice?.key === 'bypass-killswitch' &&
+      outerNotice?.color === 'warning' &&
+      outerNotice?.text === "bypass permissions was turned off: your organization's security policy could not be checked (user cache reset failed)",
+    `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)} notice=${JSON.stringify(outerNotice)}`,
   )
-
   const control = runScenario(`
     const { mock } = await import('bun:test')
     const killswitchPath = ${JSON.stringify(join(SRC, 'utils/permissions/bypassPermissionsKillswitch.ts'))}
@@ -249,6 +262,362 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     'bootlogins-killswitch-ok-keeps-sovereign',
     control.mode === 'sovereign' && control.available === true && control.authVersion === 1,
     `mode=${String(control.mode)} available=${String(control.available)} authVersion=${String(control.authVersion)}`,
+  )
+}
+
+console.log('\nWorktreeExitDialog.tsx:43,48 — failed directory restore reports the failure sentence instead of silent exit')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/WorktreeExitDialog.tsx'))})
+    if (typeof mod.restoreWorktreeDirectories !== 'function') {
+      out.missing = true
+    } else {
+      let setCwdCalledAfterChdirFail = false
+      out.chdirFail = mod.restoreWorktreeDirectories(
+        { originalCwd: '/repo/main' },
+        {
+          chdir: () => { throw new Error('ENOENT: no such directory') },
+          setCwd: () => { setCwdCalledAfterChdirFail = true },
+        },
+      )
+      out.setCwdCalledAfterChdirFail = setCwdCalledAfterChdirFail
+      out.setCwdFail = mod.restoreWorktreeDirectories(
+        { originalCwd: '/repo/main' },
+        {
+          chdir: () => {},
+          setCwd: () => { throw new Error('EACCES: permission denied') },
+        },
+      )
+      out.ok = mod.restoreWorktreeDirectories(
+        { originalCwd: '/repo/main' },
+        { chdir: () => {}, setCwd: () => {} },
+      )
+    }
+  `)
+  check(
+    'worktree-exit-chdir-fail-reports-sentence',
+    res.missing !== true &&
+      res.setCwdCalledAfterChdirFail === true &&
+      res.chdirFail === 'Could not return to /repo/main (ENOENT: no such directory) — switch back to that folder before continuing.',
+    JSON.stringify(res),
+  )
+  check(
+    'worktree-exit-setcwd-fail-reports-sentence',
+    res.missing !== true &&
+      res.setCwdFail === 'Could not return to /repo/main (EACCES: permission denied) — switch back to that folder before continuing.',
+    JSON.stringify(res),
+  )
+  check(
+    'worktree-exit-restore-ok-silent',
+    res.missing !== true && res.ok === null,
+    JSON.stringify(res),
+  )
+}
+
+console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable existing agent file instead of fake full-add diff')
+{
+  const res = runScenario(`
+    const { decodeAgentDocument } = await import(${JSON.stringify(join(SRC, 'services/agents/codec.ts'))})
+    const { buildReviewFacts } = await import(${JSON.stringify(join(SRC, 'components/agents/studio/studioEditorModel.ts'))})
+    const raw = '---\\nname: scout\\ndescription: Checks code carefully\\n---\\nInspect files thoroughly.\\n'
+    const doc = decodeAgentDocument(raw, '/repo/.mercury/agents/scout.md')
+    const base = { identity: { filePath: '/repo/.mercury/agents/scout.md', revision: 'rev-1' }, agent: {} }
+    out.unread = buildReviewFacts(doc, base, () => {
+      throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+    })
+    out.readable = buildReviewFacts(doc, base, () => raw)
+  `)
+  const unread = res.unread as { changed: string[]; diffLines: string[] }
+  const readable = res.readable as { changed: string[]; diffLines: string[] }
+  check(
+    'studio-review-unreadable-base-sentence',
+    unread.diffLines.length === 1 &&
+      unread.diffLines[0] === 'Could not read existing agent file (EACCES: permission denied) — check permissions before saving.' &&
+      !unread.diffLines.some(l => l.startsWith('+')) &&
+      unread.changed.join(',') === '(existing file unreadable)',
+    JSON.stringify(unread),
+  )
+  check(
+    'studio-review-readable-base-control',
+    readable.changed.length === 0 && readable.diffLines.length === 0,
+    JSON.stringify(readable),
+  )
+}
+
+console.log('\nConcourseRoute.tsx:181 — failed project ground switch notifies strip:composer instead of silent drop')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/concourse/ConcourseRoute.tsx'))})
+    if (typeof mod.applySeedProjectGround !== 'function') {
+      out.missing = true
+    } else {
+      const notes = []
+      const noteControl = (control, state) => notes.push({ control, state })
+      await mod.applySeedProjectGround('/repo/next', noteControl, async () => {
+        throw new Error('EACCES: permission denied')
+      })
+      out.rejectNote = notes.splice(0)
+      await mod.applySeedProjectGround('/repo/next', noteControl, async () => '/repo/old')
+      out.stayedNote = notes.splice(0)
+      await mod.applySeedProjectGround('/repo/next', noteControl, async dir => dir)
+      out.okNote = notes.splice(0)
+    }
+  `)
+  const rejectNote = res.rejectNote as Array<{ control: string; state: { state?: string; reason?: string } }> | undefined
+  const stayedNote = res.stayedNote as Array<{ control: string; state: { state?: string; reason?: string } }> | undefined
+  const okNote = res.okNote as Array<unknown> | undefined
+  check(
+    'concourse-route-ground-reject-sentence',
+    res.missing !== true &&
+      rejectNote?.length === 1 &&
+      rejectNote[0]?.control === 'strip:composer' &&
+      rejectNote[0]?.state.state === 'failed' &&
+      rejectNote[0]?.state.reason === 'Could not switch to /repo/next (EACCES: permission denied) — pick the repo again.',
+    JSON.stringify(res),
+  )
+  check(
+    'concourse-route-ground-stayed-sentence',
+    res.missing !== true &&
+      stayedNote?.length === 1 &&
+      stayedNote[0]?.control === 'strip:composer' &&
+      stayedNote[0]?.state.state === 'failed' &&
+      stayedNote[0]?.state.reason === 'Could not switch to /repo/next — stayed in /repo/old; pick the repo again.',
+    JSON.stringify(res),
+  )
+  check(
+    'concourse-route-ground-ok-silent',
+    res.missing !== true && okNote?.length === 0,
+    JSON.stringify(res),
+  )
+}
+
+console.log('\nobligationControls.ts:134 — failed claimObligation reports failure note to strip:composer')
+{
+  const res = runScenario(`
+    const { mock } = await import('bun:test')
+    const oblPath = ${JSON.stringify(join(SRC, 'services/crew/obligations.ts'))}
+    mock.module(oblPath, () => ({
+      resolveObligation: async () => ({ settled: true, status: 'withdrawn' }),
+      redirectObligation: async () => { throw new Error('EACCES: permission denied') },
+    }))
+    const { claimObligation } = await import(${JSON.stringify(join(SRC, 'components/concourse/route/obligationControls.ts'))})
+    const notes = []
+    let refreshed = 0
+    claimObligation(
+      {
+        noteControl: (control, state) => notes.push({ control, state }),
+        refresh: () => { refreshed += 1 },
+      },
+      'obl-1',
+    )
+    await new Promise(resolve => setTimeout(resolve, 60))
+    out.notes = notes
+    out.refreshed = refreshed
+  `)
+  const notes = res.notes as Array<{ control: string; state: { state?: string; reason?: string; next?: string } }>
+  check(
+    'obligation-claim-fail-reports-note',
+    notes.length === 1 &&
+      notes[0]?.control === 'strip:composer' &&
+      notes[0]?.state.state === 'failed' &&
+      notes[0]?.state.reason === 'the claim failed (EACCES: permission denied)' &&
+      notes[0]?.state.next === 'try claiming again' &&
+      res.refreshed === 1,
+    JSON.stringify(res),
+  )
+}
+
+console.log('\nworkerTranscriptFold.ts:147 — unreadable worker transcript surfaces readError instead of silent empty fold')
+{
+  if (!POSIX_MODES) {
+    skip('worker-transcript-eacces-surfaces-error', 'a mode-0200 file needs a POSIX process that is not root')
+  } else {
+    const res = runScenario(`
+      const mod = await import(${JSON.stringify(join(SRC, 'components/concourse/workerTranscriptFold.ts'))})
+      const wt = await import(${JSON.stringify(join(SRC, 'services/concourse/workerTranscript.ts'))})
+      if (typeof mod.openInitialWorkerTranscript !== 'function') {
+        out.missing = true
+      } else {
+        const unreadable = path.join(process.cwd(), 'seat.jsonl')
+        fs.writeFileSync(unreadable, '{"schemaVersion":1,"payload":{}}\\n', { mode: 0o600 })
+        fs.chmodSync(unreadable, 0o200)
+        out.eacces = mod.openInitialWorkerTranscript(unreadable, wt.openWorkerTranscript)
+        fs.chmodSync(unreadable, 0o600)
+        out.absent = mod.openInitialWorkerTranscript(path.join(process.cwd(), 'missing.jsonl'), wt.openWorkerTranscript)
+      }
+    `)
+    const eacces = res.eacces as { ok: boolean; error?: string } | undefined
+    const absent = res.absent as { ok: boolean; result?: { records: unknown[] } } | undefined
+    check(
+      'worker-transcript-eacces-surfaces-error',
+      res.missing !== true &&
+        eacces?.ok === false &&
+        typeof eacces.error === 'string' &&
+        /EACCES|permission denied/i.test(eacces.error),
+      JSON.stringify(res),
+    )
+    check(
+      'worker-transcript-absent-control-ok',
+      res.missing !== true && absent?.ok === true && absent.result?.records.length === 0,
+      JSON.stringify(res),
+    )
+  }
+}
+
+console.log('\nSessionMirror.tsx:63 — unreadable receipts and transcript errors surface mirror failure notes')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/concourse/SessionMirror.tsx'))})
+    if (typeof mod.readMirrorReceipts !== 'function' || typeof mod.mirrorStatusNote !== 'function') {
+      out.missing = true
+    } else {
+      const { getProjectDir } = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/paths.ts'))})
+      const dir = getProjectDir(process.cwd())
+      fs.mkdirSync(dir, { recursive: true })
+      const receiptsPath = path.join(dir, 'sess-eacces.receipts.jsonl')
+      fs.writeFileSync(receiptsPath, '{"at":"2026-01-01T00:00:00Z","by":"operator","kind":"contract-close","summary":"done"}\\n', { mode: 0o600 })
+      const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+      if (posix) {
+        fs.chmodSync(receiptsPath, 0o200)
+        out.eaccesReceipts = mod.readMirrorReceipts(process.cwd(), 'sess-eacces')
+        fs.chmodSync(receiptsPath, 0o600)
+      } else {
+        out.eaccesReceipts = mod.readMirrorReceipts(process.cwd(), 'sess-eacces', () => {
+          throw new Error('EACCES: permission denied')
+        })
+      }
+      out.absentReceipts = mod.readMirrorReceipts(process.cwd(), 'sess-absent')
+      out.receiptsNote = mod.mirrorStatusNote(undefined, null, out.eaccesReceipts.error)
+      out.transcriptNote = mod.mirrorStatusNote(undefined, 'EACCES: permission denied', null)
+      out.cleanNote = mod.mirrorStatusNote(undefined, null, null)
+    }
+  `)
+  const eaccesReceipts = res.eaccesReceipts as { entries: unknown[]; error: string | null } | undefined
+  const absentReceipts = res.absentReceipts as { entries: unknown[]; error: string | null } | undefined
+  const receiptsNote = res.receiptsNote as { state?: string; reason?: string } | undefined
+  const transcriptNote = res.transcriptNote as { state?: string; reason?: string } | undefined
+  check(
+    'session-mirror-unreadable-receipts-note',
+    res.missing !== true &&
+      eaccesReceipts?.entries.length === 0 &&
+      typeof eaccesReceipts.error === 'string' &&
+      receiptsNote?.state === 'failed' &&
+      receiptsNote.reason === `Could not read receipts (${eaccesReceipts.error}) — check permissions.`,
+    JSON.stringify(res),
+  )
+  check(
+    'session-mirror-unreadable-transcript-note',
+    res.missing !== true &&
+      transcriptNote?.state === 'failed' &&
+      transcriptNote.reason === 'Could not read transcript (EACCES: permission denied) — check permissions.',
+    JSON.stringify(res),
+  )
+  check(
+    'session-mirror-absent-receipts-control',
+    res.missing !== true &&
+      absentReceipts?.entries.length === 0 &&
+      absentReceipts.error === null &&
+      res.cleanNote === undefined,
+    JSON.stringify(res),
+  )
+}
+
+console.log('\nextensions/bindings.ts:48 — corrupt or unreadable keybindings.json adds a declined note instead of silent default keys')
+{
+  const res = runScenario(`
+    const { getKeybindingsPath } = await import(${JSON.stringify(join(SRC, 'keybindings/loadUserBindings.ts'))})
+    const { resolveExtensionsBindings } = await import(${JSON.stringify(join(SRC, 'components/extensions/bindings.ts'))})
+    const kbPath = getKeybindingsPath()
+    const kbDir = path.dirname(kbPath)
+    out.absent = resolveExtensionsBindings().declined
+    fs.mkdirSync(kbDir, { recursive: true })
+    fs.writeFileSync(kbPath, '{ broken json', 'utf8')
+    const corrupt = resolveExtensionsBindings()
+    out.corruptDeclined = corrupt.declined
+    out.corruptHasDefault = corrupt.chars.get('extensions:install') === 'i'
+    const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    if (posix) {
+      fs.writeFileSync(kbPath, '{"bindings":[]}', { mode: 0o600 })
+      fs.chmodSync(kbPath, 0o200)
+      out.eaccesDeclined = resolveExtensionsBindings().declined
+      fs.chmodSync(kbPath, 0o600)
+    }
+    out.kbDir = kbDir
+    out.posix = posix
+  `)
+  const corruptDeclined = res.corruptDeclined as string[]
+  const eaccesDeclined = res.eaccesDeclined as string[] | undefined
+  const kbDir = String(res.kbDir)
+  check(
+    'extensions-bindings-corrupt-declined-note',
+    res.corruptHasDefault === true &&
+      corruptDeclined.length === 1 &&
+      corruptDeclined[0] === `keybindings.json could not be read (not valid JSON) — fix it in ${kbDir} to restore your keys`,
+    JSON.stringify(corruptDeclined),
+  )
+  if (res.posix === true) {
+    check(
+      'extensions-bindings-eacces-declined-note',
+      Array.isArray(eaccesDeclined) &&
+        eaccesDeclined.length === 1 &&
+        eaccesDeclined[0]!.startsWith('keybindings.json could not be read (') &&
+        eaccesDeclined[0]!.endsWith(`) — fix it in ${kbDir} to restore your keys`),
+      JSON.stringify(eaccesDeclined),
+    )
+  }
+  check(
+    'extensions-bindings-absent-control-empty',
+    Array.isArray(res.absent) && (res.absent as string[]).length === 0,
+    JSON.stringify(res.absent),
+  )
+}
+
+console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skips openPath and returns failure sentence')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/memory/MemoryFileSelector.tsx'))})
+    const { toTildePath } = await import(${JSON.stringify(join(SRC, 'utils/path.ts'))})
+    if (typeof mod.openMemoryFolder !== 'function') {
+      out.missing = true
+    } else {
+      const blocker = path.join(process.cwd(), 'not-a-dir')
+      fs.writeFileSync(blocker, 'file', 'utf8')
+      const badDir = path.join(blocker, 'memory')
+      let openedBad = false
+      out.badNote = mod.openMemoryFolder(badDir, {
+        mkdirSync: fs.mkdirSync,
+        openPath: async () => { openedBad = true; return true },
+      })
+      out.openedBad = openedBad
+      out.badDisplay = toTildePath(badDir)
+
+      const goodDir = path.join(process.cwd(), 'ok-memory')
+      let openedGood = null
+      out.goodNote = mod.openMemoryFolder(goodDir, {
+        mkdirSync: fs.mkdirSync,
+        openPath: async p => { openedGood = p; return true },
+      })
+      out.openedGood = openedGood
+      out.goodExists = fs.existsSync(goodDir)
+      out.goodDir = goodDir
+    }
+  `)
+  check(
+    'memory-selector-mkdir-fail-sentence',
+    res.missing !== true &&
+      res.openedBad === false &&
+      typeof res.badNote === 'string' &&
+      res.badNote.startsWith(`Could not open the memory folder at ${String(res.badDisplay)} (`) &&
+      res.badNote.endsWith(') — check folder permissions.'),
+    JSON.stringify(res),
+  )
+  check(
+    'memory-selector-mkdir-ok-control',
+    res.missing !== true &&
+      res.goodNote === null &&
+      res.goodExists === true &&
+      res.openedGood === res.goodDir,
+    JSON.stringify(res),
   )
 }
 

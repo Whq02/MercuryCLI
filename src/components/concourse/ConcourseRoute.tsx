@@ -11,7 +11,7 @@ import {
   writeConcourseDraft,
   writeConcourseSeedOverride,
 } from '../../services/concourse/concourseSnapshot.js';
-import type { ConcourseCallbacks } from './contracts.js';
+import type { ConcourseCallbacks, ControlNoteState } from './contracts.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { splitAvailableAt, splitViewOn } from './splitView.js';
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
@@ -27,10 +27,34 @@ import { newSession, previewLaunch } from './route/launchControls.js';
 import { answerObligation, answerPermission, claimObligation, openObligation, withdrawObligation } from './route/obligationControls.js';
 import { interruptSession, pauseAfterTurn, redirectSession, resumeSession, setSessionEffort, setSessionModel } from './route/rowControls.js';
 import { archiveSession, removeSession, renameSession, stopSession } from './route/sessionControls.js';
-import { passedOver } from '../../utils/passedOver.js';
+import { logForDebugging } from '../../utils/debug.js';
+import { errorMessage } from '../../utils/errors.js';
 
 export { makeCoalescedRebuild } from './route/useConcourseSnapshot.js';
 
+export async function applySeedProjectGround(
+  projectDir: unknown,
+  noteControl: (control: string, state: ControlNoteState) => void,
+  applyGround?: (dir: string | null) => Promise<string>,
+): Promise<void> {
+  const target = typeof projectDir === 'string' && projectDir.length > 0 ? projectDir : null
+  try {
+    const apply = applyGround ?? (await import('../../services/switchboard/harnessGround.js')).applyHarnessGround
+    const applied = await apply(target)
+    if (target !== null && applied !== target) {
+      noteControl('strip:composer', {
+        state: 'failed',
+        reason: `Could not switch to ${target} — stayed in ${applied}; pick the repo again.`,
+      })
+    }
+  } catch (error) {
+    logForDebugging(`[concourse] ground switch failed: ${error}`)
+    noteControl('strip:composer', {
+      state: 'failed',
+      reason: `Could not switch to ${target ?? 'the boot folder'} (${errorMessage(error)}) — pick the repo again.`,
+    })
+  }
+}
 function LiveConcourse(): React.ReactNode {
   const fixture = useMemo(() => readFixtureSnapshot(), [])
   const { snapshot: liveSnapshot, failing, setPeek, noteResident: noteLiveResident, refresh } = useConcourseSnapshot()
@@ -172,13 +196,7 @@ function LiveConcourse(): React.ReactNode {
     setDraftSeed: patch => {
       seedWriteChain.current = seedWriteChain.current.then(() => writeConcourseSeedOverride(patch))
       if ('projectDir' in patch) {
-        void import('../../services/switchboard/harnessGround.js')
-          .then(m =>
-            m.applyHarnessGround(
-              typeof patch.projectDir === 'string' && patch.projectDir.length > 0 ? patch.projectDir : null,
-            ),
-          )
-          .catch(passedOver)
+        void applySeedProjectGround(patch.projectDir, noteControl)
       }
     },
     newSession: (opts?: { contractText?: string }) => newSession(launch, opts),

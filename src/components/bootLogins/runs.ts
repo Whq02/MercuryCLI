@@ -12,11 +12,12 @@ import { beginOpenrouterConnect } from '../../services/providers/openrouter/open
 import { finishGeminiPlanConnect, finishGeminiOauthConnect, geminiConnectFailedReceipt } from '../../services/providers/gemini/geminiLogin.js';
 import { beginGeminiPlanBrowserConnect, beginGeminiBrowserConnect, geminiOauthClientConfig } from '../../services/providers/gemini/geminiAccounts.js';
 import { geminiGuideReturnStep, geminiGuideStep } from '../geminiConnectGuide.js';
-import { errorMessageWithCause } from '../../utils/errors.js';
+import { errorMessage, errorMessageWithCause } from '../../utils/errors.js';
 import { openBrowser } from '../../utils/browser.js';
 import { lateSettleNotice } from './facts.js';
 import type { FaceDeviceFamily, HandlesLegId, DeviceWaitStateV1 } from './flowLines.js';
 import type { LoginsFlowContext } from './context.js';
+import { enqueueNotification } from '../../context/notifications.js';
 import { logError } from '../../utils/log.js';
 import { createSovereignDisabledContext } from '../../utils/permissions/permissionSetup.js';
 
@@ -44,11 +45,21 @@ export function postLoginSettleOf(ctx: LoginsFlowContext): void {
     } catch (error) {
       logError(error);
       if (setAppStateMaybe !== null) {
-        setAppStateMaybe(prev =>
-          prev.toolPermissionContext.isBypassPermissionsModeAvailable
-            ? { ...prev, toolPermissionContext: createSovereignDisabledContext(prev.toolPermissionContext) }
-            : prev,
-        );
+        let disabled = false;
+        setAppStateMaybe(prev => {
+          if (!prev.toolPermissionContext.isBypassPermissionsModeAvailable) return prev;
+          disabled = true;
+          return { ...prev, toolPermissionContext: createSovereignDisabledContext(prev.toolPermissionContext) };
+        });
+        if (disabled) {
+          enqueueNotification(setAppStateMaybe, {
+            key: 'bypass-killswitch',
+            text: `bypass permissions was turned off: your organization's security policy could not be checked (${errorMessage(error)})`,
+            priority: 'high',
+            color: 'warning',
+            timeoutMs: 30_000,
+          });
+        }
       }
     }
   })();

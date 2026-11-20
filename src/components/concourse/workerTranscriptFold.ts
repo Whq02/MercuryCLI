@@ -21,6 +21,8 @@ import {
   isNullRenderingAttachment,
   isNullRenderingSystemRow,
 } from '../messages/nullRenderingAttachments.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 
@@ -97,15 +99,31 @@ export function mergeFoldedMessages<T extends { uuid: string }>(
   return all
 }
 
+export function openInitialWorkerTranscript(
+  path: string,
+  openFn: typeof import('../../services/concourse/workerTranscript.js').openWorkerTranscript,
+):
+  | { ok: true; result: import('../../services/concourse/workerTranscript.js').TranscriptReadResult }
+  | { ok: false; error: string } {
+  try {
+    return { ok: true, result: openFn(path) }
+  } catch (error) {
+    logForDebugging(`[concourse] worker transcript unreadable (${path}): ${error}`)
+    return { ok: false, error: errorMessage(error) }
+  }
+}
+
 export function useWorkerTranscriptFold(
   sessionId: string,
   workspaceId: string,
-): { fold: TranscriptFold | null; malformed: number } {
+): { fold: TranscriptFold | null; malformed: number; readError: string | null } {
   const [fold, setFold] = useState<TranscriptFold | null>(null)
   const [malformed, setMalformed] = useState(0)
+  const [readError, setReadError] = useState<string | null>(null)
   useTimer(() => {
     setFold(null)
     setMalformed(0)
+    setReadError(null)
     let cancelled = false
     let cursorRef: import('../../services/concourse/workerTranscript.js').TranscriptCursor | null = null
     let watcher: import('node:fs').FSWatcher | null = null
@@ -140,18 +158,25 @@ export function useWorkerTranscriptFold(
         const drain = (): void => {
           if (cancelled) return
           if (cursorRef === null) {
-            try {
-              const first = wt.openWorkerTranscript(path)
-              cursorRef = first.cursor
-              foldRecords(first.records, true, first.malformed)
-            } catch {
+            const opened = openInitialWorkerTranscript(path, wt.openWorkerTranscript)
+            if (!opened.ok) {
+              setReadError(opened.error)
               setFold(prev => prev ?? { messages: [], shed: 0 })
               return
             }
+            setReadError(null)
+            cursorRef = opened.result.cursor
+            foldRecords(opened.result.records, true, opened.result.malformed)
           } else {
-            const next = wt.readAfterCursor(cursorRef)
-            cursorRef = next.cursor
-            if (next.records.length > 0 || next.rewound) foldRecords(next.records, next.rewound, next.malformed)
+            try {
+              const next = wt.readAfterCursor(cursorRef)
+              setReadError(null)
+              cursorRef = next.cursor
+              if (next.records.length > 0 || next.rewound) foldRecords(next.records, next.rewound, next.malformed)
+            } catch (error) {
+              logForDebugging(`[concourse] worker transcript tail unreadable (${path}): ${error}`)
+              setReadError(errorMessage(error))
+            }
           }
         }
         const arm = (): boolean => {
@@ -194,7 +219,7 @@ export function useWorkerTranscriptFold(
       if (heartbeat) stopInterval(heartbeat)
     }
   }, [sessionId, workspaceId])
-  return { fold, malformed }
+  return { fold, malformed, readError }
 }
 
 function userTextOf(m: { type?: string; message?: { content?: unknown } }): string {
