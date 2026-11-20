@@ -313,6 +313,31 @@ try {
     })
     check('path-rename-sync-fail: refuses with sync-open-boom and does not call willRenameFiles', syncFail.effect.outcome === 'failed' && syncFail.result.includes('sync-open-boom') && willRenameCalled === 0, JSON.stringify({ result: syncFail.result, willRenameCalled }))
   }
+
+  console.log('\n10. LSPTool/mercuryOps/pathRenameFanOut.ts: unreadable directory rejects instead of returning no claimants')
+  if (POSIX_MODES) {
+    const { pathRenameClaimants } = await import('../../src/tools/LSPTool/mercuryOps/pathRenameFanOut.js')
+    const unreadableDir = join(scratch, 'unreadable-pkg')
+    mkdirSync(unreadableDir, { recursive: true })
+    writeFileSync(join(unreadableDir, 'index.ts'), 'export const x = 1\n')
+    chmodSync(unreadableDir, 0o000)
+    try {
+      let threw: string | null = null
+      try {
+        await pathRenameClaimants(
+          { manager: { getServersForFile: () => [] } } as never,
+          unreadableDir,
+          join(scratch, 'unreadable-pkg-moved'),
+          true,
+        )
+      } catch (err) {
+        threw = err instanceof Error ? err.message : String(err)
+      }
+      check('path-rename-dir-eacces: rejects with EACCES instead of returning empty claimants', threw !== null && /EACCES|permission denied/i.test(threw), String(threw))
+    } finally {
+      chmodSync(unreadableDir, 0o700)
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
