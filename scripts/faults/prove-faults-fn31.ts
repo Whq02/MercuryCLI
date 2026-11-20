@@ -288,5 +288,69 @@ else {
   check('gitDiff:unreadable-marker-rejects-hunks', r.hunksErr === 'EACCES', JSON.stringify(r))
 }
 
+console.log('\ngracefulShutdown.ts — background hooks end on fireHooks throw and gracefulShutdownSync still forces exit when terminal restoration throws')
+{
+  const r1 = runScenario(`
+    const { mock } = await import('bun:test')
+    let backgroundEnded = false
+    mock.module(SRC + '/utils/hooks/fire.js', () => ({
+      fireHooks: async () => { throw new Error('fire boom') },
+    }))
+    mock.module(SRC + '/utils/hooks/background.js', () => ({
+      endBackgroundHooks: async () => { backgroundEnded = true },
+    }))
+    mock.module(SRC + '/mneme/lineageSession.js', () => ({
+      closeLineageSession: async () => {},
+    }))
+    mock.module(SRC + '/utils/exitCliffDrain.js', () => ({
+      drainExitCliffSeams: async () => {},
+    }))
+    const origExit = process.exit
+    let exitCodeSeen = null
+    process.exit = ((code) => { exitCodeSeen = code; throw new Error('EXIT_SENTINEL') })
+    const { gracefulShutdown } = await import(SRC + '/utils/gracefulShutdown.ts')
+    try {
+      await gracefulShutdown(0)
+    } catch (e) {
+      if (e?.message !== 'EXIT_SENTINEL') throw e
+    } finally {
+      process.exit = origExit
+    }
+    out.backgroundEnded = backgroundEnded
+    out.exitCodeSeen = exitCodeSeen
+  `)
+  check(
+    'gracefulShutdown:ends-background-hooks-when-fireHooks-throws',
+    r1.backgroundEnded === true && r1.exitCodeSeen === 0,
+    JSON.stringify(r1),
+  )
+
+  const r2 = runScenario(`
+    const { mock } = await import('bun:test')
+    mock.module(SRC + '/utils/shutdownRestoration.js', () => ({
+      cleanupTerminalModes: () => { throw new Error('tty restore boom') },
+      printResumeHint: () => {},
+      drainStdinForExit: () => {},
+    }))
+    mock.module(SRC + '/ink/instances.js', () => ({
+      default: { get: () => ({ awaitTerminalQueries: async () => {} }) },
+    }))
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+    const origExit = process.exit
+    let exitCodeSeen = null
+    process.exit = ((code) => { exitCodeSeen = code })
+    const { gracefulShutdownSync } = await import(SRC + '/utils/gracefulShutdown.ts')
+    gracefulShutdownSync(7)
+    await new Promise(resolve => setTimeout(resolve, 100))
+    process.exit = origExit
+    out.exitCodeSeen = exitCodeSeen
+  `)
+  check(
+    'gracefulShutdown:sync-still-forces-exit-when-restoration-throws',
+    r2.exitCodeSeen === 7,
+    JSON.stringify(r2),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
