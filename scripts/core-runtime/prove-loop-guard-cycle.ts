@@ -717,6 +717,31 @@ section('C21 — the guard\'s defence: two cells in one response whose nested ca
   check('control: the same two cells one per response remind the same way', remindersOf(serial).length === 1, JSON.stringify(remindersOf(serial)))
 }
 
+section('C22 — the key cannot be read (the settings throw where turns is read): an opt-in that cannot be read is not opted in, so the same loop is reminded and the turn goes on')
+{
+  const { getSessionSettingsCache, setSessionSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const { isLoopGuardStopEnabled } = await import('../../src/services/tools/loopGuard.ts')
+  setStopKey(null)
+  const read = settingsRoad.getSettingsWithErrors()
+  const unreadable = new Proxy(read.settings as Record<string, unknown>, {
+    get(target, key, receiver) {
+      if (key === 'turns') throw new Error('rig: turns could not be read from the settings')
+      return Reflect.get(target, key, receiver)
+    },
+  })
+  setSessionSettingsCache({ ...read, settings: unreadable } as never)
+  let stopReads = 'threw'
+  try { stopReads = String(isLoopGuardStopEnabled()) } catch (error) { stopReads = `threw ${String(error)}` }
+  const run = await runScript(pairs(10, () => TEST))
+  const stillUnreadable = (getSessionSettingsCache() as { settings?: unknown } | null)?.settings === unreadable
+  resetSettingsCache()
+  check('the rig holds: the settings stayed unreadable for the whole run', stillUnreadable)
+  check('the stop reads off when its setting cannot be read', stopReads === 'false', stopReads)
+  check('twenty-one model calls, completed, no loop_stopped: the turn was not ended on an opt-in nobody could read', run.calls.length === 21 && run.terminal.reason === 'completed' && attachmentsOf(run, 'loop_stopped').length === 0, `calls=${run.calls.length} ${JSON.stringify(run.terminal)}`)
+  const rows = noticeRows(run)
+  check('the loop is still reminded, and no row says a stop was applied', rows.length === 2 && rows.every(r => r.level === 'info') && !rows.some(r => /stop is applied|ended the turn/.test(String(r.content))), JSON.stringify(rows.map(r => [r.level, r.content])))
+}
+
 setStopKey(null)
 section('C13 — the key removed again: the same loop is back to reminders only')
 {
