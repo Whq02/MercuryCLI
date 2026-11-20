@@ -36,7 +36,7 @@ const { validateModel } = await import('../../src/services/providers/validateMod
 const { getModelOptions, MISTRAL_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
 const { resolveModelPricing, getModelPricingString } = await import('../../src/services/usage/modelCost.js')
 const { effortVocabularyFor, resolveContextWindow } = await import('../../src/utils/model/capabilities.js')
-const { restoreConversationModel } = await import('../../src/utils/sessionRestore.js')
+const { restoreConversationModel } = await import('../../src/services/resume/sessionRestore.js')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
 const { createUserMessage } = await import('../../src/utils/messages.js')
 async function turn(model: string, messages: Message[]) {

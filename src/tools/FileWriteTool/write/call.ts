@@ -29,7 +29,7 @@ import {
   preserveUntouchedLineEndings,
   writeTextContent,
 } from '../../../utils/file.js'
-import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../../utils/fileHistory.js'
+import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../../services/changeTransaction/fileHistory.js'
 import { noteFileTouched } from '../../../mneme/lineageSession.js'
 import { readFileSyncWithMetadata, type LineEndingType } from '../../../utils/fileRead.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'

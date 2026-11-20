@@ -41,7 +41,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { FILE_NOT_FOUND_CWD_NOTE, findSimilarFile, getFileModificationTime, suggestPathUnderCwd } from '../../utils/file.js'
-import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../services/changeTransaction/fileHistory.js'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import {

@@ -30,7 +30,7 @@ import { formatDuration } from '../../utils/format.js'
 import { recordBashAudit } from '../../daemon/spawnLedger.js'
 import { trackGitOperations } from '../../tools/shared/gitOperationTracking.js'
 import { sessionEnvNoticeForResult } from '../../tools/shared/sessionEnvNotice.js'
-import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../services/changeTransaction/fileHistory.js'
 import {
   detectFileEncoding,
   detectLineEndings,

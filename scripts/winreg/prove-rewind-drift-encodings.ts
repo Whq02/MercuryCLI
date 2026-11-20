@@ -19,7 +19,7 @@ enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(true)
 bootstrap.setOriginalCwd(work)
-const fileHistory = await import('../../src/utils/fileHistory.ts')
+const fileHistory = await import('../../src/services/changeTransaction/fileHistory.ts')
 const fileRead = await import('../../src/utils/fileRead.ts')
 const { readFileInRange } = await import('../../src/utils/readFileInRange.ts')
 

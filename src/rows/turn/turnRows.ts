@@ -7,7 +7,7 @@ import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js
 import { getQueuedCommandAttachments } from '../../utils/attachments/queuedCommands.js'
 import { createGetAppStateWithAllowedTools } from '../../utils/forkedAgent.js'
 import { isBareMode, isEnvTruthy } from '../../utils/envUtils.js'
-import { fileHistoryMakeSnapshot } from '../../utils/fileHistory.js'
+import { fileHistoryMakeSnapshot } from '../../services/changeTransaction/fileHistory.js'
 import { headlessProfilerCheckpoint } from '../../utils/headlessProfiler.js'
 import { forgetWardFirings } from '../../guards/wardsGuard.js'
 import { getInMemoryErrors, logError } from '../../utils/log.js'

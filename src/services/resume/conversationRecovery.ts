@@ -14,7 +14,7 @@ import type { SessionListing, SerializedMessage, TranscriptMessage, TurnEnded } 
 import { PERMISSION_MODES } from '../../types/permissions.js'
 import { suppressNextSkillListing } from '../../utils/attachments/skillListing.js'
 import { getCwd } from '../../utils/cwd.js'
-import { copyFileHistoryForResume } from '../../utils/fileHistory.js'
+import { copyFileHistoryForResume } from '../changeTransaction/fileHistory.js'
 import { logError } from '../../utils/log.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'

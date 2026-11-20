@@ -75,7 +75,7 @@ await spied('src/utils/sessionStorage/sessionHomePin.ts', ['consumeSessionHomePi
 await spied('src/utils/sessionStorage/sessionWriter.ts', ['claimSessionWriter'])
 await spied('src/constants/systemPromptSections.ts', ['clearSystemPromptSections'])
 await spied('src/services/resume/conversationRecovery.ts', ['loadConversationForResume'])
-await spied('src/utils/sessionRestore.ts', ['restoreConversationModel', 'restoreSessionStateFromLog'])
+await spied('src/services/resume/sessionRestore.ts', ['restoreConversationModel', 'restoreSessionStateFromLog'])
 await spied('src/bootstrap/state.ts', ['switchSession', 'setEngineModelOverride'])
 await spied('src/utils/sessionStorage.ts', ['resetSessionFilePointer', 'restoreSessionMetadata', 'saveSessionModel'])
 await spied('src/utils/cockpit/runtimePosture.ts', ['markSessionPermissionModeAtClaim'])
