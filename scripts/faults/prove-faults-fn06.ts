@@ -232,5 +232,68 @@ if (!POSIX_MODES) {
   )
   check('handover-receipt-write-failure-throws', typeof r.writeThrew === 'string' && /EACCES|DurablePublishError/i.test(r.writeThrew), JSON.stringify(r))
 }
+console.log('\nsrc/mneme/ledger.ts')
+if (!POSIX_MODES) {
+  skip('ledger-reconcile-unreadable-workers-fails-closed', 'needs non-root POSIX chmod')
+  skip('ledger-open-entry-unwritable-throws', 'needs non-root POSIX chmod')
+} else {
+  const r = runCase(`
+    const ledger = await import(path.join(SRC, 'mneme/ledger.ts'))
+    const paths = await import(path.join(SRC, 'mneme/paths.ts'))
+    const key = 'proj-reconcile-test'
+    const lineFile = paths.lineagePath(key)
+    fs.mkdirSync(path.dirname(lineFile), { recursive: true })
+    const oldEntry = {
+      ordinal: 1,
+      sessionId: 'sess-live-no-pid',
+      startedAt: '2020-01-01T00:00:00.000Z',
+      endedAt: null,
+      engines: [{ model: 'm', at: '2020-01-01T00:00:00.000Z' }],
+      rulings: [],
+      retained: [],
+      corrected: [],
+      files: [],
+      outcome: null,
+      handoff: null,
+    }
+    fs.writeFileSync(lineFile, JSON.stringify(oldEntry) + '\\n', 'utf8')
+    const workersFile = ledger.sessionWorkersFile()
+    fs.mkdirSync(path.dirname(workersFile), { recursive: true })
+    fs.writeFileSync(workersFile, '{"version":1,"workers":{}}', { mode: 0o600 })
+    fs.chmodSync(workersFile, 0o200)
+    out.liveWhileUnreadable = ledger.liveSessions(key)
+    out.reconciledUnreadable = ledger.reconcileInterruptedEntries(key, 'sess-cur', () => '2020-01-01T00:05:00.000Z')
+    fs.chmodSync(workersFile, 0o600)
+    fs.writeFileSync(workersFile, '{torn json', 'utf8')
+    out.liveWhileTorn = ledger.liveSessions(key)
+    out.reconciledTorn = ledger.reconcileInterruptedEntries(key, 'sess-cur', () => '2020-01-01T00:05:00.000Z')
+    fs.unlinkSync(workersFile)
+    out.reconciledAbsent = ledger.reconcileInterruptedEntries(key, 'sess-cur', () => '2020-01-01T00:05:00.000Z')
+
+    const roKey = 'proj-open-ro'
+    const roFile = paths.lineagePath(roKey)
+    fs.mkdirSync(path.dirname(roFile), { recursive: true })
+    fs.chmodSync(path.dirname(roFile), 0o500)
+    try {
+      out.opened = ledger.openEntry(roKey, { sessionId: 's-ro', model: 'm' })
+    } catch (e) {
+      out.openThrew = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(path.dirname(roFile), 0o700)
+    }
+  `)
+  check(
+    'ledger-reconcile-unreadable-workers-fails-closed',
+    Array.isArray(r.liveWhileUnreadable) &&
+      (r.liveWhileUnreadable as unknown[]).length === 0 &&
+      (r.reconciledUnreadable as unknown[]).length === 0 &&
+      Array.isArray(r.liveWhileTorn) &&
+      (r.liveWhileTorn as unknown[]).length === 0 &&
+      (r.reconciledTorn as unknown[]).length === 0 &&
+      (r.reconciledAbsent as unknown[]).length === 1,
+    JSON.stringify(r),
+  )
+  check('ledger-open-entry-unwritable-throws', r.openThrew === 'EACCES', JSON.stringify(r))
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
