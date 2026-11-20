@@ -123,7 +123,7 @@ section('§H the switch receipt is durable (FN-016 R20)')
   check('a one-clause refusal is its own transient', slotSwitchTransient(refusal) === refusal)
 
   const focus = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { paintSlotSwitchReceipt } = await import('../../src/utils/model/slotSwitchReceipt.ts')
+  const { paintSlotSwitchReceipt } = await import('../../src/services/providers/slotSwitchReceipt.ts')
   type Row = { type: string; subtype?: string; content?: string; level?: string }
   const rows: Row[] = []
   focus.setFocusedSessionConnector({ addDisplayRow: (row: Row) => rows.push(row) } as never)

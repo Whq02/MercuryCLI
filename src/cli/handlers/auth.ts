@@ -40,7 +40,7 @@ import {
   buildAccountProperties,
   buildAPIProviderProperties,
   propertyValueToText,
-} from '../../utils/status.js'
+} from '../../components/status.js'
 import { maybeMarkProjectOnboardingComplete } from '../../projectOnboardingState.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 

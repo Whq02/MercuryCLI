@@ -173,7 +173,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
 section('§4 the wire laws the vendor states for the row: thinking always on, no forced tool choice, the disabled road omits the parameter, foreign thinking leaves the wire both ways')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
+  const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
   const { describeInputTransformations, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)

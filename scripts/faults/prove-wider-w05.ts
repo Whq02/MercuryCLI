@@ -562,7 +562,7 @@ console.log('\nw05-5 — unreadable MERCURY_CLIENT_CERT / MERCURY_CLIENT_KEY war
     const fs = await import('node:fs')
     const path = await import('node:path')
     const mtls = await import(path.join(SRC, 'utils/mtls.ts'))
-    const status = await import(path.join(SRC, 'utils/status.tsx'))
+    const status = await import(path.join(SRC, 'components/status.tsx'))
 
     const missingCert = path.join(SCRATCH, 'missing-cert.pem')
     const missingKey = path.join(SCRATCH, 'missing-key.pem')
