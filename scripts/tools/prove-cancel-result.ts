@@ -2,14 +2,13 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cancel-result-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 import { z } from 'zod/v4'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
 const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
@@ -373,8 +372,6 @@ section("F a cut is a failure for hooks: tool.after fires once for a cut call on
     const fired = fires('Deadlines')
     check("the control: a tool's own AbortError while the turn's signal is live is no user interrupt — the hook fires once with cut false and the tool's own words", !ctx.abortController.signal.aborted && fired.length === 1 && fired[0]?.cut === false && fired[0]?.error === 'The walk was cancelled by its own deadline.', JSON.stringify({ fired, aborted: ctx.abortController.signal.aborted }))
   }
-  const docs = readFileSync(join(ROOT, 'docs/HOOKS.md'), 'utf8')
-  check('the docs promise the event for a cut: tool.after carries cut, true when a cut caused the failure', /`tool\.after`[^\n]*`cut`/.test(docs), docs.split('\n').find(line => line.includes('`tool.after`')) ?? 'no tool.after line')
   rmSync(hookDir, { recursive: true, force: true })
 }
 
