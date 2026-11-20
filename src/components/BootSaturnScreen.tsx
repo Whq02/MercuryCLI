@@ -39,7 +39,8 @@ import { LOCAL_PULL_RECOMMENDATION } from '../services/providers/local/localAcco
 import { LOCAL_SETUP_OFFER } from '../commands/localsetup/words.js';
 import { clearFormRowOf, commitPromptOf, editFormRowOf, runNowOf, scheduleEditRpcOf, submitFormOf, type SaturnFormRowId } from './bootSaturn/actions.js';
 import { saturnMenuOf, saturnRowsView } from './bootSaturn/menu.js';
-import { getErrnoCode } from '../utils/errors.js';
+import { errorMessage, getErrnoCode } from '../utils/errors.js';
+import { passedOver } from '../utils/passedOver.js';
 import { logError } from '../utils/log.js';
 
 
@@ -514,6 +515,32 @@ function formPromptCap(field: SaturnFormRowId): number {
   }
 }
 
+export function runBoxRemoveNote(scheduleId: string, dir?: string): string {
+  try {
+    const outcome = removeBoxSchedule(scheduleId, dir);
+    return outcome === 'removed'
+      ? `removed '${scheduleId}' — a box row; the next tick sees it`
+      : `remove refused — no box schedule '${scheduleId}'`;
+  } catch (error) {
+    passedOver(error);
+    return `schedule refused — ${errorMessage(error)}`;
+  }
+}
+
+export function runBoxPauseResumeNote(scheduleId: string, paused: boolean, dir?: string): string {
+  try {
+    const outcome = setBoxSchedulePaused(scheduleId, paused, dir);
+    return outcome === 'applied'
+      ? `${paused ? 'paused' : 'resumed'} '${scheduleId}' — a box row; the next tick sees it`
+      : outcome === 'noop'
+        ? `already ${paused ? 'paused' : 'running'}`
+        : `no box schedule '${scheduleId}'`;
+  } catch (error) {
+    passedOver(error);
+    return `schedule refused — ${errorMessage(error)}`;
+  }
+}
+
 export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: givenNow, receiptsOf, modelOptionsOf, presetsOf, projectsOf, preflightOf }: BootSaturnScreenProps = {}): React.ReactNode {
   const t = useMercuryTokens();
   const { columns: termCols, rows: termRows } = useTerminalSize();
@@ -557,20 +584,11 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
   );
 
   const boxRemove = (row: SaturnScreenRowV1): void => {
-    const outcome = removeBoxSchedule(row.facts.id);
-    setNote(outcome === 'removed' ? `removed '${row.facts.id}' — a box row; the next tick sees it` : `remove refused — no box schedule '${row.facts.id}'`);
+    setNote(runBoxRemoveNote(row.facts.id));
     refresh();
   };
   const boxPauseResume = (row: SaturnScreenRowV1): void => {
-    const paused = row.facts.paused !== true;
-    const outcome = setBoxSchedulePaused(row.facts.id, paused);
-    setNote(
-      outcome === 'applied'
-        ? `${paused ? 'paused' : 'resumed'} '${row.facts.id}' — a box row; the next tick sees it`
-        : outcome === 'noop'
-          ? `already ${paused ? 'paused' : 'running'}`
-          : `no box schedule '${row.facts.id}'`,
-    );
+    setNote(runBoxPauseResumeNote(row.facts.id, row.facts.paused !== true));
     refresh();
   };
 

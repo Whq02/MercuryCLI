@@ -563,5 +563,43 @@ console.log('\nw02-6 — unreadable workspace config carries deltasReadError on 
   )
 }
 
+console.log('\nw02-7 — BootSaturnScreen box remove and pause/resume catch box-file read errors and show schedule refused notice')
+{
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const saturn = await import(${JSON.stringify(join(SRC, 'components/BootSaturnScreen.tsx'))})
+    const box = await import(${JSON.stringify(join(SRC, 'daemon/saturnBoxSchedules.ts'))})
+
+    const dir = path.join(HOME, 'daemon-w02-7')
+    fs.mkdirSync(dir, { recursive: true })
+    const boxPath = box.saturnBoxSchedulesPath(dir)
+    const corrupt = '{not json'
+    fs.writeFileSync(boxPath, corrupt, 'utf8')
+
+    out.hasRemove = typeof saturn.runBoxRemoveNote === 'function'
+    out.hasPause = typeof saturn.runBoxPauseResumeNote === 'function'
+    if (out.hasRemove) out.removeNote = saturn.runBoxRemoveNote('sched-1', dir)
+    if (out.hasPause) out.pauseNote = saturn.runBoxPauseResumeNote('sched-1', true, dir)
+    out.preserved = fs.readFileSync(boxPath, 'utf8') === corrupt
+  `)
+  check(
+    'BootSaturnScreen boxRemove catches corrupt box file and returns schedule refused notice without overwriting',
+    r.out.hasRemove === true &&
+      typeof r.out.removeNote === 'string' &&
+      (r.out.removeNote as string).startsWith('schedule refused — ') &&
+      r.out.preserved === true,
+    JSON.stringify(r.out),
+  )
+  check(
+    'BootSaturnScreen boxPauseResume catches corrupt box file and returns schedule refused notice without overwriting',
+    r.out.hasPause === true &&
+      typeof r.out.pauseNote === 'string' &&
+      (r.out.pauseNote as string).startsWith('schedule refused — ') &&
+      r.out.preserved === true,
+    JSON.stringify(r.out),
+  )
+}
+
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)
