@@ -9,6 +9,7 @@ import { updateTaskState } from '../../utils/task/framework.js'
 import type { LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { withDeadline } from '../../utils/deadline.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
@@ -78,13 +79,7 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
   const treeCounts = async (): Promise<{ processesEnded?: number; processSurvivors?: number }> => {
     if (!treeReceipt) return {}
     try {
-      const receipt = await Promise.race([
-        treeReceipt,
-        new Promise<null>(resolve => {
-          const bound = startTimeout(() => resolve(null), TREE_RECEIPT_BOUND_MS)
-          bound.unref?.()
-        }),
-      ])
+      const receipt = await withDeadline(treeReceipt, TREE_RECEIPT_BOUND_MS, () => null, { unref: true })
       if (!receipt) return {}
       return {
         processesEnded: receipt.ended,
