@@ -88,7 +88,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
         } catch {
           threw = true
         }
-        check('commitGate: unreadable commit candidate refuses instead of passing open', threw || refusal !== null, `threw=${threw} refusal=${String(refusal)}`)
+        check('commitGate: a commit candidate that cannot be read does not refuse the commit', !threw && refusal === null, `threw=${threw} refusal=${String(refusal)}`)
       } finally {
         chmodSync(join(repo, 'src.txt'), 0o600)
       }
