@@ -1,7 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 import type { TestCaseResult, TestRunRecord } from './pythonTests.js'
-import { unityTestResultsPath } from './unityProject.js'
+import { unityTestResultsPath } from '../../utils/unity/unityProject.js'
 
 const INPUT_CAP_BYTES = 32 * 1024 * 1024
 const CASE_CAP = 200

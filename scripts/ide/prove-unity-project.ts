@@ -25,7 +25,7 @@ const {
   locateUnityEditors,
   compareUnityVersionsDesc,
   buildUnityProjectProfile,
-} = await import('../../src/services/ide/unityProject.js')
+} = await import('../../src/utils/unity/unityProject.js')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 
 const savedEnv = { ...process.env }

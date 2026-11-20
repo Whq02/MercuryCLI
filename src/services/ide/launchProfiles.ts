@@ -12,7 +12,7 @@ import {
   mercuryUnityEnabled,
   unityTestResultsPath,
   UNITY_LICENSE_DISCLAIMER,
-} from './unityProject.js'
+} from '../../utils/unity/unityProject.js'
 import {
   buildBlenderContextProfile,
   mercuryBlenderEnabled,
