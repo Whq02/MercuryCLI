@@ -21,6 +21,10 @@ const AS_TEXT = /\b(?:text|file)\b/
 const NAMES_SRC = /src/i
 const UNKNOWN = '\0'
 export const STEPS = 2_000_000
+export const GENERATORS = 'scripts/gate/generated-assets.tsv'
+export const NAMED_TOOLS = ['scripts/orphans/exportCensus.ts', 'scripts/orphans/rewrite-unread-exports.ts']
+const A_SCRIPT = /scripts\/[A-Za-z0-9_@./-]+\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|sh)/g
+const A_TEST = /(?:^|\/)(?:prove-[^/]*|run-all\.sh)$/
 const DEEP = 48
 const READERS = new Set(['readFileSync', 'readFile', 'createReadStream', 'openSync'])
 const RUNNERS = new Set(['exec', 'execSync', 'execFile', 'execFileSync', 'spawn', 'spawnSync'])
@@ -38,11 +42,11 @@ const PATTERN_SEARCHES = new Set(['test', 'exec'])
 export type Hit = { line: number; file: string }
 type Name = Hit & { asText: boolean }
 type Src = { files: Map<string, string>; folders: Set<string>; names: Set<string>; parts: Set<string> }
-export type Estate = { scripts: string[]; src: Src; listed: boolean }
+export type Estate = { scripts: string[]; src: Src; listed: boolean; tools?: ReadonlySet<string> }
 export type Facts = { pins: Map<string, number>; events: string[]; searches: Hit[]; namesOnly: Map<string, number>; folder: boolean; fragment: boolean; listed: Map<string, number>; childText: boolean; shell: boolean; spent: boolean }
 type Value = { paths: string[]; text: string[] }
 type Env = Map<ts.Node, Value>
-type Cx = { root: string; src: Src; modules: ModuleCache; sf: ts.SourceFile; pins: Map<string, number>; events: Set<string>; searches: Hit[]; helpers: Set<ts.FunctionLikeDeclaration>; entered: Set<ts.Node>; stack: Set<ts.Node>; valuing: Set<ts.Node>; fills: Map<ts.Node, ts.Expression[]>; walked: Map<ts.Node, Map<string, Array<{ file: string; search: boolean }>>>; log: Array<{ file: string; search: boolean }>; steps: number; fragment: boolean; line: number; listed: Map<string, number> }
+type Cx = { root: string; src: Src; tools: ReadonlySet<string>; modules: ModuleCache; sf: ts.SourceFile; pins: Map<string, number>; events: Set<string>; searches: Hit[]; helpers: Set<ts.FunctionLikeDeclaration>; entered: Set<ts.Node>; stack: Set<ts.Node>; valuing: Set<ts.Node>; fills: Map<ts.Node, ts.Expression[]>; walked: Map<ts.Node, Map<string, Array<{ file: string; search: boolean }>>>; log: Array<{ file: string; search: boolean }>; steps: number; fragment: boolean; line: number; listed: Map<string, number> }
 
 const KNOWN = { decls: new WeakMap<ts.Identifier, ts.Node | null>(), fns: new WeakMap<ts.CallExpression, ts.FunctionLikeDeclaration | null>(), paths: new WeakMap<ts.Node, string[]>(), text: new WeakMap<ts.Node, string[]>(), inert: new WeakMap<ts.Node, boolean>(), pathsIn: new WeakMap<Env, Map<ts.Node, string[]>>(), textIn: new WeakMap<Env, Map<ts.Node, string[]>>() }
 
@@ -90,6 +94,14 @@ export function srcOf(files: string[]): Src {
   return src
 }
 
+export function toolsOf(scripts: string[], generators: string): Set<string> {
+  const tools = new Set(NAMED_TOOLS)
+  for (const line of generators.split('\n')) if (!line.startsWith('#')) for (const m of (line.split('\t')[1] ?? '').matchAll(A_SCRIPT)) tools.add(m[0])
+  for (const script of scripts) if (script.startsWith('scripts/release/')) tools.add(script)
+  const listed = new Set(scripts)
+  return new Set([...tools].filter(script => listed.has(script) && !A_TEST.test(script)).sort())
+}
+
 export function estateOf(root: string): Estate {
   let listed = ''
   try {
@@ -98,7 +110,14 @@ export function estateOf(root: string): Estate {
     return { scripts: [], src: srcOf([]), listed: false }
   }
   const files = [...new Set(listed.split('\0').filter(Boolean))].sort()
-  return { scripts: files.filter(f => f.startsWith('scripts/')), src: srcOf(files), listed: true }
+  const scripts = files.filter(f => f.startsWith('scripts/'))
+  let generators = ''
+  try {
+    generators = readFileSync(join(root, GENERATORS), 'utf8')
+  } catch {
+    generators = ''
+  }
+  return { scripts, src: srcOf(files), listed: true, tools: toolsOf(scripts, generators) }
 }
 
 const pathOf = (spelled: string): string => spelled.replace(/\\([.-])/g, '$1').replace(new RegExp(SEP, 'g'), '/').toLowerCase()
@@ -348,7 +367,8 @@ function moduleFile(cx: Cx, from: string, spec: string): string | undefined {
 function scriptImport(cx: Cx, decl: ts.Node): ts.Node | undefined {
   const ref = importOf(decl)
   const target = ref ? importTarget(decl.getSourceFile().fileName, ref.module) : null
-  return target !== null && slash(relative(cx.root, target)).startsWith('scripts/') ? importedDeclaration(cx.modules, decl) : undefined
+  const script = target === null ? '' : slash(relative(cx.root, target))
+  return script.startsWith('scripts/') && !cx.tools.has(script) ? importedDeclaration(cx.modules, decl) : undefined
 }
 
 function fnOfCall(cx: Cx, call: ts.CallExpression): ts.FunctionLikeDeclaration | undefined {
@@ -702,10 +722,10 @@ function walk(cx: Cx, node: ts.Node, env: Env, at: number | undefined, depth: nu
   step(node)
 }
 
-function codeFacts(root: string, src: Src, modules: ModuleCache, script: string): Facts {
+function codeFacts(root: string, src: Src, tools: ReadonlySet<string>, modules: ModuleCache, script: string): Facts {
   const { sf } = parseSource(root, join(root, script))
   const { names, folder, childText } = codeNames(sf, src)
-  const cx: Cx = { root, src, modules, sf, pins: new Map(), events: new Set(), searches: [], helpers: new Set(), entered: new Set(), stack: new Set(), valuing: new Set(), fills: new Map(), walked: new Map(), log: [], steps: 0, fragment: false, line: 0, listed: new Map() }
+  const cx: Cx = { root, src, tools, modules, sf, pins: new Map(), events: new Set(), searches: [], helpers: new Set(), entered: new Set(), stack: new Set(), valuing: new Set(), fills: new Map(), walked: new Map(), log: [], steps: 0, fragment: false, line: 0, listed: new Map() }
   for (const n of names) if (n.asText) pin(cx, n.file, n.line)
   walk(cx, sf, new Map(), undefined, 0)
   for (const fn of cx.helpers) {
@@ -728,9 +748,11 @@ function shellFacts(text: string, src: Src): Facts {
 export function factsOf(root: string, estate: Estate): { facts: Map<string, Facts>; read: number; aside: number } {
   const facts = new Map<string, Facts>()
   const modules = new ModuleCache(root)
+  const tools = estate.tools ?? new Set<string>()
   let read = 0
   let aside = 0
   for (const script of estate.scripts) {
+    if (tools.has(script)) continue
     let text: string
     try {
       text = readFileSync(join(root, script), 'utf8')
@@ -738,7 +760,7 @@ export function factsOf(root: string, estate: Estate): { facts: Map<string, Fact
       continue
     }
     if (text.includes('\0')) continue
-    if (CODE.test(script)) facts.set(script, codeFacts(root, estate.src, modules, script))
+    if (CODE.test(script)) facts.set(script, codeFacts(root, estate.src, tools, modules, script))
     else if (SHELL.test(script)) facts.set(script, shellFacts(text, estate.src))
     else {
       if (textReads(text, estate.src).length > 0) aside++
