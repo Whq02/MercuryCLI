@@ -5,6 +5,7 @@ import { z } from 'zod/v4'
 import { buildTool } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
+import { getErrnoCode } from '../../utils/errors.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import {
   getBlenderBridgeClient,
@@ -62,7 +63,8 @@ function realpathNearest(target: string): string {
       return tail.length === 0
         ? realpathSync(existing)
         : path.join(realpathSync(existing), ...tail)
-    } catch {
+    } catch (error) {
+      if (getErrnoCode(error) !== 'ENOENT') throw error
       const parent = path.dirname(existing)
       if (parent === existing) return target
       tail.unshift(path.basename(existing))

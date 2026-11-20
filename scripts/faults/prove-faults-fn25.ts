@@ -291,6 +291,26 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const work = join(scratch, 'blender-tree')
+  mkdirSync(work, { recursive: true })
+  const loopA = join(work, 'loop-a.blend')
+  const loopB = join(work, 'loop-b.blend')
+  symlinkSync(loopB, loopA)
+  symlinkSync(loopA, loopB)
+  const res = await runWithCwdOverride(work, () =>
+    BlenderTool.call({ op: 'blend_open', args: { path: loopA } } as never, {} as never),
+  )
+  const text = (res.data as { result: string }).result
+  check(
+    'BlenderTool: non-ENOENT realpath failure (ELOOP) refuses inside resolveInsideTree instead of proceeding',
+    text.includes('blend_open failed:') && /ELOOP|too many/i.test(text),
+    text.slice(0, 160),
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
