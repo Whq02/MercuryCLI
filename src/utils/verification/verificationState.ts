@@ -1026,15 +1026,27 @@ export function pipefailActiveBefore(
   return false
 }
 
-export function projectVerifyPattern(): RegExp | null {
+function parseProjectVerifyPattern(): { pattern: RegExp | null; error: string | null } {
   const raw = flagEnv('MERCURY_VERIFY_PATTERN')
-  if (!raw) return null
+  if (!raw) return { pattern: null, error: null }
   try {
-    return new RegExp(raw, 'i')
+    return { pattern: new RegExp(raw, 'i'), error: null }
   } catch (error) {
-    passedOver(error)
-    return null
+    const message = error instanceof Error ? error.message : String(error)
+    logForDebugging(`[verify] invalid MERCURY_VERIFY_PATTERN (${message})`, { level: 'warn' })
+    return { pattern: null, error: message }
   }
+}
+
+export function projectVerifyPattern(): RegExp | null {
+  return parseProjectVerifyPattern().pattern
+}
+
+function verifyPatternNote(): string | null {
+  const { error } = parseProjectVerifyPattern()
+  return error === null
+    ? null
+    : `MERCURY_VERIFY_PATTERN is not a valid regular expression (${error}); fix it so matching commands count as verification.`
 }
 
 function verbScope(verb: string): VerificationScope {
@@ -1343,8 +1355,8 @@ export function verificationSummary(
   opts?: { skipDigest?: boolean; owner?: OwnerKey },
 ): VerificationSnapshot {
   const snapshot = summarize(cwd, opts)
-  const note = treeScanNote(cwd)
-  return note === null ? snapshot : { ...snapshot, detail: `${snapshot.detail} · ${note}` }
+  const notes = [treeScanNote(cwd), verifyPatternNote()].filter((n): n is string => n !== null)
+  return notes.length === 0 ? snapshot : { ...snapshot, detail: `${snapshot.detail} · ${notes.join(' · ')}` }
 }
 
 function summarize(

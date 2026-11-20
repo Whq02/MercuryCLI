@@ -349,7 +349,7 @@ async function runProjectGatesRows(): Promise<void> {
 
 async function runVerificationStateRows(): Promise<void> {
   const { _resetDeclaredGatesForTesting } = await import('../../src/utils/verification/projectGates.ts')
-  const { _resetVerificationStateForTesting, classifyVerifySegment, workspaceVerifiable } = await import('../../src/utils/verification/verificationState.ts')
+  const { _resetVerificationStateForTesting, classifyVerifySegment, verificationSummary, workspaceVerifiable } = await import('../../src/utils/verification/verificationState.ts')
 
   const badJsonWs = join(SCRATCH, 'vs-bad-gates')
   mkdirSync(join(badJsonWs, '.mercury'), { recursive: true })
@@ -389,6 +389,27 @@ async function runVerificationStateRows(): Promise<void> {
     } finally {
       chmodSync(gatesFile, 0o600)
     }
+  }
+  const priorPattern = process.env.MERCURY_VERIFY_PATTERN
+  process.env.MERCURY_VERIFY_PATTERN = '[unterminated'
+  try {
+    const badSnap = verificationSummary(badJsonWs, { skipDigest: true })
+    check(
+      'verificationState: invalid MERCURY_VERIFY_PATTERN surfaces in verificationSummary',
+      badSnap.detail.includes('MERCURY_VERIFY_PATTERN is not a valid regular expression (') &&
+        badSnap.detail.includes('); fix it so matching commands count as verification.'),
+      badSnap.detail,
+    )
+    process.env.MERCURY_VERIFY_PATTERN = 'custom-verify'
+    const okSnap = verificationSummary(badJsonWs, { skipDigest: true })
+    check(
+      'verificationState: valid MERCURY_VERIFY_PATTERN adds no error note',
+      !okSnap.detail.includes('MERCURY_VERIFY_PATTERN is not a valid regular expression'),
+      okSnap.detail,
+    )
+  } finally {
+    if (priorPattern === undefined) delete process.env.MERCURY_VERIFY_PATTERN
+    else process.env.MERCURY_VERIFY_PATTERN = priorPattern
   }
 }
 
