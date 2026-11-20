@@ -12,6 +12,8 @@ import {
   verificationSummary,
 } from '../utils/verification/verificationState.js'
 import { engageToolGuard, disengageToolGuard, type ToolCallUnderGuard } from './guards.js'
+import { createSystemMessage } from '../utils/messages/systemMessages.js'
+import type { SystemInformationalMessage } from '../types/message.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
@@ -144,6 +146,25 @@ function generatedAssetsVerdict(command: string): true | string {
   }
 }
 
+const skippedSourcesSaid = new Set<string>()
+let skippedSourcesToSay: string[] = []
+
+function holdSkippedSources(skipped: readonly string[]): void {
+  for (const source of skipped) {
+    if (skippedSourcesSaid.has(source)) continue
+    skippedSourcesSaid.add(source)
+    skippedSourcesToSay.push(source)
+    logForDebugging(`[commit-gate] ${GENERATED_ASSETS_MAP} ${source}, so the commit is not checked against that source`, { level: 'warn' })
+  }
+}
+
+function skippedSourcesNote(callId: string): SystemInformationalMessage | undefined {
+  if (skippedSourcesToSay.length === 0) return undefined
+  const sources = skippedSourcesToSay
+  skippedSourcesToSay = []
+  return createSystemMessage(`${GENERATED_ASSETS_MAP} ${sources.join('; ')}, so the commit was not checked against ${sources.length === 1 ? 'that source' : 'those sources'} — fix the pattern in the map.`, 'warning', callId)
+}
+
 function commandOfCall(call: ToolCallUnderGuard): string | null {
   const declared = call.toolRef?.shellCommandOf?.(call.input)
   if (typeof declared === 'string') return declared
@@ -160,9 +181,11 @@ function registerCommitGate(sessionId: string): string {
       if (flagEnv('MERCURY_COMMIT_GATE') === '0') return { allow: true }
       if (!commitGateEnabled()) return { allow: true }
       const refuse = (reason?: string): { allow: false; reason: string } => ({ allow: false, reason: reason ?? COMMIT_GATE_REPROMPT })
-      const assetsVerdict = (command: string): ReturnType<typeof refuse> | { allow: true } => {
+      const assetsVerdict = (command: string): ReturnType<typeof refuse> | { allow: true; note?: SystemInformationalMessage } => {
         const verdict = generatedAssetsVerdict(command)
-        return verdict === true ? { allow: true } : refuse(verdict)
+        if (verdict !== true) return refuse(verdict)
+        const note = skippedSourcesNote(call.callId)
+        return note === undefined ? { allow: true } : { allow: true, note }
       }
       try {
         const command = commandOfCall(call)
@@ -396,6 +419,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   if (candidateMap === null) return null
   const map = parseGeneratedAssetsMap(candidateMap)
   if (map.errors.length > 0) return `The generated-asset map (${GENERATED_ASSETS_MAP}) does not parse: ${map.errors.join('; ')} — fix the map before committing.`
+  holdSkippedSources(map.skipped)
   if (map.rows.length === 0) return null
   if (directoryRefusal !== null) return directoryRefusal
   if (candidateChanges.some(segment => !map.rows.some(row => row.check !== null && checkChained(row.check, [segment]))) || segments.slice(commitIndex + 1).some(s => isGitCommit(s.text))) return 'Generated-asset checks require a stable commit candidate. Run staging or file-changing commands separately, then check and commit the resulting index.'

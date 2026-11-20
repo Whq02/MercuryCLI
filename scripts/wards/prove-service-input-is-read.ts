@@ -143,6 +143,21 @@ section('§5 a started shell keeps what earlier inputs left: the inputs sent to 
   check('after cd into a folder of the project, the delete passes', (await sent({ op: 'input', name: 'sixth', text: 'rm -rf *' })) === null)
   started('first', ['bash'], 4242)
   check('a service started again is a new shell: the delete in the project passes', (await sent({ op: 'input', name: 'first', text: 'rm -rf *' })) === null)
+  const { pinnedCommandAnalysis } = await import(join(SRC, 'utils/permissions/decision/commandAnalysis.ts'))
+  const parse = pinnedCommandAnalysis.parseCommandRaw
+  started('unpicked', ['bash'])
+  pinnedCommandAnalysis.parseCommandRaw = async () => {
+    throw new Error('the parser could not be loaded')
+  }
+  try {
+    await sentBefore('unpicked', 'echo one && echo two')
+  } finally {
+    pinnedCommandAnalysis.parseCommandRaw = parse
+  }
+  const alone = ServiceTool.shellCommandOf?.({ op: 'input', name: 'unpicked', text: 'ls' })
+  check('an input whose folder, alias and variable lines could not be picked out (the parser threw) is not put in front of what follows: the next input is read alone', alone === 'ls', String(alone))
+  await sentBefore('unpicked', 'cd /')
+  check('control: the next input that the parser does read is kept again', ServiceTool.shellCommandOf?.({ op: 'input', name: 'unpicked', text: 'ls' }) === 'cd /\nls', String(ServiceTool.shellCommandOf?.({ op: 'input', name: 'unpicked', text: 'ls' })))
 }
 
 resetGuardsForTesting()

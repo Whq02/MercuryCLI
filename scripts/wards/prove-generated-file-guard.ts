@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
   const { chmodSync, mkdtempSync, openSync, readSync, closeSync, readFileSync, readdirSync, rmSync, mkdirSync, symlinkSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { join, dirname } = await import('node:path')
+  const { join, dirname, relative, isAbsolute, sep } = await import('node:path')
   const { execFileSync } = await import('node:child_process')
   const proofHome = mkdtempSync(join(tmpdir(), 'wards-generated-home-'))
   process.env.MERCURY_CONFIG_DIR = proofHome
@@ -61,7 +61,11 @@ async function main(): Promise<void> {
     const slice = buffer.subarray(0, read)
     return slice.includes(0) ? undefined : slice.toString('utf8')
   }
-  const rootedAt = (root: string) => (path: string): Resolved => ({ path, root: path === root || path.startsWith(`${root}/`) ? root : undefined })
+  const within = (root: string, path: string): boolean => {
+    const below = relative(root, path)
+    return below === '' || (below !== '..' && !below.startsWith(`..${sep}`) && !isAbsolute(below))
+  }
+  const rootedAt = (root: string) => (path: string): Resolved => ({ path, root: within(root, path) ? root : undefined })
   const projectResolver = rootedAt(PROJECT)
   const edit = (file_path: string, new_string = 'const changed = 2', readHead: Call['readHead'] = fakeReader, resolvePath: Call['resolvePath'] = projectResolver): Call => ({
     toolName: 'Edit',

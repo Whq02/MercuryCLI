@@ -146,5 +146,42 @@ section('(7) sign / verify — authorship the key can prove')
   check('malformed key material is a refusal, never a crash', !keys.verifyOperatorSignature('x', sig, Buffer.from('too-short')))
 }
 
+if (posix) {
+  section('(8) a mode that cannot be checked refuses no key; a key found to be another user\'s still does')
+  const fs = await import('node:fs')
+  const { mock } = await import('bun:test')
+  const real = { ...fs }
+  const path = keys.operatorKeyPath()
+  let stand: 'through' | 'stat fails' | 'another user' = 'through'
+  mock.module('node:fs', () => ({
+    ...real,
+    default: real,
+    statSync: (...args: Parameters<typeof fs.statSync>) => {
+      if (args[0] !== path || stand === 'through') return real.statSync(...args)
+      if (stand === 'stat fails') throw Object.assign(new Error(`EIO: i/o error, stat '${path}'`), { code: 'EIO' })
+      const stats = real.statSync(path)
+      return Object.assign(Object.create(Object.getPrototypeOf(stats)), stats, { uid: stats.uid + 1, mode: (stats.mode & ~0o777) | 0o644 })
+    },
+    chmodSync: (...args: Parameters<typeof fs.chmodSync>) => {
+      if (args[0] === path && stand === 'another user') throw Object.assign(new Error(`EPERM: operation not permitted, chmod '${path}'`), { code: 'EPERM' })
+      return real.chmodSync(...args)
+    },
+  }))
+  const resolve = (): string => {
+    keys._resetOperatorKeyMemoForTesting()
+    try { return keys.operatorKeyId() } catch (e) { return `REFUSED: ${e instanceof Error ? e.message : String(e)}` }
+  }
+  const own = resolve()
+  stand = 'stat fails'
+  const unchecked = resolve()
+  stand = 'another user'
+  const foreign = resolve()
+  stand = 'through'
+  check('the rig holds: with the stand-in passing through, the key resolves', /^[0-9a-f]+$/i.test(own) || own.length > 8, own)
+  check('a key that was read and whose mode cannot be checked (EIO on its stat) is used: the same id, no refusal', unchecked === own, unchecked)
+  check('control: a key found to belong to another user that cannot be made private still refuses', foreign.startsWith('REFUSED: ') && foreign.includes('belongs to another user'), foreign)
+  check('…and the key resolves again afterwards', resolve() === own)
+}
+
 console.log(failures === 0 ? '\n ✅ OPERATOR IDENTITY PROVEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

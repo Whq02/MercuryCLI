@@ -240,6 +240,12 @@ const estateRoot = project('estate')
     const zeroGrace = new EngineJobService(estateRoot, { census: async () => [] })
     await zeroGrace.submit(request(['no-such-suite']) as any)
     check('the grace is read from the flag: at zero every unowned tree is swept and the owned one stays', !existsSync(young) && !existsSync(stamped) && existsSync(owned), zeroGrace.jobs().staleTreesRemoved)
+    const blind = new EngineJobService(estateRoot, { census: async () => { throw new Error('the process table could not be read') } })
+    const blindHolder = await blind.displayHolder().then(holder => `went on: ${holder}`, (error: unknown) => `REFUSED: ${error instanceof Error ? error.message : String(error)}`)
+    check('a census that cannot be read holds no native run back: the display reads as not held', blindHolder === 'went on: null', blindHolder)
+    const seen = new EngineJobService(estateRoot, { census: async () => [{ pid: 4242, executable: '/elsewhere/Godot', args: '--path /elsewhere --editor', editor: true, headless: false, project: '/elsewhere' }] })
+    const seenHolder = await seen.displayHolder()
+    check('control: a windowed Godot of another project that the census did read is still named as the holder', seenHolder !== null && seenHolder.includes('pid 4242'), String(seenHolder))
   } finally {
     delete process.env.MERCURY_GODOT_ORPHAN_GRACE_MS
     liveOwner.stdin!.end()

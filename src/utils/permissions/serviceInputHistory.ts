@@ -60,8 +60,7 @@ export function noteServiceInput(service: string, run: string, text: string, sub
     try {
       held.state.push(...(await stateStatements(lines)))
     } catch (error) {
-      logForDebugging(`service input: the folder, alias and variable lines of an input could not be picked out (${error instanceof Error ? error.message : String(error)}), so the whole input is kept for judging what follows`)
-      held.state.push(lines.replace(/\n$/, ''))
+      logForDebugging(`service input: the folder, alias and variable lines of an input could not be picked out (${error instanceof Error ? error.message : String(error)}), so nothing of that input is kept for judging what follows`, { level: 'warn' })
     }
     while (held.state.length > 1 && held.state.join('\n').length > MAX_STATE_CHARS) held.state.shift()
   })

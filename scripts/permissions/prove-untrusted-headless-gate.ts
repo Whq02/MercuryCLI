@@ -68,14 +68,13 @@ section('§1 THE PREDICATE')
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
   {
-    const { chmodSync } = await import('node:fs')
     const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
     const { getGlobalMercuryFile } = await import('../../src/utils/env.js')
     const trustRead = (await import('../../src/utils/config/trust.js')).checkHasTrustDialogAccepted
     enableConfigs()
     const configFile = getGlobalMercuryFile()
-    writeFileSync(configFile, '{}')
-    chmodSync(configFile, 0o000)
+    rmSync(configFile, { force: true })
+    mkdirSync(configFile)
     delete process.env.NODE_ENV
     let read = 'answered'
     let predicate = 'threw'
@@ -84,12 +83,11 @@ section('§1 THE PREDICATE')
       try { predicate = String(untrustedWorkspaceHeadless()) } catch (error) { predicate = `threw ${String(error)}` }
     } finally {
       process.env.NODE_ENV = 'test'
-      chmodSync(configFile, 0o644)
-      rmSync(configFile, { force: true })
+      rmSync(configFile, { recursive: true, force: true })
       resetTrustDialogAcceptedCacheForTesting()
     }
-    check('the rig holds: with the config file unreadable (EACCES) the trust read throws', process.getuid?.() === 0 || read === 'threw', read)
-    check('headless + a trust record that cannot be read ⇒ false: the run goes on with the checkout as on 1.0.11, a check that could not finish holds nothing back', process.getuid?.() === 0 || predicate === 'false', predicate)
+    check('the rig holds: with a folder standing where the config file should be, which no platform reads as a file, the trust read throws', read === 'threw', read)
+    check('headless + a trust record that cannot be read ⇒ false: the run goes on with the checkout as on 1.0.11, a check that could not finish holds nothing back', predicate === 'false', predicate)
   }
 }
 
