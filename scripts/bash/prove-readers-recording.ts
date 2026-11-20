@@ -64,8 +64,18 @@ type Kind = 'a hole closed' | 'an ask removed' | 'not a hole: the guard keeps it
 type ExpectedChange = { line: string; entry: string; base: string; now: string; cell: string; kind: Kind; why: string }
 const EXPECTED_CHANGES: readonly ExpectedChange[] = []
 
-const cellOf = (text: string): string => createHash('sha256').update(text).digest('base64url').slice(0, CELL)
-const lineKey = (line: string): string => createHash('sha256').update(line).digest('base64url').slice(0, CELL + 2)
+const SPELLING = '0123456789bcdfghjkmnpqrstvwxz'
+function spelled(value: number, width: number): string {
+  let out = ''
+  let left = value
+  for (let at = 0; at < width; at++) {
+    out = SPELLING[left % SPELLING.length] + out
+    left = Math.floor(left / SPELLING.length)
+  }
+  return out
+}
+const cellOf = (text: string): string => spelled(createHash('sha256').update(text).digest().readUInt32BE(0) >>> 3, CELL)
+const lineKey = (line: string): string => spelled(Math.floor(createHash('sha256').update(line).digest().readUIntBE(0, 5) / 4), CELL + 2)
 const cut = (text: string, width: number): string => (text.length <= width ? text : `${text.slice(0, width)} … (${text.length} characters)`)
 
 let failures = 0
@@ -119,7 +129,7 @@ function disagreement(found: Seen): string | null {
 
 function writeDisagreements(path: string, lines: readonly string[], indexes: readonly number[], seen: Record<string, Seen>): void {
   const said = (programs: Programs): string => (programs.read ? (programs.programs.length === 0 ? 'no program' : programs.programs.join(' ')) : `not read: ${cut(programs.why, 90)}`)
-  const cell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('\n', '⏎')
+  const cell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('\n', '\\n')
   const rows: Array<{ kind: string; row: string }> = []
   let neither = 0
   for (const at of indexes) {

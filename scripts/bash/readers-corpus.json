@@ -1096,7 +1096,6 @@
 "Rename-Item -Path 'dist\\vendor\\bash' -NewName 'bash.off'",
 "Rename-Item ~\\.ssh\\authorized_keys old -ErrorAction Stop",
 "Resolve-Path",
-"ResumeAgent",
 "S=/private/tmp/mercury-501/-private-tmp-mw-lead29-drives-switch-sonnet55-to-k3-project/6411e36f-9b82-44ba-99a0-4526b3ecf3de/scratchpad/errpath-site && mkdir -p \"$S\" && cp index.html quiz.js score.js styles.css \"$S\"/ && ls -1 \"$S\"",
 "S=/private/tmp/scratch && echo a && python3 $S/x.py",
 "S=echo; S=sudo; $S true",
