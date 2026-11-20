@@ -483,6 +483,90 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const r = runSub(`
+    const { mock } = await import('bun:test')
+    const path = await import('node:path')
+    const pauseCarryPath = path.join(SRC, 'tasks/LocalAgentTask/pauseCarry.ts')
+    const realPauseCarry = await import(pauseCarryPath)
+    let writeErr = 'ENOSPC: disk full'
+    mock.module(pauseCarryPath, () => ({
+      ...realPauseCarry,
+      clearAgentPauseRecord: async () => {
+        throw Object.assign(new Error('EACCES: unlink refused'), { code: 'EACCES' })
+      },
+      writeAgentPauseRecord: async () => {
+        throw Object.assign(new Error(writeErr), { code: 'ENOSPC' })
+      },
+    }))
+    const { getCommandQueue, resetCommandQueue } = await import(path.join(SRC, 'input-core/command-queue.ts'))
+    const { cancelAutomaticResume, armBudgetCutResume, armOverloadProbe } = await import(path.join(SRC, 'tools/AgentTool/agentToolUtils.ts'))
+    const { getDefaultAppState } = await import(path.join(SRC, 'state/AppStateStore.ts'))
+    const notes = () => getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value))
+
+    resetCommandQueue()
+    cancelAutomaticResume('agent-drop-fail')
+    await new Promise(resolve => setTimeout(resolve, 30))
+    out.dropPath = realPauseCarry.agentPauseRecordPath('agent-drop-fail')
+    out.dropNotes = notes()
+
+    let state = getDefaultAppState()
+    const setAppState = fn => { state = fn(state) }
+    const ctx = { getAppState: () => state, setAppState, setAppStateForTasks: setAppState, abortController: new AbortController(), options: { tools: [] }, messages: [] }
+
+    resetCommandQueue()
+    writeErr = 'ENOSPC: disk full'
+    const t1 = armBudgetCutResume({
+      taskId: 'agent-save-budget',
+      description: 'budget worker',
+      registration: new AbortController(),
+      toolUseContext: ctx,
+      rootSetAppState: setAppState,
+      delayMs: 60_000,
+      pause: { why: 'usage limit', words: 'spent', resumesAtMs: Date.now() + 60_000 },
+    })
+    if (t1) clearTimeout(t1)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    out.budgetPath = realPauseCarry.agentPauseRecordPath('agent-save-budget')
+    out.budgetNotes = notes()
+
+    resetCommandQueue()
+    writeErr = 'EACCES: read-only dir'
+    const t2 = armOverloadProbe({
+      taskId: 'agent-save-overload',
+      description: 'overload worker',
+      registration: new AbortController(),
+      toolUseContext: ctx,
+      rootSetAppState: setAppState,
+      model: 'claude-fable-5-1',
+      pause: { why: 'provider overloaded', words: 'overloaded' },
+      afterDeath: true,
+    })
+    if (t2) clearTimeout(t2)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    out.overloadPath = realPauseCarry.agentPauseRecordPath('agent-save-overload')
+    out.overloadNotes = notes()
+  `)
+  const dropNotes = (r.dropNotes as string[]).join('\n')
+  const budgetNotes = (r.budgetNotes as string[]).join('\n')
+  const overloadNotes = (r.overloadNotes as string[]).join('\n')
+  check(
+    'agentToolUtils: dropPauseRecord failure notifies with path, error, and delete guidance',
+    dropNotes.includes(String(r.dropPath)) && dropNotes.includes('could not be removed (EACCES: unlink refused)') && dropNotes.includes('delete it, or the next session start resumes it'),
+    dropNotes || '(no notification)',
+  )
+  check(
+    'agentToolUtils: armBudgetCutResume pause record save failure notifies with crewmate, path, error, and restart consequence',
+    budgetNotes.includes('Crewmate "budget worker"') && budgetNotes.includes(String(r.budgetPath)) && budgetNotes.includes('could not be saved (ENOSPC: disk full)') && budgetNotes.includes('after a restart'),
+    budgetNotes || '(no notification)',
+  )
+  check(
+    'agentToolUtils: armOverloadProbe pause record save failure notifies with crewmate, path, error, and restart consequence',
+    overloadNotes.includes('Crewmate "overload worker"') && overloadNotes.includes(String(r.overloadPath)) && overloadNotes.includes('could not be saved (EACCES: read-only dir)') && overloadNotes.includes('after a restart'),
+    overloadNotes || '(no notification)',
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
