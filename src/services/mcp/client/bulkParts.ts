@@ -1,4 +1,4 @@
-import { normalizeNameForMCP } from '../normalization.js'
+import { normalizeNameForMCP } from '../../../utils/mcp/normalization.js'
 import type { ScopedMcpServerConfig } from '../types.js'
 
 export async function runWithLimit<T>(items: T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {

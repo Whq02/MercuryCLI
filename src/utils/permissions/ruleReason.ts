@@ -1,4 +1,4 @@
-import { getToolNameForPermissionCheck } from '../../services/mcp/mcpStringUtils.js'
+import { getToolNameForPermissionCheck } from '../mcp/mcpStringUtils.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionBehavior, PermissionRule, PermissionRuleSource, PermissionRuleValue } from '../../types/permissions.js'
 import { getDenyRules, namesWholeServerOfTool, runsItsCommandAsBash } from './decision/rules.js'

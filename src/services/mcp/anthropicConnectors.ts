@@ -8,7 +8,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { clearMcpAuthCache } from './client/needsAuth.js'
-import { normalizeNameForMCP } from './normalization.js'
+import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
 import type { ScopedMcpServerConfig } from './types.js'
 
 

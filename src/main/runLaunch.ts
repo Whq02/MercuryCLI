@@ -12,7 +12,7 @@ import {
   mcpLaunchBudgetMs,
   withMcpLaunchBudget,
 } from '../services/mcp/client.js'
-import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
+import { getMcpPrefix } from '../utils/mcp/mcpStringUtils.js'
 import { partitionMcpConfigsByMembership } from '../services/mcp/membership.js'
 import { completeProcessSessionKit, consumeSessionKitPin, noteRefusedKitOnSessionReceipt, sessionKitOf } from '../services/mcp/sessionKitPin.js'
 import { doesEnterpriseMcpConfigExist, getMcpServerSignature, getMercuryMcpConfigs } from '../services/mcp/config.js'
