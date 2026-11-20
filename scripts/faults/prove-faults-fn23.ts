@@ -234,5 +234,33 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
   }
 }
 
+{
+  console.log('\n5. src/substrate/bootBeacon.ts')
+  const { bootAttemptsPath, clearBootAttempts, readBootAttemptResidue } = await import(join(SRC, 'substrate/bootBeacon.ts'))
+  const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-beacon-'))
+  try {
+    const home = join(scratch, 'home')
+    mkdirSync(home, { recursive: true })
+    const beacon = bootAttemptsPath(home)
+    writeFileSync(beacon, JSON.stringify({ version: 1, attempts: [1700000001000, 1700000002000, 1700000003000] }) + '\n', { mode: 0o600 })
+
+    if (!POSIX_MODES) {
+      skip('bootBeacon: clearBootAttempts clears writable file inside read-only dir', 'requires non-root POSIX')
+    } else {
+      chmodSync(home, 0o500)
+      clearBootAttempts(home)
+      const residue = readBootAttemptResidue(home)
+      chmodSync(home, 0o700)
+      check(
+        'bootBeacon: clearBootAttempts clears writable file inside read-only dir so residue reads null',
+        residue === null,
+        JSON.stringify(residue),
+      )
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
