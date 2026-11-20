@@ -19,7 +19,7 @@ const { toolAlwaysAllowedRule, getDenyRuleForTool, getAskRuleForTool } = await i
 const { killCapability, restoreCapability, isCapabilityKilled, capabilityKillReason } = await import('../../src/utils/permissions/capabilityGate.ts')
 const { matchesPattern } = await import('../../src/utils/hooks/matching.ts')
 const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { lspPermissionNote, lspCliNote, lspHookNote, lspAgentNote } = await import('../../src/services/lsp/toolFamily.ts')
+const { lspPermissionNote, lspCliNote, lspHookNote, lspAgentNote } = await import('../../src/utils/lsp/toolFamily.ts')
 const successors = 'LspRead, LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat and LspRequest'
 for (const kind of ['allow', 'deny'] as const) {
   const initialized = await initializeToolPermissionContext({ allowedToolsCli: kind === 'allow' ? ['LSP'] : [], disallowedToolsCli: kind === 'deny' ? ['LSP'] : [], permissionMode: 'default', allowDangerouslySkipPermissions: false })

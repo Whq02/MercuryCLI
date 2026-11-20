@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import type { LspToolName } from './prompt.js'
+import type { LspToolName } from '../../constants/tools/lsp.js'
 
 export const LSP_READ_OPERATIONS = ['goToDefinition', 'findReferences', 'hover', 'goToImplementation', 'typeDefinition', 'incomingCalls', 'outgoingCalls', 'documentSymbol', 'workspaceSymbol', 'diagnostics', 'serverStatus'] as const
 

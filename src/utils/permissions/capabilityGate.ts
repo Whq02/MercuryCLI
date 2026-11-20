@@ -1,6 +1,6 @@
 
 import { getMainThreadAgentType } from '../../bootstrap/state.js'
-import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
+import { lspFamilyMatches } from '../lsp/toolFamily.js'
 import type { Tool } from '../../Tool.js'
 import { deriveCategory, deriveRisk, type CapabilityCategory } from '../capability/manifest.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'

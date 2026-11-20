@@ -44,7 +44,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 {
   const { createHash } = await import('node:crypto')
-  const { LSP_DESCRIPTIONS, LSP_TOOL_NAMES } = await import('../../src/tools/LSPTool/prompt.ts')
+  const { LSP_DESCRIPTIONS, LSP_TOOL_NAMES } = await import('../../src/constants/tools/lsp.ts')
   const { truncateToLines } = await import('../../src/utils/stringUtils.ts')
   const CARD_SHA256: Record<string, string> = {
     LspRead: 'e8dcb24e66b983fc4569db7a0f4ba8cfa2fda359c3bb20a60c87ee20a9d5ab0a',

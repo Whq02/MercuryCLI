@@ -1,5 +1,5 @@
 import { toolMatchesName, type Tool, type ToolPermissionContext, type Tools } from '../../Tool.js'
-import { expandLspFamily } from '../lsp/toolFamily.js'
+import { expandLspFamily } from '../../utils/lsp/toolFamily.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { defersOnCloudFor, defersOnLocalFor, isDeferredTool, loadsInFullFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'

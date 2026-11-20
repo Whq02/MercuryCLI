@@ -22,7 +22,7 @@ import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../u
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
 import { runMercuryLspOp, type MercuryLspOpInput, type MercuryLspOpOutput } from './mercuryOps.js'
 import { readLocationSourceLines, boundWorkspaceSymbols, formatDocumentSymbolResult, formatFindReferencesResult, formatGoToDefinitionResult, formatHoverResult, formatIncomingCallsResult, formatOutgoingCallsResult, formatWorkspaceSymbolResult, uriToPath, type DocumentSymbol, type HoverResult, type IncomingCall, type Location, type Locationish, type OutgoingCall, type SymbolInformation } from './formatters.js'
-import { LSP_DESCRIPTIONS, LSP_SEARCH_HINTS, type LspToolName } from './prompt.js'
+import { LSP_DESCRIPTIONS, LSP_SEARCH_HINTS, type LspToolName } from '../../constants/tools/lsp.js'
 import { LSP_INPUT_JSON_SCHEMAS, lspInputSchema, readArguments, readArgumentError, type LspInput } from './schemas.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage } from './UI.js'
 import { passedOver } from '../../utils/passedOver.js'

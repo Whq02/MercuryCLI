@@ -1,5 +1,5 @@
 import type { Tool } from '../../Tool.js'
-import { expandLspFamily } from '../../services/lsp/toolFamily.js'
+import { expandLspFamily } from '../../utils/lsp/toolFamily.js'
 import { discoverRunnerProfiles, hasPythonSignal } from '../../services/ide/projectRunners.js'
 import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'

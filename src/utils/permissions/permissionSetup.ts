@@ -1,5 +1,5 @@
 import type { ToolPermissionContext } from '../../Tool.js'
-import { lspPermissionNote, lspCliNote, lspHookNote } from '../../services/lsp/toolFamily.js'
+import { lspPermissionNote, lspCliNote, lspHookNote } from '../lsp/toolFamily.js'
 import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'

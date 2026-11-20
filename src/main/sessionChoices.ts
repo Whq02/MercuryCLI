@@ -82,7 +82,7 @@ export function agentsWithCliDefs(opts: RootOptions, agentInfo: Awaited<ReturnTy
   return { activeAgents, allAgents }
 }
 
-export function mainThreadAgentOf(opts: RootOptions, activeAgents: AgentDefinition[], lspAgentNote: typeof import('../services/lsp/toolFamily.js').lspAgentNote): AgentDefinition | undefined {
+export function mainThreadAgentOf(opts: RootOptions, activeAgents: AgentDefinition[], lspAgentNote: typeof import('../utils/lsp/toolFamily.js').lspAgentNote): AgentDefinition | undefined {
   for (const agent of activeAgents) {
     if (agent.tools?.includes('LSP')) console.error(lspAgentNote(agent.agentType))
     if (agent.disallowedTools?.includes('LSP')) console.error(lspAgentNote(agent.agentType, true))
