@@ -12,7 +12,7 @@
 # gate-watch: .gitattributes
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/messages/**
-# gate-watch: src/services/structure/grammarFacility.ts
+# gate-watch: src/utils/structure/grammarFacility.ts
 # gate-watch: src/utils/shell/** src/utils/bash/** src/utils/powershell/** src/tools/PowerShellTool/** src/tasks/LocalShellTask/**
 # gate-watch: src/cli/headless/*
 set -u

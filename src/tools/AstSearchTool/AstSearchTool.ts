@@ -7,7 +7,7 @@ import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { structurePolyglotEnabled } from '../../services/structure/contracts.js'
-import { resolveGrammarEngineDir } from '../../services/structure/grammarFacility.js'
+import { resolveGrammarEngineDir } from '../../utils/structure/grammarFacility.js'
 import {
   AST_BOUNDS,
   astLanguageNames,

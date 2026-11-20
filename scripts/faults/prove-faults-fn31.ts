@@ -801,8 +801,8 @@ else {
     const grammarDir = path.join(PROJECT, 'locked-grammars')
     fs.mkdirSync(grammarDir, { recursive: true })
     fs.chmodSync(grammarDir, 0o000)
-    const realGram = await import(SRC + '/services/structure/grammarFacility.ts')
-    mock.module(SRC + '/services/structure/grammarFacility.js', () => ({
+    const realGram = await import(SRC + '/utils/structure/grammarFacility.ts')
+    mock.module(SRC + '/utils/structure/grammarFacility.js', () => ({
       ...realGram,
       resolveGrammarEngineDir: () => ({ state: 'ok', source: 'vendored', dir: grammarDir }),
     }))
