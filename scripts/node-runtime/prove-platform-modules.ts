@@ -333,8 +333,10 @@ const SPAWN: Row[] = [
 ]
 
 import {
+  availableMemoryReader,
   childGetsOwnProcessGroup,
   processInstantStartForm,
+  processListCommand,
   processStartFormFor,
   processStartProbeKind,
 } from '../../src/utils/platform/processes.js'
@@ -363,6 +365,16 @@ const PROCESSES: Row[] = [
     name: 'processStartProbeKind',
     answers: stand => [processStartProbeKind(), processStartProbeKind(stand.node)],
     recorded: {"win32":["win32-cim","win32-cim"],"darwin":["posix-ps","posix-ps"],"linux":["linux-proc","linux-proc"],"win32 by process.platform alone":["win32-cim","win32-cim"],"win32 by getPlatform() alone":["linux-proc","linux-proc"]},
+  },
+  {
+    name: 'availableMemoryReader',
+    answers: stand => [availableMemoryReader(), availableMemoryReader(stand.node)],
+    recorded: {"win32":["counter","counter"],"darwin":["vm_stat","vm_stat"],"linux":["meminfo","meminfo"],"win32 by process.platform alone":["counter","counter"],"win32 by getPlatform() alone":["meminfo","meminfo"]},
+  },
+  {
+    name: 'processListCommand',
+    answers: stand => [processListCommand(), processListCommand(stand.node)],
+    recorded: {"win32":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"darwin":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"linux":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"win32 by process.platform alone":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"win32 by getPlatform() alone":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}]},
   },
 ]
 
