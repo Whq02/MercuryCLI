@@ -1,0 +1,174 @@
+#!/usr/bin/env bun
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import * as net from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const HERE = import.meta.dir
+const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
+const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+
+let failures = 0
+function check(label: string, cond: boolean, detail = ''): void {
+  if (!cond) failures++
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+}
+
+function startFakeVulcanServer(
+  instance: { version: 1; id: string; role: 'agent-editor'; port: number; pid: number; projectRoot: string; ownerPid: number },
+  token: string,
+): Promise<{ port: number; close: () => Promise<void> }> {
+  const sockets = new Set<net.Socket>()
+  const server = net.createServer(socket => {
+    sockets.add(socket)
+    socket.on('close', () => sockets.delete(socket))
+    let buf = ''
+    let authed = false
+    socket.on('data', chunk => {
+      buf += chunk.toString('utf8')
+      let idx: number
+      while ((idx = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, idx)
+        buf = buf.slice(idx + 1)
+        if (!line.trim()) continue
+        const frame = JSON.parse(line) as Record<string, unknown>
+        if (!authed) {
+          if (frame.op === 'hello' && frame.token === token) {
+            authed = true
+            socket.write(JSON.stringify({ ok: true, result: { version: 1, godot: '4.6-fake', project: 'fixture' }, instance }) + '\n')
+          } else {
+            socket.write(JSON.stringify({ ok: false, error: { code: 'AUTH_FAILED', message: 'bad token' } }) + '\n')
+            socket.end()
+          }
+          continue
+        }
+        socket.write(JSON.stringify({ id: frame.id, ok: true, result: { valid: true }, instance }) + '\n')
+      }
+    })
+  })
+  return new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address() as net.AddressInfo
+      instance.port = addr.port
+      resolve({
+        port: addr.port,
+        close: () =>
+          new Promise<void>(done => {
+            for (const s of sockets) s.destroy()
+            server.close(() => done())
+          }),
+      })
+    })
+  })
+}
+
+{
+  console.log('\n1. w09-1: classCache unreadable dir/stat/script/cache surfaced in report, capsule, and script_validate')
+  const { classCacheReport } = await import(join(SRC, 'services/vulcan/classCache.ts'))
+  const { staticGodotCapsule } = await import(join(SRC, 'services/vulcan/godotCapsule.ts'))
+  const { derivePresence } = await import(join(SRC, 'services/vulcan/editorPresence.ts'))
+  const { GodotTool } = await import(join(SRC, 'tools/GodotTool/GodotTool.ts'))
+  const { resetVulcanClientForTest } = await import(join(SRC, 'services/vulcan/vulcanClient.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+
+  const NO_EDITOR = derivePresence(6010, false, { ok: true, processes: [] }, '/fixture')
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-1-')))
+  const restoreModes: Array<() => void> = []
+  try {
+    const proj = join(scratch, 'proj')
+    mkdirSync(join(proj, 'scripts'), { recursive: true })
+    mkdirSync(join(proj, 'locked'), { recursive: true })
+    mkdirSync(join(proj, '.godot'), { recursive: true })
+    writeFileSync(join(proj, 'project.godot'), 'config_version=5\n[application]\nconfig/name="W09"\n')
+    writeFileSync(join(proj, 'scripts', 'ok.gd'), 'class_name OkClass\nextends Node\n')
+    const secretScript = join(proj, 'scripts', 'secret.gd')
+    writeFileSync(secretScript, 'class_name SecretClass\nextends Node\n', { mode: 0o600 })
+    const cacheFile = join(proj, '.godot', 'global_script_class_cache.cfg')
+    writeFileSync(cacheFile, 'list=Array[Dictionary]([])\n', { mode: 0o600 })
+    symlinkSync(join(proj, 'missing-target.gd'), join(proj, 'scripts', 'broken.gd'))
+
+    if (POSIX_MODES) {
+      chmodSync(join(proj, 'locked'), 0o000)
+      restoreModes.push(() => chmodSync(join(proj, 'locked'), 0o700))
+      chmodSync(secretScript, 0o000)
+      restoreModes.push(() => chmodSync(secretScript, 0o600))
+      chmodSync(cacheFile, 0o000)
+      restoreModes.push(() => chmodSync(cacheFile, 0o600))
+
+      const report = classCacheReport(proj, 20) as {
+        state: string
+        hint: string
+        unreadable?: Array<{ path: string; error: string }>
+      }
+      check('w09-1 classCacheReport marks unreadable cache as unreadable with error', report.state === 'unreadable' && report.hint.includes('could not be read ('), `${report.state}: ${report.hint}`)
+      const unreadablePaths = (report.unreadable ?? []).map(u => u.path)
+      check(
+        'w09-1 classCacheReport records unreadable dir, broken stat, and unreadable script',
+        unreadablePaths.includes('res://locked') && unreadablePaths.includes('res://scripts/broken.gd') && unreadablePaths.includes('res://scripts/secret.gd'),
+        JSON.stringify(unreadablePaths),
+      )
+
+      chmodSync(join(proj, 'locked'), 0o700)
+      const cap = staticGodotCapsule(proj, undefined, NO_EDITOR) as {
+        class_cache: { state: string; hint: string; unreadable?: string }
+      }
+      check(
+        'w09-1 staticGodotCapsule reports unreadable cache and unreadable scripts line',
+        cap.class_cache.state === 'unreadable' &&
+          cap.class_cache.hint.includes('could not be read (') &&
+          typeof cap.class_cache.unreadable === 'string' &&
+          cap.class_cache.unreadable.includes('files or folders could not be read and are not in this report (first: res://'),
+        JSON.stringify(cap.class_cache),
+      )
+
+      const id = 'a'.repeat(32)
+      const token = 'b'.repeat(64)
+      const instDir = join(proj, '.godot', 'mercury-vulcan', id)
+      mkdirSync(instDir, { recursive: true, mode: 0o700 })
+      chmodSync(instDir, 0o700)
+      const inst = { version: 1 as const, id, role: 'agent-editor' as const, port: 0, pid: process.pid, projectRoot: proj, ownerPid: process.pid }
+      const srv = await startFakeVulcanServer(inst, token)
+      try {
+        writeFileSync(join(instDir, 'instance.json'), JSON.stringify(inst), { mode: 0o600 })
+        writeFileSync(join(instDir, 'token'), token, { mode: 0o600 })
+        resetVulcanClientForTest()
+        const prevFlag = process.env.MERCURY_GODOT_TOOLS
+        process.env.MERCURY_GODOT_TOOLS = '1'
+        try {
+          const out = await runWithCwdOverride(proj, () =>
+            GodotTool.call({ op: 'script_validate', args: { path: 'res://scripts/ok.gd' } }, {} as never, {} as never, { uuid: '00000000-0000-4000-8000-000000000001' } as never),
+          )
+          const text = (out.data as { result: string }).result
+          check(
+            'w09-1 GodotTool script_validate includes unreadable cache and unreadable files lines',
+            text.includes('"valid": true') &&
+              text.includes('could not be read (') &&
+              text.includes('files or folders could not be read and are not in this report (first: res://'),
+            text,
+          )
+        } finally {
+          if (prevFlag === undefined) delete process.env.MERCURY_GODOT_TOOLS
+          else process.env.MERCURY_GODOT_TOOLS = prevFlag
+          resetVulcanClientForTest()
+        }
+      } finally {
+        await srv.close()
+      }
+    }
+
+    const absentProj = join(scratch, 'absent')
+    mkdirSync(absentProj, { recursive: true })
+    writeFileSync(join(absentProj, 'project.godot'), 'config_version=5\n')
+    const absentReport = classCacheReport(absentProj, 20) as { state: string; unreadable?: unknown[] }
+    check('w09-1 absent cache still reports absent with empty unreadable', absentReport.state === 'absent' && Array.isArray(absentReport.unreadable) && absentReport.unreadable.length === 0, JSON.stringify(absentReport))
+  } finally {
+    for (const fn of restoreModes.reverse()) {
+      try { fn() } catch { void 0 }
+    }
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+console.log(failures === 0 ? 'PASS: prove-wider-w09' : `FAIL: prove-wider-w09 (${failures} failure(s))`)
+process.exit(failures === 0 ? 0 : 1)

@@ -1,7 +1,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
-import { classCacheReport, type StaleClass } from './classCache.js'
+import { classCacheReport, classCacheUnreadableNote, type StaleClass } from './classCache.js'
 import { editorOnlySliceWords, staticCapsuleSource, type GodotEditorPresence } from './editorPresence.js'
 import { passedOver } from '../../utils/passedOver.js'
 
@@ -16,7 +16,7 @@ export interface GodotStaticCapsule {
   input_action_count: number
   global_classes: Array<{ class: string; base: string; path: string }>
   global_class_count: number
-  class_cache: { state: 'fresh' | 'stale' | 'absent'; stale: Array<Pick<StaleClass, 'class' | 'path' | 'reason'>>; hint: string }
+  class_cache: { state: 'fresh' | 'stale' | 'absent' | 'unreadable'; stale: Array<Pick<StaleClass, 'class' | 'path' | 'reason'>>; hint: string; unreadable?: string }
   scene_count: number
   script_count: number
   scene_paths: string[]
@@ -186,6 +186,7 @@ export function staticGodotCapsule(projectRoot: string, budgetArg: unknown, pres
       state: cache.state,
       stale: cache.stale.slice(0, budget).map(s => ({ class: s.class, path: s.path, reason: s.reason })),
       hint: cache.hint,
+      ...(classCacheUnreadableNote(cache.unreadable) ? { unreadable: classCacheUnreadableNote(cache.unreadable) } : {}),
     },
     scene_count: census.scenes,
     script_count: census.scripts,

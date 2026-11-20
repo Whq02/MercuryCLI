@@ -1,5 +1,5 @@
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { presenceNudge, derivePresence, takeCensus, type AddonPresenceFacts } from './editorPresence.js'
@@ -27,17 +27,39 @@ export interface StaleClass extends DeclaredClass {
   reason: StaleReason
 }
 
+interface UnreadableClassPath {
+  path: string
+  error: string
+}
+
 interface ClassCacheReport {
   cacheFile: string
   present: boolean
   cacheMtimeMs?: number
+  cacheError?: string
   classes: GlobalClassEntry[]
   classTotal: number
   declared: DeclaredClass[]
   declaredTotal: number
   stale: StaleClass[]
-  state: 'fresh' | 'stale' | 'absent'
+  unreadable: UnreadableClassPath[]
+  state: 'fresh' | 'stale' | 'absent' | 'unreadable'
   hint: string
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function resPath(root: string, full: string): string {
+  const rel = path.relative(root, full).replace(/\\/g, '/')
+  return rel ? `res://${rel}` : 'res://'
+}
+
+export function classCacheUnreadableNote(unreadable: ReadonlyArray<UnreadableClassPath>): string | undefined {
+  if (unreadable.length === 0) return undefined
+  const first = unreadable[0]!
+  return `${unreadable.length} files or folders could not be read and are not in this report (first: ${first.path}: ${first.error})`
 }
 
 const REFRESH_CLASSES_OP = 'project_refresh_classes'
@@ -67,8 +89,9 @@ function classNameOf(head: string): string | undefined {
   return m?.[1]
 }
 
-function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: number } {
+function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: number; unreadable: UnreadableClassPath[] } {
   const list: DeclaredClass[] = []
+  const unreadable: UnreadableClassPath[] = []
   let visited = 0
   const root = path.resolve(projectRoot)
   const walk = (dir: string): void => {
@@ -78,6 +101,7 @@ function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: n
       entries = readdirSync(dir).sort()
     } catch (error) {
       passedOver(error)
+      unreadable.push({ path: resPath(root, dir), error: errorMessage(error) })
       return
     }
     for (const name of entries) {
@@ -89,6 +113,7 @@ function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: n
         st = statSync(full)
       } catch (error) {
         passedOver(error)
+        unreadable.push({ path: resPath(root, full), error: errorMessage(error) })
         continue
       }
       if (st.isDirectory()) {
@@ -99,13 +124,14 @@ function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: n
           head = readHead(full)
         } catch (error) {
           passedOver(error)
+          unreadable.push({ path: resPath(root, full), error: errorMessage(error) })
           continue
         }
         const cls = classNameOf(head)
         if (cls) {
           list.push({
             class: cls,
-            path: 'res://' + path.relative(root, full).replace(/\\/g, '/'),
+            path: resPath(root, full),
             mtimeMs: st.mtimeMs,
           })
         }
@@ -113,7 +139,7 @@ function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: n
     }
   }
   walk(root)
-  return { list, total: list.length }
+  return { list, total: list.length, unreadable }
 }
 
 function readHead(file: string): string {
@@ -125,43 +151,54 @@ export function classCacheReport(projectRoot: string, budget = 40): ClassCacheRe
   const cacheFile = classCachePath(projectRoot)
   let present = false
   let cacheMtimeMs: number | undefined
+  let cacheError: string | undefined
   let entries: GlobalClassEntry[] = []
-  if (existsSync(cacheFile)) {
-    try {
-      cacheMtimeMs = statSync(cacheFile).mtimeMs
-      entries = parseGlobalClassCache(readFileSync(cacheFile, 'utf8'))
-      present = true
-    } catch {
+  try {
+    cacheMtimeMs = statSync(cacheFile).mtimeMs
+    entries = parseGlobalClassCache(readFileSync(cacheFile, 'utf8'))
+    present = true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       present = false
+    } else {
+      passedOver(error)
+      present = false
+      cacheError = errorMessage(error)
     }
   }
   const declared = declaredClasses(projectRoot)
   const known = new Set(entries.map(e => e.class))
   const stale: StaleClass[] = []
-  for (const d of declared.list) {
-    if (!present) stale.push({ ...d, reason: 'cache-missing' })
-    else if (!known.has(d.class)) stale.push({ ...d, reason: 'missing-from-cache' })
-    else if (cacheMtimeMs !== undefined && d.mtimeMs > cacheMtimeMs) stale.push({ ...d, reason: 'newer-than-cache' })
+  if (!cacheError) {
+    for (const d of declared.list) {
+      if (!present) stale.push({ ...d, reason: 'cache-missing' })
+      else if (!known.has(d.class)) stale.push({ ...d, reason: 'missing-from-cache' })
+      else if (cacheMtimeMs !== undefined && d.mtimeMs > cacheMtimeMs) stale.push({ ...d, reason: 'newer-than-cache' })
+    }
   }
-  const state: ClassCacheReport['state'] = !present ? 'absent' : stale.length > 0 ? 'stale' : 'fresh'
+  const state: ClassCacheReport['state'] = cacheError ? 'unreadable' : !present ? 'absent' : stale.length > 0 ? 'stale' : 'fresh'
   const hint =
     state === 'fresh'
       ? ''
-      : state === 'absent'
-        ? `${CLASS_CACHE_RELATIVE} does not exist yet — ${declared.total} class_name script(s) are invisible to headless runs until an import pass writes it: op:"${REFRESH_CLASSES_OP}"`
-        : `${CLASS_CACHE_RELATIVE} is STALE for ${stale.length} class_name script(s) (${stale
-            .slice(0, 5)
-            .map(s => `${s.class}: ${s.reason}`)
-            .join(', ')}${stale.length > 5 ? ', …' : ''}) — headless runs fail with "Could not find type" until it is rebuilt: op:"${REFRESH_CLASSES_OP}"`
+      : state === 'unreadable'
+        ? `${CLASS_CACHE_RELATIVE} could not be read (${cacheError})`
+        : state === 'absent'
+          ? `${CLASS_CACHE_RELATIVE} does not exist yet — ${declared.total} class_name script(s) are invisible to headless runs until an import pass writes it: op:"${REFRESH_CLASSES_OP}"`
+          : `${CLASS_CACHE_RELATIVE} is STALE for ${stale.length} class_name script(s) (${stale
+              .slice(0, 5)
+              .map(s => `${s.class}: ${s.reason}`)
+              .join(', ')}${stale.length > 5 ? ', …' : ''}) — headless runs fail with "Could not find type" until it is rebuilt: op:"${REFRESH_CLASSES_OP}"`
   return {
     cacheFile,
     present,
     ...(cacheMtimeMs !== undefined ? { cacheMtimeMs } : {}),
+    ...(cacheError !== undefined ? { cacheError } : {}),
     classes: entries.slice(0, budget),
     classTotal: entries.length,
     declared: declared.list.slice(0, budget),
     declaredTotal: declared.total,
     stale,
+    unreadable: declared.unreadable,
     state,
     hint,
   }
@@ -181,7 +218,12 @@ export function explainHeadlessFailure(output: string, report: ClassCacheReport)
   const declared = new Set(report.declared.map(d => d.class))
   const explained = missing.filter(t => declared.has(t))
   if (explained.length === 0) return undefined
-  return `"Could not find type" for ${explained.map(t => `"${t}"`).join(', ')}: the script declares it, but ${CLASS_CACHE_RELATIVE} ${report.present ? 'predates or omits it' : 'does not exist'} — rebuild the cache with op:"${REFRESH_CLASSES_OP}" and rerun`
+  const cacheState = report.cacheError
+    ? `could not be read (${report.cacheError})`
+    : report.present
+      ? 'predates or omits it'
+      : 'does not exist'
+  return `"Could not find type" for ${explained.map(t => `"${t}"`).join(', ')}: the script declares it, but ${CLASS_CACHE_RELATIVE} ${cacheState} — rebuild the cache with op:"${REFRESH_CLASSES_OP}" and rerun`
 }
 
 export function refreshInvocation(executable: string, projectRoot: string): { file: string; args: string[] } {
