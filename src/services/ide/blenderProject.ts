@@ -111,7 +111,17 @@ export function locateBlender(testOpts?: {
   const platform = testOpts?.platform ?? process.platform
   const pin = flagEnv('MERCURY_BLENDER_BIN')
   if (pin && pin.trim() !== '') {
-    if (isFile(pin)) return { blender: { path: pin, source: 'pin' } }
+    try {
+      if (statSync(pin).isFile()) return { blender: { path: pin, source: 'pin' } }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        const detail = error instanceof Error ? error.message : String(error)
+        return {
+          pinError: `MERCURY_BLENDER_BIN is set to ${pin}, which could not be accessed (${detail}) — check its permissions or unset MERCURY_BLENDER_BIN`,
+        }
+      }
+    }
     return {
       pinError: `MERCURY_BLENDER_BIN is set to ${pin}, which does not exist`,
     }

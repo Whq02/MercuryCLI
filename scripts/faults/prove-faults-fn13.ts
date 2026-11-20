@@ -162,6 +162,54 @@ try {
     )
     removeHostRecord(podId)
   }
+
+  {
+    const { locateBlender, blenderLaneReadinessRecords } = await import('../../src/services/ide/blenderProject.ts')
+    const prevBin = process.env.MERCURY_BLENDER_BIN
+    const prevEnabled = process.env.MERCURY_BLENDER
+    try {
+      process.env.MERCURY_BLENDER = '1'
+      const missingPin = join(scratch, 'no-such-blender')
+      process.env.MERCURY_BLENDER_BIN = missingPin
+      const missingCensus = locateBlender({ skipPathProbe: true, platform: 'darwin', appBundles: [] })
+      check(
+        'locateBlender still reports does not exist for an absent MERCURY_BLENDER_BIN',
+        missingCensus.blender === undefined &&
+          missingCensus.pinError === `MERCURY_BLENDER_BIN is set to ${missingPin}, which does not exist`,
+        missingCensus.pinError ?? '(none)',
+      )
+
+      if (POSIX_MODES) {
+        const lockedDir = join(scratch, 'locked-blender-dir')
+        mkdirSync(lockedDir, { recursive: true, mode: 0o700 })
+        const lockedPin = join(lockedDir, 'blender')
+        writeFileSync(lockedPin, '#!/bin/sh\n', { mode: 0o700 })
+        chmodSync(lockedDir, 0o000)
+        try {
+          process.env.MERCURY_BLENDER_BIN = lockedPin
+          const census = locateBlender({ skipPathProbe: true, platform: 'darwin', appBundles: [] })
+          const rows = blenderLaneReadinessRecords()
+          check(
+            'locateBlender reports access error instead of does not exist when MERCURY_BLENDER_BIN cannot be accessed',
+            census.blender === undefined &&
+              Boolean(census.pinError?.includes(`MERCURY_BLENDER_BIN is set to ${lockedPin}, which could not be accessed (`)) &&
+              Boolean(census.pinError?.includes('EACCES')) &&
+              Boolean(census.pinError?.includes('check its permissions or unset MERCURY_BLENDER_BIN')) &&
+              !census.pinError?.includes('does not exist') &&
+              rows[0]?.detail === census.pinError,
+            JSON.stringify({ pinError: census.pinError, healthDetail: rows[0]?.detail }),
+          )
+        } finally {
+          chmodSync(lockedDir, 0o700)
+        }
+      }
+    } finally {
+      if (prevBin === undefined) delete process.env.MERCURY_BLENDER_BIN
+      else process.env.MERCURY_BLENDER_BIN = prevBin
+      if (prevEnabled === undefined) delete process.env.MERCURY_BLENDER
+      else process.env.MERCURY_BLENDER = prevEnabled
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
