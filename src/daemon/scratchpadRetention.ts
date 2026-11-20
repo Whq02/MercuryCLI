@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { lstat, readdir, readFile, rm, rmdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { getMercuryHome } from './envUtils.js'
+import { getMercuryHome } from '../utils/envUtils.js'
 import {
   forgetSweptScratchpad,
   hasSessionScratchpadPath,
@@ -10,8 +10,8 @@ import {
   scratchpadOwnerRecord,
   scratchpadOwnersDir,
   type ScratchpadOwner,
-} from './scratchpad.js'
-import { passedOver } from './passedOver.js'
+} from '../utils/scratchpad.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const SCRATCHPAD_WALK_ENTRIES = 20_000
 
@@ -44,7 +44,7 @@ async function recordedOwners(): Promise<{ owners: ScratchpadOwner[]; stale: str
 
 async function workerOwners(): Promise<ScratchpadOwner[]> {
   try {
-    const { readSessionWorkersSnapshot } = await import('../daemon/concourseWorkers.js')
+    const { readSessionWorkersSnapshot } = await import('./concourseWorkers.js')
     const snapshot = readSessionWorkersSnapshot()
     if (snapshot.state !== 'known') return []
     const home = getMercuryHome()
@@ -67,8 +67,8 @@ export async function readScratchpadCensus(): Promise<{ idle: string[]; staleOwn
   const recorded = await recordedOwners()
   const owners = [...recorded.owners, ...(await workerOwners())]
   if (owners.length === 0) return { idle: [], staleOwnerRecords: recorded.stale }
-  const { getProcessStartTokensAsync } = await import('../daemon/ownerWatch.js')
-  const { tokenBinding } = await import('../daemon/processSweep.js')
+  const { getProcessStartTokensAsync } = await import('./ownerWatch.js')
+  const { tokenBinding } = await import('./processSweep.js')
   const tokens = await getProcessStartTokensAsync(owners.filter(owner => owner.pid > 1).map(owner => ({ pid: owner.pid, ...(owner.procStart ? { procStart: owner.procStart } : {}) })))
   const held = new Set<string>()
   for (const owner of owners) {
