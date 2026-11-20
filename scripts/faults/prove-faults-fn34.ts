@@ -95,23 +95,41 @@ function runScenario(body: string): Record<string, unknown> {
   if (POSIX_MODES) {
     const r = runScenario(`
       const { encodeTranscriptLine, resetTranscriptFormatCacheForTesting } = await import(path.join(SRC, 'utils/sessionStorage/vnext.ts'))
+      const { setStoreHealth, subscribeTranscriptStoreHealth, transcriptStoreHealth } = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
       const existing = path.join(HOME, 'existing.jsonl')
       fs.writeFileSync(existing, '{"schemaVersion":1,"creationOrdinal":"5"}\\n', { mode: 0o600 })
       fs.chmodSync(existing, 0o000)
       resetTranscriptFormatCacheForTesting()
+      let notices = 0
+      const off = subscribeTranscriptStoreHealth(() => {
+        if (transcriptStoreHealth().failing) notices++
+      })
       try {
         encodeTranscriptLine(existing, { type: 'user', uuid: '00000000-0000-4000-8000-000000000012' })
+        out.firstHealth = transcriptStoreHealth()
+        setStoreHealth({ failing: false, sentence: null })
+        encodeTranscriptLine(existing, { type: 'user', uuid: '00000000-0000-4000-8000-000000000019' })
+        out.notices = notices
         out.threw = null
       } catch (e) {
         out.threw = String(e)
       } finally {
+        off()
         fs.chmodSync(existing, 0o600)
       }
       const after = encodeTranscriptLine(existing, { type: 'user', uuid: '00000000-0000-4000-8000-000000000013' })
+      out.existing = existing
       out.afterOrdinal = Number(after.record.creationOrdinal)
       out.afterHasHeader = after.line.includes('mercury-transcript-header')
     `)
-    check('vnext-unreadable-not-cached', r.threw === null && Number(r.afterOrdinal) > 5 && r.afterHasHeader === false, JSON.stringify(r))
+    const health = r.firstHealth as { failing: boolean; sentence: string | null } | undefined
+    const existing = String(r.existing ?? '')
+    const sentenceOk =
+      health?.failing === true &&
+      typeof health.sentence === 'string' &&
+      health.sentence.startsWith(`Session transcript at ${existing} could not be read (`) &&
+      health.sentence.endsWith('), so new messages may be saved out of order — restore read permission on the file.')
+    check('vnext-unreadable-not-cached', r.threw === null && sentenceOk && r.notices === 1 && Number(r.afterOrdinal) > 5 && r.afterHasHeader === false, JSON.stringify(r))
   }
 }
 {
