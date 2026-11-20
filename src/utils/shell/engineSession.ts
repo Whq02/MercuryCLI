@@ -20,6 +20,7 @@ import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from '../subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 import { TaskOutput } from '../task/TaskOutput.js'
+import { evictTaskOutput } from '../task/diskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { resolveBrushPackDir, type BrushPackResolution } from './brushPack.js'
@@ -434,6 +435,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   const settle = (execResult: ExecResult): void => {
     if (settled) return
     settled = true
+    void evictTaskOutput(taskId)
     if (status === 'running') status = 'completed'
     resolveResult(execResult)
   }
@@ -544,11 +546,17 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         live.reader = null
         live.onExit = null
         await new Promise<void>(r => startImmediate(r))
+        if (settled) {
+          releaseInFlight = null
+          resolveExecute()
+          return
+        }
         const externalStderr = live.stderrBuf.toString('utf8')
         live.stderrBuf = Buffer.alloc(0)
         if (externalStderr.length > 0) taskOutput.writeStdout(externalStderr)
-        await taskOutput.flush().catch(passedOver)
+        await evictTaskOutput(taskId)
         const stdout = await taskOutput.getStdout()
+        if (!taskOutput.isOverflowed) await taskOutput.deleteOutputFile()
         settle({ stdout, stderr: withInherited(partial.stderr, partial.interrupted), code: partial.code, interrupted: partial.interrupted })
         releaseInFlight = null
         resolveExecute()
@@ -626,6 +634,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       owned.pendingResetNote =
         'the shell engine session was reset after the command was stopped; earlier variables, functions and options were lost (the working directory is preserved).'
     }
+    taskOutput.clear()
+    void evictTaskOutput(taskId).then(() => taskOutput.deleteOutputFile())
     settle({ stdout: '', stderr: '', code: 137, interrupted: true })
     releaseInFlight?.()
   }
