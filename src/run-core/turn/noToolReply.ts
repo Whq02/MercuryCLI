@@ -892,7 +892,7 @@ export async function* replyStands(run: RunCtx, iter: IterationState): AsyncGene
   const { toolUseContext, messagesForQuery, assistantMessages } = iter
   await finishMemorySignal(assistantText(assistantMessages))
   if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
-    let closeUsage: import('../../services/api/emptyUsage.js').NonNullableUsage | undefined
+    let closeUsage: import('../../utils/api/emptyUsage.js').NonNullableUsage | undefined
     const beforeNote = ledgerMark()
     const note = await askForHandoff({
       cacheSafeParams: createCacheSafeParams({

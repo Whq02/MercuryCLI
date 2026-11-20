@@ -178,7 +178,7 @@ const MODEL = 'claude-opus-4-8'
 const MODEL2 = 'claude-sonnet-5'
 const { addToTotalSessionCost } = await import('../../src/cost-tracker.ts')
 const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
-const { EMPTY_USAGE } = await import('../../src/services/api/emptyUsage.ts')
+const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
 foldScriptedUsage = (usage, params) => {
   const options = (params.toolUseContext as Record<string, unknown> | undefined)?.options as Record<string, unknown> | undefined
   const model = typeof options?.engineModel === 'string' ? options.engineModel : MODEL

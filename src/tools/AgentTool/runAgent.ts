@@ -36,7 +36,7 @@ import {
   READ_FILE_STATE_CACHE_SIZE,
 } from '../../utils/fileStateCache.js'
 import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
-import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
 import { OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
 import { logForDebugging } from '../../utils/debug.js'

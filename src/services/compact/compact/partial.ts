@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../../Tool.js'
-import type { NonNullableUsage } from '../../api/emptyUsage.js'
+import type { NonNullableUsage } from '../../../utils/api/emptyUsage.js'
 import type { Message, PartialCompactDirection, UserMessage } from '../../../types/message.js'
 import type { UUID } from 'node:crypto'
 import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
