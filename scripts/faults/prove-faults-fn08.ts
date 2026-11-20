@@ -194,6 +194,37 @@ async function main(): Promise<void> {
     check('overflowFamilyOfModel classifies as unknown on throw instead of anthropic', out.family === 'unknown', `got ${out.family}`)
     check('provider error message still returned when routeLaw throws', out.hasOverflowMsg === true && out.hasBadReqMsg === true)
   })
+
+  await runRow('branchManifest: readBranchManifest throws on unreadable or corrupt manifest and returns null when absent', async () => {
+    const { readBranchManifest } = await import('../../src/services/branches/branchManifest.js')
+    const base = join(SCRATCH, 'branch-session.jsonl')
+    const manifestPath = `${base}.branch-manifest.json`
+
+    check('absent manifest returns null', readBranchManifest(base) === null)
+
+    writeFileSync(manifestPath, '{corrupt', { mode: 0o600 })
+    let corruptThrew = false
+    try {
+      readBranchManifest(base)
+    } catch {
+      corruptThrew = true
+    }
+    check('corrupt manifest throws instead of returning null', corruptThrew)
+
+    if (POSIX_MODES) {
+      writeFileSync(manifestPath, JSON.stringify({ v: 1 }), { mode: 0o600 })
+      chmodSync(manifestPath, 0o200)
+      let eaccesThrew = false
+      try {
+        readBranchManifest(base)
+      } catch {
+        eaccesThrew = true
+      } finally {
+        chmodSync(manifestPath, 0o600)
+      }
+      check('unreadable manifest throws instead of returning null', eaccesThrew)
+    }
+  })
 }
 
 try {
