@@ -165,55 +165,60 @@ type CrashReportSummary = {
 }
 
 export function listCrashReports(limit = KEEP): CrashReportSummary[] {
+  const dir = crashReportDir()
+  let entries: string[]
   try {
-    const dir = crashReportDir()
-    const names = readdirSync(dir)
-      .filter(f => f.startsWith('crash-') && f.endsWith('.json'))
-      .sort()
-      .reverse()
-      .slice(0, limit)
-    return names.map(name => {
-      const file = join(dir, name)
-      try {
-        const parsed = JSON.parse(readFileSync(file, 'utf8')) as {
-          origin?: string
-          at?: string
-          message?: string
-          component?: string | null
-          sessionId?: string | null
-          cwd?: string | null
-          pid?: number | null
-          transcriptPath?: string | null
-        }
-        return {
-          file,
-          origin: parsed.origin ?? 'unknown',
-          at: parsed.at ?? 'unknown',
-          message: parsed.message ?? '(no message)',
-          component: parsed.component ?? null,
-          sessionId: typeof parsed.sessionId === 'string' && parsed.sessionId !== '' ? parsed.sessionId : null,
-          cwd: typeof parsed.cwd === 'string' && parsed.cwd !== '' ? parsed.cwd : null,
-          pid: typeof parsed.pid === 'number' && Number.isSafeInteger(parsed.pid) && parsed.pid > 0 ? parsed.pid : null,
-          transcriptPath: typeof parsed.transcriptPath === 'string' && parsed.transcriptPath !== '' ? parsed.transcriptPath : null,
-        }
-      } catch {
-        return {
-          file,
-          origin: 'unknown',
-          at: 'unknown',
-          message: '(unreadable report)',
-          component: null,
-          sessionId: null,
-          cwd: null,
-          pid: null,
-          transcriptPath: null,
-        }
-      }
-    })
+    entries = readdirSync(dir)
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+      passedOver(error)
+      return []
+    }
+    throw error
   }
+  const names = entries
+    .filter(f => f.startsWith('crash-') && f.endsWith('.json'))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+  return names.map(name => {
+    const file = join(dir, name)
+    try {
+      const parsed = JSON.parse(readFileSync(file, 'utf8')) as {
+        origin?: string
+        at?: string
+        message?: string
+        component?: string | null
+        sessionId?: string | null
+        cwd?: string | null
+        pid?: number | null
+        transcriptPath?: string | null
+      }
+      return {
+        file,
+        origin: parsed.origin ?? 'unknown',
+        at: parsed.at ?? 'unknown',
+        message: parsed.message ?? '(no message)',
+        component: parsed.component ?? null,
+        sessionId: typeof parsed.sessionId === 'string' && parsed.sessionId !== '' ? parsed.sessionId : null,
+        cwd: typeof parsed.cwd === 'string' && parsed.cwd !== '' ? parsed.cwd : null,
+        pid: typeof parsed.pid === 'number' && Number.isSafeInteger(parsed.pid) && parsed.pid > 0 ? parsed.pid : null,
+        transcriptPath: typeof parsed.transcriptPath === 'string' && parsed.transcriptPath !== '' ? parsed.transcriptPath : null,
+      }
+    } catch {
+      return {
+        file,
+        origin: 'unknown',
+        at: 'unknown',
+        message: '(unreadable report)',
+        component: null,
+        sessionId: null,
+        cwd: null,
+        pid: null,
+        transcriptPath: null,
+      }
+    }
+  })
 }
 
 type CrashTranscriptRoad = 'recorded' | 'report' | 'registry' | 'moved' | 'project'
@@ -364,26 +369,28 @@ export function resolveCrashTranscript(
 const NOTICE_MARKER = '.boot-noticed'
 
 export function unnoticedCrashReports(): CrashReportSummary[] {
+  const dir = crashReportDir()
+  let noticedAt = 0
   try {
-    const dir = crashReportDir()
-    let noticedAt = 0
-    try {
-      noticedAt = statSync(join(dir, NOTICE_MARKER)).mtimeMs
-    } catch (error) {
+    noticedAt = statSync(join(dir, NOTICE_MARKER)).mtimeMs
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
       passedOver(error)
+    } else {
+      throw error
     }
-    return listCrashReports().filter(report => {
-      try {
-        return statSync(report.file).mtimeMs > noticedAt
-      } catch (error) {
+  }
+  return listCrashReports().filter(report => {
+    try {
+      return statSync(report.file).mtimeMs > noticedAt
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
         passedOver(error)
         return false
       }
-    })
-  } catch (error) {
-    passedOver(error)
-    return []
-  }
+      throw error
+    }
+  })
 }
 
 export function markCrashReportsNoticed(): void {

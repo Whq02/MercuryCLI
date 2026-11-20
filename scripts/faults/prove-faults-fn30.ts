@@ -1,0 +1,62 @@
+#!/usr/bin/env bun
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+let failures = 0
+function check(label: string, cond: boolean, detail = ''): void {
+  if (!cond) failures++
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+}
+function skip(label: string, why: string): void {
+  console.log(`  [SKIP] ${label} — ${why}`)
+}
+
+const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'prove-faults-fn30-')))
+const home = join(scratch, 'home')
+mkdirSync(home, { recursive: true })
+process.env.MERCURY_CONFIG_DIR = home
+process.env.NODE_ENV = 'test'
+delete process.env.MERCURY_HOME
+
+const cleanupTasks: Array<() => void> = []
+
+try {
+  {
+    const crashReport = await import('../../src/utils/crashReport.js')
+    const dir = crashReport.crashReportDir()
+    check('crashReport.listCrashReports absent dir returns empty', crashReport.listCrashReports().length === 0)
+    check('crashReport.unnoticedCrashReports absent dir returns empty', crashReport.unnoticedCrashReports().length === 0)
+    if (!POSIX_MODES) {
+      skip('crashReport.listCrashReports unreadable dir', 'needs non-root POSIX')
+      skip('crashReport.unnoticedCrashReports unreadable dir', 'needs non-root POSIX')
+    } else {
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'crash-1-app-root.json'), JSON.stringify({ origin: 'app-root', at: '2026-11-20T00:00:00.000Z', message: 'boom' }))
+      chmodSync(dir, 0o000)
+      cleanupTasks.push(() => { try { chmodSync(dir, 0o700) } catch {} })
+      let listCode: string | null = null
+      try {
+        crashReport.listCrashReports()
+      } catch (err) {
+        listCode = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
+      }
+      let unnoticedCode: string | null = null
+      try {
+        crashReport.unnoticedCrashReports()
+      } catch (err) {
+        unnoticedCode = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
+      }
+      chmodSync(dir, 0o700)
+      check('crashReport.listCrashReports unreadable dir throws EACCES', listCode === 'EACCES', `got ${String(listCode)}`)
+      check('crashReport.unnoticedCrashReports unreadable dir throws EACCES', unnoticedCode === 'EACCES', `got ${String(unnoticedCode)}`)
+    }
+  }
+} finally {
+  for (const fn of cleanupTasks.reverse()) fn()
+  rmSync(scratch, { recursive: true, force: true })
+}
+
+console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
+process.exit(failures === 0 ? 0 : 1)
