@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useEffect, useLayoutEffect } from 'react'
+import { useClaim, useLayoutPublish } from '../../hooks/effects.js'
 import { anyModalOverlayActive } from '../../context/overlayStack.js'
 import { currentSurfaceRoute } from '../../context/surfaceRoute.js'
 import type { AppState } from '../../state/AppState.js'
@@ -35,11 +35,11 @@ export function useComposerCompactFocus({
     if (compactWork.read() === 'summary') { compactWork.set('composer'); return }
     if (canFocusSummary()) compactWork.set('summary')
   })
-  useEffect(() => () => compactWork?.bindToggle(null), [compactWork])
-  useLayoutEffect(() => {
+  useClaim(() => () => compactWork?.bindToggle(null), [compactWork])
+  useLayoutPublish(() => {
     if (isCompact && footerSelection !== null) setAppState(prev => ({ ...prev, footerSelection: null }))
   }, [isCompact, footerSelection, setAppState])
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     if (compactWork?.read() === 'summary' && !canFocusSummary()) compactWork.set('composer')
   }, [summaryVisible, modalOverlayUp, externalEditorActive, isSearchingHistory, helpOpen, exitState.pending, compactWork])
   return canFocusSummary
