@@ -54,6 +54,12 @@ try { console.log('RESULT', removeBoxSchedule('aaaaaaaa', ${JSON.stringify(dir)}
 try { console.log('RESULT', holdBoxFire(${HELD}, ${JSON.stringify(dir)})) } catch (e) { console.log('THREW', (e as Error).name) }`)
   check('box-read-corrupt-hold: a corrupt box file is not replaced by a hold', /THREW SyntaxError/.test(r.out), r.out.slice(0, 200))
   check('box-read-corrupt-file-kept: the corrupt file still stands as written', readFileSync(path, 'utf8') === '{"version":1,"schedules":[{"id":"cccccccc"')
+  const add = runChild(`import { addBoxSchedule } from ${JSON.stringify(BOX)}
+const deps = { deriveAccount: () => ({ ok: true, account: { family: 'anthropic', source: 'api-key' } }) }
+const sub = { when: { kind: 'at', atMs: Date.now() + 3_600_000, spelling: 'in 1h' }, action: { kind: 'birth', birth: { workspaceDir: '/w', modelKey: 'claude-opus-5', presence: 'headless' } } }
+try { console.log('ADD', JSON.stringify(addBoxSchedule(sub, 'fixture', deps as never, ${JSON.stringify(dir)}))) } catch (e) { console.log('THREW', (e as Error).name) }`)
+  check('box-add-corrupt-refused: adding over a corrupt box file answers schedule refused, no throw', /ADD \{"ok":false,"reason":"schedule refused — /.test(add.out), add.out.slice(0, 200))
+  check('box-add-corrupt-file-kept: the corrupt file still stands after the add', readFileSync(path, 'utf8') === '{"version":1,"schedules":[{"id":"cccccccc"')
 }
 if (POSIX_MODES) {
   const dir = scratch('box-eacces')
