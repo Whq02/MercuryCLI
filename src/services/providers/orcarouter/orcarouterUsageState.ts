@@ -1,6 +1,6 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getProductUserAgent } from '../../../utils/http.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { usagePollTtlMs, usageStaleAfterMs } from '../usageFreshness.js'

@@ -1,6 +1,6 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getProductUserAgent } from '../../../utils/http.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveZenApiKey, zenGoUsageUrl } from './zenAccounts.js'

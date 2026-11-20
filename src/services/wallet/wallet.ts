@@ -31,7 +31,7 @@ import {
   huggingfaceStoredTokens,
   resolveHuggingfaceApiKey,
 } from '../providers/huggingface/huggingfaceAccounts.js'
-import { maskedKeyTail } from '../providers/credentialIdentity.js'
+import { maskedKeyTail } from '../../utils/accounts/credentialIdentity.js'
 import { kimiHostWords } from './identityWords.js'
 import {
   credentialEnvNames,

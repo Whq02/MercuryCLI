@@ -2,7 +2,7 @@ import { looksLikeProofFixtureKey, label } from './keyLane.js'
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { geminiOauthConnected, geminiPlanFacts, resolveGeminiAccount, geminiPlanLabel } from '../gemini/geminiAccounts.js'
 import { readStoredGeminiApiKey } from '../providerSecrets.js'
-import { maskedKeyTail } from '../credentialIdentity.js'
+import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 function geminiStoredNote(storedKey: string, shadowed: boolean): string | undefined {

@@ -1,7 +1,7 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { readStoredZaiApiKey, readStoredZaiKeyPlan } from '../providerSecrets.js'
 import { label } from './keyLane.js'
-import { maskedKeyTail } from '../credentialIdentity.js'
+import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function zaiSlots(reads: AccountSlotReads): AccountSlot[] {

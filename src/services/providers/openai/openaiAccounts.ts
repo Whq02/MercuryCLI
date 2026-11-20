@@ -18,7 +18,7 @@ import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.
 import { sleep } from '../../../utils/sleep.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { openBrowser } from '../../../utils/browser.js'
 import {
   generateCodeChallenge,

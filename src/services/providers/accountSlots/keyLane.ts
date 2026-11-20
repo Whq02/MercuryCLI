@@ -1,5 +1,5 @@
 import type { SlotRemoval, AccountSlot, AccountSlotReads } from './shapes.js'
-import { maskedKeyTail } from '../credentialIdentity.js'
+import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 import { readStoredMistralApiKey, readStoredMistralAdminApiKey, readStoredNousApiKey, readStoredZenApiKey, readStoredMinimaxApiKey, readStoredTogetherApiKey, readStoredCohereApiKey, readStoredGroqApiKey, readStoredMeliousApiKey, readStoredOrcarouterApiKey, readStoredCerebrasApiKey, readStoredFireworksApiKey, readStoredQwenApiKey, readStoredDeepseekApiKey } from '../providerSecrets.js'
 import { nousStoredTokens, readPreferredNousSource, nousSigninRefusal, NOUS_SIGNIN_EXPIRED_LINE } from '../nous/nousOauth.js'
 import { qwenBoundPlanLabel } from '../qwen/qwenAccounts.js'
