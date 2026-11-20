@@ -2,7 +2,7 @@ import { lstatSync, readlinkSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { passedOver } from './passedOver.js'
+import { isENOENT } from './errors.js'
 
 export function proofProcessName(): string | undefined {
   const marked = flagEnv('MERCURY_PROOF')?.trim()
@@ -25,16 +25,23 @@ export function homeIsAccountStore(home: string): boolean {
   return inside === '' || (inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside))
 }
 
-function canonicalPath(path: string): string {
+function canonicalPath(path: string, seen: Set<string> = new Set()): string {
   const resolved = resolve(path)
   try {
     return realpathSync(resolved)
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error) && (error as NodeJS.ErrnoException).code !== 'ENOTDIR') throw error
     try {
-      if (lstatSync(resolved).isSymbolicLink()) return canonicalPath(resolve(dirname(resolved), readlinkSync(resolved)))
-    } catch (error) { passedOver(error) }
+      if (lstatSync(resolved).isSymbolicLink()) {
+        if (seen.has(resolved)) throw Object.assign(new Error(`too many levels of symbolic links: ${resolved}`), { code: 'ELOOP' })
+        seen.add(resolved)
+        return canonicalPath(resolve(dirname(resolved), readlinkSync(resolved)), seen)
+      }
+    } catch (linkError) {
+      if (!isENOENT(linkError) && (linkError as NodeJS.ErrnoException).code !== 'ENOTDIR') throw linkError
+    }
     const parent = dirname(resolved)
-    return parent === resolved ? resolved : join(canonicalPath(parent), basename(resolved))
+    return parent === resolved ? resolved : join(canonicalPath(parent, seen), basename(resolved))
   }
 }
 

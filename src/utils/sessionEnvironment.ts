@@ -27,12 +27,15 @@ function eventRank(family: string): number {
 
 const FRAGMENT_PATTERN = /^([a-z]+-[a-z]+)-hook-(\d+)\.sh$/
 
+function sessionEnvDirPath(): string {
+  return join(getMercuryHome(), 'session-env', getSessionId())
+}
+
 async function getSessionEnvDirPath(): Promise<string> {
-  const dir = join(getMercuryHome(), 'session-env', getSessionId())
+  const dir = sessionEnvDirPath()
   await mkdir(dir, { recursive: true })
   return dir
 }
-
 export async function getHookEnvFilePath(hookEvent: SessionEnvHookEvent, hookIndex: number): Promise<string> {
   const dir = await getSessionEnvDirPath()
   return join(dir, `${fragmentFamily(hookEvent)}-hook-${hookIndex}.sh`)
@@ -47,20 +50,17 @@ export function invalidateSessionEnvCache(): void {
   logForDebugging('sessionEnvironment: cache invalidated')
 }
 
-async function readFragments(): Promise<string[]> {
-  let dir: string
-  try {
-    dir = await getSessionEnvDirPath()
-  } catch (error) {
-    passedOver(error)
-    return []
-  }
+async function readFragments(): Promise<{ fragments: string[]; failed: boolean }> {
+  const dir = sessionEnvDirPath()
   let entries: string[]
   try {
     entries = await readdir(dir)
   } catch (error) {
+    if (isENOENT(error)) return { fragments: [], failed: false }
     passedOver(error)
-    return []
+    const code = (error as NodeJS.ErrnoException | null)?.code ?? String(error)
+    logForDebugging(`sessionEnvironment: failed to list ${dir} (${code}): ${String(error)}`)
+    return { fragments: [], failed: true }
   }
   const matched = entries
     .map(name => {
@@ -74,15 +74,21 @@ async function readFragments(): Promise<string[]> {
       return a.index - b.index
     })
   const fragments: string[] = []
+  let failed = false
   for (const entry of matched) {
+    const fragmentPath = join(dir, entry.name)
     try {
-      const content = await readScript(join(dir, entry.name))
+      const content = await readScript(fragmentPath)
       if (content !== '') fragments.push(content)
     } catch (err) {
-      if (!isENOENT(err)) logForDebugging(`sessionEnvironment: failed to read ${entry.name}: ${String(err)}`)
+      if (!isENOENT(err)) {
+        failed = true
+        const code = (err as NodeJS.ErrnoException | null)?.code ?? String(err)
+        logForDebugging(`sessionEnvironment: failed to read ${fragmentPath} (${code}): ${String(err)}`)
+      }
     }
   }
-  return fragments
+  return { fragments, failed }
 }
 
 async function readScript(path: string): Promise<string> {
@@ -100,24 +106,30 @@ export async function getSessionEnvironmentScript(windowsBash = false): Promise<
   if (cache.state === 'absent') return null
   if (cache.state === 'loaded') return cache.script
   const parts: string[] = []
+  let failed = false
   const envFile = flagEnv('MERCURY_ENV_FILE')
   if (envFile) {
     try {
       const content = await readScript(envFile)
       if (content !== '') parts.push(content)
     } catch (err) {
-      if (!isENOENT(err)) logForDebugging(`sessionEnvironment: failed to read the env file: ${String(err)}`)
+      if (!isENOENT(err)) {
+        failed = true
+        const code = (err as NodeJS.ErrnoException | null)?.code ?? String(err)
+        logForDebugging(`sessionEnvironment: failed to read ${envFile} (${code}): ${String(err)}`)
+      }
     }
   }
-  const fragments = await readFragments()
+  const { fragments, failed: fragmentsFailed } = await readFragments()
+  failed ||= fragmentsFailed
   parts.push(...fragments)
   logForDebugging(`sessionEnvironment: ${fragments.length} hook file(s) loaded; script length ${parts.join('\n').length}`)
   if (parts.length === 0) {
-    cache = { state: 'absent' }
+    if (!failed) cache = { state: 'absent' }
     return null
   }
   const script = parts.join('\n')
-  cache = { state: 'loaded', script }
+  if (!failed) cache = { state: 'loaded', script }
   return script
 }
 

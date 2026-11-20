@@ -178,7 +178,7 @@ function computeGitInitRefusal(folder: string): GitInitRefusal | null {
   if (root === 'user-root') return { kind: root, words: `this is your ${basename(realOrSelf(folder))} user folder, not a project directory` }
   if (projectMarkerOf(folder) !== null) return null
   const entries = countEntriesBounded(folder)
-  if (!entries.ceilingReached) return null
+  if (!entries.ceilingReached && (entries.unreadable ?? 0) === 0) return null
   return {
     kind: 'not-a-project',
     words: `this does not look like a project: ${entryCountWords(entries)}, no project files (no .git, package.json, pyproject.toml, Cargo.toml, go.mod, .sln, Makefile, CMakeLists.txt or src)`,

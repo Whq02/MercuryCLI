@@ -23,7 +23,7 @@ export type TranscriptLoadResult = Omit<TranscriptFoldState, 'progressBridge'> &
 
 export async function loadTranscriptFile(
   filePath: string,
-  opts?: { keepAllLeaves?: boolean },
+  opts?: { keepAllLeaves?: boolean; throwOnError?: boolean },
 ): Promise<TranscriptLoadResult> {
   let fold: TranscriptFoldState = emptyFoldState()
   try {
@@ -31,6 +31,7 @@ export async function loadTranscriptFile(
     fold = copyOfFold(view.fold)
   } catch (e) {
     if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      if (opts?.throwOnError === true) throw e
       logError(
         new Error(
           `transcript load failed for ${filePath}; continuing with partial state: ${e}`,

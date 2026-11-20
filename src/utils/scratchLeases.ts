@@ -29,14 +29,29 @@ function registryPath(): string {
 }
 
 function loadRegistry(): ScratchLease[] {
+  let raw: string
   try {
-    const parsed = JSON.parse(readFileSync(registryPath(), 'utf8')) as RegistryFile
-    if (parsed?.v !== SCRATCH_LEASE_REGISTRY_VERSION || !Array.isArray(parsed.leases)) return []
-    return parsed.leases
+    raw = readFileSync(registryPath(), 'utf8')
   } catch (error) {
-    if (!isENOENT(error)) logError(new Error(`scratch lease registry ${registryPath()} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
-    return []
+    if (isENOENT(error)) return []
+    const failure = new Error(`scratch lease registry ${registryPath()} could not be read: ${errorMessage(error)}`)
+    logError(failure)
+    throw failure
   }
+  let parsed: RegistryFile
+  try {
+    parsed = JSON.parse(raw) as RegistryFile
+  } catch (error) {
+    const failure = new Error(`scratch lease registry ${registryPath()} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`)
+    logError(failure)
+    throw failure
+  }
+  if (parsed?.v !== SCRATCH_LEASE_REGISTRY_VERSION || !Array.isArray(parsed.leases)) {
+    const failure = new Error(`scratch lease registry ${registryPath()} could not be read: invalid registry shape`)
+    logError(failure)
+    throw failure
+  }
+  return parsed.leases
 }
 
 function publishRegistry(leases: ScratchLease[]): void {
@@ -77,7 +92,12 @@ export function releaseScratchLease(
   leaseId: string,
   opts: { clean?: boolean } = {},
 ): { released: boolean; cleaned: boolean; refusal?: string } {
-  const leases = loadRegistry()
+  let leases: ScratchLease[]
+  try {
+    leases = loadRegistry()
+  } catch (error) {
+    return { released: false, cleaned: false, refusal: errorMessage(error) }
+  }
   const idx = leases.findIndex(l => l.leaseId === leaseId)
   if (idx < 0) return { released: false, cleaned: false, refusal: `no lease '${leaseId}'` }
   const lease = leases[idx]!
