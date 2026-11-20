@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import { useDerivedState, useLayoutPublish } from '../../hooks/effects.js';
 import { CostThresholdDialog } from '../../components/CostThresholdDialog.js';
 import { CrashResumeDialog } from '../../components/CrashResumeDialog.js';
 import { ElicitationDialog } from '../../components/mcp/ElicitationDialog.js';
@@ -81,7 +82,7 @@ export function useChatDialogPaints({
 }) {
   const dialogSlotRef = useRef<DOMElement | null>(null);
   const [dialogPaints, setDialogPaints] = useState(false);
-  useEffect(() => {
+  useDerivedState(() => {
     const node = dialogSlotRef.current;
     const paints = toolJSX?.isLocalJSXCommand === true && node !== null && measureElement(node).height > 0;
     setDialogPaints(prev => (prev === paints ? prev : paints));
@@ -89,7 +90,7 @@ export function useChatDialogPaints({
   const localJsx = Boolean(toolJSX?.jsx && toolJSX.isLocalJSXCommand);
   const compactDetailUp = compactFocus === 'detail' && fullscreen && !chatSurfaceCovered && focusedInputDialog === undefined && !localJsx;
   const dialogOwnsKeys = (toolJSX?.isLocalJSXCommand === true && dialogPaints) || compactDetailUp;
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     if (compactWork.read() === 'detail' && !compactDetailUp) compactWork.set('composer');
   }, [compactDetailUp, compactWork]);
   return { dialogSlotRef, dialogPaints, localJsx, compactDetailUp, dialogOwnsKeys };
@@ -139,7 +140,7 @@ export function useChatDialogsView({
   store: AppStateStore;
 }) {
   const costThresholdShownRef = useRef<boolean>(getGlobalConfig().hasAcknowledgedCostThreshold === true);
-  useEffect(() => {
+  useDerivedState(() => {
     if (costThresholdShownRef.current) return;
     const focused = getFocusedSessionConnector();
     if (focused.usage().totalCostUSD < COST_THRESHOLD_USD) return;

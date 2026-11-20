@@ -9,6 +9,7 @@ import { SearchBox } from '../../SearchBox.js'
 import { Select } from '../../CustomSelect/select.js'
 import { Tab, Tabs, useTabHeaderFocus } from '../../design-system/Tabs.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
+import { usePublish } from '../../../hooks/effects.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useSearchInput } from '../../../hooks/useSearchInput.js'
 import { useTerminalFocus } from '../../../ink.js'
@@ -111,7 +112,7 @@ function RulesTabContent({
 }): React.ReactNode {
   const { headerFocused, focusHeader, blurHeader } = useTabHeaderFocus()
   const [entryFocus, setEntryFocus] = useState<string | undefined>()
-  React.useEffect(() => onHeaderFocusChange(headerFocused, focusHeader), [headerFocused, focusHeader, onHeaderFocusChange])
+  usePublish(() => onHeaderFocusChange(headerFocused, focusHeader), [headerFocused, focusHeader, onHeaderFocusChange])
   const sorted = sortedRulesFor(context, behavior)
   const filtered =
     query === ''
