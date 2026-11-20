@@ -285,7 +285,9 @@ else {
 }
 
 console.log('\n7. vulcan/engine/leases.ts — caseInsensitiveProject answers as before when the alternate-case stat fails')
-{
+if (process.platform === 'win32') {
+  console.log('  not read on Windows: caseInsensitiveProject returns true unconditionally on win32 without calling statSync')
+} else {
   const r = runSubprocess(`
     const { mock } = await import('bun:test')
     const realFs = await import('node:fs')

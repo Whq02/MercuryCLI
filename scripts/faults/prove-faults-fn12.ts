@@ -90,20 +90,24 @@ async function run(): Promise<void> {
 
     const { preparePlan, applyPlan } = await import('../../src/services/gitGraph/plan.ts')
     const owner = 'session:fn12-plan' as import('../../src/services/run/ownerKey.ts').OwnerKey
-    const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim()
-    const fakeBin = join(scratch, 'fake-git-bin')
-    mkdirSync(fakeBin, { recursive: true })
-    const fakeGit = join(fakeBin, 'git')
-    writeFileSync(fakeGit, `#!/bin/sh\nfor a in "$@"; do\n  if [ "$a" = "--verify" ]; then\n    echo "fatal: bad HEAD" >&2\n    exit 128\n  fi\ndone\nexec ${JSON.stringify(realGit)} "$@"\n`)
-    chmodSync(fakeGit, 0o755)
-    const p1 = preparePlan(owner, root, [{ message: 'add a', files: ['a.txt'] }])
-    const savedPath = process.env.PATH
-    process.env.PATH = `${fakeBin}:${savedPath ?? ''}`
-    let r1: ReturnType<typeof applyPlan> | typeof p1
-    try { r1 = 'id' in p1 ? applyPlan(owner, p1.id) : p1 } finally { process.env.PATH = savedPath }
+    if (process.platform === 'win32') {
+      console.log('  not read on Windows: the row plants a shell-script git on PATH, which Windows does not start')
+    } else {
+      const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim()
+      const fakeBin = join(scratch, 'fake-git-bin')
+      mkdirSync(fakeBin, { recursive: true })
+      const fakeGit = join(fakeBin, 'git')
+      writeFileSync(fakeGit, `#!/bin/sh\nfor a in "$@"; do\n  if [ "$a" = "--verify" ]; then\n    echo "fatal: bad HEAD" >&2\n    exit 128\n  fi\ndone\nexec ${JSON.stringify(realGit)} "$@"\n`)
+      chmodSync(fakeGit, 0o755)
+      const p1 = preparePlan(owner, root, [{ message: 'add a', files: ['a.txt'] }])
+      const savedPath = process.env.PATH
+      process.env.PATH = `${fakeBin}:${savedPath ?? ''}`
+      let r1: ReturnType<typeof applyPlan> | typeof p1
+      try { r1 = 'id' in p1 ? applyPlan(owner, p1.id) : p1 } finally { process.env.PATH = savedPath }
+      check('plan-headsha-error: non-1 rev-parse error refuses apply instead of building empty index', r1.state === 'refused' && 'code' in r1 && r1.code === 'io' && r1.reason.includes('bad HEAD'), JSON.stringify(r1))
+    }
     const p2 = preparePlan(owner, unbornRoot, [{ message: 'initial', files: ['first.txt'] }])
     const r2 = 'id' in p2 ? applyPlan(owner, p2.id) : p2
-    check('plan-headsha-error: non-1 rev-parse error refuses apply instead of building empty index', r1.state === 'refused' && 'code' in r1 && r1.code === 'io' && r1.reason.includes('bad HEAD'), JSON.stringify(r1))
     check('plan-headsha-unborn: unborn HEAD (exit 1) still commits cleanly', r2.state === 'applied', JSON.stringify(r2))
   }
 
