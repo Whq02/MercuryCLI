@@ -79,3 +79,13 @@ export function canReraiseOwnSignal(platform: NodeJS.Platform = process.platform
 export function killSignalForChild(signal: NodeJS.Signals, platform: NodeJS.Platform = process.platform): NodeJS.Signals | undefined {
   return platform === 'win32' ? undefined : signal
 }
+
+export function supportsGracefulSigterm(platform: NodeJS.Platform = process.platform): boolean {
+  return platform !== 'win32'
+}
+
+type ProcessTreeEndMethod = 'win32-taskkill' | 'posix-group'
+
+export function processTreeEndMethod(platform: NodeJS.Platform = process.platform): ProcessTreeEndMethod {
+  return platform === 'win32' ? 'win32-taskkill' : 'posix-group'
+}

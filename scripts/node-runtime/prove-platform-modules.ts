@@ -603,6 +603,8 @@ import {
   processListCommand,
   processStartFormFor,
   processStartProbeKind,
+  processTreeEndMethod,
+  supportsGracefulSigterm,
   wasEndedByProcessTreeKill,
 } from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
@@ -693,6 +695,21 @@ const PROCESSES: Row[] = [
       killSignalForChild('SIGKILL', stand.node),
     ],
     recorded: {"win32":["undefined","undefined","undefined","undefined"],"darwin":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"linux":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"win32 by process.platform alone":["undefined","undefined","undefined","undefined"],"win32 by getPlatform() alone":["SIGKILL","SIGTERM","SIGINT","SIGKILL"]},
+  },
+  {
+    name: 'supportsGracefulSigterm',
+    answers: stand => [supportsGracefulSigterm(), supportsGracefulSigterm(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'processTreeEndMethod',
+    answers: stand => [processTreeEndMethod(), processTreeEndMethod(stand.node)],
+    recorded: {"win32":["win32-taskkill","win32-taskkill"],"darwin":["posix-group","posix-group"],"linux":["posix-group","posix-group"],"win32 by process.platform alone":["win32-taskkill","win32-taskkill"],"win32 by getPlatform() alone":["posix-group","posix-group"]},
+  },
+  {
+    name: 'ripgrep platformDir equal arms',
+    answers: () => ['x64', 'arm64'].map(arch => `${arch}-${process.platform}`),
+    recorded: {"win32":["x64-win32","arm64-win32"],"darwin":["x64-darwin","arm64-darwin"],"linux":["x64-linux","arm64-linux"],"win32 by process.platform alone":["x64-win32","arm64-win32"],"win32 by getPlatform() alone":["x64-linux","arm64-linux"]},
   },
 ]
 
