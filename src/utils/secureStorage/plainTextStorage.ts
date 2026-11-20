@@ -12,7 +12,7 @@ import { logForDebugging } from '../debug.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 import { safeParseJSON } from '../json.js'
-import type { PreparedWrite, SecureStorage, SecureStorageData } from './types.js'
+import type { CredentialStoreUnread, PreparedWrite, SecureStorage, SecureStorageData } from './types.js'
 import { passedOver } from '../passedOver.js'
 
 
@@ -64,10 +64,12 @@ function unreadWords(path: string, code: string): string {
   return `The credential store at ${path} exists but could not be read (${code}); nothing was written.`
 }
 
-export function credentialStoreUnread(): { warning: string; code: string } | null {
+export function credentialStoreUnread(): CredentialStoreUnread | null {
   const path = credentialsPath()
   const probe = probeStore(path)
-  return probe.state === 'unreadable' ? { warning: unreadWords(path, probe.code), code: probe.code } : null
+  return probe.state === 'unreadable'
+    ? { warning: unreadWords(path, probe.code), code: probe.code, message: probe.message }
+    : null
 }
 
 function quarantineUnparseable(path: string): void {

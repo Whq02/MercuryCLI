@@ -1,4 +1,4 @@
-import type { SecureStorage, SecureStorageData } from './types.js'
+import type { CredentialStoreUnread, SecureStorage, SecureStorageData } from './types.js'
 
 export function createFallbackStorage(primary: SecureStorage, secondary: SecureStorage): SecureStorage {
   return {
@@ -19,7 +19,7 @@ export function createFallbackStorage(primary: SecureStorage, secondary: SecureS
     update(data: SecureStorageData): { success: boolean; warning?: string; code?: string } {
       const previouslyHeld = primary.read()
       const unread = previouslyHeld === null ? (secondary.unread?.() ?? null) : null
-      if (unread !== null) return { success: false, ...unread }
+      if (unread !== null) return { success: false, warning: unread.warning, code: unread.code }
       const primaryResult = primary.update(data)
       if (primaryResult.success) {
         if (previouslyHeld === null) {
@@ -44,6 +44,10 @@ export function createFallbackStorage(primary: SecureStorage, secondary: SecureS
       const primaryDeleted = primary.delete()
       const secondaryDeleted = secondary.delete()
       return primaryDeleted && secondaryDeleted
+    },
+
+    unread(): CredentialStoreUnread | null {
+      return primary.unread?.() ?? secondary.unread?.() ?? null
     },
   }
 }
