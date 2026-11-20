@@ -368,6 +368,51 @@ console.log('\nLSPClient.ts — sendNotification propagates write/serialization 
   )
 }
 
+const { mediaHealth } = await import('../../src/services/media/settings.js')
+
+console.log('\nmedia/settings.ts — mediaHealth distinguishes unreadable or corrupt runtime.json from absent')
+{
+  const healthAbsent = join(scratch, 'media-health-absent')
+  mkdirSync(healthAbsent, { recursive: true })
+  const absentRow = mediaHealth({ enabled: true, root: healthAbsent })
+  check(
+    'absent runtime.json still reports Media runtime missing',
+    absentRow.status === 'warn' && absentRow.evidence === 'Media runtime missing · /imagesetup',
+    JSON.stringify(absentRow),
+  )
+
+  const healthCorrupt = join(scratch, 'media-health-corrupt')
+  mkdirSync(healthCorrupt, { recursive: true })
+  writeFileSync(join(healthCorrupt, 'runtime.json'), '{not-json', 'utf8')
+  const corruptRow = mediaHealth({ enabled: true, root: healthCorrupt })
+  check(
+    'corrupt runtime.json reports Media runtime state could not be read with the parse error',
+    corruptRow.status === 'warn' &&
+      corruptRow.evidence.startsWith('Media runtime state could not be read (') &&
+      corruptRow.evidence.endsWith(') · /imagesetup') &&
+      corruptRow.fix === '/imagesetup',
+    JSON.stringify(corruptRow),
+  )
+
+  if (POSIX_MODES) {
+    const healthUnread = join(scratch, 'media-health-unread')
+    mkdirSync(healthUnread, { recursive: true })
+    const rtPath = join(healthUnread, 'runtime.json')
+    writeFileSync(rtPath, JSON.stringify({ binary: '/bin/sh' }), { mode: 0o600 })
+    chmodSync(rtPath, 0o200)
+    const unreadRow = mediaHealth({ enabled: true, root: healthUnread })
+    chmodSync(rtPath, 0o600)
+    check(
+      'unreadable runtime.json reports Media runtime state could not be read with EACCES',
+      unreadRow.status === 'warn' &&
+        unreadRow.evidence.startsWith('Media runtime state could not be read (') &&
+        unreadRow.evidence.includes('EACCES') &&
+        unreadRow.evidence.endsWith(') · /imagesetup'),
+      JSON.stringify(unreadRow),
+    )
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
