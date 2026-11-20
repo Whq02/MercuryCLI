@@ -284,6 +284,46 @@ section('§4 a check the gate could not finish does not refuse the commit: git g
   c('add', 'notes.txt')
   const owed = verdict('')
   check('control: the same gate still refuses what it did read (a staged source that matches re:MARK_B owes gen/b.json)', owed.includes('gen/b.json'), owed)
+  const uncompiled = parseGeneratedAssetsMap('gen/s.json\tbun scripts/gen-s.ts\tbun scripts/prove-s.ts\tsrc/** re:[oops\n')
+  const named: string[] = (uncompiled as { skipped?: string[] }).skipped ?? []
+  check('a re: source that does not compile is left out of its row and named; it is no map error and the row keeps its other source', uncompiled.errors.length === 0 && named.length === 1 && named[0]!.startsWith('line 1: re:[oops is not a regular expression that compiles') && JSON.stringify(uncompiled.rows[0]?.sources) === JSON.stringify(['src/**']), JSON.stringify(uncompiled))
+  const skip = join(scratch, 'skip')
+  for (const dir of ['scripts/gate', 'src', 'gen']) mkdirSync(join(skip, dir), { recursive: true })
+  const k = (...a: string[]): string => execFileSync('git', a, { cwd: skip, encoding: 'utf8', env })
+  k('init', '-q')
+  writeFileSync(join(skip, GENERATED_ASSETS_MAP), 'gen/s.json\tbun scripts/gen-s.ts\tbun scripts/prove-s.ts\tsrc/** re:[oops\n')
+  writeFileSync(join(skip, 'src/x.ts'), 'export const x = 1\n')
+  writeFileSync(join(skip, 'gen/s.json'), '{}\n')
+  writeFileSync(join(skip, 'notes.txt'), 'one\n')
+  k('add', '-A')
+  k('commit', '-q', '-m', 'seed')
+  writeFileSync(join(skip, 'notes.txt'), 'two\n')
+  k('add', 'notes.txt')
+  const judged = (): string => {
+    try { return String(generatedAssetsRefusal('git commit -F m', skip)) } catch (error) { return `REFUSED: ${error instanceof Error ? error.message : String(error)}` }
+  }
+  const unrelated = judged()
+  check('a map that holds such a source no longer refuses every commit in its repository', unrelated === 'null', unrelated)
+  const gate = await import('../../src/guards/commitGate.ts')
+  const { judgeToolCall } = await import('../../src/guards/guards.ts')
+  const { setFlagEnv, deleteFlagEnv } = await import('../../src/substrate/flagRegistry.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  setFlagEnv('MERCURY_COMMIT_GATE', '1')
+  gate.engageCommitGate('skipped-source')
+  const notesOf = async (callId: string): Promise<string[]> => {
+    const answered = await runWithCwdOverride(skip, () => judgeToolCall('skipped-source', { tool: 'Bash', input: { command: 'bun run typecheck && git commit -F m' }, callId, messages: [] }))
+    return answered.refused ? [`REFUSED: ${answered.reason}`] : answered.notes.map(note => String(note.content))
+  }
+  const first = await notesOf('skipped-1')
+  const second = await notesOf('skipped-2')
+  gate.disengageCommitGate('skipped-source')
+  deleteFlagEnv('MERCURY_COMMIT_GATE')
+  check('the commit goes on and one note says which source was skipped, the map first, and what to do', first.length === 1 && first[0]!.startsWith(`${GENERATED_ASSETS_MAP} line 1: re:[oops is not a regular expression that compiles`) && first[0]!.endsWith('so the commit was not checked against that source — fix the pattern in the map.'), JSON.stringify(first))
+  check('…once: the next commit carries no note', second.length === 0, JSON.stringify(second))
+  writeFileSync(join(skip, 'src/x.ts'), 'export const x = 2\n')
+  k('add', 'src/x.ts')
+  const stillOwed = judged()
+  check("control: the row's other source still judges (a staged file under src/** owes gen/s.json)", stillOwed.includes('gen/s.json'), stillOwed)
 }
 rmSync(scratch, { recursive: true, force: true })
 
