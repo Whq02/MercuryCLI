@@ -1,8 +1,17 @@
 import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
+import { getPlatform, type Platform } from '../platform.js'
 
 export function foldPathCase(filePath: string, platform: NodeJS.Platform = process.platform): string {
   return platform === 'win32' ? filePath.toLowerCase() : filePath
+}
+
+export function foldCaseInsensitivePath(filePath: string, platform: NodeJS.Platform = process.platform): string {
+  return platform === 'darwin' || platform === 'win32' ? filePath.toLowerCase() : filePath
+}
+
+export function foldHostCaseInsensitivePath(filePath: string, platform: Platform = getPlatform()): string {
+  return platform === 'macos' || platform === 'windows' || platform === 'wsl' ? filePath.toLowerCase() : filePath
 }
 
 export function samePathCase(left: string, right: string, platform: NodeJS.Platform = process.platform): boolean {

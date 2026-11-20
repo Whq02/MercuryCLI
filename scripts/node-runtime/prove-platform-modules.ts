@@ -21,7 +21,7 @@ const STANDS: readonly Stand[] = [
 
 import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
-import { foldPathCase, hostOrWin32PathModule, pathModuleFor, samePathCase, splitPathFromRoot, stripExtendedLengthPrefixForPlatform, toPosixSeparators } from '../../src/utils/platform/paths.js'
+import { foldCaseInsensitivePath, foldHostCaseInsensitivePath, foldPathCase, hostOrWin32PathModule, pathModuleFor, samePathCase, splitPathFromRoot, stripExtendedLengthPrefixForPlatform, toPosixSeparators } from '../../src/utils/platform/paths.js'
 
 const PATHS: Row[] = [
   {
@@ -125,6 +125,33 @@ const PATHS: Row[] = [
       win32Resolve: hostOrWin32PathModule('win32').resolve('C:\\Users', 'Alice'),
     }),
     recorded: {"win32":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"darwin":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"linux":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"win32 by process.platform alone":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"win32 by getPlatform() alone":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"}},
+  },
+  {
+    name: 'paths.foldCaseInsensitivePath',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\File.TS', '/Users/Alice/File.TS', '/home/alice/File.TS']
+      return {
+        default: inputs.map(p => foldCaseInsensitivePath(p)),
+        win32: inputs.map(p => foldCaseInsensitivePath(p, 'win32')),
+        darwin: inputs.map(p => foldCaseInsensitivePath(p, 'darwin')),
+        linux: inputs.map(p => foldCaseInsensitivePath(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"darwin":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"linux":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by process.platform alone":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]}},
+  },
+  {
+    name: 'paths.foldHostCaseInsensitivePath',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\File.TS', '/Users/Alice/File.TS', '/home/alice/File.TS']
+      return {
+        default: inputs.map(p => foldHostCaseInsensitivePath(p)),
+        windows: inputs.map(p => foldHostCaseInsensitivePath(p, 'windows')),
+        macos: inputs.map(p => foldHostCaseInsensitivePath(p, 'macos')),
+        wsl: inputs.map(p => foldHostCaseInsensitivePath(p, 'wsl')),
+        linux: inputs.map(p => foldHostCaseInsensitivePath(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"darwin":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"linux":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by getPlatform() alone":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]}},
   },
 ]
 
