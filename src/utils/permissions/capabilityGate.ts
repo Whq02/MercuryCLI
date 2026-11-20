@@ -312,19 +312,24 @@ export function clearAllCapabilityKills(): void {
 }
 
 function seedFromEnv(): void {
-  const raw = flagEnv('MERCURY_KILL')
-  if (!raw || typeof raw !== 'string') return
-  for (const entry of raw.split(/[,;]/)) {
-    const trimmed = entry.trim().replace(/^["']+|["']+$/g, '').trim()
-    if (!trimmed) continue
-    const sep = trimmed.indexOf(':')
-    if (sep === -1) {
-      killCapability(ALL_AGENTS, trimmed)
-    } else {
-      const agentType = trimmed.slice(0, sep).trim() || ALL_AGENTS
-      const toolName = trimmed.slice(sep + 1).trim()
-      if (toolName) killCapability(agentType, toolName)
+  try {
+    const raw = flagEnv('MERCURY_KILL')
+    if (!raw || typeof raw !== 'string') return
+    for (const entry of raw.split(/[,;]/)) {
+      const trimmed = entry.trim().replace(/^["']+|["']+$/g, '').trim()
+      if (!trimmed) continue
+      const sep = trimmed.indexOf(':')
+      if (sep === -1) {
+        killCapability(ALL_AGENTS, trimmed)
+      } else {
+        const agentType = trimmed.slice(0, sep).trim() || ALL_AGENTS
+        const toolName = trimmed.slice(sep + 1).trim()
+        if (toolName) killCapability(agentType, toolName)
+      }
     }
+  } catch (error) {
+    passedOver(error)
+    killCapability(ALL_AGENTS, ALL_TOOLS)
   }
 }
 
