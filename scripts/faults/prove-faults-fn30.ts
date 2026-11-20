@@ -54,6 +54,28 @@ try {
       check('crashReport.unnoticedCrashReports unreadable dir throws EACCES', unnoticedCode === 'EACCES', `got ${String(unnoticedCode)}`)
     }
   }
+
+  {
+    const extPkg = await import('../../src/utils/editorExtensionPackage.js')
+    check('editorExtensionPackage absent home returns empty', extPkg.installedEditorExtensions(join(scratch, 'no-such-home')).length === 0)
+    if (!POSIX_MODES) {
+      skip('editorExtensionPackage unreadable extensions dir', 'needs non-root POSIX')
+    } else {
+      const edHome = join(scratch, 'editor-home')
+      const extDir = join(edHome, '.vscode', 'extensions')
+      mkdirSync(extDir, { recursive: true })
+      chmodSync(extDir, 0o000)
+      cleanupTasks.push(() => { try { chmodSync(extDir, 0o700) } catch {} })
+      let code: string | null = null
+      try {
+        extPkg.installedEditorExtensions(edHome)
+      } catch (err) {
+        code = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
+      }
+      chmodSync(extDir, 0o700)
+      check('editorExtensionPackage unreadable extensions dir throws EACCES', code === 'EACCES', `got ${String(code)}`)
+    }
+  }
 } finally {
   for (const fn of cleanupTasks.reverse()) fn()
   rmSync(scratch, { recursive: true, force: true })
