@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -22,10 +22,4 @@ export function flagRegistryFiles(root: string = ROOT): string[] {
   if (existsSync(join(root, MODULE))) out.push(MODULE)
   if (existsSync(join(root, ROWS))) walk(ROWS)
   return out
-}
-
-export function flagRegistryText(root: string = ROOT): string {
-  return flagRegistryFiles(root)
-    .map(rel => readFileSync(join(root, rel), 'utf8'))
-    .join('\n')
 }
