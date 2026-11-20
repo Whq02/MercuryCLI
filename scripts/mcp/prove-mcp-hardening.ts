@@ -19,7 +19,7 @@ import {
   getEnumValues,
   isMultiSelectEnumSchema,
   getMultiSelectValues,
-} from '../../src/utils/mcp/elicitationValidation.js'
+} from '../../src/services/mcp/elicitationValidation.js'
 import type { AppState } from '../../src/state/AppState.js'
 
 let failures = 0
