@@ -25,8 +25,8 @@ export function untrustedWorkspaceHeadless(): boolean {
     return !checkHasTrustDialogAccepted()
   } catch (error) {
     if (!isConfigReadingAllowed()) return false
-    logForDebugging(`trust: whether this workspace is trusted could not be read, so this headless run loads no settings, hooks, servers or instructions from the checkout: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
-    return true
+    logForDebugging(`trust: whether this workspace is trusted could not be read, so this headless run goes on as in a trusted one: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
+    return false
   }
 }
 
