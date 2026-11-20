@@ -202,24 +202,30 @@ export async function runningGodotProcesses(opts?: {
   }
 }
 
-export async function strictGodotCensus(): Promise<GodotProcess[]> {
-  let failure: string | null = null
-  const processes = await runningGodotProcesses({
-    runner: {
-      async exec(file, args) {
-        try {
-          const out = await execFileNoThrow(file, args, { useCwd: false, timeout: TABLE_TIMEOUT_MS })
-          if (out.code !== 0) failure = `${file} exited ${out.code}`
-          return { code: out.code, stdout: out.stdout }
-        } catch (e) {
-          failure = (e as Error).message
-          return { code: 1, stdout: '' }
-        }
-      },
-    },
-  })
-  if (failure !== null) throw new Error(`engine process census unavailable: ${failure}`)
-  return processes
+export async function strictGodotCensus(opts?: {
+  platform?: CensusPlatform
+}): Promise<GodotProcess[]> {
+  const platform = opts?.platform ?? censusPlatform()
+  const commands = censusCommands(platform)
+  const outputs: string[] = []
+  for (const c of commands) {
+    let out: { code: number; stdout: string }
+    try {
+      out = await execFileNoThrow(c.file, c.args, { useCwd: false, timeout: TABLE_TIMEOUT_MS })
+    } catch (error) {
+      throw new Error(`engine process census unavailable: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    if (out.code !== 0) throw new Error(`engine process census unavailable: ${c.file} exited ${out.code}`)
+    outputs.push(out.stdout)
+  }
+  switch (platform) {
+    case 'darwin':
+      return parseDarwinCensus(outputs[0] ?? '', outputs[1] ?? '')
+    case 'linux':
+      return parseLinuxCensus(outputs[0] ?? '')
+    case 'win32':
+      return parseWin32Census(outputs[0] ?? '')
+  }
 }
 
 function sameProjectPath(a: string, b: string, platform: CensusPlatform = censusPlatform()): boolean {
