@@ -1,5 +1,6 @@
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { useNotifications } from '../../context/notifications.js'
 import { getModelDeprecationWarning } from '../../utils/model/deprecation.js'
@@ -10,7 +11,7 @@ export function useDeprecationWarningNotification(model: string): void {
   const { addNotification } = useNotifications()
   const lastWarningRef = useRef<string | null>(null)
 
-  useEffect(() => {
+  usePublish(() => {
     if (getIsRemoteMode()) return
     const warning = getModelDeprecationWarning(model)
     if (warning) {

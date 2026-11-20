@@ -1,4 +1,5 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getHoverOwner,
@@ -11,7 +12,7 @@ export function useHoverOwned(id: string): boolean {
     () => getHoverOwner() === id,
     () => false,
   )
-  useEffect(() => {
+  usePublish(() => {
     const p = flagEnv('MERCURY_HOVER_DEBUG')
     if (!p) return
     try {
