@@ -1,5 +1,6 @@
 
-import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useState, useSyncExternalStore } from 'react'
+import { usePublish, useTimer } from '../hooks/effects.js'
 import { useFluxMountMark } from '../hooks/useFluxMountMark.js'
 import { Box, Text, flushPendingSyncWork } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -125,7 +126,7 @@ export function LiveStreamingTail({
   const settled = !textSuppressed && published === null ? store.readSettled() : null
   const settledSince = settled !== null ? store.readSettledSinceMs() : null
   const [lingerExpired, setLingerExpired] = useState(false)
-  useEffect(() => {
+  useTimer(() => {
     if (settled === null) {
       setLingerExpired(false)
       return
@@ -136,7 +137,7 @@ export function LiveStreamingTail({
   }, [settled, settledSince])
   const ghost = settled !== null && !lingerExpired
   const rawText = textSuppressed ? null : (published ?? (ghost ? settled : null))
-  useEffect(() => {
+  usePublish(() => {
     if (settled !== null && lingerExpired) store.dropSettled()
   }, [store, settled, lingerExpired])
   const phases = store.readPhases()

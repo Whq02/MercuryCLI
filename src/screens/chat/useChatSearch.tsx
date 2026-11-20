@@ -1,7 +1,8 @@
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useDerivedState, useLoad, usePublish, useTimer } from '../../hooks/effects.js';
 import { packHints } from '../../components/mercury-ui/geometry.js';
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js';
 import { currentSurfaceRoute } from '../../context/surfaceRoute.js';
@@ -61,7 +62,7 @@ export function TranscriptSearchBar({
     columns,
     backspaceExitsOnEmpty: false,
   });
-  useEffect(() => {
+  useLoad(() => {
     let live = true;
     const started = Date.now();
     void warmSearchIndex()
@@ -77,13 +78,13 @@ export function TranscriptSearchBar({
       live = false;
     };
   }, [warmSearchIndex]);
-  useEffect(() => {
+  useTimer(() => {
     if (typeof warm !== 'number') return;
     const timer = setTimeout(() => setWarm('quiet'), SEARCH_WARMUP_SHOW_MS);
     return () => clearTimeout(timer);
   }, [warm]);
   const { query } = search;
-  useEffect(() => {
+  usePublish(() => {
     if (warm === 'warming') return;
     onQueryChange(query);
   }, [query, warm, onQueryChange]);
@@ -262,7 +263,7 @@ export function useChatSearch({
   const legacyTranscript = inTranscript && !inVirtualTranscriptMode;
 
   const { setQuery: setHighlight, scanElement, setPositions } = useSearchHighlight();
-  useEffect(() => {
+  usePublish(() => {
     if (!inTranscript) {
       setHighlight('');
       setPositions(null);
@@ -270,13 +271,13 @@ export function useChatSearch({
     }
     setHighlight(highlightTextOf(committedSearchQuery));
   }, [inTranscript, committedSearchQuery, setHighlight, setPositions]);
-  useEffect(() => {
+  useTimer(() => {
     if (!editorStatus) return;
     const timer = setTimeout(() => setEditorStatus(null), EDITOR_STATUS_MS);
     return () => clearTimeout(timer);
   }, [editorStatus]);
   const lastColumnsRef = useRef(columns);
-  useEffect(() => {
+  useDerivedState(() => {
     if (lastColumnsRef.current === columns) return;
     lastColumnsRef.current = columns;
     if (searchBarOpen || committedSearchQuery !== '') {
@@ -393,7 +394,7 @@ export function useChatSearch({
     setSearchMatchCount(count);
     setSearchMatchCurrent(current);
   }, []);
-  useEffect(() => {
+  usePublish(() => {
     if (!inTranscript) return;
     if (committedSearchQuery === '') return;
     jumpRef.current?.setSearchQuery(committedSearchQuery);

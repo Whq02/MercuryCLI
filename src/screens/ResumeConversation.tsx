@@ -1,5 +1,6 @@
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { useLoad } from '../hooks/effects.js'
 import { useAppStateStore } from '../state/AppState.js'
 import { LogSelector } from '../components/LogSelector.js'
 import { SpinnerGlyph } from '../components/Spinner/SpinnerGlyph.js'
@@ -165,7 +166,7 @@ export function ResumeConversation({
     [worktreePaths, applyResult],
   )
 
-  useEffect(() => {
+  useLoad(() => {
     void load(showAllProjects)
   }, [load, showAllProjects])
 

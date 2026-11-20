@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { Select } from '../../CustomSelect/select.js'
@@ -71,7 +72,7 @@ export function PowerShellPermissionRequest({
     setEditablePrefix(value)
   }
 
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false
     void getCompoundCommandPrefixesStatic(command, element =>
       isAllowlistedCommand(element, command),
@@ -163,7 +164,7 @@ export function PowerShellPermissionRequest({
               />
             ) : (
               <Text dimColor={explainer.visible}>
-                {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
+                {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
                   theme: resolveThemeName(),
                   verbose: true,
                 })}
