@@ -74,5 +74,42 @@ console.log('\npersistModelChoice — failed compat endpoint lookup refuses inst
   check('control: normal model still saves to userSettings', r.controlOutcome === 'saved' && r.controlSaved === 'claude-sonnet-4-6', `got ${String(r.controlOutcome)} / ${String(r.controlSaved)}`)
 }
 
+console.log('\nmercuryModel — failed TensorFold pairing surfaces the error notice instead of swallowing it')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'commands/model/mercuryModel.tsx'))
+    if (typeof mod.runModelTensorFoldPair !== 'function') {
+      out.missing = true
+    } else {
+      const notices = []
+      let readCalls = 0
+      await mod.runModelTensorFoldPair(
+        { kind: 'pair', host: { name: 'studio', baseUrl: 'http://127.0.0.1:9999', origin: 'lan' }, code: '123456' },
+        {
+          pair: async () => { throw new Error('pair handshake refused') },
+          read: async () => { readCalls++ },
+          setNotice: w => notices.push(w),
+          isOpen: () => true,
+        },
+      )
+      out.notices = notices
+      out.readCalls = readCalls
+      const closedNotices = []
+      await mod.runModelTensorFoldPair(
+        { kind: 'pair', host: { name: 'studio', baseUrl: 'http://127.0.0.1:9999', origin: 'lan' }, code: '123456' },
+        {
+          pair: async () => { throw new Error('should not publish after close') },
+          read: async () => {},
+          setNotice: w => closedNotices.push(w),
+          isOpen: () => false,
+        },
+      )
+      out.closedNotices = closedNotices
+    }
+  `)
+  check('pair failure sets the notice to the error message', Array.isArray(r.notices) && r.notices[0] === 'pair handshake refused', JSON.stringify(r))
+  check('pair failure does not publish notice after picker closes', Array.isArray(r.closedNotices) && r.closedNotices.length === 0, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
