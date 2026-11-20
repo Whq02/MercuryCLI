@@ -2,8 +2,6 @@
 import {
   useCallback,
   useDeferredValue,
-  useEffect,
-  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -13,6 +11,7 @@ import { appendFileSync } from 'node:fs'
 import type { DOMElement } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { useLayoutClaim, useLayoutPublish, useMeasure, useSubscription } from './effects.js'
 
 function pinTrace(entry: Record<string, unknown>): void {
   const path = flagEnv('MERCURY_CONNECTOR_TRACE')
@@ -205,7 +204,7 @@ export function useVirtualScroll(
   const bottomSpacer = (offsets[itemCount] ?? 0) - (offsets[effectiveEnd] ?? 0)
 
   const prevCommittedRangeRef = useRef<readonly [number, number] | null>(null)
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     const prev = prevCommittedRangeRef.current
     const freshCount = prev
       ? Math.max(0, prev[0] - effectiveStart) +
@@ -224,7 +223,7 @@ export function useVirtualScroll(
     prevCommittedRangeRef.current = [effectiveStart, effectiveEnd]
   })
 
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     const handle = scrollRef.current
     if (!handle) return
     const origin = listOriginRef.current
@@ -239,11 +238,11 @@ export function useVirtualScroll(
     handle.setClampBounds(min, max)
   })
 
-  useLayoutEffect(() => {
+  useMeasure(() => {
     measureAfterTheCommit(view, tools, effectiveStart, effectiveEnd)
   })
 
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     listCommittingRef.current = false
     afterLayoutRef.current = (): void => {
       if (listCommittingRef.current || measurementSkipRef.current) return
@@ -256,7 +255,7 @@ export function useVirtualScroll(
     }
   })
 
-  useEffect(() => scrollRef.current?.subscribeLayout(() => afterLayoutRef.current()), [scrollRef])
+  useSubscription(() => scrollRef.current?.subscribeLayout(() => afterLayoutRef.current()), [scrollRef])
 
   const measureRef = useCallback(
     (key: string): ((el: DOMElement | null) => void) => {

@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useLayoutEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useMeasure } from '../hooks/effects.js'
 import type { Command } from '../commands.js'
 import { Box, Text } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
@@ -52,7 +53,7 @@ export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions
   const unplaced = useRef(false)
   const viewKey = crewmate?.taskId ?? LEAD_VIEW_KEY
   const rowsStand = crewmate === null || transcript === null || transcript.state !== 'reading'
-  useLayoutEffect(() => {
+  useMeasure(() => {
     const handle = scrollRef?.current ?? null
     if (viewKey !== shown.current) {
       const left = unplaced.current ? null : rememberScroll(handle)
