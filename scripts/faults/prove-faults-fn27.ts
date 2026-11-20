@@ -468,6 +468,85 @@ try {
     }
   }
 
+  if (!POSIX_MODES) {
+    console.log(`  [SKIP] shell-kept-directory-unenterable — not read ${process.platform === 'win32' ? 'on Windows' : 'as root'}: a POSIX mode does not lock a folder ${process.platform === 'win32' ? 'there' : 'for uid 0'}`)
+  } else {
+    const r = runIsolated(`
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const state = await import(SRC + '/bootstrap/state.ts')
+      state.setOriginalCwd(PROJECT)
+      state.setCwdState(PROJECT)
+      const { exec, getShellCwd } = await import(SRC + '/utils/Shell.ts')
+      const run = async (command, options) => {
+        const result = await (await exec(command, new AbortController().signal, 'bash', options ?? {})).result
+        return { code: result.code, stdout: result.stdout, stderr: result.stderr, preSpawnError: result.preSpawnError ?? '' }
+      }
+      const outer = path.join(PROJECT, 'outer')
+      const inner = path.join(outer, 'inner')
+      fs.mkdirSync(inner, { recursive: true })
+      out.project = PROJECT
+      out.inner = inner
+      out.entered = await run('cd outer/inner')
+      out.keptAfterCd = getShellCwd()
+      fs.chmodSync(outer, 0o000)
+      try {
+        out.first = await run('pwd -P')
+        out.second = await run('pwd -P')
+        out.named = await run('pwd -P', { cwd: inner })
+      } finally {
+        fs.chmodSync(outer, 0o700)
+      }
+      out.back = await run('cd outer/inner && pwd -P')
+      out.keptAtEnd = getShellCwd()
+      fs.rmSync(inner, { recursive: true, force: true })
+      out.gone = await run('pwd -P')
+      out.afterGone = await run('pwd -P')
+    `)
+    type Ran = { code?: number; stdout?: string; stderr?: string; preSpawnError?: string }
+    const project = String(r.project ?? '')
+    const inner = String(r.inner ?? '')
+    const entered = (r.entered ?? {}) as Ran
+    const first = (r.first ?? {}) as Ran
+    const second = (r.second ?? {}) as Ran
+    const named = (r.named ?? {}) as Ran
+    const back = (r.back ?? {}) as Ran
+    const gone = (r.gone ?? {}) as Ran
+    const afterGone = (r.afterGone ?? {}) as Ran
+    const moved = `The shell's directory is now ${project}: ${inner} could not be entered (`
+    const times = (text: string | undefined, part: string): number => (text ?? '').split(part).length - 1
+    check(
+      'shell-kept-directory-unenterable: control, a cd is kept for the next command',
+      entered.code === 0 && r.keptAfterCd === inner,
+      JSON.stringify(r),
+    )
+    check(
+      'shell-kept-directory-unenterable: a plain command runs in the start folder and says once where the shell is now',
+      first.code === 0 && (first.stdout ?? '').trim() === project && times(first.stderr, moved) === 1 && times(first.stderr, "The shell's directory is now") === 1,
+      JSON.stringify(r),
+    )
+    check(
+      'shell-kept-directory-unenterable: the next plain command runs there and carries no sentence',
+      second.code === 0 && (second.stdout ?? '').trim() === project && times(second.stderr, "The shell's directory is now") === 0,
+      JSON.stringify(r),
+    )
+    check(
+      'shell-kept-directory-unenterable: a call that names the locked folder as its cwd still fails with the error',
+      named.code !== 0 && /EACCES|permission denied/i.test(named.preSpawnError ?? '') && !(named.preSpawnError ?? '').includes('does not exist'),
+      JSON.stringify(r),
+    )
+    check(
+      'shell-kept-directory-unenterable: the folder unlocked again, a cd into it works and is kept',
+      back.code === 0 && (back.stdout ?? '').trim() === inner && r.keptAtEnd === inner,
+      JSON.stringify(r),
+    )
+    check(
+      'shell-kept-directory-missing: a plain command runs in the start folder and says once that the folder no longer exists',
+      gone.code === 0 && (gone.stdout ?? '').trim() === project && times(gone.stderr, `The shell's directory is now ${project}: ${inner} no longer exists.`) === 1 && times(afterGone.stderr, "The shell's directory is now") === 0 && afterGone.code === 0,
+      JSON.stringify(r),
+    )
+  }
+
   {
     const r = runIsolated(`
       const { mock } = await import('bun:test')

@@ -220,12 +220,7 @@ function writeShellCwd(next: string | null): void {
 
 export function getShellCwd(): string {
   const last = readShellCwd()
-  if (last !== null) {
-    const probe = probeDirectory(last)
-    if (probe.ok || !probe.missing) return last
-  }
-  writeShellCwd(null)
-  return getCwd()
+  return last !== null && probeDirectory(last).ok ? last : getCwd()
 }
 
 function shellCwdLeftByCd(): string | null {
@@ -250,6 +245,14 @@ function shellDirectoryStays(before: string, why: string): string {
   return `The shell's directory stays ${before}: ${why}.`
 }
 
+function shellDirectoryIsNow(now: string, why: string): string {
+  return `The shell's directory is now ${now}: ${why}.`
+}
+
+function whyTheShellLeft(folder: string, probe: { missing: boolean; error: unknown }): string {
+  return probe.missing ? `${folder} no longer exists` : `${folder} could not be entered (${errorMessage(probe.error)})`
+}
+
 function startRefusal(folder: string, tracked: boolean, bashLeaves: boolean): string | null {
   if (getPlatform() !== 'windows' || folder.length <= WINDOWS_STARTS_A_PROGRAM_IN) return null
   return shellDirectoryStays(tracked ? folder : getShellCwd(), `${NO_PROGRAM_STARTS_PAST}, and ${tracked ? 'this one' : folder} has ${folder.length}, so the command was not started${tracked && bashLeaves ? '; cd to a shorter folder with the Bash tool' : ''}`)
@@ -268,6 +271,22 @@ function probeDirectory(path: string): { ok: true } | { ok: false; missing: bool
   } catch (error) {
     return { ok: false, missing: isENOENT(error), error }
   }
+}
+
+function leaveKeptDirectoryThatFails(): string | null {
+  const kept = readShellCwd()
+  if (kept === null) return null
+  const probe = probeDirectory(kept)
+  if (probe.ok) return null
+  writeShellCwd(null)
+  const now = getCwd()
+  logForDebugging(`shell directory: ${whyTheShellLeft(kept, probe)}; the shell is back in ${now}`)
+  return shellDirectoryIsNow(now, whyTheShellLeft(kept, probe))
+}
+
+function tellInResult(result: ExecResult, shellType: ShellType, line: string): void {
+  if (shellType === 'bash') result.stderr = result.stderr === '' ? line : `${result.stderr}\n${line}`
+  else result.stdout = `${result.stdout}${result.stdout === '' || result.stdout.endsWith('\n') ? '' : '\n'}${line}\n`
 }
 
 
@@ -304,6 +323,27 @@ export async function exec(
   abortSignal: AbortSignal,
   shellType: ShellType,
   options: ExecOptions = {},
+): Promise<ShellCommand> {
+  const notes: string[] = []
+  if (options.cwd === undefined) {
+    const left = leaveKeptDirectoryThatFails()
+    if (left !== null) notes.push(left)
+  }
+  const ran = await execOnARoad(command, abortSignal, shellType, options, notes)
+  if (notes.length > 0) {
+    void ran.result.then(result => {
+      for (const note of notes) tellInResult(result, shellType, note)
+    })
+  }
+  return ran
+}
+
+async function execOnARoad(
+  command: string,
+  abortSignal: AbortSignal,
+  shellType: ShellType,
+  options: ExecOptions,
+  notes: string[],
 ): Promise<ShellCommand> {
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS
   const cwdOverride = options.cwd === undefined ? undefined : resolveShellCwd(options.cwd)
@@ -378,22 +418,20 @@ export async function exec(
   let cwd = cwdOverride ?? getShellCwd()
   const cwdProbe = probeDirectory(cwd)
   if (!cwdProbe.ok) {
-    if (!cwdProbe.missing) return createFailedCommand(errorMessage(cwdProbe.error))
-    if (cwdOverride !== undefined) return createFailedCommand(`Path "${cwdOverride}" does not exist`)
+    if (cwdOverride !== undefined) return createFailedCommand(cwdProbe.missing ? `Path "${cwdOverride}" does not exist` : errorMessage(cwdProbe.error))
     const bootDirectory = getOriginalCwd()
     const bootProbe = probeDirectory(bootDirectory)
     if (bootProbe.ok) {
       if (contextShellCwd() === undefined) setCwdState(bootDirectory)
       writeShellCwd(null)
-      logForDebugging(
-        `working directory ${cwd} no longer exists; recovered to the original directory ${bootDirectory}`,
-      )
+      logForDebugging(`working directory: ${whyTheShellLeft(cwd, cwdProbe)}; recovered to the original directory ${bootDirectory}`)
+      notes.push(shellDirectoryIsNow(bootDirectory, whyTheShellLeft(cwd, cwdProbe)))
       cwd = bootDirectory
     } else if (!bootProbe.missing) {
       return createFailedCommand(errorMessage(bootProbe.error))
     } else {
       return createFailedCommand(
-        `The working directory ${cwd} no longer exists, and the original startup directory is gone too. Restart Mercury from an existing directory.`,
+        `The working directory ${whyTheShellLeft(cwd, cwdProbe)}, and the original startup directory is gone too. Restart Mercury from an existing directory.`,
       )
     }
   }
@@ -497,10 +535,7 @@ export async function exec(
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
-    const told = (line: string): void => {
-      if (shellType === 'bash') result.stderr = result.stderr === '' ? line : `${result.stderr}\n${line}`
-      else result.stdout = `${result.stdout}${result.stdout === '' || result.stdout.endsWith('\n') ? '' : '\n'}${line}\n`
-    }
+    const told = (line: string): void => tellInResult(result, shellType, line)
     let named: string | undefined
     try {
       const record = readFileSync(cwdFilePath, 'utf8')
