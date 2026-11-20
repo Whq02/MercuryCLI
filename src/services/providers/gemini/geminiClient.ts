@@ -14,7 +14,7 @@ import {
   describeTransportFailure, mapCompatHttpFailure,
   type CompatCompletedToolCall, type CompatFinishReason, type CompatStreamEvent, type CompatStreamOptions,
 } from '../openaicompat/compatChatClient.js'
-import { buildGeminiPlanRequest, buildGeminiRequest, hoistElidedResponseMedia, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
+import { buildGeminiPlanRequest, buildGeminiRequest, geminiValidatesSignatures, hoistElidedResponseMedia, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
 import { geminiRequestPin } from './geminiPins.js'
 import { maskGeminiSecrets } from './geminiAccounts.js'
 import { appendFileSync } from 'node:fs'
@@ -170,7 +170,8 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       } else if (typeof part.text === 'string' || signature) {
         const text = typeof part.text === 'string' ? part.text : ''
         const previous = parts.at(-1)
-        if (previous?.text !== undefined && (previous.thought === true) === thought && previous.thoughtSignature === undefined) {
+        const apart = signature !== undefined && geminiValidatesSignatures(options.request.model)
+        if (!apart && previous?.text !== undefined && (previous.thought === true) === thought && previous.thoughtSignature === undefined) {
           previous.text += text
           if (signature) previous.thoughtSignature = signature
         } else if (text !== '' || signature) {

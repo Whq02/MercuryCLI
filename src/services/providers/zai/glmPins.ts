@@ -57,6 +57,7 @@ export const GLM_DISPLAY_PINS: readonly GlmDisplayPin[] = [
   { id: 'glm-5.2', displayName: 'GLM-5.2', observedAt: '2026-10-05', contextWindow: 1_000_000, outputMax: 131_072 },
   { id: 'glm-5.1', displayName: 'GLM-5.1', observedAt: '2026-10-05', contextWindow: 200_000, outputMax: 131_072 },
   { id: 'glm-5', displayName: 'GLM-5', observedAt: '2026-10-05', contextWindow: 200_000, outputMax: 131_072 },
+  { id: 'glm-5-turbo', displayName: 'GLM-5-Turbo', observedAt: '2026-11-20', source: 'https://docs.z.ai/guides/llm/glm-5-turbo', contextWindow: 200_000, outputMax: 131_072 },
   { id: 'glm-4.7', displayName: 'GLM-4.7', observedAt: '2026-10-05', contextWindow: 200_000, outputMax: 131_072 },
   { id: 'glm-4.7-flashx', displayName: 'GLM-4.7-FlashX', observedAt: '2026-10-05', contextWindow: 200_000 },
   { id: 'glm-4.7-flash', displayName: 'GLM-4.7-Flash', observedAt: '2026-10-05', contextWindow: 200_000 },

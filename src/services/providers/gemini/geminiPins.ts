@@ -18,6 +18,7 @@ interface GeminiPricePin extends GeminiPriceTier {
 const LONG_PROMPT_THRESHOLD = 200_000
 
 export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
+  { id: 'gemini-4-neon', observedAt: '2026-11-20', source: GEMINI_PRICING_PAGE, costInPerMtok: 3, costOutPerMtok: 15, cachedInPerMtok: 0.15 },
   { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: GEMINI_PRICING_PAGE, costInPerMtok: 1.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.075 },
   {
     id: 'gemini-4-carbon',
@@ -107,6 +108,7 @@ interface GeminiRequestPin {
 }
 
 export const GEMINI_REQUEST_PINS: readonly GeminiRequestPin[] = [
+  { id: 'gemini-4-neon', observedAt: '2026-11-20', source: `${GEMINI_MODEL_GUIDES}/gemini-4-neon`, thinkingLevels: ['low', 'medium', 'high', 'xhigh'], segmentOutputTokens: 65_536, responseMedia: ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'] },
   { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-hydrogen`, thinkingLevels: ['low', 'medium', 'high', 'xhigh'], segmentOutputTokens: 65_536, responseMedia: ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'] },
   { id: 'gemini-4-carbon', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-carbon`, thinkingLevels: ['low', 'medium', 'high'], segmentOutputTokens: 65_536 },
   { id: 'gemini-4-argon', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-argon`, thinkingLevels: ['low', 'medium', 'high'], segmentOutputTokens: 65_536 },

@@ -33,6 +33,7 @@ const QWEN_CODING_PLAN_ROUTER_ID = 'qwen-auto'
 
 export const QWEN_DISPLAY_PINS: readonly QwenDisplayPin[] = [
   { ...flagship, id: 'qwen3.8-max', displayName: 'Qwen3.8 Max', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.25, cacheWritePerMtok: 2.5, codingPlan: true },
+  { ...flagship, id: 'qwen4-max', displayName: 'Qwen4 Max', observedAt: '2026-11-20', source: 'https://www.alibabacloud.com/help/en/model-studio/qwen4-max', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 1.5, costOutPerMtok: 4.5, cachedInPerMtok: 0.075, cacheWritePerMtok: 1.875 },
   { ...flagship, id: 'qwen3.7-max', displayName: 'Qwen3.7 Max', images: false, costInPerMtok: 2.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.25, cacheWritePerMtok: 3.125, codingPlan: true },
   { ...flagship, id: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', costInPerMtok: 0.4, costOutPerMtok: 1.6, cachedInPerMtok: 0.08, cacheWritePerMtok: 0.5, codingPlan: true, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 1.2, costOutPerMtok: 4.8, cachedInPerMtok: 0.24, cacheWritePerMtok: 1.5 }] },
   { ...flagship, id: 'qwen3.8-flash', displayName: 'Qwen3.8 Flash', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016, cacheWritePerMtok: 0.2, codingPlan: true },
