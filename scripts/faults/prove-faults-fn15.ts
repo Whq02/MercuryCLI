@@ -273,6 +273,48 @@ console.log('\nmedia/setup.ts — onProgress throws are not mislabelled and unre
   )
 }
 
+const { spawnSync } = await import('node:child_process')
+const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
+
+console.log('\noauth/refresh.ts — storeOAuthAccountInfo propagates resetLimitsForCredentialSwitch failures')
+{
+  const subHome = join(scratch, 'oauth-refresh-home')
+  mkdirSync(subHome, { recursive: true })
+  const limitsPath = join(import.meta.dir, '../../src/services/anthropicLimits.js')
+  const configPath = join(import.meta.dir, '../../src/utils/config.js')
+  const refreshPath = join(import.meta.dir, '../../src/services/oauth/refresh.js')
+  const script = `
+    import { mock } from 'bun:test'
+    process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(subHome)}
+    process.env.NODE_ENV = 'test'
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    const real = await import(${JSON.stringify(limitsPath)})
+    mock.module(${JSON.stringify(limitsPath)}, () => ({
+      ...real,
+      resetLimitsForCredentialSwitch: () => { throw new Error('limits reset boom') },
+    }))
+    const { enableConfigs, saveGlobalConfig } = await import(${JSON.stringify(configPath)})
+    enableConfigs()
+    saveGlobalConfig(c => ({ ...c, oauthAccount: { accountUuid: 'acct-old', emailAddress: 'old@fixture.invalid' } }))
+    const { storeOAuthAccountInfo } = await import(${JSON.stringify(refreshPath)})
+    let threw = null
+    try {
+      storeOAuthAccountInfo({ accountUuid: 'acct-new', emailAddress: 'new@fixture.invalid' })
+    } catch (e) {
+      threw = e instanceof Error ? e.message : String(e)
+    }
+    process.stdout.write(JSON.stringify({ threw }))
+    process.exit(0)
+  `
+  const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: subHome, MERCURY_HOME: '' } })
+  const parsed = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { threw?: string | null }) : null
+  check(
+    'storeOAuthAccountInfo throws when resetLimitsForCredentialSwitch fails on account switch',
+    res.status === 0 && parsed?.threw === 'limits reset boom',
+    `status=${res.status} out=${res.stdout.trim()} err=${res.stderr.slice(-300)}`,
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

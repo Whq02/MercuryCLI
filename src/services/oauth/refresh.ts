@@ -229,13 +229,9 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
     if (!changed) return
   }
   if (existing !== undefined && existing.accountUuid !== info.accountUuid) {
-    try {
-      const { resetLimitsForCredentialSwitch } =
-        require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
-      resetLimitsForCredentialSwitch()
-    } catch (error) {
-      passedOver(error)
-    }
+    const { resetLimitsForCredentialSwitch } =
+      require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
+    resetLimitsForCredentialSwitch()
   }
   saveGlobalConfig(current => ({ ...current, oauthAccount: info }))
   void import('../../daemon/ownedDaemon.js')
