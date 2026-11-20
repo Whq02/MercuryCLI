@@ -167,11 +167,56 @@ async function proveStoreRecovery(): Promise<void> {
   })
 }
 
+async function proveRecoveryOrchestrator(): Promise<void> {
+  const orch = await import('../../src/substrate/recoveryOrchestrator.js')
+  await withScratchHome(async home => {
+    if (POSIX_MODES) {
+      orch._resetBootRecoveryForTests()
+      const ledgerDir = join(home, 'recovery')
+      mkdirSync(ledgerDir, { recursive: true })
+      const ledger = join(ledgerDir, 'store-recovery.jsonl')
+      writeFileSync(ledger, '{"ts":"2026-01-01T00:00:00.000Z","store":"x"}\n', { mode: 0o600 })
+      chmodSync(ledger, 0o200)
+      try {
+        const report = await orch.runBootRecovery({ scope: 'session' })
+        check('recoveryOrchestrator: unreadable recovery ledger adds report error', report.errors.some(e => e.includes('store-recovery ledger read failed')), JSON.stringify(report.errors))
+      } finally {
+        chmodSync(ledger, 0o600)
+        orch._resetBootRecoveryForTests()
+      }
+
+      const lockedRecovery = join(home, 'recovery')
+      chmodSync(lockedRecovery, 0o000)
+      let dirErr: string | undefined
+      try {
+        await orch.countOrphanDurableTemps()
+      } catch (e) {
+        dirErr = (e as NodeJS.ErrnoException).code
+      } finally {
+        chmodSync(lockedRecovery, 0o700)
+      }
+      check('recoveryOrchestrator: countOrphanDurableTemps throws EACCES on unreadable dir', dirErr === 'EACCES', String(dirErr))
+
+      const lockedTasks = join(home, 'tasks')
+      mkdirSync(lockedTasks, { recursive: true })
+      chmodSync(lockedTasks, 0o000)
+      try {
+        const report = await orch.runBootRecovery({ scope: 'session' })
+        check('recoveryOrchestrator: unreadable tasks dir records dead-epoch GC error', report.errors.some(e => e.includes('dead-epoch GC failed')), JSON.stringify(report.errors))
+      } finally {
+        chmodSync(lockedTasks, 0o700)
+        orch._resetBootRecoveryForTests()
+      }
+    }
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
   await provePidLock()
   await proveStoreRecovery()
+  await proveRecoveryOrchestrator()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }
