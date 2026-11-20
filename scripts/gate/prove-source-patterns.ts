@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
 import { ModuleCache, declarationOf, functionOf, importOf, importedDeclaration, unwrap } from './sourceCensus.ts'
@@ -20,6 +20,12 @@ const LOOSE = 'flagEnvLoose'
 const PAUSE = 'hand-built-pause'
 const ALIAS = 'sleep-alias'
 const SLEEP_DOOR = 'src/utils/sleep.ts'
+const FAILURE_DOOR = 'src/utils/passedOver.ts'
+const PASS = 'passedOver'
+const PASS_AS = 'passedOverAs'
+const TIMER_DOOR = 'src/utils/timers.ts'
+const AMBIENT_DOOR = 'src/utils/hostEnv.ts'
+const EFFECT_DOOR = 'src/hooks/effects.ts'
 const REGISTERED = new Set(FLAG_REGISTRY.map(row => row.env))
 const DOOR_FILE = ((): string => {
   const self = ts.createSourceFile(SELF, readFileSync(import.meta.path, 'utf8'), ts.ScriptTarget.Latest, false)
@@ -35,21 +41,23 @@ const CLOCK = 'a module that must own a timer takes its clock from the caller (n
 const TICK = 'for a tick, subscribeUiClock(ms, fn) from utils/cockpit/uiClock.ts (one timer for each cadence), and in a component useInterval, useAnimationTimer or useAnimationFrame from ink/hooks (the frame clock)'
 const YIELD = `await the promise the work depends on, or ${SLEEP} with 0 to let the event loop turn; a scheduler that must defer takes the function from its caller, as the render scheduler takes queueMicrotask in its clock`
 const RENDER = 'compute the value while rendering (plain code or useMemo); read an outside store with useSyncExternalStore; put an action in the handler of the key or event that causes it'
-const NAME_THE_FAILURE = 'catch the one failure that is expected and let the rest throw (isENOENT, isFsInaccessible and isAbortError in utils/errors.ts test for it); a failure that may be passed over is still recorded, with logForDebugging or logError'
-const NO_AMBIENT_DOOR = 'one function for the ambient environment is proposed and not built: until it stands the count holds where it is and does not rise'
+const NAME_THE_FAILURE = `catch the one failure that is expected and let the rest throw (isENOENT, isFsInaccessible and isAbortError in utils/errors.ts test for it); a failure that may be passed over is handed on first: ${PASS}(error) from ${FAILURE_DOOR} as the first statement of the catch, and as a rejection handler ${PASS} itself or ${PASS_AS}(value) for a default (the door counts it, keeps the last one and sends it to the debug log)`
+const THROUGH_HOST_ENV = `the ambient environment is hostEnv() from ${AMBIENT_DOOR}: a read by name is hostEnv().NAME, and a child program or a default takes hostEnv() whole`
+const BY_THE_TIMER_DOOR = `a timer that is started by hand all the same goes through ${TIMER_DOOR} (startTimeout, startInterval, startImmediate, startMicrotask, and sleepSync for a wait that must stay synchronous), which starts the same timer and returns its handle`
+const BY_THE_EFFECT_DOOR = `an effect that stays takes its name from ${EFFECT_DOOR}, the hook that says what it is for`
 const TYPE_IT = 'narrow the value with a type guard or parse it with its schema; a declared type that is wrong is corrected where it is declared; satisfies checks a literal against a type with no cast'
 
 const HABITS = {
-  setTimeout: `to wait, ${SLEEP}; to bound a call, AbortSignal.timeout(ms) or the inactivity deadline in utils/deadline.ts; ${TICK}; ${CLOCK}`,
-  setInterval: `${TICK}; off the screen, a loop that awaits sleep(ms, signal) from ${SLEEP_DOOR} and ends with its signal; ${CLOCK}`,
-  setImmediate: YIELD,
-  queueMicrotask: YIELD,
+  setTimeout: `to wait, ${SLEEP}; to bound a call, AbortSignal.timeout(ms) or the inactivity deadline in utils/deadline.ts; ${TICK}; ${CLOCK}; ${BY_THE_TIMER_DOOR}`,
+  setInterval: `${TICK}; off the screen, a loop that awaits sleep(ms, signal) from ${SLEEP_DOOR} and ends with its signal; ${CLOCK}; ${BY_THE_TIMER_DOOR}`,
+  setImmediate: `${YIELD}; ${BY_THE_TIMER_DOOR}`,
+  queueMicrotask: `${YIELD}; ${BY_THE_TIMER_DOOR}`,
   'process.nextTick': YIELD,
-  'Atomics.wait': `a synchronous wait stops the event loop for every caller: in an async caller, ${SLEEP}; a caller that cannot await hands the wait to a worker`,
+  'Atomics.wait': `a synchronous wait stops the event loop for every caller: in an async caller, ${SLEEP}; a caller that cannot await hands the wait to a worker; ${BY_THE_TIMER_DOOR}`,
   [PAUSE]: `call sleep(ms, signal?, opts?) from ${SLEEP_DOOR} where the pause is made: a promise built over a timer, a call of the timer of timers/promises or of its scheduler, Bun.sleep, a helper that is handed the resolver (each line below names the call). The second argument is the signal of a caller that stops its own work when it aborts, { throwOnAbort: true } rejects on that abort as the timer of timers/promises does, and { unref: true } keeps the timer from holding the process open`,
   [ALIAS]: `import the door under its own name, import { sleep } from ${SLEEP_DOOR}: a local that holds a sleep handed in through a seam takes another name (pause), and the argument of the seam keeps the name sleep for its callers`,
-  useEffect: `${RENDER}; a repeating tick is useInterval or useAnimationFrame from ink/hooks`,
-  useLayoutEffect: `${RENDER}; a size is read from the layout the renderer already measured (useTerminalSize, useTerminalViewport), not measured again after the paint`,
+  useEffect: `${RENDER}; a repeating tick is useInterval or useAnimationFrame from ink/hooks; ${BY_THE_EFFECT_DOOR}`,
+  useLayoutEffect: `${RENDER}; a size is read from the layout the renderer already measured (useTerminalSize, useTerminalViewport), not measured again after the paint; ${BY_THE_EFFECT_DOOR}`,
   useInsertionEffect: `${RENDER}; a write to the terminal belongs to the renderer, not to a component`,
   useImperativeHandle: `${RENDER}; a parent that must act on a child hands it the state, not a handle to call`,
   'lifecycle-method': `a function component: ${RENDER}`,
@@ -62,12 +70,20 @@ const HABITS = {
   'empty-catch-handler': NAME_THE_FAILURE,
   'catch-default': `${NAME_THE_FAILURE}; a default answered for every failure hides the ones nobody expected`,
   'handler-default': `${NAME_THE_FAILURE}; a default answered for every failure hides the ones nobody expected`,
-  'env-read': `a registered flag is read with ${DOOR} or flagEnabled (each line below says whether its name has a row in the flag registry); for another name, ${NO_AMBIENT_DOOR}`,
-  'env-whole': `a function that needs the environment takes it from its caller as a parameter with no default; ${NO_AMBIENT_DOOR}`,
+  'env-read': `a registered flag is read with ${DOOR} or flagEnabled (each line below says whether its name has a row in the flag registry); for another name, ${THROUGH_HOST_ENV}`,
+  'env-whole': `a function that needs the environment takes it from its caller as a parameter with no default; ${THROUGH_HOST_ENV}`,
   [LOOSE]: `give the name its row in the flag registry and read it with ${DOOR}`,
 } as const
 type Habit = keyof typeof HABITS
 const NAMES = Object.keys(HABITS) as Habit[]
+const DOORS: Array<{ file: string; opens: string; own: readonly Habit[] }> = [
+  { file: DOOR_FILE, opens: DOOR, own: ['env-read', 'env-whole'] },
+  { file: AMBIENT_DOOR, opens: 'hostEnv', own: ['env-read', 'env-whole'] },
+  { file: TIMER_DOOR, opens: 'startTimeout', own: ['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'Atomics.wait'] },
+  { file: EFFECT_DOOR, opens: 'useMount', own: ['useEffect', 'useLayoutEffect'] },
+  { file: FAILURE_DOOR, opens: PASS, own: ['empty-catch'] },
+]
+const OWN = 'own '
 const BEYOND: Array<[string, string]> = [
   ['wrapper', 'a named function that arms a timer or runs an effect for what its caller hands in, counted once where it stands and not at its callers'],
   ['exported-alias', 'a name a module exports for a timer, a hook or the environment, counted where it is made and not where another module imports it'],
@@ -80,6 +96,7 @@ const BEYOND: Array<[string, string]> = [
   ['all-settled', 'Promise.allSettled with its result dropped'],
   ['memo-effect', 'a useMemo callback or a useState initialiser with a statement that calls or assigns what is declared outside it'],
   ['only-calls', 'a catch block or a rejection handler that holds only calls, which may report the failure and still pass it over'],
+  ['passed-over', `a catch block or a rejection handler that hands its failure to the door first, ${PASS} or ${PASS_AS} from ${FAILURE_DOOR}, and passes it over`],
 ]
 const WRAPPED = new Set<string>(['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'process.nextTick', 'useEffect', 'useLayoutEffect', 'useInsertionEffect'])
 
@@ -120,7 +137,7 @@ type Side = (file: string) => string | null
 type Change = { name: string; touched: string[]; taken: Set<string>; before: Side; after: Side }
 type Chain = { from: string; was: Rows; span: Change; links: Change[] }
 type Refusal = { habit: Habit; file: string; lines: number[]; why: string; change: string }
-type Passed = 'empty' | 'default' | 'calls' | undefined
+type Passed = 'empty' | 'default' | 'calls' | 'door' | undefined
 
 const modules = new ModuleCache(ROOT)
 
@@ -193,13 +210,23 @@ function passedOver(statements: readonly ts.Statement[], inFunction: boolean): P
   return undefined
 }
 
+function ofFailureDoor(e: ts.Expression): string | undefined {
+  const x = unwrap(e)
+  const decl = ts.isIdentifier(x) ? declarationOf(x) : undefined
+  const ref = decl ? importOf(decl) : undefined
+  return decl && ref && ref.module.startsWith('.') && resolve(dirname(decl.getSourceFile().fileName), ref.module).replace(/\.js$/, '.ts') === resolve(ROOT, FAILURE_DOOR) ? ref.name : undefined
+}
+
+const handsOver = (s: ts.Statement | undefined): boolean => s !== undefined && ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && ofFailureDoor(s.expression.expression) === PASS
+
 function handlerPasses(e: ts.Expression | undefined): Passed {
   if (!e) return undefined
   const x = unwrap(e)
+  if (ofFailureDoor(x) === PASS || (ts.isCallExpression(x) && ofFailureDoor(x.expression) === PASS_AS)) return 'door'
   const decl = ts.isIdentifier(x) ? declarationOf(x) : undefined
   const fn = ts.isArrowFunction(x) || ts.isFunctionExpression(x) ? x : decl ? (functionOf(decl) ?? functionOf(importedDeclaration(modules, decl))) : undefined
   if (!fn?.body) return undefined
-  if (ts.isBlock(fn.body)) return passedOver(fn.body.statements, true)
+  if (ts.isBlock(fn.body)) return handsOver(fn.body.statements[0]) ? 'door' : passedOver(fn.body.statements, true)
   return yieldsNothing(fn.body) ? 'empty' : isDefault(fn.body) ? 'default' : ts.isCallExpression(stripped(fn.body)) ? 'calls' : undefined
 }
 
@@ -531,8 +558,9 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
         if (decl && (ts.isVariableDeclaration(decl) || ts.isParameter(decl)) && decl.type?.kind === ts.SyntaxKind.UnknownKeyword) tally('two-step-cast')
       }
     } else if (ts.isCatchClause(n)) {
-      const passed = passedOver(n.block.statements, false)
+      const passed = handsOver(n.block.statements[0]) ? 'door' : passedOver(n.block.statements, false)
       if (passed === 'calls') tally('only-calls')
+      else if (passed === 'door') tally('passed-over')
       else if (passed) hit(passed === 'empty' ? 'empty-catch' : 'catch-default', n)
     } else if (ts.isMethodDeclaration(n) && ts.isIdentifier(n.name) && LIFECYCLE.has(n.name.text) && ts.isClassLike(n.parent)) {
       hit('lifecycle-method', n.name)
@@ -568,8 +596,9 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
         const first = method === 'catch' ? handlerPasses(n.arguments[0]) : undefined
         const second = method === 'then' ? handlerPasses(n.arguments[1]) : undefined
         if (first === 'calls' || second === 'calls') tally('only-calls')
-        if (first && first !== 'calls') hit(first === 'empty' ? 'empty-catch-handler' : 'handler-default', n.expression.name)
-        if (second && second !== 'calls') hit(second === 'empty' ? 'empty-catch-handler' : 'handler-default', n.arguments[1]!)
+        if (first === 'door' || second === 'door') tally('passed-over')
+        if (first === 'empty' || first === 'default') hit(first === 'empty' ? 'empty-catch-handler' : 'handler-default', n.expression.name)
+        if (second === 'empty' || second === 'default') hit(second === 'empty' ? 'empty-catch-handler' : 'handler-default', n.arguments[1]!)
         if (method === 'then' && ts.isCallExpression(target) && target.arguments.length === 0 && squeeze(target.expression.getText(sf)) === 'Promise.resolve') hit('queueMicrotask', n.expression.name)
         const got = reflected(n)
         if (got && isOrigin(n)) whole(n, got.at)
@@ -620,8 +649,10 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
       if (LINT.test(comment)) hit('lint-directive', pos)
     })
   }
-  const door = file === DOOR_FILE && sf.statements.some(s => ts.isFunctionDeclaration(s) && s.name?.text === DOOR && (ts.getModifiers(s) ?? []).some(m => m.kind === ts.SyntaxKind.ExportKeyword))
-  return out.filter(h => !(door && (h.habit === 'env-read' || h.habit === 'env-whole'))).sort((a, b) => a.line - b.line || a.column - b.column)
+  const exports = (s: ts.Statement, name: string): boolean => ts.canHaveModifiers(s) && (ts.getModifiers(s) ?? []).some(m => m.kind === ts.SyntaxKind.ExportKeyword) && ((ts.isFunctionDeclaration(s) && s.name?.text === name) || (ts.isVariableStatement(s) && s.declarationList.declarations.some(d => ts.isIdentifier(d.name) && d.name.text === name)))
+  const own = DOORS.find(door => door.file === file && sf.statements.some(s => exports(s, door.opens)))?.own ?? []
+  for (const h of out) if (own.includes(h.habit)) tally(`${OWN}${file} ${h.habit}`)
+  return out.filter(h => !own.includes(h.habit)).sort((a, b) => a.line - b.line || a.column - b.column)
 }
 
 function sourceFiles(root: string): string[] {
@@ -841,6 +872,10 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 function plantedEstate(): void {
   const doorLines = ['export function flagEnv(name: string): string | undefined {', '  return process.env[name]', '}', 'export const later = setTimeout(() => {}, 1)']
+  const failureDoorLines = ['export function passedOver(error: unknown): void { try { sink?.(error) } catch {} }', 'export const home = process.env.HOME', 'export function read(): unknown { try { return work() } catch { return null } }']
+  const ambientDoorLines = ['export function hostEnv(): NodeJS.ProcessEnv { return process.env }', 'export const gone = value as never']
+  const timerDoorLines = ['export function startTimeout(fn: () => void, ms?: number): ReturnType<typeof setTimeout> { return setTimeout(fn, ms) }', 'export function startInterval(fn: () => void, ms?: number): ReturnType<typeof setInterval> { return setInterval(fn, ms) }', 'export function startImmediate(fn: () => void): unknown { return setImmediate(fn) }', 'export function startMicrotask(fn: () => void): void { queueMicrotask(fn) }', 'export function sleepSync(ms: number): void { Atomics.wait(cells, 0, 0, ms) }', 'export const home = process.env.HOME']
+  const effectDoorLines = ["import { useEffect, useLayoutEffect } from 'react'", 'export function useMount(effect: () => void): void { useEffect(effect, []) }', 'export function useMeasure(measure: () => void): void { useLayoutEffect(measure) }', 'export const home = process.env.HOME']
   const planted: Array<{ file: string; lines: string[]; seen: Array<[number, Habit]> }> = [
     {
       file: 'src/planted/timers.ts',
@@ -944,6 +979,11 @@ function plantedEstate(): void {
         'const woken = new Promise<void>(resolve => waiters.push(resolve))',
         "import { sleep } from '../utils/sleep.js'",
         "import { sleep as tick } from './sleep.js'",
+        "import { passedOver, passedOverAs } from '../utils/passedOver.js'",
+        'try { work() } catch (error) { passedOver(error) }',
+        'function answered(): unknown { try { return work() } catch (error) { passedOver(error); return null } }',
+        'work().catch(passedOver).then(done, passedOverAs(null))',
+        'work().catch(error => { passedOver(error); return fallback() })',
         'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern, typed, settle, recovered, store, ticked]',
       ],
       seen: [],
@@ -1047,6 +1087,14 @@ function plantedEstate(): void {
     },
     { file: DOOR_FILE, lines: doorLines, seen: [[4, 'setTimeout']] },
     { file: 'src/planted/door.ts', lines: doorLines, seen: [[2, 'env-read'], [4, 'setTimeout']] },
+    { file: FAILURE_DOOR, lines: failureDoorLines, seen: [[2, 'env-read'], [3, 'catch-default']] },
+    { file: 'src/planted/passed.ts', lines: failureDoorLines, seen: [[1, 'empty-catch'], [2, 'env-read'], [3, 'catch-default']] },
+    { file: AMBIENT_DOOR, lines: ambientDoorLines, seen: [[2, 'as-never']] },
+    { file: 'src/planted/ambient.ts', lines: ambientDoorLines, seen: [[1, 'env-whole'], [2, 'as-never']] },
+    { file: TIMER_DOOR, lines: timerDoorLines, seen: [[6, 'env-read']] },
+    { file: 'src/planted/timersTwin.ts', lines: timerDoorLines, seen: [[1, 'setTimeout'], [2, 'setInterval'], [3, 'setImmediate'], [4, 'queueMicrotask'], [5, 'Atomics.wait'], [6, 'env-read']] },
+    { file: EFFECT_DOOR, lines: effectDoorLines, seen: [[4, 'env-read']] },
+    { file: 'src/planted/hooks.ts', lines: effectDoorLines, seen: [[2, 'useEffect'], [3, 'useLayoutEffect'], [4, 'env-read']] },
     { file: 'src/planted/worker.mjs', lines: ["import { setTimeout as pause } from 'timers/promises'", 'await pause(5)', 'setInterval(() => {}, 5)', 'try { run() } catch {}', 'export const home = process.env.HOME'], seen: [[2, PAUSE], [2, 'setTimeout'], [3, 'setInterval'], [4, 'empty-catch'], [5, 'env-read']] },
     {
       file: 'src/planted/beyond.ts',
@@ -1066,6 +1114,9 @@ function plantedEstate(): void {
         'work().catch(error => report(error))',
         'export const hostEnv = process.env',
         'export const out = [shaped, loose, Panel]',
+        "import { passedOver, passedOverAs } from '../utils/passedOver.js'",
+        'try { work() } catch (error) { passedOver(error) }',
+        'work().catch(passedOver).then(done, passedOverAs(0))',
       ],
       seen: [[2, 'setTimeout'], [14, 'env-whole']],
     },
@@ -1109,14 +1160,19 @@ function plantedEstate(): void {
   check('a plain JavaScript module is read as the TypeScript ones are', stands('src/planted/worker.mjs'), differs)
   check(`the registry (${DOOR_FILE}, known by its path and its export of ${DOOR}) is the door of the environment: its own reads are not counted and its other habits are; another file that exports a function of that name is counted like any file`, DOOR_FILE !== '' && existsSync(join(ROOT, DOOR_FILE)) && stands(DOOR_FILE) && stands('src/planted/door.ts'), differs)
   check(
-    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a schema fallback; an await of work and a promise resolved with a value; a promise that waits on the timer of a clock; a sleep that is the method of a clock, a helper whose body arms no timer, a list that keeps the resolver, the door under its own name and a sleep of another module',
+    `each door of a habit is known by its path and one export, and what it holds of its own habit is not counted while its other habits are: ${FAILURE_DOOR} (${PASS}: the empty catch round its sink), ${AMBIENT_DOOR} (hostEnv: the environment), ${TIMER_DOOR} (startTimeout: the timers, the microtask and the synchronous wait), ${EFFECT_DOOR} (useMount: the two effects); the same lines in another file are counted like any file`,
+    [FAILURE_DOOR, 'src/planted/passed.ts', AMBIENT_DOOR, 'src/planted/ambient.ts', TIMER_DOOR, 'src/planted/timersTwin.ts', EFFECT_DOOR, 'src/planted/hooks.ts'].every(stands),
+    differs,
+  )
+  check(
+    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a catch block and a handler that hand the failure to the door first (passedOver as the first statement or as the handler, passedOverAs for a default); a schema fallback; an await of work and a promise resolved with a value; a promise that waits on the timer of a clock; a sleep that is the method of a clock, a helper whose body arms no timer, a list that keeps the resolver, the door under its own name and a sleep of another module',
     of('src/planted/lookalikes.ts') === '',
     of('src/planted/lookalikes.ts'),
   )
   check(`every habit of the fence is seen on the planted estate (${NAMES.length})`, NAMES.every(habit => hits.some(h => h.habit === habit)), NAMES.filter(habit => !hits.some(h => h.habit === habit)).join(', '))
   check(
-    `each of the ${BEYOND.length} forms that stay out of reach is counted where it is planted: a wrapper, an exported alias, the environment handed on whole, a cast in two statements, the any keyword, a computed member, a child sleep, a loop on the clock, a dropped allSettled, a useMemo callback and a useState initialiser that change what is outside them (one that fills its own list is not counted), and a catch and a handler that hold only calls`,
-    stands('src/planted/beyond.ts') && farSeen === 'wrapper 1 · exported-alias 1 · env-whole 1 · two-step-cast 1 · any-type 1 · computed-member 1 · child-sleep 1 · busy-loop 1 · all-settled 1 · memo-effect 2 · only-calls 2',
+    `each of the ${BEYOND.length} forms that stay out of reach is counted where it is planted: a wrapper, an exported alias, the environment handed on whole, a cast in two statements, the any keyword, a computed member, a child sleep, a loop on the clock, a dropped allSettled, a useMemo callback and a useState initialiser that change what is outside them (one that fills its own list is not counted), a catch and a handler that hold only calls, and a catch and two handlers that hand the failure to the door first`,
+    stands('src/planted/beyond.ts') && farSeen === 'wrapper 1 · exported-alias 1 · env-whole 1 · two-step-cast 1 · any-type 1 · computed-member 1 · child-sleep 1 · busy-loop 1 · all-settled 1 · memo-effect 2 · only-calls 2 · passed-over 3',
     `${farSeen} | ${differs}`,
   )
   const rows = rowsOf(hits)
@@ -1219,7 +1275,7 @@ const rows = rowsOf(hits)
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
 const table = text === null ? null : tableOf(text)
 const payloads = [...PAYLOAD_FILES].filter(file => existsSync(join(ROOT, file))).length
-console.log(`  ${files.length} code files under src · ${hits.length} occurrences of ${NAMES.length} habits · aside: the ${PAYLOAD_FILES.size} payload files under ${PAYLOADS} (they run outside the product and cannot import its doors) and the environment reads of the registry itself`)
+console.log(`  ${files.length} code files under src · ${hits.length} occurrences of ${NAMES.length} habits · aside: the ${PAYLOAD_FILES.size} payload files under ${PAYLOADS} (they run outside the product and cannot import its doors) and what each door holds of its own habit (${[...beyond].filter(([form]) => form.startsWith(OWN)).map(([form, count]) => `${form.slice(OWN.length)} ${count}`).join(' · ') || 'none'})`)
 check(
   `the code under src is read (${files.length} files), and every payload file of the list stands (${payloads} of ${PAYLOAD_FILES.size})`,
   files.length > 3000 && payloads === PAYLOAD_FILES.size,
