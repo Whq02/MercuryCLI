@@ -284,5 +284,39 @@ else {
   check('frozenTree-materialize: unreadable overlay path throws EACCES instead of deleting from tree', !materializeUnreadable.ok && materializeUnreadable.code === 'EACCES', JSON.stringify(materializeUnreadable))
 }
 
+console.log('\n7. vulcan/engine/leases.ts — caseInsensitiveProject throws on non-ENOENT stat failure instead of failing open')
+{
+  const r = runSubprocess(`
+    const { mock } = await import('bun:test')
+    const realFs = await import('node:fs')
+    const origStatSync = realFs.statSync
+    const realRoot = realFs.realpathSync(PROJECT)
+    const flipped = realRoot.replace(/[A-Za-z]/g, letter => letter === letter.toLowerCase() ? letter.toUpperCase() : letter.toLowerCase())
+    let mode = 'eio'
+    mock.module('node:fs', () => ({
+      ...realFs,
+      statSync: (p, ...rest) => {
+        if (String(p) === flipped) {
+          const err = new Error(mode === 'eio' ? 'disk io error' : 'no such file')
+          err.code = mode === 'eio' ? 'EIO' : 'ENOENT'
+          throw err
+        }
+        return origStatSync(p, ...rest)
+      },
+    }))
+    const m = await import(path.join(SRC, 'services/vulcan/engine/leases.ts'))
+    const holder = { sessionId: 's1', agentId: 'main', pid: process.pid }
+    out.eio = await attempt(() => m.takeProjectLeases(PROJECT, ['Foo.gd'], holder))
+    mode = 'enoent'
+    out.enoent = await attempt(() => m.takeProjectLeases(PROJECT, ['Foo.gd'], holder))
+    await m.releaseProjectLeases(PROJECT, holder)
+  `)
+  const eio = r.eio as Attempt
+  const enoent = r.enoent as Attempt
+  const enoentVal = enoent.value as { ok?: boolean; leases?: Array<{ path: string }> } | undefined
+  check('leases-caseInsensitiveProject: EIO on alternate-case stat rejects instead of assuming case-sensitive', !eio.ok && eio.code === 'EIO', JSON.stringify(eio))
+  check('leases-caseInsensitiveProject: ENOENT on alternate-case stat treats project as case-sensitive', enoent.ok && enoentVal?.ok === true && enoentVal.leases?.[0]?.path === 'Foo.gd', JSON.stringify(enoent))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
