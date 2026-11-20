@@ -26,15 +26,23 @@ drive_member_run() {
     var="${BASH_REMATCH[2]}"
     words[$i]="${BASH_REMATCH[1]}${!var-}${BASH_REMATCH[3]}"
   done
-  printf '── %s: %s\n' "$suite" "$name${rest:+ $rest}"
-  case "$name" in
-    (*.py) /usr/bin/python3 "$f" ${words[@]+"${words[@]}"} || rc=$? ;;
-    (*.sh) bash "$f" ${words[@]+"${words[@]}"} || rc=$? ;;
-    (*) "$bun" ${form:+"$form"} "$f" ${words[@]+"${words[@]}"} || rc=$? ;;
-  esac
-  local p="$f"
+  local p="$f" leave="${MERCURY_SUITE_LEAVE_OUT:-}"
   case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac
-  printf '── %s  %ss rc=%s\n' "$p${rest:+ $rest}" "$(( SECONDS - t0 ))" "$rc"
+  p="$p${rest:+ $rest}"
+  if [ -n "$leave" ] && grep -qxF -- "$p" "$leave" 2>/dev/null; then
+    printf 'second look: %s was green in the first attempt and is not run again\n' "$p"
+    return 0
+  fi
+  local -a start=()
+  case "$name" in
+    (*.py) start=(/usr/bin/python3 "$f") ;;
+    (*.sh) start=(bash "$f") ;;
+    (*) start=("$bun" ${form:+"$form"} "$f") ;;
+  esac
+  [ -n "$leave" ] && start=(env -u MERCURY_SUITE_LEAVE_OUT "${start[@]}")
+  printf '── %s: %s\n' "$suite" "$name${rest:+ $rest}"
+  "${start[@]}" ${words[@]+"${words[@]}"} || rc=$?
+  printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - t0 ))" "$rc"
   if [ -n "$skip" ] && [ "$rc" = "$skip" ]; then
     printf '⏭  %s SKIP — machine gate honoured (exit %s is the skip code of %s)\n' "$name" "$rc" "$suite"
     return 0
@@ -70,9 +78,13 @@ drive_members() {
     printf '── %s: one member alone by MERCURY_SUITE_MEMBER (%s); the rest of the suite is not run\n' "$suite" "$only"
   fi
   if [ "$jobs" -le 1 ] || [ "${#names[@]}" -le 1 ]; then
-    local i
+    local i code
     for i in "${!names[@]}"; do
-      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" || failed=1
+      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" || {
+        code=$?
+        [ "${#names[@]}" -eq 1 ] && [ "$failed" -eq 0 ] && return "$code"
+        failed=1
+      }
     done
     return "$failed"
   fi
