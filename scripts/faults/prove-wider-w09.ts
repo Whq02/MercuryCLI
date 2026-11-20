@@ -350,5 +350,76 @@ function startFakeVulcanServer(
   }
 }
 
+{
+  console.log('\n4. w09-4: unreadable project.godot surfaced in vulcanInstallStatus, runtime/services health, and godotSession')
+  const { vulcanInstallStatus, readEnabledPlugins } = await import(join(SRC, 'services/vulcan/addonInstaller.ts'))
+  const { vulcanCheck } = await import(join(SRC, 'utils/health/sections/runtime/services.ts'))
+  const { buildGodotIdeSession, _resetGodotSessionForTesting } = await import(join(SRC, 'services/ide/godotSession.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'services/run/ownerKey.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-4-')))
+  const restoreModes: Array<() => void> = []
+  const prevFlag = process.env.MERCURY_GODOT_TOOLS
+  process.env.MERCURY_GODOT_TOOLS = '1'
+  try {
+    const proj = join(scratch, 'proj')
+    mkdirSync(join(proj, 'addons', 'mercury_vulcan'), { recursive: true })
+    writeFileSync(join(proj, 'addons', 'mercury_vulcan', 'plugin.cfg'), '[plugin]\nname="Mercury VULCAN"\n')
+    const projectFile = join(proj, 'project.godot')
+    writeFileSync(projectFile, '[editor_plugins]\nenabled=PackedStringArray("res://addons/mercury_vulcan/plugin.cfg")\n', { mode: 0o600 })
+
+    const absentProj = join(scratch, 'absent')
+    mkdirSync(absentProj, { recursive: true })
+    const absentStatus = vulcanInstallStatus(absentProj) as { enabled: boolean; projectReadError?: string }
+    check('w09-4 absent project.godot keeps projectReadError undefined', !absentStatus.enabled && absentStatus.projectReadError === undefined, JSON.stringify(absentStatus))
+
+    if (POSIX_MODES) {
+      chmodSync(projectFile, 0o000)
+      restoreModes.push(() => chmodSync(projectFile, 0o600))
+
+      const plugins = readEnabledPlugins(proj)
+      const status = vulcanInstallStatus(proj) as { installed: boolean; enabled: boolean; projectReadError?: string }
+      check(
+        'w09-4 vulcanInstallStatus carries projectReadError while readEnabledPlugins stays empty',
+        status.installed && !status.enabled && plugins.length === 0 && typeof status.projectReadError === 'string' && status.projectReadError.length > 0,
+        JSON.stringify(status),
+      )
+
+      const healthRes = await runWithCwdOverride(proj, () => vulcanCheck().run())
+      check(
+        'w09-4 runtime/services vulcanCheck reports project.godot could not be read instead of addon not enabled',
+        healthRes.evidence.includes('project.godot could not be read (') && !healthRes.evidence.includes('addon not enabled') && (healthRes.fix ?? '').includes('project.godot could not be read ('),
+        JSON.stringify(healthRes),
+      )
+
+      _resetGodotSessionForTesting()
+      const owner = makeOwnerKey({ workspace: proj, sessionId: 'w09-4', lane: 'main' })
+      let sessionErr: string | null = null
+      let sessionOut: Awaited<ReturnType<typeof buildGodotIdeSession>> | null = null
+      try {
+        sessionOut = await buildGodotIdeSession(owner, proj)
+      } catch (error) {
+        sessionErr = error instanceof Error ? error.message : String(error)
+      }
+      check(
+        'w09-4 buildGodotIdeSession reports project.godot could not be read instead of not enabled',
+        sessionErr === null &&
+          sessionOut !== null &&
+          sessionOut.vulcan.detail.includes('project.godot could not be read (') &&
+          !sessionOut.vulcan.detail.includes('not enabled'),
+        sessionErr ? `threw: ${sessionErr}` : JSON.stringify(sessionOut?.vulcan),
+      )
+    }
+  } finally {
+    if (prevFlag === undefined) delete process.env.MERCURY_GODOT_TOOLS
+    else process.env.MERCURY_GODOT_TOOLS = prevFlag
+    for (const fn of restoreModes.reverse()) {
+      try { fn() } catch { void 0 }
+    }
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? 'PASS: prove-wider-w09' : `FAIL: prove-wider-w09 (${failures} failure(s))`)
 process.exit(failures === 0 ? 0 : 1)
