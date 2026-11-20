@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
+import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { getEngineModel } from '../../../utils/model/model.js'
 import { openaiObservedWindowViews, metaMuseCodeUsage, providerSessionSpend, providerUsageView, usageForProvider, zaiAccountFacts, type UsageFigureView } from '../../../services/providers/providerUsage.js'
@@ -31,7 +32,7 @@ import { ENGINE_USAGE_PRESENTATION, type UsageSection } from './plan.js'
 function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
   useCatalogueEpoch()
   useUsageLayout()
-  useEffect(() => {
+  useLoad(() => {
     void readCatalogueIfPending('openai')
   }, [])
   const view = providerUsageView('openai')
@@ -219,7 +220,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
 function HuggingfaceUsageSection(): React.ReactNode {
   useCatalogueEpoch()
   useUsageLayout()
-  useEffect(() => {
+  useLoad(() => {
     void readCatalogueIfPending('huggingface')
   }, [])
   const account = resolveHuggingfaceAccount()

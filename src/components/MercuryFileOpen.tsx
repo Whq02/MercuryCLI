@@ -1,6 +1,7 @@
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js';
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useDerivedState, useLoad } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import type { SuggestionItem } from './PromptInput/PromptInputFooterSuggestions.js'
 import TextInput from './TextInput.js'
@@ -53,7 +54,7 @@ export function MercuryFileOpen({
   const [results, setResults] = useState<SuggestionItem[] | null>(null)
   const genRef = useRef(0)
 
-  useEffect(() => {
+  useLoad(() => {
     setResults(null)
     const gen = ++genRef.current
     let alive = true
@@ -78,7 +79,7 @@ export function MercuryFileOpen({
 
   const pastOpenEvent = useOpenEventGate()
 
-  useEffect(() => {
+  useDerivedState(() => {
     setSel(s => Math.min(s, Math.max(0, shown.length - 1)))
   }, [shown.length])
 

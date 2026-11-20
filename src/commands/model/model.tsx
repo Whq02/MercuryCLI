@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad, useMount } from '../../hooks/effects.js'
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
@@ -91,7 +92,7 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
   const override = useAppState(state => state.engineModelForSession)
   const effortValue = useAppState(state => state.effortValue)
   const ranRef = useRef(false)
-  useEffect(() => {
+  useMount(() => {
     if (ranRef.current) return
     ranRef.current = true
     const focused = getFocusedSessionConnector()
@@ -112,7 +113,7 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
       return
     }
     onDone(`Current model: ${renderModelLabel(base)}${parenthetical}`)
-  }, [])
+  })
   return null
 }
 
@@ -200,7 +201,7 @@ function ModelSet({
     onDone(settlementMessage(landed, plan, persistModelChoice(target).sentence))
   }
 
-  useEffect(() => {
+  useLoad(() => {
     if (ranRef.current) return
     ranRef.current = true
     void (async () => {

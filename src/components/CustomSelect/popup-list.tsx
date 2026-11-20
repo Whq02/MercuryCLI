@@ -6,6 +6,7 @@ import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import type { Key } from '../../ink/events/input-event.js'
 import { paneWindow, type PaneWindow } from '../mercury-ui/paneWindow.js'
 import { applyNavMotion, decodeNavKey } from '../mercury-ui/navSemantics.js'
+import { useLayoutClaim, useLayoutSubscription } from '../../hooks/effects.js'
 
 export const POPUP_PAGE_HINT = 'pgup/pgdn page'
 export const PopupPageOwners = React.createContext<Set<object> | null>(null)
@@ -13,7 +14,7 @@ export const PopupPageOwners = React.createContext<Set<object> | null>(null)
 export function usePopupPageOwner(active = true): void {
   const owners = React.useContext(PopupPageOwners)
   const owner = React.useRef({})
-  React.useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (!owners || !active) return
     const token = owner.current
     owners.add(token)
@@ -66,7 +67,7 @@ export function PopupListViewport({ above, below, rows, children }: {
     const next = Math.ceil(bodyRef.current?.layoutNode?.getComputedHeight() ?? 0)
     setMeasured(current => current === next ? current : next)
   }, [])
-  React.useLayoutEffect(() => ink?.subscribeFrame(measure), [ink, measure])
+  useLayoutSubscription(() => ink?.subscribeFrame(measure), [ink, measure])
   const height = Math.max(1, measured || rows)
   return (
     <Box flexShrink={0}>
@@ -106,7 +107,7 @@ export function usePopupScrollWindow(ref: React.RefObject<ScrollBoxHandle | null
     const next = { top: body.getScrollTop(), total: body.getFreshScrollHeight(), rows: body.getViewportHeight() }
     setView(current => current.top === next.top && current.total === next.total && current.rows === next.rows ? current : next)
   }, [ref])
-  React.useLayoutEffect(() => ink?.subscribeFrame(measure), [ink, measure])
+  useLayoutSubscription(() => ink?.subscribeFrame(measure), [ink, measure])
   return view
 }
 
