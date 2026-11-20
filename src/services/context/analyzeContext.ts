@@ -775,7 +775,7 @@ export async function analyzeContextUsage(
         }
       })
       const frontmatterTotal = skillFrontmatter.reduce((total, skill) => total + skill.tokens, 0)
-      const { formatCommandsWithinBudgetDetailed } = await import('../../tools/SkillTool/prompt.js')
+      const { formatCommandsWithinBudgetDetailed } = await import('../../utils/skillListingFormat.js')
       const listingTruncation = formatCommandsWithinBudgetDetailed(commands, contextWindow).truncation
       skillsBlock = {
         totalSkills: skillFrontmatter.length,

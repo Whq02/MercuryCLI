@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { formatCommandsWithinBudget } = await import('../../src/tools/SkillTool/prompt.js')
+const { formatCommandsWithinBudget } = await import('../../src/utils/skillListingFormat.js')
 const command = (description: string) => ({ name: 'check', description, type: 'prompt' }) as any
 for (const separator of [' ', '\t', '\n', '\u00a0']) {
   const prefix = 'word '.repeat(48).trim()
