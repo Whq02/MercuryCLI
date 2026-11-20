@@ -1,12 +1,17 @@
 import type { ToolUseContext } from '../../Tool.js'
-import { cloneFileStateCache } from '../../utils/fileStateCache.js'
+import { cloneFileStateCache, createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
 import { cloneContentReplacementState } from '../../utils/toolResultStorage.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 
+function cloneReadFileState(source: ToolUseContext['readFileState']): ToolUseContext['readFileState'] {
+  if (typeof source.dump === 'function') return cloneFileStateCache(source)
+  const copy = createFileStateCacheWithSizeLimit(Math.max(READ_FILE_STATE_CACHE_SIZE, source.size))
+  for (const [path, state] of source.entries()) copy.set(path, state)
+  return copy
+}
+
 export function prepareFoldContext(context: ToolUseContext): { context: ToolUseContext; commit: (folded?: ReadonlyMap<string, string>) => void } {
-  const readFileState = typeof context.readFileState.dump === 'function'
-    ? cloneFileStateCache(context.readFileState)
-    : new Map(context.readFileState.entries()) as unknown as ToolUseContext['readFileState']
+  const readFileState = cloneReadFileState(context.readFileState)
   const staged = {
     ...context,
     readFileState,

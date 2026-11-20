@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text, paletteCollapsed, useTheme } from '../../ink.js';
+import { Box, Text, paletteCollapsed } from '../../ink.js';
 import { useBlink } from '../../hooks/useBlink.js';
 import { critterDefForKey } from '../../utils/cockpit/critterData.js';
 import { GLYPH } from '../mercury-ui/glyphs.js';
@@ -9,7 +9,7 @@ import { ReadyBreath } from '../mercury-ui/LiveGlyphs.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../../context/layoutChromeContext.js';
-import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js';
+import { composerBorderStyle } from '../mercury-ui/composerFloor.js';
 import { effectiveSeatCeiling } from '../../daemon/concourseWorkers.js';
 import { controlNoteOf, type ConcourseSnapshotV1 } from './contracts.js';
 import { caretLens, draftLines, draftWindow, type LineDraft } from './lineDraft.js';
@@ -45,14 +45,10 @@ export function ConcourseComposer({
   foot?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens()
-  const [theme] = useTheme()
   const { rows: termRows } = useTerminalSize()
   const empty = draft.text.length === 0
   const [, caretPhaseOn] = useBlink(focused)
-  const borderRole = composerBorderRole(empty)
-  const borderColor = focused
-    ? ((theme as unknown as Record<string, string>)[borderRole] ?? t.info)
-    : t.borderStrong
+  const borderColor = focused ? t.info : t.borderStrong
   const style = composerBorderStyle(termRows)
 
   const lines = draftLines(draft)
