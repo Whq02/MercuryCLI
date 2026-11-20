@@ -5,7 +5,6 @@ import { getClaudeAIOAuthTokens, hasProfileScope, isClaudeAISubscriber } from '.
 import { getAuthHeaders } from '../../utils/http.js'
 import { getAnthropicClientUserAgent } from '../../utils/userAgent.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 
 export type RateLimit = {
@@ -40,22 +39,14 @@ export function usageEndpointBase(): string {
 export async function fetchUtilization(): Promise<Utilization | null> {
   if (!isClaudeAISubscriber() || !hasProfileScope()) return {}
 
-  try {
-    const { mockUtilizationPayload } =
-      require('../mockRateLimits.js') as typeof import('../mockRateLimits.js')
-    const mocked = mockUtilizationPayload()
-    if (mocked !== null) {
-      try {
-        const { foldUtilizationFromEndpoint } =
-          require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
-        foldUtilizationFromEndpoint(mocked, undefined)
-      } catch (error) {
-        passedOver(error)
-      }
-      return mocked
-    }
-  } catch (error) {
-    passedOver(error)
+  const { mockUtilizationPayload } =
+    require('../mockRateLimits.js') as typeof import('../mockRateLimits.js')
+  const mocked = mockUtilizationPayload()
+  if (mocked !== null) {
+    const { foldUtilizationFromEndpoint } =
+      require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
+    foldUtilizationFromEndpoint(mocked, undefined)
+    return mocked
   }
 
   const tokens = getClaudeAIOAuthTokens()
@@ -66,14 +57,9 @@ export async function fetchUtilization(): Promise<Utilization | null> {
     throw new Error(`Failed to build auth headers for usage fetch: ${auth.error}`)
   }
 
-  let issuedEpoch: number | undefined
-  try {
-    const { getUsageCredentialEpoch } =
-      require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
-    issuedEpoch = getUsageCredentialEpoch()
-  } catch {
-    issuedEpoch = undefined
-  }
+  const { getUsageCredentialEpoch, foldUtilizationFromEndpoint } =
+    require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
+  const issuedEpoch = getUsageCredentialEpoch()
 
   const base = usageEndpointBase()
   const response = await axios.get<Utilization>(`${base}/api/oauth/usage`, {
@@ -86,13 +72,7 @@ export async function fetchUtilization(): Promise<Utilization | null> {
   })
   const data = response.data ?? null
   if (data !== null) {
-    try {
-      const { foldUtilizationFromEndpoint } =
-        require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
-      foldUtilizationFromEndpoint(data, issuedEpoch)
-    } catch (error) {
-      passedOver(error)
-    }
+    foldUtilizationFromEndpoint(data, issuedEpoch)
   }
   return data
 }
