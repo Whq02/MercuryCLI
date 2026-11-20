@@ -34,7 +34,7 @@ import {
   awaitStoredOAuthDaemonRestart,
   daemonRestartFailedNotice,
 } from '../../services/oauth/refresh.js'
-import type { OAuthTokens } from '../../services/oauth/types.js'
+import type { OAuthTokens } from '../../utils/oauth/types.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
   buildAccountProperties,

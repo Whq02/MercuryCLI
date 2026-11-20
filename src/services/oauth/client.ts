@@ -24,7 +24,7 @@ import type {
   OAuthTokenExchangeResponse,
   OAuthTokens,
   UserRolesResponse,
-} from './types.js'
+} from '../../utils/oauth/types.js'
 import { EXCHANGE_TIMEOUT_MS, honestDeadlineBreach, normalizeProfile, readStoredCredential, refreshOAuthToken, storeOAuthAccountInfo } from './refresh.js'
 
 export { honestDeadlineBreach, isInvalidGrantError, isOAuthTokenExpired, OAuthRefreshHttpError, parseScopes, refreshOAuthToken, shouldUseClaudeAIAuth, storeOAuthAccountInfo } from './refresh.js'
