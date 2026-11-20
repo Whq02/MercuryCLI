@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,6 +12,24 @@ if (process.argv[2] === '--child') {
   const road = process.argv[4]!
   const { registerCleanup } = await import('../../src/utils/cleanupRegistry.ts')
   registerCleanup(() => { throw new Error('fixture cleanup throws synchronously') })
+  const probe = watch(process.execPath, { persistent: false })
+  const everyWatcher = Object.getPrototypeOf(probe) as { close: () => void }
+  const realClose = everyWatcher.close
+  realClose.call(probe)
+  const directoryWatches = new Set<unknown>()
+  let directoryWatchesClosed = 0
+  everyWatcher.close = function (this: unknown): void {
+    if (directoryWatches.has(this)) directoryWatchesClosed++
+    realClose.call(this)
+  }
+  for (const name of ['one', 'two', 'three']) {
+    mkdirSync(join(dir, `watched-${name}`))
+    directoryWatches.add(watch(join(dir, `watched-${name}`), () => {}))
+  }
+  registerCleanup(async () => {
+    for (const watcher of directoryWatches) (watcher as { close: () => void }).close()
+  })
+  process.on('exit', () => writeFileSync(join(dir, 'watches.json'), JSON.stringify({ held: directoryWatches.size, closed: directoryWatchesClosed })))
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
   const { setCwd } = await import('../../src/utils/Shell.ts')
@@ -78,6 +96,10 @@ if (process.argv[2] === '--child') {
     const ok = code === (road === 'exit' ? 0 : road === 'crash' ? 1 : road === 'interrupt' ? 130 : 129) && left.length === 0 && !scratchLeft
     console.log(`${ok ? 'PASS' : 'FAIL'} ${road}: exit=${code}, children=${left.length}, scratch=${scratchLeft}`)
     if (!ok) failures++
+    const watches = existsSync(join(dir, 'watches.json')) ? (JSON.parse(readFileSync(join(dir, 'watches.json'), 'utf8')) as { held: number; closed: number }) : null
+    const watchesLeft = watches !== null && watches.held === 3 && (process.platform !== 'darwin' || watches.closed === 0)
+    console.log(`${watchesLeft ? 'PASS' : 'FAIL'} ${road}: on macOS the way out leaves its directory watches to the process end: held=${watches?.held ?? 'unread'}, closed=${watches?.closed ?? 'unread'}`)
+    if (!watchesLeft) failures++
     if (code === 'timeout') { child.kill('SIGKILL'); await exited }
     for (const pid of left) { try { process.kill(pid, 'SIGKILL') } catch {} }
     rmSync(ready.scratch, { recursive: true, force: true })

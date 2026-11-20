@@ -19,7 +19,13 @@ mock.module('../../src/services/switchboard/ensureDaemon.js', () => ({ ...ensure
 const control = await import('../../src/daemon/controlSocket.js')
 let answer!: (reply: Record<string, unknown>) => void
 let admission = new Promise<Record<string, unknown>>(resolve => { answer = resolve })
-mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonControlRpc: async (request: { op: string }) => request.op === 'sessionAdmit' ? admission : { ok: true, outcome: 'applied' } }))
+const asked: Array<Record<string, unknown>> = []
+let pingAnswers = true
+mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonControlRpc: async (request: { op: string }) => {
+  asked.push(request as Record<string, unknown>)
+  if (request.op === 'ping' && !pingAnswers) return { ok: false, code: 'ENOCONN', error: 'daemon unreachable (ENOENT)' }
+  return request.op === 'sessionAdmit' ? admission : { ok: true, outcome: 'applied' }
+} }))
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
 const { sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.js')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
@@ -138,6 +144,46 @@ try {
   releaseFocusedSessionConnector()
   const live = await resumed()
   check('a session with a live worker is unchanged: same connector, ready, live model', await live.admitted && focused() === connector && words() === 'ready' && connector.modelFacts().effective === 'claude-sonnet-5' && connector.modelFacts().effectiveSource === 'live')
+  const dialled = (request: Record<string, unknown>): boolean => request.op === 'sessionControl' && (request.action === 'set-model' || request.action === 'set-effort')
+  const askedWords = (): string => JSON.stringify(asked.map(request => [request.op, request.action, request.model, request.effort]))
+  releaseFocusedSessionConnector()
+  record({ modelKey: 'claude-sonnet-5', effort: 'high', parkedAt: 1300 })
+  writeFileSync(factsFile, JSON.stringify({ ...seed, atMs: 1005, effort: 'high', effortSent: 'high' }))
+  waitNextAdmission()
+  const relaunched = await focusResumedSession(sid, transcript, { firstPaintMs: 10, model: 'claude-opus-5', effort: 'max' })
+  record({ modelKey: 'claude-opus-5', effort: 'max', parkedAt: undefined, parkedBy: undefined })
+  answer({ ok: true, modelId: 'claude-opus-5', effort: 'max' })
+  await relaunched.admitted
+  check("while the runner is awaited the effort shown is the record's, not the one the life before left in the facts", words().startsWith('the runner is starting') && connector.modelFacts().effective === 'claude-opus-5' && connector.modelFacts().effort === 'max' && connector.modelFacts().effortSent === undefined, `${words()} ${JSON.stringify(connector.modelFacts())}`)
+  writeFileSync(factsFile, JSON.stringify({ ...seed, atMs: 1006, model: { effective: 'claude-opus-5', setting: 'claude-opus-5' }, effort: 'max', effortSent: 'max' }))
+  connector.readFacts()
+  releaseFocusedSessionConnector()
+  record({ modelKey: 'claude-opus-5', effort: 'max', parkedAt: 1400, pid: process.pid })
+  waitNextAdmission()
+  asked.length = 0
+  const launched = await focusResumedSession(sid, transcript, { firstPaintMs: 10, model: 'claude-sonnet-5', effort: 'high' })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  const admitted = asked.find(request => request.op === 'sessionAdmit')
+  check("a parked session whose runner's process still stands is resumed through the admission, and the admission carries the launch's model and effort", sessionOwnedByLiveWorker(sid) !== null && admitted?.model === 'claude-sonnet-5' && admitted?.effort === 'high', askedWords())
+  check('a parked session is not dialled as a live one', !asked.some(dialled), askedWords())
+  record({ modelKey: 'claude-sonnet-5', effort: 'high', parkedAt: undefined, parkedBy: undefined })
+  answer({ ok: true, modelId: 'claude-sonnet-5', effort: 'high' })
+  await launched.admitted
+  writeFileSync(factsFile, JSON.stringify({ ...seed, atMs: 1007, effort: 'high', effortSent: 'high' }))
+  connector.readFacts()
+  releaseFocusedSessionConnector()
+  record({ modelKey: 'claude-sonnet-5', effort: 'high', parkedAt: undefined, parkedBy: undefined, pid: process.pid })
+  pingAnswers = false
+  waitNextAdmission()
+  asked.length = 0
+  const orphaned = await focusResumedSession(sid, transcript, { firstPaintMs: 10, model: 'claude-opus-5', effort: 'max' })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  const readmitted = asked.find(request => request.op === 'sessionAdmit')
+  check("a session whose runner's process stands under a daemon that does not answer is resumed through the admission with the launch's words, not dialled", sessionOwnedByLiveWorker(sid) !== null && readmitted?.model === 'claude-opus-5' && readmitted?.effort === 'max' && !asked.some(dialled), askedWords())
+  pingAnswers = true
+  record({ modelKey: 'claude-opus-5', effort: 'max', parkedAt: undefined, parkedBy: undefined })
+  answer({ ok: true, modelId: 'claude-opus-5', effort: 'max' })
+  await orphaned.admitted
 } finally {
   releaseFocusedSessionConnector()
 }
