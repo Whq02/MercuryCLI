@@ -230,6 +230,23 @@ if (POSIX_MODES) {
     JSON.stringify(r),
   )
 }
+{
+  const t = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import(SRC + '/services/providers/deferralProbe.ts')
+    const file = path.join(HOME, 'tool-deferral-probe.json')
+    fs.writeFileSync(file, 'torn-not-json {', { mode: 0o600 })
+    mod.recordGatewayProbe('b.example', { verdict: 'text', evidence: 'http 400', status: 400, probedAt: '2026-11-20T00:00:00.000Z' })
+    mod._resetGatewayProbeStoreForTesting()
+    out.healedVerdict = mod.readGatewayProbeRecord('b.example')?.verdict ?? null
+  `)
+  check(
+    'deferralProbe:recordGatewayProbe replaces a torn probe store file with the next record',
+    t.healedVerdict === 'text',
+    JSON.stringify(t),
+  )
+}
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

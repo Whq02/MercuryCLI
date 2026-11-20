@@ -56,18 +56,24 @@ function readStore(): ProbeStoreFile {
 
 function readStoreForWrite(): ProbeStoreFile | null {
   const path = storePath()
+  let raw: string
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<ProbeStoreFile>
-    if (parsed && parsed.version === 1 && parsed.hosts && typeof parsed.hosts === 'object') {
-      return { version: 1, hosts: { ...parsed.hosts } }
-    }
-    logForDebugging(`deferralProbe: existing store at ${path} has an unrecognized shape; skipping write`)
-    return null
+    raw = readFileSync(path, 'utf8')
   } catch (error) {
     if (isENOENT(error)) return { version: 1, hosts: {} }
     passedOver(error)
     logForDebugging(`deferralProbe: existing store at ${path} could not be read (${String(error)}); skipping write`)
     return null
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<ProbeStoreFile>
+    if (parsed && parsed.version === 1 && parsed.hosts && typeof parsed.hosts === 'object') {
+      return { version: 1, hosts: { ...parsed.hosts } }
+    }
+    return { version: 1, hosts: {} }
+  } catch (error) {
+    passedOver(error)
+    return { version: 1, hosts: {} }
   }
 }
 
