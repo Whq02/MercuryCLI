@@ -315,5 +315,15 @@ console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propa
   check('execution-adapter-dap-children-bug-propagates', res2?.state === 'unavailable' && String(res2?.note).includes('dap boom'), JSON.stringify(res2))
 }
 
+console.log('\nresources/adapters/project.ts — context marks/owner bug propagates instead of building empty pins')
+{
+  const r = runSub(`
+    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    out.res = await resolveResource('mercury://project/current?child=context&q=fix+bug', { owner: 'not-canonical', cwd: PROJECT })
+  `)
+  const res = r.res as { state?: string; note?: string }
+  check('project-adapter-context-marks-bug-propagates', res?.state === 'unavailable' && String(res?.note).includes('not a canonical owner key'), JSON.stringify(res))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
