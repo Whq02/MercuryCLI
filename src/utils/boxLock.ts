@@ -96,8 +96,8 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
   try {
     names = readdirSync(dir)
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
   }
   for (const name of names) {
     const slot = slotNumber(name)
@@ -106,10 +106,10 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
     try {
       line = readFileSync(join(dir, name, 'holder'), 'utf8').trim()
     } catch (error) {
-      passedOver(error)
-      continue
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') continue
+      throw error
     }
-    const [pidWord, label = '', since = ''] = line.split(/\s+/)
     const pid = Number(pidWord)
     if (!Number.isInteger(pid) || pid <= 0) continue
     holders.push({ slot, pid, label, since, alive: alive(pid) })
@@ -126,15 +126,16 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
         const arrivedAtMs = stamp === undefined ? statSync(path).mtimeMs : Number(BigInt(stamp) / 1_000_000n)
         ageS = Math.max(0, Math.round((now - arrivedAtMs) / 1000))
       } catch (error) {
-        passedOver(error)
-        continue
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
       }
       waiters.push({ label, waitedS: ageS })
     }
-  } catch {
-    waiters.length = 0
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') waiters.length = 0
+    else throw error
   }
-  holders.sort((a, b) => a.slot - b.slot)
   waiters.sort((a, b) => b.waitedS - a.waitedS)
   return { dir, holders, waiters }
 }
@@ -170,16 +171,27 @@ export function commandNamesBoxLock(command: string): boolean {
 
 export function boxReading(now: number = Date.now()): BoxReadingV1 {
   const dir = boxLockDir()
-  const lock = dir === null ? null : readBoxLockState(dir, now)
+  let lock: BoxLockState | null = null
+  let unreadable = false
+  if (dir !== null) {
+    try {
+      lock = readBoxLockState(dir, now)
+    } catch {
+      lock = null
+      unreadable = true
+    }
+  }
   return {
     atMs: now,
     ...boxLoadReading(now),
     lock,
     ...(dir === null
       ? { lockNote: 'no box lock directory is named (MERCURY_BOX_LOCK_DIR) and no with-box-lock.sh command has run in this session' }
-      : lock === null
-        ? { lockNote: `the box lock directory ${dir} is not there` }
-        : {}),
+      : unreadable
+        ? { lockNote: 'the box lock state is not readable' }
+        : lock === null
+          ? { lockNote: `the box lock directory ${dir} is not there` }
+          : {}),
   }
 }
 

@@ -409,6 +409,108 @@ function skip(label: string, why: string): void {
   )
 }
 
+{
+  console.log('\nboxLock: unreadable lock dir, holder, or queue throws in readBoxLockState and reports not readable in boxReading')
+  const box = await import('../../src/utils/boxLock.ts')
+  const lockDir = join(SCRATCH, 'box-lock')
+  mkdirSync(join(lockDir, 'box.lock'), { recursive: true })
+  const holderFile = join(lockDir, 'box.lock', 'holder')
+  writeFileSync(holderFile, `${process.pid} test-slot 08:00:00\n`)
+  mkdirSync(join(lockDir, 'box.queue'), { recursive: true })
+  const ticketFile = join(lockDir, 'box.queue', '1700000000000000000-waiter.ticket')
+  writeFileSync(ticketFile, 'waiter-1\n')
+  const absentDir = join(SCRATCH, 'box-lock-absent')
+
+  check('boxLock-absent-null: absent lock dir answers null', box.readBoxLockState(absentDir) === null)
+  box.rememberBoxLockDir(absentDir)
+  check(
+    'boxLock-reading-absent: boxReading on absent dir says is not there',
+    box.boxReading().lockNote === `the box lock directory ${absentDir} is not there`,
+  )
+
+  if (!POSIX_MODES) skip('boxLock-unreadable', 'needs non-root POSIX')
+  else {
+    box.rememberBoxLockDir(lockDir)
+    chmodSync(lockDir, 0o000)
+    let dirErr: NodeJS.ErrnoException | null = null
+    let readingOnDirErr: ReturnType<typeof box.boxReading>
+    try {
+      try {
+        box.readBoxLockState(lockDir)
+      } catch (err) {
+        dirErr = err as NodeJS.ErrnoException
+      }
+      readingOnDirErr = box.boxReading()
+    } finally {
+      chmodSync(lockDir, 0o700)
+    }
+    check(
+      'boxLock-dir-throws-eacces: readBoxLockState throws EACCES on unreadable lock dir',
+      dirErr !== null && dirErr.code === 'EACCES',
+      String(dirErr),
+    )
+    check(
+      'boxLock-reading-dir-unreadable: boxReading().lockNote says the box lock state is not readable',
+      readingOnDirErr.lock === null && readingOnDirErr.lockNote === 'the box lock state is not readable',
+      JSON.stringify(readingOnDirErr),
+    )
+
+    chmodSync(holderFile, 0o200)
+    let holderErr: NodeJS.ErrnoException | null = null
+    let readingOnHolderErr: ReturnType<typeof box.boxReading>
+    try {
+      try {
+        box.readBoxLockState(lockDir)
+      } catch (err) {
+        holderErr = err as NodeJS.ErrnoException
+      }
+      readingOnHolderErr = box.boxReading()
+    } finally {
+      chmodSync(holderFile, 0o600)
+    }
+    check(
+      'boxLock-holder-throws-eacces: readBoxLockState throws EACCES on unreadable holder file',
+      holderErr !== null && holderErr.code === 'EACCES',
+      String(holderErr),
+    )
+    check(
+      'boxLock-reading-holder-unreadable: boxReading().lockNote says the box lock state is not readable on unreadable holder',
+      readingOnHolderErr.lock === null && readingOnHolderErr.lockNote === 'the box lock state is not readable',
+      JSON.stringify(readingOnHolderErr),
+    )
+
+    chmodSync(ticketFile, 0o200)
+    let ticketErr: NodeJS.ErrnoException | null = null
+    try {
+      box.readBoxLockState(lockDir)
+    } catch (err) {
+      ticketErr = err as NodeJS.ErrnoException
+    } finally {
+      chmodSync(ticketFile, 0o600)
+    }
+    check(
+      'boxLock-ticket-throws-eacces: readBoxLockState throws EACCES on unreadable queue ticket',
+      ticketErr !== null && ticketErr.code === 'EACCES',
+      String(ticketErr),
+    )
+
+    chmodSync(join(lockDir, 'box.queue'), 0o000)
+    let queueErr: NodeJS.ErrnoException | null = null
+    try {
+      box.readBoxLockState(lockDir)
+    } catch (err) {
+      queueErr = err as NodeJS.ErrnoException
+    } finally {
+      chmodSync(join(lockDir, 'box.queue'), 0o700)
+    }
+    check(
+      'boxLock-queue-throws-eacces: readBoxLockState throws EACCES on unreadable box.queue dir',
+      queueErr !== null && queueErr.code === 'EACCES',
+      String(queueErr),
+    )
+  }
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
