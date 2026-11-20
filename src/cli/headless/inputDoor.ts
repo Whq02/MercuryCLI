@@ -168,12 +168,30 @@ export async function acceptInputRow(row: InputRow, ports: RunnerPorts): Promise
 export function armLocalWake(ports: RunnerPorts): void {
   const { driver, live, streamingInput } = ports
   if (streamingInput) {
+    const reportWakeFailure = (error: unknown): void => {
+      if (typeof ports.enqueueRow === 'function' && typeof ports.liveScope === 'function') {
+        ports.enqueueRow(
+          noticeRow(
+            ports.liveScope(),
+            'warning',
+            `a scheduled wake could not be delivered (${errorMessage(error)}) — send it again`,
+          ),
+        )
+      }
+    }
     const deliverLocalWake = (prompt: string, facts: LocalWakeFacts | undefined, firedAt: string, heldSince: string | undefined): void => {
       if (live.inputClosed) return
       const nowMs = Date.now()
       const next = localWakeStep(sessionLaneWall(nowMs), nowMs, firedAt, heldSince, facts)
       if (next.step === 'wait') {
-        const recheck = startTimeout(() => deliverLocalWake(prompt, facts, firedAt, next.heldSince), next.delayMs)
+        const recheck = startTimeout(() => {
+          try {
+            deliverLocalWake(prompt, facts, firedAt, next.heldSince)
+          } catch (error) {
+            passedOver(error)
+            reportWakeFailure(error)
+          }
+        }, next.delayMs)
         recheck.unref?.()
         return
       }
@@ -187,9 +205,14 @@ export function armLocalWake(ports: RunnerPorts): void {
       })
       driver.kick()
     }
-    registerLocalWakeSink((prompt: string, facts?: LocalWakeFacts) => {
-      deliverLocalWake(prompt, facts, new Date().toISOString(), undefined)
-    })
+    registerLocalWakeSink(
+      (prompt: string, facts?: LocalWakeFacts) => {
+        deliverLocalWake(prompt, facts, new Date().toISOString(), undefined)
+      },
+      error => {
+        reportWakeFailure(error)
+      },
+    )
   }
 }
 

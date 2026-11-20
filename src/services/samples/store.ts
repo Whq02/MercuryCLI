@@ -122,17 +122,15 @@ export function createOrAppendSample(input: CreateOrAppendSampleInput): { record
   return { record, version: 1 }
 }
 
-export function listSamples(sessionId: string): SampleRecordV1[] {
+export function listSamplesStrict(sessionId: string): SampleRecordV1[] {
   const root = samplesRoot(sessionId)
   let names: string[]
   try {
     names = readdirSync(root)
   } catch (error) {
-    if (!isENOENT(error)) {
-      logForDebugging(`samples: the samples folder could not be read — ${errorMessage(error)}`)
-    }
-    passedOver(error)
-    return []
+    if (isENOENT(error)) return []
+    logForDebugging(`samples: the samples folder could not be read — ${errorMessage(error)}`)
+    throw error
   }
   const out: SampleRecordV1[] = []
   for (const name of names) {
@@ -142,6 +140,15 @@ export function listSamples(sessionId: string): SampleRecordV1[] {
   }
   out.sort(newestFirst)
   return out
+}
+
+export function listSamples(sessionId: string): SampleRecordV1[] {
+  try {
+    return listSamplesStrict(sessionId)
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
 }
 
 export function getSample(sessionId: string, id: string): SampleRecordV1 | null {
