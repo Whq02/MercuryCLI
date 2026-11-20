@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
@@ -202,14 +202,16 @@ export class HuggingfaceClient implements HostVendor {
     const { namespace, name } = parts(id)
     if (namespace !== await this.account()) throw new Error('This HF endpoint belongs to a different namespace. Nothing was changed.')
     await this.api.request('/endpoint/' + namespace + '/' + name, z.object({}), 'DELETE')
-    const deadline = Date.now() + (this.timing.readyTimeoutMs ?? 120000)
-    for (;;) {
-      let rows: HostPod[]
-      try { rows = await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods()) } catch (error) { throw new HostTerminationUnconfirmed(this.label, error) }
-      if (!rows.some(row => row.id === id)) return
-      if (Date.now() >= deadline) throw new Error('HF termination is not verified; the endpoint may still bill. Check the HF console.')
-      await sleep(this.timing.pollMs ?? 1000)
-    }
+    await pollUntil(
+      async () => {
+        let rows: HostPod[]
+        try { rows = await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods()) } catch (error) { throw new HostTerminationUnconfirmed(this.label, error) }
+        if (!rows.some(row => row.id === id)) return true
+      },
+      this.timing.pollMs ?? 1000,
+      this.timing.readyTimeoutMs ?? 120000,
+      () => { throw new Error('HF termination is not verified; the endpoint may still bill. Check the HF console.') },
+    )
   }
   async logs(id: string, signal?: AbortSignal): Promise<string> {
     const { namespace, name } = parts(id)

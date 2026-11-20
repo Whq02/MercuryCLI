@@ -6,7 +6,7 @@ import { presenceNudge, derivePresence, takeCensus, type AddonPresenceFacts } fr
 import { selectVulcanInstance } from './instances.js'
 import { resolveGodotExecutable } from './portabilityHealth.js'
 import { getVulcanClient } from './vulcanClient.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 interface GlobalClassEntry {
@@ -285,11 +285,16 @@ async function refreshClassesViaEditor(projectRoot: string, selector?: unknown):
     return refused(before, `the editor refused the rescan: [${r.error.code}] ${r.error.message}${r.error.hint ? ` — ${r.error.hint}` : ''}`)
   }
   const t0 = Date.now()
-  let after = classCacheReport(projectRoot)
-  while (Date.now() - t0 < RESCAN_SETTLE_MS && (after.stale.length > 0 || after.cacheMtimeMs === before.cacheMtimeMs)) {
-    await sleep(RESCAN_POLL_MS)
-    after = classCacheReport(projectRoot)
-  }
+  let last: ClassCacheReport = before
+  const after = await pollUntil(
+    () => {
+      last = classCacheReport(projectRoot)
+      return last.stale.length === 0 && last.cacheMtimeMs !== before.cacheMtimeMs ? last : undefined
+    },
+    RESCAN_POLL_MS,
+    RESCAN_SETTLE_MS,
+    () => last,
+  )
   const beforeNames = new Set(before.classes.map(c => c.class))
   const added = after.classes.map(c => c.class).filter(c => !beforeNames.has(c))
   return {

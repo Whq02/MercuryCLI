@@ -64,7 +64,7 @@ import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync } from './planeRecords.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
-import { sleep } from '../utils/sleep.js'
+import { pollUntil } from '../utils/deadline.js'
 import { atBootStep, makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armHandoverBeats } from './run/handover.js'
 import { armPlaneHeal } from './run/heal.js'
@@ -260,15 +260,20 @@ async function daemonRun(args: string[]): Promise<void> {
       process.exitCode = 1
       console.error(`[daemon] ${stamp}: ${why} (${daemonDir()}) — refusing to start so the live one is not clobbered · ${FREE_THE_PLANE_WORDS}`)
     }
-    let decision = decidePlaneBoot(await planeBootFacts(stamps))
-    if (decision.road === 'wait-lock') {
-      const deadline = Date.now() + SUCCESSOR_LOCK_WAIT_MS
-      while (decision.road === 'wait-lock' && Date.now() < deadline) {
-        await sleep(100)
-        decision = decidePlaneBoot(await planeBootFacts(stamps))
-      }
-      if (decision.road === 'wait-lock') decision = { road: 'refuse', why: `the predecessor pid ${decision.for} did not release the daemon lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }
-    }
+    let lastWait: Extract<ReturnType<typeof decidePlaneBoot>, { road: 'wait-lock' }> | undefined
+    let decision: ReturnType<typeof decidePlaneBoot> = await pollUntil(
+      async () => {
+        const next = decidePlaneBoot(await planeBootFacts(stamps))
+        if (next.road === 'wait-lock') {
+          lastWait = next
+          return undefined
+        }
+        return next
+      },
+      100,
+      SUCCESSOR_LOCK_WAIT_MS,
+      () => ({ road: 'refuse' as const, why: `the predecessor pid ${lastWait!.for} did not release the daemon lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }),
+    )
     if (decision.road === 'serve') {
       state.daemonLock = await acquireDaemonLock()
       if (!state.daemonLock) {
