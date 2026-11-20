@@ -531,5 +531,48 @@ console.log('\nsrc/main/subcommands.ts')
     JSON.stringify(r),
   )
 }
+console.log('\nsrc/main.tsx')
+for (const [label, awaitsRawRead] of [
+  ['main-mdm-boot-load-failure-noted-once', true],
+  ['main-mdm-background-load-failure-noted-once', false],
+] as const) {
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const mdmPath = path.join(SRC, 'utils/settings/mdm/settings.ts')
+    const realMdm = await import(mdmPath)
+    mock.module(mdmPath, () => ({
+      ...realMdm,
+      mdmBootAwaitsRawRead: () => ${String(awaitsRawRead)},
+      ensureMdmSettingsLoaded: async () => {
+        throw new Error('mdm plist unreadable')
+      },
+    }))
+    const extCliPath = path.join(SRC, 'extensions/cli.ts')
+    const realExtCli = await import(extCliPath)
+    mock.module(extCliPath, () => ({
+      ...realExtCli,
+      listVerb: async () => {
+        out.runs = (out.runs ?? 0) + 1
+        return { exit: 0 }
+      },
+    }))
+    const origArgv = process.argv
+    process.argv = ['node', 'mercury', 'extensions', 'list']
+    try {
+      const { main } = await import(path.join(SRC, 'main.tsx'))
+      await main()
+      await main()
+      await new Promise(resolve => setTimeout(resolve, 20))
+      const { bootNotes } = await import(path.join(SRC, 'substrate/bootNotes.ts'))
+      out.notes = bootNotes().filter(n => n.kind === 'warn').map(n => n.text)
+    } finally {
+      process.argv = origArgv
+    }
+  `)
+  const expected = 'the managed policy could not be loaded (mdm plist unreadable), so it is not applied in this session'
+  const notes = (r.notes as string[] | undefined) ?? []
+  const matches = notes.filter(text => text === expected)
+  check(label, r.runs === 2 && matches.length === 1, JSON.stringify(r))
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
