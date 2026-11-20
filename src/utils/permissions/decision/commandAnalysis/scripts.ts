@@ -1,5 +1,5 @@
 import { shellCommandText } from '../../../bash/ast.js'
-import { layersOf, wordKnown } from './layers.js'
+import { inSameShell, layersOf, wordKnown } from './layers.js'
 import type { Layer, ReadCommand, ShellDialect } from './reading.js'
 
 export const POSIX_SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish', 'mksh', 'yash', 'csh', 'tcsh'])
@@ -47,7 +47,7 @@ export function scriptSentToProgram(argv: string[], text: string): string | unde
   return undefined
 }
 
-export type Pending = { text: string; dialect: ShellDialect; from: number; body?: string; cmd?: boolean }
+export type Pending = { text: string; dialect: ShellDialect; from: number; body?: string; cmd?: boolean; same?: boolean }
 
 export function printedBy(command: ReadCommand | undefined): string | undefined {
   const layer = command === undefined ? undefined : layersOf(command.argv).at(-1)
@@ -59,10 +59,12 @@ export function nestedScripts(command: ReadCommand, from: number, commands: read
   const out: Pending[] = []
   for (const layer of layersOf(command.argv)) {
     const { program, argv } = layer
+    const same = inSameShell(layer)
+    const sameBash = same && command.dialect === 'posix'
     if (POSIX_SHELLS.has(program) || program === 'source' || program === '.' || program === 'eval') {
       for (const at of [...command.inputInner, ...command.inner.flat()]) {
         const printed = printedBy(commands[at])
-        if (printed !== undefined) out.push({ text: printed, dialect: 'posix', from })
+        if (printed !== undefined) out.push({ text: printed, dialect: 'posix', from, same: sameBash && !POSIX_SHELLS.has(program) })
       }
     }
     if (POSIX_SHELLS.has(program)) {
@@ -70,7 +72,7 @@ export function nestedScripts(command: ReadCommand, from: number, commands: read
       if (script !== undefined) out.push({ text: script, dialect: 'posix', from })
       else if (command.input !== undefined && readsStdin(argv)) out.push({ text: command.input, dialect: 'posix', from })
     } else if (program === 'eval') {
-      if (argv.length > 1) out.push({ text: argv.slice(1).join(' '), dialect: command.dialect, from })
+      if (argv.length > 1) out.push({ text: argv.slice(1).join(' '), dialect: command.dialect, from, same: sameBash })
     } else if (program === 'su' || program === 'runuser') {
       for (let i = 1; i < argv.length; i++) {
         const word = argv[i]!
@@ -90,8 +92,8 @@ export function nestedScripts(command: ReadCommand, from: number, commands: read
       if (at >= 0 && at + 1 < argv.length) out.push({ text: argv.slice(at + 1).join(' '), dialect: 'powershell', from, cmd: true })
     } else if (command.dialect === 'powershell' && (program === 'invoke-expression' || program === 'iex')) {
       const script = argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
-      if (script.length > 0) out.push({ text: script.join(' '), dialect: 'powershell', from })
-      else if (command.handed !== undefined) out.push({ text: command.handed, dialect: 'powershell', from })
+      if (script.length > 0) out.push({ text: script.join(' '), dialect: 'powershell', from, same })
+      else if (command.handed !== undefined) out.push({ text: command.handed, dialect: 'powershell', from, same })
     } else if (command.dialect === 'powershell' && (program === 'start-process' || program === 'saps' || program === 'start')) {
       const started = startedBy(argv.slice(1))
       if (started !== undefined) out.push({ text: started, dialect: 'powershell', from })
