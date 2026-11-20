@@ -14,7 +14,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const compact = await import(join(SRC, 'services/compact/compact.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
 const { createAssistantMessage, createUserMessage } = await import(join(SRC, 'utils/messages.ts'))
-const { FILE_UNCHANGED_STUB } = await import(join(SRC, 'tools/FileReadTool/prompt.ts'))
+const { FILE_UNCHANGED_STUB } = await import(join(SRC, 'constants/tools/fileRead.ts'))
 
 type Entry = { content: string; timestamp: number; offset: number | undefined; limit: number | undefined }
 const restore = compact.restorePreservedReads as

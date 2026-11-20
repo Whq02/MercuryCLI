@@ -3,7 +3,7 @@ import type { ReadFileRangeResult } from '../../../utils/readFileInRange.js'
 import { planReadThrough } from '../../FileEditTool/readThrough.js'
 import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'
 import { RESULT_ROOM_WRAPPER_TOKENS } from '../../../services/run/resultRoom.js'
-import { MAX_LINES_TO_READ } from '../prompt.js'
+import { MAX_LINES_TO_READ } from '../../../constants/tools/fileRead.js'
 import type { OverCapNote } from './schema.js'
 import { passedOver } from '../../../utils/passedOver.js'
 

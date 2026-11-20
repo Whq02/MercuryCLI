@@ -13,7 +13,7 @@ import { stripThinkingInPreservedTail } from '../../utils/messages/apiFilters.js
 import { projectRewoundWindows } from '../compact/checkpointRewind.js'
 import { collectPreservedReadPaths } from '../compact/compact.js'
 import { dropSeenLines, rebuildSeenLinesFromTranscript } from '../changeTransaction/seenLines.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { PROTECTED_TOOL_NAMES } from '../compact/pruneProtections.js'
 import {
   applyToolResultBudget,
