@@ -3,7 +3,7 @@ import type { ModelOption } from '../../../utils/model/modelOptions.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate.js'
 import { canonicalWireModelId } from '../routeLaw.js'
@@ -21,7 +21,7 @@ import {
   huggingfaceSlugModelName,
   isHuggingfaceModelId,
   splitHuggingfaceSlug,
-} from './huggingfacePins.js'
+} from '../../../utils/model/pins/huggingfacePins.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

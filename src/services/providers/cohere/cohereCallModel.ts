@@ -9,7 +9,7 @@ import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { COHERE_ENV_KEY, cohereChatCompletionsUrl, resolveCohereAccount, resolveCohereApiKey } from './cohereAccounts.js'
 import { cohereListedModel, cohereModelFacts, getCachedCohereCatalogue, newestCohereModel } from './cohereCatalogue.js'
-import { COHERE_DISPLAY_PINS, cohereDisplayPin, isCohereChatModelId } from './coherePins.js'
+import { COHERE_DISPLAY_PINS, cohereDisplayPin, isCohereChatModelId } from '../../../utils/model/pins/coherePins.js'
 
 export function buildCohereExtras(args: LaneExtrasArgs, outputFormat?: CallModelParams['options']['outputFormat']): Record<string, unknown> {
   const facts = cohereModelFacts(args.wireModel)

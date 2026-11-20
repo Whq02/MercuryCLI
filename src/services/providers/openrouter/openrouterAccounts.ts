@@ -17,7 +17,7 @@ import {
 } from '../../oauth/crypto.js'
 import { credentialFileUnwritten, credentialJsonToWriteOver, readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

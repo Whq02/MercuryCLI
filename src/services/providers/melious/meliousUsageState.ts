@@ -1,4 +1,4 @@
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { meliousApiBase, resolveMeliousApiKey } from './meliousAccounts.js'
 import type { ActiveSourceUsage, ProviderSessionSpend } from '../providerUsage.js'
 

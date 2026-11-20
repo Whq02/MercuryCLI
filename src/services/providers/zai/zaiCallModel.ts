@@ -97,8 +97,8 @@ export function zaiLiveProofState(): { at: number; model: string } | null {
 const ZAI_MAX_ATTEMPTS = 2
 const ZAI_RETRY_BACKOFF_MS = 400
 
-import { glmAcceptsEffort, glmEffortsFor, glmThinkingLocked } from './glmPins.js'
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { glmAcceptsEffort, glmEffortsFor, glmThinkingLocked } from '../../../utils/model/pins/glmPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import {
   compatFaultToTypedError,
   compatTerminalFaultText,

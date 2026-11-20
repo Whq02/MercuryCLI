@@ -1,4 +1,4 @@
-import { WIRE_EFFORT_RANK } from '../../services/providers/openai/gptPins.js'
+import { WIRE_EFFORT_RANK } from './pins/gptPins.js'
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import type { EffortValue } from '../effort.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../effortLadder.js'

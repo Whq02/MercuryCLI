@@ -1,4 +1,4 @@
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import type { UsageWindowView } from '../providerUsage.js'
 import { USAGE_POLL_TTL_MS, usageStaleAfterMs } from '../usageFreshness.js'
 import {

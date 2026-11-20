@@ -56,7 +56,7 @@ const openrouter = await import('../../src/services/providers/openrouter/openrou
 const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const localDiscovery = await import('../../src/services/providers/local/localDiscovery.ts')
 const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
-const gptPins = await import('../../src/services/providers/openai/gptPins.ts')
+const gptPins = await import('../../src/utils/model/pins/gptPins.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const streamCore = await import('../../src/services/providers/anthropic/streamCore.ts')

@@ -2,7 +2,7 @@ import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { moonshotStoredTokens, moonshotLoginRegion } from '../moonshot/moonshotAccounts.js'
 import { readStoredMoonshotApiKey } from '../providerSecrets.js'
 import { label } from './keyLane.js'
-import { maskedKeyTail } from '../credentialIdentity.js'
+import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 import { signInWords, kimiHostWords } from '../../wallet/identityWords.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

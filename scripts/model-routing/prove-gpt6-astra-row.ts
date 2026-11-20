@@ -18,7 +18,7 @@ for (const key of [
 }
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const pins = await import('../../src/services/providers/openai/gptPins.js')
+const pins = await import('../../src/utils/model/pins/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const capabilities = await import('../../src/utils/model/capabilities.js')
 const effort = await import('../../src/utils/effort.js')

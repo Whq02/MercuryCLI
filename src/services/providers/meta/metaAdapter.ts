@@ -1,6 +1,6 @@
 import { metaCatalogueRows } from './metaCatalogue.js'
 import { resolveMetaAccount } from './metaAccounts.js'
-import { metaDisplayPin } from './metaPins.js'
+import { metaDisplayPin } from '../../../utils/model/pins/metaPins.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 

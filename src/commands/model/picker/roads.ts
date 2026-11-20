@@ -4,7 +4,7 @@ import { getCachedOpenrouterCatalogue, refreshOpenrouterCatalogue, type Openrout
 import { resolveOpenrouterRequestAuth } from '../../../services/providers/openrouter/openrouterAccounts.js'
 import { getCachedNousCatalogue, refreshNousCatalogue, type NousCatalogueSnapshot } from '../../../services/providers/nous/nousCatalogue.js'
 import { nousApiBase, resolveNousApiKey } from '../../../services/providers/nous/nousAccounts.js'
-import { credentialFingerprint } from '../../../services/providers/credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { getCachedGeminiCatalogue, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from '../../../services/providers/gemini/geminiCatalogue.js'
 import { geminiSourceIdentity, resolveGeminiAccount } from '../../../services/providers/gemini/geminiAccounts.js'
 import { ANTHROPIC_DOOR_LABELS, anthropicDoors, getCachedAnthropicDoorCatalogue, refreshAnthropicCatalogue, type AnthropicDoor, type AnthropicDoorSnapshot } from '../../../services/providers/anthropic/anthropicCatalogue.js'

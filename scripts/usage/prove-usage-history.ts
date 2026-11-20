@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/usage/usageHistory.ts src/cli/handlers/usageHistory.ts src/main.tsx src/cost-tracker.ts src/services/usage/modelCost.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/providerUsage.ts
+// gate-watch: src/services/usage/usageHistory.ts src/cli/handlers/usageHistory.ts src/main.tsx src/cost-tracker.ts src/services/usage/modelCost.ts src/utils/model/pins/deepseekPins.ts src/services/providers/providerUsage.ts
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { spawnCaptureSync } from '../lib/spawnCapture.ts'

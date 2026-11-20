@@ -2,7 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredQwenApiKey } from '../providerSecrets.js'
 import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenBaseOverrideSkipped, qwenConsoleOfBase, qwenConsoleWords, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase, type QwenConsole } from './qwenAccounts.js'
 import { fetchQwenLiveModels, forgetQwenCatalogue, probeQwenEndpoints, qwenPinRows, QwenCatalogueHttpError } from './qwenCatalogue.js'
-import { qwenDisplayName } from './qwenPins.js'
+import { qwenDisplayName } from '../../../utils/model/pins/qwenPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface QwenKeyLoginOutcome {

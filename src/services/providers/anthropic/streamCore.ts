@@ -7,7 +7,7 @@ import {
   APIUserAbortError,
 } from '../../api/sdkErrors.js'
 import type { ContentBlock as BetaContentBlock, ApiStreamEvent as BetaRawMessageStreamEvent } from '../../../types/wire.js'
-import type { AnthropicMessageParams as BetaMessageStreamParams } from './anthropicWire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams } from '../../../types/anthropicWire.js'
 import type { AnthropicStream } from './anthropicStream.js'
 import {
   getCacheEditingHeaderLatched,

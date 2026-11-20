@@ -1,6 +1,6 @@
 import { flagEnv } from '../../../../substrate/flagRegistry.js'
 import type { JsonOutputFormat as BetaJSONOutputFormat } from '../../../../types/wire.js'
-import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from '../anthropicWire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from '../../../../types/anthropicWire.js'
 import { MESSAGE_EFFORT_BETA_HEADER, STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import { applyThinkingBinding } from '../thinkingBinding.js'
 import { applyThinkingDisplay } from '../thinkingDisplay.js'

@@ -1,4 +1,4 @@
-import { isMistralModelId } from '../mistral/mistralPins.js'
+import { isMistralModelId } from './mistralPins.js'
 
 export function isDeepseekModelId(model: string): boolean {
   const m = model.trim().toLowerCase()

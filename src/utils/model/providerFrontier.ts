@@ -1,5 +1,5 @@
 import type { CallModelRoute } from '../../services/providers/routeLaw.js'
-import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId } from '../../services/providers/openai/gptPins.js'
+import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId } from './pins/gptPins.js'
 import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
   getDefaultSonnetModel,
@@ -102,11 +102,11 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         const live = getCachedHuggingfaceCatalogue()?.models[0]
         if (live) {
           const { huggingfaceSlugModelName } =
-            require('../../services/providers/huggingface/huggingfacePins.js') as typeof import('../../services/providers/huggingface/huggingfacePins.js')
+            require('./pins/huggingfacePins.js') as typeof import('./pins/huggingfacePins.js')
           return { modelId: `huggingface/${live.id}`, displayName: huggingfaceSlugModelName(live.id) }
         }
         const { HUGGINGFACE_DISPLAY_PINS } =
-          require('../../services/providers/huggingface/huggingfacePins.js') as typeof import('../../services/providers/huggingface/huggingfacePins.js')
+          require('./pins/huggingfacePins.js') as typeof import('./pins/huggingfacePins.js')
         const pin = HUGGINGFACE_DISPLAY_PINS[0]
         if (!pin) return undefined
         return { modelId: `huggingface/${pin.id}`, displayName: pin.displayName, observedAt: pin.observedAt }

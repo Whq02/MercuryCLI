@@ -39,8 +39,8 @@ interface Family {
   head: Pin | undefined
 }
 
-const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
-const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } = await import('../../src/utils/model/pins/deepseekPins.ts')
+const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
 const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
 const glmPins: Pin[] = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displayName: entry.displayLabel }))
 const deepseekRetired: Pin[] = [...DEEPSEEK_RETIRED_ALIASES.keys()].map(id => ({ id, displayName: deepseekDisplayName(id) }))

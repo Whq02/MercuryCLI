@@ -3,7 +3,7 @@ import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { scanAccountScopes, type AccountScope } from '../../../utils/accounts/scopeScan.js'
 import { anthropicSignInEmail } from '../providerUsage.js'
 import { label } from './keyLane.js'
-import { maskedKeyTail } from '../credentialIdentity.js'
+import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 
 function readAnthropicApiKey(): { key: string | null; source: ApiKeySource } {
   try {

@@ -8,7 +8,7 @@ import { getAnthropicClient } from '../services/api/client.js'
 import { isClientContractRefusalError } from '../services/api/clientContractGate.js'
 import { healClientContractRefusal, noteClientContractHeal } from '../services/api/clientContractLearned.js'
 import { getAPIMetadata } from '../services/providers/anthropic/requestParams.js'
-import type { AnthropicMessageParams, AnthropicOutputConfig } from '../services/providers/anthropic/anthropicWire.js'
+import type { AnthropicMessageParams, AnthropicOutputConfig } from '../types/anthropicWire.js'
 import type { ApiToolUnion, JsonOutputFormat, MessageParam, TextBlockParam } from '../types/wire.js'
 import { computeFingerprint } from './fingerprint.js'
 import {

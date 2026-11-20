@@ -11,7 +11,7 @@ process.env.MERCURY_ZAI_API_BASE = 'http://127.0.0.1:1/v4'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const cat = await import('../../src/services/providers/zai/zaiCatalogue.ts')
-const pins = await import('../../src/services/providers/zai/glmPins.ts')
+const pins = await import('../../src/utils/model/pins/glmPins.ts')
 const { writeStoredZaiApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { catalogueTrafficVerdict, connectToBrowseReason } = await import('../../src/services/providers/catalogueGate.ts')
 const { KEYED_CATALOGUE_FAMILIES, readCatalogueIfPending } = await import('../../src/services/providers/catalogueOnDemand.ts')

@@ -8,11 +8,11 @@ import { createHash } from 'node:crypto'
 import { streamCompatChat } from '../openaicompat/compatChatClient.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { cerebrasChatCompletionsUrl, resolveCerebrasApiKey } from './cerebrasAccounts.js'
 import { getCachedCerebrasCatalogue, cerebrasListedModel } from './cerebrasCatalogue.js'
-import { cerebrasDisplayPin, cerebrasEffortVocabulary, cerebrasWireId, isCerebrasModelId, isCerebrasTextModelId } from './cerebrasPins.js'
+import { cerebrasDisplayPin, cerebrasEffortVocabulary, cerebrasWireId, isCerebrasModelId, isCerebrasTextModelId } from '../../../utils/model/pins/cerebrasPins.js'
 import { cerebrasRecordHeaders } from './cerebrasUsageState.js'
 
 export function buildCerebrasExtras(args: LaneExtrasArgs, cacheKey: string = getSessionId()): Record<string, unknown> {

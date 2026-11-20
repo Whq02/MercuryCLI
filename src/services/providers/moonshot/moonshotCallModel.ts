@@ -6,7 +6,7 @@ import {
 } from '../openaicompat/compatChatCallModel.js'
 import { buildMoonshotExtras } from '../openaicompat/compatWire.js'
 import { toolDeclarationRowAsTools } from '../zai/zaiCodec.js'
-import { KIMI_PRESERVED_THINKING_MODELS } from './kimiPins.js'
+import { KIMI_PRESERVED_THINKING_MODELS } from '../../../utils/model/pins/kimiPins.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import {
   moonshotChatCompletionsUrl,

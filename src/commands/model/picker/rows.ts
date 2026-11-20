@@ -13,7 +13,7 @@ import { isLocalModelId, LOCAL_MODEL_GROUP, localRecordFor } from '../../../serv
 import { onTensorFoldAct } from '../../tensorfold/tensorfold.js'
 import type { TensorFoldAct } from '../../../components/tensorfold/tensorfoldRows.js'
 import type { ModelTensorFold } from '../../../components/tensorfold/tensorfoldModelFacts.js'
-import { parseGptModelId, withGptServedWindowSuffix } from '../../../services/providers/openai/gptPins.js'
+import { parseGptModelId, withGptServedWindowSuffix } from '../../../utils/model/pins/gptPins.js'
 import { liveGptContextCeiling } from '../../../services/providers/openai/openaiCatalogue.js'
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../../utils/model/slotSwitchReceipt.js'
