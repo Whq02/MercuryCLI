@@ -60,8 +60,15 @@ export function runIntakeOf({ fl }: CentreActions): void {
 export function togglePinOf({ fl }: CentreActions, seq: number, pin: boolean): void {
   if (fl.busyRef.current) return
   fl.busyRef.current = true
-  if (pin) pinFact(seq, undefined, undefined, { asked: true })
-  else unpinFact(seq)
+  try {
+    if (pin) pinFact(seq, undefined, undefined, { asked: true })
+    else unpinFact(seq)
+  } catch (e) {
+    fl.setNote({ text: `${GLYPH.fail} pin failed: ${String(e)}`, kind: 'fail' })
+    fl.busyRef.current = false
+    fl.reload()
+    return
+  }
   fl.setNote({ text: pin ? 'pinning — republishing the front page …' : 'unpinning — republishing the front page …', kind: 'pending' })
   void runDueMaintenance('operator', { force: true })
     .then(() => {

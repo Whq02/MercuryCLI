@@ -621,5 +621,33 @@ console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skip
   )
 }
 
+console.log('\nmemory/centre/actions.ts:63 — a pin whose write is refused does not throw out of the key handler')
+{
+  const res = runScenario(`
+    const usage = await import(${JSON.stringify(join(SRC, 'mneme/mnemeUsage.ts'))})
+    const actions = await import(${JSON.stringify(join(SRC, 'components/memory/centre/actions.ts'))})
+    const file = usage.pinsPath()
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, '{ not json')
+    const notes = []
+    let reloads = 0
+    const fl = { busyRef: { current: false }, setNote: note => { notes.push(note) }, reload: () => { reloads++ } }
+    out.threw = null
+    try {
+      actions.togglePinOf({ fl }, 7, true)
+    } catch (error) {
+      out.threw = String(error)
+    }
+    out.notes = notes
+    out.busy = fl.busyRef.current
+    out.reloads = reloads
+    out.same = fs.readFileSync(file, 'utf8') === '{ not json'
+  `)
+  const notes = (res.notes as Array<{ text?: string; kind?: string }> | undefined) ?? []
+  check('memory-centre-pin-refused-no-throw', res.threw === null, JSON.stringify(res))
+  check('memory-centre-pin-refused-note', notes.length === 1 && notes[0]?.kind === 'fail' && String(notes[0]?.text).includes('pin failed:'), JSON.stringify(res))
+  check('memory-centre-pin-refused-not-busy', res.busy === false && res.reloads === 1 && res.same === true, JSON.stringify(res))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
