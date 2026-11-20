@@ -1,9 +1,79 @@
 import { basename } from 'path'
 import { isRemotePath } from '../../services/remoteFiles/target.js'
+import type { Tool } from '../../Tool.js'
+import { getAllBaseTools } from '../../tools.js'
 import { isSqliteRowTarget } from '../../tools/FileWriteTool/structuredTargets.js'
 import type { Message } from '../../types/message.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type CodeStats = { filesChanged: string[]; insertions: number; deletions: number }
+
+const SHELL_TOOL_NAMES = new Set(['Bash', 'PowerShell'])
+
+type ShellCall = {
+  tool: string
+  input: Record<string, unknown>
+}
+
+function shellToolNamed(name: string): Tool | undefined {
+  return getAllBaseTools().find(tool => tool.name === name)
+}
+
+function shellCallsInRange(messages: Message[], start: number, end: number): ShellCall[] {
+  const calls: ShellCall[] = []
+  for (let i = start; i < end; i++) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_use') continue
+      if (!SHELL_TOOL_NAMES.has(block.name)) continue
+      const input = block.input
+      if (!input || typeof input !== 'object' || Array.isArray(input)) continue
+      const record = input as Record<string, unknown>
+      if (typeof record.command !== 'string') continue
+      calls.push({
+        tool: block.name,
+        input: record,
+      })
+    }
+  }
+  return calls
+}
+
+function isReadOnlyShellCall(call: ShellCall): boolean {
+  try {
+    const tool = shellToolNamed(call.tool)
+    return tool !== undefined && tool.isReadOnly(call.input) === true
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}
+
+export async function prepareShellChecksForRewind(messages: Message[]): Promise<boolean> {
+  const calls = shellCallsInRange(messages, 0, messages.length)
+  if (calls.length === 0) return false
+  let prepared = false
+  for (const call of calls) {
+    const tool = shellToolNamed(call.tool)
+    if (typeof tool?.prepare !== 'function') continue
+    try {
+      await tool.prepare(call.input)
+      prepared = true
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  return prepared
+}
+
+export function mutatingShellCountAfter(messages: Message[], fromUuid: string): number {
+  const start = messages.findIndex(message => message.uuid === fromUuid)
+  if (start === -1) return 0
+  return shellCallsInRange(messages, start + 1, messages.length).filter(call => !isReadOnlyShellCall(call)).length
+}
 
 type PatchHunk = { lines?: string[] }
 type EditResult = {
@@ -25,16 +95,17 @@ export function statsBetween(
   messages: Message[],
   fromUuid: string,
   toUuid: string | undefined,
-): { files: string[]; insertions: number; deletions: number } {
+): { files: string[]; insertions: number; deletions: number; shellCommands: number } {
   const start = messages.findIndex(message => message.uuid === fromUuid)
   const end =
     toUuid === undefined
       ? messages.length
       : messages.findIndex(message => message.uuid === toUuid)
+  const limit = end === -1 ? messages.length : end
   const files = new Set<string>()
   let insertions = 0
   let deletions = 0
-  for (let i = start + 1; i < (end === -1 ? messages.length : end); i++) {
+  for (let i = start + 1; i < limit; i++) {
     const message = messages[i]!
     if (message.type !== 'user') continue
     const content = message.message.content
@@ -72,7 +143,9 @@ export function statsBetween(
       }
     }
   }
-  return { files: [...files], insertions, deletions }
+  const shellCommands =
+    start === -1 ? 0 : shellCallsInRange(messages, start + 1, limit).filter(call => !isReadOnlyShellCall(call)).length
+  return { files: [...files], insertions, deletions, shellCommands }
 }
 
 export function writtenElsewhereLine(messages: Message[], fromUuid: string): string | null {

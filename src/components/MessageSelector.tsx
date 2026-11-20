@@ -42,7 +42,7 @@ import type {
   RewindReceiptV1,
 } from '../services/engine-connector/types.js'
 import { messageText, previewOf } from './messageSelector/preview.js'
-import { writtenElsewhereLine, type CodeStats } from './messageSelector/stats.js'
+import { mutatingShellCountAfter, prepareShellChecksForRewind, writtenElsewhereLine, type CodeStats } from './messageSelector/stats.js'
 import { confirmOptionsOf, confirmView, CURRENT_PROMPT, pickView, summarizeView, UNDO_REWIND, type PickEntry } from './messageSelector/views.js'
 
 export { statsBetween, writtenElsewhereLine } from './messageSelector/stats.js'
@@ -211,6 +211,16 @@ export function MessageSelector({
   const [feedback, setFeedback] = useState('')
   const [feedbackCursor, setFeedbackCursor] = useState(0)
   const [focusedConfirm, setFocusedConfirm] = useState('conversation')
+  const [, setShellCheckTick] = useState(0)
+  useLoad(() => {
+    let cancelled = false
+    void prepareShellChecksForRewind(messages).then(prepared => {
+      if (!cancelled && prepared) setShellCheckTick(tick => tick + 1)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [messages])
 
   const [storeStats, setStoreStats] = useState<CodeStats | undefined>(undefined)
   const chosen = index < selectable.length ? selectable[index] : undefined
@@ -397,6 +407,7 @@ export function MessageSelector({
 
   const canRestoreCode = historyOn && hasSavedPoint(chosen.uuid)
   const elsewhere = writtenElsewhereLine(messages, chosen.uuid)
+  const shellCommandsAfter = mutatingShellCountAfter(messages, chosen.uuid)
   const preview = previewOf(chosen, columns - 16)
   const age = formatRelativeTimeAgo(new Date(chosen.timestamp))
   const conversationText =
@@ -404,7 +415,7 @@ export function MessageSelector({
 
   const options = confirmOptionsOf({ canRestoreCode, conversationText, checkpoints, onViewOnly, onBranchCreated, onRerun })
 
-  return confirmView({ tokens, preview, age, options, canRestoreCode, focusedConfirm, setFocusedConfirm, setPhase, openedPreselected, close, onViewOnly, runBranch, runRerun, runRestore, storeStats, elsewhere })
+  return confirmView({ tokens, preview, age, options, canRestoreCode, focusedConfirm, setFocusedConfirm, setPhase, openedPreselected, close, onViewOnly, runBranch, runRerun, runRestore, storeStats, elsewhere, shellCommandsAfter })
 }
 
 export default MessageSelector
