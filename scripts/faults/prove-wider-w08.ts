@@ -522,17 +522,17 @@ async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
     const gotPathErr = pathErr as string | null
     check('w08-10: openPath hands error message beside false for missing path', pOk === false && gotPathErr !== null && gotPathErr.length > 0, JSON.stringify({ pOk, gotPathErr }))
 
-    let memoryOpenErr: string | null = null
-    const memDir = join(dir, 'mem')
-    mkdirSync(memDir)
+    let folderOpenErr: string | null = null
+    const notesDir = join(dir, 'notes')
+    mkdirSync(notesDir)
     openMemoryFolder(
-      memDir,
+      notesDir,
       { mkdirSync, openPath: async () => false },
-      (msg: string) => { memoryOpenErr = msg },
+      (msg: string) => { folderOpenErr = msg },
     )
     await new Promise<void>(resolve => setTimeout(resolve, 30))
-    const gotMemErr = memoryOpenErr as string | null
-    check('w08-10: MemoryFileSelector openMemoryFolder reports failed open via callback', gotMemErr !== null && gotMemErr.includes('could not be opened (') && gotMemErr.includes('open it yourself'), JSON.stringify(gotMemErr))
+    const gotFolderErr = folderOpenErr as string | null
+    check('w08-10: MemoryFileSelector openMemoryFolder reports failed open via callback', gotFolderErr !== null && gotFolderErr.includes('could not be opened (') && gotFolderErr.includes('open it yourself'), JSON.stringify(gotFolderErr))
 
     const stdinStream = new PassThrough()
     const stdin = Object.assign(stdinStream, { isTTY: true, isRaw: false, setRawMode() { return this }, unref() { return this }, ref() { return this } }) as unknown as NodeJS.ReadStream
