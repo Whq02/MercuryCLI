@@ -125,6 +125,86 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
   }
 }
 
+{
+  const { latestRunAtRoot, getRun, listRuns, runPythonTests, testRunsDir } = await import('../../src/services/ide/pythonTests.ts')
+  const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.ts')
+  const dir = makeTempDir('fn14-pytests-')
+  const origPy = process.env.MERCURY_PYTHON
+  try {
+    check('pythonTests: absent store returns null and empty list', latestRunAtRoot(dir) === null && listRuns(dir).length === 0)
+    const runs = testRunsDir(dir)
+    mkdirSync(runs, { recursive: true })
+    writeFileSync(join(runs, 'latest.json'), '{broken')
+    writeFileSync(join(runs, 'run-1-1.json'), '{broken')
+    const r1 = throwsMatching(() => latestRunAtRoot(dir), /JSON|parse|corrupt|unexpected/i)
+    const r2 = throwsMatching(() => getRun('run-1-1', dir), /JSON|parse|corrupt|unexpected/i)
+    const r3 = throwsMatching(() => listRuns(dir), /JSON|parse|corrupt|unexpected/i)
+    check('pythonTests: corrupt latest.json throws on latestRunAtRoot', r1.threw, r1.message)
+    check('pythonTests: corrupt run file throws on getRun', r2.threw, r2.message)
+    check('pythonTests: corrupt run file throws on listRuns', r3.threw, r3.message)
+    if (POSIX_MODES) {
+      const dir2 = makeTempDir('fn14-pytests-perm-')
+      const runs2 = testRunsDir(dir2)
+      mkdirSync(runs2, { recursive: true })
+      chmodSync(runs2, 0o000)
+      try {
+        const r4 = throwsMatching(() => listRuns(dir2), /EACCES|permission/i)
+        check('pythonTests: unreadable runs dir throws on listRuns', r4.threw, r4.message)
+      } finally {
+        chmodSync(runs2, 0o700)
+        rmSync(dir2, { recursive: true, force: true })
+      }
+      const fakePy = join(dir, 'fake-python.sh')
+      writeFileSync(
+        fakePy,
+        '#!/bin/sh\nif [ "$1" = "-c" ]; then echo \'{"v":"3.12.0","prefix":"/tmp"}\'; exit 0; fi\nprintf "{corrupt-ndjson\\n" > "$2"\nexit 0\n',
+        { mode: 0o755 },
+      )
+      process.env.MERCURY_PYTHON = fakePy
+      _resetPythonProjectForTesting()
+      let ndjsonThrew = false
+      let ndjsonMsg = '(did not throw)'
+      try {
+        await runPythonTests({ from: dir, framework: 'unittest' })
+      } catch (err) {
+        ndjsonMsg = err instanceof Error ? err.message : String(err)
+        ndjsonThrew = /JSON|parse|corrupt|unexpected/i.test(ndjsonMsg)
+      }
+      check('pythonTests: corrupt NDJSON report throws instead of empty events', ndjsonThrew, ndjsonMsg)
+
+      const fakePyGood = join(dir, 'fake-python-good.sh')
+      writeFileSync(
+        fakePyGood,
+        '#!/bin/sh\nif [ "$1" = "-c" ]; then echo \'{"v":"3.12.0","prefix":"/tmp"}\'; exit 0; fi\nprintf \'{"t":"case","id":"t.a","outcome":"passed"}\\n\' > "$2"\nexit 0\n',
+        { mode: 0o755 },
+      )
+      const dirPersist = makeTempDir('fn14-pytests-persist-')
+      const blockedRunsDir = testRunsDir(dirPersist)
+      mkdirSync(join(blockedRunsDir, '..'), { recursive: true })
+      writeFileSync(blockedRunsDir, 'block-dir')
+      process.env.MERCURY_PYTHON = fakePyGood
+      _resetPythonProjectForTesting()
+      let persistThrew = false
+      let persistMsg = '(did not throw)'
+      try {
+        await runPythonTests({ from: dirPersist, framework: 'unittest' })
+      } catch (err) {
+        persistMsg = err instanceof Error ? err.message : String(err)
+        persistThrew = true
+      } finally {
+        rmSync(blockedRunsDir, { force: true })
+        rmSync(dirPersist, { recursive: true, force: true })
+      }
+      check('pythonTests: persistRun failure throws instead of returning ok', persistThrew, persistMsg)
+    }
+  } finally {
+    if (origPy === undefined) delete process.env.MERCURY_PYTHON
+    else process.env.MERCURY_PYTHON = origPy
+    _resetPythonProjectForTesting()
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
