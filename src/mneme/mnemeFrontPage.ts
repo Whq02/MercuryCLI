@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { getMemoryBaseDir } from './paths.js'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { memoryRecallModeLine } from './embedModels.js'
 import { memoryGrade, MEMORY_EVIDENCE_CONTRACT } from './memoryEvidence.js'
 import { indexTopics, liveCount } from './mnemeArchive.js'
@@ -174,8 +175,8 @@ export function readFrontPage(dir: string = mnemeLibraryDir()): string | null {
   try {
     return readFileSync(frontPagePath(dir), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
 }
 
