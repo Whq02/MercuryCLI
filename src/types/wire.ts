@@ -39,7 +39,7 @@ type ServerToolUseBlock = {
   type: 'server_tool_use'
   id: string
   name: string
-  input: { [key: string]: unknown }
+  input: { [key: string]: unknown } | string
   caller?: ToolCaller
 }
 
@@ -170,6 +170,7 @@ export type ApiUsage = {
   server_tool_use: ServerToolUsage | null
   service_tier: 'standard' | 'priority' | 'batch' | null
   speed: 'standard' | 'fast' | null
+  request_started_at_ms?: number
 }
 
 type StopReason =
@@ -281,6 +282,8 @@ type ApiContentBlockStopEvent = {
   index: number
 }
 
+type ApiPingEvent = { type: 'ping' }
+
 export type ApiStreamEvent =
   | ApiMessageStartEvent
   | ApiMessageDeltaEvent
@@ -288,6 +291,7 @@ export type ApiStreamEvent =
   | ApiContentBlockStartEvent
   | ApiContentBlockDeltaEvent
   | ApiContentBlockStopEvent
+  | ApiPingEvent
 
 
 type CacheControlEphemeral = {
@@ -463,6 +467,11 @@ type MidConversationSystemBlockParam = {
   cache_control?: CacheControlEphemeral | null
 }
 
+type CacheEditsBlockParam = {
+  type: 'cache_edits'
+  edits: Array<{ type: 'delete'; cache_reference: string }>
+}
+
 export type ContentBlockParam =
   | TextBlockParam
   | ImageBlockParam
@@ -482,6 +491,7 @@ export type ContentBlockParam =
   | ToolSearchToolResultBlockParam
   | ContainerUploadBlockParam
   | MidConversationSystemBlockParam
+  | CacheEditsBlockParam
   | ContentBlock
 
 export type MessageParam = {
