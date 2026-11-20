@@ -5,7 +5,6 @@ import { execFileSync } from 'node:child_process'
 import { describeArtifactIdentity } from '../artifactIdentity.js'
 import { defaultMercuryHome, getMercuryHome } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
-import { getShellCwd } from '../Shell.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { execFileNoThrow } from '../execFileNoThrow.js'
 import { getAncestorPidsAsync } from '../genericProcessUtils.js'
@@ -13,6 +12,7 @@ import { readDaemonState } from '../../daemon/controlSocket.js'
 import { getProcessStartTokenAsync, isProcessAlive } from '../../daemon/ownerWatch.js'
 import { protectedPathForms } from './protectedPaths.js'
 import { matchWildcardPattern } from './shellRuleMatching.js'
+import { directoryTheShellStandsIn } from '../cwd.js'
 
 const inside = (path: string, root: string): boolean => path === root || path.startsWith(root + '/')
 
@@ -48,7 +48,7 @@ function spelledOnDisk(path: string): string {
   return `${drive}/${found.join('/')}`
 }
 
-export function runtimeWritePath(path: string, cwd = getShellCwd(), removesTree = true): string | null {
+export function runtimeWritePath(path: string, cwd = directoryTheShellStandsIn(), removesTree = true): string | null {
   const root = runtimeRootOf(path, cwd, removesTree)
   return root === null ? null : spelledOnDisk(root)
 }
@@ -217,7 +217,7 @@ async function launchAgentReason(args: string[], pids: number[]): Promise<string
     if (!target.endsWith('.plist') && !target.includes('/')) continue
     if (target.endsWith('.plist')) {
       try {
-        const text = readFileSync(resolve(getShellCwd(), target.replace(/^~(?=\/|$)/, homedir())), 'utf8')
+        const text = readFileSync(resolve(directoryTheShellStandsIn(), target.replace(/^~(?=\/|$)/, homedir())), 'utf8')
         const program = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)?.[1]
           ?? /<key>Program<\/key>\s*(<string>[^<]*<\/string>)/.exec(text)?.[1] ?? ''
         const paths = [...program.matchAll(/<string>([^<]+)/g)].map(match => match[1]!)

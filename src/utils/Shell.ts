@@ -6,7 +6,7 @@ import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
 import { createAndSaveSnapshot, loginExports } from './bash/ShellSnapshot.js'
-import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd, tellWhereACdLeftTheShell } from './cwd.js'
+import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd, tellWhereACdLeftTheShell, tellWhereTheShellStands } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { diagnosticAsksFor, isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { errorMessage, isENOENT } from './errors.js'
@@ -205,6 +205,7 @@ subscribeCwdState(sessionCwd => {
   shellCwd = null
 })
 tellWhereACdLeftTheShell(shellCwdLeftByCd)
+tellWhereTheShellStands(getShellCwd)
 
 function readShellCwd(): string | null {
   const own = contextShellCwd()
