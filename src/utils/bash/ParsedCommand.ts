@@ -1,5 +1,5 @@
 import { extractOutputRedirections, pipeSpans } from './commands.js'
-import { parseCommandRaw, PARSE_ABORTED, type Node } from './parser.js'
+import { parseValidCommandRoot } from '../permissions/decision/commandAnalysis/sequence.js'
 import { analyzeCommand, type TreeSitterAnalysis } from './treeSitterAnalysis.js'
 
 type OutputRedirection = { target: string; operator: '>' | '>>' }
@@ -19,7 +19,7 @@ class TreeSitterParsedCommand implements IParsedCommand {
   private readonly analysis: TreeSitterAnalysis
   private readonly redirections: ReturnType<typeof extractOutputRedirections>
 
-  constructor(command: string, root: Node) {
+  constructor(command: string, root: unknown) {
     this.originalCommand = command
     this.pipes = pipeSpans(root)
     this.analysis = analyzeCommand(root, command)
@@ -55,14 +55,14 @@ class TreeSitterParsedCommand implements IParsedCommand {
   }
 }
 
-export function buildParsedCommandFromRoot(command: string, root: Node): IParsedCommand {
+export function buildParsedCommandFromRoot(command: string, root: unknown): IParsedCommand {
   return new TreeSitterParsedCommand(command, root)
 }
 
 export const ParsedCommand = {
   async parse(command: string): Promise<IParsedCommand | null> {
-    const root = await parseCommandRaw(command)
-    if (!root || root === PARSE_ABORTED || root.type === 'ERROR') return null
+    const root = await parseValidCommandRoot(command)
+    if (!root) return null
     return buildParsedCommandFromRoot(command, root)
   },
 }
