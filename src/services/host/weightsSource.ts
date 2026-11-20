@@ -5,7 +5,7 @@ import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { bankState, bootMinutes, bytesWords, shortFolder, sizeWords } from './bank.js'
 import { shQuote } from './boxExecution.js'
 import { downloadFailure, downloadWatchScript, keptDownloadMinutes, keptRunMs } from './download.js'
-import { fetchHuggingFaceRepo, huggingFaceHubBase, huggingFaceTokenRead, huggingFaceTokenUnreadNote } from './hfRecipes.js'
+import { fetchHuggingFaceRepo, huggingFaceHubBase, huggingFaceTokenRead, huggingFaceTokenUnreadWords } from './hfRecipes.js'
 import { bankUploadEstimate, bankUploadPreference } from './keepSafe.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { resolvedWeightManifest } from './keptWeights.js'
@@ -76,7 +76,7 @@ function weightsSourceChoices(context: WeightsSourceContext): WeightsSourceChoic
     return [huggingface, unavailable('private-repo', 'Private repository', reason), unavailable('bank', 'This computer’s Bank', reason), unavailable('volume', 'Kept volume', reason)]
   }
   const privateRepo: WeightsSourceChoice = managed ? unavailable('private-repo', 'Private repository', 'use the endpoint’s repository')
-    : tokenRead.state === 'unread' ? unavailable('private-repo', 'Private repository', huggingFaceTokenUnreadNote(tokenRead.error))
+    : tokenRead.state === 'unread' ? unavailable('private-repo', 'Private repository', huggingFaceTokenUnreadWords(tokenRead.error))
     : !token ? unavailable('private-repo', 'Private repository', '/logins huggingface')
     : { value: 'private-repo', label: 'Private repository' + (context.remembered ? ' · ' + context.remembered : '') }
   let state: ReturnType<typeof bankState> | undefined
@@ -101,7 +101,7 @@ function weightsSourceChoices(context: WeightsSourceContext): WeightsSourceChoic
 async function readPrivateRepo(context: Pick<WeightsSourceContext, 'recipe' | 'token' | 'hubBase'>, repo: string, signal: AbortSignal): Promise<{ ok: true; source: WeightsSource & { kind: 'private-repo' } } | { ok: false; words: string }> {
   if (!REPO_PATTERN.test(repo)) return { ok: false, words: 'Give the repository as namespace/name.' }
   const tokenRead = context.token ? { state: 'ok' as const, token: context.token } : huggingFaceTokenRead()
-  if (tokenRead.state === 'unread') return { ok: false, words: huggingFaceTokenUnreadNote(tokenRead.error) }
+  if (tokenRead.state === 'unread') return { ok: false, words: huggingFaceTokenUnreadWords(tokenRead.error) }
   if (tokenRead.state !== 'ok') return { ok: false, words: 'No Hugging Face sign-in · /logins huggingface' }
   const token = tokenRead.token
   const read = await fetchHuggingFaceRepo(repo, { token, base: context.hubBase ?? huggingFaceHubBase(), signal })

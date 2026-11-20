@@ -81,8 +81,12 @@ type HuggingFaceTokenRead =
   | { state: 'absent' }
   | { state: 'unread'; error: string }
 
+export function huggingFaceTokenUnreadWords(error: string): string {
+  return 'the Hugging Face key could not be read (' + error + ')'
+}
+
 export function huggingFaceTokenUnreadNote(error: string): string {
-  return 'the Hugging Face key could not be read (' + error + '), so this went out without it'
+  return huggingFaceTokenUnreadWords(error) + ', so this went out without it'
 }
 
 export function huggingFaceTokenRead(): HuggingFaceTokenRead {

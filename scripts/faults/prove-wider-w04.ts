@@ -85,10 +85,10 @@ try {
         new AbortController().signal,
       )
       check(
-        'w04-1 weightsSource reports unreadable HF key instead of absent key',
-        unreadableLabel.includes('the Hugging Face key could not be read (') &&
-          unreadableLabel.includes('so this went out without it') &&
-          emitted.some(words => words.includes('the Hugging Face key could not be read (') && words.includes('so this went out without it')),
+        'w04-1 weightsSource reports unreadable HF key without claiming a request went out',
+        unreadableLabel.startsWith('Private repository · unavailable · the Hugging Face key could not be read (') &&
+          !unreadableLabel.includes('so this went out without it') &&
+          emitted.some(words => words.includes('the Hugging Face key could not be read (') && !words.includes('so this went out without it')),
         JSON.stringify({ unreadableLabel, emitted }),
       )
 
