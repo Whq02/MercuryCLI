@@ -352,6 +352,13 @@ async function runClearedSessions(): Promise<void> {
   )
   rmSync(filePath, { force: true })
   resetClearedSessionsMemo()
+  const { isSessionCleared } = await import('../../src/utils/sessionStorage/clearedSessions.ts')
+  markSessionCleared('normal-session-1')
+  check('normal markSessionCleared and unmarkSessionCleared still round-trip', isSessionCleared('normal-session-1') === true)
+  unmarkSessionCleared('normal-session-1')
+  check('unmarkSessionCleared removes the mark', isSessionCleared('normal-session-1') === false)
+  rmSync(filePath, { force: true })
+  resetClearedSessionsMemo()
 }
 
 try {

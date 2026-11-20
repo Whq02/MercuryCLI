@@ -1,5 +1,5 @@
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../envUtils.js'
 import { errorMessage, isENOENT } from '../errors.js'
@@ -50,6 +50,7 @@ export function markSessionCleared(sessionId: string | null | undefined): void {
   try {
     const map = readMapStrict()
     map[sessionId] = Date.now()
+    const entries = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, CACHE_MAX)
     mkdirSync(getMercuryHome(), { recursive: true })
     writeFileSync(cachePath(), JSON.stringify(Object.fromEntries(entries), null, 2) + '\n')
     memo = null
@@ -63,6 +64,7 @@ export function unmarkSessionCleared(sessionId: string | null | undefined): void
   try {
     const map = readMapStrict()
     if (!(sessionId in map)) return
+    delete map[sessionId]
     writeFileSync(cachePath(), JSON.stringify(map, null, 2) + '\n')
     memo = null
   } catch (error) {
