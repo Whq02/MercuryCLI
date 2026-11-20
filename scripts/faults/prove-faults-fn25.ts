@@ -373,6 +373,36 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const r = runSub(`
+    const { mock } = await import('bun:test')
+    const path = await import('node:path')
+    const sessionPath = path.join(SRC, 'services/browser/browserSession.ts')
+    const realSession = await import(sessionPath)
+    mock.module(sessionPath, () => ({
+      ...realSession,
+      activeSession: () => ({
+        tab: 'main',
+        crashed: false,
+        page: {
+          url: () => 'https://example.com',
+          frames: () => [],
+        },
+      }),
+    }))
+    const { checkBrowserPermissions } = await import(path.join(SRC, 'tools/BrowserTool/browser/permissions.ts'))
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const ctx = { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
+    out.decision = await checkBrowserPermissions({ op: 'click', frame: 99, selector: 'button' }, ctx)
+  `)
+  const d = r.decision as { behavior?: string; message?: string }
+  check(
+    'BrowserTool/permissions: checkBrowserPermissions denies instead of allowing when targetSurface/targetOrigin throws',
+    d.behavior === 'deny' && typeof d.message === 'string' && d.message.length > 0,
+    JSON.stringify(d),
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
