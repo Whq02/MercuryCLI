@@ -9,6 +9,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { pythonBinaryFor, pythonPackPlatform } from '../privateChannel/vendoredPython.js'
 import { lockPathParts } from '../privateChannel/vendoredRuntime.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { debugpyPythonCommands } from '../../utils/platform/programs.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
@@ -139,10 +140,7 @@ function vendoredVersion(root: string): string | undefined {
 }
 
 export function defaultInterpreterCandidates(): string[] {
-  const out = ['python3', 'python']
-  if (process.platform === 'win32') out.push('py')
-  if (process.platform === 'darwin') out.push('/usr/bin/python3')
-  return out
+  return debugpyPythonCommands()
 }
 
 export interface ResolveOptions {

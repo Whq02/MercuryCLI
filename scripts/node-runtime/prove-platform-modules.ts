@@ -26,12 +26,19 @@ import { chmodSync as p02ChmodSync, mkdirSync as p02MkdirSync, mkdtempSync as p0
 import { tmpdir as p02Tmpdir } from 'node:os'
 import * as p02Path from 'node:path'
 import {
+  debugpyPythonCommands,
+  envPathDirs,
+  evalPythonCommands,
+  executableName,
   executableSuffixes,
   isExecutableFile,
   isExecutablePath,
+  pathDelimiter,
   pathExtensions,
   resolveProgramInPath,
   spawnableCommandSpellings,
+  vendoredNodeRelativePath,
+  venvPythonPath,
 } from '../../src/utils/platform/programs.js'
 
 function withProgramFixture<T>(run: (dir: string) => T): T {
@@ -98,6 +105,33 @@ const PROGRAMS: Row[] = [
         }
       }),
     recorded: {"win32":{"empty":null,"both":"run-x.exe","shim":"shim.cmd","plain":"only-plain","explicit":"run-x.exe","quotedOnly":"shim.cmd","missing":null},"darwin":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null},"linux":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null},"win32 by process.platform alone":{"empty":null,"both":"run-x.exe","shim":"shim.cmd","plain":"only-plain","explicit":"run-x.exe","quotedOnly":"shim.cmd","missing":null},"win32 by getPlatform() alone":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null}},
+  },
+  {
+    name: 'programs: pathDelimiter and envPathDirs',
+    answers: () => ({
+      sep: pathDelimiter(),
+      upper: envPathDirs({ PATH: '/a:/b;/c' }),
+      mixed: envPathDirs({ Path: 'C:\\a;;C:\\b:/d' }),
+      empty: envPathDirs({}),
+    }),
+    recorded: {"win32":{"sep":";","upper":["/a:/b","/c"],"mixed":["C:\\a","C:\\b:/d"],"empty":[]},"darwin":{"sep":":","upper":["/a","/b;/c"],"mixed":["C","\\a;;C","\\b","/d"],"empty":[]},"linux":{"sep":":","upper":["/a","/b;/c"],"mixed":["C","\\a;;C","\\b","/d"],"empty":[]},"win32 by process.platform alone":{"sep":";","upper":["/a:/b","/c"],"mixed":["C:\\a","C:\\b:/d"],"empty":[]},"win32 by getPlatform() alone":{"sep":":","upper":["/a","/b;/c"],"mixed":["C","\\a;;C","\\b","/d"],"empty":[]}},
+  },
+  {
+    name: 'programs: executableName and vendoredNodeRelativePath',
+    answers: () => ({
+      names: ['llama-server', 'bun', 'rg', 'godot', 'godot4'].map(name => executableName(name)),
+      nodeRel: vendoredNodeRelativePath(),
+    }),
+    recorded: {"win32":{"names":["llama-server.exe","bun.exe","rg.exe","godot.exe","godot4.exe"],"nodeRel":"node.exe"},"darwin":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"},"linux":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"},"win32 by process.platform alone":{"names":["llama-server.exe","bun.exe","rg.exe","godot.exe","godot4.exe"],"nodeRel":"node.exe"},"win32 by getPlatform() alone":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"}},
+  },
+  {
+    name: 'programs: venvPythonPath, evalPythonCommands and debugpyPythonCommands',
+    answers: () => ({
+      venv: venvPythonPath('/proj/.venv').replaceAll('\\', '/'),
+      evalCmds: evalPythonCommands(),
+      debugpyCmds: debugpyPythonCommands(),
+    }),
+    recorded: {"win32":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"darwin":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python","/usr/bin/python3"]},"linux":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]},"win32 by process.platform alone":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"win32 by getPlatform() alone":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]}},
   },
 ]
 

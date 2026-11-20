@@ -11,6 +11,7 @@ import { readTensorFoldMachineTruth, type MachineIo, type TensorFoldMachineTruth
 import { TENSORFOLD_STARTING_POINTS, type TensorFoldCheckpoint } from './starting.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { executableName } from '../../utils/platform/programs.js'
 
 export const TENSORFOLD_BINARY_NAMES = ['tensorfold-native', 'tensorfold'] as const
 export const TENSORFOLD_RUNTIME_FOLDER = join('.local', 'share', 'mercury-host', 'runtime', 'tensorfold')
@@ -82,7 +83,7 @@ export function tensorFoldBinaryCandidates(io: Pick<EngineIo, 'env' | 'home' | '
     ...(platform === 'darwin' ? ['/opt/homebrew/bin', '/usr/local/bin'] : []),
   ]
   const out: string[] = []
-  for (const dir of dirs) for (const name of TENSORFOLD_BINARY_NAMES) out.push(join(dir, platform === 'win32' ? `${name}.exe` : name))
+  for (const dir of dirs) for (const name of TENSORFOLD_BINARY_NAMES) out.push(join(dir, executableName(name, platform)))
   return [...new Set(out)]
 }
 
