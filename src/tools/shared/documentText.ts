@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
-import { renderDocumentBytes } from '../tools/FileReadTool/readRichFormats.js'
-import { extractPdfText, renderPdfText } from './pdfText.js'
-import { recognisePdfPage, renderOcr } from './ocr.js'
-import { readRegularFile } from './regularFile.js'
-import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
-import { passedOver } from './passedOver.js'
+import { renderDocumentBytes } from '../FileReadTool/readRichFormats.js'
+import { extractPdfText, renderPdfText } from '../../utils/pdfText.js'
+import { recognisePdfPage, renderOcr } from '../../utils/ocr.js'
+import { readRegularFile } from '../../utils/regularFile.js'
+import { ensureToolResultsDir, getToolResultsDir } from '../../utils/toolResultStorage.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const SEARCHABLE_DOCUMENT_EXTENSIONS = ['pdf', 'docx', 'pptx', 'xlsx', 'odt', 'ods', 'odp', 'epub', 'rtf'] as const
 export function isSearchableDocument(path: string): boolean {
