@@ -194,7 +194,7 @@ export function settledWatchIds(messages: readonly Message[]): Set<string> {
       continue
     }
     if (message.type === 'attachment') {
-      const attachment = message.attachment as unknown as { type?: unknown; prompt?: unknown }
+      const attachment = message.attachment
       if (attachment.type === 'queued_command') readText(textOf(attachment.prompt))
     }
   }

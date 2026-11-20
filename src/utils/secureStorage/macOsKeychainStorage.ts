@@ -80,7 +80,7 @@ function migrateRawKeyedEntry(data: SecureStorageData, rawServiceName: string): 
   if (result.exitCode !== 0 && result.exitCode !== 44) {
     logForDebugging(
       `raw-spelling keychain migration: canonical write landed but the raw-keyed delete failed for ${rawServiceName}: exit ${result.exitCode}`,
-      { level: 'warn' as never },
+      { level: 'warn' },
     )
   }
 }
@@ -122,7 +122,7 @@ export const macOsKeychainStorage: SecureStorage = {
     }
     if (previous !== null) {
       logForDebugging('keychain read failed on both spellings; serving the previous value', {
-        level: 'warn' as never,
+        level: 'warn',
       })
       state.cached = { data: previous, cachedAt: Date.now() }
       return previous
@@ -160,7 +160,7 @@ export const macOsKeychainStorage: SecureStorage = {
       const previous = state.cached.data
       if (parsed === null && previous !== null) {
         logForDebugging('keychain async read failed; serving the previous value', {
-          level: 'warn' as never,
+          level: 'warn',
         })
         state.cached = { data: previous, cachedAt: Date.now() }
         state.readInFlight = null
@@ -187,7 +187,7 @@ export const macOsKeychainStorage: SecureStorage = {
       } else {
         logForDebugging(
           `keychain payload of ${commandLine.length} bytes exceeds the stdin line limit; using the argument vector`,
-          { level: 'warn' as never },
+          { level: 'warn' },
         )
         result = runSecurity(['add-generic-password', '-U', '-a', username, '-s', serviceName, '-X', hex])
       }
