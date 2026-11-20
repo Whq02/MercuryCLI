@@ -54,7 +54,7 @@ import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../utils/effort.js'
 import { liveAgentOwner } from './liveAgentOwner.js'
-import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export { liveAgentOwner }
 
@@ -275,28 +275,29 @@ export async function resumeAgentBackground(args: {
     settleSwarmAgent(agentId)
     throw error
   }
-  const latest = await readAgentMetadata(agentId as AgentId).catch(passedOverAs(null))
-  const recordNote = await writeAgentMetadata(agentId as AgentId, recordAfterResume(meta, latest, {
-    fresh: {
-      agentType: definition.agentType,
-      swarm: meta?.swarm === true,
-      ...(worktreePath ? { worktreePath } : {}),
-      ...(cwdPath ? { cwd: cwdPath } : {}),
-      description,
-      ...(launchName ? { name: launchName } : {}),
-      ...(launchedAt !== undefined ? { launchedAt } : {}),
-      ...(meta?.thinkingConfig ? { thinkingConfig: meta.thinkingConfig } : {}),
-      ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
-      ...(instructionProfileOverride
-        ? { instructionProfile: instructionProfileOverride }
-        : {}),
-    },
-    model: restoredModel,
-    effortOverride: restoredEffort,
-  })).then(
-    () => '',
-    (error: unknown) => ` NOTE: the crewmate's record could not be saved (${errorMessage(error)}) — its next resume reads the model, effort and directory recorded before this one.`,
-  )
+  const recordNote = await readAgentMetadata(agentId as AgentId)
+    .then(latest => writeAgentMetadata(agentId as AgentId, recordAfterResume(meta, latest, {
+      fresh: {
+        agentType: definition.agentType,
+        swarm: meta?.swarm === true,
+        ...(worktreePath ? { worktreePath } : {}),
+        ...(cwdPath ? { cwd: cwdPath } : {}),
+        description,
+        ...(launchName ? { name: launchName } : {}),
+        ...(launchedAt !== undefined ? { launchedAt } : {}),
+        ...(meta?.thinkingConfig ? { thinkingConfig: meta.thinkingConfig } : {}),
+        ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
+        ...(instructionProfileOverride
+          ? { instructionProfile: instructionProfileOverride }
+          : {}),
+      },
+      model: restoredModel,
+      effortOverride: restoredEffort,
+    })))
+    .then(
+      () => '',
+      (error: unknown) => ` NOTE: the crewmate's record could not be saved (${errorMessage(error)}) — its next resume reads the model, effort and directory recorded before this one.`,
+    )
 
   const querySource = getQuerySourceForAgent(
     definition.agentType,
