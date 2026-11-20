@@ -9,7 +9,7 @@ import { deserializeLiveMessages } from '../../src/utils/conversationRecovery.ts
 import { normalizeMessages } from '../../src/utils/messages/normalize.ts'
 import { applyGrouping } from '../../src/utils/groupToolUses.ts'
 import { injectTurnReceipts } from '../../src/utils/cockpit/turnReceipt.ts'
-import { collapseReadSearchGroups } from '../../src/utils/collapseReadSearch.ts'
+import { collapseReadSearchGroups } from '../../src/components/messages/collapseReadSearch.ts'
 import { getAllBaseTools } from '../../src/tools.ts'
 import { entryToRecord } from '../../src/fabric/entryCodec.ts'
 

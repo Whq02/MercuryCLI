@@ -1,21 +1,21 @@
 import type { UUID } from 'crypto'
 
-import { findToolByName, safeSearchOrReadClassification, type Tools } from '../Tool.js'
-import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
-import { extractBashCommentLabel } from '../tools/BashTool/commentLabel.js'
-import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
-import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
+import { findToolByName, safeSearchOrReadClassification, type Tools } from '../../Tool.js'
+import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { extractBashCommentLabel } from '../../tools/BashTool/commentLabel.js'
+import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
+import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import {
   detectGitOperation,
   type BranchAction,
   type CommitKind,
   type PrAction,
-} from '../tools/shared/gitOperationTracking.js'
-import { TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
-import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
-import { TASK_GET_TOOL_NAME } from '../tools/TaskGetTool/constants.js'
-import { TASK_LIST_TOOL_NAME } from '../tools/TaskListTool/constants.js'
-import { TASK_UPDATE_TOOL_NAME } from '../tools/TaskUpdateTool/constants.js'
+} from '../../tools/shared/gitOperationTracking.js'
+import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
+import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
+import { TASK_GET_TOOL_NAME } from '../../tools/TaskGetTool/constants.js'
+import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
+import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type {
   CollapsedReadSearchGroup,
   CollapsibleMessage,
@@ -23,17 +23,17 @@ import type {
   NormalizedAssistantMessage,
   NormalizedUserMessage,
   RenderableMessage,
-} from '../types/message.js'
-import type { ToolUseBlock } from '../types/wire.js'
-import { getDisplayPath } from './file.js'
-import { isFullscreenEnvEnabled } from './fullscreen.js'
+} from '../../types/message.js'
+import type { ToolUseBlock } from '../../types/wire.js'
+import { getDisplayPath } from '../../utils/file.js'
+import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import {
   isAutoManagedMemoryFile,
   isAutoManagedMemoryPattern,
   isMnemeFile,
   isMemoryDirectory,
   isShellCommandTargetingMemory,
-} from './memoryFileDetection.js'
+} from '../../utils/memoryFileDetection.js'
 
 
 type SearchOrReadResult = {
