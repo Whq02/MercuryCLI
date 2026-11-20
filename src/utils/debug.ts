@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { memoize } from 'lodash-es'
 
 import { getSessionId } from '../bootstrap/state.js'
-import { readSessionOption } from '../cli/sessionArgs.js'
+import { readSessionOption } from './sessionArgs.js'
 import { renameWithWin32Retry } from '../substrate/durablePublish.js'
 import { createBufferedWriter, type BufferedWriter } from './bufferedWriter.js'
 import { registerCleanup } from './cleanupRegistry.js'

@@ -26,7 +26,7 @@ import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources } 
 import { startMdmRawRead } from './utils/settings/mdm/rawRead.js'
 import { ensureKeychainPrefetchCompleted, startKeychainPrefetch, startWaitNote } from './utils/secureStorage/keychainPrefetch.js'
 import { initSinks } from './utils/sinks.js'
-import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './cli/sessionArgs.js'
+import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './utils/sessionArgs.js'
 import { exitForCommanderError, failCli, PRINT_ONLY_VERBS, USAGE_ERROR_CODES, wantsOutcomeEnvelope, type RootOptions } from './main/cli.js'
 import { addRootOptions } from './main/rootOptions.js'
 import { registerSubcommands } from './main/subcommands.js'
