@@ -10,7 +10,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const policy = await import('../../src/services/compact/autoCompact.ts')
-const { contextFillView } = await import('../../src/utils/contextFill.ts')
+const { contextFillView } = await import('../../src/services/context/contextFill.ts')
 const { contextLeftOutput } = await import('../../src/tools/ContextLeftTool/ContextLeftTool.ts')
 const forecast = await import('../../src/services/cockpit/ctxForecast.ts')
 const { foldAvailability, overflowRefusalText } = await import('../../src/services/compact/overflowRecovery.ts')

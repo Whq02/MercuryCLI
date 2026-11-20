@@ -12,7 +12,7 @@ import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { BoardPostRequestV1, McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { JevStatusKind } from '../jev/jevContract.js'
-import type { ContextFillView } from '../../utils/contextFill.js'
+import type { ContextFillView } from '../context/contextFill.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
 

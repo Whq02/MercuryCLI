@@ -4,7 +4,7 @@ import { createAttachmentMessage } from '../../../utils/attachments/orchestrator
 import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
 import { createCompactBoundaryMessage, createUserMessage } from '../../../utils/messages.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
-import { tokenCountWithEstimation } from '../../../utils/tokens.js'
+import { tokenCountWithEstimation } from '../../context/tokens.js'
 import { getContextEpoch } from '../../run/contextEpochs.js'
 import { buildFoldLedger, renderFoldLedger } from '../foldLedger.js'
 import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'

@@ -23,7 +23,7 @@ import { crewWorktreeLeftoverNoted } from '../../services/crew/crewWorktreeRemin
 import { logForDebugging } from '../../utils/debug.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
 import { calculateUSDCost, modelPricingBasis } from '../../services/usage/modelCost.js'
-import { getTokenCountFromUsage } from '../../utils/tokens.js'
+import { getTokenCountFromUsage } from '../../services/context/tokens.js'
 import { getSpentTokensFromUsage } from '../../utils/tokenUsage.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { consumeAgentMessages, recordAgentMessage } from '../../services/notices/unreadLedger.js'

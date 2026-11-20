@@ -1,7 +1,7 @@
 import type { Message } from '../../types/message.js'
-import { contextFillView, type ContextFillView } from '../contextFill.js'
-import type { ModelName } from '../model/model.js'
-import { withState, type Snapshot } from './types.js'
+import { contextFillView, type ContextFillView } from '../context/contextFill.js'
+import type { ModelName } from '../../utils/model/model.js'
+import { withState, type Snapshot } from '../../utils/cockpit/types.js'
 
 export type ContextGaugeData = {
   usedPct: number | null

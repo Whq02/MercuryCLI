@@ -16,7 +16,7 @@ import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { pathTailLabel } from '../utils/pathLabel.js'
 import { gitSnapshot, type GitData, type Snapshot } from '../services/cockpit/index.js'
-import { contextPercentLabel } from '../utils/contextFill.js'
+import { contextPercentLabel } from '../services/context/contextFill.js'
 import {
   getLiveContextUsage,
   getLiveContextUsageVersion,

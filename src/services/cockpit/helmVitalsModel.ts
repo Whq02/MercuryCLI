@@ -16,7 +16,7 @@ import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords } from '../providers/u
 import { formatLaneSpend } from '../../cost-tracker.js'
 import { crewAgentsOf, crewUsageLine } from '../engine-connector/crewFacts.js'
 import type { WorkRosterV1 } from '../engine-connector/types.js'
-import { contextPercentLabel, contextWindowLabel } from '../../utils/contextFill.js'
+import { contextPercentLabel, contextWindowLabel } from '../context/contextFill.js'
 import type { LiveContextUsage } from './contextUsageLive.js'
 import type { ComposedCertChip } from '../../utils/healthCertCore.js'
 import type { Snapshot } from '../../utils/cockpit/types.js'

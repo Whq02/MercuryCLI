@@ -19,7 +19,7 @@ import {
 } from '../../services/compact/compact.js'
 import { foldModelFor, getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import { awaitContextWindowSource } from '../../services/context/contextWindowWarmup.js'
-import { tokenCountWithEstimation } from '../../utils/tokens.js'
+import { tokenCountWithEstimation } from '../../services/context/tokens.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
 import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'

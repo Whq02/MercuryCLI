@@ -137,7 +137,7 @@ section('§3 fleetGauge — solo reads off; the roster still lists a live execut
 
 section('§4 contextGauge — fresh session is unavailable, never a fake figure')
 {
-  const c = await import('../../src/utils/cockpit/contextGauge.ts')
+  const c = await import('../../src/services/cockpit/contextGauge.ts')
   const fresh = c.contextGauge([] as never, 'claude-opus-5' as never)
   check('fresh ⇒ unavailable', fresh.state === 'unavailable', fresh.state)
   check('reason names the fresh session', /fresh session/.test(fresh.reason ?? ''), fresh.reason)

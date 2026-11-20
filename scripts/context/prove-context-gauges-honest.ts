@@ -25,7 +25,7 @@ section('§1 the quota owner: an unobserved five-hour window is null, never 0%')
 
 section('§2 the fill owner: the absent state is the em dash')
 {
-  const { contextPercentLabel } = await import('../../src/utils/contextFill.ts')
+  const { contextPercentLabel } = await import('../../src/services/context/contextFill.ts')
   check('a null fill prints the em dash, not 0%', contextPercentLabel(null, null) === '—')
   check('a known fill prints its percent', contextPercentLabel(42.4, 'usage') === '42%')
 }

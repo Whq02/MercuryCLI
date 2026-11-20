@@ -51,7 +51,7 @@ bootstrap.setIsInteractive(false)
 const fitModule = await import('../../src/services/api/outputFit.ts').catch(() => null)
 const HEADWAY = 1_000
 const FLOOR = 3_000
-const { messageContextFill } = await import('../../src/utils/tokens.ts')
+const { messageContextFill } = await import('../../src/services/context/tokens.ts')
 const { getContextWindowForModel, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { getMaxOutputTokensForModel } = await import('../../src/services/providers/anthropic/streamCore.ts')
 const ZAI_DOCUMENTED_OUTPUT_CEILING = 131_072

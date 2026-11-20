@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
-import { contextWindowLabel } from '../utils/contextFill.js'
+import { contextWindowLabel } from '../services/context/contextFill.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { useEngineModel } from '../hooks/useEngineModel.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'

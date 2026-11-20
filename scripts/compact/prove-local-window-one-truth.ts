@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/autoCompact.ts src/run-core/turn-machine.ts src/utils/model/capabilities.ts src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/utils/contextFill.ts src/services/cockpit/modelGauge.ts
+// gate-watch: src/services/compact/autoCompact.ts src/run-core/turn-machine.ts src/utils/model/capabilities.ts src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/services/context/contextFill.ts src/services/cockpit/modelGauge.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -106,14 +106,14 @@ bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
 const { resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { getBlockingLimit, calculateTokenWarningState, MANUAL_COMPACT_BUFFER_TOKENS } = await import('../../src/services/compact/autoCompact.ts')
-const { contextFillView } = await import('../../src/utils/contextFill.ts')
+const { contextFillView } = await import('../../src/services/context/contextFill.ts')
 const { modelGauge } = await import('../../src/services/cockpit/modelGauge.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
 const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
 const w = await import('../../src/services/providers/local/localWindow.ts')
-const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')

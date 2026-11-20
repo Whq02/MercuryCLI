@@ -34,7 +34,7 @@ const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/se
 const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
 const { overflowSignalOf } = await import('../../src/services/api/overflowSignal.ts')
 
 type Sig = import('../../src/services/api/overflowSignal.ts').OverflowSignal

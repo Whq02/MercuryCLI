@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto'
 import { getAutoCompactThreshold, getBlockingLimit, getEffectiveContextWindowSize, getTurnReserveTokens, MANUAL_COMPACT_BUFFER_TOKENS, resolveAutoCompactWindow } from '../compact/autoCompact.js'
 import { getDefaultFileReadingLimits } from '../../utils/fileReadLimits.js'
 import { readRequestGauge } from '../run/requestGauge.js'
-import { tokenCountWithEstimation } from '../../utils/tokens.js'
+import { tokenCountWithEstimation } from '../context/tokens.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { bindResultRoom, bindResultRoomRound, createResultRoom, resultRoomBudget, resultRoomFor, resultRoomForRound, type ResultRoom } from '../run/resultRoom.js'
 

@@ -27,7 +27,7 @@ const BRIDGES: Array<[string, string]> = [
   ['utils/cockpit/traceSnapshot', 'traceSnapshot'],
   ['utils/cockpit/gitSnapshot', 'gitSnapshot'],
   ['services/cockpit/modelGauge', 'modelGauge'],
-  ['utils/cockpit/contextGauge', 'contextGauge'],
+  ['services/cockpit/contextGauge', 'contextGauge'],
 ]
 
 let fail = 0
