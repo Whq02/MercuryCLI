@@ -1,19 +1,19 @@
 import type { UUID } from 'node:crypto'
-import { getProjectRoot } from '../bootstrap/state.js'
-import { conversationIdHere } from '../services/engine-connector/focusedConnector.js'
-import { filterResumableSessions } from './sessionResumeFilter.js'
-import { isProjectSession, isSubstantiveSession } from './sessionFilter.js'
-import { errorMessage } from './errors.js'
-import { isSessionCleared } from './sessionStorage/clearedSessions.js'
-import { validateUuid } from './uuid.js'
+import { getProjectRoot } from '../../bootstrap/state.js'
+import { conversationIdHere } from './focusedConnector.js'
+import { filterResumableSessions } from '../../utils/sessionResumeFilter.js'
+import { isProjectSession, isSubstantiveSession } from '../../utils/sessionFilter.js'
+import { errorMessage } from '../../utils/errors.js'
+import { isSessionCleared } from '../../utils/sessionStorage/clearedSessions.js'
+import { validateUuid } from '../../utils/uuid.js'
 import {
   sessionIdOfListing,
   isLiteListing,
   listSessionsAcrossProjects,
   fillSessionListing,
-} from './sessionStorage.js'
-import type { ResumeEntrypoint } from '../commands.js'
-import type { SessionListing } from '../types/logs.js'
+} from '../../utils/sessionStorage.js'
+import type { ResumeEntrypoint } from '../../commands.js'
+import type { SessionListing } from '../../types/logs.js'
 
 type SessionFlipOutcome =
   | { flipped: true }
