@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
+import { useClaim, useDerivedState, useLoad } from '../hooks/effects.js';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useAnthropicLoginModel } from './mercury-ui/screens/anthropicLoginModel.js';
@@ -73,23 +74,23 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const anthropicKeyDraft = useRef('');
   const anthropicKeyRequest = useRef<AbortController | null>(null);
-  useEffect(() => () => { anthropicKeyRequest.current?.abort(); anthropicKeyDraft.current = ''; }, []);
+  useClaim(() => () => { anthropicKeyRequest.current?.abort(); anthropicKeyDraft.current = ''; }, []);
   const refreshFacts = (): void => {
     if (given === undefined) setFacts(collectLoginsScreenFacts());
   };
   const signInEpoch = useSignInEpoch();
   const mountSignInEpoch = useRef(signInEpoch);
-  useEffect(() => {
+  useDerivedState(() => {
     if (signInEpoch === mountSignInEpoch.current) return;
     if (given === undefined) setFacts(collectLoginsScreenFacts());
   }, [signInEpoch, given]);
   const catalogueEpoch = useCatalogueEpoch();
   const mountCatalogueEpoch = useRef(catalogueEpoch);
-  useEffect(() => {
+  useLoad(() => {
     if (given !== undefined) return;
     resolveProviderUsability(undefined, { fetchCatalogues: true });
   }, [given]);
-  useEffect(() => {
+  useDerivedState(() => {
     if (catalogueEpoch === mountCatalogueEpoch.current) return;
     if (given === undefined) setFacts(collectLoginsScreenFacts());
   }, [catalogueEpoch, given]);

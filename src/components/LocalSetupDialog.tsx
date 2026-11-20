@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useClaim, useLayoutClaim, useLayoutPublish, useLoad } from '../hooks/effects.js'
 import { LOCAL_SETUP_CHOOSE_LINE, LOCAL_SETUP_CHOOSE_TITLE, LOCAL_SETUP_CURSOR, LOCAL_SETUP_PULL_TITLE } from '../commands/localsetup/words.js'
 import { Box, Text, useInput } from '../ink.js'
 import { POPUP_PAGE_HINT, usePopupListNavigation } from './CustomSelect/popup-list.js'
@@ -389,7 +390,7 @@ export function LocalSetupDialog({
     stateRef.current = next
     setState(next)
   }, [])
-  useEffect(() => {
+  useLoad(() => {
     let live = true
     const controller = new AbortController()
     controllerRef.current = controller
@@ -422,15 +423,15 @@ export function LocalSetupDialog({
     }
   }, [road, dispatch])
   const line = localSetupLine(state)
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     onLine?.(line)
   }, [line, onLine])
   const hint = localSetupHint(state)
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     onHint?.(hint)
     return () => onHint?.(null)
   }, [hint, onHint])
-  useEffect(() => {
+  useClaim(() => {
     onOwnsEscape?.(true)
     return () => onOwnsEscape?.(false)
   }, [onOwnsEscape])

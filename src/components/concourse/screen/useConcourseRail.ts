@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDerivedState } from '../../../hooks/effects.js'
 import { stableSelectionFallback } from '../contracts.js'
 import type { ScreenProps } from './state.js'
 
@@ -9,7 +10,7 @@ export function useConcourseRail({ snapshot, presentationCapsule }: Pick<ScreenP
   const railSelRef = useRef<string | null>(railSel)
   railSelRef.current = railSel
   const railLastIdxRef = useRef(0)
-  useEffect(() => {
+  useDerivedState(() => {
     const fb = stableSelectionFallback(
       snapshot.needsYou.map(o => o.obligationId),
       railSel,

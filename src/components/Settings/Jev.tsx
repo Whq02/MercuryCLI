@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import { useClaim, useLayoutPublish } from '../../hooks/effects.js'
 import { Box, Text, useInput, wrapText } from '../../ink.js'
 import { PopupForm } from '../PopupForm.js'
 import { usePopupListPaging } from '../CustomSelect/popup-list.js'
@@ -292,11 +293,11 @@ export function Jev({
   const [receipt, setReceipt] = useState<JevReceipt | null>(null)
   const facts = jevFacts()
   const line = jevPopupLine(facts)
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     onLine?.(line)
   }, [line, onLine])
   const entryOpen = entry !== null
-  useEffect(() => {
+  useClaim(() => {
     onOwnsEscape?.(entryOpen)
     return () => onOwnsEscape?.(false)
   }, [entryOpen, onOwnsEscape])

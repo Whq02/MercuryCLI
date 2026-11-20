@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad } from '../hooks/effects.js'
 import { Select } from './CustomSelect/index.js'
 import { openBrowser } from '../utils/browser.js'
 import { setClipboard } from '../ink/termio/osc.js'
@@ -40,7 +41,7 @@ export function MetaConnect({ onResult, onBack }: {
     settled.current = true
     onResult(result)
   }
-  useEffect(() => {
+  useLoad(() => {
     if (step !== 'device') return
     let disposed = false
     void runMetaDeviceLogin({
