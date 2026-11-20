@@ -87,6 +87,38 @@ async function main(): Promise<void> {
     const created = await overrides.setAgentDisabled('user', WORK, 'other', true)
     check('absent file still writes cleanly', created.disabled.includes('other'))
   })
+
+  await runRow('store: appendReceipt keeps history when receipts unreadable and restore reports unreadable trashDir', async () => {
+    const store = await import('../../src/services/agents/store.js')
+    const codec = await import('../../src/services/agents/codec.js')
+    const receipts = join(HOME, 'agent-receipts.jsonl')
+    const prior = JSON.stringify({ kind: 'save', path: '/prior', at: '2026-01-01T00:00:00Z' }) + '\n'
+    const trash = join(HOME, 'agent-trash')
+
+    if (POSIX_MODES) {
+      writeFileSync(receipts, prior, { mode: 0o600 })
+      chmodSync(receipts, 0o200)
+      const doc = codec.decodeAgentDocument('---\nname: receipt-probe\ndescription: probe\n---\nbody\n', join(HOME, 'agents', 'receipt-probe.md'))
+      try {
+        await store.saveAgentDocument({ kind: 'new', scope: 'user', cwd: WORK, slug: 'receipt-probe' }, doc)
+      } finally {
+        chmodSync(receipts, 0o600)
+      }
+      check('unreadable receipts file keeps prior history intact', readFileSync(receipts, 'utf8') === prior)
+
+      mkdirSync(trash, { recursive: true })
+      chmodSync(trash, 0o000)
+      let errCode: string | undefined
+      try {
+        await store.restoreAgentFromTrash('missing-or-unreadable')
+      } catch (e) {
+        errCode = e instanceof store.AgentStoreError ? e.code : undefined
+      } finally {
+        chmodSync(trash, 0o700)
+      }
+      check('restoreAgentFromTrash reports io error instead of source-missing when trash dir is unreadable', errCode === 'io', `got ${errCode}`)
+    }
+  })
 }
 
 try {
