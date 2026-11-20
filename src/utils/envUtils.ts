@@ -7,7 +7,6 @@ import { memoize } from 'lodash-es'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from '../cli/sessionArgs.js'
-import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
 
 
@@ -64,27 +63,20 @@ export function getAuthConfigHomeDir(): string {
 
 export function ensurePrivateConfigHome(): void {
   if (process.platform === 'win32') return
-  let chmodFailure: NodeJS.ErrnoException | null = null
-  try {
-    const home = getMercuryHome()
-    if (!existsSync(home)) {
-      mkdirSync(home, { recursive: true, mode: 0o700 })
-      return
-    }
-    const permissionBits = statSync(home).mode & 0o777
-    if ((permissionBits & 0o077) !== 0) {
-      try {
-        chmodSync(home, permissionBits & 0o700)
-      } catch (failure) {
-        chmodFailure = failure as NodeJS.ErrnoException
-      }
-    }
-  } catch (error) {
-    passedOver(error)
+  const home = getMercuryHome()
+  if (!existsSync(home)) {
+    mkdirSync(home, { recursive: true, mode: 0o700 })
+    return
   }
-  if (chmodFailure === null) return
-  const shown = displayConfigHome()
-  throw new Error(`the config home ${shown} could not be made private to you (${chmodFailure.code ?? chmodFailure.message}), so other users of this machine can read it — make it yours and run: chmod 700 ${shown}`)
+  const permissionBits = statSync(home).mode & 0o777
+  if ((permissionBits & 0o077) === 0) return
+  try {
+    chmodSync(home, permissionBits & 0o700)
+  } catch (failure) {
+    const err = failure as NodeJS.ErrnoException
+    const shown = displayConfigHome()
+    throw new Error(`the config home ${shown} could not be made private to you (${err.code ?? err.message}), so other users of this machine can read it — make it yours and run: chmod 700 ${shown}`)
+  }
 }
 
 export function displayConfigHome(): string {

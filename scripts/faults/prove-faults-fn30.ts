@@ -76,6 +76,31 @@ try {
       check('editorExtensionPackage unreadable extensions dir throws EACCES', code === 'EACCES', `got ${String(code)}`)
     }
   }
+
+  {
+    const envUtils = await import('../../src/utils/envUtils.js')
+    if (!POSIX_MODES) {
+      skip('envUtils.ensurePrivateConfigHome unreadable parent throws', 'needs non-root POSIX')
+    } else {
+      const lockedParent = join(scratch, 'locked-parent')
+      const blockedHome = join(lockedParent, 'mercury-home')
+      mkdirSync(lockedParent, { recursive: true })
+      chmodSync(lockedParent, 0o000)
+      cleanupTasks.push(() => { try { chmodSync(lockedParent, 0o700) } catch {} })
+      const prevDir = process.env.MERCURY_CONFIG_DIR
+      process.env.MERCURY_CONFIG_DIR = blockedHome
+      let code: string | null = null
+      try {
+        envUtils.ensurePrivateConfigHome()
+      } catch (err) {
+        code = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
+      } finally {
+        process.env.MERCURY_CONFIG_DIR = prevDir
+        chmodSync(lockedParent, 0o700)
+      }
+      check('envUtils.ensurePrivateConfigHome unreadable parent throws EACCES', code === 'EACCES', `got ${String(code)}`)
+    }
+  }
 } finally {
   for (const fn of cleanupTasks.reverse()) fn()
   rmSync(scratch, { recursive: true, force: true })
