@@ -3,9 +3,9 @@
 # gate-watch: docs/releases/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-. "$(dirname "$0")/../lib/proof-runner.sh"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 here="$(cd "$(dirname "$0")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
 fails=0
 say() { printf '%s\n' "$*"; }
 check() {
@@ -113,20 +113,7 @@ lib_chain="$(sed -n '/^mercury_resolve_home()/,/^}/p' "$here/lib/mercury-home.sh
 launcher_chain="$(sed -n '/^mercury_resolve_home()/,/^}/p' "$here/launcher-mercury.sh")"
 [ -n "$lib_chain" ] && [ "$lib_chain" = "$launcher_chain" ]; check 'launcher inline resolver is byte-identical to lib/mercury-home.sh' $?
 
-say '— the release-day typed-id check over recorded lists —'
-run_proof scripts/ops/prove-typed-model-ids.ts "$bun" run "$here/prove-typed-model-ids.ts"; check 'typed model ids: the check reads recorded lists, probes a family without one only behind its flag, and judges every typed id' $?
-
-say '— the release-day client-contract clock —'
-run_proof scripts/ops/prove-client-contract-clock.ts "$bun" run "$here/prove-client-contract-clock.ts"; check 'client contract: the checked date covers the release day' $?
-
-say '— the release-day Nous client-contract clock —'
-run_proof scripts/ops/prove-nous-client-contract-clock.ts "$bun" run "$here/prove-nous-client-contract-clock.ts"; check 'Nous client contract: the checked date covers the release day' $?
-
-say '— the release-day Antigravity client-contract clock —'
-run_proof scripts/ops/prove-antigravity-client-contract-clock.ts "$bun" run "$here/prove-antigravity-client-contract-clock.ts"; check 'Antigravity client contract: the checked date covers the release day' $?
-
-say '— the deploy skips a launcher it does not own —'
-run_proof scripts/ops/prove-deploy-launcher-step.ts "$bun" run "$here/prove-deploy-launcher-step.ts"; check 'deploy launcher step: a shim that is not ours is skipped quietly; ours is managed; an old one of ours still refuses' $?
+drive_members ops 'scripts/ops/$name' "$here/members.txt" || fails=$((fails + 1))
 
 say '— workspace backup round-trip (hermetic fixture) —'
 fixrepo="$(mktemp -d /tmp/ops-proof-repo-XXXXXX)"
