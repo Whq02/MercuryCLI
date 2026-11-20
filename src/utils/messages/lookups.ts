@@ -93,7 +93,7 @@ function recoveryTracker(recovered: Set<string>): (row: NormalizedMessage) => vo
   const pending: string[] = []
   return row => {
     if (row.type === 'assistant') {
-      if (isContinuableStreamFaultMessage(row as unknown as AssistantMessage)) pending.push(row.uuid)
+      if (isContinuableStreamFaultMessage(row)) pending.push(row.uuid)
       return
     }
     if (!pending.length) return

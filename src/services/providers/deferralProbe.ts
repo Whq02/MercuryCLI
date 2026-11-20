@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import type { AnthropicMessageParams } from './anthropic/anthropicWire.js'
+import type { OpenaiResponsesRequest } from './openai/openaiWire.js'
 
 type GatewayProbeVerdict =
   | 'block'
@@ -185,7 +186,7 @@ export function openaiGatewayProbeKey(host: string): string {
 
 export const OPENAI_NATIVE_DEFERRAL_REFUSAL = /defer_loading|tool_search/i
 
-export function openaiGatewayProbeBody(model: string): Record<string, unknown> {
+export function openaiGatewayProbeBody(model: string): OpenaiResponsesRequest {
   return {
     model,
     instructions: 'Reply with the single word ok.',
@@ -219,7 +220,7 @@ export function classifyOpenaiGatewayProbe(answer: GatewayProbeAnswer): GatewayP
 
 export async function ensureOpenaiGatewayProbe(
   host: string,
-  send: (body: Record<string, unknown>) => Promise<GatewayProbeAnswer>,
+  send: (body: OpenaiResponsesRequest) => Promise<GatewayProbeAnswer>,
   model: string,
 ): Promise<GatewayProbeClassification | null> {
   const key = openaiGatewayProbeKey(host)
