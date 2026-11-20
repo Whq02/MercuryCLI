@@ -391,6 +391,32 @@ async function runSessionFlip(): Promise<void> {
   )
 }
 
+async function runAgentTranscript(): Promise<void> {
+  console.log('\nsessionStorage/loading + logs — getAgentTranscript throws on unreadable transcript instead of null')
+  if (!POSIX_MODES) return
+  const { asAgentId } = await import('../../src/types/ids.ts')
+  const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
+  const missingId = asAgentId('fn33-missing-agent')
+  check('getAgentTranscript returns null when transcript is absent', (await getAgentTranscript(missingId)) === null)
+
+  const lockedId = asAgentId('fn33-locked-agent')
+  const lockedPath = getAgentTranscriptPath(lockedId)
+  mkdirSync(join(lockedPath, '..'), { recursive: true })
+  writeFileSync(lockedPath, '{"type":"user"}\n', { mode: 0o600 })
+  chmodSync(lockedPath, 0o000)
+  let threwCode: string | null = null
+  try {
+    await getAgentTranscript(lockedId)
+  } catch (error) {
+    threwCode = (error as NodeJS.ErrnoException | null)?.code ?? 'THREW'
+  } finally {
+    chmodSync(lockedPath, 0o600)
+    rmSync(lockedPath, { force: true })
+  }
+  check('getAgentTranscript throws EACCES when transcript exists and is unreadable', threwCode === 'EACCES', String(threwCode))
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
@@ -403,6 +429,7 @@ try {
   await runSessionEnvironment()
   await runClearedSessions()
   await runSessionFlip()
+  await runAgentTranscript()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
