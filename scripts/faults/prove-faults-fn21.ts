@@ -136,6 +136,68 @@ async function run(): Promise<void> {
     }
     check('adapter-serve-rememberChild-rejects-on-failure', rememberErr !== null, 'swallowed startToken failure silently')
   }
+
+  const tfServe = await import('../../src/services/tensorfold/serve.ts')
+  {
+    const servedDir = join(SCRATCH, 'tf-serve')
+    mkdirSync(servedDir, { recursive: true })
+    const corruptFile = join(servedDir, 'corrupt-served.json')
+    writeFileSync(corruptFile, '{"repo": "broken', 'utf8')
+    let stopCorruptErr: unknown = null
+    try {
+      await tfServe.stopTensorFold('qwen', { servedFile: corruptFile })
+    } catch (err) {
+      stopCorruptErr = err
+    }
+    check('tensorfold-serve-stop-corrupt-record-throws', stopCorruptErr !== null, 'stopTensorFold returned silently on corrupt served.json')
+
+    let startCorruptErr: unknown = null
+    try {
+      await tfServe.startTensorFold(
+        { repo: 'org/model', window: 32768 },
+        {
+          binary: '/bin/true',
+          servedFile: corruptFile,
+          machine: { platform: 'linux', ramBytes: 64 * 1024 ** 3, usableBytes: 48 * 1024 ** 3, usableSource: 'cuda', chip: 'test' },
+          freeMemoryBytes: async () => 48 * 1024 ** 3,
+        },
+      )
+    } catch (err) {
+      startCorruptErr = err
+    }
+    check(
+      'tensorfold-serve-start-corrupt-record-refuses',
+      startCorruptErr instanceof SyntaxError && readFileSync(corruptFile, 'utf8') === '{"repo": "broken',
+      `err=${String(startCorruptErr)}`,
+    )
+
+    if (POSIX_NON_ROOT) {
+      const lockedFile = join(servedDir, 'locked-served.json')
+      writeFileSync(lockedFile, '{"repo":"org/m","name":"m","port":8080,"window":32768,"pid":1,"startedAt":"2026-01-01T00:00:00Z","project":"/tmp"}\n', 'utf8')
+      chmodSync(lockedFile, 0o000)
+      let stopLockedErr: unknown = null
+      try {
+        await tfServe.stopTensorFold('m', { servedFile: lockedFile })
+      } catch (err) {
+        stopLockedErr = err
+      }
+      chmodSync(lockedFile, 0o600)
+      check('tensorfold-serve-stop-eacces-record-throws', stopLockedErr !== null, 'stopTensorFold returned silently on unreadable served.json')
+    } else {
+      skip('tensorfold-serve-stop-eacces-record-throws', 'needs POSIX non-root')
+    }
+
+    const nullFile = join(servedDir, 'null-served.json')
+    writeFileSync(nullFile, 'null\n', 'utf8')
+    let stopNullErr: unknown = null
+    try {
+      await tfServe.stopTensorFold('m', { servedFile: nullFile })
+      await tfServe.stopTensorFold('m', { servedFile: join(servedDir, 'absent.json') })
+    } catch (err) {
+      stopNullErr = err
+    }
+    check('tensorfold-serve-stop-null-and-absent-control', stopNullErr === null, `err=${String(stopNullErr)}`)
+  }
 }
 
 try {
