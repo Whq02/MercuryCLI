@@ -590,5 +590,24 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   )
 }
 
+{
+  const rLogo = runIsolated(`
+    const { mock } = await import('bun:test')
+    const router = await import(${JSON.stringify(join(SRC, 'services/providers/callModelRouter.ts'))})
+    mock.module(${JSON.stringify(join(SRC, 'services/providers/callModelRouter.ts'))}, () => ({
+      ...router,
+      declaredRouteOf: () => { throw new Error('route lookup failed') },
+    }))
+    const { getLogoDisplayData } = await import(${JSON.stringify(join(SRC, 'utils/logoV2Utils.ts'))})
+    out.data = getLogoDisplayData()
+  `)
+  const billing = String((rLogo.data as { billingType?: string })?.billingType ?? '')
+  check(
+    'logoV2Utils: getLogoDisplayData reports billing could not be read when route lookup throws instead of API usage billing',
+    billing === 'billing could not be read (route lookup failed)',
+    billing,
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
