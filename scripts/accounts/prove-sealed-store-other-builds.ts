@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmdirSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'sealed-store-other-builds-')))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -150,17 +151,23 @@ const world = (): string => {
   return at
 }
 
+const linkType = process.platform === 'win32' ? 'junction' : 'dir'
+const removeAlias = (alias: string): void => {
+  if (process.platform === 'win32') rmdirSync(alias)
+  else unlinkSync(alias)
+}
+
 section('§1 an older build alive through a folder alias, the alias then moved to this build')
 {
   const at = world()
   const other = payload(join(at, 'payloads', 'older'), OTHER_BUILD, OTHER_MARK)
   payload(join(at, 'payloads', 'this'), THIS_BUILD, THIS_MARK)
   const alias = join(at, 'current')
-  symlinkSync(join(at, 'payloads', 'older'), alias, 'dir')
+  symlinkSync(join(at, 'payloads', 'older'), alias, linkType)
   const older = await startAlive(join(alias, 'mercury.mjs'))
   check('a process of the older build is alive, started through the alias', older.loaded === 'another-build' && other.endsWith('mercury.mjs') && older.startToken !== null, JSON.stringify(older.args))
-  unlinkSync(alias)
-  symlinkSync(join(at, 'payloads', 'this'), alias, 'dir')
+  removeAlias(alias)
+  symlinkSync(join(at, 'payloads', 'this'), alias, linkType)
   const result = startThisBuild(join(alias, 'mercury.mjs'), join(at, 'home'), [older])
   check('this build, started through the moved alias, does not take that process for its own build: its bundle is named through a link', plainFor(result, /^process \d+ names its bundle by a path that is not its real path \(.*current.mercury\.mjs\)$/), said(result))
   check('the older process is still alive, and the store it reads is still plain', stillAlive(older) && result?.sealed === false, said(result))
@@ -174,11 +181,11 @@ section('§2 the other way: the alias rolled back to this build while a window o
   utimesSync(mine, longAgo, longAgo)
   payload(join(at, 'payloads', 'newer'), OTHER_BUILD, OTHER_MARK)
   const alias = join(at, 'current')
-  symlinkSync(join(at, 'payloads', 'newer'), alias, 'dir')
+  symlinkSync(join(at, 'payloads', 'newer'), alias, linkType)
   const window = await startAlive(join(alias, 'mercury.mjs'))
   windowRecord(join(at, 'home'), window, OTHER_MARK)
-  unlinkSync(alias)
-  symlinkSync(join(at, 'payloads', 'this'), alias, 'dir')
+  removeAlias(alias)
+  symlinkSync(join(at, 'payloads', 'this'), alias, linkType)
   const result = startThisBuild(join(alias, 'mercury.mjs'), join(at, 'home'), [window])
   check('that window wrote its own build mark when it loaded, and the mark is not this build\'s: the file stays plain', plainFor(result, new RegExp(`^another Mercury build is running \\(process ${window.pid}, build ${OTHER_MARK}\\)$`)), said(result))
   check('the window is still alive', stillAlive(window))
@@ -228,7 +235,7 @@ section('§5 what must still seal')
 
   const linked = world()
   const real = payload(join(linked, 'payloads', 'this'), THIS_BUILD, THIS_MARK)
-  symlinkSync(join(linked, 'payloads', 'this'), join(linked, 'current'), 'dir')
+  symlinkSync(join(linked, 'payloads', 'this'), join(linked, 'current'), linkType)
   mkdirSync(join(linked, 'home'), { recursive: true })
   const window = await startAlive(join(linked, 'current', 'mercury.mjs'), ['window'], join(linked, 'home'))
   const registered = window.registration === null ? {} : (JSON.parse(readFileSync(window.registration, 'utf8')) as Record<string, unknown>)
@@ -238,7 +245,7 @@ section('§5 what must still seal')
 
   const unrecorded = world()
   const direct = payload(join(unrecorded, 'payloads', 'this'), THIS_BUILD, THIS_MARK)
-  symlinkSync(join(unrecorded, 'payloads', 'this'), join(unrecorded, 'current'), 'dir')
+  symlinkSync(join(unrecorded, 'payloads', 'this'), join(unrecorded, 'current'), linkType)
   const headless = await startAlive(join(unrecorded, 'current', 'mercury.mjs'), ['stay'])
   const unknown = startThisBuild(direct, join(unrecorded, 'home'), [headless])
   check('the cost, said: a process of this build that wrote no record and was started through a link is unknown, and the file stays plain while it lives', plainFor(unknown, /^process \d+ names its bundle by a path that is not its real path/), said(unknown))
@@ -248,9 +255,12 @@ section('§5 what must still seal')
   check('and once it has ended, the next start seals', sealedFor(afterwards), said(afterwards))
 }
 
-for (const child of running) {
-  if (child.exitCode === null && child.signalCode === null) child.kill()
-}
-rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 3 })
+await Promise.all(running.map(child => {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
+  const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
+  child.kill()
+  return Promise.race([closed, new Promise<void>(resolve => setTimeout(resolve, 3000))])
+}))
+removeScratch(SCRATCH)
 console.log(failures === 0 ? `\nALL ${total} CHECKS PASS` : `\n${failures} OF ${total} CHECKS FAILED`)
 process.exit(failures === 0 ? 0 : 1)

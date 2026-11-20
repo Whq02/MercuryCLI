@@ -32,7 +32,10 @@ if (process.argv[2] !== '--home') {
       const env: Record<string, string | undefined> = { ...process.env }
       delete env.USERPROFILE
       delete env.HOME
-      if (home !== undefined) env.HOME = home
+      if (home !== undefined) {
+        env.HOME = home
+        if (process.platform === 'win32') env.USERPROFILE = home
+      }
       env.MERCURY_CONFIG_DIR = join(configScratch, 'home')
       env.MERCURY_CREDENTIAL_STORE = 'file'
       env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -76,6 +79,8 @@ const refusal = (command: string): WardVerdict => evaluateWards(REFUSAL_WARDS, b
 
 check('the autonomous delete-ward is armed (MERCURY_SPAWNED_BY set)', deleteWardActive())
 
+const bashPath = (path: string): string => (process.platform === 'win32' ? path.replaceAll('\\', '/') : path)
+
 if (shape === 'relocated') {
   check('the relocated home is spelled under neither /Users nor /home', !spelledHome(relocatedHome) && homedir() === relocatedHome, `${relocatedHome} · homedir ${homedir()}`)
   const homeReal = realpathSync(relocatedHome)
@@ -91,25 +96,25 @@ if (shape === 'relocated') {
   const outsideReal = realpathSync(outside)
   const resolveInProject = makeTargetResolver(projectReal)
 
-  const absoluteInside = `rm -rf ${join(projectReal, 'scratch-dir', 'zzz-test')}`
+  const absoluteInside = `rm -rf ${bashPath(join(projectReal, 'scratch-dir', 'zzz-test'))}`
   check('the string road alone wards an absolute delete under the resolved home spelling (nothing to resolve against)', wardedBy(autonomous(absoluteInside), 'no-home-recursive-delete'), holeOf(autonomous(absoluteInside)))
-  check('the string road alone wards an absolute delete under the home as given', wardedBy(autonomous(`rm -rf ${join(relocatedHome, 'stuff')}`), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf ${join(relocatedHome, 'stuff')}`)))
+  check('the string road alone wards an absolute delete under the home as given', wardedBy(autonomous(`rm -rf ${bashPath(join(relocatedHome, 'stuff'))}`), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf ${bashPath(join(relocatedHome, 'stuff'))}`)))
   check('with the resolver the in-project absolute delete passes', autonomous(absoluteInside, resolveInProject).allow, ruleOf(autonomous(absoluteInside, resolveInProject)))
-  check('the quoted in-project spelling passes too', autonomous(`rm -rf "${join(projectReal, 'scratch-dir', 'zzz-test')}"`, resolveInProject).allow)
+  check('the quoted in-project spelling passes too', autonomous(`rm -rf "${bashPath(join(projectReal, 'scratch-dir', 'zzz-test'))}"`, resolveInProject).allow)
   check('the relative in-project spelling passes', autonomous('rm -rf scratch-dir/zzz-test', resolveInProject).allow)
-  check('the same delete OUTSIDE the project, under the home, stays warded', wardedBy(autonomous(`rm -rf ${outsideReal}`, resolveInProject), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf ${outsideReal}`, resolveInProject)))
-  check('the quoted outside delete stays warded', wardedBy(autonomous(`rm -rf "${outsideReal}"`, resolveInProject), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf "${outsideReal}"`, resolveInProject)))
-  check('a recursive delete of the home itself, as given, stays warded', !autonomous(`rm -rf ${relocatedHome}`, resolveInProject).allow, holeOf(autonomous(`rm -rf ${relocatedHome}`, resolveInProject)))
-  check('a recursive delete of the home itself, as resolved, stays warded', !autonomous(`rm -rf ${homeReal}`, resolveInProject).allow, holeOf(autonomous(`rm -rf ${homeReal}`, resolveInProject)))
-  const escape = `rm -rf ${join(projectReal, '..', 'escape-target')}`
+  check('the same delete OUTSIDE the project, under the home, stays warded', wardedBy(autonomous(`rm -rf ${bashPath(outsideReal)}`, resolveInProject), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf ${bashPath(outsideReal)}`, resolveInProject)))
+  check('the quoted outside delete stays warded', wardedBy(autonomous(`rm -rf "${bashPath(outsideReal)}"`, resolveInProject), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf "${bashPath(outsideReal)}"`, resolveInProject)))
+  check('a recursive delete of the home itself, as given, stays warded', !autonomous(`rm -rf ${bashPath(relocatedHome)}`, resolveInProject).allow, holeOf(autonomous(`rm -rf ${bashPath(relocatedHome)}`, resolveInProject)))
+  check('a recursive delete of the home itself, as resolved, stays warded', !autonomous(`rm -rf ${bashPath(homeReal)}`, resolveInProject).allow, holeOf(autonomous(`rm -rf ${bashPath(homeReal)}`, resolveInProject)))
+  const escape = `rm -rf ${bashPath(join(projectReal, '..', 'escape-target'))}`
   check('a ..-escape out of the project stays warded', !autonomous(escape, resolveInProject).allow, holeOf(autonomous(escape, resolveInProject)))
-  check('find <in-project path> -delete passes', autonomous(`find ${join(projectReal, 'scratch-dir')} -name "*.log" -delete`, resolveInProject).allow)
-  const findOutside = `find ${outsideReal} -name "*.log" -delete`
+  check('find <in-project path> -delete passes', autonomous(`find ${bashPath(join(projectReal, 'scratch-dir'))} -name "*.log" -delete`, resolveInProject).allow)
+  const findOutside = `find ${bashPath(outsideReal)} -name "*.log" -delete`
   check('find <outside path under the home> -delete stays warded', wardedBy(autonomous(findOutside, resolveInProject), 'no-home-recursive-delete'), holeOf(autonomous(findOutside, resolveInProject)))
 
-  const wholeHome = [refusal(`rm -rf ${homeReal}`), refusal(`rm -rf ${relocatedHome}/`), refusal(`rm -rf "${homeReal}/*"`)]
+  const wholeHome = [refusal(`rm -rf ${bashPath(homeReal)}`), refusal(`rm -rf ${bashPath(relocatedHome)}/`), refusal(`rm -rf "${bashPath(homeReal)}/*"`)]
   check('the refusal list refuses the home itself wherever it is (operator sessions included)', wholeHome.every(verdict => wardedBy(verdict, 'no-root-recursive-delete')), wholeHome.map(holeOf).join(' · '))
-  check('the refusal list leaves a folder inside the home to the autonomous ward and the card (operator hands stay free)', refusal(`rm -rf ${join(projectReal, 'build')}`).allow && refusal(`rm -rf ${outsideReal}`).allow)
+  check('the refusal list leaves a folder inside the home to the autonomous ward and the card (operator hands stay free)', refusal(`rm -rf ${bashPath(join(projectReal, 'build'))}`).allow && refusal(`rm -rf ${bashPath(outsideReal)}`).allow)
 
   const store = { state: { sessionHooks: new Map() }, set(fn: (p: never) => never) { this.state = fn(this.state) } }
   resetWardsEngagedSessionsForTest()
@@ -128,11 +133,11 @@ if (shape === 'relocated') {
   const shown = (verdict: string | true): string => (verdict === true ? 'ALLOWED (hole!)' : verdict.slice(0, 90))
   const insideVerdict = await judge(absoluteInside)
   check('the hook road lets the in-project absolute delete through (the card decides)', insideVerdict === true, insideVerdict === true ? '' : insideVerdict.slice(0, 90))
-  const outsideVerdict = await judge(`rm -rf ${outsideReal}`)
+  const outsideVerdict = await judge(`rm -rf ${bashPath(outsideReal)}`)
   check('the hook road wards the outside delete under the relocated home', typeof outsideVerdict === 'string' && outsideVerdict.includes("Ward 'no-home-recursive-delete'"), shown(outsideVerdict))
-  const homeVerdict = await judge(`rm -rf ${relocatedHome}`)
+  const homeVerdict = await judge(`rm -rf ${bashPath(relocatedHome)}`)
   check('the hook road refuses a delete of the whole relocated home as given', typeof homeVerdict === 'string' && homeVerdict.includes("Ward 'no-root-recursive-delete'"), shown(homeVerdict))
-  const homeRealVerdict = await judge(`rm -rf ${homeReal}/`)
+  const homeRealVerdict = await judge(`rm -rf ${bashPath(homeReal)}/`)
   check('the hook road refuses a delete of the whole relocated home as resolved', typeof homeRealVerdict === 'string' && homeRealVerdict.includes("Ward 'no-root-recursive-delete'"), shown(homeRealVerdict))
   const escapeVerdict = await judge(escape)
   check('the hook road wards the ..-escape', typeof escapeVerdict === 'string' && escapeVerdict.includes("Ward 'no-home-recursive-delete'"), shown(escapeVerdict))
@@ -181,8 +186,8 @@ if (shape === 'unset') {
   check('HOME is unset and the product still names a home (the account entry)', process.env.HOME === undefined && accountHome !== undefined && accountHome !== '', accountHome ?? 'none')
   check("the guard's home spellings follow that door, not the environment", accountHome !== undefined && homeSpellings()[0] === accountHome, homeSpellings().join(' · '))
   if (accountHome !== undefined) {
-    check('a recursive delete under that home is warded without a resolver', wardedBy(autonomous(`rm -rf ${join(accountHome, 'ward-proof-decoy')}`), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf ${join(accountHome, 'ward-proof-decoy')}`)))
-    check('the refusal list refuses that home itself', wardedBy(refusal(`rm -rf ${accountHome}`), 'no-root-recursive-delete'), holeOf(refusal(`rm -rf ${accountHome}`)))
+    check('a recursive delete under that home is warded without a resolver', wardedBy(autonomous(`rm -rf ${bashPath(join(accountHome, 'ward-proof-decoy'))}`), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf ${bashPath(join(accountHome, 'ward-proof-decoy'))}`)))
+    check('the refusal list refuses that home itself', wardedBy(refusal(`rm -rf ${bashPath(accountHome)}`), 'no-root-recursive-delete'), holeOf(refusal(`rm -rf ${bashPath(accountHome)}`)))
   }
 }
 

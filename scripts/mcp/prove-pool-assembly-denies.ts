@@ -1,8 +1,16 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync, mkdirSync } from 'node:fs'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
+
+async function stopChild(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return
+  const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
+  child.kill()
+  await Promise.race([closed, new Promise<void>(resolve => setTimeout(resolve, 3000))])
+}
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'pool-denies-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -79,7 +87,7 @@ section('§4 THE SERVE SURFACE LIVE')
         }
       }
     }
-    child.kill()
+    await stopChild(child)
     check('the serve surface answered tools/list', toolNames !== null, `${lines.length} lines`)
     if (toolNames) {
       check(
@@ -89,7 +97,7 @@ section('§4 THE SERVE SURFACE LIVE')
       )
       check('undenied siblings still are', toolNames.includes('Read'))
     }
-    rmSync(projDir, { recursive: true, force: true })
+    removeScratch(projDir)
   }
 }
 
@@ -172,13 +180,13 @@ section('§5 CALL-TIME ENFORCEMENT LIVE (the second symptom: containment)')
       !existsSync(join(projDir, 'bash-marker.txt')),
     )
 
-    child.kill()
-    rmSync(projDir, { recursive: true, force: true })
-    rmSync(outsideDir, { recursive: true, force: true })
+    await stopChild(child)
+    removeScratch(projDir)
+    removeScratch(outsideDir)
   }
 }
 
-rmSync(HOME, { recursive: true, force: true })
+removeScratch(HOME)
 if (failures > 0) {
   console.error(`\nprove-pool-assembly-denies: ${failures} FAILURE(S)`)
   process.exit(1)

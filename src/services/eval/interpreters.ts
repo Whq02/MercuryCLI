@@ -11,6 +11,7 @@ import {
 } from './contracts.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { venvPythonPath } from '../../utils/platform/programs.js'
 
 const PROBE_TTL_MS = 30_000
 const PROBE_TIMEOUT_MS = 4_000
@@ -81,13 +82,10 @@ export function pythonCandidates(cwd: string, env: NodeJS.ProcessEnv = hostEnv()
   if (explicit) candidates.push(explicit)
   const venv = env.VIRTUAL_ENV?.trim()
   if (venv) {
-    const bin = platform === 'win32' ? join(venv, 'Scripts', 'python.exe') : join(venv, 'bin', 'python')
+    const bin = venvPythonPath(venv, platform)
     if (existsSync(bin)) candidates.push(bin)
   }
-  const local =
-    platform === 'win32'
-      ? join(cwd, '.venv', 'Scripts', 'python.exe')
-      : join(cwd, '.venv', 'bin', 'python')
+  const local = venvPythonPath(join(cwd, '.venv'), platform)
   if (existsSync(local)) candidates.push(local)
   candidates.push('python3')
   if (platform === 'win32') candidates.push('python', 'py')

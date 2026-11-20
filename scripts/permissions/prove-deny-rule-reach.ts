@@ -3,9 +3,10 @@ import { bashDecision, check, finish, note, RUN_ROOT, said, section, type BashDe
 
 const r = String.raw
 const PAD = ` #${'x'.repeat(10_050)}`
-const fill = (text: string): string => text.replaceAll('<ROOT>', RUN_ROOT).replaceAll('<PAD>', PAD)
-const shown = (text: string): string => JSON.stringify(text.replaceAll(RUN_ROOT, '<root>').replaceAll(PAD, ' #…(10,050 characters)'))
-const told = (decision: BashDecision): string => said(decision).replaceAll(RUN_ROOT, '<root>')
+const RUN_ROOT_BASH = process.platform === 'win32' ? RUN_ROOT.replaceAll('\\', '/') : RUN_ROOT
+const fill = (text: string): string => text.replaceAll('<ROOT>', RUN_ROOT_BASH).replaceAll('<PAD>', PAD)
+const shown = (text: string): string => JSON.stringify(text.replaceAll(RUN_ROOT, '<root>').replaceAll(RUN_ROOT_BASH, '<root>').replaceAll(PAD, ' #…(10,050 characters)'))
+const told = (decision: BashDecision): string => said(decision).replaceAll(RUN_ROOT, '<root>').replaceAll(RUN_ROOT_BASH, '<root>')
 const PUSH = ['git', 'push'].join(' ')
 const RM: Rules = { deny: ['Bash(rm *)'] }
 const PUSHES: Rules = { deny: [`Bash(${PUSH} *)`] }

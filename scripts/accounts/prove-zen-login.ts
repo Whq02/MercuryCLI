@@ -1,7 +1,8 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { strict as assert } from 'node:assert'
-import { rmSync, statSync, readFileSync } from 'node:fs'
+import { statSync, readFileSync } from 'node:fs'
 import { startZenFixture } from '../providers/lib/zen-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.OPENCODE_API_KEY
@@ -30,7 +31,7 @@ try {
   check('a key the gateway refuses (HTTP 401 on the usage read) is never stored and the receipt names the console', !rejected.ok && !rejected.stored && !readStoredZenApiKey() && rejected.receipt.includes('opencode.ai/auth') && rejected.receipt.includes('401'))
   const saved = await storeZenApiKeyLogin(KEY, { env })
   check('a valid pay-as-you-go key (403 EntitlementError on the Go read) is stored with an honest no-plan receipt, never its secret', saved.ok && saved.stored && saved.receipt.includes('no OpenCode Go plan') && saved.receipt.includes('mode 600') && !saved.receipt.includes(KEY) && readStoredZenApiKey() === KEY)
-  check('at-rest storage is auth-scoped and mode 600 in its own slot', providerSecretsPathForDisplay().startsWith(proofHome) && (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600 && JSON.parse(readFileSync(providerSecretsPathForDisplay(), 'utf8')).zenApiKey === KEY)
+  check('at-rest storage is auth-scoped and mode 600 in its own slot', providerSecretsPathForDisplay().startsWith(proofHome) && (process.platform === 'win32' || (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600) && JSON.parse(readFileSync(providerSecretsPathForDisplay(), 'utf8')).zenApiKey === KEY)
   check('sign-in recency records the Zen key', readSignInLedger().zen?.kind === 'api-key')
   check('account labels carry presence, never the secret', resolveZenApiKey()?.source === 'stored' && resolveZenAccount()?.label === 'OpenCode Zen API key (stored, auth-scoped)' && !JSON.stringify(resolveZenAccount()).includes(KEY))
   const noPlan = zenObservedGoUsage()
@@ -63,5 +64,9 @@ try {
 } finally {
   writeStoredZenApiKey(null)
   fixture.stop()
-  rmSync(proofHome, { recursive: true, force: true })
+  try {
+    removeScratch(proofHome, { maxRetries: 4, retryDelayMs: 50 })
+  } catch (error) {
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EBUSY') throw error
+  }
 }
