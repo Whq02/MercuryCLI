@@ -597,6 +597,60 @@ async function w08_11_videoProviderSettingReadErrorWithheldWhy(): Promise<void> 
   }
 }
 
+async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
+  const { chmodSync, mkdirSync } = await import('node:fs')
+  const { spawnSync } = await import('node:child_process')
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-12-'))
+  const lockedFile = join(dir, 'dap-adapters.json')
+  writeFileSync(lockedFile, '{"custom":{"command":"echo"}}')
+  chmodSync(lockedFile, 0o000)
+  const program = join(dir, 'dummy.py')
+  writeFileSync(program, 'x = 1\n')
+  const prevFile = process.env.MERCURY_DAP_ADAPTERS_FILE
+  const prevEnv = process.env.MERCURY_DAP_ADAPTERS
+  process.env.MERCURY_DAP_ADAPTERS_FILE = lockedFile
+  process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fromEnv: { command: process.execPath, args: [] } })
+  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
+  const adapters = await import(join(SRC, 'services/dap/client/adapters.ts'))
+  const { processMainOwner } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  try {
+    check('w08-12: launch still resolves adapters from other sources when adapter file is unreadable', adapters.resolveAdapter('fromEnv')?.command === process.execPath)
+    const ctx = {
+      owner: processMainOwner(),
+      abortController: new AbortController(),
+      getAppState: () => ({ toolPermissionContext: {} }),
+    } as never
+    const res = await DebugTool.call({ op: 'launch', adapter: 'custom', program, cwd: dir, session: 'w08-12-bad' } as never, ctx)
+    check('w08-12: DebugTool unknown adapter refusal names unreadable adapter file and read error', res.data.outcome === 'failed' && res.data.result.includes(lockedFile) && res.data.result.includes('could not be read (') && res.data.result.includes("unknown adapter 'custom'"), JSON.stringify(res.data))
+
+    const emptyBin = join(dir, 'empty-bin')
+    mkdirSync(emptyBin)
+    const child = spawnSync(process.execPath, ['-e', `
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(join(dir, 'cfg'))}
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      delete process.env.MERCURY_DAP_ADAPTERS
+      process.env.PATH = ${JSON.stringify(emptyBin)}
+      process.env.MERCURY_DEBUGPY_VENDOR_DIR = ${JSON.stringify(join(dir, 'no-debugpy'))}
+      process.env.MERCURY_PYTHON_VENDOR_DIR = ${JSON.stringify(join(dir, 'no-python'))}
+      process.env.MERCURY_JS_DEBUG_DAP = ${JSON.stringify(join(dir, 'no-js-debug.js'))}
+      process.env.MERCURY_DAP_ADAPTERS_FILE = ${JSON.stringify(lockedFile)}
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'utils/withheldTools.ts'))})
+      const debug = withheldTools().find(w => w.tool === 'Debug')
+      process.stdout.write('\\n' + JSON.stringify(debug ?? null))
+    `], { encoding: 'utf8' })
+    const debugRow = child.status === 0 ? JSON.parse(child.stdout.trim().split('\n').pop() ?? 'null') : { error: child.stderr.slice(-300) }
+    check('w08-12: withheld Debug tool message names unreadable adapter file and read error', debugRow !== null && typeof debugRow.why === 'string' && debugRow.why.includes(lockedFile) && debugRow.why.includes('could not be read ('), JSON.stringify(debugRow))
+  } finally {
+    chmodSync(lockedFile, 0o644)
+    if (prevFile === undefined) delete process.env.MERCURY_DAP_ADAPTERS_FILE
+    else process.env.MERCURY_DAP_ADAPTERS_FILE = prevFile
+    if (prevEnv === undefined) delete process.env.MERCURY_DAP_ADAPTERS
+    else process.env.MERCURY_DAP_ADAPTERS = prevEnv
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
@@ -609,6 +663,7 @@ const rows: Array<() => Promise<void>> = [
   w08_9_gitOperationTrackingPrLinkFailureSurfaced,
   w08_10_browserAndPathOpenFailuresSurfaced,
   w08_11_videoProviderSettingReadErrorWithheldWhy,
+  w08_12_dapAdapterFileReadErrorSurfaced,
 ]
 for (const row of rows) {
   try {
