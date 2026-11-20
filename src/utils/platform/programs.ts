@@ -94,8 +94,12 @@ export function pathDelimiter(platform: string = process.platform): ';' | ':' {
   return platform === 'win32' ? ';' : ':'
 }
 
+export function hostPathDelimiter(platform: string = process.platform): string {
+  return platform === 'win32' ? ';' : path.delimiter
+}
+
 export function envPathDirs(env: NodeJS.ProcessEnv = hostEnv(), platform: string = process.platform): string[] {
-  return (env.PATH ?? env.Path ?? '').split(pathDelimiter(platform)).filter(dir => dir !== '')
+  return (env.PATH ?? env.Path ?? '').split(hostPathDelimiter(platform)).filter(dir => dir !== '')
 }
 
 export function executableName(name: string, platform: string = process.platform): string {
