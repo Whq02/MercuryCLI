@@ -2,12 +2,12 @@ import { randomBytes } from 'node:crypto'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
-import { ensureConnectedClient } from '../../services/mcp/client.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getBinaryBlobSavedMessage, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, PROMPT, READ_MCP_RESOURCE_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, userFacingName } from './UI.js'
+import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
 
 
 export const inputSchema = lazySchema(() =>
@@ -119,7 +119,7 @@ export const ReadMcpResourceTool = buildTool({
     if (!client.capabilities?.resources) {
       throw new Error(`Server "${server}" does not support resources`)
     }
-    const live = await ensureConnectedClient(client)
+    const live = await mcpClientForTools().ensureConnectedClient(client)
     const result = await live.client.request({ method: 'resources/read', params: { uri } })
     const contents = await Promise.all(
       (result.contents as ResourceContent[]).map((entry, index) =>

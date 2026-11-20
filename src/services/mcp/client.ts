@@ -76,6 +76,7 @@ export type { MCPResultType, TransformedMCPResult } from './client/results.js'
 export { withoutNullOptionals } from './client/nullOptionals.js'
 export { fenceMcpPrefixCollisions } from './client/bulkParts.js'
 export type { McpPrefixCollision } from './client/bulkParts.js'
+import { tellMcpToolsTheClient } from './client/forTools.js'
 
 export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig): string {
   return `${name}:${JSON.stringify(serverRef)}`
@@ -958,3 +959,5 @@ export async function reconnectMcpServerImpl(
     return { client: { name, type: 'failed', config, error: errorMessage(err) }, tools: [], commands: [] }
   }
 }
+
+tellMcpToolsTheClient({ ensureConnectedClient, fetchResourcesForClient, reconnectMcpServerImpl })

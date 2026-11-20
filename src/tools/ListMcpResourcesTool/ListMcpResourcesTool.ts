@@ -1,15 +1,12 @@
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import {
-  ensureConnectedClient,
-  fetchResourcesForClient,
-} from '../../services/mcp/client.js'
 import type { ServerResource } from '../../services/mcp/types.js'
 import { logMCPError } from '../../utils/log.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, LIST_MCP_RESOURCES_TOOL_NAME, PROMPT } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
+import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
 
 
 const inputSchema = z.object({
@@ -69,8 +66,8 @@ export const ListMcpResourcesTool = buildTool({
       selected.map(async client => {
         if (client.type !== 'connected') return []
         try {
-          const live = await ensureConnectedClient(client)
-          return await fetchResourcesForClient(live)
+          const live = await mcpClientForTools().ensureConnectedClient(client)
+          return await mcpClientForTools().fetchResourcesForClient(live)
         } catch (err) {
           logMCPError(client.name, err)
           return []
