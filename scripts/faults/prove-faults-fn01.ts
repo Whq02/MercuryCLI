@@ -337,5 +337,52 @@ console.log('\nutil.tsx — healthHandler exits 1 instead of 0 when rendering th
   check('util: healthHandler exits 1 when root.render throws instead of 0', r.status === 1, `status=${r.status}`)
 }
 
+console.log('\nchatLauncher.tsx — rejecting boot recovery or resume fold releases its timer in finally and logs the error')
+{
+  const r = runSubprocess(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const timers = await import(path.join(SRC, 'utils/timers.js'))
+    const realStart = timers.startTimeout
+    const realStop = timers.stopTimeout
+    let started = 0
+    let stopped = 0
+    const logged = []
+    mock.module(path.join(SRC, 'utils/timers.js'), () => ({
+      ...timers,
+      startTimeout: (fn, ms) => { started++; return realStart(fn, ms) },
+      stopTimeout: handle => { stopped++; return realStop(handle) },
+    }))
+    const logMod = await import(path.join(SRC, 'utils/log.js'))
+    mock.module(path.join(SRC, 'utils/log.js'), () => ({
+      ...logMod,
+      logError: err => { logged.push(String(err instanceof Error ? err.message : err)) },
+    }))
+    mock.module(path.join(SRC, 'substrate/recoveryOrchestrator.js'), () => ({
+      runBootRecovery: async () => { throw new Error('recovery boom') },
+    }))
+    mock.module(path.join(SRC, 'services/run/runCoordinator.js'), () => ({
+      foldResumedRunForBoot: async () => { throw new Error('fold boom') },
+    }))
+    mock.module(path.join(SRC, 'context/surfaceRoute.js'), () => ({
+      resolveInitialSurface: async () => ({ effective: 'chat' }),
+      initializeSurfaceRoute: () => {},
+    }))
+    mock.module(path.join(SRC, 'components/App.js'), () => ({ App: () => null }))
+    mock.module(path.join(SRC, 'components/SurfaceRouter.js'), () => ({ SurfaceRouter: () => null }))
+    mock.module(path.join(SRC, 'screens/Chat.js'), () => ({ Chat: () => null }))
+    mock.module(path.join(SRC, 'services/mcp/dynamicMcpSeed.js'), () => ({ seedDynamicMcpConfig: () => {} }))
+    const { launchChat } = await import(path.join(SRC, 'chatLauncher.tsx'))
+    let rendered = false
+    await launchChat({}, { getFpsMetrics: () => undefined, initialState: {} }, {}, async () => { rendered = true })
+    out.started = started
+    out.stopped = stopped
+    out.logged = logged
+    out.rendered = rendered
+  `)
+  const logged = r.out.logged as string[]
+  check('chatLauncher: rejecting recovery and fold release both timers in finally, log both errors, and still open chat', r.out.started === 2 && r.out.stopped === 2 && logged.includes('recovery boom') && logged.includes('fold boom') && r.out.rendered === true, JSON.stringify(r.out))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
