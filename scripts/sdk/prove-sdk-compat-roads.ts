@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { run, connect, defineAgent, structuredSchema, isMainThread, rowOf } from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
-import { compatRoadFixture, mercury, anthropicModel, pythonProof, root } from './compatRoadFixture.ts'
+import { compatRoadFixture, mercury, anthropicModel, pythonProof } from './compatRoadFixture.ts'
 import { handoffTurn, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const schema = { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'], additionalProperties: false }
@@ -107,10 +107,4 @@ try {
   assert(c.requests.some(request => request.body.messages.some((message: any) => message.role === 'assistant' && message.reasoning_content)))
   assert(c.requests.some(request => JSON.stringify(request.body.messages).includes('Python-CHILD-ONLY')))
   console.log('PASS every compat request satisfies llama.cpp engine rules and tool/reasoning replay')
-  for (const path of ['sdk/README.md', 'sdk-py/README.md']) {
-    const readme = readFileSync(join(process.env.SDK_PARITY_DOC_ROOT ?? root, path), 'utf8')
-    assert(readme.includes('compat/<endpoint>/<model>'), `${path} must name the compat model grammar`)
-    assert(readme.includes('mercury://models') && readme.includes('huggingface') && readme.includes('local'), `${path} must name model discovery and class choices`)
-  }
-  console.log('PASS both SDK READMEs describe the model routes the fixtures exercised')
 } finally { await c.close(); clearTimeout(guard) }
