@@ -80,3 +80,7 @@ export async function parseValidCommandRoot(command: string): Promise<unknown> {
   if (!root || root === PARSE_ABORTED || root.type === 'ERROR') return null
   return root
 }
+
+export function retainPreparedCommand(command: string): unknown {
+  return preparedCommandRoot(command)
+}
