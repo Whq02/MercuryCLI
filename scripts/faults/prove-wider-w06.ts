@@ -351,5 +351,42 @@ console.log('\nw06-3: mcp/client.clearServerCache and runLaunch — failed dupli
   check('runLaunch writes the duplicate server close-failure note to stderr at start', String(r.stderr ?? '').includes(expected), String(r.stderr ?? '').slice(0, 300))
 }
 
+console.log('\nw06-4: agents/store.listAgentDrafts and studioEditorModel — unreadable drafts folder surfaces notice instead of offering none')
+{
+  const r = runScenario(`
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const store = await import(path.join(SRC, 'services/agents/store.ts'))
+    const { createStudioEditorMachine } = await import(path.join(SRC, 'components/agents/studio/studioEditorModel.ts'))
+
+    const makeMachine = () => createStudioEditorMachine(
+      {
+        mode: 'create',
+        cwd: SCRATCH,
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-fable-5',
+        onSaved: () => {},
+        onCancel: () => {},
+      },
+      () => {},
+    )
+
+    const absentMachine = makeMachine()
+    out.absentNote = absentMachine.snapshot().note
+    absentMachine.dispose()
+
+    const draftsPath = path.join(HOME, 'agent-drafts')
+    fs.writeFileSync(draftsPath, 'not-a-directory', 'utf8')
+    out.listDraftsArray = store.listAgentDrafts()
+    const unreadMachine = makeMachine()
+    out.unreadNote = unreadMachine.snapshot().note
+    out.unreadRecover = unreadMachine.snapshot().recoverOffer
+    unreadMachine.dispose()
+  `)
+  const unreadNote = r.unreadNote as { text?: string } | null | undefined
+  check('studioEditorModel stays quiet when agent-drafts folder is absent (ENOENT)', r.absentNote === null, JSON.stringify(r.absentNote))
+  check('studioEditorModel surfaces "saved drafts could not be read (<error>)" when drafts folder cannot be read, without throwing', Array.isArray(r.listDraftsArray) && r.listDraftsArray.length === 0 && r.unreadRecover === null && typeof unreadNote?.text === 'string' && unreadNote.text.startsWith('saved drafts could not be read (') && unreadNote.text.endsWith(')'), JSON.stringify({ listDraftsArray: r.listDraftsArray, unreadNote, unreadRecover: r.unreadRecover }))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)
