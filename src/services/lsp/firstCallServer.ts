@@ -4,6 +4,7 @@ import type { LSPServerInstance } from './LSPServerInstance.js'
 import type { LSPServerManager } from './LSPServerManager.js'
 import { currentLspAbortSignal } from './lspAbort.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { abortedError } from '../../utils/sleep.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const LSP_FIRST_CALL_START_WAIT_MS = 10_000
@@ -59,15 +60,10 @@ export function workspaceSymbolServer(manager: LSPServerManager, query: string, 
 export async function startedWithin(server: LSPServerInstance, ms: number): Promise<boolean> {
   if (server.state === 'running') return true
   const signal = currentLspAbortSignal()
-  if (signal?.aborted) return false
+  if (signal?.aborted) throw abortedError(signal)
   if (server.state === 'stopping') await server.stop()
-  if (signal?.aborted) return false
+  if (signal?.aborted) throw abortedError(signal)
   const start = server.start()
   start.catch(passedOver)
-  return withDeadline(
-    start.then(() => true),
-    ms,
-    () => false,
-    { signal, onAbort: () => false },
-  )
+  return withDeadline(start.then(() => true), ms, () => false, { signal })
 }
