@@ -19,6 +19,7 @@ import { metadataRefusal } from './privateHost.js'
 import { withFetchSession } from './fetchTransport.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { webFetchRuleMatches } from '../../utils/permissions/webFetchRuleMatches.js'
 
 
 const inputSchema = z.strictObject({
@@ -49,17 +50,6 @@ function ruleContentFor(input: Input): string {
   } catch {
     return `input:${JSON.stringify(input)}`
   }
-}
-
-export function webFetchRuleMatches(ruleContent: string, requestContent: string): boolean {
-  if (ruleContent === requestContent) return true
-  if (!ruleContent.startsWith('domain:') || !requestContent.startsWith('domain:') || !ruleContent.includes('*')) return false
-  const pattern = ruleContent
-    .slice('domain:'.length)
-    .split('*')
-    .map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('.*')
-  return new RegExp(`^${pattern}$`, 'i').test(requestContent.slice('domain:'.length))
 }
 
 function matchingRule(

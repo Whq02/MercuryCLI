@@ -12,7 +12,7 @@ import {
 } from '../../utils/frontmatterParser.js'
 import { extractDescriptionFromMarkdown, parseSlashCommandToolsFromFrontmatter } from '../../utils/markdownConfigLoader.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import { executeShellCommandsInPrompt } from '../../utils/promptShellExecution.js'
+import { executeShellCommandsInPrompt } from '../../services/tools/promptShellExecution.js'
 import { activeFor, type ActiveExtension } from '../active.js'
 import { substituteOptionsInCommand, substituteOptionsInContent, substituteRootAndData } from '../options.js'
 import { baseDirLine } from '../../skills/baseDirLine.js'
