@@ -22,17 +22,13 @@
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
-here="$(cd "$(dirname "$0")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
+
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/compact"
 fail=0
 echo "############################################################"
 echo "# compact — context maintenance proofs"
 echo "############################################################"
-shopt -s nullglob
-for proof in "$here"/prove-*.ts; do
-  echo
-  echo "── $(basename "$proof") ──"
-  __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
-done
+drive_members compact 'scripts/compact/$name' "$here/members.txt" || fail=1
 exit "$fail"

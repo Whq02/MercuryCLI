@@ -1,0 +1,3 @@
+prove-mercury-only-boot.ts
+prove-suite-membership.ts
+prove-tree-ownership-namespace.ts

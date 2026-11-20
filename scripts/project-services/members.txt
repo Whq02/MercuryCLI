@@ -1,0 +1,18 @@
+prove-agent-envelope.ts
+prove-change-anchors.ts
+prove-change-receipts.ts
+prove-ide-completion.ts
+prove-port-owner.ts
+prove-project-services-artifact-circuit.ts
+prove-project-services-contracts.ts
+prove-resource-plane.ts
+prove-service-missing-program.ts
+prove-service-project-key.ts
+prove-service-pty-mode.ts
+prove-service-readiness-words.ts
+prove-service-restart-truth.ts
+prove-service-stop-ownership.ts
+prove-service-successor-exit.ts
+prove-services.ts
+gen-completions.ts --check
+inventory.ts --check

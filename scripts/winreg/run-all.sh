@@ -10,26 +10,14 @@
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
-. "$(dirname "$0")/../lib/proof-runner.sh"
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/winreg"
 fail=0
 
 echo "############################################################"
 echo "# WINREG — Windows capture plane (local provable half)"
 echo "############################################################"
 
-claimed=$(cd "$here/../.." && members_cat scripts/winreg-*/members.txt)
-for proof in "$here"/prove-*.ts; do
-  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
-  [ -e "$proof" ] || continue
-  name="$(basename "$proof")"
-  case "$name" in _*) continue ;; esac
-  echo ""
-  echo "── $name"
-  if ! run_proof "$proof" "$bun" run "$proof"; then
-    fail=1
-  fi
-done
+drive_members winreg 'scripts/winreg/$name' "$here/members.txt" || fail=1
 
 exit "$fail"

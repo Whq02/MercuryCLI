@@ -16,15 +16,32 @@ members_cat() {
 }
 
 drive_member_run() {
-  local suite="$1" f="$2" name="$3" skip="${4:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
-  printf '── %s: %s\n' "$suite" "$name"
-  case "$name" in
-    (*.py) /usr/bin/python3 "$f" || rc=$? ;;
-    (*.sh) bash "$f" || rc=$? ;;
-    (*) "$bun" "$f" || rc=$? ;;
-  esac
-  local p="$f"
+  local suite="$1" f="$2" name="$3" skip="${4:-}" rest="${5:-}" form="${6:-}" tell="${7:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
+  [ -x "$bun" ] || bun="$(command -v bun 2>/dev/null || printf '%s' "$bun")"
+  local root="$PWD" i var
+  local -a words=()
+  read -r -a words <<<"$rest"
+  for i in "${!words[@]}"; do
+    [[ "${words[$i]}" =~ ^(.*)\$([A-Za-z_][A-Za-z0-9_]*)(.*)$ ]] || continue
+    var="${BASH_REMATCH[2]}"
+    words[$i]="${BASH_REMATCH[1]}${!var-}${BASH_REMATCH[3]}"
+  done
+  local p="$f" leave="${MERCURY_SUITE_LEAVE_OUT:-}"
   case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac
+  p="$p${tell:+ ($tell)}"
+  if [ -n "$leave" ] && grep -qxF -- "$p" "$leave" 2>/dev/null; then
+    printf 'second look: %s was green in the first attempt and is not run again\n' "$p"
+    return 0
+  fi
+  local -a start=()
+  case "$name" in
+    (*.py) start=(/usr/bin/python3 "$f") ;;
+    (*.sh) start=(bash "$f") ;;
+    (*) start=("$bun" ${form:+"$form"} "$f") ;;
+  esac
+  [ -n "$leave" ] && start=(env -u MERCURY_SUITE_LEAVE_OUT "${start[@]}")
+  printf '── %s: %s\n' "$suite" "$name${rest:+ $rest}"
+  "${start[@]}" ${words[@]+"${words[@]}"} || rc=$?
   printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - t0 ))" "$rc"
   if [ -n "$skip" ] && [ "$rc" = "$skip" ]; then
     printf '⏭  %s SKIP — machine gate honoured (exit %s is the skip code of %s)\n' "$name" "$rc" "$suite"
@@ -34,21 +51,34 @@ drive_member_run() {
 }
 
 drive_members() {
-  local suite="$1" template="$2" members="$3" skip="${4:-}" jobs
+  local suite="$1" template="$2" members="$3" skip="${4:-}" form="${5:-}" jobs
   jobs=$(drive_member_jobs)
-  local failed=0 name f only="${MERCURY_SUITE_MEMBER:-}"
-  local -a names=() files=()
-  while IFS= read -r name; do
+  drive_member_code=0
+  local failed=0 name rest f only="${MERCURY_SUITE_MEMBER:-}"
+  local -a names=() files=() rests=()
+  while read -r name rest; do
     case "$name" in (''|'#'*) continue ;; esac
     [ -n "$only" ] && [ "$name" != "$only" ] && continue
-    f="${template//\$name/$name}"
+    case "${name%%/*}" in (scripts) f="$name" ;; (*) f="${template//\$name/$name}" ;; esac
     if [ ! -e "$f" ]; then
       printf '❌ %s: member %s has no file at %s — a stale member row is a red, never a silent skip\n' "$suite" "$name" "$f"
       failed=1
       continue
     fi
-    names+=("$name"); files+=("$f")
+    names+=("$name"); files+=("$f"); rests+=("$rest")
   done < "$members"
+  local once=$'\n' twice=$'\n'
+  local -a tells=()
+  for f in ${files[@]+"${files[@]}"}; do
+    case "$once" in (*$'\n'"$f"$'\n'*) twice="$twice$f"$'\n' ;; (*) once="$once$f"$'\n' ;; esac
+  done
+  for f in ${files[@]+"${files[@]}"}; do
+    case "$twice" in (*$'\n'"$f"$'\n'*) tells+=("${rests[${#tells[@]}]}") ;; (*) tells+=('') ;; esac
+  done
+  if [ -z "$only" ] && [ "${#names[@]}" -eq 0 ] && [ "$failed" -eq 0 ]; then
+    printf '❌ %s: %s names no test — an empty list is a red, never a vacuous green\n' "$suite" "$members"
+    return 1
+  fi
   if [ -n "$only" ]; then
     if [ "${#names[@]}" -eq 0 ] && [ "$failed" -eq 0 ]; then
       printf '❌ %s: MERCURY_SUITE_MEMBER names %s, which is no member in %s — one member runs alone only by the name its list holds\n' "$suite" "$only" "$members"
@@ -57,9 +87,13 @@ drive_members() {
     printf '── %s: one member alone by MERCURY_SUITE_MEMBER (%s); the rest of the suite is not run\n' "$suite" "$only"
   fi
   if [ "$jobs" -le 1 ] || [ "${#names[@]}" -le 1 ]; then
-    local i
+    local i code
     for i in "${!names[@]}"; do
-      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" || failed=1
+      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" "${tells[$i]}" || {
+        code=$?
+        [ "$drive_member_code" -eq 0 ] && drive_member_code=$code
+        failed=1
+      }
     done
     return "$failed"
   fi
@@ -69,13 +103,17 @@ drive_members() {
   local -a pids=() idxs=()
   local i j running=0 next=0 total=${#names[@]}
   collect() {
+    local code
     cat "$out/$1.out"
-    [ "$(cat "$out/$1.rc" 2>/dev/null || echo 1)" = 0 ] || failed=1
+    code=$(cat "$out/$1.rc" 2>/dev/null || echo 1)
+    [ "$code" = 0 ] && return 0
+    [ "$drive_member_code" -eq 0 ] && drive_member_code=$code
+    failed=1
   }
   while [ "$next" -lt "$total" ] || [ "$running" -gt 0 ]; do
     while [ "$next" -lt "$total" ] && [ "$running" -lt "$jobs" ]; do
       i=$next
-      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
+      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" "${tells[$i]}" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
       pids+=("$!"); idxs+=("$i"); running=$(( running + 1 )); next=$(( next + 1 ))
     done
     sleep 1

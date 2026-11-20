@@ -1,0 +1,1 @@
+prove-outcome-pack.ts --dist $out/mercury.mjs

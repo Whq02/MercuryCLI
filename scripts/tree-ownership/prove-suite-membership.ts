@@ -29,6 +29,10 @@ const everyRunnerText = readdirSync(SCRIPTS)
   .map(p => readFileSync(p, 'utf8'))
   .join('\n')
 const memberEnrolled = new Set<string>()
+const rowFile = (parent: string, raw: string): string | null => {
+  const name = raw.trim().split(/\s+/)[0]!
+  return name === '' || name.startsWith('#') ? null : name.startsWith('scripts/') ? name : `scripts/${parent}/${name}`
+}
 const parentOfList = (dir: string): string | null => {
   const runAll = join(SCRIPTS, dir, 'run-all.sh')
   const named = existsSync(runAll) ? /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(readFileSync(runAll, 'utf8'))?.[1] : undefined
@@ -42,9 +46,8 @@ for (const dir of readdirSync(SCRIPTS)) {
   const parent = parentOfList(dir)
   if (parent === null) continue
   for (const raw of readFileSync(members, 'utf8').split('\n')) {
-    const name = raw.trim()
-    if (name === '' || name.startsWith('#')) continue
-    memberEnrolled.add(`scripts/${parent}/${name}`)
+    const rel = rowFile(parent, raw)
+    if (rel !== null) memberEnrolled.add(rel)
   }
 }
 for (const dir of readdirSync(SCRIPTS)) {
@@ -99,9 +102,8 @@ for (const dir of readdirSync(SCRIPTS)) {
   const parent = /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(readFileSync(runAll, 'utf8'))?.[1]
   if (parent === undefined) continue
   for (const raw of readFileSync(members, 'utf8').split('\n')) {
-    const name = raw.trim()
-    if (name === '' || name.startsWith('#')) continue
-    const rel = `scripts/${parent}/${name}`
+    const rel = rowFile(parent, raw)
+    if (rel === null) continue
     listedBy.set(rel, [...(listedBy.get(rel) ?? []), dir])
   }
 }

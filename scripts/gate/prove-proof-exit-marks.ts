@@ -91,14 +91,22 @@ try {
   mkdirSync(join(estate, 'scripts/lib'), { recursive: true })
   mkdirSync(join(estate, 'dist'))
   writeFileSync(join(estate, 'dist/mercury.mjs'), '')
-  for (const file of ['suite-env.sh', 'proof-runner.sh', 'proofScratch.cjs', 'proofBrowser.cjs', 'process-ledger.sh']) writeFileSync(join(estate, 'scripts/lib', file), readFileSync(join(root, 'scripts/lib', file)))
+  for (const file of ['suite-env.sh', 'drive-members.sh', 'proof-runner.sh', 'proofScratch.cjs', 'proofBrowser.cjs', 'process-ledger.sh']) writeFileSync(join(estate, 'scripts/lib', file), readFileSync(join(root, 'scripts/lib', file)))
   const fixture = '#!/bin/sh\nfor arg in "$@"; do\n  case "$arg" in */journey-j[1-5].ts) n="${arg##*/journey-j}"; n="${n%.ts}"; printf "{}\\n" > "$TMPDIR/momentum-report-J$n.json";; esac\ndone\nprintf "FAIL  diagnostic wording is not the result\\n"\nexit "$PROOF_FIXTURE_RC"\n'
   const nodeStub = join(scratch, 'node')
   writeFileSync(nodeStub, fixture)
   chmodSync(nodeStub, 0o755)
   writeFileSync(stub, fixture)
   const copiedRunners = new Map<string, string>()
-  console.log('each counted suite\'s expected mark count is read from its runner: one mark per timed command (__t=$SECONDS) or run_proof line, a for loop multiplied by its words with a glob matched against the census\'s own fixture files; every guard in a runner passes in this estate by construction (a dist file, the fixture files)')
+  const listOf = (name: string): string[] => {
+    try {
+      return readFileSync(join(root, 'scripts', name, 'members.txt'), 'utf8').split('\n').map(line => line.trim()).filter(line => line !== '' && !line.startsWith('#'))
+    } catch {
+      return []
+    }
+  }
+  const fileOf = (row: string): string => row.split(/\s+/)[0]!
+  console.log('each counted suite\'s expected mark count is read from its runner and its list: one mark per row of members.txt and one per timed command (__t=$SECONDS) or run_proof line that stays in the runner, a for loop multiplied by its words with a glob matched against the census\'s own fixture files; every guard in a runner passes in this estate by construction (a dist file, the fixture files)')
   for (const [name, files] of [
     ['smoke', []],
     ['api', []],
@@ -118,9 +126,11 @@ try {
     copiedRunners.set(name, runner)
     const text = readFileSync(join(root, 'scripts', name, 'run-all.sh'), 'utf8')
     writeFileSync(runner, text)
-    for (const file of files) writeFileSync(join(dir, file), fixture)
-    const count = promisedMarks(text, ['run-all.sh', ...files])
-    check(`${name}: the runner promises at least one mark (${count} read from its own lines)`, count > 0)
+    const list = listOf(name)
+    if (list.length > 0) writeFileSync(join(dir, 'members.txt'), `${list.join('\n')}\n`)
+    for (const file of [...files, ...list.map(fileOf)]) writeFileSync(join(dir, file), fixture)
+    const count = promisedMarks(text, ['run-all.sh', ...files]) + list.length
+    check(`${name}: the runner promises at least one mark (${count} read from its list and its own lines)`, count > 0)
     for (const code of [0, 29]) {
       const result = spawnSync('bash', [runner], { cwd: estate, env: { ...env(code), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
       const rows = marks(result.stdout)
@@ -128,32 +138,37 @@ try {
       check(`${name}: individual checks retain the suite result for code ${code}`, result.status === (code === 0 ? 0 : 1))
     }
   }
-  const apiRunner = readFileSync(join(root, 'scripts/api/run-all.sh'), 'utf8')
-  const apiLines = apiRunner.split('\n')
-  const lastCall = apiLines.findLastIndex(line => line.includes('__t=$SECONDS'))
-  const markCall = /prover_mark\s.*$/.exec(apiLines[lastCall] ?? '')?.[0] ?? ''
-  const apiCount = promisedMarks(apiRunner, ['run-all.sh'])
-  const variant = (name: string, replaceLast: (line: string) => string[]): { promised: number; rows: ReturnType<typeof marks> } => {
+  const variant = (name: string, from: string, moreRows: string[], replaceLast: (line: string) => string[]): { promised: number; rows: ReturnType<typeof marks> } => {
     const dir = join(estate, 'scripts', name)
     mkdirSync(dir)
-    const text = [...apiLines.slice(0, lastCall), ...replaceLast(apiLines[lastCall] ?? ''), ...apiLines.slice(lastCall + 1)].join('\n')
+    const lines = readFileSync(join(root, 'scripts', from, 'run-all.sh'), 'utf8').replaceAll(`scripts/${from}`, `scripts/${name}`).split('\n')
+    const last = lines.findLastIndex(line => line.includes('__t=$SECONDS'))
+    const text = last < 0 ? lines.join('\n') : [...lines.slice(0, last), ...replaceLast(lines[last] ?? ''), ...lines.slice(last + 1)].join('\n')
+    const list = [...listOf(from), ...moreRows]
+    writeFileSync(join(dir, 'members.txt'), `${list.join('\n')}\n`)
+    for (const row of list) writeFileSync(join(dir, fileOf(row)), fixture)
     writeFileSync(join(dir, 'run-all.sh'), text)
     const result = spawnSync('bash', [join(dir, 'run-all.sh')], { cwd: estate, env: env(0), encoding: 'utf8', timeout: 10000 })
-    return { promised: promisedMarks(text, ['run-all.sh']), rows: marks(result.stdout) }
+    return { promised: promisedMarks(text, ['run-all.sh']) + list.length, rows: marks(result.stdout) }
   }
-  const enrolled = variant('api-enrolled', line => [line, line.replace(/prove-[a-z0-9-]+\.ts/g, 'prove-enrolled-later.ts')])
-  check(`enrolling a proof in a runner moves the runner's own count (${apiCount} → ${apiCount + 1}); the census stays green with no table to edit`, lastCall >= 0 && enrolled.promised === apiCount + 1 && enrolled.rows.length === enrolled.promised && enrolled.rows.every(row => row.code === 0))
-  const unmarked = variant('api-unmarked', line => [line.replace(/;\s*prover_mark\s.*$/, '')])
-  check('a timed command that prints no mark is a disagreement the census sees: the marks fall short of the count the runner promises', unmarked.promised === apiCount && unmarked.rows.length === apiCount - 1)
-  const doubled = variant('api-doubled', line => [`${line}; ${markCall}`])
-  check('a mark that prints twice is a disagreement the census sees: the marks exceed the count the runner promises', markCall !== '' && doubled.promised === apiCount && doubled.rows.length === apiCount + 1)
+  const apiCount = promisedMarks(readFileSync(join(root, 'scripts/api/run-all.sh'), 'utf8'), ['run-all.sh']) + listOf('api').length
+  const enrolled = variant('api-enrolled', 'api', ['prove-enrolled-later.ts'], line => [line])
+  check(`enrolling a proof in a runner's list moves the runner's own count (${apiCount} → ${apiCount + 1}); the census stays green with no table to edit`, apiCount > 0 && enrolled.promised === apiCount + 1 && enrolled.rows.length === enrolled.promised && enrolled.rows.every(row => row.code === 0))
+  const splashRunner = readFileSync(join(root, 'scripts/splash/run-all.sh'), 'utf8')
+  const markCall = /prover_mark\s.*$/.exec(splashRunner.split('\n').findLast(line => line.includes('__t=$SECONDS')) ?? '')?.[0] ?? ''
+  const splashCount = promisedMarks(splashRunner, ['run-all.sh']) + listOf('splash').length
+  const unmarked = variant('splash-unmarked', 'splash', [], line => [line.replace(/;\s*prover_mark\s.*$/, '')])
+  check('a timed command that prints no mark is a disagreement the census sees: the marks fall short of the count the runner promises', markCall !== '' && unmarked.promised === splashCount && unmarked.rows.length === splashCount - 1)
+  const doubled = variant('splash-doubled', 'splash', [], line => [`${line}; ${markCall}`])
+  check('a mark that prints twice is a disagreement the census sees: the marks exceed the count the runner promises', markCall !== '' && doubled.promised === splashCount && doubled.rows.length === splashCount + 1)
   const refusedApi = spawnSync('bash', [copiedRunners.get('api')!], { cwd: estate, env: { ...env(0), MERCURY_MODEL: 'foreign-fixture' }, encoding: 'utf8', timeout: 10000 })
   check('the API runner refuses foreign environment before any command executes', refusedApi.status === 78 && marks(refusedApi.stdout).length === 0 && !refusedApi.stdout.includes('diagnostic wording'))
   const attentionRed = spawnSync('bash', [copiedRunners.get('attention')!], { cwd: estate, env: { ...env(3), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
-  check('a machine-gated journey that exits non-zero is red with its actual code in the mark and no skip wording', attentionRed.status === 1 && marks(attentionRed.stdout).some(row => row.path.endsWith('/journey-fixture.ts') && row.code === 3) && attentionRed.stdout.includes('journey-fixture.ts exited 3') && !/SKIP/.test(attentionRed.stdout))
+  const journey = listOf('attention').map(fileOf).find(row => row.startsWith('journey-')) ?? 'no journey in the list'
+  check('a machine-gated journey that exits non-zero is red with its actual code in the mark and no skip wording', attentionRed.status === 1 && marks(attentionRed.stdout).some(row => row.path.endsWith(`/${journey}`) && row.code === 3) && !/SKIP/.test(attentionRed.stdout))
   writeFileSync(stub, '#!/bin/sh\ncase "$*" in *journey-*) printf "  [SKIP] journey-fixture: this machine lacks the install the journey drives\\n"; exit 0;; esac\nprintf "FAIL  diagnostic wording is not the result\\n"\nexit "$PROOF_FIXTURE_RC"\n')
   const attentionSkip = spawnSync('bash', [copiedRunners.get('attention')!], { cwd: estate, env: { ...env(0), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
-  check('a machine-gated journey skips by a [SKIP] line on a green mark: rc=0 recorded, the suite green, the line in the suite output', attentionSkip.status === 0 && marks(attentionSkip.stdout).some(row => row.path.endsWith('/journey-fixture.ts') && row.code === 0) && /\[SKIP\] journey-fixture/.test(attentionSkip.stdout))
+  check('a machine-gated journey skips by a [SKIP] line on a green mark: rc=0 recorded, the suite green, the line in the suite output', attentionSkip.status === 0 && marks(attentionSkip.stdout).some(row => row.path.endsWith(`/${journey}`) && row.code === 0) && /\[SKIP\] journey-fixture/.test(attentionSkip.stdout))
   writeFileSync(stub, fixture)
   const nestedDir = join(estate, 'scripts/nested/sub')
   mkdirSync(nestedDir, { recursive: true })

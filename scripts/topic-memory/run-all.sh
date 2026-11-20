@@ -3,19 +3,15 @@
 # gate-watch: src/mneme/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "$0")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/topic-memory"
 fail=0
 echo "############################################################"
 echo "# Memory topic pages — proof harness"
 echo "############################################################"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-topic-memory-lifecycle.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-topic-memory-lifecycle.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-topic-memory-validator.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-topic-memory-validator.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-topic-memory-maintenance.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-topic-memory-maintenance.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-topic-memory-concurrency.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-topic-memory-concurrency.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-topic-memory-verbs.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-topic-memory-verbs.ts" "$__t" "$__rc"
+drive_members topic-memory 'scripts/topic-memory/$name' "$here/members.txt" || fail=1
 if [ "$fail" -ne 0 ]; then
   echo "❌ topic-memory suite: FAILURES"
   exit 1

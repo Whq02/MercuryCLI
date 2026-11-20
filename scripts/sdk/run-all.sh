@@ -4,19 +4,14 @@
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/sdk"
 fail=0
 echo "############################################################"
 echo "# sdk — TypeScript and Python: build, drift, run, runner and testing"
 echo "############################################################"
 [ -d "$here/../../sdk/src" ] || { echo "the SDK is parked and not on this tree (the published lineage carries no sdk/): nothing to prove here"; exit 0; }
-for f in "$here"/prove-*.ts; do
-  [ -e "$f" ] || continue
-  echo
-  echo "── $(basename "$f") ──"
-  __t=$SECONDS; __rc=0; "$bun" run "$f" || { __rc=$?; fail=1; }; prover_mark "$f" "$__t" "$__rc"
-done
+drive_members sdk 'scripts/sdk/$name' "$here/members.txt" || fail=1
 exit $fail

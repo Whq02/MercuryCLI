@@ -26,7 +26,7 @@ section('§1 the hosted gate seals the vocabulary in its build job, after the bu
   check('the build job runs the seal', stepAt >= 0, 'no step names scripts/gate/prove-vocabulary-seal.ts inside the build job')
   check('…after the dist is built (the bundle rule reads the fresh dist) and before the artifact is packed for the shards', stepAt > builtAt && builtAt >= 0 && packAt > stepAt, `build=${builtAt} seal=${stepAt} pack=${packAt}`)
   check('…as a plain run step with the canonical bun (a red step fails the build job, and every shard needs build)', /run:\s*~\/\.bun\/bin\/bun scripts\/gate\/prove-vocabulary-seal\.ts\s*\n/.test(buildJob) && /\n  shard:[\s\S]*?needs: build/.test(workflow))
-  const runner = readFileSync(join(ROOT, 'scripts', 'gate', 'run-all.sh'), 'utf8')
+  const runner = readFileSync(join(ROOT, 'scripts', 'gate', 'members.txt'), 'utf8')
   check('the gate suite enrols the seal and this proof (the local pool and the release chain read the same file)', runner.includes('prove-vocabulary-seal.ts') && runner.includes('prove-seal-in-gate.ts'))
   check('the seal lives in the product tree as the one owner of its rules', existsSync(join(ROOT, SEAL)))
 }

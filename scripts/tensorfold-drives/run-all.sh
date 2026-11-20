@@ -6,10 +6,9 @@
 # gate-watch: src/daemon/concourseWorkers.ts src/services/switchboard/bornSession.ts src/services/switchboard/hopIntoSession.ts src/services/providers/local/tensorfoldHosts.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
 cd "$(dirname "$0")/../.." || exit 1
-bun="${BUN:-$HOME/.bun/bin/bun}"
 here="scripts/tensorfold-drives"
 dist="${MERCURY_DIST:-dist/mercury.mjs}"
 if [ ! -f "$dist" ]; then
@@ -18,18 +17,6 @@ if [ ! -f "$dist" ]; then
 fi
 
 failed=0
-while IFS= read -r name; do
-  case "$name" in (''|'#'*) continue ;; esac
-  f="scripts/tensorfold/$name"
-  if [ ! -e "$f" ]; then
-    echo "❌ tensorfold-drives: member '$name' has no file at $f — a stale member row is a red, never a silent skip"
-    failed=1
-    continue
-  fi
-  echo "── tensorfold-drives: $name"
-  __t=$SECONDS; __rc=0
-  "$bun" "$f" --dist "$dist" || { __rc=$?; failed=1; }
-  prover_mark "$f" "$__t" "$__rc"
-done < "$here/members.txt"
+drive_members tensorfold-drives 'scripts/tensorfold/$name' "$here/members.txt" || failed=1
 
 exit "$failed"

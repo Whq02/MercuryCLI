@@ -16,22 +16,12 @@
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
-
-bun=${BUN:-$HOME/.bun/bin/bun}
 cd "$(dirname "$0")/../.." || exit 1
+here="scripts/editor-bridge"
 
 red=0
-claimed=$(cat scripts/editor-bridge-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
-for proof in scripts/editor-bridge/prove-*.ts; do
-  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
-  echo "== $proof"
-  __t=$SECONDS; __rc=0; if ! { "$bun" run "$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-    echo "RED: $proof"
-    red=1
-  fi
-  prover_mark "$proof" "$__t" "$__rc"
-done
+drive_members editor-bridge 'scripts/editor-bridge/$name' "$here/members.txt" '' run || red=1
 
 exit "$red"

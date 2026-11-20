@@ -1,0 +1,4 @@
+prove-ping-rule.ts
+prove-queued-start-turn-ping.ts
+prove-strip-badge.ts
+prove-switch-settle-note.ts

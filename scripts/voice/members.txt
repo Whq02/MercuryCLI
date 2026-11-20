@@ -1,0 +1,8 @@
+prove-capture-pack.ts
+prove-hold-to-talk.ts
+prove-short-take-never-reaches-the-engine.ts
+prove-transcriber-picker.ts
+prove-voice-owners.ts
+prove-voice-setting.ts
+prove-whisper-archives.ts
+prove-whisper-pack.ts

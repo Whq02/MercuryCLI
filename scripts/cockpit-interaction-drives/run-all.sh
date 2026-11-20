@@ -9,7 +9,7 @@
 # gate-watch: scripts/engine-durability/bench-prompt-attribution.ts
 # gate-watch: scripts/gate/ledger.ts scripts/lib/*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cockpit/helmFocus.ts src/utils/cockpit/helmVitalsModel.ts
+# gate-watch: src/utils/cockpit/helmVitalsModel.ts
 # gate-watch: src/Task.ts src/commands/workbench/workbench.tsx src/constants/subagentDoctrine.ts
 # gate-watch: src/hooks/useTurnEndPing.ts src/ink/session/focus-store.ts
 # gate-watch: src/ink/session/terminalProfile.ts src/ink/session/windowsHostSetup.ts src/services/attention/statusFeed.ts

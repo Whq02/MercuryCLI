@@ -27,28 +27,15 @@
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/cockpit-interaction"
 fail=0
 
 echo "############################################################"
 echo "# cockpit-interaction — UI fluency, adaptive cockpit, platform parity"
 echo "############################################################"
 
-claimed=$(cd "$here/../.." && members_cat scripts/cockpit-interaction-*/members.txt)
-for proof in "$here"/prove-*.ts; do
-  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
-  [ -e "$proof" ] || continue
-  name="$(basename "$proof")"
-  case "$name" in _*) continue ;; esac
-  echo ""
-  echo "── $name"
-  __t=$SECONDS; __rc=0; if ! { "$bun" run "$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-    fail=1
-  fi
-  prover_mark "$proof" "$__t" "$__rc"
-done
+drive_members cockpit-interaction 'scripts/cockpit-interaction/$name' "$here/members.txt" || fail=1
 
 exit "$fail"

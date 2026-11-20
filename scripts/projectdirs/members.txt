@@ -1,0 +1,7 @@
+prove-dual-config.ts
+prove-estate-walk-caps.ts
+prove-no-literal-homes.ts
+prove-project-home-stores.ts
+prove-project-root-declaration.ts
+prove-shell-home-agreement.ts
+prove-win32-path-reads.ts

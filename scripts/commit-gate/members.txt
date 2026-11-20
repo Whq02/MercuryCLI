@@ -1,0 +1,2 @@
+prove-commit-gate.ts
+prove-generated-assets.ts

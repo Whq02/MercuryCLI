@@ -1,0 +1,3 @@
+prove-capability-wiring.ts
+prove-matrix-complete.ts
+prove-readiness.ts
