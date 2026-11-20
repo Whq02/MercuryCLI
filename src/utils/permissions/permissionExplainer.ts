@@ -103,15 +103,15 @@ export async function generatePermissionExplanation(args: {
   try {
     const response = await sideQuery({
       model: getEngineModel(),
-      systemPrompt,
-      userPrompt,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
       signal,
       querySource: 'permission_explainer',
       tools: [
         {
           name: EXPLAIN_COMMAND_TOOL_NAME,
           description: 'Reports an explanation of a shell command.',
-          inputSchema: {
+          input_schema: {
             type: 'object',
             properties: {
               explanation: { type: 'string', description: 'What the command does, in 1-2 sentences.' },
@@ -127,8 +127,8 @@ export async function generatePermissionExplanation(args: {
           },
         },
       ],
-      forceToolChoice: EXPLAIN_COMMAND_TOOL_NAME,
-    } as never)
+      tool_choice: { type: 'tool', name: EXPLAIN_COMMAND_TOOL_NAME },
+    })
 
     const content = (response as { content?: Array<{ type: string; input?: unknown; name?: string }> }).content
     const toolUse = content?.find(block => block.type === 'tool_use')
