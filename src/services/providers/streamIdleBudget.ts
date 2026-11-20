@@ -147,11 +147,13 @@ function fallbackRequestTokens(body: unknown): number {
   try {
     const serialized = JSON.stringify(body)
     if (typeof serialized === 'string') return Math.max(1, Math.ceil(serialized.length / 4))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     return Math.max(1, Math.ceil(safeBodyChars(body) / 4))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 1
   }
 }
