@@ -90,10 +90,32 @@ async function runProjectBoundary(): Promise<void> {
   }
 }
 
+async function runPromptDraft(): Promise<void> {
+  console.log('\npromptDraft — draftPasteHashes throws when drafts dir exists and is unreadable')
+  if (!POSIX_MODES) return
+  const { draftPasteHashes } = await import('../../src/utils/promptDraft.ts')
+  const draftsDir = join(HOME, 'drafts')
+  rmSync(draftsDir, { recursive: true, force: true })
+  check('draftPasteHashes returns empty set when drafts dir is absent', draftPasteHashes().size === 0)
+  mkdirSync(draftsDir, { recursive: true })
+  chmodSync(draftsDir, 0o000)
+  let threwCode: string | null = null
+  try {
+    draftPasteHashes()
+  } catch (error) {
+    threwCode = (error as NodeJS.ErrnoException | null)?.code ?? 'THREW'
+  } finally {
+    chmodSync(draftsDir, 0o700)
+    rmSync(draftsDir, { recursive: true, force: true })
+  }
+  check('draftPasteHashes throws EACCES when drafts dir is unreadable', threwCode === 'EACCES', String(threwCode))
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
   await runProjectBoundary()
+  await runPromptDraft()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
