@@ -4,7 +4,7 @@ import { queryUtility, queryWithModel } from '../../services/providers/anthropic
 import { getEngineModel } from '../../utils/model/model.js'
 import { utilityCallFor } from '../../utils/model/utilityModel.js'
 import { AbortError } from '../../utils/errors.js'
-import { isBinaryContentType, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
+import { isBinaryContentType, persistBinaryContent } from '../../services/mcp/mcpOutputStorage.js'
 import { extractTextContent } from '../../utils/messages/text.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { makeSecondaryModelPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'

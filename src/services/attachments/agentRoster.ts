@@ -1,14 +1,14 @@
 
 import type { AppState } from '../../state/AppState.js'
 import type { TaskState } from '../../tasks/types.js'
-import type { WorkRowV1 } from '../../services/engine-connector/types.js'
-import { crewAgentFactsOf, crewStateLabel, crewWaitLine } from '../../services/engine-connector/crewFacts.js'
-import { workRowRuns } from '../../services/engine-connector/workCounts.js'
+import type { WorkRowV1 } from '../engine-connector/types.js'
+import { crewAgentFactsOf, crewStateLabel, crewWaitLine } from '../engine-connector/crewFacts.js'
+import { workRowRuns } from '../engine-connector/workCounts.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { TASK_ID_TAG } from '../../constants/xml.js'
-import { getTaskOutputPath } from '../task/diskOutput.js'
-import { projectWorkRoster } from '../task/workRoster.js'
-import type { AgentRosterAttachment, AgentRosterRow } from './types.js'
+import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
+import { projectWorkRoster } from '../../utils/task/workRoster.js'
+import type { AgentRosterAttachment, AgentRosterRow } from '../../utils/attachments/types.js'
 
 type AgentRosterInput = {
   tasks: AppState['tasks'] | undefined

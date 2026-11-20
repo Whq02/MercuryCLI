@@ -363,7 +363,7 @@ async function runClearedSessions(): Promise<void> {
 
 async function runSessionFlip(): Promise<void> {
   console.log('\nsessionFlip — failure returns a note carrying the error instead of silent false')
-  const { flipToSession } = await import('../../src/utils/sessionFlip.ts')
+  const { flipToSession } = await import('../../src/services/engine-connector/sessionFlip.ts')
   const projectsDir = join(HOME, 'projects')
   const projDir = join(projectsDir, 'flip-proof-proj')
   mkdirSync(projDir, { recursive: true })
