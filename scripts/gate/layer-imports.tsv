@@ -26,25 +26,6 @@ src/utils/accounts/signInRefusal.ts	src/services/providers/zen/zenAccounts.ts	lo
 src/utils/api.ts	src/services/providers/deferralWire.ts	load	open
 src/utils/api.ts	src/services/providers/routeLaw.ts	load	open
 src/utils/artifacts/reviewContracts.ts	src/services/crew/identity.ts	type	open
-src/utils/attachments/contextCapsule.ts	src/services/projectIntel/capsule.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/projectIntel/snapshot.ts	load	open
-src/utils/attachments/deltas.ts	src/services/mcp/utils.ts	load	open
-src/utils/attachments/deltas.ts	src/services/providers/deferralWire.ts	load	open
-src/utils/attachments/deltas.ts	src/services/providers/toolEconomy.ts	load	open
-src/utils/attachments/deltas.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/attachments/diagnostics.ts	src/services/lsp/LSPDiagnosticRegistry.ts	load	open
-src/utils/attachments/diagnostics.ts	src/services/lsp/LSPServerManager.ts	type	open
-src/utils/attachments/diagnostics.ts	src/services/lsp/manager.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/tools/FileReadTool/FileReadTool.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/tools/FileReadTool/readTarget.ts	load	open
-src/utils/attachments/nestedMemory.ts	src/services/instructions/engine.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/advisor/advisorRoads.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/agentResults/summaryRoom.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/crewBoard/seam.ts	load	open
-src/utils/attachments/reminders.ts	src/daemon/concourseWorkers.ts	load	open
-src/utils/attachments/sessionContext.ts	src/services/providers/limitWarning.ts	load	open
-src/utils/attachments/toolSchemaDelta.ts	src/services/providers/toolEconomy.ts	load	open
-src/utils/attachments/toolSchemaDelta.ts	src/tools/ToolSearchTool/prompt.ts	load	open
 src/utils/attachments/types.ts	src/tools/FileReadTool/FileReadTool.ts	type	open
 src/utils/auth.ts	src/services/oauth/getOauthProfile.ts	load	open
 src/utils/auth.ts	src/services/oauth/refresh.ts	load	open
@@ -69,10 +50,7 @@ src/utils/hooks/questionRunner.ts	src/services/providers/callModelRouter.ts	load
 src/utils/hooks/questionRunner.ts	src/services/providers/catalogueOnDemand.ts	load	open
 src/utils/hooks/questionRunner.ts	src/services/providers/routeLaw.ts	load	open
 src/utils/imageResizer.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/mcp/dateTimeParser.ts	src/services/providers/anthropic/streamCore.ts	load	open
 src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/messageContextFill.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/messageContextFill.ts	src/services/roughTokenEstimation.ts	load	open
 src/utils/messages/apiPlan.ts	src/services/api/errors.ts	load	open
 src/utils/messages/attachmentText.ts	src/services/instructions/attachedText.ts	load	open
 src/utils/messages/attachmentText.ts	src/services/providers/limitWarning.ts	load	open
@@ -221,8 +199,6 @@ src/utils/sessionStorage/chain.ts	src/services/desktop/screenshotRetention.ts	lo
 src/utils/settings/allErrors.ts	src/services/mcp/config.ts	load	open
 src/utils/spendSpelling.ts	src/services/providers/providerUsage.ts	type	open
 src/utils/subprocessEnv.ts	src/services/providers/credentialEnvSpellings.ts	load	open
-src/utils/task/workRoster.ts	src/services/engine-connector/types.ts	type	open
-src/utils/task/workRoster.ts	src/services/notices/unreadLedger.ts	load	open
 src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
 src/utils/theme.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/toolResultSummary.ts	src/tools/FileReadTool/FileReadTool.ts	load	open
