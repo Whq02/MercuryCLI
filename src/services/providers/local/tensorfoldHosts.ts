@@ -84,6 +84,12 @@ function readStoreStrict(): HostsFile {
   return { version: 1, hosts, ports, ...(Object.keys(windows).length > 0 ? { windows } : {}) }
 }
 
+function hostsStoreReadErrorMessage(path: string, error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error)
+  if (detail.startsWith(`TensorFold hosts store at ${path}`)) return detail
+  return `TensorFold hosts store at ${path} could not be read (${detail})`
+}
+
 function readStore(): HostsFile {
   try {
     return readStoreStrict()
@@ -91,6 +97,16 @@ function readStore(): HostsFile {
     passedOver(error)
     logForDebugging(`[tensorfold-hosts] could not read ${storePath()}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
     return { version: 1, hosts: [], ports: [] }
+  }
+}
+
+export function tensorFoldHostsReadError(): string | undefined {
+  try {
+    readStoreStrict()
+    return undefined
+  } catch (error) {
+    passedOver(error)
+    return hostsStoreReadErrorMessage(storePath(), error)
   }
 }
 
