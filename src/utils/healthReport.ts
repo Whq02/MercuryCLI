@@ -246,7 +246,9 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
   let names: string[] = []
   try {
     names = readdirSync(home)
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
     names = []
   }
   for (const name of names) {
@@ -257,8 +259,12 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
     try {
       return statSync(join(dir, '.git')).isDirectory()
     } catch (error) {
-      passedOver(error)
-      return false
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        passedOver(error)
+        return false
+      }
+      throw error
     }
   })
   if (repositories.length === 0) {
@@ -436,14 +442,9 @@ export const SHELL_READS = Object.freeze({
 
 
 export function unresolvedDefaultRow(): string | null {
-  try {
-    if (getUserSpecifiedModelSetting() !== null) return null
-    const decision = computedDefault()
-    return decision.source === 'keyless' && decision.considered.length > 0 ? decision.row : null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  if (getUserSpecifiedModelSetting() !== null) return null
+  const decision = computedDefault()
+  return decision.source === 'keyless' && decision.considered.length > 0 ? decision.row : null
 }
 
 export async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
@@ -453,8 +454,7 @@ export async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
     labels = await import('../services/providers/local/tensorfoldHealth.js')
     rows = await labels.readTensorFoldHealth()
   } catch (error) {
-    passedOver(error)
-    return []
+    return [{ id: 'tensorfold', label: 'TensorFold', run: () => { throw error } }]
   }
   const specs: CheckSpec[] = []
   const { tensorfold, support, helper } = rows
@@ -566,7 +566,7 @@ export function modelRefusalsCheck(): CheckSpec {
 
 export async function skillsRefusedEvidence(cwd: string): Promise<{ status: 'ok' | 'warn'; evidence: string; fix?: string }> {
   const skills = require('../skills/loadSkillsDir.js') as typeof import('../skills/loadSkillsDir.js')
-  await skills.getSkillDirCommands(cwd).catch((error) => { passedOver(error); return [] })
+  await skills.getSkillDirCommands(cwd)
   const refusals = skills.getSkillLoadRefusals()
   if (refusals.length === 0) return { status: 'ok', evidence: 'every skill file on disk loaded' }
   const rows = refusals.map(refusal => `${relativeToCwd(cwd, refusal.path)} (${refusal.source}): ${refusal.error}`)
