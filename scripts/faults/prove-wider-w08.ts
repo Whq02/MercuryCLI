@@ -222,10 +222,133 @@ async function w08_3_corruptPackageJsonReportedInTestAndHealth(): Promise<void> 
   }
 }
 
+async function w08_4_invalidMercuryLspServersReportedOnce(): Promise<void> {
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-4-'))
+  const filePath = join(dir, 'sample.unknownext')
+  writeFileSync(filePath, 'hello\n')
+  const prevEnv = process.env.MERCURY_LSP_SERVERS
+  const prevLsp = process.env.MERCURY_LSP
+  process.env.MERCURY_LSP = '1'
+  process.env.MERCURY_LSP_SERVERS = '{bad json'
+  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
+  const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+  const { lspCheck } = await import(join(SRC, 'utils/health/sections/runtime/lsp.ts'))
+  const { LspReadTool } = await import(join(SRC, 'tools/LSPTool/LSPTool.ts'))
+  const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'services/lsp/manager.ts'))
+  const prevCwd = getCwd()
+  setCwd(dir)
+  try {
+    const health = await lspCheck().run()
+    check('w08-4: LSP health row reports invalid MERCURY_LSP_SERVERS JSON', health.status === 'warn' && health.evidence.includes('MERCURY_LSP_SERVERS is not valid JSON') && health.evidence.includes('so the language servers it names were not loaded.'), JSON.stringify(health))
+
+    initializeLspServerManager()
+    await waitForInitialization()
+    const ctx = { abortController: new AbortController(), options: {} } as never
+    const first = await LspReadTool.call({ operation: 'hover', filePath, line: 1, character: 1 } as never, ctx)
+    check('w08-4: LspRead missing-server answer includes invalid MERCURY_LSP_SERVERS sentence first time', first.data.result.includes('MERCURY_LSP_SERVERS is not valid JSON') && first.data.result.includes('so the language servers it names were not loaded.'), JSON.stringify(first.data))
+    const second = await LspReadTool.call({ operation: 'hover', filePath, line: 1, character: 1 } as never, ctx)
+    check('w08-4: LspRead does not repeat invalid MERCURY_LSP_SERVERS sentence on second call', !second.data.result.includes('MERCURY_LSP_SERVERS is not valid JSON'), JSON.stringify(second.data))
+  } finally {
+    await shutdownLspServerManager()
+    setCwd(prevCwd)
+    if (prevEnv === undefined) delete process.env.MERCURY_LSP_SERVERS
+    else process.env.MERCURY_LSP_SERVERS = prevEnv
+    if (prevLsp === undefined) delete process.env.MERCURY_LSP
+    else process.env.MERCURY_LSP = prevLsp
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void> {
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-5-'))
+  const filePath = join(dir, 'sample.w08sym')
+  writeFileSync(filePath, 'export const alpha = 1\n')
+  const { workspaceSymbolRequest } = await import(join(SRC, 'services/lsp/tsSidecar/sidecar/requests/navigation.ts'))
+  const goodProject = {
+    key: 'good',
+    service: {
+      getNavigateToItems: () => [{ name: 'alpha', kind: 'const', fileName: filePath, textSpan: { start: 13, length: 5 } }],
+    },
+  }
+  const badProject = {
+    key: 'bad',
+    service: {
+      getNavigateToItems: () => { throw new Error('corrupt tsconfig graph') },
+    },
+  }
+  const fakeState = {
+    workspaceProjects: () => [badProject, goodProject],
+    allProjects: () => [badProject, goodProject],
+    normalize: (p: string) => p,
+    textOf: () => 'export const alpha = 1\n',
+  }
+  const sidecarResult = workspaceSymbolRequest({ query: 'alpha' }, (() => fakeState) as never) as { symbols?: unknown[]; incompleteError?: string } | unknown[]
+  check('w08-5: workspaceSymbolRequest returns incompleteError alongside partial symbols when a project throws', !Array.isArray(sidecarResult) && Array.isArray(sidecarResult.symbols) && sidecarResult.symbols.length === 1 && sidecarResult.incompleteError === 'corrupt tsconfig graph', JSON.stringify(sidecarResult))
+
+  const stubScript = join(dir, 'stub-lsp.mjs')
+  writeFileSync(stubScript, `
+    let buf = Buffer.alloc(0)
+    const send = msg => {
+      const body = Buffer.from(JSON.stringify(msg), 'utf8')
+      process.stdout.write('Content-Length: ' + body.length + '\\r\\n\\r\\n')
+      process.stdout.write(body)
+    }
+    const payload = ${JSON.stringify(sidecarResult)}
+    process.stdin.on('data', chunk => {
+      buf = Buffer.concat([buf, chunk])
+      for (;;) {
+        const sep = buf.indexOf('\\r\\n\\r\\n')
+        if (sep === -1) break
+        const header = buf.subarray(0, sep).toString('utf8')
+        const m = /Content-Length:\\s*(\\d+)/i.exec(header)
+        if (!m) break
+        const len = Number(m[1])
+        if (buf.length < sep + 4 + len) break
+        const msg = JSON.parse(buf.subarray(sep + 4, sep + 4 + len).toString('utf8'))
+        buf = buf.subarray(sep + 4 + len)
+        if (msg.method === 'initialize') send({ jsonrpc: '2.0', id: msg.id, result: { capabilities: { workspaceSymbolProvider: true } } })
+        else if (msg.method === 'workspace/symbol') send({ jsonrpc: '2.0', id: msg.id, result: payload })
+        else if (msg.method === 'shutdown') send({ jsonrpc: '2.0', id: msg.id, result: null })
+        else if (msg.method === 'exit') process.exit(0)
+        else if (msg.id !== undefined) send({ jsonrpc: '2.0', id: msg.id, result: null })
+      }
+    })
+  `)
+  const prevEnv = process.env.MERCURY_LSP_SERVERS
+  const prevLsp = process.env.MERCURY_LSP
+  process.env.MERCURY_LSP = '1'
+  process.env.MERCURY_LSP_SERVERS = JSON.stringify({
+    stub: { command: process.execPath, args: [stubScript], extensionToLanguage: { '.w08sym': 'w08sym' } },
+  })
+  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
+  const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+  const { LspReadTool } = await import(join(SRC, 'tools/LSPTool/LSPTool.ts'))
+  const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'services/lsp/manager.ts'))
+  const prevCwd = getCwd()
+  setCwd(dir)
+  try {
+    initializeLspServerManager()
+    await waitForInitialization()
+    const ctx = { abortController: new AbortController(), options: {} } as never
+    const res = await LspReadTool.call({ operation: 'workspaceSymbol', filePath, query: 'alpha' } as never, ctx)
+    check('w08-5: LSPTool workspaceSymbol includes found symbols and the incomplete-search note', res.data.result.includes('alpha') && res.data.result.includes('Workspace symbols may be incomplete: one or more TypeScript projects failed to search (corrupt tsconfig graph).'), JSON.stringify(res.data))
+  } finally {
+    await shutdownLspServerManager()
+    setCwd(prevCwd)
+    if (prevEnv === undefined) delete process.env.MERCURY_LSP_SERVERS
+    else process.env.MERCURY_LSP_SERVERS = prevEnv
+    if (prevLsp === undefined) delete process.env.MERCURY_LSP
+    else process.env.MERCURY_LSP = prevLsp
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
   w08_3_corruptPackageJsonReportedInTestAndHealth,
+  w08_4_invalidMercuryLspServersReportedOnce,
+  w08_5_tsSidecarWorkspaceSymbolIncompleteReported,
 ]
 for (const row of rows) {
   try {

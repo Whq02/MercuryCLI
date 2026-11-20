@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { mercuryLspEnabled } from '../../../../services/lsp/mercuryLsp.js'
-import { probeBuiltinTsServer } from '../../../../services/lsp/builtinServers.js'
+import { mercuryLspServersInvalidNote, probeBuiltinTsServer } from '../../../../services/lsp/builtinServers.js'
 import { compileDbRemedy, mercuryLspCppEnabled, probeBuiltinClangd, probeCompileDb } from '../../../../services/lsp/clangdLane.js'
 import { probeGodotEditorReachable, probeGodotLane } from '../../../../services/lsp/godotLane.js'
 import { getInitializationStatus, getLspServerManager } from '../../../../services/lsp/manager.js'
@@ -67,6 +67,7 @@ export function lspCheck(): CheckSpec {
         )
       }
       const lanes = laneSegments.join(' · ')
+      const invalidEnv = mercuryLspServersInvalidNote()
       const init = getInitializationStatus()
       if (init.status === 'failed') {
         return {
@@ -77,16 +78,16 @@ export function lspCheck(): CheckSpec {
       }
       if (init.status === 'not-started' || init.status === 'pending') {
         return {
-          status: 'info',
-          evidence: `bridge armed · ${tsEvidence} · ${lanes} · manager ${init.status} (probe: builtinServers.probeBuiltinTsServer)`,
+          status: invalidEnv ? 'warn' : 'info',
+          evidence: `${invalidEnv ? `${invalidEnv} · ` : ''}bridge armed · ${tsEvidence} · ${lanes} · manager ${init.status} (probe: builtinServers.probeBuiltinTsServer)`,
         }
       }
       const manager = getLspServerManager()
       const servers = manager ? [...manager.getAllServers().values()] : []
       if (servers.length === 0) {
         return {
-          status: 'info',
-          evidence: `no LSP server source — ${probe.reason ?? tsEvidence}; ${lanes}`,
+          status: invalidEnv ? 'warn' : 'info',
+          evidence: `${invalidEnv ? `${invalidEnv} · ` : ''}no LSP server source — ${probe.reason ?? tsEvidence}; ${lanes}`,
           fix: 'Add typescript to the workspace, install clangd, provide MERCURY_LSP_SERVERS, or install an extension that contributes a language server.',
         }
       }
@@ -97,14 +98,14 @@ export function lspCheck(): CheckSpec {
       if (errored.length > 0) {
         return {
           status: 'warn',
-          evidence: `${roster} — ${errored[0]!.name}: ${errored[0]!.lastError?.message.slice(0, 100) ?? 'error'}`,
+          evidence: `${invalidEnv ? `${invalidEnv} · ` : ''}${roster} — ${errored[0]!.name}: ${errored[0]!.lastError?.message.slice(0, 100) ?? 'error'}`,
           fix: 'Server errored; it restarts on next use up to maxRestarts. MERCURY_LSP_DEBUG=1 for sidecar stderr.',
           link: '/trace',
         }
       }
       return {
-        status: 'ok',
-        evidence: `${roster} · ${tsEvidence} · ${lanes} · post-edit diagnostics armed (servers lazy-start on first use)`,
+        status: invalidEnv ? 'warn' : 'ok',
+        evidence: `${invalidEnv ? `${invalidEnv} · ` : ''}${roster} · ${tsEvidence} · ${lanes} · post-edit diagnostics armed (servers lazy-start on first use)`,
         link: '/trace',
       }
     },
