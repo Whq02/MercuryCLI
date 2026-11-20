@@ -3,12 +3,10 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, projectConfigDirs } from '../../utils/projectConfig.js'
 
+export { projectLocalPath } from '../../utils/projectConfig.js'
+
 export function projectLocalDir(root: string): string {
   return join(root, MERCURY_PROJECT_DIR)
-}
-
-export function projectLocalPath(root: string, ...segments: string[]): string {
-  return join(root, MERCURY_PROJECT_DIR, ...segments)
 }
 
 export function projectLocalEstateExists(root: string): boolean {

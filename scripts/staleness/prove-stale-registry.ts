@@ -143,7 +143,7 @@ src/services/eval/interpreters.ts :: probeCache :: ttl-bounded
 src/services/host/bankManifest.ts :: memo :: keyed-by-truth
 src/services/ide/blenderProject.ts :: versionCache :: ttl-bounded
 src/services/ide/cppBuild.ts :: cmakeCache :: ttl-bounded
-src/services/ide/cppProject.ts :: profileCache :: ttl-bounded
+src/services/ide/cppProjectProfile.ts :: profileCache :: ttl-bounded
 src/services/ide/godotSession.ts :: parseCache :: keyed-by-truth
 src/services/ide/ideTransaction.ts :: rootMemo :: keyed-by-truth
 src/services/ide/pythonProject.ts :: profileCache :: ttl-bounded
@@ -285,7 +285,7 @@ src/utils/fileReadCache.ts :: fileReadCache :: keyed-by-truth
 src/utils/forkedAgent.ts :: lastCacheSafeParams :: keyed-by-truth
 src/utils/fullscreen.ts :: controlModeCache :: static-for-process
 src/utils/git.ts :: getIsGit :: invalidator=applyHarnessGround
-src/utils/git.ts :: gitExe :: static-for-process
+src/utils/git/gitExe.ts :: gitExe :: static-for-process
 src/utils/git.ts :: lastSnapshot :: subscription-fed
 src/utils/git/gitFilesystem.ts :: cacheEntries :: invalidator=regroundGitWatch
 src/utils/git/gitFilesystem.ts :: gitDirCache :: keyed-by-truth

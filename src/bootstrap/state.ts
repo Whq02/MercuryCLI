@@ -27,7 +27,8 @@ import { SessionIdentityOwner } from './runtime/session-identity.js'
 import { StatsHandleOwner } from './runtime/stats-handle.js'
 import { TurnAccountingOwner } from './runtime/turn-accounting.js'
 import { UsageLedgerOwner } from './runtime/usage-ledger.js'
-import { resetJevLedger } from '../services/jev/jevLedger.js'
+import { resetJevLedger } from '../services/jev/jevLedgerState.js'
+import '../ink/launcherAltHold.js'
 
 export type InvokedSkillInfo = RuntimeInvokedSkillInfo
 

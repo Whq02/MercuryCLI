@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join as joinPath } from 'node:path'
 import { gitArgs, gitArgsAsync } from '../../utils/git/spawnArgs.js'
-import { readConflictRegions } from './conflictRegions.js'
+import { readConflictRegions } from './conflictRegionStore.js'
 import type {
   GitCommitMeta,
   GitConflict,

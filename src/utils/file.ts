@@ -21,12 +21,15 @@ import { isRemotePath } from '../services/remoteFiles/target.js'
 import { faultPoint, isTransientWin32FsCode, renameWithWin32RetrySync, WIN32_RENAME_RETRY_DELAYS_MS } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
-import { errorMessage, isENOENT, isFsInaccessible, getErrnoCode } from './errors.js'
+import { errorMessage, isENOENT, getErrnoCode } from './errors.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
-import { detectEncodingForResolvedPath, detectLineEndingsForString, type LineEndingType } from './fileRead.js'
+import { detectLineEndingsForString, type LineEndingType } from './fileRead.js'
 import { fileReadCache } from './fileReadCache.js'
 import { logError } from './log.js'
 import { expandPath } from './path.js'
+import { needsPowerShellBom } from './fileEncoding.js'
+
+export { detectFileEncoding, needsPowerShellBom } from './fileEncoding.js'
 
 
 export type File = {
@@ -85,11 +88,6 @@ export async function getFileModificationTimeAsync(path: string): Promise<number
     if (!isENOENT(error)) logError(error)
     return 0
   }
-}
-
-export function needsPowerShellBom(filePath: string, platform: NodeJS.Platform = process.platform): boolean {
-  if (platform !== 'win32') return false
-  return /\.(ps1|psm1|psd1)$/i.test(filePath)
 }
 
 const ALIGNMENT_CELL_BUDGET = 4_000_000
@@ -379,20 +377,6 @@ export function writeFileAndFlushAtomically(
 
 export function sleepSyncMs(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
-}
-
-export function detectFileEncoding(filePath: string): BufferEncoding {
-  try {
-    const { resolvedPath } = safeResolvePath(getFsImplementation(), filePath)
-    return detectEncodingForResolvedPath(resolvedPath)
-  } catch (err) {
-    if (isFsInaccessible(err)) {
-      logForDebugging(`detectFileEncoding: inaccessible (${getErrnoCode(err) ?? 'unknown'}): ${filePath}`)
-    } else {
-      logError(err)
-    }
-    return 'utf8'
-  }
 }
 
 export function detectLineEndings(filePath: string, encoding: BufferEncoding = 'utf8'): LineEndingType {

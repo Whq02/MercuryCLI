@@ -37,7 +37,7 @@ import {
 import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
 import { checkVendoredPython, payloadVendoredPython, readPythonRecord } from './vendoredPython.js'
 import { payloadDigestOf } from './payloadDigest.js'
-import { nixInstallRoot } from './installProvenance.js'
+import { nixInstallRoot } from './nixInstallRoot.js'
 
 export interface LayoutRoots {
   versionsDir: string

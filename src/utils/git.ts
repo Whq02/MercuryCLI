@@ -2,7 +2,6 @@ import { execFile } from 'node:child_process'
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, accessSync, constants as fsConstants } from 'node:fs'
 import { basename, dirname, isAbsolute, join, parse, resolve, sep } from 'node:path'
 
-import { LRUCache } from 'lru-cache'
 import { memoize } from 'lodash-es'
 
 import type { GitUnavailable, GitWorktreeInfo } from '../services/gitGraph/contracts.js'
@@ -23,50 +22,12 @@ import {
 } from './git/gitFilesystem.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { gitArgsAsync } from './git/spawnArgs.js'
-import { whichSync } from './which.js'
+import { findGitRoot, makeCachedFinder, type CachedFinder } from './git/gitRoot.js'
+import { gitExe } from './git/gitExe.js'
 
+export { findGitRoot } from './git/gitRoot.js'
+export { gitExe } from './git/gitExe.js'
 
-const ROOT_CACHE_ENTRIES = 50
-
-
-type RootMemo = { root: string | null }
-type CachedFinder = ((startPath: string) => string | null) & { cache: LRUCache<string, RootMemo> }
-
-function makeCachedFinder(compute: (startPath: string) => string | null): CachedFinder {
-  const cache = new LRUCache<string, RootMemo>({ max: ROOT_CACHE_ENTRIES })
-  const finder = ((startPath: string): string | null => {
-    const memo = cache.get(startPath)
-    if (memo) return memo.root
-    const root = compute(startPath)
-    cache.set(startPath, { root })
-    return root
-  }) as CachedFinder
-  finder.cache = cache
-  return finder
-}
-
-export const findGitRoot: CachedFinder = makeCachedFinder(startPath => {
-  const startedAt = Date.now()
-  let stats = 0
-  logForDiagnosticsNoPII('debug', 'git_root_discovery_started')
-  let current = resolve(startPath)
-  for (;;) {
-    stats++
-    try {
-      const entry = statSync(join(current, '.git'))
-      if (entry.isDirectory() || entry.isFile()) {
-        logForDiagnosticsNoPII('debug', 'git_root_discovery_completed', { found: true, stats, duration_ms: Date.now() - startedAt })
-        return current.normalize('NFC')
-      }
-    } catch {
-    }
-    const parent = dirname(current)
-    if (parent === current) break
-    current = parent
-  }
-  logForDiagnosticsNoPII('debug', 'git_root_discovery_completed', { found: false, stats, duration_ms: Date.now() - startedAt })
-  return null
-})
 
 export const findCanonicalGitRoot: CachedFinder = makeCachedFinder(startPath => {
   const inputRoot = findGitRoot(startPath)
@@ -98,25 +59,6 @@ export const findCanonicalGitRoot: CachedFinder = makeCachedFinder(startPath => 
   } catch {
     return inputRoot
   }
-})
-
-export const gitExe = memoize((): string => {
-  const executable = whichSync('git') ?? 'git'
-  if (process.platform !== 'darwin' || executable !== '/usr/bin/git') return executable
-  const developer = process.env.DEVELOPER_DIR?.trim()
-  const directories = developer ? [developer] : ['/Library/Developer/CommandLineTools', '/Applications/Xcode.app/Contents/Developer']
-  if (!developer) {
-    try { directories.unshift(realpathSync('/var/db/xcode_select_link')) } catch {}
-  }
-  for (const directory of directories) {
-    if (!isAbsolute(directory)) continue
-    const candidate = join(directory.endsWith('.app') ? join(directory, 'Contents/Developer') : directory, 'usr/bin/git')
-    try {
-      accessSync(candidate, fsConstants.X_OK)
-      if (statSync(candidate).isFile()) return candidate
-    } catch {}
-  }
-  return executable
 })
 
 

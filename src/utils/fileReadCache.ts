@@ -1,5 +1,5 @@
-import { detectFileEncoding, needsPowerShellBom } from './file.js'
 import { getFsImplementation } from './fsOperations.js'
+import { detectFileEncoding, needsPowerShellBom } from './fileEncoding.js'
 
 
 const MAX_ENTRIES = 1000

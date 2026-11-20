@@ -13,6 +13,7 @@ import {
   jevWaitLabel,
 } from './jevContract.js'
 import { type JevSettings, readJevSettings } from './jevSetting.js'
+import { type JevWireRecord, type LedgerState, states } from './jevLedgerState.js'
 
 export const JEV_PACE_WINDOW_MS = 60_000
 export const JEV_COOL_DOWN_BASE_MS = 30_000
@@ -20,10 +21,6 @@ export const JEV_COOL_DOWN_CAP_MS = 10 * 60_000
 const JEV_COOL_DOWN_JITTER = 0.25
 const JEV_HOLD_CEILING_MS = 24 * 60 * 60_000
 const STREAK_DECAY_MS = 2 * JEV_COOL_DOWN_CAP_MS
-
-interface JevWireRecord extends JevWireFailure {
-  at: number
-}
 
 export interface JevLedgerSnapshot {
   road: JevRoad
@@ -44,50 +41,6 @@ export interface JevLedgerSnapshot {
 }
 
 type JevAdmission = { ok: true } | { ok: false; kind: JevLocalRefusalKind; words: string; retryInMs?: number }
-
-interface LedgerState {
-  spendUsd: number
-  lastCostUsd: number | null
-  lastRequestId: string | null
-  calls: number
-  attempts: number
-  inputTokens: number
-  unconfirmedCharges: number
-  attemptTimes: number[]
-  subagentAttemptTimes: number[]
-  subagentAttempts: Map<string, number>
-  lastWire: JevWireRecord | null
-  holdUntil: number
-  refusals: number
-  lastRefusalAt: number
-  notices: Set<JevStatusKind>
-  lastAnsweredAt: number | null
-  lastModel: string | null
-}
-
-function fresh(): LedgerState {
-  return {
-    spendUsd: 0,
-    lastCostUsd: null,
-    lastRequestId: null,
-    calls: 0,
-    attempts: 0,
-    inputTokens: 0,
-    unconfirmedCharges: 0,
-    attemptTimes: [],
-    subagentAttemptTimes: [],
-    subagentAttempts: new Map(),
-    lastWire: null,
-    holdUntil: 0,
-    refusals: 0,
-    lastRefusalAt: 0,
-    notices: new Set(),
-    lastAnsweredAt: null,
-    lastModel: null,
-  }
-}
-
-const states: Record<JevRoad, LedgerState> = { official: fresh(), openrouter: fresh() }
 
 function pruneWindow(state: LedgerState, now: number): void {
   const floor = now - JEV_PACE_WINDOW_MS
@@ -229,7 +182,4 @@ export function takeJevNotice(kind: JevStatusKind, road: JevRoad = readJevSettin
   return true
 }
 
-export function resetJevLedger(): void {
-  states.official = fresh()
-  states.openrouter = fresh()
-}
+export { resetJevLedger } from './jevLedgerState.js'
