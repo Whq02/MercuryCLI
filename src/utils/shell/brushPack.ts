@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { passedOver } from '../passedOver.js'
+import { packPlatformFor } from '../platform/programs.js'
 
 export const BRUSH_PACK_PATH = 'vendor/brush'
 export const BRUSH_PACK_NAME = 'brush'
@@ -12,13 +13,7 @@ export const BRUSH_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 
 export type BrushPackPlatform = (typeof BRUSH_PACK_PLATFORMS)[number]
 
 export function brushPackPlatform(platform: string = process.platform, arch: string = process.arch): BrushPackPlatform | null {
-  if (platform === 'darwin' && arch === 'arm64') return 'darwin-arm64'
-  if (platform === 'darwin' && arch === 'x64') return 'darwin-x64'
-  if (platform === 'linux' && arch === 'x64') return 'linux-x64'
-  if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
-  if (platform === 'win32' && arch === 'x64') return 'win-x64'
-  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
-  return null
+  return packPlatformFor(platform, arch)
 }
 
 export function brushBinaryFor(packPlatform: string): string {

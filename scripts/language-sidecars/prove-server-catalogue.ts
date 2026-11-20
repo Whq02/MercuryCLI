@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -25,8 +25,9 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 {
   const fakeBin = mkdtempSync(join(tmpdir(), 'vista-catalogue-bin-'))
-  writeFileSync(join(fakeBin, 'gopls'), '#!/bin/sh\nexit 0\n')
-  chmodSync(join(fakeBin, 'gopls'), 0o755)
+  const goplsBin = join(fakeBin, process.platform === 'win32' ? 'gopls.cmd' : 'gopls')
+  writeFileSync(goplsBin, process.platform === 'win32' ? '@echo off\r\nexit /b 0\r\n' : '#!/bin/sh\nexit 0\n')
+  if (process.platform !== 'win32') chmodSync(goplsBin, 0o755)
   const prevPath = process.env.PATH
   process.env.PATH = fakeBin
   try {
@@ -44,6 +45,7 @@ function check(label: string, ok: boolean, detail = ''): void {
     check('no record ever reads ready', records.every(r => (r.state as string) !== 'ready'))
   } finally {
     process.env.PATH = prevPath
+    rmSync(fakeBin, { recursive: true, force: true })
   }
 }
 

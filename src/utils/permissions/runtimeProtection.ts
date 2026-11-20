@@ -14,6 +14,7 @@ import { matchWildcardPattern } from './shellRuleMatching.js'
 import { directoryTheShellStandsIn } from '../cwd.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { parentPidProbeKind, posixProcessTableSupported } from '../platform/processes.js'
 
 const inside = (path: string, root: string): boolean => path === root || path.startsWith(root + '/')
 
@@ -119,7 +120,7 @@ let ownProcessesRead: { at: number; key: string; found: OwnProcesses } | undefin
 async function ownProcesses(pids: number[]): Promise<OwnProcesses> {
   const state = await readDaemonState()
   const recorded = state?.script ? [state.script] : []
-  if (process.platform === 'win32') return { lines: recorded, names: [] }
+  if (!posixProcessTableSupported()) return { lines: recorded, names: [] }
   const key = pids.join(',')
   if (ownProcessesRead !== undefined && ownProcessesRead.key === key && Date.now() - ownProcessesRead.at < 2000) return ownProcessesRead.found
   const listed = await execFileNoThrow('ps', ['-axo', 'pid=,ppid=,command='])
@@ -228,7 +229,7 @@ async function launchAgentReason(args: string[], pids: number[]): Promise<string
 
 async function parentPid(pid: number): Promise<number | undefined> {
   if (pid === process.pid) return process.ppid
-  if (process.platform === 'win32') return (await getAncestorPidsAsync(pid, 1))[0]
+  if (parentPidProbeKind() === 'win32-ancestors') return (await getAncestorPidsAsync(pid, 1))[0]
   const result = await execFileNoThrow('ps', ['-o', 'ppid=', '-p', String(pid)])
   const parent = Number(result.stdout.trim())
   return result.code === 0 && parent > 0 ? parent : undefined

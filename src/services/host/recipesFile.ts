@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import shippedRecipesFile from '../../../assets/host/recipes.json' with { type: 'json' }
@@ -10,7 +9,7 @@ import { isEssentialTrafficOnly, isProofShapeRun } from '../../utils/privacyLeve
 import { PUBLIC_HOME_SLUG, repoSlugFromUrl } from '../privateChannel/channelCore.js'
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
 import { hostDirectory } from './store.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { userHomeDir } from '../../utils/platform/files.js'
 
 const packagedSlug = typeof MACRO !== 'undefined' && typeof MACRO.PACKAGE_URL === 'string' ? repoSlugFromUrl(MACRO.PACKAGE_URL) : null
 
@@ -268,7 +267,7 @@ export function currentPrivateHostRecipes(onDrop?: HostRecipesOptions['onDrop'])
 
 export function validatePrivateHostRecipesPath(value: string): PrivateHostRecipes & { path: string } {
   const named = value.trim()
-  const home = process.platform === 'win32' ? homedir() : hostEnv().HOME?.trim() || homedir()
+  const home = userHomeDir()
   const path = named.startsWith('~/') || named.startsWith('~\\') ? join(home, named.slice(2)) : named
   if (!isAbsolute(path) || !printable.test(path)) throw new Error('Give an absolute file path on this computer.')
   const inspected = inspectPrivateHostRecipes(resolve(path))
