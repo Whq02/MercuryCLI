@@ -352,9 +352,11 @@ function posixNode(this: PosixWalk, node: Node, frame: Frame): void {
       return
     case 'function_definition': {
       const name = node.children.find(child => child.type === 'word')?.text
-      const body = node.children.find(child => child.type === 'compound_statement' || child.type === 'subshell')?.text
-      if (name !== undefined && body !== undefined) this.reading.functions.set(name, body)
+      const block = node.children.find(child => child.type === 'compound_statement' || child.type === 'subshell')
+      if (name !== undefined && block !== undefined) this.reading.functions.set(name, block.text)
+      const from = this.reading.commands.length
       this.isolated(() => this.children(node, { ...frame, body: name ?? frame.body, background: false, stages: [] }))
+      if (name !== undefined && block !== undefined) this.reading.define(name, block, this.source, from)
       return
     }
     case 'variable_assignment':

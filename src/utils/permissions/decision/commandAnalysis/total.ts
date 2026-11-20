@@ -1,5 +1,6 @@
 import { shellCommandText } from '../../../bash/ast.js'
-import { misreadWordList, parseCommandRaw } from '../../../bash/parser.js'
+import { misreadWordList, parseCommandRaw, type Node } from '../../../bash/parser.js'
+import { passedOver } from '../../../passedOver.js'
 import { absolutePath, layersOf, moveOf, programOf, wordKnown } from './layers.js'
 import { nestedScripts, type Pending } from './scripts.js'
 import { PosixWalk, READING_CAP } from './totalPosix.js'
@@ -8,6 +9,8 @@ import type { ReadCommand, ReadWorld, ShellDialect, ShellRead, Stage } from './r
 
 const SCRIPT_DEPTH_CAP = 64
 const SCRIPT_COUNT_CAP = 256
+const LEAVE_DEPTH_CAP = 8
+const LEAVE_COUNT_CAP = 64
 
 const EXPANSION_CAP = 4
 const ALIAS_DEFINITION = /^([^=\s]+)=([\s\S]*)$/
@@ -18,6 +21,10 @@ function withPositionals(body: string, args: string[]): string {
     const key = braced ?? bare ?? ''
     return key === '@' || key === '*' ? args.map(plain).join(' ') : plain(args[Number(key) - 1] ?? '')
   })
+}
+
+function walkable(root: Node): Node {
+  return root.type === 'ERROR' ? { ...root, type: 'program' } : root
 }
 
 export class Reading {
@@ -31,6 +38,13 @@ export class Reading {
   readonly functions = new Map<string, string>()
   readonly aliases = new Map<string, string>()
   readonly expansions = new Map<string, number>()
+  readonly bodies = new Map<string, { node: Node; source: string }>()
+  readonly movers = new Set<string>()
+  roots = new Map<string, Node>()
+  walks = { left: LEAVE_COUNT_CAP }
+  moved = false
+  second = false
+  depth = 0
   unread: { why: string; text: string } | undefined
   scripts = 0
   contexts = 0
@@ -65,8 +79,10 @@ export class Reading {
     for (const entry of command.env) this.assign(entry.name, [entry.value])
     for (const layer of layersOf(command.argv)) for (const entry of layer.env) this.assign(entry.name, [entry.value])
     this.follow(command)
+    const from = this.pending.length
     this.pending.push(...nestedScripts(command, index, this.commands))
     this.expand(command, index)
+    if (this.second) this.leave(command, this.pending.slice(from))
     return index
   }
 
@@ -79,9 +95,10 @@ export class Reading {
       return made < EXPANSION_CAP
     }
     const alias = this.aliases.get(head)
-    if (alias !== undefined && once(`alias ${head}`)) this.pending.push({ text: `${alias} ${shellCommandText(command.argv.slice(1))}`.trim(), dialect: 'posix', from: index })
+    if (alias !== undefined && once(`alias ${head}`)) this.pending.push({ text: `${alias} ${shellCommandText(command.argv.slice(1))}`.trim(), dialect: 'posix', from: index, same: true })
     const body = this.functions.get(head)
-    if (body !== undefined && command.body === undefined && command.argv.length > 1 && once(`function ${head}`)) this.pending.push({ text: withPositionals(body, command.argv.slice(1)), dialect: 'posix', from: index, body: head })
+    if (body !== undefined && command.body === undefined && command.argv.length > 1 && once(`function ${head}`)) this.pending.push({ text: withPositionals(body, command.argv.slice(1)), dialect: 'posix', from: index, body: head, same: true })
+    if (body !== undefined && command.body === undefined && command.argv.length === 1 && this.movers.has(head)) this.moved = true
     if (programOf(head) !== 'alias') return
     for (const word of command.argv.slice(1)) {
       const defined = ALIAS_DEFINITION.exec(word)
@@ -108,6 +125,48 @@ export class Reading {
     else this.cwd = this.world.folderOf?.(target) ?? absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
     this.oldpwd = left
   }
+
+  define(name: string, node: Node, source: string, from: number): void {
+    this.bodies.set(name, { node, source })
+    if (this.commands.slice(from).some(command => moveOf(command) !== undefined)) this.movers.add(name)
+    else this.movers.delete(name)
+  }
+
+  leave(command: ReadCommand, scripts: readonly Pending[]): void {
+    if (command.background) return
+    const head = command.argv[0]
+    const called = head !== undefined && command.dialect === 'posix' && command.body === undefined && command.argv.length === 1 ? this.bodies.get(head) : undefined
+    if (called !== undefined) this.walked(copy => new PosixWalk(copy, called.source).node(called.node, { background: false, stages: [], body: head, line: 1, dialect: 'posix', around: undefined }))
+    for (const script of scripts) {
+      if (script.same !== true) continue
+      const frame: Frame = { background: false, stages: [], body: script.body, line: 1, dialect: script.dialect, around: undefined, cmd: script.cmd }
+      if (script.dialect === 'powershell') this.walked(copy => new PowerShellWalk(copy, script.text, frame).statements(undefined, frame.stages))
+      else {
+        const root = this.roots.get(script.text)
+        if (root !== undefined) this.walked(copy => new PosixWalk(copy, script.text).node(walkable(root), frame))
+      }
+    }
+  }
+
+  walked(walk: (copy: Reading) => void): void {
+    if (this.depth >= LEAVE_DEPTH_CAP || this.walks.left-- <= 0) return
+    const copy = new Reading(this.world)
+    copy.walks = this.walks
+    copy.cwd = this.cwd
+    copy.oldpwd = this.oldpwd
+    copy.folders.push(...this.folders)
+    for (const [name, values] of this.scope) copy.scope.set(name, [...values])
+    for (const [name, body] of this.functions) copy.functions.set(name, body)
+    for (const [name, alias] of this.aliases) copy.aliases.set(name, alias)
+    for (const [name, body] of this.bodies) copy.bodies.set(name, body)
+    copy.roots = this.roots
+    copy.second = true
+    copy.depth = this.depth + 1
+    walk(copy)
+    this.cwd = copy.cwd
+    this.oldpwd = copy.oldpwd
+    this.folders.splice(0, this.folders.length, ...copy.folders)
+  }
 }
 
 export type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined; maybes?: readonly number[] | undefined; substituted?: boolean | undefined; cmd?: boolean | undefined }
@@ -121,21 +180,24 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
   const from = reading.pending.length
   if (frame.dialect === 'powershell') new PowerShellWalk(reading, text, frame).statements(undefined, frame.stages)
   else {
-    const root = await parseCommandRaw(text)
+    const root = reading.roots.get(text) ?? (await parseCommandRaw(text))
     if (root === null || typeof root === 'symbol') {
       reading.markUnread(text.length > 10_000 ? 'it is longer than the shell parser reads' : 'the shell parser is not available', text)
       return
     }
+    reading.roots.set(text, root)
     if (root.type === 'ERROR') reading.markUnread(misreadWordList(root) === null ? 'the shell parser found incomplete or invalid syntax in it' : 'a line break stands between the words of one command in it', text)
-    new PosixWalk(reading, text).node(root.type === 'ERROR' ? { ...root, type: 'program' } : root, frame)
+    new PosixWalk(reading, text).node(walkable(root), frame)
   }
   const scripts = reading.pending.splice(from)
   for (const script of scripts) {
     const parent = reading.commands[script.from]
     if (parent === undefined) continue
     const cwd = reading.cwd
+    const before = reading.commands.length
     reading.cwd = parent.cwd
     await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: script.body ?? parent.body, line: parent.line, dialect: script.dialect, around: undefined, cmd: script.cmd }, depth + 1)
+    if (script.same === true && reading.commands.slice(before).some(command => moveOf(command) !== undefined)) reading.moved = true
     reading.cwd = cwd
   }
 }
@@ -146,11 +208,25 @@ export function failShellReadingForTesting(fail: boolean): void {
   failing = fail
 }
 
+async function followed(first: Reading, text: string, dialect: ShellDialect): Promise<Reading> {
+  const again = new Reading(first.world)
+  again.roots = first.roots
+  again.second = true
+  try {
+    await readInto(again, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
+  } catch (error) {
+    passedOver(error)
+    return first
+  }
+  return again.commands.length === first.commands.length ? again : first
+}
+
 export async function readShellCommands(text: string, dialect: ShellDialect, world: ReadWorld): Promise<ShellRead> {
-  const reading = new Reading(world)
+  let reading = new Reading(world)
   try {
     if (failing) throw new Error('the reading was made to fail')
     await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
+    if (reading.moved) reading = await followed(reading, text, dialect)
   } catch {
     reading.markUnread('it could not be read', text)
   }

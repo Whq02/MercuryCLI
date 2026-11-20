@@ -127,9 +127,6 @@ const UNREAD: Array<[string, number]> = [
 ]
 
 const GRAMMAR_READERS: Array<[string, number]> = [
-  ['src/tools/AgentTool/reviewerPolicy.ts', 3],
-  ['src/tools/BashTool/bashPermissions.ts', 7],
-  ['src/tools/BashTool/denyRuleReach.ts', 32],
   ['src/utils/permissions/flowLaw.ts', 27],
   ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
 ]
@@ -398,13 +395,11 @@ section("(5) the walker — files under src/ outside the walker folder and parse
   const PARSER = 'src/utils/bash/parser.ts'
   const BASH_PARSER = 'src/utils/bash/bashParser.ts'
   const COMPLETION = 'src/utils/bash/shellCompletion.ts'
-  const SEED_WALKERS = ['src/utils/bash/ast.ts', 'src/utils/wards/wardsShellRead.ts']
   const WRITE = process.argv.includes('--write')
   const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
   const SHARED_WORDS = new Set(['string', 'number', 'local', 'done', 'readonly', 'list', 'command', 'comment', 'ERROR', 'function_definition', 'compound_statement'])
   const isDotType = (node: ts.Expression): boolean => ts.isPropertyAccessExpression(node) && node.name.text === 'type'
   const isNodeSource = (file: string): boolean => file === PARSER || file === BASH_PARSER || file === PARSE_DOOR || file.startsWith(WALKER_DIR)
-  const isParseDoor = (file: string): boolean => isNodeSource(file) || file === 'src/utils/bash/ParsedCommand.ts' || file === 'src/utils/bash/ast.ts' || file === 'src/utils/wards/wardsShellRead.ts'
 
   type TypeHit = { line: number; text: string; words: string[] }
   const collectSets = (source: ts.SourceFile): Map<string, Set<string>> => {
@@ -473,7 +468,7 @@ section("(5) the walker — files under src/ outside the walker folder and parse
 
   const hitsByFile = new Map(files.map(file => [file, typeHitsIn(file, readFileSync(join(ROOT, file), 'utf8'))]))
   const listed = new Map(GRAMMAR_READERS)
-  const kindSources = files.filter(file => file.startsWith(WALKER_DIR) || file === PARSER || (SEED_WALKERS.includes(file) && listed.has(file)))
+  const kindSources = files.filter(file => file.startsWith(WALKER_DIR) || file === PARSER)
   const grammarKinds = new Set<string>()
   for (const file of kindSources) {
     for (const hit of hitsByFile.get(file) ?? []) {
@@ -514,7 +509,7 @@ section("(5) the walker — files under src/ outside the walker folder and parse
     if (isNodeSource(edge.to) && (edge.names.includes('Node') || edge.names.includes('TsNode'))) {
       nodeImports.set(edge.from, (nodeImports.get(edge.from) ?? 0) + 1)
     }
-    if (isParseDoor(edge.to)) doorImporters.add(edge.from)
+    if (isNodeSource(edge.to)) doorImporters.add(edge.from)
   }
 
   type FoundReader = { total: number; typeHits: TypeHit[]; nodeImports: number }

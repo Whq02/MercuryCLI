@@ -898,6 +898,89 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     r10g.status === 0 && errLinesG.length === 0 && r10g.mercuryJson === initialBodyE,
     `rc=${r10g.status} lines=${JSON.stringify(errLinesG)}`,
   )
+
+  const r10h = runR10Child(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const cfgPath = path.join(HOME, '.mercury.json')
+    fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyE)}, 'utf8')
+    const { mock } = await import('bun:test')
+    const realTimers = await import(SRC + '/utils/timers.ts')
+    mock.module(SRC + '/utils/timers.js', () => ({
+      ...realTimers,
+      sleepSync: () => {},
+    }))
+    const realLockfile = await import(SRC + '/utils/lockfile.ts')
+    let blockLock = false
+    mock.module(SRC + '/utils/lockfile.js', () => ({
+      ...realLockfile,
+      lockSync: (filePath, opts) => {
+        if (blockLock && String(filePath).endsWith('.mercury.json')) {
+          throw Object.assign(new Error('Lock file is already being held'), { code: 'ELOCKED' })
+        }
+        return realLockfile.lockSync(filePath, opts)
+      },
+    }))
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
+    blockLock = true
+    process.exit(0)
+  `)
+  const errLinesH = r10h.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  const expectedLockFlushRe =
+    /^Could not save the settings changed in this session: .+[/\\]\.mercury\.json could not be written \(another Mercury kept its lock\); nothing was written and those changes were lost\. Close what holds the file, then try again\.$/
+  check(
+    'w10-13(R10h): with no prior refusal, a lock-contention exit flush with deferred saves prints the lock sentence once, keeps .mercury.json byte-equal, and matches R10c status',
+    errLinesH.length === 1 &&
+      expectedLockFlushRe.test(errLinesH[0] ?? '') &&
+      r10h.mercuryJson === initialBodyE &&
+      r10h.status === r10c.status,
+    `rc=${r10h.status} r10c=${r10c.status} lines=${JSON.stringify(errLinesH)} sameBytes=${String(r10h.mercuryJson === initialBodyE)}`,
+  )
+
+  const initialBodyI = `${JSON.stringify({ hasCompletedOnboarding: true, numStartups: 11 }, null, 2)}\n`
+  const wipedBodyI = `${JSON.stringify({ numStartups: 11 }, null, 2)}\n`
+  const r10i = runR10Child(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const cfgPath = path.join(HOME, '.mercury.json')
+    fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyI)}, 'utf8')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
+    fs.writeFileSync(cfgPath, ${JSON.stringify(wipedBodyI)}, 'utf8')
+    process.exit(0)
+  `)
+  const errLinesI = r10i.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  const expectedGuardFlushRe =
+    /^Could not save the settings changed in this session: .+[/\\]\.mercury\.json was not written over \(it read back without the sign-in this session holds\); nothing was written and those changes were lost\. Set them again next time\.$/
+  check(
+    'w10-13(R10i): with no prior refusal, an auth-wipe guard refusal at exit flush prints the guard sentence once, keeps .mercury.json byte-equal to the second write, and matches R10c status',
+    errLinesI.length === 1 &&
+      expectedGuardFlushRe.test(errLinesI[0] ?? '') &&
+      r10i.mercuryJson === wipedBodyI &&
+      r10i.status === r10c.status,
+    `rc=${r10i.status} r10c=${r10c.status} lines=${JSON.stringify(errLinesI)} sameBytes=${String(r10i.mercuryJson === wipedBodyI)}`,
+  )
+
+  const r10j = runR10Child(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const cfgPath = path.join(HOME, '.mercury.json')
+    fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyI)}, 'utf8')
+    const { enableConfigs, getGlobalConfig } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    getGlobalConfig()
+    fs.writeFileSync(cfgPath, ${JSON.stringify(wipedBodyI)}, 'utf8')
+    process.exit(0)
+  `)
+  const errLinesJ = r10j.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  check(
+    'w10-13(R10j): control — auth-wipe condition at exit with no deferred save pending prints nothing',
+    r10j.status === 0 && errLinesJ.length === 0 && r10j.mercuryJson === wipedBodyI,
+    `rc=${r10j.status} lines=${JSON.stringify(errLinesJ)}`,
+  )
 }
 
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
