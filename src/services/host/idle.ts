@@ -22,6 +22,9 @@ export const hostIdleHoursWords = Math.round(HOST_IDLE_LIMIT_MS / 3600_000) + ' 
 interface HostIdleVerdict { kind: 'paused' | 'idle'; since: number }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const plainError = (value: unknown): string => (value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
+const idleReadFailing = new Set<string>()
+const idleReadEpisodes = new Map<string, number>()
 
 export function hostEndpointLastTurnAt(record: HostRecord): number | undefined {
   try {
@@ -44,22 +47,41 @@ function mediaLastRequestAt(id: string): number | undefined {
   }
 }
 
-export function hostIdleSince(record: HostRecord, lastTurnAt: (record: HostRecord) => number | undefined = hostEndpointLastTurnAt): number | undefined {
-  if (record.jobKind && record.jobKind !== 'setup') return undefined
-  if (record.status === 'EXITED' || record.status === 'TERMINATED') return undefined
-  if (record.jobState === 'paused') return record.advancedAt ?? record.steps?.findLast(row => row.step.startsWith('paused'))?.at
-  if (record.jobState !== 'ready') return undefined
+function readIdleSince(record: HostRecord, lastTurnAt: (record: HostRecord) => number | undefined = hostEndpointLastTurnAt): { since: number | undefined; unread?: unknown } {
+  if (record.jobKind && record.jobKind !== 'setup') return { since: undefined }
+  if (record.status === 'EXITED' || record.status === 'TERMINATED') return { since: undefined }
+  if (record.jobState === 'paused') return { since: record.advancedAt ?? record.steps?.findLast(row => row.step.startsWith('paused'))?.at }
+  if (record.jobState !== 'ready') return { since: undefined }
   let lastTurn: number | undefined
   let mediaAt: number | undefined
   try {
     lastTurn = lastTurnAt(record)
     mediaAt = mediaLastRequestAt(record.id)
   } catch (error) {
-    logForDebugging(`[host] idle mark for ${record.id} could not be read (${error instanceof Error ? error.message : String(error)}); leaving host running`, { level: 'warn' })
-    return undefined
+    logForDebugging(`[host] idle mark for ${record.id} could not be read (${plainError(error)}); leaving host running`, { level: 'warn' })
+    return { since: undefined, unread: error }
   }
   const marks = [record.steps?.findLast(row => row.step === 'ready')?.at, record.advancedAt, lastTurn, mediaAt].filter(finite)
-  return marks.length ? Math.max(...marks) : undefined
+  return { since: marks.length ? Math.max(...marks) : undefined }
+}
+
+function idleUnreadWords(record: HostRecord, error: unknown): string {
+  const vendor = record.vendor ?? 'runpod'
+  const machine = record.cluster ? 'Runpod cluster ' + record.id : hostMachineName(vendor, record.id)
+  const rate = '$' + record.price.toFixed(2) + '/hr'
+  return record.name + ' · ' + machine + ' is still running and bills ' + rate + ' because its last use could not be read (' + plainError(error) + ') · /llmhost → Machines I’m paying for → Terminate stops it'
+}
+
+function noteIdleUnread(record: HostRecord, error: unknown): void {
+  if (idleReadFailing.has(record.id)) return
+  idleReadFailing.add(record.id)
+  const episode = (idleReadEpisodes.get(record.id) ?? 0) + 1
+  idleReadEpisodes.set(record.id, episode)
+  hostNotice(record, 'idle-unread-' + episode, idleUnreadWords(record, error))
+}
+
+export function hostIdleSince(record: HostRecord, lastTurnAt: (record: HostRecord) => number | undefined = hostEndpointLastTurnAt): number | undefined {
+  return readIdleSince(record, lastTurnAt).since
 }
 
 export function hostIdleVerdict(record: HostRecord, now = Date.now(), options: { watchedSince?: number; lastTurnAt?: (record: HostRecord) => number | undefined } = {}): HostIdleVerdict | undefined {
@@ -114,13 +136,28 @@ export async function sweepHostIdle(options: { now?: number; records?: HostRecor
     const seen = options.watched?.get(row.id)
     if (options.watched && seen?.marker !== marker) options.watched.set(row.id, { marker, at: now })
     const current = readHostRecord(row.id)
-    if (!current || current.generation !== row.generation || current.jobState !== row.jobState) continue
-    const timing = { watchedSince: options.watched ? (seen?.marker === marker ? seen.at : now) : undefined, lastTurnAt: options.lastTurnAt }
-    let verdict = hostIdleVerdict(current, now, timing)
+    if (!current || current.generation !== row.generation || current.jobState !== row.jobState) {
+      idleReadFailing.delete(row.id)
+      continue
+    }
+    const watchedSince = options.watched ? (seen?.marker === marker ? seen.at : now) : undefined
+    const judge = (): HostIdleVerdict | undefined => {
+      const read = readIdleSince(current, options.lastTurnAt)
+      if (read.unread !== undefined) {
+        noteIdleUnread(current, read.unread)
+        return undefined
+      }
+      idleReadFailing.delete(current.id)
+      if (read.since === undefined) return undefined
+      const floor = Math.max(read.since, watchedSince ?? read.since)
+      if (now - floor < HOST_IDLE_LIMIT_MS) return undefined
+      return { kind: current.jobState === 'paused' ? 'paused' : 'idle', since: floor }
+    }
+    let verdict = judge()
     if (!verdict) continue
     if (verdict.kind === 'idle') {
       try { await (await import('../media/host.js')).refreshMediaHostActivity(current.id) } catch (error) { passedOver(error); continue }
-      verdict = hostIdleVerdict(current, now, timing)
+      verdict = judge()
       if (!verdict) continue
     }
     verdicts.push(verdict)

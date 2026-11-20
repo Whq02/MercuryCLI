@@ -150,6 +150,41 @@ async function run(): Promise<void> {
       finally { chmodSync(activity, 0o600) }
       check('idle-media-eacces: unreadable activity.json yields undefined verdict instead of idle', lockedVerdict === undefined, JSON.stringify(lockedVerdict))
     }
+
+    const { existsSync, readdirSync, readFileSync } = await import('node:fs')
+    const { sweepHostIdle } = await import('../../src/services/host/idle.ts')
+    const { hostDirectory, removeHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
+    const sweepRecord: import('../../src/services/host/store.ts').HostRecord = {
+      ...baseRecord,
+      id: 'fn12-sweep-unread',
+      name: 'fn12-sweep-unread',
+      vendor: 'runpod',
+      price: 2.5,
+      generation: 'gen-1',
+      sessionId: 'session-fn12-idle',
+    }
+    writeHostRecord(sweepRecord)
+    const noticeDir = join(hostDirectory(), 'notices')
+    const readNotices = (): string[] => existsSync(noticeDir)
+      ? readdirSync(noticeDir).filter(name => name.endsWith('.json')).map(name => (JSON.parse(readFileSync(join(noticeDir, name), 'utf8')) as { words: string }).words)
+      : []
+    let releases = 0
+    const throwing = (): number | undefined => { throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' }) }
+    try {
+      const r1 = await sweepHostIdle({ now, records: [sweepRecord], lastTurnAt: throwing, release: async () => { releases++ } })
+      const after1 = readNotices()
+      const r2 = await sweepHostIdle({ now: now + 300_000, records: [sweepRecord], lastTurnAt: throwing, release: async () => { releases++ } })
+      const after2 = readNotices()
+      const expected = 'fn12-sweep-unread · Runpod pod fn12-sweep-unread is still running and bills $2.50/hr because its last use could not be read (EACCES: permission denied) · /llmhost → Machines I’m paying for → Terminate stops it'
+      check('idle-sweep-unread-once: two consecutive failing rounds emit the notice once and terminate nothing', r1.length === 0 && r2.length === 0 && releases === 0 && after1.length === 1 && after2.length === 1 && after1[0]!.includes(expected), JSON.stringify({ r1: r1.length, r2: r2.length, releases, n1: after1.length, n2: after2.length, first: after1[0] }))
+
+      await sweepHostIdle({ now: now + 600_000, records: [sweepRecord], lastTurnAt: () => now + 590_000, release: async () => { releases++ } })
+      await sweepHostIdle({ now: now + 900_000, records: [sweepRecord], lastTurnAt: throwing, release: async () => { releases++ } })
+      const after4 = readNotices()
+      check('idle-sweep-unread-again-after-ok: a failing round after a succeeding round emits one new notice and terminates nothing', releases === 0 && after4.length === 2, JSON.stringify({ releases, n4: after4.length }))
+    } finally {
+      removeHostRecord(sweepRecord.id)
+    }
   }
 
   {
