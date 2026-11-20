@@ -98,5 +98,47 @@ console.log('\ncomputerGrant.clearComputerGrant — non-ENOENT unlink failure th
   check('clearComputerGrant ignores ENOENT and readComputerGrant still returns null on expired grant', r.absentOk === true && r.expiredRead === null, JSON.stringify(r))
 }
 
+console.log('\ndesktopClaim.readDesktopClaimFile — non-ENOENT read error throws instead of claiming idle')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const focused = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
+    const owner = focused.conversationIdHere() + ':' + process.pid
+    const pidLockPath = path.join(SRC, 'substrate/pidLock.ts')
+    const realPidLock = await import(pidLockPath)
+    mock.module(pidLockPath, () => ({
+      ...realPidLock,
+      probePidLock: async () => ({ owner, pid: process.pid, acquiredAt: Date.now() }),
+    }))
+    const claim = await import(path.join(SRC, 'services/desktop/desktopClaim.ts'))
+    const lockFile = claim.desktopClaimPath()
+    fs.mkdirSync(path.dirname(lockFile), { recursive: true })
+    if (${JSON.stringify(POSIX_MODES)}) {
+      fs.writeFileSync(lockFile, JSON.stringify({ owner, pid: process.pid, app: { identity: 'app.id', name: 'App' }, since: 100 }))
+      fs.chmodSync(lockFile, 0o000)
+      try {
+        out.unreadable = await claim.readDesktopClaimFile()
+      } catch (e) {
+        out.unreadableErr = { code: e.code ?? null, message: String(e.message ?? e) }
+      } finally {
+        fs.chmodSync(lockFile, 0o600)
+        fs.rmSync(lockFile, { force: true })
+      }
+    } else {
+      fs.mkdirSync(lockFile)
+      try {
+        out.unreadable = await claim.readDesktopClaimFile()
+      } catch (e) {
+        out.unreadableErr = { code: e.code ?? null, message: String(e.message ?? e) }
+      } finally {
+        fs.rmdirSync(lockFile)
+      }
+    }
+    out.vanished = await claim.readDesktopClaimFile()
+  `)
+  check('readDesktopClaimFile throws on non-ENOENT read error after holder confirmed', r.unreadableErr !== undefined && r.unreadable === undefined, JSON.stringify(r))
+  check('readDesktopClaimFile still returns idle on ENOENT vanish race', (r.vanished as { phase?: string })?.phase === 'idle', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

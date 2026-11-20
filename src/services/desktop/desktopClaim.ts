@@ -219,8 +219,16 @@ function recordFromText(text: string): DesktopClaimRecord | null {
 export async function readDesktopClaimFile(): Promise<DesktopSnapshot> {
   const holder = await probePidLock(desktopClaimPath(), { liveness: 'assume-dead', cachedLiveness: true })
   if (holder === null || holder.owner !== `${conversationIdHere()}:${holder.pid}`) return IDLE_DESKTOP_SNAPSHOT
-  const raw = await readFile(desktopClaimPath(), 'utf8').catch(passedOverAs(null))
-  if (raw === null) return IDLE_DESKTOP_SNAPSHOT
+  let raw: string
+  try {
+    raw = await readFile(desktopClaimPath(), 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+      passedOver(error)
+      return IDLE_DESKTOP_SNAPSHOT
+    }
+    throw error
+  }
   const identity = safeParseJSON(raw, false) as { owner?: unknown; pid?: unknown } | null
   if (identity?.owner !== holder.owner || identity?.pid !== holder.pid) return IDLE_DESKTOP_SNAPSHOT
   const record = recordFromText(raw)
