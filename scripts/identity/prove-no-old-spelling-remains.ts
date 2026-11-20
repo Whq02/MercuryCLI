@@ -13,7 +13,7 @@ const OLD = new RegExp(J('t', 'eam'), 'i')
 const EXCLUDED_AREAS: Array<[string, string]> = [
   ['src/extensions/bundled/', 'the upstream apps\' own licence and NOTICE texts, carried verbatim, and the generated bundle that embeds them'],
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelog.ts', 'past release notes stay as published'],
+  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/mission-runner/corpus/', 'fixture repositories of foreign source'],
   ['scripts/interview/baselines/', 'frozen journey capture records'],
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
