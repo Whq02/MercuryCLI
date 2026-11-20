@@ -267,6 +267,19 @@ try {
   scripted = () => undefined
   check('a launch whose dial loses the daemon after the user has moved to another session leaves the focus where the user put it and resumes nothing', getFocusedSessionConnector() === elsewhere && !asked.some(request => request.op === 'sessionAdmit'), `focused ${getFocusedSessionConnector().sessionId()} ${askedWords()}`)
   answer({ ok: true, liveHop: true })
+  releaseFocusedSessionConnector()
+  const recordless = '00000000-0000-4000-8000-000000000097'
+  const recordlessTranscript = join(project, `${recordless}.jsonl`)
+  writeFileSync(recordlessTranscript, encodeSeedTranscript([
+    { type: 'user', uuid: '00000000-0000-4000-8000-000000000093', parentUuid: null, sessionId: recordless, cwd: work, timestamp: '2026-06-19T12:00:00.000Z', message: { role: 'user', content: 'a session no record names' } },
+  ], recordless))
+  writeFileSync(sessionFactsPath(recordless), JSON.stringify({ ...seed, sessionId: recordless, atMs: 1012, effort: 'high', effortSent: 'high' }))
+  waitNextAdmission()
+  const bare = await focusResumedSession(recordless, recordlessTranscript, { firstPaintMs: 10 })
+  for (let waited = 0; focused().sessionId() !== recordless && waited < 5_000; waited += 5) await new Promise(resolve => setTimeout(resolve, 5))
+  check('while the runner is awaited no effort is shown as sent, also when no record holds one', focused().sessionId() === recordless && words().startsWith('the runner is starting') && focused().modelFacts().effortSent === undefined, `${focused().sessionId()} ${words()} ${JSON.stringify(focused().modelFacts())}`)
+  answer({ ok: false, error: 'the fixture ends here' })
+  await bare.admitted
 } finally {
   releaseFocusedSessionConnector()
 }

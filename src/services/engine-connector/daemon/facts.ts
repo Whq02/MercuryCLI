@@ -120,7 +120,7 @@ export class FactsPart {
       setting: retained ?? this.facts?.model.setting ?? this.needs.recordModel() ?? null,
       sessionPin: retained ?? this.facts?.model.setting ?? this.needs.recordModel() ?? null,
       effort: retainedEffort ?? this.facts?.effort ?? this.needs.recordEffort() ?? null,
-      ...(retainedEffort === undefined && this.facts?.effortSent !== undefined ? { effortSent: this.facts.effortSent } : {}),
+      ...(!this.needs.awaitingRunner() && this.facts?.effortSent !== undefined ? { effortSent: this.facts.effortSent } : {}),
       pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null,
     }
   }
