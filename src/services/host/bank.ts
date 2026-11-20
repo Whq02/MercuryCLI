@@ -6,6 +6,7 @@ import { basename, dirname, isAbsolute, join, posix, resolve, sep } from 'node:p
 import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { parseBankSums } from './boxBank.js'
@@ -38,7 +39,14 @@ const isDirectory = (path: string): boolean => {
     throw error
   }
 }
-const probeDirectory = (path: string): boolean => { try { return statSync(path).isDirectory() } catch (error) { passedOver(error); return false } }
+const probeDirectory = (path: string): boolean => {
+  try { return statSync(path).isDirectory() } catch (error) {
+    passedOver(error)
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`[host] bank folder ${path} could not be checked (${error instanceof Error ? error.message : String(error)})`, { level: 'warn' })
+    return false
+  }
+}
 const fileSize = (path: string): number | undefined => {
   try { const stat = lstatSync(path); return stat.isFile() ? stat.size : undefined } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
@@ -62,7 +70,7 @@ export function bankedHostRecipes(folder = bankFolder()): HostRecipe[] {
   if (!folder) return []
   return Object.entries(readBankRegistry().models).flatMap(([model, entry]) => {
     const recipe = entry.recipeRow
-    return recipe && model === volumeModel(recipe) && dirname(resolve(entry.path)) === resolve(folder) && isDirectory(entry.path) ? [recipe] : []
+    return recipe && model === volumeModel(recipe) && dirname(resolve(entry.path)) === resolve(folder) && probeDirectory(entry.path) ? [recipe] : []
   })
 }
 export function bankCandidates(): string[] {
@@ -74,7 +82,7 @@ export function bankCandidates(): string[] {
 export const bankCandidateWords = (): string => process.platform === 'win32' ? '~\\mercury-model-bank or ~\\models' : '~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank'
 export function bankFolder(): string | undefined {
   const remembered = readBankRegistry().folder
-  if (remembered && isDirectory(remembered)) return remembered
+  if (remembered && probeDirectory(remembered)) return remembered
   return bankCandidates().find(probeDirectory)
 }
 export function rememberBankFolder(path: string): string {

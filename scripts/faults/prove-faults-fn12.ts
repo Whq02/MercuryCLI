@@ -262,9 +262,17 @@ async function run(): Promise<void> {
       mkdirSync(remembered, { recursive: true })
       writeBankRegistry({ folder: remembered, models: {} })
       chmodSync(parentLocked, 0o000)
+      let folderThrew = false
+      let probed: string | undefined
+      try { probed = bankFolder() } catch { folderThrew = true } finally { chmodSync(parentLocked, 0o700) }
+      check('bank-folder-eacces-no-throw: unsearchable remembered bank makes bankFolder answer as if not remembered without throwing', !folderThrew && probed !== remembered, JSON.stringify({ folderThrew, probed }))
+
+      const lockedBank = join(scratch, 'bank-locked-explicit')
+      mkdirSync(lockedBank, { recursive: true })
+      chmodSync(lockedBank, 0o000)
       let dirErr: NodeJS.ErrnoException | null = null
-      try { bankFolder() } catch (error) { dirErr = error as NodeJS.ErrnoException } finally { chmodSync(parentLocked, 0o700) }
-      check('bank-isDirectory-eacces: unsearchable remembered bank throws EACCES instead of being ignored', dirErr?.code === 'EACCES', String(dirErr))
+      try { bankModelPath(lockedBank, safetensorsRecipe) } catch (error) { dirErr = error as NodeJS.ErrnoException } finally { chmodSync(lockedBank, 0o700) }
+      check('bank-isDirectory-eacces: unsearchable explicit bank folder throws EACCES in bankModelPath', dirErr?.code === 'EACCES', String(dirErr))
 
       const noListBank = join(scratch, 'bank-nolist')
       mkdirSync(noListBank, { recursive: true })
