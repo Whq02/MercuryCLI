@@ -275,7 +275,7 @@ section('§3 the rewritten sites reach the wire through the router')
   const hookDefaultEnd = await runQuestionHook({
     text: 'Allow this?',
     name: 'test-hook',
-    event: 'PreToolUse',
+    event: 'tool.before',
     payloadJson: '{}',
     answerSchema: z.object({ allow: z.boolean() }),
     timeoutMs: 5_000,
@@ -300,7 +300,7 @@ section('§3 the rewritten sites reach the wire through the router')
   const hookNamedEnd = await runQuestionHook({
     text: 'Allow this?',
     name: 'test-hook-named',
-    event: 'PreToolUse',
+    event: 'tool.before',
     payloadJson: '{}',
     answerSchema: z.object({ allow: z.boolean() }),
     model: 'gpt-5.4',
