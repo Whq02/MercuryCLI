@@ -311,6 +311,53 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const { chmodSync, writeFileSync } = await import('node:fs')
+  const { readShown } = await import('../../src/tools/BlenderTool/show.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const work = join(scratch, 'blender-show')
+  mkdirSync(work, { recursive: true })
+  const loopA = join(work, 'loop-a.png')
+  const loopB = join(work, 'loop-b.png')
+  symlinkSync(loopB, loopA)
+  symlinkSync(loopA, loopB)
+  const unreadable = join(work, 'secret.png')
+  writeFileSync(unreadable, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]))
+  const nonImage = join(work, 'plain.txt')
+  writeFileSync(nonImage, 'hello world')
+  const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+  if (posix) chmodSync(unreadable, 0o200)
+  try {
+    const parts = await runWithCwdOverride(work, () =>
+      readShown(
+        [{ path: 'loop-a.png' }, { path: 'absent.png' }, { path: 'plain.txt' }, ...(posix ? [{ path: 'secret.png' }] : [])],
+        [null, null, null, null],
+        () => undefined,
+      ),
+    )
+    const noteOf = (i: number): string => (parts[i]?.kind === 'note' ? parts[i]!.text : JSON.stringify(parts[i]))
+    check(
+      'BlenderTool/show: non-ENOENT stat failure reports real error instead of "was not written"',
+      !noteOf(0).includes('was not written') && /ELOOP|too many/i.test(noteOf(0)),
+      noteOf(0),
+    )
+    check(
+      'BlenderTool/show: absent file still reports "was not written" and text file reports "is not a picture"',
+      noteOf(1).includes('was not written') && noteOf(2).includes('is not a picture'),
+      `${noteOf(1)} | ${noteOf(2)}`,
+    )
+    if (posix) {
+      check(
+        'BlenderTool/show: unreadable file reports EACCES instead of "is not a picture"',
+        !noteOf(3).includes('is not a picture') && /EACCES|permission denied/i.test(noteOf(3)),
+        noteOf(3),
+      )
+    }
+  } finally {
+    if (posix) chmodSync(unreadable, 0o600)
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

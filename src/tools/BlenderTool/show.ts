@@ -4,6 +4,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { hasImageSignature, imageReadCaptions, readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
 import { getDefaultFileReadingLimits } from '../FileReadTool/limits.js'
+import { getErrnoCode } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const SHOWN_AT_MOST = 4
@@ -64,27 +65,20 @@ export function showTargets(entries: readonly ShowEntry[]): string[] {
   return entries.map(entry => path.resolve(getCwd(), entry.path))
 }
 
-function stampOf(file: string): FileStamp {
+function stampOf(file: string, strict = false): FileStamp {
   try {
     const st = statSync(file)
     return st.isFile() ? { mtimeMs: st.mtimeMs, ctimeMs: st.ctimeMs, size: st.size } : null
   } catch (error) {
+    if (getErrnoCode(error) === 'ENOENT') return null
+    if (strict) throw error
     passedOver(error)
     return null
   }
 }
 
 export function stampShown(entries: readonly ShowEntry[]): FileStamp[] {
-  return showTargets(entries.slice(0, SHOWN_AT_MOST)).map(stampOf)
-}
-
-function isPicture(file: string): boolean {
-  try {
-    return hasImageSignature(file)
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return showTargets(entries.slice(0, SHOWN_AT_MOST)).map(file => stampOf(file))
 }
 
 export async function readShown(entries: readonly ShowEntry[], before: readonly FileStamp[], readDenied: (file: string) => string | undefined): Promise<ShownPart[]> {
@@ -97,24 +91,24 @@ export async function readShown(entries: readonly ShowEntry[], before: readonly 
       continue
     }
     const entry = entries[index]!
-    const after = stampOf(file)
-    if (after === null) {
-      parts.push({ kind: 'note', text: `show: ${entry.path} was not written` })
-      continue
-    }
-    if (!isPicture(file)) {
-      parts.push({ kind: 'note', text: `show: ${entry.path} is not a picture (png, jpeg, gif or webp)` })
-      continue
-    }
-    const was = before[index] ?? null
-    const stale = was !== null && was.mtimeMs === after.mtimeMs && was.ctimeMs === after.ctimeMs && was.size === after.size
-    let crop = entry.crop
-    if (crop === undefined && entry.scale !== undefined && entry.scale !== 1) {
-      const whole = imageDimensionsFromHeader(readFileSync(file))
-      if (whole !== null) crop = [0, 0, whole.width, whole.height]
-    }
-    const scale = crop === undefined ? 1 : (entry.scale ?? 1)
     try {
+      const after = stampOf(file, true)
+      if (after === null) {
+        parts.push({ kind: 'note', text: `show: ${entry.path} was not written` })
+        continue
+      }
+      if (!hasImageSignature(file)) {
+        parts.push({ kind: 'note', text: `show: ${entry.path} is not a picture (png, jpeg, gif or webp)` })
+        continue
+      }
+      const was = before[index] ?? null
+      const stale = was !== null && was.mtimeMs === after.mtimeMs && was.ctimeMs === after.ctimeMs && was.size === after.size
+      let crop = entry.crop
+      if (crop === undefined && entry.scale !== undefined && entry.scale !== 1) {
+        const whole = imageDimensionsFromHeader(readFileSync(file))
+        if (whole !== null) crop = [0, 0, whole.width, whole.height]
+      }
+      const scale = crop === undefined ? 1 : (entry.scale ?? 1)
       const read = await readImageWithTokenBudget(file, getDefaultFileReadingLimits().maxTokens, undefined, crop, scale)
       const captions = imageReadCaptions(file, read.file.dimensions, read.cropped, scale)
       if (captions.length === 0) captions.push(`[Image source: ${file}]`)
