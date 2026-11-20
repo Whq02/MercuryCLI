@@ -17,7 +17,6 @@ import { fitOutputTokensForRequest, outputFitWords } from '../../../api/outputFi
 import {
   recordPromptState,
   type CacheLane,
-  type NeutralToolSchema,
 } from '../../../api/promptCacheBreakDetection.js'
 import type { Options } from '../../anthropic/streamCore.js'
 import {
@@ -334,7 +333,7 @@ export function openCompatTurn(
 
   recordPromptState({
     system: [{ text: systemText }],
-    toolSchemas: apiTools as unknown as NeutralToolSchema[],
+    toolSchemas: apiTools,
     querySource: options.querySource,
     model: modelId,
     agentId: options.agentId,
