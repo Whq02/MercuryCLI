@@ -206,21 +206,21 @@ export function getAllBaseTools(agentId?: string): Tools {
   return tools.filter((tool): tool is Tool => Boolean(tool))
 }
 
-export function filterToolsByDenyRules<T extends { name: string; mcpInfo?: unknown }>(
+export function filterToolsByDenyRules<T extends Pick<Tool, 'name' | 'mcpInfo'>>(
   tools: readonly T[],
   permissionContext: ToolPermissionContext,
 ): T[] {
   return tools.filter(tool => wholeToolDenyRuleFor(tool, permissionContext) === null)
 }
 
-function wholeToolDenyRuleFor(tool: { name: string; mcpInfo?: unknown }, permissionContext: ToolPermissionContext): PermissionRule | null {
-  const rule = getDenyRuleForTool(permissionContext, tool as never)
+function wholeToolDenyRuleFor(tool: Pick<Tool, 'name' | 'mcpInfo'>, permissionContext: ToolPermissionContext): PermissionRule | null {
+  const rule = getDenyRuleForTool(permissionContext, tool)
   if (!rule) return null
   return rule.ruleValue.ruleContent !== undefined && rule.ruleValue.ruleContent !== null ? null : rule
 }
 
 export function toolsWithheldByDeny(
-  tools: readonly { name: string; mcpInfo?: unknown }[],
+  tools: readonly Pick<Tool, 'name' | 'mcpInfo'>[],
   permissionContext: ToolPermissionContext,
 ): Array<{ tool: string; rule: PermissionRule }> {
   const out: Array<{ tool: string; rule: PermissionRule }> = []

@@ -1185,7 +1185,7 @@ export async function renderSqliteTarget(
     }
     const { DatabaseSync } = await import('node:sqlite')
     closeSync(openRegularFileSync(judged).fd)
-    return new DatabaseSync(file, { open: true, readOnly: true } as never)
+    return new DatabaseSync(file, { open: true, readOnly: true })
   }
   let scratch: string | null = null
   let db: SqliteDb

@@ -119,17 +119,21 @@ export function lostWithRunnerLine(lines: readonly string[]): string {
   return lines.length === 1 ? `the runner restarted (${named} not taken); type it again` : `the runner restarted (${named} not taken); type them again`
 }
 
-export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlockParam[] {
+type DispatchedImageBlock =
+  | NonNullable<ReturnType<typeof storedImageRefBlock>>
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+
+export function imageBlocksOf(pastes: Record<number, PastedContent>): DispatchedImageBlock[] {
   return Object.entries(pastes)
     .map(([id, content]) => ({ id: Number(id), content }))
     .filter(entry => entry.content.type === 'image' && Boolean(entry.content.content))
     .sort((a, b) => a.id - b.id)
     .map(
       entry =>
-        (storedImageRefBlock(entry.content) ?? {
-          type: 'image',
-          source: { type: 'base64', media_type: entry.content.mediaType ?? 'image/png', data: entry.content.content },
-        }) as unknown as ContentBlockParam,
+        storedImageRefBlock(entry.content) ?? {
+          type: 'image' as const,
+          source: { type: 'base64' as const, media_type: entry.content.mediaType ?? 'image/png', data: entry.content.content },
+        },
     )
 }
 export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './projectionFeed.js'
@@ -152,7 +156,7 @@ function seatVerb(action: 'focus' | 'blur', sessionId: string): void {
         const terminal = driver.state === 'ok' ? await driver.driver.ownTerminalApplication() : null
         terminalApplication = terminal?.ok && terminal.value !== null ? { identity: terminal.value.identity, name: terminal.value.name, windowId: terminal.value.windowId ?? null, tty: terminal.value.tty ?? null } : null
       }
-      const reply = (await daemonControlRpc({ op: 'sessionControl', action, sessionId, by: SEAT_BY, ...(terminalApplication !== undefined ? { terminalApplication } : {}) } as never, { timeoutMs: RPC_TIMEOUT_MS })) as { ok?: boolean; error?: string }
+      const reply = (await daemonControlRpc({ op: 'sessionControl', action, sessionId, by: SEAT_BY, ...(terminalApplication !== undefined ? { terminalApplication } : {}) }, { timeoutMs: RPC_TIMEOUT_MS })) as { ok?: boolean; error?: string }
       if (reply.ok !== true) logForDebugging(`[engine-connector] ${action} ${sessionId} not applied: ${reply.error ?? 'no reply'}`)
     })
     .catch(e => logForDebugging(`[engine-connector] ${action} ${sessionId} threw: ${e}`))
@@ -182,7 +186,7 @@ function modelSettledRow(settled: { from: string; to: string }): Message {
       providerFamilyOfSetting(settled.from) !==
       providerFamilyOfSetting(settled.to),
     cacheDisposition: 'keyed-sections-recompute-once',
-  }) as unknown as Message
+  })
 }
 
 async function questionOpenFor(sessionId: string): Promise<string | null> {
@@ -488,7 +492,7 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
     this.factsPart.strip()
     this.workPart.refreshWork()
     this.recomputeLive()
-    this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
+    this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning'))
   }
 
   attach(): Promise<void> {

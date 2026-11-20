@@ -5,7 +5,7 @@ import { createLayoutNode } from './layout/engine.js'
 import { LayoutMeasureMode, type LayoutNode } from './layout/node.js'
 import type { FocusManager } from './focus.js'
 import squashTextNodes from './squash-text-nodes.js'
-import type { Styles, TextStyles } from './styles.js'
+import type { Color, Styles, TextStyles } from './styles.js'
 import { expandTabs } from './tabstops.js'
 import wrapText from './wrap-text.js'
 
@@ -53,6 +53,11 @@ export type DOMElement = {
   onComputeLayout?: () => void
   focusManager?: FocusManager
   hasRenderedContent?: boolean
+  __prevOwnBg?: Color
+  __prevUniformBg?: Color
+  __prevOpaque?: boolean
+  __prevOwnRowBg?: boolean
+  __prevRowSampler?: boolean
 }
 
 export type TextNode = {

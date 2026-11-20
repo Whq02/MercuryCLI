@@ -392,7 +392,7 @@ async function* runBash(
         description: input.description ?? input.command,
         shellCommand,
         toolUseId: context.toolUseId,
-        agentId: agentId as never,
+        agentId,
         startTime: launchedAt,
       },
       {
@@ -411,7 +411,7 @@ async function* runBash(
 
   shellCommand.onTimeout?.(backgroundFn => {
     timeoutAutoBackgroundedAfterMs = effectiveTimeout
-    void startBackgrounding(backgroundFn as unknown as (id: string) => void)
+    void startBackgrounding(backgroundFn)
   })
 
   if (input.run_in_background && !BACKGROUND_TASKS_DISABLED) {
@@ -421,7 +421,7 @@ async function* runBash(
         description: input.description ?? input.command,
         shellCommand,
         toolUseId: context.toolUseId,
-        agentId: agentId as never,
+        agentId,
         startTime: launchedAt,
       },
       {
@@ -783,7 +783,7 @@ export const BashTool = buildTool({
     if (BACKGROUND_TASKS_DISABLED && schema.properties) {
       delete schema.properties.run_in_background
     }
-    return schema as never
+    return schema
   },
   maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
   strict: true,

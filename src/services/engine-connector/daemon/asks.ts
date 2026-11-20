@@ -2,7 +2,7 @@ import type { AssistantMessage, Message } from '../../../types/message.js'
 import type { ContentBlockParam } from '../../../types/wire.js'
 import type { PermissionMode } from '../../../types/permissions.js'
 import { decodeDecisionReasonFromWire } from '../../../utils/permissions/decisionReasonWire.js'
-import type { Tool, ToolUseContext } from '../../../Tool.js'
+import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../../../Tool.js'
 import type { ToolUseConfirm } from '../../../components/permissions/PermissionRequest.js'
 import { createAssistantMessage } from '../../../utils/messages/factories.js'
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../../utils/fileStateCache.js'
@@ -31,7 +31,7 @@ function toolFor(name: string): Tool {
     ...MCPTool,
     name,
     userFacingName: () => (served?.toolName === undefined ? name : `${served.serverName} - ${served.toolName} (MCP)`),
-  } as unknown as Tool
+  }
 }
 
 export class AsksPart {
@@ -86,9 +86,7 @@ export class AsksPart {
       }
     }
     return createAssistantMessage({
-      content: [{ type: 'tool_use', id: toolUseId, name: toolName, input }] as unknown as Parameters<
-        typeof createAssistantMessage
-      >[0]['content'],
+      content: [{ type: 'tool_use', id: toolUseId, name: toolName, input }],
     })
   }
 
@@ -130,7 +128,7 @@ export class AsksPart {
       ...(row.blockedPath !== undefined ? { blockedPath: row.blockedPath } : {}),
       ...(decisionReason !== undefined ? { decisionReason } : {}),
     }
-    let description = row.description ?? tool.userFacingName(row.input as never) ?? row.toolName
+    let description = row.description ?? tool.userFacingName(row.input) ?? row.toolName
     const confirm: ToolUseConfirm = {
       assistantMessage: this.assistantRecordFor(row.toolUseId, row.toolName, row.input),
       tool,
@@ -163,9 +161,9 @@ export class AsksPart {
     }
     if (row.description !== undefined) return confirm
     void Promise.resolve(
-      tool.description(row.input as never, {
+      tool.description(row.input, {
         isNonInteractiveSession: false,
-        toolPermissionContext: { mode: this.needs.permissionMode() ?? 'default' } as never,
+        toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: this.needs.permissionMode() ?? 'default' },
         tools: getAllBaseTools(),
       }),
     )
