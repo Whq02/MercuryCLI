@@ -424,6 +424,44 @@ async function proveTaskOutcomeEnvelope(): Promise<void> {
   })
 }
 
+async function proveTools(): Promise<void> {
+  const bun = process.execPath
+  const toolsPath = realpathSync(join(import.meta.dir, '../../src/tools.ts'))
+  const logPath = realpathSync(join(import.meta.dir, '../../src/utils/log.ts'))
+  const bashToolPath = realpathSync(join(import.meta.dir, '../../src/tools/BashTool/BashTool.tsx'))
+  const toolTypePath = realpathSync(join(import.meta.dir, '../../src/Tool.ts'))
+  await withScratchHome(home => {
+    const script = `
+      import { mock } from 'bun:test'
+      const logged = []
+      const realLog = await import(${JSON.stringify(logPath)})
+      mock.module(${JSON.stringify(logPath)}, () => ({
+        ...realLog,
+        logError: err => { logged.push(err instanceof Error ? err.message : String(err)) },
+      }))
+      const realBash = await import(${JSON.stringify(bashToolPath)})
+      mock.module(${JSON.stringify(bashToolPath)}, () => ({
+        ...realBash,
+        BashTool: {
+          ...realBash.BashTool,
+          isEnabled: () => { throw new Error('isEnabled-boom') },
+        },
+      }))
+      const { getEmptyToolPermissionContext } = await import(${JSON.stringify(toolTypePath)})
+      const { getTools } = await import(${JSON.stringify(toolsPath)})
+      const tools = getTools(getEmptyToolPermissionContext())
+      process.stdout.write('\\n' + JSON.stringify({ logged, hasOtherTools: tools.length > 0, hasBash: tools.some(t => t.name === 'Bash') }))
+    `
+    const res = spawnSync(bun, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home } })
+    if (res.status !== 0) {
+      check('tools: settledTools subprocess ran', false, res.stderr.slice(-400))
+      return
+    }
+    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { logged?: string[]; hasOtherTools?: boolean; hasBash?: boolean }
+    check('tools: throwing isEnabled logs error and omits only the broken tool', Array.isArray(out.logged) && out.logged.includes('isEnabled-boom') && out.hasOtherTools === true && out.hasBash === false, JSON.stringify(out))
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
@@ -436,6 +474,7 @@ async function main(): Promise<void> {
   await provePauseCarry()
   await proveTaskLaunchLedger()
   await proveTaskOutcomeEnvelope()
+  await proveTools()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }
