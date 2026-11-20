@@ -31,7 +31,7 @@ export function resolveWatchRoot(p: string): string {
 let watchesLeftToProcessEnd = false
 
 export function leaveFileWatchesToProcessEnd(): void {
-  if (watchesLeftToProcessEnd || process.platform !== 'darwin' || process.versions.bun !== undefined) return
+  if (watchesLeftToProcessEnd || process.platform !== 'darwin') return
   watchesLeftToProcessEnd = true
   const probe = watch(process.execPath, { persistent: false })
   const everyWatcher = Object.getPrototypeOf(probe) as FSWatcher
