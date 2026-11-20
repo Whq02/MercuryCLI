@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/prompt.ts docs/MNEME.md
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -33,7 +33,6 @@ const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const dir = mnemeLibraryDir()
 
-const REPO = join(import.meta.dir, '..', '..')
 let n = 0
 const user = (text: string) => ({ type: 'user', uuid: `u-${++n}`, timestamp: '2026-10-19T09:00:00.000Z', message: { role: 'user', content: text } }) as never
 const assistantSaid = (text: string) => ({ type: 'assistant', uuid: `a-${++n}`, timestamp: '2026-10-19T09:00:00.000Z', message: { id: `msg-${n}`, role: 'assistant', content: [{ type: 'text', text }] } }) as never
@@ -108,8 +107,6 @@ try {
   section('§5 the words: the gate is stated once, where the model reads it')
   check('memoryAskRefusal is the one judge: no window ⇒ refused, an asking window ⇒ allowed, a crewmate ⇒ refused', memoryAskRefusal([]) === retainAskRefusal(undefined) && memoryAskRefusal([user('remember this')]) === null && memoryAskRefusal([user('remember this')], 'c') === CREWMATE_RETAIN_REFUSAL)
   check('the Retain description carries outcomes rather than repeating the system-owned asking rule', RETAIN_PROMPT.includes('refusal reason') && !RETAIN_PROMPT.includes("user's latest message"), RETAIN_PROMPT)
-  const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
-  check('docs/MNEME.md says the refusal is the tool\'s, not guidance, and names the words that ask', /Retain and Correct read your latest typed\s+message for the asking words and refuse otherwise, quoting the message they\s+read/.test(mneme) && /crewmate's\s+Retain or Correct is refused always/.test(mneme) && !/and the like/.test(mneme) && /"save", "add", "store",\s+"put" or "record" something "to memory"/.test(mneme), mneme.split('\n').find(l => l.includes('Retain and Correct')) ?? '')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

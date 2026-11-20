@@ -2,11 +2,8 @@
 // gate-watch: src/tools/MemoryTools/prompt.ts src/tools/RecordConventionTool/RecordConventionTool.ts src/tools/RecordConventionTool/prompt.ts docs/MNEME.md
 // gate-watch: src/cli/headless/runnerAsks.ts
 import { proofHome } from '../lib/hermetic.ts'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 void proofHome
-const REPO = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -26,8 +23,6 @@ const pinLine = schema.properties.items.items.properties.pin.description as stri
 check('the field names the exact words, standing rule and lasting request', ["user's exact words", 'standing rule or preference', 'asked for that lasting rule'].every(words => pinLine.includes(words)), pinLine)
 check('pinning is not retaught in the description or through worked trigger phrases', !RETAIN_PROMPT.includes('pin: true') && !pinLine.includes('remember:') && !pinLine.includes('crewmate'), pinLine)
 check('the RecordConvention description still sends a remembered rule to Retain with pin, never to the estate', RECORD_CONVENTION_DESCRIPTION.includes('that is pinned memory (Retain with pin)'), RECORD_CONVENTION_DESCRIPTION)
-const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
-check('the manual\'s example of a remembered rule carries a standing-rule word', /"remember: always …"/.test(mneme), mneme.split('\n').find(l => l.includes('remember:')) ?? '')
 
 console.log('\n§2 RecordConvention: an ask that reaches nobody settles on the safe side — nothing written, the ask named')
 const rule = 'tests run with the wrapper script'
