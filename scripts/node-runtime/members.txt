@@ -9,5 +9,6 @@ prove-spawn-window-discipline.ts
 prove-copy-truth.ts
 prove-workflow-toolchain.ts
 prove-broken-pipe-uniform.ts
+prove-platform-modules.ts
 prove-session-env-own-stamps.ts
 prove-static-banner-colour.ts
