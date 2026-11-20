@@ -1,4 +1,4 @@
-import { type Command as CommanderCommand } from '@commander-js/extra-typings'
+import { type Command as CommanderCommand } from 'commander'
 import { cliError, cliOk } from '../../cli/exit.js'
 import { addMcpConfig } from '../../services/mcp/config.js'
 import { readClientSecret, saveMcpClientSecret } from '../../services/mcp/auth.js'

@@ -15,13 +15,13 @@ export function FilesystemPermissionRequest(props: PermissionRequestProps): Reac
   const { toolUseConfirm, toolUseContext, onDone, onReject, verbose, workerBadge } = props
   const tool = toolUseConfirm.tool
 
-  const readOnly = tool.isReadOnly(toolUseConfirm.input as never)
+  const readOnly = tool.isReadOnly(toolUseConfirm.input)
 
   let path: string | null = null
   let accessorUsable = false
   if (typeof tool.getPath === 'function') {
     try {
-      const resolved = tool.getPath(toolUseConfirm.input as never)
+      const resolved = tool.getPath(toolUseConfirm.input)
       if (typeof resolved === 'string' && resolved !== '') {
         path = resolved
         accessorUsable = true
@@ -43,8 +43,8 @@ export function FilesystemPermissionRequest(props: PermissionRequestProps): Reac
     )
   }
 
-  const name = tool.userFacingName(toolUseConfirm.input as never)
-  const useMessage = tool.renderToolUseMessage(toolUseConfirm.input as never, {
+  const name = tool.userFacingName(toolUseConfirm.input)
+  const useMessage = tool.renderToolUseMessage(toolUseConfirm.input, {
     theme: resolveThemeName(),
     verbose,
   })

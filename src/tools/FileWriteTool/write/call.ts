@@ -1,7 +1,7 @@
 import { dirname } from 'node:path'
 
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { type ToolUseContext } from '../../../Tool.js'
+import { type Tool, type ToolUseContext } from '../../../Tool.js'
 import {
   recordNoChangeOutcome,
   serializeIntentDigest,
@@ -67,7 +67,7 @@ function shapeToExistingFile(rawBody: string, content: string, majority: LineEnd
   return preserveUntouchedLineEndings(rawBody, body, majority)
 }
 
-export async function writeFileCall(input: Input, context: ToolUseContext, canUseTool: CanUseToolFn, parentMessage: AssistantMessage, writeToolItself: () => unknown) {
+export async function writeFileCall(input: Input, context: ToolUseContext, canUseTool: CanUseToolFn, parentMessage: AssistantMessage, writeToolItself: () => Tool) {
   const startedAt = Date.now()
   const far = isRemotePath(input.file_path) ? await import('../../../services/remoteFiles/bridge.js') : null
   const structuredTarget = far !== null ? null : parseStructuredWriteTarget(input.file_path)
@@ -95,7 +95,7 @@ export async function writeFileCall(input: Input, context: ToolUseContext, canUs
           input.file_path,
           context,
           typeof canUseTool === 'function' && parentMessage !== undefined
-            ? path => (canUseTool as CanUseToolFn)(writeToolItself() as never, { ...input, file_path: path }, context, parentMessage as never, `${context.toolUseId ?? 'write'}-resolved`)
+            ? path => canUseTool(writeToolItself(), { ...input, file_path: path }, context, parentMessage, `${context.toolUseId ?? 'write'}-resolved`)
             : null,
         )
   if (farTarget !== null && farTarget.kind === 'folder') throw new Error(`The path is a directory, not a file: ${input.file_path}`)

@@ -16,7 +16,7 @@ export async function call(
 
   const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
   const readContract = async (): Promise<{ found: boolean; contract?: SessionContractV1 }> => {
-    const reply = (await daemonControlRpc({ op: 'sessionList' } as never, { timeoutMs: 10_000 })) as {
+    const reply = (await daemonControlRpc({ op: 'sessionList' }, { timeoutMs: 10_000 })) as {
       ok?: boolean
       workers?: ReadonlyArray<Record<string, unknown>>
     }
@@ -28,7 +28,7 @@ export async function call(
   }
   const sendOp = async (op: 'set' | 'ack' | 'amend' | 'close', text?: string): Promise<{ ok: boolean; outcome?: string; detail?: string }> => {
     const reply = (await daemonControlRpc(
-      { op: 'sessionControl', action: 'contract', sessionId, by: 'operator', contract: { op, ...(text !== undefined ? { text } : {}) } } as never,
+      { op: 'sessionControl', action: 'contract', sessionId, by: 'operator', contract: { op, ...(text !== undefined ? { text } : {}) } },
       { timeoutMs: 10_000 },
     )) as { ok?: boolean; outcome?: string; detail?: string }
     return { ok: reply.ok === true, ...(reply.outcome !== undefined ? { outcome: reply.outcome } : {}), ...(reply.detail !== undefined ? { detail: reply.detail } : {}) }

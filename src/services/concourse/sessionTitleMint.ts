@@ -3,6 +3,7 @@ import { basename, dirname } from 'node:path'
 import { closeSync, openSync, readSync } from 'node:fs'
 import { concourseDeltaPath, readSessionWorkers, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
+import type { MercuryRecord } from '../../fabric/record.js'
 import { workerTranscriptPath } from './workerTranscript.js'
 import { shouldMintTitle } from './sessionNaming.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -47,7 +48,7 @@ export function transcriptHeadFacts(rec: { sessionId: string; workspaceId: strin
       if (typeof env.schemaVersion !== 'number' || env.payload === null || typeof env.payload !== 'object') continue
       let e: { type?: unknown; message?: { content?: unknown } }
       try {
-        e = recordToEntry(entry as never) as { type?: unknown; message?: { content?: unknown } }
+        e = recordToEntry(entry as MercuryRecord) as { type?: unknown; message?: { content?: unknown } }
       } catch {
         continue
       }
@@ -79,7 +80,7 @@ async function mintOne(rec: ConcourseWorkerRecordV1, description: string, signal
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const reply = (await daemonControlRpc(
-      { op: 'sessionControl', action: 'set-title', sessionId: rec.sessionId, by: 'title-mint', title, titleSource: 'minted' } as never,
+      { op: 'sessionControl', action: 'set-title', sessionId: rec.sessionId, by: 'title-mint', title, titleSource: 'minted' },
       { timeoutMs: 10_000 },
     )) as { ok?: boolean; outcome?: string }
     return reply.ok === true && reply.outcome === 'applied'

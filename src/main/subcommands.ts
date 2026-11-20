@@ -37,7 +37,7 @@ function registerMcpVerbs(program: CommanderCommand): CommanderCommand {
 async function registerMcpAddVerb(mcp: CommanderCommand): Promise<void> {
   try {
     const { registerMcpAddCommand } = await import('../commands/mcp/addCommand.js')
-    registerMcpAddCommand(mcp as unknown as Parameters<typeof registerMcpAddCommand>[0])
+    registerMcpAddCommand(mcp)
   } catch (error) {
     logError(error)
   }
