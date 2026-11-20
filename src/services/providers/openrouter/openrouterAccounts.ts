@@ -15,7 +15,7 @@ import {
   generateCodeChallenge,
   generateCodeVerifier,
 } from '../../oauth/crypto.js'
-import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
+import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'
@@ -74,10 +74,14 @@ function readAuthFile(): OpenrouterAuthFile | null {
 function writeAuthFile(mutate: (file: OpenrouterAuthFile) => OpenrouterAuthFile): void {
   refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
-  const existing = readAuthFile() ?? { version: OPENROUTER_AUTH_VERSION }
+  const existing = (credentialJsonToWriteOver('The OpenRouter auth file', 'openrouter-auth', authFilePath()) as OpenrouterAuthFile | null) ?? { version: OPENROUTER_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENROUTER_AUTH_VERSION })
   const path = authFilePath()
-  durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  try {
+    durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  } catch (error) {
+    throw credentialFileUnwritten('The OpenRouter auth file', path, error)
+  }
   try {
     chmodSync(path, 0o600)
   } catch (error) {
@@ -156,6 +160,7 @@ export function markOpenrouterKeyRefused(
     message: message.trim() || `HTTP ${status}`,
     observedAtMs: now(),
   }
+  if (probeCredentialJson(authFilePath()).state === 'unreadable') return
   writeAuthFile(file => ({ ...file, refused }))
 }
 

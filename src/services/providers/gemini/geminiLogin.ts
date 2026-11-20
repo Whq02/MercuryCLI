@@ -1,7 +1,7 @@
 import { KEY_PAGES } from '../../../components/loginFamilyRows.js'
 import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
-import { readStoredGeminiApiKey, writeStoredGeminiApiKey } from '../providerSecrets.js'
-import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
+import { credentialFileRestorer, readStoredGeminiApiKey, signInRecordRestorer, writeStoredGeminiApiKey } from '../providerSecrets.js'
+import { geminiAuthPathForDisplay, geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
@@ -99,9 +99,16 @@ export async function storeGeminiApiKeyLogin(
     io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('api-key', { force: true }).catch(passedOverAs(null)))
   const previousKey = readStoredGeminiApiKey() ?? null
   const previousSource = readPreferredGeminiSource()
+  const restoreAuthFile = credentialFileRestorer(geminiAuthPathForDisplay())
+  const restoreSignInRecord = signInRecordRestorer('gemini')
   try {
-    writeStoredGeminiApiKey(key)
     writePreferredGeminiSource('api-key')
+    try {
+      writeStoredGeminiApiKey(key)
+    } catch (error) {
+      restoreAuthFile()
+      throw error
+    }
   } catch (error) {
     return {
       ok: false,
@@ -113,6 +120,7 @@ export async function storeGeminiApiKeyLogin(
   if (snapshot?.lastError?.includes('refused the credential')) {
     writeStoredGeminiApiKey(previousKey)
     writePreferredGeminiSource(previousSource ?? null)
+    restoreSignInRecord()
     return {
       ok: false,
       stored: false,

@@ -4,7 +4,7 @@ export { sessionActivityOf, isNewbornRecord, turnInFlightOf, turnCutStanding, st
 export type { ConcourseWorkerRecordV1 } from './concourseWorkers/record.js'
 export { concourseCollisionsPath, readCollisionEvidence, recordCollisionEvidence } from './concourseWorkers/collisions.js'
 export type { CollisionEvidenceV1 } from './concourseWorkers/collisions.js'
-export { concourseWorkersPath, readSessionWorkers, readSessionWorkersSnapshot, concourseDeltaPath, updateConcourseWorkers, unreadSessionRecordsRefusal } from './concourseWorkers/store.js'
+export { concourseWorkersPath, readSessionWorkers, readSessionWorkersSnapshot, concourseDeltaPath, updateConcourseWorkers, unreadSessionRecordsRefusal, unwrittenSessionRecordsRefusal } from './concourseWorkers/store.js'
 export type { SessionWorkersSnapshot, ConcourseDeltaStampV1 } from './concourseWorkers/store.js'
 export { withDaemonStoreLock } from './concourseWorkers/storeLock.js'
 export { markConcourseWorkerActivity, markConcourseWorkerDelivery, markConcourseWorkerTurnSettled, markConcourseWorkerCrash, markConcourseWorkerRespawn } from './concourseWorkers/marks.js'

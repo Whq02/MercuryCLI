@@ -8,7 +8,7 @@ import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { credentialJsonToWriteOver, probeCredentialJson, readStoredMoonshotApiKey } from '../providerSecrets.js'
+import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredMoonshotApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
@@ -134,7 +134,11 @@ function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): 
   const existing = (credentialJsonToWriteOver('The Moonshot auth file', 'moonshot-auth', authFilePath()) as MoonshotAuthFile | null) ?? { version: MOONSHOT_AUTH_VERSION }
   const next = mutate({ ...existing, version: MOONSHOT_AUTH_VERSION })
   const path = authFilePath()
-  durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  try {
+    durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  } catch (error) {
+    throw credentialFileUnwritten('The Moonshot auth file', path, error)
+  }
   try {
     chmodSync(path, 0o600)
   } catch (error) {

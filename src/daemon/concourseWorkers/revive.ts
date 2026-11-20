@@ -191,18 +191,23 @@ export function detachRespawnConcourseSession(
       ...(reg.error !== undefined ? { detail: reg.error } : {}),
     }
   }
-  updateConcourseWorkers(workers => {
-    const w = workers[rec.runnerId]
-    if (!w) return
-    delete w.attachedAt
-    delete w.attachedBy
-    delete w.attachRequestedAt
-    delete w.attachRequestedBy
-    delete w.pausedAt
-    delete w.pausedBy
-    w.lastLiveAt = Date.now()
-    if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
-  }, dir)
+  try {
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (!w) return
+      delete w.attachedAt
+      delete w.attachedBy
+      delete w.attachRequestedAt
+      delete w.attachRequestedBy
+      delete w.pausedAt
+      delete w.pausedBy
+      w.lastLiveAt = Date.now()
+      if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
+    }, dir)
+  } catch (error) {
+    roster.kill(rec.runnerId)
+    return { outcome: 'refused', reason: 'respawn-failed', detail: error instanceof Error ? error.message : String(error) }
+  }
   return {
     outcome: 'applied',
     runnerId: rec.runnerId,
@@ -313,26 +318,31 @@ export function reviveConcourseWorker(
       reason: 'respawn-failed',
       ...(reg.error !== undefined ? { detail: reg.error } : {}),
     }
-  updateConcourseWorkers(workers => {
-    const w = workers[rec.runnerId]
-    if (!w) return
-    delete w.stoppedAt
-    delete w.stoppedBy
-    delete w.retired
-    delete w.turnCutAt
-    delete w.turnCutBy
-    delete w.restartReason
-    clearParkedFields(w)
-    if (opts?.clearCrash === true) delete w.crash
-    if (opts?.modelOverride !== undefined) {
-      w.modelKey = opts.modelOverride
-      delete w.pendingModelKey
-    }
-    stampSpawnPosture(w, spawnPostureOf(spec))
-    w.lastLiveAt = Date.now()
-    if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
-    Object.assign(w, buildTreeFields())
-  }, dir)
+  try {
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (!w) return
+      delete w.stoppedAt
+      delete w.stoppedBy
+      delete w.retired
+      delete w.turnCutAt
+      delete w.turnCutBy
+      delete w.restartReason
+      clearParkedFields(w)
+      if (opts?.clearCrash === true) delete w.crash
+      if (opts?.modelOverride !== undefined) {
+        w.modelKey = opts.modelOverride
+        delete w.pendingModelKey
+      }
+      stampSpawnPosture(w, spawnPostureOf(spec))
+      w.lastLiveAt = Date.now()
+      if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
+      Object.assign(w, buildTreeFields())
+    }, dir)
+  } catch (error) {
+    roster.kill(rec.runnerId)
+    return { outcome: 'refused', reason: 'respawn-failed', detail: error instanceof Error ? error.message : String(error) }
+  }
   return {
     outcome: 'applied',
     runnerId: rec.runnerId,

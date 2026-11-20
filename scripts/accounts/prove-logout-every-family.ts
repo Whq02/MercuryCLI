@@ -2,7 +2,8 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -183,6 +184,76 @@ section('§2 performLogout — every store empties through the one owner')
   }
 }
 
+section('§3 a family whose auth file cannot be read — it is named, the others are signed out, and the terminal verb exits 1')
+if (process.platform === 'win32' || (typeof process.getuid === 'function' && process.getuid() === 0)) {
+  console.log('  [SKIP] the refused family — a mode-0200 file needs a POSIX process that is not root')
+} else {
+  const { performLogout } = await import('../../src/commands/logout/logout.js')
+  const hfPath = huggingface.huggingfaceAuthPathForDisplay()
+  const held = JSON.stringify({ version: 1, tokens: { accessToken: 'hf-fixture-access', refreshToken: 'hf-fixture-refresh', accessTokenExpiresAtMs: far } }, null, 2) + '\n'
+  const words = `Could not sign out: The Hugging Face auth file at ${hfPath} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
+  const seed = (): void => {
+    secrets.writeStoredGeminiApiKey('fixture-gemini')
+    moonshot.writeMoonshotTokens({ accessToken: 'kimi-fixture-access', refreshToken: 'kimi-fixture-refresh', accessTokenExpiresAtMs: far }, 'global')
+    writeFileSync(hfPath, held, { mode: 0o600 })
+    chmodSync(hfPath, 0o200)
+  }
+  const othersSignedOut = (): boolean => authFile('.provider-secrets.json').geminiApiKey === undefined && authFile('.moonshot-auth.json').tokens === undefined
+
+  seed()
+  const refused: unknown = await performLogout()
+  chmodSync(hfPath, 0o600)
+  check('performLogout answers the one family it could not sign out, in the sign-out\'s own sentence', JSON.stringify(refused) === JSON.stringify([words]), `answered ${JSON.stringify(refused)}`)
+  check('that family\'s file stands byte for byte, and the other families are signed out', readFileSync(hfPath, 'utf8') === held && othersSignedOut())
+
+  const OTHERS = 'The other providers are signed out.'
+  const signOutByTheVerb = () => {
+    const ran = spawnSync(process.execPath, ['-e', `
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+      enableConfigs()
+      const { authLogout } = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/auth.ts'))})
+      await authLogout()
+    `], { encoding: 'utf8', env: process.env })
+    chmodSync(hfPath, 0o600)
+    return ran
+  }
+  seed()
+  const verb = signOutByTheVerb()
+  check('mercury auth logout says it on the error stream, does not say Signed out, and exits 1', verb.status === 1 && verb.stderr.includes(words) && !verb.stdout.includes('Signed out'), `exit ${verb.status} · stdout ${JSON.stringify(verb.stdout.slice(-200))} · stderr ${JSON.stringify(verb.stderr.slice(-400))}`)
+  check('…the file stands and the other families are signed out', readFileSync(hfPath, 'utf8') === held && othersSignedOut())
+  check('…and, two other providers having been signed out by it, one line after the refusal says so', verb.stderr.includes(`${words}\n${OTHERS}\n`), `stderr ${JSON.stringify(verb.stderr.slice(-500))}`)
+  seed()
+  const command = spawnSync(process.execPath, ['-e', `
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+    enableConfigs()
+    const { call } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/logout/logout.tsx'))})
+    const shown = await call()
+    process.stdout.write('SHOWN ' + JSON.stringify(shown.props.children) + '\\n')
+  `], { encoding: 'utf8', env: process.env, timeout: 60_000 })
+  chmodSync(hfPath, 0o600)
+  check('the /logout command shows the refusal and the line about the others where it said "Logged out of all your accounts.", leaves both on the terminal as the session ends, and ends 1', command.status === 1 && command.stdout.includes(`SHOWN ${JSON.stringify(`${words}\n${OTHERS}`)}`) && command.stderr.includes(`${words}\n${OTHERS}\n`) && !command.stdout.includes('Logged out of all your accounts'), `exit ${command.status} · stdout ${JSON.stringify(command.stdout.slice(-500))} · stderr ${JSON.stringify(command.stderr.slice(-500))}`)
+  chmodSync(hfPath, 0o200)
+  const alone = signOutByTheVerb()
+  check('with no other provider signed in, the refusal stands alone: nothing is said of others', alone.status === 1 && alone.stderr.includes(words) && !alone.stderr.includes(OTHERS) && !alone.stdout.includes('Signed out'), `exit ${alone.status} · stderr ${JSON.stringify(alone.stderr.slice(-500))}`)
+  secrets.writeStoredHuggingfaceApiKey('hf_fixture_stored')
+  chmodSync(hfPath, 0o200)
+  const sameProvider = signOutByTheVerb()
+  check('a stored token of the refused provider itself, signed out by the command, is not another provider', sameProvider.status === 1 && sameProvider.stderr.includes(words) && !sameProvider.stderr.includes(OTHERS) && secrets.readStoredHuggingfaceApiKey() === undefined, `exit ${sameProvider.status} · stderr ${JSON.stringify(sameProvider.stderr.slice(-500))}`)
+  if (process.platform !== 'darwin') console.log('  [SKIP] the credential store that cannot be removed — a file that takes no unlink is made here with the immutable flag of macOS')
+  else {
+    const store = (await import('../../src/utils/secureStorage/index.js')).credentialsPath()
+    const storeWords = `Could not sign out: The credential store at ${store} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
+    writeFileSync(store, JSON.stringify({ mcpOAuth: { fixture: { accessToken: 'fixture-mcp-token' } } }), { mode: 0o600 })
+    spawnSync('/usr/bin/chflags', ['uchg', store])
+    const left: unknown = await performLogout()
+    const byVerb = signOutByTheVerb()
+    spawnSync('/usr/bin/chflags', ['nouchg', store])
+    check('a credential store that cannot be removed is named by performLogout and by the terminal verb, which ends 1 and does not say Signed out; the store stands', JSON.stringify(left) === JSON.stringify([storeWords]) && byVerb.status === 1 && byVerb.stderr.includes(`${storeWords}\n`) && !byVerb.stdout.includes('Signed out') && existsSync(store), `answered ${JSON.stringify(left)} · exit ${byVerb.status} · stdout ${JSON.stringify(byVerb.stdout.slice(-200))} · stderr ${JSON.stringify(byVerb.stderr.slice(-500))}`)
+    rmSync(store, { force: true })
+  }
+}
 
 try {
   rmSync(scratch, { recursive: true, force: true })

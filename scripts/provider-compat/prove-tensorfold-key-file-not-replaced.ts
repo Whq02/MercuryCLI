@@ -36,23 +36,7 @@ function runIn(body: string): Record<string, unknown> {
     const path = await import('node:path')
     const keyFile = await import(${JSON.stringify(join(SRC, 'services/providers/local/tensorfoldKeyFile.ts'))})
     const recovery = await import(${JSON.stringify(join(SRC, 'substrate/storeRecovery.ts'))})
-    const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(SRC, 'Tool.ts'))})
-    const { decideToolPermission } = await import(${JSON.stringify(join(SRC, 'utils/permissions/decision/engine.ts'))})
-    const { FileReadTool } = await import(${JSON.stringify(join(SRC, 'tools/FileReadTool/FileReadTool.ts'))})
-    const { BashTool } = await import(${JSON.stringify(join(SRC, 'tools/BashTool/BashTool.tsx'))})
-    const ctx = (mode, allow) => {
-      const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { userSettings: allow }, alwaysAskRules: { userSettings: [] } }, tasks: {}, sessionHooks: new Map() }
-      return { getAppState: () => state, setAppState: () => {}, abortController: new AbortController(), readFileState: new Map(), messages: [], options: { tools: [] } }
-    }
-    const floorOf = async target => {
-      const answers = {}
-      for (const mode of ['default', 'sovereign']) {
-        const read = (await decideToolPermission(FileReadTool, { file_path: target }, ctx(mode, ['Read']))).decision
-        const cat = (await decideToolPermission(BashTool, { command: "cat '" + target + "'" }, ctx(mode, ['Bash']))).decision
-        answers[mode] = { read: read.behavior, cat: cat.behavior }
-      }
-      return answers
-    }
+    const { floorOf } = await import(${JSON.stringify(join(HERE, '../lib/permissionFloor.ts'))})
     const home = ${JSON.stringify(home)}
     const file = keyFile.tensorFoldKeyFilePath()
     const dir = path.dirname(file)
@@ -74,7 +58,8 @@ function runIn(body: string): Record<string, unknown> {
 type Attempt = { answered?: { path: string; key: string; line: string }; threw?: { code: string | null; message: string } }
 type Floor = Record<string, { read: string; cat: string }> | null
 type Event = { store?: string; kind?: string; quarantinePath?: string | null; reason?: string }
-const COPY = /\/\.tensorfold-key\.corrupt\.\d+-auth\.json$/
+const COPY = /[\\/]\.tensorfold-key\.corrupt\.\d+-auth\.json$/
+const WIN32_MINTS_OVER = 'on win32 every file reads as open to other users, so the key is minted over the old file and no copy is kept'
 
 console.log('the TensorFold key file — there and unreadable: no new key is minted over it')
 if (!POSIX_MODES) skip('the unreadable key file', 'a mode-0200 file needs a POSIX process that is not root')
@@ -122,7 +107,11 @@ for (const [title, fixture, fixtureMode, reason] of [
   const share = r.share as Attempt
   const copies = r.copies as string[]
   check('a new key is minted and written, mode 0600', share.answered !== undefined && share.answered.key !== OLD_KEY && r.fileNow === `${share.answered.line}\n` && (!POSIX_MODES || r.fileMode === 0o600), JSON.stringify(share))
-  check('one copy of the old file is kept in the Mercury home, under a name the read floors cover, holding its bytes, mode 0600', copies.length === 1 && COPY.test(copies[0]!) && copies[0]!.startsWith(`${String(r.home)}/`) && r.copyHoldsTheBytes === true && (!POSIX_MODES || r.copyMode === 0o600), `${JSON.stringify(copies)} — the old key is on disk nowhere`)
+  if (process.platform === 'win32') {
+    skip('the copy kept aside, its row in the recovery ledger and its read floor', WIN32_MINTS_OVER)
+    continue
+  }
+  check('one copy of the old file is kept in the Mercury home, under a name the read floors cover, holding its bytes, mode 0600', copies.length === 1 && COPY.test(copies[0]!) && ['/', '\\'].some(separator => copies[0]!.startsWith(`${String(r.home)}${separator}`)) && r.copyHoldsTheBytes === true && (!POSIX_MODES || r.copyMode === 0o600), `${JSON.stringify(copies)} — the old key is on disk nowhere`)
   const last = (r.events as Event[]).at(-1)
   check('the recovery ledger, which the Health Check prints, names the store, the reason and where the copy is', last !== undefined && last.store === 'tensorfold-key' && last.reason === reason && last.quarantinePath === copies[0] && (last.kind ?? 'quarantine') === 'quarantine', JSON.stringify(last ?? null))
   const floor = r.floor as Floor
@@ -160,7 +149,8 @@ console.log('the TensorFold key file — controls: no file mints a key, a privat
   const first = r.first as Attempt
   const again = r.again as Attempt
   check('with no file a key is minted', first.answered !== undefined && first.answered.key.length >= 32, JSON.stringify(first))
-  check('a second share keeps that key', again.answered?.key === first.answered?.key && (r.read as { key?: string } | null)?.key === first.answered?.key, JSON.stringify(again))
+  if (process.platform === 'win32') skip('a second share keeps that key', WIN32_MINTS_OVER)
+  else check('a second share keeps that key', again.answered?.key === first.answered?.key && (r.read as { key?: string } | null)?.key === first.answered?.key, JSON.stringify(again))
   check('a key handed in is written as it is, and nothing is kept aside', (r.given as Attempt).answered?.key === 'fixture-key-handed-in' && (r.copies as string[]).length === 0, JSON.stringify(r.given))
   if (POSIX_MODES) check('the key file is mode 0600', r.mode === 0o600, `mode ${(r.mode as number | null)?.toString(8)}`)
 }

@@ -1,5 +1,4 @@
 import { chmodSync, closeSync, copyFileSync, fsyncSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import {
@@ -19,7 +18,7 @@ import { passedOver } from '../passedOver.js'
 
 const CREDENTIALS_FILENAME = '.credentials.json'
 
-function credentialsPath(): string {
+export function credentialsPath(): string {
   return join(getAuthConfigHomeDir(), CREDENTIALS_FILENAME)
 }
 
@@ -61,6 +60,16 @@ function probeStore(path: string): StoreProbe {
   return parseData(raw) === null ? { state: 'unparseable' } : { state: 'ok' }
 }
 
+function unreadWords(path: string, code: string): string {
+  return `The credential store at ${path} exists but could not be read (${code}); nothing was written.`
+}
+
+export function credentialStoreUnread(): { warning: string; code: string } | null {
+  const path = credentialsPath()
+  const probe = probeStore(path)
+  return probe.state === 'unreadable' ? { warning: unreadWords(path, probe.code), code: probe.code } : null
+}
+
 function quarantineUnparseable(path: string): void {
   const copy = `${path}.corrupt.${Date.now()}`
   try {
@@ -92,7 +101,7 @@ export const plainTextStorage: SecureStorage = {
 
   async readAsync(): Promise<SecureStorageData | null> {
     try {
-      return parseData(await readFile(credentialsPath(), 'utf8'))
+      return parseData(readFileSync(credentialsPath(), 'utf8'))
     } catch (error) {
       noteUnreadable(error)
       return null
@@ -115,7 +124,7 @@ export const plainTextStorage: SecureStorage = {
         )
         return {
           success: false,
-          warning: `The credential store at ${path} exists but could not be read (${probe.code}); nothing was written.`,
+          warning: unreadWords(path, probe.code),
           code: probe.code,
         }
       }

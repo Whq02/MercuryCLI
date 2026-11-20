@@ -377,13 +377,18 @@ function routedProviderRows(anthropicPresent: boolean): {
 }
 
 export async function authLogout(): Promise<void> {
+  let refused: string[]
   try {
-    const { performLogout } = await import('../../commands/logout/logout.js')
-    await performLogout()
+    const { signOutRefusals } = await import('../../commands/logout/logout.js')
+    refused = await signOutRefusals()
   } catch (error) {
     console.error(
       `Sign-out failed: ${error instanceof Error ? error.message : String(error)}`,
     )
+    process.exit(1)
+  }
+  if (refused.length > 0) {
+    console.error(refused.join('\n'))
     process.exit(1)
   }
   cliOk('Signed out')

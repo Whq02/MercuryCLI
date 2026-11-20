@@ -2,9 +2,10 @@ import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
 import { formatAge } from '../../../utils/healthCertCore.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
-import { writeStoredMetaApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredMetaApiKey } from '../providerSecrets.js'
 import {
   metaApiBase,
+  metaAuthPathForDisplay,
   metaEnvKey,
   metaMuseCodeFacts,
   pollMetaDeviceToken,
@@ -378,9 +379,15 @@ export async function storeMetaApiKeyLogin(key: string, io?: { fetchImpl?: typeo
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }
+  const restoreAuthFile = credentialFileRestorer(metaAuthPathForDisplay())
   try {
-    writeStoredMetaApiKey(key)
     writePreferredMetaSource('api-key')
+    try {
+      writeStoredMetaApiKey(key)
+    } catch (error) {
+      restoreAuthFile()
+      throw error
+    }
   } catch (error) {
     return { ok: false, stored: false, receipt: `Could not store the key: ${safe(errorMessageWithCause(error))}` }
   }

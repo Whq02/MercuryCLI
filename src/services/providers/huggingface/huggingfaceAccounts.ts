@@ -9,7 +9,7 @@ import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { credentialJsonToWriteOver, probeCredentialJson, readStoredHuggingfaceApiKey } from '../providerSecrets.js'
+import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
@@ -103,7 +103,11 @@ function writeAuthFile(mutate: (file: HuggingfaceAuthFile) => HuggingfaceAuthFil
   const existing = (credentialJsonToWriteOver('The Hugging Face auth file', 'huggingface-auth', authFilePath()) as HuggingfaceAuthFile | null) ?? { version: HF_AUTH_VERSION }
   const next = mutate({ ...existing, version: HF_AUTH_VERSION })
   const path = authFilePath()
-  durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  try {
+    durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  } catch (error) {
+    throw credentialFileUnwritten('The Hugging Face auth file', path, error)
+  }
   try {
     chmodSync(path, 0o600)
   } catch (error) {

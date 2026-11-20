@@ -1,9 +1,10 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
-import { writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import {
   fetchHuggingfaceIdentity,
+  huggingfaceAuthPathForDisplay,
   pollHuggingfaceDeviceToken,
   startHuggingfaceDeviceAuth,
   writeHuggingfaceTokenIdentity,
@@ -200,9 +201,15 @@ export async function storeHuggingfaceTokenLogin(
     }
   }
   const identity: HuggingfaceIdentity | undefined = probe.state === 'confirmed' ? probe.identity : undefined
+  const restoreAuthFile = credentialFileRestorer(huggingfaceAuthPathForDisplay())
   try {
-    writeStoredHuggingfaceApiKey(token)
     writeHuggingfaceTokenIdentity(token, identity ?? null)
+    try {
+      writeStoredHuggingfaceApiKey(token)
+    } catch (error) {
+      restoreAuthFile()
+      throw error
+    }
   } catch (error) {
     return {
       ok: false,

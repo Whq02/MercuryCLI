@@ -21,23 +21,7 @@ const FULL_SECRETS = { version: 1, zaiApiKey: 'fixture-zai-key', openaiApiKey: '
 const FULL_META = { version: 1, museCode: { accessToken: 'fixture-muse-access', apiKey: 'fixture-muse-key', observedAtMs: 1 }, preferredSource: 'muse-code' }
 
 const FLOOR = `
-    const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(SRC, 'Tool.ts'))})
-    const { decideToolPermission } = await import(${JSON.stringify(join(SRC, 'utils/permissions/decision/engine.ts'))})
-    const { FileReadTool } = await import(${JSON.stringify(join(SRC, 'tools/FileReadTool/FileReadTool.ts'))})
-    const { BashTool } = await import(${JSON.stringify(join(SRC, 'tools/BashTool/BashTool.tsx'))})
-    const ctx = (mode, allow) => {
-      const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { userSettings: allow }, alwaysAskRules: { userSettings: [] } }, tasks: {}, sessionHooks: new Map() }
-      return { getAppState: () => state, setAppState: () => {}, abortController: new AbortController(), readFileState: new Map(), messages: [], options: { tools: [] } }
-    }
-    const floorOf = async target => {
-      const answers = {}
-      for (const mode of ['default', 'sovereign']) {
-        const read = (await decideToolPermission(FileReadTool, { file_path: target }, ctx(mode, ['Read']))).decision
-        const cat = (await decideToolPermission(BashTool, { command: "cat '" + target + "'" }, ctx(mode, ['Bash']))).decision
-        answers[mode] = { read: read.behavior, cat: cat.behavior }
-      }
-      return answers
-    }
+    const { floorOf } = await import(${JSON.stringify(join(HERE, '../lib/permissionFloor.ts'))})
 `
 
 function runIn(body: string): Record<string, unknown> {
@@ -147,6 +131,24 @@ else {
   check('the refusal says why nothing was written and what to do, and carries the code', threw?.message === words && threw.code === 'EACCES', `said: ${threw?.message ?? '(nothing)'} — wanted: ${words}`)
 }
 
+console.log('the secrets store — there and unreadable: the sign-out of one provider says so in the store\'s own sentence and exits 1')
+if (!POSIX_MODES) skip('the unreadable store', 'a mode-0200 file needs a POSIX process that is not root')
+else {
+  const r = runIn(`
+    const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+    const STORE = ${JSON.stringify(JSON.stringify({ ...FULL_SECRETS, deepseekApiKey: 'fixture-deepseek-key' }, null, 2) + '\n')}
+    fs.writeFileSync(secretsFile, STORE, { mode: 0o600 })
+    fs.chmodSync(secretsFile, 0o200)
+    const said = { out: '', err: '', exit: null }
+    await cli.providerAuthLogout('deepseek', { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
+    fs.chmodSync(secretsFile, 0o600)
+    out.said = said
+    out.same = raw(secretsFile) === STORE
+  `)
+  const said = r.said as { out: string; err: string; exit: number | null }
+  check('mercury auth logout deepseek names the store it could not read on the error stream, exits 1, and the store stands with its key', said.err.startsWith(`Could not sign out: The provider secrets store at ${String(r.secretsFile)} exists but could not be read (EACCES); nothing was written.`) && said.out === '' && said.exit === 1 && r.same === true, `${JSON.stringify(said)} · store ${r.same === true ? 'kept' : 'changed'}`)
+}
+
 console.log('the auth file beside it (publishAuthScopedJson, the Meta auth file) — there and unreadable: not replaced')
 if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
 else {
@@ -174,6 +176,20 @@ else {
     out.same = raw(metaFile) === FULL
   `)
   const answered = activate.answered as { ok?: boolean; receipt?: string } | undefined
+  const signIn = runIn(`
+    const login = await import(${JSON.stringify(join(SRC, 'services/providers/meta/metaLogin.ts'))})
+    const FULL = ${JSON.stringify(JSON.stringify(FULL_META, null, 2) + '\n')}
+    fs.writeFileSync(metaFile, FULL, { mode: 0o600 })
+    fs.chmodSync(metaFile, 0o200)
+    out.outcome = await login.storeMetaApiKeyLogin('fixture-new-meta-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })
+    fs.chmodSync(metaFile, 0o600)
+    out.same = raw(metaFile) === FULL
+    out.storedKey = (parsed(secretsFile) ?? {}).metaApiKey ?? null
+    out.ledger = Object.keys((parsed(path.join(dir, '.sign-ins.json')) ?? {}).signIns ?? {})
+  `)
+  const refused = signIn.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
+  check('a Meta key sign-in that the auth file refuses says so, and the file stands', refused?.ok === false && refused.stored === false && refused.receipt === `Could not store the key: ${words.replace(String(r.metaFile), String(signIn.metaFile))}` && signIn.same === true, JSON.stringify(refused))
+  check('…and nothing of it is stored: no key in the secrets store, no sign-in in the ledger', signIn.storedKey === null && (signIn.ledger as string[]).length === 0, `the secrets store holds the key (${JSON.stringify(signIn.storedKey)}) and the ledger records ${JSON.stringify(signIn.ledger)}: "nothing was written" is not true`)
   check('making a Meta source active answers a receipt that says why and is not ok, and the file stands', activate.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: ${words.replace(String(r.metaFile), String(activate.metaFile))}` && activate.same === true, `${JSON.stringify(activate.outcome ?? answered)} · file ${activate.same === true ? 'kept' : 'replaced'}`)
 }
 

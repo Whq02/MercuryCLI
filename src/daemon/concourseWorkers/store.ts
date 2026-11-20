@@ -139,13 +139,49 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
     }
   }
   if (!daemonHomeStands('the session records', dir)) return
-  publishInDaemonHome(
-    'the session records',
-    concourseWorkersPath(dir),
-    `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`,
-    { dir },
-  )
+  const path = concourseWorkersPath(dir)
+  const text = `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`
+  if (publishInDaemonHome('the session records', path, text, { dir }) === 'published') sessionRecordsLastPublished.set(path, text)
   stampConcourseDelta(dir)
+}
+
+const sessionRecordsLastPublished = new Map<string, string>()
+
+const unstampedRunnerPids = new Map<string, Map<string, { pid: number; procStart?: string }>>()
+
+export function rememberUnstampedRunnerPid(runnerId: string, fields: { pid?: number; procStart?: string }, dir?: string): void {
+  if (fields.pid === undefined) return
+  const path = concourseWorkersPath(dir)
+  const pending = unstampedRunnerPids.get(path) ?? new Map<string, { pid: number; procStart?: string }>()
+  pending.set(runnerId, { pid: fields.pid, ...(fields.procStart !== undefined ? { procStart: fields.procStart } : {}) })
+  unstampedRunnerPids.set(path, pending)
+}
+
+function stampRememberedRunnerPids(path: string, workers: Record<string, ConcourseWorkerRecordV1>): void {
+  const pending = unstampedRunnerPids.get(path)
+  if (pending === undefined) return
+  const { workerPidAlive } = require('../workerIdentity.js') as typeof import('../workerIdentity.js')
+  for (const [runnerId, fields] of pending) {
+    const rec = workers[runnerId]
+    if (rec === undefined || rec.endedAt !== undefined || !workerPidAlive(fields)) continue
+    rec.pid = fields.pid
+    if (fields.procStart !== undefined) rec.procStart = fields.procStart
+    else delete rec.procStart
+    rec.lastLiveAt = Date.now()
+  }
+}
+
+function liveSessionRecordsLastPublished(path: string): Record<string, ConcourseWorkerRecordV1> {
+  const text = sessionRecordsLastPublished.get(path)
+  if (text === undefined) return {}
+  const { workerPidAlive } = require('../workerIdentity.js') as typeof import('../workerIdentity.js')
+  const held = (JSON.parse(text) as ConcourseWorkerFileV1).workers
+  stampRememberedRunnerPids(path, held)
+  const live: Record<string, ConcourseWorkerRecordV1> = {}
+  for (const [runnerId, rec] of Object.entries(held)) {
+    if (rec.endedAt === undefined && (rec.attachedAt !== undefined || workerPidAlive(rec))) live[runnerId] = rec
+  }
+  return live
 }
 
 let sessionRecordsInFlight: { path: string; workers: Record<string, ConcourseWorkerRecordV1> } | null = null
@@ -167,7 +203,22 @@ export function unreadSessionRecordsRefusal(dir?: string): Error | null {
   return fresh.kind === 'unavailable' ? sessionRecordsRefusal(path, fresh.why) : null
 }
 
-function keepUnusedSessionRecordsAside(path: string, why: string): void {
+const sessionRecordsUnwritten = new Set<string>()
+
+export function unwrittenSessionRecordsRefusal(dir?: string): Error | null {
+  const path = concourseWorkersPath(dir)
+  const fresh = readMutableSessionWorkersFromDisk(path)
+  if (fresh.kind === 'unavailable') return sessionRecordsRefusal(path, fresh.why)
+  if (fresh.kind !== 'unusable' && !sessionRecordsUnwritten.has(path)) return null
+  try {
+    updateConcourseWorkers(() => {}, dir)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
+function keepUnusedSessionRecordsAside(path: string, why: string): Record<string, ConcourseWorkerRecordV1> {
   const { keepDamagedFileAsideSync } = require('../../substrate/storeRecovery.js') as typeof import('../../substrate/storeRecovery.js')
   let aside: string
   try {
@@ -176,7 +227,14 @@ function keepUnusedSessionRecordsAside(path: string, why: string): void {
     const code = (error as NodeJS.ErrnoException).code ?? (error instanceof Error ? error.message : String(error))
     throw new Error(`the session records at ${path} were not updated: the file could not be used (${why}) and could not be kept aside (${code}); nothing was written`)
   }
-  console.error(`[daemon] ${path}: the session records could not be used (${why}); they are kept aside at ${aside} with every session's record, and a new file is written`)
+  const live = liveSessionRecordsLastPublished(path)
+  const held = Object.keys(live)
+  console.error(
+    held.length === 0
+      ? `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts with no session, no live session's record being held in memory; what the file held is in the kept file only`
+      : `[daemon] ${path}: the session records could not be used (${why}); the file is kept aside at ${aside} as it stood, and the new file starts from the records held in memory of the ${held.length} live session(s) (${held.join(', ')}); what the file held of any other session is in the kept file only`,
+  )
+  return live
 }
 
 function noteSessionRecordsRead(path: string): void {
@@ -195,12 +253,13 @@ export function updateConcourseWorkers(
     mutate(sessionRecordsInFlight.workers)
     return sessionRecordsInFlight.workers
   }
+  sessionRecordsUnwritten.add(path)
   const workers = withDaemonStoreLock('the session records', path, dir, ({ assertStillHeld }) => {
     const fresh = readMutableSessionWorkersFromDisk(path)
     if (fresh.kind === 'unavailable') throw sessionRecordsRefusal(path, fresh.why)
-    if (fresh.kind === 'unusable') keepUnusedSessionRecordsAside(path, fresh.why)
+    const next = fresh.kind === 'known' ? fresh.workers : fresh.kind === 'unusable' ? keepUnusedSessionRecordsAside(path, fresh.why) : {}
+    if (fresh.kind === 'known') stampRememberedRunnerPids(path, next)
     noteSessionRecordsRead(path)
-    const next = fresh.kind === 'known' ? fresh.workers : {}
     const outer = sessionRecordsInFlight
     sessionRecordsInFlight = { path, workers: next }
     try {
@@ -212,6 +271,8 @@ export function updateConcourseWorkers(
     publishConcourseWorkers(next, dir)
     return next
   })
+  sessionRecordsUnwritten.delete(path)
+  unstampedRunnerPids.delete(path)
   observeSessionStates(workers)
   return workers
 }

@@ -7,15 +7,15 @@ import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { resetUserCache } from '../../../utils/user.js'
 import { revokeOAuthToken } from '../../oauth/client.js'
 import type { AccountSlot, SlotRemovalOwners, AccountSlotKind } from './shapes.js'
-import { disconnectOpenaiSubscription, resolveOpenaiApiKey } from '../openai/openaiAccounts.js'
-import { writeStoredOpenaiApiKey, writeStoredZaiApiKey, writeStoredOpenrouterApiKey, writeStoredGeminiApiKey, writeStoredMoonshotApiKey, writeStoredMetaApiKey, writeStoredZenApiKey, writeStoredMinimaxApiKey, writeStoredTogetherApiKey, writeStoredCohereApiKey, writeStoredGroqApiKey, writeStoredMeliousApiKey, writeStoredOrcarouterApiKey, writeStoredCerebrasApiKey, writeStoredFireworksApiKey, writeStoredQwenApiKey, writeStoredDeepseekApiKey, writeStoredXaiApiKey, writeStoredXaiManagementApiKey, writeStoredNousApiKey, writeStoredCompatApiKey, writeStoredHuggingfaceApiKey, writeStoredLocalApiKey, writeStoredMistralApiKey, writeStoredMistralAdminApiKey, clearEveryStoredCompatKey } from '../providerSecrets.js'
-import { disconnectOpenrouterOauthKey } from '../openrouter/openrouterAccounts.js'
-import { disconnectGeminiOauth, disconnectGeminiPlan } from '../gemini/geminiAccounts.js'
-import { disconnectMoonshotOauth } from '../moonshot/moonshotAccounts.js'
-import { disconnectMetaMuseCode } from '../meta/metaAccounts.js'
-import { clearStoredXaiSubscription } from '../xai/xaiOauth.js'
-import { clearStoredNousSignin } from '../nous/nousOauth.js'
-import { disconnectHuggingfaceOauth } from '../huggingface/huggingfaceAccounts.js'
+import { disconnectOpenaiSubscription, openaiAuthPathForDisplay, resolveOpenaiApiKey } from '../openai/openaiAccounts.js'
+import { writeStoredOpenaiApiKey, writeStoredZaiApiKey, writeStoredOpenrouterApiKey, writeStoredGeminiApiKey, writeStoredMoonshotApiKey, writeStoredMetaApiKey, writeStoredZenApiKey, writeStoredMinimaxApiKey, writeStoredTogetherApiKey, writeStoredCohereApiKey, writeStoredGroqApiKey, writeStoredMeliousApiKey, writeStoredOrcarouterApiKey, writeStoredCerebrasApiKey, writeStoredFireworksApiKey, writeStoredQwenApiKey, writeStoredDeepseekApiKey, writeStoredXaiApiKey, writeStoredXaiManagementApiKey, writeStoredNousApiKey, writeStoredCompatApiKey, writeStoredHuggingfaceApiKey, writeStoredLocalApiKey, writeStoredMistralApiKey, writeStoredMistralAdminApiKey, clearEveryStoredCompatKey, probeCredentialJson, refuseUnreadSecretsStore, takeCredentialKeptAside } from '../providerSecrets.js'
+import { disconnectOpenrouterOauthKey, openrouterAuthPathForDisplay } from '../openrouter/openrouterAccounts.js'
+import { disconnectGeminiOauth, disconnectGeminiPlan, geminiAuthPathForDisplay } from '../gemini/geminiAccounts.js'
+import { disconnectMoonshotOauth, moonshotAuthPathForDisplay } from '../moonshot/moonshotAccounts.js'
+import { disconnectMetaMuseCode, metaAuthPathForDisplay } from '../meta/metaAccounts.js'
+import { clearStoredXaiSubscription, xaiAuthPathForDisplay } from '../xai/xaiOauth.js'
+import { clearStoredNousSignin, nousAuthPathForDisplay } from '../nous/nousOauth.js'
+import { disconnectHuggingfaceOauth, huggingfaceAuthPathForDisplay } from '../huggingface/huggingfaceAccounts.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
 export interface AnthropicSlotSignOutIo {
@@ -66,6 +66,11 @@ export function signOutAnthropicSlot(
   return { loginLeft }
 }
 
+function signOutRefusalOf(error: unknown): string | null {
+  if (!(error instanceof Error) || typeof (error as NodeJS.ErrnoException).code !== 'string') return null
+  return `Could not sign out: ${error.message}`
+}
+
 export function executeSlotRemoval(
   slot: AccountSlot,
   owners: SlotRemovalOwners = {},
@@ -74,11 +79,55 @@ export function executeSlotRemoval(
   try {
     outcome = routeSlotRemoval(slot, owners)
   } catch (error) {
-    if (!(error instanceof Error) || typeof (error as NodeJS.ErrnoException).code !== 'string') throw error
-    return { note: `Could not sign out: ${error.message}`, mutated: false, refused: true }
+    const note = signOutRefusalOf(error)
+    if (note === null) throw error
+    return { note, mutated: false, refused: true }
   }
   if (outcome.mutated) afterCredentialLeft(slot)
   return outcome
+}
+
+const ACCOUNT_FILE_SIGN_OUTS: Readonly<Record<string, { path: () => string; signOuts: ReadonlyArray<() => void> }>> = {
+  gemini: { path: geminiAuthPathForDisplay, signOuts: [disconnectGeminiOauth, disconnectGeminiPlan] },
+  huggingface: { path: huggingfaceAuthPathForDisplay, signOuts: [disconnectHuggingfaceOauth] },
+  moonshot: { path: moonshotAuthPathForDisplay, signOuts: [disconnectMoonshotOauth] },
+  meta: { path: metaAuthPathForDisplay, signOuts: [disconnectMetaMuseCode] },
+  openai: { path: openaiAuthPathForDisplay, signOuts: [disconnectOpenaiSubscription] },
+  openrouter: { path: openrouterAuthPathForDisplay, signOuts: [disconnectOpenrouterOauthKey] },
+  xai: { path: xaiAuthPathForDisplay, signOuts: [clearStoredXaiSubscription] },
+  nous: { path: nousAuthPathForDisplay, signOuts: [clearStoredNousSignin] },
+}
+
+export function signOutAccountFileNoSlotReads(family: string): { refused: string } | { keptAside: string } | null {
+  const refused: string[] = []
+  const attempt = (signOut: () => void): boolean => {
+    try {
+      signOut()
+      return true
+    } catch (error) {
+      const note = signOutRefusalOf(error)
+      if (note === null) throw error
+      refused.push(note)
+      return false
+    }
+  }
+  if (family !== 'anthropic') attempt(refuseUnreadSecretsStore)
+  const file = Object.hasOwn(ACCOUNT_FILE_SIGN_OUTS, family) ? ACCOUNT_FILE_SIGN_OUTS[family] : undefined
+  const state = file === undefined ? 'absent' : probeCredentialJson(file.path()).state
+  if (file !== undefined && state !== 'absent' && state !== 'ok') file.signOuts.every(attempt)
+  if (refused.length > 0) return { refused: refused.join(' ') }
+  const keptAside = file === undefined ? undefined : takeCredentialKeptAside(file.path())
+  return keptAside === undefined ? null : { keptAside }
+}
+
+export function familiesRefusedIn(notes: readonly string[]): string[] | null {
+  const families: string[] = []
+  for (const note of notes) {
+    const family = Object.keys(ACCOUNT_FILE_SIGN_OUTS).find(name => note.includes(ACCOUNT_FILE_SIGN_OUTS[name]!.path()))
+    if (family === undefined) return null
+    families.push(family)
+  }
+  return families
 }
 
 function afterCredentialLeft(slot: AccountSlot): void {
@@ -293,7 +342,7 @@ function routeSlotRemoval(
   }
 }
 
-export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): void {
+export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): string[] {
   const steps: Array<[AccountSlot['removal']['route'], () => void]> = [
     ['openai-subscription', owners.disconnectOpenaiSubscription ?? disconnectOpenaiSubscription],
     ['openai-stored-key', owners.clearStoredOpenaiKey ?? (() => writeStoredOpenaiApiKey(null))],
@@ -330,11 +379,14 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['nous-stored-key', owners.clearStoredNousKey ?? (() => writeStoredNousApiKey(null))],
     ['nous-signin', owners.clearNousSignin ?? clearStoredNousSignin],
   ]
+  const refused: string[] = []
   for (const [, step] of steps) {
     try {
       step()
     } catch (error) {
       logError(error)
+      const note = signOutRefusalOf(error)
+      if (note !== null && !refused.includes(note)) refused.push(note)
     }
   }
   for (const [family, kind] of [
@@ -346,4 +398,5 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
   ] as const) {
     forgetFamilyObservations(family, kind)
   }
+  return refused
 }

@@ -10,11 +10,11 @@ import { clearBetasCaches } from '../../utils/betas.js'
 import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
-import { signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
+import { deriveFamilySlotGroups, familiesRefusedIn, signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { getSecureStorage } from '../../utils/secureStorage/index.js'
+import { credentialsPath, keychainReachable, macOsKeychainStorage, plainTextStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
 import { startTimeout } from '../../utils/timers.js'
@@ -28,7 +28,7 @@ function clearAuthRelatedCaches(): void {
 
 export async function performLogout({
   clearOnboarding = false,
-}: { clearOnboarding?: boolean } = {}): Promise<void> {
+}: { clearOnboarding?: boolean } = {}): Promise<string[]> {
   try {
     const tokens = getClaudeAIOAuthTokens()
     if (tokens?.refreshToken) {
@@ -39,11 +39,17 @@ export async function performLogout({
   }
 
   await removeApiKey()
-  getSecureStorage().delete()
+  const storesLeft: string[] = []
+  if (keychainReachable() && !macOsKeychainStorage.delete()) {
+    storesLeft.push('Could not sign out: The keychain entry of Mercury could not be removed; the sign-ins it holds are still stored here. Unlock the keychain, then try again.')
+  }
+  if (!plainTextStorage.delete()) {
+    storesLeft.push(`Could not sign out: The credential store at ${credentialsPath()} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`)
+  }
   clearScopeIdentitySnapshot(getMercuryHome())
   forgetScopeIdentity()
 
-  signOutEveryEngineCredential()
+  const refused = [...signOutEveryEngineCredential(), ...storesLeft]
 
   try {
     const { resetLimitsForCredentialSwitch } = await import('../../services/anthropicLimits.js')
@@ -65,14 +71,35 @@ export async function performLogout({
     }
     return next
   })
+  return refused
+}
+
+function signedInSlots(): Map<string, string> {
+  try {
+    return new Map(deriveFamilySlotGroups().flatMap(group => group.slots).filter(slot => slot.signedIn).map(slot => [slot.id, slot.family]))
+  } catch (error) {
+    logError(error)
+    return new Map()
+  }
+}
+
+export async function signOutRefusals(options: { clearOnboarding?: boolean } = {}): Promise<string[]> {
+  const before = signedInSlots()
+  const refused = await performLogout(options)
+  if (refused.length === 0) return refused
+  const after = signedInSlots()
+  const refusedFamilies = familiesRefusedIn(refused)
+  const othersSignedOut = refusedFamilies !== null && [...before].some(([id, family]) => !after.has(id) && !refusedFamilies.includes(family))
+  return othersSignedOut ? [...refused, 'The other providers are signed out.'] : refused
 }
 
 const SHUTDOWN_DELAY_MS = 200
 
 export async function call(): Promise<React.ReactNode> {
-  await performLogout({ clearOnboarding: true })
+  const refused = await signOutRefusals({ clearOnboarding: true })
   startTimeout(() => {
-    gracefulShutdownSync(0, 'logout')
+    if (refused.length > 0) gracefulShutdownSync(1, 'logout', { finalMessage: refused.join('\n') })
+    else gracefulShutdownSync(0, 'logout')
   }, SHUTDOWN_DELAY_MS)
-  return <Text>Logged out of all your accounts.</Text>
+  return <Text>{refused.length > 0 ? refused.join('\n') : 'Logged out of all your accounts.'}</Text>
 }

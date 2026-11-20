@@ -1,7 +1,7 @@
 import { writeSync } from 'node:fs'
 import { createInterface, type Interface } from 'node:readline'
 import { loginFamilyRows, keyPageLine, type KeyFamilyValue } from '../../components/loginFamilyRows.js'
-import { deriveFamilySlotGroups, executeSlotRemoval, type AccountSlot } from '../../services/providers/accountSlots.js'
+import { deriveFamilySlotGroups, executeSlotRemoval, signOutAccountFileNoSlotReads, type AccountSlot } from '../../services/providers/accountSlots.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { configuredCompatEndpoints } from '../../services/providers/openaicompat/compatAccounts.js'
 import { storeCompatApiKeyLogin } from '../../services/providers/openaicompat/compatLogin.js'
@@ -407,22 +407,27 @@ export async function providerAuthLogout(familyRaw?: string, io: ProviderAuthIo 
     slot => slot.family === targetFamily && (endpointFilter === undefined || slot.id.includes(endpointFilter)),
   )
   const removable = familySlots.filter(slot => slot.signedIn && slot.removal.route !== 'env' && slot.removal.route !== 'settings' && slot.removal.route !== 'excluded')
-  if (removable.length === 0) {
+  const fileOnly = signOutAccountFileNoSlotReads(targetFamily)
+  const unread = fileOnly !== null && 'refused' in fileOnly ? fileOnly.refused : null
+  if (removable.length === 0 && unread === null) {
     const envSlot = familySlots.find(slot => slot.removal.route === 'env')
     const note = envSlot && envSlot.removal.route === 'env'
       ? `${envSlot.removal.envVar} is set in the environment — unset it in your shell; no stored ${normalized} credential to remove.`
-      : `No stored ${normalized} credential to sign out.`
+      : fileOnly !== null && 'keptAside' in fileOnly
+        ? fileOnly.keptAside
+        : `No stored ${normalized} credential to sign out.`
     out(`${note}\n`)
     io.exit?.(0)
     return { ok: true, code: 0, receipt: note }
   }
   const notes: string[] = []
-  let refused = false
+  let refused = unread !== null
   for (const slot of removable) {
     const outcome = executeSlotRemoval(slot)
-    notes.push(outcome.note)
+    if (outcome.refused !== true || !notes.includes(outcome.note)) notes.push(outcome.note)
     if (outcome.refused === true) refused = true
   }
+  if (unread !== null && !notes.includes(unread)) notes.push(unread)
   const receipt = notes.join(' ')
   if (refused) {
     err(`${receipt}\n`)

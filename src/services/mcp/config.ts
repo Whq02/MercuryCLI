@@ -953,7 +953,7 @@ export async function addMcpConfig(
   }
 }
 
-export async function removeMcpConfig(name: string, scope: ConfigScope): Promise<void> {
+export async function removeMcpConfig(name: string, scope: ConfigScope, beforeRemoval?: () => void): Promise<void> {
   switch (scope) {
     case 'project': {
       const mcpJsonPath = projectMcpFilePath(getCwd())
@@ -966,6 +966,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
         if (!Object.hasOwn(document.mcpServers, name)) {
           throw new Error(`MCP server "${name}" does not exist in ${mcpJsonPath}`)
         }
+        beforeRemoval?.()
         const { [name]: _removed, ...rest } = document.mcpServers
         await writeProjectMcpFile({ ...document, mcpServers: rest })
       })
@@ -976,6 +977,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
       if (!Object.hasOwn(servers, name)) {
         throw new Error(`MCP server "${name}" is not user-scoped`)
       }
+      beforeRemoval?.()
       saveGlobalConfig(current => {
         const { [name]: _removed, ...rest } = current.mcpServers ?? {}
         return { ...current, mcpServers: rest }
@@ -987,6 +989,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
       if (!Object.hasOwn(servers, name)) {
         throw new Error(`MCP server "${name}" is not in the project-local config`)
       }
+      beforeRemoval?.()
       saveCurrentProjectConfig(current => {
         const { [name]: _removed, ...rest } = current.mcpServers ?? {}
         return { ...current, mcpServers: rest }
