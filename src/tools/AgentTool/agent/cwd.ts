@@ -6,8 +6,8 @@ import { pathInAllowedWorkingPath } from '../../../utils/permissions/filesystem.
 import { modeBypassesPermissions } from '../../../utils/permissions/PermissionMode.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import { getCwd } from '../../../utils/cwd.js'
-import { getPlatform } from '../../../utils/platform.js'
-import { posixPathToWindowsPath } from '../../../utils/windowsPaths.js'
+import { rememberedPlatform } from '../../../utils/platform/host.js'
+import { msysDrivePathToNative } from '../../../utils/platform/paths.js'
 import { getErrnoCode } from '../../../utils/errors.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
@@ -15,7 +15,7 @@ function agentDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling) || hasControlCharacter(spelling)) {
     throw new Error(`cwd must be an absolute directory: ${spelling} (the session folder is ${getCwd()})`)
   }
-  const onDisk = getPlatform() === 'windows' && /^\/[a-zA-Z]\//.test(spelling) ? posixPathToWindowsPath(spelling) : spelling
+  const onDisk = msysDrivePathToNative(spelling, false, rememberedPlatform())
   const entry = (() => {
     try {
       return statSync(onDisk)

@@ -21,7 +21,23 @@ const STANDS: readonly Stand[] = [
 
 import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
-import { foldCaseInsensitivePath, foldHostCaseInsensitivePath, foldPathCase, hostOrWin32PathModule, pathModuleFor, samePathCase, splitPathFromRoot, stripExtendedLengthPrefixForPlatform, toPosixSeparators } from '../../src/utils/platform/paths.js'
+import {
+  foldCaseInsensitivePath,
+  foldHostCaseInsensitivePath,
+  foldPathCase,
+  hostOrWin32PathModule,
+  hostPathSpellings,
+  msysDrivePathToNative,
+  nativeCwdFromRecordedShell,
+  nativePathToShell,
+  normalizeLocalDevicePath,
+  pathModuleFor,
+  samePathCase,
+  shellPathToNative,
+  splitPathFromRoot,
+  stripExtendedLengthPrefixForPlatform,
+  toPosixSeparators,
+} from '../../src/utils/platform/paths.js'
 
 const PATHS: Row[] = [
   {
@@ -152,6 +168,85 @@ const PATHS: Row[] = [
       }
     },
     recorded: {"win32":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"darwin":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"linux":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by getPlatform() alone":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]}},
+  },
+  {
+    name: 'paths.shellPathToNative',
+    answers: () => {
+      const inputs = ['', '/c/Users/Alice', '/cygdrive/d/work/a.ts', '//server/share/dir', '/c', '/tmp/a']
+      return {
+        default: inputs.map(p => shellPathToNative(p)),
+        windows: inputs.map(p => shellPathToNative(p, 'windows')),
+        macos: inputs.map(p => shellPathToNative(p, 'macos')),
+        linux: inputs.map(p => shellPathToNative(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"darwin":{"default":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"linux":{"default":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"win32 by process.platform alone":{"default":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]}},
+  },
+  {
+    name: 'paths.nativePathToShell',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\a.ts', 'D:/work/dir', '\\\\server\\share\\file', '/tmp/a']
+      return {
+        default: inputs.map(p => nativePathToShell(p)),
+        windows: inputs.map(p => nativePathToShell(p, 'windows')),
+        macos: inputs.map(p => nativePathToShell(p, 'macos')),
+        linux: inputs.map(p => nativePathToShell(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"darwin":{"default":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"linux":{"default":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"win32 by getPlatform() alone":{"default":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]}},
+  },
+  {
+    name: 'paths.msysDrivePathToNative',
+    answers: () => {
+      const inputs = ['', '/c/Users/Alice', '/c', '/tmp/a', 'C:\\Users\\Alice']
+      return {
+        defaultStrict: inputs.map(p => msysDrivePathToNative(p, false)),
+        defaultBare: inputs.map(p => msysDrivePathToNative(p, true)),
+        win32Strict: inputs.map(p => msysDrivePathToNative(p, false, 'win32')),
+        win32Bare: inputs.map(p => msysDrivePathToNative(p, true, 'win32')),
+        linuxBare: inputs.map(p => msysDrivePathToNative(p, true, 'linux')),
+      }
+    },
+    recorded: {"win32":{"defaultStrict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"darwin":{"defaultStrict":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"linux":{"defaultStrict":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"win32 by process.platform alone":{"defaultStrict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"win32 by getPlatform() alone":{"defaultStrict":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]}},
+  },
+  {
+    name: 'paths.hostPathSpellings',
+    answers: () => {
+      const inputs = ['C:\\Users\\Alice', '/Users/Alice', '']
+      return {
+        default: inputs.map(p => hostPathSpellings(p)),
+        win32: inputs.map(p => hostPathSpellings(p, 'win32')),
+        darwin: inputs.map(p => hostPathSpellings(p, 'darwin')),
+        linux: inputs.map(p => hostPathSpellings(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"darwin":{"default":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"linux":{"default":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"win32 by process.platform alone":{"default":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"win32 by getPlatform() alone":{"default":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]}},
+  },
+  {
+    name: 'paths.nativeCwdFromRecordedShell',
+    answers: () => {
+      const inputs = ['', '  /tmp/work \n', '/c/Users/Alice\n', '/c/Users/Alice\nC:\\Users\\Alice\n', '/usr/bin\n']
+      return {
+        defaultTrim: inputs.map(r => nativeCwdFromRecordedShell(r, true)),
+        defaultNoTrim: inputs.map(r => nativeCwdFromRecordedShell(r, false)),
+        windows: inputs.map(r => nativeCwdFromRecordedShell(r, true, 'windows')),
+        linuxNoTrim: inputs.map(r => nativeCwdFromRecordedShell(r, false, 'linux')),
+      }
+    },
+    recorded: {"win32":{"defaultTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"defaultNoTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"darwin":{"defaultTrim":[{"path":""},{"path":"/tmp/work"},{"path":"/c/Users/Alice"},{"path":"/c/Users/Alice\nC:\\Users\\Alice"},{"path":"/usr/bin"}],"defaultNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"linux":{"defaultTrim":[{"path":""},{"path":"/tmp/work"},{"path":"/c/Users/Alice"},{"path":"/c/Users/Alice\nC:\\Users\\Alice"},{"path":"/usr/bin"}],"defaultNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"win32 by process.platform alone":{"defaultTrim":[{"path":""},{"path":"/tmp/work"},{"path":"/c/Users/Alice"},{"path":"/c/Users/Alice\nC:\\Users\\Alice"},{"path":"/usr/bin"}],"defaultNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"win32 by getPlatform() alone":{"defaultTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"defaultNoTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]}},
+  },
+  {
+    name: 'paths.normalizeLocalDevicePath',
+    answers: () => {
+      const inputs = ['', '\\\\?\\c:\\Users\\Alice', '\\\\.\\D:/work', '\\\\localhost\\c$\\Users', '//127.0.0.1/d$/a/b', '///tmp/a', '/tmp/a']
+      return {
+        default: inputs.map(p => normalizeLocalDevicePath(p)),
+        windows: inputs.map(p => normalizeLocalDevicePath(p, 'windows')),
+        macos: inputs.map(p => normalizeLocalDevicePath(p, 'macos')),
+        linux: inputs.map(p => normalizeLocalDevicePath(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"darwin":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"linux":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"win32 by process.platform alone":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]}},
   },
 ]
 
