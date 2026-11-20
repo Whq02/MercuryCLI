@@ -194,6 +194,33 @@ async function runProofHomeGuard(): Promise<void> {
   check('refuseProofWriteIntoAccountStore still allows nonexistent scratch home', okSafe)
 }
 
+async function runSavedPromptsStore(): Promise<void> {
+  console.log('\nsavedPromptsStore — failed legacy rename returns legacy path so prompts stay readable')
+  if (!POSIX_MODES) return
+  const { savedPromptsPath, savedPromptsRoot, listSavedPrompts } = await import('../../src/utils/savedPrompts/savedPromptsStore.ts')
+  const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+  const project = '/Users/example/dev/legacy-saved-prompts-proj'
+  const root = savedPromptsRoot()
+  mkdirSync(root, { recursive: true })
+  const legacyPath = join(root, `${sanitizePath(project.normalize('NFC'))}.json`)
+  writeFileSync(
+    legacyPath,
+    JSON.stringify({ _v: 1, drafts: [{ id: 'abc123', text: 'kept legacy prompt', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }] }),
+  )
+  chmodSync(root, 0o500)
+  try {
+    const chosen = savedPromptsPath(project)
+    const listed = await listSavedPrompts(project)
+    check(
+      'savedPromptsPath falls back to legacy path when rename fails',
+      chosen === legacyPath && listed.length === 1 && listed[0]?.text === 'kept legacy prompt',
+      JSON.stringify({ chosen, legacyPath, count: listed.length }),
+    )
+  } finally {
+    chmodSync(root, 0o700)
+  }
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
@@ -201,6 +228,7 @@ try {
   await runPromptDraft()
   await runPromptEditor()
   await runProofHomeGuard()
+  await runSavedPromptsStore()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
