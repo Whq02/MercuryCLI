@@ -130,9 +130,9 @@ export function takeCredentialKeptAside(path: string): string | undefined {
   return words
 }
 
-export function credentialFileUnwritten(what: string, path: string, error: unknown): Error {
+export function credentialFileUnwritten(what: string | null, path: string, error: unknown): Error {
   const code = (error instanceof DurablePublishError ? error.fsCode : getErrnoCode(error)) ?? 'EUNKNOWN'
-  return Object.assign(new Error(`${what} at ${path} could not be written (${code}); nothing was written. Close what holds the file, then try again.`), { code })
+  return Object.assign(new Error(`${what === null ? path : `${what} at ${path}`} could not be written (${code}); nothing was written. Close what holds the file, then try again.`), { code })
 }
 
 export function credentialFileRestorer(path: string): () => void {

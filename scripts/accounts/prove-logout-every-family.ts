@@ -244,7 +244,7 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   if (process.platform !== 'darwin') console.log('  [SKIP] the credential store that cannot be removed — a file that takes no unlink is made here with the immutable flag of macOS')
   else {
     const store = (await import('../../src/utils/secureStorage/index.js')).credentialsPath()
-    const storeWords = `Could not sign out: The credential store at ${store} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
+    const storeWords = `Could not sign out: ${store} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
     writeFileSync(store, JSON.stringify({ mcpOAuth: { fixture: { accessToken: 'fixture-mcp-token' } } }), { mode: 0o600 })
     spawnSync('/usr/bin/chflags', ['uchg', store])
     const left: unknown = await performLogout()
@@ -289,13 +289,44 @@ if (process.platform !== 'darwin' || (typeof process.getuid === 'function' && pr
   }
   for (const [how, words] of [
     ['unreadable', `Could not sign out: The credential store at ${store} exists but could not be read (EACCES); nothing was written.`],
-    ['immutable', `Could not sign out: The credential store at ${store} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`],
+    ['immutable', `Could not sign out: ${store} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`],
   ] as const) {
     const ran = signOutClaude(how)
     check(`${how}: mercury auth logout anthropic names the store on the error stream and ends 1`, ran.said.err === `${words}\n` && ran.said.out === '' && ran.said.exit === 1, JSON.stringify(ran.said))
     check(`${how}: the sign-out of the Claude slot answers the same note, refused, and the store stands byte for byte with its login`, ran.slot.note === words && ran.slot.refused === true && ran.slot.mutated === false && ran.same, `${JSON.stringify(ran.slot)} · store ${ran.same ? 'kept' : 'changed'}`)
   }
   rmSync(store, { force: true })
+
+  const ONLY = JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-claude-access', refreshToken: 'fixture-claude-refresh', expiresAt: far, scopes: ['user:inference'], subscriptionType: 'max' } })
+  const bin = join(scratch, 'keychain-bin')
+  mkdirSync(bin, { recursive: true })
+  const signOutOnKeychainStorage = (keychain: 'holds nothing' | 'is locked', file: 'immutable' | 'free'): { said: { out: string; err: string; exit: number | null }; stands: boolean } => {
+    writeFileSync(join(bin, 'security'), `#!/bin/sh\nif [ "$1" = "-i" ]; then cat >/dev/null; fi\nif [ "$1" = "delete-generic-password" ] && [ ${keychain === 'is locked' ? 1 : 0} = 1 ]; then exit 36; fi\nexit 44\n`)
+    chmodSync(join(bin, 'security'), 0o755)
+    writeFileSync(store, ONLY, { mode: 0o600 })
+    if (file === 'immutable') spawnSync('/usr/bin/chflags', ['uchg', store])
+    const env: Record<string, string | undefined> = { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, MERCURY_ANTHROPIC_OAUTH_BASE: dead }
+    delete env.MERCURY_CREDENTIAL_STORE
+    const ran = spawnSync(process.execPath, ['-e', `
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+      enableConfigs()
+      const cli = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/providerAuth.ts'))})
+      const said = { out: '', err: '', exit: null }
+      await cli.providerAuthLogout('anthropic', { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
+      process.stdout.write('\\n' + JSON.stringify({ said }))
+      process.exit(0)
+    `], { encoding: 'utf8', env, timeout: 60_000 })
+    if (file === 'immutable') spawnSync('/usr/bin/chflags', ['nouchg', store])
+    const answered = JSON.parse(ran.stdout.trim().split('\n').pop() || '{}') as { said?: { out: string; err: string; exit: number | null } }
+    const stands = existsSync(store) && readFileSync(store, 'utf8') === ONLY
+    rmSync(store, { force: true })
+    return { said: answered.said ?? { out: ran.stdout, err: ran.stderr, exit: ran.status }, stands }
+  }
+  const fileLeft = signOutOnKeychainStorage('holds nothing', 'immutable')
+  check('a Mac as it comes, the login alone in a credential file that cannot be removed: the sign-out names the file, ends 1, and the login stands', fileLeft.said.err === `Could not sign out: ${store} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.\n` && fileLeft.said.out === '' && fileLeft.said.exit === 1 && fileLeft.stands, `${JSON.stringify(fileLeft.said)} · file ${fileLeft.stands ? 'kept' : 'changed'}`)
+  const keychainLeft = signOutOnKeychainStorage('is locked', 'free')
+  check('a Mac as it comes, a keychain that refuses the removal: the sign-out names the keychain and ends 1', keychainLeft.said.err === 'Could not sign out: The keychain entry of Mercury could not be removed; the sign-ins it holds are still stored here. Unlock the keychain, then try again.\n' && keychainLeft.said.out === '' && keychainLeft.said.exit === 1, JSON.stringify(keychainLeft.said))
 }
 
 try {

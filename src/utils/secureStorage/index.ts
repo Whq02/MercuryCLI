@@ -37,9 +37,16 @@ export function getSecureStorage(): SecureStorage {
   return fileStorageFor(systemProtectorFor(process.platform, storeFlag), sealsUnder(storeFlag))
 }
 
+export function deleteCredentialStores(): Array<'keychain' | 'file'> {
+  const left: Array<'keychain' | 'file'> = []
+  if (keychainReachable() && !macOsKeychainStorage.delete()) left.push('keychain')
+  if (!plainTextStorage.delete()) left.push('file')
+  return left
+}
+
 export function removeSecureStorageField<K extends keyof SecureStorageData>(
   field: K,
-): { removed: boolean; kept: number; success: boolean; code?: string } {
+): { removed: boolean; kept: number; success: boolean; code?: string; left?: Array<'keychain' | 'file'> } {
   const storage = getSecureStorage()
   const current = storage.read()
   const keys = current === null ? [] : (Object.keys(current) as Array<keyof SecureStorageData>)
@@ -47,7 +54,10 @@ export function removeSecureStorageField<K extends keyof SecureStorageData>(
   if (current === null || current[field] === undefined) return { removed: false, kept, success: true }
   const next: SecureStorageData = { ...current }
   delete next[field]
-  if (kept === 0) return { removed: true, kept, success: storage.delete() }
+  if (kept === 0) {
+    const left = deleteCredentialStores()
+    return { removed: true, kept, success: left.length === 0, ...(left.length > 0 ? { left } : {}) }
+  }
   const written = storage.update(next)
   return { removed: true, kept, success: written.success, ...(written.code !== undefined ? { code: written.code } : {}) }
 }

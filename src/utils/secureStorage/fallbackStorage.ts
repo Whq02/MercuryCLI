@@ -41,7 +41,7 @@ export function createFallbackStorage(primary: SecureStorage, secondary: SecureS
     delete(): boolean {
       const primaryDeleted = primary.delete()
       const secondaryDeleted = secondary.delete()
-      return primaryDeleted || secondaryDeleted
+      return primaryDeleted && secondaryDeleted
     },
   }
 }
