@@ -118,6 +118,11 @@ export function credentialJsonToWriteOver(what: string, store: string, path: str
   return null
 }
 
+export function credentialFileUnwritten(what: string, path: string, error: unknown): Error {
+  const code = (error instanceof DurablePublishError ? error.fsCode : getErrnoCode(error)) ?? 'EUNKNOWN'
+  return Object.assign(new Error(`${what} at ${path} could not be written (${code}); nothing was written. Close what holds the file, then try again.`), { code })
+}
+
 export function credentialFileRestorer(path: string): () => void {
   let before: Buffer | 'absent' | undefined
   try {
@@ -539,7 +544,11 @@ export function publishAuthScopedJson(
   const path = join(dir, fileName)
   const existing = credentialJsonToWriteOver('The auth file', fileName.replace(/^\./, '').replace(/\.json$/, ''), path) ?? { version: 1 }
   const next = mutate({ ...existing, version: 1 })
-  durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  try {
+    durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  } catch (error) {
+    throw credentialFileUnwritten('The auth file', path, error)
+  }
   try {
     chmodSync(path, 0o600)
   } catch {}

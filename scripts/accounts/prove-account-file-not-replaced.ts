@@ -249,6 +249,34 @@ else {
   check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
 }
 
+console.log('\nan auth file that reads and takes no write — the sign-out says which file could not be written, on each road, and nothing is thrown')
+if (process.platform !== 'darwin' || !POSIX_MODES) skip('the write that fails', 'a file that takes no rename is made here with the immutable flag of macOS')
+else {
+  for (const [family, route] of [[FAMILIES[0]!, 'gemini-oauth'], [FAMILIES[1]!, 'huggingface-oauth'], [FAMILIES[2]!, 'moonshot-oauth']] as const) {
+    const r = runIn(family, `
+      const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
+      const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+      const child = await import('node:child_process')
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(file, FULL, { mode: 0o600 })
+      child.spawnSync('/usr/bin/chflags', ['uchg', file])
+      out.slot = attempt(() => { out.answered = removal.executeSlotRemoval({ id: 'fixture-slot', family: ${JSON.stringify(family.id)}, kind: 'oauth', removal: { route: ${JSON.stringify(route)} } }) })
+      const said = { out: '', err: '', exit: null }
+      out.verbThrew = await cli.providerAuthLogout(${JSON.stringify(family.id)}, { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } }).then(() => null, error => String(error.message ?? error))
+      out.said = said
+      out.every = attempt(() => { out.everyAnswered = removal.signOutEveryEngineCredential() })
+      child.spawnSync('/usr/bin/chflags', ['nouchg', file])
+      out.same = raw(file) === FULL
+    `)
+    const words = `Could not sign out: The ${family.label} auth file at ${String(r.file)} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
+    const answered = r.answered as { note?: string; mutated?: boolean; refused?: boolean } | undefined
+    const said = r.said as { out: string; err: string; exit: number | null }
+    check(`${family.label}: the sign-out of the slot answers the note, refused, and throws nothing`, r.slot === null && answered?.note === words && answered.mutated === false && answered.refused === true, JSON.stringify(r.slot ?? answered))
+    check(`${family.label}: the sign-out of the family says it on the error stream and exits 1`, r.verbThrew === null && said.err === `${words}\n` && said.out === '' && said.exit === 1, JSON.stringify({ threw: r.verbThrew, said }))
+    check(`${family.label}: the sign-out of every provider answers it once, and the file stands byte for byte`, r.every === null && JSON.stringify(r.everyAnswered) === JSON.stringify([words]) && r.same === true, `${JSON.stringify(r.every ?? r.everyAnswered)} · file ${r.same === true ? 'kept' : 'changed'}`)
+  }
+}
+
 console.log('\nthe terminal sign-out of one family — a file that cannot be read is named with exit 1, and a file that is not valid JSON is kept aside')
 if (!POSIX_MODES) skip('the refused terminal sign-out', 'a mode-0200 file needs a POSIX process that is not root')
 else {

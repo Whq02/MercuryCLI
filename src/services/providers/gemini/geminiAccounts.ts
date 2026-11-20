@@ -16,7 +16,7 @@ import {
   generateCodeVerifier,
   generateState,
 } from '../../oauth/crypto.js'
-import { credentialJsonToWriteOver, probeCredentialJson, readStoredGeminiApiKey } from '../providerSecrets.js'
+import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredGeminiApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
@@ -130,7 +130,11 @@ function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
   const existing = (credentialJsonToWriteOver('The Gemini auth file', 'gemini-auth', authFilePath()) as GeminiAuthFile | null) ?? { version: GEMINI_AUTH_VERSION }
   const next = mutate({ ...existing, version: GEMINI_AUTH_VERSION })
   const path = authFilePath()
-  durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  try {
+    durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  } catch (error) {
+    throw credentialFileUnwritten('The Gemini auth file', path, error)
+  }
   try {
     chmodSync(path, 0o600)
   } catch {

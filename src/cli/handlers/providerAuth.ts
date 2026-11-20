@@ -420,7 +420,7 @@ export async function providerAuthLogout(familyRaw?: string, io: ProviderAuthIo 
   let refused = unread !== null
   for (const slot of removable) {
     const outcome = executeSlotRemoval(slot)
-    notes.push(outcome.note)
+    if (outcome.refused !== true || !notes.includes(outcome.note)) notes.push(outcome.note)
     if (outcome.refused === true) refused = true
   }
   if (unread !== null && !notes.includes(unread)) notes.push(unread)
