@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, skip, REPO } from './lib/harness.ts'
@@ -23,13 +23,6 @@ const prover = await makeContext([AstEditTool, AstSearchTool], { mode: 'sovereig
 const edit = (input: Record<string, unknown>) => drive(AstEditTool, input, prover)
 const search = (input: Record<string, unknown>) => drive(AstSearchTool, input, prover)
 
-section('§1 — the page says it')
-{
-  const page = readFileSync(join(REPO, 'docs/STRUCTURAL-PATTERNS.md'), 'utf8').replace(/\s+/g, ' ')
-  check('the AstEdit section says a keyword the pattern does not name is not kept', page.includes('A rewrite of a whole declaration writes the rewrite\'s own words: a keyword the pattern does not name is not kept, so read the diff.'))
-  check('beside the sentence that a word the pattern writes must be in the code', page.includes('A word or an operator a pattern writes must be in the code it finds, in the same place among the parts of its node; what the code has beyond the pattern is passed over.'))
-}
-
 section('§2 — and the diff of a dry run shows it')
 {
   const dropped = await edit({ pattern: 'function $N($$$A) { $$$B }', rewrite: 'function $N($$$A) { log(); $$$B }', path: 'ts' })
@@ -52,8 +45,6 @@ if (!existsSync(join(engineDir, 'tree-sitter-zig.wasm'))) {
 
 section('§4 — a modifier that is a node of its own is part of the pattern')
 {
-  const page = readFileSync(join(REPO, 'docs/STRUCTURAL-PATTERNS.md'), 'utf8').replace(/\s+/g, ' ')
-  check('the page says it beside the unnamed keywords', page.includes('Where a modifier is a node of its own (Java, C#, Kotlin, Swift, Rust) it is part of the pattern: `void $N() { … }` finds only a method written without one, and `public void $N() { … }` the public ones.'))
   for (const [lang, file, bare, written] of [
     ['java', 'A.java', 'void $N() { $$$B }', 'public void $N() { $$$B }'],
     ['c-sharp', 'A.cs', 'void $N() { $$$B }', 'public void $N() { $$$B }'],

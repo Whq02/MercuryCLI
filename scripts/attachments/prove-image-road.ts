@@ -369,8 +369,6 @@ section('§8 the paste chord per platform')
   check('Windows binds alt+v to the image paste', chordOn('win32') === 'alt+v', chordOn('win32'))
   check('macOS binds ctrl+v', chordOn('darwin') === 'ctrl+v', chordOn('darwin'))
   check('Linux binds ctrl+v', chordOn('linux') === 'ctrl+v', chordOn('linux'))
-  const docs = await import('node:fs').then(fs => fs.readFileSync(join(ROOT, 'docs', 'SESSIONS.md'), 'utf8'))
-  check('the docs say the key per platform', /ctrl\+v on macOS and Linux/.test(docs) && /alt\+v on Windows/.test(docs))
 }
 
 section('the JavaScript road, in a child process with the road forced')

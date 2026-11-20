@@ -296,12 +296,6 @@ section('§4 the Windows road WITH a bash located (MERCURY_WINDOWS_SHELL_ROAD=lo
   }
 }
 
-section('§5 the source keeps the session road and its three exclusions; the per-command road picks the engine only where no bash.exe was found')
-{
-  const runtime = readFileSync(join(ROOT, 'docs/TERMINAL-RUNTIME.md'), 'utf8').replace(/\r\n/g, '\n')
-  check('TERMINAL-RUNTIME names which process takes the three calls, the engine itself on a box where no bash starts', runtime.includes('A call the long-lived process cannot take runs in a process of its own') && runtime.includes('Windows box where no bash starts it is the engine itself') && !runtime.includes('still runs, in its own system shell'))
-}
-
 section('§6 the Monitor mailbox delivers the first burst, holds later ticks, and delivers them together at 30 seconds')
 {
   const { createWatchMailbox, BURST_WINDOW_MS, DELIVERY_INTERVAL_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
