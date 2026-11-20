@@ -441,5 +441,42 @@ console.log('10. src/utils/cockpit/daemonSnapshot.ts — unexpected failure read
   )
 }
 
+console.log('11. src/utils/cockpit/fleetGauge.ts — worker or execution listing failure reads fleet roster unreadable')
+{
+  const rConcourse = runIsolated(`
+    const { mock } = await import('bun:test')
+    const realConcourse = await import(SRC + '/daemon/concourseWorkers.ts')
+    mock.module(SRC + '/daemon/concourseWorkers.js', () => ({
+      ...realConcourse,
+      listConcourseWorkers: () => { throw new Error('workers read failed') },
+    }))
+    const { fleetGauge } = await import(SRC + '/utils/cockpit/fleetGauge.ts')
+    out.snap = await fleetGauge()
+  `)
+  const snapC = rConcourse.snap as { state?: string; reason?: string } | undefined
+  check(
+    'fleetGauge: throwing listConcourseWorkers reads unavailable fleet roster unreadable',
+    snapC?.state === 'unavailable' && snapC.reason === 'fleet roster unreadable (workers read failed)',
+    JSON.stringify(snapC),
+  )
+
+  const rExec = runIsolated(`
+    const { mock } = await import('bun:test')
+    const realExec = await import(SRC + '/services/primitives/executionPlane.ts')
+    mock.module(SRC + '/services/primitives/executionPlane.js', () => ({
+      ...realExec,
+      listExecutions: () => { throw new Error('executions registry failed') },
+    }))
+    const { fleetGauge } = await import(SRC + '/utils/cockpit/fleetGauge.ts')
+    out.snap = await fleetGauge()
+  `)
+  const snapE = rExec.snap as { state?: string; reason?: string } | undefined
+  check(
+    'fleetGauge: throwing listExecutions reads unavailable fleet roster unreadable',
+    snapE?.state === 'unavailable' && snapE.reason === 'fleet roster unreadable (executions registry failed)',
+    JSON.stringify(snapE),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
