@@ -309,14 +309,21 @@ export function acquireUpdateLock(roots: LayoutRoots): LockResult {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       mkdirSync(lockDir)
-      writeFileSync(join(lockDir, 'pid'), String(process.pid))
-      return { state: 'acquired' }
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
       const pid = Number(readPointerFile(join(lockDir, 'pid')))
       const alive = Number.isFinite(pid) && pid > 0 && pidAlive(pid)
       if (alive) return { state: 'held', byPid: pid }
       rmSync(lockDir, { recursive: true, force: true })
+      continue
     }
+    try {
+      writeFileSync(join(lockDir, 'pid'), String(process.pid))
+    } catch (error) {
+      rmSync(lockDir, { recursive: true, force: true })
+      throw error
+    }
+    return { state: 'acquired' }
   }
   return { state: 'held', byPid: null }
 }
@@ -382,13 +389,19 @@ const dirMembers = (dir: string): string[] => {
   try {
     return readdirSync(dir)
   } catch (error) {
-    passedOver(error)
-    return []
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return []
+    throw error
   }
 }
 
 export function validatePayloadDir(dir: string): PayloadCheck {
-  const members = dirMembers(dir)
+  let members: string[]
+  try {
+    members = dirMembers(dir)
+  } catch (e) {
+    return { state: 'invalid', note: errorMessage(e) }
+  }
   if (!existsSync(join(dir, 'manifest.json'))) return { state: 'invalid', note: `no manifest.json in ${dir}` }
   let manifest: unknown
   try {
@@ -535,6 +548,28 @@ export function listInstalledVersions(roots: LayoutRoots): string[] {
     .reverse()
 }
 
+function listInstalledVersionsStrict(roots: LayoutRoots): string[] {
+  let entries: string[]
+  try {
+    entries = readdirSync(roots.versionsDir)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
+  }
+  return entries
+    .filter(e => parsePrivateVersion(e) !== null)
+    .filter(e => {
+      try {
+        return statSync(join(roots.versionsDir, e)).isDirectory()
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+        throw error
+      }
+    })
+    .sort()
+    .reverse()
+}
+
 export function versionDirIntact(roots: LayoutRoots, version: string): boolean {
   return validatePayloadDir(join(roots.versionsDir, version)).state === 'ok'
 }
@@ -557,7 +592,7 @@ export function pruneSupersededVersions(roots: LayoutRoots, live: string | reado
   }
   const liveResolved = (typeof live === 'string' ? [live] : live).map(realDir)
   const report: PruneReport = { removed: [], kept: [], left: [] }
-  for (const version of listInstalledVersions(roots)) {
+  for (const version of listInstalledVersionsStrict(roots)) {
     const dir = join(roots.versionsDir, version)
     const resolved = realDir(dir)
     const isRunning = liveResolved.some(running => (roots.isWindows ? resolved.toLowerCase() === running.toLowerCase() : resolved === running))
@@ -805,7 +840,10 @@ function writeOneShim(path: string, desired: string, executable: boolean, isWind
   let existing: string | null = null
   try {
     existing = readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      return { state: 'refused-foreign', path, note: errorMessage(error) }
+    }
     existing = null
   }
   if (existing === desired) return { state: 'current', path }
@@ -927,7 +965,14 @@ export type SmokeOutcome = { state: 'ok'; printed: string } | { state: 'failed';
 
 export function smokeVersion(dir: string, expectedVersion: string, primaryBundle?: string): SmokeOutcome {
   const validated = primaryBundle ? null : validatePayloadDir(dir)
-  const bundle = primaryBundle ?? (validated?.state === 'ok' ? validated.bundle : resolveBundleMember(dirMembers(dir)))
+  let bundle: string | null = primaryBundle ?? (validated?.state === 'ok' ? validated.bundle : null)
+  if (!bundle) {
+    try {
+      bundle = resolveBundleMember(dirMembers(dir))
+    } catch (e) {
+      return { state: 'failed', note: errorMessage(e) }
+    }
+  }
   if (!bundle) {
     return { state: 'failed', note: `no runtime bundle (${BUNDLE_MEMBER_NAMES.join(' | ')}) in ${dir}` }
   }
@@ -985,7 +1030,7 @@ function layoutMembers(versionsDir: string): { members: string[]; marked: boolea
       try {
         isDir = statSync(dir).isDirectory()
       } catch (error) {
-        passedOver(error)
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }
       if (!isDir) continue
       if (existsSync(join(dir, 'manifest.json'))) marked = true
@@ -1053,7 +1098,7 @@ export function uninstallLayout(roots: LayoutRoots, deps: UninstallDeps = {}): U
       if (readFileSync(path, 'utf8').includes(SHIM_MARKER_FAMILY)) ownSet.push(path)
       else preservedForeign.push(path)
     } catch (error) {
-      passedOver(error)
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     }
   }
   const layout = existsSync(roots.versionsDir) ? layoutMembers(roots.versionsDir) : null

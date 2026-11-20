@@ -12,8 +12,9 @@ import { isTerminalExecutionState, type ExecutionState } from '../primitives/exe
 import { projectOwner } from '../primitives/owner.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import type { ServiceRecord } from './contracts.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
-
 export function serviceExecutionId(name: string): string {
   return `service:${name}`
 }
@@ -77,6 +78,7 @@ export function projectServiceExecution(cwd: string, record: ServiceRecord): voi
       }
     }
   } catch (error) {
+    logError(error)
     passedOver(error)
   }
 }
@@ -102,7 +104,25 @@ export function installServiceExecutionDomain(hooks: {
       const cwd = planeRecord.spec.cwd
       const name = planeRecord.spec.metadata?.name
       if (!cwd || typeof name !== 'string') return
-      void hooks.stop(cwd, name).catch(passedOver)
+      const recordFailure = (reason: string): void => {
+        logError(new Error(`service ${name} stop failed: ${reason}`))
+        const latest = getExecution(planeRecord.spec.owner, planeRecord.spec.id)
+        if (latest && !isTerminalExecutionState(latest.state)) {
+          settleExecution(planeRecord.spec.owner, planeRecord.spec.id, 'indeterminate', {
+            outcome: { reason },
+          })
+        }
+      }
+      void hooks.stop(cwd, name).then(
+        result => {
+          if (result && typeof result === 'object' && 'error' in result && typeof (result as { error?: unknown }).error === 'string') {
+            recordFailure((result as { error: string }).error)
+          }
+        },
+        error => {
+          recordFailure(errorMessage(error))
+        },
+      )
     },
   })
 }

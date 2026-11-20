@@ -2,7 +2,6 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, projectConfigDirs } from '../../utils/projectConfig.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 export { projectLocalPath } from '../../utils/projectConfig.js'
 
@@ -18,13 +17,13 @@ export function initializeProjectLocalEstate(root: string): { dir: string; creat
   if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(basename(root))) return null
   const absolute = resolve(root)
   if (dirname(absolute) === absolute) return null
-  let home = ''
+  let home: string
   try {
     home = resolve(homedir())
-  } catch (error) {
-    passedOver(error)
+  } catch {
+    return null
   }
-  if (home !== '' && absolute === home) return null
+  if (absolute === home) return null
   if (projectLocalEstateExists(root)) return { dir: projectLocalDir(root), created: false }
   const dir = projectLocalDir(root)
   try {
