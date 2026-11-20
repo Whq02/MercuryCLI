@@ -68,48 +68,14 @@ if [ "$suite_class" = "pty" ] && [ "$posix_host" = 1 ] && [ -f "$repo_root/scrip
     return 78
   fi
 fi
-if [ -n "$second_look" ]; then
-  [ -x "$second_look/named/bun" ] && export BUN="$second_look/named/bun"
-  PATH="$second_look/path:$PATH" exec "$suite_bash" "$runner"
-fi
 exec bash "$runner"
-}
-second_look_stand_in() {
-  {
-    printf '#!%s\n' "$suite_bash"
-    printf 'second_look_green=%q\nsecond_look_real=%q\nsecond_look_dir=%q\n' "$second_look/green" "$2" "$second_look/path"
-    if [ -n "${BUN+set}" ]; then printf 'export BUN=%q\n' "$BUN"; else printf 'unset BUN\n'; fi
-    cat <<'STAND_IN'
-second_look_member=${1:-}
-[ "$second_look_member" = run ] && second_look_member=${2:-}
-case "$second_look_member" in
-  (*/scripts/*) second_look_member="scripts/${second_look_member##*/scripts/}" ;;
-  (./*) second_look_member="${second_look_member#./}" ;;
-esac
-if [ -n "$second_look_member" ] && grep -qxF -- "$second_look_member" "$second_look_green"; then
-  printf 'second look: %s was green in the first attempt and is not run again\n' "$second_look_member"
-  exit 0
-fi
-second_look_path=":$PATH:"
-second_look_path=${second_look_path//":$second_look_dir:"/:}
-second_look_path=${second_look_path#:}
-export PATH="${second_look_path%:}"
-exec "$second_look_real" "$@"
-STAND_IN
-  } >"$1" && chmod +x "$1"
 }
 rm -f "$outdir/$dom.hang"
 printf 'suite %s: proof run root %s (%s)\n' "$dom" "$MERCURY_SUITE_TMPDIR" "${MERCURY_SUITE_TMPDIR_NOTE:-}" >"$out"
-second_look=''
-if [ -n "$leave_out" ] && [ -s "$leave_out" ] && suite_bash=$(command -v bash) && mkdir -p "$MERCURY_SUITE_TMPDIR/second-look/path" "$MERCURY_SUITE_TMPDIR/second-look/named" && cp "$leave_out" "$MERCURY_SUITE_TMPDIR/second-look/green"; then
-  second_look="$MERCURY_SUITE_TMPDIR/second-look"
-  second_look_stand_in "$second_look/path/bash" "$suite_bash"
-  path_bun=$(command -v bun || true)
-  named_bun=${BUN:-${HOME:-}/.bun/bin/bun}
-  [ -x "$named_bun" ] || named_bun=$path_bun
-  [ -n "$path_bun" ] && second_look_stand_in "$second_look/path/bun" "$path_bun"
-  [ -n "$named_bun" ] && second_look_stand_in "$second_look/named/bun" "$named_bun"
-  printf 'second look: the %s test(s) green in the first attempt are not run again\n' "$(grep -c . "$second_look/green")" >>"$out"
+unset MERCURY_SUITE_LEAVE_OUT
+if [ -s "$leave_out" ]; then
+  export MERCURY_SUITE_LEAVE_OUT="$(cd "$(dirname "$leave_out")" && pwd)/$(basename "$leave_out")"
+  printf 'second look: the %s test(s) green in the first attempt are not run again\n' "$(grep -c . "$leave_out")" >>"$out"
 fi
 resource=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$runner" | head -1 | tr -d '[:space:]')
 case "$resource" in pure|cpu|pty|exclusive) ;; *) resource=undeclared ;; esac
