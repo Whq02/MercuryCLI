@@ -315,6 +315,59 @@ console.log('\noauth/refresh.ts — storeOAuthAccountInfo propagates resetLimits
   )
 }
 
+const { createLSPClient } = await import('../../src/services/lsp/LSPClient.js')
+
+console.log('\nLSPClient.ts — sendNotification propagates write/serialization failures instead of swallowing')
+{
+  const fakeLsp = join(scratch, 'fake-lsp.mjs')
+  writeFileSync(
+    fakeLsp,
+    `
+    let buf = Buffer.alloc(0)
+    process.stdin.on('data', chunk => {
+      buf = Buffer.concat([buf, chunk])
+      const idx = buf.indexOf('\\r\\n\\r\\n')
+      if (idx === -1) return
+      const hdr = buf.subarray(0, idx).toString('ascii')
+      const m = /content-length:\\s*(\\d+)/i.exec(hdr)
+      if (!m) return
+      const len = Number(m[1])
+      if (buf.length < idx + 4 + len) return
+      const body = JSON.parse(buf.subarray(idx + 4, idx + 4 + len).toString('utf8'))
+      buf = buf.subarray(idx + 4 + len)
+      if (body.method === 'initialize') {
+        const res = JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { capabilities: {} } })
+        process.stdout.write('Content-Length: ' + Buffer.byteLength(res) + '\\r\\n\\r\\n' + res)
+      } else if (body.method === 'shutdown') {
+        const res = JSON.stringify({ jsonrpc: '2.0', id: body.id, result: null })
+        process.stdout.write('Content-Length: ' + Buffer.byteLength(res) + '\\r\\n\\r\\n' + res)
+      } else if (body.method === 'exit') {
+        process.exit(0)
+      }
+    })
+    `,
+    'utf8',
+  )
+  const client = createLSPClient('test-notify')
+  await client.start(process.execPath, [fakeLsp])
+  await client.initialize({ processId: process.pid, rootUri: null, capabilities: {} })
+  const cyclic: Record<string, unknown> = {}
+  cyclic.self = cyclic
+  let notifyErr: unknown = null
+  try {
+    await client.sendNotification('textDocument/didChange', cyclic)
+  } catch (error) {
+    notifyErr = error
+  } finally {
+    await client.stop({ gracefulTimeoutMs: 500 })
+  }
+  check(
+    'LSPClient.sendNotification rejects when connection.sendNotification throws',
+    notifyErr instanceof Error,
+    `notifyErr=${String(notifyErr)}`,
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
