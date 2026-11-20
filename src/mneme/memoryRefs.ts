@@ -6,11 +6,11 @@ import { isAbsolute, join, resolve, sep } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { lookupTokens } from './mnemeLookup.js'
 import { escapeRegExp } from '../utils/stringUtils.js'
-import { ledgerPointers, type MemoryPointer } from './mnemePointers.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
 import type { LedgerEntry } from './types.js'
 import type { MnemeEntry } from './mnemeTopicDocs.js'
 import { lastUsedMs, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
+import { ledgerPointers, type MemoryPointer } from './ledgerPointers.js'
 
 export const FACT_HALF_LIFE_DAYS = 30
 const FACT_DECAY_LAMBDA = Math.LN2 / FACT_HALF_LIFE_DAYS
