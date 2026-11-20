@@ -383,7 +383,6 @@ async function main(): Promise<void> {
       ['docs/EXTENSIONS.md', 'hand-written document with a generated contract section'],
       ['sdk/README.md', 'hand-written guide; scripts/sdk/generate.ts replaces only the vocabulary:start/end region'],
       ['sdk-py/README.md', 'hand-written guide; scripts/sdk/generate.ts replaces only the vocabulary:start/end region'],
-      ['scripts/engine-pass/contract-moved.tsv', 'hand-written record; its test computes only the digest column'],
     ])
     const matches = (rel: string, asset: string): boolean => (/[*?{]/.test(asset) ? new Bun.Glob(asset).match(rel) : rel === asset)
     const scriptsFor = (rel: string): Set<string> => {

@@ -72,8 +72,6 @@ check('every generator and check names a script that exists', deadScripts.length
 check('every files-of source exists', deadSources.length === 0, deadSources.join(', '))
 const settingsRow = map.rows.find(r => r.assets.includes('scripts/settings/settings-schema.json'))
 check('settings types map to the schema snapshot with its generator and check', settingsRow !== undefined && settingsRow.sources.includes('src/utils/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
-const contractRow = map.rows.find(r => r.assets.includes('scripts/engine-pass/contract-moved.tsv'))
-check("the engine contract's record is a row fed by the facade and the engine", contractRow !== undefined && contractRow.sources.includes('src/ink.ts') && contractRow.sources.includes('src/ink/**') && (contractRow.check ?? '').includes('prove-engine-contract'))
 check('repoPathsIn reads the paths a census names', repoPathsIn('{"sites":[{"file":"src/a/b.ts","line":3},{"file":"scripts/x/y.sh"}]}').join(',') === 'src/a/b.ts,scripts/x/y.sh')
 check('repoPathsIn reads the keys of the contract inventory', repoPathsIn(readFileSync(join(ROOT, 'scripts/ownership/contract-inventory.json'), 'utf8')).includes('src/utils/settings/types.ts'))
 const badMap = parseGeneratedAssetsMap('# c\na.json\tgen a\n')
@@ -123,7 +121,6 @@ for (const [path, asset] of [
   ['src/utils/settings/newKey.ts', 'scripts/settings/settings-schema.json'],
   ['src/components/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
   ['scripts/settings/gen-settings-schema.ts', 'scripts/settings/settings-schema.json'],
-  ['src/ink/dom.ts', 'scripts/engine-pass/contract-moved.tsv'],
 ]) check('the real map covers new inputs, deleted imports and generator changes', generatedAssetsOwed({ rows: map.rows, commitPaths: [path!], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes(asset!)))
 check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
 

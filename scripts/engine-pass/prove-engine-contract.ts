@@ -4,15 +4,6 @@ import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import ts from 'typescript'
 import { BASE, ROOT, argument, baseSources, git, hasBaseObject, scratch } from './support.ts'
-import { registerOnlyRequested } from '../lib/generated-assets-map.mjs'
-
-const ROW = {
-  assets: 'scripts/engine-pass/contract-moved.tsv',
-  generator: 'bun scripts/engine-pass/prove-engine-contract.ts',
-  check: 'bun scripts/engine-pass/prove-engine-contract.ts',
-  sources: 'src/ink.ts src/ink/** tsconfig.json bun.lock',
-}
-if (registerOnlyRequested(ROW)) process.exit(0)
 
 function contract(root: string): Record<string, unknown> {
   const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile)
