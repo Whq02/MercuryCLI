@@ -23,7 +23,7 @@ const CANCEL_AFTER_ROW_MS = 50
 const CANCEL_AFTER_REFUSAL_MS = 600
 const CANCEL_PROMPT_MS = 2000
 
-type Stage = { script: Scripted[]; served: number; lastAtMs: number; announcedMs: number | undefined; rows: string[]; refusalSent?: () => void }
+type Stage = { script: Scripted[]; served: number; lastAtMs: number; announcedMs: number | undefined; namedSeconds: number | undefined; rows: string[]; refusalSent?: () => void }
 let stage: Stage | null = null
 let waitLine: (wait: never) => string = () => ''
 const outside: string[] = []
@@ -68,9 +68,11 @@ export async function openStandIn(args: {
             : gapMs >= SILENT_WAIT_FLOOR_MS
               ? `request ${n} after a wait nothing announced`
               : `request ${n} at once`
-      stage.rows.push(`wire   ${when} → ${reply.label}`)
+      const named = stage.namedSeconds === undefined ? '' : gapMs >= stage.namedSeconds * 900 ? `, not shorter than the ${stage.namedSeconds} s the 429 named` : `, SHORTER (${gapMs} ms) than the ${stage.namedSeconds} s the 429 named`
+      stage.rows.push(`wire   ${when}${named} → ${reply.label}`)
       stage.lastAtMs = now
       stage.announcedMs = undefined
+      stage.namedSeconds = reply.headers['retry-after'] === undefined ? undefined : Number(reply.headers['retry-after'])
       res.writeHead(reply.status, reply.headers)
       if (reply.status !== 200) stage.refusalSent?.()
       if (reply.drop !== true) {
@@ -174,7 +176,7 @@ export async function play(title: string, script: Scripted[], call: Call, opts: 
     armed = false
     setTimeout(cancel, afterMs)
   }
-  const current: Stage = { script, served: 0, lastAtMs: Date.now(), announcedMs: undefined, rows, refusalSent: () => void setTimeout(() => arm(0), CANCEL_AFTER_REFUSAL_MS) }
+  const current: Stage = { script, served: 0, lastAtMs: Date.now(), announcedMs: undefined, namedSeconds: undefined, rows, refusalSent: () => void setTimeout(() => arm(0), CANCEL_AFTER_REFUSAL_MS) }
   stage = current
   let streamEvents = 0
   const flushEvents = (): void => {
