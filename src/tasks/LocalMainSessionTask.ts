@@ -44,8 +44,8 @@ function defaultMainSessionDefinition(): AgentDefinition {
     agentType: MAIN_SESSION_AGENT_TYPE,
     whenToUse: 'main session query',
     source: 'userSettings',
-    systemPrompt: ''
-  } as unknown as AgentDefinition
+    getSystemPrompt: () => '',
+  }
 }
 
 export function registerMainSessionTask(

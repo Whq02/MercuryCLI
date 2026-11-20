@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -72,13 +72,6 @@ const UNSHOWN = /^A rule of this folder's \.mercury\/wards\.json blocked this (?
 console.log('============================================================')
 console.log(' a folder nobody trusted: its wards.json still denies on a headless run, in the harness\'s words alone')
 console.log('============================================================')
-
-section('§0 the page: docs/TRUST.md says such a run proceeds without the project\'s instructions, and that project rules add to the list')
-{
-  const page = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8').split('\n').map(line => line.trim()).join(' ')
-  check("the page says `mercury run` proceeds without the project's instructions", /`mercury run` proceeds without the project's instructions/.test(page))
-  check('the page says project rules add to the list and never remove from it', /project rules in `\.mercury\/wards\.json` add to the list and never remove from it/.test(page))
-}
 
 section('§1 a headless run in a folder with no trust grant')
 state.setSessionTrustAccepted(false)

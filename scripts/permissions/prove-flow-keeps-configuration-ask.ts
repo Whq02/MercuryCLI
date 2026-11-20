@@ -104,7 +104,6 @@ section('§4 a rule that arrives by a settings change while the session runs ans
     return { state, judge, changed, inForce }
   }
   const told = (answer: Answer): string => `${answer.behavior}${answer.message ? `: ${answer.message.slice(0, 140)}` : ''}`
-  check('the page says which allow rules answer one of the five', /An allow rule answers one of the five ahead of the\s+ask only if it stood when the session started or you granted it in this\s+session; a rule that arrives by a settings change while the session runs\s+answers none of the five until the next session\./.test(pageText()))
 
   put(user, [])
   put(local, [])

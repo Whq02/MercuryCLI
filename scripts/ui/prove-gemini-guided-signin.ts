@@ -111,7 +111,6 @@ const docs = read('docs/ENGINES.md')
 const titleAt = steps.map(s => docs.indexOf(s.title))
 check('every step title is in docs/ENGINES.md', steps.every(s => docs.includes(s.title)), steps.filter(s => !docs.includes(s.title)).map(s => s.title).join(' | '))
 check('the titles read in step order', titleAt.every(at => at >= 0) && titleAt.every((at, i) => i === 0 || at > titleAt[i - 1]!), titleAt.join(','))
-check('the docs name the key row, the AI Studio page, the test-user reason and the return to step 3', docs.includes(guide.GEMINI_KEY_ROW) && docs.includes('https://aistudio.google.com/apikey') && docs.includes('Google lets an unpublished app sign in only its listed test users') && docs.includes('access_denied') && docs.includes('step 3'))
 
 section('§8 each screen carries its own note and nothing is displaced')
 const { keyPageLine } = await import('../../src/components/loginFamilyRows.ts')

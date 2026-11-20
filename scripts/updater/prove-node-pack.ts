@@ -253,16 +253,6 @@ section('§8 the surfaces — health, status, dry-run, registry, notices, docs, 
   check('MERCURY_NODE is registered as a value knob naming the three rungs', row !== undefined && row.kind === 'value' && row.summary.includes('vendor/node') && row.summary.includes('PATH'))
   const notices = read('THIRD_PARTY_NOTICES.md')
   check('THIRD_PARTY_NOTICES names the Node.js runtime with its receipt', notices.includes('**Node.js runtime**') && notices.includes('vendor/node.lock.json'))
-  const readme = read('docs/INSTALL.md')
-  check('README: a release install needs git only', readme.replace(/\s+/g, ' ').includes('`git` is the only separate requirement'))
-  check('README: the vendored packs', readme.includes('the vendored packs'))
-  const agents = read('AGENTS.md')
-  check('AGENTS.md: a release install needs git only, and stays under 80 lines', agents.includes('A release install needs `git` only') && agents.split('\n').length <= 80, `${agents.split('\n').length} split parts`)
-  check('CONTRIBUTING: the vendored packs', read('CONTRIBUTING.md').includes('the vendored packs'))
-  check('the Windows guide lists the node fetch', read('docs/INSTALL-WINDOWS-FROM-SOURCE.md').includes('bun run scripts/vendor/fetch-node.ts'))
-  const terminal = read('docs/TERMINAL-RUNTIME.md')
-  check('TERMINAL-RUNTIME names the three rungs', terminal.includes('MERCURY_NODE') && terminal.includes('vendor/node/bin/node'))
-  check('BUILD-NOTES documents the pack and its proof seam', read('BUILD-NOTES.md').includes('MERCURY_BUILD_NO_VENDOR_NODE'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

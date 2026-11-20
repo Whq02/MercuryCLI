@@ -1,8 +1,6 @@
-
 import React, { PureComponent, type ReactNode } from 'react'
 import { LayoutChromeProvider } from '../../context/layoutChromeContext.js'
 import { signalInputLive } from '../../boot/launchGraph.js'
-import { updateLastInteractionTime } from '../../bootstrap/state.js'
 import { persistCrashReport } from '../../utils/crashReport.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { stopCapturingEarlyInput } from '../../utils/earlyInput.js'
@@ -16,12 +14,7 @@ import {
   isWarmBackgroundEnabled,
 } from '../../utils/cockpit/warmBackground.js'
 import { EventEmitter } from '../events/emitter.js'
-import {
-  bumpInputEventSeqForMouse,
-  inputConsumedThroughSeq,
-  InputEvent,
-} from '../events/input-event.js'
-import { TerminalFocusEvent } from '../events/terminal-focus-event.js'
+import { bumpInputEventSeqForMouse } from '../events/input-event.js'
 import {
   finishSelection,
   hasSelection,
@@ -29,19 +22,10 @@ import {
   startSelection,
   type SelectionState,
 } from '../geometry/selection.js'
-import {
-  INITIAL_STATE,
-  type KeyParseState,
-  nonAlphanumericKeys,
-  parseMultipleKeypresses,
-  type ParsedInput,
-  type ParsedKey,
-  type ParsedMouse,
-} from '../input/input-decoder.js'
+import type { ParsedKey, ParsedMouse } from '../input/input-decoder.js'
 import { DECRPM_STATUS } from '../input/interpreter.js'
 import instances from '../instances.js'
-import reconciler from '../reconciler.js'
-import { dismissByOutsidePress, elevatedSurfaceContains, hasElevatedSurface } from '../recessLayer.js'
+import { dismissByOutsidePress, elevatedSurfaceContains } from '../recessLayer.js'
 import { anyModalOverlayActive } from '../../context/overlayStack.js'
 import {
   extendedKeysReenable,
@@ -64,10 +48,9 @@ import { decrqm, kittyKeyboard, oscColor, TerminalQuerier, terminalQuerySettleMs
 import { resolveTerminalExperience } from '../session/terminalExperience.js'
 import { queueTerminalWidthProbe } from '../session/widthProbe.js'
 import { termWrite } from '../terminalOut.js'
-import { resolveAlternateScrollIntent } from '../termio/alternateScrollPolicy.js'
-import { FOCUS_IN, FOCUS_OUT } from '../termio/csi.js'
 import { HIDE_CURSOR, SHOW_CURSOR } from '../termio/dec.js'
 import AppContext from './AppContext.js'
+import { AppInputLoop, coalesceWheelRun } from './AppInputLoop.js'
 import { ClockProvider } from './ClockContext.js'
 import CursorDeclarationContext, {
   type CursorDeclarationSetter,
@@ -77,24 +60,17 @@ import StdinContext from './StdinContext.js'
 import { TerminalFocusProvider } from './TerminalFocusContext.js'
 import { LiveTerminalSizeContext, TerminalSizeContext, type TerminalSize } from './TerminalSizeContext.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { startImmediate, startTimeout, stopImmediate, stopTimeout } from '../../utils/timers.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
-const STDIN_GAP_REASSERT_MS = 5000
-const INCOMPLETE_SEQUENCE_TIMEOUT_MS = 50
-const PASTE_MODE_TIMEOUT_MS = 500
-const LONE_ESCAPE_GRACE_REARMS = 2
-const LONE_ESCAPE_MOUSE_WINDOW_MS = 500
 const MULTI_CLICK_WINDOW_MS = 500
 const MULTI_CLICK_TOLERANCE_CELLS = 1
 export const REFOCUS_CLICK_WINDOW_MS = 200
+export { coalesceWheelRun }
 
 const OSC_BACKGROUND_COLOR = 11
 
 const RAW_MODE_LEDGER_OWNER = 'app-raw-mode'
 const CURSOR_LEDGER_OWNER = 'app-cursor'
-
-const FUNCTIONAL_NAMES = new Set<string>(nonAlphanumericKeys)
-
 type Props = {
   readonly children: ReactNode
   readonly stdin: NodeJS.ReadStream
@@ -125,71 +101,12 @@ type State = {
 
 const noopCursorDeclaration: CursorDeclarationSetter = () => {}
 
-const SUPPORTS_SUSPEND = process.platform !== 'win32'
-
-const WHEEL_ROWS_PER_NOTCH = 3
-
-function isReportedWheel(atom: ParsedInput): atom is ParsedKey {
-  return atom.kind === 'key' && (atom.name === 'wheelup' || atom.name === 'wheeldown') && atom.x !== undefined && atom.y !== undefined
-}
-
-export function coalesceWheelRun(atoms: readonly ParsedInput[], start: number, pageRows: number): { end: number; atom: ParsedKey | null; steps: number } {
-  let end = start
-  let net = 0
-  let up: ParsedKey | null = null
-  let down: ParsedKey | null = null
-  while (end < atoms.length) {
-    const atom = atoms[end]!
-    if (!isReportedWheel(atom)) break
-    if (atom.name === 'wheeldown') {
-      net++
-      down = atom
-    } else {
-      net--
-      up = atom
-    }
-    end++
-  }
-  const atom = net > 0 ? down : net < 0 ? up : null
-  const steps = atom === null ? 0 : Math.min(Math.abs(net), Math.max(1, Math.floor(pageRows / WHEEL_ROWS_PER_NOTCH)))
-  return { end, atom, steps }
-}
-
-function isMouseClass(atom: ParsedInput): boolean {
-  if (atom.kind === 'mouse') return true
-  if (atom.kind !== 'key') return false
-  return atom.name === 'mouse' || atom.name === 'wheelup' || atom.name === 'wheeldown'
-}
-
-function isActingNamedKey(atom: ParsedInput): boolean {
-  if (atom.kind !== 'key') return false
-  const name = atom.name
-  if (typeof name !== 'string') return false
-  if (!FUNCTIONAL_NAMES.has(name)) return false
-  return name !== 'wheelup' && name !== 'wheeldown' && name !== 'mouse'
-}
-
 const MOTION_BIT = 0x20
 const ALT_MODIFIER_BIT = 0x08
 
 function clickOutsideElevatedSurface(col: number, row: number): boolean {
   return anyModalOverlayActive() && elevatedSurfaceContains(col, row) === false
 }
-
-const ESCAPE_ATOM: ParsedKey = {
-  kind: 'key',
-  fn: false,
-  name: 'escape',
-  ctrl: false,
-  meta: false,
-  shift: false,
-  option: false,
-  super: false,
-  sequence: '\x1b',
-  raw: '\x1b',
-  isPasted: false,
-}
-
 export default class App extends PureComponent<Props, State> {
   static displayName = 'InternalApp'
 
@@ -198,14 +115,8 @@ export default class App extends PureComponent<Props, State> {
   private rawModeEnabledCount = 0
   private identityProbed = false
   private readonly internal_eventEmitter = new EventEmitter()
-  private keyParseState: KeyParseState = INITIAL_STATE
-  private readonly inputBatches: Array<{ atoms: ParsedInput[]; flush: boolean }> = []
-  private inputBatchIndex = 0
-  private inputDrain: ReturnType<typeof setImmediate> | null = null
-  private incompleteEscapeTimer: ReturnType<typeof setTimeout> | null = null
-  private loneEscapeGraceUsed = 0
-  private lastMouseEventTime = 0
   private readonly querier: TerminalQuerier
+  private readonly inputLoop: AppInputLoop
   readonly gesture = {
     lastClickTime: 0,
     lastClickCol: -1,
@@ -217,15 +128,29 @@ export default class App extends PureComponent<Props, State> {
     refocusedAt: -1,
     swallowRelease: false,
   }
-  private lastStdinTime = Date.now()
   private terminalSize: TerminalSize = { columns: 0, rows: 0 }
 
   constructor(props: Props) {
     super(props)
     this.querier = new TerminalQuerier(props.stdout)
-    this.keyParseState = { ...INITIAL_STATE, stringReplyOwed: () => this.querier.stringReplyOwed() }
+    this.inputLoop = new AppInputLoop({
+      stdin: () => this.props.stdin,
+      stdout: () => this.props.stdout,
+      rows: () => this.props.rows,
+      exitOnCtrlC: () => this.props.exitOnCtrlC,
+      selection: () => this.props.selection,
+      isRawModeEnabled: () => this.rawModeEnabledCount > 0,
+      querier: this.querier,
+      eventEmitter: this.internal_eventEmitter,
+      gesture: this.gesture,
+      onStdinResume: () => this.props.onStdinResume(),
+      notifySelectionChange: () => this.props.notifySelectionChange(),
+      dispatchKeyboardEvent: key => this.props.dispatchKeyboardEvent(key),
+      onMouseEvent: atom => handleMouseEvent(this, atom),
+      onSuspend: () => this.handleSuspend(),
+      onExit: () => this.handleExit(),
+    })
   }
-
   private get isRawModeSupported(): boolean {
     return this.props.stdin.isTTY === true
   }
@@ -243,13 +168,13 @@ export default class App extends PureComponent<Props, State> {
 
   override componentDidUpdate(prevProps: Props): void {
     if (prevProps.stdin === this.props.stdin || this.rawModeEnabledCount === 0) return
-    prevProps.stdin.removeListener('readable', this.handleReadable)
+    prevProps.stdin.removeListener('readable', this.inputLoop.handleReadable)
     const { stdin } = this.props
     if (!stdin.isTTY) return
     stdin.setEncoding('utf8')
     stdin.ref()
     stdin.setRawMode(true)
-    stdin.addListener('readable', this.handleReadable)
+    stdin.addListener('readable', this.inputLoop.handleReadable)
     logForDebugging(`stdin reader moved to a fresh terminal stream (raw=${stdin.isRaw === true})`, { level: 'warn' })
   }
 
@@ -258,14 +183,7 @@ export default class App extends PureComponent<Props, State> {
       termWrite(this.props.stdout, SHOW_CURSOR)
       noteModeReleased(CURSOR_LEDGER_OWNER, 'cursor-hidden')
     }
-    if (this.inputDrain) stopImmediate(this.inputDrain)
-    this.inputDrain = null
-    this.inputBatches.length = 0
-    this.inputBatchIndex = 0
-    if (this.incompleteEscapeTimer) {
-      stopTimeout(this.incompleteEscapeTimer)
-      this.incompleteEscapeTimer = null
-    }
+    this.inputLoop.dispose()
     if (this.gesture.pendingHyperlinkTimer) {
       stopTimeout(this.gesture.pendingHyperlinkTimer)
       this.gesture.pendingHyperlinkTimer = null
@@ -341,7 +259,7 @@ export default class App extends PureComponent<Props, State> {
         stopCapturingEarlyInput()
         stdin.ref()
         stdin.setRawMode(true)
-        stdin.addListener('readable', this.handleReadable)
+        stdin.addListener('readable', this.inputLoop.handleReadable)
         signalInputLive();
         const extendedKeys = extendedKeysSupportedNow()
         termWrite(this.props.stdout, rawModeArmBytes(extendedKeys))
@@ -363,7 +281,7 @@ export default class App extends PureComponent<Props, State> {
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'focus-events')
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'bracketed-paste')
       stdin.setRawMode(false)
-      stdin.removeListener('readable', this.handleReadable)
+      stdin.removeListener('readable', this.inputLoop.handleReadable)
       stdin.unref()
     }
   }
@@ -445,234 +363,9 @@ export default class App extends PureComponent<Props, State> {
     }
   }
 
-
-  handleReadable = (): void => {
-    const now = Date.now()
-    const quietSpell = now - this.lastStdinTime > STDIN_GAP_REASSERT_MS
-    let sawInput = false
-    try {
-      let chunk: string | Buffer | null
-      while ((chunk = this.props.stdin.read() as string | Buffer | null) !== null) {
-        if (!sawInput) {
-          sawInput = true
-          this.lastStdinTime = now
-          if (quietSpell) this.props.onStdinResume()
-        }
-        this.handleInput(chunk)
-      }
-    } catch (error) {
-      logError(error)
-      if (
-        this.rawModeEnabledCount > 0 &&
-        !this.props.stdin.listeners('readable').includes(this.handleReadable)
-      ) {
-        this.props.stdin.addListener('readable', this.handleReadable)
-        logForDebugging('stdin readable handler re-attached after an exception', {
-          level: 'warn',
-        })
-      }
-    }
-  }
-
-  private handleInput(chunk: string | Buffer | null): void {
-    if (chunk !== null) this.loneEscapeGraceUsed = 0
-
-    const [atoms, nextState] = parseMultipleKeypresses(this.keyParseState, chunk)
-    this.keyParseState = nextState
-
-    if (atoms.some(isMouseClass)) this.lastMouseEventTime = Date.now()
-
-    let start = 0
-    for (let i = 0; i < atoms.length; i++) {
-      const wheel = isReportedWheel(atoms[i]!)
-      if (!wheel && !isActingNamedKey(atoms[i]!)) continue
-      if (i > start) this.inputBatches.push({ atoms: atoms.slice(start, i), flush: true })
-      if (wheel) {
-        const gesture = coalesceWheelRun(atoms, i, this.props.rows - 1)
-        for (let step = 0; step < gesture.steps; step++) {
-          this.inputBatches.push({ atoms: [gesture.atom!], flush: true })
-        }
-        start = gesture.end
-        i = gesture.end - 1
-        continue
-      }
-      this.inputBatches.push({ atoms: [atoms[i]!], flush: true })
-      start = i + 1
-    }
-    if (start < atoms.length) this.inputBatches.push({ atoms: atoms.slice(start), flush: false })
-    if (this.inputDrain === null) this.drainInput()
-
-    const state = this.keyParseState
-    if (
-      state.incomplete ||
-      (state.pendingBytes && state.pendingBytes.length > 0) ||
-      state.mode === 'IN_PASTE' ||
-      state.heldCR
-    ) {
-      if (this.incompleteEscapeTimer) stopTimeout(this.incompleteEscapeTimer)
-      this.incompleteEscapeTimer = startTimeout(
-        this.handleIncompleteFlush,
-        state.mode === 'IN_PASTE' ? PASTE_MODE_TIMEOUT_MS : INCOMPLETE_SEQUENCE_TIMEOUT_MS,
-      )
-    }
-  }
-
-  private drainInput = (): void => {
-    this.inputDrain = null
-    while (this.inputBatchIndex < this.inputBatches.length) {
-      const batch = this.inputBatches[this.inputBatchIndex++]!
-      const last = this.inputBatchIndex === this.inputBatches.length
-      if (last) {
-        this.inputBatches.length = 0
-        this.inputBatchIndex = 0
-      }
-      this.inputDrain = startImmediate(this.drainInput)
-      try {
-        this.dispatchDiscrete(batch.atoms)
-        if (batch.flush || !last) reconciler.flushSyncWork()
-      } catch (error) {
-        logError(error)
-      }
-      if (batch.flush) return
-      if (this.inputDrain) stopImmediate(this.inputDrain)
-      this.inputDrain = null
-    }
-  }
-
-  private dispatchDiscrete(atoms: ParsedInput[]): void {
-    reconciler.discreteUpdates(
-      () => this.dispatchBatch(atoms),
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-    )
-  }
-
   pressEscape(): void {
-    this.dispatchDiscrete([ESCAPE_ATOM])
-    reconciler.flushSyncWork()
+    this.inputLoop.pressEscape()
   }
-
-  private handleIncompleteFlush = (): void => {
-    this.incompleteEscapeTimer = null
-    const state = this.keyParseState
-    if (!state.incomplete && state.mode !== 'IN_PASTE' && !state.heldCR) return
-
-    if ((this.props.stdin.readableLength ?? 0) > 0) {
-      this.incompleteEscapeTimer = startTimeout(
-        this.handleIncompleteFlush,
-        INCOMPLETE_SEQUENCE_TIMEOUT_MS,
-      )
-      return
-    }
-
-    if (
-      state.incomplete === '\x1b' &&
-      this.loneEscapeGraceUsed < LONE_ESCAPE_GRACE_REARMS &&
-      Date.now() - this.lastMouseEventTime < LONE_ESCAPE_MOUSE_WINDOW_MS
-    ) {
-      this.loneEscapeGraceUsed++
-      this.incompleteEscapeTimer = startTimeout(
-        this.handleIncompleteFlush,
-        INCOMPLETE_SEQUENCE_TIMEOUT_MS,
-      )
-      return
-    }
-
-    this.loneEscapeGraceUsed = 0
-    this.handleInput(null)
-  }
-
-
-  private dispatchBatch(rawAtoms: ParsedInput[]): void {
-    const instance = instances.get(this.props.stdout)
-    if (rawAtoms.some(atom => isReportedWheel(atom) && atom.sequence?.startsWith('\x1b[<'))) {
-      instance?.confirmWheelReporting()
-    }
-    const atoms = instance
-      ? resolveAlternateScrollIntent(rawAtoms, {
-          altScreenActive: instance.isAltScreenActive,
-          mouseTrackingEnabled: instance.isMouseTrackingEnabled(),
-          wheelReportingConfirmed: instance.isWheelReportingConfirmed(),
-          scrollableTranscript: instance.hasScrollableTranscriptTarget(),
-          elevatedSurfaceActive: hasElevatedSurface(),
-          arrowKeysOwned: instance.arrowKeysOwned(),
-        })
-      : rawAtoms
-
-    if (
-      atoms.some(
-        atom =>
-          atom.kind === 'key' ||
-          (atom.kind === 'mouse' &&
-            !((atom.button & MOTION_BIT) !== 0 && (atom.button & 3) === 3)),
-      )
-    ) {
-      updateLastInteractionTime()
-    }
-
-    let chunkConsumed = false
-
-    for (let i = 0; i < atoms.length; i++) {
-      const atom = atoms[i]!
-      if (atom.kind === 'response') {
-        this.querier.onResponse(atom.response)
-        continue
-      }
-      if (atom.kind === 'mouse') {
-        const isClickClass = (atom.button & MOTION_BIT) === 0
-        if (chunkConsumed && isClickClass) continue
-        if (isDragMotion(atom) && i + 1 < atoms.length && isDragMotion(atoms[i + 1]!)) continue
-        handleMouseEvent(this, atom)
-        continue
-      }
-      if (atom.sequence === FOCUS_IN) {
-        this.gesture.refocusedAt = Date.now()
-        setTerminalFocused(true)
-        instance?.overwriteScreen()
-        this.internal_eventEmitter.emit('terminalfocus', new TerminalFocusEvent('terminalfocus'))
-        continue
-      }
-      if (atom.sequence === FOCUS_OUT) {
-        setTerminalFocused(false)
-        if (this.props.selection.isDragging) {
-          finishSelection(this.props.selection)
-          this.props.notifySelectionChange()
-        }
-        this.internal_eventEmitter.emit('terminalblur', new TerminalFocusEvent('terminalblur'))
-        continue
-      }
-      if (!getTerminalFocused()) setTerminalFocused(true)
-
-      const item = atom
-      if (item.name === 'z' && item.ctrl && SUPPORTS_SUSPEND) {
-        this.handleSuspend()
-        continue
-      }
-      if (chunkConsumed) continue
-
-      this.handleRawInput(atom)
-      const alternateWheel = atom !== rawAtoms[i] && instance?.isMouseTrackingEnabled() === true
-      const event = new InputEvent(atom, isReportedWheel(atom) || alternateWheel)
-      this.internal_eventEmitter.emit('input', event)
-      if (event.wheelStep && !event.didStopImmediatePropagation()) this.internal_eventEmitter.emit('wheel', event)
-      if (event.seq <= inputConsumedThroughSeq()) {
-        chunkConsumed = true
-        continue
-      }
-      this.props.dispatchKeyboardEvent(atom)
-      if (event.seq <= inputConsumedThroughSeq()) chunkConsumed = true
-    }
-  }
-
-  private handleRawInput(key: ParsedKey): void {
-    if (key.sequence === '\x03' && this.props.exitOnCtrlC) {
-      this.handleExit()
-    }
-  }
-
-
   handleExit = (error?: Error): void => {
     if (this.isRawModeSupported) this.handleSetRawMode(false)
     this.props.onExit(error)
@@ -701,15 +394,6 @@ export default class App extends PureComponent<Props, State> {
 
 function toCell(atom: ParsedMouse): { col: number; row: number } {
   return { col: atom.col - 1, row: atom.row - 1 }
-}
-
-function isDragMotion(atom: ParsedInput): boolean {
-  return (
-    atom.kind === 'mouse' &&
-    atom.action === 'press' &&
-    (atom.button & MOTION_BIT) !== 0 &&
-    (atom.button & 3) === 0
-  )
 }
 
 export function isRefocusPress(state: { focused: boolean; refocusedAt: number; now: number }): boolean {

@@ -16,7 +16,6 @@ export {
   parseOwnerKey,
 } from '../run/ownerKey.js'
 export type { OwnerKey } from '../run/ownerKey.js'
-import '../run/ownerLifecycle.js'
 export { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
 type OwnerScope =

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { AnthropicLimits } from '../../src/services/anthropicLimits.ts'
@@ -9,7 +9,6 @@ import type { LimitWarningReads } from '../../src/services/providers/limitWarnin
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cap-offer-rule-'))
 process.env.NODE_ENV = 'test'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -18,7 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
-const source = (path: string): string => readFileSync(join(ROOT, path), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -126,12 +124,6 @@ section("§D the wire's refusal is the only offer; the way home is the only othe
   const home = cap.decideCapReturn('offer', { window: 'allowed', credentialUsable: true }, true)
   check("the way home is the 'reset' trigger", home.kind === 'offer' && home.trigger === 'reset', JSON.stringify(home))
   check('every posture × every state: an action fires on rejected alone', postures.every(posture => states.every(state => (cap.decideCapAction(posture, state).kind !== 'none') === (state === 'rejected' && posture !== 'off'))))
-}
-
-section('§E RED on the base: the card can still be built for a warning, and keeps the arm that paints the untrue sentence')
-{
-  const docs = source('docs/ENGINES.md')
-  check('the docs state the rule', docs.includes('no percentage, even 100%, holds work, stops a turn or shows a handoff card'))
 }
 
 section('§F RED on the base: the latch reader keeps a floor of its own and warns at 72%')

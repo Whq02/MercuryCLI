@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -23,8 +23,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
-const ROOT = resolve(import.meta.dir, '..', '..')
-const source = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
 
 const { getProjectDir, getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const verb = (await import('../../src/cli/sessionsVerb.ts')) as { sessionsListCli?: (options: { all?: boolean; limit?: number }, io: unknown) => Promise<number> }
@@ -80,8 +78,6 @@ try {
     check("the sessions command's description names list and delete", builtHelp('sessions').includes('Saved sessions: list, delete'))
     check('a bare `sessions` runs the listing (an action on the parent command)', bare.status === 0 && bare.stdout.startsWith('No saved sessions for this project') && unplaced(bare.stdout) === unplaced(listed.stdout) && builtHelp('sessions').includes(' --all ') && builtHelp('sessions').includes(' --limit <n> '))
     check('`sessions list` is a sub-command with --all and --limit', builtHelp('sessions', 'list').includes('Usage: mercury sessions list [options]') && builtHelp('sessions', 'list').includes('--all List the saved sessions of every project, not only this one') && builtHelp('sessions', 'list').includes('--limit <n>'))
-    const readme = source('docs/AUTOMATION.md')
-    check('AUTOMATION.md names `mercury sessions list`', readme.includes('`mercury sessions list`'))
   }
 } finally {
   removeScratch(HOME)

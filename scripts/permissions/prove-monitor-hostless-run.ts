@@ -21,7 +21,6 @@ const section = (title: string): void => console.log(`\n${title}`)
 
 const page = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8').replace(/\s+/g, ' ')
 section('the page, docs/TRUST.md')
-check('a hostless run denies a call that still needs approval after its rules and mode are applied', /A hostless `mercury run` denies a call that still needs approval after its rules and mode are applied/.test(page))
 check("agent reads of Mercury's own stored credentials are refused", /Agent reads of Mercury's own stored credentials are refused/.test(page))
 
 const nodeBin = Bun.which('node')

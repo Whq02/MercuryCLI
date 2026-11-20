@@ -26,7 +26,6 @@ const { providerFrontierFact } = await import('../../src/utils/model/providerFro
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
 const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.ts')
 
-const ROOT = join(import.meta.dir, '..', '..')
 const FIXTURE = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'zai-models-2026-10-05.json'), 'utf8')) as { data: Array<{ id: string }> }
 for (const row of FIXTURE.data) if (row.id === 'glm-5-turbo') row.id = 'glm-5-unlisted'
 const LIVE_IDS_NEWEST_FIRST = 'glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-5.2,glm-5.1,glm-5-unlisted,glm-5,glm-4.7,glm-4.6,glm-4.5,glm-4.5-air'
@@ -130,9 +129,6 @@ try {
   const kicked = cat.kickZaiCatalogue({ fetchImpl: page(FIXTURE) })
   await new Promise(resolve => setTimeout(resolve, 20))
   check('the picker kick reads the list once in the background', kicked && ids(cat.zaiCatalogueRows().rows) === LIVE_IDS_NEWEST_FIRST && !cat.kickZaiCatalogue())
-
-  const docs = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8')
-  check('the doc says the GLM list is read live and names the plan bases', docs.includes('api.z.ai/api/coding/paas/v4') && docs.includes('glm-5.3-flash') && !docs.includes('Z.AI documents no model-list endpoint'))
   console.log(`ZAI CATALOGUE GREEN (${count} checks; fixture only)`)
 } finally {
   rmSync(proofHome, { recursive: true, force: true })

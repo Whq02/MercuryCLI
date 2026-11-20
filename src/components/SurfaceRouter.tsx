@@ -34,6 +34,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { BootSplashScreen } from './BootSplashScreen.js';
 import { MercuryFrame } from './MercuryFrame.js';
 import { SurfaceExitChord, SurfaceExitChordNotice } from './SurfaceExitChord.js';
+import { registerConcourseRoute } from './concourse/ConcourseRoute.js';
 
 class SurfaceErrorBoundary extends React.Component<
   { kind: string; children: React.ReactNode },
@@ -160,10 +161,10 @@ function RouteSurfaceHost({
   );
 }
 
+registerConcourseRoute();
 registerRouteSurface('boot-settings', {
   render: () => <BootSplashScreen />,
 });
-import './concourse/ConcourseRoute.js';
 registerChatPresence({
   present: () => hasFocusedSession() || landingInFlight(),
   subscribe: subscribeFocusedSessionConnector,
