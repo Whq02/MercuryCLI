@@ -56,7 +56,7 @@ function threwOf(fn: () => unknown): Error | null {
 }
 
 {
-  console.log('\nmnemeMaintenance-readMaintenanceReceipts-unreadable')
+  console.log('\nmnemeMaintenance-appendReceipt-unreadable')
   const { readMaintenanceReceipts, runDueMaintenance } = await import('../../src/mneme/mnemeMaintenance.ts')
   const dir = makeScratch('maint-receipts')
   try {
@@ -67,10 +67,10 @@ function threwOf(fn: () => unknown): Error | null {
     check('readable maintenance.jsonl returns prior receipt', readMaintenanceReceipts(dir).length === 1)
     if (POSIX_MODES) {
       chmodSync(p, 0o200)
-      const permErr = threwOf(() => readMaintenanceReceipts(dir))
+      const list = readMaintenanceReceipts(dir)
       await runDueMaintenance('operator', { dir, force: true })
       chmodSync(p, 0o600)
-      check('unreadable maintenance.jsonl throws EACCES', permErr !== null && (permErr as NodeJS.ErrnoException).code === 'EACCES', String(permErr))
+      check('readMaintenanceReceipts stays non-throwing for outside UI callers', list.length === 0)
       check('appendReceipt does not wipe unreadable maintenance.jsonl', readFileSync(p, 'utf8') === prior, readFileSync(p, 'utf8'))
     }
   } finally {

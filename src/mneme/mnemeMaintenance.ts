@@ -141,14 +141,13 @@ function receiptPath(dir: string): string {
   return join(dir, 'maintenance.jsonl')
 }
 
-export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10): MnemeMaintenanceReceipt[] {
+function readMaintenanceReceiptsStrict(dir: string, n: number): MnemeMaintenanceReceipt[] {
   const p = receiptPath(dir)
   let raw: string
   try {
     raw = readFileSync(p, 'utf8')
   } catch (e) {
     if (isENOENT(e)) return []
-    logForDebugging(`mneme maintenance receipts unreadable at ${p}: ${String(e)}`)
     throw e
   }
   const out: MnemeMaintenanceReceipt[] = []
@@ -163,9 +162,19 @@ export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10)
   return out.slice(Math.max(0, out.length - n))
 }
 
+export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10): MnemeMaintenanceReceipt[] {
+  try {
+    return readMaintenanceReceiptsStrict(dir, n)
+  } catch (e) {
+    logForDebugging(`mneme maintenance receipts unreadable at ${receiptPath(dir)}: ${String(e)}`)
+    passedOver(e)
+    return []
+  }
+}
+
 function appendReceipt(dir: string, row: MnemeMaintenanceReceipt): void {
   try {
-    const rows = readMaintenanceReceipts(dir, RECEIPT_RING - 1)
+    const rows = readMaintenanceReceiptsStrict(dir, RECEIPT_RING - 1)
     rows.push(row)
     publishLibraryFile(receiptPath(dir), rows.map(r => JSON.stringify(r)).join('\n') + '\n')
   } catch (e) {
