@@ -257,7 +257,9 @@ export function planLocalServerApply(truth: LocalServerTruth, settings: LocalSer
       return { kind: 'restart', form: form.kind, path, changes: runningChanges, restart, note: `${path} already carries the values; the running server does not — a restart applies them` }
     }
     if (form.writable === false) return { kind: 'by-hand', form: form.kind, changes: fileChanges, lines: byHandLines('systemd', desired), note: `${path} needs root; run these by hand` }
-    const before = io.readText(path) ?? ''
+    const read = io.readText(path)
+    if (read === undefined && io.pathExists(path)) return { kind: 'by-hand', form: form.kind, changes: fileChanges, lines: byHandLines('systemd', desired), note: `${path} needs root; run these by hand` }
+    const before = read ?? ''
     const rewrite = rewriteSystemdOverride(before, desired)
     return { kind: 'write', form: form.kind, path, backupPath: backupPathFor(path, io.pathExists), before, after: rewrite.text, changes: fileChanges, lines: rewrite.lines, restart, note: 'the loaded models unload on the restart' }
   }
@@ -283,8 +285,8 @@ function defaultReadText(path: string): string | undefined {
   try {
     return readFileSync(path, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return undefined
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return undefined
+    throw error
   }
 }
 
@@ -350,7 +352,12 @@ export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmat
   if (plan.kind === 'restart' && plan.form === 'app') return { outcome: 'applied', ...(await restartApp(io, plan.root ?? 'http://127.0.0.1:11434', plan.restart.words)) }
   let backupPath: string | undefined
   if (plan.kind === 'write') {
-    const onDisk = io.readText(plan.path)
+    let onDisk: string | undefined
+    try {
+      onDisk = io.readText(plan.path)
+    } catch (error) {
+      return { outcome: 'failed', reason: `writing ${plan.path} failed: ${error instanceof Error ? error.message : String(error)}` }
+    }
     if (onDisk !== plan.before && !(onDisk === undefined && plan.before === '')) return { outcome: 'stale', reason: `${plan.path} changed since the plan was made; review it again` }
     try {
       if (onDisk !== undefined) {

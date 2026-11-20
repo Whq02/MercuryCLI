@@ -224,6 +224,57 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
   }
 }
 
+{
+  const { readFileSync } = await import('node:fs')
+  const { planLocalServerApply, applyLocalServerPlan } = await import('../../src/services/localServer/localServerApply.ts')
+  const dir = makeTempDir('fn14-localapply-')
+  try {
+    if (POSIX_MODES) {
+      const override = join(dir, 'override.conf')
+      const original = '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0"\n'
+      writeFileSync(override, original, { mode: 0o600 })
+      chmodSync(override, 0o200)
+      try {
+        const truth = {
+          server: { kind: 'ollama' as const, root: 'http://127.0.0.1:11434', label: 'Ollama' },
+          loaded: [],
+          listed: [],
+          runners: [],
+          launchForm: { kind: 'systemd' as const, path: override, label: 'ollama.service', env: {}, writable: true, note: 'systemd' },
+          machine: { platform: 'linux' as const, totalMemoryBytes: 64 * 1024 ** 3, usableMemoryBytes: 32 * 1024 ** 3, usableSource: 'test' },
+          readAtMs: Date.now(),
+        }
+        const plan = planLocalServerApply(truth, { parallelSlots: 2 }, { platform: 'linux' })
+        check('localServerApply: unreadable systemd override plans by-hand instead of empty write', plan.kind === 'by-hand', JSON.stringify(plan))
+        const fakeWritePlan = {
+          kind: 'write' as const,
+          form: 'systemd' as const,
+          path: override,
+          backupPath: `${override}.bak`,
+          before: '',
+          after: '[Service]\nEnvironment="OLLAMA_NUM_PARALLEL=2"\n',
+          changes: [{ name: 'OLLAMA_NUM_PARALLEL', after: '2' }],
+          lines: ['+Environment="OLLAMA_NUM_PARALLEL=2"'],
+          restart: { argv: [], words: '' },
+          note: 'test',
+        }
+        const outcome = await applyLocalServerPlan(fakeWritePlan, { confirmed: true })
+        chmodSync(override, 0o600)
+        const after = readFileSync(override, 'utf8')
+        check(
+          'localServerApply: applyLocalServerPlan refuses unreadable override without overwriting',
+          outcome.outcome === 'failed' && after === original,
+          `outcome=${JSON.stringify(outcome)} same=${after === original}`,
+        )
+      } finally {
+        chmodSync(override, 0o600)
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
