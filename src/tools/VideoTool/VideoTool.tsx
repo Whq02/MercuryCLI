@@ -12,7 +12,6 @@ import { videoToolEnabled } from '../../services/video/registry.js'
 import type { VideoInput, VideoOutput } from '../../services/video/types.js'
 import { VIDEO_PROMPT } from './prompt.js'
 import { VideoToolResult } from './VideoToolResult.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 const aspect = () => z.enum(['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'])
 const inputSchema = lazySchema(() => z.strictObject({
@@ -98,15 +97,19 @@ export const VideoTool = buildTool({
     } }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    let result = output.result
     if (output.inlinePath && modelReceivesImageBlocks(getEngineModel())) {
       try {
         return { type: 'tool_result' as const, tool_use_id: toolUseId, content: [
           { type: 'text' as const, text: output.result },
           { type: 'image' as const, source: { type: 'base64' as const, media_type: (output.inlineMediaType ?? 'image/png') as 'image/png', data: readFileSync(output.inlinePath).toString('base64') } },
         ] }
-      } catch (error) { passedOver(error) }
+      } catch {
+        const note = 'Preview could not be prepared for the model; open the saved frame.'
+        if (!result.includes(note)) result += `\n${note}`
+      }
     }
-    return { type: 'tool_result' as const, tool_use_id: toolUseId, content: output.result, is_error: output.outcome !== 'succeeded' }
+    return { type: 'tool_result' as const, tool_use_id: toolUseId, content: result, is_error: output.outcome !== 'succeeded' }
   },
   renderToolUseMessage(input: Partial<VideoInput>) { return input.prompt ?? 'Generate video' },
   renderToolUseErrorMessage(result: Parameters<typeof FallbackToolUseErrorMessage>[0]['result'], options: { verbose: boolean }) { return <FallbackToolUseErrorMessage result={result} verbose={options.verbose} /> },

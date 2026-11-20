@@ -345,6 +345,33 @@ try {
       JSON.stringify(r),
     )
   }
+
+  {
+    const r = runIsolated(`
+      const path = await import('node:path')
+      process.env.MERCURY_MODEL = 'claude-opus-4-8'
+      const { VideoTool } = await import(SRC + '/tools/VideoTool/VideoTool.tsx')
+      const mapped = VideoTool.mapToolResultToToolResultBlockParam(
+        {
+          outcome: 'succeeded',
+          result: 'Saved video to videos/clip.mp4',
+          path: 'videos/clip.mp4',
+          framePath: 'videos/clip.png',
+          inlinePath: path.join(SCRATCH, 'missing-preview.png.inline'),
+          inlineMediaType: 'image/png',
+          jobId: 'job-1',
+          duration: 5,
+        },
+        'video-use-1',
+      )
+      out.content = mapped.content
+    `)
+    check(
+      'video-tool-inline-read-failure-noted: missing inline preview appends the preview-unavailable note instead of silently omitting the image',
+      typeof r.content === 'string' && r.content.includes('Preview could not be prepared for the model; open the saved frame.'),
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
