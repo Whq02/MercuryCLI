@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { parseLegacyCommandString } from '../resolvedInvocation.js'
-import { resolveExecutable, type LookupWorld } from '../which.js'
+import type { LookupWorld } from '../which.js'
+import { resolveProgramInPath } from './programs.js'
 type DirectOrCmdSpec = {
   file: string
   args: string[]
@@ -138,7 +139,7 @@ export function parseEditorCommandLine(
       const boundaries = [editor.length, ...Array.from(editor.matchAll(/\s+/g), match => match.index).reverse()]
       for (const end of boundaries) {
         const executable = editor.slice(0, end)
-        if (resolveExecutable(executable, world) !== null) {
+        if (resolveProgramInPath(executable, world.path, world.platform) !== null) {
           return { executable, args: parseWindowsCommandArgs(editor.slice(end).trim()) }
         }
       }
