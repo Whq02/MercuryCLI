@@ -636,5 +636,50 @@ console.log('\nproofs.ts — gate check rejects corrupt verdict JSON instead of 
   check('proofs:corrupt-verdict-throws', r.err === 'SyntaxError', JSON.stringify(r))
 }
 
+console.log('\ncrew/home.ts — transcriptStoreCheck rejects unreadable projects dir and isolation remedy reports rename failure')
+if (!POSIX_MODES) skip('crew/home:unreadable-projects-and-rename-failure', 'mode 0300/0500 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const projectsDir = path.join(HOME, 'projects')
+    fs.mkdirSync(projectsDir, { recursive: true })
+    fs.chmodSync(projectsDir, 0o300)
+    const { transcriptStoreCheck } = await import(SRC + '/utils/health/sections/crew/home.ts')
+    try {
+      out.row = await transcriptStoreCheck().run()
+      out.readdirErr = null
+    } catch (e) {
+      out.readdirErr = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(projectsDir, 0o700)
+    }
+    const { mock } = await import('bun:test')
+    const realFsP = await import('node:fs/promises')
+    mock.module('node:fs/promises', () => ({
+      ...realFsP,
+      rename: async () => { const err = new Error('permission denied'); err.code = 'EACCES'; throw err },
+    }))
+    mock.module(SRC + '/utils/healthFix.js', () => ({ healthFixEnabled: () => true }))
+    mock.module(SRC + '/utils/knownAgentClis.js', () => ({
+      classifyHarnessHome: async () => ({
+        foreign: [{ rel: 'foreign.json', evidence: 'foreign.json', tool: { displayName: 'Other' } }],
+        oursStale: [],
+      }),
+      harnessArtifactPath: (home, rel) => path.join(home, rel),
+    }))
+    const homeMod = await import(SRC + '/utils/health/sections/crew/home.ts?iso')
+    const iso = await homeMod.isolationCheck().run()
+    out.remedyRes = await iso.remedy.apply()
+  `)
+  const remedyRes = r.remedyRes as { ok?: boolean; note?: string } | undefined
+  check('crew/home:unreadable-projects-dir-throws', r.readdirErr === 'EACCES', JSON.stringify(r))
+  check(
+    'crew/home:isolation-remedy-reports-rename-error',
+    remedyRes?.ok === false && Boolean(remedyRes.note?.startsWith('archive failed:')),
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
