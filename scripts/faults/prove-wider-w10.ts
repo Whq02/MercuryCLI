@@ -201,5 +201,36 @@ console.log('\n§3 w10-3 — zsh startup probe failure still writes ~/.zshrc and
   )
 }
 
+console.log('\n§4 w10-4 — cockpit heartbeat reports whether it landed and beat retries failed registration or heartbeat')
+{
+  const r = runScenario(`
+    const { existsSync, rmSync } = await import('node:fs')
+    const mod = await import(SRC + '/daemon/processSweepRun.ts')
+    const reg1 = await mod.registerCockpit({ terminal: null, home: HOME, daemonDirPath: HOME + '/daemon' })
+    out.reg1Ok = reg1 !== null
+    out.beatOk = reg1 ? await reg1.heartbeat() : null
+    if (reg1) rmSync(reg1.path, { force: true })
+    out.beatMissing = reg1 ? await reg1.heartbeat() : null
+    out.hasBeatHelper = typeof mod.beatCockpitRegistration === 'function'
+    if (typeof mod.beatCockpitRegistration === 'function') {
+      let calls = 0
+      const register = () => {
+        calls++
+        return mod.registerCockpit({ terminal: null, home: HOME, daemonDirPath: HOME + '/daemon' })
+      }
+      const recoveredFromNull = await mod.beatCockpitRegistration(null, register)
+      out.recoveredFromNull = recoveredFromNull !== null && existsSync(recoveredFromNull.path)
+      if (recoveredFromNull) rmSync(recoveredFromNull.path, { force: true })
+      const recoveredFromMiss = await mod.beatCockpitRegistration(recoveredFromNull, register)
+      out.recoveredFromMiss = recoveredFromMiss !== null && recoveredFromMiss.id !== recoveredFromNull?.id && existsSync(recoveredFromMiss.path)
+      out.registerCalls = calls
+      await recoveredFromMiss?.clear()
+    }
+  `)
+  check('w10-4: heartbeat returns true when utimes lands', r.reg1Ok === true && r.beatOk === true, JSON.stringify(r))
+  check('w10-4: heartbeat returns false when utimes fails', r.beatMissing === false, JSON.stringify(r))
+  check('w10-4: beatCockpitRegistration retries failed initial registration and failed heartbeat', r.hasBeatHelper === true && r.recoveredFromNull === true && r.recoveredFromMiss === true && r.registerCalls === 2, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

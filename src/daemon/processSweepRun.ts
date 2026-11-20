@@ -79,7 +79,7 @@ async function writeAtomic(path: string, body: string): Promise<void> {
 export interface CockpitRegistrationHandle {
   id: string
   path: string
-  heartbeat: () => Promise<void>
+  heartbeat: () => Promise<boolean>
   clear: () => Promise<void>
 }
 
@@ -116,9 +116,10 @@ export async function registerCockpit(options: { terminal: string | null; home?:
       const at = new Date(now())
       try {
         await utimes(path, at, at)
+        return true
       } catch (error) {
         passedOver(error)
-        return
+        return false
       }
     },
     clear: async () => {
@@ -130,6 +131,15 @@ export async function registerCockpit(options: { terminal: string | null; home?:
       }
     },
   }
+}
+
+export async function beatCockpitRegistration(
+  current: CockpitRegistrationHandle | null,
+  register: () => Promise<CockpitRegistrationHandle | null>,
+): Promise<CockpitRegistrationHandle | null> {
+  if (current === null) return register()
+  const landed = await current.heartbeat()
+  return landed ? current : register()
 }
 
 export async function readCockpitRegistrations(home: string = getMercuryHome(), read: 'strict' | 'loose' = 'loose'): Promise<ProcessSweepRegistration[] | null> {
