@@ -171,5 +171,23 @@ console.log('4 · streamIdleBudget: estimateRequestTokens falls back to body len
   check('throwing estimator on 40k body answers about length/4 instead of 1', res.status === 0 && typeof out.est === 'number' && out.est >= 9_000 && out.est <= 12_000, `${res.stderr.slice(-200)} ${JSON.stringify(out)}`)
 }
 
+console.log('5 · qwenAccounts: malformed DASHSCOPE_BASE_URL refuses dispatch instead of falling back')
+{
+  const qa = await import('../../src/services/providers/qwen/qwenAccounts.js')
+  const env: NodeJS.ProcessEnv = { DASHSCOPE_API_KEY: 'sk-fixture-qwen', DASHSCOPE_BASE_URL: 'not a valid url' }
+  check('resolveQwenAccount stays non-throwing on malformed DASHSCOPE_BASE_URL', qa.resolveQwenAccount(env)?.kind === 'api-key')
+  let dispatchErr: unknown
+  try {
+    await qa.resolveQwenCredential({ env })
+  } catch (error) {
+    dispatchErr = error
+  }
+  const msg = dispatchErr instanceof Error ? dispatchErr.message : ''
+  check('resolveQwenCredential rejects malformed DASHSCOPE_BASE_URL with the sentence', msg.includes('DASHSCOPE_BASE_URL is not a valid http(s) URL') && msg.includes('requests are not sent to another endpoint') && msg.includes('fix or unset DASHSCOPE_BASE_URL, then retry.'), msg)
+  const validEnv: NodeJS.ProcessEnv = { DASHSCOPE_API_KEY: 'sk-fixture-qwen', DASHSCOPE_BASE_URL: 'https://example.invalid/v1' }
+  const ok = await qa.resolveQwenCredential({ env: validEnv })
+  check('valid DASHSCOPE_BASE_URL still resolves normally', ok?.requestUrl === 'https://example.invalid/v1/chat/completions')
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
