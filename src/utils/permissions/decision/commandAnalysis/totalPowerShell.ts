@@ -17,6 +17,7 @@ const PS_HOME_CONSTANT = /^\$(?:home|env:(?:userprofile|home))$/i
 const PS_VARIABLE = /^\$(?:(?:script|global|local|private):)?([a-z_]\w*)$/i
 const PS_GIVEN = /^\$(?:(?:script|global|local|private):)?([a-z_]\w*)\s*((?:[-+*/%]|\?\?)?=)(?!=)/i
 const PS_COMBINE = /^\[(?:System\.)?IO\.Path\]::Combine\(([\s\S]*)\)$/i
+const PS_BRACED_NAME = /^\{((?:[a-z_]\w*:)?[a-z_]\w*|\?)\}/i
 
 const PS_MOVES = new Set(['cd', 'chdir', 'sl', 'set-location', 'pushd', 'push-location'])
 
@@ -468,6 +469,12 @@ function powerShellToken(this: PowerShellWalk, stages: readonly Stage[]): PsToke
         value += this.said
         bare = false
       }
+      continue
+    }
+    const named = ch === '{' && this.at > start && text[this.at - 1] === '$' && text[this.at - 2] !== '`' ? PS_BRACED_NAME.exec(text.slice(this.at, this.at + 160)) : null
+    if (named !== null) {
+      this.at += named[0].length
+      value += /[\w:]/.test(text[this.at] ?? '') ? named[0] : named[1]
       continue
     }
     if (ch === '{' || (ch === '@' && text[this.at + 1] === '{')) {
