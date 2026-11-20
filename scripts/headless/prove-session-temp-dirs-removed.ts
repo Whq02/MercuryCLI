@@ -175,7 +175,7 @@ section('§3 what holds a file stays: only empty folders go')
     { kind: 'text', text: 'Done.' },
   ])
   const files = run.left.filter(entry => !entry.endsWith('/'))
-  check("a background command's output file stands with its folders, and nothing else", run.code === 0 && files.length === 1 && /tasks\/[^/]+\.output$/.test(files[0]!) && run.left.length === 4, `exit ${run.code} · left ${run.left.join(' ')}`)
+  check("a background command's output file stands with its folders, and nothing else", run.code === 0 && files.length === 1 && /tasks[\\/][^\\/]+\.output$/.test(files[0]!) && run.left.length === 4, `exit ${run.code} · left ${run.left.join(' ')}`)
 }
 
 rmSync(work, { recursive: true, force: true })
