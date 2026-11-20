@@ -441,7 +441,7 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { operatorIsTyping } = await import('../../src/tools/ComputerTool/operatorPause.ts')
+  const { operatorHoldRefusal, operatorIsTyping } = await import('../../src/tools/ComputerTool/operatorPause.ts')
   const throwingDriver = {
     keyboardIdleMs: async () => {
       throw new Error('idle read failed')
@@ -451,11 +451,19 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
     keyboardIdleMs: async () => 60_000,
   }
   const onThrow = await operatorIsTyping(throwingDriver as never)
+  const wordsOnThrow = operatorHoldRefusal()
   const onQuiet = await operatorIsTyping(quietDriver as never)
+  const wordsOnQuiet = operatorHoldRefusal()
   check(
     'ComputerTool/operatorPause: keyboardIdleMs throw holds (answers true) instead of failing open',
     onThrow === true && onQuiet === false,
     `onThrow=${String(onThrow)} onQuiet=${String(onQuiet)}`,
+  )
+  check(
+    'ComputerTool/operatorPause: a hold on an idle read that failed says so, and the typing words come back after a read',
+    wordsOnThrow === 'whether the operator is typing could not be read (idle read failed) — nothing done; try again in a moment' &&
+      wordsOnQuiet === 'the operator is typing — nothing done; try again in a moment',
+    `onThrow=${wordsOnThrow} onQuiet=${wordsOnQuiet}`,
   )
 }
 

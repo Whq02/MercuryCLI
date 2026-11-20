@@ -7,7 +7,7 @@ import {
 } from '../../../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote } from '../../../../services/desktop/desktopClaim.js'
 import { sameWindow, settledObservation, stateWord, treeObservation, verificationWords } from '../../fastRoad.js'
-import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from '../../operatorPause.js'
+import { operatorHoldRefusal, operatorIsTyping, waitForOperatorPause } from '../../operatorPause.js'
 import { SETTLE_CAP_MS, SETTLE_DEFAULT_MS, clamp } from '../schema.js'
 import {
   type ActPlan,
@@ -62,7 +62,7 @@ export async function actRoad({ run, input, context, owner, signal, toolUseId, d
     }
     if (!(await waitForOperatorPause(driver, signal))) {
       if (signal.aborted) await driver.releaseAll()
-      run.result = signal.aborted ? interruptedText(input.action) : `${input.action} refused: ${OPERATOR_TYPING_REFUSAL}`
+      run.result = signal.aborted ? interruptedText(input.action) : `${input.action} refused: ${operatorHoldRefusal()}`
       run.outcome = 'failed'
       return finish()
     }
@@ -83,7 +83,7 @@ export async function actRoad({ run, input, context, owner, signal, toolUseId, d
     break
   }
   if (await operatorIsTyping(driver)) {
-    run.result = `${input.action} refused: ${OPERATOR_TYPING_REFUSAL}`
+    run.result = `${input.action} refused: ${operatorHoldRefusal()}`
     run.outcome = 'failed'
     return finish()
   }

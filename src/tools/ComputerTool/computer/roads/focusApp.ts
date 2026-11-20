@@ -2,7 +2,7 @@ import { sleep } from '../../../../utils/sleep.js'
 import { approveApp, consumeCheckedAct, setDrivingApp } from '../../../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote } from '../../../../services/desktop/desktopClaim.js'
 import { sameWindow } from '../../fastRoad.js'
-import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from '../../operatorPause.js'
+import { operatorHoldRefusal, operatorIsTyping, waitForOperatorPause } from '../../operatorPause.js'
 import { SETTLE_CAP_MS, SETTLE_DEFAULT_MS, clamp } from '../schema.js'
 import { faultText } from '../act.js'
 import { applicationWords, interruptedAfterActText, interruptedText } from '../words.js'
@@ -18,7 +18,7 @@ export async function focusAppRoad({ run, input, owner, signal, takeShot, adoptS
   const front = await driver.frontmostApplication()
   if (!front.ok) { run.result = faultText('focusApp', front.error); return finish() }
   if (!(await waitForOperatorPause(driver, signal))) {
-    run.result = signal.aborted ? interruptedText('focusApp') : `focusApp refused: ${OPERATOR_TYPING_REFUSAL}`
+    run.result = signal.aborted ? interruptedText('focusApp') : `focusApp refused: ${operatorHoldRefusal()}`
     return finish()
   }
   const current = await driver.frontmostApplication()
@@ -26,7 +26,7 @@ export async function focusAppRoad({ run, input, owner, signal, takeShot, adoptS
     run.result = 'focusApp refused: the front window changed before focus — re-issue'
     return finish()
   }
-  if (await operatorIsTyping(driver)) { run.result = `focusApp refused: ${OPERATOR_TYPING_REFUSAL}`; return finish() }
+  if (await operatorIsTyping(driver)) { run.result = `focusApp refused: ${operatorHoldRefusal()}`; return finish() }
   const claim = await claimDesktop(signal, target.value)
   if (!claim.held) { run.result = claim.aborted ? interruptedText('focusApp') : `computer refused: ${desktopClaimBusyNote(claim.holder)}`; return finish() }
   run.claimedForAct = true
