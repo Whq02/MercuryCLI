@@ -1,6 +1,6 @@
 import { KEY_PAGES } from '../../../components/loginFamilyRows.js'
 import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
-import { credentialFileRestorer, readStoredGeminiApiKey, signInRecordRestorer, writeStoredGeminiApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, dropCredentialFileLeftEmpty, probeCredentialJson, readStoredGeminiApiKey, signInRecordRestorer, writeStoredGeminiApiKey } from '../providerSecrets.js'
 import { geminiAuthPathForDisplay, geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
@@ -98,6 +98,7 @@ export async function storeGeminiApiKeyLogin(
     io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('api-key', { force: true }).catch(() => null))
   const previousKey = readStoredGeminiApiKey() ?? null
   const previousSource = readPreferredGeminiSource()
+  const authFileStood = probeCredentialJson(geminiAuthPathForDisplay()).state !== 'absent'
   const restoreAuthFile = credentialFileRestorer(geminiAuthPathForDisplay())
   const restoreSignInRecord = signInRecordRestorer('gemini')
   try {
@@ -119,6 +120,7 @@ export async function storeGeminiApiKeyLogin(
   if (snapshot?.lastError?.includes('refused the credential')) {
     writeStoredGeminiApiKey(previousKey)
     writePreferredGeminiSource(previousSource ?? null)
+    if (!authFileStood) dropCredentialFileLeftEmpty(geminiAuthPathForDisplay())
     restoreSignInRecord()
     return {
       ok: false,

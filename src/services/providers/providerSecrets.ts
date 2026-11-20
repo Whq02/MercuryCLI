@@ -5,7 +5,7 @@ import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInL
 export { signInRecordRestorer } from '../../utils/accounts/signInLedger.js'
 import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
-import '../../utils/log.js'
+import { logError } from '../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
 
 const PROVIDER_SECRETS_VERSION = 1
@@ -144,16 +144,25 @@ export function credentialFileRestorer(path: string): () => void {
   }
   return () => {
     if (before === undefined) return
-    if (before !== 'absent') durableAtomicPublishSync(path, before, { mode: 0o600 })
-    else {
-      try {
-        unlinkSync(path)
-      } catch (error) {
-        if (!isENOENT(error)) throw error
-      }
+    try {
+      if (before !== 'absent') durableAtomicPublishSync(path, before, { mode: 0o600 })
+      else unlinkSync(path)
+    } catch (error) {
+      if (!isENOENT(error)) logError(error)
     }
     noteCredentialChange()
   }
+}
+
+export function dropCredentialFileLeftEmpty(path: string): void {
+  const probe = probeCredentialJson(path)
+  if (probe.state !== 'ok' || Object.keys(probe.file).some(key => key !== 'version')) return
+  try {
+    unlinkSync(path)
+  } catch (error) {
+    if (!isENOENT(error)) logError(error)
+  }
+  noteCredentialChange()
 }
 
 function secretsStoreUnread(path: string, probe: { code: string; message: string }): Error {
