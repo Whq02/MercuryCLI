@@ -218,6 +218,37 @@ try {
     const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { outcome: string; result: string; sent: number }) : { outcome: 'err', result: `exit ${res.status}: ${res.stderr.slice(-200)}`, sent: -1 }
     check('lsp-read-revalidate-fail: fails with revalidation-boom and does not sendRequest stale symbols', out.outcome === 'failed' && out.result.includes('revalidation-boom') && out.sent === 0, JSON.stringify(out))
   }
+
+  console.log('\n8. LSPTool/mercuryOps.ts: failed revalidateOpenDocuments rejects instead of running on stale docs')
+  {
+    const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
+    let threw: string | null = null
+    try {
+      await runMercuryLspOp({
+        input: { operation: 'serverStatus' } as never,
+        absolutePath: project,
+        cwd: project,
+        manager: {
+          revalidateOpenDocuments: async () => { throw new Error('mercury-revalidation-boom') },
+          getAllServers: () => new Map(),
+        } as never,
+        tool: { name: 'LspRead' } as never,
+        context: { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: {} }) } as never,
+      })
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err)
+    }
+    check('mercury-ops-revalidate-fail: rejects with mercury-revalidation-boom', threw === 'mercury-revalidation-boom', String(threw))
+    const partialOk = await runMercuryLspOp({
+      input: { operation: 'serverStatus' } as never,
+      absolutePath: project,
+      cwd: project,
+      manager: { getAllServers: () => new Map() } as never,
+      tool: { name: 'LspRead' } as never,
+      context: { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: {} }) } as never,
+    })
+    check('mercury-ops-partial-manager: partial manager without revalidateOpenDocuments still succeeds', typeof partialOk.result === 'string', JSON.stringify(partialOk))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
