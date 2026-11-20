@@ -6,6 +6,7 @@ import { cursorMove, cursorTo, eraseLines } from '../termio/csi.js'
 import { BSU, ESU, HIDE_CURSOR, SHOW_CURSOR } from '../termio/dec.js'
 import { link } from '../termio/osc.js'
 import { noteTerminalWriteHeld } from '../terminalOut.js'
+import { sleepSync } from '../../utils/timers.js'
 
 
 export type Terminal = {
@@ -18,11 +19,10 @@ export type DeliverySyscalls = {
   sleep: (ms: number) => void
 }
 
-const SLEEP_BUF = new Int32Array(new SharedArrayBuffer(4))
 const defaultSyscalls: DeliverySyscalls = {
   writeSync: (fd, data, offset) => writeSync(fd, data, offset),
   sleep: ms => {
-    Atomics.wait(SLEEP_BUF, 0, 0, ms)
+    sleepSync(ms)
   },
 }
 
