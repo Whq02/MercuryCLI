@@ -128,7 +128,10 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
   try {
     origin = sent === null ? (await targetOrigin(s, input.frame)) : sendOrigin(s)
     bound = checkedTarget(s, sent === null ? targetSurface(s, input.frame) : s.page)
-  } catch { return { behavior: 'allow' as const, updatedInput: asked } }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+  }
   const ruled = ruleVerdict(`origin:${origin}`)
   if (ruled === 'deny') {
     return {

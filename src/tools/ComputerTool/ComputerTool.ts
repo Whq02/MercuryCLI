@@ -24,6 +24,7 @@ import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import { COMPUTER_PROMPT } from './prompt.js'
 import { readFileSync } from 'node:fs'
+import { errorMessage } from '../../utils/errors.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import type { PermissionDecision, ToolPermissionContext } from '../../types/permissions.js'
 import type { AssistantMessage } from '../../types/message.js'
@@ -198,8 +199,9 @@ export const ComputerTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
     if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
+      const path = output.inlinePath ?? output.imagePath
       try {
-        const bytes = readFileSync(output.inlinePath ?? output.imagePath)
+        const bytes = readFileSync(path)
         const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
         return {
           tool_use_id: toolUseId,
@@ -212,8 +214,12 @@ export const ComputerTool = buildTool({
             },
           ],
         }
-      } catch {
-        return { tool_use_id: toolUseId, type: 'tool_result' as const, content: output.result }
+      } catch (error) {
+        return {
+          tool_use_id: toolUseId,
+          type: 'tool_result' as const,
+          content: `${output.result}\n(image not inlined — could not read ${path} (${errorMessage(error)}))`,
+        }
       }
     }
     const text =
