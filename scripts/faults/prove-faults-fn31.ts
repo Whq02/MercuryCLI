@@ -581,5 +581,37 @@ console.log('\nsettings/prompt.ts — hiddenCharactersCheck propagates skill sca
   check('settings/prompt:skill-scan-throw-propagates', r.err === 'skills scan boom', JSON.stringify(r))
 }
 
+console.log('\nsettings/sources.ts — killsCheck propagates getAgentCapParseRejects throw and settingsCheck reports unreadable policy lock')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const realCap = await import(SRC + '/utils/permissions/capabilityGate.ts')
+    mock.module(SRC + '/utils/permissions/capabilityGate.js', () => ({
+      ...realCap,
+      getAgentCapParseRejects: () => { throw new Error('cap parser boom') },
+    }))
+    const realSettings = await import(SRC + '/utils/settings/settings.ts')
+    mock.module(SRC + '/utils/settings/settings.js', () => ({
+      ...realSettings,
+      getSettingsForSource: () => { throw new Error('policy read boom') },
+    }))
+    const { killsCheck, settingsCheck } = await import(SRC + '/utils/health/sections/settings/sources.ts')
+    out.settingsRow = settingsCheck().run()
+    try {
+      out.killsRow = await killsCheck().run()
+      out.killsErr = null
+    } catch (e) {
+      out.killsErr = e?.message ?? String(e)
+    }
+  `)
+  const settingsRow = r.settingsRow as { evidence?: string } | undefined
+  check('settings/sources:kills-cap-rejects-throw-propagates', r.killsErr === 'cap parser boom', JSON.stringify(r))
+  check(
+    'settings/sources:unreadable-policy-lock-reported',
+    Boolean(settingsRow?.evidence?.includes('managed extension-only lock unreadable (policy read boom)')),
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
