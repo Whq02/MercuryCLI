@@ -164,7 +164,7 @@ type CrashReportSummary = {
   transcriptPath: string | null
 }
 
-export function listCrashReports(limit = KEEP): CrashReportSummary[] {
+function readCrashReportsStrict(limit = KEEP): CrashReportSummary[] {
   const dir = crashReportDir()
   let entries: string[]
   try {
@@ -219,6 +219,15 @@ export function listCrashReports(limit = KEEP): CrashReportSummary[] {
       }
     }
   })
+}
+
+export function listCrashReports(limit = KEEP): CrashReportSummary[] {
+  try {
+    return readCrashReportsStrict(limit)
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
 }
 
 type CrashTranscriptRoad = 'recorded' | 'report' | 'registry' | 'moved' | 'project'
@@ -380,7 +389,7 @@ export function unnoticedCrashReports(): CrashReportSummary[] {
       throw error
     }
   }
-  return listCrashReports().filter(report => {
+  return readCrashReportsStrict().filter(report => {
     try {
       return statSync(report.file).mtimeMs > noticedAt
     } catch (error) {

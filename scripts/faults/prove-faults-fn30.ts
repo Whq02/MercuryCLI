@@ -36,9 +36,10 @@ try {
       writeFileSync(join(dir, 'crash-1-app-root.json'), JSON.stringify({ origin: 'app-root', at: '2026-11-20T00:00:00.000Z', message: 'boom' }))
       chmodSync(dir, 0o000)
       cleanupTasks.push(() => { try { chmodSync(dir, 0o700) } catch {} })
+      let listed: unknown[] = []
       let listCode: string | null = null
       try {
-        crashReport.listCrashReports()
+        listed = crashReport.listCrashReports()
       } catch (err) {
         listCode = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
       }
@@ -49,7 +50,7 @@ try {
         unnoticedCode = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
       }
       chmodSync(dir, 0o700)
-      check('crashReport.listCrashReports unreadable dir throws EACCES', listCode === 'EACCES', `got ${String(listCode)}`)
+      check('crashReport.listCrashReports unreadable dir keeps empty answer', listCode === null && listed.length === 0, `code=${String(listCode)} len=${listed.length}`)
       check('crashReport.unnoticedCrashReports unreadable dir throws EACCES', unnoticedCode === 'EACCES', `got ${String(unnoticedCode)}`)
     }
   }
