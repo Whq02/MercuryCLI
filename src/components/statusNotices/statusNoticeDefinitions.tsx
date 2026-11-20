@@ -2,28 +2,28 @@ import { relative } from 'node:path'
 
 import React from 'react'
 
-import { flagEnv } from '../substrate/flagRegistry.js'
-import { GLYPH } from './glyphs.js'
-import { Box, Text } from '../ink.js'
-import { getLargeMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from '../services/instructions/engine.js'
-import type { InstructionSourceEntry } from './instructions/contracts.js'
-import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
+import { GLYPH } from '../../utils/glyphs.js'
+import { Box, Text } from '../../ink.js'
+import { getLargeMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from '../../services/instructions/engine.js'
+import type { InstructionSourceEntry } from '../../utils/instructions/contracts.js'
+import type { AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
 import {
   getAnthropicApiKeyWithSource,
   getApiKeyFromConfigOrMacOSKeychain,
   getAuthTokenSource,
   getSubscriptionName,
   isClaudeAISubscriber,
-} from './auth.js'
-import type { GlobalConfig } from './config/schema.js'
-import { binaryName } from './config/derived.js'
-import { getCwd } from './cwd.js'
-import { formatNumber } from './format.js'
+} from '../../utils/auth.js'
+import type { GlobalConfig } from '../../utils/config/schema.js'
+import { binaryName } from '../../utils/config/derived.js'
+import { getCwd } from '../../utils/cwd.js'
+import { formatNumber } from '../../utils/format.js'
 import { AGENT_DESCRIPTIONS_THRESHOLD, getAgentDescriptionsTotalTokens } from './statusNoticeHelpers.js'
-import { readPinnedStatus } from '../mneme/mnemeFrontPage.js'
-import { mnemeEnabled } from '../mneme/mnemeGates.js'
-import { formatTextSize } from '../mneme/mnemeUsage.js'
-import { passedOver } from './passedOver.js'
+import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
+import { mnemeEnabled } from '../../mneme/mnemeGates.js'
+import { formatTextSize } from '../../mneme/mnemeUsage.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type StatusNoticeType = 'warning' | 'info'

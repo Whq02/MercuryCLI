@@ -5,7 +5,7 @@ import { getInstructionFiles } from '../services/instructions/engine.js'
 import type { InstructionSourceEntry } from '../utils/instructions/contracts.js'
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import { getGlobalConfig } from '../utils/config.js'
-import { getActiveNotices } from '../utils/statusNoticeDefinitions.js'
+import { getActiveNotices } from './statusNotices/statusNoticeDefinitions.js'
 
 let instructionFilesPromise: Promise<InstructionSourceEntry[]> | null = null
 function resolvedInstructionFiles(): Promise<InstructionSourceEntry[]> {
