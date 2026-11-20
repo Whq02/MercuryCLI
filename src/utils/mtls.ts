@@ -45,7 +45,7 @@ export const getMTLSAgent = memoize((): HttpsAgent | undefined => {
   return new HttpsAgent({ ...config, ...(ca ? { ca } : {}), keepAlive: true })
 })
 
-export function getWebSocketTLSOptions(): tls.ConnectionOptions | undefined {
+export function getWebSocketTLSOptions(): tls.SecureContextOptions | undefined {
   const config = getMTLSConfig()
   const ca = getCACertificates()
   if (!config && !ca) return undefined
