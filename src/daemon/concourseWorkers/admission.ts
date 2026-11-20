@@ -1,5 +1,5 @@
 import { type GitInitRefusal, gitInitRefusal } from '../../utils/projectBoundary.js'
-import { workspaceKindOf } from '../concourseWorktrees.js'
+import { inspectWorkspaceKind, workspaceGitCheckNote } from '../concourseWorktrees.js'
 import { describeSeatReading, resolveSeatCeiling } from '../../services/switchboard/capacityCheck.js'
 import { resolveDirectoryIdentity } from '../../utils/projectStoreIdentity.js'
 
@@ -91,6 +91,7 @@ export type DefaultedAdmissionResolution =
       decision: AdmissionDecision
       effectiveIsolation: WorkspaceIsolation
       gitOfferRefused?: GitInitRefusal
+      gitCheckError?: string
     }
   | { kind: 'git-offer'; code: 'no-repository'; error: string; moves: ConcourseMoveV1[] }
 
@@ -107,7 +108,8 @@ export function resolveDefaultedAdmission(
   )
   let effectiveIsolation = requested
   if (!decision.admit && decision.code === 'workspace-collision' && claim.isolation === undefined) {
-    if (workspaceKindOf(claim.workspaceId) === 'git') {
+    const inspected = inspectWorkspaceKind(claim.workspaceId)
+    if (inspected.kind === 'git') {
       const retry = evaluateConcourseAdmission(
         live,
         { workspaceId: claim.workspaceId, isolation: 'worktree-isolated' },
@@ -115,6 +117,16 @@ export function resolveDefaultedAdmission(
       )
       if (retry.admit) effectiveIsolation = 'worktree-isolated'
       decision = retry
+    } else if (inspected.gitCheckError !== undefined) {
+      return {
+        kind: 'decision',
+        decision: {
+          ...decision,
+          reason: `${decision.reason} — ${workspaceGitCheckNote(claim.workspaceId, inspected.gitCheckError)}`,
+        },
+        effectiveIsolation,
+        gitCheckError: inspected.gitCheckError,
+      }
     } else {
       const refusal = gitInitRefusal(claim.workspaceId)
       if (refusal !== null) {

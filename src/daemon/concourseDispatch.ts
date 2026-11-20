@@ -27,7 +27,7 @@ import {
 import type { ConcourseReviveOutcome } from './concourseWorkers.js'
 
 type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refused' }>['reason']
-import { workspaceKindOf } from './concourseWorktrees.js'
+import { inspectWorkspaceKind, workspaceGitCheckNote } from './concourseWorktrees.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { SaturnOrigin, ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messages/outsideReport.js'
@@ -577,21 +577,30 @@ export async function preflightConcourseDispatch(
   }
   if (workspaceOk) {
     const workspaceId = canonicalWorkspaceId(req.workspaceDir)
-    if ((req.isolation ?? 'exclusive') === 'worktree-isolated' && workspaceKindOf(workspaceId) === 'plain-folder') {
-      const refusal = gitInitRefusal(workspaceId)
-      refusals.push(
-        refusal !== null
-          ? {
-              code: 'no-repository',
-              reason: `forking needs a git repository, and Mercury will not start one here — ${refusal.words}`,
-              moves: [{ verb: 'retry', label: 'launch it without a worktree — in the folder as it is' }],
-            }
-          : {
-              code: 'no-repository',
-              reason: 'forking needs a git repository — this folder has none yet',
-              moves: [{ verb: 'init-git', label: 'say yes to the git offer — then sessions can fork here' }],
-            },
-      )
+    const inspected = inspectWorkspaceKind(workspaceId)
+    if ((req.isolation ?? 'exclusive') === 'worktree-isolated' && inspected.kind === 'plain-folder') {
+      if (inspected.gitCheckError !== undefined) {
+        refusals.push({
+          code: 'no-repository',
+          reason: workspaceGitCheckNote(workspaceId, inspected.gitCheckError),
+          moves: [{ verb: 'retry', label: 'launch it without a worktree — in the folder as it is' }],
+        })
+      } else {
+        const refusal = gitInitRefusal(workspaceId)
+        refusals.push(
+          refusal !== null
+            ? {
+                code: 'no-repository',
+                reason: `forking needs a git repository, and Mercury will not start one here — ${refusal.words}`,
+                moves: [{ verb: 'retry', label: 'launch it without a worktree — in the folder as it is' }],
+              }
+            : {
+                code: 'no-repository',
+                reason: 'forking needs a git repository — this folder has none yet',
+                moves: [{ verb: 'init-git', label: 'say yes to the git offer — then sessions can fork here' }],
+              },
+        )
+      }
     }
     const live = Object.values(readSessionWorkers(dir)).filter(
       r =>

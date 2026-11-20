@@ -200,5 +200,100 @@ console.log('\nw02-2 — olderChatsCensus reports unreadable transcript folder a
   }
 }
 
+console.log('\nw02-3 — unreadable .git stat surfaces git-check error note without refusing birth')
+if (!POSIX_MODES) skip('workspaceKindOf EACCES', 'chmod 0644 needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const wt = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorktrees.ts'))})
+    const adm = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorkers/admission.ts'))})
+    const warm = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorkers/admitWarm.ts'))})
+
+    const plainDir = path.join(PROJECT, 'plain-dir')
+    const gitDir = path.join(PROJECT, 'git-dir')
+    const lockedDir = path.join(PROJECT, 'locked-git-dir')
+    fs.mkdirSync(plainDir, { recursive: true })
+    fs.mkdirSync(path.join(gitDir, '.git'), { recursive: true })
+    fs.mkdirSync(path.join(lockedDir, '.git'), { recursive: true })
+
+    out.hasInspect = typeof wt.inspectWorkspaceKind === 'function'
+    if (out.hasInspect) {
+      out.plain = wt.inspectWorkspaceKind(plainDir)
+      out.git = wt.inspectWorkspaceKind(gitDir)
+    }
+
+    fs.chmodSync(lockedDir, 0o644)
+    try {
+      out.lockedKind = wt.workspaceKindOf(lockedDir)
+      if (out.hasInspect) out.lockedInspect = wt.inspectWorkspaceKind(lockedDir)
+      out.collisionRes = adm.resolveDefaultedAdmission(
+        [{ workspaceId: lockedDir, isolation: 'exclusive' }],
+        { workspaceId: lockedDir },
+        4,
+      )
+      const daemonDir = path.join(HOME, 'daemon-w02-3')
+      fs.mkdirSync(daemonDir, { recursive: true })
+      const warmRes = warm.warmSeatAnswer({
+        req: { workspaceDir: lockedDir, by: 'operator' },
+        deps: { dir: daemonDir, roster: () => null },
+        records: {},
+        workspaceId: lockedDir,
+        effectiveIsolation: 'exclusive',
+        kind: 'oculus',
+        modelKey: 'test-model',
+        modelDisplayName: 'Test',
+        keyless: false,
+        kit: { schema: 1, workspaceId: lockedDir, mcp: { disabled: [], enabled: [] } },
+        preset: undefined,
+        retainedNote: undefined,
+        carryBuildNotices: () => {},
+        runnerId: 'w-1',
+        claimSessionId: 's-w02-3',
+        claimEffort: 'high',
+        claimPosture: 'default',
+        snapshot: { profileRevision: 0, entries: [] },
+        pidFields: {},
+        claimed: { claimed: true, short: 'w-1', pid: process.pid, spec: {} },
+      })
+      out.warmOk = warmRes.ok
+      out.warmNote = warmRes.ok ? (warmRes.note ?? null) : null
+    } finally {
+      fs.chmodSync(lockedDir, 0o755)
+    }
+  `)
+  const lockedInspect = r.out.lockedInspect as { kind?: string; gitCheckError?: string } | undefined
+  const plain = r.out.plain as { kind?: string; gitCheckError?: string } | undefined
+  const git = r.out.git as { kind?: string; gitCheckError?: string } | undefined
+  check(
+    'inspectWorkspaceKind distinguishes git, plain-folder (ENOENT), and EACCES',
+    r.out.hasInspect === true &&
+      git?.kind === 'git' &&
+      plain?.kind === 'plain-folder' &&
+      plain.gitCheckError === undefined &&
+      lockedInspect?.kind === 'plain-folder' &&
+      typeof lockedInspect.gitCheckError === 'string' &&
+      lockedInspect.gitCheckError.length > 0,
+    JSON.stringify({ plain, git, lockedInspect }),
+  )
+  const col = r.out.collisionRes as { kind?: string; decision?: { reason?: string }; gitCheckError?: string } | undefined
+  check(
+    'resolveDefaultedAdmission does not offer fake git-init when .git stat fails with EACCES',
+    col?.kind === 'decision' &&
+      typeof col.decision?.reason === 'string' &&
+      col.decision.reason.includes('could not be checked for git (') &&
+      col.decision.reason.includes('so this session works in the folder itself, not in a worktree'),
+    JSON.stringify(col),
+  )
+  check(
+    'warmSeatAnswer births session (ok:true) and attaches git-check note on EACCES',
+    r.out.warmOk === true &&
+      typeof r.out.warmNote === 'string' &&
+      (r.out.warmNote as string).includes('could not be checked for git (') &&
+      (r.out.warmNote as string).includes('so this session works in the folder itself, not in a worktree'),
+    JSON.stringify({ warmOk: r.out.warmOk, warmNote: r.out.warmNote }),
+  )
+}
+
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)
