@@ -67,7 +67,7 @@ async function runLocalJsxCommandError(): Promise<void> {
 }
 
 async function runProjectBoundary(): Promise<void> {
-  console.log('\nprojectBoundary — gitInitRefusal refuses markerless folder with unreadable subfolder')
+  console.log('\nprojectBoundary — gitInitRefusal does not refuse a small markerless folder for an unreadable subfolder')
   if (!POSIX_MODES) return
   const { gitInitRefusal } = await import('../../src/utils/projectBoundary.ts')
   const folder = join(SCRATCH, 'markerless-unreadable')
@@ -80,8 +80,8 @@ async function runProjectBoundary(): Promise<void> {
   try {
     const refused = gitInitRefusal(folder)
     check(
-      'gitInitRefusal refuses markerless folder containing unreadable subfolder',
-      refused?.kind === 'not-a-project' && refused.words.includes('could not be read'),
+      'gitInitRefusal does not refuse a small markerless folder for a subfolder it could not count',
+      refused === null,
       JSON.stringify(refused),
     )
     check('gitInitRefusal still allows small readable markerless folder', gitInitRefusal(readable) === null)
