@@ -25,6 +25,7 @@ import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { quote } from './shellQuote.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 
 type VersionedPathParts = {
@@ -172,14 +173,14 @@ function runBounded(
       process.once('exit', end)
       process.once('SIGQUIT', quit)
     }
-    const guard = setTimeout(() => {
+    const guard = startTimeout(() => {
       end()
       settle({ stdout: '', stderr: '', killed: true, overflowed: false })
     }, timeoutMs + SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS)
     const settle = (result: BoundedRun): void => {
       if (settled) return
       settled = true
-      clearTimeout(guard)
+      stopTimeout(guard)
       process.removeListener('exit', end)
       process.removeListener('SIGQUIT', quit)
       if (ownGroup) end()

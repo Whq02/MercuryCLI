@@ -29,6 +29,7 @@ import { ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs } from './ollamaC
 import { toolDialectSystemText } from './toolDialect.js'
 import { tellWhoHearsALocalTurn } from './localTurn.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 export const LOCAL_WARM_SETTLE_MS = 750
 export const LOCAL_WARM_LIVE_WAITS = 8
@@ -290,7 +291,7 @@ async function warm(record: LocalModelRecord, model: string): Promise<void> {
   const flight: InFlightWarm = { key, wireModel: record.id, controller }
   state.inFlight = flight
   const startedAt = nowMs()
-  const ceiling = setTimeout(() => controller.abort(), state.io.ceilingMs ?? LOCAL_WARM_CEILING_MS)
+  const ceiling = startTimeout(() => controller.abort(), state.io.ceilingMs ?? LOCAL_WARM_CEILING_MS)
   ceiling.unref?.()
   try {
     const context = await provider()
@@ -342,7 +343,7 @@ async function warm(record: LocalModelRecord, model: string): Promise<void> {
     state.failed += 1
     logForDebugging(`[local-warm] warm of ${record.id} failed: ${error instanceof Error ? error.message : String(error)}`)
   } finally {
-    clearTimeout(ceiling)
+    stopTimeout(ceiling)
     if (state.inFlight === flight) state.inFlight = null
   }
 }
@@ -351,7 +352,7 @@ function stopClock(reason: string): void {
   const clock = state.clock
   if (clock === null) return
   state.clock = null
-  clearInterval(clock.timer)
+  stopInterval(clock.timer)
   logForDebugging(`[local-warm] keep-alive clock for ${clock.key} stopped: ${reason}`)
 }
 
@@ -359,7 +360,7 @@ function startClock(record: LocalModelRecord): void {
   const key = keyOf(record)
   if (state.clock !== null && state.clock.key === key) return
   stopClock('the model changed')
-  const timer = setInterval(() => {
+  const timer = startInterval(() => {
     void tick()
   }, state.io.tickMs ?? LOCAL_KEEP_ALIVE_TICK_MS)
   timer.unref?.()
@@ -470,8 +471,8 @@ async function settle(): Promise<void> {
 }
 
 function scheduleSettle(): void {
-  if (state.settleTimer !== null) clearTimeout(state.settleTimer)
-  const timer = setTimeout(() => {
+  if (state.settleTimer !== null) stopTimeout(state.settleTimer)
+  const timer = startTimeout(() => {
     settle().catch(error => logForDebugging(`[local-warm] warm not started: ${error instanceof Error ? error.message : String(error)}`))
   }, state.io.settleMs ?? LOCAL_WARM_SETTLE_MS)
   timer.unref?.()
@@ -496,7 +497,7 @@ export function disarmLocalWarm(): void {
   state.unsubscribe?.()
   state.unsubscribe = null
   state.context = null
-  if (state.settleTimer !== null) clearTimeout(state.settleTimer)
+  if (state.settleTimer !== null) stopTimeout(state.settleTimer)
   state.settleTimer = null
   cancelInFlight('disarmed')
   stopClock('disarmed')

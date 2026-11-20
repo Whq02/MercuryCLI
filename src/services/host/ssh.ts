@@ -13,6 +13,7 @@ import { downloadFailure, hostDownloadScript } from './download.js'
 import { tensorFoldEngineScript, tensorFoldReadyCommand } from './tensorfoldRelease.js'
 import { hostEngineOomWords, type HostEngineDeathFacts } from '../../commands/llmhost/words.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 export interface SshTarget { host: string; user?: string; key?: string; port?: number }
 export interface HostRunner {
   run(command: string, args: string[], signal: AbortSignal, timeoutMs?: number, env?: Record<string, string>): Promise<string>
@@ -31,10 +32,10 @@ export const hostRunner: HostRunner = {
       let output = ''
       let settled = false
       const grace = new AbortController()
-      const finish = (error?: Error): void => { if (settled) return; settled = true; clearTimeout(timer); grace.abort(); signal.removeEventListener('abort', abort); children.delete(child); if (error) reject(error); else resolve(output) }
+      const finish = (error?: Error): void => { if (settled) return; settled = true; stopTimeout(timer); grace.abort(); signal.removeEventListener('abort', abort); children.delete(child); if (error) reject(error); else resolve(output) }
       const ended = (code: number | null): void => finish(code === 0 ? undefined : new Error(command + ' exited ' + code + '. ' + output.slice(-2000)))
       const abort = (): void => { child.kill(); finish(new Error('Stopped')) }
-      const timer = setTimeout(() => { child.kill(); finish(new Error(command + ' timed out. ' + output.slice(-2000))) }, timeoutMs)
+      const timer = startTimeout(() => { child.kill(); finish(new Error(command + ' timed out. ' + output.slice(-2000))) }, timeoutMs)
       signal.addEventListener('abort', abort, { once: true })
       child.stdout.on('data', data => { output = (output + String(data)).slice(-12000) })
       child.stderr.on('data', data => { output = (output + String(data)).slice(-12000) })

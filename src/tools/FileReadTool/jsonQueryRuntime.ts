@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { nodePackPlatform, runtimeBinaryFor } from '../../services/privateChannel/vendoredRuntime.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const QUERY_BOUND_MS = 10 * 60_000
 
@@ -107,8 +108,8 @@ export async function runJsonQuery(
       const aborted = (): void => { kill(); reject(signal.reason ?? new Error('JSON query cancelled.')) }
       signal.addEventListener('abort', aborted, { once: true })
       const bound = queryBoundMs()
-      const late = setTimeout(() => { kill(); reject(new Error(`The query did not finish within ${bound / 60_000} minutes and was ended. Narrow the filter, or run jq in Bash with a timeout of its own.`)) }, bound)
-      const cleanup = (): void => { clearTimeout(late); signal.removeEventListener('abort', aborted) }
+      const late = startTimeout(() => { kill(); reject(new Error(`The query did not finish within ${bound / 60_000} minutes and was ended. Narrow the filter, or run jq in Bash with a timeout of its own.`)) }, bound)
+      const cleanup = (): void => { stopTimeout(late); signal.removeEventListener('abort', aborted) }
       child.on('message', message => {
         const value = message as { result?: JsonQueryRun; error?: string }
         if (value.result || value.error) reply = value

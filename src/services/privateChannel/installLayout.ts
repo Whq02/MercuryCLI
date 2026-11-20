@@ -40,6 +40,7 @@ import { payloadDigestOf } from './payloadDigest.js'
 import { nixInstallRoot } from './nixInstallRoot.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { sleepSync } from '../../utils/timers.js'
 
 export interface LayoutRoots {
   versionsDir: string
@@ -138,10 +139,6 @@ function injectFault(point: string): boolean {
     return true
   }
   return false
-}
-
-const sleepSync = (ms: number): void => {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
 
 const isTransientFsCode = isTransientWin32FsCode

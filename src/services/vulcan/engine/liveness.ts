@@ -4,6 +4,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { vulcanInstancesUnder, vulcanProcessAlive, type VulcanInstance } from '../instances.js'
 import { engineCheckTreeDir, engineChecksDir, engineRunPath, engineRunResultFile, engineTreesDir } from './paths.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../../utils/timers.js'
 
 const ENGINE_ORPHAN_GRACE_FLAG = 'MERCURY_GODOT_ORPHAN_GRACE_MS'
 const ENGINE_ORPHAN_GRACE_DEFAULT_MS = 30 * 60_000
@@ -113,7 +114,7 @@ function touchEngineEstate(target: string): void {
 
 export function startEngineHeartbeat(target: string): () => void {
   touchEngineEstate(target)
-  const timer = setInterval(() => touchEngineEstate(target), ENGINE_HEARTBEAT_MS)
+  const timer = startInterval(() => touchEngineEstate(target), ENGINE_HEARTBEAT_MS)
   timer.unref?.()
-  return () => clearInterval(timer)
+  return () => stopInterval(timer)
 }

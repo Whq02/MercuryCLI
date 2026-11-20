@@ -16,6 +16,7 @@ import {
 } from '../capability/manifest.js'
 import type { Tool } from '../../Tool.js'
 import { passedOver } from '../passedOver.js'
+import { startTimeout } from '../timers.js'
 
 const TRACE_ENV_VAR = 'MERCURY_TRACE'
 
@@ -117,7 +118,7 @@ function enqueueTraceLine(line: string): void {
   }
   if (flushScheduled) return
   flushScheduled = true
-  setTimeout(() => {
+  startTimeout(() => {
     flushScheduled = false
     void flushTraceNow()
   }, 0)?.unref?.()

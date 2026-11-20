@@ -32,6 +32,7 @@ import type { LiveTurnFactsV1 } from '../services/engine-connector/seatLive.js'
 import { TaskListV2 } from './TaskListV2.js'
 import type { SpinnerMode } from './Spinner/types.js'
 import { useFocusedMission } from './tasks/useFocusedWork.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 export type { SpinnerMode } from './Spinner/types.js'
 
@@ -118,11 +119,11 @@ export function SpinnerWithVerb({
 
   const [whimsyVerb, setWhimsyVerb] = useState(() => sampleSpinnerVerb())
   useTimer(() => {
-    const timer = setInterval(
+    const timer = startInterval(
       () => setWhimsyVerb(sampleSpinnerVerb()),
       WHIMSY_ROTATE_MS,
     )
-    return () => clearInterval(timer)
+    return () => stopInterval(timer)
   }, [])
 
   let chosenVerb: string

@@ -9,6 +9,7 @@ import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveXaiAccount, resolveXaiApiKey, resolveXaiCredential, resolveXaiManagementApiKey, xaiApiBase, xaiGrokProxyBase, xaiGrokProxyBillingHeaders, xaiManagementBase } from './xaiAccounts.js'
 import { xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 export const XAI_MANAGEMENT_KEY_HINT = "add a management key from the console's settings page to read usage — /logins xai"
 export const XAI_MANAGEMENT_KEY_PAGE = "Optional management key from console.x.ai's settings page unlocks the team usage meter."
@@ -306,7 +307,7 @@ export function refreshXaiUsage(io?: XaiUsageIo): Promise<XaiObservedUsage | nul
   const epoch = generation
   lastAttempt = now
   const work = (async (): Promise<XaiObservedUsage | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const result = await fetchXaiUsage(apiKey, managementKey, io)
       if (epoch !== generation || activeIdentity(env) !== id) return null
@@ -363,7 +364,7 @@ export function refreshXaiSubscriptionCredits(io?: XaiUsageIo & XaiOauthIo): Pro
   const epoch = poolGeneration
   poolLastAttempt = now
   const work = (async (): Promise<XaiSubscriptionCredits | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       let result: XaiSubscriptionProbe
       try {

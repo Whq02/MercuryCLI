@@ -10,6 +10,7 @@ import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { nextMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type SeatKind = 'agent' | 'runner'
 export const SEAT_COST_BYTES: Readonly<Record<SeatKind, number>> = {
@@ -129,12 +130,12 @@ async function takeMemorySample(): Promise<MemorySample> {
     }
     if (process.platform === 'linux') {
       const controller = new AbortController()
-      const deadline = setTimeout(() => controller.abort(), 2000)
+      const deadline = startTimeout(() => controller.abort(), 2000)
       try {
         const available = availableFromMeminfo(await readFile('/proc/meminfo', { encoding: 'utf8', signal: controller.signal }))
         return available === null ? fallback : { availableBytes: available, totalBytes, read: 'meminfo' }
       } finally {
-        clearTimeout(deadline)
+        stopTimeout(deadline)
       }
     }
     if (process.platform === 'win32') {
@@ -161,7 +162,7 @@ export function lastMemorySample(now: number = Date.now()): { sample: MemorySamp
 
 function refreshHeldReadingAsync(): Promise<void> {
   pendingSample ??= (async () => {
-    await Promise.resolve()
+    await nextMicrotask()
     const memory = sampler === null ? await refreshMemorySample() : sampler()
     const sample: SeatReadingSample = { cores: 'cores' in memory ? memory.cores : availableCores(), availableBytes: memory.availableBytes, read: memory.read, sampledAt: Date.now() }
     lastSampledAt = sample.sampledAt

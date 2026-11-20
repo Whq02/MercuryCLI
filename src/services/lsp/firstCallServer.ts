@@ -3,6 +3,7 @@ import { extname, join } from 'node:path'
 import type { LSPServerInstance } from './LSPServerInstance.js'
 import type { LSPServerManager } from './LSPServerManager.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const LSP_FIRST_CALL_START_WAIT_MS = 10_000
 const MAIN_LANGUAGE_WALK_DEPTH = 3
@@ -64,10 +65,10 @@ export async function startedWithin(server: LSPServerInstance, ms: number): Prom
     return await Promise.race([
       start.then(() => true),
       new Promise<boolean>(resolve => {
-        timer = setTimeout(() => resolve(false), ms)
+        timer = startTimeout(() => resolve(false), ms)
       }),
     ])
   } finally {
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) stopTimeout(timer)
   }
 }

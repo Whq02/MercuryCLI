@@ -8,6 +8,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../../utils/privacyLevel.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export const NOUS_PORTAL_CLIENT_ID = 'hermes-cli'
 export const NOUS_PORTAL_SIGNIN_SCOPE = 'inference:invoke'
@@ -216,7 +217,7 @@ export async function readNousClientFromSource(io?: NousClientIo): Promise<NousC
   const env = io?.env ?? hostEnv()
   if (isProofShapeRun() && !isLoopbackUrl(nousClientSourceBase(env))) return { ok: false, words: proofShapeReason() }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), NOUS_CLIENT_SOURCE_DEADLINE_MS)
+  const timer = startTimeout(() => controller.abort(), NOUS_CLIENT_SOURCE_DEADLINE_MS)
   timer.unref?.()
   try {
     const release = await readSource(nousClientReleaseUrl(env), 'application/vnd.github+json', io, controller.signal)
@@ -235,7 +236,7 @@ export async function readNousClientFromSource(io?: NousClientIo): Promise<NousC
     if (facts === undefined) return { ok: false, words: `the release's source named no client id or scope` }
     return { ok: true, facts, from: nousClientSourceUrl(String(tag), env) }
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
   }
 }
 

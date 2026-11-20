@@ -54,6 +54,7 @@ import { mirrorSwarmNotice } from '../../services/crewBoard/seam.js'
 import { taskRow } from '../../rows/project.js'
 import { NOTIFICATION_RESULT_CAP_CHARS } from '../../services/agentResults/summaryRoom.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-crew'
@@ -893,8 +894,8 @@ export function publishAgentProgressSoon(
 ): void {
   updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
   const pending = deferredPublishes.get(taskId)
-  if (pending !== undefined) clearTimeout(pending)
-  const timer = setTimeout(() => {
+  if (pending !== undefined) stopTimeout(pending)
+  const timer = startTimeout(() => {
     deferredPublishes.delete(taskId)
     updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
   }, USAGE_SETTLE_GRACE_MS)

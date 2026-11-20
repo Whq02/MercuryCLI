@@ -1,5 +1,6 @@
 import { FOLD_EXIT_LINGER_MS, type FoldStatusV1 } from '../../compact/foldStatus.js'
 import { emitAll } from './shared.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 interface FoldNeeds {
   recomputeLive(): void
@@ -51,7 +52,7 @@ export class FoldPart {
   private armFoldLingerEnd(status: FoldStatusV1): void {
     this.clearFoldLinger()
     const endsInMs = Math.max(0, (status.endedAtMs ?? status.startedAtMs) + FOLD_EXIT_LINGER_MS - Date.now())
-    this.foldLingerTimer = setTimeout(() => {
+    this.foldLingerTimer = startTimeout(() => {
       this.foldLingerTimer = null
       this.foldLingerOver = true
       emitAll(this.foldListeners, 'fold')
@@ -61,15 +62,15 @@ export class FoldPart {
 
   private clearFoldLinger(): void {
     if (this.foldLingerTimer !== null) {
-      clearTimeout(this.foldLingerTimer)
+      stopTimeout(this.foldLingerTimer)
       this.foldLingerTimer = null
     }
   }
 
   private latchFold(status: FoldStatusV1): void {
     this.foldExitLatch = status
-    if (this.foldLatchTimer !== null) clearTimeout(this.foldLatchTimer)
-    this.foldLatchTimer = setTimeout(() => {
+    if (this.foldLatchTimer !== null) stopTimeout(this.foldLatchTimer)
+    this.foldLatchTimer = startTimeout(() => {
       this.foldLatchTimer = null
       this.foldExitLatch = null
       emitAll(this.foldListeners, 'fold')
@@ -79,7 +80,7 @@ export class FoldPart {
 
   private clearFoldLatch(): void {
     if (this.foldLatchTimer !== null) {
-      clearTimeout(this.foldLatchTimer)
+      stopTimeout(this.foldLatchTimer)
       this.foldLatchTimer = null
     }
     this.foldExitLatch = null

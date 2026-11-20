@@ -17,6 +17,7 @@ import {
 } from './errors.js'
 import { METHODS, RUNNER_PROTOCOL, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
 import { rowOf, RowSchemaMismatch } from '../../rows/read.js'
+import { afterMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 type RpcId = number
 type RpcRequest = { jsonrpc: '2.0'; id: RpcId; method: string; params?: unknown }
@@ -245,7 +246,7 @@ function notificationDelivery(method: string, handler: (params: unknown) => unkn
     }
   }
   return {
-    run: () => void Promise.resolve().then(reach),
+    run: () => void afterMicrotask(reach),
     held: { id: null, run: reach, fail: () => log(`runner wire: notification ${method} arrived before initialize was answered and is dropped with it`) },
   }
 }
@@ -349,7 +350,7 @@ export class Peer {
     const answer = new Promise<ResultOf<M>>((resolve, reject) => {
       const timer =
         deadlineMs !== null
-          ? setTimeout(() => {
+          ? startTimeout(() => {
               if (!this.pending.delete(id)) return
               if (!this.writer.withdraw(id)) this.notify('$/cancel_request', { request_id: id, reason: 'deadline' })
               reject(new PeerDeadline(method, id, deadlineMs))
@@ -377,7 +378,7 @@ export class Peer {
     const entry = this.pending.get(id)
     if (entry === undefined) return false
     this.pending.delete(id)
-    if (entry.timer !== null) clearTimeout(entry.timer)
+    if (entry.timer !== null) stopTimeout(entry.timer)
     if (!this.writer.withdraw(id)) this.notify('$/cancel_request', reason === undefined ? { request_id: id } : { request_id: id, reason })
     entry.reject(cancelled(reason))
     return true
@@ -412,7 +413,7 @@ export class Peer {
     this.input.off('close', this.onEnd)
     this.input.off('error', this.onError)
     for (const [id, entry] of this.pending) {
-      if (entry.timer !== null) clearTimeout(entry.timer)
+      if (entry.timer !== null) stopTimeout(entry.timer)
       this.pending.delete(id)
       entry.reject(new PeerClosed(entry.method, reason))
     }
@@ -435,7 +436,7 @@ export class Peer {
   failProtocol(error: RpcError): void {
     if (this.closed) return
     for (const [id, entry] of this.pending) {
-      if (entry.timer !== null) clearTimeout(entry.timer)
+      if (entry.timer !== null) stopTimeout(entry.timer)
       this.pending.delete(id)
       entry.reject(error)
     }
@@ -671,7 +672,7 @@ function onResponseLineOf(this: Peer, value: Record<string, unknown>): void {
     return
   }
   this.pending.delete(id)
-  if (entry.timer !== null) clearTimeout(entry.timer)
+  if (entry.timer !== null) stopTimeout(entry.timer)
   if (isRecord(value.error)) {
     const code = typeof value.error.code === 'number' ? value.error.code : RPC_CANCELLED
     const message = typeof value.error.message === 'string' ? value.error.message : 'error'

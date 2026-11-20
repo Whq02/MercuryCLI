@@ -9,6 +9,7 @@ import type { StreamingTailStore } from '../utils/messages/streamingTailStore.js
 import { StreamingMarkdown } from './Markdown.js'
 import { MercuryStreamingNameplate } from './messages/ChatLine.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export function openFenceOf(prefix: string): string | null {
   const open = foldFenceRange(prefix, 0, prefix.length, null)
@@ -132,8 +133,8 @@ export function LiveStreamingTail({
       return
     }
     const age = settledSince === null ? 0 : Math.max(0, performance.now() - settledSince)
-    const timer = setTimeout(() => setLingerExpired(true), Math.max(0, SETTLE_LINGER_MS - age))
-    return () => clearTimeout(timer)
+    const timer = startTimeout(() => setLingerExpired(true), Math.max(0, SETTLE_LINGER_MS - age))
+    return () => stopTimeout(timer)
   }, [settled, settledSince])
   const ghost = settled !== null && !lingerExpired
   const rawText = textSuppressed ? null : (published ?? (ghost ? settled : null))

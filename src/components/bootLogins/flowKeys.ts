@@ -4,6 +4,7 @@ import { setClipboard } from '../../ink/termio/osc.js';
 import type { OpenFlowState } from './flowLines.js';
 import type { LoginsFlowContext } from './context.js';
 import type { Key } from '../../ink.js';
+import { startTimeout } from '../../utils/timers.js';
 
 export function receiptFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'receipt' }>, input: string, key: Key): void {
   const { refreshFacts, closeFlow, settleSignedIn } = ctx;
@@ -36,7 +37,7 @@ export function deviceFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlow
       if (sequence) process.stdout.write(sequence);
       if (run !== deviceRunRef.current) return;
       setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, copied: true } } : f));
-      setTimeout(() => {
+      startTimeout(() => {
         if (run !== deviceRunRef.current) return;
         setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, copied: false } } : f));
       }, 2000);
@@ -71,7 +72,7 @@ export function handlesFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlo
       if (sequence) process.stdout.write(sequence);
       if (run !== deviceRunRef.current) return;
       setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, copied: true } } : f));
-      setTimeout(() => {
+      startTimeout(() => {
         if (run !== deviceRunRef.current) return;
         setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, copied: false } } : f));
       }, 2000);
@@ -108,7 +109,7 @@ export function opdeviceFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFl
       if (sequence) process.stdout.write(sequence);
       if (run !== deviceRunRef.current) return;
       setFlow(f => (f?.kind === 'opdevice' ? { kind: 'opdevice', opdevice: { ...f.opdevice, copied: true } } : f));
-      setTimeout(() => {
+      startTimeout(() => {
         if (run !== deviceRunRef.current) return;
         setFlow(f => (f?.kind === 'opdevice' ? { kind: 'opdevice', opdevice: { ...f.opdevice, copied: false } } : f));
       }, 2000);

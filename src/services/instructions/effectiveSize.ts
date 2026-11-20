@@ -8,6 +8,7 @@ import {
   onInstructionCacheInvalidated,
 } from './engine.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startMicrotask } from '../../utils/timers.js'
 
 export const PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD = 400
 
@@ -51,7 +52,7 @@ let measureScheduled = false
 function scheduleMeasure(): void {
   if (measureScheduled) return
   measureScheduled = true
-  queueMicrotask(() => {
+  startMicrotask(() => {
     measureScheduled = false
     void (async () => {
       try {

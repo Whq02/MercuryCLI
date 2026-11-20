@@ -12,6 +12,7 @@ import { createSignal } from '../../utils/signal.js'
 import { clearAgentDefinitionsCache } from '../../tools/AgentTool/loadAgentsDir.js'
 import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const USE_POLLING = typeof Bun !== 'undefined'
 
@@ -91,8 +92,8 @@ function agentWatchRoots(cwd: string): string[] {
 
 function scheduleEmit(): void {
   const t = timing()
-  if (reloadTimer) clearTimeout(reloadTimer)
-  reloadTimer = setTimeout(() => {
+  if (reloadTimer) stopTimeout(reloadTimer)
+  reloadTimer = startTimeout(() => {
     reloadTimer = null
     clearAgentDefinitionsCache()
     if (pendingHadForeignWrite) {
@@ -252,7 +253,7 @@ export async function startAgentWatch(cwd: string): Promise<void> {
 
 export async function stopAgentWatch(): Promise<void> {
   if (reloadTimer) {
-    clearTimeout(reloadTimer)
+    stopTimeout(reloadTimer)
     reloadTimer = null
   }
   if (stopRootLadder) {

@@ -3,6 +3,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { TerminalResponse } from '../input/input-decoder.js'
 import { csi } from '../termio/csi.js'
 import { osc } from '../termio/osc.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 type TerminalQuery<T extends TerminalResponse = TerminalResponse> = {
   request: string
@@ -132,10 +133,10 @@ export class TerminalQuerier {
     if (remaining <= 0) return Promise.resolve('deadline')
     return new Promise(resolve => {
       const waiter = (): void => {
-        clearTimeout(timer)
+        stopTimeout(timer)
         resolve('settled')
       }
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         this.settleWaiters = this.settleWaiters.filter(w => w !== waiter)
         resolve('deadline')
       }, remaining)
@@ -166,7 +167,7 @@ export class TerminalQuerier {
       const batch = this.openBatch
       batch.sentinel = resolve
       batch.flushedAt = Date.now()
-      batch.timer = setTimeout(() => this.closeBatch(batch), 250)
+      batch.timer = startTimeout(() => this.closeBatch(batch), 250)
       batch.timer.unref?.()
       this.batches.push({ queries: [], sentinel: null, flushedAt: 0 })
       const bytes = this.pendingRequests + SENTINEL
@@ -198,7 +199,7 @@ export class TerminalQuerier {
     const index = this.batches.indexOf(batch)
     if (index === -1) return
     this.batches.splice(index, 1)
-    if (batch.timer !== undefined) clearTimeout(batch.timer)
+    if (batch.timer !== undefined) stopTimeout(batch.timer)
     for (const query of batch.queries) query.resolve(undefined)
     batch.sentinel?.()
     this.notifySettled()

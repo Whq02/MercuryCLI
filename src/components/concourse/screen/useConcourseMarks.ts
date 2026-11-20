@@ -5,6 +5,7 @@ import { OLDER_CHATS_ROW_PREFIX } from '../../../services/concourse/concourseSna
 import { COMPACT_DOOR_NOTE_MS } from '../compactBoard.js'
 import { consumeSignInPickerReturn } from './signInPicker.js'
 import type { Filter, Panes, ScreenProps, Selection } from './state.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessionRows, setOlderList }: Pick<ScreenProps, 'snapshot'> & Pick<Selection, 'boardSel' | 'olderList' | 'setOlderList'> & Pick<Panes, 'region'> & Pick<Filter, 'sessionRows'>) {
   useDerivedState(() => {
@@ -19,7 +20,7 @@ export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessi
   const doorNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clearDoorNote = (): void => {
     if (doorNoteTimerRef.current !== null) {
-      clearTimeout(doorNoteTimerRef.current)
+      stopTimeout(doorNoteTimerRef.current)
       doorNoteTimerRef.current = null
     }
     if (doorNoteRef.current) {
@@ -31,7 +32,7 @@ export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessi
     clearDoorNote()
     doorNoteRef.current = true
     setDoorNote(true)
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       doorNoteTimerRef.current = null
       doorNoteRef.current = false
       setDoorNote(false)
@@ -40,7 +41,7 @@ export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessi
     doorNoteTimerRef.current = timer
   }
   useClaim(() => () => {
-    if (doorNoteTimerRef.current !== null) clearTimeout(doorNoteTimerRef.current)
+    if (doorNoteTimerRef.current !== null) stopTimeout(doorNoteTimerRef.current)
   }, [])
   useDerivedState(() => {
     if (doorNoteRef.current) clearDoorNote()

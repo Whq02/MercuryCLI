@@ -18,6 +18,7 @@ import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { CommandCenter, SectionHeader } from '../mercury-ui/components.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const TAIL_BYTES = 8 * 1024
 const COUNT_CHUNK_BYTES = 64 * 1024
@@ -179,10 +180,10 @@ export function ShellDetailDialog({
     if (count.current.path !== shell.outputFile) count.current = freshLineCount(shell.outputFile)
     setTail(readTail(shell.outputFile, count.current))
     if (!running) return
-    const timer = setInterval(() => {
+    const timer = startInterval(() => {
       setTail(readTail(shell.outputFile, count.current))
     }, 1000)
-    return () => clearInterval(timer)
+    return () => stopInterval(timer)
   }, [shell.outputFile, running])
   const deferredTail = useDeferredValue(tail)
 

@@ -5,6 +5,7 @@ import { markConsoleLent, markConsoleReturned } from '../../utils/process.js'
 import { holdConsoleRead } from '../root/console-read.js'
 import type Ink from '../ink.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout } from '../../utils/timers.js'
 
 const STDIN_REARM_DELAY_MS = 50
 
@@ -119,7 +120,7 @@ type RecoverStdinReads = Pick<
 export function recoverStdin(this: RecoverStdinReads, code: string, syscall: string): void {
   if (this.isUnmounted || !this.isTTY || this.stdinRecoveryArmed) return
   this.stdinRecoveryArmed = true
-  setTimeout(() => rearmStdinAfterFault.call(this, code, syscall, 1), STDIN_REARM_DELAY_MS)
+  startTimeout(() => rearmStdinAfterFault.call(this, code, syscall, 1), STDIN_REARM_DELAY_MS)
 }
 
 type RearmStdinAfterFaultReads = Pick<
@@ -166,7 +167,7 @@ function rearmStdinAfterFault(this: RearmStdinAfterFaultReads, code: string, sys
     }
     if (!rawModeOn(stdin)) {
       if (attempt < STDIN_REARM_ATTEMPTS) {
-        setTimeout(() => rearmStdinAfterFault.call(this, code, syscall, attempt + 1), STDIN_REARM_DELAY_MS)
+        startTimeout(() => rearmStdinAfterFault.call(this, code, syscall, attempt + 1), STDIN_REARM_DELAY_MS)
         return
       }
       logForDebugging(`${label}: raw mode could not be re-armed in ${attempt} tries — keys may not arrive until the terminal is re-opened`, { level: 'warn' })

@@ -14,6 +14,7 @@ import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export const CREWMATE_TRANSCRIPT_TICK_MS = 2500
 export const CREWMATE_TRANSCRIPT_READING = 'reading the crewmate\'s transcript…'
@@ -167,14 +168,14 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
       }
     }
     void read()
-    const timer = setInterval(() => {
+    const timer = startInterval(() => {
       void read()
       if (crewmateQueueSize(taskId) > 0) setTick(n => n + 1)
     }, CREWMATE_TRANSCRIPT_TICK_MS)
     timer.unref?.()
     return () => {
       alive = false
-      clearInterval(timer)
+      stopInterval(timer)
     }
   }, [taskId, file, agentId, rosterStamp])
   usePublish(() => {

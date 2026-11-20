@@ -32,6 +32,7 @@ import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messag
 import type { InputBlock, InputRow } from '../rows/vocabulary.js'
 import { isStoredImageRef, readStoredImageRef } from '../utils/imageStore.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { startImmediate } from '../utils/timers.js'
 
 export interface ConcourseDispatchRecordV1 {
   schema: 1
@@ -171,7 +172,7 @@ function publishDispatchesAfterReply(dispatches: Record<string, ConcourseDispatc
   if (pending !== undefined && pending.map === dispatches) return
   const entry: DeferredPublish = { map: dispatches, done: Promise.resolve() }
   entry.done = new Promise<void>(resolve => {
-    setImmediate(() => {
+    startImmediate(() => {
       if (deferredPublish.get(path) === entry) {
         deferredPublish.delete(path)
         try {

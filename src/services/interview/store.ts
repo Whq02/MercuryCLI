@@ -18,6 +18,7 @@ import {
   type InterviewSessionState,
 } from './contracts.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const MAX_SESSIONS = 10
 const SAVE_DEBOUNCE_MS = 150
@@ -173,10 +174,10 @@ function scheduleSave(): void {
     events: liveEvents,
     generation: 0,
   }
-  if (entry.timer) clearTimeout(entry.timer)
+  if (entry.timer) stopTimeout(entry.timer)
   entry.events = liveEvents
   entry.generation += 1
-  entry.timer = setTimeout(() => {
+  entry.timer = startTimeout(() => {
     entry.timer = null
     void persistEntry(sessionId, entry)
   }, SAVE_DEBOUNCE_MS)
@@ -268,7 +269,7 @@ export async function flushInterviewLog(): Promise<InterviewFlushReceipt> {
   const jobs: Array<Promise<InterviewSettlement>> = []
   for (const [sessionId, entry] of [...pendingBySession]) {
     if (entry.timer) {
-      clearTimeout(entry.timer)
+      stopTimeout(entry.timer)
       entry.timer = null
     }
     jobs.push(persistEntry(sessionId, entry))
@@ -471,7 +472,7 @@ export async function listInterviewSessions(): Promise<
 
 export function _resetInterviewForProofs(): void {
   for (const entry of pendingBySession.values()) {
-    if (entry.timer) clearTimeout(entry.timer)
+    if (entry.timer) stopTimeout(entry.timer)
     entry.timer = null
   }
   pendingBySession.clear()

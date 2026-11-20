@@ -21,6 +21,7 @@ import type { LspServerState, ScopedLspServerConfig } from './types.js'
 import type { LspServerRecord } from './LSPServerInstance/record.js'
 import { sendNotificationOf, sendRequestOf } from './LSPServerInstance/requests.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 export type LSPServerInstance = {
@@ -161,7 +162,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
 
   function clearIdleTimer(): void {
     if (server.idleTimer !== null) {
-      clearTimeout(server.idleTimer)
+      stopTimeout(server.idleTimer)
       server.idleTimer = null
     }
   }
@@ -170,7 +171,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     const timeout = config.idleTimeoutMs
     if (timeout === undefined) return
     clearIdleTimer()
-    server.idleTimer = setTimeout(() => {
+    server.idleTimer = startTimeout(() => {
       server.idleTimer = null
       const idleFor = Date.now() - server.lastActivityAt
       if (server.state === 'running' && idleFor >= timeout) {
@@ -229,14 +230,14 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
           await Promise.race([
             initialize,
             new Promise<never>((_, reject) => {
-              timer = setTimeout(
+              timer = startTimeout(
                 () => reject(new Error(`LSP server ${name} did not initialize within ${config.startupTimeout}ms`)),
                 config.startupTimeout,
               )
             }),
           ])
         } finally {
-          if (timer !== null) clearTimeout(timer)
+          if (timer !== null) stopTimeout(timer)
         }
       } else {
         await initialize

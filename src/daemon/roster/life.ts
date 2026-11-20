@@ -11,6 +11,7 @@ import {
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
@@ -97,7 +98,7 @@ export class LifePart {
         )
         ledgerExit('reconfigure-respawn')
         h.entry.state = 'spawning'
-        ll.respawnTimer = setTimeout(() => this.needs.spawnLongLived(short), 0)
+        ll.respawnTimer = startTimeout(() => this.needs.spawnLongLived(short), 0)
         ll.respawnTimer.unref?.()
         return
       }
@@ -161,7 +162,7 @@ export class LifePart {
       ll.spec = { ...ll.spec, extraEnv: { ...(ll.spec.extraEnv ?? {}), ...flagPair('MERCURY_RUNNER_RESTART_REASON', 'crash') } }
       h.entry.state = 'spawning'
       tellCrashed()
-      ll.respawnTimer = setTimeout(() => this.needs.spawnLongLived(short), decision.delayMs)
+      ll.respawnTimer = startTimeout(() => this.needs.spawnLongLived(short), decision.delayMs)
       ll.respawnTimer.unref?.()
     }
     let drainBackstop: ReturnType<typeof setTimeout> | undefined
@@ -170,11 +171,11 @@ export class LifePart {
         handleCrash(code, signal)
         return
       }
-      drainBackstop = setTimeout(() => handleCrash(code, signal), EXIT_DRAIN_BACKSTOP_MS)
+      drainBackstop = startTimeout(() => handleCrash(code, signal), EXIT_DRAIN_BACKSTOP_MS)
       drainBackstop.unref?.()
     })
     child.on('close', (code, signal) => {
-      if (drainBackstop !== undefined) clearTimeout(drainBackstop)
+      if (drainBackstop !== undefined) stopTimeout(drainBackstop)
       handleCrash(code, signal)
     })
     child.on('error', e => {

@@ -35,6 +35,7 @@ import {
   type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const TOTAL_TIMEOUT_MS = 50 * 60_000
@@ -70,7 +71,7 @@ export async function* streamOpenaiResponses(
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
-  const totalTimer = setTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
+  const totalTimer = startTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
   totalTimer.unref?.()
   let idleWatchdog: StreamIdleWatchdog | null = null
 
@@ -94,7 +95,7 @@ export async function* streamOpenaiResponses(
     }
     options.firstByte?.onWait?.(wait)
     let firstByteFired = false
-    const firstByteTimer = setTimeout(() => {
+    const firstByteTimer = startTimeout(() => {
       firstByteFired = true
       controller.abort()
     }, firstByteBudget)
@@ -116,7 +117,7 @@ export async function* streamOpenaiResponses(
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
     } catch (error) {
-      clearTimeout(firstByteTimer)
+      stopTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
       if (!cancelled && firstByteFired) {
         yield {
@@ -141,7 +142,7 @@ export async function* streamOpenaiResponses(
       return
     }
 
-    clearTimeout(firstByteTimer)
+    stopTimeout(firstByteTimer)
     options.firstByte?.onWait?.(null)
 
     recordOpenaiRateHeaders(response.headers)
@@ -317,7 +318,7 @@ export async function* streamOpenaiResponses(
       }
     }
   } finally {
-    clearTimeout(totalTimer)
+    stopTimeout(totalTimer)
     idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()

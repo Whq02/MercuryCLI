@@ -4,6 +4,7 @@ import type { RefObject } from 'react'
 import CursorDeclarationContext, { type CursorDeclaration, type CursorDeclarationSetter } from '../../ink/components/CursorDeclarationContext.js'
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export function useCursorFollow(
   scrollRef: RefObject<ScrollBoxHandle | null>,
@@ -34,18 +35,18 @@ export function useCursorFollow(
     else if (y + span > top + height) body.scrollToElement(current.node, current.relativeY - (height - span))
   }, [scrollRef])
   const follow = useCallback(() => {
-    clearTimeout(pending.current)
-    pending.current = setTimeout(followNow, 0)
+    stopTimeout(pending.current)
+    pending.current = startTimeout(followNow, 0)
   }, [followNow])
   useTimer(() => {
-    clearTimeout(pending.current)
+    stopTimeout(pending.current)
     const current = cursor.current
     if (current) {
       const rows = Math.max(1, viewport.rows)
       scrollRef.current?.scrollToElement(current.node, current.relativeY - (rows - spanOf(current, rows)))
       follow()
     }
-    return () => clearTimeout(pending.current)
+    return () => stopTimeout(pending.current)
   }, [viewport.width, viewport.rows, scrollRef, follow])
   useSubscription(() => {
     if (!ink) return
@@ -65,8 +66,8 @@ export function useCursorFollow(
         cursor.current = null
         followedTop.current = undefined
         if (restOnClear) {
-          clearTimeout(pending.current)
-          pending.current = setTimeout(() => {
+          stopTimeout(pending.current)
+          pending.current = startTimeout(() => {
             if (cursor.current === null) scrollRef.current?.scrollTo(0)
           }, 0)
         }

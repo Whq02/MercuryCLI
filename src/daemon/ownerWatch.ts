@@ -7,6 +7,7 @@ import { Socket } from 'node:net'
 import { delimiter, join } from 'node:path'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../utils/timers.js'
 
 export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
 
@@ -240,10 +241,10 @@ function runStartProbe(file: string, args: string[], deadline: number): Promise<
     const finish = (result: StartProbeResult): void => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolve(result)
     }
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       finish({ kind: 'timeout' })
       try { child?.kill('SIGKILL') } catch (error) { passedOver(error) }
     }, remaining)
@@ -583,7 +584,7 @@ export function startOwnerWatch(ports: OwnerWatchPortsV1): OwnerWatchHandleV1 {
   const stop = (): void => {
     stopped = true
     if (timer !== undefined) {
-      clearInterval(timer)
+      stopInterval(timer)
       timer = undefined
     }
   }
@@ -622,7 +623,7 @@ export function startOwnerWatch(ports: OwnerWatchPortsV1): OwnerWatchHandleV1 {
     }
   }
   if (ports.schedule !== false) {
-    timer = setInterval(() => {
+    timer = startInterval(() => {
       void beat()
     }, intervalMs)
     timer.unref?.()

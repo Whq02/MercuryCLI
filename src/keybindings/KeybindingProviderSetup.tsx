@@ -20,6 +20,7 @@ import {
 } from './loadUserBindings.js'
 import { resolveKeyWithChordState, unboundConsumes } from './resolver.js'
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const CHORD_TIMEOUT_MS = 2000
 const CHORD_TIMEOUT_GRACE_MS = 2000
@@ -161,11 +162,11 @@ export function KeybindingSetup({ children }: { children: React.ReactNode }): Re
     setPendingChordState(pending)
     publishPendingChord(pending)
     if (chordTimeoutRef.current !== null) {
-      clearTimeout(chordTimeoutRef.current)
+      stopTimeout(chordTimeoutRef.current)
       chordTimeoutRef.current = null
     }
     if (pending !== null) {
-      chordTimeoutRef.current = setTimeout(() => {
+      chordTimeoutRef.current = startTimeout(() => {
         chordTimeoutRef.current = null
         const expired = pendingChordRef.current
         pendingChordRef.current = null
@@ -197,7 +198,7 @@ export function KeybindingSetup({ children }: { children: React.ReactNode }): Re
     return () => {
       unsubscribe()
       if (chordTimeoutRef.current !== null) {
-        clearTimeout(chordTimeoutRef.current)
+        stopTimeout(chordTimeoutRef.current)
         chordTimeoutRef.current = null
       }
     }

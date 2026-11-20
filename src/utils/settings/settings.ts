@@ -42,6 +42,7 @@ import { duplicateCompatEndpointNames } from './compatProvider.js'
 import type { ValidationError, SettingsWithErrors } from './validation.js'
 import { filterInvalidPermissionRules, formatZodError, unknownKeyWarnings } from './validation.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../text/hiddenCharacterFindings.js'
+import { sleepSync } from '../timers.js'
 
 
 
@@ -621,7 +622,7 @@ function acquireSettingsWriteLock(file: string): (() => void) | null {
       } catch (err) {
         if ((err as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') throw err
         lastContention = err
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15 * 2 ** attempt)
+        sleepSync(15 * 2 ** attempt)
       }
     }
     throw lastContention

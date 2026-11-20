@@ -16,6 +16,7 @@ import type { SessionFactsV1 } from '../seatProjections.js'
 import { HEARTBEAT_MS } from '../projectionFeed.js'
 import { connectorTrace, emitAll, type Listeners } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../../utils/timers.js'
 
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 
@@ -118,7 +119,7 @@ export class TranscriptPart {
 
   detached(): void {
   if (this.transcriptTimer !== null) {
-    clearInterval(this.transcriptTimer)
+    stopInterval(this.transcriptTimer)
     this.transcriptTimer = null
     this.transcriptTimerMs = 0
   }
@@ -161,8 +162,8 @@ export class TranscriptPart {
     if (!this.needs.attached()) return
     const ms = this.transcriptWatcher === null || this.needs.turnInFlight() ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
     if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
-    if (this.transcriptTimer !== null) clearInterval(this.transcriptTimer)
-    const timer = setInterval(() => void this.tick(), ms)
+    if (this.transcriptTimer !== null) stopInterval(this.transcriptTimer)
+    const timer = startInterval(() => void this.tick(), ms)
     timer.unref?.()
     this.transcriptTimer = timer
     this.transcriptTimerMs = ms

@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'node:child_process'
 
 import { endProcessTree } from './processGroup.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 
 const CLOSE_DRAIN_MS = 250
@@ -31,14 +32,14 @@ export function settleChildRun(child: ChildProcess, opts: ChildSettleOptions): P
     let aborted = false
     const timers: Array<ReturnType<typeof setTimeout>> = []
     const arm = (fn: () => void, ms: number): void => {
-      const timer = setTimeout(fn, ms)
+      const timer = startTimeout(fn, ms)
       timer.unref?.()
       timers.push(timer)
     }
     const settle = (settlement: Omit<ChildSettlement, 'timedOut' | 'aborted'>): void => {
       if (settled) return
       settled = true
-      for (const timer of timers) clearTimeout(timer)
+      for (const timer of timers) stopTimeout(timer)
       opts.signal?.removeEventListener('abort', onAbort)
       resolve({ ...settlement, timedOut, aborted })
     }

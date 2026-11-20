@@ -20,6 +20,7 @@ import { buildCronCreateDescription, buildCronCreatePrompt, CRON_CREATE_TOOL_NAM
 import { renderCreateResultMessage, renderCreateToolUseMessage } from './UI.js'
 import { createLocalTime, resolveCreateTime } from './createTime.js'
 import { createResultText, scheduleQueued, scheduleRefusal, scheduleUnconfirmed, scheduleWarnings } from './createAnswer.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -70,7 +71,7 @@ async function askSchedule(edit: ScheduleOpRequestV1, signal: AbortSignal | unde
   const interrupted = new Promise<never>((_resolve, reject) => {
     abort = () => { reject(signal?.reason ?? new Error('Aborted')); controller.abort(signal?.reason) }
     signal?.addEventListener('abort', abort, { once: true })
-    timer = setTimeout(() => {
+    timer = startTimeout(() => {
       const error = new PeerDeadline('schedule/edit', 0, ms)
       reject(error)
       controller.abort(error)
@@ -79,7 +80,7 @@ async function askSchedule(edit: ScheduleOpRequestV1, signal: AbortSignal | unde
   try {
     return await Promise.race([scheduleEditDoor()!(edit, controller.signal), interrupted])
   } finally {
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) stopTimeout(timer)
     if (abort !== undefined) signal?.removeEventListener('abort', abort)
   }
 }

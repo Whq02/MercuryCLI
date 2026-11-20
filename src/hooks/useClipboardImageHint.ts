@@ -5,6 +5,7 @@ import { useNotifications } from '../context/notifications.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { hasImageInClipboard } from '../utils/imagePaste.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const FOCUS_DEBOUNCE_MS = 1000
 const HINT_COOLDOWN_MS = 30_000
@@ -27,7 +28,7 @@ export function useClipboardImageHint(
   useClaim(
     () => () => {
       mountedRef.current = false
-      if (pendingRef.current !== null) clearTimeout(pendingRef.current)
+      if (pendingRef.current !== null) stopTimeout(pendingRef.current)
     },
     [],
   )
@@ -36,8 +37,8 @@ export function useClipboardImageHint(
     const was = wasFocusedRef.current
     wasFocusedRef.current = isFocused
     if (!enabled || !isFocused || was) return
-    if (pendingRef.current !== null) clearTimeout(pendingRef.current)
-    pendingRef.current = setTimeout(() => {
+    if (pendingRef.current !== null) stopTimeout(pendingRef.current)
+    pendingRef.current = startTimeout(() => {
       pendingRef.current = null
       if (Date.now() - lastShownRef.current < HINT_COOLDOWN_MS) return
       void hasImageInClipboard()

@@ -29,6 +29,7 @@ import { EVENT_HANDLER_PROPS } from './events/event-handlers.js'
 import { Dispatcher } from './events/dispatcher.js'
 import applyStyles, { type Styles, type TextStyles } from './styles.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const dispatcher = new Dispatcher()
 
@@ -220,8 +221,8 @@ const reconciler = createReconciler<
   supportsHydration: false,
   isPrimaryRenderer: true,
   noTimeout: -1,
-  scheduleTimeout: setTimeout,
-  cancelTimeout: clearTimeout,
+  scheduleTimeout: startTimeout,
+  cancelTimeout: stopTimeout,
 
   getRootHostContext: () => OUTSIDE_TEXT,
 

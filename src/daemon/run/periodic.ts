@@ -1,6 +1,7 @@
 import { SESSIONLESS_EXIT_BEAT_MS } from '../sessionlessExit.js'
 import { ARMED_RESTART_BEAT_MS } from './restart.js'
 import type { DaemonRunState } from './state.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const PLANE_HEAL_FLOOR_MS = 30_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
@@ -33,13 +34,13 @@ export function periodicArmer(state: DaemonRunState): (name: (typeof PERIODIC)[n
     next = at + 1
     state.bootStep = name
     const row = PERIODIC[at]!
-    const timer = setInterval(work, row.everyMs)
+    const timer = startInterval(work, row.everyMs)
     if (!row.holdsTheProcess) timer.unref?.()
     const stoppedBy = row.stoppedBy
     if (stoppedBy !== null) {
       const before = state[stoppedBy]
       state[stoppedBy] = () => {
-        clearInterval(timer)
+        stopInterval(timer)
         alsoStops?.()
         before?.()
       }

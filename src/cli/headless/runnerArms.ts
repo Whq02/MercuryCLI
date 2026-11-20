@@ -34,6 +34,7 @@ import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { RunnerPorts } from './runnerPorts.js'
 import type { RunnerArms } from './runnerMethods.js'
+import { startTimeout } from '../../utils/timers.js'
 
 const INTERRUPT_DEDUPE_CAP = 200
 
@@ -206,7 +207,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       if (answer.phase === 'committed') {
         live.inputClosed = true
         setRunInputClosed(true)
-        setTimeout(() => gracefulShutdownSync(0, 'closed'), 50)
+        startTimeout(() => gracefulShutdownSync(0, 'closed'), 50)
       }
       return { token: answer.token, phase: answer.phase }
     },

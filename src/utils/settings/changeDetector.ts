@@ -20,6 +20,7 @@ import { refreshMdmSettings, getHkcuSettings, getMdmSettings, setMdmSettingsCach
 import { getSettingsFilePathForSource } from './settings.js'
 import { resetSettingsCache } from './settingsCache.js'
 import { passedOver } from '../passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../timers.js'
 
 
 type TimingOverrides = {
@@ -87,7 +88,7 @@ function handleChange(eventPath: string): void {
   const normalized = normalizeEventPath(eventPath)
   const pending = pendingDeletions.get(normalized)
   if (pending !== undefined) {
-    clearTimeout(pending)
+    stopTimeout(pending)
     pendingDeletions.delete(normalized)
   }
   if (consumeInternalWrite(normalized, internalWriteWindowMs)) return
@@ -100,7 +101,7 @@ function handleUnlink(eventPath: string): void {
   const normalized = normalizeEventPath(eventPath)
   if (pendingDeletions.has(normalized)) return
   const graceMs = stabilityThresholdMs + pollIntervalMs + 250
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     pendingDeletions.delete(normalized)
     fanOut(source)
   }, graceMs)
@@ -110,7 +111,7 @@ function handleUnlink(eventPath: string): void {
 
 function startMdmPolling(): void {
   mdmSnapshot = JSON.stringify({ mdm: getMdmSettings(), hkcu: getHkcuSettings() })
-  mdmPollTimer = setInterval(() => {
+  mdmPollTimer = startInterval(() => {
     if (disposed) return
     void (async () => {
       try {
@@ -218,7 +219,7 @@ async function initialize(): Promise<void> {
     const arrivedWith = [...knownSettingsFiles.keys()].filter(file => dirname(file) === normalized && existsSync(file))
     if (arrivedWith.length === 0) return
     const settleMs = stabilityThresholdMs + pollIntervalMs
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       for (const file of arrivedWith) handleChange(file)
     }, settleMs)
     timer.unref?.()
@@ -240,10 +241,10 @@ function notifyChange(source: SettingSource): void {
 async function dispose(): Promise<void> {
   disposed = true
   if (mdmPollTimer !== null) {
-    clearInterval(mdmPollTimer)
+    stopInterval(mdmPollTimer)
     mdmPollTimer = null
   }
-  for (const timer of pendingDeletions.values()) clearTimeout(timer)
+  for (const timer of pendingDeletions.values()) stopTimeout(timer)
   pendingDeletions.clear()
   mdmSnapshot = null
   clearInternalWrites()
@@ -255,10 +256,10 @@ async function dispose(): Promise<void> {
 
 async function resetForTesting(overrides?: TimingOverrides): Promise<void> {
   if (mdmPollTimer !== null) {
-    clearInterval(mdmPollTimer)
+    stopInterval(mdmPollTimer)
     mdmPollTimer = null
   }
-  for (const timer of pendingDeletions.values()) clearTimeout(timer)
+  for (const timer of pendingDeletions.values()) stopTimeout(timer)
   pendingDeletions.clear()
   mdmSnapshot = null
   initialized = false
@@ -276,10 +277,10 @@ async function resetForTesting(overrides?: TimingOverrides): Promise<void> {
 async function reground(): Promise<void> {
   if (!initialized || disposed) return
   if (mdmPollTimer !== null) {
-    clearInterval(mdmPollTimer)
+    stopInterval(mdmPollTimer)
     mdmPollTimer = null
   }
-  for (const timer of pendingDeletions.values()) clearTimeout(timer)
+  for (const timer of pendingDeletions.values()) stopTimeout(timer)
   pendingDeletions.clear()
   mdmSnapshot = null
   const closing = watcher?.close() ?? Promise.resolve()

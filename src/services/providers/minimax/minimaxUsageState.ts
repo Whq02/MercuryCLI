@@ -6,6 +6,7 @@ import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { minimaxPlanRemainsUrl, resolveMinimaxApiKey } from './minimaxAccounts.js'
 import { minimaxBaseRespFailure, minimaxPlanAnswerVerdict } from './minimaxCatalogue.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 export const MINIMAX_BALANCE_NOTE = 'a pay-as-you-go key draws the Open Platform balance, shown at platform.minimax.io (the API states no balance to clients)'
 export const MINIMAX_PLAN_ABSENT_NOTE = 'no M Plan window on this key — turns draw the pay-as-you-go balance'
@@ -209,7 +210,7 @@ export function refreshMinimaxPlanUsage(io?: {
   if (!io?.force && fresh) return Promise.resolve(observation)
   if (inFlight) return inFlight
   const work = (async (): Promise<MinimaxPlanObservation> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const key = resolveMinimaxApiKey(env)
       if (!key) return observation

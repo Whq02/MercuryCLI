@@ -10,6 +10,7 @@ import { controlSockPath } from './controlSocket.js'
 import { selfScriptPath, vendoredNodeBeside } from './daemonBuild.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { encodeFrame, readControlFrame, type DaemonReply } from './protocol.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const HANDOVER_FROM_ENV = 'MERCURY_DAEMON_HANDOVER_FROM'
 
@@ -179,10 +180,10 @@ export function forwardFrame(sockPath: string, line: string, timeoutMs: number =
     const done = (reply: DaemonReply): void => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolve(reply)
     }
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       sock.destroy()
       done({ ok: false, code: 'ETIMEOUT', error: 'the daemon that holds this session did not answer in time' })
     }, timeoutMs)

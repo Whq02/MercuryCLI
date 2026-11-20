@@ -32,6 +32,7 @@ import { AMBER, CRIMSON, SECOND, TEAL } from '../../mercuryPalette.js'
 import { truncateToWidth } from '../../mercury-ui/glyphs.js'
 import type { generateAgent } from '../generateAgent.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 
 export type StudioDraftBase = {
@@ -345,8 +346,8 @@ function liveDeps(): StudioEditorDeps {
     discardDraft: discardAgentDraft,
     generate: async (prompt, model, existingIdentifiers, signal) =>
       (await import('../generateAgent.js')).generateAgent(prompt, model, existingIdentifiers, signal),
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: handle => clearTimeout(handle as NodeJS.Timeout),
+    setTimer: (fn, ms) => startTimeout(fn, ms),
+    clearTimer: handle => stopTimeout(handle as NodeJS.Timeout),
   }
 }
 

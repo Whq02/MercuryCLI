@@ -14,6 +14,7 @@ import { isProcessAlive } from '../ownerWatch.js'
 import { isScreenHealAsk } from '../verbs.js'
 import type { DaemonRunState } from './state.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startImmediate } from '../../utils/timers.js'
 
 const RESTART_STORM_GUARD_MS = 60_000
 export const ARMED_RESTART_BEAT_MS = 4_000
@@ -40,7 +41,7 @@ export function restartWhenIdle(state: DaemonRunState, { liveWorkers, askLiveSes
       state.restartArmed = true
       return { state: 'armed' as const, live }
     }
-    setImmediate(() => requestShutdown('control:restart-when-idle'))
+    startImmediate(() => requestShutdown('control:restart-when-idle'))
     return { state: 'refused' as const, live, detail }
   }
   if (installed !== null && isScreenHealAsk(by)) {
@@ -67,7 +68,7 @@ export function restartWhenIdle(state: DaemonRunState, { liveWorkers, askLiveSes
   }
   console.error(`[daemon] restart requested by ${by} — idle, re-executing as the deployed build`)
   state.restartAfterTeardown = true
-  setImmediate(() => requestShutdown('control:restart-when-idle'))
+  startImmediate(() => requestShutdown('control:restart-when-idle'))
   return { state: 'restarting' as const, live: 0 }
 }
 

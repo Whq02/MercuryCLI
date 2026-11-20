@@ -28,6 +28,7 @@ import {
   type DesktopSnapshot,
 } from './desktopSession.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 export const DESKTOP_CLAIM_FILE = 'desktop.lock'
 export const DESKTOP_CLAIM_IDLE_RELEASE_MS = 30_000
@@ -74,7 +75,7 @@ const armedSignals = new WeakSet<AbortSignal>()
 
 function clearIdleTimer(): void {
   if (idleTimer !== null) {
-    clearTimeout(idleTimer)
+    stopTimeout(idleTimer)
     idleTimer = null
   }
 }
@@ -175,7 +176,7 @@ export function renewDesktopClaim(): void {
   actInFlight = false
   if (!held) return
   clearIdleTimer()
-  idleTimer = setTimeout(() => {
+  idleTimer = startTimeout(() => {
     void releaseDesktopClaimForIdle()
   }, DESKTOP_CLAIM_IDLE_RELEASE_MS)
   idleTimer.unref?.()
@@ -281,7 +282,7 @@ export function desktopClaimFileSnapshot(): DesktopSnapshot {
 export function armDesktopClaimPoll(active: boolean): void {
   if (active) {
     if (poll !== null) return
-    poll = setInterval(() => {
+    poll = startInterval(() => {
       void readFileView()
     }, DESKTOP_CLAIM_POLL_MS)
     poll.unref?.()
@@ -290,7 +291,7 @@ export function armDesktopClaimPoll(active: boolean): void {
   }
   pollGeneration++
   if (poll !== null) {
-    clearInterval(poll)
+    stopInterval(poll)
     poll = null
   }
   publishFileView(IDLE_DESKTOP_SNAPSHOT)

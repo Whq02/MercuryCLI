@@ -61,6 +61,7 @@ import { getToolManualAttachments } from './toolManuals.js'
 import { samplesRoadAttachment } from './samplesRoad.js'
 import { createAttachmentMessage } from './attachmentMessage.js'
 import { passedOver } from '../passedOver.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 export { createAttachmentMessage } from './attachmentMessage.js'
 
 export async function getAttachments(
@@ -82,7 +83,7 @@ export async function getAttachments(
   const mentionedFiles = input ? await processAtMentionedFiles(input, { ...toolUseContext, messages }).catch((error: unknown) => (logError(error), [] as Attachment[])) : []
 
   const abortController = createAbortController()
-  const timeoutId = setTimeout(
+  const timeoutId = startTimeout(
     ac => ac.abort(),
     ATTACHMENT_SOFT_ABORT_MS,
     abortController,
@@ -237,7 +238,7 @@ export async function getAttachments(
     ...mainThreadAttachments,
   ])
 
-  clearTimeout(timeoutId)
+  stopTimeout(timeoutId)
   const collected = [
     ...mentionedFiles,
     ...userAttachmentResults.flat(),
@@ -302,11 +303,11 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
         ? Promise.race([
             run,
             new Promise<'pulse_deadline'>(resolve => {
-              timer = setTimeout(() => resolve('pulse_deadline'), remaining)
+              timer = startTimeout(() => resolve('pulse_deadline'), remaining)
             }),
           ])
         : run)
-      if (timer !== null) clearTimeout(timer)
+      if (timer !== null) stopTimeout(timer)
       if (result === 'pulse_deadline') {
         logError(
           new Error(
@@ -317,7 +318,7 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
       }
       return result
     } catch (e) {
-      if (timer !== null) clearTimeout(timer)
+      if (timer !== null) stopTimeout(timer)
       logError(e)
 
       return []
@@ -342,11 +343,11 @@ function pulseFixtureProducers(
           'pulse_fixture_slow',
           () =>
             new Promise<Attachment[]>(resolve => {
-              const t = setTimeout(() => resolve([]), ms)
+              const t = startTimeout(() => resolve([]), ms)
               signal.addEventListener(
                 'abort',
                 () => {
-                  clearTimeout(t)
+                  stopTimeout(t)
                   resolve([])
                 },
                 { once: true },
@@ -360,7 +361,7 @@ function pulseFixtureProducers(
           'pulse_fixture_stuck',
           () =>
             new Promise<Attachment[]>(resolve => {
-              setTimeout(() => resolve([]), ms)
+              startTimeout(() => resolve([]), ms)
             }),
         ),
       )
@@ -383,7 +384,7 @@ function pulseFixtureUserInputProducers(maybe: MaybeFn): Array<Promise<Attachmen
           'pulse_fixture_stuck_user_input',
           () =>
             new Promise<Attachment[]>(resolve => {
-              setTimeout(() => resolve([]), ms)
+              startTimeout(() => resolve([]), ms)
             }),
           { inputScoped: true },
         ),

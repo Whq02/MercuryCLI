@@ -5,6 +5,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { runForkedAgent, type ForkedAgentParams } from '../../utils/forkedAgent.js'
 import { loadSubagentTranscripts } from '../../utils/sessionStorage.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 const SUMMARY_INTERVAL_MS = 30_000
@@ -89,20 +90,20 @@ export function startAgentSummarization(
     } finally {
       abortController = null
       if (!stopped) {
-        timer = setTimeout(() => void tick(), SUMMARY_INTERVAL_MS)
+        timer = startTimeout(() => void tick(), SUMMARY_INTERVAL_MS)
         timer.unref()
       }
     }
   }
 
-  timer = setTimeout(() => void tick(), SUMMARY_INTERVAL_MS)
+  timer = startTimeout(() => void tick(), SUMMARY_INTERVAL_MS)
   timer.unref()
 
   return {
     stop(): void {
       stopped = true
       if (timer !== null) {
-        clearTimeout(timer)
+        stopTimeout(timer)
         timer = null
       }
       abortController?.abort()

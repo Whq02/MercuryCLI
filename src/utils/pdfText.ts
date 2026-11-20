@@ -10,6 +10,7 @@ import { normaliseForMatch } from './text/normaliseForMatch.js'
 import { readRegularFile } from './regularFile.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 import { passedOver } from './passedOver.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 interface PdfTextPage {
   pageNumber: number
@@ -45,7 +46,7 @@ export async function parsePdfText(bytes: Uint8Array, maxBytes = PDF_MAX_EXTRACT
     const finish = (error?: Error, result?: PdfTextDocument) => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      stopTimeout(timer)
       signal?.removeEventListener('abort', abort)
       void worker.terminate().then(() => {
         if (error) reject(error)
@@ -53,7 +54,7 @@ export async function parsePdfText(bytes: Uint8Array, maxBytes = PDF_MAX_EXTRACT
       }, reject)
     }
     const abort = () => finish(new Error('PDF reading was cancelled.'))
-    const timer = setTimeout(() => finish(new Error('PDF reading exceeded 60 seconds. Split the PDF into smaller files and read one at a time.')), 60_000)
+    const timer = startTimeout(() => finish(new Error('PDF reading exceeded 60 seconds. Split the PDF into smaller files and read one at a time.')), 60_000)
     signal?.addEventListener('abort', abort, { once: true })
     if (signal?.aborted) abort()
     worker.once('message', (message: { result?: PdfTextDocument; error?: string; diagnostics?: string[] }) => {

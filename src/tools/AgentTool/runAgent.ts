@@ -75,6 +75,7 @@ import { fireCrewmateEndOf } from './runAgent/crewmateEnd.js'
 import { armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf, unarmedAgentRun } from './runAgent/watch.js'
 import { prepareAgentRun } from './runAgent/prepare.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
   const resolvedToolUseIds = new Set<string>()
   for (const message of messages) {
@@ -416,7 +417,7 @@ export function makeRecoveryAccountant(args: {
   let wordsStanding = false
   let heldStanding = false
   const clearCut = (): void => {
-    if (budgetCut !== null) clearTimeout(budgetCut)
+    if (budgetCut !== null) stopTimeout(budgetCut)
     budgetCut = null
   }
   return {
@@ -434,7 +435,7 @@ export function makeRecoveryAccountant(args: {
       clearCut()
       if (honoured.spent && honoured.honoredMs <= 0) args.cut(cutting)
       else if (honoured.spent) {
-        budgetCut = setTimeout(() => args.cut(cutting), honoured.honoredMs)
+        budgetCut = startTimeout(() => args.cut(cutting), honoured.honoredMs)
         budgetCut.unref?.()
       }
       return { honoredMs: honoured.honoredMs, spent: honoured.spent }
@@ -655,7 +656,7 @@ export async function* runAgent(
         cut()
         throw new AbortError()
       }
-      runDeadlineTimer = setTimeout(cut, deadline.at - Date.now())
+      runDeadlineTimer = startTimeout(cut, deadline.at - Date.now())
       runDeadlineTimer.unref?.()
     }
     swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, params.resumed === true, params.team, abortController.signal)
@@ -793,16 +794,16 @@ export async function* runAgent(
     }
     throw thrown
   } finally {
-    if (runDeadlineTimer !== undefined) clearTimeout(runDeadlineTimer)
+    if (runDeadlineTimer !== undefined) stopTimeout(runDeadlineTimer)
     await endProjectLeases()
     await fireCrewmateEnd()
     run.watchdog.cancel()
     accountant.end()
     if (run.askHeartbeat !== null) {
-      clearInterval(run.askHeartbeat)
+      stopInterval(run.askHeartbeat)
       run.askHeartbeat = null
     }
-    if (run.deferredTouch !== null) clearTimeout(run.deferredTouch)
+    if (run.deferredTouch !== null) stopTimeout(run.deferredTouch)
     await mcp.cleanup()
     readFileState.clear?.()
     initialMessages.length = 0

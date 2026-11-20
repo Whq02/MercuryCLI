@@ -51,6 +51,7 @@ import {
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 import { geminiClientSteps } from './geminiConnect/clientSteps.js'
+import { startTimeout } from '../utils/timers.js'
 
 function GuideLines({ lines }: { lines: GeminiGuideLine[] }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -268,7 +269,7 @@ export function GeminiConnect({
       void setClipboard(authorizeUrl).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        startTimeout(() => setCopied(false), 2000)
       })
     }
   })

@@ -9,6 +9,7 @@ import { updateTaskState } from '../../utils/task/framework.js'
 import type { LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 const KILL_SETTLEMENT_GRACE_MS = 3000
@@ -68,7 +69,7 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
   } catch (error) {
     logError(error)
   }
-  if (timerToClear !== undefined) clearTimeout(timerToClear)
+  if (timerToClear !== undefined) stopTimeout(timerToClear)
 
   if (!resultPromise) {
     return Promise.resolve({ settled: true, exitCode: undefined, reason: 'not-running' })
@@ -80,7 +81,7 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
       const receipt = await Promise.race([
         treeReceipt,
         new Promise<null>(resolve => {
-          const bound = setTimeout(() => resolve(null), TREE_RECEIPT_BOUND_MS)
+          const bound = startTimeout(() => resolve(null), TREE_RECEIPT_BOUND_MS)
           bound.unref?.()
         }),
       ])
@@ -97,7 +98,7 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
 
   return new Promise<KillSettlement>(resolve => {
     let done = false
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       if (done) return
       done = true
       resolve({ settled: false, reason: 'settlement-grace-expired' })
@@ -109,13 +110,13 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
         const counts = await treeCounts()
         if (done) return
         done = true
-        clearTimeout(timer)
+        stopTimeout(timer)
         resolve({ settled: true, exitCode: result.code, interrupted: result.interrupted, ...counts })
       },
       () => {
         if (done) return
         done = true
-        clearTimeout(timer)
+        stopTimeout(timer)
         resolve({ settled: false, reason: 'settlement-grace-expired' })
       },
     )

@@ -21,7 +21,7 @@ export function armHistoryScanTimer(
   run: () => void,
   delayMs: number,
 ): ReturnType<typeof setTimeout> {
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     liveScanTimers.delete(timer)
     run()
   }, delayMs)
@@ -32,7 +32,7 @@ export function disarmHistoryScanTimer(
   timer: ReturnType<typeof setTimeout> | null,
 ): void {
   if (timer === null) return
-  clearTimeout(timer)
+  stopTimeout(timer)
   liveScanTimers.delete(timer)
 }
 
@@ -357,6 +357,7 @@ export function useHistorySearch(
 
 import { useReducer } from 'react'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 function useReducerLike(): [number, () => void] {
   return useReducer((n: number) => n + 1, 0)
 }

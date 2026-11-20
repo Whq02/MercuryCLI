@@ -1,6 +1,7 @@
 
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import { passedOver } from '../passedOver.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 const SOURCE_WAIT_MS = 3_000
 const LOCAL_WINDOW_WAIT_MS = 10_000
@@ -13,13 +14,13 @@ interface ContextWindowSourceWait {
 async function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<undefined>(resolve => {
-    timer = setTimeout(() => resolve(undefined), timeoutMs)
+    timer = startTimeout(() => resolve(undefined), timeoutMs)
     timer.unref?.()
   })
   try {
     return await Promise.race([work, timeout])
   } finally {
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) stopTimeout(timer)
   }
 }
 

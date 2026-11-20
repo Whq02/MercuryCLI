@@ -15,6 +15,7 @@ import { mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, dirname, join } from 'node:path'
 import { passedOver } from '../utils/passedOver.js'
+import { sleepSync } from '../utils/timers.js'
 
 export type PublishFailurePhase =
   | 'create-temp'
@@ -164,7 +165,7 @@ function noteRetriedSuccess(path: string, attempts: number, elapsedMs: number): 
 }
 
 const sleepSyncMs = (ms: number): void => {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+  sleepSync(ms)
 }
 
 export async function renameWithWin32Retry(

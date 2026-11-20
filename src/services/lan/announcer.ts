@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { hostname } from 'node:os'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const MERCURY_TENSORFOLD_SERVICE_TYPE = '_mercury-tf._tcp'
 
@@ -151,7 +152,7 @@ function runFor(file: string, args: string[], ms: number, spawnImpl: typeof spaw
       out += String(chunk)
     })
     child.on('error', () => resolve(out))
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       try {
         child.kill('SIGTERM')
       } catch (error) {
@@ -159,7 +160,7 @@ function runFor(file: string, args: string[], ms: number, spawnImpl: typeof spaw
       }
     }, ms)
     child.on('exit', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolve(out)
     })
   })

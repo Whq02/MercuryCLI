@@ -1,3 +1,4 @@
+import { startTimeout } from '../utils/timers.js'
 
 export type HealthOutputMode = 'rich' | 'text' | 'json'
 
@@ -27,7 +28,7 @@ export function writeOutAndExit(text: string, code: number): Promise<never> {
       process.exit(code)
     } else {
       process.stdout.once('drain', () => process.exit(code))
-      const guard = setTimeout(() => process.exit(code), 30_000)
+      const guard = startTimeout(() => process.exit(code), 30_000)
       ;(guard as { unref?: () => void }).unref?.()
     }
   } catch {

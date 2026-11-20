@@ -24,6 +24,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { sleepSync } from '../../utils/timers.js'
 
 const OPERATOR_KEY_VERSION = 1 as const
 
@@ -127,7 +128,7 @@ function guardKeyFileMode(path: string): void {
 }
 
 function pauseMs(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+  sleepSync(ms)
 }
 
 function readOrBirthKey(path: string): OperatorKey {

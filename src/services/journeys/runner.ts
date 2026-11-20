@@ -29,6 +29,7 @@ import type {
 } from './contracts.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout } from '../../utils/timers.js'
 
 const RING = 16
 const MAX_DETAIL = 400
@@ -403,7 +404,7 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
       out = await Promise.race([
         runStep(step, ctx),
         new Promise<{ ok: boolean; detail: string }>(resolvePromise => {
-          const t = setTimeout(
+          const t = startTimeout(
             () => resolvePromise({ ok: false, detail: `step wedged past ${watchdogMs}ms (its own ${timeoutMs}ms deadline never answered)` }),
             watchdogMs,
           )

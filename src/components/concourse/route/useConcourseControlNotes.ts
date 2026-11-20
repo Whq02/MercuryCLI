@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useClaim } from '../../../hooks/effects.js';
 import type { ControlNoteState } from '../contracts.js';
 import { CONTROL_NOTE_REFUSED_MS, CONTROL_NOTE_SETTLED_MS, controlNoteOf } from '../contracts.js';
+import { startTimeout, stopTimeout } from '../../../utils/timers.js';
 
 export function useConcourseControlNotes() {
   const [controlNotes, setControlNotes] = useState<Readonly<Record<string, ControlNoteState>>>({})
@@ -10,7 +11,7 @@ export function useConcourseControlNotes() {
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   useClaim(
     () => () => {
-      for (const t of Object.values(noteTimersRef.current)) clearTimeout(t)
+      for (const t of Object.values(noteTimersRef.current)) stopTimeout(t)
       noteTimersRef.current = {}
     },
     [],
@@ -21,12 +22,12 @@ export function useConcourseControlNotes() {
     noteIdentityRef.current[control] = mySeq
     const stale = noteTimersRef.current[control]
     if (stale !== undefined) {
-      clearTimeout(stale)
+      stopTimeout(stale)
       delete noteTimersRef.current[control]
     }
     const kind = controlNoteOf(state).state
     if (kind !== 'pending') {
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         if (noteIdentityRef.current[control] !== mySeq) return
         delete noteTimersRef.current[control]
         setControlNotes(prev => {

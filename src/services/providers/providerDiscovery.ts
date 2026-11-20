@@ -11,6 +11,7 @@ import { openrouterKeySource } from './openrouter/openrouterAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { passedOverAs } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { nextMicrotask } from '../../utils/timers.js'
 
 export const PROVIDER_DISCOVERY_TTL_MS = 5 * 60_000
 
@@ -521,7 +522,7 @@ export function refreshProviderDiscovery(
   const existing = inFlight.get(id)
   if (existing) return existing
   const work = (async (): Promise<ProviderDiscovery | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       if (id === 'local') {
         const { refreshLocalDiscovery } =

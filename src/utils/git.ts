@@ -25,6 +25,7 @@ import { gitArgsAsync } from './git/spawnArgs.js'
 import { findGitRoot, makeCachedFinder, type CachedFinder } from './git/gitRoot.js'
 import { gitExe } from './git/gitExe.js'
 import { passedOver } from './passedOver.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 export { findGitRoot } from './git/gitRoot.js'
 export { gitExe } from './git/gitExe.js'
@@ -377,7 +378,7 @@ export function markGitTreeSuspect(scope: 'tree' | 'git' = 'tree'): void {
 
 function scheduleRecompute(): void {
   if (factListeners.size === 0 || settleTimer !== null) return
-  settleTimer = setTimeout(() => {
+  settleTimer = startTimeout(() => {
     settleTimer = null
     void recomputeDirty()
   }, SIGNAL_SETTLE_MS)
@@ -386,7 +387,7 @@ function scheduleRecompute(): void {
 
 function armTrailing(ms: number): void {
   if (trailingTimer !== null) return
-  trailingTimer = setTimeout(() => {
+  trailingTimer = startTimeout(() => {
     trailingTimer = null
     void recomputeDirty()
   }, Math.max(1, ms))
@@ -440,11 +441,11 @@ export function subscribeGitFacts(listener: () => void): () => void {
     factListeners.delete(listener)
     if (factListeners.size > 0) return
     if (settleTimer !== null) {
-      clearTimeout(settleTimer)
+      stopTimeout(settleTimer)
       settleTimer = null
     }
     if (trailingTimer !== null) {
-      clearTimeout(trailingTimer)
+      stopTimeout(trailingTimer)
       trailingTimer = null
     }
   }

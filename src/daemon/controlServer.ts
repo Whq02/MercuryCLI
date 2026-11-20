@@ -43,6 +43,7 @@ import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
 import { sleep } from '../utils/sleep.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export type ControlOutcome = {
   outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
@@ -486,11 +487,11 @@ async function awaitReadiness(deps: ControlServerDeps, holdMs: number): Promise<
       await Promise.race([
         deps.whenReady(),
         new Promise<void>(resolve => {
-          timer = setTimeout(resolve, holdMs)
+          timer = startTimeout(resolve, holdMs)
         }),
       ])
     } finally {
-      if (timer) clearTimeout(timer)
+      if (timer) stopTimeout(timer)
     }
     return deps.isReady()
   }

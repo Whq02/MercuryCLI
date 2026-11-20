@@ -4,6 +4,7 @@ import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOut
 import { UNREAD_PART, absolutePath, layersOf, printedBy, programOf, readShellCommands, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 type RefusalWorld = ReadWorld & {
   platform: NodeJS.Platform
@@ -774,11 +775,11 @@ export async function refusalOfShellCommand(pending: PendingToolCall, cwd: strin
   let read: ShellRead | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    read = await Promise.race([readShellCommands(text, dialect, world), new Promise<undefined>(resolve => (timer = setTimeout(resolve, READ_DEADLINE_MS, undefined)))])
+    read = await Promise.race([readShellCommands(text, dialect, world), new Promise<undefined>(resolve => (timer = startTimeout(resolve, READ_DEADLINE_MS, undefined)))])
   } catch {
     return evaluateWards(REFUSAL_WARDS, pending, work)
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
   }
   try {
     const unread = read === undefined ? { why: 'the shell parser did not answer in time', text } : read.unread

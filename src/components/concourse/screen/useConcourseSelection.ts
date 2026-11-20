@@ -5,6 +5,7 @@ import type { OlderChatFact } from '../../../services/concourse/concourseSnapsho
 import { NEW_SESSION_ROW_ID } from '../ConcourseLayout.js'
 import { compactParkNoteOf } from '../compactBoard.js'
 import type { Filter, Frame, ScreenProps } from './state.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function useConcourseSelection({ presentationCapsule, compact, newSessionLine, sessionRows }: Pick<ScreenProps, 'presentationCapsule'> & Pick<Frame, 'compact'> & Pick<Filter, 'newSessionLine' | 'sessionRows'>) {
   const [boardSel, setBoardSel] = useState<string | null>(
@@ -32,9 +33,9 @@ export function useConcourseSelection({ presentationCapsule, compact, newSession
   const compactParkNoteExpiresAt = compactParkNote?.expiresAtMs ?? null
   useTimer(() => {
     if (compactParkNoteExpiresAt === null) return
-    const timer = setTimeout(() => setParkNoteEpoch(epoch => epoch + 1), Math.max(0, compactParkNoteExpiresAt - Date.now()) + 1)
+    const timer = startTimeout(() => setParkNoteEpoch(epoch => epoch + 1), Math.max(0, compactParkNoteExpiresAt - Date.now()) + 1)
     timer.unref?.()
-    return () => clearTimeout(timer)
+    return () => stopTimeout(timer)
   }, [compactParkNoteExpiresAt, parkNoteEpoch])
   const lastIdxRef = useRef(0)
   useDerivedState(() => {

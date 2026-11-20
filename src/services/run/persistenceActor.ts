@@ -6,6 +6,7 @@ import {
 } from '../../substrate/serialGeneration.js'
 import type { OwnerKey } from './ownerKey.js'
 import { currentWriterEpoch, writerEpoch } from './writerEpoch.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const WRITER_ID: string = `${process.pid}-${randomUUID().slice(0, 8)}`
 
@@ -44,7 +45,7 @@ export function ownerPersistence<T>(opts: OwnerPersistenceOptions<T>): OwnerPers
 
   let timer: ReturnType<typeof setTimeout> | null = null
   const clearTimer = (): void => {
-    if (timer) clearTimeout(timer)
+    if (timer) stopTimeout(timer)
     timer = null
   }
 
@@ -60,7 +61,7 @@ export function ownerPersistence<T>(opts: OwnerPersistenceOptions<T>): OwnerPers
         return
       }
       if (timer) return
-      timer = setTimeout(() => {
+      timer = startTimeout(() => {
         timer = null
         lane.poke()
       }, delayMs)

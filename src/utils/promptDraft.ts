@@ -148,7 +148,7 @@ function flushPending(): Promise<void> {
   const p = pending
   pending = null
   if (timer) {
-    clearTimeout(timer)
+    stopTimeout(timer)
     timer = null
   }
   if (p) {
@@ -186,8 +186,8 @@ export function saveDraftDebounced(sessionId: string | null | undefined, draft: 
   if (!sessionId) return
   if (pending && pending.sessionId !== sessionId) void flushPending()
   pending = { sessionId, draft: { ...draft, savedAt: Date.now() }, filePath: draftFilePath() }
-  if (timer) clearTimeout(timer)
-  timer = setTimeout(() => void flushPending(), SAVE_DEBOUNCE_MS)
+  if (timer) stopTimeout(timer)
+  timer = startTimeout(() => void flushPending(), SAVE_DEBOUNCE_MS)
   timer.unref?.()
 }
 
@@ -198,7 +198,7 @@ export function flushDraftSaves(): Promise<void> {
 export function cancelPendingDraftSave(): void {
   pending = null
   if (timer) {
-    clearTimeout(timer)
+    stopTimeout(timer)
     timer = null
   }
 }
@@ -233,6 +233,7 @@ export function readDraftSync(sessionId: string | null | undefined): PromptDraft
 
 import type { ComposerDocument } from '../input-core/composer-document.js'
 import { passedOver } from './passedOver.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 type ScopedDocsFile = Record<string, Record<string, ComposerDocument> | Record<string, number>>
 
@@ -278,7 +279,7 @@ async function flushScopedPending(): Promise<void> {
   const pending = scopedPending
   scopedPending = null
   if (scopedTimer) {
-    clearTimeout(scopedTimer)
+    stopTimeout(scopedTimer)
     scopedTimer = null
   }
   if (!pending) return
@@ -334,8 +335,8 @@ export function saveScopedDoc(
   if (scopedPending && scopedPending.sessionId !== sessionId) void flushScopedPending()
   if (!scopedPending) scopedPending = { sessionId, docs: new Map() }
   scopedPending.docs.set(doc.scope, doc)
-  if (scopedTimer) clearTimeout(scopedTimer)
-  scopedTimer = setTimeout(() => void flushScopedPending(), SAVE_DEBOUNCE_MS)
+  if (scopedTimer) stopTimeout(scopedTimer)
+  scopedTimer = startTimeout(() => void flushScopedPending(), SAVE_DEBOUNCE_MS)
   scopedTimer.unref?.()
   return Promise.resolve()
 }

@@ -14,6 +14,7 @@ import { isGgufRepo, isRepoId, startingPointOf, tensorFoldLabel, tensorFoldShort
 import { configFactsOf, type ConfigFacts } from './configFacts.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export type PullIo = InventoryIo & {
   binary?: string
@@ -128,7 +129,7 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
     else onProgress({ repo, bytes: adapter ? cacheBytesOf(root, cacheRepo, io) : Math.max(0, fetchedBytesOf(root, cacheRepo, io) - before), ...(totalBytes !== undefined ? { totalBytes } : {}) })
   }
   report()
-  const poll = setInterval(report, io.pollMs ?? 500)
+  const poll = startInterval(report, io.pollMs ?? 500)
   try {
     const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolve => {
       child.once('error', () => resolve({ code: null, signal: null }))
@@ -138,7 +139,7 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
     if (exit.signal !== null || io.signal?.aborted) throw new TensorFoldPullError(`the download stopped · it resumes next time`, repo, true)
     if (exit.code !== 0) throw new TensorFoldPullError(`${adapter ? 'the pull' : `tensorfold pull ${pullSpec(repo)}`} exited ${exit.code ?? 'without a code'}`, repo, false)
   } finally {
-    clearInterval(poll)
+    stopInterval(poll)
     io.signal?.removeEventListener('abort', abort)
     pulls.delete(repo)
   }

@@ -11,6 +11,7 @@ import { flagEnv, flagPair, flagSpellings } from '../../substrate/flagRegistry.j
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export interface TurnEndDetail {
   status: string
@@ -319,11 +320,11 @@ export class MercuryChildSession {
     return new Promise<void>(resolve => {
       const timers: NodeJS.Timeout[] = []
       const finish = (): void => {
-        for (const timer of timers) clearTimeout(timer)
+        for (const timer of timers) stopTimeout(timer)
         resolve()
       }
       const arm = (ms: number, step: () => void): void => {
-        const timer = setTimeout(step, ms)
+        const timer = startTimeout(step, ms)
         timer.unref?.()
         timers.push(timer)
       }

@@ -12,6 +12,7 @@ import { readSessionProgress, type SessionProgressEntryV1, type SessionTailV1 } 
 import type { WorkRowV1 } from '../types.js'
 import { workChipLine, workCounts } from '../workCounts.js'
 import { connectorTrace, emitAll, type Listeners } from './shared.js'
+import { startInterval, stopInterval } from '../../../utils/timers.js'
 
 const LIVENESS_TICK_MS = 1000
 
@@ -311,7 +312,7 @@ export class LivePart {
   syncLivenessTicker(inFlight: boolean): void {
     if (inFlight && this.needs.attached()) {
       if (this.livenessTicker !== null) return
-      const t = setInterval(() => {
+      const t = startInterval(() => {
         emitAll(this.liveListeners, 'liveness')
         this.needs.probeCarrier()
       }, LIVENESS_TICK_MS)
@@ -320,7 +321,7 @@ export class LivePart {
       return
     }
     if (this.livenessTicker !== null) {
-      clearInterval(this.livenessTicker)
+      stopInterval(this.livenessTicker)
       this.livenessTicker = null
     }
   }

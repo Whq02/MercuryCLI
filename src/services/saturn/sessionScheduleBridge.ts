@@ -5,6 +5,7 @@ import type { SaturnFactsRowV1, ScheduleOpRequestV1 } from '../../daemon/saturn.
 import type { LocalWakeFacts } from '../../tools/ScheduleWakeupTool/localWake.js'
 
 import type { ResultOf } from '../../runner/wire/methods.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type ScheduleEditAnswer = ResultOf<'schedule/edit'>
 type ScheduleEditDoor = (edit: ScheduleOpRequestV1, signal: AbortSignal) => Promise<ScheduleEditAnswer>
@@ -90,7 +91,7 @@ export function armLocalWake(delaySeconds: number, prompt: string, facts?: Local
   const sink = wakeSink
   if (sink === null) return { ok: false, reason: 'this surface has no wake queue — nothing can deliver a local wake here' }
   const atMs = Date.now() + Math.max(1, Math.round(delaySeconds)) * 1000
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     localWakeTimers.delete(timer)
     try {
       sink(prompt, facts)
@@ -124,6 +125,6 @@ export function _resetScheduleBridgeForTesting(): void {
   rosterPushedAtMs = null
   seatObserved = false
   wakeSink = null
-  for (const t of localWakeTimers) clearTimeout(t)
+  for (const t of localWakeTimers) stopTimeout(t)
   localWakeTimers.clear()
 }

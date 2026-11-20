@@ -6,6 +6,7 @@ import { facetsSatisfy, parseSearchQuery, type TranscriptFacets } from '../../ut
 import type { MessageActionsNav } from '../messageActions.js'
 import { sleep } from '../../utils/sleep.js'
 import { countOccurrences, WARM_CHUNK, type JumpHandle, type SearchEngineState } from './engine.js'
+import { stopTimeout } from '../../utils/timers.js'
 
 type CursorNavArgs = {
   messagesRef: { current: readonly RenderableMessage[] }
@@ -111,7 +112,7 @@ export function jumpHandleOf({ messagesRef, engineRef, scrollRef, vsRef, getFace
     },
     setSearchQuery: (raw: string): void => {
       const engine = engineRef.current
-      if (engine.pendingTimer !== null) clearTimeout(engine.pendingTimer)
+      if (engine.pendingTimer !== null) stopTimeout(engine.pendingTimer)
       engine.seekInFlight = false
       engine.queuedStep = null
       engine.wrapStart = -1
@@ -203,7 +204,7 @@ export function jumpHandleOf({ messagesRef, engineRef, scrollRef, vsRef, getFace
     },
     disarmSearch: (): void => {
       const engine = engineRef.current
-      if (engine.pendingTimer !== null) clearTimeout(engine.pendingTimer)
+      if (engine.pendingTimer !== null) stopTimeout(engine.pendingTimer)
       engine.seekInFlight = false
       engine.queuedStep = null
       clearHighlight()

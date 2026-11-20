@@ -16,6 +16,7 @@ import { HANDOFF_TEXT_CAP, ledgerEntryOf, recordHandoff } from './ledger.js'
 import { lineageJoined } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const inThousands = (n: number): string => n.toLocaleString('en-US')
 
@@ -94,7 +95,7 @@ export async function askForHandoff(input: {
   if (!lineageJoined() || asked.has(sessionId)) return null
   asked.add(sessionId)
   const abortController = new AbortController()
-  const budget = setTimeout(() => abortController.abort(new Error('the handoff ask ran past its budget')), input.budgetMs ?? HANDOFF_ASK_BUDGET_MS)
+  const budget = startTimeout(() => abortController.abort(new Error('the handoff ask ran past its budget')), input.budgetMs ?? HANDOFF_ASK_BUDGET_MS)
   const onParentAbort = (): void => abortController.abort(input.signal?.reason)
   input.signal?.addEventListener('abort', onParentAbort, { once: true })
   const ask = handoffAskText(sessionId)
@@ -165,7 +166,7 @@ export async function askForHandoff(input: {
     logForDebugging(`handoff ask failed for ${sessionId}: ${error instanceof Error ? error.message : String(error)}`)
     return null
   } finally {
-    clearTimeout(budget)
+    stopTimeout(budget)
     input.signal?.removeEventListener('abort', onParentAbort)
   }
 }

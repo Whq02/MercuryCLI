@@ -66,6 +66,7 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { pinnedGitBash } from '../../utils/windowsPaths.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 const SLEEP_THRESHOLD_SECONDS = 2
@@ -247,12 +248,12 @@ async function* runPowerShell(
   const completed = shellCommand.result.then(() => 'done' as const)
   let quietTimerHandle: ReturnType<typeof setTimeout> | undefined
   const quietTimer = new Promise<'timer'>(resolve => {
-    quietTimerHandle = setTimeout(() => resolve('timer'), QUIET_WINDOW_MS)
+    quietTimerHandle = startTimeout(() => resolve('timer'), QUIET_WINDOW_MS)
     if (typeof quietTimerHandle === 'object' && 'unref' in quietTimerHandle) quietTimerHandle.unref()
   })
   const settledEarly = await Promise.race([completed, quietTimer])
   if (settledEarly === 'done') {
-    if (quietTimerHandle !== undefined) clearTimeout(quietTimerHandle)
+    if (quietTimerHandle !== undefined) stopTimeout(quietTimerHandle)
     const result = await shellCommand.result
     shellCommand.cleanup()
     return await postProcess(result)

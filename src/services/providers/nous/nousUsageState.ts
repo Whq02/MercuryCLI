@@ -6,6 +6,7 @@ import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { nousAccountIdentity, nousAccountUrl, resolveNousCredential, type NousCredentialSource } from './nousAccounts.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 interface NousSubscriptionFacts {
   plan?: string
@@ -206,7 +207,7 @@ export function refreshNousAccount(io?: NousUsageIo & { force?: boolean }): Prom
   if (!io?.force && anchor !== undefined && now - anchor < REFRESH_TTL_MS) return Promise.resolve(observed)
   if (inFlight) return inFlight
   const work = (async (): Promise<NousObservedAccount | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const credential = await resolveNousCredential(io).catch(passedOverAs(undefined))
       if (!credential) return observed

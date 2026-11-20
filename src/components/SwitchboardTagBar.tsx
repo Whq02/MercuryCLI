@@ -44,6 +44,7 @@ import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { crewmateLive, useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { crewmateNextTurnWords, crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
 import { daemonBuildStatusWords, lastDaemonHandshake, subscribeDaemonHandshake } from '../daemon/handshake.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const focusedDaemonBuildWords = (): string => daemonBuildStatusWords(lastDaemonHandshake())
 const statusMotionWords = (): string => idleMotionLevel('clock') === 'reduced'
@@ -84,9 +85,9 @@ export function statusRowReceiptFits(text: string, fit: StatusRowFit | null = la
 
 export function paintStatusRowReceipt(text: string): boolean {
   if (rowsPainting === 0 || text.trim() === '' || !statusRowReceiptFits(text)) return false
-  if (receiptTimer !== null) clearTimeout(receiptTimer)
+  if (receiptTimer !== null) stopTimeout(receiptTimer)
   receiptText = text
-  receiptTimer = setTimeout(() => {
+  receiptTimer = startTimeout(() => {
     receiptTimer = null
     receiptText = null
     emitReceipt()

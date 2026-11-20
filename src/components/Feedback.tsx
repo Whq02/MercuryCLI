@@ -45,6 +45,7 @@ import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
 import { feedbackView, type Step } from './feedback/feedbackView.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 
 export function redactSensitiveInfo(text: string): string {
@@ -130,7 +131,7 @@ async function generateTitle(
   const controller = new AbortController()
   const onOuter = (): void => controller.abort(outer.reason)
   outer.addEventListener('abort', onOuter, { once: true })
-  const timer = setTimeout(() => controller.abort(new Error('title deadline')), TITLE_DEADLINE_MS)
+  const timer = startTimeout(() => controller.abort(new Error('title deadline')), TITLE_DEADLINE_MS)
   try {
     const { thinkingConfig, ...call } = utilityCallFor()
     const answer = await Promise.race([
@@ -171,7 +172,7 @@ async function generateTitle(
   } catch {
     return fallbackTitle(description, generic)
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     outer.removeEventListener('abort', onOuter)
   }
 }

@@ -10,6 +10,7 @@ import {
 } from '../../utils/healthCertCore.js'
 import { lastCertPath, runHealthReport } from '../../utils/healthReport.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const HEALTH_DEADLINE_MS = 20_000
 export const FRESH_CERT_MS = 10 * 60_000
@@ -69,7 +70,7 @@ export async function runHealthBounded(deadlineMs: number, signal?: AbortSignal)
   const controller = new AbortController()
   const onOuter = (): void => controller.abort(signal?.reason ?? new Error('the report was cancelled'))
   signal?.addEventListener('abort', onOuter, { once: true })
-  const timer = setTimeout(
+  const timer = startTimeout(
     () => controller.abort(new Error(`the fast health run passed its ${deadlineMs} ms deadline`)),
     deadlineMs,
   )
@@ -84,7 +85,7 @@ export async function runHealthBounded(deadlineMs: number, signal?: AbortSignal)
   } catch (error) {
     return `health: not run — ${reasonText(error)}`
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     signal?.removeEventListener('abort', onOuter)
     if (!controller.signal.aborted) controller.abort(new Error('health section settled'))
   }

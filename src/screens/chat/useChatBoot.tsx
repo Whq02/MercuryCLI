@@ -42,6 +42,7 @@ import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
 import type { PaintsRows } from './sessionShapes.js';
 import { passedOver } from '../../utils/passedOver.js';
+import { startTimeout, stopTimeout } from '../../utils/timers.js';
 
 const loadHopIntoSession = () => import('../../services/switchboard/hopIntoSession.js');
 const loadEnsureDaemon = () => import('../../services/switchboard/ensureDaemon.js');
@@ -134,14 +135,14 @@ export function useChatBootStart({
 
   useTimer(() => {
     recordBootInteractive();
-    setTimeout(() => {
+    startTimeout(() => {
       void loadEnsureDaemon()
         .then(async m => {
           if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());
         })
         .catch(passedOver);
     }, 0);
-    setTimeout(() => {
+    startTimeout(() => {
       void loadContextWindowWarmup()
         .then(m => m.warmContextWindowSources())
         .catch(passedOver);
@@ -377,12 +378,12 @@ export function useChatBootNotices({
   }, []);
 
   useTimer(() => {
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       void loadProjectSnapshot()
         .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
         .catch(passedOver);
     }, BOOT_WARMUP_MS);
-    return () => clearTimeout(timer);
+    return () => stopTimeout(timer);
   }, []);
 
   useSettingsErrors();

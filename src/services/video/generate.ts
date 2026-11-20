@@ -7,6 +7,7 @@ import { spawnFfmpeg } from '../../utils/ffmpeg.js'
 import { sleep } from '../../utils/sleep.js'
 import { createVideoProvider, videoProviderSelection } from './registry.js'
 import type { VideoInput, VideoJob, VideoOutput, VideoRole, VideoStatus } from './types.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const MEDIA: Record<string, { type: 'image' | 'video' | 'audio'; mime: string; max: number }> = {
   '.jpg': { type: 'image', mime: 'image/jpeg', max: 30 },
@@ -116,7 +117,7 @@ async function saveNewFile(project: string, path: string, bytes: Uint8Array): Pr
 
 export async function generateVideo(input: VideoInput, project: string, parentSignal: AbortSignal): Promise<VideoOutput> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(new Error('Video deadline reached')), (input.timeoutSeconds ?? 1200) * 1000)
+  const timeout = startTimeout(() => controller.abort(new Error('Video deadline reached')), (input.timeoutSeconds ?? 1200) * 1000)
   timeout.unref?.()
   const abort = (): void => controller.abort(parentSignal.reason)
   if (parentSignal.aborted) abort()
@@ -175,7 +176,7 @@ export async function generateVideo(input: VideoInput, project: string, parentSi
     const pending = jobId && !remoteTerminal ? `\nMiniMax job ${jobId} may still be running; stopping this call does not cancel the vendor job. Do not submit it again automatically.` : jobId ? `\nMiniMax job: ${jobId}` : uncertain ? '\nThe create request may have reached MiniMax; do not resubmit automatically.' : ''
     return { outcome: uncertain ? 'indeterminate' : 'failed', result: `${message}${pending}`, ...(jobId ? { jobId } : {}) }
   } finally {
-    clearTimeout(timeout)
+    stopTimeout(timeout)
     parentSignal.removeEventListener('abort', abort)
   }
 }

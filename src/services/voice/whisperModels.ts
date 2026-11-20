@@ -4,6 +4,7 @@ import { isAbsolute, join, resolve } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import lock from '../../../vendor/whisper-models.lock.json' with { type: 'json' }
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const WHISPER_MODELS_LOCK_PATH = 'vendor/whisper-models.lock.json'
 export const WHISPER_MODELS_SEGMENTS = ['models', 'whisper'] as const
@@ -181,7 +182,7 @@ export async function downloadWhisperModel(
   rmSync(part, { force: true })
   const fetchImpl = opts.fetchImpl ?? fetch
   const controller = new AbortController()
-  const deadline = setTimeout(() => controller.abort(), opts.deadlineMs ?? WHISPER_MODEL_DOWNLOAD_DEADLINE_MS)
+  const deadline = startTimeout(() => controller.abort(), opts.deadlineMs ?? WHISPER_MODEL_DOWNLOAD_DEADLINE_MS)
   deadline.unref?.()
   try {
     let res: Response
@@ -219,7 +220,7 @@ export async function downloadWhisperModel(
     renameSync(part, path)
     return { path, bytes: received, sha256: digest, ms: Date.now() - started, reused: false }
   } finally {
-    clearTimeout(deadline)
+    stopTimeout(deadline)
     rmSync(part, { force: true })
   }
 }

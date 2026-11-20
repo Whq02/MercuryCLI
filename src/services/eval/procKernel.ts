@@ -13,6 +13,7 @@ import { EVAL_SHUTDOWN_GRACE_MS } from './contracts.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree, strikeProcessGroupNow } from '../../utils/processGroup.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type KernelTransport = 'fd' | 'loopback'
 
@@ -205,7 +206,7 @@ export class ProcKernel {
     const end = this.pendingDone
     if (!end) return
     if (this.settleTimer) {
-      clearTimeout(this.settleTimer)
+      stopTimeout(this.settleTimer)
       this.settleTimer = null
     }
     this.pendingDone = null
@@ -253,13 +254,13 @@ export class ProcKernel {
 
   async handshake(cwd: string, timeoutMs = 15_000): Promise<boolean> {
     const ready = new Promise<boolean>(resolve => {
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         this.readyResolve = null
         resolve(false)
       }, timeoutMs)
       timer.unref?.()
       this.readyResolve = () => {
-        clearTimeout(timer)
+        stopTimeout(timer)
         this.readyResolve = null
         resolve(true)
       }
@@ -322,7 +323,7 @@ export class ProcKernel {
   kill(): void {
     if (!this.alive || !this.child.pid) return
     strikeProcessGroupNow(this.child, 'SIGTERM')
-    const strike = setTimeout(() => {
+    const strike = startTimeout(() => {
       if (this.alive) strikeProcessGroupNow(this.child, 'SIGKILL')
     }, KILL_GRACE_MS)
     strike.unref?.()
@@ -346,7 +347,7 @@ export class ProcKernel {
     const exited = (): Promise<void> => (this.alive ? once(this.child, 'exit').then(() => undefined) : Promise.resolve())
     const grace = (ms: number): Promise<'timeout'> =>
       new Promise(resolve => {
-        const t = setTimeout(() => resolve('timeout'), ms)
+        const t = startTimeout(() => resolve('timeout'), ms)
         t.unref?.()
       })
     if ((await Promise.race([exited(), grace(EVAL_SHUTDOWN_GRACE_MS)])) === 'timeout' && this.alive) {
@@ -423,7 +424,7 @@ function kernelRoute(this: ProcKernel, frame: RunnerFrame): void {
       this.pendingDone = { kind: 'done', status: frame.status }
       this.maybeSettle()
       if (this.pendingDone) {
-        this.settleTimer = setTimeout(() => this.settle(), END_MARK_GRACE_MS)
+        this.settleTimer = startTimeout(() => this.settle(), END_MARK_GRACE_MS)
         this.settleTimer.unref?.()
       }
       return

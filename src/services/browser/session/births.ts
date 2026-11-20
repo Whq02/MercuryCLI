@@ -6,6 +6,7 @@ import { sessionWirings } from './owners.js'
 import { pageKits, stealthSource } from './stealth.js'
 import { redactUrl, newWiring, listenProtocol, listenDownloads, downloadBegan, downloadMoved, downloadInNewTab } from './wiring.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { startTimeout } from '../../../utils/timers.js'
 
 function hintHeaders(identity: PageIdentity): Map<string, string> | null {
   const meta = identity.userAgentMetadata
@@ -290,7 +291,7 @@ export async function watchBirths(state: OwnerBrowserState, hold: Hold, download
         continue
       }
       hold.died.set(id, birth)
-      const forget = setTimeout(() => {
+      const forget = startTimeout(() => {
         hold.died.delete(id)
         birth.settle()
       }, 250)

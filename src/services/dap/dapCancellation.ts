@@ -1,3 +1,5 @@
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
+
 export class DapCancelledError extends Error {
   constructor() {
     super('debug operation cancelled')
@@ -15,10 +17,10 @@ export function dapDeadline(callback: () => void, timeoutMs: number): () => void
   const tick = (): void => {
     const remaining = deadline - Date.now()
     if (remaining <= 0) callback()
-    else timer = setTimeout(tick, Math.min(remaining, 2_147_483_647))
+    else timer = startTimeout(tick, Math.min(remaining, 2_147_483_647))
   }
-  timer = setTimeout(tick, Math.min(timeoutMs, 2_147_483_647))
-  return () => clearTimeout(timer)
+  timer = startTimeout(tick, Math.min(timeoutMs, 2_147_483_647))
+  return () => stopTimeout(timer)
 }
 
 export function waitForDap<T>(promise: Promise<T>, signal?: AbortSignal, timeoutMs?: number): Promise<T | undefined> {

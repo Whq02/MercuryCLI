@@ -14,6 +14,7 @@ import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from
 import { sleep } from '../../../utils/sleep.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 type ServeArgs = { repo: string; name?: string; window: number; port: number; host: string; promptCacheGib: number; apiKeyFile?: string; drafter?: string }
 
@@ -527,16 +528,16 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
         process.exit(exitCode ?? 0)
       }
       running.kill()
-      const hard = setTimeout(() => running.kill('SIGKILL'), 3_000)
+      const hard = startTimeout(() => running.kill('SIGKILL'), 3_000)
       running.once('exit', () => {
-        clearTimeout(hard)
+        stopTimeout(hard)
         say('shutting down: drained')
         process.exit(exitCode ?? 0)
       })
     }
     const tick = (): void => {
       if (inFlight === 0 || Date.now() >= deadline) finish()
-      else setTimeout(tick, 100)
+      else startTimeout(tick, 100)
     }
     tick()
   }

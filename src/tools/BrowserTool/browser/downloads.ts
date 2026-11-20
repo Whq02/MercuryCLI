@@ -1,6 +1,7 @@
 import type { Transfer } from '../../../services/browser/browserTransfers.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { type LiveSession, bounded, bytesWords } from './page.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export const DOWNLOADS_NOT_FOLLOWED = 'downloads are not followed here; fetch the file with WebFetch or Bash instead'
 
@@ -42,17 +43,17 @@ export async function downloadSought(s: LiveSession, before: number, timeoutMs: 
   const budget = Math.min(Math.max(timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
   const interrupted = await new Promise<boolean>(resolve => {
     const stop = (): void => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolve(true)
     }
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       signal?.removeEventListener('abort', stop)
       resolve(false)
     }, budget)
     if (signal?.aborted) stop()
     else signal?.addEventListener('abort', stop, { once: true })
     s.downloads.waiters.push(() => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       signal?.removeEventListener('abort', stop)
       resolve(false)
     })

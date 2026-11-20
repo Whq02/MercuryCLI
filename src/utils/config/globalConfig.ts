@@ -23,6 +23,7 @@ import {
 } from './schema.js'
 import { sleep } from '../sleep.js'
 import { passedOver } from '../passedOver.js'
+import { sleepSync } from '../timers.js'
 
 const TEST_GLOBAL_CONFIG_FOR_TESTING: GlobalConfig = {
   ...DEFAULT_GLOBAL_CONFIG,
@@ -447,7 +448,7 @@ export async function runExclusiveOnFileSync<T>(file: string, section: () => Pro
           break
         }
         lastContention = err
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.min(1000, 15 * 2 ** attempt))
+        sleepSync(Math.min(1000, 15 * 2 ** attempt))
       }
     }
     if (lastContention !== undefined) throw lastContention
@@ -529,7 +530,7 @@ export function saveConfigWithLock<A extends object>(
           if (!waitForLock || (err as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') throw err
           lastContention = err
           const backoffMs = Math.min(1000, 15 * 2 ** attempt)
-          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, backoffMs)
+          sleepSync(backoffMs)
         }
       }
       throw lastContention

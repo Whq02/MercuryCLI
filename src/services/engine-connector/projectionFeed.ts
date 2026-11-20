@@ -1,6 +1,7 @@
 import { statSync, watch, mkdirSync, type FSWatcher } from 'node:fs'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 export const HEARTBEAT_MS = 400
 
@@ -36,7 +37,7 @@ export class ProjectionFeed {
   }
   private readonly report = (): void => {
     if (this.tick() || this.recheck !== null) return
-    const recheck = setTimeout(() => {
+    const recheck = startTimeout(() => {
       this.recheck = null
       this.tick()
     }, HEARTBEAT_MS)
@@ -52,8 +53,8 @@ export class ProjectionFeed {
     if (this.timer === null) return
     const ms = this.cadenceMs()
     if (ms === this.timerMs) return
-    clearInterval(this.timer)
-    this.timer = setInterval(this.tick, ms)
+    stopInterval(this.timer)
+    this.timer = startInterval(this.tick, ms)
     this.timer.unref?.()
     this.timerMs = ms
   }
@@ -61,7 +62,7 @@ export class ProjectionFeed {
     if (windowMs <= 0) return
     this.settleUntilMs = Math.max(this.settleUntilMs, Date.now() + windowMs)
     this.rearm()
-    const revert = setTimeout(() => this.rearm(), windowMs)
+    const revert = startTimeout(() => this.rearm(), windowMs)
     revert.unref?.()
   }
   heartbeatMs(): number {
@@ -86,18 +87,18 @@ export class ProjectionFeed {
       passedOver(error)
     }
     this.timerMs = this.cadenceMs()
-    this.timer = setInterval(this.tick, this.timerMs)
+    this.timer = startInterval(this.tick, this.timerMs)
     this.timer.unref?.()
     this.tick()
   }
   stop(): void {
     if (this.timer !== null) {
-      clearInterval(this.timer)
+      stopInterval(this.timer)
       this.timer = null
       this.timerMs = 0
     }
     if (this.recheck !== null) {
-      clearTimeout(this.recheck)
+      stopTimeout(this.recheck)
       this.recheck = null
     }
     try {

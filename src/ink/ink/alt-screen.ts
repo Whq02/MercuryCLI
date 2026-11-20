@@ -12,6 +12,7 @@ import { ENABLE_MOUSE_TRACKING, DISABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN } from 
 import { resetFramesForAltScreen, repaintMainScreen } from './frames.js'
 import { drainStdin } from './stdin.js'
 import type Ink from '../ink.js'
+import { startTimeout } from '../../utils/timers.js'
 
 const WATCHDOG_COMMIT_BUDGET = 12
 
@@ -253,7 +254,7 @@ export function overwriteScreen(this: OverwriteScreenReads): void {
   if (!this.altScreenActive || this.isUnmounted || this.overwriteTimer !== null) return
   const wait = OVERWRITE_MIN_GAP_MS - (performance.now() - this.wholeFrameAt)
   if (wait > 0) {
-    this.overwriteTimer = setTimeout(() => {
+    this.overwriteTimer = startTimeout(() => {
       this.overwriteTimer = null
       this.overwriteScreen()
     }, wait)

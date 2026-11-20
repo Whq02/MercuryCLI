@@ -1,4 +1,5 @@
 import { passedOver } from './passedOver.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 export class DeadlineExceededError extends Error {
   override readonly name = 'DeadlineExceededError'
@@ -98,7 +99,7 @@ export function armInactivityDeadline(opts: InactivityDeadlineOptions): Inactivi
   }
 
   const schedule = (delayMs: number): void => {
-    timer = setTimeout(check, Math.max(1, delayMs))
+    timer = startTimeout(check, Math.max(1, delayMs))
     timer.unref?.()
   }
 
@@ -121,7 +122,7 @@ export function armInactivityDeadline(opts: InactivityDeadlineOptions): Inactivi
     cancel(): void {
       cancelled = true
       if (timer !== null) {
-        clearTimeout(timer)
+        stopTimeout(timer)
         timer = null
       }
     },
@@ -168,13 +169,13 @@ export function holdDeadlineUntil(deadline: Pick<InactivityDeadline, 'touch'>, u
       timer = null
       return
     }
-    timer = setTimeout(step, Math.max(1, Math.min(left, stepMs)))
+    timer = startTimeout(step, Math.max(1, Math.min(left, stepMs)))
     timer.unref?.()
   }
   step()
   return {
     cancel(): void {
-      if (timer !== null) clearTimeout(timer)
+      if (timer !== null) stopTimeout(timer)
       timer = null
     },
   }

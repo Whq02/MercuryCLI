@@ -1,6 +1,7 @@
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { passedOver } from './passedOver.js'
+import { startMicrotask } from './timers.js'
 
 
 const STDOUT_GUARD_MARKER = '[stdout-guard]'
@@ -54,7 +55,7 @@ export function installWireStdoutGuard(): void {
       lastForwardReturn = last && callback ? realWrite(`${line}\n`, callback) : realWrite(`${line}\n`)
     }
     if (callback && forwarded.length === 0) {
-      queueMicrotask(() => callback())
+      startMicrotask(() => callback())
     }
     return lastForwardReturn ?? true
   }

@@ -44,6 +44,7 @@ import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leas
 import { engineLogDrift, proofTreeFingerprint, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 import { logError } from '../../../utils/log.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 const unsavedRecordsNamed = new Set<string>()
 
@@ -528,12 +529,12 @@ export class EngineJobService {
       const list = this.waiters.get(id) ?? []
       let timer: NodeJS.Timeout | null = null
       const done = (): void => {
-        if (timer) clearTimeout(timer)
+        if (timer) stopTimeout(timer)
         resolve()
       }
       list.push(done)
       this.waiters.set(id, list)
-      if (ms > 0 && Number.isFinite(ms)) timer = setTimeout(done, ms)
+      if (ms > 0 && Number.isFinite(ms)) timer = startTimeout(done, ms)
     })
     return job
   }
@@ -801,7 +802,7 @@ async function runMediaOf(this: EngineJobService, job: EngineJob, executable: st
       let timer: ReturnType<typeof setInterval> | null = null
       let observing: Promise<void> | null = null
       if (request.kind === 'profile') {
-        timer = setInterval(() => {
+        timer = startInterval(() => {
           if (observing) return
           observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
         }, ENGINE_QUIET_SAMPLE_MS)
@@ -811,7 +812,7 @@ async function runMediaOf(this: EngineJobService, job: EngineJob, executable: st
         media.boots++
         row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, () => boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
       } finally {
-        if (timer) clearInterval(timer)
+        if (timer) stopInterval(timer)
         if (observing) await observing
       }
       record.results.push(row)

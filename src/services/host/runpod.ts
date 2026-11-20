@@ -3,6 +3,7 @@ import { recipeFits, type HostRecipe } from './recipes.js'
 import { currentHostRecipes, refreshHostRecipes } from './recipesFile.js'
 import { retryAfterSeconds } from './vendors/http.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional(), mounts: z.object({ network: z.array(z.object({ volumeId: z.string() })).optional(), global: z.array(z.object({ volumeId: z.string() })).optional() }).nullish() })
 const clusterMemberSchema = z.object({ id: z.string(), rank: z.number().int().nonnegative().nullable(), ip: z.string().optional() })
@@ -143,13 +144,13 @@ export class RunpodClient {
   async terminate(id: string): Promise<void> { await this.response('/pods/' + encodeURIComponent(id), 'DELETE') }
   async logs(id: string, signal?: AbortSignal): Promise<string> {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(new DOMException('Log read timed out', 'TimeoutError')), 3000)
+    const timer = startTimeout(() => controller.abort(new DOMException('Log read timed out', 'TimeoutError')), 3000)
     let text = ''
     try {
       const response = await this.response('/pods/' + encodeURIComponent(id) + '/logs?tail=12', 'GET', undefined, signal ? AbortSignal.any([signal, controller.signal]) : controller.signal)
       const reader = response.body?.getReader()
       if (reader) try { const decoder = new TextDecoder(); while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += decoder.decode(part.value, { stream: true }) } } finally { await reader.cancel().catch(passedOver) }
-    } catch (error) { if (signal) { signal.throwIfAborted(); if (!text) throw error } else if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { clearTimeout(timer) }
+    } catch (error) { if (signal) { signal.throwIfAborted(); if (!text) throw error } else if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { stopTimeout(timer) }
     const lines = /^(?:data|id|event):/m.test(text) ? podLogLines(text) : text.split('\n')
     return lines.map(line => line.split(this.key).join('[redacted]')).filter(Boolean).slice(-12).join('\n')
   }

@@ -11,6 +11,7 @@ import {
   type NoticeRecord,
 } from './unreadLedger.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 export const NOTICE_DEADLINE_DEFAULT_MS = 180_000
@@ -99,11 +100,11 @@ export function startIdleNudge(ports: IdleNudgePorts): IdleNudge {
   const now = (): number => ports.now?.() ?? Date.now()
   const deadline = (): number => ports.deadlineMs?.() ?? noticeDeadlineMs()
   const setTimer = ports.setTimer ?? ((fn, ms) => {
-    const handle = setTimeout(fn, ms)
+    const handle = startTimeout(fn, ms)
     handle.unref?.()
     return handle
   })
-  const clearTimer = ports.clearTimer ?? (handle => clearTimeout(handle as ReturnType<typeof setTimeout>))
+  const clearTimer = ports.clearTimer ?? (handle => stopTimeout(handle as ReturnType<typeof setTimeout>))
   let timer: unknown = null
   let stopped = false
 

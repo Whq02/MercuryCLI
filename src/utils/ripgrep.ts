@@ -16,6 +16,7 @@ import { isInBundledMode } from './bundledMode.js'
 import { logError } from './log.js'
 import { getPlatform } from './platform.js'
 import { passedOver } from './passedOver.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 
 export type RipgrepMode = 'system' | 'builtin' | 'embedded'
@@ -329,13 +330,13 @@ function spawnWithArgv0(
     const settle = (error: SpawnOutcome['error']): void => {
       if (settled) return
       settled = true
-      clearTimeout(timeoutTimer)
-      if (escalationTimer) clearTimeout(escalationTimer)
+      stopTimeout(timeoutTimer)
+      if (escalationTimer) stopTimeout(escalationTimer)
       resolvePromise({ stdout, stderr, error, signal: killedSignal })
     }
 
     let escalationTimer: ReturnType<typeof setTimeout> | null = null
-    const timeoutTimer = setTimeout(() => {
+    const timeoutTimer = startTimeout(() => {
       if (process.platform === 'win32') {
         killedSignal = 'SIGTERM'
         child.kill()
@@ -343,7 +344,7 @@ function spawnWithArgv0(
       }
       killedSignal = 'SIGTERM'
       child.kill('SIGTERM')
-      escalationTimer = setTimeout(() => {
+      escalationTimer = startTimeout(() => {
         killedSignal = 'SIGKILL'
         child.kill('SIGKILL')
       }, KILL_ESCALATION_MS)

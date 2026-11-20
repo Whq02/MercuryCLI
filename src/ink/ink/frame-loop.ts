@@ -22,6 +22,7 @@ import { COMPOSED_TEE_PATH, safeAppend, WRITE_TEE_PATH, dumpTree, teeBeforeDiff,
 import { liveSize, resetFramesForAltScreen } from './frames.js'
 import { consoleBufferOutlivesWindow, settleResize, applySize } from './resize.js'
 import type Ink from '../ink.js'
+import { startMicrotask } from '../../utils/timers.js'
 
 export const RENDER_FAULT_RETRY_BUDGET = 3
 
@@ -52,7 +53,7 @@ export function onRender(this: OnRenderReads): void {
     const { columns, rows } = liveSize.call(this)
     if (columns !== this.cachedColumns || rows !== this.cachedRows) {
       if (reconciler.isAlreadyRendering()) {
-        queueMicrotask(this.onRender)
+        startMicrotask(this.onRender)
         return
       }
       if (consoleBufferOutlivesWindow.call(this)) {
@@ -296,7 +297,7 @@ function renderFrame(this: RenderFrameReads): void {
         this.zeroByteRenderStreak = 0;
         this.watchdogCommitsRemaining = 0;
         this.reassertScreenState('zero-byte-watchdog', { repaint: false })
-        queueMicrotask(this.onRender)
+        startMicrotask(this.onRender)
       }
     } else {
       this.zeroByteRenderStreak = 0;

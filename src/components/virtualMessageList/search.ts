@@ -7,6 +7,7 @@ import type { SearchPositionsState } from '../../ink/hooks/use-search-highlight.
 import type { useVirtualScroll } from '../../hooks/useVirtualScroll.js'
 import type { RenderableMessage } from '../../types/message.js'
 import { JUMP_HEADROOM_ROWS, MOUNT_ATTEMPT_LIMIT, PHANTOM_LIMIT, type SearchEngineState } from './engine.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 type SettleArgs = {
   engineRef: { current: SearchEngineState }
@@ -44,7 +45,7 @@ export function settleOnMessageOf({ engineRef, stepRef, advanceRef, scrollRef, v
         return
       }
       scrollMessageIntoView(index)
-      engine.pendingTimer = setTimeout(attempt, 0)
+      engine.pendingTimer = startTimeout(attempt, 0)
       return
     }
     engine.mountAttempts = 0
@@ -81,8 +82,8 @@ export function settleOnMessageOf({ engineRef, stepRef, advanceRef, scrollRef, v
     finish()
   }
   engine.seekInFlight = true
-  if (engine.pendingTimer !== null) clearTimeout(engine.pendingTimer)
-  engine.pendingTimer = setTimeout(attempt, 0)
+  if (engine.pendingTimer !== null) stopTimeout(engine.pendingTimer)
+  engine.pendingTimer = startTimeout(attempt, 0)
 }
 
 type AdvanceArgs = {

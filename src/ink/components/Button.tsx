@@ -5,6 +5,7 @@ import type { DOMElement } from '../dom.js'
 import type { KeyboardEvent } from '../events/keyboard-event.js'
 import type { Styles } from '../styles.js'
 import Box from './Box.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type ButtonState = {
   readonly focused: boolean
@@ -35,7 +36,7 @@ const Button = forwardRef<DOMElement, Props>(function Button(
 
   useClaim(
     () => () => {
-      if (pulseTimer.current) clearTimeout(pulseTimer.current)
+      if (pulseTimer.current) stopTimeout(pulseTimer.current)
     },
     [],
   )
@@ -46,8 +47,8 @@ const Button = forwardRef<DOMElement, Props>(function Button(
       event.preventDefault()
       setActive(true)
       onActivate()
-      if (pulseTimer.current) clearTimeout(pulseTimer.current)
-      pulseTimer.current = setTimeout(() => {
+      if (pulseTimer.current) stopTimeout(pulseTimer.current)
+      pulseTimer.current = startTimeout(() => {
         pulseTimer.current = null
         setActive(false)
       }, ACTIVE_PULSE_MS)

@@ -40,6 +40,7 @@ import { commandTurnRows } from './command.js'
 import { modelTurnRows } from './modelRows.js'
 import type { TurnOptions } from '../turn.js'
 import type { ConversationState } from './state.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export async function* turnRows(this: ConversationState, prompt: string | ContentBlockParam[], options?: TurnOptions): AsyncGenerator<RowDraft, void, unknown> {
   const config = this.config
@@ -183,7 +184,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   let timeLimitTimer: ReturnType<typeof setTimeout> | null = null
   const clearTimeLimit = (): void => {
     if (timeLimitTimer !== null) {
-      clearTimeout(timeLimitTimer)
+      stopTimeout(timeLimitTimer)
       timeLimitTimer = null
     }
   }
@@ -225,7 +226,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   }
   if (config.maxTime !== undefined) {
     const sentence = OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime.limitMs })
-    timeLimitTimer = setTimeout(() => this.abortController.abort(new MaxTimeCut(sentence)), Math.max(0, config.maxTime.at - Date.now()))
+    timeLimitTimer = startTimeout(() => this.abortController.abort(new MaxTimeCut(sentence)), Math.max(0, config.maxTime.at - Date.now()))
     timeLimitTimer.unref?.()
   }
 

@@ -13,6 +13,7 @@ import { logError } from '../log.js'
 import { createSignal } from '../signal.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
 import { passedOver } from '../passedOver.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 
 type TimingOverrides = {
@@ -53,7 +54,7 @@ const changeSignal = createSignal<[]>()
 function scheduleReload(changedPath: string): void {
   pendingPaths.add(changedPath)
   if (reloadTimer !== null) return
-  reloadTimer = setTimeout(() => {
+  reloadTimer = startTimeout(() => {
     reloadTimer = null
     pendingPaths = new Set()
     clearSkillCaches()
@@ -232,7 +233,7 @@ async function dispose(): Promise<void> {
   disposed = true
   watcherGeneration++
   if (reloadTimer !== null) {
-    clearTimeout(reloadTimer)
+    stopTimeout(reloadTimer)
     reloadTimer = null
   }
   pendingPaths = new Set()
@@ -249,7 +250,7 @@ async function dispose(): Promise<void> {
 
 async function resetForTesting(overrides?: TimingOverrides): Promise<void> {
   if (reloadTimer !== null) {
-    clearTimeout(reloadTimer)
+    stopTimeout(reloadTimer)
     reloadTimer = null
   }
   pendingPaths = new Set()

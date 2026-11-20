@@ -3,6 +3,7 @@ import { BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, closeBrowserSessionDet
 import type { Transfer } from '../../../services/browser/browserTransfers.js'
 import { transferWords } from './downloads.js'
 import type { OpDone, OpRun } from './ops.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export async function provisionOp({ input }: OpRun): Promise<OpDone> {
   let result: string
@@ -21,15 +22,15 @@ export async function downloadOp(wanted: Transfer, outer: AbortSignal | undefine
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, deadline)
+    const timer = startTimeout(resolve, deadline)
     const stop = (): void => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       reject(outer?.reason ?? new Error('interrupted'))
     }
     if (outer?.aborted) stop()
     else outer?.addEventListener('abort', stop, { once: true })
     void wanted.done.then(() => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       outer?.removeEventListener('abort', stop)
       resolve()
     })

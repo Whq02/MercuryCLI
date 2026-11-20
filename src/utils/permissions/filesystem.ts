@@ -49,6 +49,7 @@ import {
 import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -172,13 +173,13 @@ export function getResolvedWorkingDirPaths(path: string): string[] {
   const resolved = getPathsForPermissionCheck(localPath(path), base)
   workingDirResolutionCache.set(key, resolved)
   if (workingDirResolutionSweep === null) {
-    workingDirResolutionSweep = setTimeout(getResolvedWorkingDirPaths.clearCache, 0)
+    workingDirResolutionSweep = startTimeout(getResolvedWorkingDirPaths.clearCache, 0)
     workingDirResolutionSweep.unref?.()
   }
   return resolved
 }
 getResolvedWorkingDirPaths.clearCache = (): void => {
-  if (workingDirResolutionSweep !== null) clearTimeout(workingDirResolutionSweep)
+  if (workingDirResolutionSweep !== null) stopTimeout(workingDirResolutionSweep)
   workingDirResolutionSweep = null
   workingDirResolutionCache = new Map()
 }

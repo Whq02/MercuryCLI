@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { useTimer } from './effects.js'
 import { fetchPrStatus, type PrReviewState } from '../utils/ghPrStatus.js'
 import { getLastInteractionTime } from '../bootstrap/state.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const POLL_INTERVAL_MS = 60000
 const IDLE_STOP_MS = 3600000
@@ -81,14 +82,14 @@ export function usePrStatus(
       if (cancelled || disabledForSessionRef.current) return
       const sinceLast = Date.now() - lastFetchAtRef.current
       const delay = Math.max(0, POLL_INTERVAL_MS - sinceLast)
-      timer = setTimeout(() => void poll(), delay)
+      timer = startTimeout(() => void poll(), delay)
       timer.unref?.()
     }
 
     schedule()
     return () => {
       cancelled = true
-      if (timer !== null) clearTimeout(timer)
+      if (timer !== null) stopTimeout(timer)
     }
   }, [isLoading, enabled])
 

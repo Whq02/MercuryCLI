@@ -6,6 +6,7 @@ import { linkTaskOutputToTranscript } from '../../task/diskOutput.js'
 import { encodeTranscriptLine } from '../vnext.js'
 import { describeTranscriptStoreFailure, setStoreHealth } from './storeHealth.js'
 import { passedOver } from '../../passedOver.js'
+import { startTimeout, stopTimeout } from '../../timers.js'
 
 export class QueuePart {
   private pendingWriteCount: number = 0
@@ -23,7 +24,7 @@ export class QueuePart {
   _resetFlushState(): void {
     this.pendingWriteCount = 0
     this.flushResolvers = []
-    if (this.flushTimer) clearTimeout(this.flushTimer)
+    if (this.flushTimer) stopTimeout(this.flushTimer)
     this.flushTimer = null
     this.activeDrain = null
     this.fileWriteChain = Promise.resolve()
@@ -94,7 +95,7 @@ export class QueuePart {
       return
     }
     const interval = Math.min(this.FLUSH_INTERVAL_MS * 2 ** this.drainFailureStreak, 5_000)
-    this.flushTimer = setTimeout(() => {
+    this.flushTimer = startTimeout(() => {
       this.flushTimer = null
       this.runDrain().catch(passedOver)
     }, interval)
@@ -202,7 +203,7 @@ export class QueuePart {
   }
 
   async flush(): Promise<void> {
-    if (this.flushTimer) clearTimeout(this.flushTimer)
+    if (this.flushTimer) stopTimeout(this.flushTimer)
     this.flushTimer = null
     const inFlight = this.activeDrain
     if (inFlight) await inFlight

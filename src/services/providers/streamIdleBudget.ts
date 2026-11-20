@@ -3,6 +3,7 @@ import { EMPTY_STREAM_END_MARKER, EMPTY_STREAM_REASON_WORDS, outageCauseWordsOf 
 import type { SystemAPIErrorMessage } from '../../types/message.js'
 import { currentPatience, PATIENCE_NORMAL } from './patience.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
 
@@ -82,8 +83,8 @@ export interface StreamTimers {
 
 export const REAL_STREAM_TIMERS: StreamTimers = {
   now: () => Date.now(),
-  setTimeout: (fn, ms) => setTimeout(fn, ms),
-  clearTimeout: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  setTimeout: (fn, ms) => startTimeout(fn, ms),
+  clearTimeout: handle => stopTimeout(handle as ReturnType<typeof setTimeout>),
 }
 
 
@@ -423,7 +424,7 @@ export function createStreamIdleWatchdog(opts: {
   const waiters = new Set<(error: StreamIdleTimeoutError) => void>()
   function clear(): void {
     if (timer !== null) {
-      clearTimeout(timer)
+      stopTimeout(timer)
       timer = null
     }
   }
@@ -433,7 +434,7 @@ export function createStreamIdleWatchdog(opts: {
     const now = performance.now()
     if (now - scheduledAtMs > 100) {
       scheduledAtMs = now
-      timer = setTimeout(onStreamIdleDeadline, 0)
+      timer = startTimeout(onStreamIdleDeadline, 0)
       return
     }
     const silentMs = now - lastActivityAtMs
@@ -456,7 +457,7 @@ export function createStreamIdleWatchdog(opts: {
     const idleDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? activity === 0 ? initialTimeoutMs : timeoutMs : warningMs)
     const nextDeadlineAt = fenceMs !== null && activity === 0 ? Math.min(idleDeadlineAt, createdAtMs + fenceMs) : idleDeadlineAt
     scheduledAtMs = nextDeadlineAt
-    timer = setTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - performance.now()))
+    timer = startTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - performance.now()))
   }
   arm()
   return {

@@ -12,6 +12,7 @@ import { SpawnPart } from './roster/spawn.js'
 import { RetargetPart } from './roster/retarget.js'
 import { DispatchPart } from './roster/dispatch.js'
 import { passedOver } from '../utils/passedOver.js'
+import { stopTimeout } from '../utils/timers.js'
 export { RUNNER_ASK_BOUND_MS, decideRunnerEnd } from './roster/end.js'
 
 const DELIVERED_ID_CAP = 500
@@ -127,7 +128,7 @@ export class TaskRoster {
     const h = this.handles.get(short)
     if (!h || !h.longLived || h.entry.outcome) return false
     h.longLived.intentionalStop = expected
-    if (expected && h.longLived.respawnTimer) clearTimeout(h.longLived.respawnTimer)
+    if (expected && h.longLived.respawnTimer) stopTimeout(h.longLived.respawnTimer)
     return true
   }
 
@@ -175,7 +176,7 @@ export class TaskRoster {
     const respawnPending = h.longLived?.respawnTimer !== undefined && h.entry.state === 'spawning'
     if (h.longLived) {
       h.longLived.intentionalStop = true
-      if (h.longLived.respawnTimer) clearTimeout(h.longLived.respawnTimer)
+      if (h.longLived.respawnTimer) stopTimeout(h.longLived.respawnTimer)
     }
     if (h.entry.outcome) {
       this.handles.delete(short)

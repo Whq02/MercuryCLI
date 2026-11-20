@@ -11,6 +11,7 @@ import { registerOwnerDisposer, unregisterOwnerDisposer } from '../run/ownerLife
 import type { OwnerKey } from '../run/ownerKey.js'
 import { fetchRun, repoHostEnabled, type RunView } from './repoHost.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const POLL_MS = 5_000
 const MAX_WATCH_MS = 30 * 60 * 1000
@@ -38,7 +39,7 @@ registerExecutionDomain('host-run-watch', {
     if (!live) return
     live.stopRequested = true
     if (live.timer) {
-      clearTimeout(live.timer)
+      stopTimeout(live.timer)
       live.timer = null
       finishWatch(live, 'stopped', 'stopped by request')
     }
@@ -99,7 +100,7 @@ export async function watchRun(owner: OwnerKey, root: string, runId: string): Pr
     if (!live) return
     live.stopRequested = true
     if (live.timer) {
-      clearTimeout(live.timer)
+      stopTimeout(live.timer)
       live.timer = null
     }
     liveWatches.delete(watchKey(owner, id))
@@ -142,10 +143,10 @@ export async function watchRun(owner: OwnerKey, root: string, runId: string): Pr
       }
       if (!liveWatches.has(watchKey(owner, id))) return
     }
-    watch.timer = setTimeout(() => void tick(), POLL_MS)
+    watch.timer = startTimeout(() => void tick(), POLL_MS)
     watch.timer.unref?.()
   }
-  watch.timer = setTimeout(() => void tick(), POLL_MS)
+  watch.timer = startTimeout(() => void tick(), POLL_MS)
   watch.timer.unref?.()
 
   return { state: 'watching', record, view: first.run }
@@ -157,7 +158,7 @@ export function cancelRunWatch(owner: OwnerKey, runId: string): ExecutionRecord 
 
 export function _resetRunWatchesForTesting(): void {
   for (const watch of liveWatches.values()) {
-    if (watch.timer) clearTimeout(watch.timer)
+    if (watch.timer) stopTimeout(watch.timer)
   }
   liveWatches.clear()
 }

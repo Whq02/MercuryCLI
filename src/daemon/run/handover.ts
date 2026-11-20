@@ -11,6 +11,7 @@ import type { periodicArmer } from './periodic.js'
 import { successorRuntime } from './restart.js'
 import type { DaemonRunState } from './state.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { startTimeout } from '../../utils/timers.js'
 
 const IDLE_PREDECESSOR_READS = 3
 const FIRST_IDLE_SWEEP_MS = 1_000
@@ -59,7 +60,7 @@ export function armHandoverBeats(state: DaemonRunState, { handoverPredecessor, a
       void askIdlePredecessorsToLeave().catch(e => logForDebugging(`[daemon] the idle-predecessor sweep failed (the next beat retries): ${e}`))
     }
     armPeriodic('the idle-predecessor sweep', sweepNow)
-    setTimeout(sweepNow, FIRST_IDLE_SWEEP_MS).unref?.()
+    startTimeout(sweepNow, FIRST_IDLE_SWEEP_MS).unref?.()
   }
   if (handoverPredecessor !== null && state.daemonLock === null) {
     let lockClaimInflight = false

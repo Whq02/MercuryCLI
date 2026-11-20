@@ -36,6 +36,7 @@ import {
 } from './driver.js'
 import { bundleWebEngine } from './webEngine.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 interface FakeTreeNode {
   role: string
@@ -770,10 +771,10 @@ export class FakeDesktopDriver implements DesktopDriver {
     return new Promise(resolve => {
       let timer: ReturnType<typeof setTimeout> | null = null
       const onAbort = (): void => {
-        if (timer !== null) clearTimeout(timer)
+        if (timer !== null) stopTimeout(timer)
         resolve('aborted')
       }
-      timer = setTimeout(() => {
+      timer = startTimeout(() => {
         signal.removeEventListener('abort', onAbort)
         resolve('done')
       }, this.scene.holdMs)

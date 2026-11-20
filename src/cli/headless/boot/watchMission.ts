@@ -2,6 +2,7 @@ import { missionUpdatedRow, samplesUpdatedRow } from '../../../rows/project.js'
 import { onTasksUpdated } from '../../../utils/tasks.js'
 import { subscribeSampleChanges } from '../../../services/samples/store.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { startTimeout } from '../../../utils/timers.js'
 
 async function run(ports: RunnerPorts): Promise<BootMade<'missionGuard'>> {
   const { enqueueRow, liveScope } = ports
@@ -10,7 +11,7 @@ async function run(ports: RunnerPorts): Promise<BootMade<'missionGuard'>> {
     let missionTimer: NodeJS.Timeout | null = null
     const missionMoved = (): void => {
       if (missionTimer !== null) return
-      missionTimer = setTimeout(() => {
+      missionTimer = startTimeout(() => {
         missionTimer = null
         enqueueRow(missionUpdatedRow(liveScope()))
       }, 50)
@@ -23,7 +24,7 @@ async function run(ports: RunnerPorts): Promise<BootMade<'missionGuard'>> {
     let samplesTimer: NodeJS.Timeout | null = null
     subscribeSampleChanges(() => {
       if (samplesTimer !== null) return
-      samplesTimer = setTimeout(() => {
+      samplesTimer = startTimeout(() => {
         samplesTimer = null
         enqueueRow(samplesUpdatedRow(liveScope()))
       }, 50)

@@ -24,6 +24,7 @@ import { isProcessAlive } from './ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 export const DEFAULT_WARM_RUNNER_IDLE_RETIRE_MINUTES = 5
 
@@ -383,7 +384,7 @@ export async function claimWarmRunner(
   }
   const deadlineMs = args.answerDeadlineMs ?? claimAnswerDeadlineMs(entry.spawnedAt, Date.now())
   const pulse = new AbortController()
-  const liveness = setInterval(() => {
+  const liveness = startInterval(() => {
     const live = roster.has(entry.short)
     if (!live.present || !live.alive || (entry.pid !== undefined && !isProcessAlive(entry.pid))) pulse.abort()
   }, CLAIM_LIVENESS_POLL_MS)
@@ -407,7 +408,7 @@ export async function claimWarmRunner(
       () => ({ ok: true as const }),
       (error: unknown) => ({ ok: false as const, error: claimFailureWords(error, deadlineMs, pulse.signal.aborted) }),
     )
-  clearInterval(liveness)
+  stopInterval(liveness)
   if (!outcome.ok) {
     retireWarmRunner(args.workspaceId, `claim failed (${outcome.error})`, deps)
     return { claimed: false, reason: outcome.error }

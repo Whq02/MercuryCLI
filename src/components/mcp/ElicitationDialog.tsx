@@ -14,6 +14,7 @@ import { openBrowser } from '../../utils/browser.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { useNowTick } from '../mercury-ui/components.js'
 import { scheduleDateResolveOf, commitTextOf, formKeysOf, valueDisplayOf, formDialogView, type FieldValue, type FieldKind, type FieldState, type ElicitationDialogProps } from './elicitationDialog/form.js'
+import { stopTimeout } from '../../utils/timers.js'
 
 const RESOLVE_DEBOUNCE_MS = 2_000
 const TYPEAHEAD_RESET_MS = 2_000
@@ -275,7 +276,7 @@ function FormElicitationDialog({
   useClaim(
     () => () => {
       unmountedRef.current = true
-      for (const timer of resolveTimersRef.current.values()) clearTimeout(timer)
+      for (const timer of resolveTimersRef.current.values()) stopTimeout(timer)
       for (const controller of resolveAbortsRef.current.values()) {
         controller.abort()
       }

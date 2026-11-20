@@ -3,6 +3,7 @@ import type { Tool } from '../Tool.js'
 import { createCombinedAbortSignal } from '../utils/combinedAbortSignal.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
+import { afterMicrotask } from '../utils/timers.js'
 
 export type ToolCallUnderGuard = {
   tool: string
@@ -120,8 +121,7 @@ async function judged<T>(timeoutMs: number, signal: AbortSignal | undefined, run
         return
       }
       combined.signal.addEventListener('abort', onAbort, { once: true })
-      Promise.resolve()
-        .then(() => run(combined.signal))
+      afterMicrotask(() => run(combined.signal))
         .then(resolve, reject)
         .finally(() => combined.signal.removeEventListener('abort', onAbort))
     })

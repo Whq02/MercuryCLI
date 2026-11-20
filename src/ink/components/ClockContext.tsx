@@ -3,6 +3,7 @@ import React, { createContext, useState, useSyncExternalStore } from 'react'
 import { usePublish } from '../../hooks/effects.js'
 import { clockPeriodMs, subscribeIdleMotion } from '../../utils/cockpit/motionGovernor.js'
 import { useTerminalFocus } from '../hooks/use-terminal-focus.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 type Clock = {
   subscribe: (onChange: () => void, keepAlive: boolean) => () => void
@@ -18,8 +19,8 @@ export type ClockTimers = {
 
 const REAL_CLOCK_TIMERS: ClockTimers = {
   now: () => performance.now(),
-  setInterval: (fn, ms) => setInterval(fn, ms),
-  clearInterval: timer => clearInterval(timer as ReturnType<typeof setInterval>),
+  setInterval: (fn, ms) => startInterval(fn, ms),
+  clearInterval: timer => stopInterval(timer as ReturnType<typeof setInterval>),
 }
 
 const FRAME_INTERVAL_MS = 16

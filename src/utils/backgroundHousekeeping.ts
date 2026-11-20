@@ -9,6 +9,7 @@ import { runLifecyclePass } from '../substrate/stateLifecycle.js'
 import { cleanupOldMessageFilesInBackground } from './cleanup.js'
 import { logForDebugging } from './debug.js'
 import { passedOver } from './passedOver.js'
+import { startTimeout } from './timers.js'
 
 const RECURRING_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 
@@ -24,10 +25,10 @@ interface HousekeepingSeams {
 }
 let seams: HousekeepingSeams = {
   now: Date.now,
-  schedule: (fn, ms) => setTimeout(fn, ms),
+  schedule: (fn, ms) => startTimeout(fn, ms),
 }
 export function _setHousekeepingSeamsForTesting(next: HousekeepingSeams | null): void {
-  seams = next ?? { now: Date.now, schedule: (fn, ms) => setTimeout(fn, ms) }
+  seams = next ?? { now: Date.now, schedule: (fn, ms) => startTimeout(fn, ms) }
 }
 
 function sentinelPath(): string {

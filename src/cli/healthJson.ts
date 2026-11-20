@@ -3,6 +3,7 @@ import { jsonStringify } from '../utils/slowOperations.js'
 import { writeOutAndExit } from './healthPresentation.js'
 import { beginReadOnlyDiagnostic } from '../utils/diagnosticReadOnly.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 
 function emitAndExit(value: unknown, code: number): Promise<never> {
@@ -42,7 +43,7 @@ function armSilenceGuards(
   process.on('beforeExit', onBeforeExit)
   const deadline =
     deadlineMs !== null
-      ? setTimeout(() => {
+      ? startTimeout(() => {
           if (!armed) return
           armed = false
           process.removeListener('beforeExit', onBeforeExit)
@@ -52,7 +53,7 @@ function armSilenceGuards(
   return () => {
     armed = false
     process.removeListener('beforeExit', onBeforeExit)
-    if (deadline !== null) clearTimeout(deadline)
+    if (deadline !== null) stopTimeout(deadline)
   }
 }
 

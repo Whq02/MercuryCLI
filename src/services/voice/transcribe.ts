@@ -5,6 +5,7 @@ import { voiceCheckoutRoot } from './voicePack.js'
 import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon, type WhisperSegment } from './whisperPack.js'
 import { checkWhisperModel, downloadWhisperModel, resolveWhisperModelPin, whisperModelsDir, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export function localTranscribeDeadlineMs(audioMs: number): number {
   return 120_000 + Math.max(0, Math.round(audioMs))
@@ -189,7 +190,7 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
   const queued = decodesHeld > 0
   let timer: ReturnType<typeof setTimeout> | null = null
   const bound = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new TranscribeError('local', queued
+    timer = startTimeout(() => reject(new TranscribeError('local', queued
       ? `the on-device transcriber is still decoding the previous take — this one waited ${Math.round(deadlineMs / 1000)}s for it (${model.name})`
       : `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`)), deadlineMs)
     timer.unref?.()
@@ -217,7 +218,7 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
     if (error instanceof TranscribeError) throw error
     throw new TranscribeError('local', error instanceof Error ? error.message : String(error))
   } finally {
-    if (timer !== null) clearTimeout(timer)
+    if (timer !== null) stopTimeout(timer)
     if (abort) opts.signal?.removeEventListener('abort', abort)
   }
 }

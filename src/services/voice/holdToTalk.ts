@@ -1,6 +1,7 @@
 import type { Key } from '../../ink/events/input-event.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import { HOLD_TO_TALK_MS, cancelVoiceCapture, startVoiceCapture, stopVoiceCapture, voiceSnapshot } from './voiceSession.js'
+import { startImmediate, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export { HOLD_TO_TALK_MS }
 export const FIRST_REPEAT_WINDOW_MS = 1_000
@@ -45,15 +46,15 @@ interface Hold {
 const realClock: HoldClock = {
   now: () => Date.now(),
   setTimeout: (fn, ms) => {
-    const handle = setTimeout(fn, ms)
+    const handle = startTimeout(fn, ms)
     handle.unref?.()
     return handle
   },
   clearTimeout: handle => {
-    clearTimeout(handle as ReturnType<typeof setTimeout>)
+    stopTimeout(handle as ReturnType<typeof setTimeout>)
   },
   defer: fn => {
-    setImmediate(fn)
+    startImmediate(fn)
   },
 }
 

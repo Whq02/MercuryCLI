@@ -10,6 +10,7 @@ import {
 } from '@puppeteer/browsers'
 import { browserCacheDir, dirSizeBytes, listManagedBrowsers, type ManagedBrowser } from './browserResolver.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout } from '../../utils/timers.js'
 
 function requirePlatform(): NonNullable<ReturnType<typeof detectBrowserPlatform>> {
   const p = detectBrowserPlatform()
@@ -21,7 +22,7 @@ function withDeadline<T>(promise: Promise<T>, ms: number, what: string): Promise
   return Promise.race([
     promise,
     new Promise<never>((_, reject) => {
-      const t = setTimeout(
+      const t = startTimeout(
         () => reject(new Error(`${what} exceeded its ${ms}ms deadline (offline, or a filtered network?)`)),
         ms,
       )

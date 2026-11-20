@@ -42,6 +42,7 @@ import {
   type ScopeDecisionFold,
 } from './reviewContracts.js'
 import { passedOver } from '../passedOver.js'
+import { sleepSync } from '../timers.js'
 
 const BODY_MAX_BYTES = 512 * 1024
 
@@ -86,10 +87,6 @@ export function reviewArtifactJournalExists(id: string): boolean {
 
 const LOCK_TIMEOUT_MS = 5000
 const LOCK_STALE_MS = 30_000
-
-function sleepSync(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
-}
 
 export function artifactLockOwnedBy(lock: string, token: string): boolean {
   try {

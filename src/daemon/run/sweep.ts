@@ -11,6 +11,7 @@ import { fileMoveStamp } from '../saturnTicker.js'
 import { sweepIdleWarmRunners, warmRunnerShorts, type WarmRunnerDeps } from '../warmRunner.js'
 import type { periodicArmer } from './periodic.js'
 import type { DaemonRunState } from './state.js'
+import { startImmediate } from '../../utils/timers.js'
 
 type ProcessSweepDoor = NonNullable<ControlServerDeps['processSweep']>
 
@@ -101,7 +102,7 @@ export async function processSweep(state: DaemonRunState, { liveWorkers, request
     if (liveNow > 0 || liveSessions > 0) return refuse(`${liveNow} live worker(s) use this daemon`)
     if (runners.some(runner => !runner.warm && runner.endedAt === undefined && runner.stoppedAt === undefined && runner.parkedAt === undefined)) return refuse('an open session record is held here')
     logForDebugging(`[daemon] process sweep: no owner, session, schedule or persistence holds pid ${process.pid} — shutting down at the operator's request`)
-    setImmediate(() => requestShutdown('control:processSweep'))
+    startImmediate(() => requestShutdown('control:processSweep'))
     return { ok: true, op: 'processSweep', action: 'end', ended: true, road: 'daemon', reason: 'the daemon confirmed nothing uses it and shut itself down' }
   }
   if (expected.kind === 'runner') {

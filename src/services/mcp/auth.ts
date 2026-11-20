@@ -35,6 +35,7 @@ import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 
@@ -193,7 +194,7 @@ export async function normalizeOAuthErrorBody(response: Response): Promise<Respo
 
 function combineSignals(caller: AbortSignal | undefined, timeoutMs: number): { signal: AbortSignal; release: () => void } {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(new DOMException('OAuth request timed out', 'TimeoutError')), timeoutMs)
+  const timer = startTimeout(() => controller.abort(new DOMException('OAuth request timed out', 'TimeoutError')), timeoutMs)
   timer.unref?.()
   const onAbort = (): void => controller.abort(caller?.reason)
   if (caller !== undefined) {
@@ -203,7 +204,7 @@ function combineSignals(caller: AbortSignal | undefined, timeoutMs: number): { s
   return {
     signal: controller.signal,
     release: () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       caller?.removeEventListener('abort', onAbort)
     },
   }
@@ -755,7 +756,7 @@ export async function performMCPOAuthFlow(
     server = undefined
   }
   const stopWaiting = (): void => {
-    if (timeout) clearTimeout(timeout)
+    if (timeout) stopTimeout(timeout)
     if (onAbort && abortSignal) abortSignal.removeEventListener('abort', onAbort)
   }
   const cleanup = (): void => {
@@ -866,7 +867,7 @@ export async function performMCPOAuthFlow(
     })
     server.listen(port, '127.0.0.1')
     server.unref()
-    timeout = setTimeout(() => settle(() => {
+    timeout = startTimeout(() => settle(() => {
       cleanup()
       reject(new Error('Authentication timed out'))
     }), FLOW_TIMEOUT_MS)

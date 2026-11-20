@@ -37,6 +37,7 @@ import { kernelTransportFor, ProcKernel, type CellEnd, type KernelTransport } fr
 import type { BridgeRequestFrame } from './protocol.js'
 import type { SampleItem } from '../samples/contracts.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const MAX_DISPLAYS_PER_CELL = 24
 
@@ -274,11 +275,11 @@ export class EvalKernelManager {
   private syncSweepTimer(): void {
     if (this.kernels.size > 0) {
       if (this.sweepTimer === null) {
-        this.sweepTimer = setInterval(() => this.sweep(), this.idleSweepMs)
+        this.sweepTimer = startInterval(() => this.sweep(), this.idleSweepMs)
         this.sweepTimer.unref?.()
       }
     } else if (this.sweepTimer !== null) {
-      clearInterval(this.sweepTimer)
+      stopInterval(this.sweepTimer)
       this.sweepTimer = null
     }
   }

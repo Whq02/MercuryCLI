@@ -8,6 +8,7 @@ import type { CompatLivenessReading } from './compatChatClient.js'
 import { compatModelEndpoint, resolveCompatApiKey } from './compatAccounts.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export type CompatDialect = NonNullable<CompatEndpointSettings['dialect']>
 export interface CompatServerReading {
@@ -102,7 +103,7 @@ export async function resolveLlamacppTotalSlots(
   const work = (async (): Promise<number | undefined> => {
     const controller = new AbortController()
     const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
-    const timer = setTimeout(() => controller.abort(), 5_000)
+    const timer = startTimeout(() => controller.abort(), 5_000)
     timer.unref?.()
     try {
       const root = compatServerBase(endpoint.baseUrl).replace(/\/v1$/, '')
@@ -132,7 +133,7 @@ export async function resolveLlamacppTotalSlots(
       passedOver(error)
       return undefined
     } finally {
-      clearTimeout(timer)
+      stopTimeout(timer)
       llamacppSlotsInFlight.delete(cacheKey)
     }
   })()
@@ -167,7 +168,7 @@ export async function readSelfHostedLiveness(
   const attempt = async (url: string, json: boolean): Promise<LivenessAnswer> => {
     const controller = new AbortController()
     const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
-    const timer = setTimeout(() => controller.abort(), LLAMACPP_SLOT_PROBE_MS)
+    const timer = startTimeout(() => controller.abort(), LLAMACPP_SLOT_PROBE_MS)
     timer.unref?.()
     try {
       const response = await (opts.fetchImpl ?? getApiFetch())(url, {
@@ -200,7 +201,7 @@ export async function readSelfHostedLiveness(
       if (isStaleSocketCode(deep.code)) return { kind: 'reset', words: deep.code ?? deep.message }
       return { kind: 'error', words: deep.message }
     } finally {
-      clearTimeout(timer)
+      stopTimeout(timer)
     }
   }
   const ask = async (url: string, json: boolean): Promise<LivenessAnswer> => {
@@ -279,7 +280,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
   const root = base.replace(/\/v1$/, '')
   const controller = new AbortController()
   const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
-  const timer = setTimeout(() => controller.abort(), 15_000)
+  const timer = startTimeout(() => controller.abort(), 15_000)
   timer.unref?.()
   const request = async (url: string, body?: unknown): Promise<unknown> => {
     const response = await (opts.fetchImpl ?? getApiFetch())(url, {
@@ -404,5 +405,5 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     throw new CompatProbeError(opts.key ? detail.split(opts.key).join('[redacted]') : detail, error instanceof CompatProbeError ? error.status : undefined)
-  } finally { clearTimeout(timer) }
+  } finally { stopTimeout(timer) }
 }

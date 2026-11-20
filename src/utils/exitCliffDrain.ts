@@ -2,6 +2,7 @@ import { channel } from 'node:diagnostics_channel'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
 import { sleep } from './sleep.js'
+import { afterMicrotask, startTimeout, stopTimeout } from './timers.js'
 
 const EXIT_CLIFF_DRAIN_CHANNEL = 'mercury:exit-cliff-drain'
 const drainChannel = channel(EXIT_CLIFF_DRAIN_CHANNEL)
@@ -55,7 +56,7 @@ function armGrace(graceMs: number): ExitCliffGrace {
       spent = true
       resolve()
     }
-    if (graceMs > 0) timer = setTimeout(fire, graceMs)
+    if (graceMs > 0) timer = startTimeout(fire, graceMs)
     else fire()
   })
   return {
@@ -65,7 +66,7 @@ function armGrace(graceMs: number): ExitCliffGrace {
     fired,
     elapsedMs: () => Math.ceil(performance.now() - armedAt),
     disarm: () => {
-      if (timer !== undefined) clearTimeout(timer)
+      if (timer !== undefined) stopTimeout(timer)
       timer = undefined
     },
   }
@@ -85,8 +86,7 @@ async function drainSeamsUnder(
     }
     const pending = new Set(batch.map(seam => seam.name))
     const runs = batch.map(seam =>
-      Promise.resolve()
-        .then(() => seam.settle())
+      afterMicrotask(() => seam.settle())
         .then(
           () => {
             if (pending.delete(seam.name)) report.settled.push(seam.name)

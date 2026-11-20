@@ -6,6 +6,7 @@ import { updateConcourseWorkers } from './store.js'
 import type { seatInitialPermissionMode } from './spec.js'
 import { type pidFieldsOf, buildTreeFields } from './marks.js'
 import type { AdmitSeat, ConcourseAdmitDeps, ConcourseAdmitResult } from './admit.js'
+import { startTimeout } from '../../utils/timers.js'
 
 export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kind, modelKey, modelDisplayName, kit, preset, retainedNote, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed }: AdmitSeat & { runnerId: string; claimSessionId: string; claimEffort: string; claimPosture: ReturnType<typeof seatInitialPermissionMode>; snapshot: ReturnType<typeof resolveEffectiveSettingsSnapshot>; pidFields: ReturnType<typeof pidFieldsOf>; claimed: Extract<Awaited<ReturnType<NonNullable<ConcourseAdmitDeps['claimWarm']>>>, { claimed: true }> }): ConcourseAdmitResult {
   updateConcourseWorkers(workers => {
@@ -39,7 +40,7 @@ export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kin
   }, deps.dir)
   deps.onSpawned?.(runnerId, claimed.spec, claimed.pid)
   if (deps.ensureWarm !== undefined) {
-    const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
+    const rewarm = startTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
     rewarm.unref?.()
   }
   return {

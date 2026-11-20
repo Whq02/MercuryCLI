@@ -12,6 +12,7 @@ import {
   tryReadImageFromPath,
 } from '../utils/imagePaste.js'
 import { getPlatform } from '../utils/platform.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const QUIET_FLUSH_MS = 100
 const CLIPBOARD_DEBOUNCE_MS = 50
@@ -66,8 +67,8 @@ export function usePasteHandler({
   useClaim(
     () => () => {
       mountedRef.current = false
-      if (timerRef.current !== null) clearTimeout(timerRef.current)
-      if (clipboardTimerRef.current !== null) clearTimeout(clipboardTimerRef.current)
+      if (timerRef.current !== null) stopTimeout(timerRef.current)
+      if (clipboardTimerRef.current !== null) stopTimeout(clipboardTimerRef.current)
     },
     [],
   )
@@ -80,8 +81,8 @@ export function usePasteHandler({
   onImageErrorRef.current = onImageError
 
   const checkClipboardImage = useCallback((): void => {
-    if (clipboardTimerRef.current !== null) clearTimeout(clipboardTimerRef.current)
-    clipboardTimerRef.current = setTimeout(() => {
+    if (clipboardTimerRef.current !== null) stopTimeout(clipboardTimerRef.current)
+    clipboardTimerRef.current = startTimeout(() => {
       clipboardTimerRef.current = null
       void getImageFromClipboard()
         .then(image => {
@@ -197,12 +198,12 @@ export function usePasteHandler({
 
       if (treatAsPaste) {
         chunksRef.current.push(input)
-        if (timerRef.current !== null) clearTimeout(timerRef.current)
+        if (timerRef.current !== null) stopTimeout(timerRef.current)
         if (flagged) {
           flush()
           return
         }
-        timerRef.current = setTimeout(flush, QUIET_FLUSH_MS)
+        timerRef.current = startTimeout(flush, QUIET_FLUSH_MS)
         return
       }
       if (flagged || input.length > 10) setIsPasting(false)

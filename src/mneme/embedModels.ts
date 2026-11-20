@@ -7,6 +7,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import lock from '../../vendor/embed-models.lock.json' with { type: 'json' }
 import { loadEmbedAddon } from './embedPack.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const EMBED_MODELS_LOCK_PATH = 'vendor/embed-models.lock.json'
 const EMBED_MODELS_SEGMENTS = ['models', 'embed'] as const
@@ -276,7 +277,7 @@ export async function downloadEmbedModel(
   rmSync(part, { force: true })
   const fetchImpl = opts.fetchImpl ?? fetch
   const controller = new AbortController()
-  const deadline = setTimeout(() => controller.abort(), opts.deadlineMs ?? EMBED_MODEL_DOWNLOAD_DEADLINE_MS)
+  const deadline = startTimeout(() => controller.abort(), opts.deadlineMs ?? EMBED_MODEL_DOWNLOAD_DEADLINE_MS)
   deadline.unref?.()
   try {
     let res: Response
@@ -314,7 +315,7 @@ export async function downloadEmbedModel(
     renameSync(part, path)
     return { path, bytes: received, sha256: digest, ms: Date.now() - started, reused: false }
   } finally {
-    clearTimeout(deadline)
+    stopTimeout(deadline)
     rmSync(part, { force: true })
   }
 }

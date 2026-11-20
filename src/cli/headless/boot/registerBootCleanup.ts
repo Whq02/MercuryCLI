@@ -1,13 +1,14 @@
 import { logForDiagnosticsNoPII } from '../../../utils/diagLogs.js'
 import { getRunningTasks } from '../../../utils/task/framework.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 async function run(ports: RunnerPorts): Promise<BootMade<'registerCleanup'>> {
   const { buildBehindFloor, driver, getAppState, idleNudge, live, releaseHookRows, stopHostNotices, stopParty, swarmLead, swarmResumes } = ports
   const { registerCleanup } = await import('../../../utils/cleanupRegistry.js')
   registerCleanup(async () => {
-    if (buildBehindFloor !== null) clearInterval(buildBehindFloor)
-    if (live.buildBehindConfirm !== null) clearTimeout(live.buildBehindConfirm)
+    if (buildBehindFloor !== null) stopInterval(buildBehindFloor)
+    if (live.buildBehindConfirm !== null) stopTimeout(live.buildBehindConfirm)
     releaseHookRows?.()
     idleNudge.stop()
     stopHostNotices()

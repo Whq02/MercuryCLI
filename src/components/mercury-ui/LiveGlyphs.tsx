@@ -21,6 +21,7 @@ import {
 import { AMBER, FAINT, IVORY } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { GLYPH } from './glyphs.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 export function WorkingGlyph({
@@ -92,8 +93,8 @@ export function ValueGlow({
       return
     }
     setGlowing(true)
-    const t = setTimeout(() => setGlowing(false), ms)
-    return () => clearTimeout(t)
+    const t = startTimeout(() => setGlowing(false), ms)
+    return () => stopTimeout(t)
   }, [value, enabled, ms])
   return (
     <Text bold={glowing} color={glowing ? IVORY : color}>

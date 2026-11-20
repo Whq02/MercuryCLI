@@ -22,6 +22,7 @@ import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
+import { startTimeout } from '../utils/timers.js'
 
 const COPY_ACK_MS = 2000
 
@@ -81,7 +82,7 @@ export function MetaConnect({ onResult, onBack }: {
       void setClipboard(event.start.verificationUriComplete ?? event.start.verificationUri).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)
-        setTimeout(() => setCopied(false), COPY_ACK_MS)
+        startTimeout(() => setCopied(false), COPY_ACK_MS)
       })
     }
   })

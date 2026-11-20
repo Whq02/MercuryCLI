@@ -31,6 +31,7 @@ import {
   type DaemonRequest,
 } from './protocol.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 declare const MACRO: { VERSION: string }
 
@@ -469,7 +470,7 @@ function rpcOnce(outbound: DaemonRpcRequest & { proto?: number; auth?: string },
     const finish = (reply: DaemonReply, transportFailure = false) => {
       if (settled) return
       settled = true
-      if (timer !== undefined) clearTimeout(timer)
+      if (timer !== undefined) stopTimeout(timer)
       try {
         sock.destroy()
       } catch (error) {
@@ -481,7 +482,7 @@ function rpcOnce(outbound: DaemonRpcRequest & { proto?: number; auth?: string },
       finish({ ok: false, code: 'ETIMEOUT', error: `daemon did not answer within ${Date.now() - startedAt}ms (ETIMEOUT)` }, true)
     }
     const arm = (ms: number): void => {
-      timer = setTimeout(() => {
+      timer = startTimeout(() => {
         if (settled) return
         if (opts.probe === true || !frameWritten) {
           expired()

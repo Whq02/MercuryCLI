@@ -9,6 +9,7 @@ import type { ConcourseSnapshotV1, ControlNoteState } from '../contracts.js';
 import { concourseWaitCopy } from '../contracts.js';
 import { thisMercuryCommand } from '../../../services/privateChannel/installPath.js';
 import { sleep } from '../../../utils/sleep.js';
+import { startTimeout } from '../../../utils/timers.js';
 
 export function useConcourseDraftDispatch({
   snapshotRef,
@@ -150,7 +151,7 @@ export function useConcourseDraftDispatch({
           noteResident('held', 'the daemon was unreachable')
           noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: '↵ retries' })
         } finally {
-          setTimeout(() => {
+          startTimeout(() => {
             submitInFlight.current = false
           }, 500)
           refresh()

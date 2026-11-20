@@ -6,6 +6,7 @@ import type { ScopedMcpServerConfig } from './services/mcp/types.js';
 import type { AppState } from './state/AppStateStore.js';
 import type { FpsMetrics } from './utils/fpsTracker.js';
 import { passedOver } from './utils/passedOver.js';
+import { startTimeout, stopTimeout } from './utils/timers.js';
 type AppWrapperProps = {
   getFpsMetrics: () => FpsMetrics | undefined;
   stats?: StatsStore;
@@ -33,10 +34,10 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
     await Promise.race([
       recovery,
       new Promise<null>(r => {
-        budgetTimer = setTimeout(() => r(null), BOOT_RECOVERY_BUDGET_MS);
+        budgetTimer = startTimeout(() => r(null), BOOT_RECOVERY_BUDGET_MS);
       }),
     ]);
-    if (budgetTimer !== undefined) clearTimeout(budgetTimer);
+    if (budgetTimer !== undefined) stopTimeout(budgetTimer);
   } catch (error) {
     passedOver(error)
   }
@@ -48,10 +49,10 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
     await Promise.race([
       foldResumedRunForBoot(processMainOwner(), getCwd()),
       new Promise<null>(r => {
-        foldBudgetTimer = setTimeout(() => r(null), BOOT_RECOVERY_BUDGET_MS);
+        foldBudgetTimer = startTimeout(() => r(null), BOOT_RECOVERY_BUDGET_MS);
       }),
     ]);
-    if (foldBudgetTimer !== undefined) clearTimeout(foldBudgetTimer);
+    if (foldBudgetTimer !== undefined) stopTimeout(foldBudgetTimer);
   } catch (error) {
     passedOver(error)
   }

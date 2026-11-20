@@ -4,6 +4,7 @@ import { setSeatTail, clearSeatProgress } from './stream.js'
 import { drainPendingKitDials } from './kit.js'
 import { forwardRecordSpawnSwitches, drainPendingSpawnSwitches } from './spawnSwitch.js'
 import { pushScheduleRoster, publishSeatFacts, requestSessionFacts } from './facts.js'
+import { stopTimeout } from '../../utils/timers.js'
 
 export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: string): void {
   retireWorkerAsks(short, RUNNER_RESTARTED_ASK_CAUSE, dir)
@@ -34,7 +35,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.streamBlock = null
   seat.blockSinceMs = null
   if (seat.livenessTimer !== null) {
-    clearTimeout(seat.livenessTimer)
+    stopTimeout(seat.livenessTimer)
     seat.livenessTimer = null
   }
   seat.livenessDirty = false
@@ -51,10 +52,10 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
 export function onSeatSettled(short: string): void {
   retireWorkerAsks(short, RUNNER_ENDED_ASK_CAUSE)
   const seat = seats.get(short)
-  if (seat?.debounce !== null && seat?.debounce !== undefined) clearTimeout(seat.debounce)
-  if (seat?.workPoll !== null && seat?.workPoll !== undefined) clearTimeout(seat.workPoll)
-  if (seat?.tailTimer !== null && seat?.tailTimer !== undefined) clearTimeout(seat.tailTimer)
-  if (seat?.progressTimer !== null && seat?.progressTimer !== undefined) clearTimeout(seat.progressTimer)
-  if (seat?.livenessTimer !== null && seat?.livenessTimer !== undefined) clearTimeout(seat.livenessTimer)
+  if (seat?.debounce !== null && seat?.debounce !== undefined) stopTimeout(seat.debounce)
+  if (seat?.workPoll !== null && seat?.workPoll !== undefined) stopTimeout(seat.workPoll)
+  if (seat?.tailTimer !== null && seat?.tailTimer !== undefined) stopTimeout(seat.tailTimer)
+  if (seat?.progressTimer !== null && seat?.progressTimer !== undefined) stopTimeout(seat.progressTimer)
+  if (seat?.livenessTimer !== null && seat?.livenessTimer !== undefined) stopTimeout(seat.livenessTimer)
   seats.delete(short)
 }

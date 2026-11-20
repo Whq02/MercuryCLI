@@ -21,6 +21,7 @@ import useStdin from '../hooks/use-stdin.js'
 import type { InputEvent } from '../events/input-event.js'
 import { elevatedSurfaceOwnsNode } from '../recessLayer.js'
 import { InkInstanceContext } from './InkInstanceContext.js'
+import { startMicrotask } from '../../utils/timers.js'
 
 function markUnstick(scroll: { stickyScroll?: boolean }): void {
   if (scroll.stickyScroll !== false) fluxMark('scroll:unstick')
@@ -74,7 +75,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
     markDirty(node)
     if (!renderQueued.current) {
       renderQueued.current = true
-      queueMicrotask(() => {
+      startMicrotask(() => {
         renderQueued.current = false
         scheduleRenderFrom(nodeRef.current ?? undefined)
       })

@@ -3,6 +3,7 @@ import { killProcessGroup } from '../../utils/processGroup.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { sleep } from '../../utils/sleep.js'
 import type { RosterOptions, WorkerHandle } from './types.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const RUNNER_ASK_BOUND_MS = 5_000
 
@@ -25,7 +26,7 @@ export class EndPart {
     const standing = this.asked.get(child)
     if (standing !== undefined) {
       if (signal === 'SIGTERM') return
-      clearTimeout(standing)
+      stopTimeout(standing)
       this.asked.delete(child)
     }
     const input = child.stdin
@@ -41,14 +42,14 @@ export class EndPart {
       return
     }
     logForDebugging(`[daemon] kill(${short}): the runner is idle, so its input is ended and it ends itself; its tree is killed if it stands after the bound`)
-    const bound = setTimeout(() => {
+    const bound = startTimeout(() => {
       this.asked.delete(child)
       killProcessGroup(child, signal)
     }, this.opts.runnerAskBoundMs ?? RUNNER_ASK_BOUND_MS)
     bound.unref?.()
     this.asked.set(child, bound)
     child.once('exit', () => {
-      clearTimeout(bound)
+      stopTimeout(bound)
       this.asked.delete(child)
     })
     input.end()

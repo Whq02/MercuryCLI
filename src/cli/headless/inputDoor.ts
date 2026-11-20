@@ -27,6 +27,7 @@ import { registerLocalWakeSink } from '../../services/saturn/sessionScheduleBrid
 import { AGENT_MESSAGE_STATUS } from '../../constants/agentMessage.js'
 import { taskRow } from '../../rows/project.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { startTimeout } from '../../utils/timers.js'
 
 export const taskNotificationPayloads = (command: QueuedCommand): string[] => {
   if (command.origin?.kind === 'outside-report') return []
@@ -151,7 +152,7 @@ export function armLocalWake(ports: RunnerPorts): void {
       const nowMs = Date.now()
       const next = localWakeStep(sessionLaneWall(nowMs), nowMs, firedAt, heldSince, facts)
       if (next.step === 'wait') {
-        const recheck = setTimeout(() => deliverLocalWake(prompt, facts, firedAt, next.heldSince), next.delayMs)
+        const recheck = startTimeout(() => deliverLocalWake(prompt, facts, firedAt, next.heldSince), next.delayMs)
         recheck.unref?.()
         return
       }

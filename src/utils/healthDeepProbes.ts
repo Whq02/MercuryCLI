@@ -19,7 +19,7 @@ export function sweepProbeDir(
         logForDebugging(`deep probe: scratch sweep of ${dir} failed after ${attempt} attempt(s): ${String(error)}`)
         return false
       }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, pauseMs)
+      sleepSync(pauseMs)
     }
   }
   return false
@@ -36,6 +36,7 @@ import type { Message } from '../types/message.js'
 import type { LSPServerInstance } from '../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../services/lsp/LSPServerManager.js'
 import { passedOver, passedOverAs } from './passedOver.js'
+import { sleepSync, startTimeout } from './timers.js'
 
 type CheckResult = Omit<HealthCheck, 'id' | 'label'>
 
@@ -269,7 +270,7 @@ export async function probeLspEngine(): Promise<CheckResult> {
     deadlineMs: 1_200,
     quietWindowMs: 80,
   })
-  setTimeout(() => {
+  startTimeout(() => {
     registerPendingLSPDiagnostic({
       serverName: 'probe',
       files: [

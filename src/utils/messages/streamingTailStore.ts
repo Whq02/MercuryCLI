@@ -2,6 +2,7 @@
 import type { TextPhase } from '../../types/wire.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
 import { registerFlushProbe } from '../../ink/root/flush-registry.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 const TAIL_INTERVAL_MS = 32
 
@@ -32,9 +33,9 @@ export function createStreamingTailStore(
   opts: StreamingTailStoreOpts = {},
 ): StreamingTailStore {
   const intervalMs = opts.intervalMs ?? TAIL_INTERVAL_MS
-  const setTimer = opts.setTimer ?? ((fn: () => void, ms: number) => setTimeout(fn, ms))
+  const setTimer = opts.setTimer ?? ((fn: () => void, ms: number) => startTimeout(fn, ms))
   const clearTimer =
-    opts.clearTimer ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>))
+    opts.clearTimer ?? ((h: unknown) => stopTimeout(h as ReturnType<typeof setTimeout>))
   const now = opts.now ?? (() => performance.now())
 
   let fresh: string | null = null

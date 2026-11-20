@@ -20,6 +20,7 @@ import {
 } from '../streamIdleBudget.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export const ZAI_CHAT_COMPLETIONS_URL = 'https://api.z.ai/api/paas/v4/chat/completions'
 const ZAI_API_BASE_URL = 'https://api.z.ai/api/paas/v4'
@@ -239,7 +240,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
-  const totalTimer = setTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
+  const totalTimer = startTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
   totalTimer.unref?.()
   let idleWatchdog: StreamIdleWatchdog | null = null
 
@@ -266,7 +267,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
     }
     options.firstByte?.onWait?.(wait)
     let firstByteFired = false
-    const firstByteTimer = setTimeout(() => {
+    const firstByteTimer = startTimeout(() => {
       firstByteFired = true
       controller.abort()
     }, firstByteBudget)
@@ -287,7 +288,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
     } catch (error) {
-      clearTimeout(firstByteTimer)
+      stopTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
       if (!cancelled && firstByteFired) {
         yield {
@@ -312,7 +313,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
       return
     }
 
-    clearTimeout(firstByteTimer)
+    stopTimeout(firstByteTimer)
     options.firstByte?.onWait?.(null)
 
     if (!response.ok) {
@@ -446,7 +447,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
       }
     }
   } finally {
-    clearTimeout(totalTimer)
+    stopTimeout(totalTimer)
     idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()

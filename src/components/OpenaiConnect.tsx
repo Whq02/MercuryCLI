@@ -18,6 +18,7 @@ import {
   finishOpenaiSubscriptionConnect,
   openaiConnectFailedReceipt,
 } from '../services/providers/openai/openaiLogin.js'
+import { startTimeout } from '../utils/timers.js'
 
 
 export function OpenaiConnect({
@@ -115,7 +116,7 @@ export function OpenaiConnect({
       void setClipboard(value).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        startTimeout(() => setCopied(false), 2000)
       })
       return
     }

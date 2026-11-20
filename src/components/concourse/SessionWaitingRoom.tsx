@@ -22,6 +22,7 @@ import {
   readConcourseQueuedStack,
 } from '../../services/concourse/concourseSnapshot.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const EMPTY_DRAFT: LineDraft = { text: '', caret: 0 }
 
@@ -89,9 +90,9 @@ export function SessionWaitingRoom({
   }, [dispatchId, onAdmitted])
   useTimer(() => {
     void load()
-    const iv = setInterval(() => void load(), 1200)
+    const iv = startInterval(() => void load(), 1200)
     iv.unref?.()
-    return () => clearInterval(iv)
+    return () => stopInterval(iv)
   }, [load])
   useInput((input, key, event) => {
     if (key.shift && key.leftArrow) {

@@ -7,6 +7,7 @@ import { type InputEvent, markInputConsumedThroughCurrentSeq } from '../../ink/e
 import { useSetAppState } from '../../state/AppState.js'
 import { trySeedComposer } from '../../utils/cockpit/composerSeed.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
+import { startImmediate } from '../../utils/timers.js'
 
 export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm): void {
   const setAppState = useSetAppState()
@@ -37,7 +38,7 @@ export function useKeysHeldUntilFirstPaint(): void {
     }
     const stop = ink.subscribeFrame(() => {
       stop()
-      if (stdin instanceof ReadStream) setImmediate(() => setImmediate(typedAheadRead))
+      if (stdin instanceof ReadStream) startImmediate(() => startImmediate(typedAheadRead))
       else typedAheadRead()
     })
     ink.scheduleRender()

@@ -1,6 +1,7 @@
 import { getIsInteractive } from '../../bootstrap/state.js'
 import { CLIENT_PRESENCE_BEAT_MS } from '../../daemon/clientPresence.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 let beat: ReturnType<typeof setInterval> | null = null
 
@@ -21,14 +22,14 @@ export function startScreenPresenceBeat(): boolean {
   if (beat !== null) return true
   if (!getIsInteractive()) return false
   void sendScreenPresence()
-  beat = setInterval(() => void sendScreenPresence(), CLIENT_PRESENCE_BEAT_MS)
+  beat = startInterval(() => void sendScreenPresence(), CLIENT_PRESENCE_BEAT_MS)
   beat.unref?.()
   return true
 }
 
 export function stopScreenPresenceBeat(): void {
   if (beat === null) return
-  clearInterval(beat)
+  stopInterval(beat)
   beat = null
 }
 

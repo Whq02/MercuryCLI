@@ -4,6 +4,7 @@ import { sleep } from '../../../utils/sleep.js'
 import { currentLspAbortSignal, noteLspRequestFault } from '../lspAbort.js'
 import type { ScopedLspServerConfig } from '../types.js'
 import type { LspServerRecord } from './record.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 const CONTENT_MODIFIED_CODE = -32801
@@ -64,7 +65,7 @@ export function sendRequestOf(server: LspServerRecord, { name, config, isHealthy
       let onAbort: (() => void) | undefined
       try {
         return await new Promise<T>((resolve, reject) => {
-          timer = setTimeout(() => {
+          timer = startTimeout(() => {
             source.cancel()
             reject(timedOutRequest(method, name, budgetMs))
           }, remaining)
@@ -87,7 +88,7 @@ export function sendRequestOf(server: LspServerRecord, { name, config, isHealthy
         }
         break
       } finally {
-        if (timer !== undefined) clearTimeout(timer)
+        if (timer !== undefined) stopTimeout(timer)
         if (onAbort) signal?.removeEventListener('abort', onAbort)
         source.dispose()
       }

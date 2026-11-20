@@ -12,6 +12,7 @@ import { forwardFrame, predecessorSockPath } from '../handover.js'
 import { supersededByLivePlaneOwnerSync } from '../planeRecords.js'
 import type { DaemonRunState } from './state.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startImmediate, startTimeout, stopInterval } from '../../utils/timers.js'
 
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const KILLED_TREES_BOUND_MS = 5_000
@@ -207,7 +208,7 @@ const WAY_OUT_THEN: readonly WayOutStep[] = [
   {
     name: 'let the event loop go',
     run: (_state, needs) => {
-      clearInterval(needs.keepAlive)
+      stopInterval(needs.keepAlive)
     },
   },
   {
@@ -219,7 +220,7 @@ const WAY_OUT_THEN: readonly WayOutStep[] = [
   {
     name: 'exit in 250 ms',
     run: () => {
-      setTimeout(() => process.exit(0), 250)
+      startTimeout(() => process.exit(0), 250)
     },
   },
 ]
@@ -254,7 +255,7 @@ export function shutdownDaemon(state: DaemonRunState, needs: ShutdownNeeds, sign
       }
     }
   })()
-  const bail = setTimeout(() => process.exit(1), 15_000)
+  const bail = startTimeout(() => process.exit(1), 15_000)
   bail.unref?.()
 }
 
@@ -280,7 +281,7 @@ export async function stopVerb(state: DaemonRunState, { requestShutdown }: StopN
     reaped += reply.reaped
     workers.push(...(reply.workers ?? []))
   }
-  setImmediate(() => requestShutdown('control:shutdown'))
+  startImmediate(() => requestShutdown('control:shutdown'))
   return { reaped, workers }
 }
 
@@ -301,7 +302,7 @@ export function armWaysOut({ shutdown, persistCrash }: WaysOutNeeds): void {
     } catch (e) {
       logForDebugging(`[daemon] crash shutdown threw: ${e}`)
     }
-    const bail = setTimeout(() => process.exit(1), 2000)
+    const bail = startTimeout(() => process.exit(1), 2000)
     bail.unref?.()
   }
   process.on('uncaughtException', err => crashShutdown('uncaughtException', err))

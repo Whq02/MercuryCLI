@@ -22,6 +22,7 @@ import { codeActionRequest, codeActionResolveRequest } from './sidecar/requests/
 import { moveToFileRequest } from './sidecar/requests/moveToFile.js'
 import { diagnosticRequest } from './sidecar/requests/diagnostic.js'
 import { handleNotification } from './sidecar/notifications.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function resolveWorkspaceTypescript(root: string): string | undefined {
   let dir = path.resolve(root)
@@ -65,7 +66,7 @@ export function runTsLspSidecar(
     const finish = (code: number) => {
       if (settled) return
       settled = true
-      for (const timer of pendingPublishes.values()) clearTimeout(timer)
+      for (const timer of pendingPublishes.values()) stopTimeout(timer)
       resolve(code)
     }
 
@@ -108,10 +109,10 @@ export function runTsLspSidecar(
       if (!state) return
       const norm = state.normalize(file)
       const existing = pendingPublishes.get(norm)
-      if (existing) clearTimeout(existing)
+      if (existing) stopTimeout(existing)
       pendingPublishes.set(
         norm,
-        setTimeout(() => {
+        startTimeout(() => {
           pendingPublishes.delete(norm)
           try {
             notify('textDocument/publishDiagnostics', {

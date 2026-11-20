@@ -33,6 +33,7 @@ import { registerSubcommands } from './main/subcommands.js'
 import { registerSessionDoors } from './main/sessionDoors.js'
 import { passedOver } from './utils/passedOver.js'
 import { hostEnv } from './utils/hostEnv.js'
+import { startTimeout, stopTimeout } from './utils/timers.js'
 export { startDeferredPrefetches } from './main/deferredPrefetches.js'
 
 profileCheckpoint('main_tsx_entry')
@@ -247,7 +248,7 @@ async function run(): Promise<void> {
   program.hook('preAction', async (_thisCommand, actionCommand) => {
     if (PRINT_ONLY_VERBS.has(actionCommand.name())) return
     profileCheckpoint('preAction_start')
-    const slowBootNote = setTimeout(() => {
+    const slowBootNote = startTimeout(() => {
       if (process.stderr.isTTY) process.stderr.write(`${startWaitNote(process.platform)}\n`)
     }, 1_500)
     slowBootNote.unref?.()
@@ -269,7 +270,7 @@ async function run(): Promise<void> {
     resetSettingsCache()
     profileCheckpoint('preAction_after_mdm')
     await ensureKeychainPrefetchCompleted()
-    clearTimeout(slowBootNote)
+    stopTimeout(slowBootNote)
     await init()
     profileCheckpoint('preAction_after_init')
     if (resolveTerminalExperience().terminalTitle.effective) {

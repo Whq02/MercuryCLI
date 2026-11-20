@@ -12,6 +12,7 @@ import { checkForUpdate, type CheckOutcome } from './updateService.js'
 import { nixInstallRoot } from './installProvenance.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const UPDATE_NOTICE_CACHE_FILE = 'update-notice.json'
 export const UPDATE_NOTICE_DAILY_MS = 24 * 60 * 60 * 1000
@@ -180,7 +181,7 @@ export function quietUpdateCheckArmed(env: NodeJS.ProcessEnv = hostEnv()): boole
 
 export function scheduleQuietUpdateNotice(notify: (text: string) => void, opts: { delayMs?: number } = {}): () => void {
   if (!quietUpdateCheckArmed() || nixInstallRoot() !== null) return () => {}
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     reconcileManagedShims(resolveLayoutRoots())
     void runQuietUpdateCheck({
       check: () => checkForUpdate(resolveLayoutRoots(), () => {}),
@@ -192,5 +193,5 @@ export function scheduleQuietUpdateNotice(notify: (text: string) => void, opts: 
     }).catch(error => logForDebugging(`update notice: ${error}`))
   }, opts.delayMs ?? UPDATE_NOTICE_FIRST_DELAY_MS)
   timer.unref?.()
-  return () => clearTimeout(timer)
+  return () => stopTimeout(timer)
 }

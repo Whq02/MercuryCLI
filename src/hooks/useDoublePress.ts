@@ -1,6 +1,7 @@
 
 import { useCallback, useRef } from 'react'
 import { useClaim } from './effects.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const DOUBLE_PRESS_TIMEOUT_MS = 800
 
@@ -15,13 +16,13 @@ export function useDoublePress(
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   useClaim(
     () => () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current)
+      if (timerRef.current !== null) stopTimeout(timerRef.current)
     },
     [],
   )
   return useCallback(() => {
     if (timerRef.current !== null) {
-      clearTimeout(timerRef.current)
+      stopTimeout(timerRef.current)
       timerRef.current = null
       setPending(false)
       onDoublePress()
@@ -29,7 +30,7 @@ export function useDoublePress(
     }
     onFirstPress?.()
     setPending(true)
-    timerRef.current = setTimeout(() => {
+    timerRef.current = startTimeout(() => {
       timerRef.current = null
       setPending(false)
     }, windowMs)

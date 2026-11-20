@@ -3,6 +3,7 @@ import { holdOf } from './owners.js'
 import { pageKits } from './stealth.js'
 import { abortReason } from './launch.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 function leftForHost(origins: Set<string>, url: string): boolean {
   let host: string
@@ -49,11 +50,11 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
         resolve(null)
         return
       }
-      const bound = until === null ? undefined : setTimeout(() => resolve(null), Math.max(0, until - Date.now()))
+      const bound = until === null ? undefined : startTimeout(() => resolve(null), Math.max(0, until - Date.now()))
       const onAbort = (): void => resolve(null)
       signal?.addEventListener('abort', onAbort, { once: true })
       end = () => {
-        clearTimeout(bound)
+        stopTimeout(bound)
         signal?.removeEventListener('abort', onAbort)
       }
     })
@@ -110,10 +111,10 @@ export async function popupsSettled(session: Session): Promise<void> {
     if (pending.length === 0 || left <= 0) return
     let bound: ReturnType<typeof setTimeout> | undefined
     const lapse = new Promise<void>(resolve => {
-      bound = setTimeout(resolve, left)
+      bound = startTimeout(resolve, left)
     })
     await Promise.race([Promise.all(pending.map(birth => birth.settled)), lapse])
-    if (bound !== undefined) clearTimeout(bound)
+    if (bound !== undefined) stopTimeout(bound)
   }
 }
 

@@ -7,6 +7,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../../utils/privacyLevel.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export const ANTIGRAVITY_OAUTH_CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com'
 export const ANTIGRAVITY_OAUTH_CLIENT_SECRET = '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'
@@ -183,7 +184,7 @@ export async function readAntigravityVersionFromManifest(io?: AntigravityClientI
   const url = antigravityManifestUrl(env)
   if (isProofShapeRun() && !isLoopbackUrl(url)) return { ok: false, words: proofShapeReason() }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), ANTIGRAVITY_MANIFEST_DEADLINE_MS)
+  const timer = startTimeout(() => controller.abort(), ANTIGRAVITY_MANIFEST_DEADLINE_MS)
   timer.unref?.()
   try {
     const fetchImpl = io?.fetchImpl ?? getApiFetch()
@@ -211,7 +212,7 @@ export async function readAntigravityVersionFromManifest(io?: AntigravityClientI
     if (version === undefined) return { ok: false, words: 'the manifest named no three-part version' }
     return { ok: true, version, from: url }
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
   }
 }
 

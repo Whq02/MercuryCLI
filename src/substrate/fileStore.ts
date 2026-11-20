@@ -25,6 +25,7 @@ import {
   type StoreRevision,
 } from './storeRevision.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startInterval, startMicrotask, startTimeout, stopInterval, stopTimeout } from '../utils/timers.js'
 
 export type {
   StoreChange,
@@ -389,8 +390,8 @@ export function defineStore<T, A extends unknown[] = []>(
   const scheduleEmit = (path: string, rt: Runtime): void => {
     if (rt.listeners.size === 0) return
     rt.lastStatKey = null
-    if (rt.debounceTimer) clearTimeout(rt.debounceTimer)
-    rt.debounceTimer = setTimeout(() => {
+    if (rt.debounceTimer) stopTimeout(rt.debounceTimer)
+    rt.debounceTimer = startTimeout(() => {
       rt.debounceTimer = null
       void emitIfChanged(path, rt)
     }, cfg.watchDebounceMs ?? DEFAULT_WATCH_DEBOUNCE_MS)
@@ -405,7 +406,7 @@ export function defineStore<T, A extends unknown[] = []>(
       rt.pollFloorStop()
       rt.pollFloorStop = null
     }
-    rt.pollTimer = setInterval(
+    rt.pollTimer = startInterval(
       () => void emitIfChanged(path, rt),
       cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS,
     )
@@ -427,7 +428,7 @@ export function defineStore<T, A extends unknown[] = []>(
       rt.watcher = null
     }
     if (rt.pollTimer) {
-      clearInterval(rt.pollTimer)
+      stopInterval(rt.pollTimer)
       rt.pollTimer = null
     }
     if (rt.pollLadderStop) {
@@ -439,7 +440,7 @@ export function defineStore<T, A extends unknown[] = []>(
       rt.pollFloorStop = null
     }
     if (rt.debounceTimer) {
-      clearTimeout(rt.debounceTimer)
+      stopTimeout(rt.debounceTimer)
       rt.debounceTimer = null
     }
     rt.lastEmittedRaw = null
@@ -607,7 +608,7 @@ function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>,
   let ancestor: NodeFSWatcher | null = null
   const upgrade = (): void => {
     if (rt.pollTimer) {
-      clearInterval(rt.pollTimer)
+      stopInterval(rt.pollTimer)
       rt.pollTimer = null
     }
     stopFloor()
@@ -643,7 +644,7 @@ function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>,
   }
   const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
   const stopFloor = subscribeUiClock(floorMs, () => void probe())
-  rt.pollTimer = setInterval(() => {}, 0x7fffffff)
+  rt.pollTimer = startInterval(() => {}, 0x7fffffff)
   rt.pollTimer.unref?.()
   rt.pollLadderStop = () => {
     stopFloor()
@@ -690,7 +691,7 @@ function makeHandleOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: str
       rt.lastSeenRevision = Math.max(rt.lastSeenRevision ?? 0, emitted.revision)
     }
     if (!echoed && rt.listeners.size > 0) {
-      queueMicrotask(() =>
+      startMicrotask(() =>
         fanOut(rt, { value, revision: emitted, cause, skippedRevisions: 0 }),
       )
     }

@@ -47,6 +47,7 @@ import { openProjectOf, runRowOf, type BootRow } from './bootSplash/rowActions.j
 import { bootSplashCompositionOf, bootSplashFaceView } from './bootSplash/face.js';
 import { armBootSettingsLayerDeepLink, consumeBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
 import { passedOver } from '../utils/passedOver.js';
+import { startTimeout, stopTimeout } from '../utils/timers.js';
 
 
 export { armBootSettingsLayerDeepLink };
@@ -102,7 +103,7 @@ async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<
     recordLaunchMilestone('birth-refused');
     if (flipped) {
       if (!settleAbsentChat().ok) enterBootSettings();
-      setTimeout(() => mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning'), 0);
+      startTimeout(() => mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning'), 0);
     }
     return born.reason;
   }
@@ -146,8 +147,8 @@ export function BootSplashScreen(): React.ReactNode {
   const [updateLine, setUpdateLine] = useState(() => takeFaceUpdateNotice());
   useTimer(() => {
     if (updateLine === null) return;
-    const timer = setTimeout(() => setUpdateLine(null), UPDATE_NOTICE_STAY_MS);
-    return () => clearTimeout(timer);
+    const timer = startTimeout(() => setUpdateLine(null), UPDATE_NOTICE_STAY_MS);
+    return () => stopTimeout(timer);
   }, [updateLine]);
 
   const concourseLive = routeSurfaceRegistered('concourse');

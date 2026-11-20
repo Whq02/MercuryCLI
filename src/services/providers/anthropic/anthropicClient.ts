@@ -6,6 +6,7 @@ import { AnthropicStream } from './anthropicStream.js'
 import type { AnthropicMessageParams } from './anthropicWire.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export type AnthropicClientOptions = {
   apiKey?: string | null
@@ -137,12 +138,12 @@ export class AnthropicClient {
       }
       options.signal?.addEventListener('abort', abort, { once: true })
       const release = () => {
-        clearTimeout(timer)
+        stopTimeout(timer)
         options.signal?.removeEventListener('abort', abort)
         controller.signal.removeEventListener('abort', release)
       }
       controller.signal.addEventListener('abort', release, { once: true })
-      const timer = setTimeout(abort, timeout)
+      const timer = startTimeout(abort, timeout)
       const bounded = <V>(pending: Promise<V>): Promise<V> => new Promise((resolve, reject) => {
         const onAbort = () => {
           controller.signal.removeEventListener('abort', onAbort)
@@ -186,7 +187,7 @@ export class AnthropicClient {
       }
       const request_id = response.headers.get('request-id')
       if (body.stream) {
-        clearTimeout(timer)
+        stopTimeout(timer)
         return { data: AnthropicStream.fromSSEResponse(response, controller, release) as T, response, request_id }
       }
       try {

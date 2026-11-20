@@ -1,5 +1,6 @@
 import { openPlainCursorWindow, type TerminalResponse } from '../input/interpreter.js'
 import type { TerminalQuerier } from './querier.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type WidthProbeClass = 'vs16' | 'skin' | 'zwj' | 'flag' | 'combining' | 'zeroWidth' | 'sextant' | 'ambiguous'
 export type TerminalWidthMeasurements = Readonly<Partial<Record<WidthProbeClass, number>>>
@@ -41,11 +42,11 @@ export function queueTerminalWidthProbe(
   const close = (): void => {
     if (!active) return
     active = false
-    clearTimeout(timer)
+    stopTimeout(timer)
     closeWindow()
     repaint()
   }
-  const timer = setTimeout(close, 250)
+  const timer = startTimeout(close, 250)
   timer.unref?.()
   for (const [index, sample] of WIDTH_PROBE_SAMPLES.entries()) {
     const row = index + 2

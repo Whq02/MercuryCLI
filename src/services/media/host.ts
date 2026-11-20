@@ -12,6 +12,7 @@ import { mediaRoot, mediaServerPath, type MediaSettings, type MediaConfig } from
 import { parseMediaCatalogue, type MediaCatalogue } from './catalogue.js'
 import { mediaRows, mediaRuntimeChoice, MediaSetupPaused, type MediaSnapshot, type MediaProgress } from './setup.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const REMOTE_DIR = '/workspace/mercury-media'
 const REMOTE_PORT = 30080
@@ -153,7 +154,7 @@ export async function runMediaHostSetup(args: string[], progress: (event: MediaP
   }
   const controller = new AbortController()
   const combined = AbortSignal.any([signal, controller.signal])
-  let timer = setTimeout(() => controller.abort(), 30000)
+  let timer = startTimeout(() => controller.abort(), 30000)
   let done = false
   let error: string | undefined
   try {
@@ -165,8 +166,8 @@ export async function runMediaHostSetup(args: string[], progress: (event: MediaP
     while (true) {
       const next = await reader.read()
       if (next.done) break
-      clearTimeout(timer)
-      timer = setTimeout(() => controller.abort(), 30000)
+      stopTimeout(timer)
+      timer = startTimeout(() => controller.abort(), 30000)
       text += decoder.decode(next.value, { stream: true })
       let end: number
       while ((end = text.indexOf('\n')) >= 0) {
@@ -181,7 +182,7 @@ export async function runMediaHostSetup(args: string[], progress: (event: MediaP
   } catch (error) {
     if (signal.aborted) throw new MediaSetupPaused({ event: 'cancelled' })
     throw error
-  } finally { clearTimeout(timer) }
+  } finally { stopTimeout(timer) }
 }
 export async function setMediaHostDefaults(settings: MediaSettings, patch: MediaConfig): Promise<void> {
   const signal = new AbortController().signal

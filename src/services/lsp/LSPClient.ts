@@ -16,6 +16,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 export type LSPStopResult = {
@@ -341,7 +342,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
         await Promise.race([
           shutdown,
           new Promise<never>((_, reject) => {
-            deadline = setTimeout(
+            deadline = startTimeout(
               () => reject(new Error(`LSP server ${serverName} shutdown timed out after ${budget}ms`)),
               budget,
             )
@@ -351,7 +352,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       } catch (err) {
         gracefulFailed = err
       } finally {
-        if (deadline !== null) clearTimeout(deadline)
+        if (deadline !== null) stopTimeout(deadline)
       }
     }
     if (connection !== null) {

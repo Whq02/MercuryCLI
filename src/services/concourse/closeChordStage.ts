@@ -1,3 +1,4 @@
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const CLOSE_CHORD_STAGE_WINDOW_MS = 5000
 
@@ -24,7 +25,7 @@ export function createCloseChordStage(windowMs: number = CLOSE_CHORD_STAGE_WINDO
   }
   const stopTimer = (): void => {
     if (timer !== null) {
-      clearTimeout(timer)
+      stopTimeout(timer)
       timer = null
     }
   }
@@ -32,7 +33,7 @@ export function createCloseChordStage(windowMs: number = CLOSE_CHORD_STAGE_WINDO
     stopTimer()
     stage = next
     if (next !== null) {
-      timer = setTimeout(() => {
+      timer = startTimeout(() => {
         timer = null
         if (stage !== next) return
         stage = null

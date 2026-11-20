@@ -13,6 +13,7 @@ import { processMainOwner } from '../../run/resolveOwner.js'
 import { isDeadThinkingPlaceholder } from './deadThinkingPlaceholder.js'
 import { PREFIX_LEDGER_FILE, prefixLedgerPath } from './prefixRecordStore.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export interface WirePrefixParts {
   system: unknown
@@ -363,7 +364,7 @@ export function noteRequestOnWire(owner: string): void {
 
 function scheduleRecordWrite(): void {
   if (writeTimer !== null || heldForWire || pendingWrite === null) return
-  writeTimer = setTimeout(() => {
+  writeTimer = startTimeout(() => {
     writeTimer = null
     void landRecordWrites()
   }, 0)
@@ -389,7 +390,7 @@ function landRecordWrites(): Promise<void> {
 
 export async function flushPrefixLedger(): Promise<void> {
   if (writeTimer !== null) {
-    clearTimeout(writeTimer)
+    stopTimeout(writeTimer)
     writeTimer = null
   }
   await landRecordWrites()
@@ -500,7 +501,7 @@ export function resetPrefixLedger(): void {
   pendingWrite = null
   heldForWire = false
   if (writeTimer !== null) {
-    clearTimeout(writeTimer)
+    stopTimeout(writeTimer)
     writeTimer = null
   }
   recordWrites = 0

@@ -8,6 +8,7 @@ import { getMaxOutputLength, OUTPUT_HEAD_SHARE } from '../shell/outputLimits.js'
 import { safeJoinLines } from '../stringUtils.js'
 import { DiskTaskOutput, acquireTaskOutputWriter, getTaskOutputPath } from './diskOutput.js'
 import { passedOver } from '../passedOver.js'
+import { startInterval, stopInterval } from '../timers.js'
 
 
 type ProgressCallback = (
@@ -90,7 +91,7 @@ export class TaskOutput {
     if (!instance || !instance.hasProgressCallback()) return
     activePolling.add(taskId)
     if (pollTimer === null) {
-      pollTimer = setInterval(pollTick, POLL_INTERVAL_MS)
+      pollTimer = startInterval(pollTick, POLL_INTERVAL_MS)
       pollTimer.unref?.()
     }
   }
@@ -98,7 +99,7 @@ export class TaskOutput {
   static stopPolling(taskId: string): void {
     activePolling.delete(taskId)
     if (activePolling.size === 0 && pollTimer !== null) {
-      clearInterval(pollTimer)
+      stopInterval(pollTimer)
       pollTimer = null
     }
   }

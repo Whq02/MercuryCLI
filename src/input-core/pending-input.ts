@@ -16,6 +16,7 @@ import {
 import { createSignal } from '../utils/signal.js'
 import { markTypingActivity } from '../utils/cockpit/typingActivity.js'
 import { normalizePastedInput } from './composer-document.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export function sanitizeComposerText(raw: string): string {
   return normalizePastedInput(raw.replace(/[\u0080-\u009f]/g, ''))
@@ -227,7 +228,7 @@ export function resetPendingInputForTests(): void {
   commitSeq = 0
   typedIn = false
   if (suppressionTimer !== null) {
-    clearTimeout(suppressionTimer)
+    stopTimeout(suppressionTimer)
     suppressionTimer = null
   }
 }
@@ -235,11 +236,11 @@ export function resetPendingInputForTests(): void {
 
 function armSuppressionTimer(nonempty: boolean): void {
   if (suppressionTimer !== null) {
-    clearTimeout(suppressionTimer)
+    stopTimeout(suppressionTimer)
     suppressionTimer = null
   }
   if (!nonempty) return
-  suppressionTimer = setTimeout(() => {
+  suppressionTimer = startTimeout(() => {
     suppressionTimer = null
     setActive(false)
   }, PROMPT_SUPPRESSION_MS)

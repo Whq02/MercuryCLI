@@ -12,6 +12,7 @@ import {
   type RiskLevel,
 } from '../../utils/permissions/permissionExplainer.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const RISK_LABEL: Record<RiskLevel, string> = {
   LOW: 'Low risk',
@@ -69,8 +70,8 @@ function ShimmerLine({ message }: { message: string }): React.ReactNode {
   const [sweep, setSweep] = useState(0)
   useTimer(() => {
     const cycle = message.length + 10
-    const timer = setInterval(() => setSweep(current => (current + 1) % cycle), 60)
-    return () => clearInterval(timer)
+    const timer = startInterval(() => setSweep(current => (current + 1) % cycle), 60)
+    return () => stopInterval(timer)
   }, [message])
   return (
     <Text>

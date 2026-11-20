@@ -14,6 +14,7 @@ import {
 import { resolveBlenderAddonHome } from './addonHome.js'
 import { readBlenderBridgeToken } from './bridgeToken.js'
 import { blenderBridgeTokenOverride } from '../../utils/blender/bridgeGates.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 export type { BlenderBridgeResult } from './bridgeProtocol.js'
 
@@ -35,18 +36,18 @@ export function blenderBridgeHint(port: number): string {
 export function probeBlenderBridgeReachable(port: number, timeoutMs = 400): Promise<boolean> {
   return new Promise(resolve => {
     const socket = net.connect({ host: '127.0.0.1', port })
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       socket.destroy()
       resolve(false)
     }, timeoutMs)
     timer.unref?.()
     socket.once('connect', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       socket.destroy()
       resolve(true)
     })
     socket.once('error', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolve(false)
     })
   })
@@ -172,15 +173,15 @@ export class BlenderBridgeClient {
     const socket = net.connect({ host: '127.0.0.1', port: this.port })
     this.socket = socket
     socket.setNoDelay(true)
-    const connectTimer = setTimeout(() => socket.destroy(new Error('connect timeout')), this.connectTimeoutMs)
+    const connectTimer = startTimeout(() => socket.destroy(new Error('connect timeout')), this.connectTimeoutMs)
     connectTimer.unref?.()
-    this.helloTimer = setTimeout(() => {
+    this.helloTimer = startTimeout(() => {
       if (this.state === 'connecting') socket.destroy(new Error('handshake timeout'))
     }, this.helloTimeoutMs)
     this.helloTimer.unref?.()
 
     socket.once('connect', () => {
-      clearTimeout(connectTimer)
+      stopTimeout(connectTimer)
       socket.write(buildBlenderBridgeHelloFrame(this.token))
     })
     socket.on('data', chunk => {
@@ -188,9 +189,9 @@ export class BlenderBridgeClient {
     })
     const fail = () => {
       if (this.socket !== socket) return
-      clearTimeout(connectTimer)
+      stopTimeout(connectTimer)
       if (this.helloTimer) {
-        clearTimeout(this.helloTimer)
+        stopTimeout(this.helloTimer)
         this.helloTimer = null
       }
       this.onConnectionDown()
@@ -225,7 +226,7 @@ export class BlenderBridgeClient {
   private onFrame(frame: Exclude<ReturnType<typeof parseBlenderBridgeFrame>, { kind: 'unknown' }>): void {
     if (this.state === 'connecting') {
       if (this.helloTimer) {
-        clearTimeout(this.helloTimer)
+        stopTimeout(this.helloTimer)
         this.helloTimer = null
       }
       if ((frame.kind === 'hello-reply' || frame.kind === 'response') && frame.ok === true) {
@@ -247,7 +248,7 @@ export class BlenderBridgeClient {
         this.armHeartbeat()
         const queued = this.queue.splice(0)
         for (const q of queued) {
-          if (q.queueTimer) clearTimeout(q.queueTimer)
+          if (q.queueTimer) stopTimeout(q.queueTimer)
           void this.send(q.op, q.args, q.timeoutMs, q.signal).then(q.resolve)
         }
       } else {
@@ -259,7 +260,7 @@ export class BlenderBridgeClient {
     if (frame.kind === 'response' && this.pending.has(frame.id)) {
       const p = this.pending.get(frame.id)!
       this.pending.delete(frame.id)
-      clearTimeout(p.timer)
+      stopTimeout(p.timer)
       if (frame.ok === true) p.resolve({ ok: true, result: frame.result })
       else {
         p.resolve({
@@ -292,14 +293,14 @@ export class BlenderBridgeClient {
         const held = this.pending.get(id)
         if (!held) return
         this.pending.delete(id)
-        clearTimeout(held.timer)
+        stopTimeout(held.timer)
         resolve(abortedWhileHeld(op))
       }
       const settle = (r: BlenderBridgeResult): void => {
         signal?.removeEventListener('abort', onAbort)
         resolve(r)
       }
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         this.pending.delete(id)
         settle(
           err(
@@ -318,24 +319,24 @@ export class BlenderBridgeClient {
 
   private armHeartbeat(): void {
     this.clearHeartbeat()
-    this.heartbeat = setInterval(() => {
+    this.heartbeat = startInterval(() => {
       const socket = this.socket
       if (!socket || this.state !== 'ready') return
       const id = this.nextId++
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         this.pending.delete(id)
         socket.destroy(new Error('missed pong'))
       }, this.pongTimeoutMs)
       timer.unref?.()
-      this.pending.set(id, { resolve: () => clearTimeout(timer), timer, op: 'ping' })
+      this.pending.set(id, { resolve: () => stopTimeout(timer), timer, op: 'ping' })
       socket.write(buildBlenderBridgeRequestFrame(id, 'ping'))
     }, this.heartbeatMs)
     this.heartbeat.unref?.()
   }
 
   private clearHeartbeat(): void {
-    if (this.heartbeat) clearInterval(this.heartbeat)
-    if (this.pongTimer) clearTimeout(this.pongTimer)
+    if (this.heartbeat) stopInterval(this.heartbeat)
+    if (this.pongTimer) stopTimeout(this.pongTimer)
     this.heartbeat = null
     this.pongTimer = null
   }
@@ -372,12 +373,12 @@ export class BlenderBridgeClient {
       socket.destroy()
     }
     for (const [, p] of this.pending) {
-      clearTimeout(p.timer)
+      stopTimeout(p.timer)
       p.resolve(reason)
     }
     this.pending.clear()
     for (const q of this.queue.splice(0)) {
-      if (q.queueTimer) clearTimeout(q.queueTimer)
+      if (q.queueTimer) stopTimeout(q.queueTimer)
       q.resolve(reason)
     }
   }
@@ -406,7 +407,7 @@ async function requestOf(
       const i = this.queue.indexOf(entry)
       if (i < 0) return
       this.queue.splice(i, 1)
-      if (entry.queueTimer) clearTimeout(entry.queueTimer)
+      if (entry.queueTimer) stopTimeout(entry.queueTimer)
       resolve(abortedBeforeSending(op))
     }
     const entry = {
@@ -420,7 +421,7 @@ async function requestOf(
       },
       queueTimer: null as NodeJS.Timeout | null,
     }
-    entry.queueTimer = setTimeout(() => {
+    entry.queueTimer = startTimeout(() => {
       const i = this.queue.indexOf(entry)
       if (i >= 0) this.queue.splice(i, 1)
       entry.resolve(

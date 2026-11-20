@@ -3,6 +3,7 @@ import { isProcessAlive, decideOrphanShutdown } from './ownerWatch.js'
 import { runCleanupFunctions } from '../utils/cleanupRegistry.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { startInterval, startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const WORKER_PARENT_PID_ENV = 'MERCURY_WORKER_PARENT_PID'
 
@@ -29,13 +30,13 @@ async function orphanExit(opts: {
     await Promise.race([
       opts.cleanup().catch(passedOverAs(undefined)),
       new Promise<void>(resolve => {
-        cap = setTimeout(resolve, capMs)
+        cap = startTimeout(resolve, capMs)
       }),
     ])
   } catch (error) {
     passedOver(error)
   } finally {
-    if (cap) clearTimeout(cap)
+    if (cap) stopTimeout(cap)
   }
   opts.exit(0)
 }
@@ -60,7 +61,7 @@ export function armWorkerParentWatch(
   const exit = opts.exit ?? ((c: number) => process.exit(c))
   const alive = opts.alive ?? isProcessAlive
   let deadStreak = 0
-  const timer = setInterval(() => {
+  const timer = startInterval(() => {
     const parentAlive = alive(parentPid)
     deadStreak = parentAlive ? 0 : deadStreak + 1
     if (

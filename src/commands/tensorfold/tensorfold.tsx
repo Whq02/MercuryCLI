@@ -46,6 +46,7 @@ import { TENSORFOLD_WORDS as W } from './words.js'
 import { consumeFirstRunServeAsk } from '../../substrate/splashHandover.js'
 import { bytesWords } from '../../services/host/bank.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export const TENSORFOLD_REFRESH_MS = 1_000
 
@@ -87,8 +88,8 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
   useTimer(() => {
     const inFlight = facts !== null && (Object.values(facts.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing') || facts.pods.some(pod => pod.state === 'starting' || pod.state === 'stopping'))
     if (!inFlight) return
-    const timer = setInterval(() => void read(), TENSORFOLD_REFRESH_MS)
-    return () => clearInterval(timer)
+    const timer = startInterval(() => void read(), TENSORFOLD_REFRESH_MS)
+    return () => stopInterval(timer)
   }, [facts, read])
   useLoad(() => {
     if (repo !== undefined && repo !== '') void readOtherCheckpoint(repo, io.road)

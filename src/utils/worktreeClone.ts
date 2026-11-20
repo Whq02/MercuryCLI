@@ -9,6 +9,7 @@ import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { startInterval, stopInterval } from './timers.js'
 
 export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'held' | 'unsupported' | 'failed'
 
@@ -366,7 +367,7 @@ async function unlessQuiet<T>(work: (moved: () => void) => Promise<T>, quietBoun
   let left = false
   let watch: ReturnType<typeof setInterval> | undefined
   const quiet = new Promise<Quiet>(resolve => {
-    watch = setInterval(() => {
+    watch = startInterval(() => {
       if (Date.now() - last >= quietBoundMs) resolve('quiet')
     }, Math.max(20, Math.min(1000, quietBoundMs / 4)))
   })
@@ -379,7 +380,7 @@ async function unlessQuiet<T>(work: (moved: () => void) => Promise<T>, quietBoun
     left = answer === 'quiet'
     return answer
   } finally {
-    clearInterval(watch)
+    stopInterval(watch)
   }
 }
 

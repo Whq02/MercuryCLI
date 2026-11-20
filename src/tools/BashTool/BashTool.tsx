@@ -89,6 +89,7 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { shellWebContentNotice } from './webContent.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 import { mapResultToBlock } from './resultBlock.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 
@@ -466,18 +467,18 @@ async function* runBash(
 
   let quietTimerHandle: ReturnType<typeof setTimeout> | undefined
   const quietTimer = new Promise<'timer'>(resolve => {
-    quietTimerHandle = setTimeout(() => resolve('timer'), QUIET_WINDOW_MS)
+    quietTimerHandle = startTimeout(() => resolve('timer'), QUIET_WINDOW_MS)
     if (typeof quietTimerHandle === 'object' && 'unref' in quietTimerHandle) quietTimerHandle.unref()
   })
   const settledEarly = await Promise.race([completed, quietTimer, backgroundAsk])
   if (settledEarly === 'done') {
-    if (quietTimerHandle !== undefined) clearTimeout(quietTimerHandle)
+    if (quietTimerHandle !== undefined) stopTimeout(quietTimerHandle)
     const result = await shellCommand.result
     shellCommand.cleanup()
     return await postProcess(result, postNeeds)
   }
   if (settledEarly === 'background') {
-    if (quietTimerHandle !== undefined) clearTimeout(quietTimerHandle)
+    if (quietTimerHandle !== undefined) stopTimeout(quietTimerHandle)
     backgroundAskHandled = true
     await startBackgrounding()
     if (backgroundId === undefined) {

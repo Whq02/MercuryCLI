@@ -1,3 +1,4 @@
+import { startTimeout, stopTimeout } from '../timers.js'
 
 type PointerCell = { col: number; row: number }
 
@@ -14,8 +15,8 @@ function notify(): void {
 }
 
 function armIdleReset(): void {
-  if (idleTimer) clearTimeout(idleTimer)
-  idleTimer = setTimeout(() => {
+  if (idleTimer) stopTimeout(idleTimer)
+  idleTimer = startTimeout(() => {
     idleTimer = null
     if (cell !== null) {
       cell = null
@@ -35,7 +36,7 @@ export function setPointerCell(col: number, row: number): void {
 
 export function clearPointerCell(): void {
   if (idleTimer) {
-    clearTimeout(idleTimer)
+    stopTimeout(idleTimer)
     idleTimer = null
   }
   if (cell !== null) {
@@ -62,7 +63,7 @@ export function subscribePointerCell(listener: () => void): () => void {
   return () => {
     listeners.delete(listener)
     if (listeners.size === 0 && idleTimer !== null) {
-      clearTimeout(idleTimer)
+      stopTimeout(idleTimer)
       idleTimer = null
     }
   }

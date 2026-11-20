@@ -3,6 +3,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 
 const CAFFEINATE_TIMEOUT_SECONDS = 300
@@ -55,7 +56,7 @@ function killHelper(): void {
 function armRestartTimer(): void {
   if (process.platform !== 'darwin') return
   if (restartTimer !== null) return
-  restartTimer = setInterval(() => {
+  restartTimer = startInterval(() => {
     if (referenceCount > 0) {
       killHelper()
       spawnHelper()
@@ -66,7 +67,7 @@ function armRestartTimer(): void {
 
 function disarmRestartTimer(): void {
   if (restartTimer !== null) {
-    clearInterval(restartTimer)
+    stopInterval(restartTimer)
     restartTimer = null
   }
 }

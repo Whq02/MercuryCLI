@@ -1,3 +1,5 @@
+import { startTimeout, stopTimeout } from './timers.js'
+
 export type BufferedWriter = {
   write(content: string): void
   flush(): void
@@ -39,7 +41,7 @@ export function createBufferedWriter(options: {
 
   const clearFlushTimer = (): void => {
     if (flushTimer !== undefined) {
-      clearTimeout(flushTimer)
+      stopTimeout(flushTimer)
       flushTimer = undefined
     }
   }
@@ -61,7 +63,7 @@ export function createBufferedWriter(options: {
     clearFlushTimer()
     if (!overflowScheduled) {
       overflowScheduled = true
-      setTimeout(() => {
+      startTimeout(() => {
         overflowScheduled = false
         drainOverflow()
       }, 0)
@@ -76,7 +78,7 @@ export function createBufferedWriter(options: {
     buffer.push(content)
     byteCount += content.length
     if (flushTimer === undefined) {
-      flushTimer = setTimeout(() => {
+      flushTimer = startTimeout(() => {
         flushTimer = undefined
         flush()
       }, flushIntervalMs)

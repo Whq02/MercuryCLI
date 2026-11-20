@@ -15,6 +15,7 @@ import {
   type MoonshotOauthIo,
 } from './moonshotAccounts.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 export interface MoonshotUsageIo {
   fetchImpl?: typeof fetch
@@ -125,7 +126,7 @@ export function refreshMoonshotBalance(io?: MoonshotUsageIo): Promise<MoonshotOb
   }
   if (inFlight) return inFlight
   const work = (async (): Promise<MoonshotObservedBalance | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const key = resolveMoonshotApiKey(env)
       if (!key) return observed
@@ -396,7 +397,7 @@ export function refreshKimiManagedUsage(io?: MoonshotUsageIo & MoonshotOauthIo):
   }
   if (managedInFlight) return managedInFlight
   const work = (async (): Promise<KimiManagedUsage | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const credential = await resolveMoonshotDispatchCredential(io)
       if (credential?.source !== 'kimi-oauth') return observedManaged

@@ -10,6 +10,7 @@ import { subscribeCurrentProject } from '../../../utils/bootCardFacts.js';
 import { subscribeFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js';
 import type { ConcourseSnapshotV1 } from '../contracts.js';
 import { passedOver } from '../../../utils/passedOver.js';
+import { startInterval, stopInterval } from '../../../utils/timers.js';
 
 let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
 
@@ -123,7 +124,7 @@ export function useConcourseSnapshot(): {
         }
       })
       .catch(passedOver)
-    const timer = setInterval(rebuild, 15_000)
+    const timer = startInterval(rebuild, 15_000)
     timer.unref?.()
     return () => {
       alive.current = false
@@ -132,7 +133,7 @@ export function useConcourseSnapshot(): {
       unsubProject()
       unsubSlot()
       watcher?.close()
-      clearInterval(timer)
+      stopInterval(timer)
     }
   }, [rebuild])
   return {

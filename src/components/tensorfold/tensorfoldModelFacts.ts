@@ -9,6 +9,7 @@ import type { TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import { refreshTensorFoldAnnouncements, subscribeTensorFoldFacts, tensorFoldAnnouncementsNow, tensorFoldFactsStamp, tensorFoldHostsNow } from './tensorfoldFacts.js'
 import type { TensorFoldPickerFacts } from './tensorfoldRows.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const REFRESH_MS = 1_000
 
@@ -67,8 +68,8 @@ export function useModelTensorFoldFacts(current: string | undefined, onNotice: (
   const inFlight = facts !== undefined && Object.values(facts.panel.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing')
   useTimer(() => {
     if (!inFlight) return
-    const timer = setInterval(() => void read().catch(passedOverAs(undefined)), REFRESH_MS)
-    return () => clearInterval(timer)
+    const timer = startInterval(() => void read().catch(passedOverAs(undefined)), REFRESH_MS)
+    return () => stopInterval(timer)
   }, [inFlight, read])
   const notice = useRef(tensorFoldRoadState().notice)
   usePublish(() => {

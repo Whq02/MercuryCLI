@@ -7,6 +7,7 @@ import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPL
 import { sleep } from '../../utils/sleep.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
 
@@ -331,7 +332,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
   let autoStopped = false
   let result: Promise<CaptureResult> | null = null
   const boundMs = opts.boundMs ?? captureBoundMs()
-  const bound = setTimeout(() => {
+  const bound = startTimeout(() => {
     if (settled) return
     autoStopped = true
     opts.onAutoStop?.()
@@ -347,7 +348,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
       if (result !== null) return result
       if (cancelled) return Promise.reject(new CaptureError(backend.kind, 'the take was cancelled — nothing to stop'))
       settled = true
-      clearTimeout(bound)
+      stopTimeout(bound)
       result = (async (): Promise<CaptureResult> => {
         const pcm = await raw.stop()
         const wav = encodeWav(pcm)
@@ -375,7 +376,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
       if (settled) return
       settled = true
       cancelled = true
-      clearTimeout(bound)
+      stopTimeout(bound)
       raw.cancel()
     },
     streamErrors: () => raw.streamErrors?.() ?? NO_STREAM_ERRORS,

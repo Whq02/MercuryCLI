@@ -5,6 +5,7 @@ import { useMount } from '../hooks/effects.js'
 import { useAppStateStore, useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { Theme } from '../utils/theme.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 type Priority = 'low' | 'medium' | 'high' | 'immediate'
 
@@ -66,7 +67,7 @@ let expiryTimer: NodeJS.Timeout | null = null
 
 function cancelExpiry(): void {
   if (expiryTimer !== null) {
-    clearTimeout(expiryTimer)
+    stopTimeout(expiryTimer)
     expiryTimer = null
   }
 }
@@ -74,7 +75,7 @@ function cancelExpiry(): void {
 function armExpiry(entry: Notification, setAppState: SetAppState): void {
   cancelExpiry()
   if (standsUntilRemoved(entry)) return
-  expiryTimer = setTimeout(() => {
+  expiryTimer = startTimeout(() => {
     expiryTimer = null
     setAppState(prev => {
       if (prev.notifications.current?.key !== entry.key) return prev

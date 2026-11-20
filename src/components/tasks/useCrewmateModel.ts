@@ -8,6 +8,7 @@ import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils
 import { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_TICK_MS } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 type CrewmateModel = { model: string | null; effort: string | null; next: { model: string | null; effort: string | null } | null }
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }
@@ -56,11 +57,11 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
       if (alive) setRecorded(previous => previous?.file === file && previous.identity.model === identity.model && previous.identity.effort === identity.effort && previous.identity.effortOverride === identity.effortOverride ? previous : { file, identity })
     }
     void read()
-    const timer = setInterval(() => { void read() }, CREWMATE_TRANSCRIPT_TICK_MS)
+    const timer = startInterval(() => { void read() }, CREWMATE_TRANSCRIPT_TICK_MS)
     timer.unref?.()
     return () => {
       alive = false
-      clearInterval(timer)
+      stopInterval(timer)
     }
   }, [file, startedAt])
   if (crewmate === null) return null

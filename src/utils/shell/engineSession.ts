@@ -29,6 +29,7 @@ import { windowsBashAbsent, withGitPrograms, withoutWhatTheEngineRefuses } from 
 import { registerCleanup } from '../cleanupRegistry.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
+import { startImmediate, startTimeout, stopTimeout } from '../timers.js'
 
 const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
@@ -228,7 +229,7 @@ async function admitAgentSession(
   })
   let timer: ReturnType<typeof setTimeout> | undefined
   const timedOut = new Promise<'timed out'>(resolve => {
-    timer = setTimeout(() => resolve('timed out'), options.timeout)
+    timer = startTimeout(() => resolve('timed out'), options.timeout)
   })
   try {
     for (;;) {
@@ -249,7 +250,7 @@ async function admitAgentSession(
   } finally {
     waitingOwners.delete(owned.owner)
     taskOutput.setLiveNotice(null)
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) stopTimeout(timer)
     if (onAbort !== undefined) options.signal.removeEventListener('abort', onAbort)
   }
 }
@@ -538,11 +539,11 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       const done = async (partial: { stderr: string; code: number; interrupted: boolean }): Promise<void> => {
         if (finished) return
         finished = true
-        if (timer !== undefined) clearTimeout(timer)
+        if (timer !== undefined) stopTimeout(timer)
         if (onAbort) options.signal.removeEventListener('abort', onAbort)
         live.reader = null
         live.onExit = null
-        await new Promise<void>(r => setImmediate(r))
+        await new Promise<void>(r => startImmediate(r))
         const externalStderr = live.stderrBuf.toString('utf8')
         live.stderrBuf = Buffer.alloc(0)
         if (externalStderr.length > 0) taskOutput.writeStdout(externalStderr)
@@ -576,7 +577,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         void done({ stderr: '', code: code ?? 1, interrupted: false })
       }
 
-      timer = setTimeout(() => {
+      timer = startTimeout(() => {
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
@@ -600,7 +601,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         if (finished) return
         finished = true
         releaseInFlight = null
-        if (timer !== undefined) clearTimeout(timer)
+        if (timer !== undefined) stopTimeout(timer)
         if (onAbort) options.signal.removeEventListener('abort', onAbort)
         resolveExecute()
       }
@@ -702,7 +703,7 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     child.stderr?.on('data', (chunk: Buffer) => {
       if (stderr.length < 8192) stderr += chunk.toString('utf8')
     })
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       try {
         child.kill('SIGKILL')
       } catch (error) {
@@ -712,12 +713,12 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     }, PARSE_GUARD_TIMEOUT_MS)
     timer.unref?.()
     child.once('exit', code => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       if (code === 0) finish(true, '')
       else finish(false, stderr.trim() || `shell parse error (exit ${String(code)})`)
     })
     child.once('error', error => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       finish(true, errorMessage(error))
     })
   })

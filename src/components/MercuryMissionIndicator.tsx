@@ -7,6 +7,7 @@ import { formatDuration } from '../utils/format.js'
 import { FAINT, IVORY } from './mercuryPalette.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const MISSION_ACTIVE_GLYPH = '◎'
 
@@ -29,7 +30,7 @@ export function MercuryMissionIndicator(): React.ReactNode {
       const elapsed = Date.now() - setAt
       const period = elapsed < 60_000 ? 1_000 : 60_000
       const delay = period - (elapsed % period)
-      timer = setTimeout(() => {
+      timer = startTimeout(() => {
         if (!aliveRef.current) return
         setTick(n => n + 1)
         schedule()
@@ -38,7 +39,7 @@ export function MercuryMissionIndicator(): React.ReactNode {
     schedule()
     return () => {
       aliveRef.current = false
-      if (timer) clearTimeout(timer)
+      if (timer) stopTimeout(timer)
     }
   }, [setAt])
 

@@ -235,6 +235,7 @@ function configFiles(): string[] {
 
 import { readdirSync, type Dirent } from 'node:fs'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 function readdirSyncSafe(dir: string): Dirent[] {
   try {
     return readdirSync(dir, { withFileTypes: true })
@@ -327,7 +328,7 @@ async function refresh(): Promise<void> {
   refreshInFlight = true
   const startGeneration = generation
   const abort = new AbortController()
-  const timer = setTimeout(() => abort.abort(), WALK_TIMEOUT_MS)
+  const timer = startTimeout(() => abort.abort(), WALK_TIMEOUT_MS)
   try {
     let paths: string[]
     if (gitRoot !== null && indexUnchanged) {
@@ -360,7 +361,7 @@ async function refresh(): Promise<void> {
   } catch (error) {
     logForDebugging(`file-suggestion refresh failed: ${error}`)
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     refreshInFlight = false
   }
 }

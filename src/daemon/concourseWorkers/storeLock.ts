@@ -6,6 +6,7 @@ import { lockSync } from '../../utils/lockfile.js'
 import { publishTransientInDaemonHome, daemonHomeStands } from '../daemonHome.js'
 import { isProcessAlive } from '../ownerWatch.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { sleepSync } from '../../utils/timers.js'
 
 const SESSION_RECORDS_LOCK_WAIT_MS = STORE_LOCK_OPTIONS.stale + 5_000
 
@@ -45,7 +46,7 @@ function abandonedLockReading(lockDir: string, ownerPath: string): string | null
 function reclaimAbandonedLock(lockDir: string, ownerPath: string): boolean {
   const judged = abandonedLockReading(lockDir, ownerPath)
   if (judged === null) return false
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  sleepSync(50)
   if (abandonedLockReading(lockDir, ownerPath) !== judged) return false
   if (lockIdentityOf(lockDir) !== judged.split('|')[0]) return false
   try {
@@ -124,7 +125,7 @@ function acquireSessionRecordsLock(
       if (Date.now() >= deadline) {
         throw new SessionRecordsLockError(path, `another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`, where)
       }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, backoffMs + Math.floor(Math.random() * backoffMs))
+      sleepSync(backoffMs + Math.floor(Math.random() * backoffMs))
       backoffMs = Math.min(backoffMs * 2, 50)
     }
   }

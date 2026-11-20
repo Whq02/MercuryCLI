@@ -3,6 +3,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { minutesKnobToMs } from '../../../utils/deadline.js'
 import { formatFileSize } from '../../../utils/format.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 30_000
 const DEFAULT_TOOL_TIMEOUT_MS = 100_000_000
@@ -48,7 +49,7 @@ export async function withMcpLaunchBudget(
 ): Promise<'settled' | 'timeout'> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const bound = new Promise<'timeout'>(resolve => {
-    timer = setTimeout(() => resolve('timeout'), budgetMs)
+    timer = startTimeout(() => resolve('timeout'), budgetMs)
   })
   try {
     return await Promise.race([
@@ -59,7 +60,7 @@ export async function withMcpLaunchBudget(
       bound,
     ])
   } finally {
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) stopTimeout(timer)
   }
 }
 

@@ -8,6 +8,7 @@ import { type LspRangeLike } from '../../../services/lsp/workspaceEditApply.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { LspWireDiagnostic } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 type DiagnosticsBaseline = {
   generationKey: string
@@ -130,11 +131,11 @@ async function harvestPublishedReports(
   if (immediate.length === serverNames.length) return immediate
   return await new Promise(resolvePromise => {
     const finish = (): void => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       unsubscribe()
       resolvePromise(collect())
     }
-    const timer = setTimeout(finish, deadlineMs)
+    const timer = startTimeout(finish, deadlineMs)
     const unsubscribe = registry.subscribePublishedReports(event => {
       if (!serverNames.includes(event.serverName)) return
       const plain = event.file.uri.startsWith('file://')

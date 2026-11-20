@@ -1,6 +1,7 @@
 
 import { useRef, useState } from 'react'
 import { useTimer } from './effects.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export function useMinDisplayTime<T>(value: T, minMs: number): T {
   const [shown, setShown] = useState(value)
@@ -10,7 +11,7 @@ export function useMinDisplayTime<T>(value: T, minMs: number): T {
   useTimer(() => {
     if (Object.is(value, shown)) return
     if (timerRef.current !== null) {
-      clearTimeout(timerRef.current)
+      stopTimeout(timerRef.current)
       timerRef.current = null
     }
     const elapsed = Date.now() - shownAtRef.current
@@ -19,14 +20,14 @@ export function useMinDisplayTime<T>(value: T, minMs: number): T {
       setShown(value)
       return
     }
-    timerRef.current = setTimeout(() => {
+    timerRef.current = startTimeout(() => {
       timerRef.current = null
       shownAtRef.current = Date.now()
       setShown(value)
     }, minMs - elapsed)
     return () => {
       if (timerRef.current !== null) {
-        clearTimeout(timerRef.current)
+        stopTimeout(timerRef.current)
         timerRef.current = null
       }
     }

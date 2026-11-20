@@ -1,4 +1,5 @@
 import { formatLimit, type InactivityDeadline } from '../../utils/deadline.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 export type HostAskLiveness = {
   noteParked(): void
@@ -26,7 +27,7 @@ export function keepTurnLiveWhileHostAnswers(args: {
   let askClock: ReturnType<typeof setTimeout> | null = null
   const clearAskClock = (): void => {
     if (askClock === null) return
-    clearTimeout(askClock)
+    stopTimeout(askClock)
     askClock = null
   }
   const settleAtLimit = (): void => {
@@ -36,10 +37,10 @@ export function keepTurnLiveWhileHostAnswers(args: {
   }
   const armAskClock = (): void => {
     if (askClock !== null) return
-    askClock = setTimeout(settleAtLimit, limitMs)
+    askClock = startTimeout(settleAtLimit, limitMs)
     askClock.unref?.()
   }
-  const beat = setInterval(() => {
+  const beat = startInterval(() => {
     if (parkedWithHost() > 0) watchdog.touch()
     if (parkedAsks() > 0) armAskClock()
     else clearAskClock()
@@ -51,12 +52,12 @@ export function keepTurnLiveWhileHostAnswers(args: {
       armAskClock()
     },
     noteSettled: () => {
-      setTimeout(() => {
+      startTimeout(() => {
         if (parkedAsks() === 0) clearAskClock()
       }, 0)
     },
     stop: () => {
-      clearInterval(beat)
+      stopInterval(beat)
       clearAskClock()
     },
   }

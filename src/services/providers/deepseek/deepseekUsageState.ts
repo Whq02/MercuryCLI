@@ -6,6 +6,7 @@ import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveDeepseekApiKey } from './deepseekAccounts.js'
 import { deepseekBalanceUrl } from './deepseekAccounts.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 interface DeepseekBalanceInfo {
   currency: string
@@ -122,7 +123,7 @@ export function refreshDeepseekBalance(io?: {
   }
   if (inFlight) return inFlight
   const work = (async (): Promise<DeepseekObservedBalance | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const key = resolveDeepseekApiKey(env)
       if (!key) return observed

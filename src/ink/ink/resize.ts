@@ -7,6 +7,7 @@ import { writeDiffToTerminal } from '../session/delivery.js'
 import { ENTER_ALT_SCREEN } from '../termio/dec.js'
 import { liveSize, buildParkPatch, resetFramesForAltScreen } from './frames.js'
 import type Ink from '../ink.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 type HandleResizeReads = Pick<
   Ink,
@@ -32,9 +33,9 @@ export function settleResize(this: SettleResizeReads): void {
     this.scheduler.holdForSettle()
     paintResizeHold.call(this, columns, rows)
   } else {
-    clearTimeout(this.resizeSettleTimer)
+    stopTimeout(this.resizeSettleTimer)
   }
-  this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
+  this.resizeSettleTimer = startTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
 }
 
 export function handleWinch(this: Pick<Ink, 'options' | 'cachedColumns' | 'cachedRows' | 'resizeSettleTimer' | 'overwriteScreen'>): void {
@@ -111,7 +112,7 @@ export function applySize(this: ApplySizeReads, columns: number, rows: number): 
 
 export function clearResizeSettle(this: Pick<Ink, 'scheduler' | 'resizeSettleTimer'>): void {
   if (this.resizeSettleTimer !== null) {
-    clearTimeout(this.resizeSettleTimer)
+    stopTimeout(this.resizeSettleTimer)
     this.resizeSettleTimer = null
   }
   this.scheduler.releaseSettleHold(false)

@@ -16,6 +16,7 @@ import { LLM_HOST_SEARCH_MIN_CHARS, LLM_HOST_SEARCH_SETTLE_MS, LLM_HOST_WORDS as
 import { isSearchCharacter } from '../utils/model/modelPickerGroups.js'
 import { formatDuration } from '../utils/format.js'
 import { runLlmHost, type LlmHostEvent, type LlmHostQuestion, type LlmHostResult, type LlmHostRoad } from '../services/llmHost/index.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../utils/timers.js'
 
 type QuestionRow = NonNullable<LlmHostQuestion['rows']>[number]
 const rowMatches = (row: QuestionRow, query: string): boolean => row.label.replace(/^─+\n/, '').split(' · ')[0]!.toLowerCase().includes(query.toLowerCase())
@@ -46,7 +47,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const [logOffset, setLogOffset] = useState(0)
   const [host, setHost] = useState<LlmHostEvent['host']>()
   const [now, setNow] = useState(Date.now())
-  useTimer(() => { if (!host || question?.step === 'pod-logs') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [host, question?.step])
+  useTimer(() => { if (!host || question?.step === 'pod-logs') return; const timer = startInterval(() => setNow(Date.now()), 1000); return () => stopInterval(timer) }, [host, question?.step])
   const answerRef = useRef<((value: string | null) => void) | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   useLoad(() => {
@@ -114,13 +115,13 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
     const typed = query.trim()
     const target = typed.length >= LLM_HOST_SEARCH_MIN_CHARS ? typed : ''
     if (target === question.search.query) return
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       const resolve = answerRef.current
       if (!resolve) return
       answerRef.current = null
       resolve('search:' + target)
     }, target ? LLM_HOST_SEARCH_SETTLE_MS : 0)
-    return () => clearTimeout(timer)
+    return () => stopTimeout(timer)
   }, [query, question])
   const stop = (): void => {
     controllerRef.current?.abort()

@@ -31,6 +31,7 @@ import { WINDOWS_STARTS_A_PROGRAM_IN, nativeCwdFromShellRecord, posixPathToWindo
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 import { windowsShellRoadActive, withRoadPrograms } from './shell/windowsShellRoad.js'
 import { passedOver } from './passedOver.js'
+import { startImmediate } from './timers.js'
 
 type ShellConfig = {
   provider: ShellProvider
@@ -444,7 +445,7 @@ export async function exec(
     shellCommand.scrubbedSessionEnv = scrubbed
 
     if (outputFd !== undefined) {
-      await new Promise<void>(resolveTick => setImmediate(resolveTick))
+      await new Promise<void>(resolveTick => startImmediate(resolveTick))
       try {
         closeSync(outputFd)
       } catch (closeError) {

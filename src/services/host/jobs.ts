@@ -18,6 +18,7 @@ import { hostRetuneLive, readTunePreferences, tunedRecipe } from './tune.js'
 import { HOST_IDLE_POLL_MS, sweepHostIdle } from './idle.js'
 import { HOST_VENDOR_INFO } from './vendors/vendor.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -171,7 +172,7 @@ export function startHostJobSweep(): () => void {
   const pods = join(hostDirectory(), 'pods')
   mkdirSync(pods, { recursive: true, mode: 0o700 })
   const watched = new Map<string, { marker: string; at: number }>()
-  const schedule = (ms: number): void => { if (stopped) return; if (timer) clearTimeout(timer); timer = setTimeout(() => { void tick() }, ms); timer.unref() }
+  const schedule = (ms: number): void => { if (stopped) return; if (timer) stopTimeout(timer); timer = startTimeout(() => { void tick() }, ms); timer.unref() }
   const tick = async (): Promise<void> => {
     if (stopped || busy) return
     busy = true
@@ -197,5 +198,5 @@ export function startHostJobSweep(): () => void {
     watcher.on('error', () => { watcher?.close(); watcher = undefined; schedule(15_000) })
   } catch { watcher = undefined }
   void tick()
-  return () => { stopped = true; if (timer) clearTimeout(timer); watcher?.close() }
+  return () => { stopped = true; if (timer) stopTimeout(timer); watcher?.close() }
 }

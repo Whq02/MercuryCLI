@@ -17,6 +17,7 @@ import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js';
 import { transitionPermissionMode } from '../../utils/permissions/permissionSetup.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
+import { startTimeout } from '../../utils/timers.js';
 
 const subscribeFocusedAsks = subscribeThroughFocused((connector, listener) => connector.subscribeAsks(listener));
 const getFocusedAsks = (): readonly SessionAskV1[] => getFocusedSessionConnector().asks();
@@ -90,7 +91,7 @@ export function useChatAsks({
             });
           });
       }
-      setTimeout(() => {
+      startTimeout(() => {
         for (const entry of getFocusedSessionConnector().asks()) entry.confirm.recheckPermission?.();
       }, 0);
     },

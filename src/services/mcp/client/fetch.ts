@@ -2,6 +2,7 @@ import { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens, handleOAuth4
 import { getMCPUserAgent } from '../../../utils/http.js'
 import { toolTimeoutMs } from './limits.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const REQUEST_TIMEOUT_MS = 60_000
 
@@ -32,7 +33,7 @@ export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
     const method = (init?.method ?? 'GET').toUpperCase()
     if (method === 'GET') return baseFetch(input, init)
     const controller = new AbortController()
-    const timer = setTimeout(
+    const timer = startTimeout(
       () => controller.abort(new DOMException('MCP request timed out', 'TimeoutError')),
       mcpRequestBudgetMs(init?.body),
     )
@@ -48,7 +49,7 @@ export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
     try {
       return await baseFetch(input, { ...init, headers, signal: controller.signal })
     } finally {
-      clearTimeout(timer)
+      stopTimeout(timer)
       callerSignal?.removeEventListener('abort', onCallerAbort)
     }
   }

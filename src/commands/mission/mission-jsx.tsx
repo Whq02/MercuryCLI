@@ -11,6 +11,7 @@ import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../guards/mission.js'
 import type { MissionCardFactV1 } from '../../services/engine-connector/types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 type MissionView = Pick<MissionCardFactV1, 'goal' | 'state' | 'nextStep' | 'iterations' | 'setAt' | 'outcome'>
@@ -75,9 +76,9 @@ async function missionFactArrives(expected: (card: MissionCardFactV1 | null | un
     const unsubscribe = connector.subscribeWork(() => {
       if (expected(connector.workRoster().missionCard)) settle(true)
     })
-    const timer = setTimeout(() => settle(false), FACT_WAIT_MS)
+    const timer = startTimeout(() => settle(false), FACT_WAIT_MS)
     settle = ok => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       unsubscribe()
       resolve(ok)
     }

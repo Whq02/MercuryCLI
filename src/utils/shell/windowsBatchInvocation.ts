@@ -13,6 +13,7 @@ import { wrapSpawn, createFailedCommand, type ShellCommand } from '../ShellComma
 import { windowsBatchTail } from './windowsBatchLine.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { startImmediate } from '../timers.js'
 
 export { windowsBatchTail }
 
@@ -129,7 +130,7 @@ export async function runWindowsBatchCommand(
     shellCommand = wrapSpawn(child, abortSignal, options.timeout, taskOutput, options.shouldAutoBackground)
     shellCommand.scrubbedSessionEnv = base.scrubbed
     if (outputFd !== undefined) {
-      await new Promise<void>(resolveTick => setImmediate(resolveTick))
+      await new Promise<void>(resolveTick => startImmediate(resolveTick))
       try {
         closeSync(outputFd)
       } catch (error) {

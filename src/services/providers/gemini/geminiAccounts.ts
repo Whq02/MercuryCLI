@@ -31,6 +31,7 @@ import { antigravityCodeAssistBases, discoverGeminiPlan, geminiPlanTierWords, ty
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout } from '../../../utils/timers.js'
 
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -826,7 +827,7 @@ export function beginGeminiBrowserConnect(opts?: GeminiConnectOptions): GeminiCo
 
   if (!client) {
     const result = new Promise<GeminiAccountRef>((_resolve, reject) => {
-      setTimeout(() => reject(new Error(geminiOauthClientMissingCopy(env)!)), 0)
+      startTimeout(() => reject(new Error(geminiOauthClientMissingCopy(env)!)), 0)
     })
     return {
       authorizeUrl: '',

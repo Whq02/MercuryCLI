@@ -25,6 +25,7 @@ import {
 } from './setupTypes.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export interface ResolvedSetupIo {
   env: NodeJS.ProcessEnv
@@ -126,7 +127,7 @@ function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Prom
         child.on('error', error => resolve({ rc: 1, stdout: '', stderr: String(error), lastLine: String(error), detached: true }))
         child.unref()
         if (fd !== undefined) closeSync(fd)
-        setTimeout(() => resolve({ rc: 0, stdout: '', stderr: '', lastLine: `pid ${child.pid ?? '?'}${opts.logPath ? ` · log ${opts.logPath}` : ''}`, ...(child.pid !== undefined ? { pid: child.pid } : {}), detached: true }), 50)
+        startTimeout(() => resolve({ rc: 0, stdout: '', stderr: '', lastLine: `pid ${child.pid ?? '?'}${opts.logPath ? ` · log ${opts.logPath}` : ''}`, ...(child.pid !== undefined ? { pid: child.pid } : {}), detached: true }), 50)
       } catch (error) {
         resolve({ rc: 1, stdout: '', stderr: String(error), lastLine: String(error), detached: true })
       }
@@ -196,7 +197,7 @@ export function resolveSetupIo(io: SetupIo = {}): ResolvedSetupIo {
 
 export async function readJson(io: ResolvedSetupIo, url: string, body?: unknown, timeoutMs: number = io.timeoutMs): Promise<unknown | undefined> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const timer = startTimeout(() => controller.abort(), timeoutMs)
   timer.unref?.()
   const onOuterAbort = () => controller.abort()
   io.signal?.addEventListener('abort', onOuterAbort, { once: true })
@@ -214,7 +215,7 @@ export async function readJson(io: ResolvedSetupIo, url: string, body?: unknown,
     passedOver(error)
     return undefined
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     io.signal?.removeEventListener('abort', onOuterAbort)
   }
 }

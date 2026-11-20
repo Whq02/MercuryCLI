@@ -4,6 +4,7 @@ import { Box, Text, useInput } from '../ink.js'
 import { exitNoteCharsKept, exitNoteDue, HANDOFF_EXIT_NOTICE, leaveNoteBeforeExit, type ExitNoteOutcome } from '../mneme/exitHandoff.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
 import { FAINT } from './mercuryPalette.js'
+import { startTimeout } from '../utils/timers.js'
 
 export const HANDOFF_SKIP_GRACE_MS = 1_500
 
@@ -37,7 +38,7 @@ export function ExitHandoff({ onSettled }: { onSettled: (receipt: ExitNoteReceip
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
       controller.current.abort(new Error('the handoff was skipped by ctrl-c'))
-      setTimeout(() => settle({ note: 'none' }), HANDOFF_SKIP_GRACE_MS)
+      startTimeout(() => settle({ note: 'none' }), HANDOFF_SKIP_GRACE_MS)
     }
   })
   return (

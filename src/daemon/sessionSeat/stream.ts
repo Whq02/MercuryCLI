@@ -3,6 +3,7 @@ import { publishSessionTail, publishSessionProgress } from '../../services/engin
 import type { RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
 import type { TextPhase } from '../../types/wire.js'
 import type { SeatState, SeatRow } from './state.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const TAIL_PUBLISH_MS = 40
 
@@ -45,7 +46,7 @@ export function setSeatTail(seat: SeatState, text: string | null, dir?: string):
   if (text !== null) seat.tailWithdrawn = null
   if (text === null) {
     if (seat.tailTimer !== null) {
-      clearTimeout(seat.tailTimer)
+      stopTimeout(seat.tailTimer)
       seat.tailTimer = null
     }
     publishTailNow(seat, dir)
@@ -58,7 +59,7 @@ function scheduleTailPublish(seat: SeatState, dir?: string): void {
   seat.tailDirty = true
   if (seat.tailTimer !== null) return
   publishTailNow(seat, dir)
-  const t = setTimeout(() => {
+  const t = startTimeout(() => {
     seat.tailTimer = null
     if (seat.tailDirty) publishTailNow(seat, dir)
   }, TAIL_PUBLISH_MS)
@@ -72,7 +73,7 @@ export function noteSeatEvent(seat: SeatState, dir: string | undefined, opts?: {
   seat.lastEventAtMs = Date.now()
   if (opts?.now === true) {
     if (seat.livenessTimer !== null) {
-      clearTimeout(seat.livenessTimer)
+      stopTimeout(seat.livenessTimer)
       seat.livenessTimer = null
     }
     publishTailNow(seat, dir)
@@ -80,7 +81,7 @@ export function noteSeatEvent(seat: SeatState, dir: string | undefined, opts?: {
   }
   seat.livenessDirty = true
   if (seat.livenessTimer !== null) return
-  const t = setTimeout(() => {
+  const t = startTimeout(() => {
     seat.livenessTimer = null
     if (seat.livenessDirty) publishTailNow(seat, dir)
   }, LIVENESS_PUBLISH_MS)
@@ -189,7 +190,7 @@ function scheduleProgressPublish(seat: SeatState, dir?: string): void {
   seat.progressDirty = true
   if (seat.progressTimer !== null) return
   publishProgressNow(seat, dir)
-  const t = setTimeout(() => {
+  const t = startTimeout(() => {
     seat.progressTimer = null
     if (seat.progressDirty) publishProgressNow(seat, dir)
   }, PROGRESS_PUBLISH_MS)
@@ -201,7 +202,7 @@ export function clearSeatProgress(seat: SeatState, dir?: string): void {
   if (seat.progress.size === 0) return
   seat.progress.clear()
   if (seat.progressTimer !== null) {
-    clearTimeout(seat.progressTimer)
+    stopTimeout(seat.progressTimer)
     seat.progressTimer = null
   }
   publishProgressNow(seat, dir)

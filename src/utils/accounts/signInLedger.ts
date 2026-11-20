@@ -4,6 +4,7 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { passedOver } from '../passedOver.js'
+import { startMicrotask } from '../timers.js'
 
 export const SIGN_IN_LEDGER_FILE = '.sign-ins.json'
 const SIGN_IN_LEDGER_VERSION = 1
@@ -49,7 +50,7 @@ function bumpEpoch(): void {
   epoch += 1
   if (fanOutQueued) return
   fanOutQueued = true
-  queueMicrotask(() => {
+  startMicrotask(() => {
     fanOutQueued = false
     for (const listener of [...epochListeners]) {
       try {

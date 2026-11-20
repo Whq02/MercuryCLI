@@ -19,6 +19,7 @@ import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/f
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
 function sweptRoleSpellings(): string[] {
@@ -348,9 +349,9 @@ export function runTaskHeadless(
     const finish = (code: number | null) => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
-      if (killTimer) clearTimeout(killTimer)
-      if (killCloseBackstop) clearTimeout(killCloseBackstop)
+      stopTimeout(timer)
+      if (killTimer) stopTimeout(killTimer)
+      if (killCloseBackstop) stopTimeout(killCloseBackstop)
       recordSpawnExit({
         kind: 'headless',
         event: 'exit',
@@ -371,11 +372,11 @@ export function runTaskHeadless(
     let killCloseBackstop: ReturnType<typeof setTimeout> | undefined
     const finishOnCloseWithBackstop = () => {
       if (settled || killCloseBackstop) return
-      killCloseBackstop = setTimeout(() => finish(null), KILL_CLOSE_BACKSTOP_MS)
+      killCloseBackstop = startTimeout(() => finish(null), KILL_CLOSE_BACKSTOP_MS)
       killCloseBackstop.unref?.()
     }
 
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       wasTimedOut = true
       const graceMs = getRunKillGraceMs()
       logForDebugging(
@@ -387,7 +388,7 @@ export function runTaskHeadless(
         finishOnCloseWithBackstop()
         return
       }
-      killTimer = setTimeout(() => {
+      killTimer = startTimeout(() => {
         logForDebugging(`[daemon] run ${spec.id} grace elapsed — SIGKILL`)
         killProcessTree(child, 'SIGKILL')
         finishOnCloseWithBackstop()

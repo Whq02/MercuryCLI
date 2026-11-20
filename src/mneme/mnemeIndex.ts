@@ -9,6 +9,7 @@ import { mnemeLibraryDir } from './mnemeGates.js'
 import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibrary.js'
 import type { MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const INDEX_DIR = '.index'
 const INDEX_FILE = 'embeddings.json'
@@ -60,7 +61,7 @@ export function resetEmbedIndexForTest(opts: { idleUnloadMs?: number } = {}): vo
 
 function unloadEmbedIndexEngine(): boolean {
   if (idleTimer !== null) {
-    clearTimeout(idleTimer)
+    stopTimeout(idleTimer)
     idleTimer = null
   }
   if (engine === null) return false
@@ -79,8 +80,8 @@ export function embedIndexEngineLoaded(): boolean {
 }
 
 function touchEngine(): void {
-  if (idleTimer !== null) clearTimeout(idleTimer)
-  idleTimer = setTimeout(() => {
+  if (idleTimer !== null) stopTimeout(idleTimer)
+  idleTimer = startTimeout(() => {
     idleTimer = null
     if (building.size === 0) unloadEmbedIndexEngine()
     else touchEngine()

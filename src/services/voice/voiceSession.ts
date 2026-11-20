@@ -8,6 +8,7 @@ import { localDecodesInFlight, resolveTranscriber, transcribeWav, warmLocalTrans
 import { mbWords, whisperDownloadDoor, whisperModelByName } from './whisperModels.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startImmediate } from '../../utils/timers.js'
 
 type VoicePhase = 'idle' | 'recording' | 'transcribing'
 interface VoiceReceipt { seq: number; text: string; tone: 'info' | 'error' }
@@ -187,7 +188,7 @@ export async function startVoiceCapture(opts: { env?: NodeJS.ProcessEnv; road?: 
   active = handle
   publish({ phase: 'recording', startedAt: handle.startedAt, backend: handle.backend })
   logForDebugging(`voice: capture started on ${handle.backend}; transcriber on-device (${transcriber.choice.label})`)
-  setImmediate(() => warmLocalTranscriber())
+  startImmediate(() => warmLocalTranscriber())
   const stop = opts.road === 'command' ? '/voice again stops it, esc cancels' : 'release space to stop, esc cancels'
   return { kind: 'started', text: `recording — ${stop} (${transcriber.choice.label} transcribes)` }
 }

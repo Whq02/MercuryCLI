@@ -7,6 +7,7 @@ import { createUserMessage } from '../../../utils/messages/factories.js'
 import { submitTrace } from '../../../utils/submitTrace.js'
 import type { SendReceiptV1, SendWordsOptions, WithdrawReceiptV1 } from '../types.js'
 import { connectorTrace, REFUSED_EMPTY, type SeatSend } from './shared.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 
@@ -216,14 +217,14 @@ export class DeliveryPart {
     const send = this.needs.sendOf(clientMessageId)
     if (send === undefined || send.state !== 'pending') return Promise.resolve(true)
     return new Promise<boolean>(resolve => {
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         const list = this.settleWaiters.get(clientMessageId)
         if (list !== undefined) this.settleWaiters.set(clientMessageId, list.filter(w => w !== done))
         resolve(false)
       }, PENDING_WITHDRAW_WAIT_MS)
       timer.unref?.()
       const done = (): void => {
-        clearTimeout(timer)
+        stopTimeout(timer)
         resolve(true)
       }
       this.settleWaiters.set(clientMessageId, [...(this.settleWaiters.get(clientMessageId) ?? []), done])

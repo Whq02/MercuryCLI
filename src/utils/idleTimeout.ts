@@ -1,5 +1,6 @@
 import { logForDebugging } from './debug.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 export function createIdleTimeoutManager(isIdle: () => boolean): { start(): void; stop(): void } {
   const delayMs: number | null = null
@@ -8,7 +9,7 @@ export function createIdleTimeoutManager(isIdle: () => boolean): { start(): void
 
   const stop = (): void => {
     if (timer) {
-      clearTimeout(timer)
+      stopTimeout(timer)
       timer = null
     }
   }
@@ -17,7 +18,7 @@ export function createIdleTimeoutManager(isIdle: () => boolean): { start(): void
     stop()
     idleSince = Date.now()
     if (delayMs === null) return
-    timer = setTimeout(() => {
+    timer = startTimeout(() => {
       timer = null
       if (!isIdle()) return
       if (Date.now() - idleSince < delayMs) return

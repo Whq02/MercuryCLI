@@ -17,6 +17,7 @@ import { Select } from './CustomSelect/index.js'
 import { MercurySetupFrame } from './MercurySetupFrame.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 
 const RERESOLVE_TICK_MS = 150
@@ -44,17 +45,17 @@ export function TerminalProfileCard({
 
   useTimer(() => {
     let ticks = 0
-    const timer = setInterval(() => {
+    const timer = startInterval(() => {
       ticks += 1
       const live = resolveTerminalProfile()
       if (live.verdict !== 'unsupported') {
-        clearInterval(timer)
+        stopInterval(timer)
         finish('continue')
         return
       }
-      if (ticks >= RERESOLVE_TICKS) clearInterval(timer)
+      if (ticks >= RERESOLVE_TICKS) stopInterval(timer)
     }, RERESOLVE_TICK_MS)
-    return () => clearInterval(timer)
+    return () => stopInterval(timer)
   }, [])
 
   useLoad(() => {
@@ -72,7 +73,7 @@ export function TerminalProfileCard({
     if (installWatch === null || process.platform !== 'win32') return
     let alive = true
     let ticks = 0
-    const timer = setInterval(() => {
+    const timer = startInterval(() => {
       ticks += 1
       void detectWindowsHostInventory().then(inv => {
         if (!alive) return
@@ -82,14 +83,14 @@ export function TerminalProfileCard({
             ? inv.windowsTerminal === 'present'
             : inv.pwsh7 === 'present'
         if (landed || ticks >= INSTALL_WATCH_TICKS) {
-          clearInterval(timer)
+          stopInterval(timer)
           setInstallWatch(null)
         }
       })
     }, INSTALL_WATCH_TICK_MS)
     return () => {
       alive = false
-      clearInterval(timer)
+      stopInterval(timer)
     }
   }, [installWatch])
 

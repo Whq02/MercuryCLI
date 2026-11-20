@@ -21,6 +21,7 @@ import { renderMessagesToPlainText } from '../../utils/exportRenderer.js';
 import { parseSearchQuery } from '../../utils/transcriptSearch.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { Screen } from './screen.js';
+import { startTimeout, stopTimeout } from '../../utils/timers.js';
 
 const SEARCH_WARMUP_QUIET_MS = 20;
 const SEARCH_WARMUP_SHOW_MS = 2000;
@@ -80,8 +81,8 @@ export function TranscriptSearchBar({
   }, [warmSearchIndex]);
   useTimer(() => {
     if (typeof warm !== 'number') return;
-    const timer = setTimeout(() => setWarm('quiet'), SEARCH_WARMUP_SHOW_MS);
-    return () => clearTimeout(timer);
+    const timer = startTimeout(() => setWarm('quiet'), SEARCH_WARMUP_SHOW_MS);
+    return () => stopTimeout(timer);
   }, [warm]);
   const { query } = search;
   usePublish(() => {
@@ -273,8 +274,8 @@ export function useChatSearch({
   }, [inTranscript, committedSearchQuery, setHighlight, setPositions]);
   useTimer(() => {
     if (!editorStatus) return;
-    const timer = setTimeout(() => setEditorStatus(null), EDITOR_STATUS_MS);
-    return () => clearTimeout(timer);
+    const timer = startTimeout(() => setEditorStatus(null), EDITOR_STATUS_MS);
+    return () => stopTimeout(timer);
   }, [editorStatus]);
   const lastColumnsRef = useRef(columns);
   useDerivedState(() => {

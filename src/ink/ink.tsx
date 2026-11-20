@@ -47,6 +47,7 @@ import { patchConsole } from './ink/console-patch.js'
 import { unmount, waitUntilExit, detachForShutdown } from './ink/exit.js'
 import type { ExitOutcome } from './ink/record.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 export { drainStdin }
 
@@ -160,7 +161,7 @@ export default class Ink {
       attachStopListeners.call(this)
       const win32SizeTimer: ReturnType<typeof setInterval> | null =
         process.platform === 'win32'
-          ? setInterval(() => this.reconcileSize(), 5_000)
+          ? startInterval(() => this.reconcileSize(), 5_000)
           : null
       win32SizeTimer?.unref?.();
       if (options.stdin.isTTY) setStdinRecovery(this.recoverStdin)
@@ -169,7 +170,7 @@ export default class Ink {
         process.off('SIGWINCH', this.handleWinch)
         process.off('SIGCONT', this.resumeAfterContinue)
         detachStopListeners.call(this)
-        if (win32SizeTimer !== null) clearInterval(win32SizeTimer)
+        if (win32SizeTimer !== null) stopInterval(win32SizeTimer)
         setStdinRecovery(null)
       }
     }

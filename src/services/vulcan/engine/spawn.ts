@@ -11,6 +11,7 @@ import { VULCAN_INSTANCE_ENV, launchedVulcanInstance, type VulcanInstance, type 
 import { engineEstateEntry, engineTreeLiveness } from './liveness.js'
 import { removeEngineTree } from './frozenTree.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
@@ -143,14 +144,14 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
   if (pid !== null) LIVE.set(pid, handle)
   let timer: NodeJS.Timeout | null = null
   if (req.timeoutMs > 0) {
-    timer = setTimeout(() => {
+    timer = startTimeout(() => {
       void handle.kill('timeout')
     }, req.timeoutMs)
   }
   const settle = (exitCode: number | null, signal: string | null): void => {
     if (settled) return
     settled = true
-    if (timer) clearTimeout(timer)
+    if (timer) stopTimeout(timer)
     if (pid !== null) LIVE.delete(pid)
     const endedAt = new Date().toISOString()
     const seconds = tenths(Date.now() - t0)

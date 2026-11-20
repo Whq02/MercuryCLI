@@ -7,6 +7,7 @@ import { getCwd } from '../../../utils/cwd.js'
 import { logMCPDebug } from '../../../utils/log.js'
 import { RESPONSE_STREAM_ENDED } from './errors.js'
 import { connectTimeoutMs } from './limits.js'
+import { startTimeout } from '../../../utils/timers.js'
 
 function clientVersion(): string {
   return typeof MACRO !== 'undefined' ? (MACRO.VERSION ?? 'unknown') : 'unknown'
@@ -80,7 +81,7 @@ class ToolListClient extends Client {
       const onRequestStreamEnd = (): void => {
         options?.onRequestStreamEnd?.()
         if (!awaiting.has(id)) return
-        setTimeout(() => {
+        startTimeout(() => {
           if (!awaiting.delete(id)) return
           transport.onmessage?.({
             jsonrpc: '2.0',

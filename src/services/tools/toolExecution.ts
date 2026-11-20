@@ -64,6 +64,7 @@ import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js
 import { hookWaitSeconds, hookWaitWords } from '../../utils/hooks/wait.js'
 import { baseToolsOfTheTable } from '../../tools/toolTable.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 
 export type MessageUpdateLazy<M = Message> = {
@@ -262,13 +263,13 @@ function settleUnderAbort<T>(
     const finish = (land: () => void): void => {
       if (settled) return
       settled = true
-      if (grace !== undefined) clearTimeout(grace)
+      if (grace !== undefined) stopTimeout(grace)
       signal.removeEventListener('abort', onAbort)
       land()
     }
     const onAbort = (): void => {
       if (settled || grace !== undefined) return
-      grace = setTimeout(() => {
+      grace = startTimeout(() => {
         abandoned = true
         onAbandoned()
         finish(() => reject(new ToolCallAbandonedError(toolName)))
@@ -564,7 +565,7 @@ async function runTransactionBody(args: {
   let hookWaitTicker: ReturnType<typeof setInterval> | null = null
   let takeHookWaitBack: (() => void) | null = null
   const settleHookWait = (): void => {
-    if (hookWaitTicker !== null) clearInterval(hookWaitTicker)
+    if (hookWaitTicker !== null) stopInterval(hookWaitTicker)
     hookWaitTicker = null
     takeHookWaitBack?.()
     takeHookWaitBack = null
@@ -581,7 +582,7 @@ async function runTransactionBody(args: {
       push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS, line: hookWaitWords(wait, sinceMs + elapsedS * 1000) }) })
       takeHookWaitBack = () => push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length) })
     }
-    hookWaitTicker = setInterval(tick, 1000)
+    hookWaitTicker = startInterval(tick, 1000)
     hookWaitTicker.unref?.()
   }
   let hookPermissionResult: HookPermissionOutcome | undefined

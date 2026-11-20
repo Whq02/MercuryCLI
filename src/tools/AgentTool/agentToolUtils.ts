@@ -89,6 +89,7 @@ import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
 
@@ -788,7 +789,7 @@ export function cancelAutomaticResume(taskId: string): boolean {
   dropPauseRecord(taskId)
   const timer = pendingAutomaticResumes.get(taskId)
   if (timer === undefined) return false
-  clearTimeout(timer)
+  stopTimeout(timer)
   pendingAutomaticResumes.delete(taskId)
   return true
 }
@@ -824,7 +825,7 @@ export function armBudgetCutResume(args: {
     unsubscribeAccount?.()
     unsubscribeAccount = undefined
     const armed = pendingAutomaticResumes.get(args.taskId)
-    if (armed !== undefined) clearTimeout(armed)
+    if (armed !== undefined) stopTimeout(armed)
     pendingAutomaticResumes.delete(args.taskId)
     cutsAlreadyResumed.add(args.registration)
     dropPauseRecord(args.taskId)
@@ -863,7 +864,7 @@ export function armBudgetCutResume(args: {
     })
   }
   const fire = (accountChanged = false): Promise<void> => whileFiring(args.taskId, () => resumeNow(accountChanged))
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     void runWithCwdOverride(getCwdState(), () => fire())
   }, args.delayMs ?? recoveryBudgetMs())
   timer.unref?.()
@@ -910,7 +911,7 @@ export function closeOverloadEpisode(taskId: string): void {
 export async function probeProviderAnswers(model: string, deadlineMs: number = overloadProbeRequestMs()): Promise<boolean> {
   const { routedCallModel } = await import('../../services/providers/callModelRouter.js')
   const controller = new AbortController()
-  const cut = setTimeout(() => controller.abort(), deadlineMs)
+  const cut = startTimeout(() => controller.abort(), deadlineMs)
   cut.unref?.()
   try {
     const stream = routedCallModel({
@@ -941,7 +942,7 @@ export async function probeProviderAnswers(model: string, deadlineMs: number = o
     logForDebugging(`overload probe of ${model} did not answer: ${errorMessage(error)}`)
     return false
   } finally {
-    clearTimeout(cut)
+    stopTimeout(cut)
   }
 }
 
@@ -1023,7 +1024,7 @@ export function armOverloadProbe(args: {
     }
   }
   const fire = (): Promise<void> => whileFiring(args.taskId, probeNow)
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     void runWithCwdOverride(getCwdState(), fire)
   }, delayMs)
   timer.unref?.()

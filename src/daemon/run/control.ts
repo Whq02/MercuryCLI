@@ -17,6 +17,7 @@ import { restartWhenIdle } from './restart.js'
 import { stopVerb } from './shutdown.js'
 import type { DaemonRunState } from './state.js'
 import { processSweep } from './sweep.js'
+import { startTimeout } from '../../utils/timers.js'
 
 interface ControlServerNeeds {
   roster: TaskRoster
@@ -78,7 +79,7 @@ export function controlServerDeps(state: DaemonRunState, { roster, handover, han
       }
       const settled = settleConcourseWorker(runnerId)
       const reap = (delayMs: number): void => {
-        const t = setTimeout(() => {
+        const t = startTimeout(() => {
           const r = state.roster
           if (!r) return
           const entry = r.list().find(j => j.short === runnerId)

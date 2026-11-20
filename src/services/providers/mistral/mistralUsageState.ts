@@ -7,6 +7,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { mistralApiBase, mistralKeyHeaders, resolveMistralAdminApiKey, resolveMistralApiKey } from './mistralAccounts.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 export const MISTRAL_ADMIN_KEY_HINT = 'usage is read with an Admin API key (Enterprise plans, backoffice.mistral.ai) — /logins mistral adds one; the session ledger counts this key’s tokens; console.mistral.ai shows the plan’s included monthly usage'
 export const MISTRAL_ADMIN_KEY_PAGE = 'Optional Admin API key from backoffice.mistral.ai (Enterprise plans) unlocks the organisation usage meter and spend limit.'
@@ -212,7 +213,7 @@ export function refreshMistralUsage(io?: MistralUsageIo): Promise<MistralObserve
   const epoch = generation
   lastAttempt = now
   const work = (async (): Promise<MistralObservedLimits | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const [who, limits] = await Promise.all([
         fetchMistralIdentity(apiKey, io),

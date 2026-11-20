@@ -9,6 +9,7 @@ import { heldBusyRetryNotice } from '../../../services/providers/busyRetry.js'
 import { reviewerRefusal } from '../reviewerPolicy.js'
 import { scoutRefusal } from '../scoutPolicy.js'
 import type { agentStalledError, declaredRecoveryWaitMs, RecoveryAccountant, RunAgentParams } from '../runAgent.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 export interface AgentRun {
   eventsSeen: number
@@ -73,8 +74,8 @@ export function touchThroughOf(run: AgentRun) {
   const touchThrough = (declaredMs: number): void => {
     run.watchdog.touch()
     if (declaredMs <= 0) return
-    if (run.deferredTouch !== null) clearTimeout(run.deferredTouch)
-    run.deferredTouch = setTimeout(() => {
+    if (run.deferredTouch !== null) stopTimeout(run.deferredTouch)
+    run.deferredTouch = startTimeout(() => {
       run.deferredTouch = null
       run.watchdog.touch()
     }, declaredMs)
@@ -98,7 +99,7 @@ export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParam
     onPendingAsks?.(run.pendingAsks)
     run.watchdog.touch()
     if (run.askHeartbeat === null) {
-      run.askHeartbeat = setInterval(() => run.watchdog.touch(), askHeartbeatMs)
+      run.askHeartbeat = startInterval(() => run.watchdog.touch(), askHeartbeatMs)
       run.askHeartbeat.unref?.()
     }
     try {
@@ -107,7 +108,7 @@ export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParam
       run.pendingAsks--
       onPendingAsks?.(run.pendingAsks)
       if (run.pendingAsks === 0 && run.askHeartbeat !== null) {
-        clearInterval(run.askHeartbeat)
+        stopInterval(run.askHeartbeat)
         run.askHeartbeat = null
       }
       run.watchdog.touch()

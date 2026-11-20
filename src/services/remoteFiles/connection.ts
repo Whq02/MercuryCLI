@@ -5,6 +5,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { remotePrelude } from './prelude.js'
 import { authorityText, noteResolvedAuthority, remoteAuthorityFault, RemotePathError, resolvedAuthority, type RemoteAuthority, type RemoteAuthorityFacts } from './target.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const SHELLS = ['sh', 'bash', 'zsh']
 const CONNECT_DEADLINE_MS = 30_000
@@ -172,7 +173,7 @@ class Connection {
       const settle = (error?: Error): void => {
         if (settled) return
         settled = true
-        clearTimeout(deadline)
+        stopTimeout(deadline)
         signal?.removeEventListener('abort', abort)
         if (error === undefined) {
           this.child = child
@@ -191,7 +192,7 @@ class Connection {
         reject(error)
       }
       const abort = (): void => settle(interrupted(signal))
-      const deadline = setTimeout(
+      const deadline = startTimeout(
         () => settle(new RemoteConnectionError('timeout', `${this.host} did not answer within ${CONNECT_DEADLINE_MS / 1000} seconds.`)),
         CONNECT_DEADLINE_MS,
       )
@@ -261,7 +262,7 @@ class Connection {
       let quiet: ReturnType<typeof setTimeout> | undefined
       const release = (): void => {
         settled = true
-        clearTimeout(quiet)
+        stopTimeout(quiet)
         request.signal?.removeEventListener('abort', abort)
         this.onStdout = null
         this.onStderr = null
@@ -280,8 +281,8 @@ class Connection {
       }
       const abort = (): void => fail(interrupted(request.signal), true)
       const touch = (): void => {
-        clearTimeout(quiet)
-        quiet = setTimeout(() => fail(new RemoteConnectionError('timeout', `${this.host} did not answer for ${Math.round(quietMs / 1000)} seconds.`, answered), true), quietMs)
+        stopTimeout(quiet)
+        quiet = startTimeout(() => fail(new RemoteConnectionError('timeout', `${this.host} did not answer for ${Math.round(quietMs / 1000)} seconds.`, answered), true), quietMs)
       }
       const send = (payload: Uint8Array, from: number): void => {
         if (settled || from >= payload.length) return
@@ -403,7 +404,7 @@ function configured(authority: RemoteAuthority, signal: AbortSignal | undefined)
     const settle = (outcome: RemoteAuthorityFacts | null | Error): void => {
       if (settled) return
       settled = true
-      clearTimeout(deadline)
+      stopTimeout(deadline)
       signal?.removeEventListener('abort', abort)
       if (outcome instanceof Error) reject(outcome)
       else resolve(outcome)
@@ -412,7 +413,7 @@ function configured(authority: RemoteAuthority, signal: AbortSignal | undefined)
       child.kill()
       settle(interrupted(signal))
     }
-    const deadline = setTimeout(() => {
+    const deadline = startTimeout(() => {
       child.kill()
       settle(null)
     }, RESOLVE_DEADLINE_MS)

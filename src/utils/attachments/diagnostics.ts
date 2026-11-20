@@ -9,6 +9,7 @@ import { toError } from '../errors.js'
 import { logError } from '../log.js'
 import type { Attachment } from './types.js'
 import { passedOver } from '../passedOver.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 const RESYNC_REPORT_WAIT_MS = 1_500
 
@@ -37,11 +38,11 @@ function awaitFreshReports(paths: readonly string[], deadlineMs = RESYNC_REPORT_
   if (waiting.size === 0) return Promise.resolve([])
   return new Promise(resolvePromise => {
     const finish = (): void => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       unsubscribe()
       resolvePromise([...waiting])
     }
-    const timer = setTimeout(finish, deadlineMs)
+    const timer = startTimeout(finish, deadlineMs)
     const unsubscribe = subscribePublishedReports(event => {
       const plain = foldDriveCase(event.file.uri.startsWith('file://') ? event.file.uri.slice('file://'.length) : event.file.uri)
       if (!waiting.has(plain) || stillAwaited?.(plain) === true) return

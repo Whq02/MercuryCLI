@@ -1,3 +1,4 @@
+import { startTimeout, stopTimeout } from './timers.js'
 
 type SleepOptions = {
   throwOnAbort?: boolean
@@ -13,11 +14,11 @@ export function sleep(ms: number, signal?: AbortSignal, opts: SleepOptions = {})
   }
   return new Promise<void>((resolve, reject) => {
     const onAbort = (): void => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       if (throwOnAbort) reject(makeError())
       else resolve()
     }
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       signal?.removeEventListener('abort', onAbort)
       resolve()
     }, ms)

@@ -1,3 +1,5 @@
+import { afterMicrotask } from './timers.js'
+
 const cleanupFunctions = new Set<() => Promise<void>>()
 
 export function registerCleanup(fn: () => Promise<void>): () => void {
@@ -8,7 +10,7 @@ export function registerCleanup(fn: () => Promise<void>): () => void {
 }
 
 export async function runCleanupFunctions(): Promise<void> {
-  const results = await Promise.allSettled([...cleanupFunctions].map(fn => Promise.resolve().then(fn)))
+  const results = await Promise.allSettled([...cleanupFunctions].map(fn => afterMicrotask(fn)))
   const firstRejection = results.find(r => r.status === 'rejected')
   if (firstRejection) throw (firstRejection as PromiseRejectedResult).reason
 }

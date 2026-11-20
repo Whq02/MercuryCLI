@@ -4,6 +4,7 @@ import { findGodotProjectRoot } from '../lsp/godotLane.js'
 import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
 import { parseVulcanInstance, readVulcanInstanceToken, sameVulcanInstance, selectVulcanInstance, type VulcanInstance } from './instances.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 const INSTANCE_HINT = 'is that Godot instance still running with the addon loaded? op:"vulcan_status" lists the instances Mercury can see; name the one you mean with args.instance'
 
@@ -131,7 +132,7 @@ export class VulcanClient {
         resolve,
         queueTimer: null as NodeJS.Timeout | null,
       }
-      entry.queueTimer = setTimeout(() => {
+      entry.queueTimer = startTimeout(() => {
         const i = this.queue.indexOf(entry)
         if (i >= 0) this.queue.splice(i, 1)
         resolve(
@@ -160,15 +161,15 @@ export class VulcanClient {
     const socket = net.connect({ host: '127.0.0.1', port: this.port })
     this.socket = socket
     socket.setNoDelay(true)
-    const connectTimer = setTimeout(() => socket.destroy(new Error('connect timeout')), this.connectTimeoutMs)
+    const connectTimer = startTimeout(() => socket.destroy(new Error('connect timeout')), this.connectTimeoutMs)
     connectTimer.unref?.()
-    this.helloTimer = setTimeout(() => {
+    this.helloTimer = startTimeout(() => {
       if (this.state === 'connecting') socket.destroy(new Error('handshake timeout'))
     }, this.helloTimeoutMs)
     this.helloTimer.unref?.()
 
     socket.once('connect', () => {
-      clearTimeout(connectTimer)
+      stopTimeout(connectTimer)
       socket.write(JSON.stringify({ op: 'hello', token: this.token, role: 'client', version: 1, ...(this.expectedInstance ? { instance: this.expectedInstance.id } : {}) }) + '\n')
     })
     socket.on('data', chunk => {
@@ -176,9 +177,9 @@ export class VulcanClient {
     })
     const fail = () => {
       if (this.socket !== socket) return
-      clearTimeout(connectTimer)
+      stopTimeout(connectTimer)
       if (this.helloTimer) {
-        clearTimeout(this.helloTimer)
+        stopTimeout(this.helloTimer)
         this.helloTimer = null
       }
       this.onConnectionDown()
@@ -235,7 +236,7 @@ export class VulcanClient {
     catch { return Promise.resolve(err('BAD_REQUEST', 'request arguments are not JSON serializable')) }
     if (Buffer.byteLength(line, 'utf8') > MAX_LINE_BYTES) return Promise.resolve(err('LINE_TOO_LONG', 'request frame exceeded 8 MB'))
     return new Promise<VulcanResult>(resolve => {
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         this.pending.delete(id)
         resolve({
           ...err('REQUEST_TIMEOUT', `${op} did not answer within ${timeoutMs}ms`, 'the instance may be busy; retry, or op:"vulcan_status" to probe'),
@@ -250,24 +251,24 @@ export class VulcanClient {
 
   armHeartbeat(): void {
     this.clearHeartbeat()
-    this.heartbeat = setInterval(() => {
+    this.heartbeat = startInterval(() => {
       const socket = this.socket
       if (!socket || this.state !== 'ready') return
       const id = this.nextId++
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         this.pending.delete(id)
         socket.destroy(new Error('missed pong'))
       }, this.pongTimeoutMs)
       timer.unref?.()
-      this.pending.set(id, { resolve: () => clearTimeout(timer), timer, op: 'ping' })
+      this.pending.set(id, { resolve: () => stopTimeout(timer), timer, op: 'ping' })
       socket.write(JSON.stringify({ id, op: 'ping' }) + '\n')
     }, this.heartbeatMs)
     this.heartbeat.unref?.()
   }
 
   private clearHeartbeat(): void {
-    if (this.heartbeat) clearInterval(this.heartbeat)
-    if (this.pongTimer) clearTimeout(this.pongTimer)
+    if (this.heartbeat) stopInterval(this.heartbeat)
+    if (this.pongTimer) stopTimeout(this.pongTimer)
     this.heartbeat = null
     this.pongTimer = null
   }
@@ -302,12 +303,12 @@ export class VulcanClient {
       socket.destroy()
     }
     for (const [, p] of this.pending) {
-      clearTimeout(p.timer)
+      stopTimeout(p.timer)
       p.resolve(reason)
     }
     this.pending.clear()
     for (const q of this.queue.splice(0)) {
-      if (q.queueTimer) clearTimeout(q.queueTimer)
+      if (q.queueTimer) stopTimeout(q.queueTimer)
       q.resolve(reason)
     }
   }
@@ -316,7 +317,7 @@ export class VulcanClient {
 function onFrameOf(this: VulcanClient, frame: Record<string, unknown>): void {
   if (this.state === 'connecting') {
     if (this.helloTimer) {
-      clearTimeout(this.helloTimer)
+      stopTimeout(this.helloTimer)
       this.helloTimer = null
     }
     if (frame.ok === true) {
@@ -333,7 +334,7 @@ function onFrameOf(this: VulcanClient, frame: Record<string, unknown>): void {
       this.armHeartbeat()
       const queued = this.queue.splice(0)
       for (const q of queued) {
-        if (q.queueTimer) clearTimeout(q.queueTimer)
+        if (q.queueTimer) stopTimeout(q.queueTimer)
         void this.send(q.op, q.args, q.timeoutMs).then(q.resolve)
       }
     } else {
@@ -345,7 +346,7 @@ function onFrameOf(this: VulcanClient, frame: Record<string, unknown>): void {
   if (typeof frame.id === 'number' && this.pending.has(frame.id)) {
     const p = this.pending.get(frame.id)!
     this.pending.delete(frame.id)
-    clearTimeout(p.timer)
+    stopTimeout(p.timer)
     const actual = parseVulcanInstance(frame.instance)
     const via = parseVulcanInstance(frame.via)
     const expected = this.expectedInstance ?? this.reachedInstance

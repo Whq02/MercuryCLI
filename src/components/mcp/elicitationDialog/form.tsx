@@ -7,6 +7,7 @@ import type { ElicitationRequestEvent } from '../../../services/mcp/elicitationH
 import { getEnumLabel, getEnumLabels, getEnumValues, getMultiSelectLabel, getMultiSelectLabels, getMultiSelectValues, isDateTimeSchema, validateElicitationInput, validateElicitationInputAsync } from '../../../utils/mcp/elicitationValidation.js'
 import { Dialog } from '../../design-system/Dialog.js'
 import TextInput from '../../TextInput.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export type FieldValue = string | number | boolean | string[]
 
@@ -48,7 +49,7 @@ export function scheduleDateResolveOf({
   RESOLVE_DEBOUNCE_MS: number
 }, field: FieldState, immediately: boolean): void {
   const existingTimer = resolveTimersRef.current.get(field.name)
-  if (existingTimer) clearTimeout(existingTimer)
+  if (existingTimer) stopTimeout(existingTimer)
   const run = () => {
     resolveTimersRef.current.delete(field.name)
     resolveAbortsRef.current.get(field.name)?.abort()
@@ -79,7 +80,7 @@ export function scheduleDateResolveOf({
   else {
     resolveTimersRef.current.set(
       field.name,
-      setTimeout(run, RESOLVE_DEBOUNCE_MS),
+      startTimeout(run, RESOLVE_DEBOUNCE_MS),
     )
   }
 }
@@ -98,7 +99,7 @@ export function commitTextOf({
   scheduleDateResolve: (field: FieldState, immediately: boolean) => void
 }, field: FieldState, text: string): void {
   const timer = resolveTimersRef.current.get(field.name)
-  if (timer !== undefined) clearTimeout(timer)
+  if (timer !== undefined) stopTimeout(timer)
   resolveTimersRef.current.delete(field.name)
   resolveAbortsRef.current.get(field.name)?.abort()
   resolveAbortsRef.current.delete(field.name)

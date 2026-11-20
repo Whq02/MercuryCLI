@@ -27,6 +27,7 @@ import {
 } from './gptPins.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export {
   GPT_DISPLAY_PINS,
@@ -152,11 +153,11 @@ export async function readOpenaiCatalogueIfPending(opts?: { boundMs?: number; fo
   await Promise.race([
     refreshOpenaiCatalogue(account.kind, { force: opts?.force === true }).catch(passedOverAs(null)),
     new Promise<void>(resolve => {
-      timer = setTimeout(resolve, opts?.boundMs ?? OPENAI_ADMISSION_READ_BOUND_MS)
+      timer = startTimeout(resolve, opts?.boundMs ?? OPENAI_ADMISSION_READ_BOUND_MS)
       timer.unref?.()
     }),
   ])
-  clearTimeout(timer)
+  stopTimeout(timer)
   return true
 }
 

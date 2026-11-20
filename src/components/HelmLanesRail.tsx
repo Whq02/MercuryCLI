@@ -38,6 +38,7 @@ import { processMainOwner } from '../services/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { buildLanesModel, fitPointerRows, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../utils/cockpit/helmLanesModel.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 export { wrapRailRows }
 
@@ -347,11 +348,11 @@ function useWakeGlance(): SaturnWakeGlanceV1 | null {
       }
     }
     probe()
-    const t = setInterval(probe, 15_000)
+    const t = startInterval(probe, 15_000)
     t.unref?.()
     return () => {
       alive = false
-      clearInterval(t)
+      stopInterval(t)
     }
   }, [])
   return wakeGlance

@@ -10,6 +10,7 @@ import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofSha
 import { sleep } from '../../utils/sleep.js'
 import { getMercuryUserAgent } from '../../utils/userAgent.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const CLIENT_CONTRACT_RECORD_FILE = 'client-contract.json'
 export const NPM_REGISTRY_DEFAULT_BASE = 'https://registry.npmjs.org'
@@ -318,7 +319,7 @@ export async function readClientContractFromRegistry(signal?: AbortSignal): Prom
   if (isProofShapeRun() && !isLoopbackUrl(clientContractRegistryUrl())) return { ok: false, failure: { kind: 'network', words: proofShapeReason() } }
   const controller = new AbortController()
   let timedOut = false
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     timedOut = true
     controller.abort()
   }, REGISTRY_READ_DEADLINE_MS)
@@ -357,7 +358,7 @@ export async function readClientContractFromRegistry(signal?: AbortSignal): Prom
     const code = networkCode(error)
     return { ok: false, failure: { kind: 'network', words: code === undefined ? 'no network' : `no network (${code})` } }
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     signal?.removeEventListener('abort', cancel)
   }
 }

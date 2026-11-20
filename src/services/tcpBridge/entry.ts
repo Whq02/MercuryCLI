@@ -3,6 +3,7 @@ import { writeSync } from 'node:fs'
 import * as net from 'node:net'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const CONNECT_ATTEMPTS = 5
 const CONNECT_RETRY_DELAY_MS = 250
@@ -40,16 +41,16 @@ export function parseBridgeTarget(
 function connectOnce(target: BridgeTarget): Promise<net.Socket> {
   return new Promise((resolve, reject) => {
     const socket = net.connect({ host: target.host, port: target.port })
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       socket.destroy()
       reject(new Error(`connect timeout after ${CONNECT_TIMEOUT_MS}ms`))
     }, CONNECT_TIMEOUT_MS)
     socket.once('connect', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolve(socket)
     })
     socket.once('error', err => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       reject(err)
     })
   })
@@ -111,7 +112,7 @@ export async function runTcpBridgeEntry(argv: string[]): Promise<never> {
   socket.on('close', () => {
     process.exitCode = 0
     process.stdin.destroy()
-    const backstop = setTimeout(() => process.exit(0), 1_500)
+    const backstop = startTimeout(() => process.exit(0), 1_500)
     backstop.unref?.()
   })
   socket.on('error', err => {

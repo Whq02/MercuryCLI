@@ -31,6 +31,7 @@ import {
   listRepoSessions,
   searchSessionsByCustomTitle,
 } from '../../utils/sessionStorage.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 async function performResume(
   context: LocalJSXCommandContext,
@@ -58,8 +59,8 @@ function SessionsErrorCard({
   onDone: LocalJSXCommandOnDone
 }): React.ReactNode {
   useTimer(() => {
-    const timer = setTimeout(() => onDone(undefined, { display: 'skip' }), 0)
-    return () => clearTimeout(timer)
+    const timer = startTimeout(() => onDone(undefined, { display: 'skip' }), 0)
+    return () => stopTimeout(timer)
   }, [])
   return (
     <MessageResponse>

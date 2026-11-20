@@ -1,6 +1,7 @@
 import { sleep } from '../../utils/sleep.js'
 import { RunpodHttpError } from './runpod.js'
 import { HostVendorHttpError, HostVendorNetworkError } from './vendors/http.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 interface HostReadRetryOptions {
   label: string
@@ -52,7 +53,7 @@ export function hostJobReadOnly(options: HostReadRetryOptions): HostReadOnly {
     const controller = new AbortController()
     const signal = AbortSignal.any([options.signal, controller.signal])
     const remaining = Math.max(1, deadline - started)
-    const timer = setTimeout(() => controller.abort(new DOMException('Vendor read budget exhausted', 'TimeoutError')), remaining)
+    const timer = startTimeout(() => controller.abort(new DOMException('Vendor read budget exhausted', 'TimeoutError')), remaining)
     const counts = new Map<string, number>()
     let wait = Math.max(1, options.pauseMs)
     let attempt = 0
@@ -91,6 +92,6 @@ export function hostJobReadOnly(options: HostReadRetryOptions): HostReadOnly {
           }
         }
       }
-    } finally { clearTimeout(timer) }
+    } finally { stopTimeout(timer) }
   }
 }

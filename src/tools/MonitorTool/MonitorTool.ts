@@ -16,6 +16,7 @@ import { sessionLaneWall } from './laneWall.js'
 import { BURST_WINDOW_MS, DELIVERY_INTERVAL_MS, createWatchMailbox } from './watchMailbox.js'
 import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startImmediate, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export { MONITOR_TOOL_NAME }
 
@@ -176,11 +177,11 @@ export const MonitorTool = buildTool({
       wall: () => sessionLaneWall(),
       deliver: emit,
       setTimer: (fn, ms) => {
-        const handle = setTimeout(fn, ms)
+        const handle = startTimeout(fn, ms)
         handle.unref?.()
         return handle
       },
-      clearTimer: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
+      clearTimer: handle => stopTimeout(handle as ReturnType<typeof setTimeout>),
     })
 
     function onData(chunk: string): void {
@@ -230,7 +231,7 @@ export const MonitorTool = buildTool({
 
     let timer: ReturnType<typeof setTimeout> | undefined
     if (!persistent) {
-      timer = setTimeout(() => {
+      timer = startTimeout(() => {
         if (stopped) return
         stopped = true
         mailbox.push(monitorExpiryNotice(description, handle.taskId, timeoutMs, events))
@@ -239,9 +240,9 @@ export const MonitorTool = buildTool({
       timer.unref?.()
     }
     void shellCommand.result.then(async () => {
-      await new Promise(resolve => setImmediate(resolve))
+      await new Promise(resolve => startImmediate(resolve))
       stopped = true
-      if (timer) clearTimeout(timer)
+      if (timer) stopTimeout(timer)
     })
 
     return {

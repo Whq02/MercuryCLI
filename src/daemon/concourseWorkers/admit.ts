@@ -30,6 +30,7 @@ import { workspaceKindOf, ensureWorkerWorktree } from '../concourseWorktrees.js'
 import { describeSeatReading } from '../../services/switchboard/capacityCheck.js'
 import { effectiveSeatCeiling } from './admission.js'
 import { pidFieldsOf } from './marks.js'
+import { startTimeout } from '../../utils/timers.js'
 
 export interface WorkerRosterPort {
   has(short: string): { present: boolean; alive?: boolean }
@@ -338,7 +339,7 @@ export function makeConcourseAdmitHandler(
       }
       logForDebugging(`[daemon] warm claim declined (${claimed.reason}) — spawning cold`)
       if (deps.ensureWarm !== undefined) {
-        const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
+        const rewarm = startTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
         rewarm.unref?.()
       }
     }

@@ -37,6 +37,7 @@ import {
 } from './executionProjection.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const RESTART_BACKOFF_BASE_MS = 500
 const RESTART_BACKOFF_MAX_MS = 15_000
@@ -166,7 +167,7 @@ function captureStartTokenAsync(cwd: string, name: string, pid: number, attempt 
       if (token === null) {
         const delay = TOKEN_BACKFILL_RETRY_MS[attempt]
         if (delay === undefined) return
-        const timer = setTimeout(() => captureStartTokenAsync(cwd, name, pid, attempt + 1), delay)
+        const timer = startTimeout(() => captureStartTokenAsync(cwd, name, pid, attempt + 1), delay)
         timer.unref?.()
         return
       }
@@ -539,7 +540,7 @@ export async function startService(
         RESTART_BACKOFF_BASE_MS * 2 ** exited.restartCount,
         RESTART_BACKOFF_MAX_MS,
       )
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         restartTimers.delete(childKey(project, spec.name))
         const latest = readRecord(project, spec.name)
         if (!latest || latest.explicitStop) return
@@ -600,7 +601,7 @@ export async function stopService(
   if (!record) return { error: `no service '${name}' in this project` }
   const pending = restartTimers.get(childKey(cwd, name))
   if (pending) {
-    clearTimeout(pending)
+    stopTimeout(pending)
     restartTimers.delete(childKey(cwd, name))
   }
   const marked: ServiceRecord = { ...record, explicitStop: true, state: record.pid ? 'stopping' : 'stopped', updatedAt: Date.now() }

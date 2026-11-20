@@ -10,6 +10,7 @@ import { isTaskToolsEnabled } from '../utils/tasks.js'
 
 type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
 import { truncateToWidth } from '../utils/truncate.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const RECENT_COMPLETION_MS = 30_000
 
@@ -69,14 +70,14 @@ export function TaskListV2({
       }
     }
     if (earliest === null) return
-    const timer = setTimeout(
+    const timer = startTimeout(
       () => {
         forceRender(count => count + 1)
       },
       Math.max(0, earliest - Date.now()),
     )
     return () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
     }
   }, [tasks, expiryVersion])
 

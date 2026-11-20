@@ -11,6 +11,7 @@ import { ensureDirInDaemonHome } from './daemonHome.js'
 import { gitArgs, gitArgsAsync } from '../utils/git/spawnArgs.js'
 import { discardSetAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones } from '../utils/worktreeClone.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
 
@@ -85,10 +86,10 @@ async function gitAsync(
     const finish = (r: { ok: boolean; stdout: string; stderr: string; unavailable?: boolean }): void => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolveDone(r)
     }
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       try {
         child.kill('SIGKILL')
       } catch (error) {

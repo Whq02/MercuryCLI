@@ -8,6 +8,7 @@ import { mnemeEnabled } from './mnemeGates.js'
 import { mnemeProjectKey } from './paths.js'
 import { runSessionClosers, type SessionCloseContext } from './sessionClose.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 interface OpenSession {
   projectKey: string
@@ -78,13 +79,13 @@ async function settle(session: OpenSession, outcome: string, budgetMs: number, k
     await Promise.race([
       runSessionClosers(ctx),
       new Promise<void>(resolve => {
-        timer = setTimeout(resolve, budgetMs)
+        timer = startTimeout(resolve, budgetMs)
       }),
     ])
   } catch (error) {
     logForDebugging(`session closers failed for ${session.sessionId}: ${error instanceof Error ? error.message : String(error)}`)
   } finally {
-    if (timer) clearTimeout(timer)
+    if (timer) stopTimeout(timer)
   }
   return ctx
 }

@@ -22,6 +22,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fitWireImages } from '../../../utils/messages/imageRequestFit.js'
 import { GEMINI_IMAGE_LIMITS } from '../../../constants/apiLimits.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 function dumpGeminiWire(url: string, model: string, body: string): void {
   const path = flagEnv('MERCURY_GEMINI_WIRE_DUMP')?.trim()
   if (!path) return
@@ -216,7 +217,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
     const body = JSON.stringify(responseMedia !== undefined && fitted.removed > 0 ? hoistElidedResponseMedia(fitted.request as GeminiRequest) : fitted.request)
     dumpGeminiWire(urls[0]!, options.request.model, body)
     options.firstByte?.onWait?.(wait)
-    firstTimer = setTimeout(() => { firstByteFired = true; controller.abort() }, budgetMs)
+    firstTimer = startTimeout(() => { firstByteFired = true; controller.abort() }, budgetMs)
     firstTimer.unref?.()
     let response!: Response
     for (let attempt = 0; attempt < urls.length; attempt++) {
@@ -239,7 +240,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       break
     }
     headersReceived = true
-    clearTimeout(firstTimer)
+    stopTimeout(firstTimer)
     options.firstByte?.onWait?.(response.ok && stream ? { ...wait, phase: 'tokens' } : null)
     options.onResponseHeaders?.(response.headers, response.status)
     watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: response.ok && stream ? options.silentAfterHeadersMs ?? null : null })
@@ -322,7 +323,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
             ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: streamIdleFaultWords(idleMs), retryable: true }
             : { kind: headersReceived ? 'truncated-stream' : 'transport-error', code: headersReceived ? 'read-failed' : 'fetch-failed', message: safe(describeTransportFailure(error, options.url)), retryable: true, ...(outage !== null ? { outage } : {}) } }
   } finally {
-    if (firstTimer) clearTimeout(firstTimer)
+    if (firstTimer) stopTimeout(firstTimer)
     options.firstByte?.onWait?.(null)
     watchdog?.stop()
     options.signal?.removeEventListener('abort', abort)

@@ -9,6 +9,7 @@ import {
   cachedAttentionStore,
   subscribeAttentionStore,
 } from './store.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export interface AttentionViewV1 {
   v: 1
@@ -36,7 +37,7 @@ function isImmediateKind(kind: string | null): boolean {
 
 function flushNotifications(): void {
   if (timer) {
-    clearTimeout(timer)
+    stopTimeout(timer)
     timer = null
   }
   if (!dirty) return
@@ -58,7 +59,7 @@ function schedule(kind: string | null): void {
     return
   }
   if (timer) return
-  timer = setTimeout(flushNotifications, BURST_WINDOW_MS)
+  timer = startTimeout(flushNotifications, BURST_WINDOW_MS)
   timer.unref?.()
 }
 
@@ -78,7 +79,7 @@ export function subscribeAttentionView(cb: () => void): () => void {
 
 function teardownAttentionView(): void {
   if (timer) {
-    clearTimeout(timer)
+    stopTimeout(timer)
     timer = null
   }
   feedUnsub?.()

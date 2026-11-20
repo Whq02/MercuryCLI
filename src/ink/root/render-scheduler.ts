@@ -1,4 +1,5 @@
 import { FRAME_INTERVAL_MS } from '../constants.js'
+import { startMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type SchedulerClock = {
   now: () => number
@@ -9,9 +10,9 @@ export type SchedulerClock = {
 
 const REAL_CLOCK: SchedulerClock = {
   now: () => Date.now(),
-  setTimeout: (fn, ms) => setTimeout(fn, ms),
-  clearTimeout: t => clearTimeout(t),
-  queueMicrotask: fn => queueMicrotask(fn),
+  setTimeout: (fn, ms) => startTimeout(fn, ms),
+  clearTimeout: t => stopTimeout(t),
+  queueMicrotask: fn => startMicrotask(fn),
 }
 
 const BOOT_COALESCE_MS = 100

@@ -2,6 +2,7 @@
 import instances from '../ink/instances.js'
 import { takeTerminalWriteHeldMs } from '../ink/terminalOut.js'
 import { logForDebugging } from './debug.js'
+import { startInterval } from './timers.js'
 
 const DETECT_INTERVAL_MS = 200
 const STALL_THRESHOLD_MS = 500
@@ -76,6 +77,6 @@ export function startEventLoopStallDetector(): void {
     previousTickAt = tickAt
   }
 
-  watchdog = setInterval(onTick, DETECT_INTERVAL_MS)
+  watchdog = startInterval(onTick, DETECT_INTERVAL_MS)
   watchdog.unref()
 }

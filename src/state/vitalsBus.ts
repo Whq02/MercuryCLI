@@ -16,6 +16,7 @@ import { subscribeExecutionEvents } from '../services/primitives/executionPlane.
 import { readSessionWorkersSnapshot, workerPidAlive } from '../daemon/concourseWorkers.js'
 import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
 import { passedOver } from '../utils/passedOver.js'
+import { afterMicrotask, startInterval, startTimeout, stopInterval, stopTimeout } from '../utils/timers.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
@@ -91,8 +92,7 @@ async function refreshOnce(): Promise<void> {
         next.git = g
       })
       .catch(passedOver),
-    Promise.resolve()
-      .then(() => {
+    afterMicrotask(() => {
         next.tasks = hasFocusedSession() ? getFocusedSessionConnector().workRoster().mission : []
       })
       .catch(() => {
@@ -135,8 +135,8 @@ export function pokeVitals(): void {
 }
 
 function scheduleDebounced(): void {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
+  if (debounceTimer) stopTimeout(debounceTimer)
+  debounceTimer = startTimeout(() => {
     debounceTimer = null
     pokeVitals()
   }, TRANSCRIPT_DEBOUNCE_MS)
@@ -152,7 +152,7 @@ function startEngine(): void {
       logForDebugging(`[vitalsBus] refresh failed (dropped): ${e}`)
     }
   }, 'vitals')
-  heartbeat = setInterval(() => pokeVitals(), HEARTBEAT_MS)
+  heartbeat = startInterval(() => pokeVitals(), HEARTBEAT_MS)
   heartbeat.unref?.()
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
   unsubTasks = subscribeFocusedWork(() => scheduleDebounced())
@@ -164,11 +164,11 @@ function startEngine(): void {
 
 function stopEngine(): void {
   if (heartbeat) {
-    clearInterval(heartbeat)
+    stopInterval(heartbeat)
     heartbeat = null
   }
   if (debounceTimer) {
-    clearTimeout(debounceTimer)
+    stopTimeout(debounceTimer)
     debounceTimer = null
   }
   unsubTranscript?.()

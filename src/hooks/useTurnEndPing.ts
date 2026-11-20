@@ -5,6 +5,7 @@ import { getTerminalFocusState } from '../ink/session/focus-store.js'
 import { TerminalWriteContext } from '../ink/terminalWrite.js'
 import { postTerminalNotification } from '../ink/termio/notifyPing.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export const DEFAULT_INTERACTION_THRESHOLD_MS = 6000
 export const PING_MESSAGE = 'Mercury finished its turn and is waiting for you'
@@ -45,8 +46,8 @@ export function useTurnEndPing(
       fire()
       return
     }
-    const timer = setTimeout(fire, threshold)
+    const timer = startTimeout(fire, threshold)
     timer.unref?.()
-    return () => clearTimeout(timer)
+    return () => stopTimeout(timer)
   }, [write, turn.lastCompletedAt, threshold])
 }

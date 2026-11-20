@@ -10,6 +10,7 @@ import {
   getLspServerManager,
 } from '../../services/lsp/manager.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const POLL_INTERVAL_MS = 5000
 const NOTIFICATION_TIMEOUT_MS = 8000
@@ -70,7 +71,7 @@ export function useLspInitializationNotification(): void {
 
   useTimer(() => {
     if (!pollingEnabled) return
-    const interval = setInterval(poll, POLL_INTERVAL_MS)
-    return () => clearInterval(interval)
+    const interval = startInterval(poll, POLL_INTERVAL_MS)
+    return () => stopInterval(interval)
   }, [pollingEnabled, poll])
 }

@@ -17,6 +17,7 @@ import { onTensorFoldStopping } from './tensorfoldStopping.js'
 import { tensorFoldTurnReadings } from './tensorfoldUsage.js'
 import { sleep } from '../../../utils/sleep.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 export const NEXT_TURN_SETTLE_MS = 750
 export const NEXT_TURN_STAGE_SECONDS = 5
@@ -128,7 +129,7 @@ export function nextTurnPrefillApplies(record: LocalModelRecord, options: Reques
 }
 
 function stop(reason: string): boolean {
-  if (state.timer !== null) clearTimeout(state.timer)
+  if (state.timer !== null) stopTimeout(state.timer)
   state.timer = null
   const running = state.running
   if (running === null) return false
@@ -245,7 +246,7 @@ async function engineLoad(offer: Offer, signal: AbortSignal): Promise<{ connecti
 
 function watchTheCut(offer: Offer): () => void {
   const controller = new AbortController()
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     void engineLoad(offer, controller.signal).then(load => {
       if (controller.signal.aborted || load === undefined || load.waiting === 0) return
       state.slow.set(offer.root, { quiet: 0, since: null, needMs: 0 })
@@ -256,7 +257,7 @@ function watchTheCut(offer: Offer): () => void {
   }, state.io.slowCutMs ?? NEXT_TURN_SLOW_CUT_MS)
   timer.unref?.()
   return () => {
-    clearTimeout(timer)
+    stopTimeout(timer)
     controller.abort()
   }
 }
@@ -299,7 +300,7 @@ async function readAhead(offer: Offer, rows: readonly CompatWireMessage[], signa
   let refused = false
   let crowded = false
   let looking = false
-  const watch = setInterval(() => {
+  const watch = startInterval(() => {
     if (looking || own.signal.aborted) return
     looking = true
     void engineLoad(offer, own.signal).then(load => {
@@ -328,7 +329,7 @@ async function readAhead(offer: Offer, rows: readonly CompatWireMessage[], signa
   } catch (error) {
     if (!own.signal.aborted) throw error
   } finally {
-    clearInterval(watch)
+    stopInterval(watch)
     signal.removeEventListener('abort', forward)
   }
   return { read, ...(seconds !== undefined ? { seconds } : {}), ...(fault !== undefined ? { fault } : {}), refused, crowded }
@@ -410,8 +411,8 @@ function arrives(root: string): void {
 }
 
 function schedule(): void {
-  if (state.timer !== null) clearTimeout(state.timer)
-  const timer = setTimeout(() => {
+  if (state.timer !== null) stopTimeout(state.timer)
+  const timer = startTimeout(() => {
     state.timer = null
     const offer = state.offer
     if (offer === null || state.running !== null) return

@@ -39,6 +39,7 @@ import { healthFixEnabled } from './healthFix.js'
 import { sleep } from './sleep.js'
 import { logError } from './log.js'
 import { passedOver } from './passedOver.js'
+import { sleepSync, startTimeout, stopTimeout } from './timers.js'
 
 const treeScratchDirs = new Set<string>()
 const treeScratchGits = new Set<ChildProcess>()
@@ -67,7 +68,7 @@ function sweepTreeScratch(): void {
   const giveUpAt = Date.now() + TREE_SCRATCH_RELEASE_MS
   for (const dir of [...treeScratchDirs]) {
     while (!removeTreeScratch(dir) && Date.now() < giveUpAt) {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, TREE_SCRATCH_RETRY_MS)
+      sleepSync(TREE_SCRATCH_RETRY_MS)
     }
   }
   treeScratchDirs.clear()
@@ -631,7 +632,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions, list?: read
     const onCallerAbort = (): void =>
       controller.abort(opts?.signal?.reason ?? new Error('health run cancelled'))
     opts?.signal?.addEventListener('abort', onCallerAbort, { once: true })
-    const deadline = setTimeout(
+    const deadline = startTimeout(
       () => controller.abort(new Error(`check timed out after ${timeoutMs}ms`)),
       timeoutMs,
     )
@@ -654,7 +655,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions, list?: read
         evidence: `probe threw: ${e instanceof Error && e.message ? e.message.slice(0, 140) : 'error'} — no evidence either way`,
       }
     } finally {
-      clearTimeout(deadline)
+      stopTimeout(deadline)
       opts?.signal?.removeEventListener('abort', onCallerAbort)
       if (!controller.signal.aborted) controller.abort(new Error('check settled'))
     }

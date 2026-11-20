@@ -18,6 +18,7 @@ import {
 } from '../sidecarFraming.js'
 
 import { getLanguageService as getYamlLanguageService } from 'yaml-language-server/lib/esm/languageservice/yamlLanguageService.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 type WebLanguage = 'html' | 'css' | 'scss' | 'less' | 'json' | 'jsonc' | 'yaml'
 
@@ -167,10 +168,10 @@ export async function runWebLspSidecar(
     const publishTimers = new Map<string, ReturnType<typeof setTimeout>>()
     function schedulePublish(uri: string): void {
       const existing = publishTimers.get(uri)
-      if (existing) clearTimeout(existing)
+      if (existing) stopTimeout(existing)
       publishTimers.set(
         uri,
-        setTimeout(() => {
+        startTimeout(() => {
           publishTimers.delete(uri)
           const doc = docs.get(uri)
           if (!doc) return
@@ -318,7 +319,7 @@ export async function runWebLspSidecar(
           const p = params as { textDocument: { uri: string } }
           docs.delete(p.textDocument.uri)
           const timer = publishTimers.get(p.textDocument.uri)
-          if (timer) clearTimeout(timer)
+          if (timer) stopTimeout(timer)
           publishTimers.delete(p.textDocument.uri)
           return
         }

@@ -39,6 +39,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { kitMenuView } from './kitMenu/kitMenuView.js';
 import { passedOver } from '../utils/passedOver.js';
+import { afterMicrotask } from '../utils/timers.js';
 
 
 interface KitMenuScreenProps {
@@ -321,9 +322,9 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     },
     unavailable: r => !isKitMember(r),
     actions: [
-      { key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) },
-      { key: ' ', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) },
-      { key: 'backspace', hint: 'default', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => resetRow(row)) }) },
+      { key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: afterMicrotask(() => cycleRow(row, 1)) }) },
+      { key: ' ', hint: 'change', run: row => ({ pending: 'saving…', result: afterMicrotask(() => cycleRow(row, 1)) }) },
+      { key: 'backspace', hint: 'default', run: row => ({ pending: 'saving…', result: afterMicrotask(() => resetRow(row)) }) },
       {
         key: 'p',
         hint: 'save as preset…',
@@ -350,9 +351,9 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     active: presetsLayer.open,
     onClose: () => setPresetsLayer({ open: false, facts: [] }),
     actions: [
-      { key: 'return', hint: 'wear', run: f => (f === null ? null : { pending: 'wearing…', result: Promise.resolve().then(() => wearOrDisarm(f.name)) }) },
-      { key: ' ', hint: 'wear', run: f => (f === null ? null : { pending: 'wearing…', result: Promise.resolve().then(() => wearOrDisarm(f.name)) }) },
-      { key: 'backspace', hint: 'delete', run: f => (f === null ? null : { pending: 'deleting…', result: Promise.resolve().then(() => deletePresetRow(f.name)) }) },
+      { key: 'return', hint: 'wear', run: f => (f === null ? null : { pending: 'wearing…', result: afterMicrotask(() => wearOrDisarm(f.name)) }) },
+      { key: ' ', hint: 'wear', run: f => (f === null ? null : { pending: 'wearing…', result: afterMicrotask(() => wearOrDisarm(f.name)) }) },
+      { key: 'backspace', hint: 'delete', run: f => (f === null ? null : { pending: 'deleting…', result: afterMicrotask(() => deletePresetRow(f.name)) }) },
     ],
   });
 
@@ -362,7 +363,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
       if (!key.leftArrow && !key.rightArrow) return;
       if (selectedRow == null) return;
       event.stopImmediatePropagation();
-      void Promise.resolve().then(() => cycleRow(selectedRow, key.leftArrow ? -1 : 1));
+      void afterMicrotask(() => cycleRow(selectedRow, key.leftArrow ? -1 : 1));
     },
     { isActive: !preset.open && !presetsLayer.open },
   );

@@ -1,6 +1,7 @@
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { logForDebugging } from '../utils/debug.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const RUNNER_AGENT_WATCH_ARM_DELAY_MS = 1500
 
@@ -12,7 +13,7 @@ export function armRunnerAgentFreshness(args: {
 }): () => void {
   let disposed = false
   let unsubscribe: (() => void) | null = null
-  const arm = setTimeout(() => {
+  const arm = startTimeout(() => {
     void (async () => {
       try {
         const watch = await import('../services/agents/watch.js')
@@ -44,7 +45,7 @@ export function armRunnerAgentFreshness(args: {
   arm.unref?.()
   return () => {
     disposed = true
-    clearTimeout(arm)
+    stopTimeout(arm)
     unsubscribe?.()
     unsubscribe = null
     void import('../services/agents/watch.js')

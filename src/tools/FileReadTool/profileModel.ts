@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { passedOver } from '../../utils/passedOver.js'
+import { startImmediate } from '../../utils/timers.js'
 
 interface ProfileFrame {
   function: string
@@ -49,7 +50,7 @@ export async function summarizeProfile(reading: ProfileReading, signal?: AbortSi
   const { nodes, quality } = reading
   let work = 0
   const yieldWork = async () => {
-    if (++work % 2048 === 0) await new Promise<void>(resolve => setImmediate(resolve))
+    if (++work % 2048 === 0) await new Promise<void>(resolve => startImmediate(resolve))
     signal?.throwIfAborted()
   }
   const visiting = new Set<number>(), visited = new Set<number>()

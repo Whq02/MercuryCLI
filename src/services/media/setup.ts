@@ -9,6 +9,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { mediaCheckpointFile, mediaCheckpointInstalled, mediaFileInstalled, mediaModelFiles, mediaModelJoined, mediaPartialBytes, readMediaCatalogue, type MediaCatalogue, type MediaModel } from './catalogue.js'
 import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServerPath, readMediaSettings, type MediaConfig, type MediaSettings } from './settings.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 type MediaFit = { residentBytes: number; peakMetalBytes: number; fits: boolean; diskFits: boolean }
 type MediaRow = { model: MediaModel; installed: boolean; bytes: number; pullBytes: number; fit: MediaFit; words: string }
@@ -157,11 +158,11 @@ export async function runMediaSetup(args: string[], onProgress: (event: MediaPro
     let timer: ReturnType<typeof setTimeout> | undefined
     const abort = (): void => {
       child.kill('SIGTERM')
-      timer ??= setTimeout(() => { child.kill('SIGKILL'); reject(new Error('Download did not return a pause result. Reopen /imagesetup.')) }, 2000)
+      timer ??= startTimeout(() => { child.kill('SIGKILL'); reject(new Error('Download did not return a pause result. Reopen /imagesetup.')) }, 2000)
     }
     signal?.addEventListener('abort', abort, { once: true })
     if (signal?.aborted) abort()
-    const cleanup = (): void => { if (timer) clearTimeout(timer); signal?.removeEventListener('abort', abort) }
+    const cleanup = (): void => { if (timer) stopTimeout(timer); signal?.removeEventListener('abort', abort) }
     const lines = createInterface({ input: child.stdout })
     lines.on('line', line => {
       try {

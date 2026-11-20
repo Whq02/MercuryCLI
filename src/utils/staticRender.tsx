@@ -8,18 +8,19 @@ import stripAnsi from 'strip-ansi'
 import { render, useApp } from '../ink.js'
 import { chromeModeLive } from '../hooks/useLayoutTier.js'
 import { railPlan } from './helmGeometry.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 
 function ExitAfterCommit({ children }: { children: React.ReactNode }): React.ReactNode {
   const { exit } = useApp()
   useLayoutTimer(() => {
     let inner: ReturnType<typeof setTimeout> | undefined
-    const outer = setTimeout(() => {
-      inner = setTimeout(() => exit(), 0)
+    const outer = startTimeout(() => {
+      inner = startTimeout(() => exit(), 0)
     }, 0)
     return () => {
-      clearTimeout(outer)
-      if (inner !== undefined) clearTimeout(inner)
+      stopTimeout(outer)
+      if (inner !== undefined) stopTimeout(inner)
     }
   }, [exit])
   return children

@@ -18,6 +18,7 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
@@ -178,7 +179,7 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
         },
       })
       if (askLimit > 0) {
-        awayTimer = setTimeout(() => {
+        awayTimer = startTimeout(() => {
           away = true
           requestController.abort(askExpiredCause(askLimit))
         }, askLimit)
@@ -232,7 +233,7 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
         decisionReason: { type: 'other', reason: 'permission request failed' },
       }
     } finally {
-      if (awayTimer !== undefined) clearTimeout(awayTimer)
+      if (awayTimer !== undefined) stopTimeout(awayTimer)
       parentSignal.removeEventListener('abort', forwardParentAbort)
     }
   }

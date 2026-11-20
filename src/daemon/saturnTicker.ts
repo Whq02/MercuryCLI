@@ -40,6 +40,7 @@ import {
 } from './saturnBoxSchedules.js'
 import { wakeDelayOfSpelling, type SaturnOrigin } from '../utils/messages/noticeRows.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 
 export const DEFAULT_SATURN_CATCHUP_WINDOW_MS = 6 * 60 * 60 * 1000
@@ -769,7 +770,7 @@ export function startSaturnTicker(ports: SaturnTickerPortsV1, onReport?: (r: Sat
   let stopped = false
   let storeStamp: string | undefined
   let pending = -1
-  const timer = setInterval(() => {
+  const timer = startInterval(() => {
     if (running || stopped) return
     const stamp = saturnStoreStamp(ports.dir)
     if (pending === 0 && stamp === storeStamp) return
@@ -791,6 +792,6 @@ export function startSaturnTicker(ports: SaturnTickerPortsV1, onReport?: (r: Sat
   timer.unref?.()
   return () => {
     stopped = true
-    clearInterval(timer)
+    stopInterval(timer)
   }
 }

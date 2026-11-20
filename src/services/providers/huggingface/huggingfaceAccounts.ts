@@ -13,6 +13,7 @@ import { credentialJsonToWriteOver, probeCredentialJson, readStoredHuggingfaceAp
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { afterMicrotask } from '../../../utils/timers.js'
 
 
 const HF_HUB_BASE_URL = 'https://huggingface.co'
@@ -363,7 +364,7 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
   const home = getAuthConfigHomeDir()
   const pending = refreshInFlight.get(home)
   if (pending) return pending
-  const refreshing = Promise.resolve().then(async (): Promise<HuggingfaceStoredTokens | undefined> => {
+  const refreshing = afterMicrotask(async (): Promise<HuggingfaceStoredTokens | undefined> => {
     try {
       const env = io?.env ?? hostEnv()
       const stored = huggingfaceStoredTokens()

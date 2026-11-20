@@ -20,6 +20,7 @@ import type { SetToolJSXFn } from '../../Tool.js';
 import type { Message } from '../../types/message.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import type { ToolJSXState } from './useChatDialogs.js';
+import { startTimeout, stopTimeout } from '../../utils/timers.js';
 
 const NO_CHAT_SETTLE_MS = 150;
 
@@ -99,12 +100,12 @@ export function useChatSession({
   useTimer(() => {
     if (slotHasSession || landing || chatSurfaceCovered || localJsx || armedMessage !== null) return;
     if (!isFullscreenEnvEnabled()) return;
-    const settle = setTimeout(() => {
+    const settle = startTimeout(() => {
       if (hasFocusedSession() || landingInFlight() || currentSurfaceRoute().kind !== 'repl') return;
       if (toolJSXRef.current?.isLocalJSXCommand === true || armedMessageRef.current !== null) return;
       settleAbsentChat();
     }, NO_CHAT_SETTLE_MS);
-    return () => clearTimeout(settle);
+    return () => stopTimeout(settle);
   }, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);
   return { warmthVersion, paintedMessages, entryLoadingLine, displayedMessages, slotHasSession };
 }

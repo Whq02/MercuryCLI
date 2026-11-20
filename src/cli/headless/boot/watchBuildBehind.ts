@@ -9,6 +9,7 @@ import { createSeatReceiptMessage } from '../../../utils/messages/systemMessages
 import { recordTranscript, peekProject } from '../../../utils/sessionStorage/writer.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startInterval, startTimeout } from '../../../utils/timers.js'
 
 const BUILD_BEHIND_FLOOR_MS = 60_000
 
@@ -35,7 +36,7 @@ function run(ports: RunnerPorts): BootMade<'checkBuildBehind' | 'buildBehindFloo
     if (live.buildBehindSeen !== installedTree) {
       live.buildBehindSeen = installedTree
       if (live.buildBehindConfirm === null) {
-        live.buildBehindConfirm = setTimeout(() => {
+        live.buildBehindConfirm = startTimeout(() => {
           live.buildBehindConfirm = null
           void checkBuildBehind(true)
         }, BUILD_BEHIND_CONFIRM_MS)
@@ -68,7 +69,7 @@ function run(ports: RunnerPorts): BootMade<'checkBuildBehind' | 'buildBehindFloo
       .then(() => peekProject()?.flush())
       .catch(passedOver)
   }
-  const buildBehindFloor = isConcourseWorker ? setInterval(() => void checkBuildBehind(true), BUILD_BEHIND_FLOOR_MS) : null
+  const buildBehindFloor = isConcourseWorker ? startInterval(() => void checkBuildBehind(true), BUILD_BEHIND_FLOOR_MS) : null
   buildBehindFloor?.unref?.()
   return { checkBuildBehind, buildBehindFloor }
 }

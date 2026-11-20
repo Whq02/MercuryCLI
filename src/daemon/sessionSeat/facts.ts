@@ -12,6 +12,7 @@ import { spawnSwitchFactsOfRecord } from '../../services/switchboard/spawnSwitch
 import { saturnFactsOf, applyConcourseScheduleOp, SATURN_EDIT_BURST_CAP } from '../saturn.js'
 import { deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts } from '../saturnAccount.js'
 import { type SeatState, liveRecordByShort, seatOf, seatBusy, seatTurnStartedAt, publishActivity, type SeatRosterPort, seats, liveRecordBySession } from './state.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const FACTS_DEBOUNCE_MS = 250
 
@@ -115,14 +116,14 @@ export function requestSessionFacts(
   }
   if (opts?.immediate) {
     if (seat.debounce !== null) {
-      clearTimeout(seat.debounce)
+      stopTimeout(seat.debounce)
       seat.debounce = null
     }
     fire()
     return
   }
   if (seat.debounce !== null) return
-  const t = setTimeout(fire, FACTS_DEBOUNCE_MS)
+  const t = startTimeout(fire, FACTS_DEBOUNCE_MS)
   t.unref?.()
   seat.debounce = t
 }
@@ -135,13 +136,13 @@ function armWorkPoll(short: string, roster: SeatRosterPort, dir?: string): void 
   const live = (seat.lastAnswer?.work ?? []).some(workRowRuns)
   if (!live) {
     if (seat.workPoll !== null) {
-      clearTimeout(seat.workPoll)
+      stopTimeout(seat.workPoll)
       seat.workPoll = null
     }
     return
   }
   if (seat.workPoll !== null) return
-  const t = setTimeout(() => {
+  const t = startTimeout(() => {
     seat.workPoll = null
     if (seats.get(short) === undefined) return
     requestSessionFacts(short, roster, { immediate: true }, dir)

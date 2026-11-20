@@ -3,6 +3,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import type { CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
 import { SGLANG_LEGACY_MODEL_INFO_PATH, SGLANG_MODEL_INFO_PATH, compatServerBase } from './compatProbe.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const readings = new Map<string, { at: number; speed: number | undefined }>()
 const positive = (value: number): number | undefined => Number.isFinite(value) && value > 0 ? value : undefined
@@ -46,7 +47,7 @@ export async function readCompatPrefillSpeed(
   if (cached !== undefined && Date.now() - cached.at < 30_000) return cached.speed
   const controller = new AbortController()
   const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
-  const timer = setTimeout(() => controller.abort(), 1000)
+  const timer = startTimeout(() => controller.abort(), 1000)
   timer.unref?.()
   const read = async (path: string): Promise<string | undefined> => {
     const response = await (opts.fetchImpl ?? getApiFetch())(`${root}${path}`, {
@@ -84,7 +85,7 @@ export async function readCompatPrefillSpeed(
   } catch {
     speed = undefined
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     readings.set(cacheKey, { at: Date.now(), speed })
     if (readings.size > 128) readings.delete(readings.keys().next().value!)
   }

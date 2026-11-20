@@ -21,6 +21,7 @@ import { workerTranscriptPath } from '../../services/concourse/workerTranscript.
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 
 type LiveTileNow =
@@ -175,7 +176,7 @@ export class LiveTileStore {
   private start(): void {
     if (!this.deps.armMachinery) return
     if (this.heartbeat !== null) return
-    const t = setInterval(() => {
+    const t = startInterval(() => {
       for (const e of this.entries.values()) e.dirty = true
       this.drain()
     }, HEARTBEAT_MS)
@@ -209,11 +210,11 @@ export class LiveTileStore {
 
   private stop(): void {
     if (this.heartbeat !== null) {
-      clearInterval(this.heartbeat)
+      stopInterval(this.heartbeat)
       this.heartbeat = null
     }
     if (this.drainTimer !== null) {
-      clearTimeout(this.drainTimer)
+      stopTimeout(this.drainTimer)
       this.drainTimer = null
     }
     try {
@@ -226,7 +227,7 @@ export class LiveTileStore {
 
   private scheduleDrain(): void {
     if (this.drainTimer !== null) return
-    const t = setTimeout(() => {
+    const t = startTimeout(() => {
       this.drainTimer = null
       this.drain()
     }, DRAIN_COALESCE_MS)

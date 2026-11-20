@@ -9,6 +9,7 @@ import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { shellLiveTailBudget, shellLiveTailLines } from './liveShellTail.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const TAIL_BYTES = 8 * 1024
 
@@ -29,8 +30,8 @@ function RunningShellTail({ shell }: { shell: WorkRowV1 }): React.ReactNode {
   const elapsed = useElapsedTime(shell.startTime, true, 1000)
   useTimer(() => {
     setOutput(readOutput(shell.outputFile))
-    const timer = setInterval(() => setOutput(readOutput(shell.outputFile)), 200)
-    return () => clearInterval(timer)
+    const timer = startInterval(() => setOutput(readOutput(shell.outputFile)), 200)
+    return () => stopInterval(timer)
   }, [shell.outputFile])
   const budget = shellLiveTailBudget(columns, rows)
   const lines = useMemo(() => shellLiveTailLines(output, budget), [output, budget])

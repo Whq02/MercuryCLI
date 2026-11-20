@@ -47,6 +47,7 @@ import type { Root } from '../ink.js'
 import { typedString, writeErr, UUID_SHAPE, type RootOptions } from './cli.js'
 import { startDeferredPrefetches } from './deferredPrefetches.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { startInterval, stopInterval } from '../utils/timers.js'
 
 let abandonAnnounced = false
 function announceAbandonedLaunch(): void {
@@ -262,10 +263,10 @@ function registerBootBackgroundNodes(args: { sessionTitle: string | undefined })
     if (process.stdin.isTTY) {
       const registration = await registerCockpit({ terminal: null })
       if (registration !== null) {
-        const beat = setInterval(() => void registration.heartbeat(), COCKPIT_HEARTBEAT_MS)
+        const beat = startInterval(() => void registration.heartbeat(), COCKPIT_HEARTBEAT_MS)
         beat.unref()
         registerCleanup(async () => {
-          clearInterval(beat)
+          stopInterval(beat)
           await registration.clear()
         })
       }

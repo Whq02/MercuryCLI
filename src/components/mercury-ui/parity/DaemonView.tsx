@@ -23,6 +23,7 @@ import { useOpenEventGate } from '../useOpenEventGate.js'
 import { getMercuryDaemonStatus, type MercuryDaemonStatus } from '../../../daemon/status.js'
 import { daemonSnapshot } from '../../../utils/cockpit/daemonSnapshot.js'
 import { deriveDaemonRows } from '../../../utils/cockpit/daemonRows.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 
 const MAX_ROWS = 12
@@ -83,7 +84,7 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
         setStatus(s)
         setProbedAt(Date.now())
         setNote(prev => (prev ? 'refreshed ✓' : prev))
-        expiry = setTimeout(() => {
+        expiry = startTimeout(() => {
           if (alive) setNote(prev => (prev === 'refreshed ✓' ? null : prev))
         }, NOTE_EXPIRE_MS)
       })
@@ -94,14 +95,14 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
       })
     return () => {
       alive = false
-      if (expiry) clearTimeout(expiry)
+      if (expiry) stopTimeout(expiry)
     }
   }, [loadId])
 
   useTimer(() => {
     if (!pollEnabled) return
-    const id = setInterval(() => setLoadId(n => n + 1), COCKPIT_POLL_MS)
-    return () => clearInterval(id)
+    const id = startInterval(() => setLoadId(n => n + 1), COCKPIT_POLL_MS)
+    return () => stopInterval(id)
   }, [pollEnabled])
 
   const probing = status === null

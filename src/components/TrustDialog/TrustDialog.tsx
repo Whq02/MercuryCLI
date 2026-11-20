@@ -15,6 +15,7 @@ import { normalizePathForConfigKey } from '../../utils/path.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
 import { useFirstRunCardsCentred } from '../MercurySetupFrame.js';
+import { startTimeout, stopTimeout } from '../../utils/timers.js';
 type Props = {
   onDone(): void;
 };
@@ -25,8 +26,8 @@ export function TrustDialog({ onDone }: Props): React.ReactNode {
   const hasTrustDialogAccepted = checkHasTrustDialogAccepted();
   useTimer(() => {
     if (!hasTrustDialogAccepted) return;
-    const timer = setTimeout(onDone);
-    return () => clearTimeout(timer);
+    const timer = startTimeout(onDone);
+    return () => stopTimeout(timer);
   }, [hasTrustDialogAccepted, onDone]);
 
   function exit(): void {

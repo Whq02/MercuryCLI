@@ -14,6 +14,7 @@ import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcess
 import { profileReport } from './startupProfiler.js'
 import { sleep } from './sleep.js'
 import { passedOver } from './passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from './timers.js'
 
 
 export type GracefulShutdownOptions = {
@@ -101,7 +102,7 @@ let failsafeTimer: ReturnType<typeof setTimeout> | undefined
 
 function forceExit(exitCode: number): void {
   if (failsafeTimer) {
-    clearTimeout(failsafeTimer)
+    stopTimeout(failsafeTimer)
     failsafeTimer = undefined
   }
   if (!terminalIsGone()) {
@@ -309,10 +310,10 @@ export const setupGracefulShutdown = (): void => {
     })
     if (process.platform !== 'win32') {
       if (process.stdin.isTTY) {
-        const orphanCheck = setInterval(() => {
+        const orphanCheck = startInterval(() => {
           if (getIsScrollDraining()) return
           if (!process.stdout.writable || !process.stdin.readable) {
-            clearInterval(orphanCheck)
+            stopInterval(orphanCheck)
             markTerminalGone()
             logForDiagnosticsNoPII('warn', 'orphan_detected', {
               stdoutWritable: Boolean(process.stdout.writable),
@@ -426,7 +427,7 @@ export const setupGracefulShutdown = (): void => {
   })
 
   if (process.stdout.isTTY) {
-    const prefetch = setTimeout(() => {
+    const prefetch = startTimeout(() => {
       void import('./shutdownRestoration.js')
         .then(mod => {
           restorationModule = mod
@@ -460,7 +461,7 @@ export async function gracefulShutdown(
     }
   }
 
-  failsafeTimer = setTimeout(() => {
+  failsafeTimer = startTimeout(() => {
     runTerminalRestoration()
     runResumeHint()
     forceExit(exitCode)
@@ -479,13 +480,13 @@ export async function gracefulShutdown(
     await Promise.race([
       cleanupRun,
       new Promise<void>((_, reject) => {
-        cleanupTimeout = setTimeout(() => reject(new Error('cleanup timed out')), CLEANUP_TIMEOUT_MS)
+        cleanupTimeout = startTimeout(() => reject(new Error('cleanup timed out')), CLEANUP_TIMEOUT_MS)
       }),
     ])
   } catch (err) {
     logForDebugging(`gracefulShutdown: a cleanup failed or passed its ${CLEANUP_TIMEOUT_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
   } finally {
-    if (cleanupTimeout) clearTimeout(cleanupTimeout)
+    if (cleanupTimeout) stopTimeout(cleanupTimeout)
   }
 
   try {
@@ -531,7 +532,7 @@ export async function gracefulShutdown(
   }
 
   if (failsafeTimer) {
-    clearTimeout(failsafeTimer)
+    stopTimeout(failsafeTimer)
     failsafeTimer = undefined
   }
   const stdoutDrain = await drainPipedStdoutForExit()
@@ -557,7 +558,7 @@ export async function crashShutdown(exitCode: number): Promise<void> {
     }
   }
 
-  const cap = setTimeout(() => {
+  const cap = startTimeout(() => {
     runTerminalRestoration()
     runResumeHint()
     forceExit(exitCode)
@@ -575,13 +576,13 @@ export async function crashShutdown(exitCode: number): Promise<void> {
     await Promise.race([
       cleanupRun,
       new Promise<void>((_, reject) => {
-        cleanupTimeout = setTimeout(() => reject(new Error('crash cleanup timed out')), CRASH_CLEANUP_CAP_MS)
+        cleanupTimeout = startTimeout(() => reject(new Error('crash cleanup timed out')), CRASH_CLEANUP_CAP_MS)
       }),
     ])
   } catch (err) {
     logForDebugging(`crashShutdown: a cleanup failed or passed its ${CRASH_CLEANUP_CAP_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
   } finally {
-    if (cleanupTimeout) clearTimeout(cleanupTimeout)
+    if (cleanupTimeout) stopTimeout(cleanupTimeout)
   }
 
   try {
@@ -593,7 +594,7 @@ export async function crashShutdown(exitCode: number): Promise<void> {
 
   await drainPipedStdoutForExit()
   await quiesceCleanupBeforeExit(cleanupRun)
-  clearTimeout(cap)
+  stopTimeout(cap)
   forceExit(exitCode)
 }
 
@@ -607,11 +608,11 @@ export async function quiesceCleanupBeforeExit(
     await Promise.race([
       cleanupRun.catch(passedOver),
       new Promise<void>(resolveGrace => {
-        grace = setTimeout(resolveGrace, graceMs)
+        grace = startTimeout(resolveGrace, graceMs)
       }),
     ])
   } finally {
-    if (grace) clearTimeout(grace)
+    if (grace) stopTimeout(grace)
   }
 }
 

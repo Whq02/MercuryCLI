@@ -15,6 +15,7 @@ import { sleep } from '../../utils/sleep.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 interface IdeToolCapabilities {
   readTextFile: boolean
@@ -418,7 +419,7 @@ export async function execViaIdeTerminal(
   }
   abortSignal.addEventListener('abort', onAbort, { once: true })
 
-  let timeoutTimer: NodeJS.Timeout | undefined = setTimeout(() => {
+  let timeoutTimer: NodeJS.Timeout | undefined = startTimeout(() => {
     if (status !== 'running') return
     if (options.shouldAutoBackground && timeoutCallback) {
       timeoutCallback((id: string) => {
@@ -435,7 +436,7 @@ export async function execViaIdeTerminal(
   timeoutTimer.unref?.()
 
   let polling = false
-  let pollTimer: NodeJS.Timeout | undefined = setInterval(() => {
+  let pollTimer: NodeJS.Timeout | undefined = startInterval(() => {
     if (polling || (status !== 'running' && status !== 'backgrounded')) return
     polling = true
     void door
@@ -457,8 +458,8 @@ export async function execViaIdeTerminal(
   const resultPromise: Promise<ExecResult> = (async () => {
     try {
       const exit = await door.terminalWaitForExit({ terminal_id: terminalId }, abortSignal)
-      if (timeoutTimer !== undefined) clearTimeout(timeoutTimer)
-      if (pollTimer !== undefined) clearInterval(pollTimer)
+      if (timeoutTimer !== undefined) stopTimeout(timeoutTimer)
+      if (pollTimer !== undefined) stopInterval(pollTimer)
       let finalSnap = lastOutput
       let notes: string[] = []
       try {
@@ -484,8 +485,8 @@ export async function execViaIdeTerminal(
         ...(backgroundTaskId !== undefined ? { backgroundTaskId } : {}),
       }
     } catch (error) {
-      if (timeoutTimer !== undefined) clearTimeout(timeoutTimer)
-      if (pollTimer !== undefined) clearInterval(pollTimer)
+      if (timeoutTimer !== undefined) stopTimeout(timeoutTimer)
+      if (pollTimer !== undefined) stopInterval(pollTimer)
       await releaseOnce()
       await taskOutput.flush()
       return {
@@ -515,8 +516,8 @@ export async function execViaIdeTerminal(
       return status
     },
     cleanup(): void {
-      if (timeoutTimer !== undefined) clearTimeout(timeoutTimer)
-      if (pollTimer !== undefined) clearInterval(pollTimer)
+      if (timeoutTimer !== undefined) stopTimeout(timeoutTimer)
+      if (pollTimer !== undefined) stopInterval(pollTimer)
       taskOutput.clear()
       void releaseOnce()
     },

@@ -42,6 +42,7 @@ import {
   type WorkbenchSourceInputs,
 } from './selectors.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 const REFRESH_DEBOUNCE_MS = 300
 const HEARTBEAT_MS = 20_000
@@ -349,8 +350,8 @@ export function pokeWorkbench(): void {
 }
 
 function scheduleDebounced(): void {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
+  if (debounceTimer) stopTimeout(debounceTimer)
+  debounceTimer = startTimeout(() => {
     debounceTimer = null
     pokeWorkbench()
   }, REFRESH_DEBOUNCE_MS)
@@ -366,7 +367,7 @@ function startEngine(): void {
       logForDebugging(`[workbench] refresh failed (dropped): ${e}`)
     }
   }, 'workbench')
-  heartbeat = setInterval(() => pokeWorkbench(), HEARTBEAT_MS)
+  heartbeat = startInterval(() => pokeWorkbench(), HEARTBEAT_MS)
   heartbeat.unref?.()
   engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))
   engineUnsubs.push(subscribeRuns(() => scheduleDebounced()))
@@ -376,13 +377,13 @@ function startEngine(): void {
 
 function stopEngine(): void {
   if (heartbeat) {
-    clearInterval(heartbeat)
+    stopInterval(heartbeat)
     heartbeat = null
   }
   coalescer?.release()
   coalescer = null
   if (debounceTimer) {
-    clearTimeout(debounceTimer)
+    stopTimeout(debounceTimer)
     debounceTimer = null
   }
   for (const unsub of engineUnsubs.splice(0)) {

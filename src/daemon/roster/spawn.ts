@@ -21,6 +21,7 @@ import { calculateContextPercentages, getContextWindowForModel } from '../../uti
 import { currentVersion } from '../controlSocket.js'
 import type { LongLivedSeat, RosterEntry, RosterOptions, WorkerHandle } from './types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { stopTimeout } from '../../utils/timers.js'
 
 interface SpawnNeeds {
   keepChildStderr(short: string, child: ChildProcess, ll: LongLivedSeat): void
@@ -84,7 +85,7 @@ export class SpawnPart {
     if (!h || !h.longLived) return undefined
     const ll = h.longLived
     if (ll.respawnTimer) {
-      clearTimeout(ll.respawnTimer)
+      stopTimeout(ll.respawnTimer)
       ll.respawnTimer = undefined
     }
     const cwdGate = assertSpawnCwd(ll.spec.cwd)

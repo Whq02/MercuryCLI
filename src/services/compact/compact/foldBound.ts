@@ -2,6 +2,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { classifyModelRoute } from '../../providers/routeLaw.js'
 import { COLD_INGEST_MS_PER_1K_TOKENS, firstByteBudgetMs, streamIdleTimeoutMsForRoute } from '../../providers/streamIdleBudget.js'
 import { recordWireFoldRow, type WireFoldRow } from '../../api/dumpPrompts.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const FOLD_STALL_MS = 120_000
 
@@ -64,11 +65,11 @@ export function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], est
     timedOut = true
     controller.abort()
   }
-  let stall: NodeJS.Timeout | null = setTimeout(expire, firstByteMs)
+  let stall: NodeJS.Timeout | null = startTimeout(expire, firstByteMs)
   stall.unref?.()
   const rearm = (): void => {
-    if (stall !== null) clearTimeout(stall)
-    stall = setTimeout(expire, contentSeen ? stallMs : firstByteMs)
+    if (stall !== null) stopTimeout(stall)
+    stall = startTimeout(expire, contentSeen ? stallMs : firstByteMs)
     stall.unref?.()
   }
   logForDebugging(`compact: ${road} lane bound armed — first-byte allowance ${firstByteMs} ms for ≈${Math.round(estTokens)} tokens, stall ${stallMs} ms after the first event (${cold ? 'cold' : 'warm'} prefix)`)
@@ -87,7 +88,7 @@ export function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], est
     hitDeadline: () => timedOut,
     cutBy: () => timedOut ? 'silence' : null,
     dispose(): void {
-      if (stall !== null) clearTimeout(stall)
+      if (stall !== null) stopTimeout(stall)
       parent.removeEventListener('abort', onParentAbort)
     },
   }

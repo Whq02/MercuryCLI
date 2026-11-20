@@ -5,6 +5,7 @@ import { headlessProfilerStartTurn } from '../../../utils/headlessProfiler.js'
 import { noteRunPhase } from '../../../utils/runPhases.js'
 import { getPerformance } from '../../../utils/profilerBase.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { startInterval } from '../../../utils/timers.js'
 
 function run(ports: RunnerPorts): BootMade<'streamingInput'> {
   const { inputPrompt, options, setAppState } = ports
@@ -17,7 +18,7 @@ function run(ports: RunnerPorts): BootMade<'streamingInput'> {
   })
   if (process.versions.bun) {
     const bunGc = (globalThis as { Bun?: { gc?: (full: boolean) => void } }).Bun
-    setInterval(() => bunGc?.gc?.(true), 1000).unref?.()
+    startInterval(() => bunGc?.gc?.(true), 1000).unref?.()
   }
   headlessProfilerStartTurn()
   noteRunPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)

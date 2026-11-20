@@ -17,6 +17,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
+import { startTimeout } from '../../utils/timers.js'
 
 function clearAuthRelatedCaches(): void {
   clearOAuthTokenCache()
@@ -70,7 +71,7 @@ const SHUTDOWN_DELAY_MS = 200
 
 export async function call(): Promise<React.ReactNode> {
   await performLogout({ clearOnboarding: true })
-  setTimeout(() => {
+  startTimeout(() => {
     gracefulShutdownSync(0, 'logout')
   }, SHUTDOWN_DELAY_MS)
   return <Text>Logged out of all your accounts.</Text>

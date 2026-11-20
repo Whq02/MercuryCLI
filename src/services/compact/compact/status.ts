@@ -2,6 +2,7 @@ import type { ToolUseContext, CompactProgressEvent } from '../../../Tool.js'
 import { APIUserAbortError } from '../../api/sdkErrors.js'
 import { FOLD_STAMP_THROTTLE_MS, type FoldExit, type FoldStatusV1, type FoldTrigger, beginFoldStatus, foldStatusExit, foldStatusOnEvent } from '../foldStatus.js'
 import { ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, ERROR_MESSAGE_USER_ABORT } from './limits.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function notifyCompactionError(context: ToolUseContext, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err)
@@ -31,7 +32,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
   let pending: NodeJS.Timeout | null = null
   const send = (): void => {
     if (pending !== null) {
-      clearTimeout(pending)
+      stopTimeout(pending)
       pending = null
     }
     context.setSDKStatus?.({ compacting: status })
@@ -43,7 +44,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
       return
     }
     if (pending !== null) return
-    pending = setTimeout(send, FOLD_STAMP_THROTTLE_MS)
+    pending = startTimeout(send, FOLD_STAMP_THROTTLE_MS)
     pending.unref?.()
   }
   const onEvent = (event: CompactProgressEvent): void => {
@@ -77,7 +78,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
     reason = err instanceof Error ? err.message : String(err)
     throw err
   } finally {
-    if (pending !== null) clearTimeout(pending)
+    if (pending !== null) stopTimeout(pending)
     status = foldStatusExit(status, exit, Date.now(), reason)
     restoreAfterCompaction(context, { compacting: status })
     if (facts.trigger !== 'manual') context.setSDKStatus?.(null)

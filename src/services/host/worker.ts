@@ -32,6 +32,7 @@ import { hostMachineOf, noteHostLink, hostLinkAttemptWords, hostLinkRecoveredWor
 import { shQuote as quote } from './boxExecution.js'
 import { TENSORFOLD_HOST_WORDS, isTensorFoldRecipe, registerTensorFoldPod, tensorFoldPodAnsweringCommand, tensorFoldPodKey, tensorFoldPodService, writeTensorFoldPodKey } from './tensorfoldPod.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}
@@ -103,7 +104,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const originalRecipe = hostRecipeOfRecord(initial)
   const recipe = originalRecipe && initial.tune ? tunedRecipe(originalRecipe, initial.tune) : originalRecipe
   patchHostRecord(id, { jobState: 'running', error: undefined })
-  const timer = setInterval(() => {
+  const timer = startInterval(() => {
     const current = readHostRecord(id)
     if (!current || current.generation !== generation || current.jobState === 'stopped') controller.abort()
     if (initial.jobKind === 'watch' || !target || !recipe || logBusy || signal.aborted || current?.jobState === 'ready' || current?.jobState === 'paused' || current?.jobState === 'failed') return
@@ -138,7 +139,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       removeHostRecord(id)
     } catch (error) {
       hostBankFailed(ports, tools, recipe, verifying, scrub, error)
-    } finally { clearInterval(timer) }
+    } finally { stopInterval(timer) }
     return
   }
   if (initial.jobKind === 'watch') {
@@ -183,7 +184,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       }
     } catch (error) {
       hostWatchFailed(watch, ports, tools, error)
-    } finally { clearInterval(timer) }
+    } finally { stopInterval(timer) }
     return
   }
   const deadline = Date.now() + timeout
@@ -357,7 +358,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     }
     hostSetupFailed(ports, tools, failure)
     closeHostTunnel(id)
-  } finally { clearInterval(timer) }
+  } finally { stopInterval(timer) }
 }
 
 type HostJobOptions = NonNullable<Parameters<typeof runHostJob>[2]>

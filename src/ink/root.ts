@@ -3,6 +3,7 @@ import { logForDebugging } from '../utils/debug.js'
 import type { FrameEvent } from './frame.js'
 import Ink, { type Options as InkOptions } from './ink.js'
 import instances from './instances.js'
+import { nextMicrotask } from '../utils/timers.js'
 
 export type RenderOptions = {
   stdout?: NodeJS.WriteStream
@@ -64,13 +65,13 @@ export default async function render(
   node: ReactNode,
   options?: NodeJS.WriteStream | RenderOptions,
 ): Promise<Instance> {
-  await Promise.resolve()
+  await nextMicrotask()
   const instance = renderSync(node, options)
   logForDebugging(`ink render mounted ${sinceProcessStartMs()}ms after process start`)
   return instance
 }
 
 export async function createRoot(options?: RenderOptions): Promise<Root> {
-  await Promise.resolve()
+  await nextMicrotask()
   return rootDoors(mount(options, 'fresh').engine)
 }

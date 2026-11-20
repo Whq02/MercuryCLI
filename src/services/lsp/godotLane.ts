@@ -8,6 +8,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import { resolveMercuryRespawnEntry } from './respawnEntry.js'
 import type { ScopedLspServerConfig } from './types.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const MERCURY_GODOT_SERVER_NAME = 'mercury-godot'
 export const GODOT_DAP_ADAPTER_KEY = 'godot'
@@ -116,13 +117,13 @@ export function probeGodotEditorReachable(
       socket.destroy()
       resolve(ok)
     }
-    const timer = setTimeout(() => done(false), timeoutMs)
+    const timer = startTimeout(() => done(false), timeoutMs)
     socket.once('connect', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       done(true)
     })
     socket.once('error', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       done(false)
     })
   })

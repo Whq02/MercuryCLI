@@ -5,6 +5,7 @@ import type { Capabilities, HostNotificationName, HostRequestName, InitializeRes
 import { createPeer, type Peer, type RequestOptions } from '../runner/wire/peer.js'
 import type { RpcError } from '../runner/wire/errors.js'
 import { MERCURY_VERSION } from '../constants/product.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const SLOW_BOOT_FIRST_MARK_MS = 10_000
 
@@ -82,7 +83,7 @@ export class RunnerConnection implements RunnerDoor {
 
   private armBootMark(marks: number, since: number = this.startedAt, wait: SlowMarkWait = 'answered initialize'): void {
     const due = since + slowBootMarkMs(marks) - Date.now()
-    this.bootMark = setTimeout(() => {
+    this.bootMark = startTimeout(() => {
       this.bootMark = null
       if (this.peer.closed) return
       this.hooks.log(slowBootLine(Date.now() - since, wait))
@@ -92,7 +93,7 @@ export class RunnerConnection implements RunnerDoor {
   }
 
   private clearBootMark(): void {
-    if (this.bootMark !== null) clearTimeout(this.bootMark)
+    if (this.bootMark !== null) stopTimeout(this.bootMark)
     this.bootMark = null
   }
 

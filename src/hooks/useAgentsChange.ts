@@ -13,6 +13,7 @@ import {
 } from '../tools/AgentTool/loadAgentsDir.js'
 import { toError } from '../utils/errors.js'
 import { logError } from '../utils/log.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export async function reloadAgentDefinitionsIntoAppState(
   cwd: string,
@@ -53,7 +54,7 @@ export function useAgentsChange(cwd: string | undefined): void {
 
   useTimer(() => {
     if (!cwd) return
-    const arm = setTimeout(() => {
+    const arm = startTimeout(() => {
       void startAgentWatch(cwd).catch(error => logError(toError(error)))
     }, 1500)
     arm.unref?.()
@@ -61,7 +62,7 @@ export function useAgentsChange(cwd: string | undefined): void {
       void reload()
     })
     return () => {
-      clearTimeout(arm)
+      stopTimeout(arm)
       unsubscribe()
     }
   }, [cwd, reload])

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { StdioClientTransport, type Implementation, type JSONRPCMessage, type ServerCapabilities, type Tool } from './sdk.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type McpBootstrapManifest = {
   serverInfo: Implementation
@@ -30,7 +31,7 @@ export class LazyStdioClientTransport extends StdioClientTransport {
       let timer: ReturnType<typeof setTimeout> | undefined
       const initialized = new Promise<void>((resolve, reject) => {
         this.rejectInitialization = reject
-        timer = setTimeout(() => reject(new Error('MCP server initialization timed out')), this.timeoutMs)
+        timer = startTimeout(() => reject(new Error('MCP server initialization timed out')), this.timeoutMs)
         this.onmessage = message => {
           if ('id' in message && message.id === id) {
             if ('error' in message) reject(new Error(message.error.message))
@@ -50,7 +51,7 @@ export class LazyStdioClientTransport extends StdioClientTransport {
         await super.close()
         throw error
       } finally {
-        clearTimeout(timer)
+        stopTimeout(timer)
         this.rejectInitialization = undefined
         this.onmessage = receive
       }
@@ -74,7 +75,7 @@ export class LazyStdioClientTransport extends StdioClientTransport {
         else if (message.method === 'prompts/list') result = { prompts: [] }
         else if (message.method === 'ping') result = {}
         if (result) {
-          queueMicrotask(() => { if (!this.closed) this.onmessage?.({ jsonrpc: '2.0', id: message.id, result }) })
+          startMicrotask(() => { if (!this.closed) this.onmessage?.({ jsonrpc: '2.0', id: message.id, result }) })
           return
         }
       }

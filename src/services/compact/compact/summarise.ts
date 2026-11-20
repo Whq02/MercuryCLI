@@ -24,11 +24,12 @@ import { isOverflowAnswer, malformedHistoryRefusalOf, foldRemedyIsHeadless, fold
 import { ERROR_MESSAGE_FOLD_TIMEOUT, type FoldBound, armFoldBound, foldCutWords, shouldRideCacheSharingFork, recordFoldRoad } from './foldBound.js'
 import { createCompactCanUseTool } from './input.js'
 import { summaryAnswerFault, summaryRefusedByModel } from './summaryCheck.js'
+import { startInterval, stopInterval } from '../../../utils/timers.js'
 
 async function withKeepAlive<T>(context: ToolUseContext, work: () => Promise<T>): Promise<T> {
   let interval: NodeJS.Timeout | null = null
   if (isSessionActivityTrackingActive()) {
-    interval = setInterval(() => {
+    interval = startInterval(() => {
       sendSessionActivitySignal()
       context.setSDKStatus?.('compacting')
     }, KEEPALIVE_INTERVAL_MS)
@@ -37,7 +38,7 @@ async function withKeepAlive<T>(context: ToolUseContext, work: () => Promise<T>)
   try {
     return await work()
   } finally {
-    if (interval !== null) clearInterval(interval)
+    if (interval !== null) stopInterval(interval)
   }
 }
 

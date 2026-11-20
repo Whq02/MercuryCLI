@@ -24,6 +24,7 @@ import type { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import type { useArrowKeyHistory } from '../../hooks/useArrowKeyHistory.js'
 import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
+import { startMicrotask } from '../../utils/timers.js'
 
 const DOUBLED_SLASH = '//'
 const CREWMATE_IMAGE_DETAIL = `a crewmate cannot read images; send the image to ${LEAD_ROW_NAME}, or describe it in words`
@@ -156,7 +157,7 @@ export function useComposerSubmit({
       if (!options.fromKeybinding) {
         if (sameDispatchSubmitRef.current) return
         sameDispatchSubmitRef.current = true
-        queueMicrotask(() => {
+        startMicrotask(() => {
           sameDispatchSubmitRef.current = false
         })
       }

@@ -1,4 +1,5 @@
 import { createAbortController } from './abortController.js'
+import { startTimeout, stopTimeout } from './timers.js'
 
 export function createCombinedAbortSignal(
   signal: AbortSignal | undefined,
@@ -18,7 +19,7 @@ export function createCombinedAbortSignal(
 
   const clearTimer = (): void => {
     if (timer !== undefined) {
-      clearTimeout(timer)
+      stopTimeout(timer)
       timer = undefined
     }
   }
@@ -32,7 +33,7 @@ export function createCombinedAbortSignal(
   signalB?.addEventListener('abort', onAbort)
 
   if (timeoutMs !== undefined) {
-    timer = setTimeout(onAbort, timeoutMs)
+    timer = startTimeout(onAbort, timeoutMs)
     timer.unref?.()
   }
 

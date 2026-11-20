@@ -44,6 +44,7 @@ import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './guard
 import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 
 export const BACKGROUND_BASH_SUMMARY_PREFIX = 'Background command '
@@ -134,7 +135,7 @@ function armStallWatchdog(args: {
   let lastGrowthAt = Date.now()
   let checking = false
 
-  const timer = setInterval(() => {
+  const timer = startInterval(() => {
     if (latched || checking) return
     checking = true
     void (async () => {
@@ -165,7 +166,7 @@ function armStallWatchdog(args: {
         }
         if (latched) return
         latched = true
-        clearInterval(timer)
+        stopInterval(timer)
         const lastOutput = tail.content.trimEnd()
         const summary =
           `${BACKGROUND_BASH_SUMMARY_PREFIX}"${args.description}" seems to be blocked ` +
@@ -198,7 +199,7 @@ function armStallWatchdog(args: {
 
   return () => {
     latched = true
-    clearInterval(timer)
+    stopInterval(timer)
   }
 }
 

@@ -8,6 +8,7 @@ import { endProcessTree, type ProcessTreeKillReceipt } from './processGroup.js'
 import { MAX_TASK_OUTPUT_BYTES, MAX_TASK_OUTPUT_BYTES_DISPLAY } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
 import { passedOver } from './passedOver.js'
+import { startImmediate, startInterval, startTimeout, stopInterval, stopTimeout } from './timers.js'
 
 
 export const HARD_CAP_MULTIPLIER = 10
@@ -133,15 +134,15 @@ export function wrapSpawn(
 
   const teardownListeners = (): void => {
     if (sizeWatchdogTimer !== undefined) {
-      clearInterval(sizeWatchdogTimer)
+      stopInterval(sizeWatchdogTimer)
       sizeWatchdogTimer = undefined
     }
     if (timeoutTimer !== undefined) {
-      clearTimeout(timeoutTimer)
+      stopTimeout(timeoutTimer)
       timeoutTimer = undefined
     }
     if (hardCapTimer !== undefined) {
-      clearTimeout(hardCapTimer)
+      stopTimeout(hardCapTimer)
       hardCapTimer = undefined
     }
     if (signal) {
@@ -158,7 +159,7 @@ export function wrapSpawn(
       return
     }
     if (graceTimer === undefined) {
-      graceTimer = setTimeout(() => settleExitCode(fallbackCode), KILL_GRACE_MS)
+      graceTimer = startTimeout(() => settleExitCode(fallbackCode), KILL_GRACE_MS)
       graceTimer.unref()
     }
     const sweep = endProcessTree(child, 'SIGKILL')
@@ -171,7 +172,7 @@ export function wrapSpawn(
   }
 
   const startSizeWatchdog = (): void => {
-    sizeWatchdogTimer = setInterval(() => {
+    sizeWatchdogTimer = startInterval(() => {
       void (async () => {
         let size: number
         try {
@@ -191,7 +192,7 @@ export function wrapSpawn(
   }
 
   const armHardCap = (): void => {
-    hardCapTimer = setTimeout(() => {
+    hardCapTimer = startTimeout(() => {
       if (status !== 'backgrounded') return
       killedByHardCap = true
       kill()
@@ -217,14 +218,14 @@ export function wrapSpawn(
 
   const assembleResult = async (code: number): Promise<void> => {
     if (graceTimer !== undefined) {
-      clearTimeout(graceTimer)
+      stopTimeout(graceTimer)
       graceTimer = undefined
     }
     teardownListeners()
     if (status === 'running' || status === 'backgrounded') {
       status = 'completed'
     }
-    await new Promise(resolve => setImmediate(resolve))
+    await new Promise(resolve => startImmediate(resolve))
     const stdout = await taskOutput.getStdout()
     let stderr = taskOutput.getStderr()
 
@@ -286,7 +287,7 @@ export function wrapSpawn(
   childProcess.once('error', () => {
     settleExitCode(1)
   })
-  timeoutTimer = setTimeout(() => {
+  timeoutTimer = startTimeout(() => {
     timeoutFired = true
     if (shouldAutoBackground && timeoutCallback !== undefined) {
       timeoutElapsed = true

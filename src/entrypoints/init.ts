@@ -27,6 +27,7 @@ import { isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.j
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { armScratchpadSweep } from '../utils/scratchpad.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startImmediate } from '../utils/timers.js'
 
 function runArgumentsLeaveBashOut(args: readonly string[]): boolean {
   const toolset = readSessionOptionValues(args, '--toolset')
@@ -70,7 +71,7 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
 
     void getGithubRepo().catch(passedOver)
 
-    setImmediate(() => {
+    startImmediate(() => {
       try {
         ensureLocalSettingsSchema()
       } catch (error) {

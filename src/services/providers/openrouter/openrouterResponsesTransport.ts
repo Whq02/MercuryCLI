@@ -33,6 +33,7 @@ import {
 } from '../openaicompat/compatChatClient.js'
 import { openrouterResponsesCache } from './openrouterCache.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const OPENROUTER_TOOL_SEARCH_TYPE = 'openrouter:tool_search'
 
@@ -249,7 +250,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
-  const totalTimer = setTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
+  const totalTimer = startTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
   totalTimer.unref?.()
   let idleWatchdog: StreamIdleWatchdog | null = null
   const fold = new ResponsesStreamFold()
@@ -272,7 +273,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
     }
     options.firstByte?.onWait?.(wait)
     let firstByteFired = false
-    const firstByteTimer = setTimeout(() => {
+    const firstByteTimer = startTimeout(() => {
       firstByteFired = true
       controller.abort()
     }, firstByteBudget)
@@ -294,7 +295,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
     } catch (error) {
-      clearTimeout(firstByteTimer)
+      stopTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
       if (!cancelled && firstByteFired) {
         yield { type: 'stream-fault', fault: { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true } }
@@ -309,7 +310,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
       }
       return
     }
-    clearTimeout(firstByteTimer)
+    stopTimeout(firstByteTimer)
     options.firstByte?.onWait?.(response.ok ? { ...wait, phase: 'tokens' } : null)
     let tokenWait = response.ok
     const noteToken = (event: CompatStreamEvent): void => {
@@ -411,7 +412,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
       }
     }
   } finally {
-    clearTimeout(totalTimer)
+    stopTimeout(totalTimer)
     options.firstByte?.onWait?.(null)
     idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)

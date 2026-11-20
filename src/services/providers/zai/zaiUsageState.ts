@@ -7,6 +7,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { zaiApiBase } from './zaiClient.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 interface ZaiUsageIo {
   fetchImpl?: typeof fetch
@@ -308,7 +309,7 @@ export function refreshZaiQuota(io?: ZaiUsageIo): Promise<ZaiObservedQuota | nul
   }
   if (inFlight) return inFlight
   const work = (async (): Promise<ZaiObservedQuota | null> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const dispatch = resolveZaiDispatch(env)
       if (dispatch?.plan !== 'coding') return observed

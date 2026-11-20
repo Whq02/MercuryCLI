@@ -8,6 +8,7 @@ import {
 import type {
   OpenaiResponsesRequest,
 } from '../openaiWire.js'
+import { startTimeout, stopTimeout } from '../../../../utils/timers.js'
 
 const OPENAI_GATEWAY_PROBE_TIMEOUT_MS = 15_000
 
@@ -19,7 +20,7 @@ export async function sendOpenaiGatewayProbe(
   const controller = new AbortController()
   const onOuterAbort = (): void => controller.abort()
   outer.addEventListener('abort', onOuterAbort, { once: true })
-  const timer = setTimeout(() => controller.abort(), OPENAI_GATEWAY_PROBE_TIMEOUT_MS)
+  const timer = startTimeout(() => controller.abort(), OPENAI_GATEWAY_PROBE_TIMEOUT_MS)
   timer.unref?.()
   try {
     const events = streamOpenaiResponses({
@@ -41,7 +42,7 @@ export async function sendOpenaiGatewayProbe(
   } catch (error) {
     return { status: null, bodyText: error instanceof Error ? error.message : String(error) }
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     outer.removeEventListener('abort', onOuterAbort)
   }
 }

@@ -1,5 +1,6 @@
 import { engineMediaStats, type EngineMediaPhase, type EngineMediaRequest, type EngineMediaStats } from './media.js'
 import { GODOT_DEBUGGER_VERSION, GodotDebuggerTransport, requireGodotDebuggerVersion, type GodotDebuggerMessage } from './debuggerTransport.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const MAX_FUNCTIONS = 4096
 const MAX_VALUES = 2_000_000
@@ -174,11 +175,11 @@ export class GodotDebuggerProfile {
     if (this.thread === null) return Promise.reject(new Error('the worker has not sent its hello over the engine debugger yet'))
     return new Promise((resolve, reject) => {
       const waiter = (answer: GodotSceneTreeNode | Error): void => {
-        clearTimeout(timer)
+        stopTimeout(timer)
         if (answer instanceof Error) reject(answer)
         else resolve(answer)
       }
-      const timer = setTimeout(() => {
+      const timer = startTimeout(() => {
         const at = this.treeWaiters.indexOf(waiter)
         if (at >= 0) this.treeWaiters.splice(at, 1)
         reject(new Error(`the game did not answer the scene tree request within ${SCENE_TREE_ANSWER_MS} ms; a parked or blocked game answers no debugger message`))
@@ -190,7 +191,7 @@ export class GodotDebuggerProfile {
       } catch (e) {
         const at = this.treeWaiters.indexOf(waiter)
         if (at >= 0) this.treeWaiters.splice(at, 1)
-        clearTimeout(timer)
+        stopTimeout(timer)
         reject(e as Error)
       }
     })

@@ -5,6 +5,7 @@ import { usagePollTtlMs } from '../usageFreshness.js'
 import { openaiSourceIdentity, openaiSubscriptionRef, resolveOpenaiRequestAuth } from './openaiAccounts.js'
 import { noteOpenaiSourceIdentity, openaiObservedUsage, openaiSubscriptionRevision, recordOpenaiUsageResponse } from './openaiLimitState.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 let revision = -1
 let nextReadAtMs = 0
@@ -49,7 +50,7 @@ export function refreshOpenaiUsage(io?: {
   let generation = revision
   let work!: Promise<void>
   work = (async () => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const auth = await resolveOpenaiRequestAuth({ env, sourceKind: 'chatgpt-subscription', ...(io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}) })
       if (openaiSubscriptionRevision() !== generation) return

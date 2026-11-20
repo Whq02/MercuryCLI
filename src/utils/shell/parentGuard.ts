@@ -4,6 +4,7 @@ import { constants } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { endProcessTree, registerProcessTreeGuard, runsInAnMsysRuntime, type ProcessTreeKillReceipt } from '../processGroup.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 const SHELL_PARENT_GUARD = '--tool-shell-parent'
 const SHELL_PARENT_GUARD_BUNDLE = 'shell-parent-guard.mjs'
@@ -58,8 +59,8 @@ export async function spawnOwnedShell(file: string, args: string[], options: Spa
     if (ended) return Promise.resolve(receipt ?? { ended: 0, survivors: [] })
     if (!guard.connected) return Promise.resolve(null)
     stopping = new Promise(resolve => {
-      const finish = (): void => { clearTimeout(timer); resolve(receipt) }
-      const timer = setTimeout(() => { guard.removeListener('exit', finish); resolve(null) }, 3000)
+      const finish = (): void => { stopTimeout(timer); resolve(receipt) }
+      const timer = startTimeout(() => { guard.removeListener('exit', finish); resolve(null) }, 3000)
       guard.once('exit', finish)
       guard.send({ kind: 'stop', signal }, error => { if (error) finish() })
     })

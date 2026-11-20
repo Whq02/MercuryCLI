@@ -1,6 +1,7 @@
 import { writeSync } from 'node:fs'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { failCli, type RootOptions } from './cli.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export function refuseSwallowedPrompt({ opts, prompt, runMode, inputFormat, mainThreadAgentDefinition, cliName }: {
   opts: RootOptions
@@ -74,15 +75,15 @@ export function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
     let timer: ReturnType<typeof setTimeout> | undefined
     const armSilence = (): void => {
       if (timeoutMs < 0) return
-      if (timer !== undefined) clearTimeout(timer)
-      timer = setTimeout(() => finish(null), timeoutMs)
+      if (timer !== undefined) stopTimeout(timer)
+      timer = startTimeout(() => finish(null), timeoutMs)
     }
     const onData = (chunk: string): void => {
       chunks.push(chunk)
       armSilence()
     }
     const finish = (empty: string | null): void => {
-      if (timer !== undefined) clearTimeout(timer)
+      if (timer !== undefined) stopTimeout(timer)
       process.stdin.pause()
       process.stdin.off('data', onData)
       process.stdin.off('end', onEnd)

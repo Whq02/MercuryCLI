@@ -21,6 +21,7 @@ import { recordSignIn as recordSignInLedger, type SignInKind } from '../../../ut
 import { setClipboard } from '../../../ink/termio/osc.js'
 import { logError } from '../../../utils/log.js'
 import { getAuthScope } from '../../../utils/envUtils.js'
+import { afterMicrotask, startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
@@ -149,8 +150,8 @@ function liveDeps(): AnthropicLoginDeps {
     clipboard: text => setClipboard(text),
     writeStdout: sequence => process.stdout.write(sequence),
     log: error => logError(error),
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: handle => clearTimeout(handle as NodeJS.Timeout),
+    setTimer: (fn, ms) => startTimeout(fn, ms),
+    clearTimer: handle => stopTimeout(handle as NodeJS.Timeout),
   }
 }
 
@@ -254,8 +255,7 @@ export function createAnthropicLoginMachine(
         const request = new AbortController()
         rolesRequest = request
         const origin = { account: landed, authScope: getAuthScope(), isCurrent: () => !disposed && gen === generation, signal: request.signal }
-        void Promise.resolve()
-          .then(() => origin.isCurrent() && !request.signal.aborted ? fetchRoles(tokens.accessToken, origin) : undefined)
+        void afterMicrotask(() => origin.isCurrent() && !request.signal.aborted ? fetchRoles(tokens.accessToken, origin) : undefined)
           .catch(error => deps.log(error))
           .finally(() => { if (rolesRequest === request) rolesRequest = null })
       }

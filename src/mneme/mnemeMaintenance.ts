@@ -19,6 +19,7 @@ import {
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
 import { passedOver } from '../utils/passedOver.js'
+import { startTimeout } from '../utils/timers.js'
 
 type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'retain' | 'operator'
 
@@ -216,7 +217,7 @@ export function runDueMaintenance(
 export function scheduleMnemeMaintenance(trigger: MnemeMaintenanceTrigger): void {
   if (!mnemeEnabled()) return
   const delay = trigger === 'boot' ? 3000 : 500
-  setTimeout(() => {
+  startTimeout(() => {
     if (trigger === 'boot') {
       void import('./mnemeHandover.js')
         .then(m => m.handoverIfDue())

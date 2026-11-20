@@ -20,6 +20,7 @@ import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
 import { loadDeclaredGates, matchDeclaredGate } from './projectGates.js'
 import { scanCeiling } from './scanCeiling.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../timers.js'
 
 export type VerificationScope =
   | 'full-gate'
@@ -297,7 +298,7 @@ async function gitTextAsync(cwd: string, env: NodeJS.ProcessEnv, args: string[],
     const children = activeChildren.get(watch.cwd) ?? new Set<ChildProcess>()
     children.add(child)
     activeChildren.set(watch.cwd, children)
-    const timer = setInterval(() => {
+    const timer = startInterval(() => {
       if (existsSync(watch.gitDir)) return
       goneChildren.add(child)
       try {
@@ -308,7 +309,7 @@ async function gitTextAsync(cwd: string, env: NodeJS.ProcessEnv, args: string[],
     }, REPOSITORY_WATCH_MS)
     timer.unref?.()
     unregister = () => {
-      clearInterval(timer)
+      stopInterval(timer)
       children.delete(child)
       if (children.size === 0 && activeChildren.get(watch.cwd) === children) activeChildren.delete(watch.cwd)
     }
@@ -413,24 +414,24 @@ function countFilesAsync(cwd: string, env: NodeJS.ProcessEnv, ceiling: number): 
         passedOver(error)
       }
     }
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       stop()
       finish({ files: Math.max(files, ceiling + 1), above: true })
     }, scanTimeoutMs())
     child.stdout?.on('data', (chunk: Buffer) => {
       files += countNul(chunk)
       if (files > ceiling) {
-        clearTimeout(timer)
+        stopTimeout(timer)
         stop()
         finish({ files, above: true })
       }
     })
     child.on('error', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       finish({ files: 0, above: false })
     })
     child.on('close', () => {
-      clearTimeout(timer)
+      stopTimeout(timer)
       finish({ files, above: files > ceiling })
     })
   })

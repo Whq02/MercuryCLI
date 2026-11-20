@@ -27,6 +27,7 @@ import { hookBashEnv, hookBashShell, windowsBashRoad } from '../shell/windowsShe
 import { subprocessEnv } from '../subprocessEnv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { getHookRunContext } from './hookEvents.js'
+import { startTimeout, stopTimeout } from '../timers.js'
 
 export const HOOK_OUTPUT_MAX_BYTES = 10 * 1024 * 1024
 export const HOOK_STREAM_SETTLE_GRACE_MS = 2_000
@@ -195,10 +196,10 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
   })
   const kill = (): void => {
     void endProcessTree(child, 'SIGKILL')
-    const grace = setTimeout(() => finish(endOf(null)), HOOK_STREAM_SETTLE_GRACE_MS)
+    const grace = startTimeout(() => finish(endOf(null)), HOOK_STREAM_SETTLE_GRACE_MS)
     grace.unref?.()
   }
-  const clock = setTimeout(() => {
+  const clock = startTimeout(() => {
     timedOut = true
     kill()
   }, run.timeoutMs)
@@ -219,7 +220,7 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
     run.onOutput?.({ stdout, stderr })
   })
   const finish = (end: CommandHookEnd): void => {
-    clearTimeout(clock)
+    stopTimeout(clock)
     run.signal?.removeEventListener('abort', onAbort)
     if (end.kind === 'ended' && run.source.kind === 'extension') recordHookFailure(run.source.id, run.command, end.ending.class === 'spawn' ? (end.ending.detail ?? 'could not run') : end.ending.class)
     settle(end)
@@ -239,14 +240,14 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
     finish({ kind: 'ended', ending: { status: 'failed', class: 'spawn', exit_code: 1, detail: errorMessage(error) }, stdout, stderr, durationMs: Date.now() - startedAt })
   })
   child.once('exit', code => {
-    const grace = setTimeout(() => {
+    const grace = startTimeout(() => {
       child.stdout.destroy()
       child.stderr.destroy()
       finish(endOf(code))
     }, HOOK_STREAM_SETTLE_GRACE_MS)
     grace.unref?.()
     void streamsEnded.then(() => {
-      clearTimeout(grace)
+      stopTimeout(grace)
       finish(endOf(code))
     })
   })

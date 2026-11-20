@@ -5,6 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveZenApiKey, zenGoUsageUrl } from './zenAccounts.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { nextMicrotask } from '../../../utils/timers.js'
 
 export const ZEN_BALANCE_NOTE = 'the pay-as-you-go balance is shown in the OpenCode console (opencode.ai/auth → Billing); the gateway states no balance to clients'
 export const ZEN_GO_ABSENT_NOTE = 'no OpenCode Go plan on this key — turns draw the pay-as-you-go balance'
@@ -181,7 +182,7 @@ export function refreshZenGoUsage(io?: {
   if (!io?.force && fresh) return Promise.resolve(observation)
   if (inFlight) return inFlight
   const work = (async (): Promise<ZenGoObservation> => {
-    await Promise.resolve()
+    await nextMicrotask()
     try {
       const key = resolveZenApiKey(env)
       if (!key) return observation

@@ -28,6 +28,7 @@ import {
   renderEvalToolUseMessage,
 } from './UI.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 const inputSchema = () => {
   return z.strictObject({
@@ -205,7 +206,7 @@ ${languages}`
           ...(input.title ? { title: input.title } : {}),
         })
       tick()
-      runningTimer = setInterval(tick, RUNNING_TICK_MS)
+      runningTimer = startInterval(tick, RUNNING_TICK_MS)
       runningTimer.unref?.()
     }
 
@@ -229,7 +230,7 @@ ${languages}`
           const now = Date.now()
           if (now - lastEmit >= PROGRESS_THROTTLE_MS) flushTail()
           else if (!flushTimer) {
-            flushTimer = setTimeout(() => {
+            flushTimer = startTimeout(() => {
               flushTimer = null
               flushTail()
             }, PROGRESS_THROTTLE_MS)
@@ -247,8 +248,8 @@ ${languages}`
       }
       return { data }
     } finally {
-      if (flushTimer) clearTimeout(flushTimer)
-      if (runningTimer) clearInterval(runningTimer)
+      if (flushTimer) stopTimeout(flushTimer)
+      if (runningTimer) stopInterval(runningTimer)
       context.abortController.signal.removeEventListener('abort', onSessionAbort)
       cellAbort.abort()
     }

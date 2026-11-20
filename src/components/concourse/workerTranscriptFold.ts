@@ -22,6 +22,7 @@ import {
   isNullRenderingSystemRow,
 } from '../messages/nullRenderingAttachments.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 
 const RECORD_CAP = 500
@@ -173,24 +174,24 @@ export function useWorkerTranscriptFold(
         }
         drain()
         if (!arm()) {
-          armTimer = setInterval(() => {
+          armTimer = startInterval(() => {
             drain()
             if (arm() && armTimer) {
-              clearInterval(armTimer)
+              stopInterval(armTimer)
               armTimer = null
             }
           }, 1000)
           armTimer.unref?.()
         }
-        heartbeat = setInterval(drain, 5000)
+        heartbeat = startInterval(drain, 5000)
         heartbeat.unref?.()
       },
     )
     return () => {
       cancelled = true
       if (watcher) watcher.close()
-      if (armTimer) clearInterval(armTimer)
-      if (heartbeat) clearInterval(heartbeat)
+      if (armTimer) stopInterval(armTimer)
+      if (heartbeat) stopInterval(heartbeat)
     }
   }, [sessionId, workspaceId])
   return { fold, malformed }

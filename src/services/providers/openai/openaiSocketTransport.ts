@@ -15,6 +15,7 @@ import {
   streamIdleTimeoutMs,
 } from '../streamIdleBudget.js'
 import { ResponsesStreamFold, type OpenaiInputItem, type OpenaiResponsesRequest, type OpenaiStreamEvent } from './openaiWire.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export const SOCKET_CONNECT_TIMEOUT_MS = 15_000
 export const SOCKET_ROTATION_MS = 55 * 60_000
@@ -98,7 +99,7 @@ export function _resetOpenaiSocketRoadForTest(opener?: SocketOpener): void {
 }
 
 function dropHeld(entry: HeldSocket): void {
-  if (entry.idleTimer !== null) clearTimeout(entry.idleTimer)
+  if (entry.idleTimer !== null) stopTimeout(entry.idleTimer)
   entry.idleTimer = null
   entry.closed = true
   try {
@@ -171,8 +172,8 @@ function nextFrame(entry: HeldSocket): Promise<Frame> {
 }
 
 function armIdleClose(entry: HeldSocket): void {
-  if (entry.idleTimer !== null) clearTimeout(entry.idleTimer)
-  entry.idleTimer = setTimeout(() => dropHeld(entry), SOCKET_IDLE_CLOSE_MS)
+  if (entry.idleTimer !== null) stopTimeout(entry.idleTimer)
+  entry.idleTimer = startTimeout(() => dropHeld(entry), SOCKET_IDLE_CLOSE_MS)
   entry.idleTimer.unref?.()
 }
 
@@ -181,7 +182,7 @@ async function connectHeld(key: string, url: string, headers: Record<string, str
   const entry: HeldSocket = { key, socket, openedAtMs: now(), lastResponseId: undefined, heldInput: null, inFlight: false, closed: false, queue: [], waiter: null, idleTimer: null }
   await new Promise<void>((resolve, reject) => {
     let settled = false
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       if (settled) return
       settled = true
       reject(new Error(`no WebSocket handshake within ${SOCKET_CONNECT_TIMEOUT_MS} ms`))
@@ -190,14 +191,14 @@ async function connectHeld(key: string, url: string, headers: Record<string, str
     listen(socket, 'open', () => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      stopTimeout(timer)
       resolve()
     })
     listen(socket, 'error', payload => {
       const message = payload instanceof Error ? payload.message : String((payload as { message?: unknown } | null)?.message ?? 'WebSocket error')
       if (!settled) {
         settled = true
-        clearTimeout(timer)
+        stopTimeout(timer)
         reject(new Error(message))
         return
       }
@@ -209,7 +210,7 @@ async function connectHeld(key: string, url: string, headers: Record<string, str
       if (held.get(key) === entry) held.delete(key)
       if (!settled) {
         settled = true
-        clearTimeout(timer)
+        stopTimeout(timer)
         reject(new Error(`WebSocket closed during the handshake (${String(record.code ?? '')})`))
         return
       }
@@ -274,7 +275,7 @@ export async function* streamOpenaiResponsesOverSocket(options: OpenaiSocketOpti
   }
   const socket = entry
   socket.inFlight = true
-  if (socket.idleTimer !== null) clearTimeout(socket.idleTimer)
+  if (socket.idleTimer !== null) stopTimeout(socket.idleTimer)
   socket.idleTimer = null
 
   const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
@@ -312,7 +313,7 @@ export async function* streamOpenaiResponsesOverSocket(options: OpenaiSocketOpti
     }
     options.firstByte?.onWait?.(wait)
     let firstByteFired = false
-    const firstByteTimer = setTimeout(() => {
+    const firstByteTimer = startTimeout(() => {
       firstByteFired = true
       dropHeld(socket)
     }, wait.budgetMs)
@@ -342,7 +343,7 @@ export async function* streamOpenaiResponsesOverSocket(options: OpenaiSocketOpti
       }
       watchdog.noteActivity()
       if (framesSeen === 0) {
-        clearTimeout(firstByteTimer)
+        stopTimeout(firstByteTimer)
         options.firstByte?.onWait?.(null)
       }
       framesSeen += 1

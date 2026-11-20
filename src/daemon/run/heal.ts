@@ -9,6 +9,7 @@ import { sameBuildTree } from '../planeBoot.js'
 import { readPlaneOwnerSync, readPlaneRecordSync } from '../planeRecords.js'
 import type { periodicArmer } from './periodic.js'
 import type { DaemonRunState } from './state.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const PLANE_HEAL_COALESCE_MS = 250
 
@@ -90,8 +91,8 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
       void healCheck()
     },
     () => {
-      if (healSignal !== undefined) clearTimeout(healSignal)
-      if (installedSignal !== undefined) clearTimeout(installedSignal)
+      if (healSignal !== undefined) stopTimeout(healSignal)
+      if (installedSignal !== undefined) stopTimeout(installedSignal)
       for (const watcher of planeWatchers) watcher.close()
       for (const watcher of installedWatchers) watcher.close()
     },
@@ -110,7 +111,7 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
       const watcher = watchDir(planeDir, { persistent: false }, (_event, name) => {
         if (name !== null && name !== undefined && !planeNames.has(String(name))) return
         if (healSignal !== undefined) return
-        healSignal = setTimeout(() => {
+        healSignal = startTimeout(() => {
           healSignal = undefined
           void healCheck()
         }, PLANE_HEAL_COALESCE_MS)
@@ -138,7 +139,7 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
       const watcher = watchDir(pointerDir, { persistent: false }, (_event, name) => {
         if (name !== null && name !== undefined && !INSTALLED_POINTER_NAMES.has(String(name))) return
         if (installedSignal !== undefined) return
-        installedSignal = setTimeout(() => {
+        installedSignal = startTimeout(() => {
           installedSignal = undefined
           installedCheck()
         }, PLANE_HEAL_COALESCE_MS)

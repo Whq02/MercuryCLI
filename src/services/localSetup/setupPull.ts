@@ -3,6 +3,7 @@ import { parseOllamaTags } from '../localServer/localServerTruth.js'
 import { readJson, rec, resolveSetupIo, str } from './setupIo.js'
 import { type PullProgress, type PullResult, type SetupIo } from './setupTypes.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export async function modelListed(root: string, tag: string, seam: SetupIo = {}): Promise<boolean> {
   const io = resolveSetupIo(seam)
@@ -43,11 +44,11 @@ export async function pullModel(root: string, tag: string, onProgress: (p: PullP
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   io.signal?.addEventListener('abort', onOuterAbort, { once: true })
-  let idle = setTimeout(() => controller.abort(), io.pullIdleMs)
+  let idle = startTimeout(() => controller.abort(), io.pullIdleMs)
   idle.unref?.()
   const touch = (): void => {
-    clearTimeout(idle)
-    idle = setTimeout(() => controller.abort(), io.pullIdleMs)
+    stopTimeout(idle)
+    idle = startTimeout(() => controller.abort(), io.pullIdleMs)
     idle.unref?.()
   }
   let rows = 0
@@ -128,7 +129,7 @@ export async function pullModel(root: string, tag: string, onProgress: (p: PullP
     }
     return { skipped: false, success: false, lastStatus, rows, ...(totalBytes !== undefined ? { totalBytes } : {}), error: 'the stream ended without a success row', words: words(`the stream ended after ${rows} rows without success (last: ${lastStatus || 'none'})`) }
   } finally {
-    clearTimeout(idle)
+    stopTimeout(idle)
     io.signal?.removeEventListener('abort', onOuterAbort)
   }
 }

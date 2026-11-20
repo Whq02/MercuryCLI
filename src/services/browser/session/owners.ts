@@ -12,16 +12,17 @@ import { OwnerScopedStore } from '../../run/ownerScopedStore.js'
 import { endTransfers, newTransferBook, sweepIncoming, type Transfer } from '../browserTransfers.js'
 import { MAIN_TAB, ENDED_TABS_KEPT, type Wiring, type Hold, type Session, type CheckedTarget, type CheckedAct, type OwnerBrowserState, BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, BROWSER_IDLE_MS, EXITED, IDLE_ENDED, SELF_CLOSED } from './shapes.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { sleepSync, startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function clearIdleLease(state: OwnerBrowserState): void {
-  if (state.idleTimer !== null) clearTimeout(state.idleTimer)
+  if (state.idleTimer !== null) stopTimeout(state.idleTimer)
   state.idleTimer = null
 }
 
 export function armIdleLease(state: OwnerBrowserState): void {
   clearIdleLease(state)
   if (state.disposed || state.activeCalls > 0 || state.launching || state.tabs.size === 0) return
-  state.idleTimer = setTimeout(() => {
+  state.idleTimer = startTimeout(() => {
     state.idleTimer = null
     if (state.activeCalls > 0 || state.launching || state.tabs.size === 0) return
     if (state.transfers.list.some(transfer => transfer.state === 'pending' && Date.now() - transfer.movedAt < BROWSER_IDLE_MS)) {
@@ -114,7 +115,7 @@ function clearTempProfilesAtExit(): void {
   for (;;) {
     for (const browser of [...tempProfiles.values()]) removeTempProfile(browser)
     if (tempProfiles.size === 0 || Date.now() >= until) return
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, TEMP_PROFILE_EXIT_STEP_MS)
+    sleepSync(TEMP_PROFILE_EXIT_STEP_MS)
   }
 }
 
@@ -156,7 +157,7 @@ export async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> 
   let bound: ReturnType<typeof setTimeout> | undefined
   const lapse = (ms: number): Promise<'lapsed'> =>
     new Promise(resolve => {
-      bound = setTimeout(() => resolve('lapsed'), ms)
+      bound = startTimeout(() => resolve('lapsed'), ms)
     })
   try {
     const quit = browser.close().then(() => 'closed' as const)
@@ -173,7 +174,7 @@ export async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> 
     await endChild(browser)
     return 'killed'
   } finally {
-    if (bound !== undefined) clearTimeout(bound)
+    if (bound !== undefined) stopTimeout(bound)
   }
 }
 
@@ -181,12 +182,12 @@ export async function closePage(page: Page): Promise<void> {
   if (typeof page.close !== 'function') return
   let bound: ReturnType<typeof setTimeout> | undefined
   const lapse = new Promise<void>(resolve => {
-    bound = setTimeout(resolve, BROWSER_CLOSE_BOUND_MS)
+    bound = startTimeout(resolve, BROWSER_CLOSE_BOUND_MS)
   })
   try {
     await Promise.race([page.close().catch(passedOverAs(undefined)), lapse])
   } finally {
-    if (bound !== undefined) clearTimeout(bound)
+    if (bound !== undefined) stopTimeout(bound)
   }
 }
 

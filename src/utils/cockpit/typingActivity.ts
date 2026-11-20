@@ -1,3 +1,4 @@
+import { startTimeout, stopTimeout } from '../timers.js'
 
 export const TYPING_HOLD_MS = 1400
 
@@ -10,8 +11,8 @@ function notify(): void {
 }
 
 export function markTypingActivity(): void {
-  if (holdTimer) clearTimeout(holdTimer)
-  holdTimer = setTimeout(() => {
+  if (holdTimer) stopTimeout(holdTimer)
+  holdTimer = startTimeout(() => {
     holdTimer = null
     if (typingActive) {
       typingActive = false
@@ -35,7 +36,7 @@ export function subscribeTypingActivity(fn: () => void): () => void {
 }
 
 export function __typingActivityResetForTest(): void {
-  if (holdTimer) clearTimeout(holdTimer)
+  if (holdTimer) stopTimeout(holdTimer)
   holdTimer = null
   typingActive = false
 }

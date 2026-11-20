@@ -5,6 +5,7 @@ import type { ValidationError } from '../utils/settings/validation.js';
 import { Select } from './CustomSelect/index.js';
 import { Dialog } from './design-system/Dialog.js';
 import { ValidationErrorsList } from './ValidationErrorsList.js';
+import { startTimeout, stopTimeout } from '../utils/timers.js';
 
 type Props = {
   settingsErrors: ValidationError[];
@@ -28,8 +29,8 @@ export function InvalidSettingsDialog({
 }: Props): React.ReactNode {
   const [inputArmed, setInputArmed] = React.useState(false);
   useTimer(() => {
-    const timer = setTimeout(() => setInputArmed(true), 350);
-    return () => clearTimeout(timer);
+    const timer = startTimeout(() => setInputArmed(true), 350);
+    return () => stopTimeout(timer);
   }, []);
   function handleSelect(value: 'exit' | 'fix' | 'continue' | 'remove'): void {
     if (!inputArmed) return;

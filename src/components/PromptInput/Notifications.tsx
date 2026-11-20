@@ -37,6 +37,7 @@ import { TokenWarning } from '../TokenWarning.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
 
@@ -148,10 +149,10 @@ function NotificationsColumn({
   const [helperElapsedMs, setHelperElapsedMs] = useState(0)
   useTimer(() => {
     if (!helperConfigured) return
-    const timer = setInterval(() => {
+    const timer = startInterval(() => {
       setHelperElapsedMs(getApiKeyHelperElapsedMs())
     }, 1000)
-    return () => clearInterval(timer)
+    return () => stopInterval(timer)
   }, [helperConfigured])
   const helperSlow = helperConfigured && helperElapsedMs >= SLOW_HELPER_THRESHOLD_MS
 

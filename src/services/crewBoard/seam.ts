@@ -19,6 +19,7 @@ import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import type { BoardSettlement } from './wakeState.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startMicrotask } from '../../utils/timers.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
@@ -154,7 +155,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
     pending = true
     if (running) return
     running = true
-    queueMicrotask(() => { void drain() })
+    startMicrotask(() => { void drain() })
   })
   const drain = async (): Promise<void> => {
     try {

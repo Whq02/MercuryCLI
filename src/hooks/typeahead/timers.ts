@@ -1,3 +1,5 @@
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
+
 const liveTypeaheadTimers = new Set<ReturnType<typeof setTimeout>>()
 
 export function typeaheadTimerCensus(): number {
@@ -5,7 +7,7 @@ export function typeaheadTimerCensus(): number {
 }
 
 export function armTypeaheadTimer(run: () => void, delayMs: number): ReturnType<typeof setTimeout> {
-  const timer = setTimeout(() => {
+  const timer = startTimeout(() => {
     liveTypeaheadTimers.delete(timer)
     run()
   }, delayMs)
@@ -14,6 +16,6 @@ export function armTypeaheadTimer(run: () => void, delayMs: number): ReturnType<
 }
 
 export function disarmTypeaheadTimer(timer: ReturnType<typeof setTimeout>): void {
-  clearTimeout(timer)
+  stopTimeout(timer)
   liveTypeaheadTimers.delete(timer)
 }

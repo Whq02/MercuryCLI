@@ -63,6 +63,7 @@ export { fenceMcpPrefixCollisions } from './client/bulkParts.js'
 export type { McpPrefixCollision } from './client/bulkParts.js'
 import { tellMcpToolsTheClient } from './client/forTools.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig): string {
   return `${name}:${JSON.stringify(serverRef)}`
@@ -181,7 +182,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   })()
   let timer: NodeJS.Timeout | null = null
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
+    timer = startTimeout(() => {
       timedOut = true
       const transportLabel = inProcess ? 'in-process' : type
       const written = mcpConfigAsWritten(config)
@@ -246,7 +247,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     }
     throw err
   } finally {
-    if (timer !== null) clearTimeout(timer)
+    if (timer !== null) stopTimeout(timer)
   }
 
   const capabilities = client.getServerCapabilities() ?? {}
@@ -601,7 +602,7 @@ async function callToolOnce(
   const startedAt = Date.now()
   const timeoutMs = toolTimeoutMs()
   const idleLimitMs = mcpCallIdleLimitMs()
-  const stillRunning = setInterval(() => {
+  const stillRunning = startInterval(() => {
     logMCPDebug(connected.name, `tool ${tool} still running after ${Math.round((Date.now() - startedAt) / 1000)}s`)
   }, LONG_CALL_LOG_INTERVAL_MS)
   stillRunning.unref()
@@ -650,7 +651,7 @@ async function callToolOnce(
       call,
       watchdog.expiry,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(
+        timer = startTimeout(
           () =>
             reject(
               new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
@@ -685,7 +686,7 @@ async function callToolOnce(
       ...(result.structuredContent !== undefined ? { structuredContent: result.structuredContent } : {}),
     }
   } catch (err) {
-    clearInterval(stillRunning)
+    stopInterval(stillRunning)
     if (watchdog.fired) {
       logMCPError(connected.name, `tool ${tool} stalled: ${errorMessage(err)}`)
       throw unknownOutcome()
@@ -727,8 +728,8 @@ async function callToolOnce(
     }
     throw err
   } finally {
-    clearInterval(stillRunning)
-    if (timer !== null) clearTimeout(timer)
+    stopInterval(stillRunning)
+    if (timer !== null) stopTimeout(timer)
     watchdog.cancel()
     clock.release()
     signal.removeEventListener('abort', forwardAbort)

@@ -29,6 +29,7 @@ import { logError } from './log.js'
 import { expandPath } from './path.js'
 import { needsPowerShellBom } from './fileEncoding.js'
 import { passedOver } from './passedOver.js'
+import { sleepSync } from './timers.js'
 
 export { detectFileEncoding, needsPowerShellBom } from './fileEncoding.js'
 
@@ -378,7 +379,7 @@ export function writeFileAndFlushAtomically(
 }
 
 export function sleepSyncMs(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+  sleepSync(ms)
 }
 
 export function detectLineEndings(filePath: string, encoding: BufferEncoding = 'utf8'): LineEndingType {

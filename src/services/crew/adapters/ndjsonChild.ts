@@ -2,6 +2,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { logForDebugging } from '../../../utils/debug.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { startMicrotask, startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 const MAX_LINE_BUFFER_BYTES = 8 * 1024 * 1024
 const EXIT_CLOSE_BACKSTOP_MS = 1_500
@@ -34,7 +35,7 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
     if (settled) return
     settled = { code, ...(reason !== undefined ? { reason } : {}) }
     if (exitCloseBackstop) {
-      clearTimeout(exitCloseBackstop)
+      stopTimeout(exitCloseBackstop)
       exitCloseBackstop = null
     }
     for (const l of [...exitListeners]) {
@@ -101,7 +102,7 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
   })
   child.on('exit', code => {
     if (settled || exitCloseBackstop) return
-    exitCloseBackstop = setTimeout(() => {
+    exitCloseBackstop = startTimeout(() => {
       exitCloseBackstop = null
       flushTrailingPartialLine()
       settle(code)
@@ -133,7 +134,7 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
     onExit: listener => {
       if (settled) {
         const s = settled
-        queueMicrotask(() => listener(s.code, s.reason))
+        startMicrotask(() => listener(s.code, s.reason))
         return () => {}
       }
       exitListeners.add(listener)
@@ -156,8 +157,8 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
         let escalation: NodeJS.Timeout | null = null
         let hardBound: NodeJS.Timeout | null = null
         const finish = (): void => {
-          if (escalation) clearTimeout(escalation)
-          if (hardBound) clearTimeout(hardBound)
+          if (escalation) stopTimeout(escalation)
+          if (hardBound) stopTimeout(hardBound)
           resolve()
         }
         const unsub = (() => {
@@ -174,7 +175,7 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
         } catch (error) {
           passedOver(error)
         }
-        escalation = setTimeout(() => {
+        escalation = startTimeout(() => {
           try {
             child.kill('SIGKILL')
           } catch (error) {
@@ -182,7 +183,7 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
           }
         }, graceMs)
         escalation.unref?.()
-        hardBound = setTimeout(() => {
+        hardBound = startTimeout(() => {
           unsub()
           finish()
         }, graceMs + KILL_ESCALATION_GRACE_MS)
@@ -205,12 +206,12 @@ export function awaitLine(
     const settle = (result: { ok: true; parsed: unknown } | { ok: false; reason: string }): void => {
       if (done) return
       done = true
-      clearTimeout(timer)
+      stopTimeout(timer)
       unsubLine()
       unsubExit()
       resolve(result)
     }
-    const timer = setTimeout(() => {
+    const timer = startTimeout(() => {
       settle({ ok: false, reason: `no matching frame within ${timeoutMs}ms${malformedNote()}` })
     }, timeoutMs)
     timer.unref?.()

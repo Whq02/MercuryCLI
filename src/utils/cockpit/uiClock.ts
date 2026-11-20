@@ -1,6 +1,7 @@
 
 import { getIsScrollDraining } from '../../bootstrap/state.js'
 import { passedOver } from '../passedOver.js'
+import { startInterval, stopInterval } from '../timers.js'
 
 type Bucket = {
   timer: ReturnType<typeof setInterval>
@@ -127,7 +128,7 @@ export function subscribeUiClock(ms: number, cb: () => void): () => void {
     const subs = new Set<() => void>()
     lastTickByCadence.set(ms, quantizedNow(ms))
     const created: Bucket = {
-      timer: setInterval(() => tick(ms, created), ms),
+      timer: startInterval(() => tick(ms, created), ms),
       subs,
       windowStartMs: 0,
       windowCostMs: 0,
@@ -148,7 +149,7 @@ export function subscribeUiClock(ms: number, cb: () => void): () => void {
     if (!b) return
     b.subs.delete(cb)
     if (b.subs.size === 0) {
-      clearInterval(b.timer)
+      stopInterval(b.timer)
       buckets.delete(ms)
     }
   }

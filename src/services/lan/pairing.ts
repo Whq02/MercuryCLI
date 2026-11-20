@@ -2,6 +2,7 @@ import { randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { announcerMachineName, startAnnouncer, type AnnouncerHandle, type AnnouncerIo, type Announcement } from './announcer.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const PAIRING_CODE_LENGTH = 6
 const PAIRING_CODE_TTL_MS = 10 * 60_000
@@ -146,7 +147,7 @@ export function startPairingServer(offer: PairingOffer, io: AnnouncerIo & { list
 export async function pairWithHost(target: { host: string; pairPort: number; code: string }, io: { fetchImpl?: typeof fetch; timeoutMs?: number } = {}): Promise<{ ok: true; reply: PairingReply } | { ok: false; reason: string }> {
   const fetchImpl = io.fetchImpl ?? fetch
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), io.timeoutMs ?? 5000)
+  const timer = startTimeout(() => controller.abort(), io.timeoutMs ?? 5000)
   try {
     const response = await fetchImpl(`http://${target.host}:${target.pairPort}/pair`, {
       method: 'POST',
@@ -173,7 +174,7 @@ export async function pairWithHost(target: { host: string; pairPort: number; cod
   } catch (error) {
     return { ok: false, reason: error instanceof Error && error.name === 'AbortError' ? 'the serving Mac did not answer in time' : 'the serving Mac could not be reached' }
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
   }
 }
 

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { vendoredNodeBeside, selfScriptPath } from '../../daemon/daemonBuild.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const QUERY_BOUND_MS = 10 * 60_000
 const OWN_BOUND_MARGIN_MS = 5000
@@ -165,7 +166,7 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
   let output = '', diagnostic = '', completed = false, late = false
   const kill = () => { child.kill('SIGKILL') }
   const bound = queryBoundMs()
-  const timer = setTimeout(() => { late = true; kill() }, bound)
+  const timer = startTimeout(() => { late = true; kill() }, bound)
   process.once('exit', kill)
   signal.addEventListener('abort', kill, { once: true })
   try {
@@ -188,7 +189,7 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
       if (signal.aborted) kill()
     })
   } finally {
-    clearTimeout(timer)
+    stopTimeout(timer)
     if (child.exitCode === null && child.signalCode === null) kill()
     await closed
     signal.removeEventListener('abort', kill)

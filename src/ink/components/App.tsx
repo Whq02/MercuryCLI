@@ -77,6 +77,7 @@ import StdinContext from './StdinContext.js'
 import { TerminalFocusProvider } from './TerminalFocusContext.js'
 import { LiveTerminalSizeContext, TerminalSizeContext, type TerminalSize } from './TerminalSizeContext.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { startImmediate, startTimeout, stopImmediate, stopTimeout } from '../../utils/timers.js'
 
 const STDIN_GAP_REASSERT_MS = 5000
 const INCOMPLETE_SEQUENCE_TIMEOUT_MS = 50
@@ -257,16 +258,16 @@ export default class App extends PureComponent<Props, State> {
       termWrite(this.props.stdout, SHOW_CURSOR)
       noteModeReleased(CURSOR_LEDGER_OWNER, 'cursor-hidden')
     }
-    if (this.inputDrain) clearImmediate(this.inputDrain)
+    if (this.inputDrain) stopImmediate(this.inputDrain)
     this.inputDrain = null
     this.inputBatches.length = 0
     this.inputBatchIndex = 0
     if (this.incompleteEscapeTimer) {
-      clearTimeout(this.incompleteEscapeTimer)
+      stopTimeout(this.incompleteEscapeTimer)
       this.incompleteEscapeTimer = null
     }
     if (this.gesture.pendingHyperlinkTimer) {
-      clearTimeout(this.gesture.pendingHyperlinkTimer)
+      stopTimeout(this.gesture.pendingHyperlinkTimer)
       this.gesture.pendingHyperlinkTimer = null
     }
     if (this.isRawModeSupported) this.handleSetRawMode(false)
@@ -508,8 +509,8 @@ export default class App extends PureComponent<Props, State> {
       state.mode === 'IN_PASTE' ||
       state.heldCR
     ) {
-      if (this.incompleteEscapeTimer) clearTimeout(this.incompleteEscapeTimer)
-      this.incompleteEscapeTimer = setTimeout(
+      if (this.incompleteEscapeTimer) stopTimeout(this.incompleteEscapeTimer)
+      this.incompleteEscapeTimer = startTimeout(
         this.handleIncompleteFlush,
         state.mode === 'IN_PASTE' ? PASTE_MODE_TIMEOUT_MS : INCOMPLETE_SEQUENCE_TIMEOUT_MS,
       )
@@ -525,7 +526,7 @@ export default class App extends PureComponent<Props, State> {
         this.inputBatches.length = 0
         this.inputBatchIndex = 0
       }
-      this.inputDrain = setImmediate(this.drainInput)
+      this.inputDrain = startImmediate(this.drainInput)
       try {
         this.dispatchDiscrete(batch.atoms)
         if (batch.flush || !last) reconciler.flushSyncWork()
@@ -533,7 +534,7 @@ export default class App extends PureComponent<Props, State> {
         logError(error)
       }
       if (batch.flush) return
-      if (this.inputDrain) clearImmediate(this.inputDrain)
+      if (this.inputDrain) stopImmediate(this.inputDrain)
       this.inputDrain = null
     }
   }
@@ -559,7 +560,7 @@ export default class App extends PureComponent<Props, State> {
     if (!state.incomplete && state.mode !== 'IN_PASTE' && !state.heldCR) return
 
     if ((this.props.stdin.readableLength ?? 0) > 0) {
-      this.incompleteEscapeTimer = setTimeout(
+      this.incompleteEscapeTimer = startTimeout(
         this.handleIncompleteFlush,
         INCOMPLETE_SEQUENCE_TIMEOUT_MS,
       )
@@ -572,7 +573,7 @@ export default class App extends PureComponent<Props, State> {
       Date.now() - this.lastMouseEventTime < LONE_ESCAPE_MOUSE_WINDOW_MS
     ) {
       this.loneEscapeGraceUsed++
-      this.incompleteEscapeTimer = setTimeout(
+      this.incompleteEscapeTimer = startTimeout(
         this.handleIncompleteFlush,
         INCOMPLETE_SEQUENCE_TIMEOUT_MS,
       )
@@ -765,7 +766,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
     m.swallowRelease = false
     if (clickOutsideElevatedSurface(col, row)) {
       if (m.pendingHyperlinkTimer) {
-        clearTimeout(m.pendingHyperlinkTimer)
+        stopTimeout(m.pendingHyperlinkTimer)
         m.pendingHyperlinkTimer = null
       }
       m.swallowRelease = true
@@ -784,7 +785,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
     m.lastClickRow = row
     if (m.clickCount >= 2) {
       if (m.pendingHyperlinkTimer) {
-        clearTimeout(m.pendingHyperlinkTimer)
+        stopTimeout(m.pendingHyperlinkTimer)
         m.pendingHyperlinkTimer = null
       }
       const count: 2 | 3 = m.clickCount >= 3 ? 3 : 2
@@ -837,8 +838,8 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
       const url = props.getHyperlinkAt(col, row)
       const embeddedWebTerminal = hostEnv().TERM_PROGRAM === 'vscode' || isXtermJs()
       if (url && !embeddedWebTerminal) {
-        if (m.pendingHyperlinkTimer) clearTimeout(m.pendingHyperlinkTimer)
-        m.pendingHyperlinkTimer = setTimeout(() => {
+        if (m.pendingHyperlinkTimer) stopTimeout(m.pendingHyperlinkTimer)
+        m.pendingHyperlinkTimer = startTimeout(() => {
           m.pendingHyperlinkTimer = null
           props.openHyperlink(url)
         }, MULTI_CLICK_WINDOW_MS)

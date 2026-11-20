@@ -1,3 +1,4 @@
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const SCROLL_DRAIN_IDLE_MS = 150
 
@@ -7,8 +8,8 @@ type ScrollTimers = {
 }
 
 const defaultTimers: ScrollTimers = {
-  set: (cb, ms) => setTimeout(cb, ms),
-  clear: handle => clearTimeout(handle),
+  set: (cb, ms) => startTimeout(cb, ms),
+  clear: handle => stopTimeout(handle),
 }
 
 export class ScrollGateOwner {

@@ -31,6 +31,7 @@ import { settingsRowLine } from './bootSettings/rows.js';
 import type { SettingsContext } from './bootSettings/context.js';
 import { armBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
 import { passedOver } from '../utils/passedOver.js';
+import { afterMicrotask } from '../utils/timers.js';
 export { JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, backgroundLaunchBootDetailLines } from './bootSettings/detailLines.js';
 
 
@@ -248,7 +249,7 @@ export function BootSettingsScreen({
       {
         key: 'return',
         hint: 'cycle',
-        run: row => (row ? { pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) } : null),
+        run: row => (row ? { pending: 'saving…', result: afterMicrotask(() => cycleRow(row, 1)) } : null),
       },
       ...(concourseLive && !chatBoot
         ? [{
@@ -264,7 +265,7 @@ export function BootSettingsScreen({
       {
         key: 'backspace',
         hint: 'default',
-        run: row => (row ? { pending: 'saving…', result: Promise.resolve().then(() => commitRow(row, null)) } : null),
+        run: row => (row ? { pending: 'saving…', result: afterMicrotask(() => commitRow(row, null)) } : null),
       },
       {
         key: 'a',
@@ -277,7 +278,7 @@ export function BootSettingsScreen({
       {
         key: ' ',
         hint: 'cycle',
-        run: row => (row ? { pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) } : null),
+        run: row => (row ? { pending: 'saving…', result: afterMicrotask(() => cycleRow(row, 1)) } : null),
       },
     ],
   });
@@ -289,7 +290,7 @@ export function BootSettingsScreen({
       if (!key.leftArrow && !key.rightArrow) return;
       if (selectedRow == null) return;
       event.stopImmediatePropagation();
-      void Promise.resolve().then(() => cycleRow(selectedRow, key.leftArrow ? -1 : 1));
+      void afterMicrotask(() => cycleRow(selectedRow, key.leftArrow ? -1 : 1));
     },
     { isActive: true },
   );

@@ -9,6 +9,7 @@ import type { ProcessSweepEntry, ProcessSweepObservation, ProcessSweepTable } fr
 import { processSweepWindowsHost } from './processSweepWindowsHost.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const rawRowSchema = z.object({
   pid: z.number().int().positive().max(0xffffffff),
@@ -100,7 +101,7 @@ function openHost() {
       try {
         const line = await Promise.race([
           lines.next(),
-          new Promise<never>((_, reject) => { timer = setTimeout(() => { endTree(); reject(new Error('The Windows process reader did not answer within its budget and was ended')) }, timeoutMs) }),
+          new Promise<never>((_, reject) => { timer = startTimeout(() => { endTree(); reject(new Error('The Windows process reader did not answer within its budget and was ended')) }, timeoutMs) }),
         ])
         if (line.done) throw new Error(String(state.failure ?? (stderr || 'The Windows process reader closed without a response')))
         const value: unknown = JSON.parse(line.value)
@@ -109,13 +110,13 @@ function openHost() {
         if (typeof response.error === 'string') throw new Error(response.error)
         return response
       } finally {
-        clearTimeout(timer)
+        stopTimeout(timer)
       }
     },
     async close(): Promise<void> {
       child.stdin.end()
-      const timer = setTimeout(endTree, 3000)
-      try { await closed } finally { clearTimeout(timer); reader.close() }
+      const timer = startTimeout(endTree, 3000)
+      try { await closed } finally { stopTimeout(timer); reader.close() }
     },
   }
 }

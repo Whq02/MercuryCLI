@@ -6,6 +6,7 @@ import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { SERVER_SYNC_DEADLINE_MS, STABILIZE_DEADLINE_MS, STABILIZE_QUIET_WINDOW_MS, countBySeverity } from './shared.js'
 import { pullFileDiagnostics, unavailableWords } from './pull.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export async function syncServersAfterWrite(
   manager: LSPServerManager,
@@ -22,7 +23,7 @@ export async function syncServersAfterWrite(
     await Promise.race([
       manager.changeAndSaveFile(absolutePath, newText),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(
+        timer = startTimeout(
           () => reject(new Error(`server sync timed out after ${deadlineMs}ms`)),
           deadlineMs,
         )
@@ -34,7 +35,7 @@ export async function syncServersAfterWrite(
     logForDebugging(`lsp ops: post-write server sync failed for ${absolutePath}: ${reason}`)
     return { ok: false, reason }
   } finally {
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) stopTimeout(timer)
   }
 }
 
@@ -66,7 +67,7 @@ export async function awaitDiagnosticStabilization(
       const outcome = await Promise.race([
         pullFileDiagnostics(manager, absolutePath),
         new Promise<'timeout'>(resolveRace => {
-          timer = setTimeout(() => resolveRace('timeout'), deadlineMs)
+          timer = startTimeout(() => resolveRace('timeout'), deadlineMs)
         }),
       ])
       if (outcome === 'timeout') return { state: 'timed-out', waitedMs: deadlineMs }
@@ -83,7 +84,7 @@ export async function awaitDiagnosticStabilization(
     } catch (error) {
       return { state: 'failed', reason: error instanceof Error ? error.message : String(error) }
     } finally {
-      if (timer !== undefined) clearTimeout(timer)
+      if (timer !== undefined) stopTimeout(timer)
     }
   }
 
@@ -94,8 +95,8 @@ export async function awaitDiagnosticStabilization(
     const finish = (outcome: DiagnosticStabilization): void => {
       if (settled) return
       settled = true
-      if (quietTimer !== undefined) clearTimeout(quietTimer)
-      clearTimeout(deadlineTimer)
+      if (quietTimer !== undefined) stopTimeout(quietTimer)
+      stopTimeout(deadlineTimer)
       unsubscribe()
       resolvePromise(outcome)
     }
@@ -113,12 +114,12 @@ export async function awaitDiagnosticStabilization(
         }
       }
       lastCounts = { errors, warnings, total }
-      if (quietTimer !== undefined) clearTimeout(quietTimer)
-      quietTimer = setTimeout(() => {
+      if (quietTimer !== undefined) stopTimeout(quietTimer)
+      quietTimer = startTimeout(() => {
         finish({ state: 'fresh', ...lastCounts! })
       }, quietWindowMs)
     })
-    const deadlineTimer = setTimeout(() => {
+    const deadlineTimer = startTimeout(() => {
       if (lastCounts !== undefined) finish({ state: 'fresh', ...lastCounts })
       else finish({ state: 'timed-out', waitedMs: deadlineMs })
     }, deadlineMs)
