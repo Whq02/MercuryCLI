@@ -1,0 +1,87 @@
+prove-boundary-worker.ts
+prove-boundary-manifest.ts
+prove-boundary-credentials.ts
+prove-boundary-watch-recipes.ts
+prove-boundary-notices.ts
+prove-host-cleanup.ts
+prove-host-words-truth.ts
+prove-pod-image-path.ts
+prove-host-notice-before-turn.ts --bundle $root/dist/mercury.mjs
+prove-host-completion.ts
+prove-hf-endpoints.ts
+prove-hf-oauth-endpoints.ts
+prove-vendor-road-drive.ts --bundle $root/dist/mercury.mjs
+prove-door-drive.ts
+prove-hf-recipes.ts
+prove-hf-bank-persistence.ts
+prove-hf-mirror.ts
+prove-cluster-fatal-cleanup.ts
+prove-prebuilt-host-tune.ts
+prove-host-bank-transfer.ts
+prove-pod-list-completeness.ts
+prove-host-search-drive.ts
+prove-host-wheel-drive.ts
+prove-door-tune-drive.ts
+prove-mercury-host.ts --bundle $root/dist/mercury.mjs
+prove-mercury-host-drive.ts
+prove-trillion-tier.ts
+prove-host-launch.ts
+prove-recipes-live.ts
+prove-private-recipes-drive.ts
+prove-frontier-roster.ts
+prove-measure-recipe.ts
+prove-host-tune.ts
+prove-rent-model-first-drive.ts --bundle $root/dist/mercury.mjs
+prove-fast-load-private-drive.ts
+prove-host-bank-folder-drive.ts
+prove-host-bank-identity.ts
+prove-engine-oom-after-ready.ts
+prove-host-pause.ts
+prove-host-hf-refresh.ts
+prove-host-keep-safe-drive.ts
+prove-host-key-door.ts
+prove-host-key-management-drive.ts
+prove-host-precreate-words.ts
+prove-host-projectors.ts
+prove-paid-machine-count.ts
+prove-vast-hosting-tag.ts
+prove-vast-next-offer.ts
+prove-vast-volumes-drive.ts
+prove-vast-volumes.ts
+prove-hyperstack-drive.ts
+prove-verda-drive.ts
+prove-digitalocean-drive.ts
+prove-vast-screen-reads.ts
+prove-vast-attach-key.ts
+prove-host-reliability.ts
+prove-host-link-pause.ts
+prove-host-ready-switches-session.ts $root/dist/mercury.mjs
+prove-host-ready-switch-reread.ts
+prove-recipe-tool-parsers.ts
+prove-host-log-hold.ts
+prove-rental-screen-values.ts
+prove-vendor-drift-signals.ts
+prove-vendor-drift.ts
+prove-engine-death-words.ts
+prove-engine-after-ready.ts
+prove-bank-download-fixture.ts
+prove-hf-engine-check.ts
+prove-llamacpp-engine-upkeep.ts
+prove-host-model-trust-drive.ts
+prove-host-volume-read-drive.ts
+prove-llmhost-first-screen.ts
+prove-host-plain-words-drive.ts
+prove-weights-source.ts
+prove-bank-rail-hint-drive.ts
+prove-tensorfold-recipe-script.ts
+prove-tensorfold-release-pin.ts
+prove-tensorfold-pod-road.ts
+prove-tensorfold-rent-drive.ts
+prove-tensorfold-pod-turns.ts --bundle $root/dist/mercury.mjs
+prove-host-job-drive.ts --bundle $root/dist/mercury.mjs
+prove-rental-selected-shape.ts
+prove-tensorfold-bank-safety.ts
+prove-vast-log-location.ts
+prove-host-terminal-state.ts
+prove-loopback-only.ts
+prove-host-runner-output.ts
