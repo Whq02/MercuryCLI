@@ -24,12 +24,16 @@ let passed = 0
 function check(name: string, fn: () => unknown) { fn(); passed++; console.log(`PASS ${name}`) }
 async function checkAsync(name: string, fn: () => Promise<unknown>) { await fn(); passed++; console.log(`PASS ${name}`) }
 try {
-  const manifest = JSON.parse(readFileSync(join(extension, 'mercury-extension.json'), 'utf8'))
+  const activeSet = computeActiveSet({ cwd: scratch, sessionPaths: [extension] })
+  const manifest = activeSet.active.find(ext => ext.manifest.name === 'lightcraft')?.manifest
   check('only skills and stdio app contributions', () => {
-    assert.deepEqual(Object.keys(manifest.contributes).sort(), ['servers', 'skills'])
-    assert.equal(manifest.contributes.servers.app.command, '${MERCURY_NODE}')
-    assert.deepEqual(manifest.contributes.servers.app.args, ['${MERCURY_EXTENSION_ROOT}/server/bridge.mjs'])
-    assert.equal(manifest.needs.binaries, undefined)
+    assert.ok(manifest)
+    assert.deepEqual(Object.keys(manifest.contributes ?? {}).sort(), ['servers', 'skills'])
+    const app = manifest.contributes?.servers?.app
+    assert.ok(app && 'command' in app)
+    assert.equal(app.command, '${MERCURY_NODE}')
+    assert.deepEqual(app.args, ['${MERCURY_EXTENSION_ROOT}/server/bridge.mjs'])
+    assert.equal(manifest.needs?.binaries, undefined)
   })
   check('matched version/tag and fixed URL/hash/size payloads', () => {
     assert.equal(adapter.version, '0.21.1')
@@ -148,8 +152,11 @@ try {
     assert.match(text, /not a filesystem sandbox/)
     assert.doesNotMatch(text, /\$ARGUMENTS|\$\{MERCURY_SKILL_DIR\}/)
   })
-  check('the skill keeps the library, selection, window and persistence truths at the pin without the onboarding the server carries', () => {
-    const skill = readFileSync(join(extension, 'skills/lightcraft/SKILL.md'), 'utf8')
+  await checkAsync('the skill keeps the library, selection, window and persistence truths at the pin without the onboarding the server carries', async () => {
+    const loaded = getExtensionSkills().find(row => row.name === 'lightcraft:lightcraft')
+    assert.ok(loaded && loaded.type === 'prompt')
+    const prompt = await loaded.getPromptForCommand('')
+    const skill = prompt.map(part => part.type === 'text' ? part.text : '').join('\n')
     assert.ok(Buffer.byteLength(skill) <= 3400, `skill is ${Buffer.byteLength(skill)} bytes`)
     for (const fact of [/discovery wins/, /persistent `path`/, /Photo IDs are local to one library/, /replace the selection with that photo/, /`get_develop \{id\}` and `render_photo \{id\}` leave it alone/, /Auto Sync on, `set_develop` changes every selected photo/, /`develop\.autoSync \{\}` toggles the mode and never reads it/, /`move` deletes originals once catalogued/, /normalized `\[x0,y0,x1,y1\]`/, /developed pixels, not the window/, /rendering headlessly/, /never proves a visible window/, /3000 px long edge/, /connect-mode and batch exports answer only when finished/, /A first launch with a library shows a Welcome dialog first \(`dialog:window` with `button:welcomeSkip`, answered there or by `press_key \{key: "Escape"\}`\)/, /after it, since 0\.18\.1, the app offers the lensfun lens database/, /While the app's own update card stands, a click answers `ok` yet changes nothing and `list_widgets` lists nothing for it: `press_key \{key: "Escape"\}` answers the card/, /`dialog:window` with `button:dialogOk` \(Download\) and `button:dialogCancel` \(Not Now, as is `press_key \{key: "Escape"\}`\)/, /`lens\.databaseStatus` reports the database in use, `lens\.downloadDatabase` fetches it only when asked, and `library\.refreshLensProfiles` looks raws up again/, /LightCraft 0\.21\.1 has no automation roots and no control-port authentication/, /Apple Photos or iCloud/, /never replay it/, /saved in memory but not written to disk/]) assert.match(skill, fact)
     for (const gone of [/craft_status/, /craft_install/, /--control 7980/, /mcp --connect/, /^\d+\. /m]) assert.doesNotMatch(skill, gone)
