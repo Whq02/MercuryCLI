@@ -145,7 +145,6 @@
  "src/utils/imageResizer.ts :: split-slash": 2,
  "src/utils/imageStore.ts :: split-slash": 1,
  "src/utils/ocr.ts :: platform-check": 2,
- "src/utils/permissions/filesystem.ts :: platform-check": 10,
  "src/utils/permissions/filesystem.ts :: split-slash": 3,
  "src/utils/permissions/flowLaw.ts :: split-slash": 1,
  "src/utils/permissions/shellProtectedPaths/folders.ts :: platform-check": 1,
