@@ -51,8 +51,6 @@ Promise.race	src/cli/handlers/mcp.tsx	1	deadline 1
 Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
 Promise.race	src/cli/headless/runnerAsks.ts	1	events 1
 Promise.race	src/commands/feedback/healthSection.ts	1	deadline 1
-Promise.race	src/components/Feedback.tsx	1	deadline 1
-Promise.race	src/daemon/controlServer.ts	1	deadline 1
 Promise.race	src/daemon/processSweepWindows.ts	1	deadline 1
 Promise.race	src/daemon/workerParentWatch.ts	1	deadline 1
 Promise.race	src/main/runLaunch.ts	1	deadline 1
@@ -60,10 +58,10 @@ Promise.race	src/mneme/lineageSession.ts	1	deadline 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
 Promise.race	src/services/browser/session/navigation.ts	2	deadline 2
 Promise.race	src/services/browser/session/owners.ts	3	deadline 3
-Promise.race	src/services/eval/procKernel.ts	4	deadline 3 · events 1
+Promise.race	src/services/eval/procKernel.ts	1	events 1
 Promise.race	src/services/host/door.ts	1	events 1
 Promise.race	src/services/journeys/runner.ts	1	deadline 1
-Promise.race	src/services/lsp/LSPClient.ts	2	deadline 1 · events 1
+Promise.race	src/services/lsp/LSPClient.ts	1	events 1
 Promise.race	src/services/lsp/LSPServerInstance.ts	1	deadline 1
 Promise.race	src/services/lsp/firstCallServer.ts	1	deadline 1
 Promise.race	src/services/mcp/client.ts	2	deadline 2
@@ -71,7 +69,6 @@ Promise.race	src/services/mcp/client/limits.ts	1	deadline 1
 Promise.race	src/services/oauth/index.ts	1	events 1
 Promise.race	src/services/privateChannel/channelTransport.ts	3	deadline 3
 Promise.race	src/services/privateChannel/quietUpdateNotice.ts	1	deadline 1
-Promise.race	src/services/providers/catalogueOnDemand.ts	1	deadline 1
 Promise.race	src/services/providers/cerebras/cerebrasCallModel.ts	1	events 1
 Promise.race	src/services/providers/cohere/cohereCallModel.ts	1	events 1
 Promise.race	src/services/providers/fireworks/fireworksCallModel.ts	1	events 1
@@ -90,7 +87,6 @@ Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
 Promise.race	src/services/switchboard/hopIntoSession.ts	2	deadline 2
 Promise.race	src/services/voice/capture.ts	1	deadline 1
 Promise.race	src/services/voice/transcribe.ts	1	deadline 1
-Promise.race	src/tasks/LocalShellTask/killShellTasks.ts	1	deadline 1
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
 Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
 Promise.race	src/tools/BrowserTool/browser/downloads.ts	1	deadline 1
@@ -110,8 +106,6 @@ Promise.race	src/utils/health/sections/interface.ts	1	deadline 1
 Promise.race	src/utils/healthReport.ts	1	deadline 1
 Promise.race	src/utils/model/contextWindowWarmup.ts	1	deadline 1
 Promise.race	src/utils/processGroup.ts	1	deadline 1
-Promise.race	src/utils/shell/engineSession.ts	1	deadline 1
-Promise.race	src/utils/shell/shellRecord.ts	1	deadline 1
 Promise.race	src/utils/wards/wardsRefusals.ts	2	row8 2
 Promise.race	src/utils/worktreeClone.ts	1	deadline 1
 startInterval	src/cli/headless/boot/watchBuildBehind.ts	1	periodic 1

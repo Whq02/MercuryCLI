@@ -30,6 +30,7 @@ const DEADLINE_DOOR = 'src/utils/deadline.ts'
 const RACE = 'Promise.race'
 const INTERVAL = 'startInterval'
 const CLASSES = ['deadline', 'poll-event', 'poll-loop', 'events', 'clock', 'heartbeat', 'periodic', 'later', 'row8']
+const MOVING = CLASSES.slice(0, 3)
 const REGISTERED = new Set(FLAG_REGISTRY.map(row => row.env))
 const DOOR_FILE = ((): string => {
   const self = ts.createSourceFile(SELF, readFileSync(import.meta.path, 'utf8'), ts.ScriptTarget.Latest, false)
@@ -735,8 +736,17 @@ function carried(rows: Rows, was: Classed): Classed {
   for (const habit of CLASSED) {
     for (const [file, count] of rows.get(habit)!) {
       const words = was.get(rowKey(habit, file))
-      const one = words === undefined ? null : CLASS_WORDS.exec(words)
-      if (words !== undefined) out.set(rowKey(habit, file), one ? `${one[1]} ${count}` : words)
+      if (words === undefined) continue
+      const parts = words.split(' · ').map(part => CLASS_WORDS.exec(part))
+      const left = parts.flatMap(part => (part ? [[part[1]!, Number(part[2])] as [string, number]] : []))
+      let over = left.reduce((n, [, held]) => n + held, 0) - count
+      if (left.length === 1 && left.length === parts.length) left[0]![1] = count
+      else for (const moving of MOVING) for (const entry of left) if (entry[0] === moving && over > 0) {
+        const taken = Math.min(over, entry[1])
+        entry[1] -= taken
+        over -= taken
+      }
+      out.set(rowKey(habit, file), left.length !== parts.length || (left.length > 1 && over !== 0) ? words : left.filter(([, held]) => held > 0).map(([cls, held]) => `${cls} ${held}`).join(' · '))
     }
   }
   return out
@@ -1271,12 +1281,13 @@ function plantedEstate(): void {
   const waitRows = rowsOf(hits.filter(h => h.file === waits))
   const fell = rowsOf(hits.filter(h => h.file === waits && h.line !== 2 && h.line !== 5))
   const kept = carried(fell, marked)
+  const short = carried(rowsOf(hits.filter(h => h.file === waits && h.line === 2)), marked)
   const census = seeded(hits, `${waits}:2\tdeadline\n${waits}:6\tevents\n${waits}:3\tclock\n${waits}:5\theartbeat\n`, new Map())
   const loose = [unclassed(waitRows, new Map(marked).set(rowKey(INTERVAL, waits), 'clock 1')), unclassed(waitRows, new Map(marked).set(rowKey(RACE, waits), 'deadline 1 · racing 2')), unclassed(waitRows, new Map())]
   check(
-    `a row of ${RACE} and of ${INTERVAL} carries the class of each site its file holds, read and written back as it stands; it is named when its classes do not add up to the file's count, hold a word that is not a class, or are missing; --write keeps the classes and moves the count of a row of one class with its file, and --classes writes them from a census of sites`,
-    markedTable !== null && render(markedTable, marked) === markedText && unclassed(waitRows, marked).length === 0 && loose[0]!.join() === `${waits} ${INTERVAL}: the file holds 2 and its row says "clock 1"` && loose[1]!.length === 1 && loose[2]!.length === 2 && kept.get(rowKey(INTERVAL, waits)) === 'clock 1' && kept.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(INTERVAL, waits)) === 'clock 1 · heartbeat 1',
-    JSON.stringify({ loose, kept: [...kept], census: [...census] }),
+    `a row of ${RACE} and of ${INTERVAL} carries the class of each site its file holds, read and written back as it stands; it is named when its classes do not add up to the file's count, hold a word that is not a class, or are missing; --write keeps the classes, moves the count of a row of one class with its file, takes a fall in a row of several classes from the classes that move (${MOVING.join(', ')}) and from no other, and --classes writes them from a census of sites`,
+    markedTable !== null && render(markedTable, marked) === markedText && unclassed(waitRows, marked).length === 0 && loose[0]!.join() === `${waits} ${INTERVAL}: the file holds 2 and its row says "clock 1"` && loose[1]!.length === 1 && loose[2]!.length === 2 && kept.get(rowKey(INTERVAL, waits)) === 'clock 1' && kept.get(rowKey(RACE, waits)) === 'events 2' && short.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(RACE, waits)) === 'deadline 1 · events 2' && census.get(rowKey(INTERVAL, waits)) === 'clock 1 · heartbeat 1',
+    JSON.stringify({ loose, kept: [...kept], short: [...short], census: [...census] }),
   )
   check('on its own table the planted estate stands for every habit', NAMES.every(habit => judge(habit, hits, table).over.length === 0 && judge(habit, hits, table).total === judge(habit, hits, table).allowed))
   const unrowed = tableOf(text.replace('env-read\tsrc/planted/Screen.tsx\t1\n', ''))!
