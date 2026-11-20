@@ -2,11 +2,11 @@ import React from 'react'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { Text } from '../ink.js'
-import { getAccountInformation } from './auth.js'
+import { getAccountInformation } from '../utils/auth.js'
 
-import { getMTLSConfig, getMTLSReadErrors, mtlsReadFailureSentence } from './mtls.js'
-import { extraCaCertsStatusLine } from './caCerts.js'
-import { getProxyUrl } from './proxy.js'
+import { getMTLSConfig, getMTLSReadErrors, mtlsReadFailureSentence } from '../utils/mtls.js'
+import { extraCaCertsStatusLine } from '../utils/caCerts.js'
+import { getProxyUrl } from '../utils/proxy.js'
 import { familyDisplayName } from '../services/providers/accountSlots.js'
 import {
   presenceIdentityWords,
@@ -15,7 +15,7 @@ import {
 } from '../services/providers/providerUsage.js'
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../services/wallet/wallet.js'
 import { resolveProviderUsability } from '../services/providers/providerUsability.js'
-import { hostEnv } from './hostEnv.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 
 type Property = {

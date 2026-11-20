@@ -297,7 +297,7 @@ const usage = await import(join(ROOT, 'src/services/providers/providerUsage.ts')
 const identityLine = await import(join(ROOT, 'src/services/providers/providerIdentityLine.ts'))
 const slots = await import(join(ROOT, 'src/services/providers/accountSlots.ts'))
 const words = await import(join(ROOT, 'src/services/wallet/identityWords.ts'))
-const status = await import(join(ROOT, 'src/utils/status.tsx'))
+const status = await import(join(ROOT, 'src/components/status.tsx'))
 
 const POPUP_TITLES = ['Anthropic usage', 'OpenAI usage', 'Z.AI usage', 'OpenRouter usage', 'Gemini usage', 'Moonshot usage', 'DeepSeek usage', 'xAI usage', 'Meta usage', 'Custom endpoint usage', 'Hugging Face usage', 'Local models usage']
 async function paintPopup(): Promise<string[]> {
