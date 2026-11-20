@@ -1,5 +1,6 @@
 
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useLayoutClaim, useSubscription } from '../../hooks/effects.js'
 import type { InputEvent, Key } from '../events/input-event.js'
 import useStdin from './use-stdin.js'
 
@@ -18,7 +19,7 @@ export default function useInput(handler: InputHandler, options: Options = {}): 
   const activeRef = useRef(isActive)
   activeRef.current = isActive
 
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (!isActive) return
     setRawMode(true)
     return () => {
@@ -36,7 +37,7 @@ export default function useInput(handler: InputHandler, options: Options = {}): 
     }
   }
 
-  useEffect(() => {
+  useSubscription(() => {
     const wrapper = wrapperRef.current!
     internal_eventEmitter.on('input', wrapper)
     return () => {

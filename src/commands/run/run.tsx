@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useLoad, useSubscription } from '../../hooks/effects.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
 import { CommandCenter, SectionHeader } from '../../components/mercury-ui/components.js'
 import { padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
@@ -54,7 +55,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   confirmRef.current = confirmCancel
   const pastEnterBuffer = useOpenEventGate()
 
-  useEffect(() => {
+  useSubscription(() => {
     const unsubscribe = subscribeRuns(changed => {
       if (changed === owner) setSnapshot(getRunSnapshot(owner))
     })
@@ -64,7 +65,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   const recovery = React.useSyncExternalStore(subscribeBootRecovery, getBootRecovery, getBootRecovery)
 
   const [missionRow, setMissionRow] = useState<MissionRow | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     if (!missionEnabled()) return
     let alive = true
     void gatherMissionView().then(view => {

@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { ContextVisualization } from '../../components/ContextVisualization.js'
 import { Wordmark } from '../../components/mercury-ui/assets.js'
@@ -50,7 +51,7 @@ function ContextCommandCard({ context, onDone }: { context: LocalJSXCommandConte
   const tokens = useMercuryTokens()
   const [failure, setFailure] = useState<string | null>(null)
   const settled = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     let mounted = true
     void renderContextChart(context).then(
       rendered => {

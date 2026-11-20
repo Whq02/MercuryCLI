@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useLoad } from '../../../hooks/effects.js'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { currentProject, subscribeCurrentProject } from '../../../utils/bootCardFacts.js'
 import { filterResumableSessions } from '../../../utils/sessionResumeFilter.js'
@@ -95,7 +96,7 @@ function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
   const enabled = opts.enabled !== false
   const [logs, setLogs] = useState<SessionListing[] | null>(null)
   const [pendingMore, setPendingMore] = useState(0)
-  useEffect(() => {
+  useLoad(() => {
     if (!enabled) return
     let alive = true
     void (async () => {

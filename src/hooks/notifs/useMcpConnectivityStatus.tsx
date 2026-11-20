@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react'
+import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { useNotifications } from '../../context/notifications.js'
@@ -19,7 +19,7 @@ export function useMcpConnectivityStatus({ mcpClients }: Props): void {
   const { addNotification } = useNotifications()
   const clients = mcpClients ?? EMPTY_CLIENTS
 
-  useEffect(() => {
+  usePublish(() => {
     if (getIsRemoteMode()) return
 
     const failedLocal = clients.filter(

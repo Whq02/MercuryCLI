@@ -1,5 +1,6 @@
 
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
+import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { useNowTick } from '../../components/mercury-ui/components.js'
@@ -29,7 +30,7 @@ export function useRateLimitWarningNotification(model: string): void {
   const overageShownRef = useRef(false)
   const warningKeysRef = useRef(new Set<string>())
 
-  useEffect(() => {
+  usePublish(() => {
     if (getIsRemoteMode()) return
     if (!limits?.isUsingOverage) {
       overageShownRef.current = false
@@ -48,7 +49,7 @@ export function useRateLimitWarningNotification(model: string): void {
     })
   }, [limits, addNotification])
 
-  useEffect(() => {
+  usePublish(() => {
     if (getIsRemoteMode()) return
     const warning = preferSessionLimitWarning(
       connector.usage().limitWarning,

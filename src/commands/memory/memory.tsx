@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Suspense, useCallback, useLayoutEffect, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { Box, Text, wrapText } from '../../ink.js'
 import { MemoryCentreView } from '../../components/memory/MemoryCentreView.js'
@@ -14,6 +14,7 @@ import {
 } from '../../components/memory/memoryCentreLayout.js'
 import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
+import { useLayoutClaim, useLayoutPublish } from '../../hooks/effects.js'
 import { getProjectRoot } from '../../bootstrap/state.js'
 import { getMnemeHome } from '../../mneme/paths.js'
 import {
@@ -89,7 +90,7 @@ function MemoryFilesRoute({ direct, onPick, onCancel, held, attached, width, row
   const tokens = useMercuryTokens()
   const footer = profileStatusLine()
   const footerRows = wrapText(footer, Math.max(1, width), 'wrap').split('\n').length
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     frame.setHint(memoryFooter({ kind: 'files', direct }))
   }, [frame, direct])
   return (
@@ -118,11 +119,11 @@ export function MemoryPopupBody({
   const frame = useSettingsPopupFrame()
   const [route, setRoute] = useState<MemoryRoute>(initialRoute)
   const [returnRow, setReturnRow] = useState<string | null>(null)
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     frame.setOwnsEscape(true)
     return () => frame.setOwnsEscape(false)
   }, [frame])
-  useLayoutEffect(() => () => settle(undefined, { display: 'skip' }), [settle])
+  useLayoutClaim(() => () => settle(undefined, { display: 'skip' }), [settle])
   const close = useCallback(
     (text?: string, options?: Parameters<LocalJSXCommandOnDone>[1]): void => {
       settle(text, options ?? (text === undefined ? { display: 'skip' } : undefined))

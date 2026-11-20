@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useState } from 'react'
+import { useClaim, useMeasure } from '../hooks/effects.js'
 import type { DOMElement } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { ModalContext } from '../context/modalContext.js'
@@ -17,7 +18,7 @@ export function commandPopupGeometry(host: ModelPickerPopupHost, terminalRows: n
 }
 
 export function CommandPopupLease({ token, children }: { token: number; children: React.ReactNode }): React.ReactNode {
-  useEffect(() => () => releaseCommandPopup(token), [token])
+  useClaim(() => () => releaseCommandPopup(token), [token])
   return <>{children}</>
 }
 
@@ -39,7 +40,7 @@ export function CommandPopupSlot({
   const { columns, rows: terminalRows } = useTerminalSize()
   const [host, setHost] = useState<ModelPickerPopupHost | null>(null)
   const [band, setBand] = useState<PopupBand | null>(null)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     const element = hostRef.current
     const next = (element ? modelPickerPopupHost(element, framed) : null) ?? { left: 0, top: 0, columns, rows: terminalRows }
     if (host === null || host.left !== next.left || host.top !== next.top || host.columns !== next.columns || host.rows !== next.rows) setHost(next)

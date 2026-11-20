@@ -1,8 +1,9 @@
 import * as React from 'react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
+import { useClaim, useLayoutPublish, useSubscription } from '../../hooks/effects.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { McpRosterEntryV1, McpToolEntryV1 } from '../../services/engine-connector/types.js'
@@ -157,7 +158,7 @@ type ToolViewState = { server: string; tools: readonly McpToolEntryV1[]; omitted
 
 export function McpPopup({ onDone }: { onDone: (message?: string) => void }): React.ReactNode {
   const [, repaint] = useState(0)
-  useEffect(() => subscribe(() => repaint(value => value + 1)), [])
+  useSubscription(() => subscribe(() => repaint(value => value + 1)), [])
   const connector = getFocusedSessionConnector()
   const servers = mcpRosterRowsFailedFirst(connector.mcpRoster())
   const tokens = useMercuryTokens()
@@ -181,7 +182,7 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   const [toolView, setToolView] = useState<ToolViewState | null>(null)
   const popupToken = useRef(commandPopupClaim()?.token)
   const browsingTools = toolView !== null
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     if (browsingTools && popupToken.current !== undefined) growCommandPopup(popupToken.current, 26)
   }, [browsingTools])
   const [toolCursor, setToolCursor] = useState(0)
@@ -192,7 +193,7 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   const signingIn = useMemo(() => ({ current: null as string | null }), [connector])
   const filterFocusRef = useRef(false)
   const toolFilterFocusRef = useRef(false)
-  useEffect(() => {
+  useClaim(() => {
     alive.current = true
     setBusy(null)
     setListing(null)

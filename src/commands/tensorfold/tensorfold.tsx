@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useClaim, useLoad, useTimer } from '../../hooks/effects.js'
 import { MercuryModelPicker } from '../../components/MercuryModelPicker.js'
 import { ModelPickerPopupLease } from '../../components/ModelPickerPopupSlot.js'
 import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
@@ -60,7 +61,7 @@ function currentModelId(): string | undefined {
 export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: string) => void; io?: TensorFoldPanelIo; repo?: string }): React.ReactNode {
   const version = React.useSyncExternalStore(subscribeTensorFoldRoad, tensorFoldRoadVersion, tensorFoldRoadVersion)
   const announcedStamp = React.useSyncExternalStore(subscribeTensorFoldFacts, tensorFoldFactsStamp, tensorFoldFactsStamp)
-  React.useEffect(() => {
+  useLoad(() => {
     void refreshTensorFoldAnnouncements()
   }, [])
   const [facts, setFacts] = React.useState<TensorFoldPanelFacts | null>(null)
@@ -74,23 +75,23 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
     engineRef.current = next.engine as TensorFoldEngineFound | null
     if (alive.current) setFacts(next)
   }, [io])
-  React.useEffect(() => {
+  useLoad(() => {
     alive.current = true
     void read()
     return () => {
       alive.current = false
     }
   }, [read, version])
-  React.useEffect(() => {
+  useTimer(() => {
     const inFlight = facts !== null && (Object.values(facts.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing') || facts.pods.some(pod => pod.state === 'starting' || pod.state === 'stopping'))
     if (!inFlight) return
     const timer = setInterval(() => void read(), TENSORFOLD_REFRESH_MS)
     return () => clearInterval(timer)
   }, [facts, read])
-  React.useEffect(() => {
+  useLoad(() => {
     if (repo !== undefined && repo !== '') void readOtherCheckpoint(repo, io.road)
   }, [repo, io.road])
-  React.useEffect(() => () => void consumeFirstRunServeAsk(), [])
+  useClaim(() => () => void consumeFirstRunServeAsk(), [])
   const picker = React.useMemo(() => (facts === null ? null : { ...pickerFactsOf(facts), announced: tensorFoldAnnouncementsNow(facts.hosts) }), [facts, announcedStamp])
   if (facts === null || picker === null) return null
   const doors = { close: onDone, read: () => read(true) }

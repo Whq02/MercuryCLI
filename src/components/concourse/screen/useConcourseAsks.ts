@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { CONTRACT_CARD_MIN_ROWS } from '../ContractOfferCard.js'
+import { useLoad } from '../../../hooks/effects.js'
 import { isPathTrusted, setPathTrusted } from '../../../utils/config.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { errorMessage } from '../../../utils/errors.js'
@@ -26,7 +27,7 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
 
   const [capacityAsk, setCapacityAsk] = useState(false)
   const capacityAskRef = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     void import('../../../services/switchboard/capacityCheck.js')
       .then(m => {

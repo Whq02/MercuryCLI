@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { Select } from '../../CustomSelect/select.js'
@@ -129,11 +130,11 @@ function BashCommandPermissionRequest(
     setEditablePrefix(value)
   }
 
-  useEffect(() => {
+  useLoad(() => {
     if (isCompound) return
     let cancelled = false
     void getCompoundCommandPrefixesStatic(command, subcommand =>
-      BashTool.isReadOnly({ command: subcommand } as never),
+      BashTool.isReadOnly({ command: subcommand }),
     )
       .then(prefixes => {
         if (cancelled || userEditedRef.current) return
@@ -226,7 +227,7 @@ function BashCommandPermissionRequest(
               />
             ) : (
               <Text dimColor={explainer.visible}>
-                {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
+                {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
                   theme: resolveThemeName(),
                   verbose: true,
                 })}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react'
+import React, { useState, useSyncExternalStore } from 'react'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { Text } from '../../ink.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
@@ -8,6 +8,7 @@ import type { GlobalConfig } from '../../utils/config.js'
 import { PERMISSION_MODES } from '../../utils/permissions/PermissionMode.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
+import { useClaim, useLoad } from '../../hooks/effects.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { useTheme, useThemeSetting } from '../design-system/ThemeProvider.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
@@ -61,7 +62,7 @@ export function Config({
   const { version, bump, config, merged, undoRef, dirtyRef, initialThinking, mountTheme, changesRef, recordToggle, recordSet, writeSource, writeFailed, writeGlobal } = useConfigWrites({ setAppState, themeSetting })
 
   const [subMenu, setSubMenu] = useState<SubMenu | null>(null)
-  useEffect(() => {
+  useClaim(() => {
     onOwnsEscape?.(true)
     return () => onOwnsEscape?.(false)
   }, [onOwnsEscape])
@@ -109,7 +110,7 @@ export function Config({
   items.push(...configCompactRows(rowKit))
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
-  useEffect(() => {
+  useLoad(() => {
     let active = true
     void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts) })
     return () => { active = false }

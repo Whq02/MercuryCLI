@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useRef, useState, useSyncExternalStore } from 'react'
+import { useMeasure, usePublish } from '../../hooks/effects.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
 import { useSettingsPopupFrameIfAny } from './Settings.js'
 import { usagePopupLine } from './usageLine.js'
@@ -20,7 +21,7 @@ export { usageColumns, usageWindow, JEV_USAGE_LABEL, jevUsageRowShown, jevUsageR
 export function Usage({ openToken, width = 146, rowBudget = 22, compact = false }: { openToken?: number; width?: number; rowBudget?: number; compact?: boolean }): React.ReactNode {
   const frame = useSettingsPopupFrameIfAny()
   const usageVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
-  useEffect(() => {
+  usePublish(() => {
     frame?.setLine(usagePopupLine())
     frame?.setHint('↑↓ scroll · pgup/pgdn page · esc or click outside closes')
   }, [frame, usageVersion])
@@ -47,7 +48,7 @@ function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width:
     setHeights(previous => previous.length === next.length && previous.every((height, index) => height === next[index]) ? previous : next)
     setCardHeights(previous => previous.length === cards.length && previous.every((band, index) => band.length === cards[index]!.length && band.every((height, card) => height === cards[index]![card])) ? previous : cards)
   }, [])
-  useLayoutEffect(measure)
+  useMeasure(measure)
   const budget = Math.max(0, Math.floor(rowBudget))
   useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
   const jevLine = jevUsageRowShown() ? jevUsageRow() : undefined

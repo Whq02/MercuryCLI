@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useLoad } from '../../hooks/effects.js';
 import { reloadAgentDefinitionsIntoAppState } from '../../hooks/useAgentsChange.js';
 import type { useSetAppStateMaybe } from '../../state/AppState.js';
 import { clearAgentDefinitionsCache, getAgentDefinitionsWithOverrides, type AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js';
@@ -18,7 +19,7 @@ export function useAgentDefinitions({ given, workspaceDir, setAppStateMaybe }: {
       .then(fresh => setDefs(fresh))
       .catch(e => setNote(`definitions unreadable — ${String(e)}`));
   }, [given, workspaceDir]);
-  useEffect(() => {
+  useLoad(() => {
     reload();
     if (given !== undefined) return;
     void startAgentWatch(workspaceDir).catch(() => {});

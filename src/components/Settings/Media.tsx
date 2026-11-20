@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { Box, Text, useInput } from '../../ink.js'
 import TextInput from '../TextInput.js'
 import { Select } from '../CustomSelect/select.js'
@@ -18,7 +19,7 @@ export function useMediaConfig(): {
   const [config, setConfig] = React.useState<MediaConfig>({})
   const [error, setError] = React.useState('')
   const settings = { enabled: initial.enabled, root: initial.root, serverPath: initial.serverPath, ...draft }
-  React.useEffect(() => {
+  useLoad(() => {
     let active = true
     const current = { ...initial, ...draft }
     void Promise.all([readMediaCatalogue(current), mediaConfigModule(current).then(module => module.readMediaConfig(mediaRoot(current)))]).then(([catalogue, config]) => {

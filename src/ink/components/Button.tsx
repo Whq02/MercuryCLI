@@ -1,5 +1,6 @@
 
-import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react'
+import React, { forwardRef, useCallback, useRef, useState } from 'react'
+import { useClaim } from '../../hooks/effects.js'
 import type { DOMElement } from '../dom.js'
 import type { KeyboardEvent } from '../events/keyboard-event.js'
 import type { Styles } from '../styles.js'
@@ -32,7 +33,7 @@ const Button = forwardRef<DOMElement, Props>(function Button(
   const [active, setActive] = useState(false)
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(
+  useClaim(
     () => () => {
       if (pulseTimer.current) clearTimeout(pulseTimer.current)
     },

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useClaim } from '../../../hooks/effects.js'
 import { OAuthService } from '../../../services/oauth/index.js'
 import {
   accountInfoFromTokens,
@@ -428,7 +429,7 @@ export function useAnthropicLoginModel(
       deps,
     )
   }
-  useEffect(() => {
+  useClaim(() => {
     machineRef.current?.wake()
     return () => {
       machineRef.current?.dispose()

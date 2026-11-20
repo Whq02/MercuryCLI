@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
+import { useDerivedState } from '../hooks/effects.js'
 import type { CommandResultDisplay } from '../commands.js'
 import type { Message } from '../types/message.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
@@ -557,7 +558,7 @@ export function Feedback({
   const maxScroll = Math.max(0, lines.length - viewRows)
   const bytes = bodyByteCount(body)
 
-  useEffect(() => {
+  useDerivedState(() => {
     if (scroll > maxScroll) setScroll(maxScroll)
   }, [scroll, maxScroll])
 

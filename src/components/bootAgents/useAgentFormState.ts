@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useClaim } from '../../hooks/effects.js';
 import type { useEngineModel } from '../../hooks/useEngineModel.js';
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js';
 import type { AgentTrashEntry } from '../../services/agents/store.js';
@@ -61,6 +62,6 @@ export function useAgentFormState({ defs, workspaceDir, mainModel, setNote, refr
     },
     [workspaceDir, mainModel, closeForm, refreshEverywhere],
   );
-  useEffect(() => () => formRef.current?.machine.dispose(), []);
+  useClaim(() => () => formRef.current?.machine.dispose(), []);
   return { confirm, setConfirm, trash, setTrash, modelPick, setModelPick, form, formSnap, formPrompt, setFormPrompt, formPick, setFormPick, formRef, formPromptRef, closeForm, openForm };
 }

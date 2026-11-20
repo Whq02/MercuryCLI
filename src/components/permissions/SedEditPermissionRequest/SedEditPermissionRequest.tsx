@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { useLoad } from '../../../hooks/effects.js'
 import { promises as fs } from 'node:fs'
 import { basename, relative } from 'node:path'
 import { Text } from '../../../ink.js'
@@ -27,7 +28,7 @@ export function SedEditPermissionRequest({
   const [loaded, setLoaded] = useState<LoadedFile | null>(null)
   const [loadError, setLoadError] = useState<unknown>(null)
 
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false
     void (async () => {
       try {

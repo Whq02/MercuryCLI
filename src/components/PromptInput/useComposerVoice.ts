@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useRef, useSyncExternalStore } from 'react'
+import { useClaim, usePublish } from '../../hooks/effects.js'
 import type { Notification } from '../../context/notifications.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import type { Key } from '../../ink/events/input-event.js'
@@ -9,7 +10,7 @@ import type { ComposerAttachments } from './useComposerAttachments.js'
 export function useComposerVoiceReceipt(addNotification: (notification: Notification) => void) {
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const voiceReceiptSeqRef = useRef(0)
-  useEffect(() => {
+  usePublish(() => {
     const receipt = voice.receipt
     if (receipt === null || receipt.seq === voiceReceiptSeqRef.current) return
     voiceReceiptSeqRef.current = receipt.seq
@@ -34,7 +35,7 @@ export function useComposerHoldToTalk({
   setCursorOffset: (offset: number) => void
 }) {
   const voiceInputFilter = useCallback((rawInput: string, key: Key): string => holdToTalkKey(rawInput, key), [])
-  useEffect(() => {
+  useClaim(() => {
     setHoldToTalkEditor({
       text: () => pendingInput.text(),
       cursor: () => cursorRef.current,

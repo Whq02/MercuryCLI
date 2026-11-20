@@ -2,10 +2,10 @@
 import React, {
   useCallback,
   useImperativeHandle,
-  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
+import { useLayoutPublish, useMeasure } from '../hooks/effects.js'
 import { Box } from '../ink.js'
 import type { DOMElement } from '../ink/dom.js'
 import type { ClickEvent } from '../ink/events/click-event.js'
@@ -188,7 +188,7 @@ export function VirtualMessageList({
 
   const vsRef = useRef(vs)
   vsRef.current = vs
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     if (selectedIndex === undefined) return
     const el = vsRef.current.getItemElement(selectedIndex)
     if (el) scrollRef.current?.scrollToElement(el, 1)
@@ -197,7 +197,7 @@ export function VirtualMessageList({
 
   const flipWasRef = useRef({ index: selectedIndex, expanded: selectedExpanded })
   const alignWhenMountedRef = useRef<{ index: number; renders: number } | null>(null)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     const was = flipWasRef.current
     flipWasRef.current = { index: selectedIndex, expanded: selectedExpanded }
     if (was.index !== selectedIndex || was.expanded === selectedExpanded) return
@@ -218,7 +218,7 @@ export function VirtualMessageList({
     else if (selectedExpanded && (handle.isSticky() || viewBottom >= handle.getScrollHeight())) handle.scrollToElement(el, viewTop - top)
   }, [selectedExpanded, selectedIndex, scrollRef])
 
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     const waiting = alignWhenMountedRef.current
     if (waiting === null) return
     const el = waiting.index === selectedIndex ? vsRef.current.getItemElement(waiting.index) : null

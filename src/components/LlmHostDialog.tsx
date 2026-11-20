@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Box, Text, useInput, wrapText } from '../ink.js'
+import { useClaim, useLayoutClaim, useLayoutPublish, useLoad, useTimer } from '../hooks/effects.js'
 import { useRegisterOverlay } from '../context/overlayContext.js'
 import TextInput from './TextInput.js'
 import { HuggingfaceConnect } from './HuggingfaceConnect.js'
@@ -45,10 +46,10 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const [logOffset, setLogOffset] = useState(0)
   const [host, setHost] = useState<LlmHostEvent['host']>()
   const [now, setNow] = useState(Date.now())
-  useEffect(() => { if (!host || question?.step === 'pod-logs') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [host, question?.step])
+  useTimer(() => { if (!host || question?.step === 'pod-logs') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [host, question?.step])
   const answerRef = useRef<((value: string | null) => void) | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     let live = true
     const controller = new AbortController()
     controllerRef.current = controller
@@ -92,8 +93,8 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   }, [road])
   const pending = history.length === 0 ? 'Reading models and prices…' : words.running
   const line = result ? words.ended : question?.title ?? pending
-  useLayoutEffect(() => { onLine?.(line) }, [line, onLine])
-  useEffect(() => { onOwnsEscape?.(true); return () => onOwnsEscape?.(false) }, [onOwnsEscape])
+  useLayoutPublish(() => { onLine?.(line) }, [line, onLine])
+  useClaim(() => { onOwnsEscape?.(true); return () => onOwnsEscape?.(false) }, [onOwnsEscape])
   const answer = (next: string | null): void => {
     const resolve = answerRef.current
     answerRef.current = null
@@ -108,7 +109,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
     const at = visible.findIndex(row => row.value === selectedRef.current)
     setCursor(at >= 0 ? at : visible.length ? 0 : null)
   }
-  useEffect(() => {
+  useTimer(() => {
     if (!question?.search) return
     const typed = query.trim()
     const target = typed.length >= LLM_HOST_SEARCH_MIN_CHARS ? typed : ''
@@ -172,7 +173,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const choicesPage = Boolean(question?.rows) && detailsFit && !scrollDetails && window.end - window.start < rows.length
   const keyActions = question?.rows && !question.search && question.keys?.length ? question.keys : []
   const hint = (question?.rows?.length ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + keyActions.map(action => action.key + ' ' + (action.label ?? action.value) + ' · ').join('') + (question?.search ? 'type to search · ' : '') + (question?.search && query ? 'esc clears the search' : exit) + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
-  useLayoutEffect(() => { onHint?.(hint); return () => onHint?.(null) }, [hint, onHint])
+  useLayoutClaim(() => { onHint?.(hint); return () => onHint?.(null) }, [hint, onHint])
   useInput((input, key, event) => {
     if (question?.step === 'huggingface-login') return
     if (key.escape) { event.stopImmediatePropagation(); if (question?.step === 'pod-logs') { answer(null); return } if (question?.search && query) { retarget(''); return } stop(); return }

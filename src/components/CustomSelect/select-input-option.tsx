@@ -1,10 +1,11 @@
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import useInput from '../../ink/hooks/use-input.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { usePublish } from '../../hooks/effects.js'
 import type { PastedContent } from '../../utils/config.js'
 import { getImageFromClipboard } from '../../utils/imagePaste.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
@@ -176,7 +177,7 @@ export function SelectInputOption<T>({
     },
     { isActive: isFocused && isImageSelectionMode },
   )
-  useEffect(() => {
+  usePublish(() => {
     if (!isFocused && isImageSelectionMode) onExitImageSelection?.()
   }, [isFocused, isImageSelectionMode, onExitImageSelection])
 

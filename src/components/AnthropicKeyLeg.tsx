@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
+import { useClaim } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import { storeAnthropicApiKeyLogin } from '../services/providers/anthropic/anthropicLogin.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
@@ -15,7 +16,7 @@ export function AnthropicKeyLeg({ onDone, onBack }: { onDone: () => void; onBack
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
   const pending = useRef<AbortController | null>(null)
-  useEffect(() => () => pending.current?.abort(), [])
+  useClaim(() => () => pending.current?.abort(), [])
   useInput((_input, pressed) => {
     if (pressed.escape) { pending.current?.abort(); onBack() }
   })

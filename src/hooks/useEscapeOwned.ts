@@ -1,4 +1,5 @@
-import { useLayoutEffect, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
+import { useLayoutClaim } from './effects.js'
 import { useIsOverlayActive } from '../context/overlayContext.js'
 
 const holders = new Set<symbol>()
@@ -20,7 +21,7 @@ function subscribe(listener: () => void): () => void {
 const holdersVersion = (): number => version
 
 export function useHoldsEscape(holds: boolean): void {
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (!holds) return
     const hold = Symbol('escape')
     holders.add(hold)

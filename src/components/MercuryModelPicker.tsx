@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useRegisterOverlay } from '../context/overlayContext.js'
 import { Box, Text, useInput } from '../ink.js'
 import { usePopupListPaging } from './CustomSelect/popup-list.js'
@@ -8,6 +8,7 @@ import { useModalOrTerminalSize } from '../context/modalContext.js'
 import { PopupFrameContext } from './PopupGutter.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
+import { useLoad, useMount } from '../hooks/effects.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -135,9 +136,9 @@ function placeTensorFoldGroups(groups: PickerGroup<ModelChoice>[], opts: { top?:
 
 export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings: givenHeadings, topGroup, expandRows, initialFilter, view = 'model', live, tensorfold, onTensorFold, recentAt, tensorFoldFirst = false, hint }: Props): React.ReactNode {
   const surfaceRef = useElevatedSurface()
-  React.useEffect(() => {
+  useMount(() => {
     markTransitionEnd('picker-open')
-  }, [])
+  })
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
   const currentRow = stripGptServedWindowSuffix(current)
@@ -299,7 +300,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const focusedLocalCycles = focusedLocal !== undefined && (localWindowApplication(focusedLocal) === 'request' || localWindowApplication(focusedLocal) === 'load')
   useSyncExternalStore(subscribeLocalServerTruth, localServerTruthStamp, localServerTruthStamp)
   const focusedLocalKey = focusedLocal !== undefined ? `${focusedLocal.server}/${focusedLocal.id}` : null
-  useEffect(() => {
+  useLoad(() => {
     if (focusedLocal === undefined || !focusedLocalCycles || focusedLocal.geometry === undefined) return
     void refreshLocalMachineTruth(focusedLocal.server).catch(() => undefined)
   }, [focusedLocalKey])
@@ -309,7 +310,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     const p = focusedModel?.id
     if (!p || focusedSupports1m || focusedGptWindow) return false
     try {
-      return getContextWindowForModel(parseUserSpecifiedModel(stripContext1m(p)) as never) >= 1_000_000
+      return getContextWindowForModel(parseUserSpecifiedModel(stripContext1m(p))) >= 1_000_000
     } catch {
       return false
     }

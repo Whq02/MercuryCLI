@@ -1,8 +1,9 @@
 
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { basename } from 'path'
 import { Box, Text } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useLoad } from '../hooks/effects.js'
 import {
   adjustHunkLineNumbers,
   type StructuredPatchHunk,
@@ -126,7 +127,7 @@ export function FileEditToolDiff({
   const { columns } = useTerminalSize()
   const [loaded, setLoaded] = useState<LoadedDiff | null>(null)
 
-  useEffect(() => {
+  useLoad(() => {
     let live = true
     void loadDiff(file_path, edits).then(result => {
       if (live) setLoaded(result)

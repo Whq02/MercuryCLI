@@ -1,4 +1,5 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useRef, useState } from 'react'
+import { useSubscription } from '../../hooks/effects.js'
 import { ClockContext } from '../components/ClockContext.js'
 import { MotionParkContext } from '../components/MotionParkContext.js'
 import type { DOMElement } from '../dom.js'
@@ -17,7 +18,7 @@ export function useAnimationValue<T extends string | number | boolean>(
 
   const active = isVisible && !parked && intervalMs !== null
 
-  useEffect(() => {
+  useSubscription(() => {
     if (!clock || !active) return
 
     let lastBucket = Math.floor(clock.now() / intervalMs!)

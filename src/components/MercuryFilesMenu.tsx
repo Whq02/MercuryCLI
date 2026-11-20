@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useMemo, useRef, useState } from 'react'
+import { useLoad, useMeasure, useSubscription } from '../hooks/effects.js'
 import { readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { marked } from 'marked'
@@ -72,7 +73,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   const [reader, setReader] = useState<FileReaderDocument | null>(null)
   const [readHint, setReadHint] = useState(false)
 
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     void readFileTreeGit(root).then(state => {
       if (alive) setGit(state)
@@ -286,8 +287,8 @@ function FilesReader({ document, width, rowBudget, onBack, onPick }: {
     const top = Math.max(0, Math.min(body.getScrollTop(), total - height))
     setView(previous => previous.top === top && previous.total === total ? previous : { top, total })
   }, [height])
-  useLayoutEffect(sync)
-  useEffect(() => ink?.subscribeFrame(sync), [ink, sync])
+  useMeasure(sync)
+  useSubscription(() => ink?.subscribeFrame(sync), [ink, sync])
   const below = Math.max(0, view.total - view.top - height)
   const contentWidth = Math.max(1, width - 4 - (view.top > 0 || below > 0 ? 1 : 0))
   const content = useMemo(() => {

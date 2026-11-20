@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { Select } from '../../../components/CustomSelect/index.js'
 import TextInput from '../../../components/TextInput.js'
@@ -25,7 +26,7 @@ export function OrcarouterConnect({ onResult, onBack }: {
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
-  useEffect(() => {
+  useLoad(() => {
     if (step !== 'device') return
     let disposed = false
     void runOrcarouterDeviceLogin({ cancelled: () => disposed || cancelled.current, onEvent: next => {

@@ -1,5 +1,6 @@
 
-import { useContext, useEffect } from 'react'
+import { useContext } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import stripAnsi from 'strip-ansi'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 import { noteModeAcquired } from '../root/terminalModeLedger.js'
@@ -14,7 +15,7 @@ function sanitizeTitle(title: string): string {
 
 export function useTerminalTitle(title: string | null): void {
   const write = useContext(TerminalWriteContext)
-  useEffect(() => {
+  usePublish(() => {
     if (title === null || !write) return
     const clean = sanitizeTitle(title)
     if (process.platform === 'win32') {

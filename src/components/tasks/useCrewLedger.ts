@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../state/AppState.js'
 import { foldCrewLedger, seenCrewOf, sessionCrewRows, type CrewLedger, type CrewLedgerRow } from '../../state/crewLedger.js'
 import { focusedSessionIdOrNull, useFocusedWorkRoster } from './useFocusedWork.js'
@@ -14,7 +15,7 @@ export function useSessionCrew(): CrewLedgerRow[] {
   const reported = roster.reported !== false
   const gone = roster.gone === true
   const seen = useMemo(() => seenCrewOf(tasks, roster, sessionId), [tasks, roster, sessionId])
-  useEffect(() => {
+  usePublish(() => {
     if (setAppState === null) return
     setAppState(prev => {
       const next = foldCrewLedger(prev.crewLedger, seen, sessionId, reported, Date.now(), gone)

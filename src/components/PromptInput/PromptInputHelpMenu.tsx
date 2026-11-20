@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Box, Text, elementScreenTop } from 'src/ink.js'
 import type { DOMElement } from '../../ink/dom.js'
+import { useDerivedState } from '../../hooks/effects.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { getPlatform } from 'src/utils/platform.js'
 import { isKeybindingCustomizationEnabled } from '../../keybindings/loadUserBindings.js'
@@ -130,7 +131,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const totalRows = columnGroups.reduce((most, group) => Math.max(most, group.length), 0)
   const geometryKey = `${termRows}:${columns}:${totalRows}`
   const [measured, setMeasured] = React.useState<{ key: string; rows: number } | null>(null)
-  React.useEffect(() => {
+  useDerivedState(() => {
     if (measured !== null && measured.key === geometryKey) return
     const element = gridRef.current
     if (!element) return

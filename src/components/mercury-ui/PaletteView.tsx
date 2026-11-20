@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useDerivedState, useLoad } from '../../hooks/effects.js'
 import {
   formatDescriptionWithSource,
   getCommandName,
@@ -40,7 +41,7 @@ export function PaletteView({
 
   const pastOpenEvent = useOpenEventGate()
 
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     void (async () => {
       try {
@@ -89,7 +90,7 @@ export function PaletteView({
       .filter((r): r is PaletteRow => r !== undefined)
   }, [rows, index, byName, query])
 
-  useEffect(() => {
+  useDerivedState(() => {
     setSel(s => Math.max(0, Math.min(s, Math.max(0, results.length - 1))))
   }, [results.length])
 

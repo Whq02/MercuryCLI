@@ -1,5 +1,6 @@
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useClaim, usePublish, useSubscription } from '../../hooks/effects.js'
 import type { DOMElement } from '../../ink/dom.js'
 import { nodeCache, type CachedLayout } from '../../ink/node-cache.js'
 import { useSelection } from '../../ink/hooks/use-selection.js'
@@ -55,7 +56,7 @@ export function useComposerSelectionState(): ComposerSelectionState {
     if (ownSelectionRef.current === null) return
     setOwnSelection(null)
   }
-  useEffect(
+  useSubscription(
     () =>
       selectionApi.subscribe(() => {
         const state = selectionApi.getState()
@@ -159,7 +160,7 @@ export function useComposerSelectionRoad(
     return { start, end }
   }
   inputSelectionRangeRef.current =() => ownSelectionOf(pendingInput.text()) ?? mapSelectionToInputRange()
-  useEffect(
+  useClaim(
     () =>
       registerInputSelectionOwner({
         range: () => inputSelectionRangeRef.current(),
@@ -174,7 +175,7 @@ export function useComposerSelectionRoad(
   )
   const ownSelection = ownSelectionOf(input)
   const ownSelected = ownSelection !== null
-  useEffect(() => {
+  usePublish(() => {
     noteOwnInputSelectionChanged()
   }, [ownSelected])
   const handleInputBoxClick = (event: { localCol: number; localRow: number }): void => {

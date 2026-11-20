@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDerivedState, useLoad, useMount } from '../../hooks/effects.js'
 import { basename } from 'node:path'
 import { Text, useInput } from '../../ink.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
@@ -96,13 +97,13 @@ export function ExtensionsBoard({
   const { openCardForEntry, doInstall, doUpdate, cardApprove, cardKeep, doUninstallNow, openUninstallConfirm, cardUninstall, cardEsc } = installCardActions({ setSlot, setNote, setView, busyRef, entries, refresh, doReload, toBoard })
   const { toggleRow, toggleBlockEntry, toggleBlockSource, doRefreshSource, doRemoveSource, runAdd, runFetchProposal, doSwapPrevious, openOptions } = rowSourceActions({ setNote, setSlot, setView, busyRef, entries, refresh, doReload, openCardForEntry, doInstall })
 
-  useEffect(() => {
+  useDerivedState(() => {
     if (view.kind === 'ext' && !entries.some(e => e.id === view.id)) toBoard({ section: 'installed' })
     if (view.kind === 'source' && !sources.some(s => s.label === view.label)) toBoard({ section: 'sources' })
   }, [view, entries, sources])
 
   const routedRef = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     if (routedRef.current) return
     routedRef.current = true
     if (route.kind === 'add') {
@@ -167,10 +168,10 @@ export function ExtensionsBoard({
     { isActive: view.kind === 'board' && slot === null },
   )
 
-  useEffect(() => {
+  useMount(() => {
     if (kb.declined.length === 0) return
     setNote(kb.declined.length === 1 ? kb.declined[0]! : `${kb.declined[0]!} (+${kb.declined.length - 1} more — /keys lists the table)`)
-  }, [])
+  })
 
   const { onSlotInput, onSlotEscape, slotNode } = slotParts({ slot, setSlot, setFilterText, setNote, note, cols, tokens, runAdd, doUninstallNow, doRemoveSource, runFetchProposal, refresh })
 

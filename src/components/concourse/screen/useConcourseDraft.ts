@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useDerivedState } from '../../../hooks/effects.js'
 import type { ConcourseRowV1 } from '../contracts.js'
 import { newDraftUndo, type LineDraft } from '../lineDraft.js'
 import type { ConcourseRegion } from '../ConcourseLayout.js'
@@ -30,12 +31,12 @@ export function useConcourseDraft({ snapshot, callbacks, reducedStage, boardSel,
   const [broadcastArmed, setBroadcastArmed] = useState(false)
   const broadcastArmedRef = useRef(false)
   broadcastArmedRef.current = broadcastArmed
-  useEffect(() => {
+  useDerivedState(() => {
     if (broadcastArmedRef.current) setBroadcastArmed(false)
   }, [liveDraft.text, markedIds])
 
   const [note, setNote] = useState<{ tone: 'muted' | 'warning'; text: string; row?: string } | null>(null)
-  useEffect(() => {
+  useDerivedState(() => {
     if (note?.row === undefined) return
     if (boardSel !== note.row || !sessionRows.some(r => r.sessionId === note.row)) setNote(null)
   }, [note, boardSel, sessionRows])

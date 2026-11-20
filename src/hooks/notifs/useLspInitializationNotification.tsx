@@ -1,5 +1,6 @@
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useTimer } from '../effects.js'
 import { getIsRemoteMode, getIsScrollDraining } from '../../bootstrap/state.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
@@ -67,7 +68,7 @@ export function useLspInitializationNotification(): void {
     }
   }, [recordError])
 
-  useEffect(() => {
+  useTimer(() => {
     if (!pollingEnabled) return
     const interval = setInterval(poll, POLL_INTERVAL_MS)
     return () => clearInterval(interval)

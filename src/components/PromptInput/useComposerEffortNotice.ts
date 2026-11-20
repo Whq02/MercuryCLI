@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import type { Notification } from '../../context/notifications.js'
 import type { AppState } from '../../state/AppState.js'
 import { composerEffortNotice } from './composerEffortNotice.js'
@@ -35,7 +36,7 @@ export function useComposerEffortNotice({
     armed: false,
     text: undefined,
   })
-  useEffect(() => {
+  usePublish(() => {
     const baseline = effortBaselineRef.current
     if (!baseline.armed) {
       effortBaselineRef.current = { armed: true, text: effortText }

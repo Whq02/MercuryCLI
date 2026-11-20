@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useContext, useEffect, useSyncExternalStore } from 'react'
+import { useContext, useSyncExternalStore } from 'react'
 import { buildRunCapsuleLine } from '../commands/run/runInspectorModel.js'
 import { formatSessionCost } from '../utils/spendSpelling.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
@@ -10,6 +10,7 @@ import { Box, Text } from '../ink.js'
 import { contextPercentLabel } from '../utils/contextFill.js'
 import { needsYouCount } from '../utils/needsYouCount.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
+import { usePublish } from '../hooks/effects.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -179,7 +180,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const fill = useFocusedContextFill(messages, windowModel, !routeSurface)
   const used = fill.usedPct
   const windowSize = fill.window
-  useEffect(() => {
+  usePublish(() => {
     publishContextUsage(used ?? null, windowSize, fill.compactAtPct, undefined, {
       usedTokens: fill.usedTokens,
       fillSource: fill.fillSource,

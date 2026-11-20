@@ -1,10 +1,10 @@
 
 import React, {
   useContext,
-  useEffect,
   useState,
   useSyncExternalStore,
 } from 'react'
+import { useClaim, useTimer } from '../hooks/effects.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
@@ -117,7 +117,7 @@ export function SpinnerWithVerb({
   const effectiveMode: SpinnerMode = mode
 
   const [whimsyVerb, setWhimsyVerb] = useState(() => sampleSpinnerVerb())
-  useEffect(() => {
+  useTimer(() => {
     const timer = setInterval(
       () => setWhimsyVerb(sampleSpinnerVerb()),
       WHIMSY_ROTATE_MS,
@@ -148,7 +148,7 @@ export function SpinnerWithVerb({
   const shimmerColor: ThemeKey =
     overrideShimmerColor ?? (requesting ? 'infoShimmer' : 'brandShimmer')
 
-  useEffect(() => {
+  useClaim(() => {
     const id = `spinner:${effectiveMode}`
     activityManager.startCLIActivity(id)
     return () => activityManager.endCLIActivity(id)

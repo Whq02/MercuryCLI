@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useTimer } from '../../hooks/effects.js'
 import { FAINT } from '../../components/mercuryPalette.js'
 import { Text } from '../../ink.js'
 import { landingInFlight, subscribeFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
@@ -15,7 +16,7 @@ export function MercuryModelLandingGate({
 }): React.ReactNode {
   const landing = React.useSyncExternalStore(subscribeFocusedSessionConnector, landingInFlight, landingInFlight)
   const [ceilingPassed, setCeilingPassed] = React.useState(false)
-  React.useEffect(() => {
+  useTimer(() => {
     if (!landing || ceilingPassed) return
     const timer = setTimeout(() => setCeilingPassed(true), ceilingMs)
     return () => clearTimeout(timer)

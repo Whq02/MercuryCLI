@@ -1,5 +1,6 @@
 
-import React, { useEffect } from 'react'
+import React from 'react'
+import { usePublish } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import useInput from '../ink/hooks/use-input.js'
 import { useDeclaredCursor } from '../ink/hooks/use-declared-cursor.js'
@@ -99,7 +100,7 @@ export function BaseTextInput({
   })
 
   const { onIsPastingChange } = props
-  useEffect(() => {
+  usePublish(() => {
     onIsPastingChange?.(isPasting)
   }, [isPasting, onIsPastingChange])
 

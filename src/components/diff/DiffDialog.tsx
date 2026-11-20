@@ -2,9 +2,10 @@
 import { appendFileSync } from 'fs'
 import { isAbsolute, relative, resolve } from 'path'
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
+import { useDerivedState, useLoad } from '../../hooks/effects.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useTurnDiffs, type TurnDiff } from '../../hooks/useTurnDiffs.js'
 import { useDiffData } from '../../hooks/useDiffData.js'
@@ -112,7 +113,7 @@ export function DiffDialog({
   const turnDiffs = useTurnDiffs(messages)
 
   const [extraSources, setExtraSources] = useState<WorkspaceDiffSource[]>([])
-  useEffect(() => {
+  useLoad(() => {
     let live = true
     void enumerateExtraSources(getSessionId() ?? null)
       .then(extra => {
@@ -178,7 +179,7 @@ export function DiffDialog({
   }
   const selectedFile = files[selectedIndex]
   rememberedIndexRef.current = files.length > 0 ? selectedIndex : 0
-  useEffect(() => {
+  useDerivedState(() => {
     if (selectedFile && selectedFile.path !== selectedPath) {
       setSelectedPath(selectedFile.path)
     }

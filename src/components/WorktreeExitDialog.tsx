@@ -1,6 +1,7 @@
 
 import { GLYPH } from './mercury-ui/glyphs.js'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
+import { useLoad, usePublish } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
 import { logError } from '../utils/log.js'
@@ -62,7 +63,7 @@ export function WorktreeExitDialog({
   const resultRef = useRef<string | undefined>(undefined)
   const reportedRef = useRef(false)
 
-  useEffect(() => {
+  usePublish(() => {
     if (phase.kind === 'done' && !reportedRef.current) {
       reportedRef.current = true
       onDone(resultRef.current, { displayMode: 'system' })
@@ -132,7 +133,7 @@ export function WorktreeExitDialog({
   }
 
   const statusRef = useRef({ changedFiles: 0, commits: 0 })
-  useEffect(() => {
+  useLoad(() => {
     const session = sessionRef.current
     if (!session) return
     let alive = true

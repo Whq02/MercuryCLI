@@ -1,5 +1,6 @@
 
-import React, { createContext, useEffect, useState, useSyncExternalStore } from 'react'
+import React, { createContext, useState, useSyncExternalStore } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import { clockPeriodMs, subscribeIdleMotion } from '../../utils/cockpit/motionGovernor.js'
 import { useTerminalFocus } from '../hooks/use-terminal-focus.js'
 
@@ -97,7 +98,7 @@ export function ClockProvider({
     () => providerClockPeriodMs(focused),
     () => providerClockPeriodMs(focused),
   )
-  useEffect(() => {
+  usePublish(() => {
     clock.setInterval(periodMs)
   }, [clock, periodMs])
   return <ClockContext.Provider value={clock}>{children}</ClockContext.Provider>

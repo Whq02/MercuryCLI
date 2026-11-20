@@ -1,7 +1,8 @@
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 
-import React, { useLayoutEffect } from 'react'
+import React from 'react'
+import { useLayoutTimer } from '../hooks/effects.js'
 import stripAnsi from 'strip-ansi'
 
 import { render, useApp } from '../ink.js'
@@ -11,7 +12,7 @@ import { railPlan } from './helmGeometry.js'
 
 function ExitAfterCommit({ children }: { children: React.ReactNode }): React.ReactNode {
   const { exit } = useApp()
-  useLayoutEffect(() => {
+  useLayoutTimer(() => {
     let inner: ReturnType<typeof setTimeout> | undefined
     const outer = setTimeout(() => {
       inner = setTimeout(() => exit(), 0)

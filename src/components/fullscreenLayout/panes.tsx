@@ -1,8 +1,9 @@
-import React, { useCallback, useLayoutEffect, useRef } from 'react'
+import React, { useCallback, useRef } from 'react'
 import { Box, Text } from '../../ink.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import CursorDeclarationContext from '../../ink/components/CursorDeclarationContext.js'
 import { useCursorFollow } from '../mercury-ui/useCursorFollow.js'
+import { useLayoutClaim, useLayoutPublish } from '../../hooks/effects.js'
 import { usePromptOverlay, usePromptOverlayDialog } from '../../context/promptOverlayContext.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { PromptInputFooterSuggestions } from '../PromptInput/PromptInputFooterSuggestions.js'
@@ -93,10 +94,10 @@ export function JumpPill({
 export function ModalPaneBody({ rows, columns, scrollRef, children }: { rows: number; columns: number; scrollRef: React.RefObject<ScrollBoxHandle | null> | null; children: React.ReactNode }): React.ReactNode {
   const paneRef = useRef<ScrollBoxHandle | null>(null)
   const follow = useCursorFollow(paneRef, { rows, width: columns })
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     if (scrollRef && scrollRef.current === null) scrollRef.current = paneRef.current
   })
-  useLayoutEffect(() => () => {
+  useLayoutClaim(() => () => {
     if (scrollRef && scrollRef.current === paneRef.current) scrollRef.current = null
   }, [scrollRef])
   return (

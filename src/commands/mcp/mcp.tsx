@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { CommandPopupLease } from '../../components/CommandPopupSlot.js'
 import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js'
 import { mcpPopupShapeFor } from './McpPopup.js'
@@ -22,7 +23,7 @@ function McpToggle({
   onDone: LocalJSXCommandOnDone
 }): React.ReactNode {
   const ranRef = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     if (ranRef.current) return
     ranRef.current = true
     void (async () => {

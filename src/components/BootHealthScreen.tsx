@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import { useLoad } from '../hooks/effects.js';
 import {
   HEALTH_STATUS_META,
   countByStatus,
@@ -236,7 +237,7 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [runToken, setRunToken] = useState(0);
   const depthRef = useRef<'fast' | 'deep'>('fast');
-  useEffect(() => {
+  useLoad(() => {
     if (given !== undefined) return;
     let alive = true;
     const ac = new AbortController();

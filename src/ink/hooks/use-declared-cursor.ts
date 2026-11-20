@@ -1,5 +1,6 @@
 
-import { useCallback, useContext, useLayoutEffect, useRef } from 'react'
+import { useCallback, useContext, useRef } from 'react'
+import { useLayoutClaim, useLayoutPublish } from '../../hooks/effects.js'
 import CursorDeclarationContext from '../components/CursorDeclarationContext.js'
 import type { DOMElement } from '../dom.js'
 
@@ -19,7 +20,7 @@ export function useDeclaredCursor({
     nodeRef.current = el
   }, [])
 
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     const node = nodeRef.current
     if (active && node) {
       setDeclaration({ relativeX: column, relativeY: line, node })
@@ -28,7 +29,7 @@ export function useDeclaredCursor({
     }
   })
 
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     return () => {
       setDeclaration(null, nodeRef.current)
     }

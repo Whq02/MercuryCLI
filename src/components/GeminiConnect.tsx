@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Box, Text, useInput } from '../ink.js'
 import TextInput from './TextInput.js'
 import { Select } from './CustomSelect/index.js'
@@ -8,6 +8,7 @@ import { errorMessageWithCause } from '../utils/errors.js'
 import { openBrowser } from '../utils/browser.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { LAYOUT_BREAKPOINTS } from '../hooks/useLayoutTier.js'
+import { useLoad } from '../hooks/effects.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
   beginGeminiBrowserConnect,
@@ -200,7 +201,7 @@ export function GeminiConnect({
     })
   }
 
-  useEffect(() => {
+  useLoad(() => {
     if (leg !== 'guide' && leg !== 'plan') return
     if (leg === 'guide' && step <= 4) {
       openStepPage(step)
@@ -418,7 +419,7 @@ function GeminiKeyLeg({
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
   const storingRef = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     let live = true
     void openBrowser(GEMINI_API_KEY_PAGE.address).then(ok => {
       if (live) setOpened(ok ? 'opened' : 'failed')

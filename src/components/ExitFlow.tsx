@@ -1,5 +1,6 @@
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
+import { usePublish } from '../hooks/effects.js'
 import { ExitHandoff, noteAskedAtExit } from './ExitHandoff.js'
 import { WorktreeExitDialog } from './WorktreeExitDialog.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
@@ -47,7 +48,7 @@ export function ExitFlow({
     exitNow(message)
   }
 
-  useEffect(() => {
+  usePublish(() => {
     if (showWorktree) return
     leave()
   }, [showWorktree])

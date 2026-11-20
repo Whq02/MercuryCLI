@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect, useRef } from 'react'
+import { useCallback, useContext, useRef } from 'react'
+import { useSubscription, useTimer } from '../../hooks/effects.js'
 import type { RefObject } from 'react'
 import CursorDeclarationContext, { type CursorDeclaration, type CursorDeclarationSetter } from '../../ink/components/CursorDeclarationContext.js'
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
@@ -36,7 +37,7 @@ export function useCursorFollow(
     clearTimeout(pending.current)
     pending.current = setTimeout(followNow, 0)
   }, [followNow])
-  useEffect(() => {
+  useTimer(() => {
     clearTimeout(pending.current)
     const current = cursor.current
     if (current) {
@@ -46,7 +47,7 @@ export function useCursorFollow(
     }
     return () => clearTimeout(pending.current)
   }, [viewport.width, viewport.rows, scrollRef, follow])
-  useEffect(() => {
+  useSubscription(() => {
     if (!ink) return
     return ink.subscribeFrame(() => {
       const body = scrollRef.current

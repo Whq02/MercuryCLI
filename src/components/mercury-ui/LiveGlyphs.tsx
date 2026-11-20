@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Text, useAnimationValue } from '../../ink.js'
+import { useTimer } from '../../hooks/effects.js'
 import { useIdleMotion } from '../../hooks/useIdleMotion.js'
 import { useSettingsMaybe } from '../../hooks/useSettings.js'
 import { useTypingPause } from '../../hooks/useTypingPause.js'
@@ -80,7 +81,7 @@ export function ValueGlow({
   const enabled = !reducedMotion && motion !== 'off'
   const prevRef = React.useRef(value)
   const [glowing, setGlowing] = React.useState(false)
-  React.useEffect(() => {
+  useTimer(() => {
     if (Object.is(prevRef.current, value)) {
       setGlowing(false)
       return

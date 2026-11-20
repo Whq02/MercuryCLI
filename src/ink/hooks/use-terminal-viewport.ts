@@ -1,5 +1,6 @@
 
-import { useCallback, useContext, useLayoutEffect, useRef } from 'react'
+import { useCallback, useContext, useRef } from 'react'
+import { useMeasure } from '../../hooks/effects.js'
 import { LiveTerminalSizeContext, TerminalSizeContext } from '../components/TerminalSizeContext.js'
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
 import type { DOMElement } from '../dom.js'
@@ -23,7 +24,7 @@ export function useTerminalViewport(): [
     nodeRef.current = el
   }, [])
 
-  useLayoutEffect(() => {
+  useMeasure(() => {
     const node = nodeRef.current
     const layout = node?.layoutNode
     if (!node || !layout || !size) return

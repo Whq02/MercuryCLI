@@ -1,6 +1,7 @@
 import { statSync, watch, type FSWatcher } from 'node:fs'
 import { basename } from 'node:path'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useSubscription } from '../../hooks/effects.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   readSessionFacts,
@@ -354,7 +355,7 @@ export function useLiveTile(
 ): { now: LiveTileNow; degraded: boolean } {
   const [, bump] = useState(0)
   const active = live && workspaceId !== undefined && !sessionId.startsWith('dispatch:')
-  useEffect(() => {
+  useSubscription(() => {
     if (!active) return
     const unsub = theStore.register(sessionId, workspaceId ?? '', () => bump(v => v + 1))
     const unsubDeg = theStore.onDegradeChange(() => bump(v => v + 1))
@@ -400,7 +401,7 @@ const theChipStore = new LiveTileStore(workChipStoreDeps())
 export function useWorkChip(sessionId: string, active: boolean): string | null {
   const [, bump] = useState(0)
   const on = active && sessionId !== '' && !sessionId.startsWith('dispatch:')
-  useEffect(() => {
+  useSubscription(() => {
     if (!on) return
     const unsub = theChipStore.register(sessionId, '', () => bump(v => v + 1))
     const unsubDeg = theChipStore.onDegradeChange(() => bump(v => v + 1))
@@ -417,7 +418,7 @@ export function useWorkChip(sessionId: string, active: boolean): string | null {
 export function useLiveTilesDegraded(): boolean {
   const [v, setV] = useState(theStore.isDegraded())
   const mounted = useRef(true)
-  useEffect(() => {
+  useSubscription(() => {
     mounted.current = true
     const unsub = theStore.onDegradeChange(() => {
       if (mounted.current) setV(theStore.isDegraded())

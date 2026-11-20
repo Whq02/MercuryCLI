@@ -1,10 +1,11 @@
 
-import React, { useContext, useEffect, useSyncExternalStore } from 'react'
+import React, { useContext, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { RECORDING_FOOTER, subscribeVoice, TRANSCRIBING_FOOTER, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { desktopSnapshot, drivingFooter, subscribeDesktop } from '../../services/desktop/desktopSession.js'
 import { armDesktopClaimPoll, desktopClaimFileSnapshot, subscribeDesktopClaimFile } from '../../services/desktop/desktopClaim.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { useClaim } from '../../hooks/effects.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
 import { usePrStatus } from '../../hooks/usePrStatus.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
@@ -108,7 +109,7 @@ export function PromptInputFooterLeftSide({
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const desktop = useSyncExternalStore(subscribeDesktop, desktopSnapshot, desktopSnapshot)
   const desktopFile = useSyncExternalStore(subscribeDesktopClaimFile, desktopClaimFileSnapshot, desktopClaimFileSnapshot)
-  useEffect(() => {
+  useClaim(() => {
     armDesktopClaimPoll(isLoading)
     return () => armDesktopClaimPoll(false)
   }, [isLoading])
@@ -117,7 +118,7 @@ export function PromptInputFooterLeftSide({
   const escapeOwned = useEscapeOwned()
   const criticalNotice = exitPending || isPasting || voice.phase === 'recording' || voice.phase === 'transcribing' || (driving !== null && isLoading) || (compact && searchField !== undefined)
   const requestedRows = criticalNotice ? 1 : compact ? blockRows : 0
-  useEffect(() => {
+  useClaim(() => {
     reportNotice?.(requestedRows)
     return () => reportNotice?.(0)
   }, [reportNotice, requestedRows])

@@ -1,5 +1,6 @@
 
-import React, { createContext, useCallback, useContext, useLayoutEffect, useMemo } from 'react'
+import React, { createContext, useCallback, useContext, useMemo } from 'react'
+import { useLayoutClaim } from '../hooks/effects.js'
 import type { Key } from '../ink/events/input-event.js'
 import { getPlatform } from '../utils/platform.js'
 import { getBindingDisplayText, resolveKeyWithChordState, type ChordResolveResult } from './resolver.js'
@@ -146,7 +147,7 @@ export function useRegisterKeybindingContext(context: KeybindingContextName, isA
   const value = useContext(KeybindingContext)
   const register = value?.registerActiveContext
   const unregister = value?.unregisterActiveContext
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (!isActive || !register || !unregister) return
     register(context)
     return () => {

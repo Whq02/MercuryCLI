@@ -36,6 +36,7 @@ import { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import { useFlatList } from '../../mercury-ui/useFlatList.js'
 import { popupListWindow, PopupListViewport, usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { useEngineModel } from '../../../hooks/useEngineModel.js'
+import { usePublish } from '../../../hooks/effects.js'
 import TextInput from '../../TextInput.js'
 import { getAgentSourceDisplayName } from '../utils.js'
 import { agentModelAvailabilityNote } from '../../../utils/model/agentModelPicker.js'
@@ -123,7 +124,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
 
   const reloadRef = React.useRef(fl.reload)
   reloadRef.current = fl.reload
-  React.useEffect(() => {
+  usePublish(() => {
     reloadRef.current()
   }, [query, tab, filter, agentDefinitions])
 

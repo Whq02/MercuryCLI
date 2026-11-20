@@ -1,7 +1,8 @@
 import { homedir } from 'node:os'
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Box, Text } from '../../../ink.js'
+import { useLoad } from '../../../hooks/effects.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
@@ -70,7 +71,7 @@ export function AccountView({
   const [identities, setIdentities] = useState<Identities>({})
   const armedRemovalRef = useRef<{ id: string; at: number } | null>(null)
 
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     void import('../../../services/providers/providerDiscovery.js')
       .then(m => m.refreshProviderDiscovery('local'))
@@ -88,7 +89,7 @@ export function AccountView({
   const scopeSlots = groups.flatMap(group => group.slots.filter(slot => slot.scope !== undefined))
   const [, setUsageVersion] = useState(0)
   const usageFamiliesKey = groups.filter(group => group.slots.some(slot => slot.active && slot.signedIn)).map(group => group.family.id).join('|')
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     for (const group of groups) {
       if (!group.slots.some(slot => slot.active && slot.signedIn)) continue
@@ -100,7 +101,7 @@ export function AccountView({
   }, [usageFamiliesKey])
 
   const scopeDirsKey = scopeSlots.map(slot => slot.id).join('|')
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     for (const slot of scopeSlots) {
       if (slot.scope!.foreignHarness) continue

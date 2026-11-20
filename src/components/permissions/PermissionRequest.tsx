@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useContext, useEffect } from 'react'
+import { useContext } from 'react'
+import { useClaim } from '../../hooks/effects.js'
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { armComposerSeed } from '../../utils/cockpit/composerSeed.js'
@@ -100,15 +101,15 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
     { context: 'Confirmation' },
   )
 
-  useEffect(() => armPermissionFocus(), [])
+  useClaim(() => armPermissionFocus(), [])
 
   const ink = useContext(InkInstanceContext)
-  useEffect(() => ink?.registerArrowKeyOwner(() => true), [ink])
+  useClaim(() => ink?.registerArrowKeyOwner(() => true), [ink])
 
   useKeysHeldUntilFirstPaint()
 
   const isQuestionCard = toolUseConfirm.tool === AskUserQuestionTool
-  useEffect(() => {
+  useClaim(() => {
     if (isQuestionCard) return undefined
     return armComposerSeed()
   }, [isQuestionCard])

@@ -1,6 +1,7 @@
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { AppState } from '../../state/AppStateStore.js'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { enqueueNotification } from '../../context/notifications.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
@@ -48,7 +49,7 @@ export function useKickOffCheckAndDisableSovereignIfNeeded(): void {
   )
   const setAppState = useSetAppState()
   const started = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     if (started.current) return
     started.current = true
     if (getIsRemoteMode()) return

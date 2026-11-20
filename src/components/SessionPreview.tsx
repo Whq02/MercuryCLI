@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import type { SessionListing } from '../types/logs.js'
@@ -7,6 +7,7 @@ import { Messages } from './Messages.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useLoad } from '../hooks/effects.js'
 import { getTools } from '../tools.js'
 import { getEmptyToolPermissionContext } from '../Tool.js'
 import { deserializeMessages } from '../utils/conversationRecovery.js'
@@ -34,7 +35,7 @@ export function SessionPreview({
     [columns, cardHeight],
   )
 
-  useEffect(() => {
+  useLoad(() => {
     if (!isLiteListing(log)) {
       setFullLog(log)
       return

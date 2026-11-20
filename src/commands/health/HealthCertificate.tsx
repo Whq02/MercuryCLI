@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Box, Text, useInput, wrapText } from '../../ink.js'
 import type { DOMElement } from '../../ink.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
@@ -17,6 +17,7 @@ import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { PopupFrameContext } from '../../components/PopupGutter.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { useLayoutPublish, useLoad } from '../../hooks/effects.js'
 import type { CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
 import { settingsPopupCompact } from '../../utils/cockpit/settingsPopup.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
@@ -306,7 +307,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
     setRunToken(t => t + 1)
   }, [])
 
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     const ac = new AbortController()
     const acc = new Map<string, HealthSection>()
@@ -351,7 +352,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
   const scrollRef = React.useRef<ScrollBoxHandle>(null)
   const selRowRef = React.useRef<DOMElement | null>(null)
   const pageRowsRef = React.useRef(8)
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     const box = scrollRef.current
     if (!box) return
     if (sel === 0) {

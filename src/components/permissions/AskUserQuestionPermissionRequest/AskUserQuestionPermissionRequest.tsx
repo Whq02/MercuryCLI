@@ -1,5 +1,6 @@
 import type { ContentBlockParam } from '../../../types/wire.js'
-import React, { Suspense, use, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { Suspense, use, useCallback, useRef, useState, useSyncExternalStore } from 'react'
+import { usePublish } from '../../../hooks/effects.js'
 import { useSettings } from '../../../hooks/useSettings.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { stringWidth } from '../../../ink/stringWidth.js'
@@ -170,7 +171,7 @@ function AskUserQuestionPermissionRequestBody(
     (blocks: ContentBlockParam[] | undefined): InterviewBoundary => ({
       onAllow: updatedInput =>
         toolUseConfirm.onAllow(
-          updatedInput as never,
+          updatedInput,
           [],
           undefined,
           blocks && blocks.length > 0 ? blocks : undefined,
@@ -344,7 +345,7 @@ function AskUserQuestionPermissionRequestBody(
 
   const handleTextInputFocus = useCallback((isIn: boolean) => setIsInTextInput(isIn), [])
 
-  useEffect(() => {
+  usePublish(() => {
     void session.phase
   }, [session.phase])
 

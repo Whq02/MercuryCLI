@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useRef } from 'react'
+import { useLoad } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import { exitNoteCharsKept, exitNoteDue, HANDOFF_EXIT_NOTICE, leaveNoteBeforeExit, type ExitNoteOutcome } from '../mneme/exitHandoff.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
@@ -30,7 +31,7 @@ export function ExitHandoff({ onSettled }: { onSettled: (receipt: ExitNoteReceip
     settled.current = true
     onSettled(receipt)
   }
-  useEffect(() => {
+  useLoad(() => {
     leaveNoteAtExit(controller.current.signal).then(settle, () => settle({ note: 'none' }))
   }, [])
   useInput((input, key) => {

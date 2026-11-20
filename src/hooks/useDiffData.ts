@@ -1,5 +1,6 @@
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useLoad } from './effects.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
 import {
   fetchGitDiff,
@@ -71,7 +72,7 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
   const specRef = useRef(spec)
   specRef.current = spec
 
-  useEffect(() => {
+  useLoad(() => {
     let dropped = false
     setData(prev => ({ ...prev, loading: true }))
     void (async () => {

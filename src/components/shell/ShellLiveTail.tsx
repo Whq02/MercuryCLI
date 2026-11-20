@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import { useRealTerminalSize, useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useElapsedTime } from '../../hooks/useElapsedTime.js'
+import { useTimer } from '../../hooks/effects.js'
 import { tailFileSync } from '../../utils/fsOperations.js'
 import { useFocusedWorkRows } from '../tasks/useFocusedWork.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
@@ -24,7 +25,7 @@ function RunningShellTail({ shell }: { shell: WorkRowV1 }): React.ReactNode {
   const { rows } = useTerminalSize()
   const [output, setOutput] = useState(() => readOutput(shell.outputFile))
   const elapsed = useElapsedTime(shell.startTime, true, 1000)
-  useEffect(() => {
+  useTimer(() => {
     setOutput(readOutput(shell.outputFile))
     const timer = setInterval(() => setOutput(readOutput(shell.outputFile)), 200)
     return () => clearInterval(timer)

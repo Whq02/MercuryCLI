@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
 import { setupTerminal, shouldOfferTerminalSetup } from '../commands/keysetup/keysetup.js'
+import { usePublish } from '../hooks/effects.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text, usePreviewTheme, useTheme, useThemeSetting } from '../ink.js'
@@ -126,7 +127,7 @@ function ThemeFitting({
     ],
   })
 
-  useEffect(() => {
+  usePublish(() => {
     const row = THEME_ROWS[selectedIndex]
     if (row) setPreviewTheme(row.value)
   }, [selectedIndex, setPreviewTheme])
