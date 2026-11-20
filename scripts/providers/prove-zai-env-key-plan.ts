@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { readFileSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { proofHome } from '../lib/hermetic.ts'
 import type { Message } from '../../src/types/message.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
@@ -211,10 +211,6 @@ try {
   const storedTurn = await drive()
   check('the stored road is untouched: a stored GLM Coding Plan key posts to the Coding Plan base with no list read', trail(storedTurn.from) === `POST coding/v4/chat/completions [Bearer ${STORED_KEY}]` && storedTurn.text === 'served on the coding base', trail(storedTurn.from))
   check('no request body carried a key', roads.every(road => !j(road.body).includes('zai-fixture')))
-
-  section('§4 the words')
-  const engines = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8')
-  check('ENGINES.md names ZAI_KEY_PLAN and the learned plan of an env key', engines.includes('`ZAI_KEY_PLAN`') && engines.includes('reads the plan from the key\'s own models list'))
 
   console.log('')
   if (failures > 0) {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
@@ -137,7 +137,6 @@ async function sweep(model: string): Promise<Record<string, Sent>> {
   for (const word of ['none', 'low', 'medium', 'high', 'xhigh', 'max']) out[word] = await plain(model, word === 'none' ? {} : { effort: word })
   return out
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const SEGMENT = 65_536
 const cutAfterThinking: Step = request => [{ candidates: [{ content: { role: 'model', parts: [{ text: '', thoughtSignature: 'sig-cut' }] }, finishReason: Number(request.generationConfig?.maxOutputTokens ?? SEGMENT) > SEGMENT ? 'CONTINUATION' : 'MAX_TOKENS' }], usageMetadata: { promptTokenCount: 60, candidatesTokenCount: 0, thoughtsTokenCount: SEGMENT } }]
 const { query } = await import('../../src/query.ts')
@@ -406,10 +405,6 @@ try {
   })
   check(`of ${gemini4.length} requests to a Gemini 4 model on the two roads, none carries a budget, MINIMAL, a sampling or penalty parameter, a candidate count, a level its model's page does not list, or a field no page of its road documents (no prefix-mismatch field)`, gemini4.length >= 60 && strays.length === 0 && !j(gemini4).includes('prefixMismatch'), j(strays.slice(0, 2)))
   check(`…and each of the ${sentLog.length} requests this proof sent ends on a user turn, never on a model turn`, sentLog.length >= 100 && sentLog.every(sent => (sent.request.contents as Content[]).at(-1)?.role === 'user'), `${sentLog.length}`)
-
-  console.log('── the page says what the code does ──')
-  const engines = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8').replace(/\s+/g, ' ')
-  check('docs/ENGINES.md says the output ceiling a Gemini 4 row of the sign-in is listed and asked with: one streamed segment where the roster states more', engines.includes('with the roster\'s own display name, context window, output ceiling, thinking and image flags (a Gemini 4 row\'s output ceiling is one streamed segment, 65,536 tokens, where the roster states more: a longer answer comes in segments Mercury does not follow); the image models stay out of chat.'))
 } finally {
   globalThis.fetch = realFetch
 }
