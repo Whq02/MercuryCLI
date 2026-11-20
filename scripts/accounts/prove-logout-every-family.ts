@@ -2,7 +2,8 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -183,6 +184,40 @@ section('§2 performLogout — every store empties through the one owner')
   }
 }
 
+section('§3 a family whose auth file cannot be read — it is named, the others are signed out, and the terminal verb exits 1')
+if (process.platform === 'win32' || (typeof process.getuid === 'function' && process.getuid() === 0)) {
+  console.log('  [SKIP] the refused family — a mode-0200 file needs a POSIX process that is not root')
+} else {
+  const { performLogout } = await import('../../src/commands/logout/logout.js')
+  const hfPath = huggingface.huggingfaceAuthPathForDisplay()
+  const held = JSON.stringify({ version: 1, tokens: { accessToken: 'hf-fixture-access', refreshToken: 'hf-fixture-refresh', accessTokenExpiresAtMs: far } }, null, 2) + '\n'
+  const words = `Could not sign out: The Hugging Face auth file at ${hfPath} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
+  const seed = (): void => {
+    secrets.writeStoredGeminiApiKey('fixture-gemini')
+    moonshot.writeMoonshotTokens({ accessToken: 'kimi-fixture-access', refreshToken: 'kimi-fixture-refresh', accessTokenExpiresAtMs: far }, 'global')
+    writeFileSync(hfPath, held, { mode: 0o600 })
+    chmodSync(hfPath, 0o200)
+  }
+  const othersSignedOut = (): boolean => authFile('.provider-secrets.json').geminiApiKey === undefined && authFile('.moonshot-auth.json').tokens === undefined
+
+  seed()
+  const refused: unknown = await performLogout()
+  chmodSync(hfPath, 0o600)
+  check('performLogout answers the one family it could not sign out, in the sign-out\'s own sentence', JSON.stringify(refused) === JSON.stringify([words]), `answered ${JSON.stringify(refused)}`)
+  check('that family\'s file stands byte for byte, and the other families are signed out', readFileSync(hfPath, 'utf8') === held && othersSignedOut())
+
+  seed()
+  const verb = spawnSync(process.execPath, ['-e', `
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+    enableConfigs()
+    const { authLogout } = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/auth.ts'))})
+    await authLogout()
+  `], { encoding: 'utf8', env: process.env })
+  chmodSync(hfPath, 0o600)
+  check('mercury auth logout says it on the error stream, does not say Signed out, and exits 1', verb.status === 1 && verb.stderr.includes(words) && !verb.stdout.includes('Signed out'), `exit ${verb.status} · stdout ${JSON.stringify(verb.stdout.slice(-200))} · stderr ${JSON.stringify(verb.stderr.slice(-400))}`)
+  check('…the file stands and the other families are signed out', readFileSync(hfPath, 'utf8') === held && othersSignedOut())
+}
 
 try {
   rmSync(scratch, { recursive: true, force: true })

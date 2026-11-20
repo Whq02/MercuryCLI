@@ -265,6 +265,33 @@ else {
   check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
 }
 
+console.log('\nthe terminal sign-out of one family — a file that cannot be read is named with exit 1, and a file that is not valid JSON is kept aside')
+if (!POSIX_MODES) skip('the refused terminal sign-out', 'a mode-0200 file needs a POSIX process that is not root')
+else {
+  for (const family of FAMILIES) {
+    const full = JSON.stringify(family.full, null, 2) + '\n'
+    const broken = full.slice(0, -9)
+    const signOut = (prepare: string): Record<string, unknown> => runIn(family, `
+      const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+      const said = { out: '', err: '', exit: null }
+      fs.mkdirSync(dir, { recursive: true })
+      ${prepare}
+      await cli.providerAuthLogout(${JSON.stringify(family.id)}, { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
+      fs.chmodSync(file, 0o600)
+      out.said = said
+      out.now = raw(file)
+      out.kept = asides().map(name => raw(path.join(dir, name)))
+    `)
+    const unread = signOut(`fs.writeFileSync(file, FULL, { mode: 0o600 }); fs.chmodSync(file, 0o200)`)
+    const said = unread.said as { out: string; err: string; exit: number | null }
+    const words = `Could not sign out: The ${family.label} auth file at ${String(unread.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
+    check(`${family.label}: the sign-out of the family names the file it could not read on the error stream and exits 1, and the file stands`, said.err === `${words}\n` && said.out === '' && said.exit === 1 && unread.now === full, `${JSON.stringify(said)} · file ${unread.now === full ? 'kept' : 'replaced'}`)
+    const unusable = signOut(`fs.writeFileSync(file, ${JSON.stringify(broken)}, { mode: 0o600 })`)
+    const kept = unusable.kept as unknown[]
+    check(`${family.label}: a file that is not valid JSON is kept aside by the sign-out of the family, every byte`, kept.length === 1 && kept[0] === broken && typeof unusable.now === 'string' && !unusable.now.includes(family.secret), `${kept.length} kept aside · ${JSON.stringify(unusable.said)}`)
+  }
+}
+
 console.log('\na key sign-in that the auth file refuses — nothing of it is stored, so the receipt is true')
 if (!POSIX_MODES) skip('the refused key sign-in', 'a mode-0200 file needs a POSIX process that is not root')
 else {

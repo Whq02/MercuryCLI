@@ -27,7 +27,7 @@ function clearAuthRelatedCaches(): void {
 
 export async function performLogout({
   clearOnboarding = false,
-}: { clearOnboarding?: boolean } = {}): Promise<void> {
+}: { clearOnboarding?: boolean } = {}): Promise<string[]> {
   try {
     const tokens = getClaudeAIOAuthTokens()
     if (tokens?.refreshToken) {
@@ -42,7 +42,7 @@ export async function performLogout({
   clearScopeIdentitySnapshot(getMercuryHome())
   forgetScopeIdentity()
 
-  signOutEveryEngineCredential()
+  const refused = signOutEveryEngineCredential()
 
   try {
     const { resetLimitsForCredentialSwitch } = await import('../../services/anthropicLimits.js')
@@ -64,6 +64,7 @@ export async function performLogout({
     }
     return next
   })
+  return refused
 }
 
 const SHUTDOWN_DELAY_MS = 200
