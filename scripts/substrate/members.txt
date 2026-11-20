@@ -60,3 +60,4 @@ prove-lean-is-the-sessions-stamp.ts
 prove-deadline-door.ts
 prove-deadlines-d06.ts
 prove-deadlines-d04.ts
+prove-deadlines-d01.ts

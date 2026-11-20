@@ -53,7 +53,6 @@ Promise.race	src/daemon/workerParentWatch.ts	1	deadline 1
 Promise.race	src/main/runLaunch.ts	1	deadline 1
 Promise.race	src/mneme/lineageSession.ts	1	deadline 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
-Promise.race	src/services/browser/session/navigation.ts	2	deadline 2
 Promise.race	src/services/eval/procKernel.ts	1	events 1
 Promise.race	src/services/host/door.ts	1	events 1
 Promise.race	src/services/journeys/runner.ts	1	deadline 1
@@ -61,9 +60,7 @@ Promise.race	src/services/lsp/LSPClient.ts	1	events 1
 Promise.race	src/services/lsp/LSPServerInstance.ts	1	deadline 1
 Promise.race	src/services/lsp/firstCallServer.ts	1	deadline 1
 Promise.race	src/services/mcp/client.ts	2	deadline 2
-Promise.race	src/services/mcp/client/limits.ts	1	deadline 1
 Promise.race	src/services/oauth/index.ts	1	events 1
-Promise.race	src/services/privateChannel/channelTransport.ts	3	deadline 3
 Promise.race	src/services/providers/cerebras/cerebrasCallModel.ts	1	events 1
 Promise.race	src/services/providers/cohere/cohereCallModel.ts	1	events 1
 Promise.race	src/services/providers/fireworks/fireworksCallModel.ts	1	events 1
@@ -77,17 +74,12 @@ Promise.race	src/services/providers/qwen/qwenCallModel.ts	1	events 1
 Promise.race	src/services/providers/together/togetherCallModel.ts	1	events 1
 Promise.race	src/services/providers/xai/xaiCallModel.ts	1	events 1
 Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
-Promise.race	src/services/switchboard/hopIntoSession.ts	2	deadline 2
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
 Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
-Promise.race	src/tools/BrowserTool/browser/page.ts	1	deadline 1
-Promise.race	src/tools/BrowserTool/browser/settle.ts	5	deadline 5
-Promise.race	src/tools/BrowserTool/browser/upload.ts	1	deadline 1
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	2	deadline 1 · events 1
 Promise.race	src/utils/attachments/mentionResolvers.ts	1	deadline 1
 Promise.race	src/utils/attachments/orchestrator.ts	1	deadline 1
-Promise.race	src/utils/exitCliffDrain.ts	1	deadline 1
 Promise.race	src/utils/generators.ts	1	events 1
 Promise.race	src/utils/health/sections/interface.ts	1	deadline 1
 Promise.race	src/utils/healthReport.ts	1	deadline 1
@@ -105,7 +97,7 @@ startInterval	src/components/Spinner.tsx	1	clock 1
 startInterval	src/components/concourse/SessionWaitingRoom.tsx	1	clock 1
 startInterval	src/components/concourse/liveTiles.ts	1	clock 1
 startInterval	src/components/concourse/route/useConcourseSnapshot.ts	1	clock 1
-startInterval	src/components/concourse/workerTranscriptFold.ts	2	poll-loop 1 · periodic 1
+startInterval	src/components/concourse/workerTranscriptFold.ts	1	periodic 1
 startInterval	src/components/mercury-ui/parity/DaemonView.tsx	1	clock 1
 startInterval	src/components/permissions/PermissionExplanation.tsx	1	clock 1
 startInterval	src/components/shell/ShellLiveTail.tsx	1	clock 1
