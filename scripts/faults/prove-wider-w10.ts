@@ -232,5 +232,37 @@ console.log('\n§4 w10-4 — cockpit heartbeat reports whether it landed and bea
   check('w10-4: beatCockpitRegistration retries failed initial registration and failed heartbeat', r.hasBeatHelper === true && r.recoveredFromNull === true && r.recoveredFromMiss === true && r.registerCalls === 2, JSON.stringify(r))
 }
 
+console.log('\n§5 w10-5 — daemon status reports unreadable or damaged daemon record instead of not running')
+{
+  const r = runScenario(`
+    const { mkdirSync, rmSync, writeFileSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    const { daemonStatePath } = await import(SRC + '/daemon/controlSocket.ts')
+    const { formatMercuryDaemonStatus, getMercuryDaemonStatus } = await import(SRC + '/daemon/status.ts')
+    const statePath = daemonStatePath()
+    out.statePath = statePath
+    const absent = await getMercuryDaemonStatus()
+    out.absentErr = absent.daemonRecordError ?? null
+    out.absentText = formatMercuryDaemonStatus(absent)
+
+    mkdirSync(dirname(statePath), { recursive: true })
+    writeFileSync(statePath, '{not json')
+    const corrupt = await getMercuryDaemonStatus()
+    out.corruptErr = corrupt.daemonRecordError ?? null
+    out.corruptText = formatMercuryDaemonStatus(corrupt)
+
+    rmSync(statePath, { force: true })
+    mkdirSync(statePath, { recursive: true })
+    const unreadable = await getMercuryDaemonStatus()
+    out.unreadableErr = unreadable.daemonRecordError ?? null
+    out.unreadableText = formatMercuryDaemonStatus(unreadable)
+  `)
+  const statePath = String(r.statePath ?? '')
+  const prefix = `the daemon record at ${statePath} could not be read (`
+  check('w10-5: absent record still says not running with no error', r.absentErr === null && String(r.absentText ?? '').includes('not running'), JSON.stringify({ err: r.absentErr, text: r.absentText }))
+  check('w10-5: corrupt record reports unreadable daemon record sentence', typeof r.corruptErr === 'string' && r.corruptErr.startsWith(prefix) && String(r.corruptText ?? '').includes(prefix) && !String(r.corruptText ?? '').includes('not running'), JSON.stringify({ err: r.corruptErr, text: r.corruptText }))
+  check('w10-5: unreadable record reports unreadable daemon record sentence', typeof r.unreadableErr === 'string' && r.unreadableErr.startsWith(prefix) && String(r.unreadableText ?? '').includes(prefix) && !String(r.unreadableText ?? '').includes('not running'), JSON.stringify({ err: r.unreadableErr, text: r.unreadableText }))
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
