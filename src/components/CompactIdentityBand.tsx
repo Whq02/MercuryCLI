@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Box, Text } from '../ink.js'
+import { useLoad } from '../hooks/effects.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { compactBandForm } from './mercury-ui/geometry.js'
@@ -73,7 +74,7 @@ export function CompactIdentityBand(): React.ReactNode {
   const cwd = useFocusedWorkspaceCwd()
   const viewed = useViewedCrewmate()
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     setGit(null)
     gitSnapshot().then(snapshot => alive && setGit(snapshot))
