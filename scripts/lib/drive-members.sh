@@ -17,8 +17,14 @@ members_cat() {
 
 drive_member_run() {
   local suite="$1" f="$2" name="$3" skip="${4:-}" rest="${5:-}" form="${6:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
+  local root="$PWD" i var
   local -a words=()
-  read -r -a words <<<"${rest//\$root/$PWD}"
+  read -r -a words <<<"$rest"
+  for i in "${!words[@]}"; do
+    [[ "${words[$i]}" =~ ^(.*)\$([A-Za-z_][A-Za-z0-9_]*)(.*)$ ]] || continue
+    var="${BASH_REMATCH[2]}"
+    words[$i]="${BASH_REMATCH[1]}${!var-}${BASH_REMATCH[3]}"
+  done
   printf '── %s: %s\n' "$suite" "$name${rest:+ $rest}"
   case "$name" in
     (*.py) /usr/bin/python3 "$f" ${words[@]+"${words[@]}"} || rc=$? ;;
