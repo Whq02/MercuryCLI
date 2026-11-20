@@ -2,7 +2,8 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -13,7 +14,7 @@ function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)
 }
 
-const HERE = import.meta.dir
+const HERE = dirname(fileURLToPath(import.meta.url))
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
@@ -123,6 +124,33 @@ if (!POSIX_MODES) {
   check(
     'strike-pending-unreadable-dir',
     result.ok === false && result.code === 'error' && /EACCES/i.test(result.message ?? '') && r.stillThere === true,
+    JSON.stringify(r),
+  )
+}
+console.log('\nsrc/mneme/mnemeFrontPage.ts')
+if (!POSIX_MODES) {
+  skip('front-page-unreadable-throws', 'needs non-root POSIX chmod')
+} else {
+  const r = runCase(`
+    const fp = await import(path.join(SRC, 'mneme/mnemeFrontPage.ts'))
+    const dir = path.join(home, 'mneme-front-page-test')
+    fs.mkdirSync(dir, { recursive: true })
+    out.absent = fp.readFrontPage(dir)
+    const file = fp.frontPagePath(dir)
+    fs.writeFileSync(file, '# Memory\\n', { mode: 0o600 })
+    fs.chmodSync(file, 0o200)
+    try {
+      out.unreadable = fp.readFrontPage(dir)
+    } catch (e) {
+      out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+    } finally {
+      fs.chmodSync(file, 0o600)
+    }
+  `)
+  const threw = r.threw as { code: string | null; message: string } | undefined
+  check(
+    'front-page-unreadable-throws',
+    r.absent === null && threw?.code === 'EACCES',
     JSON.stringify(r),
   )
 }
