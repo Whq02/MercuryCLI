@@ -163,7 +163,10 @@ export async function* compatChatCallModel(
       if (fresh !== null) recovery = 'no-new-credential'
     }
     const verdict = yield* retries.afterFault(outcome.fault, { typed, retryEligible: outcome.retryEligible, invisibleOnly: outcome.invisibleOnly === true })
-    if (verdict.kind === 'again') continue
+    if (verdict.kind === 'again') {
+      if (outcome.afterPartial === true) options.onStreamingFallback?.()
+      continue
+    }
     if (verdict.kind === 'cancelled') return
     if (verdict.kind === 'stream-reconnect-spent') {
       try {
