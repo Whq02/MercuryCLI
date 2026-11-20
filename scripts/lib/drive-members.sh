@@ -43,7 +43,7 @@ drive_members() {
   while read -r name rest; do
     case "$name" in (''|'#'*) continue ;; esac
     [ -n "$only" ] && [ "$name" != "$only" ] && continue
-    case "$name" in (scripts/*) f="$name" ;; (*) f="${template//\$name/$name}" ;; esac
+    case "${name%%/*}" in (scripts) f="$name" ;; (*) f="${template//\$name/$name}" ;; esac
     if [ ! -e "$f" ]; then
       printf '❌ %s: member %s has no file at %s — a stale member row is a red, never a silent skip\n' "$suite" "$name" "$f"
       failed=1
