@@ -119,6 +119,35 @@ async function main(): Promise<void> {
       check('restoreAgentFromTrash reports io error instead of source-missing when trash dir is unreadable', errCode === 'io', `got ${errCode}`)
     }
   })
+
+  await runRow('watch: keeps probing a newly created root whose first readdir fails until it becomes readable', async () => {
+    if (!POSIX_MODES) return
+    const watch = await import('../../src/services/agents/watch.js')
+    const proj = join(SCRATCH, 'watch-proj')
+    const agentsDir = join(proj, '.mercury', 'agents')
+    mkdirSync(proj, { recursive: true })
+    watch.setAgentWatchTimingForTests({ rootProbeIntervalMs: 40, reloadDebounce: 20, stabilityThreshold: 20, pollInterval: 20, chokidarInterval: 50 })
+    let emitted = 0
+    const unsub = watch.subscribeAgentsChanged(() => { emitted++ })
+    try {
+      await watch.startAgentWatch(proj)
+      mkdirSync(agentsDir, { recursive: true })
+      writeFileSync(join(agentsDir, 'late.md'), '---\nname: late\ndescription: late\n---\nbody\n')
+      chmodSync(agentsDir, 0o000)
+      await new Promise(r => setTimeout(r, 120))
+      chmodSync(agentsDir, 0o700)
+      const deadline = Date.now() + 1200
+      while (emitted === 0 && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 30))
+      }
+      check('agentsChanged fires once unreadable new root becomes readable', emitted > 0, `emitted=${emitted}`)
+    } finally {
+      chmodSync(agentsDir, 0o700)
+      unsub()
+      await watch.stopAgentWatch()
+      watch.setAgentWatchTimingForTests(null)
+    }
+  })
 }
 
 try {
