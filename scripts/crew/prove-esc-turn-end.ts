@@ -21,7 +21,7 @@ const { getQueuedCommandAttachments } = await import('../../src/utils/attachment
 await import('../../src/tasks.js')
 const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { getRunningTasks } = await import('../../src/utils/task/framework.js')
-const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
+const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.js')
 const { resetCommandQueue } = await import('../../src/input-core/command-queue.js')
 
 let failures = 0

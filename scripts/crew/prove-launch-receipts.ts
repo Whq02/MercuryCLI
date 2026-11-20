@@ -366,7 +366,7 @@ section("R8d · a resume reads the live owner right before it registers")
 section('R8e · every non-terminal row has a live owner; the exit card counts what is alive, by kind, and names where to see it')
 {
   const fw = await import('../../src/utils/task/framework.ts')
-  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
   const { workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
   const { registerMainSessionTask } = await import('../../src/tasks/LocalMainSessionTask.ts')
   const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
@@ -402,7 +402,7 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
 section("R8f · the interrupt receipt counts what the crew view lists: a settled agent is not counted")
 {
   const crew = (await import('../../src/services/engine-connector/crewFacts.ts')) as { crewStillRunningLine: Function }
-  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
   const { workCounts, workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
   const { completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
   const store = makeStore()

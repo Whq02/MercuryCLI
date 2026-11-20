@@ -26,7 +26,7 @@ enableConfigs()
 const { createProgressTracker, getProgressUpdate, updateProgressFromMessage } = await import(
   '../../src/tasks/LocalAgentTask/LocalAgentTask.tsx'
 )
-const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
 const crew = await import('../../src/services/engine-connector/crewFacts.ts')
 const { rosterRowsOf, RosterWorkDetail } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
 const { modelPricingBasis } = await import('../../src/services/usage/modelCost.ts')
