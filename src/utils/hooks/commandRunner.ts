@@ -17,7 +17,7 @@ import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, getErrnoCode } from '../errors.js'
 import { pathExists } from '../file.js'
-import { getPlatform } from '../platform.js'
+import { hookBashSpawnSpec, hookCommandForShell, hookPathForShell } from '../platform/spawn.js'
 import { endProcessTree } from '../processGroup.js'
 import { getHookEnvFilePath, hookEventWritesEnvFile } from '../sessionEnvironment.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
@@ -83,9 +83,8 @@ function bounded(current: string, chunk: string): string {
 }
 
 async function prepareCommand(run: CommandHookRun): Promise<{ command: string; env: NodeJS.ProcessEnv; cwd: string }> {
-  const isWindows = getPlatform() === 'windows'
   const isPowerShell = run.shell === 'powershell'
-  const toHookPath = isWindows && !isPowerShell ? (p: string) => windowsPathToPosixPath(p) : (p: string) => p
+  const toHookPath = (p: string): string => hookPathForShell(p, run.shell, windowsPathToPosixPath)
   let command = run.command
   let extensionOptions: OptionValues | undefined
   const env: NodeJS.ProcessEnv = {
@@ -115,9 +114,8 @@ async function prepareCommand(run: CommandHookRun): Promise<{ command: string; e
   } else if (run.source.kind === 'skill') {
     stampFlagOnEnv(env, 'MERCURY_EXTENSION_ROOT', toHookPath(run.source.root))
   }
-  if (isWindows && !isPowerShell) command = winShHookCommand(command)
   const prefix = flagEnv('MERCURY_SHELL_PREFIX')
-  if (!isPowerShell && prefix) command = formatShellPrefixCommand(prefix, isWindows ? command : shStartLine(command))
+  command = hookCommandForShell(command, run.shell, prefix, { windowsSh: winShHookCommand, posixStartLine: shStartLine, formatPrefix: formatShellPrefixCommand })
   if (!isPowerShell && hookEventWritesEnvFile(run.event)) {
     stampFlagOnEnv(env, 'MERCURY_ENV_FILE', await getHookEnvFilePath(run.event, run.index))
   }
@@ -128,7 +126,6 @@ async function prepareCommand(run: CommandHookRun): Promise<{ command: string; e
 }
 
 async function spawnHook(run: CommandHookRun, prepared: { command: string; env: NodeJS.ProcessEnv; cwd: string }): Promise<ChildProcessWithoutNullStreams> {
-  const isWindows = getPlatform() === 'windows'
   if (run.shell === 'powershell') {
     const pwsh = await getCachedPowerShellPath()
     if (!pwsh) {
@@ -136,15 +133,15 @@ async function spawnHook(run: CommandHookRun, prepared: { command: string; env: 
     }
     return spawn(pwsh, buildPowerShellArgs(prepared.command), { env: prepared.env, cwd: prepared.cwd, windowsHide: true }) as ChildProcessWithoutNullStreams
   }
-  const shell = isWindows ? await hookBashShell(run.command) : true
-  if (typeof shell === 'string' && windowsBashRoad().kind !== 'engine') return spawnUnderWindowsBash(shell, prepared)
-  return spawn(prepared.command, [], { env: isWindows ? hookBashEnv(prepared.env) : prepared.env, cwd: prepared.cwd, shell, windowsHide: true }) as ChildProcessWithoutNullStreams
+  const spec = await hookBashSpawnSpec(run.command, prepared.env, { shell: hookBashShell, env: hookBashEnv })
+  if (typeof spec.shell === 'string' && windowsBashRoad().kind !== 'engine') return spawnUnderWindowsBash(spec.shell, { ...prepared, env: spec.env })
+  return spawn(prepared.command, [], { env: spec.env, cwd: prepared.cwd, shell: spec.shell, windowsHide: true }) as ChildProcessWithoutNullStreams
 }
 
 class HookNotHandedOver extends Error {}
 
 function spawnUnderWindowsBash(shell: string, prepared: { command: string; env: NodeJS.ProcessEnv; cwd: string }): ChildProcessWithoutNullStreams {
-  const options = { env: hookBashEnv(prepared.env), cwd: prepared.cwd, shell, windowsHide: true }
+  const options = { env: prepared.env, cwd: prepared.cwd, shell, windowsHide: true }
   if (msysArgvCarries(prepared.command, options.env)) return spawn(protectBackslashRunsFromMsysArgv(prepared.command), [], options) as ChildProcessWithoutNullStreams
   const file = join(tmpdir(), `mercury-hook-${randomBytes(6).toString('hex')}`)
   const mark = randomBytes(6).toString('hex')

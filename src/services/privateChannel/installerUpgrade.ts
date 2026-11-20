@@ -5,6 +5,7 @@ import type { LayoutRoots } from './installLayout.js'
 import { commandOnPath } from './installPath.js'
 import { NIX_UPDATE_WORDS, type ForeignInstaller } from './installProvenance.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { shellBinarySpec, shellCommandSpec } from '../../utils/platform/spawn.js'
 
 const CONSENT_SUFFIX = ' [y/N] '
 
@@ -47,16 +48,13 @@ type InstallerRunOutcome =
 
 function startCommand(argv: string[], stdio: StdioOptions): ReturnType<typeof spawn> {
   const env = subprocessEnv()
-  if (process.platform === 'win32') {
-    return spawn(hostEnv().ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${argv.join(' ')}"`], {
-      stdio,
-      env,
-      windowsVerbatimArguments: true,
-      windowsHide: true,
-    })
-  }
-  const [file, ...args] = argv
-  return spawn(file ?? '', args, { stdio, env, windowsHide: true })
+  const spec = shellCommandSpec(argv, hostEnv().ComSpec)
+  return spawn(spec.file, spec.args, {
+    stdio,
+    env,
+    ...(spec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+    windowsHide: true,
+  })
 }
 
 export function runInstallerUpgrade(installer: ForeignInstaller & { updateCommand: string }, opts: { stdoutTo: 'inherit' | 'stderr' }): Promise<InstallerRunOutcome> {
@@ -79,8 +77,9 @@ type VersionAfterUpgrade =
 
 function versionOutput(command: string): string {
   const env = subprocessEnv()
-  if (process.platform === 'win32') {
-    const r = spawnSync(hostEnv().ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `""${command}" --version"`], {
+  const spec = shellBinarySpec(command, ['--version'], hostEnv().ComSpec)
+  if (spec.windowsVerbatimArguments) {
+    const r = spawnSync(spec.file, spec.args, {
       encoding: 'utf8',
       timeout: 60_000,
       env,
@@ -90,7 +89,7 @@ function versionOutput(command: string): string {
     if (r.error) throw r.error
     return String(r.stdout ?? '')
   }
-  return execFileSync(command, ['--version'], { encoding: 'utf8', timeout: 60_000, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+  return execFileSync(spec.file, spec.args, { encoding: 'utf8', timeout: 60_000, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
 }
 
 export function readVersionAfterUpgrade(roots: LayoutRoots): VersionAfterUpgrade {
