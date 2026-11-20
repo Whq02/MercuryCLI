@@ -149,17 +149,24 @@ async function readCredentialPresences(): Promise<CredentialReads> {
 }
 
 type CompatCredentialReader = ReturnType<typeof import('../providers/openaicompat/compatAccounts.js').compatCredentialReader>
-const UNREADABLE_COMPAT: CompatCredentialReader = { credentialed: () => false, refusalEndpoint: () => undefined }
-const compatReaders = new WeakMap<CredentialReads, CompatCredentialReader>()
-function compatReaderFor(credentials?: CredentialReads): CompatCredentialReader {
+type CompatReaderResult =
+  | { ok: true; reader: CompatCredentialReader }
+  | { ok: false; detail: string }
+const compatReaders = new WeakMap<CredentialReads, CompatReaderResult>()
+function compatReaderFor(credentials?: CredentialReads): CompatReaderResult {
   const held = credentials !== undefined ? compatReaders.get(credentials) : undefined
   if (held !== undefined) return held
-  let reader = UNREADABLE_COMPAT
+  let result: CompatReaderResult
   try {
-    reader = (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).compatCredentialReader()
-  } catch (error) { passedOver(error) }
-  if (credentials !== undefined) compatReaders.set(credentials, reader)
-  return reader
+    const reader = (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).compatCredentialReader()
+    result = { ok: true, reader }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    logForDebugging(`[worker-models] compat credential read failed: ${detail}`)
+    result = { ok: false, detail }
+  }
+  if (credentials !== undefined) compatReaders.set(credentials, result)
+  return result
 }
 
 function unrecognisedRefusalAction(): string {
@@ -208,7 +215,12 @@ function composeArms(
       return { session: refused, crew: refused }
     }
   }
-  const compat = route === 'openai-compat' ? compatReaderFor(credentials) : undefined
+  const compatResult = route === 'openai-compat' ? compatReaderFor(credentials) : undefined
+  if (compatResult !== undefined && !compatResult.ok) {
+    const refused: WorkerArmAvailabilityV1 = { availability: 'refused', refusal: 'not-runnable:compat-error', detail: compatResult.detail }
+    return { session: refused, crew: refused }
+  }
+  const compat = compatResult?.reader
   const credentialed = compat !== undefined ? compat.credentialed(modelId) : credentials.get(route) === true
   const compatEndpoint = compat !== undefined && !credentialed ? compat.refusalEndpoint(modelId) : undefined
   const session: WorkerArmAvailabilityV1 = credentialed
@@ -398,11 +410,23 @@ export async function validateWorkerModelChoice(
     if (idOrKey === 'local') {
       return { ok: false, reason: 'unreachable:local', detail: 'no local server is discovered on this box', action: loginsActionFor(idOrKey) }
     }
+    if (idOrKey === 'openai-compat') {
+      const compatResult = compatReaderFor()
+      if (!compatResult.ok) {
+        return { ok: false, reason: 'not-runnable:compat-error', detail: compatResult.detail }
+      }
+      return {
+        ok: false,
+        reason: `no-credential:${idOrKey}`,
+        detail: `the ${idOrKey} family holds no usable sign-in on this account`,
+        action: noCredentialAction(idOrKey, compatResult.reader.refusalEndpoint()),
+      }
+    }
     return {
       ok: false,
       reason: `no-credential:${idOrKey}`,
       detail: `the ${idOrKey} family holds no usable sign-in on this account`,
-      action: noCredentialAction(idOrKey, idOrKey === 'openai-compat' ? compatReaderFor().refusalEndpoint() : undefined),
+      action: noCredentialAction(idOrKey),
     }
   }
   const registry = await composeWorkerModelRegistry(reads)

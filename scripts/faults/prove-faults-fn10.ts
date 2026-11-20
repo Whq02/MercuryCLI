@@ -81,6 +81,24 @@ try {
       check('sessionTitleMint.transcriptHeadFacts throws on unreadable transcript', threw !== null, 'returned zero turns on EACCES')
     }
   }
+
+  console.log('3. src/services/concourse/workerModels.ts')
+  {
+    const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
+    const prevCompatUrl = process.env.MERCURY_COMPAT_BASE_URL
+    process.env.MERCURY_COMPAT_BASE_URL = 'not-a-url'
+    try {
+      const verdict = await validateWorkerModelChoice('openai-compat', 'session', { modelOptions: () => [] })
+      check(
+        'workerModels.compatReaderFor refuses with compat error instead of false no-credential',
+        !verdict.ok && verdict.reason === 'not-runnable:compat-error' && (verdict.detail ?? '').includes('compatProvider'),
+        JSON.stringify(verdict),
+      )
+    } finally {
+      if (prevCompatUrl === undefined) delete process.env.MERCURY_COMPAT_BASE_URL
+      else process.env.MERCURY_COMPAT_BASE_URL = prevCompatUrl
+    }
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
