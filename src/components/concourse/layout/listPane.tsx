@@ -14,6 +14,17 @@ import { NeedsYouRail } from '../NeedsYouRail.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'
 import { NEW_SESSION_ROW_ID, newSessionDoorWords, newSessionDoorTail, rowNeedsOperator, MORE_BEYOND_ROW, type ConcourseRegion, type SwitchboardGeometry, STATE_GLYPH, STATE_WORD, stateWordCell, type ConcourseLayoutWiring } from './shared.js'
 
+function sectionNoticeNodes(notices: readonly string[] | undefined, t: MercuryThemeTokens): React.ReactNode[] {
+  if (!notices || notices.length === 0) return []
+  return notices.map((notice, i) => (
+    <Box key={`notice:${i}`} flexShrink={0} paddingX={1}>
+      <Text color={t.warning} wrap="truncate-end">
+        {notice}
+      </Text>
+    </Box>
+  ))
+}
+
 function boardRowsOf({
   rightWidth,
   geo,
@@ -39,6 +50,7 @@ function boardRowsOf({
   stateCellShown,
   markedIds,
   rowPeekNode,
+  sectionNotices,
 }: {
   rightWidth: number
   geo: SwitchboardGeometry
@@ -64,6 +76,7 @@ function boardRowsOf({
   stateCellShown: boolean
   markedIds: ReadonlySet<string> | undefined
   rowPeekNode: ((rows: number, width: number) => React.ReactNode) | undefined
+  sectionNotices: readonly string[] | undefined
 }): React.ReactNode {
   const columnHeaderRow = (
     <Box key="columns" paddingX={1} flexShrink={0} height={1}>
@@ -110,6 +123,7 @@ function boardRowsOf({
             </InteractiveRow>
           </Box>
         ) : null}
+        {sectionNoticeNodes(sectionNotices, t)}
       </>
     )
   }
@@ -124,6 +138,7 @@ function boardRowsOf({
         <Box flexShrink={0} paddingX={1}>
           <Text color={t.textMuted}>esc clears the filter</Text>
         </Box>
+        {sectionNoticeNodes(sectionNotices, t)}
       </>
     )
   }
@@ -266,6 +281,7 @@ function boardRowsOf({
       </Box>,
     )
   }
+  out.push(...sectionNoticeNodes(sectionNotices, t))
   return out
 }
 
@@ -363,6 +379,7 @@ export function listPaneOf({
               </InteractiveRow>
             </Box>
           ))}
+          {sectionNoticeNodes(snapshot.sectionNotices, t)}
         </Box>
       ) : <>
       <Box flexShrink={0} paddingX={1} flexDirection="row" overflow="hidden">
@@ -434,7 +451,7 @@ export function listPaneOf({
           </>
         ) : null}
       </Box>
-      {boardRowsOf({ rightWidth, geo, t, filtering, filterText, interior, sessionRows, win, boardSelectedId, region, wiring, colProject, colAge, nowWidth, door, lineShown, lineSelected, boardGroups, showHeadings, groupRole, askBySession, stateCellShown, markedIds, rowPeekNode })}
+      {boardRowsOf({ rightWidth, geo, t, filtering, filterText, interior, sessionRows, win, boardSelectedId, region, wiring, colProject, colAge, nowWidth, door, lineShown, lineSelected, boardGroups, showHeadings, groupRole, askBySession, stateCellShown, markedIds, rowPeekNode, sectionNotices: snapshot.sectionNotices })}
       <Box flexGrow={1} />
       <Box flexDirection="column" flexShrink={0} paddingX={1} overflow="hidden">
         <NeedsYouRail

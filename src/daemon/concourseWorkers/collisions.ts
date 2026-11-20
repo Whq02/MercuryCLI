@@ -38,6 +38,21 @@ function rowsOfCollisionFile(text: string): CollisionEvidenceV1[] {
   return raw.rows
 }
 
+export function readCollisionEvidenceStrict(dir?: string): CollisionEvidenceV1[] {
+  let text: string
+  try {
+    text = readFileSync(concourseCollisionsPath(dir), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return []
+    throw error
+  }
+  const raw = JSON.parse(text) as CollisionFileV1
+  if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
+    throw new Error('invalid collision evidence format')
+  }
+  return raw.rows
+}
+
 export function readCollisionEvidence(dir?: string): CollisionEvidenceV1[] {
   try {
     return rowsOfCollisionFile(readFileSync(concourseCollisionsPath(dir), 'utf8'))

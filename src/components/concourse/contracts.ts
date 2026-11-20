@@ -110,6 +110,7 @@ export interface ConcourseSnapshotV1 {
     label: string
     rows: ConcourseRowV1[]
   }>
+  sectionNotices?: string[]
   elsewhere?: ConcourseElsewhereV1[]
   peek: null | {
     sessionId: string
