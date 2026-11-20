@@ -26,6 +26,16 @@ function caught(fn: () => unknown): { code: string | null; message: string } | n
   }
 }
 
+async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string | null; message: string } | null> {
+  try {
+    await fn()
+    return null
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException
+    return { code: typeof err?.code === 'string' ? err.code : null, message: String(err?.message ?? error) }
+  }
+}
+
 {
   console.log('\n1. src/services/vulcan/godotCapsule.ts')
   const { staticGodotCapsule } = await import(join(SRC, 'services/vulcan/godotCapsule.ts'))
@@ -66,6 +76,50 @@ function caught(fn: () => unknown): { code: string | null; message: string } | n
       const presetErr = caught(() => staticGodotCapsule(proj, undefined, NO_EDITOR))
       chmodSync(presets, 0o600)
       check('godotCapsule: unreadable export_presets.cfg throws EACCES instead of empty list', presetErr?.code === 'EACCES', JSON.stringify(presetErr))
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+{
+  console.log('\n2. src/services/vulcan/portabilityHealth.ts')
+  const { godotPortabilityReport } = await import(join(SRC, 'services/vulcan/portabilityHealth.ts'))
+  const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-portability-'))
+  try {
+    const bareProj = join(scratch, 'bare')
+    mkdirSync(bareProj, { recursive: true })
+    const bareReport = await godotPortabilityReport(bareProj, { census: [] })
+    check('portabilityHealth: absent project.godot and skills dirs still succeed', bareReport.absolutePaths.length === 0 && bareReport.controlDiscrepancies.length === 0)
+
+    const proj = join(scratch, 'proj')
+    const skillsRoot = join(proj, '.mercury', 'skills')
+    const skillDir = join(skillsRoot, 'launch')
+    const skillMd = join(skillDir, 'SKILL.md')
+    const projectGodot = join(proj, 'project.godot')
+    mkdirSync(skillDir, { recursive: true })
+    writeFileSync(projectGodot, '[input]\nmove_left={deadzone:0.5}\n', { mode: 0o600 })
+    writeFileSync(skillMd, '# Launch\n## Controls\n| action | key |\n| --- | --- |\n| move_left | A |\n', { mode: 0o600 })
+
+    if (!POSIX_MODES) {
+      skip('portabilityHealth: unreadable skills dir', 'requires non-root POSIX')
+      skip('portabilityHealth: unreadable project.godot', 'requires non-root POSIX')
+      skip('portabilityHealth: unreadable SKILL.md', 'requires non-root POSIX')
+    } else {
+      chmodSync(skillsRoot, 0o000)
+      const dirErr = await caughtAsync(() => godotPortabilityReport(proj, { census: [] }))
+      chmodSync(skillsRoot, 0o700)
+      check('portabilityHealth: unreadable skills dir rejects with EACCES instead of clean report', dirErr?.code === 'EACCES', JSON.stringify(dirErr))
+
+      chmodSync(projectGodot, 0o200)
+      const godotErr = await caughtAsync(() => godotPortabilityReport(proj, { census: [] }))
+      chmodSync(projectGodot, 0o600)
+      check('portabilityHealth: unreadable project.godot rejects with EACCES instead of empty live actions', godotErr?.code === 'EACCES', JSON.stringify(godotErr))
+
+      chmodSync(skillMd, 0o200)
+      const skillErr = await caughtAsync(() => godotPortabilityReport(proj, { census: [] }))
+      chmodSync(skillMd, 0o600)
+      check('portabilityHealth: unreadable SKILL.md rejects with EACCES instead of skipping file', skillErr?.code === 'EACCES', JSON.stringify(skillErr))
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })

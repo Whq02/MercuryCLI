@@ -320,8 +320,12 @@ function projectSkillFiles(projectRoot: string): string[] {
     try {
       entries = readdirSync(dir)
     } catch (error) {
-      passedOver(error)
-      continue
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        passedOver(error)
+        continue
+      }
+      throw error
     }
     for (const e of entries) {
       const skillMd = join(dir, e, 'SKILL.md')
@@ -342,6 +346,7 @@ export async function godotPortabilityReport(projectRoot: string, opts: { census
   try {
     live = liveInputActions(readFileSync(join(projectRoot, 'project.godot'), 'utf8'))
   } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     passedOver(error)
   }
   for (const skillFile of projectSkillFiles(projectRoot)) {
@@ -349,8 +354,11 @@ export async function godotPortabilityReport(projectRoot: string, opts: { census
     try {
       text = readFileSync(skillFile, 'utf8')
     } catch (error) {
-      passedOver(error)
-      continue
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        passedOver(error)
+        continue
+      }
+      throw error
     }
     text.split('\n').forEach((line, i) => {
       for (const m of line.matchAll(ABS_PATH_RE)) {
