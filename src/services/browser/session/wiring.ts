@@ -212,7 +212,7 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
   }
   const isMainNavigation = (request: HTTPRequest): boolean =>
     request.isNavigationRequest() && request.frame() === page.mainFrame()
-  const driver = page as unknown as { _client?: () => CDPSession }
+  const driver = page as Page & { _client?: () => CDPSession }
   if (typeof driver._client === 'function') {
     driver._client().on('Page.windowOpen', event => {
       session.opening = event.url

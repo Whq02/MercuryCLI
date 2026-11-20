@@ -33,12 +33,14 @@ export function responsesSocketUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/$/, '').replace(/^http/i, 'ws')}/responses`
 }
 
+type SocketEventName = 'open' | 'error' | 'close' | 'message'
+
 export interface SocketLike {
   send(data: string): void
   close(code?: number, reason?: string): void
   readyState?: number
-  addEventListener?(event: string, handler: (event: never) => void): void
-  on?(event: string, handler: (...args: never[]) => void): void
+  addEventListener?(event: SocketEventName, handler: (event: unknown) => void): void
+  on?(event: SocketEventName, handler: (payload?: unknown) => void): void
 }
 
 export type SocketOpener = (url: string, headers: Record<string, string>) => SocketLike | Promise<SocketLike>
@@ -137,16 +139,16 @@ async function openSocket(url: string, headers: Record<string, string>, opener: 
       headers,
       ...(tlsOptions ? { tls: tlsOptions } : {}),
       ...(proxyUrl ? { proxy: proxyUrl } : {}),
-    } as never) as unknown as SocketLike
+    } as never)
   }
   const proxyAgent = getWebSocketProxyAgent(url)
   const { default: NodeWebSocket } = await import('ws')
-  return new NodeWebSocket(url, { headers, ...(tlsOptions ?? {}), ...(proxyAgent ? { agent: proxyAgent } : {}) } as never) as unknown as SocketLike
+  return new NodeWebSocket(url, { headers, ...(tlsOptions ?? {}), ...(proxyAgent ? { agent: proxyAgent } : {}) })
 }
 
-function listen(socket: SocketLike, event: string, handler: (payload: unknown) => void): void {
-  if (typeof socket.on === 'function') socket.on(event, handler as never)
-  else socket.addEventListener?.(event, handler as never)
+function listen(socket: SocketLike, event: SocketEventName, handler: (payload?: unknown) => void): void {
+  if (typeof socket.on === 'function') socket.on(event, handler)
+  else socket.addEventListener?.(event, handler)
 }
 
 function pushFrame(entry: HeldSocket, frame: Frame): void {

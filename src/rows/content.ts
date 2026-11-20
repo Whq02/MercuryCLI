@@ -2,12 +2,12 @@ import type { ContentBlock, ContentBlockParam } from '../types/wire.js'
 import type { ReasoningRow, TextRow, ToolCallRow, ToolResultRow } from './vocabulary.js'
 
 export type StoredBlock = ContentBlock | ContentBlockParam
-export type ContentItem =
-  | (Pick<TextRow, 'type' | 'text' | 'phase'> & { value: StoredBlock })
-  | (Pick<ReasoningRow, 'type' | 'text' | 'redacted'> & { signature?: string; value: StoredBlock })
-  | (Pick<ToolCallRow, 'type' | 'call_id' | 'tool'> & { input: unknown; native: string; value: StoredBlock })
-  | (Pick<ToolResultRow, 'type' | 'call_id' | 'status'> & { output: unknown; value: StoredBlock })
-  | { type: 'media' | 'opaque'; value: StoredBlock }
+export type ContentItem<B extends { type: string } = StoredBlock> =
+  | (Pick<TextRow, 'type' | 'text' | 'phase'> & { value: B })
+  | (Pick<ReasoningRow, 'type' | 'text' | 'redacted'> & { signature?: string; value: B })
+  | (Pick<ToolCallRow, 'type' | 'call_id' | 'tool'> & { input: unknown; native: string; value: B })
+  | (Pick<ToolResultRow, 'type' | 'call_id' | 'status'> & { output: unknown; value: B })
+  | { type: 'media' | 'opaque'; value: B }
 
 export function storedBlocksOf(content: unknown): StoredBlock[] {
   if (Array.isArray(content)) return content as StoredBlock[]

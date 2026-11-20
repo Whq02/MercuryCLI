@@ -52,7 +52,9 @@ export function renderEvalProgressMessage(
       </MessageResponse>
     )
   }
-  const nested = events.filter(e => e.kind === 'nested')
+  const nested = events.filter(
+    (e): e is Extract<EvalToolProgress, { kind: 'nested' }> => e.kind === 'nested',
+  )
   const lastOutput = [...events].reverse().find(e => e.kind === 'output')
   const running = [...events].reverse().find(e => e.kind === 'running')
   const time = running !== undefined && running.kind === 'running' ? <ShellTimeDisplay elapsedTimeSeconds={running.elapsedSeconds} timeoutMs={running.budgetMs} /> : null
@@ -80,9 +82,9 @@ export function renderEvalProgressMessage(
         {shown.map((row, index) => (
           <MessageResponse key={index}>
             <MessageComponent
-              message={(row as Extract<EvalToolProgress, { kind: 'nested' }>).message as never}
-              tools={options.tools ?? ([] as never)}
-              commands={[] as never}
+              message={row.message}
+              tools={options.tools ?? []}
+              commands={[]}
               verbose={false}
               addMargin={false}
               shouldAnimate={false}
@@ -90,7 +92,7 @@ export function renderEvalProgressMessage(
               isTranscriptMode={false}
               isStatic={true}
               inProgressToolUseIDs={EMPTY_SET}
-              progressMessagesForMessage={[] as never}
+              progressMessagesForMessage={[]}
               lookups={lookups as never}
             />
           </MessageResponse>

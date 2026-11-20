@@ -46,18 +46,57 @@ function serializeFold(st: TranscriptFoldState): SerializedFold {
   return out
 }
 
+function isSerializedMap(value: unknown): value is { '«map»': [unknown, unknown][] } {
+  return value !== null && typeof value === 'object' && '«map»' in value
+}
+
+function restoreMap<K, V>(raw: SerializedFold, key: string, fallback: Map<K, V>): Map<K, V> {
+  if (!(key in raw)) return fallback
+  const v = raw[key]
+  return isSerializedMap(v) ? new Map(v['«map»'] as [K, V][]) : (v as Map<K, V>)
+}
+
 function deserializeFold(raw: SerializedFold, order: string[]): TranscriptFoldState {
-  const st = emptyFoldState() as unknown as Record<string, unknown>
-  for (const [k, v] of Object.entries(raw)) {
-    if (!(k in st)) continue
-    if (v !== null && typeof v === 'object' && '«map»' in (v as object)) {
-      const entries = (v as { '«map»': [unknown, unknown][] })['«map»']
-      st[k] = k === 'messages' ? createTranscriptRows(entries as Parameters<typeof createTranscriptRows>[0], order as Parameters<typeof createTranscriptRows>[1]) : new Map(entries)
-    } else {
-      st[k] = v
-    }
+  const st = emptyFoldState()
+  return {
+    messages: !('messages' in raw)
+      ? st.messages
+      : isSerializedMap(raw.messages)
+        ? createTranscriptRows(
+            raw.messages['«map»'] as Parameters<typeof createTranscriptRows>[0],
+            order as Parameters<typeof createTranscriptRows>[1],
+          )
+        : (raw.messages as TranscriptFoldState['messages']),
+    summaries: restoreMap(raw, 'summaries', st.summaries),
+    customTitles: restoreMap(raw, 'customTitles', st.customTitles),
+    tags: restoreMap(raw, 'tags', st.tags),
+    agentNames: restoreMap(raw, 'agentNames', st.agentNames),
+    agentColors: restoreMap(raw, 'agentColors', st.agentColors),
+    agentSettings: restoreMap(raw, 'agentSettings', st.agentSettings),
+    sessionBriefs: restoreMap(raw, 'sessionBriefs', st.sessionBriefs),
+    sessionBriefAdds: restoreMap(raw, 'sessionBriefAdds', st.sessionBriefAdds),
+    prNumbers: restoreMap(raw, 'prNumbers', st.prNumbers),
+    prUrls: restoreMap(raw, 'prUrls', st.prUrls),
+    prRepositories: restoreMap(raw, 'prRepositories', st.prRepositories),
+    modes: restoreMap(raw, 'modes', st.modes),
+    advisorSwitches: restoreMap(raw, 'advisorSwitches', st.advisorSwitches),
+    swarmSwitches: restoreMap(raw, 'swarmSwitches', st.swarmSwitches),
+    sessionModels: restoreMap(raw, 'sessionModels', st.sessionModels),
+    worktreeStates: restoreMap(raw, 'worktreeStates', st.worktreeStates),
+    fileHistorySnapshots: restoreMap(raw, 'fileHistorySnapshots', st.fileHistorySnapshots),
+    attributionSnapshots: restoreMap(raw, 'attributionSnapshots', st.attributionSnapshots),
+    contentReplacements: restoreMap(raw, 'contentReplacements', st.contentReplacements),
+    agentContentReplacements: restoreMap(raw, 'agentContentReplacements', st.agentContentReplacements),
+    contextCollapseCommits: 'contextCollapseCommits' in raw
+      ? (raw.contextCollapseCommits as TranscriptFoldState['contextCollapseCommits'])
+      : st.contextCollapseCommits,
+    contextCollapseSnapshot: 'contextCollapseSnapshot' in raw
+      ? (raw.contextCollapseSnapshot as TranscriptFoldState['contextCollapseSnapshot'])
+      : st.contextCollapseSnapshot,
+    turnEnds: restoreMap(raw, 'turnEnds', st.turnEnds),
+    turnsOpen: restoreMap(raw, 'turnsOpen', st.turnsOpen),
+    progressBridge: restoreMap(raw, 'progressBridge', st.progressBridge),
   }
-  return st as unknown as TranscriptFoldState
 }
 
 export function writeResumeSnapshot(

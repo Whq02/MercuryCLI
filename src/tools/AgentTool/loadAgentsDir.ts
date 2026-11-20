@@ -355,7 +355,7 @@ const jsonAgentSchema = z.object({
     ])
     .optional(),
   instructionProfile: z.enum(['auto', 'native']).optional(),
-  permissionMode: z.enum(PERMISSION_MODES as unknown as [string, ...string[]]).optional(),
+  permissionMode: z.enum(PERMISSION_MODES).optional(),
   mcpServers: z.array(agentMcpServerSpecSchema).optional(),
   hooks: z.unknown().optional(),
   maxTurns: z.number().int().positive().optional(),
