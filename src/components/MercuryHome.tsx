@@ -1,6 +1,7 @@
 import { pathTailLabel } from '../utils/pathLabel.js'
 import * as React from 'react'
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
+import { useLoad } from '../hooks/effects.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useSessionSignInGate } from '../hooks/useSessionSignInGate.js'
 import { getEngineModel } from '../utils/model/model.js'
@@ -111,7 +112,7 @@ export function MercuryHome(): React.ReactNode {
 
 function useMemoryAtStartRow(): string | null {
   const [words, setWords] = useState<string | null>(() => (mnemeEnabled() ? null : 'off (memory.enabled is false in settings)'))
-  useEffect(() => {
+  useLoad(() => {
     if (!mnemeEnabled()) return
     let live = true
     void composeMemoryAtStart({ projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() }).then(() => {
@@ -144,7 +145,7 @@ function MercuryHomeBody(): React.ReactNode {
       return false
     }
   }, [cwd])
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     gitSnapshot().then(s => alive && setGit(s))
     traceSnapshot().then(s => alive && setTrace(s))

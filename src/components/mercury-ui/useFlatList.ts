@@ -1,5 +1,6 @@
 
 import * as React from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { useInput } from '../../ink.js'
 import { applyNavMotion, decodeNavKey } from './navSemantics.js'
 import { paneWindow } from './paneWindow.js'
@@ -58,7 +59,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
   const rowIdRef = React.useRef(rowId)
   rowIdRef.current = rowId
 
-  React.useEffect(() => {
+  useLoad(() => {
     let alive = true
     loadRef
       .current()

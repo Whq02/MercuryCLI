@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useSubscription } from '../hooks/effects.js'
 
 import { currentLimits, statusListeners, type AnthropicLimits } from './anthropicLimits.js'
 
 export function useAnthropicLimits(): AnthropicLimits {
   const [limits, setLimits] = useState<AnthropicLimits>({ ...currentLimits })
-  useEffect(() => {
+  useSubscription(() => {
     const listener = (next: AnthropicLimits): void => {
       setLimits({ ...next })
     }

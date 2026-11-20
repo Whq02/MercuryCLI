@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
+import { usePublish } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import {
   getHelmCursor,
@@ -134,7 +135,7 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
   const model = buildVitalsModel(input)
 
   const rowsSig = model.rows.map(helmRowSig).join('|')
-  useEffect(() => {
+  usePublish(() => {
     publishHelmRows('vitals', model.rows)
   }, [rowsSig])
 

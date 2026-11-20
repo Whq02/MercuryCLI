@@ -1,5 +1,6 @@
 
-import React, { createContext, useEffect } from 'react'
+import React, { createContext } from 'react'
+import { useSubscription } from '../hooks/effects.js'
 import { sessionSawUsage } from '../cost-tracker.js'
 import { saveCurrentProjectConfig } from '../utils/config.js'
 
@@ -102,7 +103,7 @@ export function StatsProvider({
   const [owned] = React.useState(() => store ?? createStatsStore())
   const live = store ?? owned
 
-  useEffect(() => {
+  useSubscription(() => {
     const flush = (): void => {
       if (!sessionSawUsage()) return
       const metrics = live.getAll()

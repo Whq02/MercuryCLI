@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useDerivedState, usePublish } from '../../hooks/effects.js';
 import { MercuryTurnRollup } from '../../components/MercuryTurnRollup.js';
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js';
 import { SpinnerWithVerb } from '../../components/Spinner.js';
@@ -73,12 +74,12 @@ export function useChatTurnBoundary({
   setAppState: (updater: (prev: AppState) => AppState) => void;
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
 }) {
-  useEffect(() => {
+  usePublish(() => {
     setAppState(prev => (prev.foregroundTurnActive === isLoading ? prev : { ...prev, foregroundTurnActive: isLoading }));
   }, [isLoading, setAppState]);
 
   const pendingModelSwitch = useAppState(state => state.pendingModelSwitch);
-  useEffect(() => {
+  usePublish(() => {
     if (isLoading || pendingModelSwitch === null) return;
     let receipt = null as ReturnType<typeof settlePendingAtBoundary>;
     setAppState(prev => {
@@ -128,7 +129,7 @@ export function useChatSeatClock({
     seatPauseStartRef.current = ledger.pauseStartMs;
   }
   const previousFocusedDialogRef = useRef<FocusedInputDialog | undefined>(undefined);
-  useEffect(() => {
+  usePublish(() => {
     const previous = previousFocusedDialogRef.current;
     previousFocusedDialogRef.current = focusedInputDialog;
     if (!isLoading) return;
@@ -144,6 +145,11 @@ export function useChatSeatClock({
   return { seatStartTimeRef, seatPausedMsRef, seatPauseStartRef };
 }
 
+function hasLastTurnCompletedAtMs(
+  connector: EngineConnectorV1 & { lastTurnCompletedAtMs?: () => number | null },
+): connector is EngineConnectorV1 & { lastTurnCompletedAtMs: () => number | null } {
+  return typeof connector.lastTurnCompletedAtMs === 'function';
+}
 export function useChatTurnEnd({
   focusedConnector,
   isLoading,
@@ -192,9 +198,9 @@ export function useChatTurnEnd({
   }, [setAppState, themeName, getReadFileState]);
   const wasLoadingRef = useRef(false);
   const connectorCompletedRef = useRef<{ connector: unknown; at: number | null }>({ connector: null, at: null });
-  const hasConnectorCompleted = typeof (focusedConnector as { lastTurnCompletedAtMs?: unknown }).lastTurnCompletedAtMs === 'function';
-  const connectorCompletedAt = hasConnectorCompleted ? (focusedConnector as unknown as { lastTurnCompletedAtMs: () => number | null }).lastTurnCompletedAtMs() : null;
-  useEffect(() => {
+  const hasConnectorCompleted = hasLastTurnCompletedAtMs(focusedConnector);
+  const connectorCompletedAt = hasConnectorCompleted ? focusedConnector.lastTurnCompletedAtMs() : null;
+  useDerivedState(() => {
     if (connectorCompletedRef.current.connector !== focusedConnector) {
       connectorCompletedRef.current = { connector: focusedConnector, at: connectorCompletedAt };
       if (isLoading) tipPickedThisTurnRef.current = false;
@@ -228,7 +234,7 @@ export function useChatTurnSignals({
   toolUseConfirmQueue: ToolUseConfirm[];
   messages: Message[];
 }): void {
-  useEffect(() => {
+  usePublish(() => {
     publishTurnSignals({
       turnLive: isLoading,
       streaming: textActive,
