@@ -1,7 +1,7 @@
 
 import { resolveProjectConfigPath } from '../utils/projectConfig.js'
 import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs'
-import { join, sep } from 'node:path'
+import { dirname, isAbsolute, join, sep } from 'node:path'
 import { enqueueNotification } from '../context/notifications.js'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { untrustedWorkspaceHeadless } from '../utils/config/trust.js'
@@ -11,7 +11,7 @@ import { errorMessage, getErrnoCode } from '../utils/errors.js'
 import type { SetAppState } from '../utils/messageQueueManager.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import { expandPath } from '../utils/path.js'
-import { pathModuleFor, splitPathFromRoot } from '../utils/platform/paths.js'
+import { splitPathFromRoot } from '../utils/platform/paths.js'
 import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
@@ -117,10 +117,9 @@ function deepestExisting(
 }
 
 export function realTargetPath(path: string, resolveReal: (candidate: string) => string = realpathSync): string {
-  const mod = pathModuleFor()
-  if (!mod.isAbsolute(path) || path.length > TARGET_PATH_MAX) return path
+  if (!isAbsolute(path) || path.length > TARGET_PATH_MAX) return path
   const { real, tail } = deepestExisting(path, undefined, resolveReal)
-  return tail.length === 0 ? real : mod.join(real, ...tail)
+  return tail.length === 0 ? real : join(real, ...tail)
 }
 
 let homeSpellingsCache: { home: string; spellings: string[] } | undefined
@@ -157,15 +156,14 @@ export function makeTargetResolver(fallbackRoot: string, work?: WardWork): (path
       return { path, root: undefined }
     }
     if (expanded.length > TARGET_PATH_MAX) return { path: expanded, root: fallback }
-    const mod = pathModuleFor()
     const { real, tail } = deepestExisting(expanded, work)
-    const resolved = tail.length === 0 ? real : mod.join(real, ...tail)
+    const resolved = tail.length === 0 ? real : join(real, ...tail)
     if (work && tail.length > 0) countWardWork(work, 'characters', resolved.length)
-    let dir = tail.length === 0 ? mod.dirname(real) : real
+    let dir = tail.length === 0 ? dirname(real) : real
     for (;;) {
       if (work) countWardWork(work, 'existsCalls')
-      if (existsSync(mod.join(dir, '.git'))) return { path: resolved, root: dir }
-      const parent = mod.dirname(dir)
+      if (existsSync(join(dir, '.git'))) return { path: resolved, root: dir }
+      const parent = dirname(dir)
       if (parent === dir) return { path: resolved, root: fallback }
       dir = parent
     }
