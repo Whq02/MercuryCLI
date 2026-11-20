@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSy
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
-const { projectLocalPath } = await import('../../src/services/projectLocal/paths.js')
+const { projectLocalPath } = await import('../../src/utils/projectLocal/paths.js')
 const { MERCURY_PROJECT_DIR } = await import('../../src/utils/projectConfig.js')
 
 let failures = 0
