@@ -148,5 +148,33 @@ console.log('\nrepoHost/repoHost.ts — corrupt or unreadable latest.json throws
   if (POSIX_MODES) check('repoHost-latest-review-unreadable-throws', r.unreadableCode === 'EACCES', JSON.stringify(r))
 }
 
+console.log('\nresources/adapters/file.ts — EACCES statSync returns busy instead of absent no such file')
+if (!POSIX_MODES) {
+  skip('file-adapter-stat-eacces-not-absent', 'needs non-root POSIX')
+} else {
+  const r = runSub(`
+    const { fileAdapter } = await import(path.join(SRC, 'services/resources/adapters/file.ts'))
+    const { parseMercuryRef } = await import(path.join(SRC, 'services/resources/contracts.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
+    const locked = path.join(PROJECT, 'locked')
+    fs.mkdirSync(locked, { recursive: true })
+    const target = path.join(locked, 'secret.txt')
+    fs.writeFileSync(target, 'hi')
+    fs.chmodSync(locked, 0o000)
+    try {
+      const ref = parseMercuryRef('mercury://file/' + target)
+      out.locked = await fileAdapter.resolve(ref, { owner: processMainOwner(), cwd: PROJECT })
+      const missingRef = parseMercuryRef('mercury://file/' + path.join(PROJECT, 'missing.txt'))
+      out.missing = await fileAdapter.resolve(missingRef, { owner: processMainOwner(), cwd: PROJECT })
+    } finally {
+      fs.chmodSync(locked, 0o700)
+    }
+  `)
+  const locked = r.locked as { state?: string; note?: string }
+  const missing = r.missing as { state?: string; note?: string }
+  check('file-adapter-stat-eacces-not-absent', locked?.state === 'busy' && String(locked?.note).includes('cannot read'), JSON.stringify(locked))
+  check('file-adapter-enoent-still-absent', missing?.state === 'absent', JSON.stringify(missing))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
