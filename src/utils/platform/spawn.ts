@@ -354,3 +354,20 @@ export function loginPathOverride(
 ): string | undefined {
   return platform === 'win32' ? undefined : mergeLoginPath(own, carried, platform)
 }
+
+export function commandByteBudget(
+  windowsLimit: number,
+  posixLimit: number,
+  platform: NodeJS.Platform = process.platform,
+): number {
+  return platform === 'win32' ? windowsLimit : posixLimit
+}
+
+export function decodeShellScriptBytes(bytes: Buffer, platform: NodeJS.Platform = process.platform): string {
+  if (platform !== 'win32') return bytes.toString('utf8').trim()
+  const text =
+    bytes[0] === 0xff && bytes[1] === 0xfe
+      ? bytes.subarray(2).toString('utf16le')
+      : bytes.toString('utf8').replace(/^\uFEFF/, '')
+  return text.replace(/\r\n?/g, '\n').trim()
+}

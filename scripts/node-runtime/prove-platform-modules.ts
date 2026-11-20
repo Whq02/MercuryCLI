@@ -248,8 +248,10 @@ const PROGRAMS: Row[] = [
 ]
 
 import {
+  commandByteBudget,
   commandShellArgv,
   commandShellOption,
+  decodeShellScriptBytes,
   editorInvocationOf,
   editorShellCommandLine,
   envVarKey,
@@ -439,6 +441,20 @@ const SPAWN: Row[] = [
     name: 'spawn.loginPathOverride',
     answers: () => loginPathOverride('/usr/bin', { PATH: '/opt/homebrew/bin:/usr/bin' }),
     recorded: {"win32":"undefined","darwin":"/opt/homebrew/bin:/usr/bin","linux":"/opt/homebrew/bin:/usr/bin","win32 by process.platform alone":"undefined","win32 by getPlatform() alone":"/opt/homebrew/bin:/usr/bin"},
+  },
+  {
+    name: 'spawn.commandByteBudget',
+    answers: () => commandByteBudget(6400, 4500),
+    recorded: {"win32":6400,"darwin":4500,"linux":4500,"win32 by process.platform alone":6400,"win32 by getPlatform() alone":4500},
+  },
+  {
+    name: 'spawn.decodeShellScriptBytes',
+    answers: () => [
+      decodeShellScriptBytes(Buffer.from('export A=1\r\nexport B=2\r\n', 'utf8')),
+      decodeShellScriptBytes(Buffer.from('\uFEFFexport C=3\r\n', 'utf8')),
+      decodeShellScriptBytes(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('export D=4\r\n', 'utf16le')])),
+    ],
+    recorded: {"win32":["export A=1\nexport B=2","export C=3","export D=4"],"darwin":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"],"linux":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"],"win32 by process.platform alone":["export A=1\nexport B=2","export C=3","export D=4"],"win32 by getPlatform() alone":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"]},
   },
 ]
 
