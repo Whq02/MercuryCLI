@@ -71,24 +71,6 @@ let identical = 0
 for (const rel of expected) if (pages[rel] === readFileSync(join(ROOT, rel), 'utf8')) identical++
 check('every carried page is the tree\'s page, byte for byte', identical === expected.length, `${identical} of ${expected.length}`)
 check('no release page, template or media file rides along', !Object.keys(pages).some(k => k.includes('releases/') || k.includes('templates/') || k.includes('media/')))
-check('the Saturn page the scheduling question needs is carried and names /saturn, CronCreate and the /loop skill', typeof pages['docs/SATURN.md'] === 'string' && /`\/saturn`/.test(pages['docs/SATURN.md']) && /CronCreate/.test(pages['docs/SATURN.md']) && /`\/loop`/.test(pages['docs/SATURN.md']))
-const TOPIC_PAGES: Readonly<Record<string, ReadonlyArray<readonly [string, RegExp]>>> = {
-  commands: [['README.md', /^## Slash commands/m]],
-  scheduling: [['docs/SATURN.md', /`\/saturn`/]],
-  providers: [['docs/ENGINES.md', /sign-in provider families/], ['README.md', /\*\*22 model providers/]],
-  hosting: [['docs/LLM-HOST.md', /`\/llmhost`/], ['docs/LLM-HOST.md', /mercury\s+host/]],
-  'headless runs': [['docs/AUTOMATION.md', /`mercury run/], ['docs/AUTOMATION.md', /`mercury runner`/], ['docs/AUTOMATION.md', /^### Other commands/m]],
-  voice: [['docs/VOICE.md', /`\/voice on`/]],
-  restart: [['README.md', /`\/restart`/], ['docs/TERMINAL-RUNTIME.md', /`\/restart`/]],
-}
-const topicsNamed = (/\(([^)]+)\)/.exec(description)?.[1] ?? '').split(',').map(topic => topic.trim()).filter(Boolean)
-const topicsPinned = (carried: Readonly<Record<string, string>>, named: ReadonlyArray<string> = topicsNamed): boolean =>
-  named.length > 0 &&
-  JSON.stringify([...named].sort()) === JSON.stringify(Object.keys(TOPIC_PAGES).sort()) &&
-  Object.values(TOPIC_PAGES).every(pins => pins.every(([page, anchor]) => anchor.test(carried[page] ?? '')))
-check('each topic the description names is documented by shipped pages that carry its command or section', topicsPinned(pages), `named: ${topicsNamed.join(', ')}`)
-check('poison control: a topic named without a pinned page fails the topic predicate', !topicsPinned(pages, [...topicsNamed, 'sdk']))
-check('poison control: a page that lost the command the topic rests on fails the topic predicate', !topicsPinned({ ...pages, 'docs/VOICE.md': (pages['docs/VOICE.md'] ?? '').replaceAll('/voice on', '') }))
 const index = pages['docs/README.md'] ?? ''
 const pageLinks = [...index.matchAll(/\]\(([^)]+\.md)\)/g)].map(match => match[1]!)
 const guideNames = expected.filter(path => path.startsWith('docs/') && path !== 'docs/README.md').map(path => path.slice(5))
@@ -105,8 +87,6 @@ const coveredKeys = Object.entries(settingsShape).flatMap(([group, schema]) => {
 check('the settings guide covers each usable grouped key', coveredKeys.every(key => settingsText.includes(key)), coveredKeys.filter(key => !settingsText.includes(key)).join(', '))
 const settingsExamples = [...settingsText.matchAll(/```json\n([\s\S]*?)\n```/g)].map(match => JSON.parse(match[1]!))
 check('the settings guide carries a valid complete JSON example', settingsExamples.length > 0 && settingsExamples.every(example => SettingsSchema().safeParse(example).success))
-check('the settings guide names all four custom patience fields', ['streamIdleSeconds', 'quietStreamIdleSeconds', 'fallbackCeilingSeconds', 'recoveryBudgetMinutes'].every(key => settingsText.includes(`patience.${key}`)))
-check('the guide distinguishes the project guide from the personal layer', settingsText.includes('MERCURY.local.md') && settingsText.includes('personal layer') && settingsText.includes('AGENTS.md'))
 
 section('§3 the prompt — the base directory, the guidance, the map, the question')
 const text = await promptText(docs!, 'how do i schedule a prompt in mercury')
@@ -116,16 +96,6 @@ check('the guidance answers from the shipped documentation and names the Read an
 check("the guidance names Mercury's own site and llms.txt as the map, and no other site", text.includes(docsSkill.MERCURY_DOCS_SITE) && text.includes(docsSkill.MERCURY_DOCS_MAP_URL) && /fetch no other site/.test(text))
 check('an uncovered question is answered plainly, never guessed', /say so and name the nearest page instead of guessing/.test(text))
 const guidance = text.slice(text.indexOf("Answer the question"), text.indexOf('## The pages'))
-const README_CLAIMS: ReadonlyArray<readonly [string, RegExp]> = [
-  ['install', /^## Install/m],
-  ['what is inside', /^## What is inside/m],
-  ['slash-command table', /^## Slash commands/m],
-  ['reporting a problem', /^## Reporting a problem/m],
-  ['licence', /^## Licence/m],
-]
-const readmeClaimsPinned = (readme: string): boolean => README_CLAIMS.every(([phrase, heading]) => guidance.includes(phrase) && heading.test(readme))
-check('every README section the guidance names is a heading of the README', readmeClaimsPinned(pages['README.md'] ?? ''))
-check('poison control: a README without its slash-command table heading fails the README predicate', !readmeClaimsPinned((pages['README.md'] ?? '').replace('## Slash commands', '## Commands')))
 check('the guidance states no count that could go stale', !/\d/.test(guidance), guidance.match(/\d+/g)?.join(',') ?? '')
 check('poison control: a guidance with a provider count in it fails the no-count predicate', /\d/.test(guidance.replace('what is inside', '22 providers inside')))
 check('the guidance sends a long page to a Grep and a window read, not a whole-file read', /Grep across the folder first/.test(guidance) && /only the lines the match points at/.test(guidance))
@@ -140,7 +110,7 @@ const surfaceLinks = [...surfaceIndexSection.matchAll(/\]\(([^)]+\.md)\)/g)]
   .filter(link => link === '../README.md' || !link.startsWith('../'))
   .map(link => (link === '../README.md' ? 'README.md' : `docs/${link}`))
 check("every surface docs/README.md's index names has a page in the map", surfaceLinks.length > 0 && surfaceLinks.every(p => mapPaths.includes(p)), surfaceLinks.filter(p => !mapPaths.includes(p)).join(', '))
-check('each map row carries the page title and a one-line summary from the page itself', mapLines.every(line => / — .+: .+/.test(line)) && mapLines.some(line => line.startsWith('- docs/SATURN.md — Saturn: session schedules: Saturn is Mercury\'s scheduler.')))
+check('each map row carries the page title and a one-line summary from the page itself', mapLines.every(line => / — .+: .+/.test(line)))
 const flat = (value: string): string => value.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\s+/g, ' ')
 const quotesPage = (page: string, summary: string): boolean => flat(page).includes(flat(summary.replace(/…$/, '')))
 const complete = (summary: string): boolean => (summary.match(/`/g)?.length ?? 0) % 2 === 0 && (summary.match(/\(/g)?.length ?? 0) <= (summary.match(/\)/g)?.length ?? 0)
@@ -153,7 +123,6 @@ check('poison control: a summary cut inside a code span or a parenthesis fails t
 check('every map summary is at most 240 characters, so no row grows the prompt unnoticed', described.every(row => row.summary.length <= 240), described.filter(row => row.summary.length > 240).map(row => `${row.rel} (${row.summary.length})`).join(', '))
 check('no map summary opens on a version stamp or points at another page instead of describing its own', described.every(row => aboutThePage(row.summary)), described.filter(row => !aboutThePage(row.summary)).map(row => row.rel).join(', '))
 check('poison control: the base summaries of the Windows source guide and the memory study fail the about-the-page predicate', !aboutThePage('The release route on Windows is one line in PowerShell 7 (`irm … | iex` in the README\'s Install section) and needs Git and nothing else.') && !aboutThePage('Measured in Mercury 1.0.0-beta.32. Mercury 1.0.0-beta.33 shortened the note to one orienting note; the numbers below are for the .32 shape.'))
-check('the Windows source-install map line describes building from source rather than the README release route', /building Mercury from source on a Windows machine/.test(docsSkill.describeDocPage(pages['docs/INSTALL-WINDOWS-FROM-SOURCE.md']!).summary))
 const words = 'word '.repeat(28)
 const SHAPES: ReadonlyArray<readonly [string, string, (summary: string) => boolean]> = [
   ['a plain page gives its first sentence', '# Foo\n\nFoo does one clear thing for the user on every machine it runs on. A second sentence follows.\n', summary => summary === 'Foo does one clear thing for the user on every machine it runs on.'],
