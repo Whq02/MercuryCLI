@@ -267,13 +267,19 @@ const PROGRAMS: Row[] = [
 import {
   commandShellArgv,
   commandShellOption,
+  editorInvocationOf,
+  editorShellCommandLine,
   executableNeedsVerbatimArgs,
+  guiEditorSpawnSpec,
   hostScriptDialect,
   hostShellHint,
   isBatchShim,
+  parseEditorCommandLine,
+  promptEditorSpawnSpec,
   shellBinarySpec,
   shellCommandSpec,
   shimShellOption,
+  terminalEditorSpawnSpec,
 } from '../../src/utils/platform/spawn.js'
 const SPAWN: Row[] = [
   {
@@ -346,6 +352,56 @@ const SPAWN: Row[] = [
     name: 'spawn.hostScriptDialect',
     answers: () => hostScriptDialect(),
     recorded: {"win32":"powershell","darwin":"posix-sh","linux":"posix-sh","win32 by process.platform alone":"powershell","win32 by getPlatform() alone":"posix-sh"},
+  },
+  {
+    name: 'spawn.parseEditorCommandLine',
+    answers: () => [
+      parseEditorCommandLine('"C:\\Program Files\\Code\\code.exe" --wait', { platform: process.platform, path: '' }),
+      parseEditorCommandLine("vim -u 'NONE'", { platform: process.platform, path: '' }),
+      parseEditorCommandLine('nano', { platform: process.platform, path: '' }),
+    ],
+    recorded: {"win32":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","'NONE'"]},{"executable":"nano","args":[]}],"darwin":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}],"linux":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}],"win32 by process.platform alone":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","'NONE'"]},{"executable":"nano","args":[]}],"win32 by getPlatform() alone":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}]},
+  },
+  {
+    name: 'spawn.editorInvocationOf',
+    answers: () => [
+      editorInvocationOf('C:\\Program Files\\ed.exe', 'C:\\Program Files\\ed.exe', { executable: 'C:\\Program Files\\ed.exe', args: ['--wait'] }),
+      editorInvocationOf('code', 'code -w', { executable: 'code', args: [] }),
+    ],
+    recorded: {"win32":[{"executablePath":"C:\\Program Files\\ed.exe","args":["--wait"]},{"executablePath":"code","args":["-w"]}],"darwin":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}],"linux":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}],"win32 by process.platform alone":[{"executablePath":"C:\\Program Files\\ed.exe","args":["--wait"]},{"executablePath":"code","args":["-w"]}],"win32 by getPlatform() alone":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}]},
+  },
+  {
+    name: 'spawn.editorShellCommandLine',
+    answers: () => [
+      editorShellCommandLine('/usr/bin/vim', ['-n'], "/tmp/a'b.txt"),
+      editorShellCommandLine('C:\\bin\\code.cmd', ['-w'], 'C:\\Users\\100%\\a.txt'),
+    ],
+    recorded: {"win32":["\"/usr/bin/vim\" \"-n\" \"%MERCURY_EDITOR_FILE%\"","\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\""],"darwin":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"],"linux":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"],"win32 by process.platform alone":["\"/usr/bin/vim\" \"-n\" \"%MERCURY_EDITOR_FILE%\"","\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\""],"win32 by getPlatform() alone":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"]},
+  },
+  {
+    name: 'spawn.promptEditorSpawnSpec',
+    answers: () => [
+      promptEditorSpawnSpec('C:\\bin\\code.cmd', ['-w'], 'C:\\tmp\\p.txt', 'C:\\Windows\\System32\\cmd.exe'),
+      promptEditorSpawnSpec('C:\\bin\\code.cmd', ['-w'], 'C:\\tmp\\p.txt', 'C:\\Program Files\\PowerShell\\7\\pwsh.exe'),
+      promptEditorSpawnSpec('/usr/bin/vim', [], "/tmp/a'b.txt", undefined),
+    ],
+    recorded: {"win32":[{"shell":false,"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/v:off","/s","/c","\"\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"C:\\Program Files\\PowerShell\\7\\pwsh.exe","args":["-NoLogo","-NoProfile","-Command","& 'C:\\bin\\code.cmd' '-w' $env:MERCURY_EDITOR_FILE"],"windowsVerbatimArguments":false,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"cmd.exe","args":["/d","/v:off","/s","/c","\"\"/usr/bin/vim\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"/tmp/a'b.txt"}}],"darwin":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}],"linux":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}],"win32 by process.platform alone":[{"shell":false,"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/v:off","/s","/c","\"\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"C:\\Program Files\\PowerShell\\7\\pwsh.exe","args":["-NoLogo","-NoProfile","-Command","& 'C:\\bin\\code.cmd' '-w' $env:MERCURY_EDITOR_FILE"],"windowsVerbatimArguments":false,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"cmd.exe","args":["/d","/v:off","/s","/c","\"\"/usr/bin/vim\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"/tmp/a'b.txt"}}],"win32 by getPlatform() alone":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}]},
+  },
+  {
+    name: 'spawn.guiEditorSpawnSpec',
+    answers: () => [
+      guiEditorSpawnSpec('C:\\Program Files\\Code\\code.exe', 'C:\\Program Files\\Code\\code.exe', [], ['-g', 'f.ts:10'], true),
+      guiEditorSpawnSpec('code --reuse-window', 'code', ['--reuse-window'], ['-g', 'f.ts:10'], false),
+    ],
+    recorded: {"win32":[{"shell":true,"command":"\"C:\\Program Files\\Code\\code.exe\" \"-g\" \"f.ts:10\""},{"shell":true,"command":"\"code\" \"--reuse-window\" \"-g\" \"f.ts:10\""}],"darwin":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}],"linux":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}],"win32 by process.platform alone":[{"shell":true,"command":"\"C:\\Program Files\\Code\\code.exe\" \"-g\" \"f.ts:10\""},{"shell":true,"command":"\"code\" \"--reuse-window\" \"-g\" \"f.ts:10\""}],"win32 by getPlatform() alone":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}]},
+  },
+  {
+    name: 'spawn.terminalEditorSpawnSpec',
+    answers: () => [
+      terminalEditorSpawnSpec('vim -n', 'vim', ['-n'], ['+42'], '/tmp/a b.ts'),
+      terminalEditorSpawnSpec('nano', 'nano', [], [], 'C:\\tmp\\a b.ts'),
+    ],
+    recorded: {"win32":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"darwin":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"linux":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"win32 by process.platform alone":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"win32 by getPlatform() alone":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}]},
   },
 ]
 
