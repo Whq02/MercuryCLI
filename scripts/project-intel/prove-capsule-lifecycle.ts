@@ -119,7 +119,7 @@ async function main(): Promise<void> {
   )
 
   section('(8) continuation line carries digest + primary refs')
-  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
+  const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
   const mainOwner = String(ownerFromToolUseContext({ agentId: undefined }))
   const line = producer.capsuleContinuationLine(mainOwner)
   check('line present after a main-thread attach', typeof line === 'string' && line.includes('context capsule') && line.includes(a2.digest), line ?? 'null')

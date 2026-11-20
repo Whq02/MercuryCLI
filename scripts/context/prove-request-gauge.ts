@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { buildRequestContextPlan, reconcileAppliedPlanUsage } = await import('../../src/services/run/requestContextPlan.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 const { calibrationFor, resetCalibration } = await import('../../src/services/run/contextCalibration.js')
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId: 'request-gauge', lane: 'main' })
 const key = 'gemini:fixture:c1'

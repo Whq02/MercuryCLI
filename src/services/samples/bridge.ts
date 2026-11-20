@@ -1,4 +1,4 @@
-import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
+import { parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
 import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleHtmlSource, type SampleItem } from '../../utils/samples/contracts.js'
 import { normalizeSampleDoc, renderSampleDoc } from './renderDoc.js'
 import { createOrAppendSample, sampleUrl, writeFallbackPage } from './store.js'

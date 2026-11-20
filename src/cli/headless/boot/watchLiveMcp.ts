@@ -3,7 +3,7 @@ import { getMcpConfigByName, getMercuryMcpConfigs, filterMcpServersByPolicy } fr
 import { fetchToolsForClient, fetchCommandsForClient, fetchResourcesForClient, reconnectMcpServerImpl, clearServerCache } from '../../../services/mcp/client.js'
 import { getMcpPrefix } from '../../../services/mcp/mcpStringUtils.js'
 import { requestDeliberateToolChange } from '../../../services/providers/lawfulPrefixChange.js'
-import { processMainOwner } from '../../../services/run/resolveOwner.js'
+import { processMainOwner } from '../../../utils/run/resolveOwner.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../../../services/mcp/dynamicMcpSeed.js'
 import { watchLiveMcpConfig } from '../../../services/mcp/liveConfig.js'
 import { mcpConfigAsWritten } from '../../../services/mcp/utils.js'

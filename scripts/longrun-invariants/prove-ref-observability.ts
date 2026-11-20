@@ -12,7 +12,7 @@ import {
 import type { ResourceContext } from '../../src/services/resources/contracts.js'
 import { formatEnvelopeBlock } from '../../src/services/agentResults/normalize.js'
 import type { AgentResultEnvelope } from '../../src/services/agentResults/contracts.js'
-import { makeOwnerKey } from '../../src/services/run/ownerKey.js'
+import { makeOwnerKey } from '../../src/utils/run/ownerKey.js'
 import { OUTCOME_CAP_CHARS } from '../../src/services/crew/agentTranscriptReader.js'
 import { entryToRecord } from '../../src/fabric/entryCodec.js'
 import { ordinalOf } from '../../src/fabric/ordinal.js'

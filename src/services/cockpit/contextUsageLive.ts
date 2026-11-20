@@ -1,9 +1,9 @@
 
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
-import { processMainOwner } from '../run/resolveOwner.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import type { ContextResolution } from '../../utils/model/capabilities.js'
 import { ctxForecastEnabled, recordCtxSample } from './ctxForecast.js'
 import { passedOver } from '../../utils/passedOver.js'

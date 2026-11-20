@@ -47,7 +47,7 @@ async function main(): Promise<void> {
     _dapSessionCountForTesting,
     _setDapChildBoundsForTesting,
   } = await import('../../src/services/dap/dapClient.js')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-multi-proof', lane: 'main' })
 
   console.log('============================================================')

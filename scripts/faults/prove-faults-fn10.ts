@@ -248,7 +248,7 @@ try {
   {
     const { createDapSession, getDapSession } = await import('../../src/services/dap/dapClient.ts')
     const { getExecution, requestStopExecution } = await import('../../src/services/primitives/executionPlane.ts')
-    const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+    const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
     const owner = processMainOwner()
     const mockAdapter = join(HERE, '../dap/mock-dap-adapter.mjs')
     const program = join(SCRATCH, 'dummy.py')
@@ -319,7 +319,7 @@ try {
   console.log('10. src/services/dap/dapClient.ts (invalid MERCURY_DAP_ADAPTERS on Debug launch)')
   {
     const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-    const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+    const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
     const owner = processMainOwner()
     const program = join(SCRATCH, 'dummy.py')
     writeFileSync(program, 'x = 1\n')

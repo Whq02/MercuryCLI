@@ -1,7 +1,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import * as path from 'node:path'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   builtinGodotServer,

@@ -5,7 +5,7 @@ import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { projectHomeStore } from '../../utils/projectHomeStores.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { workspaceVerifiable } from '../../utils/verification/verificationState.js'
 import { findPythonProjectRoot } from './pythonProject.js'
 

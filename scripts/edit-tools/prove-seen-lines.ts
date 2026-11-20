@@ -25,7 +25,7 @@ const {
   recordSeenLines,
   _resetSeenLinesForTesting,
 } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'seen-lines-fix-')))
 const owner = processMainOwner()

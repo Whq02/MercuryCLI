@@ -21,7 +21,7 @@ const { isMutationOperation } = await import(
 const { evidenceFor, _resetEvidencePlaneForTesting } = await import(
   '../../src/services/primitives/evidencePlane.ts'
 )
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const owner = processMainOwner()
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'builtin-tools-transform-cs-'))

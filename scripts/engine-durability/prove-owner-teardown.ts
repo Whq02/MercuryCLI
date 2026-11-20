@@ -8,11 +8,11 @@ const ROOT = scratchRoot('teardown')
 const t = checker()
 
 const barrier = await import('./barrier.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const sidecar = await import('../../src/services/run/runSidecar.ts')
 const coord = await import('../../src/services/run/runCoordinator.ts')
-const lifecycle = await import('../../src/services/run/ownerLifecycle.ts')
-const { OwnerScopedStore } = await import('../../src/services/run/ownerScopedStore.ts')
+const lifecycle = await import('../../src/utils/run/ownerLifecycle.ts')
+const { OwnerScopedStore } = await import('../../src/utils/run/ownerScopedStore.ts')
 
 function liveOwner(sessionId: string): string {
   const owner = makeOwnerKey({ workspace: ROOT, sessionId, lane: 'main' })

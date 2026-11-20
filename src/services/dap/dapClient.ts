@@ -3,13 +3,13 @@ import { DapCancelledError, throwIfDapAborted } from './dapCancellation.js'
 import {
   registerOwnerDisposer,
   unregisterOwnerDisposer,
-} from '../run/ownerLifecycle.js'
+} from '../../utils/run/ownerLifecycle.js'
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { DapTerminalRunner } from './dapTerminal.js'
 import { createServer as createNetServer, type Socket } from 'node:net'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { dormantBuiltinAdapterHints, envAdapterTableError, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 import type { DapStartOptions } from './client/launch.js'

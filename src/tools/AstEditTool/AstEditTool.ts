@@ -13,7 +13,7 @@ import { dropSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { structurePolyglotEnabled } from '../../services/structure/contracts.js'
 import { resolveGrammarEngineDir } from '../../utils/structure/grammarFacility.js'
 import {

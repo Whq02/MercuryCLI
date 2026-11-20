@@ -12,8 +12,8 @@ process.env.MERCURY_SAMPLES = '1'
 const { formatMarksMessage, parseMarksBody, verdictWord } = await import('../../src/services/samples/marks.ts')
 const { stateAfterVerdict, samplesEnabled } = await import('../../src/utils/samples/contracts.ts')
 const { sampleCellRunner } = await import('./evalCell.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 const listener = await import('../../src/services/samples/listener.ts')
 
 let failures = 0
@@ -139,7 +139,7 @@ section('G the gate')
 {
   const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
   const workDir = mkdtempSync(join(tmpdir(), 'mercury-samples-gate-'))
-  const runEvalCell = async ({ owner, cell }: { owner: import('../../src/services/run/ownerKey.js').OwnerKey; cwd: string; cell: { language: string; code: string } }) => (await sampleCellRunner(owner, workDir))(cell.code)
+  const runEvalCell = async ({ owner, cell }: { owner: import('../../src/utils/run/ownerKey.js').OwnerKey; cwd: string; cell: { language: string; code: string } }) => (await sampleCellRunner(owner, workDir))(cell.code)
   const ownerOn = makeOwnerKey({ workspace: workDir, sessionId: 'gate-on', lane: 'main' } as never)
   const warm = await runEvalCell({ owner: ownerOn, cwd: workDir, cell: { language: 'js', code: 'typeof sample' } })
   check('G1 with MERCURY_SAMPLES=1 the cell has sample', samplesEnabled() && warm.status === 'ok' && warm.resultRepr === "'function'", JSON.stringify(warm).slice(0, 200))

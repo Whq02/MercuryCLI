@@ -1,7 +1,7 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { stripCompatModelPrefix } from '../routeLaw.js'
 import { getSessionId } from '../../../bootstrap/state.js'
-import { processOwnerForLane } from '../../run/resolveOwner.js'
+import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import { noteCompatPrefixCache } from './compatPrefixCache.js'
 import type { CompatUsage } from './compatChatClient.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'

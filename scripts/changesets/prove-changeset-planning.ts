@@ -31,7 +31,7 @@ const {
   _resetChangeSetStoreForTesting,
 } = await import('../../src/services/changeTransaction/changeSetStore.ts')
 const { processMainOwner, processOwnerForLane } = await import(
-  '../../src/services/run/resolveOwner.ts'
+  '../../src/utils/run/resolveOwner.ts'
 )
 const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
   '../../src/services/changeTransaction/snapshotRing.ts'

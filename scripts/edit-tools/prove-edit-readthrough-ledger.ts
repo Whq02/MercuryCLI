@@ -24,7 +24,7 @@ delete process.env.NODE_ENV
 
 const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { checkAnchor, mintRangeAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { READ_THROUGH_MARGIN, planReadThrough } = await import('../../src/tools/FileEditTool/readThrough.ts')
 const { FileReadTool, MaxFileReadTokenExceededError } = await import('../../src/tools/FileReadTool/FileReadTool.ts')

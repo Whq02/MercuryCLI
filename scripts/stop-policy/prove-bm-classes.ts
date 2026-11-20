@@ -24,7 +24,7 @@ function section(t: string): void {
 const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/services/run/ownerKey.js')
+  const ok = await import('../../src/utils/run/ownerKey.js')
   const kernel = await import('../../src/services/run/runKernel.js')
   const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
 
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
   section('BM-03/BM-09 — receipts over read-back; evidence outside the checkout')
   {
     const v = await import('../../src/utils/verification/verificationState.js')
-    const { observeToolTerminal } = await import('../../src/services/run/effectObserver.js')
+    const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
     v._resetVerificationStateForTesting()
     const cwd = mkdtempSync(join(tmpdir(), 'speedster-bm-proj-'))
     const vOwner = ok.makeOwnerKey({ workspace: cwd, sessionId: 'bm-v', lane: 'main' })

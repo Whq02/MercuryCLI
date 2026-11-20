@@ -55,7 +55,7 @@ import {
   createAssistantAPIErrorMessage,
   createUserMessage,
 } from '../../../utils/messages.js'
-import { processOwnerForLane } from '../../run/resolveOwner.js'
+import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import { utilityCallFor } from '../../../utils/model/utilityModel.js'
 import { startSessionActivity } from '../../../utils/sessionActivity.js'
 import {

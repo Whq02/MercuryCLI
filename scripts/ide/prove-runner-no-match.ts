@@ -119,7 +119,7 @@ section('A. jest — the F37W-2A-01 shape: a describe name sent as a positional 
   check('A4 the third line carries the zero counts', (lines[2] ?? '').startsWith('counts: 0 passed · 0 failed · 0 skipped · 0 errored'), lines[2] ?? '')
   check('A4 the result never says "1 failed"', !result.data.result.includes('1 failed'), result.data.result)
   const { resolveResource } = await import('../../src/services/resources/registry.ts')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
   const inspected = await runWithCwdOverride(withReport, () => resolveResource(`mercury://test/run/${result.data.record!.id}`, { owner: makeOwnerKey({ workspace: withReport, sessionId: 'no-match-proof', lane: 'main' }), cwd: withReport }))
   check('A4 the Inspect view of the record says no test matched', inspected.state === 'ok' && inspected.resource.summary.includes('no test matched'), JSON.stringify(inspected).slice(0, 200))
   await expectNoMatchRerun('A5 jest', withReport, result.data.record!.id, 'nodes:math ops')

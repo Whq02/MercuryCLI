@@ -8,7 +8,7 @@ import { lineAnchorsEnabled } from '../../../services/changeTransaction/lineAnch
 import { fileGeneration, recordDisplayedLines } from '../../../services/changeTransaction/seenLines.js'
 import { rememberAnchoredSnapshot } from '../../../services/changeTransaction/snapshotRing.js'
 import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnchor.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { ideReadTextAvailable } from '../../../services/acp/ideToolBridge.js'
 import { isRemotePath } from '../../../utils/remoteFiles/target.js'
 import { readFileInRange, type ReadFileRangeResult } from '../../../utils/readFileInRange.js'

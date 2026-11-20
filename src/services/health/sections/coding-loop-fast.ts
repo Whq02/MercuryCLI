@@ -72,7 +72,7 @@ export function codingLoopFastChecks(): CheckSpec[] {
         }
         await settleToolList()
         const { _toolTerminalSubscriberCountForTesting } = await import(
-          '../../run/effectObserver.js'
+          '../../../utils/run/effectObserver.js'
         )
         const subs = _toolTerminalSubscriberCountForTesting()
         return {

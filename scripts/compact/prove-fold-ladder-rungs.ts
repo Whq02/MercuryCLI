@@ -341,7 +341,7 @@ section('R8 a provider that ends the response under its own policy is rung 2, th
 section('R9 the text road is bounded by the same ladder: one round larger than a 32,768 window on a model that answers nothing makes a handful of requests, then rung 3 — and the epoch ledger records the skipped prose as the cause')
 {
   const { getContextEpoch } = await import('../../src/services/run/contextEpochs.ts')
-  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const model = `local/${LOCAL_MODEL}`
   const messages: Message[] = [createUserMessage({ content: filler(100_000, 'an attached document'), isMeta: true }), assistantRow(model, 'msg_0', [{ type: 'text', text: 'Noted; the document is read.' }], { input: 30_000, output: 50 }, 'end_turn')]
   record(`the gauge reads ${tokenCountWithEstimation(messages, model).toLocaleString('en-US')} on window ${getContextWindowForModel(model).toLocaleString('en-US')} (blocking ${getBlockingLimit(model).toLocaleString('en-US')}) — the first round alone is larger than the window, so the summariser reads it as text in chunks`)

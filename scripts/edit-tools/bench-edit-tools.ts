@@ -36,7 +36,7 @@ const { _drainTxAutoCaptureForTesting, installTxAutoCapture } = await import(
 const { recordReview } = await import('../../src/services/repoHost/repoHost.ts')
 const { installChangeReceiptObserver, receiptsFor, _resetChangeReceiptsForTesting } =
   await import('../../src/services/changeTransaction/receipts.ts')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const {
   discoverPythonTests,
   runPythonTests,
@@ -47,7 +47,7 @@ const { latestTransaction } = await import('../../src/services/ide/ideTransactio
 const { gitStatus, gitDiff } = await import('../../src/services/gitGraph/observe.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { searchToolsWithKeywords } = await import(
   '../../src/tools/ToolSearchTool/ToolSearchTool.ts'

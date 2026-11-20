@@ -23,7 +23,7 @@ function editOutcomeHealthChecks(): CheckSpec[] {
       label: 'Edit outcomes',
       run: async () => {
         const { editOutcomeHealthRows, editOutcomeHealthRowsOf } = await import('../../changeTransaction/editOutcomeLedger.js')
-        const { processMainOwner } = await import('../../run/resolveOwner.js')
+        const { processMainOwner } = await import('../../../utils/run/resolveOwner.js')
         const { getFocusedSessionConnector, hasFocusedSession } = await import('../../engine-connector/focusedConnector.js')
         const { hasSeatLive } = await import('../../engine-connector/seatLive.js')
         const focused = hasFocusedSession() ? getFocusedSessionConnector() : null

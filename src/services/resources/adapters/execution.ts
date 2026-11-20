@@ -5,11 +5,11 @@ import {
   getExecution,
   listExecutions,
 } from '../../primitives/executionPlane.js'
-import { isTerminalExecutionState } from '../../primitives/execution.js'
-import type { ExecutionRecord } from '../../primitives/execution.js'
-import { projectOwner } from '../../primitives/owner.js'
-import { processMainOwner } from '../../run/resolveOwner.js'
-import type { OwnerKey } from '../../run/ownerKey.js'
+import { isTerminalExecutionState } from '../../../utils/primitives/execution.js'
+import type { ExecutionRecord } from '../../../utils/primitives/execution.js'
+import { projectOwner } from '../../../utils/primitives/owner.js'
+import { processMainOwner } from '../../../utils/run/resolveOwner.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import {
   formatRef,
   type ParsedRef,

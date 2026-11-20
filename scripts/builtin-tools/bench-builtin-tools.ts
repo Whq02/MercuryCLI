@@ -61,7 +61,7 @@ await import('../../src/services/resources/adapters/structure.ts')
 await import('../../src/services/resources/adapters/git.ts')
 await import('../../src/services/resources/adapters/journey.ts')
 await import('../../src/services/resources/adapters/evidence.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { searchToolsWithKeywords } = await import(
   '../../src/tools/ToolSearchTool/ToolSearchTool.ts'

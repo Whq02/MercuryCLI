@@ -12,7 +12,7 @@ import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { usePopupListNavigation } from '../../components/CustomSelect/popup-list.js'
 import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import {
   flushRun,
   getRunSnapshot,

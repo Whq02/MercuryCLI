@@ -5,8 +5,8 @@ import {
   latestTransaction, openTransactionIdFor, type TxRecord, type TxStep,
 } from '../../services/ide/ideTransaction.js'
 import { clearTxJournal, inTxCaptureLane, saveTxJournal, txJournalFor } from '../../services/ide/txAutoCapture.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'

@@ -407,7 +407,7 @@ export function conflictId(path: string): string {
   return `gc-${createHash('sha1').update(path).digest('hex').slice(0, 10)}`
 }
 
-export function gitConflicts(root: string, owner?: import('../run/ownerKey.js').OwnerKey): GitConflict[] | GitUnavailable {
+export function gitConflicts(root: string, owner?: import('../../utils/run/ownerKey.js').OwnerKey): GitConflict[] | GitUnavailable {
   const status = gitStatus(root)
   if ('state' in status) return status
   const unmerged = status.files.filter(f => f.kind === 'unmerged')

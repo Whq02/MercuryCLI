@@ -4,9 +4,9 @@ import {
   markMutation,
   observeCompletedToolCall,
   verifyEvidenceEnabled,
-} from '../../utils/verification/verificationState.js'
+} from '../verification/verificationState.js'
 import type { OwnerKey } from './ownerKey.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { passedOver } from '../passedOver.js'
 
 export interface ToolTerminalEvent {
   owner: OwnerKey

@@ -176,7 +176,7 @@ console.log('\n§4 the floor: a signal inside the window dirties and arms the tr
 console.log('\n§5 the seams poke the owner: a Bash git word, a mutation, a turn end')
 {
   const vs = await import('../../src/utils/verification/verificationState.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   clockOffset += 61_000
   await getGitState()
   let before = _gitFactsForTesting()

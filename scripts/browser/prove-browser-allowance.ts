@@ -11,7 +11,7 @@ delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const sessions = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
-const { makeOwnerKey } = await import(join(ROOT, 'src/services/run/ownerKey.ts'))
+const { makeOwnerKey } = await import(join(ROOT, 'src/utils/run/ownerKey.ts'))
 const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
 const { FLAG_REGISTRY } = await import(join(ROOT, 'src/substrate/flagRegistry.ts'))
 

@@ -1,7 +1,7 @@
 
-import { registerCleanup } from '../../utils/cleanupRegistry.js'
+import { registerCleanup } from '../cleanupRegistry.js'
 import type { OwnerKey } from './ownerKey.js'
-import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 type StoreLike = {
   name: string

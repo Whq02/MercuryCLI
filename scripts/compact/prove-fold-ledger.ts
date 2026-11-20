@@ -9,7 +9,7 @@ assert.equal(selected?.omitted, 0)
 console.log('PASS complete operator byte equality')
 
 const { buildFoldLedger, renderFoldLedger, foldContentWitness } = await import('../../src/services/compact/foldLedger.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.js')
 const { fitPostCompactUnderThreshold } = await import('../../src/services/compact/compact.js')
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId: 'ledger-proof', lane: 'main' })

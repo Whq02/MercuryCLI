@@ -151,11 +151,11 @@ export async function getContextCapsuleAttachment(
     }
 
     const { ownerFromToolUseContext } =
-      require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
+      require('../run/resolveOwner.js') as typeof import('../run/resolveOwner.js')
     const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
-      require('../../services/primitives/owner.js') as typeof import('../../services/primitives/owner.js')
+      require('../primitives/owner.js') as typeof import('../primitives/owner.js')
     const { getContextMarks } =
-      require('../../services/projectIntel/pins.js') as typeof import('../../services/projectIntel/pins.js')
+      require('../projectIntel/pins.js') as typeof import('../projectIntel/pins.js')
     const laneOwner = ownerFromToolUseContext(toolUseContext)
     const marksOwner =
       describeOwner(laneOwner).parent ??
@@ -303,7 +303,7 @@ export function foldAttachmentsIntoCapsule(
     workingSet,
   }
   if (context) {
-    const { ownerFromToolUseContext } = require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
+    const { ownerFromToolUseContext } = require('../run/resolveOwner.js') as typeof import('../run/resolveOwner.js')
     if (lastAttached.size > 64) {
       const oldest = lastAttached.keys().next().value
       if (oldest !== undefined) lastAttached.delete(oldest)

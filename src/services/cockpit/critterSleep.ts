@@ -4,7 +4,7 @@ import {
   listExecutions,
   subscribeExecutionEvents,
 } from '../primitives/executionPlane.js'
-import { processMainOwner } from '../run/resolveOwner.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { critterFrameKey, swayPhaseAt, type SwayAnchor } from '../../utils/cockpit/critterIdle.js'
 import { daemonCrewLivenessSync } from './daemonRosterSnapshot.js'

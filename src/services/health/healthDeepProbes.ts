@@ -41,7 +41,7 @@ import { sleepSync, startTimeout } from '../../utils/timers.js'
 
 type CheckResult = Omit<HealthCheck, 'id' | 'label'>
 
-function fixtureOwnerKey(mod: typeof import('../run/ownerKey.js'), tag: string) {
+function fixtureOwnerKey(mod: typeof import('../../utils/run/ownerKey.js'), tag: string) {
   return mod.makeOwnerKey({
     workspace: `/tmp/health-probe`,
     sessionId: `health-${tag}-${process.pid}`,
@@ -50,11 +50,11 @@ function fixtureOwnerKey(mod: typeof import('../run/ownerKey.js'), tag: string) 
 }
 
 export async function probeRunKernel(): Promise<CheckResult> {
-  const ownerMod = await import('../run/ownerKey.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
   const kernel = await import('../run/runKernel.js')
   const sidecar = await import('../run/runSidecar.js')
   const coordinator = await import('../run/runCoordinator.js')
-  const lifecycle = await import('../run/ownerLifecycle.js')
+  const lifecycle = await import('../../utils/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'runkernel')
   try {
     let snap = kernel.emptyRunSnapshot({
@@ -108,10 +108,10 @@ export async function probeRunKernel(): Promise<CheckResult> {
 }
 
 export async function probeContextParity(): Promise<CheckResult> {
-  const ownerMod = await import('../run/ownerKey.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
   const planMod = await import('../run/requestContextPlan.js')
   const epochs = await import('../run/contextEpochs.js')
-  const lifecycle = await import('../run/ownerLifecycle.js')
+  const lifecycle = await import('../../utils/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'ctx')
   const other = fixtureOwnerKey(ownerMod, 'ctx-other')
   try {
@@ -302,10 +302,10 @@ export async function probeLspEngine(): Promise<CheckResult> {
 }
 
 export async function probeDapEngine(signal?: AbortSignal): Promise<CheckResult> {
-  const ownerMod = await import('../run/ownerKey.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
   const dap = await import('../dap/dapClient.js')
   const { probeAdapterSpec } = await import('../dap/probeAdapter.js')
-  const lifecycle = await import('../run/ownerLifecycle.js')
+  const lifecycle = await import('../../utils/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'dap')
   const dir = mkdtempSync(join(tmpdir(), 'health-dap-'))
   try {
@@ -360,9 +360,9 @@ export async function probePythonDebugger(signal?: AbortSignal): Promise<CheckRe
     }
   }
   const prov = resolution.provenance
-  const ownerMod = await import('../run/ownerKey.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
   const dap = await import('../dap/dapClient.js')
-  const lifecycle = await import('../run/ownerLifecycle.js')
+  const lifecycle = await import('../../utils/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'pydbg')
   const dir = mkdtempSync(join(tmpdir(), 'health-pydbg-'))
   const program = join(dir, 'probe.py')
@@ -487,10 +487,10 @@ export async function probeJsDebugBoot(signal?: AbortSignal): Promise<CheckResul
 }
 
 export async function probeEffectObserver(): Promise<CheckResult> {
-  const ownerMod = await import('../run/ownerKey.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
   const v = await import('../../utils/verification/verificationState.js')
-  const { observeToolTerminal } = await import('../run/effectObserver.js')
-  const lifecycle = await import('../run/ownerLifecycle.js')
+  const { observeToolTerminal } = await import('../../utils/run/effectObserver.js')
+  const lifecycle = await import('../../utils/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'effects')
   const dir = mkdtempSync(join(tmpdir(), 'health-effect-'))
   try {
@@ -681,10 +681,10 @@ export async function probeChangeTransaction(): Promise<CheckResult> {
   const { mintFileAnchor, checkAnchor } = await import(
     '../changeTransaction/snapshotAnchor.js'
   )
-  const { observeToolTerminal } = await import('../run/effectObserver.js')
+  const { observeToolTerminal } = await import('../../utils/run/effectObserver.js')
   const { receiptsFor } = await import('../changeTransaction/receipts.js')
-  const ownerMod = await import('../run/ownerKey.js')
-  const { disposeOwner } = await import('../run/ownerLifecycle.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
+  const { disposeOwner } = await import('../../utils/run/ownerLifecycle.js')
   const { writeFileSync } = await import('node:fs')
   const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-anchor-'))
   const owner = fixtureOwnerKey(ownerMod, 'anchor')
@@ -799,9 +799,9 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
 
 export async function probeAgentEnvelope(): Promise<CheckResult> {
   const { buildAgentResultEnvelope } = await import('../agentResults/normalize.js')
-  const { observeToolTerminal } = await import('../run/effectObserver.js')
-  const { processOwnerForLane } = await import('../run/resolveOwner.js')
-  const { disposeOwner } = await import('../run/ownerLifecycle.js')
+  const { observeToolTerminal } = await import('../../utils/run/effectObserver.js')
+  const { processOwnerForLane } = await import('../../utils/run/resolveOwner.js')
+  const { disposeOwner } = await import('../../utils/run/ownerLifecycle.js')
   const agentId = `health-envelope-${process.pid}`
   const owner = processOwnerForLane(agentId)
   try {
@@ -846,11 +846,11 @@ export async function probeAgentEnvelope(): Promise<CheckResult> {
 }
 
 export async function probeAxiomPrimitives(): Promise<CheckResult> {
-  const ownerMod = await import('../run/ownerKey.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
   const P = await import('../primitives/index.js')
-  const { observeToolTerminal } = await import('../run/effectObserver.js')
+  const { observeToolTerminal } = await import('../../utils/run/effectObserver.js')
   const { resolveResource } = await import('../resources/registry.js')
-  const { disposeOwner } = await import('../run/ownerLifecycle.js')
+  const { disposeOwner } = await import('../../utils/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'axiom')
   try {
     P.registerExecution({ owner, id: 'probe-exec', kind: 'process', label: 'probe', lifecycle: 'owner' })
@@ -924,8 +924,8 @@ export async function probeStructureLoop(): Promise<CheckResult> {
   const fs = await import('node:fs')
   const os = await import('node:os')
   const pathMod = await import('node:path')
-  const ownerMod = await import('../run/ownerKey.js')
-  const { disposeOwner } = await import('../run/ownerLifecycle.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
+  const { disposeOwner } = await import('../../utils/run/ownerLifecycle.js')
   const { runStructureQuery } = await import('../structure/query.js')
   const { buildPreview, applyPreview } = await import('../structure/transform.js')
   const { resolveStructureTypescript } = await import('../structure/tsFacility.js')
@@ -1000,8 +1000,8 @@ export async function probeGitGraph(): Promise<CheckResult> {
   const os = await import('node:os')
   const pathMod = await import('node:path')
   const { execFileSync } = await import('node:child_process')
-  const ownerMod = await import('../run/ownerKey.js')
-  const { disposeOwner } = await import('../run/ownerLifecycle.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
+  const { disposeOwner } = await import('../../utils/run/ownerLifecycle.js')
   const { gitStatus, gitDiff, isGitRepo } = await import('../gitGraph/observe.js')
   const { preparePlan, applyPlan } = await import('../gitGraph/plan.js')
   const { transactionById } = await import('../primitives/transactionPlane.js')
@@ -1082,8 +1082,8 @@ export async function probeJourneyLoop(): Promise<CheckResult> {
   const fs = await import('node:fs')
   const os = await import('node:os')
   const pathMod = await import('node:path')
-  const ownerMod = await import('../run/ownerKey.js')
-  const { disposeOwner } = await import('../run/ownerLifecycle.js')
+  const ownerMod = await import('../../utils/run/ownerKey.js')
+  const { disposeOwner } = await import('../../utils/run/ownerLifecycle.js')
   const { runJourney } = await import('../journeys/runner.js')
   const { getExecution } = await import('../primitives/executionPlane.js')
 

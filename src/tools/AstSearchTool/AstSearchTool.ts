@@ -5,7 +5,7 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { structurePolyglotEnabled } from '../../services/structure/contracts.js'
 import { resolveGrammarEngineDir } from '../../utils/structure/grammarFacility.js'
 import {

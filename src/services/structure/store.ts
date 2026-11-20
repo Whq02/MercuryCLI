@@ -1,7 +1,7 @@
 
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { subscribeChangeReceipts } from '../changeTransaction/receipts.js'
 import type { StructurePreview, StructureQueryResult, PreviewState } from './contracts.js'
 import { passedOver } from '../../utils/passedOver.js'

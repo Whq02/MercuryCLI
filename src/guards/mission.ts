@@ -13,7 +13,7 @@ import {
   claimContinuation,
   turnBoundaryIndex,
 } from '../services/run/continuationLatch.js'
-import { processMainOwner } from '../services/run/resolveOwner.js'
+import { processMainOwner } from '../utils/run/resolveOwner.js'
 import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
 import { compileGoal, goalWords, readItemisedClose, type GoalStatement } from '../services/mission/goal.js'
 import {

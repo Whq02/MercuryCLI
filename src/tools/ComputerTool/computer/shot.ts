@@ -11,7 +11,7 @@ import {
   refreshCompatModelImageReading,
 } from '../../../services/providers/openaicompat/compatProbe.js'
 import { getEngineModel, normalizeModelStringForAPI } from '../../../utils/model/model.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../../utils/permissions/permissions.js'
 import type { PermissionRule, ToolPermissionContext } from '../../../types/permissions.js'
 import { classifyModelRoute, providerDisplayName } from '../../../services/providers/routeLaw.js'

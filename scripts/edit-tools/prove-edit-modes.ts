@@ -14,7 +14,7 @@ const { planAppend, findSection, planSectionEdit } = await import('../../src/too
 const { planHunks, formatHunkOutcomes } = await import('../../src/services/changeTransaction/hunks.ts')
 const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
 const { fileGeneration, recordSeenLines, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 

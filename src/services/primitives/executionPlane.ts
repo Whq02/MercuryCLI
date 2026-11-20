@@ -1,7 +1,7 @@
 
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import {
   canTransitionExecution,
   EXECUTION_CONTRACT_VERSION,
@@ -14,7 +14,7 @@ import {
   type ExecutionRecord,
   type ExecutionSpec,
   type ExecutionState,
-} from './execution.js'
+} from '../../utils/primitives/execution.js'
 import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
 

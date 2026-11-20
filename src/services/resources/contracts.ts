@@ -1,6 +1,6 @@
 
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { passedOver } from '../../utils/passedOver.js'
 

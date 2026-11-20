@@ -12,7 +12,7 @@ import {
 } from '../../../services/changeTransaction/lineAnchors.js'
 import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnchor.js'
 import { serializeIntentDigest } from '../../../services/changeTransaction/repetitionPolicy.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { remoteMovedSinceRead } from '../../../utils/remoteFiles/target.js'
 import { getCheckedFileModificationTime } from '../../../utils/file.js'
 import { plural } from '../../../utils/stringUtils.js'

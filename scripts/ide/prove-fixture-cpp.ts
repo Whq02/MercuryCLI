@@ -74,9 +74,9 @@ const { subscribeLSPDiagnosticPublish } = await import('../../src/services/lsp/L
 const { awaitDiagnosticStabilization } = await import('../../src/tools/LSPTool/mercuryOps.js')
 const tx = await import('../../src/services/ide/ideTransaction.js')
 const dap = await import('../../src/services/dap/dapClient.js')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.js')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
 const { receiptsFor } = await import('../../src/services/changeTransaction/receipts.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 
 const owner = makeOwnerKey({ workspace: proj, sessionId: 'fixture-cpp', lane: 'main' })
 const manager = createLSPServerManager()

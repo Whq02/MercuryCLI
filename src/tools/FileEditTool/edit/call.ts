@@ -7,7 +7,7 @@ import { columnCutsOf, retainColumnCuts, fileGeneration, generationOfWrittenByte
 import { checkAnchor, formatAnchorFailure } from '../../../services/changeTransaction/snapshotAnchor.js'
 import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../../services/lsp/manager.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readRangeViaIde, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../../services/acp/ideToolBridge.js'
 import { isRemotePath, markRemoteRead } from '../../../utils/remoteFiles/target.js'
 import { countLinesChanged } from '../../../utils/diff.js'

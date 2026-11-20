@@ -7,7 +7,7 @@ delete process.env.MERCURY_TOOL_SEARCH
 delete process.env.MERCURY_TOOL_DEFER
 
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-const { subscribeToolStart } = await import('../../src/services/run/effectObserver.ts')
+const { subscribeToolStart } = await import('../../src/utils/run/effectObserver.ts')
 const toolModule = await import('../../src/Tool.ts')
 const { findToolByName, getEmptyToolPermissionContext } = toolModule
 const closestToolByName = (toolModule as { closestToolByName?: (tools: unknown, name: string) => { name: string } | undefined }).closestToolByName

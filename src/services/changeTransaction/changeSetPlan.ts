@@ -5,7 +5,7 @@ import { preserveUntouchedLineEndings } from '../../utils/file.js'
 import { detectLineEndingsForString, LOSSY_DECODE_MESSAGE } from '../../utils/fileRead.js'
 import { sha256Hex } from '../../utils/hash.js'
 import { expandPath } from '../../utils/path.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import {
   CHANGESET_BOUNDS,
   CHANGESET_CONTRACT_VERSION,

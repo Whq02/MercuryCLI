@@ -15,7 +15,7 @@ import { routedCallModel, settleAssistantTurn } from '../../providers/callModelR
 import { coldPrefixOf } from '../../providers/streamIdleBudget.js'
 import { getRetryDelay } from '../../api/withRetry.js'
 import { APIUserAbortError } from '../../api/sdkErrors.js'
-import { rosterOwnerFromToolUseContext } from '../../run/resolveOwner.js'
+import { rosterOwnerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { FileReadTool } from '../../../tools/FileReadTool/FileReadTool.js'
 import { ToolSearchTool } from '../../../tools/ToolSearchTool/ToolSearchTool.js'
 import { projectRewoundWindows } from '../checkpointRewind.js'

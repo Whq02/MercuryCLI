@@ -6,7 +6,7 @@ import { parseMercuryRef } from '../../services/resources/contracts.js'
 import { fileReferenceCandidates } from '../../services/resources/referencePaths.js'
 import { getCwd } from '../../utils/cwd.js'
 import { expandPath } from '../../utils/path.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import type { ReadQueryRequest } from './readQuery.js'
 import { parseRichFormatTarget, renderArchiveTarget } from './readRichFormats.js'
 

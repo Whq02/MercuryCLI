@@ -118,7 +118,7 @@ section('§3 fleetGauge — solo reads off; the roster still lists a live execut
 {
   const f = await import('../../src/services/cockpit/fleetGauge.ts')
   const plane = await import('../../src/services/primitives/executionPlane.ts')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const owner = processMainOwner()
   const solo = await f.fleetGauge()
   check('solo session reads off with the no-fleet reason', solo.state === 'off' && /no fleet/.test(solo.reason ?? ''), `${solo.state} · ${solo.reason}`)

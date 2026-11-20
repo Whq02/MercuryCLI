@@ -1,6 +1,6 @@
 
 import { rebuildSeenLinesFromTranscript } from '../../services/changeTransaction/seenLines.js'
-import { processOwnerForLane } from '../../services/run/resolveOwner.js'
+import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { stat, utimes } from 'node:fs/promises'
 import { getEngineModel } from '../../utils/model/model.js'
 import { getAgentModel } from '../../utils/model/agent.js'
