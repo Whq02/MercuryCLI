@@ -132,6 +132,67 @@ try {
     tbResting !== null && tbResting.fg === tbRestingSession && tbResting.fg !== tbInfo,
     `got=${tbResting?.fg} session=${tbRestingSession} info=${tbInfo}`,
   )
+
+  const { spawnSync } = await import('node:child_process')
+  const { join } = await import('node:path')
+  const repo = join(import.meta.dir, '../..')
+  const collapsed = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      `
+        process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+        process.env.FORCE_COLOR = '1'
+        process.env.MERCURY_WARM_INK = '1'
+        delete process.env.NO_COLOR
+        delete process.env.MERCURY_TRUECOLOR
+        globalThis.MACRO = { VERSION: '1.0.0' }
+        const React = await import('react')
+        const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
+        enableConfigs()
+        const { ThemeProvider } = await import(${JSON.stringify(join(repo, 'src/components/design-system/ThemeProvider.tsx'))})
+        const { ConcourseComposer } = await import(${JSON.stringify(join(repo, 'src/components/concourse/ConcourseStrips.tsx'))})
+        const { setSessionCritter } = await import(${JSON.stringify(join(repo, 'src/components/mercury-ui/sessionAccent.ts'))})
+        const { resolveMercuryTokens } = await import(${JSON.stringify(join(repo, 'src/utils/mercuryTokens.ts'))})
+        const { paletteCollapsed, colorize } = await import(${JSON.stringify(join(repo, 'src/ink/colorize.ts'))})
+        const { mountOffscreen, waitFor } = await import(${JSON.stringify(join(repo, 'scripts/lib/settingsPopupHarness.ts'))})
+        setSessionCritter('crab')
+        const el = React.createElement(
+          ThemeProvider,
+          { initialState: 'dark' },
+          React.createElement(ConcourseComposer, {
+            width: 60,
+            bandRows: 2,
+            focused: true,
+            draft: { text: 'hello', caret: 5 },
+            pending: false,
+            note: null,
+            restHint: 'message',
+          }),
+        )
+        const m = await mountOffscreen(el, 80, 24)
+        await waitFor(() => m.lines().some(line => line.includes('┏') || line.includes('╭')), 1500)
+        const lines = m.lines()
+        const y = lines.findIndex(line => line.includes('┏') || line.includes('╭'))
+        const x = y < 0 ? -1 : lines[y].search(/[┏╭]/)
+        const st = y < 0 || x < 0 ? null : m.styleAt(x, y)
+        const ch = y < 0 || x < 0 ? '' : lines[y][x]
+        m.unmount()
+        const tok = resolveMercuryTokens('dark', '#DD4444')
+        const infoSample = colorize('X', tok.info, 'foreground')
+        const infoMatch = /\\x1b\\[([0-9;]+)mX/.exec(infoSample)
+        process.stdout.write('\\n' + JSON.stringify({ collapsed: paletteCollapsed(), ch, fg: st?.fg ?? null, infoFg: infoMatch?.[1] ?? null }))
+        process.exit(0)
+      `,
+    ],
+    { encoding: 'utf8', env: { ...process.env, FORCE_COLOR: '1', MERCURY_CONFIG_DIR: HOME, MERCURY_TRUECOLOR: '', NO_COLOR: '' } },
+  )
+  const col = collapsed.status === 0 ? (JSON.parse(collapsed.stdout.trim().split('\n').pop() ?? '{}') as { collapsed?: boolean; ch?: string; fg?: string; infoFg?: string }) : null
+  check(
+    'collapsed palette (16-colour) focused composer paints bold border and info colour',
+    col !== null && col.collapsed === true && col.ch === '┏' && col.fg !== null && col.fg === col.infoFg,
+    JSON.stringify(col ?? { status: collapsed.status, stderr: collapsed.stderr.slice(-400) }),
+  )
 } finally {
   await releaseScratchHome(HOME)
 }

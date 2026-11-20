@@ -73,7 +73,7 @@ export function ConcourseComposer({
       flexDirection="column"
       flexShrink={0}
       {...(style !== undefined ? { borderStyle: paletteCollapsed() && focused ? 'bold' : style } : {})}
-      borderColor={borderColor}
+      borderColor={paletteCollapsed() && focused ? t.info : borderColor}
       paddingX={1}
       width={width}
       overflow="hidden"
