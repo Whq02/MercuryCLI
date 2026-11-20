@@ -19,7 +19,6 @@ export { loadTranscriptFile } from './sessionStorage/loading.js'
 export {
   adoptResumedSessionFile,
   advisorSwitchOfSession,
-  closeAgentTranscript,
   flushSessionStorage,
   recordAttributionSnapshot,
   recordContentReplacement,
