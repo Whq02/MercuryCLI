@@ -156,7 +156,8 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
   if (options.includeWorktrees !== false) {
     try {
       worktrees = await getWorktreePathsPortable(canonical)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       worktrees = []
     }
   }

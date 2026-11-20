@@ -10,7 +10,13 @@ import {
   unescapeJsonString,
   validateUuid,
 } from '../sessionStoragePortable.js'
+import { getErrnoCode } from '../errors.js'
 import { passedOver } from '../passedOver.js'
+
+function isAbsenceError(error: unknown): boolean {
+  const code = getErrnoCode(error)
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
 
 export type IndexedSession = {
   sessionId: string
@@ -20,9 +26,18 @@ export type IndexedSession = {
   size: number
 }
 
-export async function sessionFiles(projectDir: string, options: { stat?: boolean; concurrency?: number; failed?: (path: string) => void } = {}): Promise<IndexedSession[]> {
+export async function sessionFiles(
+  projectDir: string,
+  options: { stat?: boolean; concurrency?: number; failed?: (path: string, error?: unknown) => void } = {},
+): Promise<IndexedSession[]> {
   let entries
-  try { entries = await readdir(projectDir, { withFileTypes: true }) } catch (error) { passedOver(error); return [] }
+  try {
+    entries = await readdir(projectDir, { withFileTypes: true })
+  } catch (error) {
+    passedOver(error)
+    if (!isAbsenceError(error)) options.failed?.(projectDir, error)
+    return []
+  }
   const candidates = entries.flatMap(entry => {
     if (!entry.isFile() || !entry.name.endsWith('.jsonl')) return []
     const sessionId = validateUuid(entry.name.slice(0, -6))
@@ -38,8 +53,9 @@ export async function sessionFiles(projectDir: string, options: { stat?: boolean
       try {
         const info = await stat(row.path)
         rows[index] = { ...row, mtime: info.mtimeMs, ctime: info.birthtimeMs, size: info.size }
-      } catch {
-        options.failed?.(row.path)
+      } catch (error) {
+        passedOver(error)
+        if (!isAbsenceError(error)) options.failed?.(row.path, error)
         rows[index] = null
       }
     }
@@ -145,7 +161,13 @@ function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) =
   }
 }
 
-export async function readSessionLabelFacts(filePath: string, fileSize: number, buffer: Buffer, builtIn: (name: string) => boolean) {
-  const { head, tail } = await readHeadAndTail(filePath, fileSize, buffer)
+export async function readSessionLabelFacts(
+  filePath: string,
+  fileSize: number,
+  buffer: Buffer,
+  builtIn: (name: string) => boolean,
+  onReadError?: (path: string, error: unknown) => void,
+) {
+  const { head, tail } = await readHeadAndTail(filePath, fileSize, buffer, onReadError)
   return head ? sessionLabelFacts(head, tail, builtIn) : { firstPrompt: '', isSidechain: false }
 }

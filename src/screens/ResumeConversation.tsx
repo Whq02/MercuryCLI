@@ -22,12 +22,16 @@ import { checkCrossProjectResume } from '../utils/crossProjectResume.js'
 import { logError } from '../utils/log.js'
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../utils/fullscreen.js'
 import { estateGroundBg } from '../utils/mercuryTokens.js'
+import { getOriginalCwd } from '../bootstrap/state.js'
 import {
   enrichSessionListings,
+  formatSessionReadFailures,
+  mergeSessionReadFailures,
   sessionIdOfListing,
   listSessionsAcrossProjectsProgressive,
   listRepoSessionsProgressive,
   type SessionPage,
+  type SessionReadFailures,
 } from '../utils/sessionStorage/logs.js'
 import { isCustomTitleEnabled } from '../utils/sessionStorage/paths.js'
 import { Chat, type Props as ChatProps } from './Chat.js'
@@ -37,6 +41,7 @@ const LOAD_MORE_BATCH = 20
 type Props = {
   commands: Command[]
   worktreePaths: string[]
+  worktreeReadError?: string
   initialTools: Tool[]
   debug?: boolean
   initialSearchQuery?: string
@@ -105,12 +110,17 @@ function GroundFill({ children }: { children: React.ReactNode }): React.ReactNod
   )
 }
 
-function NoConversations(): React.ReactNode {
+function NoConversations({ readNotice }: { readNotice: string | null }): React.ReactNode {
   useKeybinding('app:interrupt', () => {
     process.exit(1)
   })
   return (
-    <Box paddingX={1}>
+    <Box paddingX={1} flexDirection="column">
+      {readNotice !== null ? (
+        <Text color="warning" wrap="wrap">
+          {readNotice}
+        </Text>
+      ) : null}
       <Text>No conversations to resume. Press ctrl+c to exit and start fresh.</Text>
     </Box>
   )
@@ -132,6 +142,7 @@ function LoadConversationsFailed({ error }: { error: string }): React.ReactNode 
 export function ResumeConversation({
   commands,
   worktreePaths,
+  worktreeReadError,
   initialTools,
   debug,
   initialSearchQuery,
@@ -145,6 +156,7 @@ export function ResumeConversation({
   const [nextIndex, setNextIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [readFailures, setReadFailures] = useState<SessionReadFailures | undefined>(undefined)
   const [isResuming, setIsResuming] = useState(false)
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [resumeRefusal, setResumeRefusal] = useState<string | null>(null)
@@ -161,6 +173,7 @@ export function ResumeConversation({
     logCountRef.current = result.logs.length
     setAllStatLogs(result.allStatLogs)
     setNextIndex(result.nextIndex)
+    setReadFailures(result.readFailures)
   }, [])
 
   const load = useCallback(
@@ -196,6 +209,7 @@ export function ResumeConversation({
         const batch = await enrichSessionListings(allStatLogs, start, LOAD_MORE_BATCH)
         start = batch.nextIndex
         setNextIndex(batch.nextIndex)
+        if (batch.readFailures) setReadFailures(prev => mergeSessionReadFailures(prev, batch.readFailures))
         if (batch.logs.length > 0) {
           setLogs(prev => {
             const base = logCountRef.current
@@ -279,6 +293,14 @@ export function ResumeConversation({
 
   const size = React.useContext(TerminalSizeContext)
 
+  const readNotice = useMemo(() => {
+    const worktreeFailure: SessionReadFailures | undefined =
+      !showAllProjects && worktreeReadError !== undefined
+        ? { count: 1, firstPath: getOriginalCwd() || 'worktrees', firstError: worktreeReadError }
+        : undefined
+    return formatSessionReadFailures(mergeSessionReadFailures(worktreeFailure, readFailures))
+  }, [showAllProjects, worktreeReadError, readFailures])
+
   const host = (node: React.ReactNode): React.ReactNode =>
     useAltScreenHost ? (
       <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
@@ -308,6 +330,7 @@ export function ResumeConversation({
         onCancel={cancelResumeWait}
       />,
     )
+
   if (loadError !== null) {
     return (
       <KeybindingSetup>
@@ -318,12 +341,19 @@ export function ResumeConversation({
   if (filteredLogs.length === 0) {
     return (
       <KeybindingSetup>
-        <NoConversations />
+        <NoConversations readNotice={readNotice} />
       </KeybindingSetup>
     )
   }
   return host(
     <>
+      {readNotice !== null ? (
+        <Box paddingX={1}>
+          <Text color="warning" wrap="wrap">
+            {readNotice}
+          </Text>
+        </Box>
+      ) : null}
       {resumeRefusal !== null ? (
         <Box paddingX={1}>
           <Text color="error" wrap="wrap">

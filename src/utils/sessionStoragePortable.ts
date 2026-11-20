@@ -6,7 +6,7 @@ import { getMercuryHome } from './envUtils.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { djb2Hash } from './hash.js'
 import { sliceHeadAtGrapheme } from './intl.js'
-import { errorMessage } from './errors.js'
+import { errorMessage, getErrnoCode } from './errors.js'
 import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore, type ProjectStoreReadFailure, type StoreSpellingRules } from './projectStoreIdentity.js'
 import { setStoreHealth, transcriptStoreHealth } from './sessionStorage/writer/storeHealth.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
@@ -213,7 +213,17 @@ function decodeWindow(buffer: Buffer, length: number, trimLeading: boolean, trim
   return buffer.toString('utf8', start, end)
 }
 
-export async function readHeadAndTail(filePath: string, fileSize: number, buf: Buffer): Promise<{ head: string; tail: string }> {
+function isAbsenceError(error: unknown): boolean {
+  const code = getErrnoCode(error)
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
+export async function readHeadAndTail(
+  filePath: string,
+  fileSize: number,
+  buf: Buffer,
+  onReadError?: (path: string, error: unknown) => void,
+): Promise<{ head: string; tail: string }> {
   try {
     const handle = await open(filePath, 'r')
     try {
@@ -229,14 +239,19 @@ export async function readHeadAndTail(filePath: string, fileSize: number, buf: B
     } finally {
       await handle.close()
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
+    if (!isAbsenceError(error)) onReadError?.(filePath, error)
     return { head: '', tail: '' }
   }
 }
 
 export type LiteSessionFile = { mtime: number; size: number; head: string; tail: string }
 
-export async function readSessionLite(filePath: string): Promise<LiteSessionFile | null> {
+export async function readSessionLite(
+  filePath: string,
+  onReadError?: (path: string, error: unknown) => void,
+): Promise<LiteSessionFile | null> {
   try {
     const handle = await open(filePath, 'r')
     try {
@@ -257,6 +272,7 @@ export async function readSessionLite(filePath: string): Promise<LiteSessionFile
     }
   } catch (error) {
     passedOver(error)
+    if (!isAbsenceError(error)) onReadError?.(filePath, error)
     return null
   }
 }
@@ -297,11 +313,15 @@ export async function canonicalizePath(dir: string): Promise<string> {
   return resolveDirectoryIdentity(dir).canonical
 }
 
-async function directoryExists(path: string): Promise<boolean> {
+async function directoryExists(
+  path: string,
+  onReadError?: (path: string, error: unknown) => void,
+): Promise<boolean> {
   try {
     return (await stat(path)).isDirectory()
   } catch (error) {
     passedOver(error)
+    if (!isAbsenceError(error)) onReadError?.(path, error)
     return false
   }
 }
@@ -355,21 +375,26 @@ export function getProjectDir(projectDir: string): string {
   return resolved
 }
 
-export async function findProjectDir(projectPath: string): Promise<string | undefined> {
+export async function findProjectDir(
+  projectPath: string,
+  onReadError?: (path: string, error: unknown) => void,
+): Promise<string | undefined> {
   const canonical = await canonicalizePath(projectPath)
   const candidate = getProjectDir(canonical)
-  if (await directoryExists(candidate)) return candidate
+  if (await directoryExists(candidate, onReadError)) return candidate
   const sanitized = sanitizePath(canonical)
   if (sanitized.length <= MAX_SANITIZED_LENGTH) return undefined
+  const projectsDir = getProjectsDir()
   try {
     const { readdir } = await import('node:fs/promises')
     const prefix = `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-`
     const suffix = candidate.slice(candidate.lastIndexOf('-'))
-    for (const entry of await readdir(getProjectsDir())) {
-      if (entry.startsWith(prefix) && entry.endsWith(suffix)) return join(getProjectsDir(), entry)
+    for (const entry of await readdir(projectsDir)) {
+      if (entry.startsWith(prefix) && entry.endsWith(suffix)) return join(projectsDir, entry)
     }
   } catch (error) {
     passedOver(error)
+    if (!isAbsenceError(error)) onReadError?.(projectsDir, error)
     return undefined
   }
   return undefined

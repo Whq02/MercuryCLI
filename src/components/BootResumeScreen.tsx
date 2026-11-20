@@ -39,6 +39,7 @@ interface BootResumePickerModel {
   flat: SessionPickerFlatRow[];
   elsewhereCount: number;
   pendingMore: number;
+  readNotice?: string | null;
 }
 
 interface BootResumeScreenProps {
@@ -267,6 +268,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
   );
   const elsewhereCount = given?.elsewhereCount ?? live.elsewhereCount;
   const pendingMore = given?.pendingMore ?? live.pendingMore;
+  const readNotice = given?.readNotice ?? live.readNotice;
   const loading = given === undefined && live.logs === null;
 
   const selectable: SelectableRow[] = useMemo(
@@ -468,6 +470,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       i < flat.length ? i : i + (scope === 'project' && elsewhereCount > 0 ? 1 : 0);
     const statusRight =
       list.note ??
+      readNotice ??
       resumeStatusLine({
         loading,
         count: flat.length,
@@ -498,10 +501,17 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       }),
       environment,
       statusRight,
+      ...(readNotice !== null ? { noticeLine: readNotice } : {}),
       glowWord: wordGlow,
       legend: resumeLegendOf(scope, selectable.length > 0, merged),
       ...(selected === null
-        ? { detailOverride: loading ? ['reading the session store…'] : resumeEmptyDetailLines(scope, elsewhereCount) }
+        ? {
+            detailOverride: loading
+              ? ['reading the session store…']
+              : readNotice !== null
+                ? [readNotice, '', ...resumeEmptyDetailLines(scope, elsewhereCount)]
+                : resumeEmptyDetailLines(scope, elsewhereCount),
+          }
         : {
             detailOverride:
               selected.kind === 'session'
@@ -510,7 +520,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
           }),
       ...(pruneOverride ?? {}),
     };
-  }, [flat, elsewhereCount, pendingMore, loading, scope, selected, selectable.length, list.selectedIndex, list.note, prune, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [flat, elsewhereCount, pendingMore, readNotice, loading, scope, selected, selectable.length, list.selectedIndex, list.note, prune, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {
