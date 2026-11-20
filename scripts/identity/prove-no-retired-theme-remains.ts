@@ -16,7 +16,7 @@ const REMOVAL_ROW = /^design-system\/live\/grids\/[^\t]+\.grid\.json\tremoved wi
 const EXCUSED: Array<[string, string]> = [
   ['src/extensions/bundled/lightcraft/skills/lightcraft/SKILL.md', 'LightCraft\'s own command vocabulary (its "light" develop section), not a Mercury appearance'],
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelog.ts', 'past release notes stay as published'],
+  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/engine-pass/contract-59a987410.json', "the recorded contract of the engine pass's base, a snapshot never rewritten"],
   ['scripts/ui/prove-theme-roster.ts', 'drives each retired name to prove it resolves as an unknown name does'],
   ['scripts/identity/prove-no-retired-theme-remains.ts', 'this census composes the names it hunts'],
