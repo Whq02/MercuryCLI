@@ -76,14 +76,26 @@ console.log('\ngatewayTrust.ts — failed TLS fingerprint probe refuses to activ
         update: () => ({ success: true }),
       }),
     }))
+    mock.module(SRC + '/bootstrap/state.js', () => ({
+      getIsNonInteractiveSession: () => false,
+    }))
+    const stderrLines = []
+    const origStderrWrite = process.stderr.write
+    process.stderr.write = ((chunk) => { stderrLines.push(String(chunk)); return true })
     const { restoreGatewayAuth } = await import(SRC + '/utils/gatewayTrust.ts')
-    await restoreGatewayAuth()
+    try {
+      await restoreGatewayAuth()
+    } finally {
+      process.stderr.write = origStderrWrite
+    }
     out.activated = logs.some(l => l.includes('verified session'))
     out.refused = logs.some(l => l.includes('TLS fingerprint probe failed'))
+    out.stderr = stderrLines.join('')
   `)
+  const stderr = typeof r.stderr === 'string' ? r.stderr : ''
   check(
     'gatewayTrust:restore-refuses-on-tls-probe-failure',
-    r.activated === false && r.refused === true,
+    r.activated === false && r.refused === true && /^Cloud gateway 127\.0\.0\.1 could not be verified \(.+\) — run \/logins to reconnect\.\n$/.test(stderr),
     JSON.stringify(r),
   )
 }
