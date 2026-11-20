@@ -221,10 +221,31 @@ function reconcileLoadedRecord(cwd: string, record: ServiceRecord): ServiceRecor
   return record
 }
 
-function reconcileRecordStrict(cwd: string, name: string): StrictRecordRead {
+export function reconcileRecordStrict(cwd: string, name: string): StrictRecordRead {
   const loaded = readRecordStrict(cwd, name)
   if (!loaded.ok || loaded.record === null) return loaded
   return { ok: true, record: reconcileLoadedRecord(cwd, loaded.record) }
+}
+
+export function reconcileAllStrict(
+  cwd: string,
+): { ok: true; records: ServiceRecord[] } | { ok: false; error: string } {
+  const dir = servicesDir(cwd)
+  let names: string[]
+  try {
+    names = readFileSyncDirNames(dir)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { ok: true, records: [] }
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+  const records: ServiceRecord[] = []
+  for (const name of names) {
+    const loaded = reconcileRecordStrict(cwd, name)
+    if (!loaded.ok) return { ok: false, error: loaded.error }
+    if (loaded.record !== null) records.push(loaded.record)
+  }
+  records.sort((a, b) => a.spec.name.localeCompare(b.spec.name))
+  return { ok: true, records }
 }
 
 export function reconcileRecord(cwd: string, name: string): ServiceRecord | null {
@@ -391,11 +412,13 @@ export async function waitForReady(
   cwd: string,
   name: string,
   timeoutMs: number,
-): Promise<{ ready: boolean; statuses: ReadinessStatus[]; record: ServiceRecord | null }> {
+): Promise<{ ready: boolean; statuses: ReadinessStatus[]; record: ServiceRecord | null; error?: string }> {
   const deadline = Date.now() + timeoutMs
   const registrationGrace = Date.now() + Math.min(timeoutMs, WAIT_REGISTRATION_GRACE_MS)
   for (;;) {
-    const record = reconcileRecord(cwd, name)
+    const loaded = reconcileRecordStrict(cwd, name)
+    if (!loaded.ok) return { ready: false, statuses: [], record: null, error: loaded.error }
+    const record = loaded.record
     if (!record) {
       if (Date.now() >= registrationGrace) return { ready: false, statuses: [], record: null }
       await sleep(100)

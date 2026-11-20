@@ -137,8 +137,48 @@ async function w08_1_sedUncompilablePatternFallsBackToRealSed(): Promise<void> {
   }
 }
 
+async function w08_2_serviceListAndStatusReportReadErrors(): Promise<void> {
+  const { chmodSync, mkdirSync } = await import('node:fs')
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-2-'))
+  const mgr = await import(join(SRC, 'services/projectServices/serviceManager.ts'))
+  const { ServiceTool } = await import(join(SRC, 'tools/ServiceTool/ServiceTool.ts'))
+  const { serviceAdapter } = await import(join(SRC, 'services/resources/adapters/service.ts'))
+  const { getOriginalCwd, setOriginalCwd } = await import(join(SRC, 'bootstrap/state.ts'))
+  const prevCwd = getOriginalCwd()
+  setOriginalCwd(dir)
+  const svcDir = mgr.servicesDir(dir)
+  try {
+    mkdirSync(svcDir, { recursive: true })
+    writeFileSync(join(svcDir, 'broken.json'), JSON.stringify({ schema: 2 }))
+    const ctx = { options: {} } as never
+    const desc = await ServiceTool.call({ op: 'describe', name: 'broken' } as never, ctx)
+    check('w08-2: Service describe reports invalid service record instead of unknown', desc.data.state === 'failed' && desc.data.result.includes('invalid service record at'), JSON.stringify(desc.data))
+    const listBad = await ServiceTool.call({ op: 'list' } as never, ctx)
+    check('w08-2: Service list reports invalid service record instead of empty', listBad.data.state === 'failed' && listBad.data.result.includes('invalid service record at'), JSON.stringify(listBad.data))
+    const resItem = await serviceAdapter.resolve({ canonical: 'mercury://service/broken', kind: 'service', id: 'broken', selectors: {} } as never, {} as never)
+    check('w08-2: resource adapter reports unavailable for corrupt service record', resItem.state === 'unavailable' && (resItem.note ?? '').includes('invalid service record at'), JSON.stringify(resItem))
+    const resList = await serviceAdapter.resolve({ canonical: 'mercury://service', kind: 'service', id: '', selectors: {} } as never, {} as never)
+    check('w08-2: resource adapter list reports unavailable for corrupt service record', resList.state === 'unavailable' && (resList.note ?? '').includes('invalid service record at'), JSON.stringify(resList))
+
+    chmodSync(svcDir, 0o000)
+    try {
+      const listLocked = await ServiceTool.call({ op: 'list' } as never, ctx)
+      check('w08-2: Service list reports unreadable services folder instead of empty', listLocked.data.state === 'failed' && !listLocked.data.result.includes('no services in this project'), JSON.stringify(listLocked.data))
+      const resLocked = await serviceAdapter.resolve({ canonical: 'mercury://service', kind: 'service', id: '', selectors: {} } as never, {} as never)
+      check('w08-2: resource adapter list reports unavailable on unreadable services folder', resLocked.state === 'unavailable', JSON.stringify(resLocked))
+    } finally {
+      chmodSync(svcDir, 0o755)
+    }
+  } finally {
+    setOriginalCwd(prevCwd)
+    rmSync(dir, { recursive: true, force: true })
+    rmSync(svcDir, { recursive: true, force: true })
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
+  w08_2_serviceListAndStatusReportReadErrors,
 ]
 for (const row of rows) {
   try {
