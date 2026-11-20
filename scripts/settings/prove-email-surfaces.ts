@@ -231,7 +231,7 @@ const { settingsPopupGeometry } = await import(join(ROOT, 'src/components/Settin
 const popupStore = await import(join(ROOT, 'src/utils/cockpit/settingsPopup.ts'))
 const usageCommand = await import(join(ROOT, 'src/commands/usage/usage.tsx'))
 const usage = await import(join(ROOT, 'src/services/providers/providerUsage.ts'))
-const session = await import(join(ROOT, 'src/utils/accounts/sessionAccount.ts'))
+const session = await import(join(ROOT, 'src/services/accounts/sessionAccount.ts'))
 
 type Surfaces = { logins: string; face: string; popup: string; card: string }
 async function paintSurfaces(size: { columns: number; rows: number }, tag: string): Promise<Surfaces> {

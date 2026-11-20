@@ -85,7 +85,7 @@ function providerAuthChecks(): CheckSpec[] {
         id: 'auth-anthropic',
         label: meta.label,
         run: async () => {
-          const { checkAnthropicSignInFresh } = await import('../../../utils/accounts/signInFreshness.js')
+          const { checkAnthropicSignInFresh } = await import('../../accounts/signInFreshness.js')
           const fresh = await checkAnthropicSignInFresh()
           const { anthropicCredentialPresence } =
             require('../../providers/providerUsage.js') as typeof import('../../providers/providerUsage.js')
@@ -137,7 +137,7 @@ function providerAuthChecks(): CheckSpec[] {
       label: meta.label,
       run: async () => {
         if (provider.id === 'openai') {
-          const { checkOpenaiSignInFresh } = await import('../../../utils/accounts/signInFreshness.js')
+          const { checkOpenaiSignInFresh } = await import('../../accounts/signInFreshness.js')
           const fresh = await checkOpenaiSignInFresh()
           if (fresh.state === 'expired') {
             const { credentialWallLine } =

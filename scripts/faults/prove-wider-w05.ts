@@ -360,7 +360,7 @@ console.log('\nw05-6 — useSessionSignInGate stays open on throw and records er
     mock.module('react', () => ({ useMemo: (fn) => fn() }))
     mock.module(path.join(SRC, 'utils/accounts/useSignInEpoch.js'), () => ({ useSignInEpoch: () => 0 }))
     mock.module(path.join(SRC, 'hooks/useCatalogueEpoch.js'), () => ({ useCatalogueEpoch: () => 0 }))
-    mock.module(path.join(SRC, 'utils/accounts/sessionSignIn.js'), () => ({
+    mock.module(path.join(SRC, 'services/accounts/sessionSignIn.js'), () => ({
       sessionSignInGate: () => { throw new Error('gate-boom') },
     }))
     const { useSessionSignInGate } = await import(path.join(SRC, 'hooks/useSessionSignInGate.ts'))
