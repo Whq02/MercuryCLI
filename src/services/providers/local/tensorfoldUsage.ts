@@ -109,22 +109,23 @@ export interface TensorFoldServingReads {
   turns?: () => readonly TensorFoldTurnReading[]
 }
 
-function readServed(): readonly TensorFoldServed[] {
+function readServed(read?: () => readonly TensorFoldServed[]): readonly TensorFoldServed[] | undefined {
   try {
+    if (read !== undefined) return read()
     const { servedTensorFold } = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
     return servedTensorFold()
   } catch (error) {
     passedOver(error)
-    return []
+    return undefined
   }
 }
 
-function readHosts(): readonly TensorFoldHost[] {
+function readHosts(read?: () => readonly TensorFoldHost[]): readonly TensorFoldHost[] | undefined {
   try {
-    return tensorFoldHosts()
+    return (read ?? tensorFoldHosts)()
   } catch (error) {
     passedOver(error)
-    return []
+    return undefined
   }
 }
 
@@ -152,9 +153,13 @@ export function tensorFoldServing(model: string, reads: TensorFoldServingReads =
       ...(inUseBytes !== undefined ? { inUseBytes } : {}),
     }
   }
-  const started = (reads.served ?? readServed)().find(row => sameModel(row.name, name) || sameModel(row.repo, name))
+  const servedList = readServed(reads.served)
+  if (servedList === undefined) return undefined
+  const started = servedList.find(row => sameModel(row.name, name) || sameModel(row.repo, name))
   if (started !== undefined) return { model: started.name, state: 'loading', address: `127.0.0.1:${started.port}`, window: started.window }
-  const host = (reads.hosts ?? readHosts)().find(row => row.serving !== undefined && sameModel(row.serving, name))
+  const hostsList = readHosts(reads.hosts)
+  if (hostsList === undefined) return undefined
+  const host = hostsList.find(row => row.serving !== undefined && sameModel(row.serving, name))
   const turn = (reads.turns ?? tensorFoldTurnReadings)().findLast(row => sameModel(row.model, name))
   if (host === undefined && turn === undefined && !model.trim().toLowerCase().startsWith('local/tensorfold/')) return undefined
   return { model: host?.serving ?? turn?.model ?? wire, state: 'absent', ...(host !== undefined ? { address: tensorFoldHostAddress(host.baseUrl) } : turn !== undefined ? { address: turn.address } : {}) }
