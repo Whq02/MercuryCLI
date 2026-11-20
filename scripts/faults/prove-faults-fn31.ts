@@ -505,5 +505,43 @@ console.log('\nruntime/services.ts — mcpCheck propagates getMcpPolicyRejects t
   check('runtime/services:mcp-policy-rejects-throw-propagates', r.err === 'policy parser boom', JSON.stringify(r))
 }
 
+console.log('\nhealthDeepProbes.ts — probeServiceLifecycle kills child PID if stopService throws in finally')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    mock.module(SRC + '/services/projectServices/contracts.js', () => ({
+      servicesEnabled: () => true,
+    }))
+    mock.module(SRC + '/services/projectServices/serviceManager.js', () => ({
+      startService: async () => ({ record: { pid: 424243, state: 'running' } }),
+      waitForReady: async () => { throw new Error('wait boom') },
+      readLogs: async () => ({ lines: [] }),
+      stopService: async () => { throw new Error('stop boom') },
+    }))
+    const kills = []
+    const origKill = process.kill
+    process.kill = ((pid, sig) => {
+      if (pid === 424243) { kills.push({ pid, sig }); return true }
+      return origKill(pid, sig)
+    })
+    const { probeServiceLifecycle } = await import(SRC + '/utils/healthDeepProbes.ts')
+    try {
+      await probeServiceLifecycle()
+      out.err = null
+    } catch (e) {
+      out.err = e?.message ?? String(e)
+    } finally {
+      process.kill = origKill
+    }
+    out.kills = kills
+  `)
+  const kills = (r.kills as Array<{ pid: number; sig: string }> | undefined) ?? []
+  check(
+    'healthDeepProbes:probeServiceLifecycle-kills-pid-when-stopService-throws',
+    r.err === 'wait boom' && kills.some(k => k.pid === 424243 && k.sig === 'SIGKILL'),
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
