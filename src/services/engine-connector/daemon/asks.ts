@@ -104,6 +104,9 @@ export class AsksPart {
         isNonInteractiveSession: false,
         agentDefinitions: { activeAgents: [], allAgents: [] },
       },
+      startTurn: () => {
+        throw new Error('a daemon-hosted session has no in-process turn loop')
+      },
       abortController: new AbortController(),
       readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
       getAppState: () => {
@@ -114,7 +117,7 @@ export class AsksPart {
       setResponseLength: () => {},
       updateFileHistoryState: () => {},
       updateAttributionState: () => {},
-    } as unknown as ToolUseContext
+    }
   }
 
   private buildConfirm(row: SessionAskProjectionV1): ToolUseConfirm {
