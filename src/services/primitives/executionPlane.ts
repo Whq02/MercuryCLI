@@ -250,6 +250,7 @@ export function requestStopExecution(owner: OwnerKey, id: string): ExecutionReco
     try {
       domainHooks().get(record.spec.kind)?.requestStop?.(next)
     } catch (error) {
+      logError(error)
       passedOver(error)
     }
   }
