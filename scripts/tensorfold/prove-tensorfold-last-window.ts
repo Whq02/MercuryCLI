@@ -176,6 +176,9 @@ section('5 · what is remembered: the window of a session\'s start that came up,
   await serve.stopTensorFold('qwen3.5-2b', { servedFile, role: 'helper', forgetPort: () => undefined })
   await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined })
   check('a stop remembers nothing more', calls.length === afterSession && serve.servedTensorFold({ servedFile }).length === 0, JSON.stringify(calls))
+  const blind = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 65_536, port: await freePort() }, { ...io(40 * GIB), app: async () => { throw new Error('the process list could not be read') } }).then(() => 'served', (error: unknown) => String(error))
+  check('a start goes on when whether the app is already serving could not be read: a check that could not finish refuses nothing', blind === 'served', blind)
+  if (blind === 'served') await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined })
   rmSync(world.root, { recursive: true, force: true })
 }
 
