@@ -13,12 +13,7 @@ import {
   moveSavedPrompt,
   subscribeSavedPrompts,
 } from '../../utils/savedPrompts/savedPromptsStore.js'
-import './composerLayout.js'
-import './CrewChatPanel.js'
-import '../TextInput.js'
-import '../mercury-ui/components.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
-import '../mercury-ui/NavigablePanes.js'
 import type {
   ColumnDef,
   RowAction,

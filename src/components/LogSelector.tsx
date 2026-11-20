@@ -1,6 +1,5 @@
 
 import { truncateToWidth } from '../utils/truncate.js'
-import './PromptInput/ExitChordNotice.js'
 import React, {
   useCallback,
   useEffect,
@@ -11,17 +10,11 @@ import React, {
 import { useInput } from '../ink.js'
 import type { SessionListing } from '../types/logs.js'
 import { getLogDisplayTitle } from '../utils/log.js'
-import './SearchBox.js'
 import { SessionPreview } from './SessionPreview.js'
-import './TagTabs.js'
-import './TextInput.js'
-import './ui/TreeSelect.js'
-import './CustomSelect/index.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useSearchInput } from '../hooks/useSearchInput.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import './mercury-ui/footerHint.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { getBranch } from '../utils/git.js'

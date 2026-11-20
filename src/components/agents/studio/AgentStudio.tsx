@@ -13,7 +13,6 @@ import {
   listAgentTrash,
   restoreAgentFromTrash,
 } from '../../../services/agents/store.js'
-import '../../../services/agents/overrides.js'
 import {
   decodeAgentDocument,
   patchAgentDocument,
@@ -26,7 +25,6 @@ import type { Tools } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
 import { getCwd } from '../../../utils/cwd.js'
-import '../../../utils/promptEditor.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import {
   EmptyState,
@@ -40,8 +38,6 @@ import { popupListWindow, PopupListViewport, usePopupListNavigation } from '../.
 import { useEngineModel } from '../../../hooks/useEngineModel.js'
 import TextInput from '../../TextInput.js'
 import { getAgentSourceDisplayName } from '../utils.js'
-import './StudioEditor.js'
-import '../ModelSelector.js'
 import { agentModelAvailabilityNote } from '../../../utils/model/agentModelPicker.js'
 import {
   buildStudioRows,

@@ -4,8 +4,6 @@ import { useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { readSessionWorkers } from '../daemon/concourseWorkers.js';
 import { formatRelativeTimeAgo } from '../utils/format.js';
-import '../daemon/controlSocket.js';
-import '../daemon/protocol.js';
 import {
   fireDeltaWords,
   saturnFactsOf,
@@ -31,12 +29,8 @@ import { getProjectDir } from '../utils/sessionStorage/paths.js';
 import { workedInProjects } from '../utils/bootCardFacts.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import '../utils/model/model.js';
 import { wrapPlain } from './BootHealthScreen.js';
-import './mercury-ui/InteractiveRow.js';
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js';
-import './mercury-ui/SceneCanvas.js';
-import './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';

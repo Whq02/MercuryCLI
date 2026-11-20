@@ -16,7 +16,6 @@ import { HANDOFF_TEXT_CAP, ledgerEntryOf, recordHandoff } from './ledger.js'
 import { lineageJoined } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
-import './journal.js'
 
 export const inThousands = (n: number): string => n.toLocaleString('en-US')
 

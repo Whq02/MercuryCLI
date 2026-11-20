@@ -36,7 +36,6 @@ import { getEngineModel, renderModelName } from '../../../utils/model/model.js'
 import { useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { useInteractiveList } from '../useInteractiveList.js'
-import '../InteractiveRow.js'
 import { renderAccountRow, rowKey, type BoardRow } from './accountRows.js'
 
 function usabilityFor(familyId: string): ProviderUsability | undefined {

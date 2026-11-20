@@ -7,7 +7,6 @@ import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
 import type { SessionListing } from '../../../types/logs.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
-import '../../../utils/format.js'
 import { retentionWindowDays } from '../../../utils/cleanup.js'
 import {
   buildPruneOffer,
@@ -23,14 +22,11 @@ import { SECOND } from '../../mercuryPalette.js'
 import { useSessionPickerModel, type SessionScope } from './sessionPickerModel.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
 import { CommandCenter, EmptyState } from '../components.js'
-import '../glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
-import '../../../utils/cockpit/critterVariant.js'
 import { Spinner } from '../../Spinner.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { decodeNavKey } from '../navSemantics.js'
-import '../InteractiveRow.js'
 import { prunePaneOf, sessionListView, type OwnSessionStateWords } from './sessionManager/views.js'
 
 function shellInteriorWidth(columns: number): number {

@@ -34,14 +34,11 @@ import { CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChr
 import { stringWidth } from '../ink/stringWidth.js'
 import { compactBandForm, shedToFit } from './mercury-ui/geometry.js'
 import { compactModeChip } from './mercury-ui/compactModeChip.js'
-import '../utils/cockpit/quota.js'
-import '../services/providers/providerUsage.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/anthropicLimits.js'
 import inkInstances from '../ink/instances.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import '../utils/cockpit/healthCertSnapshot.js'
 import {
   subscribeVerification,
   treeScanStatus,

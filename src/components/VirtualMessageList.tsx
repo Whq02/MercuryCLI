@@ -32,7 +32,6 @@ import {
   type MessageActionsNav,
   type MessageActionsState,
 } from './messageActions.js'
-import '../utils/sleep.js'
 import { JUMP_HEADROOM_ROWS, newEngineState, type JumpHandle, type SearchEngineState } from './virtualMessageList/engine.js'
 import { cursorNavHandleOf, jumpHandleOf } from './virtualMessageList/handles.js'
 import { advanceOf, settleOnMessageOf } from './virtualMessageList/search.js'

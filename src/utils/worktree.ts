@@ -11,7 +11,6 @@ import type { ToolPermissionContext } from '../Tool.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { findCanonicalGitRoot, findGitRoot, gitExe } from './git.js'
-import './subprocessEnv.js'
 import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from './git/gitFilesystem.js'
 import { parseGitConfigValue } from './git/gitConfigParser.js'
 import { registerCleanup } from './cleanupRegistry.js'
@@ -29,7 +28,6 @@ import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, dis
 import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } from './worktree/baseline.js'
 import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
 import { runGit } from './worktree/git.js'
-import '../ink/colorize.js'
 
 
 

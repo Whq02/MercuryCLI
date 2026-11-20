@@ -39,8 +39,6 @@ import { logError } from '../../../utils/log.js'
 import { applyMarkdown } from '../../../utils/markdown.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { OTHER_OPTION_VALUE, projectQuestionState, type QuestionState } from './questionState.js'
-import './QuestionView.js'
-import './SubmitQuestionsView.js'
 import { currentQuestionView, handleQuestionAnswerOf, submitQuestionsViewOf } from './askUserQuestionParts.js'
 
 const MIN_CONTENT_HEIGHT = 12

@@ -5,11 +5,9 @@ import type {
   CollapsedReadSearchGroup,
 } from '../../types/message.js'
 import type { Tools } from '../../Tool.js'
-import '../../Tool.js'
 import { useMinDisplayTime } from '../../hooks/useMinDisplayTime.js'
 import type { MessageLookups } from '../../utils/messages/lookups.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
-import '../../utils/log.js'
 import { plural } from '../../utils/stringUtils.js'
 import { toTildePath } from '../../utils/path.js'
 import { useFluxMountMark } from '../../hooks/useFluxMountMark.js'
@@ -23,17 +21,8 @@ import {
   movedToBackgroundByOperator,
   type ToolUseEntryV1,
 } from '../../services/engine-connector/shellRunning.js'
-import '../CtrlOToExpand.js'
-import '../MessageResponse.js'
-import '../../utils/messages/rejectionText.js'
-import '../mercury-ui/toolGlyphs.js'
 import type { ToolFamily } from '../mercury-ui/toolGlyphs.js'
-import './AssistantToolUseMessage.js'
-import './ToolRowLead.js'
-import './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
-import '../shell/OutputLine.js'
-import '../../tools/BashTool/toolName.js'
 import { collapsedGroupView, verboseGroupView, type Fragment } from './collapsedReadSearch/views.js'
 
 const HINT_MIN_DISPLAY_MS = 700

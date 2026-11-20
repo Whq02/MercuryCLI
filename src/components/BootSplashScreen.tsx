@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import 'figures';
 import { getCwd } from '../utils/cwd.js';
-import '../ink.js';
 import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useTheme } from './design-system/ThemeProvider.js';
 import {
@@ -17,7 +16,6 @@ import {
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
-import './mercury-ui/glyphs.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
@@ -37,20 +35,9 @@ import { peekWornPresetKit } from '../services/switchboard/bootBirthFacts.js';
 import { enterBootSettings, settleAbsentChat } from '../context/surfaceRoute.js';
 import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
 import { mintImmediateReceipt, recentWarningReceipt, subscribeSeatReceipts } from '../utils/model/seatReceipts.js';
-import './BootAgentsScreen.js';
-import './BootHealthScreen.js';
 import { loginsGlance } from './BootLoginsScreen.js';
-import './BootResumeScreen.js';
 import { fireDeltaWords } from './BootSaturnScreen.js';
-import './BootSettingsScreen.js';
-import './KitMenuScreen.js';
-import '../commands/model/mercuryModel.js';
-import '../context/modalContext.js';
-import './PopupGutter.js';
-import './ModelPickerPopupSlot.js';
 import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
-import './mercury-ui/InteractiveRow.js';
-import './mercury-ui/SceneCanvas.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';

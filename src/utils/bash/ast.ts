@@ -1,6 +1,4 @@
 import { SHELL_KEYWORDS } from './bashParser.js'
-import '../sanitization.js'
-import './heredoc.js'
 import { misreadWordList, PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, wordListFault, type Node, type WordListFault } from './parser.js'
 import { preCheckReason } from './ast/preCheck.js'
 import { peelWrappers } from './ast/wrappers.js'

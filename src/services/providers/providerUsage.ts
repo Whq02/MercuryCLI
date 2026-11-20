@@ -1,8 +1,4 @@
-import '../../bootstrap/state.js'
 import { hostRentalUsage } from '../host/costs.js'
-import '../../utils/spendSpelling.js'
-import '../../utils/format.js'
-import '../../utils/workloadContext.js'
 import {
   getAnthropicApiKey,
   getAuthTokenSource,
@@ -13,10 +9,8 @@ import {
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import '../../utils/modelCost.js'
 import { buildProviderSnapshot, type ProviderSnapshot } from './modelRegistry.js'
 import type { ProviderFamilyId } from './providerAdapter.js'
-import './providerDiscovery.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
 import {
   anthropicWindowClosedUntil,
@@ -62,7 +56,6 @@ import {
 } from './openai/openaiLimitState.js'
 import { openaiSubscriptionUsage, openaiUsageReaderState } from './openai/openaiUsageState.js'
 import type { OpenrouterKeySource } from './openrouter/openrouterAccounts.js'
-import './openrouter/openrouterAccounts.js'
 import {
   openrouterObservedKeyUsage,
   refreshOpenrouterKeyUsage,
@@ -71,10 +64,6 @@ import {
 } from './openrouter/openrouterUsageState.js'
 import type { GeminiAccountRef } from './gemini/geminiAccounts.js'
 import type { GeminiLimitWindow } from './gemini/geminiUsageState.js'
-import './gemini/geminiAccounts.js'
-import './gemini/geminiUsageState.js'
-import './gemini/geminiPlanAccess.js'
-import './gemini/geminiCatalogue.js'
 export { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaView, type GeminiPlanQuotaView } from './gemini/geminiPlanQuota.js'
 import {
   resolveHuggingfaceAccount,
@@ -87,10 +76,7 @@ import {
   type HuggingfaceLimitWindow,
 } from './huggingface/huggingfaceUsageState.js'
 import type { LocalAccountRef } from './local/localAccounts.js'
-import './local/localAccounts.js'
 import { refreshLocalDiscovery } from './local/localDiscovery.js'
-import './xai/xaiAccounts.js'
-import './xai/xaiUsageState.js'
 import { spendForRoute } from './providerUsage/spend.js'
 export { ADVISOR_WORK_WORD, advisorSessionSpend, advisorUsageLine, providerSessionSpend, SCHEDULED_WORK_WORD, scheduledSessionSpend, scheduledUsageLine, sessionSpendByModel, sessionSpendOfFacts } from './providerUsage/spend.js'
 import { refreshXaiSubscriptionCredits, refreshXaiUsage, xaiObservedSubscriptionCredits, xaiObservedUsage } from './xai/xaiUsageState.js'

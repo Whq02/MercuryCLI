@@ -111,7 +111,6 @@ import { ProviderSearchTool } from './tools/WebSearchTool/ProviderSearchTool.js'
 import { beginLoginFiles } from './utils/shell/shellRecord.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
-import './services/resources/kinds.js'
 import { tellTheToolTable } from './tools/toolTable.js'
 
 

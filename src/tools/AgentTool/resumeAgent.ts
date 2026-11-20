@@ -18,7 +18,6 @@ import {
   setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { recordedDescription } from '../../tasks/LocalAgentTask/launchReceipts.js'
-import '../../tasks/LocalMainSessionTask.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   runWithAgentContext,

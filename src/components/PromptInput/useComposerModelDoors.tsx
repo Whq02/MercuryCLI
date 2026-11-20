@@ -18,7 +18,6 @@ import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggi
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { renderModelName } from '../../utils/model/model.js'
-import '../../commands/model/persistModelChoice.js'
 import {
   capFailoverLaneOf,
   capHandoffState,
@@ -56,12 +55,7 @@ import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } 
 import { anthropicWindowClosed, getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
 import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
 import { formatResetTime } from '../../utils/format.js'
-import '../../services/providers/accountSlots.js'
 import { useNowTick } from '../mercury-ui/components.js'
-import '../ModelPicker.js'
-import '../TransitionPreviewCard.js'
-import '../CapOfferCard.js'
-import '../SlotOfferCard.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { applyModelSelectionOf, modelDoorsSurfaceOf } from './composerModelDoorsParts.js'
 

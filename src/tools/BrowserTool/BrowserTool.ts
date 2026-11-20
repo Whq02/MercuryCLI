@@ -1,13 +1,7 @@
 
-import '../WebFetchTool/privateHost.js'
 import { type ToolEffectOutcome, type ToolUseContext, buildTool } from '../../Tool.js'
-import '../../substrate/flagRegistry.js'
-import '../../utils/lazySchema.js'
-import '../FileReadTool/FileReadTool.js'
-import '../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import '../../services/browser/browserResolver.js'
 import {
   BROWSER_CLOSE_BOUND_MS,
   BROWSER_PROTOCOL_TIMEOUT_MS,
@@ -22,16 +16,8 @@ import {
 } from '../../services/browser/browserSession.js'
 import { EMULATION_FIELD_WORDS } from '../../services/browser/browserEmulation.js'
 import { scrubSecretFromText } from '../../services/browser/browserSecrets.js'
-import '../../services/browser/browserUploads.js'
-import '../../services/browser/browserWords.js'
-import '../../utils/scratchpad.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
-import '../../utils/permissions/filesystem.js'
-import '../../utils/permissions/permissions.js'
-import '../../utils/permissions/shellRuleMatching.js'
-import '../../utils/permissions/ruleReason.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
-import '../../utils/sleep.js'
 import { readFileSync } from 'node:fs'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import {

@@ -4,7 +4,6 @@ import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/d
 import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
-import '../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
 
 const PROVIDER_SECRETS_VERSION = 1

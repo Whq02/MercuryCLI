@@ -6,7 +6,6 @@ import type { Key } from '../ink.js'
 import { addToHistory } from '../history.js'
 import { markBackslashReturnUsed } from '../commands/keysetup/keysetup.js'
 import { isBackslashContinuation } from '../input-core/backslashContinuation.js'
-import '../components/PromptInput/inputModes.js'
 import type {
   InlineGhostText,
   TextInputState,
@@ -22,8 +21,6 @@ import {
   yankPop,
 } from '../utils/Cursor.js'
 import { env } from '../utils/env.js'
-import '../utils/fullscreen.js'
-import '../utils/inputRange.js'
 import { EXIT_CHORD_WINDOW_MS, useDoublePress } from './useDoublePress.js'
 import { onInputOf, routeKeyOf, upOrHistoryOf } from './textInput/keys.js'
 

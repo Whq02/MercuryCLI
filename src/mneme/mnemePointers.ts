@@ -12,8 +12,6 @@ import {
 } from './mnemeFootnotes.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
-import './mnemeLookup.js'
-import '../utils/stringUtils.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, type MnemeEntry } from './mnemeTopicDocs.js'
 import { readPins } from './mnemeUsage.js'
 import { noteMemoryOffered } from './mnemeSignal.js'

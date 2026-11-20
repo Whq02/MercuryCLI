@@ -1,6 +1,4 @@
-import '../../../services/changeTransaction/lineAnchors.js'
 import { countTokensWithAPI, roughTokenCountEstimationForFileType } from '../../../services/tokenEstimation.js'
-import '../../../utils/file.js'
 import type { ReadFileRangeResult } from '../../../utils/readFileInRange.js'
 import { planReadThrough } from '../../FileEditTool/readThrough.js'
 import type { FileReadingLimits } from '../limits.js'

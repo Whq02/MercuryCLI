@@ -8,7 +8,6 @@ import type { InitializeParams, ServerCapabilities } from 'vscode-languageserver
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
-import '../../utils/sleep.js'
 import { languageServerEnv } from '../../utils/subprocessEnv.js'
 import type { ExecutionState } from '../primitives/execution.js'
 import { projectExternalState } from '../primitives/externalProjection.js'

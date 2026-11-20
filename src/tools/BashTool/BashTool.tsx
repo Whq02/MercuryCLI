@@ -13,10 +13,8 @@ import { exec, resolveShellCwd, settleLoginFiles, signalsCountIn, terminalShellI
 import { captureVerificationStart } from '../../utils/verification/verificationState.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
-import '../../utils/ShellCommand.js'
 import type { ExecResult, ShellCommand } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
-import '../../utils/task/diskOutput.js'
 import {
   backgroundExistingForegroundTask,
   markTaskNotified,
@@ -39,7 +37,6 @@ import {
   getFileModificationTime,
   writeTextContent,
 } from '../../utils/file.js'
-import '../../utils/toolResultStorage.js'
 import { exitLine, interpretCommandResult } from './commandSemantics.js'
 import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, EDITOR_TERMINAL_RESULT_NOTE, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'

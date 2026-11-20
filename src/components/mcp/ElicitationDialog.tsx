@@ -12,7 +12,6 @@ import { getEnumLabels, getEnumValues, getMultiSelectLabels, getMultiSelectValue
 import { openBrowser } from '../../utils/browser.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { useNowTick } from '../mercury-ui/components.js'
-import '../TextInput.js'
 import { scheduleDateResolveOf, commitTextOf, formKeysOf, valueDisplayOf, formDialogView, type FieldValue, type FieldKind, type FieldState, type ElicitationDialogProps } from './elicitationDialog/form.js'
 
 const RESOLVE_DEBOUNCE_MS = 2_000

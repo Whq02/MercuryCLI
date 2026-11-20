@@ -1,18 +1,14 @@
 import * as React from 'react'
 import { useEffect, useRef, useLayoutEffect } from 'react'
 import { Box, Text, useInput, wrapText, type DOMElement } from '../../ink.js'
-import '../../ink/components/AlternateScreen.js'
-import '../../ink/components/ScrollBox.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 import { innerWidth as innerPaneWidth, viewportRows } from './geometry.js'
-import './components.js'
 import { InteractiveRow } from './InteractiveRow.js'
 import { CursorCell } from './LiveGlyphs.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { useNavigablePanes } from './useNavigablePanes.js'
-import '../CustomSelect/popup-list.js'
 import { panesBodyOf, panesFrameOf, type Layout, type NavigablePanesProps } from './navigablePanes/views.js'
 
 

@@ -2,7 +2,6 @@ import { readRequestGauge } from '../services/run/requestGauge.js'
 import type { AssistantMessage, Message } from '../types/message.js'
 import { getTokenCountFromUsage } from './tokenUsage.js'
 export { getTokenCountFromUsage } from './tokenUsage.js'
-import './messages.js'
 import { getTokenUsage, messageContextFill, type ContentBlockLike, type ContextFill } from './messageContextFill.js'
 export { getTokenUsage, messageContextFill } from './messageContextFill.js'
 

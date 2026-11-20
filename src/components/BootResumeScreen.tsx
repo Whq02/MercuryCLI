@@ -26,8 +26,6 @@ import {
 } from '../utils/sessionStorage/transcriptPruneDoor.js';
 import { sessionIdOfListing } from '../utils/sessionStorage.js';
 import { renderModelChip } from '../utils/model/model.js';
-import './mercury-ui/InteractiveRow.js';
-import './mercury-ui/SceneCanvas.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';
