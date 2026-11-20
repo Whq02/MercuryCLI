@@ -1,9 +1,9 @@
 import { SHELL_KEYWORDS } from './bashParser.js'
 import { misreadWordList, PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, wordListFault, type Node, type WordListFault } from './parser.js'
-import { preCheckReason } from './ast/preCheck.js'
-import { peelWrappers } from './ast/wrappers.js'
+import { preCheckReason } from '../permissions/decision/commandAnalysis/preCheck.js'
+import { peelWrappers } from '../permissions/decision/commandAnalysis/wrappers.js'
 import type { ParseForSecurityResult, Redirect, SimpleCommand } from '../permissions/decision/commandAnalysis/reading.js'
-export { peelWrappers } from './ast/wrappers.js'
+export { peelWrappers } from '../permissions/decision/commandAnalysis/wrappers.js'
 export type { ParseForSecurityResult, Redirect, SimpleCommand } from '../permissions/decision/commandAnalysis/reading.js'
 
 export const WILDCARD_REASON = 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'
