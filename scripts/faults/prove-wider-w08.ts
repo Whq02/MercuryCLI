@@ -494,6 +494,87 @@ async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> 
   }
 }
 
+async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
+  const { chmodSync, mkdirSync } = await import('node:fs')
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-10-'))
+  const fakeBrowser = join(dir, 'fail-browser.sh')
+  writeFileSync(fakeBrowser, '#!/bin/sh\necho "no display available" >&2\nexit 1\n')
+  chmodSync(fakeBrowser, 0o755)
+  const prevBrowser = process.env.BROWSER
+  process.env.BROWSER = fakeBrowser
+  const browser = await import(join(SRC, 'utils/browser.ts'))
+  const { openMemoryFolder } = await import(join(SRC, 'components/memory/MemoryFileSelector.tsx'))
+  const { ElicitationDialog } = await import(join(SRC, 'components/mcp/ElicitationDialog.tsx'))
+  const { AppStoreContext } = await import(join(SRC, 'state/AppState.tsx'))
+  const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
+  const { createStore } = await import(join(SRC, 'state/store.ts'))
+  const { TerminalSizeContext } = await import(join(SRC, 'ink/components/TerminalSizeContext.tsx'))
+  const { Box, render, flushPendingSyncWork } = await import(join(SRC, 'ink.ts'))
+  const { KeybindingSetup } = await import(join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
+  try {
+    let browserErr: string | null = null
+    const bOk = await browser.openBrowser('https://example.test/doc', (err: string) => { browserErr = err })
+    const gotBrowserErr = browserErr as string | null
+    check('w08-10: openBrowser hands error message beside false', bOk === false && gotBrowserErr !== null && gotBrowserErr.includes('no display available'), JSON.stringify({ bOk, gotBrowserErr }))
+
+    let pathErr: string | null = null
+    const pOk = await browser.openPath(join(dir, 'does-not-exist-w08-10'), (err: string) => { pathErr = err })
+    const gotPathErr = pathErr as string | null
+    check('w08-10: openPath hands error message beside false for missing path', pOk === false && gotPathErr !== null && gotPathErr.length > 0, JSON.stringify({ pOk, gotPathErr }))
+
+    let memoryOpenErr: string | null = null
+    const memDir = join(dir, 'mem')
+    mkdirSync(memDir)
+    openMemoryFolder(
+      memDir,
+      { mkdirSync, openPath: async () => false },
+      (msg: string) => { memoryOpenErr = msg },
+    )
+    await new Promise<void>(resolve => setTimeout(resolve, 30))
+    const gotMemErr = memoryOpenErr as string | null
+    check('w08-10: MemoryFileSelector openMemoryFolder reports failed open via callback', gotMemErr !== null && gotMemErr.includes('could not be opened (') && gotMemErr.includes('open it yourself'), JSON.stringify(gotMemErr))
+
+    const stdinStream = new PassThrough()
+    const stdin = Object.assign(stdinStream, { isTTY: true, isRaw: false, setRawMode() { return this }, unref() { return this }, ref() { return this } }) as unknown as NodeJS.ReadStream
+    const stream = new PassThrough()
+    stream.resume()
+    const stdout = Object.assign(stream, { columns: 120, rows: 40 }) as unknown as NodeJS.WriteStream
+    const controller = new AbortController()
+    const node = React.createElement(ElicitationDialog, {
+      event: {
+        serverName: 'demo-mcp',
+        params: { mode: 'url', message: 'Sign in', url: 'https://example.test/oauth' },
+        signal: controller.signal,
+      } as never,
+      onResponse() {},
+      onWaitingDismiss() {},
+    })
+    const store = createStore(getDefaultAppState())
+    const tree = React.createElement(
+      TerminalSizeContext.Provider,
+      { value: { columns: 120, rows: 40 } },
+      React.createElement(
+        AppStoreContext.Provider,
+        { value: store as never },
+        React.createElement(KeybindingSetup, null, React.createElement(Box, { flexDirection: 'column', width: 120 }, node)),
+      ),
+    )
+    const instance = await render(tree, { stdin, stdout, patchConsole: false, exitOnCtrlC: false })
+    for (let i = 0; i < 6; i++) { flushPendingSyncWork(); await new Promise<void>(resolve => setTimeout(resolve, 10)) }
+    stdinStream.write('\r')
+    for (let i = 0; i < 20; i++) { flushPendingSyncWork(); await new Promise<void>(resolve => setTimeout(resolve, 20)) }
+    const frame = stripAnsi(instance.lastFrame() ?? '')
+    check('w08-10: ElicitationDialog shows open failure sentence when browser fails', frame.includes('https://example.test/oauth could not be opened (no display available) — open it yourself'), frame.slice(0, 400))
+    instance.unmount()
+    instance.cleanup()
+    stream.destroy()
+  } finally {
+    if (prevBrowser === undefined) delete process.env.BROWSER
+    else process.env.BROWSER = prevBrowser
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
@@ -504,6 +585,7 @@ const rows: Array<() => Promise<void>> = [
   w08_7_polyglotUnreadableDirAndStatNoted,
   w08_8_contextUnserializableToolAndMessageBlockNoted,
   w08_9_gitOperationTrackingPrLinkFailureSurfaced,
+  w08_10_browserAndPathOpenFailuresSurfaced,
 ]
 for (const row of rows) {
   try {
