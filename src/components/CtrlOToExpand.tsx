@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext } from 'react'
 import { Text } from '../ink.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { InVirtualListContext } from './messageActions.js'
 

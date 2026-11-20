@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { charWidth, displayWidth, truncateToWidth } from '../../src/components/mercury-ui/glyphs.ts'
+import { charWidth, displayWidth, truncateToWidth } from '../../src/utils/glyphs.ts'
 import { stringWidth } from '../../src/ink/stringWidth.ts'
 import { truncateToWidth as rigorousTruncateToWidth } from '../../src/utils/truncate.ts'
 

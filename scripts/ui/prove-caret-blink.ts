@@ -40,7 +40,7 @@ section('A. the paint delta — the two phases differ only in the caret cell SGR
 section('B. the strip width law — off phase paints a same-width cell')
 {
   const { caretLens } = await import('../../src/components/concourse/lineDraft.js')
-  const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.js')
+  const { GLYPH } = await import('../../src/utils/glyphs.js')
   check('the caret block is one cell wide', [...(GLYPH.caretBlock as string)].length === 1)
   const atEnd = caretLens({ text: 'launch two', caret: 10 }, 40)
   check('end-of-line lens exposes the empty at-cell (block ↔ space swap point)', atEnd.at === '')

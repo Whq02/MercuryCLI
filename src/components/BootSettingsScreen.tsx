@@ -17,7 +17,7 @@ import { daemonControlRpc } from '../daemon/controlSocket.js';
 import type { DaemonRequest } from '../daemon/protocol.js';
 import { SPAWN_SWITCH_ENV, spawnSwitchFactsOfRecord, spawnSwitchKindOfEnv, spawnSwitchOnFromValue } from '../services/switchboard/spawnSwitches.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
-import { branchChip } from './mercury-ui/glyphs.js';
+import { branchChip } from '../utils/glyphs.js';
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';

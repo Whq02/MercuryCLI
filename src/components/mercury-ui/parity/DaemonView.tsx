@@ -15,7 +15,7 @@ import {
   WarningBanner,
   type KVRow,
 } from '../components.js'
-import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from '../../../utils/glyphs.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { CursorCell } from '../LiveGlyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'

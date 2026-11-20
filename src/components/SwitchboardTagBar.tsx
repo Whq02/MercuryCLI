@@ -22,7 +22,7 @@ import { governorTrip, idleMotionLevel, motionPosture, subscribeIdleMotion } fro
 import { primeMotionSetting } from '../utils/cockpit/motionSetting.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { truncateKeepingTail } from '../utils/truncate.js'
-import { branchChip } from './mercury-ui/glyphs.js'
+import { branchChip } from '../utils/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { useFocusedSamples, useFocusedWorkRows } from './tasks/useFocusedWork.js'

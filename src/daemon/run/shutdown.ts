@@ -1,7 +1,7 @@
 import { lstatSync, readlinkSync, unlinkSync, writeSync } from 'node:fs'
 import { unlink } from 'fs/promises'
 import { basename } from 'path'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { treeEndsSettled } from '../../utils/processGroup.js'
 import { recordSpawnExit } from '../spawnLedger.js'

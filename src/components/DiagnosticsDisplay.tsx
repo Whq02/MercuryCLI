@@ -7,7 +7,7 @@ import { relative } from 'path'
 import { plural } from '../utils/stringUtils.js'
 import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { MessageResponse } from './MessageResponse.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 
 function splitUri(uri: string): { path: string; scheme: string } {
   if (uri.startsWith('file://')) {

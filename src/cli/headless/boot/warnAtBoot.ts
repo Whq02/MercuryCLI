@@ -1,5 +1,5 @@
 import { currentSettingsFaults, untoldSettingsFaults } from '../../../utils/settings/faultNotices.js'
-import { GLYPH } from '../../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { settingsFaultLine } from '../../../utils/settings/validation.js'
 import { currentHiddenCharacterLines, untoldHiddenCharacterLines } from '../../../utils/text/hiddenCharacterFindings.js'
 import { hooksSkippedForTrustLine } from '../../../utils/hooks/hooksConfigSnapshot.js'

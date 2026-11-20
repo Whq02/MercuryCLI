@@ -8,7 +8,7 @@ import { classifyToolError } from '../utils/errors/classifyToolError.js'
 import { DENIAL_WORKAROUND_GUIDANCE, denialLineOf, isDenialResultText, unwrapToolUseError } from '../utils/messages/rejectionText.js'
 import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import { MessageResponse } from './MessageResponse.js'
 
 type Props = {

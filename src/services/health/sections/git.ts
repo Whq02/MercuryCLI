@@ -1,5 +1,5 @@
 import { gitProbeNote } from '../../../utils/git.js'
-import { branchChip } from '../../../components/mercury-ui/glyphs.js'
+import { branchChip } from '../../../utils/glyphs.js'
 import { sha7 } from '../../../utils/healthCertCore.js'
 import { homeRepositoryCheck, projectEstateCheck, type CheckSpec, type HealthContext } from '../healthReport.js'
 

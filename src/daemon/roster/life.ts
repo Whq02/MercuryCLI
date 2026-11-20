@@ -8,7 +8,7 @@ import {
   lastStderrLine,
   DEFAULT_HEALTHY_RESET_MS,
 } from '../longLivedRespawn.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { errorMessage } from '../../utils/errors.js'

@@ -38,7 +38,7 @@ import {
   useFocusedWorkRoster,
 } from '../../tasks/useFocusedWork.js'
 import { Chip, CommandCenter, SectionHeader, useNowTick } from '../components.js'
-import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from '../../../utils/glyphs.js'
 import { InteractiveRow } from '../InteractiveRow.js'
 import { WorkingGlyph } from '../LiveGlyphs.js'
 import { decodeNavKey } from '../navSemantics.js'

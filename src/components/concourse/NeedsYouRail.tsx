@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text, paletteCollapsed } from '../../ink.js';
 import { shedToFit } from '../mercury-ui/geometry.js';
-import { displayWidth, GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js';
+import { displayWidth, GLYPH, truncateToWidth } from '../../utils/glyphs.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { paneWindow } from '../mercury-ui/paneWindow.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';

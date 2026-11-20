@@ -4,7 +4,7 @@ import type { AgentDocument } from '../../../services/agents/contracts.js'
 import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
 import { AMBER, CRIMSON, FAINT, IVORY, TEAL } from '../../mercuryPalette.js'
 import { SectionHeader } from '../../mercury-ui/components.js'
-import { truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../../utils/glyphs.js'
 import { agentModelAvailabilityNote } from '../../../utils/model/agentModelPicker.js'
 import {
   buildReviewFacts,

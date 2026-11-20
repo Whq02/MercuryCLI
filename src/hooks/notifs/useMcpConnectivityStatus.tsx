@@ -1,7 +1,7 @@
 
 import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
 import { hasAnthropicConnectorEverConnected } from '../../services/mcp/anthropicConnectors.js'

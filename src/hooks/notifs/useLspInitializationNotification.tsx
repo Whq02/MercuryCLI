@@ -4,7 +4,7 @@ import { useTimer } from '../effects.js'
 import { getIsRemoteMode, getIsScrollDraining } from '../../bootstrap/state.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import {
   getInitializationStatus,
   getLspServerManager,

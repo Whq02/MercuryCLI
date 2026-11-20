@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { getTotalLinesAdded, getTotalLinesRemoved } from '../cost-tracker.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'

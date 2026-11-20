@@ -46,7 +46,7 @@ try {
   check("INTERNAL_PERMISSION_MODES includes 'apollo'", (types.INTERNAL_PERMISSION_MODES as readonly string[]).includes('apollo'))
   check("'apollo' is NOT an external mode (projection only)", !(types.EXTERNAL_PERMISSION_MODES as readonly string[]).includes('apollo'))
   const pm = (await import('../../src/utils/permissions/PermissionMode.js')) as typeof import('../../src/utils/permissions/PermissionMode.js')
-  const glyphs = (await import('../../src/components/mercury-ui/glyphs.js')) as typeof import('../../src/components/mercury-ui/glyphs.js')
+  const glyphs = (await import('../../src/utils/glyphs.js')) as typeof import('../../src/utils/glyphs.js')
   check("permissionModeFromString('apollo') === 'apollo'", pm.permissionModeFromString('apollo') === 'apollo')
   check("title is 'Apollo Mode'", pm.permissionModeTitle('apollo') === 'Apollo Mode')
   check('the seal is ◇ (U+25C7), read from GLYPH.modeApollo', pm.permissionModeSymbol('apollo') === glyphs.GLYPH.modeApollo && glyphs.GLYPH.modeApollo === '◇')

@@ -13,7 +13,7 @@ import {
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { GLYPH } from '../../src/components/mercury-ui/glyphs.ts'
+import { GLYPH } from '../../src/utils/glyphs.ts'
 
 const t = checker()
 requireDist()

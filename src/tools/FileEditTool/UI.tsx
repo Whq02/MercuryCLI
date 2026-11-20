@@ -10,7 +10,7 @@ import { FileEditToolUpdatedMessage } from '../../components/FileEditToolUpdated
 import { FilePathLink } from '../../components/FilePathLink.js'
 import { HighlightedCode } from '../../components/HighlightedCode.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import { Text } from '../../ink.js'

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Text, paletteCollapsed } from '../../../ink.js'
-import { GLYPH, padStartTo, branchChip } from '../../mercury-ui/glyphs.js'
+import { GLYPH, padStartTo, branchChip } from '../../../utils/glyphs.js'
 import { keyHintLabel } from '../../mercury-ui/keyHintLabel.js'
 import { truncateToWidth } from '../../../utils/truncate.js'
 import { caretLens } from '../lineDraft.js'

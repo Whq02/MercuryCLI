@@ -17,7 +17,7 @@ const closeFlow = (closed: boolean): void => {
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify(closed ? { guardrails: { disableFlowMode: true } } : {}))
   resetSettingsCache()
 }
-const { GLYPH, displayWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
+const { GLYPH, displayWidth } = await import('../../src/utils/glyphs.ts')
 const { permissionModeSymbol, permissionModeTitle, permissionModeFromString, externalPermissionModeSchema, getModeColor } = await import('../../src/utils/permissions/PermissionMode.ts')
 
 let failures = 0

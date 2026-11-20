@@ -31,7 +31,7 @@ import {
   SectionHeader,
   StateBadge,
 } from '../../mercury-ui/components.js'
-import { truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../../utils/glyphs.js'
 import { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import { useFlatList } from '../../mercury-ui/useFlatList.js'
 import { popupListWindow, PopupListViewport, usePopupListNavigation } from '../../CustomSelect/popup-list.js'

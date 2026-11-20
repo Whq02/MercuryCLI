@@ -37,7 +37,7 @@ const limits = await import('../../src/services/anthropicLimits.ts')
 const usage = await import('../../src/services/providers/providerUsage.ts')
 const { buildLanesModel } = await import('../../src/services/cockpit/helmLanesModel.ts')
 const { fitRailName } = await import('../../src/components/HelmLanesRail.tsx')
-const { displayWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
+const { displayWidth } = await import('../../src/utils/glyphs.ts')
 const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
 type SourceUsage = ReturnType<typeof usage.activeSourceUsage>
 

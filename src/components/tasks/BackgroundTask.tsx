@@ -4,7 +4,7 @@ import { Text } from '../../ink.js'
 import type { TaskState } from '../../tasks/types.js'
 import type { LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { truncateToWidth } from '../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../utils/glyphs.js'
 import { ShellProgress, TaskStatusText } from './ShellProgress.js'
 
 const DEFAULT_ACTIVITY_WIDTH = 40

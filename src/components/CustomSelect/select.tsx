@@ -1,6 +1,6 @@
 
 import figures from 'figures'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import React, { useContext, useRef, useState } from 'react'
 import { usePublish } from '../../hooks/effects.js'
 import { PopupFormContext, usePopupCompact } from '../../context/popupFormContext.js'

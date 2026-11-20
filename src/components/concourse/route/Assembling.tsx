@@ -7,7 +7,7 @@ import { useMercuryTokens } from '../../mercury-ui/useMercuryTokens.js';
 import { keyHintLabel } from '../../mercury-ui/keyHintLabel.js';
 import { rampSegments } from '../../mercury-ui/focalRamp.js';
 import { useGreetingShimmer } from '../../mercury-ui/useGreetingShimmer.js';
-import { displayWidth } from '../../mercury-ui/glyphs.js';
+import { displayWidth } from '../../../utils/glyphs.js';
 import { useSessionAccent } from '../../mercury-ui/sessionAccent.js';
 
 function ConcourseLockup(): React.ReactNode {

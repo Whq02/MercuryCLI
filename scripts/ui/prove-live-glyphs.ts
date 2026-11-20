@@ -20,7 +20,7 @@ import {
   WORK_TICK_MS,
   workGlyphForTime,
 } from '../../src/utils/cockpit/liveGlyphs.js'
-import { GLYPH, displayWidth } from '../../src/components/mercury-ui/glyphs.js'
+import { GLYPH, displayWidth } from '../../src/utils/glyphs.js'
 import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0

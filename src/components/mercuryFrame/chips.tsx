@@ -9,7 +9,7 @@ import { healthCertSnapshot } from '../../services/health/healthCertSnapshot.js'
 import { formatCountdown } from '../../services/cockpit/quota.js'
 import { contextPercentLabel } from '../../utils/contextFill.js'
 import { Sep, UsageMeter, type useNowTick } from '../mercury-ui/components.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
 type Tokens = ReturnType<typeof useMercuryTokens>

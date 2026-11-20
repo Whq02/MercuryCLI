@@ -1,6 +1,6 @@
 
 import { shimmerBoostAt, type ShimmerPhase } from '../../utils/cockpit/greetingShimmer.js'
-import { displayWidth } from './glyphs.js'
+import { displayWidth } from '../../utils/glyphs.js'
 
 export type RampSegment = { text: string; color: string }
 

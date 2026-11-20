@@ -51,7 +51,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     toolFamilyFor,
     toolMarkFor,
   } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-  const { charWidth, GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
+  const { charWidth, GLYPH } = await import('../../src/utils/glyphs.ts')
   const {
     EMPTY_FACETS,
     facetsSatisfy,

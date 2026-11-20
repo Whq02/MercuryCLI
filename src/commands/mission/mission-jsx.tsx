@@ -7,7 +7,7 @@ import type {
 import { formatDuration } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { renderToString } from '../../utils/staticRender.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../guards/mission.js'
 import type { MissionCardFactV1 } from '../../services/engine-connector/types.js'
 import { passedOver } from '../../utils/passedOver.js'

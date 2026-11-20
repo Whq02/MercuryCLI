@@ -8,7 +8,7 @@ import { INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE_WITH_REASON_PREFIX } fro
 import type { HermesKillInfo } from '../../../utils/permissions/capabilityGate.js'
 import { FallbackToolUseErrorMessage } from '../../FallbackToolUseErrorMessage.js'
 import { InterruptedByUser } from '../../InterruptedByUser.js'
-import { GLYPH } from '../../mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { CRIMSON, FAINT, IVORY, SECOND } from '../../mercuryPalette.js'
 import { MessageResponse } from '../../MessageResponse.js'
 import { RejectedToolUseMessage } from './RejectedToolUseMessage.js'

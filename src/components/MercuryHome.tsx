@@ -30,7 +30,7 @@ import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterAr
 import { MiniCritter } from './mercury-ui/MiniCritter.js'
 import { deckPaintsDock } from './DeckPane.js'
 import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { branchChip } from './mercury-ui/glyphs.js'
+import { branchChip } from '../utils/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { CREW_VIEW_DOOR } from '../utils/cockpit/crewmateWords.js'
 import { getProjectRoot, getSessionId } from '../bootstrap/state.js'

@@ -19,7 +19,7 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import type { Theme } from '../utils/theme.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
-import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from '../utils/glyphs.js'
 import { sampleSpinnerVerb } from '../constants/spinnerVerbs.js'
 import { WAITING_VERB } from '../utils/cockpit/toolVerb.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
