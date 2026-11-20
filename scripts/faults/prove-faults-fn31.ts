@@ -88,5 +88,36 @@ console.log('\ngatewayTrust.ts — failed TLS fingerprint probe refuses to activ
   )
 }
 
+console.log('\ngitConfigParser.ts — unreadable git config rejects instead of answering null')
+if (!POSIX_MODES) skip('gitConfigParser:unreadable-config-rejects', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { parseGitConfigValue } = await import(SRC + '/utils/git/gitConfigParser.ts')
+    const emptyDir = path.join(PROJECT, 'empty-git')
+    fs.mkdirSync(emptyDir, { recursive: true })
+    out.absent = await parseGitConfigValue(emptyDir, 'remote', 'origin', 'url')
+    const lockedDir = path.join(PROJECT, 'locked-git')
+    fs.mkdirSync(lockedDir, { recursive: true })
+    const cfg = path.join(lockedDir, 'config')
+    fs.writeFileSync(cfg, '[remote "origin"]\\n\\turl = https://example.com/a/b.git\\n')
+    fs.chmodSync(cfg, 0o000)
+    try {
+      out.locked = await parseGitConfigValue(lockedDir, 'remote', 'origin', 'url')
+      out.threw = null
+    } catch (e) {
+      out.threw = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(cfg, 0o600)
+    }
+  `)
+  check(
+    'gitConfigParser:unreadable-config-rejects',
+    r.absent === null && r.threw === 'EACCES',
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
