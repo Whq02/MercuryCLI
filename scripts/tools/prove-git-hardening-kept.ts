@@ -25,19 +25,20 @@ process.env.MERCURY_TMPDIR = join(HOME, 'tmp')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_BARE = '1'
 process.env.HOME = world
-process.env.GIT_CONFIG_GLOBAL = '/dev/null'
+process.env.GIT_CONFIG_GLOBAL = process.platform === 'win32' ? 'NUL' : '/dev/null'
 process.env.GIT_CONFIG_NOSYSTEM = '1'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_READ_TARGETS
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const installed = Bun.which('git') ?? 'git'
+const posixPath = (p: string): string => p.replace(/\\/g, '/')
 const plain = (folder: string, ...args: string[]): string => execFileSync(installed, ['-C', folder, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 const quiet = (folder: string, ...args: string[]): string => plain(folder, '-c', 'core.fsmonitor=false', '-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', '-c', 'commit.gpgsign=false', ...args)
 const program = (name: string, tail = ''): string => {
   const path = join(programs, name)
-  writeFileSync(path, `#!/bin/sh\n: > "${join(ran, name)}"\n${tail}`, { mode: 0o755 })
-  return path
+  writeFileSync(path, `#!/bin/sh\n: > "${posixPath(join(ran, name))}"\n${tail}`, { mode: 0o755 })
+  return posixPath(path)
 }
 const marks = (): string[] => readdirSync(ran).sort()
 const forget = (): void => {
@@ -175,7 +176,7 @@ console.log('through the doors: a path or a reference named as the setting runs 
     if (marks().length > 0) wrong.push(`${label}: ${got.stage}, RAN ${marks().join(' ')}`)
   }
   check(`${CALLS.length} calls, each allowed with no question: no program runs`, wrong.length === 0, wrong.join(' | '))
-  writeFileSync(join(inner, 'line.sh'), `: > "${join(ran, 'shell-line')}"\n`)
+  writeFileSync(join(inner, 'line.sh'), `: > "${posixPath(join(ran, 'shell-line'))}"\n`)
   quiet(inner, 'config', 'core.fsmonitor', 'sh ./line.sh')
   forget()
   const line = await used(GitTool, { op: 'diff', cwd: inner, paths: ['data.txt', SETTING] })
