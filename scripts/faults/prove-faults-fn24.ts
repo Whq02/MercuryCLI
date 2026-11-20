@@ -386,6 +386,44 @@ async function proveTaskLaunchLedger(): Promise<void> {
   })
 }
 
+async function proveTaskOutcomeEnvelope(): Promise<void> {
+  const bootstrap = await import('../../src/bootstrap/state.js')
+  const toe = await import('../../src/tasks/taskOutcomeEnvelope.js')
+  await withScratchHome(async home => {
+    const project = join(home, 'proj')
+    mkdirSync(project, { recursive: true })
+    bootstrap.setOriginalCwd(project)
+    bootstrap.setProjectRoot(project)
+    bootstrap.setCwdState(project)
+
+    const sid1 = '00000000-0000-4000-8000-00000000f026'
+    bootstrap.switchSession(sid1 as never, project)
+    const p1 = toe.taskOutcomesPath(sid1)
+    mkdirSync(join(p1, '..'), { recursive: true })
+    const corrupt = '{not-json'
+    writeFileSync(p1, corrupt, { mode: 0o600 })
+    await toe.recordTaskOutcome(sid1, { taskId: 'e2', taskType: 'local_bash', command: 'echo 2', spawn: 'confirmed', state: 'succeeded', exitCode: 0, interrupted: false, startTime: 1, endTime: 2 })
+    check('taskOutcomeEnvelope: recordTaskOutcome preserves corrupt file', readFileSync(p1, 'utf8') === corrupt)
+
+    if (POSIX_MODES) {
+      const sid2 = '00000000-0000-4000-8000-00000000f027'
+      bootstrap.switchSession(sid2 as never, project)
+      const p2 = toe.taskOutcomesPath(sid2)
+      const existing = JSON.stringify({ v: 1, envelopes: [{ v: 1, taskId: 'e1', taskType: 'local_bash', command: 'echo 1', spawn: 'confirmed', state: 'succeeded', exitCode: 0, interrupted: false, startTime: 1, endTime: 2, durationMs: 1 }] })
+      writeFileSync(p2, existing, { mode: 0o600 })
+      chmodSync(p2, 0o200)
+      try {
+        await toe.recordTaskOutcome(sid2, { taskId: 'e2', taskType: 'local_bash', command: 'echo 2', spawn: 'confirmed', state: 'succeeded', exitCode: 0, interrupted: false, startTime: 1, endTime: 2 })
+      } finally {
+        chmodSync(p2, 0o600)
+      }
+      check('taskOutcomeEnvelope: recordTaskOutcome preserves unreadable file', readFileSync(p2, 'utf8') === existing)
+      const after = await toe.loadTaskOutcomes(sid2)
+      check('taskOutcomeEnvelope: failed read did not poison cache', after.some(e => e.taskId === 'e1'), JSON.stringify(after))
+    }
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
@@ -397,6 +435,7 @@ async function main(): Promise<void> {
   await proveStateLifecycle()
   await provePauseCarry()
   await proveTaskLaunchLedger()
+  await proveTaskOutcomeEnvelope()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }
