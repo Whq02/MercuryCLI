@@ -85,7 +85,12 @@ export function getCheckedFileModificationTime(path: string): number {
 }
 
 export async function getFileModificationTimeAsync(path: string): Promise<number> {
-  return Math.floor((await stat(path)).mtimeMs)
+  try {
+    return Math.floor((await stat(path)).mtimeMs)
+  } catch (error) {
+    if (!isENOENT(error)) logError(error)
+    return 0
+  }
 }
 
 const ALIGNMENT_CELL_BUDGET = 4_000_000

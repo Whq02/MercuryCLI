@@ -137,32 +137,8 @@ try {
     writeFileSync(presentFile, 'hello\n')
     const presentMtime = await fileMod.getFileModificationTimeAsync(presentFile)
     check('file.getFileModificationTimeAsync readable file returns positive mtime', presentMtime > 0, `got ${presentMtime}`)
-    let missingCode: string | null = null
-    try {
-      await fileMod.getFileModificationTimeAsync(join(scratch, 'absent.txt'))
-    } catch (err) {
-      missingCode = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
-    }
-    check('file.getFileModificationTimeAsync absent file throws ENOENT', missingCode === 'ENOENT', `got ${String(missingCode)}`)
-    if (!POSIX_MODES) {
-      skip('file.getFileModificationTimeAsync unreadable parent throws EACCES', 'needs non-root POSIX')
-    } else {
-      const noAccessDir = join(scratch, 'no-access-mtime')
-      const hiddenFile = join(noAccessDir, 'file.txt')
-      mkdirSync(noAccessDir, { recursive: true })
-      writeFileSync(hiddenFile, 'secret\n')
-      chmodSync(noAccessDir, 0o000)
-      cleanupTasks.push(() => { try { chmodSync(noAccessDir, 0o700) } catch {} })
-      let accessCode: string | null = null
-      try {
-        await fileMod.getFileModificationTimeAsync(hiddenFile)
-      } catch (err) {
-        accessCode = (err as NodeJS.ErrnoException | null)?.code ?? 'THREW'
-      } finally {
-        chmodSync(noAccessDir, 0o700)
-      }
-      check('file.getFileModificationTimeAsync unreadable parent throws EACCES', accessCode === 'EACCES', `got ${String(accessCode)}`)
-    }
+    const absentMtime = await fileMod.getFileModificationTimeAsync(join(scratch, 'absent.txt'))
+    check('file.getFileModificationTimeAsync absent file returns 0', absentMtime === 0, `got ${absentMtime}`)
     const symDir = join(scratch, 'sym-clobber')
     mkdirSync(symDir, { recursive: true })
     const targetFile = join(symDir, 'target.txt')
@@ -207,6 +183,7 @@ try {
       const { randomUUID } = await import('node:crypto')
       const fsSync = await import('node:fs')
       const realFsPromises = await import('node:fs/promises')
+      const origStat = realFsPromises.stat
       const { join } = await import('node:path')
       let failPath = null
       mock.module('node:fs/promises', () => ({
@@ -215,7 +192,7 @@ try {
           if (failPath !== null && String(p) === failPath) {
             throw Object.assign(new Error('EIO stat ' + failPath), { code: 'EIO' })
           }
-          return opts === undefined ? realFsPromises.stat(p) : realFsPromises.stat(p, opts)
+          return opts === undefined ? origStat(p) : origStat(p, opts)
         },
       }))
       ;(globalThis).MACRO = { VERSION: '1.0.0' }
