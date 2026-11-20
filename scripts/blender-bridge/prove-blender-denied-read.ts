@@ -170,7 +170,7 @@ console.log('a script named to python_run is a file the tool opens: the same law
 
 console.log('a picture named to show is a file the tool opens: the same law')
 {
-  const { encodePng } = await import(`${SRC}/tools/FileReadTool/imageProcessorJs.ts`)
+  const { encodePng } = await import(`${SRC}/utils/imageProcessor/imageProcessorJs.ts`)
   const picture = encodePng({ width: 2, height: 2, data: new Uint8Array(16).fill(255) })
   writeFileSync(join(project, 'secret/sheet.png'), picture)
   writeFileSync(join(project, 'open/sheet.png'), picture)

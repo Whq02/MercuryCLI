@@ -3,8 +3,8 @@ import Module, { createRequire } from 'node:module'
 import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { recordOwnEnvWrite } from '../../substrate/envStamps.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export const IMAGE_PACK_PATH = 'vendor/image-processor'
 

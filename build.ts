@@ -1038,7 +1038,7 @@ let typescriptVersion: string | null = null;
   }
 }
 
-const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages } = await import('./src/tools/FileReadTool/imageProcessor.ts');
+const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages } = await import('./src/utils/imageProcessor/imageProcessor.ts');
 let imagePackVendored = false;
 let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvips: string | null } | null = null;
 {

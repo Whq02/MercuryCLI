@@ -17,8 +17,8 @@ export async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: s
   const box = `[${crop.join(', ')}]`
   if (crop.length !== 4 || crop.some(value => !Number.isInteger(value) || value < 0)) throw new Error(`crop refused: ${box} must be four non-negative integers in the image's own pixels (x1, y1, x2, y2)`)
   if (crop[2] <= x1 || crop[3] <= y1) throw new Error(`crop refused: ${box} is inverted or empty — x2 must exceed x1 and y2 must exceed y1`)
-  const { getImageProcessor } = await import('../imageProcessor.js')
-  const { imageDimensionsFromHeader } = await import('../imageProcessorJs.js')
+  const { getImageProcessor } = await import('../../../utils/imageProcessor/imageProcessor.js')
+  const { imageDimensionsFromHeader } = await import('../../../utils/imageProcessor/imageProcessorJs.js')
   const sharp = await getImageProcessor()
   const metadata = await sharp(buffer).metadata().catch((error) => { passedOver(error); return ({}) as { width?: number; height?: number } })
   const header = imageDimensionsFromHeader(buffer)
@@ -97,7 +97,7 @@ export async function readImageWithTokenBudget(
     logError(err)
   }
   try {
-    const { getImageProcessor } = await import('../imageProcessor.js')
+    const { getImageProcessor } = await import('../../../utils/imageProcessor/imageProcessor.js')
     const sharp = await getImageProcessor()
     const lastResort = await sharp(buffer)
       .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
