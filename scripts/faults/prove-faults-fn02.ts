@@ -443,5 +443,24 @@ console.log('\nBootSaturnScreen — unreadable receipt file surfaces fire-histor
   check('unreadable receipts show fire history error sentence in saturnDetailLines', typeof r.lines === 'string' && r.lines.includes('fire history could not be read (receipts EACCES) — press r to retry'), JSON.stringify(r))
 }
 
+console.log('\nSelectInputOption — failed clipboard image paste reports the failure sentence instead of swallowing it')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/CustomSelect/select-input-option.tsx'))
+    if (typeof mod.runSelectImagePaste !== 'function') {
+      out.missing = true
+    } else {
+      const errors = []
+      await mod.runSelectImagePaste({
+        read: async () => { throw new Error('clipboard unavailable') },
+        onImagePaste: () => {},
+        onError: msg => errors.push(msg),
+      })
+      out.error = errors.at(-1) ?? null
+    }
+  `)
+  check('clipboard paste rejection produces the error sentence', r.error === 'Could not paste image from clipboard (clipboard unavailable) — copy the image again and retry', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
