@@ -242,7 +242,7 @@ export type SkillsRosterEntryV1 = {
 }
 
 export type SkillsRosterV1 = {
-  skills: SkillsRosterEntryV1[]
+  skills: readonly SkillsRosterEntryV1[]
 }
 
 export type McpRosterEntryV1 = {

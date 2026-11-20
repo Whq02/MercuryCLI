@@ -164,11 +164,11 @@ export async function gatherWorkbenchInputs(opts?: {
       state: String(r.state),
       updatedAt: r.updatedAt,
     }
-    if (typeof (r as unknown as { startedAt?: unknown }).startedAt === 'number') {
-      fact.startedAt = (r as unknown as { startedAt: number }).startedAt
+    if (typeof r.startedAt === 'number') {
+      fact.startedAt = r.startedAt
     }
     if (r.spec.metadata) fact.metadata = r.spec.metadata
-    const outputRef = (r as unknown as { outputRef?: unknown }).outputRef
+    const outputRef = r.outputRef
     if (typeof outputRef === 'string') fact.outputRef = outputRef
     return fact
   })

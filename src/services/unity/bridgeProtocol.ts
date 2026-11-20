@@ -210,7 +210,7 @@ export function parseUnityBridgeFrame(line: string): UnityBridgeParsedFrame {
   const f = frame as Record<string, unknown>
   const error =
     typeof f.error === 'object' && f.error !== null && !Array.isArray(f.error)
-      ? (f.error as unknown as UnityBridgeError)
+      ? (f.error as UnityBridgeError)
       : undefined
   if (typeof f.id === 'number' && Number.isFinite(f.id) && typeof f.ok === 'boolean') {
     return { kind: 'response', id: f.id, ok: f.ok, result: f.result, ...(error ? { error } : {}) }

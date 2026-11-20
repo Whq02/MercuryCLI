@@ -290,7 +290,7 @@ async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, 
     } catch (error) {
       if (preserveExisting && (error as NodeJS.ErrnoException).code === 'EEXIST') continue
       logForDebugging(`worktreeinclude copy failed for ${relativePath}: ${String(error)}`, {
-        level: 'warn' as never,
+        level: 'warn',
       })
     }
   }
@@ -404,7 +404,7 @@ async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: s
     const read = rules
     return root => readDenialFilter(read, root)
   } catch (error) {
-    logForDebugging(`worktree clone: the Read rules could not be read (${String(error)}); the folders are linked as before`, { level: 'warn' as never })
+    logForDebugging(`worktree clone: the Read rules could not be read (${String(error)}); the folders are linked as before`, { level: 'warn' })
     return allHeld
   }
 }
@@ -489,7 +489,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
   for (const relPath of relPaths) {
     if (containsPathTraversal(relPath)) {
       logForDebugging(`worktree symlink entry skipped (path traversal): ${relPath}`, {
-        level: 'warn' as never,
+        level: 'warn',
       })
       continue
     }
@@ -507,13 +507,13 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
         if (present) throw Object.assign(new Error(`${target} already exists`), { code: 'EEXIST' })
         const under = await heldUnder()
         if (under === allHeld) {
-          logForDebugging(`worktree copy skipped (the Read rules could not be read, and this account may not link it): ${relPath}`, { level: 'warn' as never })
+          logForDebugging(`worktree copy skipped (the Read rules could not be read, and this account may not link it): ${relPath}`, { level: 'warn' })
           continue
         }
         const held = under?.(sourceRoot)
         const behind = held === undefined ? undefined : async (path: string): Promise<boolean> => held(path) || (await realpath(path).then(real => real !== path && held(real), () => false))
         if (behind !== undefined && (await behind(source))) {
-          logForDebugging(`worktree copy skipped (it stays behind, and this account may not link it): ${relPath}`, { level: 'warn' as never })
+          logForDebugging(`worktree copy skipped (it stays behind, and this account may not link it): ${relPath}`, { level: 'warn' })
           continue
         }
         try {
@@ -528,7 +528,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
       const code = (error as { code?: string }).code
       if (code !== 'ENOENT' && code !== 'EEXIST') {
         logForDebugging(`worktree symlink failed for ${relPath}: ${code ?? String(error)}`, {
-          level: 'warn' as never,
+          level: 'warn',
         })
       }
     }
@@ -576,7 +576,7 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
     const code = (error as NodeJS.ErrnoException).code
     if (code !== 'ENOENT' && !(preserveExisting && code === 'EEXIST')) {
       if (preserveExisting) throw new Error('The worktree local settings could not be copied: ' + String(error))
-      logForDebugging(`local settings propagation failed: ${String(error)}`, { level: 'warn' as never })
+      logForDebugging(`local settings propagation failed: ${String(error)}`, { level: 'warn' })
     }
   }
 }
@@ -655,7 +655,7 @@ function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: 
     if (!(await placeCheckoutFolders(repoRoot, worktreePath, from, false, permission, carry))) return
     await setWorktreeHooksPath(repoRoot, worktreePath)
   })().catch(error => {
-    logForDebugging(`the folders of ${worktreePath} were not placed: ${String(error)}`, { level: 'warn' as never })
+    logForDebugging(`the folders of ${worktreePath} were not placed: ${String(error)}`, { level: 'warn' })
   })
   const forget = registerCleanup(() => placing)
   void placing.then(forget)
@@ -1150,7 +1150,7 @@ export async function createBaselineWorktree(
     }
   }
 
-  const lease = registerScratchLease({ kind: 'session', id: getSessionId() } as never, targetPath, {
+  const lease = registerScratchLease({ kind: 'session', id: getSessionId() }, targetPath, {
     cleanupPolicy: 'on-complete',
     recovery: `baseline worktree at ${sha}; remove with: git worktree remove --force ${targetPath}`,
   })

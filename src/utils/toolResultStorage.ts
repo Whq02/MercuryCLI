@@ -262,11 +262,7 @@ export async function processToolResultBlock<T>(
   toolUseID: string,
   model?: string,
 ): Promise<ToolResultBlockParam> {
-  const block = (
-    tool as unknown as {
-      mapToolResultToToolResultBlockParam: (result: T, id: string) => ToolResultBlockParam
-    }
-  ).mapToolResultToToolResultBlockParam(toolUseResult, toolUseID)
+  const block = tool.mapToolResultToToolResultBlockParam(toolUseResult, toolUseID)
   const threshold = getPersistenceThreshold((tool as { maxResultSizeChars?: number }).maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS, model)
   return applySizePersistence(block, tool.name, threshold)
 }
