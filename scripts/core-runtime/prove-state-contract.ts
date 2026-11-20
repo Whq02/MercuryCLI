@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,7 +21,6 @@ import type { ModelUsage } from '../../src/bootstrap/state.js'
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '..', '..')
 const statePath = join(repoRoot, 'src', 'bootstrap', 'state.ts')
-const stateSrc = readFileSync(statePath, 'utf8')
 const scratch = mkdtempSync(join(tmpdir(), 't17-state-net-'))
 
 let failures = 0
@@ -994,14 +993,11 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
 
 section('LAW PURITY — zero-arg getters do not mutate')
 {
-  const getterNames = [
-    ...stateSrc.matchAll(/^export function ((?:get|is|has|needs|prefer)[A-Za-z0-9_]*)\(\s*\)/gm),
-  ]
-    .map(m => m[1]!)
+  const getterNames = Object.entries(state)
+    .filter(([name, fn]) => /^(?:get|is|has|needs|prefer)[A-Za-z0-9_]*$/.test(name) && typeof fn === 'function' && fn.length === 0)
+    .map(([name]) => name)
     .sort()
-  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 80, String(getterNames.length))
-  const missingFromModule = getterNames.filter(n => typeof (state as never as Record<string, unknown>)[n] !== 'function')
-  check('purity: every swept getter exists on the module', missingFromModule.length === 0, missingFromModule.join(','))
+  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 80, String(getterNames.length))
   withClock(() => 2_000_000_000_000, () => {
     const before = snapshot()
     const impure: string[] = []

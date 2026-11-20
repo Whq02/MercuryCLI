@@ -1,6 +1,12 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { flowShellAsk } from '../../src/utils/permissions/flowLaw.ts'
+import { refusalOfShellCommand } from '../../src/utils/wards/wardsRefusals.ts'
+import { VastClient } from '../../src/services/host/vendors/vast.ts'
+import { normalizePatternsToPath } from '../../src/utils/permissions/filesystem.ts'
+import { parseRemotePath } from '../../src/services/remoteFiles/target.ts'
+import { posixRelative } from '../../src/services/structure/scanPaths.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
@@ -9,17 +15,6 @@ const BASELINE = join(import.meta.dir, 'win32-seam-baseline.json')
 const TELLS: Array<[string, RegExp]> = [
   ['split-slash', /\.split\((?:'\/'|"\/")\)/g],
   ['kill-signal', /process\.kill\([^)]+,\s*['"]SIG/g],
-]
-
-const SEAM_PINS: Array<{ file: string; carries: string; never: RegExp; law: string }> = [
-  { file: 'src/utils/permissions/flowLaw.ts', carries: "const tail = spec.startsWith('@') ? spec.split('/').pop() ?? spec : spec", never: /spec\.split\(['"]\\\\['"]\)/, law: '502383f69c: a scoped registry package uses its slash grammar on every host, not a filesystem separator' },
-  { file: 'src/utils/wards/wardsRefusals.ts', carries: "return path.split('/').filter(Boolean)", never: /path\.split\(['"]\\\\['"]\)/, law: 'a path the refusal list compares comes from the shell reading of a POSIX command, where a backslash is a character of a name, so it uses its slash grammar on every host; a Windows path goes through windowsPath, which splits on either separator' },
-  { file: 'src/services/host/vendors/vast.ts', carries: "url.pathname.split('/')", never: /url\.pathname\.split\(['"]\\\\['"]\)/, law: '587d1217d5: a WHATWG URL pathname uses its slash grammar on every host, not a filesystem separator' },
-  { file: 'src/utils/permissions/filesystem.ts', carries: "const prefix = below === '' ? [] : below.split('/').map(escapeGlobSegment)", never: /(?:below|above|pattern)\.split\(['"]\\\\['"]\)/, law: '98d7654129: a permission rule is written in slash grammar on every host, and a rule root relative to the search root comes from relativePath, which joins with a slash on every host; the three splits read those and never a filesystem path' },
-  { file: 'src/services/remoteFiles/target.ts', carries: "const segments = decoded.split('/').filter(segment => segment !== '' && segment !== '.')", never: /decoded\.split\(['"]\\\\['"]\)/, law: 'a path on another machine is written in slash grammar on every host, whatever separator this machine uses' },
-  { file: 'src/services/structure/query.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the Structure files filter compares POSIX-relative paths (F37W-7B-25: a win32 walk handed src\\util.ts to a src/util.ts glob and parsed 0 files)' },
-  { file: 'src/services/structure/polyglotQuery.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the polyglot walk (Structure patterns, AstSearch globs, .gitignore anchors) compares POSIX-relative paths' },
-  { file: 'src/services/structure/scanPaths.ts', carries: "platform === 'win32' ? rel.split('\\\\').join('/') : rel", never: /path\.sep/, law: 'the seam flips separators by the platform it is told, never by the host\'s path.sep, so a proof shapes win32 paths on any host' },
 ]
 
 function walk(dir: string, out: string[]): void {
@@ -95,17 +90,42 @@ if (shrank > 0) {
   console.log('         ~/.bun/bin/bun run scripts/build/prove-win32-seam-ratchet.ts --relock')
 }
 
-for (const pin of SEAM_PINS) {
-  let text: string | null
-  try {
-    text = readFileSync(join(ROOT, pin.file), 'utf8')
-  } catch {
-    text = null
-  }
-  const ok = text !== null && text.includes(pin.carries) && !pin.never.test(text)
+function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] seam pinned: ${pin.file} carries ${JSON.stringify(pin.carries)} and never ${pin.never.source} — ${pin.law}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
+
+const flowAsk = await flowShellAsk('npx @scope/vercel deploy', '/tmp/proj')
+check('flowLaw splits scoped package names on slash grammar on every host', flowAsk?.item === 3 && flowAsk.subject === 'vercel deploy', JSON.stringify(flowAsk))
+
+const wardVerdict = await refusalOfShellCommand({ toolName: 'Bash', input: { command: 'rm -rf /etc' }, shellCommand: 'rm -rf /etc' }, '/tmp/proj')
+check('wardsRefusals splits POSIX shell paths on slash grammar on every host', wardVerdict.allow === false && wardVerdict.rule.name === 'no-root-recursive-delete', JSON.stringify(wardVerdict))
+
+const origFetch = globalThis.fetch
+let vastError = ''
+globalThis.fetch = (async () =>
+  new Response(JSON.stringify({ success: true, result_url: 'https://evil.example/vast.ai/secret-token/out.log' }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  })) as never
+try {
+  await new VastClient('k').logs('42', new AbortController().signal)
+} catch (error) {
+  vastError = error instanceof Error ? error.message : String(error)
+} finally {
+  globalThis.fetch = origFetch
+}
+check('vast redacts unexpected log URL pathnames by slash segments on every host', vastError === 'unexpected log URL · https://evil.example/vast.ai/:segment/:file.log', vastError)
+
+const belowGlobs = normalizePatternsToPath(new Map([['/repo/sub/dir', ['file.ts']]]), '/repo')
+const aboveGlobs = normalizePatternsToPath(new Map([['/repo', ['sub/dir/file.ts']]]), '/repo/sub/dir')
+check('filesystem permission rules normalize below and above roots using slash grammar', belowGlobs.includes('/sub/dir/file.ts') && aboveGlobs.includes('/file.ts'), JSON.stringify({ belowGlobs, aboveGlobs }))
+
+const remote = parseRemotePath('ssh://host/a/./b//c')
+check('remoteFiles parses remote paths on slash grammar on every host', remote?.path === '/a/b/c', JSON.stringify(remote))
+
+const winRel = posixRelative('C:\\repo', 'C:\\repo\\src\\util.ts', 'win32')
+check('scanPaths flips separators by the requested platform, never host path.sep', winRel === 'src/util.ts', winRel)
 
 console.log(failures === 0 ? '\nALL WIN32-SEAM CHECKS PASS' : `\n${failures} CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

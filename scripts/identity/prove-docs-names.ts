@@ -52,7 +52,7 @@ interface Vocab {
   skills: Set<string>
   loginWord: (word: string) => boolean
   tools: Set<string>
-  ruleTools: Set<string>
+  isRuleTool: (name: string) => boolean
   settingsPaths: string[][]
   settingsTop: Set<string>
   enums: Map<string, string[]>
@@ -469,16 +469,16 @@ function checkDoc(file: string, text: string, v: Vocab): Hit[] {
     }
   }
 
-  const toolNames = new Set([...v.tools, ...v.ruleTools])
+  const isKnownTool = (name: string): boolean => v.tools.has(name) || v.isRuleTool(name)
   for (const { line, text: l } of textLines(text)) {
     for (const m of l.matchAll(TOOL_WORD_RE)) {
       const name = m[1] ?? m[2] ?? m[3] ?? ''
-      if (!toolNames.has(name)) add(line, 'tool', name, 'not a tool of the roster')
+      if (!isKnownTool(name)) add(line, 'tool', name, 'not a tool of the roster')
     }
     for (const m of l.matchAll(RULE_FORM_RE)) {
       const name = m[1] ?? ''
       if (name === 'Tool') continue
-      if (!toolNames.has(name)) add(line, 'tool', name, 'not a tool of the roster')
+      if (!isKnownTool(name)) add(line, 'tool', name, 'not a tool of the roster')
     }
     for (const m of l.matchAll(SKILL_WORD_RE)) {
       const name = m[1] ?? m[2] ?? ''
@@ -491,7 +491,7 @@ function checkDoc(file: string, text: string, v: Vocab): Hit[] {
       const m = u.text.trim().match(/^([A-Z][a-z]+(?:[A-Z][a-z]+)*)(?:\(.*\))?$/)
       if (m === null) continue
       const name = m[1] ?? ''
-      if (!toolNames.has(name) && ![['Dock', 'erfile'].join(''), 'Enter', 'Esc', 'PATH', 'Tune'].includes(name)) add(u.line, 'tool', name, 'not a tool of the roster')
+      if (!isKnownTool(name) && ![['Dock', 'erfile'].join(''), 'Enter', 'Esc', 'PATH', 'Tune'].includes(name)) add(u.line, 'tool', name, 'not a tool of the roster')
     }
   }
 
@@ -583,9 +583,9 @@ function parseHelp(txt: string): { opts: string[]; cmds: string[] } {
   return { opts, cmds }
 }
 
-function helpOf(args: string[]): Promise<string> {
+function cliOut(args: string[]): Promise<string> {
   return new Promise(resolve => {
-    const child = spawn('node', [join(ROOT, 'dist', 'mercury.mjs'), ...args, '--help'], { cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'ignore'] })
+    const child = spawn('node', [join(ROOT, 'dist', 'mercury.mjs'), ...args], { cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'ignore'] })
     let out = ''
     child.stdout.on('data', d => (out += String(d)))
     const timer = setTimeout(() => child.kill(), 90_000)
@@ -595,6 +595,8 @@ function helpOf(args: string[]): Promise<string> {
     })
   })
 }
+
+const helpOf = (args: string[]): Promise<string> => cliOut([...args, '--help'])
 
 async function pooled<T, R>(items: T[], width: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length)
@@ -657,7 +659,20 @@ async function buildVocab(): Promise<Vocab> {
 
   const readText = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const flagsIn = (files: string[]): Set<string> => new Set(files.flatMap(f => longFlagsOf(readText(f))))
-  const fastFlags = flagsIn(['src/commands/host/index.ts', 'src/cli/godotEngineCli.ts', 'src/commands/feedback/feedback.tsx', 'src/services/acp/acpSignIn.ts'])
+  const { ACP_LOGIN_FLAG } = await import('../../src/services/acp/acpSignIn.ts')
+  const { call: feedbackCall } = await import('../../src/commands/feedback/feedback.tsx')
+  const [hostUsage, godotUsage, feedbackEl] = await Promise.all([
+    cliOut(['host', '--help']),
+    cliOut(['godot']),
+    feedbackCall(() => {}, { abortController: new AbortController(), messages: [] } as never, '--short probe'),
+  ])
+  const feedbackProps = (feedbackEl as { props?: { kind?: string; initialDescription?: string } } | null)?.props
+  const fastFlags = new Set<string>([
+    ...longFlagsOf(hostUsage),
+    ...longFlagsOf(godotUsage),
+    ACP_LOGIN_FLAG,
+    ...(feedbackProps?.kind === 'tester' && feedbackProps?.initialDescription === 'probe' ? ['--short'] : []),
+  ])
   const toolingFiles = walkFiles(join(ROOT, 'scripts'), p => {
     const rel = slashed(p.slice(ROOT.length + 1))
     return /^scripts\/(vendor|ops|build|release|updater|distribution)\//.test(rel) && !/prove-|\/fixtures\/|\.test\./.test(rel) && /\.(ts|sh|mjs|ps1)$/.test(rel)
@@ -699,8 +714,7 @@ async function buildVocab(): Promise<Vocab> {
     }
   }
   tools.delete('mcp')
-  const grammar = readText('src/utils/hooks/matcherGrammar.ts').match(/PATH_TOOLS[^=]*=\s*new Set\(\[([^\]]*)\]/)
-  const ruleTools = new Set([...(grammar?.[1] ?? '').matchAll(/'([A-Za-z]+)'/g)].map(m => m[1] ?? ''))
+  const { ruleArgumentOf } = await import('../../src/utils/hooks/matcherGrammar.ts')
 
   const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
   type Z = { _zod?: { def?: Record<string, unknown> }; def?: Record<string, unknown>; shape?: Record<string, Z> }
@@ -775,8 +789,9 @@ async function buildVocab(): Promise<Vocab> {
     }
     if (/\.(sh|ps1|cmd)$/.test(f)) for (const w of body.matchAll(/[A-Za-z0-9_.-]+/g)) pathSegments.add(w[0])
   }
-  for (const m of readText('src/utils/model/modelPickerGroups.ts').matchAll(/ctrl\+\$\{[A-Z_]+\}/g)) srcChords.add(m[0])
-  srcChords.add('ctrl+e')
+  const { MODEL_PICKER_CONTEXT_CHORD, MODEL_PICKER_EFFORT_CHORD } = await import('../../src/utils/model/modelPickerGroups.ts')
+  srcChords.add(normaliseChord(MODEL_PICKER_CONTEXT_CHORD))
+  srcChords.add(normaliseChord(MODEL_PICKER_EFFORT_CHORD))
 
   const tracked = new Set(git(['ls-files']).split('\n'))
   const repoPathExists = (p: string): boolean => {
@@ -786,10 +801,8 @@ async function buildVocab(): Promise<Vocab> {
   }
   const pkg = JSON.parse(readText('package.json')) as { scripts: Record<string, string> }
 
-  const oauth = readText('src/components/consoleOAuth/readiness.tsx')
-  const rows = oauth.match(/READINESS_ROWS[^=]*=\s*\[([\s\S]*?)\n\]/)?.[1] ?? ''
-  const ids = [...rows.matchAll(/id:\s*'([a-z-]+)'/g)].map(m => m[1] ?? '')
-  const providerCount = ids.filter(id => id !== 'local' && id !== 'openai-compat').length
+  const { READINESS_ROWS } = await import('../../src/components/consoleOAuth/readiness.tsx')
+  const providerCount = READINESS_ROWS.filter(row => row.id !== 'local' && row.id !== 'openai-compat').length
 
   const english = readText('README.md')
   const list = english.match(/keep all \d+ providers signed in at once \(([^)]*)\)/)?.[1] ?? ''
@@ -810,7 +823,7 @@ async function buildVocab(): Promise<Vocab> {
     skills,
     loginWord: word => parseFamilyFocus(word) !== undefined,
     tools,
-    ruleTools,
+    isRuleTool: name => ruleArgumentOf(name) !== null,
     settingsPaths,
     settingsTop,
     enums,
@@ -845,7 +858,7 @@ function fakeVocab(): Vocab {
     skills: new Set(['loop']),
     loginWord: w => w === 'zai',
     tools: new Set(['Bash', 'Read']),
-    ruleTools: new Set(['NotebookRead']),
+    isRuleTool: name => name === 'NotebookRead',
     settingsPaths: [['engine'], ['engine', 'model'], ['engine', 'effort'], ['compatProvider'], ['compatProvider', '*'], ['compatProvider', '*', 'dialect']],
     settingsTop: new Set(['engine', 'compatProvider']),
     enums: new Map([['compatProvider.*.dialect', ['chat-completions', 'sglang']]]),
