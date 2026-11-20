@@ -20,7 +20,7 @@ const { getSessionId, setIsInteractive } = await import('../../src/bootstrap/sta
 setIsInteractive(false)
 const { findToolByName, getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getAllBaseTools, getTools } = await import('../../src/tools.ts')
-const { buildToolCensus, censusGapLines } = await import('../../src/utils/capability/census.ts')
+const { buildToolCensus, censusGapLines } = await import('../../src/services/capability/census.ts')
 const { toolFamilyFor } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
 const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')

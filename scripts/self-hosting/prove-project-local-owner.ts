@@ -11,7 +11,7 @@ process.env.MERCURY_HEALTH_STATE_DIR = stateRoot
 const repo = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)
 enableConfigs()
-const owner = await import(`${repo}/src/services/projectLocal/paths.js`)
+const owner = await import(`${repo}/src/utils/projectLocal/paths.js`)
 const { getMercuryHome } = await import(`${repo}/src/utils/envUtils.js`)
 const { apolloSpecDirectory } = await import(`${repo}/src/prompt/apolloMode.js`)
 const { lastCertPath } = await import(`${repo}/src/services/health/healthReport.js`)

@@ -8,7 +8,7 @@
 # gate-watch: assets/completions/**
 # gate-watch: scripts/dap/mock-dap-adapter.mjs scripts/lib/generated-assets-map.mjs
 # gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: src/utils/crew/agentTranscriptReader.ts
+# gate-watch: src/services/crew/agentTranscriptReader.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

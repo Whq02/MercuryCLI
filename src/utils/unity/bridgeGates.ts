@@ -1,7 +1,7 @@
 
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { findUnityProjectRoot, mercuryUnityEnabled } from '../../services/ide/unityProject.js'
-import { UNITY_BRIDGE_DEFAULT_PORT } from '../../services/unity/bridgeProtocol.js'
+import { findUnityProjectRoot, mercuryUnityEnabled } from './unityProject.js'
+import { UNITY_BRIDGE_DEFAULT_PORT } from './bridgeProtocol.js'
 import { logForDebugging } from '../debug.js'
 
 export function unityBridgeEnabled(): boolean {

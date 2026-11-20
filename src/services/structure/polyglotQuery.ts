@@ -5,7 +5,7 @@ import {
   parsePolyglot,
   patternLanguageForFile,
   type PolyglotLanguage,
-} from './grammarFacility.js'
+} from '../../utils/structure/grammarFacility.js'
 import {
   alsoFound,
   captureKeyOf,

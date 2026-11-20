@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
+import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

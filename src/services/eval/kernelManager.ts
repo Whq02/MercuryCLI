@@ -35,7 +35,7 @@ import { jsEnvironmentNotes } from './jsKernelWords.js'
 import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
 import { kernelTransportFor, ProcKernel, type CellEnd, type KernelTransport } from './procKernel.js'
 import type { BridgeRequestFrame } from './protocol.js'
-import type { SampleItem } from '../samples/contracts.js'
+import type { SampleItem } from '../../utils/samples/contracts.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 

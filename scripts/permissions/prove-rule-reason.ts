@@ -73,7 +73,7 @@ const { default: Ajv2020 } = await import('ajv/dist/2020.js')
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
 const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.js')
 const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.js')
-const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.js')
+const { buildAgentLaunchPlan } = await import('../../src/services/crew/agentLaunchPlan.js')
 const { planAstRewrite, resolveAstScope } = await import('../../src/services/structure/astPatterns.js')
 const helper = await import('../../src/utils/permissions/ruleReason.js').catch(() => null)
 

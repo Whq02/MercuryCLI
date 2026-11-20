@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Message } from '../../types/message.js'
-import { operatorTextOf, steerTextOf } from './operatorMessages.js'
+import { operatorTextOf, steerTextOf } from '../../utils/compact/operatorMessages.js'
 import { getRunSnapshot } from '../run/runCoordinator.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { parseAnchor } from '../changeTransaction/snapshotAnchor.js'

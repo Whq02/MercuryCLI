@@ -41,9 +41,8 @@ import { isScreenCommandOrigin, type ScreenCommandOrigin } from '../utils/messag
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
-import { sleep } from '../utils/sleep.js'
+import { pollUntil, withDeadline } from '../utils/deadline.js'
 import { passedOver } from '../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export type ControlOutcome = {
   outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
@@ -480,26 +479,11 @@ const PROMPT_WHILE_STARTING = new Set(['sessionList', 'list', 'has', 'status'])
 
 async function awaitReadiness(deps: ControlServerDeps, holdMs: number): Promise<boolean> {
   if (deps.isReady()) return true
-  const deadline = Date.now() + holdMs
   if (deps.whenReady) {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        deps.whenReady(),
-        new Promise<void>(resolve => {
-          timer = startTimeout(resolve, holdMs)
-        }),
-      ])
-    } finally {
-      if (timer) stopTimeout(timer)
-    }
+    await withDeadline(deps.whenReady(), holdMs, () => undefined)
     return deps.isReady()
   }
-  while (Date.now() < deadline) {
-    await sleep(25)
-    if (deps.isReady()) return true
-  }
-  return deps.isReady()
+  return pollUntil(() => (deps.isReady() ? true : undefined), 25, holdMs, () => deps.isReady())
 }
 
 async function routeControlRequest(
@@ -937,12 +921,19 @@ function readSessionAdmit(deps: ControlServerDeps, sock: net.Socket, raw: Contro
 }
 
 async function answerSessionAdmit(deps: DepsWith<'concourseAdmit'>, sock: net.Socket, requestedOp: string | undefined, { admitRequest, waitForSeatMs }: Exclude<ReturnType<typeof readSessionAdmit>, void>): Promise<void> {
-  let r = await deps.concourseAdmit(admitRequest)
-  const seatDeadline = Date.now() + waitForSeatMs
-  while (!r.ok && r.code === 'runtime-ceiling' && waitForSeatMs > 0 && Date.now() < seatDeadline && !sock.destroyed) {
-    await sleep(Math.min(1000, Math.max(50, seatDeadline - Date.now())))
-    r = await deps.concourseAdmit(admitRequest)
-  }
+  type AdmitResult = Awaited<ReturnType<DepsWith<'concourseAdmit'>['concourseAdmit']>>
+  let last: AdmitResult | undefined
+  const r: AdmitResult = await pollUntil(
+    async () => {
+      const next = await deps.concourseAdmit(admitRequest)
+      last = next
+      if (next.ok || next.code !== 'runtime-ceiling' || waitForSeatMs <= 0 || sock.destroyed) return next
+      return undefined
+    },
+    1000,
+    waitForSeatMs,
+    () => last!,
+  )
   if (!r.ok) {
     const waited = waitForSeatMs > 0 && r.code === 'runtime-ceiling' ? ` — no seat freed in ${Math.round(waitForSeatMs / 1000)} s` : ''
     const refusal = pickDefined(r, ADMIT_REFUSAL_WIRE_KEYS)

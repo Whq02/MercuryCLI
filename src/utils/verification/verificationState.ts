@@ -1,5 +1,5 @@
 
-import { projectLocalPath } from '../../services/projectLocal/paths.js'
+import { projectLocalPath } from '../projectLocal/paths.js'
 import { getMercuryHome } from '../envUtils.js'
 import { sanitizePath } from '../sessionStoragePortable.js'
 import { execFile, execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'

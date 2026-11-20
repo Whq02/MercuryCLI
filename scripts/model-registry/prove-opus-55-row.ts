@@ -78,7 +78,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
   const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
-  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const effort = await import('../../src/utils/effort.ts')
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')

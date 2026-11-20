@@ -28,8 +28,8 @@ const ALSO: Array<[string, string]> = [
   ['src/services/privateChannel/verifyArtifactStandalone.ts', 'the artifact verifier bundle'],
 ]
 const ROWS: Array<[string, string, string]> = [
-  ['resource-plane-fast', 'src/utils/health/sections/coding-loop-fast.ts', 'codingLoopFastChecks'],
-  ['primitive-resources', 'src/utils/health/sections/architecture-fast.ts', 'architectureFastChecks'],
+  ['resource-plane-fast', 'src/services/health/sections/coding-loop-fast.ts', 'codingLoopFastChecks'],
+  ['primitive-resources', 'src/services/health/sections/architecture-fast.ts', 'architectureFastChecks'],
 ]
 
 interface Answer {

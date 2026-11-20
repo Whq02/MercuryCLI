@@ -25,7 +25,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 async function runUsageHistoryRows(): Promise<void> {
-  const { readUsageHistory, recordUsageObservations } = await import('../../src/utils/usageHistory.ts')
+  const { readUsageHistory, recordUsageObservations } = await import('../../src/services/usage/usageHistory.ts')
   const storeFile = join(HOME, 'usage-history.json')
   const at = Date.parse('2026-10-23T12:00:00Z')
   const seeded = await recordUsageObservations('fixture', 'acct-1', [{ key: '5h', state: 'live', observedAtMs: at, usedPct: 42 }])

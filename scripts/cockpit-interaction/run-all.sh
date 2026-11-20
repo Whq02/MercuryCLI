@@ -8,7 +8,7 @@
 # gate-watch: src/services/workbench/** src/utils/artifacts/** src/commands/diff/**
 # gate-watch: scripts/lib/* scripts/ui/vshot.py
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cockpit/helmLanesModel.ts
+# gate-watch: src/services/cockpit/helmLanesModel.ts
 # gate-watch: src/constants/subagentDoctrine.ts
 # gate-watch: src/interactiveHelpers.tsx
 # gate-watch: src/services/run/resolveOwner.ts src/skills/bundled/index.ts src/skills/bundledSkills.ts

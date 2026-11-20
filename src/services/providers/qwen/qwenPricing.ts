@@ -1,6 +1,6 @@
 import { qwenPricingRegion } from './qwenAccounts.js'
 import { qwenDisplayPin, qwenPriceTierFor } from './qwenPins.js'
-import type { ResolvedModelPricing } from '../../../utils/modelCost.js'
+import type { ResolvedModelPricing } from '../../usage/modelCost.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 type Price = { costInPerMtok: number; costOutPerMtok: number; cachedInPerMtok?: number; cacheWritePerMtok?: number }

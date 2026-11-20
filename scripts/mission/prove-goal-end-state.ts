@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/guards/mission.ts src/services/mission/goal.ts src/services/mission/goalJudge.ts
-// gate-watch: src/commands/mission/** src/services/mission/missionCard.ts
+// gate-watch: src/commands/mission/** src/utils/mission/missionCard.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -41,7 +41,7 @@ enableConfigs()
 
 const mission = await import('../../src/guards/mission.ts')
 const { MISSION_MET_SENTINEL, MISSION_DIRECTIVE_HEADER, buildMissionDirective, clearActiveMission, getActiveMission, setActiveMission } = mission
-const { readMissionCard } = await import('../../src/services/mission/missionCard.ts')
+const { readMissionCard } = await import('../../src/utils/mission/missionCard.ts')
 const goalModule = await import('../../src/services/mission/goal.ts').catch(() => null)
 const judgeModule = await import('../../src/services/mission/goalJudge.ts').catch(() => null)
 const { guardsEngaged, judgeTurnEnd, takeTurnNotes } = await import('../../src/guards/guards.ts')
@@ -476,7 +476,7 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
   const liveLine = await localMission('', {} as never)
   check("after met, /mission with no words prints the completed line on the live road: 'Mission completed: <goal> — <the judge's reason> · 1 turn · <elapsed>'", ownMet.allowed && liveLine.type === 'text' && liveLine.value.startsWith(`Mission completed: ${OWN_GOAL} — the evidence shows the suite green · 1 turn · `), j({ ownMet, liveLine }))
   clearActiveMission(own)
-  const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
+  const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
   const setAt = new Date(Date.now() - 90_000).toISOString()
   const metAt = new Date(Date.now() - 30_000).toISOString()
   writeMissionCard({ schema: 1, sessionId: own, goal: OWN_GOAL, state: 'met', nextStep: null, iterations: 1, setAt, updatedAt: metAt, outcome: { reason: 'the evidence shows the suite green', metAt, turns: 1 } })
@@ -486,7 +486,7 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
 
 section('§7 a newer card wins by time: /goal run again with the same words after a pause re-arms, and the older record never writes over it')
 {
-  const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
+  const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
   const { syncMissionFromCard } = mission
   const S = 'goal-same-words-again'
   const GOAL = 'the report is improved'

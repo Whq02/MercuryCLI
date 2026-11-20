@@ -14,7 +14,7 @@ import { isBelowPlaceholderFloor, isProtectedFromPruning, PROTECT_NEWEST_TOOL_OU
 import { clearCompactWarningSuppression, suppressCompactWarning } from './compactWarningState.js'
 import { getTimeBasedMCConfig } from './timeBasedMCConfig.js'
 import { REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
 

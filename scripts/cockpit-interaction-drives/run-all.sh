@@ -9,7 +9,7 @@
 # gate-watch: scripts/engine-durability/bench-prompt-attribution.ts
 # gate-watch: scripts/gate/ledger.ts scripts/lib/*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cockpit/helmVitalsModel.ts
+# gate-watch: src/services/cockpit/helmVitalsModel.ts
 # gate-watch: src/commands/workbench/workbench.tsx src/constants/subagentDoctrine.ts
 # gate-watch: src/hooks/useTurnEndPing.ts
 # gate-watch: src/services/run/resolveOwner.ts src/skills/bundled/index.ts src/skills/bundledSkills.ts

@@ -1,7 +1,7 @@
 import { isIP } from 'node:net'
 import type { HostVendor } from './vendors/vendor.js'
 import { HostCreateError } from './vendors/http.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { RunpodClient, cents, clusterCreateRefusal, createRefusal, type HostCluster, type HostClusterPod, type HostOffer, type HostPod, type HostVolumeMount } from './runpod.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 import { hostNotice } from './notices.js'
@@ -95,53 +95,59 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
   const placementRead = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, deadline: placed + timeoutMs, mark: onStep })
   let last = 'Cluster nodes have not all received private addresses and SSH access.'
   let rated = false
-  while (!signal.aborted && Date.now() < placed) {
-    const nodes = (await placementRead('cluster node', readSignal => api.clusterPods(record.id, readSignal))).sort((a, b) => (a.cluster.rank ?? Infinity) - (b.cluster.rank ?? Infinity))
-    patchHostRecord(record.id, { nodes, cluster })
-    const failed = nodes.find(node => ['ERROR', 'EXITED', 'TERMINATED'].includes(node.status))
-    if (failed) await endHostCluster(record, 'lost node ' + failed.id + ' (' + failed.status + ') before setup began', await readOnly('log', readSignal => api.logs(failed.id, readSignal)))
-    if (nodes.length === recipe.nodes && nodes.every((node, rank) => node.cluster.id === cluster.id && node.cluster.rank === rank && privateIp(node.cluster.ip) && node.status === 'RUNNING' && node.ssh?.direct)) {
-      const billed = nodes.reduce((sum, node) => sum + node.cost, 0)
-      const confirmed = readHostRecord(record.id)
-      if (!rated && billed > 0 && confirmed && cents(billed) !== cents(confirmed.price)) {
-        const repriced = patchHostRecord(record.id, { price: billed })
-        if (repriced && cents(billed) > cents(confirmed.price)) hostNotice(repriced, 'rate', repriced.name + ' · Runpod bills this cluster at $' + billed.toFixed(2) + '/hr, above the $' + confirmed.price.toFixed(2) + '/hr catalogue figure that was confirmed · setup continues · /llmhost → Machines I’m paying for → Terminate stops it')
-      }
-      rated = true
-      const targets = nodes.map(node => ({ host: node.ssh!.direct!.host, port: node.ssh!.direct!.port, user: node.ssh!.direct!.username, key: record.sshKey ?? record.target?.key }))
-      const floor = recipe.cuda.split('.').map(Number)
-      for (const node of nodes) {
-        const cuda = node.cudaVersion?.split('.').map(Number)
-        if (!cuda || cuda[0]! < floor[0]! || cuda[0] === floor[0] && cuda[1]! < floor[1]!) await endHostCluster(record, 'was placed on node ' + node.id + ' reporting CUDA ' + (node.cudaVersion ?? 'unknown') + ', below the recipe’s ' + recipe.cuda, '')
-      }
-      try { await Promise.all(targets.map(target => runner.run('ssh', [...sshArguments(target), 'true'], signal))) } catch (error) { last = String(error); await sleep(pauseMs, signal, { throwOnAbort: true }); continue }
-      const head = nodes[0]!.cluster.ip!
-      onHead(targets[0]!)
-      onStep('installing on ' + nodes.length + ' nodes')
-      try {
-        await Promise.all(targets.map((target, rank) => startHostEngine(target, recipe, runner, signal, false, true, undefined, undefined, { nodes: nodes.length, rank, head, address: nodes[rank]!.cluster.ip! })))
-        onStep('waiting for cluster head ' + head)
-        const dir = '/workspace/mercury-host/' + recipe.id
-        for (;;) {
-          try {
-            await waitHostEngine(targets[0]!, recipe, runner, signal, pauseMs, Math.max(1, Math.min(deadline - Date.now(), pauseMs * 12)))
-            return targets[0]!
-          } catch (error) {
-            if (signal.aborted || Date.now() >= deadline || !String(error).includes('Engine not ready.')) throw error
-          }
-          for (const [rank, target] of targets.entries()) {
-            if (rank === 0) continue
-            const state = await runner.run('ssh', [...sshArguments(target), 'if kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo MERCURY_ENGINE_ALIVE; else echo MERCURY_ENGINE_GONE; tail -n 12 ' + quote(dir + '/engine.log') + '; fi'], signal).catch(passedOverAs(''))
-            if (/^MERCURY_ENGINE_GONE\b/m.test(state)) throw new Error('Cluster node ' + nodes[rank]!.id + ' (rank ' + rank + ') stopped its engine, so the head cannot finish loading. ' + state.replace(/^MERCURY_ENGINE_GONE\b/m, '').trim())
-          }
+  const { nodes, targets } = await pollUntil(
+    async () => {
+      if (Date.now() >= placed) return endHostCluster(record, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last)
+      const nodes = (await placementRead('cluster node', readSignal => api.clusterPods(record.id, readSignal))).sort((a, b) => (a.cluster.rank ?? Infinity) - (b.cluster.rank ?? Infinity))
+      patchHostRecord(record.id, { nodes, cluster })
+      const failed = nodes.find(node => ['ERROR', 'EXITED', 'TERMINATED'].includes(node.status))
+      if (failed) await endHostCluster(record, 'lost node ' + failed.id + ' (' + failed.status + ') before setup began', await readOnly('log', readSignal => api.logs(failed.id, readSignal)))
+      if (nodes.length === recipe.nodes && nodes.every((node, rank) => node.cluster.id === cluster.id && node.cluster.rank === rank && privateIp(node.cluster.ip) && node.status === 'RUNNING' && node.ssh?.direct)) {
+        const billed = nodes.reduce((sum, node) => sum + node.cost, 0)
+        const confirmed = readHostRecord(record.id)
+        if (!rated && billed > 0 && confirmed && cents(billed) !== cents(confirmed.price)) {
+          const repriced = patchHostRecord(record.id, { price: billed })
+          if (repriced && cents(billed) > cents(confirmed.price)) hostNotice(repriced, 'rate', repriced.name + ' · Runpod bills this cluster at $' + billed.toFixed(2) + '/hr, above the $' + confirmed.price.toFixed(2) + '/hr catalogue figure that was confirmed · setup continues · /llmhost → Machines I’m paying for → Terminate stops it')
         }
+        rated = true
+        const targets = nodes.map(node => ({ host: node.ssh!.direct!.host, port: node.ssh!.direct!.port, user: node.ssh!.direct!.username, key: record.sshKey ?? record.target?.key }))
+        const floor = recipe.cuda.split('.').map(Number)
+        for (const node of nodes) {
+          const cuda = node.cudaVersion?.split('.').map(Number)
+          if (!cuda || cuda[0]! < floor[0]! || cuda[0] === floor[0] && cuda[1]! < floor[1]!) await endHostCluster(record, 'was placed on node ' + node.id + ' reporting CUDA ' + (node.cudaVersion ?? 'unknown') + ', below the recipe’s ' + recipe.cuda, '')
+        }
+        try { await Promise.all(targets.map(target => runner.run('ssh', [...sshArguments(target), 'true'], signal))) } catch (error) { last = String(error); return undefined }
+        return { nodes, targets }
+      }
+      return undefined
+    },
+    pauseMs,
+    placementMs,
+    () => endHostCluster(record, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last),
+    { signal },
+  )
+  const head = nodes[0]!.cluster.ip!
+  onHead(targets[0]!)
+  onStep('installing on ' + nodes.length + ' nodes')
+  try {
+    await Promise.all(targets.map((target, rank) => startHostEngine(target, recipe, runner, signal, false, true, undefined, undefined, { nodes: nodes.length, rank, head, address: nodes[rank]!.cluster.ip! })))
+    onStep('waiting for cluster head ' + head)
+    const dir = '/workspace/mercury-host/' + recipe.id
+    for (;;) {
+      try {
+        await waitHostEngine(targets[0]!, recipe, runner, signal, pauseMs, Math.max(1, Math.min(deadline - Date.now(), pauseMs * 12)))
+        return targets[0]!
       } catch (error) {
-        signal.throwIfAborted()
-        return endHostCluster(record, 'failed during engine setup', error instanceof Error ? error.message : String(error))
+        if (signal.aborted || Date.now() >= deadline || !String(error).includes('Engine not ready.')) throw error
+      }
+      for (const [rank, target] of targets.entries()) {
+        if (rank === 0) continue
+        const state = await runner.run('ssh', [...sshArguments(target), 'if kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo MERCURY_ENGINE_ALIVE; else echo MERCURY_ENGINE_GONE; tail -n 12 ' + quote(dir + '/engine.log') + '; fi'], signal).catch(passedOverAs(''))
+        if (/^MERCURY_ENGINE_GONE\b/m.test(state)) throw new Error('Cluster node ' + nodes[rank]!.id + ' (rank ' + rank + ') stopped its engine, so the head cannot finish loading. ' + state.replace(/^MERCURY_ENGINE_GONE\b/m, '').trim())
       }
     }
-    await sleep(pauseMs, signal, { throwOnAbort: true })
+  } catch (error) {
+    signal.throwIfAborted()
+    return endHostCluster(record, 'failed during engine setup', error instanceof Error ? error.message : String(error))
   }
-  signal.throwIfAborted()
-  return endHostCluster(record, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last)
 }

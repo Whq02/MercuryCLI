@@ -1,6 +1,6 @@
 import type { Tool, Tools } from '../../Tool.js'
 import { cutPart, describeBashNotReadOnly, type NotReadOnly } from '../BashTool/readOnlyValidation.js'
-import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { ENTER_WORKTREE_TOOL_NAME } from '../EnterWorktreeTool/constants.js'
 import { EXIT_WORKTREE_TOOL_NAME } from '../ExitWorktreeTool/constants.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../constants/tools/sendMessage.js'

@@ -77,7 +77,7 @@ export function agentDefinitionsCheck(): CheckSpec {
       const { readdirSync } = await import('node:fs')
       const { join } = await import('node:path')
       const { getMercuryHome } = await import('../../../../utils/envUtils.js')
-      const { projectLocalPath } = await import('../../../projectLocal/paths.js')
+      const { projectLocalPath } = await import('../../../../utils/projectLocal/paths.js')
       const { getOriginalCwd } = await import('../../../../bootstrap/state.js')
       const userDir = join(getMercuryHome(), 'agents')
       let projectDir = ''

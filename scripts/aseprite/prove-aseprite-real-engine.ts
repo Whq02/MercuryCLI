@@ -15,7 +15,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { resolveAseprite } = await import('../../src/services/aseprite/asepriteApp.ts')
+const { resolveAseprite } = await import('../../src/utils/aseprite/asepriteApp.ts')
 const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 

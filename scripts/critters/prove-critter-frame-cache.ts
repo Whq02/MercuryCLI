@@ -215,7 +215,7 @@ t.section('§8 — under the REAL clock a still critter never commits a frame id
   const { PassThrough } = await import('node:stream')
   const { renderSync } = await import('../../src/ink/root.js')
   const { AnimatedCritterArt } = await import('../../src/components/mercury-ui/AnimatedCritterArt.js')
-  const sleep = await import('../../src/utils/cockpit/critterSleep.js')
+  const sleep = await import('../../src/services/cockpit/critterSleep.js')
   const stripAnsi = (await import('strip-ansi')).default
   const stdinStub = (): NodeJS.ReadStream =>
     Object.assign(new EventEmitter(), {

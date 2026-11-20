@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/services/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
 {
   const ROOT = join(import.meta.dir, '..', '..')
   const vscodeDir = join(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm', 'wasm')
@@ -22,7 +22,7 @@ const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../s
   }
   process.env.MERCURY_TREESITTER_VENDOR_DIR = composed
 }
-const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/services/structure/grammarFacility.ts')
+const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/utils/structure/grammarFacility.ts')
 const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/services/structure/astPatterns.ts')
 
 let failures = 0

@@ -9,7 +9,7 @@ import { artifactIdentityLine, describeArtifactIdentity } from '../../../utils/a
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { isMercurySubstrateProfileOn } from '../../../utils/config.js'
 import { formatAge } from '../../../utils/healthCertCore.js'
-import { daemonSnapshot } from '../../../utils/cockpit/daemonSnapshot.js'
+import { daemonSnapshot } from '../../cockpit/daemonSnapshot.js'
 import { healthFixEnabled } from '../../../utils/healthFix.js'
 import { assessDeployedAssets } from '../../../utils/healthDeployedAssets.js'
 import { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } from '../../../prompt/mercuryContract.js'

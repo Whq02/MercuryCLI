@@ -21,7 +21,7 @@ const { getModelOptions, ZEN_MODEL_GROUP, parseKeyConnectValue, keyConnectValue 
 const { providerDisplayName, declaredRouteOf, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
 const { PROVIDER_ID_SPACES, declaredIdSpacesLine } = await import('../../src/services/providers/idSpaces.ts')
 const { ZEN_DISPLAY_PINS, zenDisplayPin, zenIsFreeModel } = await import('../../src/services/providers/zen/zenPins.ts')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { effortVocabularyFor, resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
 const { PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')

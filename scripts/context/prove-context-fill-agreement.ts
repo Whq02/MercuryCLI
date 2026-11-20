@@ -22,7 +22,7 @@ function section(t: string): void {
 const tokens = await import('../../src/utils/tokens.ts')
 const context = await import('../../src/utils/context.ts')
 const fillOwner = await import('../../src/utils/contextFill.ts')
-const live = await import('../../src/utils/cockpit/contextUsageLive.ts')
+const live = await import('../../src/services/cockpit/contextUsageLive.ts')
 const tokEst = await import('../../src/services/tokenEstimation.ts')
 const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 const { mapCompatUsageToAnthropic } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')

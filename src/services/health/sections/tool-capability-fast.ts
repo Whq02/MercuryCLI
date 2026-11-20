@@ -21,7 +21,7 @@ export function toolCapabilityFastChecks(): CheckSpec[] {
       id: 'capability-census',
       label: 'Capability census',
       run: async () => {
-        const { buildToolCensus, censusGapLines, CENSUS_NO_REASON, CENSUS_VERSION } = await import('../../../utils/capability/census.js')
+        const { buildToolCensus, censusGapLines, CENSUS_NO_REASON, CENSUS_VERSION } = await import('../../capability/census.js')
         await settleCatalogueGates()
         const c = buildToolCensus()
         const s = c.summary
@@ -70,7 +70,7 @@ export function toolCapabilityFastChecks(): CheckSpec[] {
       id: 'capability-integrations',
       label: 'Lifecycle integrations',
       run: async () => {
-        const { buildToolCensus } = await import('../../../utils/capability/census.js')
+        const { buildToolCensus } = await import('../../capability/census.js')
         await settleCatalogueGates()
         const s = buildToolCensus().summary
         return {

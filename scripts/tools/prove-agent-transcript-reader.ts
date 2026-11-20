@@ -12,7 +12,7 @@ import {
   PROMPT_CAP_CHARS,
   readAgentTranscript,
   summarizeToolInput,
-} from '../../src/utils/crew/agentTranscriptReader.ts'
+} from '../../src/services/crew/agentTranscriptReader.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

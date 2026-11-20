@@ -17,7 +17,7 @@ process.env.MISTRAL_API_KEY = 'proof-key-mistral-price-not-real'
 process.env.MERCURY_MISTRAL_API_BASE = `http://127.0.0.1:${server.port}/v1`
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const { getModelPricingString, calculateUSDCost, resolveModelPricing } = await import('../../src/utils/modelCost.js')
+const { getModelPricingString, calculateUSDCost, resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { getTotalCost, resetCostState } = await import('../../src/cost-tracker.js')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
 const { createUserMessage } = await import('../../src/utils/messages.js')

@@ -20,7 +20,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const { runTextChangeSetCommit, recoverChangeSetJournal, commitPlanDigest } = await import(join(SRC, 'services/changeTransaction/changeSetCommit.ts'))
-const { sha256Hex } = await import(join(SRC, 'services/changeTransaction/changeSetPlan.ts'))
+const { sha256Hex } = await import(join(SRC, 'utils/hash.ts'))
 const { listJournalOperations } = await import(join(SRC, 'substrate/operationJournal.ts'))
 
 const dir = realpathSync(mkdtempSync(join(tmpdir(), 'comp-iso-')))

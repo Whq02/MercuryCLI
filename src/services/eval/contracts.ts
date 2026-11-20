@@ -1,6 +1,6 @@
 
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
-import type { SampleItem } from '../samples/contracts.js'
+import type { SampleItem } from '../../utils/samples/contracts.js'
 
 export type EvalLanguage = 'py' | 'js'
 

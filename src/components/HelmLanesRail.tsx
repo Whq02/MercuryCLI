@@ -19,7 +19,7 @@ import { sessionIdOfListing, listSessionsAcrossProjects } from '../utils/session
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus } from '../utils/cockpit/helmFocus.js'
 import { openFilesMenu } from '../utils/cockpit/filesMenu.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
-import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../utils/cockpit/contextUsageLive.js'
+import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../services/cockpit/contextUsageLive.js'
 import { healthCertSnapshot } from '../services/health/healthCertSnapshot.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
@@ -37,7 +37,7 @@ import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { buildLanesModel, fitPointerRows, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../utils/cockpit/helmLanesModel.js'
+import { buildLanesModel, fitPointerRows, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../services/cockpit/helmLanesModel.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
 
 export { wrapRailRows }

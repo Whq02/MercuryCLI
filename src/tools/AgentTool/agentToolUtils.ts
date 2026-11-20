@@ -53,7 +53,7 @@ import { getCwdState } from '../../bootstrap/state.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import { agentPauseRecordPath, clearAgentPauseRecord, writeAgentPauseRecord } from '../../tasks/LocalAgentTask/pauseCarry.js'
-import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../utils/crew/crewAccountChange.js'
+import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../services/crew/crewAccountChange.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
   nextOverloadProbeDelayMs,

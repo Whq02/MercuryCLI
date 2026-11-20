@@ -7,12 +7,12 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { buildToolCensus } = await import('../../src/utils/capability/census.ts')
+const { buildToolCensus } = await import('../../src/services/capability/census.ts')
 const { validateToolCapability } = await import('../../src/utils/capability/contract.ts')
 const { TOOL_CAPABILITY_DECLARATIONS } = await import(
   '../../src/utils/capability/declarations.ts'
 )
-const { CAPABILITY_UNITS } = await import('../../src/utils/capability/census.ts')
+const { CAPABILITY_UNITS } = await import('../../src/services/capability/census.ts')
 
 console.log('── builtin-tools constitution gate ──')
 

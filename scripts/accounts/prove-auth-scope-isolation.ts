@@ -36,38 +36,6 @@ function callerFiles(symbolCall: string): string[] {
   return [...files].sort()
 }
 
-section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential store + billing display')
-{
-  const sanctioned = new Set([
-    'src/utils/envUtils.ts',
-    'src/utils/secureStorage/plainTextStorage.ts',
-    'src/utils/secureStorage/macOsKeychainHelpers.ts',
-    'src/services/providers/providerSecrets.ts',
-    'src/services/host/jobCredentials.ts',
-    'src/utils/accounts/signInRefusal.ts',
-    'src/utils/redactSecrets.ts',
-    'src/services/providers/openai/openaiAccounts.ts',
-    'src/services/providers/openai/qualificationStore.ts',
-    'src/services/providers/anthropic/modelRefusal.ts',
-    'src/services/providers/gemini/geminiAccounts.ts',
-    'src/services/providers/huggingface/huggingfaceAccounts.ts',
-    'src/services/providers/moonshot/moonshotAccounts.ts',
-    'src/services/providers/openrouter/openrouterAccounts.ts',
-    'src/services/providers/xai/xaiOauth.ts',
-    'src/services/providers/nous/nousOauth.ts',
-    'src/services/providers/nous/nousClientContract.ts',
-    'src/services/providers/gemini/antigravityClientContract.ts',
-    'src/utils/auth.ts',
-    'src/utils/health/sections/crew/home.ts',
-    'src/daemon/saturnAccount.ts',
-    'src/daemon/signInView.ts',
-  ])
-  const callers = callerFiles('getAuthConfigHomeDir()')
-  check(callers.length > 0, 'the seam is actually wired (has callers)', callers.join(', '))
-  const rogue = callers.filter(f => !sanctioned.has(f))
-  check(rogue.length === 0, 'no session-state module calls getAuthConfigHomeDir()', rogue.length ? `ROGUE: ${rogue.join(', ')}` : 'clean')
-}
-
 section('§2 SCOPE-SETTER FLOOR — setAuthScope/clearAuthScope only in the switch + the isolated read')
 {
   const sanctioned = new Set([

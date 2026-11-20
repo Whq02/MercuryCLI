@@ -21,7 +21,7 @@ console.log('============================================================')
 const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
 const { validateToolCapability } = await import('../../src/utils/capability/contract.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { _resetAsepriteVersionProbeForTesting } = await import('../../src/services/aseprite/asepriteApp.ts')
+const { _resetAsepriteVersionProbeForTesting } = await import('../../src/utils/aseprite/asepriteApp.ts')
 
 const savedEnv = { ...process.env }
 function restore(): void {

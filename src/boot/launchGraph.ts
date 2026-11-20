@@ -1,4 +1,5 @@
 import { logForDebugging } from '../utils/debug.js'
+import { withDeadline } from '../utils/deadline.js'
 import { sleep } from '../utils/sleep.js'
 import { passedOver } from '../utils/passedOver.js'
 
@@ -59,10 +60,7 @@ export function armBackgroundDiscovery(): void {
   if (backgroundArmed) return
   backgroundArmed = true
   void (async () => {
-    await Promise.race([
-      inputLivePromise,
-      sleep(BACKGROUND_DEADLINE_MS),
-    ])
+    await withDeadline(inputLivePromise, BACKGROUND_DEADLINE_MS, () => undefined)
     await sleep(BACKGROUND_SETTLE_MS)
     backgroundStarted = true
     const inFlight = new Set<Promise<void>>()

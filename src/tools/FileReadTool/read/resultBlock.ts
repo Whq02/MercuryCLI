@@ -1,6 +1,6 @@
 import { formatFileSize } from '../../../utils/format.js'
 import { mapNotebookCellsToToolResult } from '../../../utils/notebook.js'
-import { FILE_UNCHANGED_STUB } from '../prompt.js'
+import { FILE_UNCHANGED_STUB } from '../../../constants/tools/fileRead.js'
 import { cyberRiskReminderForCurrentModel } from './reminder.js'
 import type { Output } from './schema.js'
 import { serializeTextResult } from './serialize.js'

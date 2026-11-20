@@ -12,7 +12,7 @@ import {
   type UnityBridgeBuildSceneRow,
   type UnityConsoleEntry,
   type UnityConsoleSeverity,
-} from '../../src/services/unity/bridgeProtocol.js'
+} from '../../src/utils/unity/bridgeProtocol.js'
 
 type FakeBridgeMode =
   | 'echo'

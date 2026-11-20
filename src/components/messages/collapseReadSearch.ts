@@ -1,7 +1,7 @@
 import type { UUID } from 'crypto'
 
 import { findToolByName, safeSearchOrReadClassification, type Tools } from '../../Tool.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { extractBashCommentLabel } from '../../tools/BashTool/commentLabel.js'
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'

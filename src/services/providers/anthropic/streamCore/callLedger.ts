@@ -6,7 +6,7 @@ import type {
 import { randomUUID } from 'crypto'
 import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import { logForDebugging } from 'src/utils/debug.js'
-import { calculateUSDCost } from 'src/utils/modelCost.js'
+import { calculateUSDCost } from 'src/services/usage/modelCost.js'
 import { roughTokenCountEstimation } from 'src/services/tokenEstimation.js'
 import type { Tools } from '../../../../Tool.js'
 import type { ConnectorTextBlock } from '../../../../types/connectorText.js'

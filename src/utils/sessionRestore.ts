@@ -9,7 +9,7 @@ import { logForDebugging } from './debug.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { rearmMissionFromCard } from '../guards/mission.js'
-import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
+import { migrateOrphanedMissionCard } from './mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 
