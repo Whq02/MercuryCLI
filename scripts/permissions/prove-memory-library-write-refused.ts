@@ -41,7 +41,7 @@ const { getToolSearchOrReadInfo } = await import('../../src/components/messages/
 const { memoryWriteRefusal } = await import('../../src/utils/memoryFileDetection.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { RETAIN_TOOL_NAME, CORRECT_TOOL_NAME } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { RETAIN_TOOL_NAME, CORRECT_TOOL_NAME } = await import('../../src/constants/tools/memory.ts')
 
 const lib = mnemeLibraryDir()
 mkdirSync(lib, { recursive: true })

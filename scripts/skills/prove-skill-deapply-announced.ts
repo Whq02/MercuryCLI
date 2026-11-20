@@ -46,7 +46,7 @@ writeSkill('depa-gamma')
 
 const commands = await import('../../src/commands.ts')
 const listing = await import('../../src/utils/attachments/skillListing.ts')
-const { SKILL_TOOL_NAME } = await import('../../src/tools/SkillTool/constants.ts')
+const { SKILL_TOOL_NAME } = await import('../../src/constants/tools/skill.ts')
 const pin = await import('../../src/services/mcp/sessionKitPin.ts')
 const governance = await import('../../src/skills/kitGovernance.ts')
 

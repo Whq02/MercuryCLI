@@ -5,7 +5,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { projectConfigDirs } from '../../utils/projectConfig.js'
 import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { projectHomePath, projectHomeStore } from '../../utils/projectHomeStores.js'
-import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../MemoryTools/prompt.js'
+import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../constants/tools/memory.js'
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
 

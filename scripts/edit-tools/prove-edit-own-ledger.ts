@@ -19,7 +19,7 @@ delete process.env.NODE_ENV
 const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/FileEditTool/constants.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')

@@ -19,7 +19,7 @@ import {
   sqliteRowRewindNote,
   structuredTargetRefusal,
 } from './structuredTargets.js'
-import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
+import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from '../../constants/tools/fileWrite.js'
 import {
   getToolUseSummary,
   isResultTruncated,

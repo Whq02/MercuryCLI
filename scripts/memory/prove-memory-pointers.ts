@@ -72,7 +72,7 @@ check('the text shows the content and the unlock note', SECRETS.some(s => read.t
 const pendingPointer = pointers.find(p => String(p.id).startsWith('pending:'))!
 const pendingRead = await recallTool({ read: String(pendingPointer.id) })
 check('a pending pointer opens to its row', pendingRead.data.found === true && String(pendingRead.data.content).includes(SECRETS[3]!))
-const { RECALL_PROMPT, RECALL_DESCRIPTION } = await import('../../src/tools/MemoryTools/prompt.js')
+const { RECALL_PROMPT, RECALL_DESCRIPTION } = await import('../../src/constants/tools/memory.js')
 const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.js')
 const querySchemaText = String((zodToJsonSchema(RecallTool.inputSchema as never) as { properties?: { query?: { description?: string } } }).properties?.query?.description ?? '')
 const NEGATIONS = ['never from a pointer', 'quoted from the record', 'never the content', 'never carries the content']

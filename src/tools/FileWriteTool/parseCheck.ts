@@ -5,7 +5,7 @@ import type { TSNode } from '../../services/structure/grammarFacility.js'
 
 import { FRONTMATTER_REGEX, parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { parseYaml } from '../../utils/yaml.js'
-import { MAX_LISTING_DESC_CHARS } from '../SkillTool/constants.js'
+import { MAX_LISTING_DESC_CHARS } from '../../constants/tools/skill.js'
 import { stripBom } from '../../utils/readFileInRange.js'
 import { passedOver } from '../../utils/passedOver.js'
 type ParseFormat = 'JSON' | 'YAML'
