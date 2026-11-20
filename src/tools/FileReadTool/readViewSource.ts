@@ -2,7 +2,6 @@ import { closeSync } from 'node:fs'
 import { expandPath } from '../../utils/path.js'
 import { isRemotePath } from '../../services/remoteFiles/target.js'
 import { openRegularFileSync } from '../../utils/regularFile.js'
-import type { CanUseToolFn } from '../../Tool.js'
 import type { ReadQueryRequest } from './readQuery.js'
 
 export async function withReadViewSource<T>(request: ReadQueryRequest, source: string, read: (file: string) => Promise<T>, additional = false): Promise<T> {
@@ -12,8 +11,9 @@ export async function withReadViewSource<T>(request: ReadQueryRequest, source: s
   if (!valid.result) throw new Error(valid.message)
   const decision = await FileReadTool.checkPermissions!(input, request.context)
   if (decision.behavior === 'deny') throw new Error(decision.message)
-  const ask = typeof request.canUseTool === 'function' && request.parentMessage !== undefined
-    ? (path: string) => (request.canUseTool as CanUseToolFn)(FileReadTool as never, { file_path: path }, request.context, request.parentMessage as never, `${request.context.toolUseId ?? 'read'}-view-source`)
+  const { canUseTool, parentMessage } = request
+  const ask = typeof canUseTool === 'function' && parentMessage !== undefined
+    ? (path: string) => canUseTool(FileReadTool, { file_path: path }, request.context, parentMessage, `${request.context.toolUseId ?? 'read'}-view-source`)
     : null
   if (additional && decision.behavior === 'ask') {
     const answer = ask === null ? decision : await ask(source)
