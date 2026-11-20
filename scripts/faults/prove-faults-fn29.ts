@@ -181,5 +181,35 @@ console.log('3. src/utils/cockpit/daemonSnapshot.ts — EPERM on pid probe reads
   )
 }
 
+console.log('4. src/utils/cockpit/harnessMap.ts — throwing DAP probe does not claim Debug tool is withheld')
+{
+  const r = runIsolated(`
+    const { mock } = await import('bun:test')
+    let shouldThrow = true
+    mock.module(SRC + '/services/dap/dapClient.js', () => ({
+      mercuryDapEnabled: () => true,
+      dapAdapterProbePending: () => false,
+      reachableDapAdapterKeys: () => {
+        if (shouldThrow) throw new Error('dap probe exploded')
+        return []
+      },
+    }))
+    const { computeHarnessMapLines } = await import(SRC + '/utils/cockpit/harnessMap.ts')
+    out.onThrow = computeHarnessMapLines().some(l => l.includes('The Debug tool is withheld'))
+    shouldThrow = false
+    out.onEmpty = computeHarnessMapLines().some(l => l.includes('The Debug tool is withheld'))
+  `)
+  check(
+    'harnessMap: throwing DAP probe does not claim Debug tool is withheld',
+    r.onThrow === false,
+    `onThrow=${String(r.onThrow)}`,
+  )
+  check(
+    'harnessMap: control empty DAP probe still claims Debug tool is withheld',
+    r.onEmpty === true,
+    `onEmpty=${String(r.onEmpty)}`,
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
