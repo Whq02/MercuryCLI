@@ -56,51 +56,54 @@ console.log('============================================================')
 console.log(` home ${home} · project under the home ${project} · plain project ${plainProject}`)
 check('the autonomous delete ward is armed (MERCURY_SPAWNED_BY set)', deleteWardActive())
 check('the in-project fixture is beneath its home', project.startsWith(`${realHome}${sep}`), `${project} outside ${realHome}`)
+const bashPath = (path: string): string => (process.platform === 'win32' ? path.replaceAll('\\', '/') : path)
+const homeBash = bashPath(home)
+const projectBash = bashPath(project)
 console.log('\n§1 a quoted home path is stopped as the bare one is (RED on 015ac050c0 and on the base: every quoted form was allowed)')
 const homeDeletes: Array<[string, string]> = [
-  ['double quotes', `rm -rf "${home}/Documents"`],
-  ['single quotes', `rm -rf '${home}/Documents'`],
-  ['a quoted path with a space', `rm -rf "${home}/My Documents"`],
+  ['double quotes', `rm -rf "${homeBash}/Documents"`],
+  ['single quotes', `rm -rf '${homeBash}/Documents'`],
+  ['a quoted path with a space', `rm -rf "${homeBash}/My Documents"`],
   ['a quoted $HOME path', 'rm -rf "$HOME/Documents"'],
   ['a quoted ${HOME} path', 'rm -rf "${HOME}/Documents"'],
   ['a quoted ~ path', 'rm -rf "~/Documents"'],
-  ['-r alone, quoted', `rm -r "${home}/Library"`],
-  ['-fr, quoted', `rm -fr "${home}/Library"`],
-  ['--recursive, quoted', `rm --recursive --force "${home}/Library"`],
-  ['the quoted path after --', `rm -rf -- "${home}/Documents"`],
-  ['find -delete on a quoted home path', `find "${home}" -name '*.o' -delete`],
+  ['-r alone, quoted', `rm -r "${homeBash}/Library"`],
+  ['-fr, quoted', `rm -fr "${homeBash}/Library"`],
+  ['--recursive, quoted', `rm --recursive --force "${homeBash}/Library"`],
+  ['the quoted path after --', `rm -rf -- "${homeBash}/Documents"`],
+  ['find -delete on a quoted home path', `find "${homeBash}" -name '*.o' -delete`],
   ['find -delete on a quoted $HOME', 'find "$HOME/Library" -delete'],
 ]
 for (const [label, command] of homeDeletes) {
   const bare = verdictOf(command.replace(/["']/g, ''), plainProject)
   const quoted = verdictOf(command, plainProject)
-  check(`${label}: stopped (${quoted}); the bare spelling reads ${bare}`, stopped(quoted), command.replace(home, '<home>'))
+  check(`${label}: stopped (${quoted}); the bare spelling reads ${bare}`, stopped(quoted), command.replace(homeBash, '<home>').replace(home, '<home>'))
 }
 
 console.log('\n§2 an in-project delete passes whether quoted or not, spaces included (the resolved path, not the spelling, decides)')
 const inProject: Array<[string, string, string]> = [
-  ['absolute, bare', project, `rm -rf ${project}/build`],
-  ['absolute, quoted', project, `rm -rf "${project}/build"`],
-  ['absolute, quoted, the folder has a space', project, `rm -rf "${project}/build dir"`],
-  ['absolute, single-quoted, the folder has a space', project, `rm -rf '${project}/build dir'`],
-  ['via ~, quoted', project, `rm -rf "~/${project.slice(realHome.length + 1)}/build"`],
+  ['absolute, bare', project, `rm -rf ${projectBash}/build`],
+  ['absolute, quoted', project, `rm -rf "${projectBash}/build"`],
+  ['absolute, quoted, the folder has a space', project, `rm -rf "${projectBash}/build dir"`],
+  ['absolute, single-quoted, the folder has a space', project, `rm -rf '${projectBash}/build dir'`],
+  ['via ~, quoted', project, `rm -rf "~/${bashPath(project.slice(realHome.length + 1))}/build"`],
   ['relative', project, 'rm -rf ./build'],
   ['relative with a space, quoted', project, 'rm -rf "./build dir"'],
   ['a $TMPDIR path, quoted', plainProject, 'rm -rf "$TMPDIR/x"'],
-  ['find -delete inside the project, quoted', project, `find "${project}/build dir" -name '*.o' -delete`],
+  ['find -delete inside the project, quoted', project, `find "${projectBash}/build dir" -name '*.o' -delete`],
 ]
 for (const [label, root, command] of inProject) {
   const v = verdictOf(command, root)
-  check(`${label}: allowed (${v})`, v === 'allowed', command.replace(home, '<home>'))
+  check(`${label}: allowed (${v})`, v === 'allowed', command.replace(homeBash, '<home>').replace(home, '<home>'))
 }
 
 console.log('\n§3 the refusal list and the whole-home spellings are unchanged')
 check('rm -rf / is refused', verdictOf('rm -rf /', plainProject) === 'refused')
 check('rm -rf "$HOME" is stopped', stopped(verdictOf('rm -rf "$HOME"', plainProject)))
-check(`rm -rf <home> is stopped`, stopped(verdictOf(`rm -rf ${home}`, plainProject)))
+check(`rm -rf <home> is stopped`, stopped(verdictOf(`rm -rf ${homeBash}`, plainProject)))
 check('rm -rf ~ is stopped', stopped(verdictOf('rm -rf ~', plainProject)))
-check('an rm without a recursive flag is not the ward\'s business', verdictOf(`rm "${home}/Documents/one.txt"`, plainProject) === 'allowed')
-check('a quoted home path in an echo is not a delete', verdictOf(`echo "${home}/Documents" && ls -R "${home}"`, plainProject) === 'allowed')
+check('an rm without a recursive flag is not the ward\'s business', verdictOf(`rm "${homeBash}/Documents/one.txt"`, plainProject) === 'allowed')
+check('a quoted home path in an echo is not a delete', verdictOf(`echo "${homeBash}/Documents" && ls -R "${homeBash}"`, plainProject) === 'allowed')
 
 for (const root of [scratch, plainProject]) rmSync(root, { recursive: true, force: true })
 
