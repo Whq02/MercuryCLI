@@ -19,7 +19,7 @@ import {
 import {
   endRunnersLeftWithoutHost,
 } from './concourseWorkers.js'
-import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../services/switchboard/capacityCheck.js'
+import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../utils/switchboard/capacityCheck.js'
 import {
   onSeatSpawned,
   requestSessionFacts,

@@ -30,7 +30,7 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
   const capacityAskRef = useRef(false)
   useLoad(() => {
     let alive = true
-    void import('../../../services/switchboard/capacityCheck.js')
+    void import('../../../utils/switchboard/capacityCheck.js')
       .then(m => {
         if (alive && m.needsCapacityAsk()) {
           capacityAskRef.current = true
@@ -80,10 +80,10 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
   const answerCapacityAsk = (allowed: boolean): void => {
     capacityAskRef.current = false
     setCapacityAsk(false)
-    void import('../../../services/switchboard/capacityCheck.js')
+    void import('../../../utils/switchboard/capacityCheck.js')
       .then(m => m.recordCapacityDecision(allowed))
       .then(async r => {
-        const { capacityDecisionReceipt } = await import('../../../services/switchboard/capacityCheck.js')
+        const { capacityDecisionReceipt } = await import('../../../utils/switchboard/capacityCheck.js')
         setNote({
           tone: 'muted',
           text: capacityDecisionReceipt(allowed, r.recommendedSeats),

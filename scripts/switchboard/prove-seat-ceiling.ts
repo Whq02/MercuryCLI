@@ -15,7 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
-const cap = await import('../../src/services/switchboard/capacityCheck.ts')
+const cap = await import('../../src/utils/switchboard/capacityCheck.ts')
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 
 {
