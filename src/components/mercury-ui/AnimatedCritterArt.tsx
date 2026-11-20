@@ -37,7 +37,7 @@ import { CritterArt } from './CritterArt.js'
 function useIdleAnimation<T extends string | number>(
   intervalMs: number | null,
   derive: (timeMs: number) => T,
-): { animate: boolean; ref: unknown; value: T } {
+): { animate: boolean; ref: (element: DOMElement | null) => void; value: T } {
   const animate =
     intervalMs !== null && !(getInitialSettings().view?.reducedMotion ?? false)
   const [ref, value] = useAnimationValue(animate ? intervalMs : null, derive)
@@ -82,7 +82,7 @@ function useCritterFrame(def: CritterDef, form: ArtForm, specimen: boolean): Cri
   const composedRef = useCallback(
     (el: DOMElement | null) => {
       boxRef.current = el
-      ;(ref as (e: DOMElement | null) => void)(el)
+      ref(el)
     },
     [ref],
   )
@@ -124,7 +124,7 @@ export function AnimatedCritterArt({ def, chunky = false, square = false, specim
     )
   }
   return (
-    <Box flexDirection="column" ref={frame.ref as never}>
+    <Box flexDirection="column" ref={frame.ref}>
       <CritterArt def={def} pupil={frame.pupil} gazeKey={frame.gazeKey} swayPhase={frame.swayPhase} sleepPhase={frame.sleepPhase} chunky={chunky} square={square} {...ground} />
     </Box>
   )
@@ -139,7 +139,7 @@ export function BreathingDot(): React.ReactNode {
   if (!animate) return <Text color={TEAL}>●</Text>
   const color = lerpHex(FAINT, TEAL, 0.45 + 0.55 * (bucket / BREATH_BUCKETS))
   return (
-    <Box ref={ref as never}>
+    <Box ref={ref}>
       <Text color={color}>●</Text>
     </Box>
   )

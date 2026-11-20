@@ -3,8 +3,8 @@ import { isAbsolute } from 'node:path'
 
 import { z } from 'zod/v4'
 
-import { buildTool, type ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../Tool.js'
+import { buildTool, type CanUseToolFn, type Tool, type ToolUseContext } from '../../Tool.js'
+import type { AssistantMessage } from '../../types/message.js'
 import { remoteSearchRoot } from '../../services/remoteFiles/target.js'
 import { checkReadPermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
@@ -71,7 +71,7 @@ function searchRootFor(path?: string, pattern?: string): string {
   return getCwd()
 }
 
-function globToolItself(): unknown {
+function globToolItself(): Tool {
   return GlobTool
 }
 
@@ -152,7 +152,7 @@ export const GlobTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext, canUseTool, parentMessage) {
+  async call(input: Input, context: ToolUseContext, canUseTool: CanUseToolFn, parentMessage: AssistantMessage) {
     const started = Date.now()
     const limit = context.globLimits?.maxResults ?? DEFAULT_RESULT_LIMIT
     const far = remoteSearchRoot(input.path, input.pattern)
@@ -168,7 +168,7 @@ export const GlobTool = buildTool({
         far.root,
         context,
         typeof canUseTool === 'function' && parentMessage !== undefined
-          ? path => (canUseTool as CanUseToolFn)(globToolItself() as never, { pattern: far.pattern, path }, context, parentMessage as never, `${context.toolUseId ?? 'glob'}-resolved`)
+          ? path => canUseTool(globToolItself(), { pattern: far.pattern, path }, context, parentMessage, `${context.toolUseId ?? 'glob'}-resolved`)
           : null,
         names === null ? 0 : (globSearchDepth(patterns) ?? 0),
         names,

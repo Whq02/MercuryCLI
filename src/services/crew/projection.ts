@@ -32,6 +32,7 @@ import {
   type AgentSessionV1,
   type CrewAgentId,
 } from './identity.js'
+import type { CrewConversationId } from './conversations.js'
 
 export const PRESENCE_STATES = ['online', 'away', 'offline', 'unknown'] as const
 export type CrewPresence = (typeof PRESENCE_STATES)[number]
@@ -390,14 +391,14 @@ export async function __continuityLawsForProof(): Promise<{
     kind: 'work',
     title: 'the continuity thread',
     participants: [],
-    adoptId: 'cv-cont-00001' as never,
+    adoptId: 'cv-cont-00001' as CrewConversationId,
     dir,
   })
   const surfaceB = await conversations.mintConversation({
     kind: 'work',
     title: 'IGNORED — the thread exists',
     participants: [],
-    adoptId: 'cv-cont-00001' as never,
+    adoptId: 'cv-cont-00001' as CrewConversationId,
     dir,
   })
   await conversations.appendConversationEvent(surfaceA.conversationId, { kind: 'message', label: 'one' }, { dir })

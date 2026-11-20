@@ -37,22 +37,29 @@ export function parseStatement(value: unknown): { state: 'ok'; statement: Signin
       return { state: 'malformed', note: `statement carries an unknown key "${key}" outside the signed grammar` }
     }
   }
-  if (v.schema !== 1) return { state: 'malformed', note: `statement schema ${String(v.schema)} — this verifier decodes schema 1` }
-  for (const key of ['name', 'version', 'channel', 'target', 'packagedAt'] as const) {
-    if (typeof v[key] !== 'string' || v[key] === '') return { state: 'malformed', note: `statement.${key} is not a non-empty string` }
-  }
-  if (!(typeof v.buildTree === 'string' || v.buildTree === null)) {
+  const { schema, name, version, channel, target, packagedAt, buildTree, primarySha256, payloadDigest, licenseId } = v
+  if (schema !== 1) return { state: 'malformed', note: `statement schema ${String(schema)} — this verifier decodes schema 1` }
+  if (typeof name !== 'string' || name === '') return { state: 'malformed', note: 'statement.name is not a non-empty string' }
+  if (typeof version !== 'string' || version === '') return { state: 'malformed', note: 'statement.version is not a non-empty string' }
+  if (typeof channel !== 'string' || channel === '') return { state: 'malformed', note: 'statement.channel is not a non-empty string' }
+  if (typeof target !== 'string' || target === '') return { state: 'malformed', note: 'statement.target is not a non-empty string' }
+  if (typeof packagedAt !== 'string' || packagedAt === '') return { state: 'malformed', note: 'statement.packagedAt is not a non-empty string' }
+  if (typeof buildTree !== 'string' && buildTree !== null) {
     return { state: 'malformed', note: 'statement.buildTree is neither string nor null' }
   }
-  for (const key of ['primarySha256', 'payloadDigest'] as const) {
-    if (typeof v[key] !== 'string' || !HEX64.test(v[key] as string)) {
-      return { state: 'malformed', note: `statement.${key} is not a 64-hex sha256` }
-    }
+  if (typeof primarySha256 !== 'string' || !HEX64.test(primarySha256)) {
+    return { state: 'malformed', note: 'statement.primarySha256 is not a 64-hex sha256' }
   }
-  if (!(typeof v.licenseId === 'string' || v.licenseId === null)) {
+  if (typeof payloadDigest !== 'string' || !HEX64.test(payloadDigest)) {
+    return { state: 'malformed', note: 'statement.payloadDigest is not a 64-hex sha256' }
+  }
+  if (typeof licenseId !== 'string' && licenseId !== null) {
     return { state: 'malformed', note: 'statement.licenseId is neither string nor null' }
   }
-  return { state: 'ok', statement: v as unknown as SigningStatementV1 }
+  return {
+    state: 'ok',
+    statement: { schema, name, version, channel, target, packagedAt, buildTree, primarySha256, payloadDigest, licenseId },
+  }
 }
 
 export function canonicalStatementBytes(statement: SigningStatementV1): Buffer {

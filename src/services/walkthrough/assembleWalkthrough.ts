@@ -222,11 +222,10 @@ function gatherWalkthroughInputs(args: {
   let verification: WalkthroughInputs['verification'] = null
   try {
     const summary = verificationSummary(cwd, { skipDigest: false })
-    const s = summary as unknown as Record<string, unknown>
-    if (typeof s.state === 'string') {
+    if (typeof summary.state === 'string') {
       verification = {
-        state: s.state,
-        ...(typeof s.detail === 'string' && { detail: s.detail }),
+        state: summary.state,
+        ...(typeof summary.detail === 'string' && { detail: summary.detail }),
       }
     }
   } catch {

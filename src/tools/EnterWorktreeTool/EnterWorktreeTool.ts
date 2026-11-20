@@ -87,7 +87,7 @@ export const EnterWorktreeTool = buildTool({
     setCwd(session.worktreePath)
     setOriginalCwd(session.worktreePath)
     regroundGitWatch()
-    void saveWorktreeState(session as never)
+    void saveWorktreeState(session)
 
     clearInstructionFileCaches()
 

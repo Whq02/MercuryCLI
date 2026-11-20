@@ -140,7 +140,7 @@ export async function toolToAPISchema(
     allowedAgentTypes?: string[]
     model?: string
     deferLoading?: boolean
-    cacheControl?: unknown
+    cacheControl?: ApiTool['cache_control']
     conversationKey?: string
     bound?: boolean
   },
@@ -168,7 +168,7 @@ export async function toolToAPISchema(
     const explicit = (tool as { inputJSONSchema?: Record<string, unknown> }).inputJSONSchema
     const rawSchema =
       explicit === undefined
-        ? inlineLocalSchemaRefs(zodToJsonSchema(tool.inputSchema as never) as Record<string, unknown>)
+        ? inlineLocalSchemaRefs(zodToJsonSchema(tool.inputSchema))
         : inlineLocalSchemaRefs(explicit, serializedSchemaKeys.get(explicit))
     const schemaLane = schemaLaneFor(declaredRouteOf(promptModel))
     const normalized = explicit === undefined ? null : normalizeToolSchemaFor(schemaLane, rawSchema, rawSchema === explicit ? serializedSchemaKeys.get(explicit) : undefined)
@@ -184,7 +184,7 @@ export async function toolToAPISchema(
     base = built
   }
 
-  let schema: Record<string, any> = {
+  let schema: ApiTool = {
     name: base.name,
     description: base.description,
     input_schema: base.input_schema,
@@ -215,7 +215,7 @@ export async function toolToAPISchema(
           schema.eager_input_streaming && { eager_input_streaming: true }),
         ...(allowed.has('defer_loading') &&
           schema.defer_loading && { defer_loading: true }),
-      } as unknown as ApiToolUnion
+      }
     }
   }
   if (snapshots !== undefined) {
@@ -225,7 +225,7 @@ export async function toolToAPISchema(
     }
     return { ...JSON.parse(snapshots.get(tool.name)!), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
-  return schema as unknown as ApiToolUnion
+  return schema
 }
 
 let strippedFieldsLogged = false
@@ -239,7 +239,7 @@ function logStrippedFieldsOnce(fields: string[]): void {
 const MARKDOWN_EXTENSIONS = ['.md', '.mdx']
 
 function reparse<T>(tool: Tool, input: unknown): T {
-  return (tool.inputSchema as unknown as { parse: (value: unknown) => T }).parse(input)
+  return tool.inputSchema.parse(input)
 }
 
 function stripCwdChangePrefix(command: string, cwd: string): string {
@@ -251,10 +251,10 @@ function stripCwdChangePrefix(command: string, cwd: string): string {
   return result
 }
 
-export function normalizeToolInput<Input extends Record<string, unknown>>(
+export function normalizeToolInput(
   tool: Tool,
-  input: Input,
-): Input {
+  input: Record<string, unknown>,
+): Record<string, unknown> {
   switch (tool.name) {
     case BASH_TOOL_NAME: {
       const parsed = reparse<{
@@ -280,7 +280,7 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
       if (parsed.max_output_chars !== undefined) {
         rebuilt.max_output_chars = parsed.max_output_chars
       }
-      return rebuilt as unknown as Input
+      return rebuilt
     }
     case FILE_EDIT_TOOL_NAME: {
       const parsed = reparse<{
@@ -312,30 +312,30 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
       if (parsed.hunks !== undefined) rebuilt.hunks = parsed.hunks
       if (parsed.append !== undefined) rebuilt.append = parsed.append
       if (parsed.section !== undefined) rebuilt.section = parsed.section
-      return rebuilt as unknown as Input
+      return rebuilt
     }
     case FILE_WRITE_TOOL_NAME: {
       const parsed = reparse<{ file_path: string; content: string }>(tool, input)
       const isMarkdown = MARKDOWN_EXTENSIONS.some(ext => parsed.file_path.toLowerCase().endsWith(ext))
       const content = isMarkdown ? parsed.content : parsed.content.replace(/[ \t]+$/gm, '')
-      return { ...parsed, content } as unknown as Input
+      return { ...parsed, content }
     }
     default:
       return input
   }
 }
 
-export function normalizeToolInputForAPI<Input extends Record<string, unknown>>(
+export function normalizeToolInputForAPI(
   tool: Tool,
-  input: Input,
-): Input {
+  input: Record<string, unknown>,
+): Record<string, unknown> {
   if (tool.name === FILE_EDIT_TOOL_NAME) {
     if (Array.isArray((input as { edits?: unknown }).edits)) {
-      const { old_string, new_string, replace_all, ...rest } = input as Record<string, unknown>
+      const { old_string, new_string, replace_all, ...rest } = input
       void old_string
       void new_string
       void replace_all
-      return rest as unknown as Input
+      return rest
     }
   }
   return input
