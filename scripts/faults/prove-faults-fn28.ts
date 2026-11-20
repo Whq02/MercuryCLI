@@ -348,6 +348,67 @@ function skip(label: string, why: string): void {
   )
 }
 
+{
+  console.log('\nbootCardFacts: unreadable project store fails closed in workspaceRecognizedByGround and throws in parkedSessionsOf/projectChatCount')
+  const boot = await import('../../src/utils/bootCardFacts.ts')
+  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+  boot._resetProjectCatalogForTesting()
+  const ground = join(SCRATCH, 'ground-proj')
+  const nested = join(ground, 'nested-ws')
+  mkdirSync(nested, { recursive: true })
+  const nestedStore = getProjectDir(nested)
+  mkdirSync(nestedStore, { recursive: true })
+
+  if (!POSIX_MODES) skip('bootCardFacts-unreadable-store', 'needs non-root POSIX')
+  else {
+    chmodSync(nestedStore, 0o000)
+    try {
+      check(
+        'bootCardFacts-ground-fails-closed: workspaceRecognizedByGround returns false when nested store is unreadable',
+        boot.workspaceRecognizedByGround(ground, nested) === false,
+      )
+      let parkedErr: NodeJS.ErrnoException | null = null
+      try {
+        boot.parkedSessionsOf(nested)
+      } catch (err) {
+        parkedErr = err as NodeJS.ErrnoException
+      }
+      check(
+        'bootCardFacts-parked-throws-eacces: parkedSessionsOf throws EACCES on unreadable store dir',
+        parkedErr !== null && parkedErr.code === 'EACCES',
+        String(parkedErr),
+      )
+      let countErr: NodeJS.ErrnoException | null = null
+      try {
+        boot.projectChatCount(nested)
+      } catch (err) {
+        countErr = err as NodeJS.ErrnoException
+      }
+      check(
+        'bootCardFacts-chatcount-throws-eacces: projectChatCount throws EACCES on unreadable store dir',
+        countErr !== null && countErr.code === 'EACCES',
+        String(countErr),
+      )
+    } finally {
+      chmodSync(nestedStore, 0o700)
+    }
+    check(
+      'bootCardFacts-ground-recovers-uncached: unreadable store was not cached so readable empty nested store now belongs to ground',
+      boot.workspaceRecognizedByGround(ground, nested) === true,
+    )
+  }
+
+  const absentWs = join(SCRATCH, 'absent-ws')
+  check(
+    'bootCardFacts-parked-absent-empty: absent store dir still returns [] in parkedSessionsOf',
+    boot.parkedSessionsOf(absentWs).length === 0,
+  )
+  check(
+    'bootCardFacts-chatcount-absent-zero: absent store dir still returns 0 in projectChatCount',
+    boot.projectChatCount(absentWs) === 0,
+  )
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
