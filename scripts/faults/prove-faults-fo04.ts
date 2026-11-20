@@ -27,4 +27,34 @@ section('pathValidation: a grep --include glob the reader cannot translate keeps
   check('an include of .en[v-\\z], which grep matches to .env, asks first too', odd.behavior !== 'allow', said(odd))
 }
 
+section('matching: one hook matcher that throws does not drop the other hooks of the event')
+{
+  const { mock } = await import('bun:test')
+  const analysis = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
+  mock.module('../../src/utils/permissions/decision/commandAnalysis.ts', () => ({
+    ...analysis,
+    parseForSecurity: async () => {
+      throw new Error('stand-in parser failure')
+    },
+  }))
+  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
+  const { matchHooks } = await import('../../src/utils/hooks/matching.ts')
+  let state: Record<string, unknown> = { sessionHooks: new Map() }
+  const setAppState = (f: (s: unknown) => unknown): void => {
+    state = f(state) as Record<string, unknown>
+  }
+  const scope = { sessionId: 'faults-fo04' }
+  addSessionHooks(setAppState as never, scope, {
+    'tool.before': [
+      { name: 'by-name', match: 'Bash', run: 'true' },
+      { name: 'by-rule-closed', match: 'Bash(git *)', run: 'true', failClosed: true },
+      { name: 'by-rule-open', match: 'Bash(npm *)', run: 'true' },
+    ],
+  } as never, { kind: 'agent', type: 'faults' } as never)
+  const matched = await matchHooks('tool.before', { tool: 'Bash', input: { command: 'ls -la' } } as never, scope, { appState: state as never })
+  const names = matched.map(hook => (hook.entry as { name?: string }).name).sort()
+  check('the hook matched by name alone still runs when another matcher throws', names.includes('by-name'), names.join(', ') || 'no hooks')
+  check('the fail-closed hook whose matcher threw runs, the open one does not', names.includes('by-rule-closed') && !names.includes('by-rule-open'), names.join(', ') || 'no hooks')
+}
+
 finish('prove-faults-fo04')
