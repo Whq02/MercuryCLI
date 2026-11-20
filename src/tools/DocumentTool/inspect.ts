@@ -69,7 +69,7 @@ export async function inspectDocument(input: DocumentInput, io: DocumentIO): Pro
     structure = { pages: slides.length, outline: maps.filter(p => p.title !== null).map(p => ({ page: p.page, title: p.title })), tables: maps.flatMap(p => p.tables.map(t => ({ page: p.page, ...t }))), images: maps.reduce((n, p) => n + p.images, 0), wordCount: maps.reduce((n, p) => n + p.wordCount, 0), metadata: metadataOf(entries) }
   } else if (format === 'xlsx') {
     const book = new ExcelJS.Workbook()
-    await book.xlsx.load(bytes as unknown as ExcelJS.Buffer)
+    await book.xlsx.load(bytes)
     let wordCount = 0
     const tables = book.worksheets.map(sheet => {
       sheet.eachRow(row => row.eachCell(cell => { wordCount += words(cell.text) }))
