@@ -3,7 +3,7 @@ import {
   getEngineModelOverride,
 } from '../../bootstrap/state.js'
 import { getInitialSettings } from '../settings/settings.js'
-import { frontierOperatorDecision, newestPermittedGeneration, newestPermittedMirror } from './frontierPolicy.js'
+import { frontierOperatorDecision, newestPermittedGeneration } from './frontierPolicy.js'
 import {
   CHOOSE_A_MODEL_ID,
   CHOOSE_A_MODEL_WORDS,
@@ -12,80 +12,36 @@ import {
   describeComputedDefaultRow,
   isChooseAModel,
 } from './computedDefault.js'
-import { context1mNeedsUnsentHeader, getContextWindowForModel, has1mContext } from './capabilities.js'
+import { context1mNeedsUnsentHeader, has1mContext } from './capabilities.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
 import { isMistralModelId } from '../../services/providers/mistral/mistralPins.js'
-import { resolveInternalModel } from './internalModels.js'
-import {
-  ALL_MODEL_CONFIGS,
-  DECLARED_GENERATION_STEMS,
-  newestGenerationKey,
-  parseFirstPartyGeneration,
-  type ModelConfig,
-} from './configs.js'
-import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
-import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
+import { getModelStrings } from './modelStrings.js'
+import { recognizeModelId } from '../../services/providers/idSpaces.js'
 import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/deepseekPins.js'
 import { resolveBareFamilyWord } from './bareFamilyWords.js'
+import { firstPartyString, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, normalizeModelStringForAPI } from './modelNames.js'
+import { tellHowAModelSettingResolves } from './settingResolution.js'
+
+export { firstPartyNameToCanonical, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, isOpus1mMergeEnabled, normalizeModelStringForAPI } from './modelNames.js'
+export { isDefaultOpusNatively1M, newestPermittedFallback } from './frontierPolicy.js'
 
 export type ModelShortName = string
 export type ModelName = string
 export type ModelSetting = string | null
 
 
-const CONTEXT_SUFFIX_RE = /\[(?:[0-9]+m|served)\]/gi
 const TRAILING_1M_RE = /\[1m\]$/i
 
 function hasContext1mSuffix(model: string): boolean {
   return TRAILING_1M_RE.test(model.trim())
 }
 
-export function normalizeModelStringForAPI(model: string): string {
-  return model.replace(CONTEXT_SUFFIX_RE, '')
-}
-
-
-function firstPartyString(key: keyof typeof ALL_MODEL_CONFIGS): string {
-  return getModelStrings()[key]
-}
-
-export function getDefaultOpusModel(): string {
-  const pin = flagEnv('MERCURY_DEFAULT_OPUS_MODEL')
-  if (pin) return pin
-  return firstPartyString(newestGenerationKey('opus'))
-}
-
-export function getDefaultSonnetModel(): string {
-  const pin = flagEnv('MERCURY_DEFAULT_SONNET_MODEL')
-  if (pin) return pin
-  return firstPartyString(newestGenerationKey('sonnet'))
-}
-
-export function getDefaultHaikuModel(): string {
-  const pin = flagEnv('MERCURY_DEFAULT_HAIKU_MODEL')
-  if (pin) return pin
-  return firstPartyString(newestGenerationKey('haiku'))
-}
-
-export function getDefaultFableModel(): string {
-  const pin = flagEnv('MERCURY_DEFAULT_FABLE_MODEL')
-  if (pin) return pin
-  return firstPartyString(newestGenerationKey('fable'))
-}
 
 function rosterFamilyModel(family: Parameters<typeof newestPermittedGeneration>[0], head: string, pin: string | undefined): string {
   if (pin || getInitialSettings().engine?.roster === undefined) return head
   return newestPermittedGeneration(family, head) ?? head
 }
 
-export function newestPermittedFallback(): string | null {
-  return (
-    newestPermittedGeneration('opus', getDefaultOpusModel()) ??
-    newestPermittedGeneration('sonnet', getDefaultSonnetModel()) ??
-    newestPermittedGeneration('haiku', getDefaultHaikuModel()) ??
-    newestPermittedMirror()
-  )
-}
 
 export function isFableAvailable(): boolean {
   return frontierOperatorDecision().source === 'frontier'
@@ -121,6 +77,7 @@ const RETIRED_LARGE_IDS = new Set([
 export function parseUserSpecifiedModel(input: string): string {
   return parseUserSpecifiedModelCore(input, true)
 }
+tellHowAModelSettingResolves(parseUserSpecifiedModel)
 
 export function parseUserSpecifiedModelRaw(input: string): string {
   return parseUserSpecifiedModelCore(input, false)
@@ -221,35 +178,6 @@ export function getEngineModel(): string {
 
 export function isNonCustomOpusModel(model: string): boolean {
   return getCanonicalName(model).includes('opus')
-}
-
-
-const DECLARED_CANONICALS = (Object.values(ALL_MODEL_CONFIGS) as ModelConfig[])
-  .sort((a, b) => b.firstParty.length - a.firstParty.length)
-
-function canonicalMatch(id: string): string {
-  if (isCarrierShapedId(id)) return id
-  const lowered = id.toLowerCase()
-  const declared = DECLARED_CANONICALS.find(config => lowered.endsWith(config.firstParty))
-  if (declared !== undefined) return declared.canonical ?? declared.firstParty
-  const generation = parseFirstPartyGeneration(lowered)
-  if (generation !== null) return DECLARED_GENERATION_STEMS.get(generation.stem) ?? generation.stem
-  if (lowered.includes('3-7-sonnet')) return 'claude-3-7-sonnet'
-  if (lowered.includes('3-5-sonnet')) return 'claude-3-5-sonnet'
-  if (lowered.includes('3-5-haiku')) return 'claude-3-5-haiku'
-  const generic = lowered.match(/(claude-[a-z0-9-]+)/)
-  if (generic) return generic[1]
-  return id
-}
-
-export function getCanonicalName(name: string): string {
-  const normalized = normalizeModelStringForAPI(name)
-  const internalResolved = resolveInternalModel(normalized) ?? normalized
-  return canonicalMatch(resolveOverriddenModel(internalResolved))
-}
-
-export function firstPartyNameToCanonical(name: string): string {
-  return canonicalMatch(normalizeModelStringForAPI(name))
 }
 
 
@@ -421,15 +349,6 @@ export function getMarketingNameForModel(id: string): string | null {
     return gptName
   }
   return null
-}
-
-
-export function isDefaultOpusNatively1M(): boolean {
-  return getContextWindowForModel(normalizeModelStringForAPI(getDefaultOpusModel())) >= 1_000_000
-}
-
-export function isOpus1mMergeEnabled(): boolean {
-  return false
 }
 
 

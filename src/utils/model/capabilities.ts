@@ -11,7 +11,7 @@ import {
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
 import { isEnvTruthy } from '../envUtils.js'
-import { getCanonicalName } from './model.js'
+import { getCanonicalName } from './modelNames.js'
 import { isChooseAModel } from './computedDefault.js'
 import { familyDefaultsModel, familyHeadOf } from './configs.js'
 import { getModelCapability } from './modelCapabilities.js'

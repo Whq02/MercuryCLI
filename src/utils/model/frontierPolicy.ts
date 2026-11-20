@@ -13,12 +13,12 @@ import { getInitialSettings } from '../settings/settings.js'
 
 import {
   getDefaultFableModel,
+  getDefaultHaikuModel,
   getDefaultOpusModel,
-  isDefaultOpusNatively1M,
+  getDefaultSonnetModel,
   isOpus1mMergeEnabled,
-  newestPermittedFallback,
   normalizeModelStringForAPI,
-} from './model.js'
+} from './modelNames.js'
 
 export const FRONTIER_MAX_20X_TIER = 'default_claude_max_20x'
 
@@ -153,6 +153,19 @@ export function newestPermittedGeneration(family: Parameters<typeof previousGene
 
 export function newestPermittedMirror(): string | null {
   return declaredMirrorsNewestFirst().find(allowedUnderAllowlist) ?? null
+}
+
+export function newestPermittedFallback(): string | null {
+  return (
+    newestPermittedGeneration('opus', getDefaultOpusModel()) ??
+    newestPermittedGeneration('sonnet', getDefaultSonnetModel()) ??
+    newestPermittedGeneration('haiku', getDefaultHaikuModel()) ??
+    newestPermittedMirror()
+  )
+}
+
+export function isDefaultOpusNatively1M(): boolean {
+  return getContextWindowForModel(normalizeModelStringForAPI(getDefaultOpusModel())) >= 1_000_000
 }
 
 export function gatherFrontierFacts(): FrontierFacts {
