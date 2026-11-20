@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import { useLoad, usePublish, useTimer } from '../hooks/effects.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { conversationIdHere, getFocusedSessionConnector, subscribeFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { promptRows } from './prompts-panel/rows.js'
@@ -301,7 +302,7 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
     key: recentScopeKey,
     rows: lastKnownRecent.get(recentScopeKey) ?? null,
   }))
-  useEffect(() => {
+  useLoad(() => {
     if (!solo) return
     let alive = true
     void (async () => {
@@ -332,7 +333,7 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
 
 function useWakeGlance(): SaturnWakeGlanceV1 | null {
   const [wakeGlance, setWakeGlance] = useState<SaturnWakeGlanceV1 | null>(() => lastKnownWakeGlance)
-  useEffect(() => {
+  useTimer(() => {
     let alive = true
     const probe = () => {
       try {
@@ -454,7 +455,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   useProviderUsageOnShow(mergedVitals)
 
   const rowsSig = model.rows.map(helmRowSig).join('|')
-  useEffect(() => {
+  usePublish(() => {
     publishHelmRows('lanes', model.rows)
   }, [rowsSig])
 
