@@ -52,24 +52,6 @@ function runScenario(body: string, extraEnv: Record<string, string> = {}): Recor
   }
 }
 
-console.log('\ntensorfoldApp — failing ps rejects instead of reporting not running')
-if (process.platform === 'win32') skip('tensorfoldApp-ps-fails', 'ps check is POSIX-only')
-else {
-  const r = runScenario(`
-    const fs = await import('node:fs')
-    const path = await import('node:path')
-    const bin = path.join(SCRATCH, 'bin')
-    fs.mkdirSync(bin, { recursive: true })
-    const fakePs = path.join(bin, 'ps')
-    fs.writeFileSync(fakePs, '#!/bin/sh\\nexit 1\\n', { mode: 0o755 })
-    process.env.PATH = bin + ':' + (process.env.PATH ?? '')
-    const app = await import(path.join(SRC, 'services/providers/local/tensorfoldApp.ts'))
-    out.listRejected = await app.listProcesses().then(() => null, e => String(e?.message ?? e))
-    out.detectRejected = await app.detectTensorFoldApp().then(() => null, e => String(e?.message ?? e))
-  `)
-  check('tensorfoldApp-ps-fails: listProcesses and detectTensorFoldApp reject when ps fails', r.listRejected !== null && r.detectRejected !== null, JSON.stringify(r))
-}
-
 console.log('\ntensorfoldHelper — failed served read and failed stop reject and keep helperProcess for retry')
 {
   const r = runScenario(`

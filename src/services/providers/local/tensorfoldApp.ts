@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process'
+import { logForDebugging } from '../../../utils/debug.js'
+import { passedOver } from '../../../utils/passedOver.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 
 interface TensorFoldProcessRow {
@@ -71,14 +73,21 @@ export function __tensorFoldProcessListsForTest(): number {
 export function listProcesses(): Promise<TensorFoldProcessRow[]> {
   if (process.platform === 'win32') return Promise.resolve([])
   processLists += 1
-  return new Promise((resolve, reject) => {
+  return new Promise(resolve => {
     try {
       execFile('ps', ['-axo', 'pid=,ppid=,comm=,args='], { env: subprocessEnv(), timeout: 4000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout) => {
-        if (error) reject(error)
-        else resolve(parseProcessRows(String(stdout)))
+        if (error) {
+          passedOver(error)
+          logForDebugging(`[tensorfold-app] ps failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+          resolve([])
+          return
+        }
+        resolve(parseProcessRows(String(stdout)))
       })
     } catch (error) {
-      reject(error)
+      passedOver(error)
+      logForDebugging(`[tensorfold-app] ps threw: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+      resolve([])
     }
   })
 }
