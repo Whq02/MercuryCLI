@@ -2,9 +2,10 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const HERE = import.meta.dir
+const HERE = dirname(fileURLToPath(import.meta.url))
 const SRC = join(HERE, '../../src')
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 
@@ -221,6 +222,84 @@ function runIsolated(body: string): Record<string, unknown> {
   `)
   const events = (r.events as Array<{ action?: string }>) ?? []
   check('runStopAdapter: mintDeliveryArtifact reports getSessionId failure instead of unknown-session', r.mintedWith === null && events.some(e => typeof e.action === 'string' && e.action.includes('session boom')), JSON.stringify(r))
+}
+
+{
+  const r = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const os = await import('node:os')
+    process.env.MERCURY_WARDS = 'enforce'
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'faults-fn05-wards-')))
+    try {
+      fs.mkdirSync(path.join(repo, '.git'))
+      fs.mkdirSync(path.join(repo, 'src/components'), { recursive: true })
+      fs.writeFileSync(path.join(repo, 'src/components/mercuryPalette.ts'), 'export const x = 1\\n')
+      fs.writeFileSync(path.join(repo, 'package.json'), '{ corrupt json')
+      fs.writeFileSync(path.join(repo, 'src/components/a.tsx'), 'export const a = 1\\n')
+      fs.symlinkSync(path.join(repo, 'loop-b'), path.join(repo, 'loop-a'))
+      fs.symlinkSync(path.join(repo, 'loop-a'), path.join(repo, 'loop-b'))
+      process.chdir(repo)
+      const guardsMod = await import(${JSON.stringify(join(SRC, 'guards/guards.ts'))})
+      const wardsGuard = await import(${JSON.stringify(join(SRC, 'guards/wardsGuard.ts'))})
+      guardsMod.resetGuardsForTesting()
+      wardsGuard.resetWardsEngagedSessionsForTest()
+      wardsGuard.registerWardsGuard(() => {}, 'wards-fn05')
+      out.throwVerdict = await guardsMod.judgeToolCall('wards-fn05', {
+        tool: 'Edit',
+        input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: '2' },
+        callId: 'w1',
+        messages: [],
+        toolRef: { name: 'Edit', shellCommandOf: () => { throw new Error('boom-in-ward') } },
+      })
+      out.badPkgVerdict = await guardsMod.judgeToolCall('wards-fn05', {
+        tool: 'Edit',
+        input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: 'const c = "#ff0000"' },
+        callId: 'w2',
+        messages: [],
+      })
+      out.loopThrew = false
+      try {
+        wardsGuard.realTargetPath(path.join(repo, 'loop-a'))
+      } catch {
+        out.loopThrew = true
+      }
+      out.nulThrew = false
+      try {
+        wardsGuard.makeTargetResolver(repo)('bad\\0path')
+      } catch {
+        out.nulThrew = true
+      }
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true })
+    }
+  `)
+  const throwV = r.throwVerdict as { refused?: boolean; reason?: string }
+  const badPkgV = r.badPkgVerdict as { refused?: boolean; reason?: string }
+  check('wardsGuard: unexpected throw in judge refuses instead of allowing', throwV?.refused === true && String(throwV.reason).includes('boom-in-ward'), JSON.stringify(throwV))
+  check('wardsGuard: corrupt package.json refuses instead of skipping mercurySourceOnly wards', badPkgV?.refused === true, JSON.stringify(badPkgV))
+  check('wardsGuard: symlink loop throws in realTargetPath instead of leaving unresolved', r.loopThrew === true, JSON.stringify(r))
+  check('wardsGuard: NUL path throws in makeTargetResolver instead of returning unexpanded', r.nulThrew === true, JSON.stringify(r))
+}
+
+{
+  const r = runIsolated(`
+    const { mock } = await import('bun:test')
+    const pathModPath = ${JSON.stringify(join(SRC, 'utils/path.ts'))}
+    const realPathMod = await import(pathModPath)
+    mock.module(pathModPath, () => ({
+      ...realPathMod,
+      expandPath: () => { throw new Error('home boom') },
+    }))
+    const wardsGuard = await import(${JSON.stringify(join(SRC, 'guards/wardsGuard.ts'))})
+    try {
+      wardsGuard.homeSpellings()
+      out.threw = false
+    } catch (e) {
+      out.threw = e instanceof Error && e.message === 'home boom'
+    }
+  `)
+  check('wardsGuard: homeSpellings throws when expandPath fails instead of answering empty', r.threw === true, JSON.stringify(r))
 }
 
 rmSync(scratchHome, { recursive: true, force: true })

@@ -81,8 +81,8 @@ function deepestExisting(path: string, work?: WardWork): { real: string; tail: s
       return realpathSync(candidate)
     } catch (error) {
       const code = getErrnoCode(error)
-      if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`wards: ${candidate} could not be resolved (${code ?? errorMessage(error)}), so it is judged as a path not made yet`)
-      return null
+      if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'ENAMETOOLONG') return null
+      throw error
     }
   }
   let missing = segments.length
@@ -119,19 +119,9 @@ export function realTargetPath(path: string): string {
 }
 
 let homeSpellingsCache: { home: string; spellings: string[] } | undefined
-let homeUnknownLogged = false
 
 export function homeSpellings(): string[] {
-  let home: string
-  try {
-    home = expandPath('~')
-  } catch (error) {
-    if (!homeUnknownLogged) {
-      homeUnknownLogged = true
-      logForDebugging(`wards: the home folder could not be told (${errorMessage(error)}), so no ward matches a path by its home spelling`)
-    }
-    return []
-  }
+  const home = expandPath('~')
   if (homeSpellingsCache?.home === home) return homeSpellingsCache.spellings
   const real = realTargetPath(home)
   const spellings = real === home ? [home] : [home, real]
@@ -144,13 +134,8 @@ setHomeSpellings(homeSpellings)
 export function makeTargetResolver(fallbackRoot: string, work?: WardWork): (path: string) => ResolvedPath {
   const fallback = realTargetPath(fallbackRoot)
   return (path: string): ResolvedPath => {
-    let expanded: string
-    try {
-      if (work) countWardWork(work, 'characters', path.length)
-      expanded = expandPath(path)
-    } catch {
-      return { path, root: undefined }
-    }
+    if (work) countWardWork(work, 'characters', path.length)
+    const expanded = expandPath(path)
     if (expanded.length > TARGET_PATH_MAX) return { path: expanded, root: fallback }
     const { real, tail } = deepestExisting(expanded, work)
     const resolved = tail.length === 0 ? real : join(real, ...tail)
@@ -291,12 +276,7 @@ export function registerWardsGuard(
         pending.isMercurySource = path => {
           const { path: resolved, root } = resolveTarget(path)
           if (root === undefined || !resolved.startsWith(`${join(root, 'src')}${sep}`) || !existsSync(join(root, 'src', 'components', 'mercuryPalette.ts'))) return false
-          try {
-            return JSON.parse(readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null')?.name === 'mercury'
-          } catch (error) {
-            logForDebugging(`wards: ${join(root, 'package.json')} could not be read as a manifest (${error instanceof SyntaxError ? 'its first 64 KB are not valid JSON' : errorMessage(error)}), so ${resolved} is not judged as Mercury source`)
-            return false
-          }
+          return JSON.parse(readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null')?.name === 'mercury'
         }
         const refusal = pending.shellCommand === undefined ? evaluateWards(REFUSAL_WARDS, pending, work) : await refusalOfShellCommand(pending, getCwd(), work)
         if (!refusal.allow && level !== 'warn') {
@@ -322,7 +302,7 @@ export function registerWardsGuard(
         }
       } catch (error) {
         if (error instanceof TargetHeadUnread) return { allow: false, reason: `The ${call.tool} call was not made: the wards could not read ${error.path} to check its content rules (${error.why}) — retry it, and if it fails again, make the file readable to you first.` }
-        return { allow: true }
+        return { allow: false, reason: `The ${call.tool} call was not made: the wards could not check its content rules (${errorMessage(error)}) — retry it.` }
       }
     },
   })
