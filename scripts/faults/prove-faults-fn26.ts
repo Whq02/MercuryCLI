@@ -219,7 +219,7 @@ try {
     check('lsp-read-revalidate-fail: a revalidation that fails does not fail the query; it is answered, as before', out.outcome !== 'failed' && out.outcome !== 'err' && !out.result.includes('revalidation-boom') && out.sent > 0, JSON.stringify(out))
   }
 
-  console.log('\n8. LSPTool/mercuryOps.ts: failed revalidateOpenDocuments rejects instead of running on stale docs')
+  console.log('\n8. LSPTool/mercuryOps.ts: a failed revalidateOpenDocuments does not fail the operation, as before')
   {
     const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
     let threw: string | null = null
@@ -238,7 +238,7 @@ try {
     } catch (err) {
       threw = err instanceof Error ? err.message : String(err)
     }
-    check('mercury-ops-revalidate-fail: rejects with mercury-revalidation-boom', threw === 'mercury-revalidation-boom', String(threw))
+    check('mercury-ops-revalidate-fail: a revalidation that fails does not fail the operation, as before', threw === null, String(threw))
     const partialOk = await runMercuryLspOp({
       input: { operation: 'serverStatus' } as never,
       absolutePath: project,
