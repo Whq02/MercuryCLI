@@ -336,10 +336,8 @@ export function getManagedFileSettingsPresence(): { hasBase: boolean; hasDropIns
   } catch (error) {
     if (!isENOENT(error) && (error as { code?: string }).code !== 'ENOTDIR') {
       logForDebugging(`managed settings drop-in dir unreadable: ${errorMessage(error)}`, { level: 'error' })
-      hasDropIns = true
-    } else {
-      hasDropIns = false
     }
+    hasDropIns = false
   }
   return { hasBase, hasDropIns }
 }

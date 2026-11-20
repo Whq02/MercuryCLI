@@ -73,10 +73,7 @@ function managedFileSettingsExist(): boolean {
     }
   } catch (error) {
     const code = getErrnoCode(error)
-    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-      logForDebugging(`managed settings drop-in dir unreadable (${code ?? 'unknown'}): blocking HKCU tier`)
-      return true
-    }
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`managed settings drop-in dir unreadable (${code ?? 'unknown'}), so it counts as holding no managed files`)
   }
   for (const candidate of candidates) {
     try {
@@ -86,10 +83,7 @@ function managedFileSettingsExist(): boolean {
       }
     } catch (error) {
       const code = getErrnoCode(error)
-      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-        logForDebugging(`managed settings file unreadable (${candidate}, ${code ?? 'unknown'}): blocking HKCU tier`)
-        return true
-      }
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`managed settings file unreadable (${candidate}, ${code ?? 'unknown'}), so it counts as absent`)
     }
   }
   return false

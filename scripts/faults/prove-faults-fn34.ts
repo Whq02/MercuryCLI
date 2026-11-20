@@ -275,11 +275,11 @@ function runScenario(body: string): Record<string, unknown> {
       await mdm.ensureMdmSettingsLoaded()
       out.absentControl = mdm.getHkcuSettings().settings
     `)
-    const dropIn = r.unreadableDropIn as Record<string, unknown>
-    const file = r.unreadableFile as Record<string, unknown>
+    const dropIn = r.unreadableDropIn as { display?: { theme?: string } }
+    const file = r.unreadableFile as { display?: { theme?: string } }
     const control = r.absentControl as { display?: { theme?: string } }
-    check('mdm-unreadable-dropin-blocks-hkcu', Object.keys(dropIn).length === 0 && control?.display?.theme === 'dark', JSON.stringify(r))
-    check('mdm-unreadable-file-blocks-hkcu', Object.keys(file).length === 0 && control?.display?.theme === 'dark', JSON.stringify(r))
+    check('mdm-unreadable-dropin-goes-on', dropIn?.display?.theme === 'dark' && control?.display?.theme === 'dark', JSON.stringify(r))
+    check('mdm-unreadable-file-goes-on', file?.display?.theme === 'dark' && control?.display?.theme === 'dark', JSON.stringify(r))
   }
 }
 {
@@ -316,7 +316,7 @@ function runScenario(body: string): Record<string, unknown> {
     const absentLoaded = r.absentLoaded as { errors: unknown[] }
     const absentPresence = r.absentPresence as { hasDropIns: boolean }
     check('settings-unreadable-dropin-reported', loaded.errors.some(e => e.message?.includes('settings file unreadable')) && absentLoaded.errors.length === 0, JSON.stringify(r))
-    check('settings-unreadable-dropin-presence', presence.hasDropIns === true && absentPresence.hasDropIns === false, JSON.stringify(r))
+    check('settings-unreadable-dropin-presence-reads-absent', presence.hasDropIns === false && absentPresence.hasDropIns === false, JSON.stringify(r))
   }
 }
 {
