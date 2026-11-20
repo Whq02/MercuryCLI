@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { hostHuggingfaceDispatchCredential } from './jobCredentials.js'
 import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { vendorClient, vendorKey, vendorKeyNotice, vendorLabel, runpodOnly, type HostVendorId } from './vendors/client.js'
 import { HostVendorHttpError } from './vendors/http.js'
 import type { HostVendor } from './vendors/vendor.js'
@@ -225,15 +226,21 @@ export async function runHostJob(id: string, generation: string, options: { runn
     let loadedWeights: string | undefined
     if (api.capabilities.managed) {
       if (!api.managedEndpoint) throw new Error('The managed provider has no readiness reader.')
-      while (!signal.aborted && Date.now() + pause < deadline) {
-        let failed = false; const observed = await readOnly('endpoint', readSignal => api.managedEndpoint!(id, readSignal).catch(error => { failed ||= !readSignal.aborted; throw error })).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (!failed && hostReadFailureWords(error) && Date.now() >= deadline - pause) return undefined; throw error }); if (!observed) break
-        patchHostRecord(id, { status: observed.pod.status })
-        if (observed.pod.status === 'ERROR') throw new Error('HF endpoint failed to start. ' + await failureLog(readOnly))
-        if (observed.pod.status === 'RUNNING' && observed.baseUrl) { endpointBase = observed.baseUrl; break }
-        mark('HF endpoint · starting · ' + Math.floor((Date.now() - (initial.jobStartedAt ?? Date.now())) / 60_000) + ' min')
-        await sleep(Math.min(pause, Math.max(1, deadline - Date.now())), signal, { throwOnAbort: true })
-      }
-      if (!endpointBase) throw new Error('HF endpoint did not reach running within the setup budget.')
+      endpointBase = await pollUntil(
+        async () => {
+          if (Date.now() + pause >= deadline) throw new Error('HF endpoint did not reach running within the setup budget.')
+          let failed = false; const observed = await readOnly('endpoint', readSignal => api.managedEndpoint!(id, readSignal).catch(error => { failed ||= !readSignal.aborted; throw error })).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (!failed && hostReadFailureWords(error) && Date.now() >= deadline - pause) return undefined; throw error })
+          if (!observed) throw new Error('HF endpoint did not reach running within the setup budget.')
+          patchHostRecord(id, { status: observed.pod.status })
+          if (observed.pod.status === 'ERROR') throw new Error('HF endpoint failed to start. ' + await failureLog(readOnly))
+          if (observed.pod.status === 'RUNNING' && observed.baseUrl) return observed.baseUrl
+          mark('HF endpoint · starting · ' + Math.floor((Date.now() - (initial.jobStartedAt ?? Date.now())) / 60_000) + ' min')
+        },
+        pause,
+        Math.max(0, deadline - Date.now()),
+        () => { throw new Error('HF endpoint did not reach running within the setup budget.') },
+        { signal },
+      )
     } else if (initial.cluster) {
       target = await startHostCluster(runpodOnly(api, 'Clusters'), initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
     } else {
@@ -243,26 +250,34 @@ export async function runHostJob(id: string, generation: string, options: { runn
     let keyRefused = false
     let keyAttached = false
     for (;;) {
-      while (!signal.aborted && Date.now() < sshDeadline) {
-        const pod = await sshRead('pod', readSignal => api.get(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (hostReadFailureWords(error) && Date.now() >= sshDeadline - pause) return undefined; throw error }); if (!pod) break
-        const current = readHostRecord(id)
-        if (!current || current.generation !== generation || current.jobState === 'stopped' || current.status === 'TERMINATED') return
-        patchHostRecord(id, { status: pod.status })
-        const direct = pod.ssh?.direct
-        keyRefused = false
-        if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await failureLog(sshRead))
-        if (direct && pod.status === 'RUNNING') {
-          const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
-          try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : api.capabilities.vm ? 'test -r /workspace/.mercury-vm-ready && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; break } catch (error) {
-            last = String(error)
-            const refused = /Permission denied \(publickey\)/i.test(last)
-            keyRefused = refused
-            mark(keyAttached ? 'waiting for SSH · key attached to the instance · retrying' : refused ? 'waiting for SSH · the machine has not accepted the key yet · retrying until it does' : 'waiting for SSH')
-            if (refused) last = keyAttached ? 'the machine still refuses Mercury’s SSH key' : 'the machine never accepted Mercury’s SSH key before the setup deadline · ' + vendorKeyNotice(vendor)
+      const waited = await pollUntil<'stopped' | 'done', 'done'>(
+        async () => {
+          if (Date.now() >= sshDeadline) return 'done'
+          const pod = await sshRead('pod', readSignal => api.get(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (hostReadFailureWords(error) && Date.now() >= sshDeadline - pause) return undefined; throw error })
+          if (!pod) return 'done'
+          const current = readHostRecord(id)
+          if (!current || current.generation !== generation || current.jobState === 'stopped' || current.status === 'TERMINATED') return 'stopped'
+          patchHostRecord(id, { status: pod.status })
+          const direct = pod.ssh?.direct
+          keyRefused = false
+          if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await failureLog(sshRead))
+          if (direct && pod.status === 'RUNNING') {
+            const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
+            try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : api.capabilities.vm ? 'test -r /workspace/.mercury-vm-ready && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; return 'done' } catch (error) {
+              last = String(error)
+              const refused = /Permission denied \(publickey\)/i.test(last)
+              keyRefused = refused
+              mark(keyAttached ? 'waiting for SSH · key attached to the instance · retrying' : refused ? 'waiting for SSH · the machine has not accepted the key yet · retrying until it does' : 'waiting for SSH')
+              if (refused) last = keyAttached ? 'the machine still refuses Mercury’s SSH key' : 'the machine never accepted Mercury’s SSH key before the setup deadline · ' + vendorKeyNotice(vendor)
+            }
           }
-        }
-        await sleep(Math.min(pause, Math.max(1, sshDeadline - Date.now())), signal, { throwOnAbort: true })
-      }
+        },
+        pause,
+        Math.max(0, sshDeadline - Date.now()),
+        () => 'done',
+        { signal },
+      )
+      if (waited === 'stopped') return
       signal.throwIfAborted()
       if (target) break
       if (!(api instanceof VastClient) || !keyRefused || keyAttached) throw new Error((keyAttached ? 'Mercury attached the SSH key to this instance and retried · ' : '') + last)
