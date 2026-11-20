@@ -28,7 +28,7 @@ import type { ConcourseReviveOutcome } from './concourseWorkers.js'
 
 type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refused' }>['reason']
 import { inspectWorkspaceKind, workspaceGitCheckNote } from './concourseWorktrees.js'
-import { isolationAwarenessNote } from './isolationNote.js'
+import { isolationAwarenessNote } from '../utils/isolationNote.js'
 import type { SaturnOrigin, ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messages/outsideReport.js'
 import type { InputBlock, InputRow } from '../rows/vocabulary.js'
