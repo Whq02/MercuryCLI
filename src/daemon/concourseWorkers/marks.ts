@@ -1,7 +1,7 @@
 import { getProcessStartInstant, getProcessStartInstantCachedOrRefresh } from '../ownerWatch.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { runningBuildTree } from '../../utils/artifactIdentity.js'
-import { readSessionWorkers, updateConcourseWorkers } from './store.js'
+import { readSessionWorkers, rememberUnstampedRunnerPid, updateConcourseWorkers } from './store.js'
 import { sessionActivityOf } from './record.js'
 import { errorMessage } from '../../utils/errors.js'
 
@@ -86,18 +86,19 @@ export function buildTreeFields(): { buildTree?: string } {
 }
 
 export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
+  const fields = pidFieldsOf(pid)
   try {
     updateConcourseWorkers(workers => {
       const rec = workers[runnerId]
       if (rec && rec.endedAt === undefined) {
         rec.pid = pid
-        const fields = pidFieldsOf(pid)
         if (fields.procStart !== undefined) rec.procStart = fields.procStart
         else delete rec.procStart
         rec.lastLiveAt = Date.now()
       }
     }, dir)
   } catch (err) {
+    rememberUnstampedRunnerPid(runnerId, fields, dir)
     console.error(`[daemon] ${runnerId}: the respawned runner's pid ${pid} was not stamped on its session record, which still names the dead pid: ${errorMessage(err)}`)
   }
 }

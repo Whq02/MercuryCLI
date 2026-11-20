@@ -145,12 +145,38 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
 
 const sessionRecordsLastPublished = new Map<string, string>()
 
+const unstampedRunnerPids = new Map<string, Map<string, { pid: number; procStart?: string }>>()
+
+export function rememberUnstampedRunnerPid(runnerId: string, fields: { pid?: number; procStart?: string }, dir?: string): void {
+  if (fields.pid === undefined) return
+  const path = concourseWorkersPath(dir)
+  const pending = unstampedRunnerPids.get(path) ?? new Map<string, { pid: number; procStart?: string }>()
+  pending.set(runnerId, { pid: fields.pid, ...(fields.procStart !== undefined ? { procStart: fields.procStart } : {}) })
+  unstampedRunnerPids.set(path, pending)
+}
+
+function stampRememberedRunnerPids(path: string, workers: Record<string, ConcourseWorkerRecordV1>): void {
+  const pending = unstampedRunnerPids.get(path)
+  if (pending === undefined) return
+  const { workerPidAlive } = require('../workerIdentity.js') as typeof import('../workerIdentity.js')
+  for (const [runnerId, fields] of pending) {
+    const rec = workers[runnerId]
+    if (rec === undefined || rec.endedAt !== undefined || !workerPidAlive(fields)) continue
+    rec.pid = fields.pid
+    if (fields.procStart !== undefined) rec.procStart = fields.procStart
+    else delete rec.procStart
+    rec.lastLiveAt = Date.now()
+  }
+}
+
 function liveSessionRecordsLastPublished(path: string): Record<string, ConcourseWorkerRecordV1> {
   const text = sessionRecordsLastPublished.get(path)
   if (text === undefined) return {}
   const { workerPidAlive } = require('../workerIdentity.js') as typeof import('../workerIdentity.js')
+  const held = (JSON.parse(text) as ConcourseWorkerFileV1).workers
+  stampRememberedRunnerPids(path, held)
   const live: Record<string, ConcourseWorkerRecordV1> = {}
-  for (const [runnerId, rec] of Object.entries((JSON.parse(text) as ConcourseWorkerFileV1).workers)) {
+  for (const [runnerId, rec] of Object.entries(held)) {
     if (rec.endedAt === undefined && (rec.attachedAt !== undefined || workerPidAlive(rec))) live[runnerId] = rec
   }
   return live
@@ -230,6 +256,7 @@ export function updateConcourseWorkers(
     const fresh = readMutableSessionWorkersFromDisk(path)
     if (fresh.kind === 'unavailable') throw sessionRecordsRefusal(path, fresh.why)
     const next = fresh.kind === 'known' ? fresh.workers : fresh.kind === 'unusable' ? keepUnusedSessionRecordsAside(path, fresh.why) : {}
+    if (fresh.kind === 'known') stampRememberedRunnerPids(path, next)
     noteSessionRecordsRead(path)
     const outer = sessionRecordsInFlight
     sessionRecordsInFlight = { path, workers: next }
@@ -243,6 +270,7 @@ export function updateConcourseWorkers(
     return next
   })
   sessionRecordsUnwritten.delete(path)
+  unstampedRunnerPids.delete(path)
   observeSessionStates(workers)
   return workers
 }

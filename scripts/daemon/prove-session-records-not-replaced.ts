@@ -268,6 +268,35 @@ try {
     check('once the file takes a write again a session starts, beside the one that was on record', 'ok' in fifth && fifth.ok === true && started.length === 2 && ended.length === 1 && sessionsOn(whole.file).length === 2, { fifth, started, ended, ids: sessionsOn(whole.file) })
   }
 
+  console.log('the session records — a runner that came back while they took no write: its new pid is stamped at the next change, and carried when the file is rebuilt')
+  if (process.platform !== 'darwin' || !POSIX_MODES) skip('the rename that fails', 'a file that takes no rename is made here with the immutable flag of macOS')
+  else {
+    const gone = spawnSync(process.execPath, ['-e', '']).pid ?? 0
+    const pidOn = (file: string): number | undefined => {
+      try {
+        return (JSON.parse(readFileSync(file, 'utf8')) as { workers: Record<string, Rec> }).workers['concourse-w1']?.pid
+      } catch {
+        return undefined
+      }
+    }
+    const whole = fresh()
+    workers.updateConcourseWorkers(all => void (all['concourse-w1'] = { ...record(1), pid: gone } as Rec), whole.dir)
+    spawnSync('/usr/bin/chflags', ['uchg', whole.file])
+    workers.markConcourseWorkerRespawn('concourse-w1', process.pid, whole.dir)
+    spawnSync('/usr/bin/chflags', ['nouchg', whole.file])
+    const namedMeanwhile = pidOn(whole.file)
+    workers.markConcourseWorkerTurnSettled('concourse-w1', whole.dir)
+    check('a file that reads and takes no write: the record names the runner that is gone until a change lands, then the one that lives', namedMeanwhile === gone && pidOn(whole.file) === process.pid, `the record named pid ${namedMeanwhile} meanwhile and names ${pidOn(whole.file)} after the next change; the runner that lives is ${process.pid}`)
+    const cut = fresh()
+    workers.updateConcourseWorkers(all => void (all['concourse-w1'] = { ...record(1), pid: gone } as Rec), cut.dir)
+    writeFileSync(cut.file, readFileSync(cut.file, 'utf8').slice(0, 40))
+    spawnSync('/usr/bin/chflags', ['uchg', cut.file])
+    workers.markConcourseWorkerRespawn('concourse-w1', process.pid, cut.dir)
+    spawnSync('/usr/bin/chflags', ['nouchg', cut.file])
+    workers.markConcourseWorkerTurnSettled('concourse-w1', cut.dir)
+    check('a file cut short that could not be kept aside meanwhile: the rebuilt file carries the session, under the pid of the runner that lives', pidOn(cut.file) === process.pid && asides(cut.file).length === 1, `on disk now: ${sessionsOn(cut.file).join(', ') || 'no session'} · pid ${pidOn(cut.file)}`)
+  }
+
   console.log('the session records — the daemon boots while they cannot be read, says so at the boot, and its reconcile waits')
   if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
   else {
