@@ -106,6 +106,51 @@ async function run(): Promise<void> {
     check('plan-headsha-error: non-1 rev-parse error refuses apply instead of building empty index', r1.state === 'refused' && 'code' in r1 && r1.code === 'io' && r1.reason.includes('bad HEAD'), JSON.stringify(r1))
     check('plan-headsha-unborn: unborn HEAD (exit 1) still commits cleanly', r2.state === 'applied', JSON.stringify(r2))
   }
+
+  {
+    const { HOST_IDLE_LIMIT_MS, hostIdleVerdict } = await import('../../src/services/host/idle.ts')
+    const readyAt = 1_700_000_000_000
+    const now = readyAt + HOST_IDLE_LIMIT_MS + 60_000
+    const baseRecord: import('../../src/services/host/store.ts').HostRecord = {
+      id: 'fn12-idle-pod',
+      name: 'fn12-idle-pod',
+      recipe: 'test',
+      price: 1,
+      startedAt: new Date(readyAt).toISOString(),
+      status: 'RUNNING',
+      jobState: 'ready',
+      advancedAt: readyAt,
+      steps: [{ step: 'ready', at: readyAt }],
+    }
+    const absent = hostIdleVerdict(baseRecord, now, { lastTurnAt: () => undefined })
+    check('idle-absent-mark: absent marks still yield idle verdict after limit', absent?.kind === 'idle', JSON.stringify(absent))
+
+    let threwOut = false
+    let threwVerdict: ReturnType<typeof hostIdleVerdict>
+    try {
+      threwVerdict = hostIdleVerdict(baseRecord, now, { lastTurnAt: () => { throw Object.assign(new Error('EACCES: mark unreadable'), { code: 'EACCES' }) } })
+    } catch { threwOut = true }
+    check('idle-last-turn-throw: throwing lastTurnAt yields undefined verdict instead of idle', !threwOut && threwVerdict === undefined, JSON.stringify({ threwOut, threwVerdict }))
+
+    const mediaDir = join(configHome, 'host', 'media', 'fn12-media-corrupt')
+    mkdirSync(mediaDir, { recursive: true })
+    writeFileSync(join(mediaDir, 'activity.json'), '{ torn json')
+    const corruptMedia = hostIdleVerdict({ ...baseRecord, id: 'fn12-media-corrupt' }, now, { lastTurnAt: () => undefined })
+    check('idle-media-corrupt: corrupt activity.json yields undefined verdict instead of idle', corruptMedia === undefined, JSON.stringify(corruptMedia))
+
+    if (!POSIX_MODES) skip('idle-media-eacces', 'needs non-root POSIX')
+    else {
+      const lockedDir = join(configHome, 'host', 'media', 'fn12-media-locked')
+      mkdirSync(lockedDir, { recursive: true })
+      const activity = join(lockedDir, 'activity.json')
+      writeFileSync(activity, JSON.stringify({ at: now - 1000 }))
+      chmodSync(activity, 0o000)
+      let lockedVerdict: ReturnType<typeof hostIdleVerdict>
+      try { lockedVerdict = hostIdleVerdict({ ...baseRecord, id: 'fn12-media-locked' }, now, { lastTurnAt: () => undefined }) }
+      finally { chmodSync(activity, 0o600) }
+      check('idle-media-eacces: unreadable activity.json yields undefined verdict instead of idle', lockedVerdict === undefined, JSON.stringify(lockedVerdict))
+    }
+  }
 }
 
 try {
