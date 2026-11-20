@@ -637,12 +637,7 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
   }
 
   protected async openQuestion(): Promise<string | null> {
-    try {
-      return await questionOpenFor(this.record.sessionId)
-    } catch (error) {
-      passedOver(error)
-      return null
-    }
+    return questionOpenFor(this.record.sessionId)
   }
 
   interrupt(): boolean {

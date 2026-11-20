@@ -373,5 +373,55 @@ console.log('\ndelivery.DeliveryPart — openQuestion failure refuses send with 
   check('DeliveryPart drops provisional echo and sends no RPC on openQuestion failure', r.echoLeft === 0 && r.rpcCount === 0, JSON.stringify(r))
 }
 
+console.log('\ndaemonConnector.openQuestion — obligations read error refuses send instead of dispatching ordinary prompt')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const oblPath = path.join(SRC, 'services/crew/obligations.ts')
+    const realObl = await import(oblPath)
+    let failRead = true
+    mock.module(oblPath, () => ({
+      ...realObl,
+      openObligations: async () => {
+        if (failRead) throw new Error('EACCES: obligations unreadable')
+        return []
+      },
+    }))
+    const ensurePath = path.join(SRC, 'services/switchboard/ensureDaemon.ts')
+    const realEnsure = await import(ensurePath)
+    mock.module(ensurePath, () => ({
+      ...realEnsure,
+      ensureOwnedDaemon: async () => true,
+    }))
+    const { DaemonSessionConnector } = await import(path.join(SRC, 'services/engine-connector/daemonConnector.ts'))
+    const rpcCalls = []
+    const connector = new DaemonSessionConnector(
+      {
+        sessionId: 'sess-conn-1',
+        runnerId: 'runner-1',
+        title: 't',
+        projectLabel: 'p',
+        workspaceId: SCRATCH,
+        home: HOME,
+      },
+      {
+        rpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+        armTranscriptWatcher: () => {},
+        armTranscriptTimer: () => {},
+      },
+    )
+    out.refused = await connector.sendWords('my answer')
+    out.rpcAfterFail = rpcCalls.length
+    out.recordsAfterFail = connector.records().length
+    failRead = false
+    out.accepted = await connector.sendWords('ordinary prompt')
+    out.rpcAfterOk = rpcCalls.length
+  `)
+  const refused = r.refused as { state?: string; detail?: string } | undefined
+  const accepted = r.accepted as { state?: string } | undefined
+  check('DaemonSessionConnector.sendWords refuses with honest sentence and dispatches nothing when openObligations throws', refused?.state === 'refused' && refused?.detail === 'the message was not sent because open questions could not be checked (EACCES: obligations unreadable) — ↵ again retries' && r.rpcAfterFail === 0 && r.recordsAfterFail === 0, JSON.stringify(r))
+  check('DaemonSessionConnector.sendWords still delivers normally when openObligations succeeds', accepted?.state === 'accepted' && r.rpcAfterOk === 1, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
