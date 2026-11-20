@@ -295,5 +295,54 @@ else {
   )
 }
 
+console.log('\nw02-4 — BootSettingsScreen applyOverrideRows reports read error instead of no established sessions')
+{
+  const r = runSubprocess(`
+    const { settingsMenuModel } = await import(${JSON.stringify(join(SRC, 'components/bootSettings/menuModel.ts'))})
+    const baseArgs = {
+      backgroundLaunchOn: false,
+      changed: 0,
+      chatBoot: false,
+      concourseLive: false,
+      dirTail: '',
+      effectiveByEnv: new Map(),
+      isBackgroundLaunchRow: () => false,
+      isJevRow: () => false,
+      isMotionRow: () => false,
+      isSeatsRow: () => false,
+      jevDetailLines: [],
+      jevSettings: { enabled: false },
+      lastReceipt: null,
+      list: { selectedIndex: 0, note: null },
+      liveCount: 0,
+      mainModel: 'test-model',
+      menuRows: [],
+      motionSetting: 'auto',
+      plainWorld: false,
+      profile: null,
+      saved: {},
+      seatFacts: null,
+      wordGlow: 0,
+    }
+    const emptyModel = settingsMenuModel({ ...baseArgs, apply: { phase: 'ready', workers: [] } })
+    const errModel = settingsMenuModel({ ...baseArgs, apply: { phase: 'ready', workers: [], error: 'EACCES: permission denied' } })
+    out.emptyLines = emptyModel.detailOverride ?? null
+    out.errLines = errModel.detailOverride ?? null
+  `)
+  const emptyLines = Array.isArray(r.out.emptyLines) ? (r.out.emptyLines as string[]) : []
+  const errLines = Array.isArray(r.out.errLines) ? (r.out.errLines as string[]) : []
+  check(
+    'empty workers without error still says no established sessions',
+    emptyLines.some(l => l.includes('no established sessions')),
+    JSON.stringify(emptyLines),
+  )
+  check(
+    'ApplyState with read error shows established sessions could not be read (<error>) instead of no established sessions',
+    errLines.some(l => l === 'established sessions could not be read (EACCES: permission denied)') &&
+      !errLines.some(l => l.includes('no established sessions')),
+    JSON.stringify(errLines),
+  )
+}
+
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)
