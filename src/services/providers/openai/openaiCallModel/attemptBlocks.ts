@@ -10,7 +10,7 @@ import type {
   AssistantMessage,
   StreamEvent,
 } from '../../../../types/message.js'
-import { EMPTY_USAGE } from '../../../api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../../../utils/api/emptyUsage.js'
 import {
   normalizeContentFromAPI,
 } from '../../../../utils/messages.js'

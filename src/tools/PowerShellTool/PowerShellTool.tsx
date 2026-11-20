@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult } from '../../Tool.js'
-import { POWERSHELL_TOOL_NAME } from './toolName.js'
+import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -45,7 +45,7 @@ import {
   outputBudgetClause,
   resizeShellImageOutput,
   stripEmptyLines,
-} from '../BashTool/utils.js'
+} from '../../utils/shell/utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from '../BashTool/maxOutputChars.js'
 import {
   renderToolResultMessage,
@@ -66,7 +66,7 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { pinnedGitBash } from '../../utils/windowsPaths.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 
 const SLEEP_THRESHOLD_SECONDS = 2
@@ -246,14 +246,8 @@ async function* runPowerShell(
   }
 
   const completed = shellCommand.result.then(() => 'done' as const)
-  let quietTimerHandle: ReturnType<typeof setTimeout> | undefined
-  const quietTimer = new Promise<'timer'>(resolve => {
-    quietTimerHandle = startTimeout(() => resolve('timer'), QUIET_WINDOW_MS)
-    if (typeof quietTimerHandle === 'object' && 'unref' in quietTimerHandle) quietTimerHandle.unref()
-  })
-  const settledEarly = await Promise.race([completed, quietTimer])
+  const settledEarly = await withDeadline(completed, QUIET_WINDOW_MS, () => 'timer' as const, { unref: true })
   if (settledEarly === 'done') {
-    if (quietTimerHandle !== undefined) stopTimeout(quietTimerHandle)
     const result = await shellCommand.result
     shellCommand.cleanup()
     return await postProcess(result)

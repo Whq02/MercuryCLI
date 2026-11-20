@@ -31,7 +31,7 @@ const finish = (note: string): never => {
 const pack = await import('../../src/services/desktop/pack.js')
 const native = await import('../../src/services/desktop/nativeDriver.js')
 const driverContract = await import('../../src/services/desktop/driver.js')
-const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
 
 const PLATFORM = voicePackPlatform()
 const PACK_DIR = pack.desktopPackDirFor(ROOT, PLATFORM)
@@ -45,7 +45,7 @@ const hasCargo = !cargo.error && cargo.status === 0
 console.log(`cargo: ${hasCargo ? cargo.stdout.trim() : 'absent'} · platform ${PLATFORM} · live: ${LIVE || 'off'}`)
 
 async function healthRow(): Promise<{ evidence: string; status: string; section: string } | null> {
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   for (const section of cert.sections) {
     const row = section.checks.find(c => c.id === 'iface-computer-use')

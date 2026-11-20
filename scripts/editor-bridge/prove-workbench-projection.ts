@@ -225,7 +225,7 @@ section('(4) engine laws — flag gate + stable reference')
   const b = getWorkbenchSnapshot()
   check('getter returns a stable reference between refreshes', a === b)
 
-  const { createReviewArtifact } = await import('../../src/utils/artifacts/reviewStore.js')
+  const { createReviewArtifact } = await import('../../src/services/artifacts/reviewStore.js')
   createReviewArtifact({
     kind: 'plan', title: 'here', producer: { sessionId: 's' },
     workspace: { roots: [process.cwd()] }, body: { kind: 'plan', markdown: 'x\n' },
@@ -250,7 +250,7 @@ section('(4) engine laws — flag gate + stable reference')
 section('(5) the mercury://workbench adapter through the REAL registry')
 {
   const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
 
   const current = await resolveResource('mercury://workbench/current', ctx)

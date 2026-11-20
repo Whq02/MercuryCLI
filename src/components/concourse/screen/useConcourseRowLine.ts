@@ -7,7 +7,7 @@ import { getPendingChordMirror, subscribePendingChordMirror } from '../../../key
 import { controlNoteOf } from '../contracts.js'
 import { PARK_REFUSED_NOW_LEAD } from '../../../services/concourse/concourseSnapshot.js'
 import { useLiveTile, useWorkChip } from '../liveTiles.js'
-import { GLYPH } from '../../mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { keyHintLabel } from '../../mercury-ui/keyHintLabel.js'
 import { broadcastFaceOf } from './composerGate.js'
 import type { Asks, CloseChord, Draft, Filter, Marks, Panes, ScreenDoors, ScreenProps, Selection } from './state.js'

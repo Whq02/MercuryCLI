@@ -77,7 +77,7 @@ const hsMod = await import(join(ROOT, 'src/daemon/handshake.ts'))
 const handover = await import(join(ROOT, 'src/daemon/handover.ts'))
 const sock = await import(join(ROOT, 'src/daemon/controlSocket.ts'))
 const protocol = await import(join(ROOT, 'src/daemon/protocol.ts'))
-const { isProcessAlive } = await import(join(ROOT, 'src/daemon/ownerWatch.ts'))
+const { isProcessAlive } = await import(join(ROOT, 'src/utils/ownerWatch.ts'))
 const { MERCURY_DAEMON_PROTO } = protocol
 
 const helloReply = (over: Record<string, unknown>): never =>
@@ -209,9 +209,9 @@ section('§C the heal moves a release install: a daemon of the old payload is su
     const entryBefore = process.argv[1]
     process.argv[1] = join(newDir, 'mercury.mjs')
     hsMod.resetDaemonHandshakeForTesting()
-    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
-    const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
-    const { healthContext } = await import('../../src/utils/healthReport.ts')
+    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
+    const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
+    const { healthContext } = await import('../../src/services/health/healthReport.ts')
     const { artifactIdentityLine, describeArtifactIdentity } = await import('../../src/utils/artifactIdentity.ts')
     const context = await healthContext()
     const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
@@ -243,7 +243,7 @@ section('§C the heal moves a release install: a daemon of the old payload is su
     const entryBefore = process.argv[1]
     process.argv[1] = join(oldDir, 'mercury.mjs')
     hsMod.resetDaemonHandshakeForTesting()
-    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
     const reopenRow = await crewChecks().find(row => row.id === 'daemon')?.run()
     const seen = await hsMod.handshakeDaemon({ timeoutMs: 1000 })
     process.argv[1] = entryBefore!

@@ -2,7 +2,7 @@
 import { z } from 'zod/v4'
 import * as path from 'node:path'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -31,7 +31,7 @@ import {
   gitStatus,
   gitWorktrees,
 } from '../../services/gitGraph/observe.js'
-import { fileHistoryEnabled, maybeExpandFilePath } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, maybeExpandFilePath } from '../../services/changeTransaction/fileHistory.js'
 import {
   applyPlan,
   findPlan,

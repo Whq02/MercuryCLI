@@ -8,7 +8,7 @@ import {
   seatSourceWords,
   setOperatorSeats,
   type SeatCeilingFacts,
-} from '../../services/switchboard/capacityCheck.js'
+} from '../../utils/switchboard/capacityCheck.js'
 
 
 export function parseSeatsArg(input: string): number | 'auto' | undefined {

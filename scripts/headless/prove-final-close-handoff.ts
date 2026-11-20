@@ -23,7 +23,7 @@ try {
   const lineage = await import('../../src/mneme/lineageSession.ts')
   const ask = await import('../../src/mneme/handoffAsk.ts')
   const exit = await import('../../src/mneme/exitHandoff.ts')
-  const { saveCacheSafeParams } = await import('../../src/utils/forkedAgent.ts')
+  const { saveCacheSafeParams } = await import('../../src/services/agents/forkedAgent.ts')
   const params = { systemPrompt: [] as never, userContext: {}, systemContext: {}, toolUseContext: {} as never, forkContextMessages: [] }
   async function scenario(oneShot: boolean, status = 'completed'): Promise<void> {
     state.switchSession(crypto.randomUUID())
@@ -82,11 +82,11 @@ try {
     },
   }))
   const tracker = await import('../../src/cost-tracker.ts')
-  const { EMPTY_USAGE } = await import('../../src/services/api/emptyUsage.ts')
+  const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
   const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-  const realFork = { ...(await import('../../src/utils/forkedAgent.ts')) }
+  const realFork = { ...(await import('../../src/services/agents/forkedAgent.ts')) }
   let notes = 0
-  mock.module('../../src/utils/forkedAgent.ts', () => ({
+  mock.module('../../src/services/agents/forkedAgent.ts', () => ({
     ...realFork,
     runForkedAgent: async () => {
       notes++

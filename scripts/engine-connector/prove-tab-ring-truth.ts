@@ -107,7 +107,7 @@ console.log('— R4 the capability owner —')
 
 console.log('— R5 the headless render —')
 {
-  const { streamRenderedMessages } = await import('../../src/utils/exportRenderer.tsx')
+  const { streamRenderedMessages } = await import('../../src/components/exportRenderer.tsx')
   const messages = [
     {
       type: 'user',

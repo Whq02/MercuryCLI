@@ -3,7 +3,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { subscribeCwdState } from '../bootstrap/state.js'
-import { initializeProjectLocalEstate } from '../services/projectLocal/paths.js'
+import { initializeProjectLocalEstate } from './projectLocal/paths.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'
 import { errorMessage } from './errors.js'

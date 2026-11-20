@@ -20,7 +20,7 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'compact-operator-me
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SELECTION_MODULE = 'src/services/compact/operatorMessages.ts'
+const SELECTION_MODULE = 'src/utils/compact/operatorMessages.ts'
 const KIND = 'compact_operator_messages'
 
 let failures = 0
@@ -50,7 +50,7 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
 const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')

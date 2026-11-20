@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { MODEL_ALIASES } from '../../utils/model/aliases.js'
-import { MISTRAL_HOSTED_DEEPSEEK_IDS } from './mistral/mistralPins.js'
+import { MISTRAL_HOSTED_DEEPSEEK_IDS } from '../../utils/model/pins/mistralPins.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 

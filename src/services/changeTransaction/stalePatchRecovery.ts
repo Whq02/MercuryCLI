@@ -1,6 +1,6 @@
 
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { EditHunkInput } from './hunks.js'
 import { mintFileAnchor, parseAnchor } from './snapshotAnchor.js'

@@ -45,10 +45,10 @@ writeFileSync(join(dirty.worktreePath, 'notes.txt'), 'unsaved work\n')
 const ahead = await cut('agent-a0000003')
 writeFileSync(join(ahead.worktreePath, 'kept.txt'), 'two\n')
 git(ahead.worktreePath, 'commit', '-qam', 'only here')
-type Reminder = typeof import('../../src/utils/crew/crewWorktreeReminder.ts')
+type Reminder = typeof import('../../src/services/crew/crewWorktreeReminder.ts')
 let reminder: Reminder | null = null
 try {
-  reminder = await import('../../src/utils/crew/crewWorktreeReminder.ts')
+  reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
 } catch (error) {
   tally.check('the reminder owner exists (src/utils/crew/crewWorktreeReminder.ts)', false, error instanceof Error ? error.message.split('\n')[0] : String(error))
 }

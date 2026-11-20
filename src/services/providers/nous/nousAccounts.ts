@@ -1,7 +1,7 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredNousApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { NousRefreshRefusedError, nousStoredTokens, nousSigninRefusal, readPreferredNousSource, refreshNousTokens, type NousOauthIo, type NousTokens } from './nousOauth.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

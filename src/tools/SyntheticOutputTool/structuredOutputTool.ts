@@ -6,7 +6,7 @@ import {
 } from '../../services/schema/jsonSchemaEngine.js'
 import type { Tool, ToolInputJSONSchema } from '../../Tool.js'
 import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from './constants.js'
+import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../constants/tools/syntheticOutput.js'
 import {
   SyntheticOutputTool,
   type Output,

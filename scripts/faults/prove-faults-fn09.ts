@@ -117,7 +117,7 @@ if (!POSIX_MODES) {
 } else {
   const r = runSub(`
     const { runTextChangeSetCommit, recoverChangeSetJournal, TEXT_CHANGE_SET_KIND } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/changeSetCommit.ts'))})
-    const { sha256Hex } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/changeSetPlan.ts'))})
+    const { sha256Hex } = await import(${JSON.stringify(join(SRC, 'utils/hash.ts'))})
     const journalDir = path.join(PROJECT, 'journal')
     const bundleRoot = path.join(PROJECT, 'bundles')
 

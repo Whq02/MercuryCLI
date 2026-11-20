@@ -6,7 +6,7 @@ import type { Command } from '../../types/command.js'
 import { getSettingSourceName, type SettingSource } from '../../utils/settings/constants.js'
 import { clearAnthropicConnectorsCache } from '../mcp/anthropicConnectors.js'
 import { getAllMcpConfigs } from '../mcp/config.js'
-import type { ScopedMcpServerConfig } from '../mcp/types.js'
+import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 import type { KitCatalogue, KitRow } from './kitTypes.js'
 
 export const MCP_SKILLS_NOTE = 'skills from MCP servers appear once a session connects them'

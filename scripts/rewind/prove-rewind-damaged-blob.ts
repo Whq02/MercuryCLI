@@ -25,9 +25,9 @@ enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(true)
 bootstrap.setOriginalCwd(cwd)
-const fh = await import('../../src/utils/fileHistory.ts')
-type FileHistoryState = import('../../src/utils/fileHistory.ts').FileHistoryState
-type FileHistorySnapshot = import('../../src/utils/fileHistory.ts').FileHistorySnapshot
+const fh = await import('../../src/services/changeTransaction/fileHistory.ts')
+type FileHistoryState = import('../../src/types/fileHistory.ts').FileHistoryState
+type FileHistorySnapshot = import('../../src/types/fileHistory.ts').FileHistorySnapshot
 type UUID = import('node:crypto').UUID
 
 const uuid = (): UUID => randomUUID() as UUID

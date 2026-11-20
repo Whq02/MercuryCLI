@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree } from '../../utils/processGroup.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { getToolResultsDir } from '../../utils/toolResultStorage.js'
 import { clampClause } from '../../utils/waitCeiling.js'
 import { BoundedStreamSink } from './outputSink.js'
@@ -15,7 +15,7 @@ import {
   type DurableOperation,
 } from '../../substrate/operationJournal.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import {
   EVAL_DEFAULT_TIMEOUT_SECONDS,
   EVAL_IDLE_SWEEP_MS,
@@ -35,7 +35,7 @@ import { jsEnvironmentNotes } from './jsKernelWords.js'
 import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
 import { kernelTransportFor, ProcKernel, type CellEnd, type KernelTransport } from './procKernel.js'
 import type { BridgeRequestFrame } from './protocol.js'
-import type { SampleItem } from '../samples/contracts.js'
+import type { SampleItem } from '../../utils/samples/contracts.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 
@@ -580,12 +580,10 @@ async function runCellOnceOf(
   runtime.start()
   wall.start()
 
-  let watchStop = false
-  const watcher = (async (): Promise<void> => {
-    let interruptAt: number | null = null
-    while (!watchStop) {
-      await sleep(100, undefined, { unref: true })
-      if (watchStop) return
+  const watchAbort = new AbortController()
+  let interruptAt: number | null = null
+  const watcher = pollUntil(
+    () => {
       if (interruptRequested === null) {
         if (abortSignal.aborted) interruptRequested = 'abort'
         else if (runtime.expired()) interruptRequested = 'budget'
@@ -598,19 +596,24 @@ async function runCellOnceOf(
             logForDebugging(`eval kernel interrupt failed: ${String(error)}`)
             escalated = true
             entry.kernel.kill()
-            return
+            return true
           }
         }
       } else if (interruptAt !== null && Date.now() - interruptAt > EVAL_INTERRUPT_ESCALATION_MS) {
         escalated = true
         entry.kernel.kill()
-        return
+        return true
       }
-    }
-  })()
+      return undefined
+    },
+    100,
+    Number.POSITIVE_INFINITY,
+    () => true,
+    { signal: watchAbort.signal, onAbort: () => true, unref: true },
+  )
 
   const end: CellEnd = await execPromise
-  watchStop = true
+  watchAbort.abort()
   await watcher.catch(passedOverAs(undefined))
   runtime.pause()
   wall.pause()

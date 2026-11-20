@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
 delete process.env.MERCURY_HOME
 try {
-  const { getProcessStartTokenCachedOrRefresh } = await import('../../src/daemon/ownerWatch.ts')
+  const { getProcessStartTokenCachedOrRefresh } = await import('../../src/utils/ownerWatch.ts')
   const { liveSessions, sessionWorkersFile } = await import('../../src/mneme/ledger.ts')
   const { mnemeProjectKeyFor } = await import('../../src/mneme/paths.ts')
   const deadline = Date.now() + 5000

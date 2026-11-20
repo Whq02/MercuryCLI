@@ -13,7 +13,7 @@ const signIns = await import('../../src/daemon/signInView.ts')
 const composeActual = signIns.composeSignInView
 const modelLists = await import('../../src/services/providers/typedModelIds.ts')
 const control = await import('../../src/daemon/controlSocket.ts')
-const snapshot = await import('../../src/utils/cockpit/daemonSnapshot.ts')
+const snapshot = await import('../../src/services/cockpit/daemonSnapshot.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const view = (credentialed: boolean) => ({ home: scratch, store: 'plaintext', readAt: Date.now(), refreshed: true, defaultFamily: credentialed ? 'openai' : null, families: [{ family: 'openai', credentialed, usable: credentialed, ...(credentialed ? { row: 'fixture-model' } : {}) }] })
 const readAt = Date.now() - 1000
@@ -32,8 +32,8 @@ mock.module('../../src/daemon/controlSocket.ts', () => ({ ...control, daemonCont
   return { ok: true, view: { ...daemonView, ...(differentHome ? { home: join(scratch, 'other') } : {}) } }
 } }))
 mock.module('../../src/daemon/signInView.ts', () => ({ ...signIns, composeSignInView: (opts?: { refresh?: boolean }) => { clientRefresh = opts?.refresh === true; const client = view(true); if (catalogue) Object.assign(client.families[0]!, { catalogueReadAt: readAt }); return client } }))
-mock.module('../../src/utils/cockpit/daemonSnapshot.ts', () => ({ ...snapshot, daemonSnapshot: () => ({ state: 'live', reason: 'fixture daemon' }) }))
-const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+mock.module('../../src/services/cockpit/daemonSnapshot.ts', () => ({ ...snapshot, daemonSnapshot: () => ({ state: 'live', reason: 'fixture daemon' }) }))
+const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
 let failures = 0
 const check = (name: string, ok: boolean, row: unknown): void => { if (!ok) failures++; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${JSON.stringify(row)}`) }
 const read = async () => {

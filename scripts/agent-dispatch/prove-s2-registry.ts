@@ -20,7 +20,7 @@ const { anthropicProviderAdapter } = await import('../../src/services/providers/
 const { openaiProviderAdapter } = await import('../../src/services/providers/openai/openaiAdapter.js')
 const { zaiProviderAdapter } = await import('../../src/services/providers/zai/zaiAdapter.js')
 const { SPECIALIST_ROLES } = await import('../../src/services/providers/providerAdapter.js')
-const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   const { projectImpact, collectCodeFiles } = await import('../../src/services/projectIntel/impact.js')
   const { suggestWorkSplit } = await import('../../src/services/projectIntel/split.js')
   const steering = await import('../../src/services/projectIntel/steering.js')
-  const owner = await import('../../src/services/primitives/owner.js')
+  const owner = await import('../../src/utils/primitives/owner.js')
   const registry = await import('../../src/services/resources/registry.js')
 
   const dir = materializeFixture('ts')

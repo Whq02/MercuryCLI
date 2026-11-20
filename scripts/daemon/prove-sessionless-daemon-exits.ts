@@ -58,7 +58,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 const { daemonControlRpc, controlSockPath, daemonStatePath: daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let hits = 0

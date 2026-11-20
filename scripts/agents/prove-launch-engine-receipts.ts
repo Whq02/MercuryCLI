@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { AgentLaunchPlanInput } from '../../src/utils/crew/agentLaunchPlan.js'
+import type { AgentLaunchPlanInput } from '../../src/services/crew/agentLaunchPlan.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -11,7 +11,7 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.js')
+const { buildAgentLaunchPlan } = await import('../../src/services/crew/agentLaunchPlan.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.js')
 const { PROVIDER_ID_SPACES, providerDisplayName } = await import('../../src/services/providers/routeLaw.js')

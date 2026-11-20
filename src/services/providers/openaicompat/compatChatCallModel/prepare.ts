@@ -1,4 +1,4 @@
-import { processOwnerForLane } from '../../../run/resolveOwner.js'
+import { processOwnerForLane } from '../../../../utils/run/resolveOwner.js'
 import { createHash } from 'crypto'
 import { compatToolSchemaRefusal } from '../compatToolSchemas.js'
 import { getCwd } from '../../../../utils/cwd.js'

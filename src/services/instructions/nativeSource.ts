@@ -4,7 +4,7 @@ import { getManagedRulesDir, getMemoryPath, getUserRulesDir } from '../../utils/
 import type { MemoryType } from '../../utils/memory/types.js'
 import { projectConfigDirs } from '../../utils/projectConfig.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
-import type { InstructionConvention } from './contracts.js'
+import type { InstructionConvention } from '../../utils/instructions/contracts.js'
 import { matchesInstructionExcludes } from './discovery.js'
 
 export const NATIVE_INSTRUCTION_FILE_NAMES = ['MERCURY.md', 'MERCURY.local.md'] as const

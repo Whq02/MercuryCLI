@@ -29,7 +29,7 @@ const finish = (note: string): never => {
 
 const pack = await import('../../src/services/voice/whisperPack.js')
 const models = await import('../../src/services/voice/whisperModels.js')
-const voicePack = await import('../../src/services/voice/voicePack.js')
+const voicePack = await import('../../src/utils/voice/voicePack.js')
 const transcribe = await import('../../src/services/voice/transcribe.js')
 const wav = await import('../../src/services/voice/wav.js')
 const capture = await import('../../src/services/voice/capture.js')

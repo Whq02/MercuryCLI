@@ -7,7 +7,7 @@ import { RunnerConnection, type HeldAsk } from '../runnerConnection.js'
 import { UNANSWERED_ASK_REJECT_MESSAGE } from '../../utils/messages/rejectionText.js'
 import { killProcessGroup } from '../../utils/processGroup.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { assertSpawnCwd, recordSpawn } from '../../utils/spawnLedger.js'
+import { assertSpawnCwd, recordSpawn } from '../spawnLedger.js'
 import { spawnRunnerChild, type RunnerChildSpec } from '../headlessRun.js'
 import {
   occupancyOfRow,

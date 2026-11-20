@@ -19,7 +19,7 @@ import {
   type GeminiSourceKind,
 } from './geminiAccounts.js'
 import { fetchGeminiPlanRoster, GeminiPlanHttpError, geminiPlanTierWords, type GeminiPlanRoster } from './geminiPlanAccess.js'
-import { GEMINI_TIER_ROW, geminiRequestPin } from './geminiPins.js'
+import { GEMINI_TIER_ROW, geminiRequestPin } from '../../../utils/model/pins/geminiPins.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

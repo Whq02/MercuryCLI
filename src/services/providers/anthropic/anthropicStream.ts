@@ -1,5 +1,5 @@
 import type { ApiStreamEvent } from '../../../types/wire.js'
-import { APIError } from '../../api/sdkErrors.js'
+import { APIError } from '../../../utils/api/sdkErrors.js'
 import { SseDecoder, type SseDecodeResult } from '../sseDecoder.js'
 import { passedOver } from '../../../utils/passedOver.js'
 

@@ -61,7 +61,7 @@ function section(title: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { resolveResource, resourceAdapterKinds, listResourceKind } = await import('../../src/services/resources/registry.ts')
-const owner = (await import('../../src/services/run/resolveOwner.ts')).ownerFromToolUseContext({})
+const owner = (await import('../../src/utils/run/resolveOwner.ts')).ownerFromToolUseContext({})
 const pages = (await import('../../src/services/resources/adapters/models.ts').catch(() => null)) as typeof import('../../src/services/resources/adapters/models.ts') | null
 const { reachableModelEntries } = await import('../../src/utils/model/modelNameRoad.ts')
 const { BARE_FAMILY_WORDS } = await import('../../src/utils/model/bareFamilyWords.ts')
@@ -70,10 +70,10 @@ const { MERCURY_VERSION } = await import('../../src/constants/product.ts')
 const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
 const zai = await import('../../src/services/providers/zai/zaiCatalogue.ts')
 const discovery = await import('../../src/services/providers/providerDiscovery.ts')
-const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiPins.ts')
-const { GLM_DISPLAY_PINS } = await import('../../src/services/providers/zai/glmPins.ts')
-const { KIMI_DISPLAY_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
-const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.ts')
+const { XAI_DISPLAY_PINS } = await import('../../src/utils/model/pins/xaiPins.ts')
+const { GLM_DISPLAY_PINS } = await import('../../src/utils/model/pins/glmPins.ts')
+const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
+const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.ts')
 
 type LivePage = import('../../src/services/resources/adapters/models.ts').LiveModelsReference
 type KnownPage = import('../../src/services/resources/adapters/models.ts').KnownModelsReference

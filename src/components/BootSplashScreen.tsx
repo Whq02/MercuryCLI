@@ -25,10 +25,10 @@ import { computedDefault, readComputedDefaultCatalogue } from '../utils/model/co
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { takeFaceUpdateNotice, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
 import { deriveFamilySlotGroups } from '../services/providers/accountSlots.js';
-import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
+import { sessionAccountWords } from '../services/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
-import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js';
+import { healthCertSnapshot } from '../services/health/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
 import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink, peekFaceDoorOpener } from '../substrate/splashHandover.js';

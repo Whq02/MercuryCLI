@@ -1,6 +1,6 @@
 import type { CanUseToolFn, Tool, ToolUseContext } from '../../../Tool.js'
 import { DENIAL_WORKAROUND_GUIDANCE } from '../../../utils/messages/rejectionText.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { suggestionForExactCommand } from '../../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../../utils/permissions/ruleReason.js'
 import type { PermissionDecision, ToolPermissionContext } from '../../../types/permissions.js'

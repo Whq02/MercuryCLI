@@ -5,12 +5,12 @@ import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelParams, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { metaChatCompletionsUrl, resolveMetaApiKey, resolveMetaAccount } from './metaAccounts.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { getCachedMetaCatalogue, newestMetaModel } from './metaCatalogue.js'
-import { isMetaChatModelId, metaDisplayPin } from './metaPins.js'
+import { isMetaChatModelId, metaDisplayPin } from '../../../utils/model/pins/metaPins.js'
 
 export function buildMetaExtras(args: LaneExtrasArgs, outputFormat?: CompatCallModelParams['options']['outputFormat']): Record<string, unknown> {
   const vocabulary = metaDisplayPin(args.wireModel)?.efforts ?? []

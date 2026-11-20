@@ -10,7 +10,7 @@ import {
   isPermissionExplainerEnabled,
   type PermissionExplanation,
   type RiskLevel,
-} from '../../utils/permissions/permissionExplainer.js'
+} from '../../services/permissions/permissionExplainer.js'
 import { passedOverAs } from '../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 

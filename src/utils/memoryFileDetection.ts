@@ -1,8 +1,8 @@
 import { normalize } from 'node:path'
 
 import { getMnemeHome, getMemoryBaseDir, isMnemeEnabled, isMnemePath } from '../mneme/paths.js'
-import { isAgentMemoryPath } from '../tools/AgentTool/agentMemory.js'
-import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
+import { isAgentMemoryPath } from './agentMemory.js'
+import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../constants/tools/memory.js'
 import { getMercuryHome } from './envUtils.js'
 import { foldPathCase, hostPathSpellings, msysDrivePathToNative } from './platform/paths.js'
 

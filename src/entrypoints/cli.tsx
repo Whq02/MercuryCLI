@@ -146,7 +146,7 @@ async function main(): Promise<void> {
   profileCheckpoint('cli_entry')
 
   {
-    const { armImagePack } = await import('../tools/FileReadTool/imagePackArm.js')
+    const { armImagePack } = await import('../utils/imageProcessor/imagePackArm.js')
     armImagePack()
   }
 

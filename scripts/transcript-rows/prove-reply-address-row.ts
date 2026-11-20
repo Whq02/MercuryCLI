@@ -36,7 +36,7 @@ const { formatClock, replyAddressLine, REPLY_ADDRESS_LEAD } = await import(join(
 const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normalize.ts'))
 const { buildMessageLookups } = await import(join(ROOT, 'src/utils/messages/lookups.ts'))
 const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
-const { createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
 const { BashTool } = await import(join(ROOT, 'src/tools/BashTool/BashTool.tsx'))
 
 type Raw = Record<string, unknown>

@@ -13,7 +13,7 @@ import {
   type HealthCertificate as Cert,
   type HealthCheck,
   type HealthSection,
-} from '../utils/healthReport.js';
+} from '../services/health/healthReport.js';
 import { formatAge, isFixable, sha7 } from '../utils/healthCertCore.js';
 import { applyRemedy, healthFixEnabled, type AppliedFix } from '../utils/healthFix.js';
 import { renderModelChip } from '../utils/model/model.js';

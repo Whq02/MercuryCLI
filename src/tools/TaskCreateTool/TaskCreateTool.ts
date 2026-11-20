@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { createTask, getTaskListId, isTaskToolsEnabled } from '../../utils/tasks.js'
-import { TASK_CREATE_TOOL_NAME } from './constants.js'
+import { TASK_CREATE_TOOL_NAME } from '../../constants/tools/taskCreate.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 
 const inputSchema = lazySchema(() => z.strictObject({

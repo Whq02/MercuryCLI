@@ -13,7 +13,7 @@ import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { formatResetTime } from '../utils/format.js'
 import { Dialog } from './design-system/Dialog.js'
 import { AMBER, FAINT, TEAL } from './mercuryPalette.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 
 const CAP_OFFER_ENTER_ARM_MS = 400
 

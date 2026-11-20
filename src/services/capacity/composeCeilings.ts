@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { seatCeilingFacts, stampedSeats, type SeatCeilingSource } from '../switchboard/capacityCheck.js'
+import { seatCeilingFacts, stampedSeats, type SeatCeilingSource } from '../../utils/switchboard/capacityCheck.js'
 import { governorCeilings, setGovernorCeilings, type CeilingProvenance, type GovernorCeilings } from './governor.js'
 import type { EffortValue } from '../../utils/effort.js'
 import type { SeatNarrowing } from './seatWords.js'

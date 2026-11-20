@@ -50,7 +50,7 @@ try {
   const { getContextWindowForModel, filterAllowedSdkBetas } = await import('../../src/utils/model/capabilities.ts')
   const { setSdkBetas } = await import('../../src/bootstrap/state.ts')
   const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
-  const { contextFillView, contextWindowLabel } = await import('../../src/utils/contextFill.ts')
+  const { contextFillView, contextWindowLabel } = await import('../../src/services/context/contextFill.ts')
   const { getPublicModelDisplayName, getMarketingNameForModel } = await import('../../src/utils/model/model.ts')
   subscriber = isClaudeAISubscriber()
   if (arm === 'key-preview') setSdkBetas(filterAllowedSdkBetas(['context-1m-2025-08-07']))

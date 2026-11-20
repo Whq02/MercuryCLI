@@ -17,7 +17,7 @@ function section(title: string): void {
 
 const lane = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { noteCrewAccountChange } = await import('../../src/utils/crew/crewAccountChange.ts')
+const { noteCrewAccountChange } = await import('../../src/services/crew/crewAccountChange.ts')
 const { resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
 
 const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, agentNameRegistry: new Map() } }

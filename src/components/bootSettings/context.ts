@@ -1,5 +1,5 @@
 import type { bootEnvPath, MenuRow } from '../../substrate/startupMenu.js';
-import type { SeatCeilingFacts } from '../../services/switchboard/capacityCheck.js';
+import type { SeatCeilingFacts } from '../../utils/switchboard/capacityCheck.js';
 import type { readMotionSetting, MotionSetting } from '../../utils/cockpit/motionSetting.js';
 import type { readJevSettings } from '../../services/jev/jevSetting.js';
 import type { backgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js';

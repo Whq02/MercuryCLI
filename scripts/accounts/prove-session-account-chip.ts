@@ -61,8 +61,8 @@ console.log('============================================================')
 console.log(' the account chip — snapshot-first, healed on the catalogue')
 console.log('============================================================')
 
-const { sessionAccountFamily, sessionAccountWords } = await import('../../src/utils/accounts/sessionAccount.ts')
-type Reads = import('../../src/utils/accounts/sessionAccount.ts').SessionAccountReads
+const { sessionAccountFamily, sessionAccountWords } = await import('../../src/services/accounts/sessionAccount.ts')
+type Reads = import('../../src/services/accounts/sessionAccount.ts').SessionAccountReads
 
 const PLACEHOLDER = 'claude-fable-5-1'
 const presences = [

@@ -6,7 +6,7 @@
 # gate-watch: src/services/compact/compact.ts
 # gate-watch: src/services/eval/evalBridge.ts src/services/instructions/sourceText.ts
 # gate-watch: src/utils/capability/declarations.ts src/query/stopHooks.ts
-# gate-watch: src/commands.ts src/utils/memory/types.ts src/tools/AgentTool/agentMemory.ts
+# gate-watch: src/commands.ts src/utils/memory/types.ts src/utils/agentMemory.ts
 # gate-watch: src/components/mercury-ui/useFlatList.ts
 # gate-watch: scripts/lib/rows.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts

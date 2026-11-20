@@ -31,7 +31,7 @@ const {
   listReviewArtifactHeads,
   setReviewArtifactStatus,
   setReviewCommentState,
-} = await import('../../src/utils/artifacts/reviewStore.js')
+} = await import('../../src/services/artifacts/reviewStore.js')
 const { contentDigest, listMdBlocks, listDiffLineSites, validateAnchor } = await import(
   '../../src/utils/artifacts/anchors.js'
 )
@@ -278,7 +278,7 @@ section('(5) torn-tail tolerance')
 section('(6) the mercury://artifact adapter forms')
 {
   const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
 
   const head = await resolveResource(`mercury://artifact/${raId}`, ctx)
@@ -370,7 +370,7 @@ section('(8) verify-wave fixes — fence · ordinal · damaged≠absent · CRLF 
     childScript,
     `
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = ${JSON.stringify(root)}
-const { reviseReviewArtifact } = await import(${JSON.stringify(process.cwd() + '/src/utils/artifacts/reviewStore.ts')})
+const { reviseReviewArtifact } = await import(${JSON.stringify(process.cwd() + '/src/services/artifacts/reviewStore.ts')})
 const r = reviseReviewArtifact({
   id: ${JSON.stringify(raceId)},
   body: { kind: 'plan', markdown: 'revised by ' + process.argv[2] + ' at ' + Date.now() + '\\n' },
@@ -412,7 +412,7 @@ console.log(JSON.stringify({ ok: r.ok, version: r.ok ? r.value.version : null })
   check('negative ordinal refused with the reason named', !badOrdinal.ok && badOrdinal.reason.includes('non-negative'), badOrdinal.ok ? 'was OK' : badOrdinal.reason)
 
   const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
   const damagedArt = createReviewArtifact({
     kind: 'plan',

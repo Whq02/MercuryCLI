@@ -39,7 +39,7 @@ import {
   RETAIN_DESCRIPTION,
   RETAIN_PROMPT,
   RETAIN_TOOL_NAME,
-} from './prompt.js'
+} from '../../constants/tools/memory.js'
 import {
   renderCorrectResult,
   renderMemoryToolUse,

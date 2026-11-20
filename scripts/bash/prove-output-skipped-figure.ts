@@ -35,7 +35,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' 
 
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-const { stripEmptyLines, formatOutput } = await import('../../src/tools/BashTool/utils.ts')
+const { stripEmptyLines, formatOutput } = await import('../../src/utils/shell/utils.ts')
 const { generatePreview, persistToolResult, PREVIEW_SIZE_CHARS } = await import('../../src/utils/toolResultStorage.ts')
 const { formatFileSize } = await import('../../src/utils/format.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')

@@ -43,7 +43,7 @@ const { requestDeliberateToolChange } = await import('../../src/services/provide
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
-const { getToolSchemaDeltaAttachment } = await import('../../src/utils/attachments/toolSchemaDelta.ts')
+const { getToolSchemaDeltaAttachment } = await import('../../src/services/attachments/toolSchemaDelta.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
@@ -60,7 +60,7 @@ const scoped = {
 } as never
 const MODEL = 'claude-fable-5-1'
 const ctxFor = (pool: Tool[]): unknown => ({ options: { engineModel: MODEL, tools: pool, agentDefinitions: { activeAgents: [] } }, getAppState: () => ({ ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() }), agentId: undefined })
-const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
 const owner = String(rosterOwnerFromToolUseContext(ctxFor([]) as never))
 const first = createUserMessage({ content: 'Generate a swatch.' }) as unknown as Message
 const enumOf = (definition: unknown): string[] => ((definition as { input_schema?: { properties?: { model?: { enum?: string[] } } } } | undefined)?.input_schema?.properties?.model?.enum ?? [])

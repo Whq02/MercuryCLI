@@ -17,9 +17,9 @@ function section(t: string): void {
 }
 
 const kernel = await import('../../src/services/run/runKernel.ts')
-const plane = await import('../../src/services/primitives/executionPlane.ts')
+const plane = await import('../../src/utils/primitives/executionPlane.ts')
 const sidecar = await import('../../src/services/run/runSidecar.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 
 console.log('============================================================')
 console.log(' S29 — repeated + late events ⇒ exactly one effect, cross-owner')

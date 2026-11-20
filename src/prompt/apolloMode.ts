@@ -3,7 +3,7 @@ import { getOriginalCwd } from '../bootstrap/state.js'
 import type { PermissionMode } from '../types/permissions.js'
 import { getApolloPreflightQuestions } from '../utils/settings/settings.js'
 import { apolloSpecDirectory } from '../utils/projectConfig.js'
-import { APOLLO_REVIEW_TOOL_NAME } from '../tools/ApolloReviewTool/constants.js'
+import { APOLLO_REVIEW_TOOL_NAME } from '../constants/tools/apolloReview.js'
 
 export { apolloSpecDirectory } from '../utils/projectConfig.js'
 

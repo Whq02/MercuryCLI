@@ -24,7 +24,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const pack = await import('../../src/services/desktop/pack.js')
 const native = await import('../../src/services/desktop/nativeDriver.js')
-const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 
 const EVENTS = join(SCRATCH, 'captures.jsonl')

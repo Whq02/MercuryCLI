@@ -220,7 +220,7 @@ section('§5 RECONCILIATION PINS (DR-06/07)')
 
 section('§6 WIRING (DR-08)')
 {
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const { pidLockReleaseHealth: releasesNow } = await import('../../src/substrate/pidLock.ts')
   const lockSays = await crewChecks().find(row => row.id === 'pid-lock-release')?.run()
   const lockHealth = releasesNow()

@@ -1,7 +1,7 @@
 
 import { basename } from 'node:path'
 import { discoverLaunchProfiles } from '../../ide/launchProfiles.js'
-import { projectIntelEnabled } from '../../projectIntel/contracts.js'
+import { projectIntelEnabled } from '../../../utils/projectIntel/contracts.js'
 import { assembleContextCapsule, renderCapsule } from '../../projectIntel/capsule.js'
 import { projectImpact } from '../../projectIntel/impact.js'
 import { suggestWorkSplit } from '../../projectIntel/split.js'
@@ -218,9 +218,9 @@ export const projectAdapter: ResourceAdapter = {
         }
       }
       const { getContextMarks } =
-        require('../../projectIntel/pins.js') as typeof import('../../projectIntel/pins.js')
+        require('../../../utils/projectIntel/pins.js') as typeof import('../../../utils/projectIntel/pins.js')
       const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
-        require('../../primitives/owner.js') as typeof import('../../primitives/owner.js')
+        require('../../../utils/primitives/owner.js') as typeof import('../../../utils/primitives/owner.js')
       const identity = parseOwnerKey(ctx.owner)
       const mainOwner =
         describeOwner(ctx.owner).parent ?? makeOwnerKey({ ...identity, lane: MAIN_LANE })

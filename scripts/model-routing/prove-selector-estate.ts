@@ -26,12 +26,12 @@ const {
   parseGptModelId,
   gptDisplayName,
   gptDisplayPin,
-} = await import('../../src/services/providers/openai/gptPins.js')
+} = await import('../../src/utils/model/pins/gptPins.js')
 const { getPublicModelDisplayName, getMarketingNameForModel, renderModelChip } = await import(
   '../../src/utils/model/model.js'
 )
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/utils/modelCost.js')
+const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/services/usage/modelCost.js')
 const { decideModelTransition, providerFamilyOfSetting, crossProviderNote } = await import(
   '../../src/utils/model/modelTransition.js'
 )
@@ -130,7 +130,7 @@ section('4 · cost — prices DERIVE from the pin, incl. the recorded cached rat
 
 section('4b · the FULL lineup sweeps the same consumers (provider parity)')
 {
-  const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+  const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
   const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
   check('the lineup leads with the two 6.2 models of developers.openai.com/api/docs/models, read 2026-11-17, Sol first', GPT_DISPLAY_PINS.map(pin => pin.id).join(',') === 'gpt-6.2-sol,gpt-6.2-astra,gpt-6-astra,gpt-6.1-sol,gpt-6.1-terra,gpt-6-sol,gpt-6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.6-cyber,gpt-5.5,gpt-5.5-pro,gpt-5.5-cyber-preview,gpt-5.4,gpt-5.4-pro,gpt-5.4-mini,gpt-5.4-nano', GPT_DISPLAY_PINS.map(pin => pin.id).join(','))
   for (const pin of GPT_DISPLAY_PINS) {

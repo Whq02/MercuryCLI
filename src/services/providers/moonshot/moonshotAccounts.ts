@@ -12,7 +12,7 @@ import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

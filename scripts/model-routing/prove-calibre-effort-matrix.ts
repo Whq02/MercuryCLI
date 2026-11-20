@@ -36,7 +36,7 @@ const { resolveGptReasoningProfile, refreshOpenaiCatalogue, __resetOpenaiCatalog
 const capabilities = await import('../../src/utils/model/capabilities.js')
 const effort = await import('../../src/utils/effort.js')
 const effortCmd = await import('../../src/commands/effort/effort.js')
-const glmPins = await import('../../src/services/providers/zai/glmPins.js')
+const glmPins = await import('../../src/utils/model/pins/glmPins.js')
 
 type LiveModel = Parameters<typeof resolveGptReasoningProfile>[1]
 

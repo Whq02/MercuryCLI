@@ -1,4 +1,4 @@
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import {
   type DesktopApplication,
   type DesktopDriver,

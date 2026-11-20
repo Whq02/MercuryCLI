@@ -3,7 +3,7 @@ import { fitMeasuredWindow, paneWindow, type PaneWindow } from '../mercury-ui/ge
 import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { wrapPlain } from '../BootHealthScreen.js'
 import { effortStripText } from '../mercury-ui/EffortStrip.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { AMBER, FAINT, TEAL } from '../mercuryPalette.js'
 import { headingIndexOf, type PickerLine } from '../../utils/model/modelPickerGroups.js'
 import type { localRecordFor } from '../../services/providers/local/localCatalogue.js'

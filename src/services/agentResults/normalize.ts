@@ -1,7 +1,7 @@
 
 import { receiptsFor } from '../changeTransaction/receipts.js'
 import { evidenceFor } from '../primitives/evidencePlane.js'
-import { processOwnerForLane } from '../run/resolveOwner.js'
+import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { storeArtifact } from '../../utils/artifacts/store.js'
 import { evidenceRecordsFor } from '../../utils/verification/verificationState.js'
 import {

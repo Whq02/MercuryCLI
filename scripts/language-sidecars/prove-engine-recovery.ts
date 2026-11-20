@@ -36,7 +36,7 @@ copyFileSync(join(extract, 'out', 'tree-sitter-yaml.wasm'), join(engineDir, 'tre
 process.env.MERCURY_TREESITTER_VENDOR_DIR = engineDir
 
 const { loadGrammarEngine, parsePolyglot, _resetGrammarEngineForTesting } = await import(
-  '../../src/services/structure/grammarFacility.ts'
+  '../../src/utils/structure/grammarFacility.ts'
 )
 
 const yamlLang = { name: 'yaml-detonator', wasm: 'tree-sitter-yaml.wasm', extensions: ['.yaml'] }

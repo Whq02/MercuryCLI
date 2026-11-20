@@ -5,9 +5,9 @@ import {
   APIConnectionError,
   APIError,
   APIUserAbortError,
-} from '../../api/sdkErrors.js'
+} from '../../../utils/api/sdkErrors.js'
 import type { ContentBlock as BetaContentBlock, ApiStreamEvent as BetaRawMessageStreamEvent } from '../../../types/wire.js'
-import type { AnthropicMessageParams as BetaMessageStreamParams } from './anthropicWire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams } from '../../../types/anthropicWire.js'
 import type { AnthropicStream } from './anthropicStream.js'
 import {
   getCacheEditingHeaderLatched,
@@ -28,7 +28,7 @@ import {
   type ToolPermissionContext,
   type Tools,
 } from '../../../Tool.js'
-import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../../../types/agent.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { planToolPayload } from '../toolEconomy.js'
 import type { ConnectorTextBlock } from '../../../types/connectorText.js'
@@ -55,7 +55,7 @@ import {
   createAssistantAPIErrorMessage,
   createUserMessage,
 } from '../../../utils/messages.js'
-import { processOwnerForLane } from '../../run/resolveOwner.js'
+import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import { utilityCallFor } from '../../../utils/model/utilityModel.js'
 import { startSessionActivity } from '../../../utils/sessionActivity.js'
 import {
@@ -67,7 +67,7 @@ import {
   getPinnedCacheEdits,
 } from '../../compact/microCompact.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
-import { transportCutOf } from '../../api/transportEvidence.js'
+import { transportCutOf } from '../../../utils/api/transportEvidence.js'
 import { captureModelRefusalRequest, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,

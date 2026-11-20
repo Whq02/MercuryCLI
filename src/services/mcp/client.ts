@@ -1,4 +1,4 @@
-import { UnauthorizedError, StdioClientTransport, type Transport, ProtocolError, ProtocolErrorCode, SdkError, SdkErrorCode, type Tool as McpSdkTool } from './sdk.js'
+import { UnauthorizedError, StdioClientTransport, type Transport, ProtocolError, ProtocolErrorCode, SdkError, SdkErrorCode, type Tool as McpSdkTool } from '../../utils/mcp/sdk.js'
 import memoize from 'lodash-es/memoize.js'
 import { LRUCache } from 'lru-cache'
 import { deadlineSecondsLabel } from '../providers/fetchDeadline.js'
@@ -17,11 +17,11 @@ import { ReadMcpResourceTool } from '../../tools/ReadMcpResourceTool/ReadMcpReso
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { restoreRenamedArgumentKeys } from '../../utils/normalizeToolSchema.js'
-import { armInactivityDeadline, formatLimit } from '../../utils/deadline.js'
+import { armInactivityDeadline, formatLimit, withDeadline } from '../../utils/deadline.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { isShuttingDown } from '../../utils/gracefulShutdown.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
-import type { MCPToolResult } from '../../utils/mcpValidation.js'
+import type { MCPToolResult } from './mcpValidation.js'
 import { createSecretRedactor, isSecretEnvName } from '../../utils/redactSecrets.js'
 import { recursivelySanitizeUnicode } from '../../utils/sanitization.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
@@ -32,12 +32,12 @@ import { getAllMcpConfigs } from './config.js'
 import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
 import { isMcpCatalogueMember } from './membership.js'
 import { elicitationPausedClock } from './elicitationHandler.js'
-import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
-import { normalizeNameForMCP } from './normalization.js'
+import { buildMcpToolName, wireSafeMcpToolName } from '../../utils/mcp/mcpStringUtils.js'
+import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
 import { isMercuryServerEnabled, isMercuryServer, withMercuryLeaseHolder } from './mercuryServer.js'
 import { withMcpToolCardHeader } from './toolCard.js'
 import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
-import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig, ServerResource } from './types.js'
+import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig, ServerResource } from '../../utils/mcp/types.js'
 import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
 import { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, McpSessionExpiredError, isMcpSessionExpiredError, isConnectionClosedError, isProbeExitError, isStaleSocketFetchError, isResponseStreamEndedError } from './client/errors.js'
 import { LONG_CALL_LOG_INTERVAL_MS, MCP_TOOL_USE_ID_META_KEY, STDERR_FLUSH_BYTES, INSTRUCTIONS_MAX_CHARS, TERMINAL_ERROR_LIMIT, URL_ELICITATION_RETRIES, TERMINAL_ERROR_SUBSTRINGS, connectTimeoutMs, toolTimeoutMs, mcpCallIdleLimitMs, OVERSIZED_MESSAGE, oversizedMessages, mcpOversizedMessageWords, getMcpServerConnectionBatchSize, getRemoteConnectionBatchSize } from './client/limits.js'
@@ -63,7 +63,7 @@ export { fenceMcpPrefixCollisions } from './client/bulkParts.js'
 export type { McpPrefixCollision } from './client/bulkParts.js'
 import { tellMcpToolsTheClient } from './client/forTools.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig): string {
   return `${name}:${JSON.stringify(serverRef)}`
@@ -180,9 +180,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       await client.connect(transport)
     }
   })()
-  let timer: NodeJS.Timeout | null = null
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = startTimeout(() => {
+  try {
+    await withDeadline(connectPromise, connectTimeoutMs(), () => {
       timedOut = true
       const transportLabel = inProcess ? 'in-process' : type
       const written = mcpConfigAsWritten(config)
@@ -191,20 +190,15 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         stdioTransport === null
           ? ''
           : ` · spawned ${[written.command ?? '', ...written.args].join(' ').trim()} · ${stderrFirstLine !== '' ? `stderr began: ${stderrFirstLine}` : 'nothing on stderr'}`
-      reject(
-        new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-          `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp${spawnedTail}`,
-          MCP_CONNECT_TIMEOUT_TELEMETRY,
-        ),
-      )
       void endStdioTree(name, stdioTransport).finally(() => {
         void inProcessServer?.close().catch(passedOver)
         void transport.close().catch(passedOver)
       })
-    }, connectTimeoutMs())
-  })
-  try {
-    await Promise.race([connectPromise, timeoutPromise])
+      throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+        `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp${spawnedTail}`,
+        MCP_CONNECT_TIMEOUT_TELEMETRY,
+      )
+    })
     if (stderrBuffer) {
       logMCPError(name, `stderr: ${stderrBuffer}`)
       stderrBuffer = ''
@@ -246,8 +240,6 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       )
     }
     throw err
-  } finally {
-    if (timer !== null) stopTimeout(timer)
   }
 
   const capabilities = client.getServerCapabilities() ?? {}
@@ -629,7 +621,6 @@ async function callToolOnce(
           onProgress?.({ status: 'progress', progress: params.progress, total: params.total, progressMessage: params.message })
         })
       : () => {}
-  let timer: NodeJS.Timeout | null = null
   let couldHaveExecuted = false
   const unknownOutcome = () => new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
     `MCP tool "${tool}" on server "${connected.name}": unknown outcome; inspect the effect before retrying.`,
@@ -650,22 +641,17 @@ async function callToolOnce(
       },
       { signal: requestController.signal, timeout: timeoutMs, ...(toolDefinition ? { toolDefinition } : {}) },
     )
-    const result = await Promise.race([
-      call,
-      watchdog.expiry,
-      new Promise<never>((_, reject) => {
-        timer = startTimeout(
-          () =>
-            reject(
-              new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-                `MCP tool "${tool}" on server "${connected.name}" timed out after ${Math.round(timeoutMs / 1000)}s`,
-                'MCP tool call timeout',
-              ),
-            ),
-          timeoutMs,
+    const result = await withDeadline(
+      watchdog.within(call),
+      timeoutMs,
+      () => {
+        throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+          `MCP tool "${tool}" on server "${connected.name}" timed out after ${Math.round(timeoutMs / 1000)}s`,
+          'MCP tool call timeout',
         )
-      }),
-    ])
+      },
+      { signal },
+    )
     couldHaveExecuted = false
     if ((result as { isError?: boolean }).isError) {
       const first = (result.content as Array<{ type?: string; text?: string }> | undefined)?.[0]
@@ -732,7 +718,6 @@ async function callToolOnce(
     throw err
   } finally {
     stopInterval(stillRunning)
-    if (timer !== null) stopTimeout(timer)
     watchdog.cancel()
     clock.release()
     signal.removeEventListener('abort', forwardAbort)

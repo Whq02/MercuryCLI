@@ -29,7 +29,7 @@ import {
 } from '../../src/services/mcp/eraVerdictCache.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import { createMercuryServer } from '../../src/services/mcp/mercuryServer.js'
-import type { JSONRPCMessage, Transport } from '../../src/services/mcp/sdk.js'
+import type { JSONRPCMessage, Transport } from '../../src/utils/mcp/sdk.js'
 import { getMercuryHome } from '../../src/utils/envUtils.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -201,8 +201,8 @@ section('(5) the health row reading')
     `${MCP_LEGACY_REVISION} vs ${MCP_PROTOCOL_REVISION}`,
   )
   ;(await import('../../src/utils/config/globalConfig.js')).enableConfigs()
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
-  const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+  const { publishMcpConnections } = await import('../../src/services/cockpit/mcpGauge.ts')
   const { describeMcpProtocolCurrency: currencyNow } = await import('../../src/services/mcp/protocolRevision.ts')
   publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])
   const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { runnerRecordAlive, workChipLine, workCounts, workRowRuns, workWaitingWords } from '../../src/services/engine-connector/workCounts.ts'
 import { rosterRowsOf } from '../../src/components/tasks/BackgroundTasksDialog.tsx'
-import { projectWorkRoster } from '../../src/utils/task/workRoster.ts'
+import { projectWorkRoster } from '../../src/services/engine-connector/workRoster.ts'
 import { compactWorkCounts, compactWorkSummaryText } from '../../src/components/tasks/useFocusedWork.ts'
 import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
 

@@ -18,7 +18,7 @@ import {
   buildBlenderContextProfile,
   mercuryBlenderEnabled,
   type BlenderContextProfile,
-} from './blenderProject.js'
+} from '../../utils/blender/blenderProject.js'
 
 export const BLENDER_LANES_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Blender dev lanes") or MERCURY_BLENDER=1'

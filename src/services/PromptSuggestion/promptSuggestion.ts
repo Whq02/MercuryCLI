@@ -3,7 +3,7 @@ import {
   createCacheSafeParams,
   runForkedAgent,
   type CacheSafeParams,
-} from '../../utils/forkedAgent.js'
+} from '../agents/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
 import type { TurnAnswerContext } from '../../query/turnAnswerContext.js'

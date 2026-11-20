@@ -2,6 +2,7 @@
 import instances from '../ink/instances.js'
 import { takeTerminalWriteHeldMs } from '../ink/terminalOut.js'
 import { logForDebugging } from './debug.js'
+import { noteHeapClimb } from './heapClimb.js'
 import { startInterval } from './timers.js'
 
 const DETECT_INTERVAL_MS = 200
@@ -75,6 +76,7 @@ export function startEventLoopStallDetector(): void {
     }
 
     previousTickAt = tickAt
+    noteHeapClimb()
   }
 
   watchdog = startInterval(onTick, DETECT_INTERVAL_MS)

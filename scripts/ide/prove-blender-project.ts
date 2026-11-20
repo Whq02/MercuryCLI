@@ -28,7 +28,7 @@ const {
   _resetBlenderVersionProbeForTesting,
   BLENDER_INSTALL_REMEDY,
   BLEND_FILE_CAP,
-} = await import('../../src/services/ide/blenderProject.js')
+} = await import('../../src/utils/blender/blenderProject.js')
 
 const savedEnv = { ...process.env }
 function restore(): void {

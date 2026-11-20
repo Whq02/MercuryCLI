@@ -10,7 +10,7 @@ import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed, refreshDynamicMcpConfi
 import { isMcpOrgan } from './membership.js'
 import { sessionKitOf, applyProcessSessionKitEdit } from './sessionKitPin.js'
 import { getProjectMcpServerStatus, recordProjectMcpServerChoices } from './utils.js'
-import type { ScopedMcpServerConfig } from './types.js'
+import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 
 type Configs = Record<string, ScopedMcpServerConfig>
 type ProjectMcpApprovalAnswer = 'allow' | 'deny' | 'unanswered'

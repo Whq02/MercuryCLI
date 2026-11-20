@@ -1,5 +1,5 @@
 import { inspectSessionArgs as inspectRunArgs } from '../utils/sessionArgs.js'
-import { isProcessStartInstant } from './ownerWatch.js'
+import { isProcessStartInstant } from '../utils/ownerWatch.js'
 import { foldPathCase } from '../utils/platform/paths.js'
 import { posixProcessTableSupported } from '../utils/platform/processes.js'
 

@@ -4,7 +4,7 @@
 # gate-watch: src/types/message.ts
 # gate-watch: src/services/engine-connector/**
 # gate-watch: src/rows/*
-# gate-watch: src/utils/health/sections/crew.ts
+# gate-watch: src/services/health/sections/crew.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

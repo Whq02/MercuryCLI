@@ -51,7 +51,7 @@ console.log('entering a provider key has one home: /logins')
     const leftovers = homeStores.projectHomeLeftovers(storeRepo)
     const prevHealthDir = process.env.MERCURY_HEALTH_STATE_DIR
     process.env.MERCURY_HEALTH_STATE_DIR = storeRepo
-    const { projectEstateCheck } = await import('../../src/utils/healthReport.ts')
+    const { projectEstateCheck } = await import('../../src/services/health/healthReport.ts')
     const estate = await projectEstateCheck()
     if (prevHealthDir === undefined) delete process.env.MERCURY_HEALTH_STATE_DIR
     else process.env.MERCURY_HEALTH_STATE_DIR = prevHealthDir
@@ -204,7 +204,7 @@ console.log('entering a provider key has one home: /logins')
 
 {
   console.log('\nthe health certificate and the refusal law across environment, settings and session files')
-  const report = await import('../../src/utils/healthReport.ts')
+  const report = await import('../../src/services/health/healthReport.ts')
   const sectionIds = (cert: Awaited<ReturnType<typeof report.runHealthReport>>): string[] => cert.sections.map(s => s.id)
   const plain = await report.runHealthReport({ depth: 'fast' })
   check('no section of the certificate is the route section', !sectionIds(plain).includes('router-fast') && !plain.sections.some(s => s.title === 'ROUTER'))
@@ -259,7 +259,7 @@ console.log('entering a provider key has one home: /logins')
   const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   const { loadTranscriptFile, transcriptLoadDegradation, _resetTranscriptLoadDegradationForTesting } = await import('../../src/utils/sessionStorage/loading.ts')
-  const { restoreSessionStateFromLog } = await import('../../src/utils/sessionRestore.ts')
+  const { restoreSessionStateFromLog } = await import('../../src/services/resume/sessionRestore.ts')
   const sessionFile = join(proofHome, 'retired-posture-session.jsonl')
   let ord = 0
   const ctx = {

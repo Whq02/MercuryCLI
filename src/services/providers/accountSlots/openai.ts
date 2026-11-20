@@ -1,7 +1,7 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { openaiSubscriptionRef, resolveOpenaiApiKey, resolveOpenaiAccount, openaiSubscriptionPresence } from '../openai/openaiAccounts.js'
 import { label } from './keyLane.js'
-import { maskedKeyTail } from '../credentialIdentity.js'
+import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 
 export function openaiSlots(reads: AccountSlotReads): AccountSlot[] {
   const subscription = (reads.openaiSubscription ?? openaiSubscriptionRef)()

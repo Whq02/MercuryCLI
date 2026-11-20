@@ -33,7 +33,7 @@ setCwd(SCRATCH)
 setOriginalCwd(SCRATCH)
 setProjectRoot(SCRATCH)
 
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const cert = await report.runHealthReport({ depth: 'fast' })
 const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'gate')
 check(

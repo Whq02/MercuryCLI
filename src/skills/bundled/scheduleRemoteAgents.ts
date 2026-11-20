@@ -6,7 +6,7 @@ import {
   isSaturnSchedulingEnabled,
 } from '../../tools/ScheduleCronTool/prompt.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
-import { SKILL_TOOL_NAME } from '../../tools/SkillTool/constants.js'
+import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
 import { getMercuryDaemonStatus } from '../../daemon/status.js'
 import { getCwd } from '../../utils/cwd.js'
 import { binaryName } from '../../utils/config/derived.js'

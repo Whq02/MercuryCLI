@@ -145,7 +145,7 @@ if (process.argv.includes('--asked-alone')) {
   const home = homedir()
   const { beginReadOnlyDiagnostic } = await import('../../src/utils/diagnosticReadOnly.ts')
   beginReadOnlyDiagnostic(process.argv.includes('--another-row-asked') ? 'runtime' : undefined)
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const spec = runtimeChecks().find(row => row.id === 'shell')
   const started = Date.now()
   const said = spec === undefined ? null : ((await spec.run()) as Said)

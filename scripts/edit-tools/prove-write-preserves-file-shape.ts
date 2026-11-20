@@ -16,7 +16,7 @@ const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteT
 const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 let failures = 0
 let checks = 0

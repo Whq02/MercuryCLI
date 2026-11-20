@@ -27,7 +27,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getAttachments } = await import('../../src/utils/attachments/orchestrator.ts')
+const { getAttachments } = await import('../../src/services/attachments/orchestrator.ts')
 const model = 'gpt-6-astra'
 const fixtureTool = (server: string): Tool => ({
   name: `mcp__${server}__echo`,

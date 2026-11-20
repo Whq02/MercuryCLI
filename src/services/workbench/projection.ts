@@ -8,7 +8,7 @@ import {
 } from '../../utils/sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
-import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
+import { listReviewArtifactHeadsSource } from '../artifacts/reviewStore.js'
 import {
   classifyReadFailure,
   healthOf,
@@ -20,10 +20,10 @@ import {
   valueOr,
   type SourceState,
 } from '../../substrate/sourceState.js'
-import { subscribeExecutionEvents, listExecutions } from '../primitives/executionPlane.js'
+import { subscribeExecutionEvents, listExecutions } from '../../utils/primitives/executionPlane.js'
 import { getRunSnapshot, subscribeRuns } from '../run/runCoordinator.js'
 import { loadRunSidecar } from '../run/runSidecar.js'
-import { processMainOwner, processOwnerForLane } from '../run/resolveOwner.js'
+import { processMainOwner, processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import type { RunSnapshot } from '../run/runKernel.js'
 import {
   workbenchEnabled,

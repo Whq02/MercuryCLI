@@ -2,7 +2,7 @@ import { writeSync } from 'node:fs'
 import stringWidth from 'string-width'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { readUsageHistory, type UsageHistoryReport, type UsageTotals } from '../../cost-tracker.js'
-import { DEEPSEEK_PRICING_SOURCE, DEEPSEEK_PRICING_OBSERVED_AT } from '../../services/providers/deepseek/deepseekPins.js'
+import { DEEPSEEK_PRICING_SOURCE, DEEPSEEK_PRICING_OBSERVED_AT } from '../../utils/model/pins/deepseekPins.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 
 const clean = (value: string): string => value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?')

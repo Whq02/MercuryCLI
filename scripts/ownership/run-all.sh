@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/config.ts src/utils/settings/** src/utils/permissions/** src/types/permissions.ts src/types/message.ts
-# gate-watch: src/services/compact/** src/services/mcp/** src/services/tools/** src/services/run/effectObserver*
+# gate-watch: src/services/compact/** src/services/mcp/** src/services/tools/** src/utils/run/effectObserver*
 # gate-watch: src/query.ts src/rows/turn.ts src/run-core/** src/cli/run.ts src/cli/headless/** src/cli/structuredIO.ts
 # gate-watch: src/tools/AgentTool/AgentTool* src/utils/crew/** src/main.tsx src/screens/Chat.tsx src/components/PromptInput/PromptInput*
 # gate-watch: scripts/lib/* scripts/verify/impactManifest.ts

@@ -11,11 +11,11 @@ import { writeTextContent } from '../../utils/file.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { createAbortedCommand, createFailedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 interface IdeToolCapabilities {
   readTextFile: boolean
@@ -266,13 +266,26 @@ const EDITOR_OUTPUT_BOUND_MS = 3_000
 
 async function outputAfterExit(door: IdeToolDoor, terminalId: string, wait: boolean, signal?: AbortSignal): Promise<{ output: string; notes: string[] }> {
   let snap = await door.terminalOutput({ terminal_id: terminalId }, signal)
-  const began = Date.now()
-  let changed = began
-  while (wait && snap.exit_status == null && Date.now() - changed < EDITOR_OUTPUT_QUIET_MS && Date.now() - began < EDITOR_OUTPUT_BOUND_MS) {
-    await sleep(EDITOR_OUTPUT_POLL_MS)
-    const next = await door.terminalOutput({ terminal_id: terminalId }, signal)
-    if (next.output !== snap.output) changed = Date.now()
-    snap = next
+  let changed = Date.now()
+  if (wait && snap.exit_status == null) {
+    let first = true
+    await pollUntil(
+      async () => {
+        if (first) {
+          first = false
+          return undefined
+        }
+        const next = await door.terminalOutput({ terminal_id: terminalId }, signal)
+        if (next.output !== snap.output) changed = Date.now()
+        snap = next
+        if (snap.exit_status != null || Date.now() - changed >= EDITOR_OUTPUT_QUIET_MS) return true
+        return undefined
+      },
+      EDITOR_OUTPUT_POLL_MS,
+      EDITOR_OUTPUT_BOUND_MS,
+      () => false,
+      { signal },
+    )
   }
   const notes: string[] = []
   if (wait && snap.exit_status == null && Date.now() - changed < EDITOR_OUTPUT_QUIET_MS) {
@@ -435,31 +448,38 @@ export async function execViaIdeTerminal(
   }, options.timeout)
   timeoutTimer.unref?.()
 
-  let polling = false
-  let pollTimer: NodeJS.Timeout | undefined = startInterval(() => {
-    if (polling || (status !== 'running' && status !== 'backgrounded')) return
-    polling = true
-    void door
-      .terminalOutput({ terminal_id: terminalId })
-      .then(snap => {
-        if (snap.output.length > lastOutput.length) {
+  const pollAbort = new AbortController()
+  let firstPoll = true
+  void pollUntil(
+    async () => {
+      if (status !== 'running' && status !== 'backgrounded') return true
+      if (firstPoll) {
+        firstPoll = false
+        return undefined
+      }
+      try {
+        const snap = await door.terminalOutput({ terminal_id: terminalId })
+        if (!pollAbort.signal.aborted && snap.output.length > lastOutput.length) {
           const delta = snap.output.slice(lastOutput.length)
           lastOutput = snap.output
           taskOutput.writeStdout(delta)
         }
-      })
-      .catch(passedOver)
-      .finally(() => {
-        polling = false
-      })
-  }, 150)
-  pollTimer.unref?.()
+      } catch (error) {
+        passedOver(error)
+      }
+      return undefined
+    },
+    150,
+    Infinity,
+    () => false,
+    { signal: pollAbort.signal, onAbort: () => false, unref: true },
+  )
 
   const resultPromise: Promise<ExecResult> = (async () => {
     try {
       const exit = await door.terminalWaitForExit({ terminal_id: terminalId }, abortSignal)
       if (timeoutTimer !== undefined) stopTimeout(timeoutTimer)
-      if (pollTimer !== undefined) stopInterval(pollTimer)
+      pollAbort.abort()
       let finalSnap = lastOutput
       let notes: string[] = []
       try {
@@ -486,7 +506,7 @@ export async function execViaIdeTerminal(
       }
     } catch (error) {
       if (timeoutTimer !== undefined) stopTimeout(timeoutTimer)
-      if (pollTimer !== undefined) stopInterval(pollTimer)
+      pollAbort.abort()
       await releaseOnce()
       await taskOutput.flush()
       return {
@@ -517,7 +537,7 @@ export async function execViaIdeTerminal(
     },
     cleanup(): void {
       if (timeoutTimer !== undefined) stopTimeout(timeoutTimer)
-      if (pollTimer !== undefined) stopInterval(pollTimer)
+      pollAbort.abort()
       taskOutput.clear()
       void releaseOnce()
     },

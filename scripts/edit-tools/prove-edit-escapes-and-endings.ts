@@ -16,7 +16,7 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { locateActualString } = await import('../../src/tools/FileEditTool/utils.ts')
+const { locateActualString } = await import('../../src/utils/fileEditUtils.ts')
 const { preserveUntouchedLineEndings } = await import('../../src/utils/file.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 

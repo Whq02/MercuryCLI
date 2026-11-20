@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../glyphs.js'
 import { EXTERNAL_PERMISSION_MODES, PERMISSION_MODES, type PermissionMode } from '../../types/permissions.js'
 
 export {

@@ -45,7 +45,7 @@ const pipes: Array<{ fd: number; onClosed: () => void; closed: boolean }> = []
 const note = (call: string, args: unknown[]): void => void seen.push({ call, args })
 
 const workers = await import('../../src/daemon/concourseWorkers.ts')
-const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const ownerWatch = await import('../../src/utils/ownerWatch.ts')
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
 const idleRetirement = await import('../../src/daemon/idleRetirement.ts')
 const sleepDoor = await import('../../src/utils/sleep.ts')
@@ -73,7 +73,7 @@ mock.module('../../src/daemon/concourseWorkers.ts', () => ({
     return script.records
   },
 }))
-mock.module('../../src/daemon/ownerWatch.ts', () => ({
+mock.module('../../src/utils/ownerWatch.ts', () => ({
   ...ownerWatch,
   getProcessStartTokenAsync: (pid: number) => {
     note('token', [pid])

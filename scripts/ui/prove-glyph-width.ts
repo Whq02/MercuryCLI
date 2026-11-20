@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { GLYPH, SPARK } from '../../src/components/mercury-ui/glyphs.js'
-import { charWidth, displayWidth, padTo } from '../../src/components/mercury-ui/glyphs.js'
+import { GLYPH, SPARK } from '../../src/utils/glyphs.js'
+import { charWidth, displayWidth, padTo } from '../../src/utils/glyphs.js'
 import { stringWidth } from '../../src/ink/stringWidth.js'
 
 let failures = 0

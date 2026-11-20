@@ -25,7 +25,7 @@ console.log('── §2 a real Structure apply commits THROUGH the core ──')
 const { runStructureQuery } = await import('../../src/services/structure/query.ts')
 const { buildPreview, applyPreview } = await import('../../src/services/structure/transform.ts')
 const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 const owner = processMainOwner()
 const fixture = mkdtempSync(join(tmpdir(), 'fulcrum-mig-fix-'))

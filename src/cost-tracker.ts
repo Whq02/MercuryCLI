@@ -27,16 +27,16 @@ import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './bootstr
 import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
 import type { ApiUsage } from './types/wire.js'
-import { usageCount } from './services/api/emptyUsage.js'
+import { usageCount } from './utils/api/emptyUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
 import { logForDebugging } from './utils/debug.js'
 import { formatDuration, formatNumber } from './utils/format.js'
 import { getTranscriptPathForSession } from './utils/sessionStorage/paths.js'
-import type { TranscriptUsageRollup } from './utils/sessionStorage/usageRollup.js'
+import type { TranscriptUsageRollup } from './services/usage/usageRollup.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
-import { modelPricingBasis } from './utils/modelCost.js'
+import { modelPricingBasis } from './services/usage/modelCost.js'
 import { parseFirstPartyGeneration } from './utils/model/configs.js'
 import { getCanonicalName } from './utils/model/model.js'
 import {
@@ -221,7 +221,7 @@ async function transcriptLedgerForSession(
   transcriptPath: string | undefined,
 ): Promise<TranscriptUsageRollup | null> {
   try {
-    const { rollupSessionUsage } = await import('./utils/sessionStorage/usageRollup.js')
+    const { rollupSessionUsage } = await import('./services/usage/usageRollup.js')
     const rollup = await rollupSessionUsage(transcriptPath ?? getTranscriptPathForSession(sessionId), sessionId)
     return rollup.responses > 0 ? rollup : null
   } catch (error) {
@@ -378,4 +378,4 @@ import {
   getTotalOutputTokens,
   getTotalWebSearchRequests,
 } from './bootstrap/state.js'
-export { readUsageHistory, type UsageHistoryReport, type UsageTotals } from './utils/usageHistory.js'
+export { readUsageHistory, type UsageHistoryReport, type UsageTotals } from './services/usage/usageHistory.js'

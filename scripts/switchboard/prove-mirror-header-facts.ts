@@ -30,7 +30,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const j = (value: unknown): string => JSON.stringify(value)
 
 const cells = (text: string): number => [...text].length
-const { truncateToWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
+const { truncateToWidth } = await import('../../src/utils/glyphs.ts')
 const header = (await import('../../src/components/concourse/mirrorHeader.ts').catch(() => null)) as null | typeof import('../../src/components/concourse/mirrorHeader.ts')
 
 const HINT = '↵ enter session'

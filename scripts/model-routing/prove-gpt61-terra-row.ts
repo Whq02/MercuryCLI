@@ -13,13 +13,13 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { gptDisplayPin, GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+const { gptDisplayPin, GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
 const { getModelMaxOutputTokens, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.js')
 const { resolveEffortTruth, resolveStampedEffortTruth } = await import('../../src/utils/effort.js')
 const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.js')
 const { buildOpenaiResponsesRequest, openaiEffortWireFact } = await import('../../src/services/providers/openai/responsesBridge.js')
 

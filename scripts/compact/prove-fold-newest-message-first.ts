@@ -170,7 +170,7 @@ section('N3 the decision counts the whole view: a history under the threshold pl
     if (last.includes(BIG_ASK_HEAD)) return { text: 'the big ask was answered after the fold' }
     return { text: 'resumed', usage: { input: 600, output: 10 } }
   })
-  const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+  const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
   const history = seed(8, 24_000)
   const bigAsk = createUserMessage({ content: `${BIG_ASK_HEAD}\n${'a pasted log line that must ride whole\n'.repeat(2_400)}` })
   const historyTokens = tokenCountWithEstimation(history as never, MODEL)
@@ -192,7 +192,7 @@ section('N4 a lone message with no history behind it: nothing is folded (no summ
     if (isSummariser(request.body)) return { text: 'a summary that must never be asked for' }
     return { text: 'the lone message was answered directly', usage: { input: 600, output: 10 } }
   })
-  const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+  const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
   const lone = createUserMessage({ content: `${BIG_ASK_HEAD}\n${'a pasted log line that must ride whole\n'.repeat(2_400)}` })
   const loneTokens = tokenCountWithEstimation([lone] as never, MODEL)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(loneTokens + 10_000)

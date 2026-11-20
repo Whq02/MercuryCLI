@@ -1,4 +1,4 @@
-import type { MCPServerConnection, ConnectedMCPServer } from '../../../services/mcp/types.js'
+import type { MCPServerConnection, ConnectedMCPServer } from '../../../utils/mcp/types.js'
 import * as printTurn from '../printTurn.js'
 import { getAllBaseTools } from '../../../tools.js'
 import type { AppState } from '../../../state/AppStateStore.js'

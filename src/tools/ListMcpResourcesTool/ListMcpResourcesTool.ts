@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import type { ServerResource } from '../../services/mcp/types.js'
+import type { ServerResource } from '../../utils/mcp/types.js'
 import { logMCPError } from '../../utils/log.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, LIST_MCP_RESOURCES_TOOL_NAME, PROMPT } from './prompt.js'

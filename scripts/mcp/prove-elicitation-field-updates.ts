@@ -11,8 +11,8 @@ const check = (label: string, ok: boolean): void => {
 }
 const pending: Array<(value: { isValid: boolean; value: string }) => void> = []
 await import('../../src/tools/AgentTool/AgentTool.js')
-const validation = await import('../../src/utils/mcp/elicitationValidation.js')
-mock.module('../../src/utils/mcp/elicitationValidation.js', () => ({
+const validation = await import('../../src/services/mcp/elicitationValidation.js')
+mock.module('../../src/services/mcp/elicitationValidation.js', () => ({
   ...validation,
   validateElicitationInputAsync: async () => new Promise(resolve => { pending.push(resolve) }),
 }))

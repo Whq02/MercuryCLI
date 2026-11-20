@@ -1,4 +1,4 @@
-import type { Client, ElicitResult } from './sdk.js'
+import type { Client, ElicitResult } from '../../utils/mcp/sdk.js'
 
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'

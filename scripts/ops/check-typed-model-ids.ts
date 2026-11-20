@@ -80,7 +80,7 @@ const skipped: string[] = []
 {
   const openai = await import('../../src/services/providers/openai/openaiAccounts.js')
   const { fetchOpenaiLiveModels } = await import('../../src/services/providers/openai/openaiClient.js')
-  const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+  const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
   const typed = GPT_DISPLAY_PINS.map(pin => pin.id)
   const presence = openai.openaiSubscriptionPresence()
   if (presence.state !== 'absent') {
@@ -157,7 +157,7 @@ const skipped: string[] = []
 {
   const gemini = await import('../../src/services/providers/gemini/geminiAccounts.js')
   const { fetchGeminiLiveModels } = await import('../../src/services/providers/gemini/geminiCatalogue.js')
-  const { GEMINI_PRICE_PINS } = await import('../../src/services/providers/gemini/geminiPins.js')
+  const { GEMINI_PRICE_PINS } = await import('../../src/utils/model/pins/geminiPins.js')
   const typed = GEMINI_PRICE_PINS.map(pin => pin.id)
   const key = gemini.resolveGeminiApiKey(env)
   if (key) {
@@ -196,7 +196,7 @@ const skipped: string[] = []
 {
   const accounts = await import('../../src/services/providers/deepseek/deepseekAccounts.js')
   const { fetchDeepseekLiveModels } = await import('../../src/services/providers/deepseek/deepseekCatalogue.js')
-  const { DEEPSEEK_DISPLAY_PINS, deepseekCurrentModelId } = await import('../../src/services/providers/deepseek/deepseekPins.js')
+  const { DEEPSEEK_DISPLAY_PINS, deepseekCurrentModelId } = await import('../../src/utils/model/pins/deepseekPins.js')
   const typed = DEEPSEEK_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveDeepseekApiKey(env)
   if (key) {
@@ -233,7 +233,7 @@ const skipped: string[] = []
 {
   const accounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.js')
   const { fetchHuggingfaceLiveModels } = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.js')
-  const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/services/providers/huggingface/huggingfacePins.js')
+  const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/utils/model/pins/huggingfacePins.js')
   const typed = HUGGINGFACE_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveHuggingfaceApiKey(env)
   if (key) {
@@ -257,7 +257,7 @@ const skipped: string[] = []
   const { resolveZaiDispatch } = await import('../../src/services/providers/providerDiscovery.js')
   const { zaiChatCompletionsUrl } = await import('../../src/services/providers/zai/zaiClient.js')
   const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
-  const { GLM_PRICE_PINS } = await import('../../src/services/providers/zai/glmPins.js')
+  const { GLM_PRICE_PINS } = await import('../../src/utils/model/pins/glmPins.js')
   const typed = keyLanePins('zai').map(pin => pin.id)
   const table: ListResult = { typedTable: GLM_PRICE_PINS.map(pin => pin.observedAt).sort().at(-1) ?? 'unknown', ids: GLM_PRICE_PINS.map(pin => pin.id) }
   const dispatch = resolveZaiDispatch(env)
@@ -277,7 +277,7 @@ const skipped: string[] = []
 
 {
   const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.js')
-  const { KIMI_DISPLAY_PINS } = await import('../../src/services/providers/moonshot/kimiPins.js')
+  const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.js')
   const typed = KIMI_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveMoonshotApiKey(env)
   if (key) {
@@ -325,7 +325,7 @@ const skipped: string[] = []
 {
   const accounts = await import('../../src/services/providers/zen/zenAccounts.js')
   const { fetchZenLiveModels } = await import('../../src/services/providers/zen/zenCatalogue.js')
-  const { ZEN_DISPLAY_PINS } = await import('../../src/services/providers/zen/zenPins.js')
+  const { ZEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/zenPins.js')
   const typed = ZEN_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveZenApiKey(env)
   families.push({

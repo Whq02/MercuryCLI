@@ -24,7 +24,7 @@ const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { cleanupStaleAgentWorktrees, cleanupWorktree, createAgentWorktree, createWorktreeForSession, getCurrentWorktreeSession, unlockAgentWorktree } = await import('../../src/utils/worktree.ts')
 const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourseWorktrees.ts')
-const { crewLeftoverWorktrees } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
+const { crewLeftoverWorktrees } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const clones = (await import('../../src/utils/worktreeClone.ts')) as Record<string, unknown>
 const setWorktreeAside = clones.setWorktreeAside as ((path: string) => string | null) | undefined
 const discardSetAside = clones.discardSetAside as ((path: string) => void) | undefined

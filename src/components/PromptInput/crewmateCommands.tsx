@@ -8,7 +8,7 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import type { AppState } from '../../state/AppState.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import { isLocalAgentTask, requestAgentCompaction } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../../tools/AgentTool/constants.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../constants/tools/agent.js'
 import {
   crewmateCommandUnreachableWords,
   crewmateCompactWords,
@@ -26,7 +26,7 @@ import {
 } from '../../utils/cockpit/crewmateWords.js'
 import { closeSettingsPopup, openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { getContextWindowForModel } from '../../utils/context.js'
-import { crewmateModelOverride } from '../../utils/crew/crewmateModelWord.js'
+import { crewmateModelOverride } from '../../services/crew/crewmateModelWord.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString, resolveStampedEffortTruth, selectableEffortLevels, type EffortLevel } from '../../utils/effort.js'
 import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'

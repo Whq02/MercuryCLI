@@ -36,7 +36,7 @@ import { JEV_STATUS_HEADWORDS, jevStatusLine } from '../../services/jev/jevStatu
 import { openrouterObservedKeyUsage } from '../../services/providers/openrouter/openrouterUsageState.js'
 import type { JevFactsV1 } from '../../services/engine-connector/types.js'
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'

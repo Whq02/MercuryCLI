@@ -1,5 +1,5 @@
 import { activeSourceUsage, limitBindsWords } from '../../services/providers/providerUsage.js'
-import { formatCountdown } from '../../utils/cockpit/quota.js'
+import { formatCountdown } from '../../services/cockpit/quota.js'
 import { geminiLaneModelsByLastUse, geminiPlanQuotaView } from '../../services/providers/gemini/geminiPlanQuota.js'
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { walletEntries } from '../../services/wallet/wallet.js'

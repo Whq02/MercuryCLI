@@ -8,7 +8,7 @@ import {
   type HealthStatus,
   type LastCertSummary,
 } from '../../utils/healthCertCore.js'
-import { lastCertPath, runHealthReport } from '../../utils/healthReport.js'
+import { lastCertPath, runHealthReport } from '../../services/health/healthReport.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { withDeadline } from '../../utils/deadline.js'
 

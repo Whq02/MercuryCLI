@@ -71,7 +71,7 @@ if ('error' in parsed) {
   process.exit(2)
 }
 
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 const godot = await import('../../src/services/ide/godotSession.js')
 
 
@@ -234,7 +234,7 @@ await runWithCwdOverride(root, async () => {
     JSON.stringify(after.dap.sessions),
   )
 
-  const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
+  const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
   await disposeOwner(owner)
 })
 

@@ -9,7 +9,7 @@ import { markLaunchBegun } from '../substrate/launchMilestones.js'
 import { markExplicitBootJourney, retractExplicitBootJourney } from '../substrate/splashHandover.js'
 import { getCwd } from '../utils/cwd.js'
 import { getTools } from '../tools.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import {
   exitWithError,
   getRenderContext,
@@ -41,7 +41,7 @@ import { getDefaultAppState } from '../state/AppStateStore.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { Props as ChatProps } from '../screens/Chat.js'
 import type { UUID } from 'node:crypto'
-import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
+import type { ScopedMcpServerConfig } from '../utils/mcp/types.js'
 import { reconcileManagedShims, resolveLayoutRoots } from '../services/privateChannel/installLayout.js'
 import type { Root } from '../ink.js'
 import { typedString, writeErr, UUID_SHAPE, type RootOptions } from './cli.js'

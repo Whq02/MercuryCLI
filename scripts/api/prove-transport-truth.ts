@@ -16,7 +16,7 @@ delete process.env.MERCURY_MAX_CONNECTIONS
 delete process.env.MERCURY_API_TIMEOUT_MS
 
 const proxy = await import('../../src/utils/proxy.ts')
-const evidence = await import('../../src/services/api/transportEvidence.ts')
+const evidence = await import('../../src/utils/api/transportEvidence.ts')
 const { apiErrorDetailOf, createSystemAPIErrorMessage } = await import(
   '../../src/utils/messages/systemMessages.ts'
 )

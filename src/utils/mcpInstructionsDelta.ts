@@ -1,4 +1,4 @@
-import type { MCPServerConnection } from '../services/mcp/types.js'
+import type { MCPServerConnection } from './mcp/types.js'
 import type { Message } from '../types/message.js'
 
 

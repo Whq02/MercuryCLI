@@ -61,7 +61,7 @@ function pidAlive(pid: number): boolean {
 
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.js')
-const proto = (await import('../../src/services/blender/bridgeProtocol.js')) as Record<string, unknown>
+const proto = (await import('../../src/utils/blender/bridgeProtocol.js')) as Record<string, unknown>
 const { resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
 const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
 const installer = await import('../../src/services/blender/bridgeInstaller.js')
@@ -526,7 +526,7 @@ section('§7 · blender_status with no window (B-2, B-3): binary + source, versi
   check('when unlocated, names MERCURY_BLENDER_BIN', sMissing.includes('MERCURY_BLENDER_BIN'))
   check('the tool prompt gains nothing from B-3', getBlenderToolDescription() === descBefore && !descBefore.includes('channelbags'))
 
-  const { probeBlenderVersion } = await import('../../src/services/ide/blenderProject.js')
+  const { probeBlenderVersion } = await import('../../src/utils/blender/blenderProject.js')
   const keptVersion = probeBlenderVersion(fixture5.bin).version
   const startsBeforeUpgrade = fixture5.invocations().length
   const upgraded = createFakeBlenderFixture(path.join(scratch, 'bin54'), { version: '5.4.0', name: 'blender54' })

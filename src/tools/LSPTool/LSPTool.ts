@@ -22,7 +22,7 @@ import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../u
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
 import { runMercuryLspOp, type MercuryLspOpInput, type MercuryLspOpOutput } from './mercuryOps.js'
 import { readLocationSourceLines, boundWorkspaceSymbols, formatDocumentSymbolResult, formatFindReferencesResult, formatGoToDefinitionResult, formatHoverResult, formatIncomingCallsResult, formatOutgoingCallsResult, formatWorkspaceSymbolResult, uriToPath, type DocumentSymbol, type HoverResult, type IncomingCall, type Location, type Locationish, type OutgoingCall, type SymbolInformation } from './formatters.js'
-import { LSP_DESCRIPTIONS, LSP_SEARCH_HINTS, type LspToolName } from './prompt.js'
+import { LSP_DESCRIPTIONS, LSP_SEARCH_HINTS, type LspToolName } from '../../constants/tools/lsp.js'
 import { LSP_INPUT_JSON_SCHEMAS, lspInputSchema, readArguments, readArgumentError, type LspInput } from './schemas.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage } from './UI.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -244,6 +244,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
       }
       return { data, effect: makeEffect(operation, op.effect.outcome, opResult, startedAt, { changedPaths: op.effect.changedPaths, evidence: op.effect.evidence, ...(op.effect.details !== undefined ? { details: op.effect.details } : {}) }) }
     } catch (err) {
+      if (context.abortController.signal.aborted && (err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
       logError(err)
       return fail(failureWords(err, filePath))
     }
@@ -293,6 +294,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
       const counts = locationCounts(bounded.shown.map(symbol => ({ uri: symbol.location?.uri })))
       return { data: { operation, result, filePath, ...counts }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
     } catch (err) {
+      if (context.abortController.signal.aborted && (err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
       logError(err)
       if (isLspStartFailure(err)) return fail(failureWords(err, startPath))
       return fail(`The workspaceSymbol search for "${query}" failed: ${err instanceof Error ? err.message : String(err)}`)
@@ -366,6 +368,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
     }
     return { data: { operation, result, filePath, ...counts, outcome: 'succeeded' }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
   } catch (err) {
+    if (context.abortController.signal.aborted && (err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
     logError(err)
     return fail(failureWords(err, filePath))
   }

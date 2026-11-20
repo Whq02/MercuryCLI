@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 const root = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const storage = await import(join(root, 'utils/toolResultStorage.ts'))
-const { persistBinaryContent } = await import(join(root, 'utils/mcpOutputStorage.ts'))
+const { persistBinaryContent } = await import(join(root, 'services/mcp/mcpOutputStorage.ts'))
 try {
   const bytes = Buffer.from([0, 255, 1, 13, 10])
   const cases: Array<[string | undefined, string]> = [

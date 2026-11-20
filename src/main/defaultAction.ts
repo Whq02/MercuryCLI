@@ -95,7 +95,7 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
 
   const agentInfo = await getAgentDefinitionsWithOverrides()
   const { activeAgents, allAgents } = agentsWithCliDefs(opts, agentInfo)
-  const { lspAgentNote } = await import('../services/lsp/toolFamily.js')
+  const { lspAgentNote } = await import('../utils/lsp/toolFamily.js')
   const mainThreadAgentDefinition = mainThreadAgentOf(opts, activeAgents, lspAgentNote)
 
   let userSpecifiedModel = typedString(opts.model)

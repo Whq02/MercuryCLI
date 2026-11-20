@@ -5,7 +5,7 @@ import type { useKeybindingContext } from '../../keybindings/KeybindingContext.j
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from '../../keybindings/types.js'
 import TextInput from '../TextInput.js'
 import { CommandCenter, EmptyState } from '../mercury-ui/components.js'
-import { GLYPH, padTo, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from '../../utils/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { createBoxRoad } from './boxRoad.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { hostHuggingfaceScopeWords, hostPaidPodWords, LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
 import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/index.js'
 import { HOST_VENDORS, vendorClient, vendorKey, vendorLabel, saveVendorKey, vendorStorage, vendorKeyNotice, runpodOnly, type HostVendorId } from './vendors/client.js'
@@ -641,9 +641,13 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
       progress('stopping')
       try {
         await run.api.stop(run.pod.id)
-        const deadline = Date.now() + 120_000
-        while (Date.now() < deadline) { run.pod = await confirming('pod', readSignal => run.api!.get(run.pod!.id, readSignal)); if (run.pod.status === 'EXITED') break; await sleep(pauseMs, signal, { throwOnAbort: true }) }
-        if (run.pod.status !== 'EXITED') throw new Error('Stop requested but the pod has not stopped yet. It may still be billing compute.')
+        await pollUntil(
+          async () => { run.pod = await confirming('pod', readSignal => run.api!.get(run.pod!.id, readSignal)); if (run.pod.status === 'EXITED') return true },
+          pauseMs,
+          120_000,
+          () => { throw new Error('Stop requested but the pod has not stopped yet. It may still be billing compute.') },
+          { signal },
+        )
       } catch (error) {
         const detail = run.pod.id + ' · ' + plain(error) + ' · compute may still bill · /llmhost → Machines I’m paying for → Stop again or Terminate'
         emit({ title: words.manage, words: detail })

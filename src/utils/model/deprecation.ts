@@ -1,4 +1,4 @@
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../glyphs.js'
 
 type DeprecationEntry = {
   match: string

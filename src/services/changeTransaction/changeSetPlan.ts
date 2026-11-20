@@ -1,12 +1,12 @@
 
-import { createHash } from 'node:crypto'
 import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { preserveUntouchedLineEndings } from '../../utils/file.js'
 import { detectLineEndingsForString, LOSSY_DECODE_MESSAGE } from '../../utils/fileRead.js'
+import { sha256Hex } from '../../utils/hash.js'
 import { expandPath } from '../../utils/path.js'
 import { foldCaseInsensitivePath } from '../../utils/platform/paths.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import {
   CHANGESET_BOUNDS,
   CHANGESET_CONTRACT_VERSION,
@@ -49,10 +49,6 @@ interface ChangeSetPlanContext {
     spans: readonly import('./hunks.js').HunkSpan[],
   ) => { ok: true } | { ok: false; message: string }
   now?: number
-}
-
-export function sha256Hex(data: Buffer | string): string {
-  return createHash('sha256').update(data).digest('hex')
 }
 
 export function canonicalPathKey(canonical: string): string {

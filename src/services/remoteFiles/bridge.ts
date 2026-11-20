@@ -53,7 +53,7 @@ import {
   RemotePathError,
   type RemoteAuthority,
   type RemoteTarget,
-} from './target.js'
+} from '../../utils/remoteFiles/target.js'
 import { passedOverAs } from '../../utils/passedOver.js'
 
 type ToolType = 'read' | 'edit'

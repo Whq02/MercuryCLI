@@ -19,7 +19,7 @@ const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import(join(repo, 'src/Tool.ts'))
 const { getInstructionFiles } = await import(join(repo, 'src/services/instructions/engine.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/utils/attachments/nestedMemory.ts'))
+const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/services/attachments/nestedMemory.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/utils/fileStateCache.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const files = await getInstructionFiles()

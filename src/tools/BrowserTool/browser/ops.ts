@@ -12,7 +12,7 @@ import {
 import { emulationLines, heldDevice, parseEmulation } from '../../../services/browser/browserEmulation.js'
 import { resolveBrowserSecret } from '../../../services/browser/browserSecrets.js'
 import type { Transfer } from '../../../services/browser/browserTransfers.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { type Input, PRESS_KEYS, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { CRASH_OPEN_OPS, crashedWords, isDriverTimeout, noSessionWords } from './failures.js'
 import { type LiveSession, errorPageWords, pageWhere, preview, sendOrigin, targetSurface } from './page.js'

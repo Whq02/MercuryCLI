@@ -27,7 +27,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const compact = await import('../../src/services/compact/autoCompact.ts')
-const { contextFillView } = await import('../../src/utils/contextFill.ts')
+const { contextFillView } = await import('../../src/services/context/contextFill.ts')
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 
 const USED = 200_000

@@ -12,7 +12,7 @@ process.env.NODE_ENV = 'test'
 
 const { closeRemoteConnections, remoteRun, RemoteConnectionError, resolveRemoteAuthority } = await import('../../src/services/remoteFiles/connection.ts')
 const { remotePrelude, remoteQuote } = await import('../../src/services/remoteFiles/prelude.ts')
-const { resolvedAuthority, RemotePathError } = await import('../../src/services/remoteFiles/target.ts')
+const { resolvedAuthority, RemotePathError } = await import('../../src/utils/remoteFiles/target.ts')
 
 const PORT = 27061
 const watchdog = setTimeout(() => {

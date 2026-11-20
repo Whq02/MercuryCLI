@@ -21,7 +21,7 @@ export async function createRoot(options?: RenderOptions): Promise<Root> {
 export type { Instance, RenderOptions, Root }
 export { flushPendingSyncWork } from './ink/reconciler.js'
 
-export { color } from './components/design-system/color.js'
+export { color } from './utils/color.js'
 export {
   ThemeProvider,
   usePreviewTheme,

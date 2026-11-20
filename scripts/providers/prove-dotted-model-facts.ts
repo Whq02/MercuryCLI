@@ -5,7 +5,7 @@ process.env.NODE_ENV = 'test'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const caps = await import('../../src/utils/model/capabilities.ts')
 const model = await import('../../src/utils/model/model.ts')
-const cost = await import('../../src/utils/modelCost.ts')
+const cost = await import('../../src/services/usage/modelCost.ts')
 const { configureEffortParams } = await import('../../src/services/providers/anthropic/requestParams.ts')
 for (const [dotted, dashed] of [['claude-opus-4.8', 'claude-opus-4-8'], ['claude-sonnet-4.6', 'claude-sonnet-4-6'], ['claude-haiku-4.5', 'claude-haiku-4-5']]) {
   for (const suffix of ['', '[1m]', '-20260101']) for (const upper of [false, true]) {

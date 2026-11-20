@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { basename, dirname, join, resolve } from 'node:path'
 import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server'
 import { z } from 'zod/v4'
-import { Client, StreamableHTTPClientTransport } from '../../src/services/mcp/sdk.ts'
+import { Client, StreamableHTTPClientTransport } from '../../src/utils/mcp/sdk.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { waitForRow } from '../switchboard/lib/waitForRow.ts'
 import { startCrossfamilyFixture } from '../lib/crossfamilyConcourseFixture.ts'

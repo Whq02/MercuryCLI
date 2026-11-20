@@ -83,7 +83,7 @@ const insufficient = await microcompactMessages(history, undefined, 'sdk', { rea
 check('an insufficient prune has no live side effects or replacement receipt', insufficient.messages === history && insufficient.pruned === undefined && noInvalidations.length === 0)
 const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.ts')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const ledger = createContentReplacementState()
 const persisted: Array<{ toolUseId: string; replacement: string }> = []
 const planInput = { messages: history, owner: processMainOwner(), querySource: 'sdk' as const, contentReplacementState: ledger, skipToolNames: new Set(['Read', 'Edit', 'Write', 'Bash', 'Grep']), persistReplacements: async (records: Array<{ toolUseId: string; replacement: string }>) => { persisted.push(...records) } }

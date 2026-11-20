@@ -5,7 +5,7 @@ import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { Dialog } from './design-system/Dialog.js'
 import { AMBER, FAINT } from './mercuryPalette.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 
 const SLOT_OFFER_ENTER_ARM_MS = 400
 

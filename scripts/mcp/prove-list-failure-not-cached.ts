@@ -23,7 +23,7 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 console.log('a resources/list or prompts/list that fails once is asked again, never remembered as empty')
-const config: import('../../src/services/mcp/types.ts').ScopedMcpServerConfig = {
+const config: import('../../src/utils/mcp/types.ts').ScopedMcpServerConfig = {
   type: 'stdio',
   scope: 'dynamic',
   command: process.execPath,

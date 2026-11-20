@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
 import type { chatOnlyBoot, stripFacts } from '../../context/surfaceRoute.js';
 import { menuRowValueLabel, menuRowWarning, type readBootDefaultsProfile, type resolveEffectiveSettingsSnapshot, type ExplicitApplyReceipt, type MenuRow } from '../../substrate/startupMenu.js';
-import { seatCeilingDetailLines, type SeatCeilingFacts, seatCeilingValueWords } from '../../services/switchboard/capacityCheck.js';
+import { seatCeilingDetailLines, type SeatCeilingFacts, seatCeilingValueWords } from '../../utils/switchboard/capacityCheck.js';
 import { motionDetailLines, motionValueWords, type readMotionSetting } from '../../utils/cockpit/motionSetting.js';
 import { jevValueWords, type readJevSettings } from '../../services/jev/jevSetting.js';
 import { backgroundLaunchValueWords, type backgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js';

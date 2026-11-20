@@ -49,7 +49,7 @@ const has = (texts: string[], needle: string): boolean => texts.some(text => tex
 section('§1 the wire plan — the /model rows are the operator\'s record, never the model\'s view; a caveat with no rows under it never leaves')
 {
   const { createModelSwitchBreadcrumbs, createSyntheticUserCaveatMessage, createUserMessage, formatCommandInputTags } = await import('../../src/utils/messages/factories.ts')
-  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
   const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
   const prompt = (text: string) => createUserMessage({ content: text, permissionMode: 'default' })
   const reply = (id: string, text: string) => ({ type: 'assistant' as const, uuid: id, timestamp: '2026-10-11T00:00:00.000Z', message: { id, model: FABLE, role: 'assistant' as const, type: 'message' as const, content: [{ type: 'text' as const, text, citations: [] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })

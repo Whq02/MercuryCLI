@@ -1,6 +1,6 @@
 import { homedir, hostname, networkInterfaces, userInfo } from 'node:os'
 import { join } from 'node:path'
-import { isRemotePath, parseRemotePath, resolvedAuthority, type RemoteTarget } from './target.js'
+import { isRemotePath, parseRemotePath, resolvedAuthority, type RemoteTarget } from '../../utils/remoteFiles/target.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 

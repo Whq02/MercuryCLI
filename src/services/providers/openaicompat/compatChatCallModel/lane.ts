@@ -6,7 +6,7 @@ import type {
 import type { Options } from '../../anthropic/streamCore.js'
 import { type EffortWireFact } from '../../../../utils/effortStamp.js'
 import { thinkingOffWireEffort } from '../compatWire.js'
-import { nearestSupportedWireEffort } from '../../openai/gptPins.js'
+import { nearestSupportedWireEffort } from '../../../../utils/model/pins/gptPins.js'
 import { normalizeModelStringForAPI } from '../../../../utils/model/model.js'
 import type { SystemPrompt } from '../../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../../utils/thinking.js'

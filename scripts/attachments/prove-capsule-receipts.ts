@@ -18,7 +18,7 @@ try {
   enableConfigs()
   const writer = await import(`${root}/src/utils/sessionStorage/writer.ts`)
   const { loadTranscriptFile } = await import(`${root}/src/utils/sessionStorage/loading.ts`)
-  const { createAttachmentMessage } = await import(`${root}/src/utils/attachments/orchestrator.ts`)
+  const { createAttachmentMessage } = await import(`${root}/src/services/attachments/orchestrator.ts`)
   const { createUserMessage } = await import(`${root}/src/utils/messages/factories.ts`)
   const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
   const receipt = { type: 'dynamic_skill', skillDir: '/proof/skills', displayPath: 'skills', skillNames: ['proof-skill'], capsuleReceipt: 'proof-digest' }

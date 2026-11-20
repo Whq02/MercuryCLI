@@ -19,7 +19,7 @@ import {
   buildBlenderBridgeHelloFrame,
   buildBlenderBridgeRequestFrame,
   parseBlenderBridgeFrame,
-} from '../../src/services/blender/bridgeProtocol.js'
+} from '../../src/utils/blender/bridgeProtocol.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

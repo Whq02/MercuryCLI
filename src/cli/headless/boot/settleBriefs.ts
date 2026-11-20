@@ -1,6 +1,6 @@
 import { saveSessionBrief, saveAdvisorSwitch } from '../../../utils/sessionStorage.js'
 import { getMainThreadAgentType } from '../../../bootstrap/state.js'
-import { isBuiltInAgent } from '../../../tools/AgentTool/loadAgentsDir.js'
+import { isBuiltInAgent } from '../../../types/agent.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<'settleSessionBriefs'> {

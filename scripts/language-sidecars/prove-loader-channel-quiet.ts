@@ -21,7 +21,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { loadGrammarEngine } = await import('../../src/services/structure/grammarFacility.js')
+const { loadGrammarEngine } = await import('../../src/utils/structure/grammarFacility.js')
 const engine = await loadGrammarEngine()
 if (engine.state !== 'ok') {
   console.log(`  [FAIL] engine unavailable: ${engine.note}`)

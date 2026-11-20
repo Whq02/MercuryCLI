@@ -31,7 +31,7 @@ const {
   modelSupportsForcedToolChoice,
   modelThinkingAlwaysOn,
 } = await import('../../src/utils/model/capabilities.ts')
-const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
+const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
 const {
   getContextWindowForModel,
   getMaxSupportedEffortLevel,

@@ -1,6 +1,6 @@
 import { createSeatReceiptMessage } from '../../../utils/messages/systemMessages.js'
 import { isSessionPersistenceDisabled, getSessionId } from '../../../bootstrap/state.js'
-import { hasConversationTurn } from '../../../utils/conversationRecovery.js'
+import { hasConversationTurn } from '../../../services/resume/conversationRecovery.js'
 import { getSessionMessages, adoptResumedSessionFile, recordTranscript, peekProject } from '../../../utils/sessionStorage/writer.js'
 import type { UUID } from 'node:crypto'
 import { isChainParticipant } from '../../../utils/sessionStorage/paths.js'

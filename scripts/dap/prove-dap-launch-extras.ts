@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   process.env.MOCK_DAP_TRACE = trace
 
   const { createDapSession, removeDapSession } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'services/run/ownerKey.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-extras-proof', lane: 'main' })
 
   console.log('============================================================')

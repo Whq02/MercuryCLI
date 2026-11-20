@@ -19,7 +19,7 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'health-profile-'))
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 process.env.MERCURY_HOME = join(SCRATCH, 'home')
 
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const menu = await import('../../src/substrate/startupMenu.js')
 
 const bootBefore = JSON.stringify(menu.readBootEnvChoices())

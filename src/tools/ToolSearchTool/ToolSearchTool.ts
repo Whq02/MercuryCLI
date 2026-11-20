@@ -5,7 +5,7 @@ import { buildTool, closestToolByName, findToolByName, getEmptyToolPermissionCon
 import { deferralWireFormFor } from '../../services/providers/deferralWire.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { getToolManualAttachments } from '../../utils/attachments/toolManuals.js'
-import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../../services/attachments/orchestrator.js'
 import { declaredCapability } from '../../utils/capability/contract.js'
 import { compileToolCapabilityCard } from '../../utils/capability/manifest.js'
 import { logForDebugging } from '../../utils/debug.js'

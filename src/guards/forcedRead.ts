@@ -4,7 +4,7 @@ import {
   claimContinuation,
   turnBoundaryIndex,
 } from '../services/run/continuationLatch.js'
-import { processMainOwner } from '../services/run/resolveOwner.js'
+import { processMainOwner } from '../utils/run/resolveOwner.js'
 import type { Message } from '../types/message.js'
 import { logForDebugging } from '../utils/debug.js'
 import { engageTurnGuard } from './guards.js'

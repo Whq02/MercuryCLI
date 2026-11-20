@@ -45,7 +45,7 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_DAP
 
   const { createDapSession, removeDapSession, getDapSession } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'services/run/ownerKey.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
   const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-detach-proof', lane: 'main' })
 

@@ -16,8 +16,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 const tick = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const session = await import('../../src/services/browser/browserSession.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
-const { disposeAllOwnersForShutdown } = await import('../../src/services/run/ownerLifecycle.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const { disposeAllOwnersForShutdown } = await import('../../src/utils/run/ownerLifecycle.ts')
 
 class FixtureChild {
   connected = true

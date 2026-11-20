@@ -4,7 +4,7 @@ import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { openrouterObservedKeyUsage } from '../openrouter/openrouterUsageState.js'
 import { readSignInRefusal, signInRefusalWords } from '../../../utils/accounts/signInRefusal.js'
 import { label } from './keyLane.js'
-import { maskedKeyTail } from '../credentialIdentity.js'
+import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {

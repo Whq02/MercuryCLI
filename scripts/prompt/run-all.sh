@@ -4,7 +4,7 @@
 # gate-watch: src/tools/**
 # gate-watch: src/components/messages/nullRenderingAttachments.ts
 # gate-watch: src/services/resources/contracts.ts
-# gate-watch: src/utils/attachments/orchestrator.ts
+# gate-watch: src/services/attachments/orchestrator.ts
 # gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: src/services/lsp/**
 # gate-watch: src/rows/* src/runner/wire/*

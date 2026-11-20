@@ -5,7 +5,7 @@ import { useLoad } from '../hooks/effects.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useSessionSignInGate } from '../hooks/useSessionSignInGate.js'
 import { getEngineModel } from '../utils/model/model.js'
-import { NOT_SIGNED_IN_WORDS, SIGN_IN_COMMAND } from '../utils/accounts/sessionSignIn.js'
+import { NOT_SIGNED_IN_WORDS, SIGN_IN_COMMAND } from '../services/accounts/sessionSignIn.js'
 import { Box, Text } from '../ink.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useCwdState } from '../hooks/useCwdState.js'
@@ -19,7 +19,7 @@ import {
   type GitData,
   type Snapshot,
   type TraceData,
-} from '../utils/cockpit/index.js'
+} from '../services/cockpit/index.js'
 import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
@@ -30,7 +30,7 @@ import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterAr
 import { MiniCritter } from './mercury-ui/MiniCritter.js'
 import { deckPaintsDock } from './DeckPane.js'
 import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { branchChip } from './mercury-ui/glyphs.js'
+import { branchChip } from '../utils/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { CREW_VIEW_DOOR } from '../utils/cockpit/crewmateWords.js'
 import { getProjectRoot, getSessionId } from '../bootstrap/state.js'

@@ -42,7 +42,7 @@ const { BootSettingsScreen } = await import('../../src/components/BootSettingsSc
 const providerUsage = await import('../../src/services/providers/providerUsage.js')
 mock.module('../../src/services/providers/providerUsage.js', () => ({ ...providerUsage, refreshProviderUsage: async () => undefined }))
 const { call: usageCall } = await import('../../src/commands/usage/usage.js')
-const cap = await import('../../src/services/switchboard/capacityCheck.js')
+const cap = await import('../../src/utils/switchboard/capacityCheck.js')
 cap._setHeldMachineSeatReadingForTesting(6, { cores: 8, availableBytes: 6 * cap.SEAT_COST_BYTES.runner, read: 'vm_stat', sampledAt: 0 })
 const index = process.argv.indexOf('--frames')
 const dir = index < 0 ? undefined : process.argv[index + 1]

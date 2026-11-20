@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../../Tool.js'
-import type { NonNullableUsage } from '../../api/emptyUsage.js'
+import type { NonNullableUsage } from '../../../utils/api/emptyUsage.js'
 import type { AttachmentMessage, Message, SystemCompactBoundaryMessage, UserMessage, CompactMetadata } from '../../../types/message.js'
 import type { UUID } from 'node:crypto'
 import { foldedTurnReceipts } from '../../../utils/cockpit/turnReceipt.js'

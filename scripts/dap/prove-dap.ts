@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     getDapSession,
     removeDapSession,
   } = await import('../../src/services/dap/dapClient.js')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-proof', lane: 'main' })
   const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
 

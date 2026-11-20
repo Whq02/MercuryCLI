@@ -20,7 +20,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { samplesRoadAttachment, samplesRoadText } = await import('../../src/utils/attachments/samplesRoad.js')
-const { getAttachments, createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.js')
+const { getAttachments, createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
 const { createUserMessage } = await import('../../src/utils/messages.js')

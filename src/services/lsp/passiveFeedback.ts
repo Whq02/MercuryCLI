@@ -5,7 +5,7 @@ import type { PublishDiagnosticsParams } from 'vscode-languageserver-protocol'
 
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
-import type { Diagnostic, DiagnosticFile } from '../diagnosticTracking.js'
+import type { Diagnostic, DiagnosticFile } from '../../utils/diagnosticTracking.js'
 import { recordPublishedReport, registerPendingLSPDiagnostic } from './LSPDiagnosticRegistry.js'
 import type { LSPServerManager } from './LSPServerManager.js'
 

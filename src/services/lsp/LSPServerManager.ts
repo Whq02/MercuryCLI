@@ -59,6 +59,7 @@ async function forEachClaimantOf(
   try {
     await action(primary, true)
   } catch (err) {
+    if ((err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
     const wrapped = new Error(
       `LSP ${operation} failed for ${path}: ${err instanceof Error ? err.message : String(err)}`,
     )

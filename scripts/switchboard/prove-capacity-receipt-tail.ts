@@ -9,7 +9,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const mod = (await import('../../src/services/switchboard/capacityCheck.ts')) as unknown as {
+const mod = (await import('../../src/utils/switchboard/capacityCheck.ts')) as unknown as {
   capacityDecisionReceipt?: (allowed: boolean, seats: number) => string
 }
 const wrapText = (await import('../../src/ink/wrap-text.ts')).default

@@ -10,7 +10,7 @@ writeFileSync(join(f.root, 'tests', 'test_calc.py'), 'import unittest\nfrom calc
 const SYS_PY = '/usr/bin/python3'
 process.env.MERCURY_PYTHON = SYS_PY
 const { runPythonTests } = await import('../../src/services/ide/pythonTests.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 const { resolveResource } = await import('../../src/services/resources/registry.js')
 
 emit(f)

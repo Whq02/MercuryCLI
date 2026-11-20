@@ -7,7 +7,7 @@ import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { liveCount } from '../../../utils/model/modelPickerGroups.js'
 import { selectableEffortLevels } from '../../../utils/effort.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
-import { contextWindowLabel } from '../../../utils/contextFill.js'
+import { contextWindowLabel } from '../../context/contextFill.js'
 import { isLocalModelId } from '../../providers/local/localCatalogue.js'
 import { declaredRouteOf, providerDisplayName } from '../../providers/routeLaw.js'
 import { readCataloguesForOtherFamilies } from '../../providers/catalogueOnDemand.js'
@@ -317,27 +317,27 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
     }
   }
   providers.push({ provider: 'anthropic', providerName: providerDisplayName('anthropic'), models: anthropic })
-  const { GPT_DISPLAY_PINS } = await import('../../providers/openai/gptPins.js')
+  const { GPT_DISPLAY_PINS } = await import('../../../utils/model/pins/gptPins.js')
   providers.push({ provider: 'openai', providerName: providerDisplayName('openai'), familyWord: 'gpt', models: GPT_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName })) })
   for (const entry of BARE_FAMILY_WORDS) {
     const pinned = entry.pinnedDefault()
     providers.push({ provider: entry.route, providerName: providerDisplayName(entry.route), familyWord: entry.word, ...(pinned !== undefined ? { defaultId: pinned.id } : {}), models: entry.knownRows() })
   }
-  const { GEMINI_PRICE_PINS } = await import('../../providers/gemini/geminiPins.js')
+  const { GEMINI_PRICE_PINS } = await import('../../../utils/model/pins/geminiPins.js')
   providers.push({ provider: 'gemini', providerName: providerDisplayName('gemini'), familyWord: 'gemini', models: GEMINI_PRICE_PINS.map(pin => ({ id: pin.id, displayName: pin.id })) })
-  const { HUGGINGFACE_DISPLAY_PINS } = await import('../../providers/huggingface/huggingfacePins.js')
+  const { HUGGINGFACE_DISPLAY_PINS } = await import('../../../utils/model/pins/huggingfacePins.js')
   providers.push({ provider: 'huggingface', providerName: providerDisplayName('huggingface'), familyWord: 'huggingface', models: HUGGINGFACE_DISPLAY_PINS.map(pin => ({ id: `huggingface/${pin.id}`, displayName: pin.displayName })) })
-  const { ZEN_DISPLAY_PINS, zenQualifiedId } = await import('../../providers/zen/zenPins.js')
+  const { ZEN_DISPLAY_PINS, zenQualifiedId } = await import('../../../utils/model/pins/zenPins.js')
   providers.push({ provider: 'zen', providerName: providerDisplayName('zen'), familyWord: 'zen', models: ZEN_DISPLAY_PINS.map(pin => ({ id: zenQualifiedId(pin.id), displayName: pin.displayName })) })
-  const { TOGETHER_DISPLAY_PINS, togetherQualifiedId } = await import('../../providers/together/togetherPins.js')
+  const { TOGETHER_DISPLAY_PINS, togetherQualifiedId } = await import('../../../utils/model/pins/togetherPins.js')
   providers.push({ provider: 'together', providerName: providerDisplayName('together'), familyWord: 'together', models: TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName })) })
-  const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../providers/groq/groqPins.js')
+  const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../../utils/model/pins/groqPins.js')
   providers.push({ provider: 'groq', providerName: providerDisplayName('groq'), familyWord: 'groq', models: GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName })) })
   const { ORCAROUTER_DISPLAY_PINS, orcarouterQualifiedId } = await import('../../providers/orcarouter/orcarouterCatalogue.js')
   providers.push({ provider: 'orcarouter', providerName: providerDisplayName('orcarouter'), familyWord: 'orcarouter', models: ORCAROUTER_DISPLAY_PINS.map(pin => ({ id: orcarouterQualifiedId(pin.id), displayName: pin.displayName })) })
-  const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../providers/cerebras/cerebrasPins.js')
+  const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../../utils/model/pins/cerebrasPins.js')
   providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), familyWord: 'cerebras', models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
-  const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../providers/fireworks/fireworksPins.js')
+  const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../../utils/model/pins/fireworksPins.js')
   providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), familyWord: 'fireworks', models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }

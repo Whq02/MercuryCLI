@@ -23,7 +23,7 @@ const attachMsg = (attachment: Record<string, unknown>): AnyMsg => ({ type: 'att
 async function main(): Promise<void> {
   delete process.env.MERCURY_PROJECT_INTEL
   const { materializeFixture } = await import('./fixtures/materialize.js')
-  const producer = await import('../../src/utils/attachments/contextCapsule.js')
+  const producer = await import('../../src/services/attachments/contextCapsule.js')
   const capsuleModule = await import('../../src/services/projectIntel/capsule.js')
   const dir = materializeFixture('ts')
   const bootstrap = await import('../../src/bootstrap/state.js')

@@ -58,7 +58,7 @@ import {
   storeOAuthAccountInfo as storeAccount,
 } from '../services/oauth/refresh.js'
 import { getOauthProfileFromOauthToken } from '../services/oauth/getOauthProfile.js'
-import type { OAuthTokens, SubscriptionType, RateLimitTier } from '../services/oauth/types.js'
+import type { OAuthTokens, SubscriptionType, RateLimitTier } from './oauth/types.js'
 import { binaryName } from './config.js'
 import { sleep } from './sleep.js'
 import { passedOver } from './passedOver.js'

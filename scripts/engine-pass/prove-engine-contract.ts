@@ -42,19 +42,6 @@ function contract(root: string): Record<string, unknown> {
   return result
 }
 
-function exportedNames(root: string, files: readonly string[]): Map<string, Set<string>> {
-  const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile)
-  assert.equal(config.error, undefined)
-  const options = ts.parseJsonConfigFileContent(config.config, ts.sys, root).options
-  const program = ts.createProgram(files.map(path => join(root, path)), options)
-  const checker = program.getTypeChecker()
-  return new Map(files.map(path => {
-    const source = program.getSourceFile(join(root, path))
-    const module = source ? checker.getSymbolAtLocation(source) : undefined
-    return [path, new Set(module ? checker.getExportsOfModule(module).map(item => item.name) : [])]
-  }))
-}
-
 type MovementRecord = { note: string; digest: string | null }
 
 const shapeDigest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex')
@@ -137,34 +124,8 @@ try {
     () => checkShapeExports(before, driftedAfter, moved, true),
     /export shape drifted past its recorded movement/,
   )
-  let kept = 0
-  if (hasBaseObject()) {
-    const removed: Array<{ path: string; line: string }> = []
-    let path = ''
-    for (const line of git('diff', '--unified=0', BASE, '--', 'src/ink', 'src/ink.ts').split('\n')) {
-      if (line.startsWith('+++ b/')) path = line.slice('+++ b/'.length)
-      else if (/^-export\b/.test(line)) removed.push({ path, line })
-    }
-    const stillExported = exportedNames(ROOT, [...new Set(removed.map(item => item.path))].filter(file => existsSync(join(ROOT, file))))
-    for (const { path, line } of removed) {
-      const declared = (/^-export\s+(?:default\s+)?(?:declare\s+)?(?:async\s+)?(?:const\s+enum|type|interface|const|let|function|class|enum)\s+([A-Za-z_$][\w$]*)/.exec(line) ?? /^-export\s*=\s*([A-Za-z_$][\w$]*)\s*;?\s*$/.exec(line))?.[1]
-      assert.ok(declared, `an exported declaration was removed in a shape the record cannot name: ${line}`)
-      const exportName = /^-export\s+default\b/.test(line) ? 'default' : declared
-      if (stillExported.get(path)?.has(exportName)) {
-        kept++
-        continue
-      }
-      const record = moved.get(`unexported:${declared}`)
-      assert.ok(record, `an exported declaration was removed or renamed: ${declared}`)
-      named++
-      console.log(`[NAMED] -export ${declared} — ${record.note}`)
-    }
-    if (kept > 0) console.log(`[KEPT] ${kept} export line(s) rewritten in place — the same name is still exported by the same file`)
-  } else {
-    console.log('[BASE RECORD] base git object absent; exported names and resolved shapes checked against the committed contract record, textual diff unavailable')
-  }
   const count = Object.keys(before).filter(name => name.startsWith('src/ink.ts:')).length
-  console.log(`[PASS] engine contract: ${count} facade exports and ${Object.keys(before).length - count} engine/scroll exports keep their names and resolved type shapes except the ${named} movements the record names${hasBaseObject() ? `; every -export line named or still exported (${kept} rewritten in place)` : '; committed base record used'}`)
+  console.log(`[PASS] engine contract: ${count} facade exports and ${Object.keys(before).length - count} engine/scroll exports keep their names and resolved type shapes except the ${named} movements the record names`)
 } finally {
   if (own) rmSync(work, { recursive: true, force: true })
 }

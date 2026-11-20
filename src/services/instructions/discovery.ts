@@ -20,7 +20,7 @@ import type {
   InstructionConvention,
   InstructionDiagnostic,
   InstructionSourceEntry,
-} from './contracts.js'
+} from '../../utils/instructions/contracts.js'
 import { parseInstructionFileContent, readRuleSource, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 import { passedOver } from '../../utils/passedOver.js'
 

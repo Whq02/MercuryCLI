@@ -13,7 +13,7 @@ import {
   operatorPruneTranscripts,
   type PruneOffer,
   type PruneReceipt,
-} from '../../../utils/sessionStorage/transcriptPruneDoor.js'
+} from '../../../services/switchboard/transcriptPruneDoor.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../../../daemon/concourseWorkers.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { sanitizeLabel } from '../../../services/concourse/concourseSnapshot.js'

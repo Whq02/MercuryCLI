@@ -23,10 +23,10 @@ const { canonicalWireModelId } = await import('../../src/services/providers/rout
 const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
 const { refreshZenCatalogue, zenCatalogueRows, cachedLiveIds, __resetZenCatalogueForTest } = await import('../../src/services/providers/zen/zenCatalogue.ts')
 const { buildZenExtras } = await import('../../src/services/providers/zen/zenCallModel.ts')
-const { zenServedShapeOf, ZEN_DISPLAY_PINS } = await import('../../src/services/providers/zen/zenPins.ts')
+const { zenServedShapeOf, ZEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/zenPins.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
 const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model: string, effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {

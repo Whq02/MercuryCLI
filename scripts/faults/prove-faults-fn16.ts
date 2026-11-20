@@ -57,7 +57,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
     mock.module('node:os', () => ({ ...realOs, homedir: () => { throw new Error('homedir unavailable') } }))
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const paths = await import(path.join(SRC, 'services/projectLocal/paths.ts'))
+    const paths = await import(path.join(SRC, 'utils/projectLocal/paths.ts'))
     const target = path.join(WORK, 'maybe-home')
     fs.mkdirSync(target, { recursive: true })
     let threw = null
@@ -187,7 +187,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   const r = runSub(`
     const path = await import('node:path')
     const proj = await import(path.join(SRC, 'services/projectServices/executionProjection.ts'))
-    const plane = await import(path.join(SRC, 'services/primitives/executionPlane.ts'))
+    const plane = await import(path.join(SRC, 'utils/primitives/executionPlane.ts'))
     const owner = proj.serviceExecutionOwner(WORK)
     const id1 = proj.serviceExecutionId('svc-reject')
     const id2 = proj.serviceExecutionId('svc-err')
@@ -337,8 +337,8 @@ if (POSIX_MODES) {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const mgr = await import(path.join(SRC, 'services/projectServices/serviceManager.ts'))
-    const lifecycle = await import(path.join(SRC, 'services/run/ownerLifecycle.ts'))
-    const { projectOwner } = await import(path.join(SRC, 'services/primitives/owner.ts'))
+    const lifecycle = await import(path.join(SRC, 'utils/run/ownerLifecycle.ts'))
+    const { projectOwner } = await import(path.join(SRC, 'utils/primitives/owner.ts'))
 
     const svcDir = mgr.servicesDir(WORK)
     fs.mkdirSync(svcDir, { recursive: true })

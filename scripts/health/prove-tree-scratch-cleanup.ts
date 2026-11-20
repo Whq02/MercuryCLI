@@ -44,7 +44,7 @@ const scratchStores = (): string[] => (existsSync(scratchTmp) ? readdirSync(scra
 
 process.env.TMPDIR = scratchTmp
 process.env.PATH = `${slowBin}:${process.env.PATH ?? ''}`
-const { computeWorkingTreeSha } = await import('../../src/utils/healthReport.ts')
+const { computeWorkingTreeSha } = await import('../../src/services/health/healthReport.ts')
 
 section('§1 a check that gives up takes its temp object store with it')
 const controller = new AbortController()
@@ -63,7 +63,7 @@ writeFileSync(
   child,
   [
     `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }`,
-    `const { computeWorkingTreeSha } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'healthReport.ts'))})`,
+    `const { computeWorkingTreeSha } = await import(${JSON.stringify(join(ROOT, 'src', 'services', 'health', 'healthReport.ts'))})`,
     `void computeWorkingTreeSha(${JSON.stringify(repo)})`,
     `setTimeout(() => process.exit(0), 1500)`,
     '',

@@ -71,7 +71,7 @@ saveGlobalConfig(c => ({
 }))
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
 
 const GONE_ENDPOINT = 'nothing'
 const GONE_WIRE = 'none'

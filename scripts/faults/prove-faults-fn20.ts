@@ -180,7 +180,7 @@ if (!POSIX_MODES) {
 } else {
   const r = runSub(`
     const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
     const locked = path.join(PROJECT, 'locked')
     fs.mkdirSync(locked, { recursive: true })
     const target = path.join(locked, 'secret.txt')
@@ -203,8 +203,8 @@ console.log('\nresources/adapters/health.ts — corrupt gate/cert files throw in
 {
   const r = runSub(`
     const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
-    const { gateVerdictPath, lastCertPath } = await import(path.join(SRC, 'utils/healthReport.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
+    const { gateVerdictPath, lastCertPath } = await import(path.join(SRC, 'services/health/healthReport.ts'))
     const ctx = { owner: processMainOwner(), cwd: PROJECT }
     out.gateAbsent = await resolveResource('mercury://health/gate', ctx)
     out.certAbsent = await resolveResource('mercury://health/cert', ctx)
@@ -232,7 +232,7 @@ if (!POSIX_MODES) {
   const r = runSub(`
     const { jsonlConciseRows } = await import(path.join(SRC, 'services/resources/adapters/transcript.ts'))
     const { listResourceKind } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'services/run/ownerKey.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'utils/run/ownerKey.ts'))
     const { getTranscriptPathForSession } = await import(path.join(SRC, 'utils/sessionStorage/paths.ts'))
     const file = path.join(PROJECT, 'locked.jsonl')
     fs.writeFileSync(file, '{"type":"user","message":{"content":"hi"}}\\n', { mode: 0o600 })
@@ -267,7 +267,7 @@ console.log('\nresources/adapters/artifact.ts — computeWorkingTreeDigest throw
   const r = runSub(`
     const { mock } = await import('bun:test')
     const verPath = path.join(SRC, 'utils/verification/verificationState.ts')
-    const storePath = path.join(SRC, 'utils/artifacts/reviewStore.ts')
+    const storePath = path.join(SRC, 'services/artifacts/reviewStore.ts')
     const realVer = await import(verPath)
     const realStore = await import(storePath)
     mock.module(verPath, () => ({ ...realVer, computeWorkingTreeDigest: () => { throw new Error('digest boom') } }))
@@ -294,7 +294,7 @@ console.log('\nresources/adapters/artifact.ts — computeWorkingTreeDigest throw
       }),
     }))
     const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
     out.res = await resolveResource('mercury://artifact/ra-test1', { owner: processMainOwner(), cwd: PROJECT })
   `)
   const res = r.res as { state?: string; note?: string }
@@ -305,7 +305,7 @@ console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propa
 {
   const r1 = runSub(`
     const { mock } = await import('bun:test')
-    const resolveOwnerPath = path.join(SRC, 'services/run/resolveOwner.ts')
+    const resolveOwnerPath = path.join(SRC, 'utils/run/resolveOwner.ts')
     const realOwner = await import(resolveOwnerPath)
     const owner = realOwner.processMainOwner()
     mock.module(resolveOwnerPath, () => ({ ...realOwner, processMainOwner: () => { throw new Error('owner boom') } }))
@@ -320,9 +320,9 @@ console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propa
     const dapPath = path.join(SRC, 'services/dap/dapClient.ts')
     const realDap = await import(dapPath)
     mock.module(dapPath, () => ({ ...realDap, getDapSession: () => { throw new Error('dap boom') } }))
-    const { registerExecution } = await import(path.join(SRC, 'services/primitives/executionPlane.ts'))
+    const { registerExecution } = await import(path.join(SRC, 'utils/primitives/executionPlane.ts'))
     const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
-    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
     const owner = processMainOwner()
     registerExecution({
       owner,
@@ -359,7 +359,7 @@ console.log('\nrun/runCoordinator.ts — syncVerification drops verified state w
     const realVer = await import(verPath)
     mock.module(verPath, () => ({ ...realVer, verificationSummary: () => { throw new Error('verify boom') } }))
     const coord = await import(path.join(SRC, 'services/run/runCoordinator.ts'))
-    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'services/run/ownerKey.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'utils/run/ownerKey.ts'))
     const owner = makeOwnerKey({ workspace: PROJECT, sessionId: 'sync-ver-test', lane: MAIN_LANE })
     coord.acceptUserRequest(owner, { objective: 'test', rootMessageId: 'u1' })
     coord.noteRunEvent(owner, { type: 'evidence', at: 1, state: 'verified', detail: 'tests green' })
@@ -378,7 +378,7 @@ if (!POSIX_MODES) {
   const r = runSub(`
     const { saveRunSidecar, deleteRunSidecar, runSidecarPath } = await import(path.join(SRC, 'services/run/runSidecar.ts'))
     const { emptyRunSnapshot } = await import(path.join(SRC, 'services/run/runKernel.ts'))
-    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'services/run/ownerKey.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'utils/run/ownerKey.ts'))
     const owner = makeOwnerKey({ workspace: PROJECT, sessionId: '22222222-2222-2222-2222-222222222222', lane: MAIN_LANE })
     const file = runSidecarPath(owner)
     const dir = path.dirname(file)

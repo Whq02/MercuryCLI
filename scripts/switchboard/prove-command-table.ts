@@ -171,7 +171,7 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
 {
   const route = await import('../../src/context/surfaceRoute.ts')
   const { builtinCommands, commandOffInPlainWorld, isCommandEnabled } = await import('../../src/commands.ts')
-  const { unavailableCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+  const { unavailableCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
   const { setConcourseEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
@@ -206,7 +206,7 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
 console.log('C7 — the former doors are unknown commands')
 {
   const { builtinCommands } = await import('../../src/commands.ts')
-  const { unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+  const { unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
   const registry = [...builtinCommands()]
   const formerNames = ['party', 'multiplayer', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'rooms']
   const owners = (name: string) => registry.filter(c => c.name === name || c.aliases?.includes(name) === true)

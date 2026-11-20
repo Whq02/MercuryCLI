@@ -25,7 +25,7 @@ const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 const pack = await import('../../src/services/desktop/pack.js')
 const native = await import('../../src/services/desktop/nativeDriver.js')
 const fake = await import('../../src/services/desktop/fakeDesktopDriver.js')
-const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
 
 const PLATFORM = voicePackPlatform()
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')

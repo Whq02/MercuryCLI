@@ -19,7 +19,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { getProcessStartInstant } = await import(join(SRC, 'daemon/ownerWatch.ts'))
+const { getProcessStartInstant } = await import(join(SRC, 'utils/ownerWatch.ts'))
 
 let total = 0
 let failures = 0
@@ -53,7 +53,7 @@ if (process.argv[2] === 'stay') {
   const { plainTextStorage } = await import(SRC + '/utils/secureStorage/plainTextStorage.ts')
   const { startSealedStore } = await import(SRC + '/utils/secureStorage/sealedStoreStart.ts')
   const { createKeyCustody } = await import(SRC + '/utils/secureStorage/sealedRecord.ts')
-  const { getProcessStartInstant } = await import(SRC + '/daemon/ownerWatch.ts')
+  const { getProcessStartInstant } = await import(SRC + '/utils/ownerWatch.ts')
   const home = process.env.MERCURY_CONFIG_DIR
   const alive = JSON.parse(process.env.FIXTURE_TABLE ?? '[]')
   const observation = (pid, args, startedAtMs, startToken) => ({ process: { pid, ppid: 1, exe: process.execPath, args, startedAtMs, user: 'fixture-user', terminal: null }, startToken, state: 'S', terminalAlive: null })

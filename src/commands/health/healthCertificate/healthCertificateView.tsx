@@ -6,7 +6,7 @@ import { PopupScrollViewport } from '../../../components/CustomSelect/popup-list
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../../components/mercuryPalette.js'
 import { ProductLockup, SectionHeader, StateBadge } from '../../../components/mercury-ui/components.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'
-import { HEALTH_STATUS_META, type nextActions, type HealthCertificate as Cert, type HealthCheck, type HealthSection, type HealthStatus } from '../../../utils/healthReport.js'
+import { HEALTH_STATUS_META, type nextActions, type HealthCertificate as Cert, type HealthCheck, type HealthSection, type HealthStatus } from '../../../services/health/healthReport.js'
 import type { AppliedFix } from '../../../utils/healthFix.js'
 import type { healthPopupLayout } from '../HealthCertificate.js'
 

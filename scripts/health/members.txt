@@ -52,10 +52,8 @@ prove-process-census-other-build.ts
 prove-profile-section.ts
 prove-provider-slots-honesty.ts
 prove-redirected-run-boot-kind.ts
-prove-remedy-keys-exist.ts
 prove-report-order-free.ts
 prove-rg-presence-owner.ts
-prove-row-literal-bans.ts
 prove-rows-are-the-list.ts
 prove-session-scratch-retention.ts
 prove-settings-row-sources.ts

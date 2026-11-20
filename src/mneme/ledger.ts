@@ -2,7 +2,7 @@ import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readFileSync
 import { uptime } from 'node:os'
 import { dirname, join } from 'node:path'
 import { daemonDir } from '../daemon/controlSocket.js'
-import { getProcessStartToken, isProcessAlive } from '../daemon/ownerWatch.js'
+import { getProcessStartToken, isProcessAlive } from '../utils/ownerWatch.js'
 import { parseProcessStartToken } from '../daemon/processSweep.js'
 import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'

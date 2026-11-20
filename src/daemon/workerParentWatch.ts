@@ -1,9 +1,10 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { isProcessAlive, decideOrphanShutdown } from './ownerWatch.js'
+import { isProcessAlive, decideOrphanShutdown } from '../utils/ownerWatch.js'
 import { runCleanupFunctions } from '../utils/cleanupRegistry.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
-import { startInterval, startTimeout, stopTimeout } from '../utils/timers.js'
+import { withDeadline } from '../utils/deadline.js'
+import { startInterval } from '../utils/timers.js'
 
 export const WORKER_PARENT_PID_ENV = 'MERCURY_WORKER_PARENT_PID'
 
@@ -25,18 +26,10 @@ async function orphanExit(opts: {
   capMs?: number
 }): Promise<void> {
   const capMs = opts.capMs ?? WORKER_ORPHAN_CLEANUP_CAP_MS
-  let cap: ReturnType<typeof setTimeout> | undefined
   try {
-    await Promise.race([
-      opts.cleanup().catch(passedOverAs(undefined)),
-      new Promise<void>(resolve => {
-        cap = startTimeout(resolve, capMs)
-      }),
-    ])
+    await withDeadline(opts.cleanup().catch(passedOverAs(undefined)), capMs, () => undefined)
   } catch (error) {
     passedOver(error)
-  } finally {
-    if (cap) stopTimeout(cap)
   }
   opts.exit(0)
 }

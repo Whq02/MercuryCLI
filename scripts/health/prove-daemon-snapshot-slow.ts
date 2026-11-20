@@ -56,13 +56,13 @@ const { controlKeyPath, daemonStatePath, setBoxReadingForTesting } = (await impo
 const { composeSignInView } = (await import(`${root}/src/daemon/signInView.ts`)) as {
   composeSignInView: (opts?: { refresh?: boolean }) => unknown
 }
-const { daemonSnapshot } = (await import(`${root}/src/utils/cockpit/daemonSnapshot.ts`)) as {
+const { daemonSnapshot } = (await import(`${root}/src/services/cockpit/daemonSnapshot.ts`)) as {
   daemonSnapshot: () => { state: string; reason?: string }
 }
 const { runWithCwdOverride } = (await import(`${root}/src/utils/cwd.ts`)) as {
   runWithCwdOverride: <T>(cwd: string, fn: () => Promise<T>) => Promise<T>
 }
-const { runHealthReport } = (await import(`${root}/src/utils/healthReport.ts`)) as {
+const { runHealthReport } = (await import(`${root}/src/services/health/healthReport.ts`)) as {
   runHealthReport: () => Promise<{ sections: Array<{ checks: Array<{ id: string; status: string; evidence: string }> }> }>
 }
 

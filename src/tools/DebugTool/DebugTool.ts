@@ -8,11 +8,11 @@ import { startedCommandText } from '../../utils/bash/ast.js'
 import { runtimeProcessRefusal } from '../../utils/permissions/runtimeProtection.js'
 import { debuggerShellCommand } from '../../utils/permissions/flowLaw.js'
 import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { expandPath } from '../../utils/path.js'
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
-import { findUnityProjectRoot, mercuryUnityEnabled } from '../../services/ide/unityProject.js'
+import { findUnityProjectRoot, mercuryUnityEnabled } from '../../utils/unity/unityProject.js'
 import {
   type DapBreakpointSpec,
   type DapFunctionBreakpointSpec,
@@ -31,7 +31,7 @@ import * as path from 'node:path'
 import { existsSync } from 'node:fs'
 import type { AssistantMessage } from '../../types/message.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { type Input, type InputWith, type OpResult, type Output, type SchemaType, inputSchema } from './debug/schema.js'
 import { formatStackTop, reportStop, resolveThreadId } from './debug/shared.js'
 import {

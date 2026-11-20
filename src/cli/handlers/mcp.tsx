@@ -2,7 +2,7 @@ import { stat } from 'node:fs/promises'
 import { describeEnvRedacted, describeHeadersRedacted, describeUrlRedacted } from '../../utils/redactHeaders.js'
 import pMap from 'p-map'
 import { cliError, cliOk } from '../exit.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import {
   connectToServer,
   getMcpServerConnectionBatchSize,
@@ -32,8 +32,8 @@ import {
 import type {
   McpServerConfig,
   ScopedMcpServerConfig,
-} from '../../services/mcp/types.js'
-import { McpServerConfigSchema } from '../../services/mcp/types.js'
+} from '../../utils/mcp/types.js'
+import { McpServerConfigSchema } from '../../utils/mcp/types.js'
 import { binaryName } from '../../utils/config.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { errorMessage } from '../../utils/errors.js'

@@ -23,7 +23,7 @@ seedFirstRun(HOME, [CWD])
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { builtinCommands, builtInCommandNames, findCommand, getCommandName } = await import('../../src/commands.ts')
-const { unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+const { unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
 const words = await import('../../src/utils/cockpit/crewmateWords.ts')
 
 let failures = 0

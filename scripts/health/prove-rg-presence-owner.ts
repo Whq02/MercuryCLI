@@ -30,7 +30,7 @@ check(
 )
 check('this tree resolves a real engine (present)', before.present === true, `${before.mode} @ ${before.path}`)
 {
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { basename } = await import('node:path')
   const savedHere = process.cwd()
   process.chdir(decoyDir)

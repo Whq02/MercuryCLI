@@ -31,7 +31,7 @@ const j = (value: unknown): string => JSON.stringify(value)
 
 const { closeChordHintOf } = await import('../../src/components/concourse/controlManifest.ts')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
+const { GLYPH } = await import('../../src/utils/glyphs.ts')
 const { PARK_REFUSED_NOW_LEAD } = await import('../../src/services/concourse/concourseSnapshot.ts')
 const rowLine = (await import('../../src/components/concourse/rowLine.ts').catch(() => null)) as null | typeof import('../../src/components/concourse/rowLine.ts')
 

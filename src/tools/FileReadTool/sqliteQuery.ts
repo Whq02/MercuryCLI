@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { copyFile, realpath, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import type { ReadQueryRequest, ReadQueryResult } from './readQuery.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import { parseRichFormatTarget } from './readRichFormats.js'
@@ -11,7 +11,7 @@ import { runSqliteQuery } from './sqliteQueryProcess.js'
 import { classifyReadTarget } from './readTarget.js'
 
 async function remoteWal(request: ReadQueryRequest, source: string, file: string): Promise<void> {
-  const { parseRemotePath } = await import('../../services/remoteFiles/target.js')
+  const { parseRemotePath } = await import('../../utils/remoteFiles/target.js')
   const { remoteStat } = await import('../../services/remoteFiles/ops.js')
   const target = parseRemotePath(`${source}-wal`)
   if (target === null) return

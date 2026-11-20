@@ -29,7 +29,7 @@ bootstrap.setIsInteractive(false)
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getPrompt } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { kimiSupportsDynamicToolLoading } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { kimiSupportsDynamicToolLoading } = await import('../../src/utils/model/pins/kimiPins.ts')
 
 const HEAD = 'Loads the full definitions of deferred tools so they become callable.\n\n'
 const LOCATION = 'Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, and what the tool is for when it declares one; keyword search also reads each tool\'s full description.'

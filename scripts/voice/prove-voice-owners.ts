@@ -131,7 +131,7 @@ try {
   assert.ok(session.describeVoiceReadiness().detail.includes(`a debug copy of every take is written to ${dump}`))
   assert.ok(!session.describeVoiceReadiness().detail.includes('nothing is written to disk'))
   delete process.env.MERCURY_VOICE_DEBUG_WAV_DIR
-  const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
   const voiceSays = await interfaceChecks().find(row => row.id === 'iface-voice')?.run()
   const readinessNow = session.describeVoiceReadiness()
   assert.deepEqual(voiceSays, { status: readinessNow.ready ? 'ok' : 'info', evidence: readinessNow.line, detail: readinessNow.detail })

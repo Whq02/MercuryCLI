@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/usage/**
 # gate-watch: src/main.tsx
-# gate-watch: src/services/providers/deepseek/deepseekPins.ts
+# gate-watch: src/utils/model/pins/deepseekPins.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

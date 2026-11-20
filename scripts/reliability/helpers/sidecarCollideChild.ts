@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs'
 import { dirname, basename } from 'node:path'
-import { makeOwnerKey } from '../../../src/services/run/ownerKey.ts'
+import { makeOwnerKey } from '../../../src/utils/run/ownerKey.ts'
 import { emptyRunSnapshot } from '../../../src/services/run/runKernel.ts'
 import {
   loadRunSidecar,

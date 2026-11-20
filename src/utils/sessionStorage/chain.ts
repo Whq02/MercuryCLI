@@ -15,7 +15,7 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import { logForDebugging } from '../debug.js'
-import type { FileHistorySnapshot } from '../fileHistory.js'
+import type { FileHistorySnapshot } from '../../types/fileHistory.js'
 import { extractTag, normalizeAttachmentForAPI } from '../messages.js'
 import { stripTerminalControls } from '../stringUtils.js'
 import { transcriptRows } from './rowGraph.js'

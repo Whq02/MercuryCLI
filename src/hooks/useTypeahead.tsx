@@ -27,7 +27,7 @@ import {
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
 } from '../hooks/fileSuggestions.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import { disarmTypeaheadTimer } from './typeahead/timers.js'
 import { ladderChannelTarget, ladderClearStale, ladderCommands, ladderMentions, ladderPaths, type LadderContext } from './typeahead/ladder.js'
 import type { SuggestionsState } from './typeahead/state.js'

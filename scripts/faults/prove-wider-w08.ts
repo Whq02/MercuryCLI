@@ -199,7 +199,7 @@ async function w08_3_corruptPackageJsonReportedInTestAndHealth(): Promise<void> 
   const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
   const runners = await import(join(SRC, 'services/ide/projectRunners.ts'))
   const { TestTool } = await import(join(SRC, 'tools/TestTool/TestTool.ts'))
-  const { codingLoopFastChecks } = await import(join(SRC, 'utils/health/sections/coding-loop-fast.ts'))
+  const { codingLoopFastChecks } = await import(join(SRC, 'services/health/sections/coding-loop-fast.ts'))
   const prev = getCwd()
   setCwd(dir)
   try {
@@ -232,7 +232,7 @@ async function w08_4_invalidMercuryLspServersReportedOnce(): Promise<void> {
   process.env.MERCURY_LSP_SERVERS = '{bad json'
   const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
   const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
-  const { lspCheck } = await import(join(SRC, 'utils/health/sections/runtime/lsp.ts'))
+  const { lspCheck } = await import(join(SRC, 'services/health/sections/runtime/lsp.ts'))
   const { LspReadTool } = await import(join(SRC, 'tools/LSPTool/LSPTool.ts'))
   const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'services/lsp/manager.ts'))
   const prevCwd = getCwd()
@@ -344,9 +344,9 @@ async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void>
 }
 
 async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
-  const plane = await import(join(SRC, 'services/primitives/executionPlane.ts'))
+  const plane = await import(join(SRC, 'utils/primitives/executionPlane.ts'))
   const runWatch = await import(join(SRC, 'services/repoHost/runWatch.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'services/primitives/owner.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'utils/primitives/owner.ts'))
   const owner = makeOwnerKey('w08-6-owner')
   const id = 'run-watch-9991'
   plane.registerExecutionDomain('host-run-watch', {
@@ -365,7 +365,7 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
   plane.transitionExecution(owner, id, 'starting')
   plane.transitionExecution(owner, id, 'running')
   const { GitTool } = await import(join(SRC, 'tools/GitTool/GitTool.ts'))
-  const { ownerFromToolUseContext } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  const { ownerFromToolUseContext } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
   const gitCtx = { abortController: new AbortController(), options: {} } as never
   const gitOwner = ownerFromToolUseContext(gitCtx)
   const gitWatchId = 'run-watch-9992'
@@ -386,7 +386,7 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
 }
 
 async function w08_8_contextUnserializableToolAndMessageBlockNoted(): Promise<void> {
-  const { analyzeContextUsage } = await import(join(SRC, 'utils/analyzeContext.ts'))
+  const { analyzeContextUsage } = await import(join(SRC, 'services/context/analyzeContext.ts'))
   const { ContextVisualization } = await import(join(SRC, 'components/ContextVisualization.tsx'))
   const { renderToString } = await import(join(SRC, 'utils/staticRender.tsx'))
   let schemaReads = 0
@@ -434,8 +434,8 @@ async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
   writeFileSync(join(lockedDir, 'hidden.ts'), 'export const hidden = 2\n')
   symlinkSync(join(dir, 'nonexistent-target.ts'), brokenLink)
   chmodSync(lockedDir, 0o000)
-  const { resolveAstScope } = await import(join(SRC, 'utils/astPatterns/scope.ts'))
-  const { renderSearchTrailer } = await import(join(SRC, 'utils/astPatterns/render.ts'))
+  const { resolveAstScope } = await import(join(SRC, 'services/structure/astPatterns/scope.ts'))
+  const { renderSearchTrailer } = await import(join(SRC, 'services/structure/astPatterns/render.ts'))
   try {
     const scope = resolveAstScope({ cwd: dir })
     check('w08-7: resolveAstScope counts unreadable folder and dangling stat entry', !('refused' in scope) && scope.skippedUnreadable?.count === 2 && typeof scope.skippedUnreadable.firstPath === 'string' && typeof scope.skippedUnreadable.firstError === 'string', JSON.stringify(scope))
@@ -588,7 +588,7 @@ async function w08_11_videoProviderSettingReadErrorWithheldWhy(): Promise<void> 
   const { enableConfigs, saveGlobalConfig } = await import(join(SRC, 'utils/config/globalConfig.ts'))
   const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
   const { videoToolEnabled } = await import(join(SRC, 'services/video/registry.ts'))
-  const { withheldTools } = await import(join(SRC, 'utils/withheldTools.ts'))
+  const { withheldTools } = await import(join(SRC, 'services/tools/withheldTools.ts'))
   enableConfigs()
   saveGlobalConfig((prev: Record<string, unknown>) => ({ ...prev, videoProvider: { bad: { kind: 'unknown-provider' } } }))
   resetSettingsCache()
@@ -621,7 +621,7 @@ async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
   process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fromEnv: { command: process.execPath, args: [] } })
   const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
   const adapters = await import(join(SRC, 'services/dap/client/adapters.ts'))
-  const { processMainOwner } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
   try {
     check('w08-12: launch still resolves adapters from other sources when adapter file is unreadable', adapters.resolveAdapter('fromEnv')?.command === process.execPath)
     const ctx = {
@@ -645,7 +645,7 @@ async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
       process.env.MERCURY_JS_DEBUG_DAP = ${JSON.stringify(join(dir, 'no-js-debug.js'))}
       process.env.MERCURY_DAP_ADAPTERS_FILE = ${JSON.stringify(lockedFile)}
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'utils/withheldTools.ts'))})
+      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'services/tools/withheldTools.ts'))})
       const debug = withheldTools().find(w => w.tool === 'Debug')
       process.stdout.write('\\n' + JSON.stringify(debug ?? null))
     `], { encoding: 'utf8' })

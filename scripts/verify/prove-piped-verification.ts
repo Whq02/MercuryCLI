@@ -105,8 +105,8 @@ try {
     assert.equal(state.takeUnscoredVerification(), undefined)
     assert.equal(state.evidenceRecordsFor().length, 0, 'a printed failing status is not passing evidence')
   }
-  const { observeToolTerminal } = await import('../../src/services/run/effectObserver.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   state._resetVerificationStateForTesting()
   observeToolTerminal({ owner: processMainOwner(), toolName: 'Bash', toolUseId: 'pipeline', input: { command }, ok: true, durationMs: 1, effect: undefined, cwd: root, shellOutcome: result })
   assert.equal(state.verificationSummary(root).lastEvidence?.ok, false)

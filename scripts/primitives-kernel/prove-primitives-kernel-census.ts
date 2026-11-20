@@ -49,7 +49,7 @@ console.log('task chokepoint projection')
   const { registerTask, updateTaskState } = await import('../../src/utils/task/framework.ts')
   const { taskExecutionKind, taskExecutionState } =
     await import('../../src/utils/task/executionProjection.ts')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 
   let state = { tasks: {} as Record<string, unknown>, agentNameRegistry: new Map() }
@@ -90,7 +90,7 @@ console.log('task chokepoint projection')
 
 console.log('externalProjection laws')
 {
-  const { projectExternalState } = await import('../../src/services/primitives/externalProjection.ts')
+  const { projectExternalState } = await import('../../src/utils/primitives/externalProjection.ts')
   const owner = P.makeOwnerKey({ workspace: '/axiom-census', sessionId: 'ext', lane: P.MAIN_LANE })
   const spec = { id: 'x1', kind: 'process' as const, label: 'x', lifecycle: 'session' as const }
 

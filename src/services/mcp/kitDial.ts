@@ -1,8 +1,8 @@
 import type { AppState } from '../../state/AppStateStore.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
-import { getMcpPrefix } from './mcpStringUtils.js'
+import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
 import { isMcpOrgan, kitMembership } from './membership.js'
-import type { ScopedMcpServerConfig } from './types.js'
+import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 
 function kitSpokenMcpNames(kit: SessionKitV1 | undefined): readonly string[] {
   if (kit === undefined) return []

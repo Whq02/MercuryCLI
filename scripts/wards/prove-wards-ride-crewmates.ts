@@ -37,7 +37,7 @@ const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = 
 const { disengageToolGuard, engageToolGuard, guardsEngaged, resetGuardsForTesting } = await import(join(SRC, 'guards/guards.ts'))
 const { COMMIT_GATE_ID, engageCommitGate } = await import(join(SRC, 'guards/commitGate.ts'))
 const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const { createSubagentContext } = await import(join(SRC, 'utils/forkedAgent.ts'))
+const { createSubagentContext } = await import(join(SRC, 'services/agents/forkedAgent.ts'))
 const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
 enableConfigs()
@@ -208,7 +208,7 @@ section('§8 no count of refusals stands a rule down: thirty refused calls of a 
 
 section('§9 a command embedded in the text of a skill or a custom command is judged before it is asked about')
 {
-  const { executeShellCommandsInPrompt } = await import(join(SRC, 'utils/promptShellExecution.ts'))
+  const { executeShellCommandsInPrompt } = await import(join(SRC, 'services/tools/promptShellExecution.ts'))
   const askingState = { ...appState, toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', shouldAvoidPermissionPrompts: true } }
   const asking = { ...sessionContext, getAppState: () => askingState }
   const theirs = createSubagentContext(asking as never, {})
@@ -231,7 +231,7 @@ section('§9 a command embedded in the text of a skill or a custom command is ju
 
 section('§9b under MERCURY_WARDS=warn an embedded command carries the warning row a Bash call carries')
 {
-  const { executeShellCommandsInPrompt } = await import(join(SRC, 'utils/promptShellExecution.ts'))
+  const { executeShellCommandsInPrompt } = await import(join(SRC, 'services/tools/promptShellExecution.ts'))
   const rows: Array<{ content?: unknown; level?: unknown }> = []
   const denyingState = { ...appState, toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', shouldAvoidPermissionPrompts: true, alwaysDenyRules: { localSettings: ['Bash'] } } }
   const screened = { ...sessionContext, getAppState: () => denyingState, appendSystemMessage: (row: { content?: unknown; level?: unknown }) => void rows.push(row) }

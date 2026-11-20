@@ -1,8 +1,8 @@
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
 import { isWholeRecordedComposition } from '../prompt/recordedComposition.js'
 import type { ToolUseContext } from '../Tool.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
+import { isBuiltInAgent } from '../types/agent.js'
 import type { SystemPrompt } from './systemPromptType.js'
 import { asSystemPrompt } from './systemPromptType.js'
 

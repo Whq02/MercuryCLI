@@ -2,7 +2,7 @@ import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../consta
 import type { CompactMetadata, Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { turnCutOf } from '../../utils/messages/turnCut.js'
-import type { processUserInput } from '../../utils/processUserInput/processUserInput.js'
+import type { processUserInput } from '../../services/processUserInput/processUserInput.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { commandOutputRow, commandOutputTextOf, shellOutputTextOf, compactionEndedRow, type RowDraft, type RowScope } from '../project.js'
 import { statusOfTerminal, OUTCOME_SENTENCES } from '../vocabulary.js'

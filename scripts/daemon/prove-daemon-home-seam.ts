@@ -53,7 +53,7 @@ const sup = await import('../../src/daemon/concourseWorkers.ts')
 const dispatch = await import('../../src/daemon/concourseDispatch.ts')
 const box = await import('../../src/daemon/saturnBoxSchedules.ts')
 const asks = await import('../../src/daemon/permissionAsks.ts')
-const led = await import('../../src/utils/spawnLedger.ts')
+const led = await import('../../src/daemon/spawnLedger.ts')
 const seatFiles = await import('../../src/services/engine-connector/seatProjections.ts')
 const store = await import('../../src/substrate/fileStore.ts')
 

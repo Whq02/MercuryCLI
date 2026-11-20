@@ -9,7 +9,7 @@ import { isKeybindingCustomizationEnabled } from '../../keybindings/loadUserBind
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import { isDeckPaneActive } from '../../utils/fullscreen.js'
-import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js'
+import { GLYPH, displayWidth } from '../../utils/glyphs.js'
 import { stripKeyMapHint } from '../../context/surfaceRoute.js'
 import { getNewlineInstructions } from './utils.js'
 

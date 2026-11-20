@@ -1,4 +1,4 @@
-import { Client, StdioClientTransport, ProtocolErrorCode } from '../sdk.js'
+import { Client, StdioClientTransport, ProtocolErrorCode } from '../../../utils/mcp/sdk.js'
 import { pathToFileURL } from 'node:url'
 import { getOriginalCwd } from '../../../bootstrap/state.js'
 import { flagEnabled } from '../../../substrate/flagRegistry.js'

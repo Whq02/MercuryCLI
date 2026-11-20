@@ -24,7 +24,7 @@ const begin = (verdicts: Verdict[], rest: Verdict, holds: Hold[] = []): void => 
 const handshake = await import('../../src/daemon/handshake.ts')
 const ownedDaemon = await import('../../src/daemon/ownedDaemon.ts')
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const ownerWatch = await import('../../src/utils/ownerWatch.ts')
 const pidLock = await import('../../src/substrate/pidLock.ts')
 const standdown = await import('../../src/utils/daemonStanddown.ts')
 const presence = await import('../../src/services/switchboard/screenPresence.ts')
@@ -60,7 +60,7 @@ mock.module('../../src/daemon/controlSocket.ts', () => ({
     return hold === 'clear' ? null : { pid: 4242, ...(hold === 'stopping' ? { state: 'stopping' } : {}) }
   },
 }))
-mock.module('../../src/daemon/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: () => true }))
+mock.module('../../src/utils/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: () => true }))
 mock.module('../../src/substrate/pidLock.ts', () => ({ ...pidLock, probePidLock: async () => null }))
 mock.module('../../src/utils/daemonStanddown.ts', () => ({ ...standdown, daemonHaltStanddownActive: () => false }))
 mock.module('../../src/services/switchboard/screenPresence.ts', () => ({ ...presence, startScreenPresenceBeat: () => false }))

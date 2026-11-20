@@ -38,12 +38,12 @@ const status = (): string[] =>
 
 const homeStores = await import('../../src/utils/projectHomeStores.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const { projectLocalPath } = await import('../../src/services/projectLocal/paths.ts')
+const { projectLocalPath } = await import('../../src/utils/projectLocal/paths.ts')
 const { apolloSpecDirectory } = await import('../../src/utils/projectConfig.ts')
 const { persistTestRun, testRunsDir } = await import('../../src/services/ide/pythonTests.ts')
-const { getAgentMemoryDir } = await import('../../src/tools/AgentTool/agentMemory.ts')
-const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.ts')
-const { lastCertPath, projectEstateCheck } = await import('../../src/utils/healthReport.ts')
+const { getAgentMemoryDir } = await import('../../src/utils/agentMemory.ts')
+const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.ts')
+const { lastCertPath, projectEstateCheck } = await import('../../src/services/health/healthReport.ts')
 const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
 
 section('H1 — the owner')

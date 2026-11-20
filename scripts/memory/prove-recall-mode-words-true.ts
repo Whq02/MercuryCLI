@@ -28,7 +28,7 @@ const models = await import('../../src/mneme/embedModels.js')
 const idx = await import('../../src/mneme/mnemeIndex.js')
 const docs = await import('../../src/mneme/mnemeTopicDocs.js')
 const { recallQuery, retainItems } = await import('../../src/mneme/memoryVerbs.js')
-const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
 
 const PACK_DIR = pack.embedPackDirFor(ROOT, voicePackPlatform())
 const CACHE_DIR = join(ROOT, models.EMBED_MODELS_VENDOR_PATH)

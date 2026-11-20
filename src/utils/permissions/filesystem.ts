@@ -21,7 +21,7 @@ import { boundedProjectTempName, defaultMercuryTempBase, mercuryTempDirName } fr
 import { extractDoubleSlashPatternRoot, extractPatternDriveRoot, foldHostPathCase, isEscapingRelativePath, nativePathToShell } from '../platform/paths.js'
 import { shortProjectHash } from '../sessionStoragePortable.js'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../projectConfig.js'
-import { APOLLO_REVIEW_TOOL_NAME } from '../../tools/ApolloReviewTool/constants.js'
+import { APOLLO_REVIEW_TOOL_NAME } from '../../constants/tools/apolloReview.js'
 import { getSettingsFilePathForSource } from '../settings/settings.js'
 import { getEnabledSettingSources } from '../settings/constants.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
@@ -47,7 +47,7 @@ import {
   remoteRuleEndpointForms,
   remoteRulePattern,
   remoteSessionRule,
-} from '../../services/remoteFiles/target.js'
+} from '../remoteFiles/target.js'
 import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
@@ -486,7 +486,7 @@ export function checkReadableInternalPath(absolutePath: string, _input?: Record<
 
 function isAgentMemory(path: string): boolean {
   try {
-    return (require('../../tools/AgentTool/agentMemory.js') as { isAgentMemoryPath(p: string): boolean }).isAgentMemoryPath(path)
+    return (require('../agentMemory.js') as { isAgentMemoryPath(p: string): boolean }).isAgentMemoryPath(path)
   } catch (error) {
     passedOver(error)
     return false

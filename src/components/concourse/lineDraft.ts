@@ -1,6 +1,6 @@
 
 import { getGraphemeSegmenter } from '../../utils/intl.js'
-import { displayWidth } from '../mercury-ui/glyphs.js'
+import { displayWidth } from '../../utils/glyphs.js'
 
 export interface LineDraft {
   text: string

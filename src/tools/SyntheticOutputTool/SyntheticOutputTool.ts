@@ -5,7 +5,7 @@ import { compileJsonSchema, formatSchemaIssues } from '../../services/schema/jso
 import { buildTool, type Tool, type ToolDef, type ToolInputJSONSchema } from '../../Tool.js'
 import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from './constants.js'
+import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../constants/tools/syntheticOutput.js'
 
 export { SYNTHETIC_OUTPUT_TOOL_NAME }
 

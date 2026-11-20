@@ -14,7 +14,7 @@ process.env.MERCURY_DAP = '1'
 
 const { SERVER_CATALOGUE, probeCatalogueEntry } = await import('../../src/services/lsp/serverCatalogue.ts')
 const dap = await import('../../src/services/dap/dapClient.ts')
-const { GRAMMAR_REGISTRY } = await import('../../src/services/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY } = await import('../../src/utils/structure/grammarRegistry.ts')
 
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {

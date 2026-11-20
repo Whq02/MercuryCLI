@@ -5,7 +5,7 @@ import { basename, extname, isAbsolute, join, resolve } from 'node:path'
 import { execa } from 'execa'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
-import { getImageProcessor } from '../tools/FileReadTool/imageProcessor.js'
+import { getImageProcessor } from './imageProcessor/imageProcessor.js'
 import {
   detectImageFormatFromBase64,
   maybeResizeAndDownsampleImageBuffer,

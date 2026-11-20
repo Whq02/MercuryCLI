@@ -1,20 +1,18 @@
 import type { Tool } from '../../Tool.js'
-import { expandLspFamily } from '../../services/lsp/toolFamily.js'
+import { expandLspFamily } from '../../utils/lsp/toolFamily.js'
 import { discoverRunnerProfiles, hasPythonSignal } from '../../services/ide/projectRunners.js'
 import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import { localPromptProfileApplies } from '../../constants/localPromptProfile.js'
 import { isUnattendedRun } from '../../utils/cockpit/runtimePosture.js'
-import { TOOL_SEARCH_TOOL_NAME } from './constants.js'
+import { TOOL_SEARCH_TOOL_NAME } from '../../constants/tools/toolSearch.js'
 import {
   isSaturnExemptEnabled,
   SATURN_EXEMPT_TOOL,
 } from '../saturnExemptTools.js'
 
 export { TOOL_SEARCH_TOOL_NAME }
-
-export const STRIPPED_ADMISSION_RECORD_TEXT = "[Tool references removed — every tool's full schema is in this request's tool list; call the tools directly]"
 
 function isMcpToolLike(tool: Tool): boolean {
   return 'isMcp' in tool && tool.isMcp === true

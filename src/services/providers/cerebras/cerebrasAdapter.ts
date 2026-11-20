@@ -1,6 +1,6 @@
 import { cerebrasCatalogueRows } from './cerebrasCatalogue.js'
 import { resolveCerebrasAccount } from './cerebrasAccounts.js'
-import { cerebrasEffortVocabulary } from './cerebrasPins.js'
+import { cerebrasEffortVocabulary } from '../../../utils/model/pins/cerebrasPins.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 

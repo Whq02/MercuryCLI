@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/diagnosticTracking.ts
+// gate-watch: src/utils/diagnosticTracking.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import figures from 'figures'
 
@@ -10,8 +10,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { DiagnosticTrackingService } = await import('../../src/services/diagnosticTracking.ts')
-type File = import('../../src/services/diagnosticTracking.ts').DiagnosticFile
+const { DiagnosticTrackingService } = await import('../../src/utils/diagnosticTracking.ts')
+type File = import('../../src/utils/diagnosticTracking.ts').DiagnosticFile
 const at = (line: number, character: number) => ({ start: { line, character }, end: { line, character: character + 1 } })
 
 console.log('the severity symbols')

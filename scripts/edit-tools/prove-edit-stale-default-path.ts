@@ -18,7 +18,7 @@ const { mintFileAnchor } = await import('../../src/services/changeTransaction/sn
 const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
   '../../src/services/changeTransaction/snapshotRing.ts'
 )
-const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0

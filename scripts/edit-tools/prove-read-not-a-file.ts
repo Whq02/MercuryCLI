@@ -32,7 +32,7 @@ async function runScene(args: SceneArgs): Promise<void> {
   const context = { readFileState: new Map(), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>(), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
   if (args.road === 'registry') {
     const { resolveResource } = await import('../../src/services/resources/registry.ts')
-    const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+    const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
     const result = (await resolveResource(args.path!, { cwd: args.project!, owner: processMainOwner() })) as { state: string; note?: string }
     return say({ state: result.state, shown: result.note ?? '' })
   }

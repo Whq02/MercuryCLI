@@ -28,7 +28,7 @@ function section(t: string): void {
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const state = await import('../../src/bootstrap/state.ts')
-const forked = await import('../../src/utils/forkedAgent.ts')
+const forked = await import('../../src/services/agents/forkedAgent.ts')
 const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/mneme/lineageSession.ts')
 const { ledgerEntryOf } = await import('../../src/mneme/ledger.ts')
 const { mnemeProjectKey } = await import('../../src/mneme/paths.ts')

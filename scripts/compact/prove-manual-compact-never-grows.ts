@@ -178,7 +178,7 @@ section('D the line\'s shape: the key the command recognises, and the one senten
 section('E the projection does not perform reads, authorize unseen content, or populate the user-context memo')
 {
   const { getUserContext } = await import('../../src/context.ts')
-  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const { fileGeneration, seenLinesOf } = await import('../../src/services/changeTransaction/seenLines.ts')
   const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
   const { recallAnchoredSnapshot } = await import('../../src/services/changeTransaction/snapshotRing.ts')
