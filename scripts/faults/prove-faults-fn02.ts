@@ -307,5 +307,26 @@ console.log('\nFeedback — failed getIsGit records undefined + error instead of
   }
 }
 
+console.log('\nFileEditToolDiff — colliding remote multi-edits fall back to per-edit hunks instead of empty no-visible-change')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/FileEditToolDiff.tsx'))
+    if (typeof mod.loadDiff !== 'function') {
+      out.missing = true
+    } else {
+      const remote = 'ssh://host/tmp/demo.txt'
+      const diff = await mod.loadDiff(remote, [
+        { old_string: 'alpha', new_string: 'beta' },
+        { old_string: 'beta', new_string: 'gamma' },
+      ])
+      out.hunkCount = diff.hunks.length
+      const noop = await mod.loadDiff(remote, [{ old_string: 'same', new_string: 'same' }])
+      out.noopHunkCount = noop.hunks.length
+    }
+  `)
+  check('colliding remote multi-edits still render diff hunks instead of empty', typeof r.hunkCount === 'number' && r.hunkCount >= 2, JSON.stringify(r))
+  check('control: genuinely byte-identical remote edit still yields 0 hunks', r.noopHunkCount === 0, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
