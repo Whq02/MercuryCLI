@@ -30,11 +30,9 @@ import { liveCounterLine, liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs 
 import { useOutputRate } from './Spinner/useOutputRate.js'
 import type { LiveTurnFactsV1 } from '../services/engine-connector/seatLive.js'
 import { TaskListV2 } from './TaskListV2.js'
-import type { SpinnerMode } from './Spinner/types.js'
+import type { SpinnerMode } from '../types/spinner.js'
 import { useFocusedMission } from './tasks/useFocusedWork.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
-
-export type { SpinnerMode } from './Spinner/types.js'
 
 const WHIMSY_ROTATE_MS = 15_000
 const LONG_TURN_TIP_MS = 30 * 60 * 1000
