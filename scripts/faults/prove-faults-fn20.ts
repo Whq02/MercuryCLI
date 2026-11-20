@@ -103,5 +103,18 @@ if (!POSIX_MODES) {
   check('hosts-absent-config-ok', Array.isArray(r3.hosts), JSON.stringify(r3))
 }
 
+console.log('\nremoteFiles/ops.ts — unwritable tmpdir fails closed in remoteIsThisMachine')
+{
+  const r = runSub(`
+    const { remoteIsThisMachine } = await import(path.join(SRC, 'services/remoteFiles/ops.ts'))
+    try {
+      out.here = await remoteIsThisMachine({ host: 'example.invalid' })
+    } catch (e) {
+      out.code = e.code ?? e.name
+    }
+  `, { TMPDIR: '/nonexistent-faults-fn20-dir' })
+  check('ops-remote-facts-probe-fails-closed', r.code === 'ENOENT' || r.code === 'EACCES', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
