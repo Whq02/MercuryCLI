@@ -74,15 +74,20 @@ function filePath(): string {
 }
 
 function readFile(): QualificationFile {
+  let raw: string
   try {
-    const parsed = JSON.parse(readFileSync(filePath(), 'utf8')) as unknown
-    if (typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as QualificationFile).receipts)) {
-      return parsed as QualificationFile
-    }
+    raw = readFileSync(filePath(), 'utf8')
   } catch (error) {
-    passedOver(error)
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { version: FILE_VERSION, receipts: [] }
+    }
+    throw error
   }
-  return { version: FILE_VERSION, receipts: [] }
+  const parsed = JSON.parse(raw) as unknown
+  if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as QualificationFile).receipts)) {
+    throw new Error(`qualification store at ${filePath()} is malformed`)
+  }
+  return parsed as QualificationFile
 }
 
 export function recordLiveQualification(i: {
@@ -190,10 +195,15 @@ function readWireMemories(now: () => number): StoredWireEffortVocabulary[] {
   return entries
 }
 
-function writeWireMemories(entries: StoredWireEffortVocabulary[]): boolean {
+function mutateWireMemories(
+  update: (entries: StoredWireEffortVocabulary[]) => StoredWireEffortVocabulary[] | undefined,
+): boolean {
   try {
     const file = readFile()
-    writeFileSync(filePath(), JSON.stringify({ ...file, version: FILE_VERSION, wireEfforts: entries }, null, 2) + '\n', 'utf8')
+    const current = Array.isArray(file.wireEfforts) ? file.wireEfforts.filter(isStoredWireEffortVocabulary) : []
+    const next = update(current)
+    if (next === undefined) return false
+    writeFileSync(filePath(), JSON.stringify({ ...file, version: FILE_VERSION, wireEfforts: next }, null, 2) + '\n', 'utf8')
     wireMemoryCache = null
     return true
   } catch (error) {
@@ -219,9 +229,12 @@ export function recordWireEffortRefusal(i: {
     refused: i.refused,
     observedAtMs: now(),
   }
-  const kept = readWireMemories(Date.now).filter(e => memoryKey(e.modelId, e.sourceKind) !== memoryKey(entry.modelId, entry.sourceKind))
-  kept.push(entry)
-  return writeWireMemories(kept) ? entry : undefined
+  return mutateWireMemories(entries => [
+    ...entries.filter(e => memoryKey(e.modelId, e.sourceKind) !== memoryKey(entry.modelId, entry.sourceKind)),
+    entry,
+  ])
+    ? entry
+    : undefined
 }
 
 export function wireEffortVocabularyOf(
@@ -237,10 +250,11 @@ export function wireEffortVocabularyOf(
 
 export function noteWireEffortAccepted(i: { modelId: string; sourceKind: OpenaiAccountSourceKind; word: string }): boolean {
   const key = memoryKey(i.modelId, i.sourceKind)
-  const entries = readWireMemories(Date.now)
-  const stale = entries.find(e => memoryKey(e.modelId, e.sourceKind) === key && !e.levels.includes(i.word))
-  if (stale === undefined) return false
-  return writeWireMemories(entries.filter(e => e !== stale))
+  return mutateWireMemories(entries => {
+    const stale = entries.find(e => memoryKey(e.modelId, e.sourceKind) === key && !e.levels.includes(i.word))
+    if (stale === undefined) return undefined
+    return entries.filter(e => e !== stale)
+  })
 }
 
 export function readWireEffortVocabularies(): StoredWireEffortVocabulary[] {
