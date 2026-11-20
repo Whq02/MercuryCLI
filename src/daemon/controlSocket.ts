@@ -365,12 +365,18 @@ function protoToStamp(): number {
   return Math.max(MIN_PROTO, Math.min(MERCURY_DAEMON_PROTO, negotiated.proto))
 }
 
+export type DaemonRpcRequest = DaemonRequest extends infer R
+  ? R extends { proto: number }
+    ? Omit<R, 'proto'> & { proto?: number }
+    : R
+  : never
+
 export async function daemonControlRpc(
-  req: DaemonRequest,
+  req: DaemonRpcRequest,
   opts: { timeoutMs?: number; protoRetry?: boolean } = {},
 ): Promise<DaemonReply & { frameWritten?: boolean }> {
   const timeoutMs = opts.timeoutMs ?? 2000
-  const outbound: DaemonRequest & { proto?: number; auth?: string } = { ...req }
+  const outbound: DaemonRpcRequest & { proto?: number; auth?: string } = { ...req }
   const stamped = AUTH_STAMPED_OPS.has(req.op)
   if (stamped) {
     outbound.proto = protoToStamp()
@@ -429,7 +435,7 @@ export function olderDaemonRefusalLine(verb: string, needs: number, daemon: { pr
   return `${who}: \`${verb}\` needs protocol ${needs} · ${restartDaemonWords()}`
 }
 
-function speakProtoGap(req: DaemonRequest, reply: DaemonReply): DaemonReply {
+function speakProtoGap(req: DaemonRpcRequest, reply: DaemonReply): DaemonReply {
   if (reply.ok || reply.code !== 'EUNKNOWN') return reply
   const action = typeof (req as { action?: unknown }).action === 'string' ? (req as { action: string }).action : undefined
   if (!isUnknownVerbShape(reply.error, action)) return reply
@@ -446,7 +452,7 @@ function daemonServes(timeoutMs: number): Promise<{ serves: boolean; working: nu
   })
 }
 
-function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, timeoutMs: number, opts: { probe?: boolean } = {}): Promise<DaemonReply & { frameWritten?: boolean }> {
+function rpcOnce(outbound: DaemonRpcRequest & { proto?: number; auth?: string }, timeoutMs: number, opts: { probe?: boolean } = {}): Promise<DaemonReply & { frameWritten?: boolean }> {
   return new Promise<DaemonReply & { frameWritten?: boolean }>(resolve => {
     let settled = false
     let frameWritten = false
