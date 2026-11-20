@@ -5,6 +5,7 @@ import { htmlToText } from './htmlText.js'
 import { DEFAULT_MAX_RESULTS, filterHitsByDomain, MAX_SNIPPET_CHARS, normaliseHits, searchBackendLabel, searchFailure, searchUserAgent, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest } from './searchContract.js'
 import { cachedAnswerNote, liveSearchClock, noteAnswered, noteRateLimited, rememberSearch, reserveSearchAttempt, secondsLeftLabel, serverSearchWaitMs, takeCachedSearch, withSearchTurn, type SearchClock } from './searchPacing.js'
 import { SEARCH_SOURCE_POLICIES, type OfficialSearchSource } from './searchSources.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const object = (value: unknown): Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
 const text = (value: unknown): string => typeof value === 'string' ? value : ''
@@ -179,7 +180,7 @@ async function readOfficial(source: OfficialSearchSource, url: URL, request: Sea
 
 export async function officialSearch(source: OfficialSearchSource, words: string, request: SearchRequest, io: OfficialSearchIo = {}): Promise<SearchOutcome> {
   const clock = io.clock ?? liveSearchClock
-  const token = source === 'github' ? (io.env ?? process.env).GH_TOKEN?.trim() : undefined
+  const token = source === 'github' ? (io.env ?? hostEnv()).GH_TOKEN?.trim() : undefined
   if (request.signal?.aborted) return searchFailure('aborted', source, 'cancelled')
   if (source === 'github' && !token) return searchFailure('no-backend', source, GITHUB_TOKEN_ROAD)
   const scoped = { ...request, query: words, cacheScope: `official:${source}` }

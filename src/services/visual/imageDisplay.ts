@@ -6,6 +6,7 @@ import { truecolorActive } from '../../ink/colorize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { groundRgb } from './spriteToAnsi.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type ImageProtocol = 'iterm' | 'kitty' | 'sixel' | 'cells' | 'link'
 
@@ -17,15 +18,15 @@ let detected: ImageProtocol | null = null
 export function detectImageProtocol(): ImageProtocol {
   const pin = flagEnv('MERCURY_IMAGE_PROTOCOL')
   if (pin === 'iterm' || pin === 'kitty' || pin === 'sixel' || pin === 'cells') return pin
-  if (!process.stdout.isTTY || (process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== '')) {
+  if (!process.stdout.isTTY || (hostEnv().NO_COLOR !== undefined && hostEnv().NO_COLOR! !== '')) {
     return 'link'
   }
   if (detected) return detected
-  const termProgram = process.env.TERM_PROGRAM ?? ''
-  const term = process.env.TERM ?? ''
-  if (termProgram === 'iTerm.app' || termProgram === 'WezTerm' || process.env.KONSOLE_VERSION) {
+  const termProgram = hostEnv().TERM_PROGRAM ?? ''
+  const term = hostEnv().TERM ?? ''
+  if (termProgram === 'iTerm.app' || termProgram === 'WezTerm' || hostEnv().KONSOLE_VERSION) {
     detected = 'iterm'
-  } else if (term === 'xterm-kitty' || process.env.KITTY_WINDOW_ID || termProgram === 'ghostty') {
+  } else if (term === 'xterm-kitty' || hostEnv().KITTY_WINDOW_ID || termProgram === 'ghostty') {
     detected = 'kitty'
   } else if (term.includes('sixel') || term.startsWith('foot') || term.startsWith('mlterm')) {
     detected = 'sixel'

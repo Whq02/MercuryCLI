@@ -14,6 +14,7 @@ import {
   type DeepseekDisplayPin,
 } from './deepseekPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const DEEPSEEK_CATALOGUE_TTL_MS = 5 * 60_000
@@ -111,12 +112,12 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
   return `${key.source}:${credentialFingerprint(key.key)}:${deepseekApiBase(env)}`
 }
 
-export function getCachedDeepseekCatalogue(env: NodeJS.ProcessEnv = process.env): DeepseekCatalogueSnapshot | null {
+export function getCachedDeepseekCatalogue(env: NodeJS.ProcessEnv = hostEnv()): DeepseekCatalogueSnapshot | null {
   if (!resolveDeepseekApiKey(env)) return null
   return catalogueCache.get(catalogueIdentity(env)) ?? null
 }
 
-export function deepseekLiveModel(id: string, env: NodeJS.ProcessEnv = process.env): DeepseekLiveModel | undefined {
+export function deepseekLiveModel(id: string, env: NodeJS.ProcessEnv = hostEnv()): DeepseekLiveModel | undefined {
   const current = deepseekCurrentModelId(id.trim().toLowerCase())
   return getCachedDeepseekCatalogue(env)?.models.find(model => deepseekCurrentModelId(model.id.trim().toLowerCase()) === current)
 }
@@ -129,7 +130,7 @@ export function deepseekModelFacts(id: string): DeepseekLiveModel | undefined {
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
 const liveIdSets = new WeakMap<DeepseekCatalogueSnapshot, ReadonlySet<string>>()
 
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
   const snapshot = getCachedDeepseekCatalogue(env)
   if (!snapshot || snapshot.fetchedAtMs === 0 || snapshot.models.length === 0) return EMPTY_LIVE_IDS
@@ -151,7 +152,7 @@ export function refreshDeepseekCatalogue(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
 }): Promise<DeepseekCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveDeepseekApiKey(env)
   const identity = catalogueIdentity(env)
@@ -193,7 +194,7 @@ export function refreshDeepseekCatalogue(opts?: {
 }
 
 export function kickDeepseekCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('deepseek', env).allowed) return false
   if (!nothingUsable(getCachedDeepseekCatalogue(env))) return false
   void refreshDeepseekCatalogue({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(passedOverAs(null))
@@ -226,7 +227,7 @@ function dateOf(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10)
 }
 
-export function deepseekCatalogueRows(env: NodeJS.ProcessEnv = process.env): {
+export function deepseekCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): {
   rows: DeepseekCatalogueRow[]
   source: DeepseekCatalogueSource
 } {
@@ -253,7 +254,7 @@ export function deepseekCatalogueRows(env: NodeJS.ProcessEnv = process.env): {
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function deepseekCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function deepseekCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const { source } = deepseekCatalogueRows(env)
   if (source.kind !== 'live') return undefined
   return `${source.count} ${source.count === 1 ? 'model' : 'models'} live`

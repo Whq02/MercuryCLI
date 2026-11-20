@@ -3,10 +3,11 @@ import { posix, resolve } from 'node:path'
 import { getCwd } from '../cwd.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
+import { hostEnv } from '../hostEnv.js'
 
 export function spelling(path: string): string {
-  const home = process.env.HOME || process.env.USERPROFILE || homedir()
-  const profile = process.env.USERPROFILE || home
+  const home = hostEnv().HOME || hostEnv().USERPROFILE || homedir()
+  const profile = hostEnv().USERPROFILE || home
   return path.trim().replace(/\\/g, '/')
     .replace(/^~(?=\/|$)/, home.replace(/\\/g, '/'))
     .replace(/^(?:\$\{HOME\}|\$HOME|%HOME%)(?=\/|$)/i, home.replace(/\\/g, '/'))
@@ -34,7 +35,7 @@ const inside = (path: string, base: string): boolean => path === base || path.st
 export function credentialStorePath(path: string, cwd = getCwd()): string | null {
   const own = mercurySecretPath(path, cwd)
   if (own !== null) return own
-  const homes = [process.env.HOME, process.env.USERPROFILE, homedir()].filter((p): p is string => !!p).flatMap(p => protectedPathForms(p, cwd))
+  const homes = [hostEnv().HOME, hostEnv().USERPROFILE, homedir()].filter((p): p is string => !!p).flatMap(p => protectedPathForms(p, cwd))
   for (const candidate of protectedPathForms(path, cwd)) {
     const system = candidate.replace(/^\/private\/etc(?=\/|$)/, '/etc')
     if (SYSTEM_FILES.includes(system) || SYSTEM_TREES.some(base => inside(system, base))) return candidate

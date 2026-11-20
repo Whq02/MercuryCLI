@@ -20,6 +20,7 @@ import { hostModelEfforts } from '../providers/openaicompat/compatEffort.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { unregisterTensorFoldPod } from '../host/tensorfoldPodKey.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export interface LlmHostQuestion {
   step: string
@@ -173,9 +174,9 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
       }
     }
     const changedAddress = existing !== undefined && existing.baseUrl !== baseUrl
-    if (changedAddress && existing && (process.env[compatKeyEnvName(existing.name)] || existing.name === 'default' && (flagEnv('MERCURY_COMPAT_API_KEY') || flagEnv('MERCURY_COMPAT_BASE_URL')))) throw new Error('An environment variable (' + (existing.name === 'default' ? 'MERCURY_COMPAT_API_KEY or MERCURY_COMPAT_BASE_URL' : compatKeyEnvName(existing.name)) + ') sets this endpoint. Unset it before changing the address.')
+    if (changedAddress && existing && (hostEnv()[compatKeyEnvName(existing.name)] || existing.name === 'default' && (flagEnv('MERCURY_COMPAT_API_KEY') || flagEnv('MERCURY_COMPAT_BASE_URL')))) throw new Error('An environment variable (' + (existing.name === 'default' ? 'MERCURY_COMPAT_API_KEY or MERCURY_COMPAT_BASE_URL' : compatKeyEnvName(existing.name)) + ') sets this endpoint. Unset it before changing the address.')
     let probeEndpoint: CompatEndpointSettings & { baseUrl: string } = recheck && existing ? existing : { baseUrl }
-    key = recheck && existing ? resolveCompatApiKey(process.env, existing.name)?.key : undefined
+    key = recheck && existing ? resolveCompatApiKey(hostEnv(), existing.name)?.key : undefined
     let reading: CompatServerReading
     let suppliedKey = false
     for (;;) {
@@ -221,7 +222,7 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
     }
     const confirm = await question({ step: 'confirm', title: words.confirm, found: `${name} · ${baseUrl} · ${dialect} · ${selected}`, willRun: recheck ? words.recheckRun : words.confirmRun, rows: [{ value: 'run', label: recheck ? words.check : words.register }, { value: 'cancel', label: words.cancel }] })
     if (confirm !== 'run' || signal.aborted) return stop()
-    const envKey = process.env[compatKeyEnvName(name)]?.trim() || (name === 'default' ? flagEnv('MERCURY_COMPAT_API_KEY')?.trim() : undefined)
+    const envKey = hostEnv()[compatKeyEnvName(name)]?.trim() || (name === 'default' ? flagEnv('MERCURY_COMPAT_API_KEY')?.trim() : undefined)
     if (envKey && envKey !== key) throw new Error(`${compatKeyEnvName(name)} takes precedence over a stored key. Unset that environment variable before registering a different key or address.`)
     if (!recheck) {
       editable()
@@ -259,7 +260,7 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
 export async function registerManagedLlmHost(name: string, baseUrl: string, dialect: CompatDialect, selected: string, previousBase: string | undefined, signal: AbortSignal): Promise<string> {
   const existing = configuredCompatEndpoints().find(endpoint => endpoint.name === name)
   if (existing && (!previousBase || existing.baseUrl !== previousBase)) throw new Error('Provider ' + name + ' is not the endpoint recorded for this computer; it was not replaced.')
-  if (resolveCompatApiKey(process.env, name)) throw new Error('A key controls provider ' + name + '; choose a different computer name for this key-less service.')
+  if (resolveCompatApiKey(hostEnv(), name)) throw new Error('A key controls provider ' + name + '; choose a different computer name for this key-less service.')
   const reading = await inspectCompatServer({ baseUrl, dialect }, { signal })
   if (!reading.models.includes(selected)) throw new Error('The computer did not serve the selected model: ' + selected)
   if (!reading.contextWindows[selected]) throw new Error('The computer did not state the served model window.')

@@ -19,6 +19,7 @@ import { clearHuggingfaceUsageLimit, huggingfaceLimitWindow, recordHuggingfaceBi
 import { refreshProviderUsage } from '../providerUsage.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 export const huggingfaceLaneProfile: CompatLaneProfile = {
@@ -34,7 +35,7 @@ export const huggingfaceLaneProfile: CompatLaneProfile = {
   billingRemedy:
     'the Inference Providers credits are exhausted — add credits to the account, or bill an organization with credits via MERCURY_HUGGINGFACE_BILL_TO, then retry.',
   recoverCredential: async () => {
-    if (process.env.HF_TOKEN?.trim()) return null
+    if (hostEnv().HF_TOKEN?.trim()) return null
     if (huggingfaceStoredTokens()?.refreshToken) {
       const fresh = await refreshHuggingfaceTokens()
       return fresh ? { apiKey: fresh.accessToken } : undefined

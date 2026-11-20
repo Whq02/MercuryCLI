@@ -21,6 +21,7 @@ import type { ComposerAttachments } from './useComposerAttachments.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 import { crewmateThinkingKeyWords } from '../../utils/cockpit/crewmateWords.js'
 import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type ComposerKeybindingsInput = {
   buffer: ReturnType<typeof useInputBuffer>
@@ -228,7 +229,7 @@ export function useComposerKeybindings({
             addNotification({
               key: 'no-image-in-clipboard',
               text:
-                process.env.SSH_TTY !== undefined
+                hostEnv().SSH_TTY !== undefined
                   ? 'no image in the clipboard (over SSH, transfer the file instead)'
                   : 'no image in the clipboard (copy one, then press the paste chord)',
               priority: 'low',

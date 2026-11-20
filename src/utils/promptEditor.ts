@@ -13,6 +13,7 @@ import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export type EditorResult = {
@@ -90,7 +91,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
                 const spec = windowsEditorSpawn(
                   editorExe,
                   invocation.args,
-                  process.env.ComSpec || process.env.COMSPEC || 'cmd.exe',
+                  hostEnv().ComSpec || hostEnv().COMSPEC || 'cmd.exe',
                 )
                 return spawn(spec.file, spec.args, {
                   windowsHide: false,

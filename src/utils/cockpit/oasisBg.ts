@@ -10,6 +10,7 @@ import { shouldHonorNoColor, truecolorFingerprint } from '../../ink/colorize.js'
 import { parseOscColor } from '../../ink/termio/osc.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 function concreteTheme(): ThemeName {
   try {
@@ -25,7 +26,7 @@ export function oasisBgEnabled(
 ): boolean {
   if (!flagEnabled('MERCURY_OASIS_BG')) return false
   if (!isTTY || shouldHonorNoColor()) return false
-  if (/^(dumb|linux)$/.test(process.env.TERM || '')) return false
+  if (/^(dumb|linux)$/.test(hostEnv().TERM || '')) return false
   if (!isDarkThemeFamily(theme)) return false
   return true
 }
@@ -95,7 +96,7 @@ export function noteOriginalGroundReply(
   spec: string,
   write: (s: string) => void = s => process.stdout.write(s),
 ): void {
-  if (!spec || shouldHonorNoColor() || /^(dumb|linux)$/.test(process.env.TERM || '') || concreteTheme() === 'mono') return
+  if (!spec || shouldHonorNoColor() || /^(dumb|linux)$/.test(hostEnv().TERM || '') || concreteTheme() === 'mono') return
   if (paintedAtQuerySend !== false) return
   if (exactOriginal === undefined && !launcherHeldAtBoot()) {
     exactOriginal = spec
@@ -167,11 +168,11 @@ function splashCouldHaveRecoloured(): boolean {
   if (!flagEnabled('MERCURY_OASIS_BG')) return false
   const depth = flagEnv('MERCURY_TRUECOLOR')
   if (depth === '0') return false
-  if (/^(dumb|linux)$/.test(process.env.TERM || '')) return false
-  const noColor = process.env.NO_COLOR
-  const forceColor = process.env.FORCE_COLOR
+  if (/^(dumb|linux)$/.test(hostEnv().TERM || '')) return false
+  const noColor = hostEnv().NO_COLOR
+  const forceColor = hostEnv().FORCE_COLOR
   if (noColor && noColor.length > 0 && !(forceColor && forceColor.length > 0)) return false
-  return isEnvTruthy(depth) || truecolorFingerprint(process.env) !== null
+  return isEnvTruthy(depth) || truecolorFingerprint(hostEnv()) !== null
 }
 
 export function _resetGroundForTest(): void {

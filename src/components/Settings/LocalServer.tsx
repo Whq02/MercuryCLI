@@ -32,6 +32,7 @@ import {
   type LocalServerTruth,
 } from '../../services/localServer/localServerTruth.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const LOCAL_SERVER_APPLY_MENU = 'local-server-apply'
 export const LOCAL_SERVER_SEARCH = 'local server ollama loaded models parallel slots keep alive context length launch agent plist restart'
@@ -53,7 +54,7 @@ export type LocalServerConfigItem = {
 }
 
 export function homePath(): string {
-  return process.env.HOME || process.env.USERPROFILE || homedir()
+  return hostEnv().HOME || hostEnv().USERPROFILE || homedir()
 }
 
 export function tildePath(path: string, home: string = homePath()): string {

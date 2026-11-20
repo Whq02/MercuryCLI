@@ -30,6 +30,7 @@ import {
 import { antigravityCodeAssistBases, discoverGeminiPlan, geminiPlanTierWords, type GeminiPlanTierFacts } from './geminiPlanAccess.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -46,17 +47,17 @@ const GOOGLE_USERINFO_BASE = 'https://www.googleapis.com'
 
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
-export function geminiApiBase(env: NodeJS.ProcessEnv = process.env): string {
+export function geminiApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_GEMINI_API_BASE', env)?.trim() || GEMINI_API_BASE
 }
-function googleOauthAuthBase(env: NodeJS.ProcessEnv = process.env): string {
+function googleOauthAuthBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_GEMINI_OAUTH_AUTH_BASE', env)?.trim() || GOOGLE_OAUTH_AUTH_BASE
 }
-function googleOauthTokenBase(env: NodeJS.ProcessEnv = process.env): string {
+function googleOauthTokenBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_GEMINI_OAUTH_TOKEN_BASE', env)?.trim() || GOOGLE_OAUTH_TOKEN_BASE
 }
-function googleUserinfoBase(env: NodeJS.ProcessEnv = process.env): string {
-  const pinned = (env === process.env ? flagEnv('MERCURY_GOOGLE_USERINFO_BASE') : flagEnv('MERCURY_GOOGLE_USERINFO_BASE', env))?.trim()
+function googleUserinfoBase(env: NodeJS.ProcessEnv = hostEnv()): string {
+  const pinned = (env === hostEnv() ? flagEnv('MERCURY_GOOGLE_USERINFO_BASE') : flagEnv('MERCURY_GOOGLE_USERINFO_BASE', env))?.trim()
   return (pinned && /^https?:\/\//i.test(pinned) ? pinned : GOOGLE_USERINFO_BASE).replace(/\/+$/, '')
 }
 
@@ -146,7 +147,7 @@ export function geminiAuthPathForDisplay(): string {
 
 
 export function geminiOauthClientConfig(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): (GeminiOauthClientConfig & { source: 'env' | 'stored' }) | undefined {
   const envId = flagEnv('MERCURY_GEMINI_OAUTH_CLIENT_ID', env)?.trim()
   if (envId) {
@@ -232,7 +233,7 @@ export function disconnectGeminiPlan(): void {
 }
 
 export function resolveGeminiApiKey(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { key: string; source: GeminiKeySource } | undefined {
   const googleKey = env.GOOGLE_API_KEY?.trim()
   if (googleKey) return { key: googleKey, source: 'env-google' }
@@ -260,7 +261,7 @@ export function readPreferredGeminiSource(): GeminiSourceKind | undefined {
 
 export function geminiSourceIdentity(
   sourceKind: GeminiSourceKind,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): string {
   if (sourceKind === 'api-key') return credentialFingerprint(resolveGeminiApiKey(env)?.key)
   if (sourceKind === 'plan') {
@@ -280,7 +281,7 @@ export function geminiSourceMatchesCredential(sourceKind: GeminiSourceKind, cred
 const SECRET_MASK = '«masked»'
 const SECRET_SHAPES = [/ya29\.[A-Za-z0-9._-]+/g, /AIza[A-Za-z0-9_-]{20,}/g, /1\/\/[A-Za-z0-9._-]{20,}/g]
 
-export function maskGeminiSecrets(text: string, env: NodeJS.ProcessEnv = process.env): string {
+export function maskGeminiSecrets(text: string, env: NodeJS.ProcessEnv = hostEnv()): string {
   const file = readAuthFile()
   const material = [
     file?.tokens?.accessToken,
@@ -307,7 +308,7 @@ export function writePreferredGeminiSource(kind: GeminiSourceKind | null): void 
 }
 
 export function resolveGeminiAccount(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): GeminiAccountRef | undefined {
   const oauth = geminiOauthRef()
   const key = resolveGeminiApiKey(env)
@@ -407,7 +408,7 @@ export async function currentGeminiTokens(opts?: {
   now?: () => number
   force?: boolean
 }): Promise<GeminiStoredTokens | undefined> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const tokens = readAuthFile()?.tokens
   if (!tokens?.refreshToken) return undefined
@@ -461,7 +462,7 @@ export async function currentGeminiPlanTokens(opts?: {
   now?: () => number
   force?: boolean
 }): Promise<GeminiStoredTokens | undefined> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const plan = planOf(readAuthFile())
   if (!plan) return undefined
@@ -527,7 +528,7 @@ export async function resolveGeminiRequestAuth(opts?: {
   sourceKind?: GeminiSourceKind
   forceRefresh?: boolean
 }): Promise<GeminiRequestAuth | undefined> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const account = resolveGeminiAccount(env)
   const kind = opts?.sourceKind ?? account?.kind
   if (!kind) return undefined
@@ -588,7 +589,7 @@ export interface GeminiConnectHandles {
   boundLoopbackPort(): number | undefined
 }
 
-export function geminiOauthClientMissingCopy(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function geminiOauthClientMissingCopy(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   if (geminiOauthClientConfig(env)) return undefined
   return 'Google OAuth needs your own OAuth client (Google Cloud Console → Credentials → OAuth client ID, type "Desktop app"): set MERCURY_GEMINI_OAUTH_CLIENT_ID (+_SECRET) or store it from this screen. API-key sign-in needs no client.'
 }
@@ -814,7 +815,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
 }
 
 export function beginGeminiBrowserConnect(opts?: GeminiConnectOptions): GeminiConnectHandles {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const requestedPort = opts?.loopbackPort ?? GEMINI_REDIRECT_PORT
   const client = geminiOauthClientConfig(env)
   const verifier = generateCodeVerifier()
@@ -910,7 +911,7 @@ async function readGoogleAccountEmail(accessToken: string, fetchImpl: typeof fet
 }
 
 export function beginGeminiPlanBrowserConnect(opts?: GeminiConnectOptions & { sleep?: (ms: number) => Promise<void> }): GeminiConnectHandles {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const requestedPort = opts?.loopbackPort ?? GEMINI_PLAN_REDIRECT_PORT
   const verifier = generateCodeVerifier()
   const challenge = generateCodeChallenge(verifier)
@@ -969,7 +970,7 @@ export function beginGeminiPlanBrowserConnect(opts?: GeminiConnectOptions & { sl
 }
 
 export async function rereadGeminiPlanTier(opts?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<GeminiPlanFacts | undefined> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const tokens = await currentGeminiPlanTokens({ ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}), env })
   const before = planOf(readAuthFile())
   if (!tokens?.accessToken || !before) return undefined

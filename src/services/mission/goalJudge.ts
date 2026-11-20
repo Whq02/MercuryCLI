@@ -17,6 +17,7 @@ import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { goalCriteria, goalWords, type GoalStatement } from './goal.js'
 import { MISSION_MET_SENTINEL } from './sentinel.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const GOAL_VERDICT_FLOOR = 0.6
 export const MISSION_JUDGE_TIMEOUT_MS = 20_000
@@ -74,7 +75,7 @@ function jevAgent(): { id: string; subagent: boolean } | undefined {
 
 export function goalJudgeOpen(): boolean {
   const settings = readJevSettings()
-  if (!settings.enabled || !jevKeyPresence(process.env, settings.road).present) return false
+  if (!settings.enabled || !jevKeyPresence(hostEnv(), settings.road).present) return false
   const agent = jevAgent()
   if (agent !== undefined && !settings.subagents) return false
   return jevStatus(agent, Date.now(), settings).kind === 'ready'
@@ -193,7 +194,7 @@ export const judgeWithModel: GoalJudge = async (goal, evidence, signal) => {
 export const judgeWithJev: GoalJudge = async (goal, evidence, signal) => {
   const settings = readJevSettings()
   const road = settings.road
-  const key = resolveJevApiKey(process.env, road)
+  const key = resolveJevApiKey(hostEnv(), road)
   if (key === undefined) return null
   const agent = jevAgent()
   const at = Date.now()

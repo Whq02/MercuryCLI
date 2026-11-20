@@ -6,6 +6,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { gte } from '../../utils/semver.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { CURSOR_HOME, csi, ERASE_SCREEN } from '../termio/csi.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 
@@ -23,7 +24,7 @@ const SYNC_PROGRAMS = new Set([
 ])
 
 function sniffSynchronizedOutput(): boolean {
-  const env = process.env
+  const env = hostEnv()
   if (env.TMUX) return false
   if (isEnvTruthy(flagEnv('MERCURY_FORCE_SYNC_OUTPUT', env))) return true
   if (SYNC_PROGRAMS.has(env.TERM_PROGRAM ?? '')) return true
@@ -33,13 +34,13 @@ function sniffSynchronizedOutput(): boolean {
   return namedTerm || Boolean(hostMarker) || parseInt(env.VTE_VERSION ?? '', 10) >= 6800
 }
 
-export function isExtendedCsiSafe(env: Record<string, string | undefined> = process.env): boolean {
+export function isExtendedCsiSafe(env: Record<string, string | undefined> = hostEnv()): boolean {
   const version = Number.parseInt(env.VTE_VERSION ?? '', 10)
   return !Number.isFinite(version) || version >= 5300
 }
 
 export function isDecrqmProbeSafe(): boolean {
-  return process.env.TERM_PROGRAM !== 'Apple_Terminal'
+  return hostEnv().TERM_PROGRAM !== 'Apple_Terminal'
 }
 
 let syncOutputSupported = sniffSynchronizedOutput()
@@ -65,12 +66,12 @@ export function syncOutputStatusNow(): { armed: boolean; why: string } {
   }
   if (syncOutputSupported) {
     if (syncUpgradedByProbe) return { armed: true, why: 'DECRQM 2026 probe reply' }
-    if (isEnvTruthy(flagEnv('MERCURY_FORCE_SYNC_OUTPUT')) && !process.env.TMUX) {
+    if (isEnvTruthy(flagEnv('MERCURY_FORCE_SYNC_OUTPUT')) && !hostEnv().TMUX) {
       return { armed: true, why: 'forced on (MERCURY_FORCE_SYNC_OUTPUT)' }
     }
     return { armed: true, why: 'terminal identity sniff' }
   }
-  if (process.env.TMUX) {
+  if (hostEnv().TMUX) {
     return { armed: false, why: 'tmux re-chunks BSU/ESU — atomicity broken' }
   }
   return { armed: false, why: 'no terminal sniff match and no DECRQM 2026 probe reply' }
@@ -94,7 +95,7 @@ export function setXtversionName(name: string): void {
 }
 
 export function isXtermJs(): boolean {
-  if (process.env.TERM_PROGRAM === 'vscode') return true
+  if (hostEnv().TERM_PROGRAM === 'vscode') return true
   return xtversionName?.startsWith('xterm.js') ?? false
 }
 
@@ -145,7 +146,7 @@ export type Progress = {
 }
 
 export function isProgressReportingAvailable(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
   tty: boolean = process.stdout.isTTY === true,
 ): boolean {
   const setting = getInitialSettings()?.activity?.progress
@@ -164,7 +165,7 @@ export function isProgressReportingAvailable(
 
 
 export function hasCursorUpViewportYankBug(): boolean {
-  return process.platform === 'win32' || !!process.env.WT_SESSION
+  return process.platform === 'win32' || !!hostEnv().WT_SESSION
 }
 
 export function streamingRevealSuppressed(
@@ -198,7 +199,7 @@ type SupportsHyperlinksOptions = {
 export function supportsHyperlinks(options?: SupportsHyperlinksOptions): boolean {
   const stdoutSupported = options?.stdoutSupported ?? supportsHyperlinksLib.stdout
   if (stdoutSupported) return true
-  const env = options?.env ?? process.env
+  const env = options?.env ?? hostEnv()
   const termProgram = env['TERM_PROGRAM']
   if (termProgram && ADDITIONAL_HYPERLINK_TERMINALS.includes(termProgram)) return true
   const lcTerminal = env['LC_TERMINAL']
@@ -211,7 +212,7 @@ export function supportsHyperlinks(options?: SupportsHyperlinksOptions): boolean
 const CURSOR_HOME_WINDOWS = csi(0, 'f')
 
 export function isModernWindowsTerminal(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
   platform: string = process.platform,
 ): boolean {
   if (platform !== 'win32') return false

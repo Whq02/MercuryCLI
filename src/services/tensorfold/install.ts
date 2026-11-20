@@ -9,6 +9,7 @@ import { TENSORFOLD_RUNTIME_FOLDER, engineServedByAdapter, tensorFoldCommand, te
 import type { TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE, TENSORFOLD_RELEASE_BASE } from './starting.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type TensorFoldInstallPlan =
   | { kind: 'brew'; brew: string; commands: string[]; words: string; found: string }
@@ -39,7 +40,7 @@ function executable(path: string): boolean {
 
 function findBrew(io: InstallIo = {}): string | undefined {
   const exists = io.exists ?? executable
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const dirs = [...(env.PATH ?? '').split(delimiter).filter(dir => dir !== ''), '/opt/homebrew/bin', '/usr/local/bin']
   for (const dir of dirs) {
     const candidate = join(dir, 'brew')

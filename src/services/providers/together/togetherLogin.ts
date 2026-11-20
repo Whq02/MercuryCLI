@@ -3,6 +3,7 @@ import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredTogetherApiKey } from '../providerSecrets.js'
 import { togetherApiBase, togetherEnvKey } from './togetherAccounts.js'
 import { fetchTogetherLiveModels, TogetherCatalogueHttpError } from './togetherCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface TogetherKeyLoginOutcome {
   ok: boolean
@@ -15,7 +16,7 @@ const TOGETHER_KEY_RECEIPT_TAIL = 'Requests draw the prepaid balance at the vend
 export async function storeTogetherApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<TogetherKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Together AI API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   try {

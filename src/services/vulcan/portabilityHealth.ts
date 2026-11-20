@@ -12,6 +12,7 @@ import {
   type GodotProcess,
 } from './godotProcessCensus.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 interface AbsolutePathFinding {
   skillFile: string
@@ -82,7 +83,7 @@ function joinerFor(platform: CensusPlatform): (...parts: string[]) => string {
   return platform === 'win32' ? pathWin32.join : pathPosix.join
 }
 
-export function godotWellKnownRoots(platform: CensusPlatform, env: NodeJS.ProcessEnv = process.env): string[] {
+export function godotWellKnownRoots(platform: CensusPlatform, env: NodeJS.ProcessEnv = hostEnv()): string[] {
   const roots: string[] = []
   const joinPath = joinerFor(platform)
   const add = (...parts: Array<string | undefined>): void => {
@@ -233,7 +234,7 @@ export async function resolveGodotExecutable(opts: ResolveGodotOptions = {}): Pr
 
 async function resolveGodotExecutableNow(opts: ResolveGodotOptions): Promise<ExecutableReceipt> {
   const platform = opts.platform ?? censusPlatform()
-  const env = opts.env ?? process.env
+  const env = opts.env ?? hostEnv()
   const fs = opts.fs ?? realRootWalkFs
   const probed = godotWellKnownRoots(platform, env)
   const pinned = pinnedGodotExecutable(opts.env === undefined ? flagEnv('MERCURY_GODOT_EXECUTABLE') : flagEnv('MERCURY_GODOT_EXECUTABLE', env), fs, probed)
@@ -281,14 +282,14 @@ export function _resetGodotExecutablePresenceForTesting(): void {
 function godotExecutablePresenceNow(): GodotExecutablePresence {
   const platform = censusPlatform()
   const fs = realRootWalkFs
-  const probed = godotWellKnownRoots(platform, process.env)
+  const probed = godotWellKnownRoots(platform, hostEnv())
   const pinned = pinnedGodotExecutable(flagEnv('MERCURY_GODOT_EXECUTABLE'), fs, probed)
   if (pinned !== null) {
     return pinned.resolved !== undefined
       ? { present: true, path: pinned.resolved, source: pinned.source, note: pinned.note }
       : { present: false, note: pinned.note, remedy: 'point MERCURY_GODOT_EXECUTABLE at the Godot binary, or unset it' }
   }
-  const onPath = godotOnPath(platform, process.env, fs)
+  const onPath = godotOnPath(platform, hostEnv(), fs)
   if (onPath !== undefined) return { present: true, path: onPath.path, source: 'PATH', note: onPath.note }
   for (const root of probed) {
     const found = findGodotInRoot(root, platform, fs)
@@ -305,7 +306,7 @@ function godotExecutablePresenceNow(): GodotExecutablePresence {
 }
 
 export function godotExecutablePresence(now: number = Date.now()): GodotExecutablePresence {
-  const key = [flagEnv('MERCURY_GODOT_EXECUTABLE') ?? '', process.env.PATH ?? '', process.env.HOME ?? '', process.env.USERPROFILE ?? '', lastExecutableReceipt?.resolved ?? ''].join('\u0000')
+  const key = [flagEnv('MERCURY_GODOT_EXECUTABLE') ?? '', hostEnv().PATH ?? '', hostEnv().HOME ?? '', hostEnv().USERPROFILE ?? '', lastExecutableReceipt?.resolved ?? ''].join('\u0000')
   if (presenceMemo !== null && presenceMemo.key === key && now - presenceMemo.at < PRESENCE_MEMO_MS) return presenceMemo.value
   const value = godotExecutablePresenceNow()
   presenceMemo = { key, at: now, value }

@@ -2,6 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredZenApiKey } from '../providerSecrets.js'
 import { ZEN_ENV_KEY } from './zenAccounts.js'
 import { fetchZenGoUsage, zenGoWindowLine } from './zenUsageState.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface ZenKeyLoginOutcome {
   ok: boolean
@@ -14,7 +15,7 @@ export const ZEN_KEY_RECEIPT_TAIL = 'Requests use opencode.ai/zen at the vendor\
 export async function storeZenApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<ZenKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty OpenCode Zen API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   const probe = await fetchZenGoUsage(key, io)
   let note: string

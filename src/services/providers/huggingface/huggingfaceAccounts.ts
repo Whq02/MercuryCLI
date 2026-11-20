@@ -12,6 +12,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { credentialJsonToWriteOver, probeCredentialJson, readStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 const HF_HUB_BASE_URL = 'https://huggingface.co'
@@ -29,22 +30,22 @@ const DEVICE_DEFAULT_INTERVAL_SEC = 5
 const REFRESH_MARGIN_MS = 15 * 60 * 1000
 const WHOAMI_TIMEOUT_MS = 10_000
 
-export function huggingfaceHubBase(env: NodeJS.ProcessEnv = process.env): string {
+export function huggingfaceHubBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_HUGGINGFACE_HUB_BASE', env)?.trim() || HF_HUB_BASE_URL).replace(/\/+$/, '')
 }
-export function huggingfaceRouterBase(env: NodeJS.ProcessEnv = process.env): string {
+export function huggingfaceRouterBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_HUGGINGFACE_API_BASE', env)?.trim() || HF_ROUTER_BASE_URL).replace(/\/+$/, '')
 }
-export function huggingfaceChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function huggingfaceChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${huggingfaceRouterBase(env)}/chat/completions`
 }
-export function huggingfaceModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function huggingfaceModelsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${huggingfaceRouterBase(env)}/models`
 }
-export function huggingfaceOauthClientIdPin(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function huggingfaceOauthClientIdPin(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   return flagEnv('MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID', env)?.trim() || undefined
 }
-export function huggingfaceBillTo(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function huggingfaceBillTo(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   return flagEnv('MERCURY_HUGGINGFACE_BILL_TO', env)?.trim() || undefined
 }
 
@@ -201,14 +202,14 @@ async function postForm(
   return { status: response.status, body }
 }
 
-export function huggingfaceRegisteredClientId(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function huggingfaceRegisteredClientId(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const stored = readAuthFile()?.registeredClient
   if (!stored || typeof stored.clientId !== 'string' || !stored.clientId) return undefined
   return stored.hubBase === huggingfaceHubBase(env) ? stored.clientId : undefined
 }
 
 export async function registerHuggingfaceOauthClient(io?: HuggingfaceOauthIo): Promise<string> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const url = `${huggingfaceHubBase(env)}${HF_OAUTH_REGISTER_PATH}`
   const fetchImpl = oauthFetch(io)
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
@@ -260,7 +261,7 @@ export async function registerHuggingfaceOauthClient(io?: HuggingfaceOauthIo): P
 }
 
 export async function resolveHuggingfaceOauthClientId(io?: HuggingfaceOauthIo): Promise<string> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const pinned = huggingfaceOauthClientIdPin(env)
   if (pinned) return pinned
   const stored = huggingfaceRegisteredClientId(env)
@@ -287,7 +288,7 @@ export type HuggingfaceDevicePollResult =
   | { state: 'unreachable'; message: string }
 
 export async function startHuggingfaceDeviceAuth(io?: HuggingfaceOauthIo): Promise<HuggingfaceDeviceAuthStart> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const clientId = await resolveHuggingfaceOauthClientId(io)
   const { status, body } = await postForm(
     `${huggingfaceHubBase(env)}${HF_OAUTH_DEVICE_PATH}`,
@@ -332,7 +333,7 @@ export async function pollHuggingfaceDeviceToken(
   start: Pick<HuggingfaceDeviceAuthStart, 'deviceCode' | 'clientId'>,
   io?: HuggingfaceOauthIo,
 ): Promise<HuggingfaceDevicePollResult> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   let posted: { status: number; body: Record<string, unknown> }
   try {
     posted = await postForm(
@@ -364,7 +365,7 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
   if (pending) return pending
   const refreshing = Promise.resolve().then(async (): Promise<HuggingfaceStoredTokens | undefined> => {
     try {
-      const env = io?.env ?? process.env
+      const env = io?.env ?? hostEnv()
       const stored = huggingfaceStoredTokens()
       if (!stored?.refreshToken) return undefined
       const clientId = stored.clientId ?? huggingfaceOauthClientIdPin(env) ?? huggingfaceRegisteredClientId(env)
@@ -406,7 +407,7 @@ export async function fetchHuggingfaceIdentity(
   token: string,
   io?: HuggingfaceOauthIo,
 ): Promise<HuggingfaceIdentityProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const fetchImpl = oauthFetch(io)
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   try {
@@ -449,7 +450,7 @@ export interface HuggingfaceAccountRef {
 }
 
 export function resolveHuggingfaceApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): { key: string; source: HuggingfaceKeySource } | undefined {
   const envKey = env.HF_TOKEN?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -463,7 +464,7 @@ export function resolveHuggingfaceApiKey(
 }
 
 export function resolveHuggingfaceAccount(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): HuggingfaceAccountRef | undefined {
   const key = resolveHuggingfaceApiKey(env)
   if (!key) return undefined
@@ -491,7 +492,7 @@ export function resolveHuggingfaceAccount(
 export async function resolveHuggingfaceDispatchCredential(
   io?: HuggingfaceOauthIo,
 ): Promise<{ apiKey: string } | undefined> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const envKey = env.HF_TOKEN?.trim()
   if (envKey) return { apiKey: envKey }
   const oauth = huggingfaceStoredTokens()

@@ -3,6 +3,7 @@ import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredFireworksApiKey } from '../providerSecrets.js'
 import { fireworksApiBase, fireworksEnvKey } from './fireworksAccounts.js'
 import { fetchFireworksLiveModels, FireworksCatalogueHttpError } from './fireworksCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface FireworksKeyLoginOutcome {
   ok: boolean
@@ -15,7 +16,7 @@ const FIREWORKS_KEY_RECEIPT_TAIL = 'Text models only. Standard keys bill at the 
 export async function storeFireworksApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<FireworksKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Fireworks API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   try {

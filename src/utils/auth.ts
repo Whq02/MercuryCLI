@@ -60,6 +60,7 @@ import type { OAuthTokens, SubscriptionType, RateLimitTier } from '../services/o
 import { binaryName } from './config.js'
 import { sleep } from './sleep.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export function isAnthropicAuthEnabled(): boolean {
@@ -69,7 +70,7 @@ export function isAnthropicAuthEnabled(): boolean {
     return Boolean(flagEnv('MERCURY_OAUTH_TOKEN'))
   }
 
-  if (process.env.ANTHROPIC_AUTH_TOKEN) return false
+  if (hostEnv().ANTHROPIC_AUTH_TOKEN) return false
   if (getInitialSettings().credentials?.keyCommand || getInitialSettings().credentials?.keyCommands?.anthropic) return false
   if (flagEnv('MERCURY_API_KEY_FILE_DESCRIPTOR')) return false
   try {
@@ -124,7 +125,7 @@ export function getAuthTokenSource(): { source: AuthTokenSource; hasToken: boole
   if (isBareMode()) {
     return getSettingsForSource('flagSettings')?.credentials?.keyCommand || getSettingsForSource('flagSettings')?.credentials?.keyCommands?.anthropic ? wrap('credentials.keyCommand') : wrap('none')
   }
-  if (process.env.ANTHROPIC_AUTH_TOKEN) return wrap('ANTHROPIC_AUTH_TOKEN')
+  if (hostEnv().ANTHROPIC_AUTH_TOKEN) return wrap('ANTHROPIC_AUTH_TOKEN')
   if (flagEnv('MERCURY_OAUTH_TOKEN')) return wrap('MERCURY_OAUTH_TOKEN')
   if (getOAuthTokenFromFileDescriptor() !== null) {
     return wrap('MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR')
@@ -181,7 +182,7 @@ function keyCredentialSource(bearer: string): WireCredentialSource | null {
 export type ApiKeySource = 'ANTHROPIC_API_KEY' | 'credentials.keyCommand' | '/logins managed key' | 'none'
 
 function isCiOrTest(): boolean {
-  return isEnvTruthy(process.env.CI) || process.env.NODE_ENV === 'test'
+  return isEnvTruthy(hostEnv().CI) || process.env.NODE_ENV === 'test'
 }
 
 export function getAnthropicApiKeyWithSource(opts?: {
@@ -190,8 +191,8 @@ export function getAnthropicApiKeyWithSource(opts?: {
   const skipHelper = opts?.skipRetrievingKeyFromApiKeyHelper === true
 
   if (isBareMode()) {
-    if (process.env.ANTHROPIC_API_KEY) {
-      return { key: process.env.ANTHROPIC_API_KEY, source: 'ANTHROPIC_API_KEY' }
+    if (hostEnv().ANTHROPIC_API_KEY) {
+      return { key: hostEnv().ANTHROPIC_API_KEY!, source: 'ANTHROPIC_API_KEY' }
     }
     if (getSettingsForSource('flagSettings')?.credentials?.keyCommand || getSettingsForSource('flagSettings')?.credentials?.keyCommands?.anthropic) {
       if (skipHelper) return { key: null, source: 'credentials.keyCommand' }
@@ -200,18 +201,18 @@ export function getAnthropicApiKeyWithSource(opts?: {
     return { key: null, source: 'none' }
   }
 
-  if (preferThirdPartyAuthentication() && process.env.ANTHROPIC_API_KEY) {
-    return { key: process.env.ANTHROPIC_API_KEY, source: 'ANTHROPIC_API_KEY' }
+  if (preferThirdPartyAuthentication() && hostEnv().ANTHROPIC_API_KEY) {
+    return { key: hostEnv().ANTHROPIC_API_KEY!, source: 'ANTHROPIC_API_KEY' }
   }
 
   if (isCiOrTest()) {
     const fromFd = getApiKeyFromFileDescriptor()
     if (fromFd !== null) return { key: fromFd, source: 'ANTHROPIC_API_KEY' }
-    const keyVar = process.env.ANTHROPIC_API_KEY
+    const keyVar = hostEnv().ANTHROPIC_API_KEY
     const hasTokenVar = Boolean(
       flagEnv('MERCURY_OAUTH_TOKEN') ||
         flagEnv('MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR') ||
-        process.env.ANTHROPIC_AUTH_TOKEN,
+        hostEnv().ANTHROPIC_AUTH_TOKEN,
     )
     if (!keyVar && !hasTokenVar) {
       throw new Error(
@@ -222,8 +223,8 @@ export function getAnthropicApiKeyWithSource(opts?: {
     return { key: null, source: 'none' }
   }
 
-  if (process.env.ANTHROPIC_API_KEY && isCustomApiKeyApproved(process.env.ANTHROPIC_API_KEY)) {
-    return { key: process.env.ANTHROPIC_API_KEY, source: 'ANTHROPIC_API_KEY' }
+  if (hostEnv().ANTHROPIC_API_KEY && isCustomApiKeyApproved(hostEnv().ANTHROPIC_API_KEY!)) {
+    return { key: hostEnv().ANTHROPIC_API_KEY!, source: 'ANTHROPIC_API_KEY' }
   }
 
   const fromFd = getApiKeyFromFileDescriptor()
@@ -261,7 +262,7 @@ export function hasFirstPartyCredential(): boolean {
     return (
       getAuthTokenSource().hasToken ||
       getAnthropicApiKeyWithSource().source !== 'none' ||
-      Boolean(process.env.ANTHROPIC_API_KEY)
+      Boolean(hostEnv().ANTHROPIC_API_KEY)
     )
   } catch (error) {
     passedOver(error)

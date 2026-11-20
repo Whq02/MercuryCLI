@@ -6,6 +6,7 @@ import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { ggufOnDisk, ggufPaths, hubEndpoint, type GgufSource } from '../hfCache.js'
 import { ADAPTER_VERSION } from './identity.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 type GgufPullIo = {
   fetchImpl?: typeof fetch
@@ -60,12 +61,12 @@ function placeSnapshot(blob: string, snapshotFile: string): void {
   copyFileSync(blob, snapshotFile)
 }
 
-function ggufDownloadUrl(gguf: GgufSource, env: NodeJS.ProcessEnv = process.env): string {
+function ggufDownloadUrl(gguf: GgufSource, env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${hubEndpoint(env)}/${gguf.repo}/resolve/${gguf.revision}/${encodeURI(gguf.file)}`
 }
 
 export async function pullGguf(root: string, gguf: GgufSource, io: GgufPullIo = {}): Promise<GgufPullOutcome> {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const fetchImpl = io.fetchImpl ?? fetch
   const paths = ggufPaths(root, gguf)
   mkdirSync(dirname(paths.blob), { recursive: true })

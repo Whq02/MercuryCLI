@@ -8,6 +8,7 @@ import { FAINT, TEAL } from '../mercuryPalette.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 type MessageRole = 'user' | 'assistant'
@@ -87,7 +88,7 @@ export function userHandle(): string {
       h = ''
     }
   }
-  if (!h) h = (process.env.USER ?? process.env.LOGNAME ?? 'you').trim()
+  if (!h) h = (hostEnv().USER ?? hostEnv().LOGNAME ?? 'you').trim()
   const handle = truncateToWidth(h, 16) || 'you'
   cachedHandle = handle
   return handle

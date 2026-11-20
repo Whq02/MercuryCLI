@@ -8,6 +8,7 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 import { resolveZenApiKey, zenApiBase } from './zenAccounts.js'
 import { zenDisplayName, zenDisplayPin, zenServedShapeOf, type ZenServedShape, type ZenWireShape } from './zenPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface ZenLiveModel {
   id: string
@@ -71,7 +72,7 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${zenApiBase(env)}` : 'none'
 }
 
-export function getCachedZenCatalogue(env: NodeJS.ProcessEnv = process.env): ZenCatalogueSnapshot | null {
+export function getCachedZenCatalogue(env: NodeJS.ProcessEnv = hostEnv()): ZenCatalogueSnapshot | null {
   return resolveZenApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
@@ -81,7 +82,7 @@ function dispatchableZenModels(snapshot: ZenCatalogueSnapshot | null): ZenLiveMo
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<ZenCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (cache.size === 0) return EMPTY_IDS
   const snapshot = getCachedZenCatalogue(env)
   if (!snapshot?.fetchedAtMs) return EMPTY_IDS
@@ -94,7 +95,7 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
 }
 
 export function refreshZenCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<ZenCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveZenApiKey(env)
   const identity = identityOf(env)
@@ -131,7 +132,7 @@ export function refreshZenCatalogue(opts?: { force?: boolean; fetchImpl?: typeof
 }
 
 export function kickZenCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('zen', env).allowed) return false
   const snapshot = getCachedZenCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
@@ -152,7 +153,7 @@ type ZenCatalogueSource = { kind: 'live'; count: number; otherShapes: number; fe
 
 const SHAPE_ORDER: Record<ZenWireShape, number> = { chat: 0, responses: 1 }
 
-export function zenCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: ZenCatalogueRow[]; source: ZenCatalogueSource } {
+export function zenCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: ZenCatalogueRow[]; source: ZenCatalogueSource } {
   const snapshot = getCachedZenCatalogue(env)
   if (!snapshot?.fetchedAtMs) return { rows: [], source: { kind: 'unread' } }
   const dispatchable = dispatchableZenModels(snapshot)

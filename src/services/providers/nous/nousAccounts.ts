@@ -3,6 +3,7 @@ import { readStoredNousApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { NousRefreshRefusedError, nousStoredTokens, nousSigninRefusal, readPreferredNousSource, refreshNousTokens, type NousOauthIo, type NousTokens } from './nousOauth.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const NOUS_API_BASE_URL = 'https://inference-api.nousresearch.com/v1'
 const NOUS_PORTAL_BASE_URL = 'https://portal.nousresearch.com'
@@ -11,28 +12,28 @@ export const NOUS_API_KEY_ENV = 'NOUS_API_KEY'
 
 export type NousCredentialSource = 'env' | 'stored' | 'signin'
 
-export function nousApiBase(env: NodeJS.ProcessEnv = process.env, tokens?: NousTokens): string {
+export function nousApiBase(env: NodeJS.ProcessEnv = hostEnv(), tokens?: NousTokens): string {
   return (flagEnv('MERCURY_NOUS_API_BASE', env)?.trim() || tokens?.inferenceBase || NOUS_API_BASE_URL).replace(/\/+$/, '')
 }
 
-export function nousChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, source: NousCredentialSource = 'stored'): string {
+export function nousChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv(), source: NousCredentialSource = 'stored'): string {
   return `${nousApiBase(env, source === 'signin' ? nousStoredTokens() : undefined)}/chat/completions`
 }
 
-export function nousModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function nousModelsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${nousApiBase(env)}/models`
 }
 
-export function nousPortalBase(env: NodeJS.ProcessEnv = process.env): string {
+export function nousPortalBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_NOUS_PORTAL_BASE', env)?.trim() || NOUS_PORTAL_BASE_URL).replace(/\/+$/, '')
 }
 
-export function nousAccountUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function nousAccountUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${nousPortalBase(env)}/api/oauth/account`
 }
 
 export function resolveNousApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env[NOUS_API_KEY_ENV]?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -57,7 +58,7 @@ function signinWins(env: Record<string, string | undefined>): boolean {
   return !(readPreferredNousSource() === 'api-key' && (resolveProviderKeyCommand('nous') !== undefined || readStoredNousApiKey() !== undefined))
 }
 
-export function resolveNousAccount(env: NodeJS.ProcessEnv = process.env): NousAccountRef | undefined {
+export function resolveNousAccount(env: NodeJS.ProcessEnv = hostEnv()): NousAccountRef | undefined {
   if (signinWins(env)) {
     const tokens = nousStoredTokens()
     const expired = tokens === undefined || tokens.refreshToken.length === 0 || nousSigninRefusal() !== undefined
@@ -77,7 +78,7 @@ export function resolveNousAccount(env: NodeJS.ProcessEnv = process.env): NousAc
   }
 }
 
-export function resolveNousCredentialSnapshot(env: NodeJS.ProcessEnv = process.env): { key: string; source: NousCredentialSource } | undefined {
+export function resolveNousCredentialSnapshot(env: NodeJS.ProcessEnv = hostEnv()): { key: string; source: NousCredentialSource } | undefined {
   if (signinWins(env)) {
     const tokens = nousStoredTokens()
     return tokens?.refreshToken && nousSigninRefusal() === undefined ? { key: tokens.accessToken, source: 'signin' } : undefined
@@ -86,7 +87,7 @@ export function resolveNousCredentialSnapshot(env: NodeJS.ProcessEnv = process.e
 }
 
 export async function resolveNousCredential(io?: NousOauthIo): Promise<{ key: string; source: NousCredentialSource } | undefined> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   if (signinWins(env)) {
     if (nousSigninRefusal() !== undefined) return undefined
     let tokens: NousTokens | undefined
@@ -107,7 +108,7 @@ export function nousSigninIdentity(tokens: NousTokens | undefined): string {
   return tokens === undefined ? 'none' : `signin-${credentialFingerprint(tokens.accountId ?? tokens.accessToken)}`
 }
 
-export function nousAccountIdentity(env: NodeJS.ProcessEnv = process.env): string {
+export function nousAccountIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   if (signinWins(env)) return nousSigninIdentity(nousStoredTokens())
   return credentialFingerprint(resolveNousApiKey(env)?.key)
 }

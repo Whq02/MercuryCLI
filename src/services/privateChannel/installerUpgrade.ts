@@ -4,6 +4,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import type { LayoutRoots } from './installLayout.js'
 import { commandOnPath } from './installPath.js'
 import { NIX_UPDATE_WORDS, type ForeignInstaller } from './installProvenance.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const CONSENT_SUFFIX = ' [y/N] '
 
@@ -47,7 +48,7 @@ type InstallerRunOutcome =
 function startCommand(argv: string[], stdio: StdioOptions): ReturnType<typeof spawn> {
   const env = subprocessEnv()
   if (process.platform === 'win32') {
-    return spawn(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${argv.join(' ')}"`], {
+    return spawn(hostEnv().ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${argv.join(' ')}"`], {
       stdio,
       env,
       windowsVerbatimArguments: true,
@@ -79,7 +80,7 @@ type VersionAfterUpgrade =
 function versionOutput(command: string): string {
   const env = subprocessEnv()
   if (process.platform === 'win32') {
-    const r = spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `""${command}" --version"`], {
+    const r = spawnSync(hostEnv().ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `""${command}" --version"`], {
       encoding: 'utf8',
       timeout: 60_000,
       env,

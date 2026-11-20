@@ -76,6 +76,7 @@ import ErrorOverview from './ErrorOverview.js'
 import StdinContext from './StdinContext.js'
 import { TerminalFocusProvider } from './TerminalFocusContext.js'
 import { LiveTerminalSizeContext, TerminalSizeContext, type TerminalSize } from './TerminalSizeContext.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const STDIN_GAP_REASSERT_MS = 5000
 const INCOMPLETE_SEQUENCE_TIMEOUT_MS = 50
@@ -834,7 +835,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
     const consumed = props.dispatchClick(col, row)
     if (!consumed) {
       const url = props.getHyperlinkAt(col, row)
-      const embeddedWebTerminal = process.env.TERM_PROGRAM === 'vscode' || isXtermJs()
+      const embeddedWebTerminal = hostEnv().TERM_PROGRAM === 'vscode' || isXtermJs()
       if (url && !embeddedWebTerminal) {
         if (m.pendingHyperlinkTimer) clearTimeout(m.pendingHyperlinkTimer)
         m.pendingHyperlinkTimer = setTimeout(() => {

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { subprocessEnv } from '../subprocessEnv.js'
 import type { ProtectorAnswer, SystemProtector } from './types.js'
+import { hostEnv } from '../hostEnv.js'
 
 const DPAPI_SCRIPT = String.raw`
 $ErrorActionPreference = 'Stop'
@@ -38,7 +39,7 @@ const POWERSHELL_ARGS = ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCo
 type Run = { stdout: string; stderr: string; silent: boolean; ended: number | null; error: string | null }
 
 function powershell(): string {
-  return join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+  return join(hostEnv().SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
 }
 
 function request(way: 'protect' | 'unprotect', bytes: Buffer): string {

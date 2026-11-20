@@ -3,6 +3,7 @@ import { maskedKeyTail } from '../credentialIdentity.js'
 import { readStoredMistralApiKey, readStoredMistralAdminApiKey, readStoredNousApiKey, readStoredZenApiKey, readStoredMinimaxApiKey, readStoredTogetherApiKey, readStoredCohereApiKey, readStoredGroqApiKey, readStoredMeliousApiKey, readStoredOrcarouterApiKey, readStoredCerebrasApiKey, readStoredFireworksApiKey, readStoredQwenApiKey, readStoredDeepseekApiKey } from '../providerSecrets.js'
 import { nousStoredTokens, readPreferredNousSource, nousSigninRefusal, NOUS_SIGNIN_EXPIRED_LINE } from '../nous/nousOauth.js'
 import { qwenBoundPlanLabel } from '../qwen/qwenAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const label = (parts: (string | undefined)[]): string => parts.filter(Boolean).join(' ')
 
@@ -51,10 +52,10 @@ export function looksLikeProofFixtureKey(value: string | undefined | null): bool
 }
 
 export function mistralSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.mistralEnvKey ? reads.mistralEnvKey() : process.env.MISTRAL_API_KEY?.trim() || undefined
+  const envKey = reads.mistralEnvKey ? reads.mistralEnvKey() : hostEnv().MISTRAL_API_KEY?.trim() || undefined
   const storedKey = (reads.mistralStoredKey ?? readStoredMistralApiKey)()
   const slots = keyLaneSlots({ family: 'mistral', envVar: 'MISTRAL_API_KEY', envKey, storedKey, storedRemoval: { route: 'mistral-stored-key' } })
-  const adminEnv = reads.mistralAdminEnvKey ? reads.mistralAdminEnvKey() : process.env.MISTRAL_ADMIN_API_KEY?.trim() || undefined
+  const adminEnv = reads.mistralAdminEnvKey ? reads.mistralAdminEnvKey() : hostEnv().MISTRAL_ADMIN_API_KEY?.trim() || undefined
   const adminStored = (reads.mistralAdminStoredKey ?? readStoredMistralAdminApiKey)()
   for (const [source, key] of [['env', adminEnv], ['stored', adminStored]] as const) {
     if (!key) continue
@@ -71,7 +72,7 @@ export function mistralSlots(reads: AccountSlotReads): AccountSlot[] {
 }
 
 export function nousSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.nousEnvKey ? reads.nousEnvKey() : process.env.NOUS_API_KEY?.trim() || undefined
+  const envKey = reads.nousEnvKey ? reads.nousEnvKey() : hostEnv().NOUS_API_KEY?.trim() || undefined
   const storedKey = (reads.nousStoredKey ?? readStoredNousApiKey)()
   const slots = keyLaneSlots({ family: 'nous', envVar: 'NOUS_API_KEY', envKey, storedKey, storedRemoval: { route: 'nous-stored-key' } })
   const signin = (reads.nousSignin ?? nousStoredTokens)()
@@ -87,61 +88,61 @@ export function nousSlots(reads: AccountSlotReads): AccountSlot[] {
 }
 
 export function zenSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.zenEnvKey ? reads.zenEnvKey() : process.env.OPENCODE_API_KEY?.trim() || undefined
+  const envKey = reads.zenEnvKey ? reads.zenEnvKey() : hostEnv().OPENCODE_API_KEY?.trim() || undefined
   const storedKey = (reads.zenStoredKey ?? readStoredZenApiKey)()
   return keyLaneSlots({ family: 'zen', envVar: 'OPENCODE_API_KEY', envKey, storedKey, storedRemoval: { route: 'zen-stored-key' } })
 }
 
 export function minimaxSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.minimaxEnvKey ? reads.minimaxEnvKey() : process.env.MINIMAX_API_KEY?.trim() || undefined
+  const envKey = reads.minimaxEnvKey ? reads.minimaxEnvKey() : hostEnv().MINIMAX_API_KEY?.trim() || undefined
   const storedKey = (reads.minimaxStoredKey ?? readStoredMinimaxApiKey)()
   return keyLaneSlots({ family: 'minimax', envVar: 'MINIMAX_API_KEY', envKey, storedKey, storedRemoval: { route: 'minimax-stored-key' } })
 }
 
 export function togetherSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.togetherEnvKey ? reads.togetherEnvKey() : process.env.TOGETHER_API_KEY?.trim() || process.env.TOGETHER_AI_API_KEY?.trim() || undefined
+  const envKey = reads.togetherEnvKey ? reads.togetherEnvKey() : hostEnv().TOGETHER_API_KEY?.trim() || hostEnv().TOGETHER_AI_API_KEY?.trim() || undefined
   const storedKey = (reads.togetherStoredKey ?? readStoredTogetherApiKey)()
-  return keyLaneSlots({ family: 'together', envVar: process.env.TOGETHER_API_KEY?.trim() ? 'TOGETHER_API_KEY' : process.env.TOGETHER_AI_API_KEY?.trim() ? 'TOGETHER_AI_API_KEY' : 'TOGETHER_API_KEY', envKey, storedKey, storedRemoval: { route: 'together-stored-key' } })
+  return keyLaneSlots({ family: 'together', envVar: hostEnv().TOGETHER_API_KEY?.trim() ? 'TOGETHER_API_KEY' : hostEnv().TOGETHER_AI_API_KEY?.trim() ? 'TOGETHER_AI_API_KEY' : 'TOGETHER_API_KEY', envKey, storedKey, storedRemoval: { route: 'together-stored-key' } })
 }
 
 export function cohereSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.cohereEnvKey ? reads.cohereEnvKey() : process.env.COHERE_API_KEY?.trim() || process.env.CO_API_KEY?.trim() || undefined
+  const envKey = reads.cohereEnvKey ? reads.cohereEnvKey() : hostEnv().COHERE_API_KEY?.trim() || hostEnv().CO_API_KEY?.trim() || undefined
   const storedKey = (reads.cohereStoredKey ?? readStoredCohereApiKey)()
-  return keyLaneSlots({ family: 'cohere', envVar: process.env.COHERE_API_KEY?.trim() ? 'COHERE_API_KEY' : process.env.CO_API_KEY?.trim() ? 'CO_API_KEY' : 'COHERE_API_KEY', envKey, storedKey, storedRemoval: { route: 'cohere-stored-key' } })
+  return keyLaneSlots({ family: 'cohere', envVar: hostEnv().COHERE_API_KEY?.trim() ? 'COHERE_API_KEY' : hostEnv().CO_API_KEY?.trim() ? 'CO_API_KEY' : 'COHERE_API_KEY', envKey, storedKey, storedRemoval: { route: 'cohere-stored-key' } })
 }
 
 export function groqSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.groqEnvKey ? reads.groqEnvKey() : process.env.GROQ_API_KEY?.trim() || undefined
+  const envKey = reads.groqEnvKey ? reads.groqEnvKey() : hostEnv().GROQ_API_KEY?.trim() || undefined
   const storedKey = (reads.groqStoredKey ?? readStoredGroqApiKey)()
   return keyLaneSlots({ family: 'groq', envVar: 'GROQ_API_KEY', envKey, storedKey, storedRemoval: { route: 'groq-stored-key' } })
 }
 
 export function meliousSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.meliousEnvKey ? reads.meliousEnvKey() : process.env.MELIOUS_API_KEY?.trim() || undefined
+  const envKey = reads.meliousEnvKey ? reads.meliousEnvKey() : hostEnv().MELIOUS_API_KEY?.trim() || undefined
   const storedKey = (reads.meliousStoredKey ?? readStoredMeliousApiKey)()
   return keyLaneSlots({ family: 'melious', envVar: 'MELIOUS_API_KEY', envKey, storedKey, storedRemoval: { route: 'melious-stored-key' } })
 }
 
 export function orcarouterSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.orcarouterEnvKey ? reads.orcarouterEnvKey() : process.env.ORCAROUTER_API_KEY?.trim() || undefined
+  const envKey = reads.orcarouterEnvKey ? reads.orcarouterEnvKey() : hostEnv().ORCAROUTER_API_KEY?.trim() || undefined
   const storedKey = (reads.orcarouterStoredKey ?? readStoredOrcarouterApiKey)()
   return keyLaneSlots({ family: 'orcarouter', envVar: 'ORCAROUTER_API_KEY', envKey, storedKey, storedRemoval: { route: 'orcarouter-stored-key' } })
 }
 
 export function cerebrasSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.cerebrasEnvKey ? reads.cerebrasEnvKey() : process.env.CEREBRAS_API_KEY?.trim() || undefined
+  const envKey = reads.cerebrasEnvKey ? reads.cerebrasEnvKey() : hostEnv().CEREBRAS_API_KEY?.trim() || undefined
   const storedKey = (reads.cerebrasStoredKey ?? readStoredCerebrasApiKey)()
   return keyLaneSlots({ family: 'cerebras', envVar: 'CEREBRAS_API_KEY', envKey, storedKey, storedRemoval: { route: 'cerebras-stored-key' } })
 }
 
 export function fireworksSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.fireworksEnvKey ? reads.fireworksEnvKey() : process.env.FIREWORKS_API_KEY?.trim() || undefined
+  const envKey = reads.fireworksEnvKey ? reads.fireworksEnvKey() : hostEnv().FIREWORKS_API_KEY?.trim() || undefined
   const storedKey = (reads.fireworksStoredKey ?? readStoredFireworksApiKey)()
   return keyLaneSlots({ family: 'fireworks', envVar: 'FIREWORKS_API_KEY', envKey, storedKey, storedRemoval: { route: 'fireworks-stored-key' } })
 }
 
 export function qwenSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.qwenEnvKey ? reads.qwenEnvKey() : process.env.DASHSCOPE_API_KEY?.trim() || undefined
+  const envKey = reads.qwenEnvKey ? reads.qwenEnvKey() : hostEnv().DASHSCOPE_API_KEY?.trim() || undefined
   const storedKey = (reads.qwenStoredKey ?? readStoredQwenApiKey)()
   const slots = keyLaneSlots({ family: 'qwen', envVar: 'DASHSCOPE_API_KEY', envKey, storedKey, storedRemoval: { route: 'qwen-stored-key' } })
   const plan = qwenBoundPlanLabel()
@@ -156,7 +157,7 @@ export function qwenSlots(reads: AccountSlotReads): AccountSlot[] {
 
 export function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
-    reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
+    reads.deepseekEnvKey ? reads.deepseekEnvKey() : hostEnv().DEEPSEEK_API_KEY?.trim() || undefined
   const storedKey = (reads.deepseekStoredKey ?? readStoredDeepseekApiKey)()
   return keyLaneSlots({
     family: 'deepseek',

@@ -1,5 +1,6 @@
 import { windowsBatchTail } from './shell/windowsBatchLine.js'
 import { hostLookupWorld, resolveExecutable, type LookupWorld } from './which.js'
+import { hostEnv } from './hostEnv.js'
 
 export interface SpawnWorld extends LookupWorld {
   comSpec?: string
@@ -10,7 +11,7 @@ export type SpawnPlan =
   | { refused: string; missing?: string }
 
 export function hostSpawnWorld(): SpawnWorld {
-  return { ...hostLookupWorld(), comSpec: process.env.ComSpec }
+  return { ...hostLookupWorld(), comSpec: hostEnv().ComSpec }
 }
 
 const BATCH_SHIM = /\.(cmd|bat)$/i

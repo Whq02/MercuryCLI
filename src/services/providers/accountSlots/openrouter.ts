@@ -5,11 +5,12 @@ import { openrouterObservedKeyUsage } from '../openrouter/openrouterUsageState.j
 import { readSignInRefusal, signInRefusalWords } from '../../../utils/accounts/signInRefusal.js'
 import { label } from './keyLane.js'
 import { maskedKeyTail } from '../credentialIdentity.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
   const envKey = reads.openrouterEnvKey
     ? reads.openrouterEnvKey()
-    : process.env.OPENROUTER_API_KEY?.trim() || undefined
+    : hostEnv().OPENROUTER_API_KEY?.trim() || undefined
   const minted = (reads.openrouterMintedKey ?? readMintedOpenrouterKey)()
   const storedKey = (reads.openrouterStoredKey ?? readStoredOpenrouterApiKey)()
   const usableMinted = minted !== undefined && !minted.expiredMessage

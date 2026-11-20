@@ -14,6 +14,7 @@ import {
   matchingRuleForInput,
   pathInAllowedWorkingPath,
 } from './filesystem.js'
+import { hostEnv } from '../hostEnv.js'
 
 export type FileOperationType = 'read' | 'write' | 'create'
 
@@ -42,7 +43,7 @@ function getGlobBaseDirectory(path: string): string {
 }
 
 export function expandTilde(path: string): string {
-  const home = process.env.HOME || process.env.USERPROFILE || ''
+  const home = hostEnv().HOME || hostEnv().USERPROFILE || ''
   if (path === '~') return home
   if (path.startsWith('~/')) return home + path.slice(1)
   if (getPlatform() === 'windows' && path.startsWith('~\\')) return home + path.slice(1)
@@ -125,7 +126,7 @@ export function isDangerousRemovalPath(resolvedPath: string): boolean {
 
   if (/^[A-Za-z]:$/.test(trimmed) || /^[A-Za-z]:\/?$/.test(collapsed)) return true
   const windows = getPlatform() === 'windows'
-  const homeRaw = windows ? process.env.USERPROFILE || process.env.HOME : process.env.HOME || process.env.USERPROFILE
+  const homeRaw = windows ? hostEnv().USERPROFILE || hostEnv().HOME : hostEnv().HOME || hostEnv().USERPROFILE
   const home = (homeRaw || '').replace(/[/\\]+/g, '/')
   if (home && (windows ? trimmed.toLowerCase() === home.toLowerCase() : trimmed === home)) return true
   if (/^\/[^/]+$/.test(trimmed)) return true

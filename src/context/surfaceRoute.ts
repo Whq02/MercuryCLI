@@ -5,6 +5,7 @@ import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { keyHintLabel } from '../components/mercury-ui/keyHintLabel.js'
 import { concourseEnabled } from '../services/concourse/concourseEnabled.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 function stampRouteReady(): void {
   try {
@@ -376,7 +377,7 @@ export function cycleSurface(dir: 1 | -1): StripOutcome {
 
 export type ConcoursePolicy = 'off' | 'auto' | 'always'
 
-export function resolveConcoursePolicy(env: NodeJS.ProcessEnv = process.env): ConcoursePolicy {
+export function resolveConcoursePolicy(env: NodeJS.ProcessEnv = hostEnv()): ConcoursePolicy {
   let raw: string | undefined
   for (const spelling of flagSpellings('MERCURY_CONCOURSE')) {
     raw = env[spelling]

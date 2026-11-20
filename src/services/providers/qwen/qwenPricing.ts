@@ -1,6 +1,7 @@
 import { qwenPricingRegion } from './qwenAccounts.js'
 import { qwenDisplayPin, qwenPriceTierFor } from './qwenPins.js'
 import type { ResolvedModelPricing } from '../../../utils/modelCost.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 type Price = { costInPerMtok: number; costOutPerMtok: number; cachedInPerMtok?: number; cacheWritePerMtok?: number }
 type Tier = Price & { aboveInputTokens: number }
@@ -24,7 +25,7 @@ const PRICE_ALIASES: Readonly<Record<string, string>> = {
   'qwen3.6-flash-2026-04-16': 'qwen3.6-flash',
 }
 
-export function qwenRegionalPrice(model: string, promptTokens?: number, env: NodeJS.ProcessEnv = process.env): Price | undefined {
+export function qwenRegionalPrice(model: string, promptTokens?: number, env: NodeJS.ProcessEnv = hostEnv()): Price | undefined {
   const region = qwenPricingRegion(env)
   if (region === undefined || promptTokens !== undefined && promptTokens > 1000000) return undefined
   const raw = model.trim().toLowerCase().replace(/\[(?:[0-9]+m|served)\]/gi, '')

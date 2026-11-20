@@ -10,6 +10,7 @@ import type { TensorFoldEngine, TensorFoldFamily, TensorFoldMachine } from './co
 import { readTensorFoldMachineTruth, type MachineIo, type TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_STARTING_POINTS, type TensorFoldCheckpoint } from './starting.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const TENSORFOLD_BINARY_NAMES = ['tensorfold-native', 'tensorfold'] as const
 export const TENSORFOLD_RUNTIME_FOLDER = join('.local', 'share', 'mercury-host', 'runtime', 'tensorfold')
@@ -71,7 +72,7 @@ function defaultExec(env: NodeJS.ProcessEnv): EngineExec {
 }
 
 export function tensorFoldBinaryCandidates(io: Pick<EngineIo, 'env' | 'home' | 'platform'> = {}): string[] {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const home = io.home ?? homedir()
   const platform = io.platform ?? process.platform
   const dirs = [

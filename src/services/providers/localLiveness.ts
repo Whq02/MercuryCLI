@@ -9,6 +9,7 @@ import { localModelRecord, type LocalModelRecord, type LocalServerKind } from '.
 import { localServerName } from './local/localCatalogue.js'
 import { REAL_STREAM_TIMERS, type StreamTimers } from './streamIdleBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const LOCAL_FIRST_BYTE_CAP_MS = 2 * 60 * 60_000
 export const LOCAL_REQUEST_CAP_MS = LOCAL_FIRST_BYTE_CAP_MS
@@ -263,7 +264,7 @@ export interface LocalProbeIo {
 
 async function probeAnswer(url: string, io: LocalProbeIo): Promise<{ status: number; body: unknown } | null> {
   const fetchImpl = io.fetchImpl ?? getApiFetch()
-  const key = resolveLocalApiKey(io.env ?? process.env)
+  const key = resolveLocalApiKey(io.env ?? hostEnv())
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'local', io.timeoutMs ?? LOCAL_LIVENESS_PROBE_TIMEOUT_MS, url, {
       method: 'GET',

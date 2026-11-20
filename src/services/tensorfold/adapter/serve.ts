@@ -13,6 +13,7 @@ import { readLlamaServerVersion, resolveLlamaServer, type LlamaServerVersion } f
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from './models.js'
 import { sleep } from '../../../utils/sleep.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 type ServeArgs = { repo: string; name?: string; window: number; port: number; host: string; promptCacheGib: number; apiKeyFile?: string; drafter?: string }
 
@@ -346,7 +347,7 @@ export async function rememberChild(port: number, pid: number, startToken: (pid:
 type FrontState = 'loading' | 'ready' | 'draining'
 
 export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<number> {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const platform = io.platform ?? process.platform
   const say = io.stderr ?? ((line: string) => process.stderr.write(`${line}\n`))
   const refusal = (line: string): ServeRefusal => new ServeRefusal(`${ADAPTER_SPEAKER}: ${line}`)

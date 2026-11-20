@@ -14,6 +14,7 @@ import {
   type CppCmakePreset,
   type CppProjectProfile,
 } from './cppProjectProfile.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type CppBuildOp = 'configure-preset' | 'configure-conventional' | 'build' | 'clean'
 
@@ -52,7 +53,7 @@ export function _resetCppBuildForTesting(): void {
 }
 
 function probeCmake(): string | null {
-  const key = process.env.PATH ?? ''
+  const key = hostEnv().PATH ?? ''
   if (cmakeCache && cmakeCache.key === key && Date.now() - cmakeCache.at < CMAKE_PROBE_TTL_MS) {
     return cmakeCache.path
   }

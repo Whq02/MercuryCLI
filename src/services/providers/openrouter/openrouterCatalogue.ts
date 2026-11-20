@@ -22,6 +22,7 @@ import {
   type OpenrouterKeySource,
 } from './openrouterAccounts.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -209,7 +210,7 @@ function storeSnapshot(identity: string, snapshot: OpenrouterCatalogueSnapshot):
 
 function catalogueIdentity(
   keySource: OpenrouterKeySource,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): string {
   const auth = resolveOpenrouterRequestAuth(env)
   if (!auth || auth.account.keySource !== keySource) return `${keySource}:none`
@@ -218,7 +219,7 @@ function catalogueIdentity(
 
 export function getCachedOpenrouterCatalogue(
   keySource: OpenrouterKeySource,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenrouterCatalogueSnapshot | null {
   return catalogueCache.get(catalogueIdentity(keySource, env)) ?? null
 }
@@ -230,7 +231,7 @@ export function refreshOpenrouterCatalogue(
   const now = opts?.now ?? Date.now
   const identity = catalogueIdentity(keySource, opts?.env)
   const cached = catalogueCache.get(identity)
-  if (!catalogueTrafficVerdict('openrouter', opts?.env ?? process.env).allowed) {
+  if (!catalogueTrafficVerdict('openrouter', opts?.env ?? hostEnv()).allowed) {
     return Promise.resolve(cached ?? null)
   }
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
@@ -241,7 +242,7 @@ export function refreshOpenrouterCatalogue(
   if (existing) return existing
   const work = (async (): Promise<OpenrouterCatalogueSnapshot | null> => {
     try {
-      const auth = resolveOpenrouterRequestAuth(opts?.env ?? process.env)
+      const auth = resolveOpenrouterRequestAuth(opts?.env ?? hostEnv())
       if (!auth || auth.account.keySource !== keySource) {
         const snapshot: OpenrouterCatalogueSnapshot = {
           keySource,
@@ -309,7 +310,7 @@ export type OpenrouterAvailability =
     }
 
 export function getOpenrouterAvailability(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenrouterAvailability {
   const auth = resolveOpenrouterRequestAuth(env)
   if (!auth) {
@@ -376,7 +377,7 @@ export function getOpenrouterAvailability(
 
 export function openrouterModelsForVendor(
   vendor: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenrouterLiveModel[] {
   const auth = resolveOpenrouterRequestAuth(env)
   if (!auth) return []
@@ -389,7 +390,7 @@ export function openrouterModelsForVendor(
 
 export function openrouterListedModel(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenrouterLiveModel | undefined {
   if (declaredRouteOf(model) !== 'openrouter') return undefined
   const auth = resolveOpenrouterRequestAuth(env)
@@ -403,7 +404,7 @@ export function openrouterListedModel(
 
 export function openrouterContextWindowFor(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { window: number; source: 'live-current' } | undefined {
   const listed = openrouterListedModel(model, env)
   return listed?.contextLength !== undefined && listed.contextLength > 0
@@ -413,7 +414,7 @@ export function openrouterContextWindowFor(
 
 export function openrouterMaxCompletionTokensFor(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): number | undefined {
   const listed = openrouterListedModel(model, env)
   return listed?.maxCompletionTokens !== undefined && listed.maxCompletionTokens > 0
@@ -423,7 +424,7 @@ export function openrouterMaxCompletionTokensFor(
 
 export function openrouterEffortVocabularyFor(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): readonly string[] {
   const listed = openrouterListedModel(model, env)
   if (!listed) return []
@@ -448,7 +449,7 @@ export function openrouterDispatchReady(
 }
 
 export function getOpenrouterModelOptions(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): ModelOption[] {
   const availability = getOpenrouterAvailability(env)
   if (availability.state === 'disabled') {
@@ -517,7 +518,7 @@ export function getOpenrouterModelOptions(
 }
 
 export function getOpenrouterFullModelOptions(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): ModelOption[] {
   const availability = getOpenrouterAvailability(env)
   if (availability.state !== 'ready') return []

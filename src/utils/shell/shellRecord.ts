@@ -15,6 +15,7 @@ import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from
 import { resolveBrushPackDir } from './brushPack.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
 import { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, pinPassedOver, settleWindowsShell, shellFollowsTheRecord, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
+import { hostEnv } from '../hostEnv.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -129,7 +130,7 @@ export function zshNamedBeforeBash(shells: ReadonlyArray<string | undefined>): s
 }
 
 async function systemBashCandidates(): Promise<string[]> {
-  const shell = process.env.SHELL ?? ''
+  const shell = hostEnv().SHELL ?? ''
   const located = await which('bash')
   const candidates = [
     ...(basename(shell) === 'bash' ? [shell] : []),

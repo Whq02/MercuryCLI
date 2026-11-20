@@ -9,6 +9,7 @@ import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { pathEntryEquals, resolveLayoutRoots, type LayoutRoots } from './installLayout.js'
 import { isNpmWrapperCommand, resolveInstallProvenance } from './installProvenance.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const PATH_SENTINEL = 'mercury-managed-path'
 export const WIN32_USER_PATH_STORE = 'the user PATH (HKCU\\Environment)'
@@ -187,7 +188,7 @@ export function commandOnPathWarning(
   roots: LayoutRoots,
   found: CommandOnPath,
   stableWords = 'the stable command',
-  io: Pick<PathEntryIo, 'env' | 'home'> = { env: process.env, home: homedir() },
+  io: Pick<PathEntryIo, 'env' | 'home'> = { env: hostEnv(), home: homedir() },
 ): [fact: string, fix: string] | null {
   if (found.state === 'stable') return null
   if (found.state === 'other' && found.npmWrapper) return null
@@ -517,7 +518,7 @@ function writeUserPathFile(file: string, expected: string, value: string, kind: 
 export function realPathEntryIo(opts: { powershell?: () => string | null } = {}): PathEntryIo {
   const storeFile = flagEnv('MERCURY_USER_PATH_FILE')
   return {
-    env: process.env,
+    env: hostEnv(),
     home: homedir(),
     readFile(path) {
       try {

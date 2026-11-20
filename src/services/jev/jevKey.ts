@@ -4,13 +4,14 @@ import { resolveOpenrouterApiKey } from '../providers/openrouter/openrouterAccou
 import type { JevRoad } from './jevContract.js'
 import { noteJevKeyChanged } from './jevLedger.js'
 import { readJevSettings } from './jevSetting.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const JEV_KEY_ENV = 'TYPESAFE_API_KEY'
 type JevKeySource = 'env' | 'stored' | 'oauth'
 export type JevKeyPresence = { present: true; source: JevKeySource } | { present: false }
 const identities = new Map<JevRoad, string>()
 
-export function resolveJevApiKey(env: Record<string, string | undefined> = process.env, road: JevRoad = readJevSettings().road): { key: string; source: JevKeySource } | undefined {
+export function resolveJevApiKey(env: Record<string, string | undefined> = hostEnv(), road: JevRoad = readJevSettings().road): { key: string; source: JevKeySource } | undefined {
   const official = (): { key: string; source: JevKeySource } | undefined => {
     const pinned = env[JEV_KEY_ENV]?.trim()
     if (pinned) return { key: pinned, source: 'env' }
@@ -24,7 +25,7 @@ export function resolveJevApiKey(env: Record<string, string | undefined> = proce
   return resolved
 }
 
-export function jevKeyPresence(env: Record<string, string | undefined> = process.env, road: JevRoad = readJevSettings().road): JevKeyPresence {
+export function jevKeyPresence(env: Record<string, string | undefined> = hostEnv(), road: JevRoad = readJevSettings().road): JevKeyPresence {
   const resolved = resolveJevApiKey(env, road)
   return resolved ? { present: true, source: resolved.source } : { present: false }
 }

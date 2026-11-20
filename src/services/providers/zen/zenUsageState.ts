@@ -4,6 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveZenApiKey, zenGoUsageUrl } from './zenAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const ZEN_BALANCE_NOTE = 'the pay-as-you-go balance is shown in the OpenCode console (opencode.ai/auth → Billing); the gateway states no balance to clients'
 export const ZEN_GO_ABSENT_NOTE = 'no OpenCode Go plan on this key — turns draw the pay-as-you-go balance'
@@ -38,18 +39,18 @@ interface ZenGoObservation {
 let observation: ZenGoObservation = { usage: null, plan: 'unknown', failure: null }
 let observedIdentity = 'none'
 
-function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   return credentialFingerprint(resolveZenApiKey(env)?.key)
 }
 
-function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
+function dropIfStale(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (observedIdentity !== activeIdentity(env)) {
     observation = { usage: null, plan: 'unknown', failure: null }
     observedIdentity = 'none'
   }
 }
 
-export function zenObservedGoUsage(env: NodeJS.ProcessEnv = process.env): ZenGoObservation {
+export function zenObservedGoUsage(env: NodeJS.ProcessEnv = hostEnv()): ZenGoObservation {
   dropIfStale(env)
   return observation
 }
@@ -112,7 +113,7 @@ export async function fetchZenGoUsage(
   const nowMs = io?.now?.() ?? Date.now()
   let probe: ZenGoProbe
   try {
-    const response = await fetchWithProviderDeadline(fetchImpl, 'zen', PROBE_TIMEOUT_MS, zenGoUsageUrl(io?.env ?? process.env), {
+    const response = await fetchWithProviderDeadline(fetchImpl, 'zen', PROBE_TIMEOUT_MS, zenGoUsageUrl(io?.env ?? hostEnv()), {
       method: 'GET',
       headers: { accept: 'application/json', authorization: `Bearer ${key}`, 'user-agent': getProductUserAgent() },
       ...(proxyOptions as Record<string, unknown>),
@@ -174,7 +175,7 @@ export function refreshZenGoUsage(io?: {
   force?: boolean
 }): Promise<ZenGoObservation> {
   const now = io?.now?.() ?? Date.now()
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   dropIfStale(env)
   const fresh = observation.usage !== null ? now - observation.usage.observedAtMs < USAGE_POLL_TTL_MS : observation.plan === 'none' && now - lastAttemptAtMs < USAGE_POLL_TTL_MS
   if (!io?.force && fresh) return Promise.resolve(observation)

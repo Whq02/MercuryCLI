@@ -14,6 +14,7 @@ import {
   type SearchOutcome,
   type SearchRequest,
 } from './searchContract.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const BRAVE_WEB_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search'
 const REQUEST_TIMEOUT_MS = 15_000
@@ -26,7 +27,7 @@ function braveSearchUrl(): string {
 export type SearchKeySource = 'env' | 'stored'
 
 export function resolveBraveSearchApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): { key: string; source: SearchKeySource } | undefined {
   const envKey = env.BRAVE_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -87,7 +88,7 @@ export async function braveSearch(request: SearchRequest, io: KeyedSearchIo = {}
 }
 
 async function requestBraveSearch(request: SearchRequest, io: KeyedSearchIo): Promise<SearchOutcome> {
-  const key = resolveBraveSearchApiKey(io.env ?? process.env)
+  const key = resolveBraveSearchApiKey(io.env ?? hostEnv())
   if (!key) return searchFailure('no-backend', 'brave', 'no Brave Search key (set BRAVE_API_KEY)')
   const fetchImpl = io.fetchImpl ?? getApiFetch()
   const proxyOptions = io.fetchImpl ? {} : getProxyFetchOptions()

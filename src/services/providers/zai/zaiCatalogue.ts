@@ -10,6 +10,7 @@ import { zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
 import { rememberZaiKeyPlan, type ZaiKeyPlanWord } from './zaiKeyPlan.js'
 import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ZAI_CATALOGUE_TTL_MS = 5 * 60_000
@@ -57,7 +58,7 @@ export type ZaiKeyProbe =
 
 export async function probeZaiKey(key: string, plan: ZaiApiPlan, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<ZaiKeyProbe> {
   try {
-    const result = await fetchZaiLiveModels({ baseUrl: zaiApiBase(io?.env ?? process.env, plan), key, ...(io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}) })
+    const result = await fetchZaiLiveModels({ baseUrl: zaiApiBase(io?.env ?? hostEnv(), plan), key, ...(io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}) })
     return { state: 'accepted', models: result.models.length }
   } catch (error) {
     if (error instanceof ZaiCatalogueHttpError && error.refused) return { state: 'refused', status: error.status, ...(error.said ? { message: error.said } : {}) }
@@ -102,7 +103,7 @@ type ZaiPlanLearning =
   | { plan: undefined; refused: boolean; error: Error }
 
 export async function learnZaiKeyPlan(key: string, io?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): Promise<ZaiPlanLearning> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const fetchImpl = io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}
   const asked = new Set<string>()
   let refusal: ZaiCatalogueHttpError | undefined
@@ -163,7 +164,7 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
   return `${dispatch.source}:${credentialFingerprint(dispatch.key)}:${listBase(env, dispatch.plan)}`
 }
 
-export function getCachedZaiCatalogue(env: NodeJS.ProcessEnv = process.env): ZaiCatalogueSnapshot | null {
+export function getCachedZaiCatalogue(env: NodeJS.ProcessEnv = hostEnv()): ZaiCatalogueSnapshot | null {
   if (!resolveZaiDispatch(env)) return null
   return catalogueCache.get(catalogueIdentity(env)) ?? null
 }
@@ -171,7 +172,7 @@ export function getCachedZaiCatalogue(env: NodeJS.ProcessEnv = process.env): Zai
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
 const liveIdSets = new WeakMap<ZaiCatalogueSnapshot, ReadonlySet<string>>()
 
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
   const snapshot = getCachedZaiCatalogue(env)
   if (!snapshot || snapshot.fetchedAtMs === 0 || snapshot.models.length === 0) return EMPTY_LIVE_IDS
@@ -193,7 +194,7 @@ export function refreshZaiCatalogue(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
 }): Promise<ZaiCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const dispatch = resolveZaiDispatch(env)
   const identity = catalogueIdentity(env)
@@ -231,7 +232,7 @@ export function refreshZaiCatalogue(opts?: {
 }
 
 export function kickZaiCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('zai', env).allowed) return false
   if (!nothingUsable(getCachedZaiCatalogue(env))) return false
   void refreshZaiCatalogue({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(passedOverAs(null))
@@ -261,7 +262,7 @@ function floorRows(): ZaiCatalogueRow[] {
   return rows
 }
 
-export function zaiCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: ZaiCatalogueRow[]; source: ZaiCatalogueSource } {
+export function zaiCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: ZaiCatalogueRow[]; source: ZaiCatalogueSource } {
   const snapshot = getCachedZaiCatalogue(env)
   if (!snapshot || snapshot.models.length === 0) {
     const rows = floorRows()
@@ -287,7 +288,7 @@ export function zaiCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: 
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function zaiCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function zaiCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const { source } = zaiCatalogueRows(env)
   if (source.kind !== 'live') return undefined
   return `${source.count} ${source.count === 1 ? 'model' : 'models'} live`

@@ -65,6 +65,7 @@ import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { pinnedGitBash } from '../../utils/windowsPaths.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 const SLEEP_THRESHOLD_SECONDS = 2
@@ -525,7 +526,7 @@ let gitBashProbe: { key: string; available: boolean } | null = null
 
 function isGitBashAvailable(): boolean {
   if (getPlatform() !== 'windows') return true
-  const probeKey = `${process.env.PATH ?? ''}\u0000${flagEnv('MERCURY_GIT_BASH_PATH') ?? ''}`
+  const probeKey = `${hostEnv().PATH ?? ''}\u0000${flagEnv('MERCURY_GIT_BASH_PATH') ?? ''}`
   if (gitBashProbe !== null && gitBashProbe.key === probeKey) {
     return gitBashProbe.available
   }
@@ -536,7 +537,7 @@ function isGitBashAvailable(): boolean {
 
 function scanForGitBash(): boolean {
   if (pinnedGitBash() !== null) return true
-  const dirs = (process.env.PATH ?? '').split(';').filter(Boolean)
+  const dirs = (hostEnv().PATH ?? '').split(';').filter(Boolean)
   const candidates = [
     ...dirs.map(d => join(d, 'git.exe')),
     'C:\\Program Files\\Git\\cmd\\git.exe',

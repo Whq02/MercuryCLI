@@ -14,6 +14,7 @@ import { protectedPathForms } from './protectedPaths.js'
 import { matchWildcardPattern } from './shellRuleMatching.js'
 import { directoryTheShellStandsIn } from '../cwd.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 const inside = (path: string, root: string): boolean => path === root || path.startsWith(root + '/')
 
@@ -192,7 +193,7 @@ export async function namesMercuryProcess(pattern: string): Promise<boolean> {
 
 function ownUser(named: string): boolean {
   if (/^\$\{?(?:USER|LOGNAME|USERNAME|UID|EUID)\}?$/.test(named)) return true
-  const names = [process.env.USER, process.env.LOGNAME, process.env.USERNAME]
+  const names = [hostEnv().USER, hostEnv().LOGNAME, hostEnv().USERNAME]
   try {
     const info = userInfo()
     names.push(info.username, String(info.uid))

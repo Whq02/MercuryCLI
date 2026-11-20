@@ -14,6 +14,7 @@ import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 const MOONSHOT_API_BASE_URL = 'https://api.moonshot.ai/v1'
@@ -54,31 +55,31 @@ export function kimiRegionLabel(region: KimiRegion): string {
   return KIMI_REGION_PROFILES[region].label
 }
 
-export function moonshotApiBase(env: NodeJS.ProcessEnv = process.env): string {
+export function moonshotApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_MOONSHOT_API_BASE', env)?.trim() || MOONSHOT_API_BASE_URL).replace(/\/+$/, '')
 }
-export function moonshotChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function moonshotChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${moonshotApiBase(env)}/chat/completions`
 }
-export function moonshotOauthBase(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
+export function moonshotOauthBase(region: KimiRegion, env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_MOONSHOT_OAUTH_BASE', env)?.trim() || KIMI_REGION_PROFILES[region].oauthHost).replace(
     /\/+$/,
     '',
   )
 }
-export function moonshotOauthClientId(env: NodeJS.ProcessEnv = process.env): string {
+export function moonshotOauthClientId(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_MOONSHOT_OAUTH_CLIENT_ID', env)?.trim() || KIMI_OAUTH_CLIENT_ID
 }
-export function kimiCodingBase(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
+export function kimiCodingBase(region: KimiRegion, env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_MOONSHOT_CODING_BASE', env)?.trim() || KIMI_REGION_PROFILES[region].codingBase).replace(
     /\/+$/,
     '',
   )
 }
-export function kimiCodingChatCompletionsUrl(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
+export function kimiCodingChatCompletionsUrl(region: KimiRegion, env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${kimiCodingBase(region, env)}/chat/completions`
 }
-export function kimiUsagesUrl(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
+export function kimiUsagesUrl(region: KimiRegion, env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${kimiCodingBase(region, env)}/usages`
 }
 
@@ -205,7 +206,7 @@ export function accessTokenRefreshMarginMs(tokens: MoonshotStoredTokens): number
   return Math.min(REFRESH_MARGIN_MS, Math.max(MIN_REFRESH_MARGIN_MS, Math.floor((expiresAt - issuedAt) / 3)))
 }
 
-export function moonshotAccountIdentity(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function moonshotAccountIdentity(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const envKey = env.MOONSHOT_API_KEY?.trim()
   if (envKey) return credentialFingerprint(envKey)
   const tokens = moonshotStoredTokens()
@@ -231,18 +232,18 @@ function withServedModelsMoved(file: MoonshotAuthFile, from: string, to: string)
   return withServedModelTable(file, table)
 }
 
-export function moonshotServedModels(env: NodeJS.ProcessEnv = process.env): MoonshotServedModelRecord[] {
+export function moonshotServedModels(env: NodeJS.ProcessEnv = hostEnv()): MoonshotServedModelRecord[] {
   const identity = moonshotAccountIdentity(env)
   if (identity === undefined) return []
   return servedModelTableOf(readAuthFile())[identity] ?? []
 }
 
-export function moonshotServedModelFor(requested: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function moonshotServedModelFor(requested: string, env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const wanted = requested.trim().toLowerCase()
   return moonshotServedModels(env).find(record => record.requested === wanted)?.served
 }
 
-export function moonshotAliasesServing(served: string, env: NodeJS.ProcessEnv = process.env): string[] {
+export function moonshotAliasesServing(served: string, env: NodeJS.ProcessEnv = hostEnv()): string[] {
   const wanted = served.trim().toLowerCase()
   return moonshotServedModels(env)
     .filter(record => record.served === wanted)
@@ -257,7 +258,7 @@ export function recordMoonshotServedModel(
   const asked = requested.trim().toLowerCase()
   const answered = served.trim().toLowerCase()
   if (asked === '' || answered === '') return false
-  const identity = io?.identity ?? moonshotAccountIdentity(io?.env ?? process.env)
+  const identity = io?.identity ?? moonshotAccountIdentity(io?.env ?? hostEnv())
   if (identity === undefined || identity === '' || identity === 'none') return false
   try {
     const current = servedModelTableOf(readAuthFile())[identity] ?? []
@@ -389,7 +390,7 @@ async function postForm(
 }
 
 export async function startMoonshotDeviceAuth(io?: MoonshotOauthIo): Promise<MoonshotDeviceAuthStart> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const region = ioRegion(io)
   const { status, body } = await postForm(
     `${moonshotOauthBase(region, env)}${MOONSHOT_DEVICE_AUTH_PATH}`,
@@ -441,7 +442,7 @@ export async function pollMoonshotDeviceToken(
   start: Pick<MoonshotDeviceAuthStart, 'deviceCode' | 'region'>,
   io?: MoonshotOauthIo,
 ): Promise<MoonshotDevicePollResult> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   let posted: { status: number; body: Record<string, unknown> }
   try {
     posted = await postForm(
@@ -471,7 +472,7 @@ export function refreshMoonshotTokens(io?: MoonshotOauthIo): Promise<MoonshotSto
   if (refreshInFlight) return refreshInFlight
   refreshInFlight = (async (): Promise<MoonshotStoredTokens | undefined> => {
     try {
-      const env = io?.env ?? process.env
+      const env = io?.env ?? hostEnv()
       const stored = moonshotStoredTokens()
       if (!stored?.refreshToken) return undefined
       const region = ioRegion(io)
@@ -519,7 +520,7 @@ export type MoonshotAccountRef =
     }
 
 export function resolveMoonshotApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env.MOONSHOT_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -530,7 +531,7 @@ export function resolveMoonshotApiKey(
 }
 
 export function resolveMoonshotAccount(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): MoonshotAccountRef | undefined {
   const envKey = env.MOONSHOT_API_KEY?.trim()
   if (envKey) return { kind: 'api-key', label: 'MOONSHOT_API_KEY (env)', keySource: 'env' }
@@ -551,7 +552,7 @@ export function resolveMoonshotAccount(
 
 export type MoonshotDispatchSource = 'env' | 'kimi-oauth' | 'stored'
 
-export function moonshotDispatchSource(env: NodeJS.ProcessEnv = process.env): MoonshotDispatchSource | undefined {
+export function moonshotDispatchSource(env: NodeJS.ProcessEnv = hostEnv()): MoonshotDispatchSource | undefined {
   const account = resolveMoonshotAccount(env)
   if (!account) return undefined
   return account.kind === 'kimi-oauth' ? 'kimi-oauth' : account.keySource
@@ -567,7 +568,7 @@ export interface MoonshotDispatchCredential {
 export async function resolveMoonshotDispatchCredential(
   io?: MoonshotOauthIo,
 ): Promise<MoonshotDispatchCredential | undefined> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const envKey = env.MOONSHOT_API_KEY?.trim()
   if (envKey) return { apiKey: envKey, requestUrl: moonshotChatCompletionsUrl(env), source: 'env', accountIdentity: credentialFingerprint(envKey) }
   const oauth = moonshotStoredTokens()

@@ -4,6 +4,7 @@ import { getOriginalCwd } from '../../../bootstrap/state.js'
 import { expandPath } from '../../../utils/path.js'
 import type { InstructionConvention } from '../contracts.js'
 import { describedBy, scopeOf, sharedFormat, vendorPatterns } from './shared.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const NAMED_FOLDERS = 'COPILOT_CUSTOM_INSTRUCTIONS_DIRS'
 
@@ -29,7 +30,7 @@ const format = sharedFormat({
 export const copilotConvention: InstructionConvention = {
   ...format,
   named() {
-    const entries = (process.env[NAMED_FOLDERS] ?? '').split(',').map(entry => entry.trim()).filter(entry => entry !== '')
+    const entries = (hostEnv()[NAMED_FOLDERS] ?? '').split(',').map(entry => entry.trim()).filter(entry => entry !== '')
     if (entries.length === 0) return null
     const folders = [...new Set(entries.map(entry => expandPath(entry, getOriginalCwd())))]
     return {

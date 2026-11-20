@@ -7,6 +7,7 @@ import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { clearOpenrouterKeyRefusal, markOpenrouterKeyRefused, markOpenrouterMintedKeyExpired, openrouterApiBase, openrouterAuthPathForDisplay, openrouterKeyRefusal, readMintedOpenrouterKey, resolveOpenrouterApiKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
 import { wordsNameTheKey } from '../catalogueBody.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
@@ -56,7 +57,7 @@ let observedIdentity = 'none'
 const KEY_USAGE_TTL_MS = USAGE_POLL_TTL_MS
 const KEY_USAGE_FAILURE_RETRY_MS = 10_000
 
-function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   const auth = resolveOpenrouterRequestAuth(env)
   if (!auth) return 'none'
   return requestIdentity(auth)
@@ -67,7 +68,7 @@ function requestIdentity(auth: OpenrouterRequestAuth): string {
   return `${openrouterAuthPathForDisplay()}:${auth.account.keySource}:${mint}:${credentialFingerprint(auth.headers.authorization)}:${auth.baseUrl}`
 }
 
-function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
+function dropIfStale(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (observedIdentity !== activeIdentity(env)) {
     observedKeyUsage = null
     lastError = undefined
@@ -150,7 +151,7 @@ function decodeKeyPayload(parsed: unknown, now: () => number): OpenrouterKeyUsag
   }
 }
 
-export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = process.env): {
+export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = hostEnv()): {
   usage: OpenrouterKeyUsage | null
   lastError?: string
   errorSource?: OpenrouterKeySource
@@ -187,7 +188,7 @@ export type OpenrouterKeyProbe =
   | { state: 'unreachable'; message: string }
 
 export async function probeOpenrouterKey(key: string, opts?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<OpenrouterKeyProbe> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
   let response: Response
@@ -216,7 +217,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
   now?: () => number
 }): Promise<OpenrouterKeyUsage | null> {
   const now = opts?.now ?? Date.now
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   dropIfStale(env)
   if (!catalogueTrafficVerdict('openrouter', env).allowed) {
     return Promise.resolve(observedKeyUsage)

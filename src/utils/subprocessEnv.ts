@@ -3,6 +3,7 @@ import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../services/providers/credentialEnvSpellings.js'
 import { isEnvTruthy } from './envUtils.js'
 import { AGENT_CLI_SESSION_ENV_VARS, AGENT_CLI_TOKEN_FD_ENV_VARS } from './knownAgentClis.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export const ALWAYS_STRIP_TOKEN_VARS: readonly string[] = [
@@ -138,7 +139,7 @@ function deleteNames(env: NodeJS.ProcessEnv, names: readonly string[]): void {
 }
 
 export function subprocessEnv(options: { stripProviderCredentials?: boolean } = {}): NodeJS.ProcessEnv {
-  const env = process.env
+  const env = hostEnv()
   const scrubForCI = isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_ENV_SCRUB'))
   const isolateCredentials = options.stripProviderCredentials === true || isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION'))
   const hasTokenVar = ALWAYS_STRIP_TOKEN_VARS.some(name => env[name] !== undefined)

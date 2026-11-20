@@ -4,6 +4,7 @@ import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { recordOwnEnvWrite } from '../../substrate/envStamps.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const IMAGE_PACK_PATH = 'vendor/image-processor'
 
@@ -54,10 +55,10 @@ export function armImagePack(packPlatform: string = imagePackPlatform()): ImageP
   if (imageBindingResolvable(packPlatform)) return { armed: false, packDir, reason: 'binding-resolvable' }
   const modules = join(packDir, 'node_modules')
   if (!existsSync(join(modules, '@img'))) return { armed: false, packDir, reason: 'no-pack' }
-  const current = process.env.NODE_PATH ?? ''
+  const current = hostEnv().NODE_PATH ?? ''
   if (!current.split(delimiter).includes(modules)) {
-    recordOwnEnvWrite('NODE_PATH', process.env.NODE_PATH)
-    process.env.NODE_PATH = current === '' ? modules : `${modules}${delimiter}${current}`
+    recordOwnEnvWrite('NODE_PATH', hostEnv().NODE_PATH)
+    hostEnv().NODE_PATH = current === '' ? modules : `${modules}${delimiter}${current}`
   }
   const init = (Module as typeof Module & { _initPaths?: () => void })._initPaths
   if (typeof init === 'function') init.call(Module)

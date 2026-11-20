@@ -10,6 +10,7 @@ import {
 import { openrouterKeySource } from './openrouter/openrouterAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const PROVIDER_DISCOVERY_TTL_MS = 5 * 60_000
 
@@ -202,7 +203,7 @@ export interface DiscoveryIo {
 
 function defaultIo(): DiscoveryIo {
   return {
-    env: { ...process.env },
+    env: { ...hostEnv() },
     now: () => Date.now(),
   }
 }
@@ -217,19 +218,19 @@ function probeOpenai(io: DiscoveryIo): OpenaiDiscovery {
 }
 
 export function resolveZaiApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): string | undefined {
   return resolveZaiDispatch(env)?.key
 }
 
 export function zaiKeySource(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): 'env' | 'stored' | undefined {
   return resolveZaiDispatch(env)?.source
 }
 
 export function resolveZaiDispatch(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): ZaiDispatch | undefined {
   const envKey = env.ZAI_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env', ...planlessZaiKeyPlan(envKey, env) }

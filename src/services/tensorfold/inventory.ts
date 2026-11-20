@@ -11,6 +11,7 @@ import { servedTensorFold } from './serve.js'
 import { QWEN_27B, QWEN_27B_SECOND_WORDS, QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, tensorFoldStartingOrder, type TensorFoldCheckpoint } from './starting.js'
 import { configFactsOf, rec, type ConfigFacts } from './configFacts.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export { cacheDirOfRepo, hfCacheRoot } from './hfCache.js'
 export { configFactsOf, type ConfigFacts } from './configFacts.js'
@@ -175,7 +176,7 @@ function adapterInventory(root: string, machine: TensorFoldMachineTruth, servedO
 }
 
 export async function readTensorFoldInventory(engine: TensorFoldEngine | null, io: InventoryIo = {}): Promise<TensorFoldInventoryRow[]> {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const home = io.home ?? homedir()
   const root = io.cacheRoot ?? hfCacheRoot(env, home)
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))

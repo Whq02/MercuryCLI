@@ -56,10 +56,6 @@ export function flagEnv(env: string, ...from: [] | [Readonly<Record<string, stri
   return process.env[spec.env]
 }
 
-export function flagEnvLoose(env: string): string | undefined {
-  return byEnv.has(env) ? flagEnv(env) : process.env[env]
-}
-
 export function flagEnabled(env: string): boolean {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`flagEnabled: unregistered flag ${env} — add it to FLAG_REGISTRY`)

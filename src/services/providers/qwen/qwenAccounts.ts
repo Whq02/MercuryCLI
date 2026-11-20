@@ -3,6 +3,7 @@ import { readStoredQwenApiKey, readStoredQwenKeyBase } from '../providerSecrets.
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const QWEN_ENV_KEY = 'DASHSCOPE_API_KEY'
 export const QWEN_BASE_OVERRIDE_ENV = 'DASHSCOPE_BASE_URL'
@@ -39,7 +40,7 @@ const WORKSPACE_REGIONS: readonly { id: string; label: string; region: string }[
   { id: 'workspace-tokyo', label: 'Japan (Tokyo) workspace', region: 'ap-northeast-1' },
 ]
 
-function qwenWorkspaceId(env: NodeJS.ProcessEnv = process.env): string | undefined {
+function qwenWorkspaceId(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const raw = env[QWEN_WORKSPACE_ENV]?.trim().toLowerCase()
   return raw && /^[a-z0-9][a-z0-9-]{0,63}$/.test(raw) ? raw : undefined
 }
@@ -49,12 +50,12 @@ function probeSeam(env: NodeJS.ProcessEnv): string | undefined {
   return seam ? seam.replace(/\/+$/, '') : undefined
 }
 
-export function qwenEndpointBase(endpoint: QwenEndpoint, env: NodeJS.ProcessEnv = process.env): string {
+export function qwenEndpointBase(endpoint: QwenEndpoint, env: NodeJS.ProcessEnv = hostEnv()): string {
   const seam = probeSeam(env)
   return seam ? `${seam}/${endpoint.id}` : endpoint.baseUrl
 }
 
-export function qwenProbeEndpoints(env: NodeJS.ProcessEnv = process.env): QwenEndpoint[] {
+export function qwenProbeEndpoints(env: NodeJS.ProcessEnv = hostEnv()): QwenEndpoint[] {
   const workspace = qwenWorkspaceId(env)
   const dedicated = workspace
     ? WORKSPACE_REGIONS.map(row => ({ id: row.id, label: row.label, plan: 'pay-as-you-go' as const, baseUrl: `https://${workspace}.${row.region}.maas.aliyuncs.com/compatible-mode/v1` }))
@@ -68,12 +69,12 @@ function qwenKeyIsCodingPlan(key: string): boolean {
   return key.trim().toLowerCase().startsWith(QWEN_CODING_PLAN_KEY_PREFIX)
 }
 
-export function qwenProbeLane(key: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint[] {
+export function qwenProbeLane(key: string, env: NodeJS.ProcessEnv = hostEnv()): QwenEndpoint[] {
   const coding = qwenKeyIsCodingPlan(key)
   return qwenProbeEndpoints(env).filter(endpoint => (endpoint.id === 'qwencloud-token-plan' || endpoint.plan === 'coding-plan') === coding)
 }
 
-function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint | undefined {
+function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = hostEnv()): QwenEndpoint | undefined {
   const wanted = baseUrl.replace(/\/+$/, '')
   const listed = qwenProbeEndpoints(env).find(endpoint => qwenEndpointBase(endpoint, env) === wanted)
   if (listed) return listed
@@ -82,11 +83,11 @@ function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = process.e
   return region ? { id: region.id, label: region.label, plan: 'pay-as-you-go', baseUrl: wanted } : undefined
 }
 
-export function qwenListAnswersEveryCaller(baseUrl: string, env: NodeJS.ProcessEnv = process.env): boolean {
+export function qwenListAnswersEveryCaller(baseUrl: string, env: NodeJS.ProcessEnv = hostEnv()): boolean {
   return qwenEndpointForBase(baseUrl, env)?.plan === 'coding-plan'
 }
 
-export function qwenEndpointLabelOf(baseUrl: string, env: NodeJS.ProcessEnv = process.env): string {
+export function qwenEndpointLabelOf(baseUrl: string, env: NodeJS.ProcessEnv = hostEnv()): string {
   return qwenEndpointForBase(baseUrl, env)?.label ?? baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')
 }
 
@@ -97,7 +98,7 @@ function qwenEndpointConsole(endpoint: QwenEndpoint): QwenConsole {
   return endpoint.id === 'qwencloud' || endpoint.id === 'qwencloud-token-plan' ? 'QwenCloud' : 'Model Studio'
 }
 
-export function qwenConsoleOfBase(baseUrl: string | undefined, env: NodeJS.ProcessEnv = process.env): QwenConsole | undefined {
+export function qwenConsoleOfBase(baseUrl: string | undefined, env: NodeJS.ProcessEnv = hostEnv()): QwenConsole | undefined {
   const endpoint = baseUrl === undefined ? undefined : qwenEndpointForBase(baseUrl, env)
   return endpoint === undefined ? undefined : qwenEndpointConsole(endpoint)
 }
@@ -112,13 +113,13 @@ export function qwenConsolePage(origin: QwenConsole | undefined): string {
   return 'qwencloud.com or modelstudio.console.alibabacloud.com (Usage & Billing)'
 }
 
-export function qwenEndpointWhere(baseUrl: string, env: NodeJS.ProcessEnv = process.env): string {
+export function qwenEndpointWhere(baseUrl: string, env: NodeJS.ProcessEnv = hostEnv()): string {
   const endpoint = qwenEndpointForBase(baseUrl, env)
   if (endpoint === undefined) return baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')
   return qwenEndpointConsole(endpoint) === 'QwenCloud' ? endpoint.label : `Model Studio ${endpoint.label}`
 }
 
-export function qwenBaseOverride(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function qwenBaseOverride(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const raw = env[QWEN_BASE_OVERRIDE_ENV]?.trim()
   if (!raw) return undefined
   try {
@@ -131,12 +132,12 @@ export function qwenBaseOverride(env: NodeJS.ProcessEnv = process.env): string |
   return raw.replace(/\/+$/, '')
 }
 
-export function qwenEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string; name: typeof QWEN_ENV_KEY } | undefined {
+export function qwenEnvKey(env: NodeJS.ProcessEnv = hostEnv()): { key: string; name: typeof QWEN_ENV_KEY } | undefined {
   const key = env[QWEN_ENV_KEY]?.trim()
   return key ? { key, name: QWEN_ENV_KEY } : undefined
 }
 
-function resolveQwenApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
+function resolveQwenApiKey(env: NodeJS.ProcessEnv = hostEnv()): { key: string; source: 'env' | 'stored' } | undefined {
   const key = qwenEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
   const fromCommand = resolveProviderKeyCommand('qwen')
@@ -159,7 +160,7 @@ export function forgetQwenBoundBases(): void {
   boundBases.clear()
 }
 
-export function qwenBoundBase(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function qwenBoundBase(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const override = qwenBaseOverride(env)
   if (override) return override
   const key = resolveQwenApiKey(env)
@@ -173,15 +174,15 @@ export function qwenBoundBase(env: NodeJS.ProcessEnv = process.env): string | un
   return undefined
 }
 
-function qwenApiBase(env: NodeJS.ProcessEnv = process.env): string {
+function qwenApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return qwenBoundBase(env) ?? qwenEndpointBase(QWEN_SHARED_ENDPOINTS[0]!, env)
 }
 
-export function qwenChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function qwenChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${qwenApiBase(env)}/chat/completions`
 }
 
-export function qwenPricingRegion(env: NodeJS.ProcessEnv = process.env): 'singapore' | 'beijing' | 'hongkong' | 'frankfurt' | 'virginia' | 'tokyo' | undefined {
+export function qwenPricingRegion(env: NodeJS.ProcessEnv = hostEnv()): 'singapore' | 'beijing' | 'hongkong' | 'frankfurt' | 'virginia' | 'tokyo' | undefined {
   const base = qwenBoundBase(env)
   const endpoint = base === undefined ? undefined : qwenEndpointForBase(base, env)
   if (endpoint?.plan !== 'pay-as-you-go') return undefined
@@ -199,16 +200,16 @@ export function qwenPricingRegion(env: NodeJS.ProcessEnv = process.env): 'singap
   }
 }
 
-export function qwenBoundEndpointLabel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function qwenBoundEndpointLabel(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const base = qwenBoundBase(env)
   return base === undefined ? undefined : qwenEndpointLabelOf(base, env)
 }
 
-export function qwenBoundConsole(env: NodeJS.ProcessEnv = process.env): QwenConsole | undefined {
+export function qwenBoundConsole(env: NodeJS.ProcessEnv = hostEnv()): QwenConsole | undefined {
   return qwenConsoleOfBase(qwenBoundBase(env), env)
 }
 
-export function qwenBoundPlanLabel(env: NodeJS.ProcessEnv = process.env): { kind: 'Coding Plan' | 'QwenCloud Token Plan'; endpoint: string } | undefined {
+export function qwenBoundPlanLabel(env: NodeJS.ProcessEnv = hostEnv()): { kind: 'Coding Plan' | 'QwenCloud Token Plan'; endpoint: string } | undefined {
   const base = qwenBoundBase(env)
   if (base === undefined) return undefined
   const endpoint = qwenEndpointForBase(base, env)
@@ -225,14 +226,14 @@ interface QwenAccountRef {
   keySource: 'env' | 'stored'
 }
 
-export function resolveQwenAccount(env: NodeJS.ProcessEnv = process.env): QwenAccountRef | undefined {
+export function resolveQwenAccount(env: NodeJS.ProcessEnv = hostEnv()): QwenAccountRef | undefined {
   const key = resolveQwenApiKey(env)
   if (!key) return undefined
   const plan = qwenBoundPlanLabel(env)
   return { kind: 'api-key', label: key.source === 'env' ? `${QWEN_ENV_KEY} (env${plan ? `, ${plan.kind}` : ''})` : plan?.kind === 'QwenCloud Token Plan' ? 'QwenCloud Token Plan key (stored, auth-scoped)' : plan ? `Model Studio ${plan.kind} key (stored, auth-scoped)` : `${qwenConsoleWords(qwenBoundConsole(env))} API key (stored, auth-scoped)`, keySource: key.source }
 }
 
-export function resolveQwenCredentialSnapshot(env: NodeJS.ProcessEnv = process.env): { key: string; source: QwenCredentialSource } | undefined {
+export function resolveQwenCredentialSnapshot(env: NodeJS.ProcessEnv = hostEnv()): { key: string; source: QwenCredentialSource } | undefined {
   return resolveQwenApiKey(env)
 }
 
@@ -243,16 +244,16 @@ interface QwenDispatchCredential {
 }
 
 export async function resolveQwenCredential(io?: { env?: NodeJS.ProcessEnv }): Promise<QwenDispatchCredential | undefined> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const key = resolveQwenApiKey(env)
   return key ? { apiKey: key.key, source: key.source, requestUrl: qwenChatCompletionsUrl(env) } : undefined
 }
 
-function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env, key?: string): string {
+function qwenEndpointListWords(env: NodeJS.ProcessEnv = hostEnv(), key?: string): string {
   return (key === undefined ? qwenProbeEndpoints(env) : qwenProbeLane(key, env)).map(endpoint => endpoint.label).join(' · ')
 }
 
-export function qwenUnboundKeyRefusal(env: NodeJS.ProcessEnv = process.env, key?: string): string {
+export function qwenUnboundKeyRefusal(env: NodeJS.ProcessEnv = hostEnv(), key?: string): string {
   const lane = key === undefined ? '' : qwenKeyIsCodingPlan(key) ? ` (a key beginning ${QWEN_CODING_PLAN_KEY_PREFIX} is a Token Plan or Coding Plan key, read on the QwenCloud Token Plan and the Coding Plan endpoints)` : ` (a Coding Plan key begins ${QWEN_CODING_PLAN_KEY_PREFIX}; this one does not, so the Coding Plan endpoints were not asked)`
   return `this key belongs to no ${QWEN_CONSOLES} region or plan Mercury knows — it was minted for none of: ${qwenEndpointListWords(env, key)}${lane}; ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for (a workspace-dedicated domain needs ${QWEN_WORKSPACE_ENV} or the full URL)`
 }

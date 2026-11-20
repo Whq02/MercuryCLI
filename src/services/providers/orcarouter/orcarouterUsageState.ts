@@ -6,6 +6,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { usagePollTtlMs, usageStaleAfterMs } from '../usageFreshness.js'
 import type { ActiveSourceUsage, ProviderSessionSpend, UsageRefreshIo } from '../providerUsage.js'
 import { orcarouterApiBase, resolveOrcarouterApiKey } from './orcarouterAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface BillingSnapshot {
   observedAtMs: number
@@ -24,7 +25,7 @@ function number(value: unknown): number | undefined {
 }
 
 export async function refreshOrcarouterUsage(io: UsageRefreshIo = {}): Promise<void> {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const key = resolveOrcarouterApiKey(env)
   if (!key || !catalogueTrafficVerdict('orcarouter', env).allowed) return
   const base = orcarouterApiBase(env)

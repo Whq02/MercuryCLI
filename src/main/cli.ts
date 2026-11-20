@@ -8,11 +8,12 @@ import chalk from 'chalk'
 import { formatPrintsOutcomeRow, refusedOutcome } from '../cli/headless/refusalEnvelope.js'
 import { inspectSessionArgs as inspectRunArgs } from '../cli/sessionArgs.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export function applyMergedConfigEnv(): void {
   const env = getInitialSettings().environment?.values ?? {}
   for (const [key, value] of Object.entries(env)) {
-    process.env[key] = String(value)
+    hostEnv()[key] = String(value)
   }
 }
 

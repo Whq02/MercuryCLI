@@ -1,5 +1,6 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'
 
@@ -396,7 +397,7 @@ function qwenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
-export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
+export function readModelListFacts(env: NodeJS.ProcessEnv = hostEnv()): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
   return [

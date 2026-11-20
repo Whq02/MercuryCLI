@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { qualifiedWireId } from '../routeLaw.js'
 import { meliousApiBase, resolveMeliousApiKey } from './meliousAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface MeliousModel {
   id: string
@@ -99,11 +100,11 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   const key = resolveMeliousApiKey(env)
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${meliousApiBase(env)}` : 'none'
 }
-export function getCachedMeliousCatalogue(env: NodeJS.ProcessEnv = process.env): MeliousCatalogueSnapshot | null {
+export function getCachedMeliousCatalogue(env: NodeJS.ProcessEnv = hostEnv()): MeliousCatalogueSnapshot | null {
   return resolveMeliousApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 export function refreshMeliousCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<MeliousCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveMeliousApiKey(env)
   const identity = identityOf(env)
@@ -133,7 +134,7 @@ export function refreshMeliousCatalogue(opts?: { force?: boolean; fetchImpl?: ty
   return work
 }
 
-export function meliousListedModel(id: string, env: NodeJS.ProcessEnv = process.env): MeliousModel | undefined {
+export function meliousListedModel(id: string, env: NodeJS.ProcessEnv = hostEnv()): MeliousModel | undefined {
   const models = getCachedMeliousCatalogue(env)?.models
   const wire = meliousWireId(id).toLowerCase()
   return models?.find(row => row.id.toLowerCase() === wire) ?? models?.find(row => row.id.toLowerCase() === baseId(id).toLowerCase())
@@ -146,7 +147,7 @@ export function meliousContextWindowFor(id: string): number | undefined {
   return meliousListedModel(id)?.contextWindow
 }
 export function meliousOutputMaxFor(id: string): number | undefined { return meliousListedModel(id)?.outputMax }
-export function meliousCatalogueRows(env: NodeJS.ProcessEnv = process.env) {
+export function meliousCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()) {
   const snapshot = getCachedMeliousCatalogue(env)
   const rows = (snapshot?.models ?? []).flatMap(model => {
     const ids = model.id.includes(':') ? [model.id] : [model.id, ...['speed', 'price', 'eco', 'batch'].map(flavor => `${model.id}:${flavor}`)]

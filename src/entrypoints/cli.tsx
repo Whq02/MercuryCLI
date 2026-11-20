@@ -5,8 +5,9 @@ import {
   nodeRefusalMessage,
 } from '../utils/runtime/nodePolicy.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
-process.env.COREPACK_ENABLE_AUTO_PIN = '0'
+hostEnv().COREPACK_ENABLE_AUTO_PIN = '0'
 
 async function main(): Promise<void> {
   if (!process.versions?.bun) {
@@ -90,8 +91,8 @@ async function main(): Promise<void> {
 
   try {
     if (
-      process.env.NODE_COMPILE_CACHE === undefined &&
-      process.env.NODE_DISABLE_COMPILE_CACHE === undefined &&
+      hostEnv().NODE_COMPILE_CACHE === undefined &&
+      hostEnv().NODE_DISABLE_COMPILE_CACHE === undefined &&
       !process.versions?.bun
     ) {
       const cacheHome = await resolveCompileCacheHome()
@@ -105,7 +106,7 @@ async function main(): Promise<void> {
           const { enableCompileCache, constants: moduleConstants } = await import('node:module')
           const enabled = enableCompileCache(cacheDir)
           if (enabled.status === moduleConstants.compileCacheStatus.ENABLED) {
-            process.env.NODE_COMPILE_CACHE = enabled.directory ?? cacheDir
+            hostEnv().NODE_COMPILE_CACHE = enabled.directory ?? cacheDir
           }
         }
       }
@@ -114,7 +115,7 @@ async function main(): Promise<void> {
     passedOver(error)
   }
 
-  if (!process.versions?.bun && process.env.NODE_DISABLE_COMPILE_CACHE === undefined) {
+  if (!process.versions?.bun && hostEnv().NODE_DISABLE_COMPILE_CACHE === undefined) {
     const cacheHome = await resolveCompileCacheHome()
     if (cacheHome) void import('../utils/runtime/compileCachePrune.js')
       .then(({ pruneCompileCache }) => pruneCompileCache(cacheHome))
@@ -269,7 +270,7 @@ async function tellTheBuiltInCommands(): Promise<void> {
 
 async function resolveCompileCacheHome(): Promise<string | null> {
   const { flagEnv } = await import('../substrate/flagRegistry.js')
-  const env = process.env
+  const env = hostEnv()
   const home = env.HOME || env.USERPROFILE || ''
   for (const candidate of [flagEnv('MERCURY_CONFIG_DIR', env), flagEnv('MERCURY_HOME', env)]) {
     if (candidate) return candidate

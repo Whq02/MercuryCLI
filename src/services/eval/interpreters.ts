@@ -10,6 +10,7 @@ import {
   type EvalLanguageAvailability,
 } from './contracts.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const PROBE_TTL_MS = 30_000
 const PROBE_TIMEOUT_MS = 4_000
@@ -74,7 +75,7 @@ function pythonVersionTuple(version: string): [number, number] | null {
   return [Number(match[1]), Number(match[2])]
 }
 
-export function pythonCandidates(cwd: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string[] {
+export function pythonCandidates(cwd: string, env: NodeJS.ProcessEnv = hostEnv(), platform: NodeJS.Platform = process.platform): string[] {
   const candidates: string[] = []
   const explicit = evalPythonOverride()
   if (explicit) candidates.push(explicit)

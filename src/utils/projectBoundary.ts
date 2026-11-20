@@ -4,6 +4,7 @@ import { basename, dirname, resolve } from 'node:path'
 import { isENOENT } from './errors.js'
 import { findGitRoot } from './git/gitRoot.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 export const PROJECT_ENTRY_CEILING = 20_000
 
@@ -58,7 +59,7 @@ function nameMatches(name: string, list: readonly string[]): boolean {
 }
 
 function rawHome(): string {
-  const named = process.platform === 'win32' ? process.env.USERPROFILE : process.env.HOME
+  const named = process.platform === 'win32' ? hostEnv().USERPROFILE : hostEnv().HOME
   return named !== undefined && named !== '' ? named : homedir()
 }
 

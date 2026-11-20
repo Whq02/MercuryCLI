@@ -12,6 +12,7 @@ import {
   type PythonDebuggerProvenance,
 } from '../dap/debugpyResolver.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type PythonEnvKind = 'explicit' | 'active-venv' | 'conda' | 'project-venv' | 'system'
 
@@ -174,9 +175,9 @@ function selectionKey(root: string): string {
   return [
     root,
     flagEnv('MERCURY_PYTHON') ?? '',
-    process.env.VIRTUAL_ENV ?? '',
-    process.env.CONDA_PREFIX ?? '',
-    process.env.PATH ?? '',
+    hostEnv().VIRTUAL_ENV ?? '',
+    hostEnv().CONDA_PREFIX ?? '',
+    hostEnv().PATH ?? '',
   ].join('\0')
 }
 
@@ -196,18 +197,18 @@ export function selectPythonInterpreter(from: string = getCwd()): PythonInterpre
   if (pin && pin !== '') {
     candidates.push({ command: pin, envKind: 'explicit', source: 'MERCURY_PYTHON pin' })
   } else {
-    if (process.env.VIRTUAL_ENV) {
+    if (hostEnv().VIRTUAL_ENV) {
       candidates.push({
-        command: venvPython(process.env.VIRTUAL_ENV),
+        command: venvPython(hostEnv().VIRTUAL_ENV!),
         envKind: 'active-venv',
-        source: `$VIRTUAL_ENV (${process.env.VIRTUAL_ENV})`,
+        source: `$VIRTUAL_ENV (${hostEnv().VIRTUAL_ENV!})`,
       })
     }
-    if (process.env.CONDA_PREFIX) {
+    if (hostEnv().CONDA_PREFIX) {
       candidates.push({
-        command: venvPython(process.env.CONDA_PREFIX),
+        command: venvPython(hostEnv().CONDA_PREFIX!),
         envKind: 'conda',
-        source: `$CONDA_PREFIX (${process.env.CONDA_PREFIX})`,
+        source: `$CONDA_PREFIX (${hostEnv().CONDA_PREFIX!})`,
       })
     }
     for (const name of ['.venv', 'venv'] as const) {

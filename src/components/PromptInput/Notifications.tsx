@@ -36,6 +36,7 @@ import { RowErrorBoundary } from '../RowErrorBoundary.js'
 import { TokenWarning } from '../TokenWarning.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
 
@@ -179,7 +180,7 @@ function NotificationsColumn({
   const tokenUsage = useFocusedContextFill(messages, engineModel).usedTokens ?? 0
   const showTokenCount = verbose && !sessionBlocked && !compact
 
-  const editorConfigured = process.env.VISUAL ?? process.env.EDITOR
+  const editorConfigured = hostEnv().VISUAL ?? hostEnv().EDITOR
   const warningLevel = calculateTokenWarningState(tokenUsage, engineModel ?? '').level
   const editorHintLive =
     isInputWrapped &&

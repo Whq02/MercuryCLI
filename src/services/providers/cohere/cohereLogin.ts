@@ -3,6 +3,7 @@ import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredCohereApiKey } from '../providerSecrets.js'
 import { cohereApiBase, cohereEnvKey } from './cohereAccounts.js'
 import { CohereCatalogueHttpError, fetchCohereLiveModels } from './cohereCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface CohereKeyLoginOutcome {
   ok: boolean
@@ -15,7 +16,7 @@ const COHERE_KEY_RECEIPT_TAIL = 'A trial key is rate-limited and for evaluation;
 export async function storeCohereApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<CohereKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Cohere API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   try {

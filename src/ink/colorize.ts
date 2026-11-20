@@ -5,18 +5,19 @@ import { isEnvTruthy } from '../utils/envUtils.js'
 import instances from './instances.js'
 import type { Color, TextStyles } from './styles.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export type ColorType = 'foreground' | 'background'
 
 export function shouldHonorNoColor(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): boolean {
   const noColor = env.NO_COLOR
   const forceColor = env.FORCE_COLOR
   return Boolean(noColor) && (forceColor === undefined || !['', '1', '2', '3', 'true'].includes(forceColor))
 }
 
-export const MERCURY_HONORS_NO_COLOR = shouldHonorNoColor(process.env)
+export const MERCURY_HONORS_NO_COLOR = shouldHonorNoColor(hostEnv())
 
 function honorNoColor(): boolean {
   if (MERCURY_HONORS_NO_COLOR) {
@@ -26,10 +27,10 @@ function honorNoColor(): boolean {
   return false
 }
 export const CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()
-if (process.env.FORCE_COLOR !== undefined && !['', '1', '2', '3', 'true'].includes(process.env.FORCE_COLOR)) chalk.level = 0
+if (hostEnv().FORCE_COLOR !== undefined && !['', '1', '2', '3', 'true'].includes(hostEnv().FORCE_COLOR!)) chalk.level = 0
 
 export function truecolorFingerprint(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): string | null {
   const colorterm = env.COLORTERM
   if (colorterm === 'truecolor' || colorterm === '24bit') return `COLORTERM=${colorterm}`
@@ -43,7 +44,7 @@ export function truecolorFingerprint(
   if (env.KITTY_WINDOW_ID) return 'KITTY_WINDOW_ID (kitty)'
   return null
 }
-export const TRUECOLOR_FINGERPRINT = truecolorFingerprint(process.env)
+export const TRUECOLOR_FINGERPRINT = truecolorFingerprint(hostEnv())
 
 function boostChalkLevelForFingerprint(): boolean {
   if (TRUECOLOR_FINGERPRINT !== null && chalk.level === 2) {
@@ -79,7 +80,7 @@ export const CHALK_BOOSTED_FOR_MERCURY = boostChalkLevelForMercury()
 
 function clampChalkLevelForTmux(): boolean {
   if (isEnvTruthy(readTruecolorFlag())) return false
-  if (process.env.TMUX && chalk.level > 2) {
+  if (hostEnv().TMUX && chalk.level > 2) {
     chalk.level = 2
     return true
   }

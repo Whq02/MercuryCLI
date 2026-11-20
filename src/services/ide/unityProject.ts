@@ -7,6 +7,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { projectFolderPath } from '../../utils/projectHomeStores.js'
 import { whichSync } from '../../utils/which.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const ROOT_WALK_LIMIT = 24
 
@@ -94,7 +95,7 @@ interface UnityEditorCensus {
 function unityHubRoots(platform: NodeJS.Platform = process.platform): string[] {
   if (platform === 'darwin') return ['/Applications/Unity/Hub/Editor']
   if (platform === 'win32') {
-    const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files'
+    const programFiles = hostEnv().ProgramFiles ?? 'C:\\Program Files'
     return [path.join(programFiles, 'Unity', 'Hub', 'Editor')]
   }
   return [path.join(homedir(), 'Unity', 'Hub', 'Editor')]

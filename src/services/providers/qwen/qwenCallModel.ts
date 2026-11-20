@@ -13,6 +13,7 @@ import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFact
 import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking } from './qwenPins.js'
 import { qwenTemplateEffort } from './qwenTemplate.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const QWEN_KEY_PAGE = 'qwencloud.com (API Keys) or modelstudio.alibabacloud.com (API-KEY)'
 
@@ -100,7 +101,7 @@ export async function* qwenCallModel(params: CallModelParams): CallModelStream {
   const chosen = asked.trim().toLowerCase() === 'qwen' ? newestQwenModel() : asked
   const pin = chosen === undefined ? undefined : qwenDisplayPin(chosen)
   const model = chosen === undefined ? undefined : qwenListedModel(snapshot, chosen)?.id ?? qwenWireId(chosen)
-  const scope = qwenPinScope(process.env, snapshot)
+  const scope = qwenPinScope(hostEnv(), snapshot)
   let refusal: string | undefined
   const credentialRefused = snapshot?.lastError?.includes('refused the credential') === true
   if (credentialRefused) refusal = `${snapshot!.lastError} — /logins qwen re-binds the key.`

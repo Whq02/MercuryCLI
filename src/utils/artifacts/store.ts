@@ -1,5 +1,4 @@
 
-import { flagEnvLoose } from '../../substrate/flagRegistry.js'
 import {
   createHash,
   randomBytes,
@@ -17,10 +16,11 @@ import { getMercuryHome } from '../envUtils.js'
 import { redactSecrets } from '../secrets/secretScanner.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 const MB = 1024 * 1024
 function envInt(name: string, fallback: number): number {
-  const n = parseInt(flagEnvLoose(name) ?? '', 10)
+  const n = parseInt(hostEnv()[name] ?? '', 10)
   return Number.isFinite(n) && n > 0 ? n : fallback
 }
 const MAX_CONTENT_BYTES = envInt('MERCURY_ARTIFACT_MAX_MB', 8) * MB

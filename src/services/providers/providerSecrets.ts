@@ -6,6 +6,7 @@ import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const PROVIDER_SECRETS_VERSION = 1
 const FILE_NAME = '.provider-secrets.json'
@@ -564,7 +565,7 @@ export function credentialEnvNames(): readonly string[] {
     'CEREBRAS_API_KEY',
     'FIREWORKS_API_KEY',
     'DASHSCOPE_API_KEY',
-    ...Object.keys(process.env).filter(name => /^MERCURY_COMPAT_[A-Z0-9_]+_API_KEY$/.test(name)),
+    ...Object.keys(hostEnv()).filter(name => /^MERCURY_COMPAT_[A-Z0-9_]+_API_KEY$/.test(name)),
   ]
 }
 

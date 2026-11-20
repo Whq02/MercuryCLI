@@ -19,6 +19,7 @@ import { readTensorFoldSupportLine, type TensorFoldSupportFocus } from '../../se
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { FEED, pullActOf, refusedActOf, servedAddress, type FactsState, type TensorFoldAct } from './scene.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type RoadIo = {
   serve?: ServeIo
@@ -95,7 +96,7 @@ export function stoppable(): boolean {
   return Object.values(state.acts).some(act => act.kind === 'pulling' || act.kind === 'starting')
 }
 
-export function discoveryEnvFor(root: string, env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+export function discoveryEnvFor(root: string, env: NodeJS.ProcessEnv = hostEnv()): NodeJS.ProcessEnv {
   if (cachedLocalModels().some(record => record.baseUrl === `${root}/v1`)) return env
   const pinned = flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()
   const defaults = pinned === undefined || pinned === '' ? [...DEFAULT_LOCAL_PROBE_TARGETS.map(target => `${target.kind}=${target.root}`), ...ggufServerRoots().map(target => `llamacpp=${target}`)] : pinned.toLowerCase() === 'none' ? [] : pinned.split(',')

@@ -18,6 +18,7 @@ import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen' | 'openai-compat'
 
@@ -122,7 +123,7 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
 
 export function catalogueTrafficVerdict(
   family: CatalogueFamily,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): CatalogueGateVerdict {
   if (family === 'local') return { allowed: true, exempt: 'local-endpoint' }
   if (!credentialPresent(family, env)) {

@@ -26,6 +26,7 @@ import {
   type GptModelIdentity,
 } from './gptPins.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export {
   GPT_DISPLAY_PINS,
@@ -66,7 +67,7 @@ function catalogueIdentity(sourceKind: OpenaiAccountSourceKind, env?: NodeJS.Pro
 
 export function getCachedOpenaiCatalogue(
   sourceKind: OpenaiAccountSourceKind,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenaiCatalogueSnapshot | null {
   return catalogueCache.get(catalogueIdentity(sourceKind, env)) ?? null
 }
@@ -78,7 +79,7 @@ export function refreshOpenaiCatalogue(
   const now = opts?.now ?? Date.now
   const identity = catalogueIdentity(sourceKind, opts?.env)
   const cached = catalogueCache.get(identity)
-  if (!catalogueTrafficVerdict('openai', opts?.env ?? process.env).allowed) {
+  if (!catalogueTrafficVerdict('openai', opts?.env ?? hostEnv()).allowed) {
     return Promise.resolve(cached ?? null)
   }
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
@@ -161,7 +162,7 @@ export async function readOpenaiCatalogueIfPending(opts?: { boundMs?: number; fo
 
 export function primeOpenaiCatalogue(
   snapshot: { sourceKind: OpenaiAccountSourceKind; models: OpenaiLiveModel[]; fetchedAtMs: number },
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): boolean {
   if (!Array.isArray(snapshot.models) || snapshot.models.length === 0 || !(snapshot.fetchedAtMs > 0)) return false
   const identity = catalogueIdentity(snapshot.sourceKind, env)
@@ -177,7 +178,7 @@ export function primeOpenaiCatalogue(
   return true
 }
 
-export function openaiCatalogueFact(env: NodeJS.ProcessEnv = process.env): { sourceKind: OpenaiAccountSourceKind; models: OpenaiLiveModel[]; fetchedAtMs: number } | undefined {
+export function openaiCatalogueFact(env: NodeJS.ProcessEnv = hostEnv()): { sourceKind: OpenaiAccountSourceKind; models: OpenaiLiveModel[]; fetchedAtMs: number } | undefined {
   const account = resolveOpenaiAccount(env)
   if (!account) return undefined
   const snapshot = getCachedOpenaiCatalogue(account.kind, env)
@@ -185,7 +186,7 @@ export function openaiCatalogueFact(env: NodeJS.ProcessEnv = process.env): { sou
   return { sourceKind: snapshot.sourceKind, models: snapshot.models, fetchedAtMs: snapshot.fetchedAtMs }
 }
 
-export function adoptOpenaiCatalogueFact(fact: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+export function adoptOpenaiCatalogueFact(fact: unknown, env: NodeJS.ProcessEnv = hostEnv()): boolean {
   try {
     if (typeof fact !== 'object' || fact === null || Array.isArray(fact)) return false
     const f = fact as { sourceKind?: unknown; models?: unknown; fetchedAtMs?: unknown }
@@ -501,7 +502,7 @@ export function liveGptListedEffortWords(modelId: string): readonly string[] | u
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
 const liveIdSets = new WeakMap<OpenaiCatalogueSnapshot, ReadonlySet<string>>()
 
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
   const account = resolveOpenaiAccount(env)
   if (!account) return EMPTY_LIVE_IDS
@@ -515,7 +516,7 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
   return ids
 }
 
-export function forgetDepartedOpenaiCatalogues(env: NodeJS.ProcessEnv = process.env): number {
+export function forgetDepartedOpenaiCatalogues(env: NodeJS.ProcessEnv = hostEnv()): number {
   const current = new Set<string>()
   for (const kind of ['chatgpt-subscription', 'api-key'] as const) current.add(catalogueIdentity(kind, env))
   let dropped = 0
@@ -528,7 +529,7 @@ export function forgetDepartedOpenaiCatalogues(env: NodeJS.ProcessEnv = process.
   return dropped
 }
 
-export function readOpenaiAccountAgain(env: NodeJS.ProcessEnv = process.env): { forgotten: OpenaiAccountSourceKind[]; dropped: number } {
+export function readOpenaiAccountAgain(env: NodeJS.ProcessEnv = hostEnv()): { forgotten: OpenaiAccountSourceKind[]; dropped: number } {
   const forgotten: OpenaiAccountSourceKind[] = []
   for (const kind of ['chatgpt-subscription', 'api-key'] as const) {
     if (noteOpenaiSourceIdentity(kind, openaiSourceIdentity(kind, env))) forgotten.push(kind)

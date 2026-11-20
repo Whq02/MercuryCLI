@@ -1,4 +1,5 @@
 import type { ValidateModelResult } from './result.js'
+import { hostEnv } from '../../hostEnv.js'
 
 export async function validateXaiModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
   const { resolveXaiAccount } = await import('../../../services/providers/xai/xaiAccounts.js')
@@ -101,7 +102,7 @@ export async function validateQwenModel(trimmed: string): Promise<ValidateModelR
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins qwen re-binds the key.` }
   if (id === 'qwen') return newestQwenModel() ? { valid: true, skipCache: true } : { valid: false, error: "Qwen's list has not served a text model for 'qwen' yet — /model refreshes it." }
   if (!isQwenTextModelId(id)) return { valid: false, error: 'This Qwen model is not on the text road; the speech, image, video, embedding and rerank lines are not supported here.' }
-  if (qwenPinScope(process.env, snapshot) === 'coding-plan' || qwenDisplayPin(id)) return { valid: true, skipCache: true }
+  if (qwenPinScope(hostEnv(), snapshot) === 'coding-plan' || qwenDisplayPin(id)) return { valid: true, skipCache: true }
   if (snapshot?.models.length && !qwenListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the ${snapshot.endpointLabel ?? 'bound'} endpoint's live catalogue.` }
   if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0) return { valid: false, error: `Model "${trimmed}" is not listed by the ${snapshot.endpointLabel ?? 'bound'} endpoint's live catalogue.` }
   return { valid: true, skipCache: true }

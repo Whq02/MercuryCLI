@@ -11,6 +11,7 @@ import {
   syncOutputSupportedNow,
 } from './capabilities.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const TERMINAL_PROFILE_VERSION = 1
 
@@ -57,7 +58,7 @@ function isConptyEraBuild(release: string): boolean {
 }
 
 export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfileResolution {
-  const env = probe.env ?? process.env
+  const env = probe.env ?? hostEnv()
   const platform = probe.platform ?? process.platform
   const isTTY = probe.isTTY ?? Boolean(process.stdout.isTTY)
   const checks: ProfileCheckResult[] = []

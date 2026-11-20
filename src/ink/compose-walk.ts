@@ -16,6 +16,7 @@ import { isXtermJs } from './session/capabilities.js'
 import { widestLine } from './widest-line.js'
 import wrapText, { truncateParts } from './wrap-text.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 
 export type ScrollHint = { delta: number; top: number; bottom: number }
@@ -23,7 +24,7 @@ export type ScrollTranslation = { delta: number; viewportTop: number; viewportBo
 export type AbsoluteEntry = { node: FrameNode; rect: CachedLayout }
 
 const SHIFT_LOG_CAP = 48
-const shiftForensicsOn = !!process.env.INK_COMPOSED_TEE
+const shiftForensicsOn = !!hostEnv().INK_COMPOSED_TEE
 
 export class ComposeSignals {
   layoutShifted: boolean = false
@@ -154,7 +155,7 @@ export function expandDamageForAbsoluteRects(screen: { width: number; height: nu
 }
 
 function hostIsXtermJs(): boolean {
-  const vscodeTerminal = process.env.TERM_PROGRAM === 'vscode'
+  const vscodeTerminal = hostEnv().TERM_PROGRAM === 'vscode'
   return vscodeTerminal || isXtermJs()
 }
 

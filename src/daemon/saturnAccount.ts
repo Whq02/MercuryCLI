@@ -9,6 +9,7 @@ import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccou
 import type { AnthropicWindowFactV1, LaneWindowFactV1, OpenaiWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 
 export interface FamilyCredentialPresenceV1 {
@@ -34,7 +35,7 @@ function productionPresenceOf(family: string, modelKey?: string): FamilyCredenti
   if (family === 'openai-compat' && modelKey !== undefined) {
     try {
       const resolved = compatModelEndpoint(modelKey)
-      const account = resolved === undefined ? undefined : resolveCompatAccount(process.env, resolved.endpoint.name)
+      const account = resolved === undefined ? undefined : resolveCompatAccount(hostEnv(), resolved.endpoint.name)
       return account === undefined ? { credentialed: false, kind: 'none' } : { credentialed: true, kind: account.kind }
     } catch {
       return { credentialed: false, kind: 'none' }

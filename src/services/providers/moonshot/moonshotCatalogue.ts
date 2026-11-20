@@ -22,6 +22,7 @@ import {
 import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
 import { bindKimiDynamicToolSupport, KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiPlanPin, kimiShortName } from './kimiPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const MOONSHOT_CATALOGUE_TTL_MS = 5 * 60_000
@@ -110,7 +111,7 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
   return `${account.keySource}:${credentialFingerprint(resolveMoonshotApiKey(env)?.key ?? '')}:${moonshotApiBase(env)}`
 }
 
-export function getCachedMoonshotCatalogue(env: NodeJS.ProcessEnv = process.env): MoonshotCatalogueSnapshot | null {
+export function getCachedMoonshotCatalogue(env: NodeJS.ProcessEnv = hostEnv()): MoonshotCatalogueSnapshot | null {
   if (!resolveMoonshotAccount(env)) return null
   return catalogueCache.get(catalogueIdentity(env)) ?? null
 }
@@ -122,13 +123,13 @@ let identityMemo: { epoch: number; spellings: string; identity: string } | null 
 function memoisedIdentity(env: NodeJS.ProcessEnv): string {
   const epoch = signInLedgerEpoch()
   const spellings = `${env.MOONSHOT_API_KEY ?? ''}\u0000${flagEnv('MERCURY_MOONSHOT_API_BASE', env) ?? ''}\u0000${flagEnv('MERCURY_MOONSHOT_CODING_BASE', env) ?? ''}`
-  if (env === process.env && identityMemo !== null && identityMemo.epoch === epoch && identityMemo.spellings === spellings) return identityMemo.identity
+  if (env === hostEnv() && identityMemo !== null && identityMemo.epoch === epoch && identityMemo.spellings === spellings) return identityMemo.identity
   const identity = catalogueIdentity(env)
-  if (env === process.env) identityMemo = { epoch, spellings, identity }
+  if (env === hostEnv()) identityMemo = { epoch, spellings, identity }
   return identity
 }
 
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   const identity = memoisedIdentity(env)
   if (identity === 'none') return NO_IDS
   const snapshot = catalogueCache.get(identity)
@@ -140,7 +141,7 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
   return ids
 }
 
-export function moonshotLiveDynamicToolSupport(model: string, env: NodeJS.ProcessEnv = process.env): boolean | undefined {
+export function moonshotLiveDynamicToolSupport(model: string, env: NodeJS.ProcessEnv = hostEnv()): boolean | undefined {
   const identity = memoisedIdentity(env)
   if (identity === 'none') return undefined
   const snapshot = catalogueCache.get(identity)
@@ -163,7 +164,7 @@ export function refreshMoonshotCatalogue(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
 }): Promise<MoonshotCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const account = resolveMoonshotAccount(env)
   const identity = catalogueIdentity(env)
@@ -207,7 +208,7 @@ export function refreshMoonshotCatalogue(opts?: {
 }
 
 export function kickMoonshotCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('moonshot', env).allowed) return false
   const snapshot = getCachedMoonshotCatalogue(env)
   if (snapshot && snapshot.fetchedAtMs > 0) return false
@@ -261,7 +262,7 @@ function baseAliasLeads(rows: MoonshotCatalogueRow[]): MoonshotCatalogueRow[] {
   return ordered
 }
 
-export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: MoonshotCatalogueRow[]; source: MoonshotCatalogueSource } {
+export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: MoonshotCatalogueRow[]; source: MoonshotCatalogueSource } {
   if (resolveMoonshotAccount(env) === undefined) {
     return {
       rows: KIMI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName, observedAt: pin.observedAt, ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}), listedLive: false })),
@@ -292,7 +293,7 @@ export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
   return { rows: baseAliasLeads(rows), source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function moonshotCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function moonshotCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const { source } = moonshotCatalogueRows(env)
   return source.kind === 'live' ? `${source.count} ${source.count === 1 ? 'model' : 'models'} live` : undefined
 }

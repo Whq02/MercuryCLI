@@ -38,6 +38,7 @@ import { noteTensorFoldTurn } from '../local/tensorfoldUsage.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { getContextWindowForModel } from '../../../utils/model/capabilities.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const compatSlotLaneProfile: CompatLaneProfile = {
   lane: 'openai-compat',
@@ -104,13 +105,13 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   const profile: CompatLaneProfile = {
     ...compatSlotLaneProfile,
     dialect,
-    prefillTokensPerSecond: () => readCompatPrefillSpeed(endpoint, wireId, { key: resolveCompatApiKey(process.env, endpoint.name)?.key, signal: params.signal }),
+    prefillTokensPerSecond: () => readCompatPrefillSpeed(endpoint, wireId, { key: resolveCompatApiKey(hostEnv(), endpoint.name)?.key, signal: params.signal }),
     providerLabel: endpoint.label,
     keepsReasoningHistory: () => preservedReasoning,
     keepsReasoningOnContinuations: () => preservedReasoning,
     ...(endpoint.named ? { authRemedy: `/logins compat/${endpoint.name} replaces this endpoint's key; ${compatKeyEnvName(endpoint.name)} takes precedence when set.` } : {}),
     resolveCredential: async () => {
-      const key = resolveCompatApiKey(process.env, endpoint.name)
+      const key = resolveCompatApiKey(hostEnv(), endpoint.name)
       if (!key && providerKeyCommandFailure(`compat:${endpoint.name}`)) return undefined
       if (endpoint.named) observation = captureSignInRequest(`compat-${endpoint.name}`, key?.key)
       if (dialect === 'llamacpp') {
@@ -145,7 +146,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       ? {
           liveness: (pinnedSlot: number | undefined) =>
             readSelfHostedLiveness(endpoint, dialect, pinnedSlot, {
-              key: resolveCompatApiKey(process.env, endpoint.name)?.key,
+              key: resolveCompatApiKey(hostEnv(), endpoint.name)?.key,
               signal: params.signal,
               model: wireId,
             }),

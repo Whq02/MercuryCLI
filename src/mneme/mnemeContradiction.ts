@@ -12,6 +12,7 @@ import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { POLARITY_WORDS, flippedPolarity, polaritySides, type PolaritySides } from './mnemePolarity.js'
 import { clausesOf, containment, contentStems, firstWords, isNumberWord, jaccard, normalisedText, sentencesOf, wordsOf } from './mnemeText.js'
 import { readPins } from './mnemeUsage.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export { POLARITY_PAIRS } from './mnemePolarity.js'
 
@@ -261,7 +262,7 @@ const CONTRADICTION_QUESTION: JevQuestion = {
 
 export function jevJudgeOpen(): boolean {
   const settings = readJevSettings()
-  if (!settings.enabled || !jevKeyPresence(process.env, settings.road).present) return false
+  if (!settings.enabled || !jevKeyPresence(hostEnv(), settings.road).present) return false
   const context = getAgentContext()
   const agent = context === undefined ? undefined : { id: context.agentId, subagent: true }
   if (agent !== undefined && !settings.subagents) return false
@@ -273,7 +274,7 @@ export type ContradictionJudge = (pairs: ReadonlyArray<{ existing: string; candi
 const judgeWithJev: ContradictionJudge = async (pairs, signal) => {
   const settings = readJevSettings()
   const road = settings.road
-  const key = resolveJevApiKey(process.env, road)
+  const key = resolveJevApiKey(hostEnv(), road)
   if (key === undefined) return pairs.map(() => null)
   const context = getAgentContext()
   const agent = context === undefined ? undefined : { id: context.agentId, subagent: true }

@@ -9,6 +9,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const MERCURY_CLANGD_SERVER_NAME = 'mercury-clangd'
 
@@ -52,7 +53,7 @@ function isExecutable(p: string): boolean {
 }
 
 function findOnPath(names: string[]): string | undefined {
-  const pathEnv = process.env.PATH ?? ''
+  const pathEnv = hostEnv().PATH ?? ''
   const dirs = pathEnv.split(path.delimiter).filter(Boolean)
   const suffixes = process.platform === 'win32' ? ['.exe', ''] : ['']
   for (const name of names) {

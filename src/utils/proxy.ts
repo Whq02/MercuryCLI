@@ -10,15 +10,16 @@ import { getCACertificates } from './caCerts.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getMTLSAgent, getMTLSConfig, getTLSFetchOptions } from './mtls.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 type EnvLike = Record<string, string | undefined>
 
-export function getProxyUrl(env: EnvLike = process.env): string | undefined {
+export function getProxyUrl(env: EnvLike = hostEnv()): string | undefined {
   return env.https_proxy || env.HTTPS_PROXY || env.http_proxy || env.HTTP_PROXY || undefined
 }
 
-function getNoProxy(env: EnvLike = process.env): string | undefined {
+function getNoProxy(env: EnvLike = hostEnv()): string | undefined {
   return env.no_proxy || env.NO_PROXY || undefined
 }
 
@@ -209,7 +210,7 @@ function tlsConnectMaterial(): TlsConnectMaterial | undefined {
   }
 }
 
-function noProxyUppercaseFirst(env: EnvLike = process.env): string | undefined {
+function noProxyUppercaseFirst(env: EnvLike = hostEnv()): string | undefined {
   return env.NO_PROXY || env.no_proxy || undefined
 }
 

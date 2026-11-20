@@ -7,6 +7,7 @@ import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const MUSE_CODE_OAUTH_CLIENT_ID = '1031625952748946'
 export const META_API_VERSION = '1.0.0'
@@ -47,28 +48,28 @@ interface MetaAuthFile {
   [k: string]: unknown
 }
 
-export function metaApiBase(env: NodeJS.ProcessEnv = process.env): string {
+export function metaApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_META_API_BASE', env)?.trim() || 'https://api.meta.ai/v1').replace(/\/+$/, '')
 }
 
-export function metaChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function metaChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${metaApiBase(env)}/chat/completions`
 }
 
-export function metaAuthBase(env: NodeJS.ProcessEnv = process.env): string {
+export function metaAuthBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   const override = flagEnv('MERCURY_META_API_BASE', env)?.trim()
   return (override ? override.replace(/\/+$/, '').replace(/\/v1$/, '') : 'https://auth.meta.com').replace(/\/+$/, '')
 }
 
-export function metaDeviceAuthUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function metaDeviceAuthUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${metaAuthBase(env)}/oidc/device/authorization/`
 }
 
-export function metaDeviceTokenUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function metaDeviceTokenUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${metaAuthBase(env)}/oidc/device/token/`
 }
 
-export function metaMuseCodeKeyUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function metaMuseCodeKeyUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   const override = flagEnv('MERCURY_META_API_BASE', env)?.trim()
   const host = (override ? override.replace(/\/+$/, '').replace(/\/v1$/, '') : 'https://api.meta.ai').replace(/\/+$/, '')
   return `${host}/muse-code/key`
@@ -201,7 +202,7 @@ export function writePreferredMetaSource(kind: MetaSourceKind | null): void {
   bumpCatalogueEpoch()
 }
 
-export function metaEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string; name: 'MODEL_API_KEY' | 'META_API_KEY' } | undefined {
+export function metaEnvKey(env: NodeJS.ProcessEnv = hostEnv()): { key: string; name: 'MODEL_API_KEY' | 'META_API_KEY' } | undefined {
   for (const name of ['MODEL_API_KEY', 'META_API_KEY'] as const) {
     const key = env[name]?.trim()
     if (key) return { key, name }
@@ -210,7 +211,7 @@ export function metaEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string;
 }
 
 export function resolveMetaRawApiKey(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { key: string; source: 'env' | 'stored'; envName?: 'MODEL_API_KEY' | 'META_API_KEY' } | undefined {
   const key = metaEnvKey(env)
   if (key) return { key: key.key, source: 'env', envName: key.name }
@@ -229,7 +230,7 @@ export interface MetaAccountRef {
   observedAtMs?: number
 }
 
-export function resolveMetaAccount(env: NodeJS.ProcessEnv = process.env): MetaAccountRef | undefined {
+export function resolveMetaAccount(env: NodeJS.ProcessEnv = hostEnv()): MetaAccountRef | undefined {
   const grant = readMetaMuseCodeGrant()
   const tier = grant?.tierName ?? grant?.tierId
   const museRef: MetaAccountRef | undefined = grant
@@ -256,7 +257,7 @@ export function resolveMetaAccount(env: NodeJS.ProcessEnv = process.env): MetaAc
 }
 
 export function resolveMetaApiKey(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { key: string; source: 'env' | 'stored' | 'muse-code' } | undefined {
   const account = resolveMetaAccount(env)
   if (!account) return undefined
@@ -319,7 +320,7 @@ async function postMetaOidcForm(
 }
 
 export async function startMetaDeviceAuth(io?: MetaOauthIo): Promise<MetaDeviceAuthStart> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const { status, body } = await postMetaOidcForm(
     metaDeviceAuthUrl(env),
     { client_id: MUSE_CODE_OAUTH_CLIENT_ID },
@@ -350,7 +351,7 @@ export async function pollMetaDeviceToken(
   start: Pick<MetaDeviceAuthStart, 'deviceCode'>,
   io?: MetaOauthIo,
 ): Promise<MetaDevicePollResult> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   let posted: { status: number; body: Record<string, unknown> }
   try {
     posted = await postMetaOidcForm(
@@ -404,7 +405,7 @@ export async function requestMuseCodeKey(
   accessToken: string,
   io?: MetaOauthIo & { onboard?: boolean },
 ): Promise<MuseCodeKeyExchangeResult> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   const now = io?.now?.() ?? Date.now()

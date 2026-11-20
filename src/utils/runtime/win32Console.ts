@@ -4,6 +4,7 @@ import { flagReadsOff } from '../../substrate/flagOff.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { join } from 'node:path'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export const UTF8_CODEPAGE = 65001
 
@@ -35,7 +36,7 @@ export interface Win32ConsoleSyscalls {
   chcp: (arg?: string) => string | null
 }
 
-export function chcpSpawnShape(env: Record<string, string | undefined> = process.env): {
+export function chcpSpawnShape(env: Record<string, string | undefined> = hostEnv()): {
   exe: string
   options: { encoding: 'utf8'; timeout: number; windowsHide: false; env: NodeJS.ProcessEnv }
 } {
@@ -82,7 +83,7 @@ export function ensureWin32ConsoleUtf8(
   const decision = decideWin32ConsoleUtf8(
     probe.platform ?? process.platform,
     probe.stdoutIsTTY ?? Boolean(process.stdout.isTTY),
-    probe.env ?? process.env,
+    probe.env ?? hostEnv(),
   )
   if (!decision.engage) {
     outcome = { engaged: false, previous: null, changed: false, restoreArmed: false }

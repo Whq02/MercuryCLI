@@ -30,6 +30,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { connectableLoginFamilyWords, type TensorFoldOffer } from './loginFamilyRows.js'
 import { useTensorFoldOffer } from './tensorfold/tensorfoldFacts.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
@@ -355,10 +356,10 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
   const tensorfold = useTensorFoldOffer()
 
   const apiKeyNeedingApproval = useMemo(() => {
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!hostEnv().ANTHROPIC_API_KEY) {
       return ''
     }
-    const truncated = normalizeApiKeyForConfig(process.env.ANTHROPIC_API_KEY)
+    const truncated = normalizeApiKeyForConfig(hostEnv().ANTHROPIC_API_KEY!)
     if (getCustomApiKeyStatus(truncated) === 'new') {
       return truncated
     }

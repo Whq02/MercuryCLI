@@ -6,8 +6,9 @@ import { geminiPlanQuotaReadNote } from '../gemini/geminiPlanQuota.js'
 import { geminiPlanTierWords } from '../gemini/geminiPlanAccess.js'
 import { getCachedGeminiCatalogue } from '../gemini/geminiCatalogue.js'
 import { usageStaleAfterMs } from '../usageFreshness.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
-export function geminiPlanUsageFigures(plan: NonNullable<ReturnType<typeof geminiPlanFacts>>, env: NodeJS.ProcessEnv = process.env): UsageFigureView[] {
+export function geminiPlanUsageFigures(plan: NonNullable<ReturnType<typeof geminiPlanFacts>>, env: NodeJS.ProcessEnv = hostEnv()): UsageFigureView[] {
   const figures: UsageFigureView[] = [
     { key: 'plan-tier', label: 'tier Google reports', value: geminiPlanTierWords(plan.tier), ...(plan.tierReadAtMs !== undefined ? { observedAtMs: plan.tierReadAtMs } : {}), source: 'endpoint', freshForMs: 24 * 60 * 60 * 1000 },
   ]

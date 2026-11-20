@@ -7,6 +7,7 @@ import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CallToolResult } from './sdk.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const RENDER_TUI_SCRIPT = join('scripts', 'ui', 'render-tui.ts')
 
@@ -28,7 +29,7 @@ export function renderTuiCheckoutRoot(from: string = dirname(fileURLToPath(impor
 }
 
 export function renderTuiRuntime(opts: { env?: NodeJS.ProcessEnv; home?: string } = {}): { bun: string } | { missing: string } {
-  const env = opts.env ?? process.env
+  const env = opts.env ?? hostEnv()
   const home = opts.home ?? homedir()
   const pinned = (flagEnv('MERCURY_BUN', env) ?? '').trim()
   if (pinned !== '') {

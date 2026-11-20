@@ -1,5 +1,6 @@
 import type { AnthropicDoor } from './anthropic/anthropicCatalogue.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export function modelNotOfferedByCatalogue(modelId: string, accountLabel: string, offered: readonly string[], servedAs: readonly string[] = []): string {
   const hint = offered.length > 0 ? ` The catalogue offers: ${offered.join(', ')}.` : ''
@@ -34,7 +35,7 @@ export async function anthropicCatalogueRefusal(
   model: string,
   opts?: { signal?: AbortSignal; env?: NodeJS.ProcessEnv },
 ): Promise<string | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (env.ANTHROPIC_BASE_URL?.trim() || opts?.signal?.aborted === true) return null
   try {
     const { anthropicCredentialPresence } = require('./providerUsage.js') as typeof import('./providerUsage.js')

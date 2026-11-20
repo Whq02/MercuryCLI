@@ -5,11 +5,12 @@ import { memoize } from 'lodash-es'
 
 import { whichSync } from '../which.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export const gitExe = memoize((): string => {
   const executable = whichSync('git') ?? 'git'
   if (process.platform !== 'darwin' || executable !== '/usr/bin/git') return executable
-  const developer = process.env.DEVELOPER_DIR?.trim()
+  const developer = hostEnv().DEVELOPER_DIR?.trim()
   const directories = developer ? [developer] : ['/Library/Developer/CommandLineTools', '/Applications/Xcode.app/Contents/Developer']
   if (!developer) {
     try { directories.unshift(realpathSync('/var/db/xcode_select_link')) } catch (error) { passedOver(error) }

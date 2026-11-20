@@ -39,6 +39,7 @@ import { catalogueEpoch } from './catalogueEpoch.js'
 import { isProviderDisabled, resolveDisabledProviders } from './disabledProviders.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export interface ProviderSnapshot {
   providers: Array<{
@@ -106,7 +107,7 @@ let snapshotMemo: { at: number; key: string; snapshot: ProviderSnapshot } | null
 
 function snapshotKey(): string {
   let env = ''
-  for (const name of credentialEnvNames()) env += `${name}=${process.env[name] ?? ''}\u0000`
+  for (const name of credentialEnvNames()) env += `${name}=${hostEnv()[name] ?? ''}\u0000`
   const disabled = [...resolveDisabledProviders().disabled].sort().join(',')
   return `${signInLedgerEpoch()}:${catalogueEpoch()}:${disabled}:${env}`
 }

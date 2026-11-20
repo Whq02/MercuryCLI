@@ -6,6 +6,7 @@ import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
 import { fetchXaiLiveModels, fetchXaiSubscriptionModels, XaiCatalogueHttpError } from './xaiCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface XaiKeyLoginOutcome {
   ok: boolean
@@ -18,7 +19,7 @@ export async function storeXaiApiKeyLogin(
 ): Promise<XaiKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty xAI API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   try {
@@ -42,7 +43,7 @@ export async function storeXaiApiKeyLogin(
 export async function storeXaiManagementKeyLogin(key: string, io?: XaiUsageIo): Promise<XaiKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste an xAI management key, or leave it blank to skip.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const apiKey = resolveXaiApiKey(env)?.key
   if (!apiKey) return { ok: false, stored: false, receipt: 'Add the xAI API key first — its metadata identifies the team whose usage is read.' }
   const probe = await fetchXaiUsage(apiKey, key, io)

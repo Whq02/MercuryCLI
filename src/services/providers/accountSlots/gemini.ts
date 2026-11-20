@@ -3,6 +3,7 @@ import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { geminiOauthConnected, geminiPlanFacts, resolveGeminiAccount, geminiPlanLabel } from '../gemini/geminiAccounts.js'
 import { readStoredGeminiApiKey } from '../providerSecrets.js'
 import { maskedKeyTail } from '../credentialIdentity.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 function geminiStoredNote(storedKey: string, shadowed: boolean): string | undefined {
   const notes: string[] = []
@@ -17,10 +18,10 @@ export function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
   const active = (reads.geminiActiveAccount ?? resolveGeminiAccount)()
   const envGoogle = reads.geminiEnvGoogleKey
     ? reads.geminiEnvGoogleKey()
-    : process.env.GOOGLE_API_KEY?.trim() || undefined
+    : hostEnv().GOOGLE_API_KEY?.trim() || undefined
   const envGemini = reads.geminiEnvGeminiKey
     ? reads.geminiEnvGeminiKey()
-    : process.env.GEMINI_API_KEY?.trim() || undefined
+    : hostEnv().GEMINI_API_KEY?.trim() || undefined
   const storedKey = (reads.geminiStoredKey ?? readStoredGeminiApiKey)()
   const slots: AccountSlot[] = []
   if (plan) {

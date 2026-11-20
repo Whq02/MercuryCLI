@@ -25,6 +25,7 @@ import { wrapFetchWithWireDump } from './dumpPrompts.js'
 import { recordTransportFailure } from './transportEvidence.js'
 import { observeStreamActivity, streamActivityNoteOf } from '../providers/streamIdleBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
@@ -141,7 +142,7 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
   const subscriber = callerApiKey === undefined && isClaudeAISubscriber()
   const oauthAccessToken = subscriber ? getClaudeAIOAuthTokens()?.accessToken : undefined
   if (!subscriber && callerApiKey === undefined) {
-    const envToken = process.env.ANTHROPIC_AUTH_TOKEN
+    const envToken = hostEnv().ANTHROPIC_AUTH_TOKEN
     const token =
       envToken && envToken !== ''
         ? envToken
@@ -174,7 +175,7 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
   const firstPartyOptions: Record<string, unknown> = {
     ...sharedOptions,
     apiKey,
-    authToken: subscriber ? oauthAccessToken ?? null : callerApiKey !== undefined ? null : process.env.ANTHROPIC_AUTH_TOKEN ?? null,
+    authToken: subscriber ? oauthAccessToken ?? null : callerApiKey !== undefined ? null : hostEnv().ANTHROPIC_AUTH_TOKEN ?? null,
     subscriptionAuth: subscriber,
   }
   attachStderrLogger(firstPartyOptions)

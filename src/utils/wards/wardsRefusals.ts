@@ -3,6 +3,7 @@ import { posix } from 'node:path'
 import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOutsideFileHeredocs, wardHomes, type PendingToolCall, type ResolvedPath, type WardVerdict, type WardWork } from './wards.js'
 import { UNREAD_PART, absolutePath, layersOf, printedBy, programOf, readShellCommands, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 type RefusalWorld = ReadWorld & {
   platform: NodeJS.Platform
@@ -137,7 +138,7 @@ function otherUserHome(path: string, world: RefusalWorld): boolean {
 }
 
 function windowsVariable(name: string, world: RefusalWorld): string | undefined {
-  const drive = (process.env.SystemDrive ?? 'C:').slice(0, 2)
+  const drive = (hostEnv().SystemDrive ?? 'C:').slice(0, 2)
   const home = world.windowsHome
   switch (name.toLowerCase()) {
     case 'systemdrive':
@@ -759,7 +760,7 @@ function worldOf(pending: PendingToolCall, cwd: string): RefusalWorld {
     ownNames: ownHomeNames(),
     platform,
     homes,
-    windowsHome: process.env.USERPROFILE || (platform === 'win32' ? process.env.HOME : undefined) || undefined,
+    windowsHome: hostEnv().USERPROFILE || (platform === 'win32' ? hostEnv().HOME : undefined) || undefined,
     startingFolder: pending.startingFolder,
     resolvePath: pending.resolvePath,
     toolName: pending.toolName,

@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join, parse } from 'node:path'
 import picomatch from 'picomatch'
 import { authorityText, parseRemotePath } from './target.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const INCLUDE_DEPTH = 16
 
@@ -12,7 +13,7 @@ export function sshUserConfigPath(): string {
 }
 
 function sshSystemConfigPath(): string {
-  return process.platform === 'win32' ? join(process.env.PROGRAMDATA ?? 'C:\\ProgramData', 'ssh', 'ssh_config') : '/etc/ssh/ssh_config'
+  return process.platform === 'win32' ? join(hostEnv().PROGRAMDATA ?? 'C:\\ProgramData', 'ssh', 'ssh_config') : '/etc/ssh/ssh_config'
 }
 
 function wordsOf(text: string): string[] {

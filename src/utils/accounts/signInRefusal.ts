@@ -7,6 +7,7 @@ import { errorMessage } from '../errors.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { noteCredentialChange, publishSignInRecord } from './signInLedger.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export type SignInRefusal = { status: 401 | 403; at: number; message?: string; credential?: 'key' | 'sign-in'; remedy?: string }
 type StoredRefusal = SignInRefusal & { identity: string }
@@ -30,7 +31,7 @@ function currentCredential(family: string): Credential | undefined {
   try {
     if (/^compat-[a-z0-9-]{1,32}$/.test(family)) {
       const owner = require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
-      return owner.configuredCompatEndpoints().some(endpoint => endpoint.name === family.slice(7)) ? keyCredential(owner.resolveCompatApiKey(process.env, family.slice(7))) : undefined
+      return owner.configuredCompatEndpoints().some(endpoint => endpoint.name === family.slice(7)) ? keyCredential(owner.resolveCompatApiKey(hostEnv(), family.slice(7))) : undefined
     }
     switch (family) {
       case 'deepseek': return keyCredential(require('../../services/providers/deepseek/deepseekAccounts.js').resolveDeepseekApiKey())

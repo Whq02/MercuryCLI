@@ -32,6 +32,7 @@ import { addRootOptions } from './main/rootOptions.js'
 import { registerSubcommands } from './main/subcommands.js'
 import { registerSessionDoors } from './main/sessionDoors.js'
 import { passedOver } from './utils/passedOver.js'
+import { hostEnv } from './utils/hostEnv.js'
 export { startDeferredPrefetches } from './main/deferredPrefetches.js'
 
 profileCheckpoint('main_tsx_entry')
@@ -45,7 +46,7 @@ function refuseDebugger(): void {
     ? [/^--inspect(-brk)?(=|$)/]
     : [/^--inspect(-brk)?(=|$)/, /^--debug(-brk)?(=|$)/]
   const argvHit = process.execArgv.some(arg => flags.some(re => re.test(arg)))
-  const nodeOptions = process.env.NODE_OPTIONS ?? ''
+  const nodeOptions = hostEnv().NODE_OPTIONS ?? ''
   const envHit = /--inspect(-brk)?(=|\s|$)/.test(nodeOptions) || (!isBun && /--debug(-brk)?(=|\s|$)/.test(nodeOptions))
   let inspectorHit = false
   try {
@@ -79,7 +80,7 @@ export async function main(): Promise<void> {
     process.exit(0)
   }
 
-  process.env.NoDefaultCurrentDirectoryInExePath = '1'
+  hostEnv().NoDefaultCurrentDirectoryInExePath = '1'
 
   const { initializeWarningHandler } = await import('./utils/warningHandler.js')
   initializeWarningHandler()

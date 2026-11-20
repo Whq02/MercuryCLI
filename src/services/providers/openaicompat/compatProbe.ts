@@ -7,6 +7,7 @@ import { CompatEndpointSchema, type CompatEndpointSettings } from '../../../util
 import type { CompatLivenessReading } from './compatChatClient.js'
 import { compatModelEndpoint, resolveCompatApiKey } from './compatAccounts.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export type CompatDialect = NonNullable<CompatEndpointSettings['dialect']>
 export interface CompatServerReading {
@@ -65,7 +66,7 @@ export async function refreshCompatModelImageReading(model: string, signal?: Abo
   const resolved = compatModelEndpoint(model)
   if (resolved?.endpoint.dialect !== 'llamacpp') return
   invalidateLlamacppTotalSlots(resolved.endpoint)
-  await resolveLlamacppTotalSlots(resolved.endpoint, { key: resolveCompatApiKey(process.env, resolved.endpoint.name)?.key, signal, model: resolved.wireId })
+  await resolveLlamacppTotalSlots(resolved.endpoint, { key: resolveCompatApiKey(hostEnv(), resolved.endpoint.name)?.key, signal, model: resolved.wireId })
 }
 
 export function compatImageRefusalWords(model: string, error?: string): string | null {

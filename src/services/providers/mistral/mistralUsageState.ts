@@ -6,6 +6,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { mistralApiBase, mistralKeyHeaders, resolveMistralAdminApiKey, resolveMistralApiKey } from './mistralAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const MISTRAL_ADMIN_KEY_HINT = 'usage is read with an Admin API key (Enterprise plans, backoffice.mistral.ai) — /logins mistral adds one; the session ledger counts this key’s tokens; console.mistral.ai shows the plan’s included monthly usage'
 export const MISTRAL_ADMIN_KEY_PAGE = 'Optional Admin API key from backoffice.mistral.ai (Enterprise plans) unlocks the organisation usage meter and spend limit.'
@@ -132,7 +133,7 @@ async function readJson(url: string, key: string, endpoint: MistralUsageFailure[
 }
 
 export async function fetchMistralIdentity(apiKey: string, io?: MistralUsageIo): Promise<MistralIdentityProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now?.() ?? Date.now()
   try {
     const identity = decodeMistralIdentity(await readJson(`${mistralApiBase(env)}/users/me`, apiKey, 'identity', io, now))
@@ -144,7 +145,7 @@ export async function fetchMistralIdentity(apiKey: string, io?: MistralUsageIo):
 }
 
 export async function fetchMistralLimits(adminKey: string, io?: MistralUsageIo): Promise<MistralLimitsProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now?.() ?? Date.now()
   try {
     const base = `${mistralApiBase(env)}/admin`
@@ -189,18 +190,18 @@ function syncIdentity(env: NodeJS.ProcessEnv): string {
   return next
 }
 
-export function mistralObservedUsage(env: NodeJS.ProcessEnv = process.env): { identity: MistralIdentity | null; limits: MistralObservedLimits | null; failure: MistralUsageFailure | null } {
+export function mistralObservedUsage(env: NodeJS.ProcessEnv = hostEnv()): { identity: MistralIdentity | null; limits: MistralObservedLimits | null; failure: MistralUsageFailure | null } {
   syncIdentity(env)
   return { identity: observedIdentity, limits: observedLimits, failure }
 }
 
-export function mistralObservedIdentityWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function mistralObservedIdentityWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   syncIdentity(env)
   return observedIdentity?.email ?? observedIdentity?.name
 }
 
 export function refreshMistralUsage(io?: MistralUsageIo): Promise<MistralObservedLimits | null> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const id = syncIdentity(env)
   const apiKey = resolveMistralApiKey(env)?.key
   if (!apiKey) return Promise.resolve(null)

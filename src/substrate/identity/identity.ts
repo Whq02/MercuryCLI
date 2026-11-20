@@ -1,9 +1,10 @@
 
 import { operatorKeyId } from './operatorKey.js'
 import type { Principal } from './principal.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export function operatorPrincipal(): Principal {
-  return { id: operatorKeyId(), kind: 'operator', name: process.env.USER || process.env.USERNAME || 'operator' }
+  return { id: operatorKeyId(), kind: 'operator', name: hostEnv().USER || hostEnv().USERNAME || 'operator' }
 }
 
 export function assistantPrincipal(): Principal {

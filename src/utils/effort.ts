@@ -17,6 +17,7 @@ import {
 import { familyDefaultsModel } from './model/configs.js'
 import { getInitialSettings } from './settings/settings.js'
 import { sessionThinkingEnabled } from './thinking.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export type { EffortLevel }
@@ -115,7 +116,7 @@ export type EffortEnvOverrideView =
   | { state: 'level'; raw: string; override: EffortLevel }
   | { state: 'ignored'; raw: string; override: undefined; sentence: string }
 
-export function describeEffortEnvOverride(env: NodeJS.ProcessEnv = process.env): EffortEnvOverrideView {
+export function describeEffortEnvOverride(env: NodeJS.ProcessEnv = hostEnv()): EffortEnvOverrideView {
   const raw = flagEnv('MERCURY_EFFORT_LEVEL', env)
   if (raw === undefined) return { state: 'absent', override: undefined }
   const lowered = raw.toLowerCase()

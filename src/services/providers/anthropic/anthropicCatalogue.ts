@@ -9,6 +9,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ANTHROPIC_CATALOGUE_TTL_MS = 5 * 60_000
@@ -183,7 +184,7 @@ function bearerDoor(env: NodeJS.ProcessEnv): AnthropicDoorCredential | undefined
   }
 }
 
-export function anthropicDoors(env: NodeJS.ProcessEnv = process.env): AnthropicDoorCredential[] {
+export function anthropicDoors(env: NodeJS.ProcessEnv = hostEnv()): AnthropicDoorCredential[] {
   const doors: AnthropicDoorCredential[] = []
   const subscription = subscriptionDoor()
   if (subscription) doors.push(subscription)
@@ -213,7 +214,7 @@ function doorIdentity(credential: AnthropicDoorCredential, env: NodeJS.ProcessEn
 const catalogueCache = new Map<string, AnthropicDoorSnapshot>()
 const catalogueInFlight = new Map<string, Promise<AnthropicDoorSnapshot>>()
 
-export function getCachedAnthropicDoorCatalogue(door: AnthropicDoor, env: NodeJS.ProcessEnv = process.env): AnthropicDoorSnapshot | null {
+export function getCachedAnthropicDoorCatalogue(door: AnthropicDoor, env: NodeJS.ProcessEnv = hostEnv()): AnthropicDoorSnapshot | null {
   const credential = anthropicDoors(env).find(candidate => candidate.door === door)
   if (!credential) return null
   return catalogueCache.get(doorIdentity(credential, env)) ?? null
@@ -291,7 +292,7 @@ export function refreshAnthropicCatalogue(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
 }): Promise<AnthropicDoorSnapshot[]> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const doors = anthropicDoors(env).filter(credential => opts?.door === undefined || credential.door === opts.door)
   if (doors.length === 0) return Promise.resolve([])
@@ -311,7 +312,7 @@ export function refreshAnthropicCatalogue(opts?: {
 }
 
 export function kickAnthropicCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('anthropic', env).allowed) return false
   const pending = anthropicDoors(env).filter(credential => nothingUsable(catalogueCache.get(doorIdentity(credential, env)) ?? null))
   if (pending.length === 0) return false
@@ -321,7 +322,7 @@ export function kickAnthropicCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchIm
   return true
 }
 
-export function anthropicCatalogueDoorStates(env: NodeJS.ProcessEnv = process.env): AnthropicDoorState[] {
+export function anthropicCatalogueDoorStates(env: NodeJS.ProcessEnv = hostEnv()): AnthropicDoorState[] {
   return anthropicDoors(env).map((credential): AnthropicDoorState => {
     const snapshot = catalogueCache.get(doorIdentity(credential, env)) ?? null
     if (snapshot === null) return { door: credential.door, label: credential.label, state: 'pending' }
@@ -349,7 +350,7 @@ export function anthropicCatalogueDoorStates(env: NodeJS.ProcessEnv = process.en
   })
 }
 
-export function anthropicLiveUnion(env: NodeJS.ProcessEnv = process.env): AnthropicLiveRow[] {
+export function anthropicLiveUnion(env: NodeJS.ProcessEnv = hostEnv()): AnthropicLiveRow[] {
   const rows = new Map<string, AnthropicLiveRow>()
   for (const credential of anthropicDoors(env)) {
     const snapshot = catalogueCache.get(doorIdentity(credential, env))
@@ -372,7 +373,7 @@ export function anthropicLiveUnion(env: NodeJS.ProcessEnv = process.env): Anthro
   return [...rows.values()]
 }
 
-export function anthropicListedModel(id: string, env: NodeJS.ProcessEnv = process.env): AnthropicLiveRow | undefined {
+export function anthropicListedModel(id: string, env: NodeJS.ProcessEnv = hostEnv()): AnthropicLiveRow | undefined {
   const key = id.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
   return anthropicLiveUnion(env).find(row => row.id.toLowerCase() === key)
 }

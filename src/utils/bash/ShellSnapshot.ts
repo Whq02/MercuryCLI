@@ -24,6 +24,7 @@ import { msysSourceLine } from '../shell/msysArgv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { quote } from './shellQuote.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 
 type VersionedPathParts = {
@@ -229,7 +230,7 @@ export async function resolveSnapshotPathValue(
   options?: { platform?: string; exec?: SnapshotPathExecutor; probeTimeoutMs?: number },
 ): Promise<string> {
   const platform = options?.platform ?? getPlatform()
-  const processPath = process.env.PATH ?? ''
+  const processPath = hostEnv().PATH ?? ''
   if (platform !== 'windows') return processPath
   if (!isPosixSnapshotShell(shellPath)) return processPath
   const exec = options?.exec ?? defaultSnapshotPathExecutor

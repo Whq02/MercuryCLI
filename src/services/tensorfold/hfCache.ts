@@ -2,8 +2,9 @@ import { readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
-export function hfCacheRoot(env: NodeJS.ProcessEnv = process.env, home: string = homedir()): string {
+export function hfCacheRoot(env: NodeJS.ProcessEnv = hostEnv(), home: string = homedir()): string {
   if (env.HF_HUB_CACHE) return env.HF_HUB_CACHE
   if (env.HF_HOME) return join(env.HF_HOME, 'hub')
   return join(home, '.cache', 'huggingface', 'hub')
@@ -13,7 +14,7 @@ export function cacheDirOfRepo(repo: string): string {
   return `models--${repo.replace('/', '--')}`
 }
 
-export function hubEndpoint(env: NodeJS.ProcessEnv = process.env): string {
+export function hubEndpoint(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (env.HF_ENDPOINT ?? 'https://huggingface.co').replace(/\/+$/, '')
 }
 

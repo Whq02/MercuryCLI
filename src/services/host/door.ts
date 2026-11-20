@@ -19,6 +19,7 @@ import type { HostOffer, HostPod, RunpodClient } from './runpod.js'
 import { hostRecords, type HostRecord } from './store.js'
 import { hostLinkObservations, hostMachineTrouble } from './reliability.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
@@ -178,7 +179,7 @@ async function switchRunning(record: HostRecord, recipe: HostRecipe, ask: Ask, s
     const endpoint = configuredCompatEndpoints().find(row => row.name === record.provider)
     if (!endpoint) return { ok: false, words: 'This machine’s endpoint is no longer registered. Open Machines I’m paying for to resume setup.' }
     try {
-      const reading = await inspectCompatServer(endpoint, { key: resolveCompatApiKey(process.env, endpoint.name)?.key, signal })
+      const reading = await inspectCompatServer(endpoint, { key: resolveCompatApiKey(hostEnv(), endpoint.name)?.key, signal })
       const model = reading.models.find(name => name === recipe.model || name === modelTitle(recipe)) ?? (reading.models.length === 1 ? reading.models[0] : undefined)
       if (!model) throw new Error('The registered server is not listing this model.')
       signal.throwIfAborted()

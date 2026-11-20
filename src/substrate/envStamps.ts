@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { FLAG_REGISTRY, flagSpellings, selfWrittenFlagEnv, stampFlagOnEnv } from './flagRegistry.js'
 import { bootEnvSelfApplied } from './startupMenu.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export const SPAWN_STAMP_RECEIPT = 'MERCURY_SPAWNED_ENV'
 
@@ -39,7 +40,7 @@ export function resetOwnEnvWritesForTesting(): void {
   ownEnvWrites.clear()
 }
 
-export function spawnSelfStamped(env: NodeJS.ProcessEnv = process.env): ReadonlyMap<string, string> {
+export function spawnSelfStamped(env: NodeJS.ProcessEnv = hostEnv()): ReadonlyMap<string, string> {
   const out = new Map<string, string>()
   const raw = flagSpellings(SPAWN_STAMP_RECEIPT)
     .map(sp => env[sp])
@@ -69,7 +70,7 @@ export function stampSpawnReceipt(env: Record<string, string | undefined>, names
   stampFlagOnEnv(env, SPAWN_STAMP_RECEIPT, JSON.stringify(receipt))
 }
 
-export function sessionEnvStamps(env: NodeJS.ProcessEnv = process.env): string[] {
+export function sessionEnvStamps(env: NodeJS.ProcessEnv = hostEnv()): string[] {
   const stamps = new Set<string>()
   for (const spec of FLAG_REGISTRY) {
     if (spec.selfStamped === true && env[spec.env] !== undefined) stamps.add(spec.env)

@@ -1,9 +1,10 @@
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
 import { getSettingsForSource } from './settings/settings.js'
+import { hostEnv } from './hostEnv.js'
 
 export function applyExtraCACertsFromConfig(): void {
-  if (process.env.NODE_EXTRA_CA_CERTS) return
+  if (hostEnv().NODE_EXTRA_CA_CERTS) return
 
   let configPath: string | undefined
   try {
@@ -15,7 +16,7 @@ export function applyExtraCACertsFromConfig(): void {
   }
 
   if (configPath) {
-    process.env.NODE_EXTRA_CA_CERTS = configPath
+    hostEnv().NODE_EXTRA_CA_CERTS = configPath
     logForDebugging(`caCertsConfig: NODE_EXTRA_CA_CERTS set from config/settings: ${configPath}`)
   }
 }

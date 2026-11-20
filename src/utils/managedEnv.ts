@@ -7,6 +7,7 @@ import { clearProxyCache, configureGlobalAgents } from './proxy.js'
 import { isSettingSourceEnabled, type SettingSource } from './settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
 import { subprocessEnv } from './subprocessEnv.js'
+import { hostEnv } from './hostEnv.js'
 
 
 type EnvObject = Record<string, string>
@@ -40,7 +41,7 @@ function applyFiltered(env: EnvObject | undefined): void {
   if (!env) return
   const filtered = filterProviderManaged(filterTunnelProtected(env))
   for (const [key, value] of Object.entries(filtered)) {
-    process.env[key] = value
+    hostEnv()[key] = value
   }
 }
 

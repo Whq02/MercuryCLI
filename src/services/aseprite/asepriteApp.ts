@@ -7,6 +7,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { whichSync } from '../../utils/which.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const SPRITE_FILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
@@ -91,8 +92,8 @@ function asepriteSteamCandidates(
     ]
   }
   if (platform === 'win32') {
-    const pf86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
-    const pf = process.env.ProgramFiles ?? 'C:\\Program Files'
+    const pf86 = hostEnv()['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+    const pf = hostEnv().ProgramFiles ?? 'C:\\Program Files'
     return [
       path.join(pf86, 'Steam', ...tail, 'Aseprite.exe'),
       path.join(pf, 'Steam', ...tail, 'Aseprite.exe'),
@@ -108,9 +109,9 @@ function asepriteWin32Candidates(home: string = homedir()): Array<{
   candidate: string
   source: 'program-files' | 'itch'
 }> {
-  const pf = process.env.ProgramFiles ?? 'C:\\Program Files'
-  const pf86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
-  const localAppData = process.env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local')
+  const pf = hostEnv().ProgramFiles ?? 'C:\\Program Files'
+  const pf86 = hostEnv()['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+  const localAppData = hostEnv().LOCALAPPDATA ?? path.join(home, 'AppData', 'Local')
   return [
     { candidate: path.join(pf, 'Aseprite', 'Aseprite.exe'), source: 'program-files' as const },
     { candidate: path.join(pf86, 'Aseprite', 'Aseprite.exe'), source: 'program-files' as const },

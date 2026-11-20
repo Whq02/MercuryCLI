@@ -7,6 +7,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../../utils/privacyLevel.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const NOUS_PORTAL_CLIENT_ID = 'hermes-cli'
 export const NOUS_PORTAL_SIGNIN_SCOPE = 'inference:invoke'
@@ -142,16 +143,16 @@ export function presentedNousClient(): NousClientPresented {
   return { clientId: NOUS_PORTAL_CLIENT_ID, scope: NOUS_PORTAL_SIGNIN_SCOPE, release: NOUS_CLIENT_CONTRACT_RELEASE, source: 'constant', asOf: NOUS_CLIENT_CONTRACT_AS_OF }
 }
 
-export function nousClientSourceBase(env: NodeJS.ProcessEnv = process.env): string {
-  const pinned = (env === process.env ? flagEnv('MERCURY_NOUS_CLIENT_SOURCE_BASE') : flagEnv('MERCURY_NOUS_CLIENT_SOURCE_BASE', env))?.trim()
+export function nousClientSourceBase(env: NodeJS.ProcessEnv = hostEnv()): string {
+  const pinned = (env === hostEnv() ? flagEnv('MERCURY_NOUS_CLIENT_SOURCE_BASE') : flagEnv('MERCURY_NOUS_CLIENT_SOURCE_BASE', env))?.trim()
   return pinned && /^https?:\/\//i.test(pinned) ? pinned.replace(/\/+$/, '') : NOUS_CLIENT_SOURCE_DEFAULT_BASE
 }
 
-export function nousClientReleaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function nousClientReleaseUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${nousClientSourceBase(env)}/repos/${NOUS_CLIENT_SOURCE_REPO}/releases/latest`
 }
 
-export function nousClientSourceUrl(tag: string, env: NodeJS.ProcessEnv = process.env): string {
+export function nousClientSourceUrl(tag: string, env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${nousClientSourceBase(env)}/repos/${NOUS_CLIENT_SOURCE_REPO}/contents/${NOUS_CLIENT_SOURCE_FILE}?ref=${encodeURIComponent(tag)}`
 }
 
@@ -212,7 +213,7 @@ async function readSource(url: string, accept: string, io: NousClientIo | undefi
 }
 
 export async function readNousClientFromSource(io?: NousClientIo): Promise<NousClientSourceAnswer> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   if (isProofShapeRun() && !isLoopbackUrl(nousClientSourceBase(env))) return { ok: false, words: proofShapeReason() }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), NOUS_CLIENT_SOURCE_DEADLINE_MS)
@@ -242,7 +243,7 @@ let peekInFlight: Promise<NousClientPeek> | null = null
 
 export function peekNousClient(io?: NousClientIo & { force?: boolean }): Promise<NousClientPeek> {
   if (peekInFlight) return peekInFlight
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now ?? Date.now
   if (getEssentialTrafficOnlyReason(env) !== null) return Promise.resolve({ kind: 'skipped', why: 'traffic-off' })
   if (isProofShapeRun() && !isLoopbackUrl(nousClientSourceBase(env))) return Promise.resolve({ kind: 'skipped', why: 'proof-shape' })

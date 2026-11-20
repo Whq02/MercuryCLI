@@ -9,6 +9,7 @@ import { expandPath } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
 import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globPartSource, mercuryHomes, wildcardSource } from './homes.js'
 import { passedOver } from '../../passedOver.js'
+import { hostEnv } from '../../hostEnv.js'
 
 const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
 const FOLDER_CAP = 16
@@ -64,7 +65,7 @@ function foldersOnDisk(pattern: string): string[] {
     if (next.length > FOLDER_CAP) {
       if (mercury === undefined) {
         mercury = [...mercuryHomes(), ...protectedPathForms(flagEnv('MERCURY_DAEMON_DIR') || getMercuryHome())]
-        home = [process.env.HOME, process.env.USERPROFILE, homedir()].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path))
+        home = [hostEnv().HOME, hostEnv().USERPROFILE, homedir()].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path))
       }
       const ways = mercury
       const guarded = next.filter(folder => onGuardedWay(folder, ways, home))

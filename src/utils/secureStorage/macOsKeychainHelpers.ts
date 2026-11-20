@@ -5,6 +5,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir, getAuthScope, rawConfigHomePinSpelling } from '../envUtils.js'
 import type { SecureStorageData } from './types.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export function keychainReachable(): boolean {
   if (process.platform !== 'darwin') return false
@@ -32,7 +33,7 @@ export function getRawSpellingKeychainStorageServiceName(serviceSuffix: string =
 export const KEYCHAIN_FALLBACK_USERNAME = 'mercury-user'
 
 export function getUsername(): string {
-  const fromEnv = process.env.USER
+  const fromEnv = hostEnv().USER
   if (fromEnv) return fromEnv
   try {
     return userInfo().username

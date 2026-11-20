@@ -6,6 +6,7 @@ import { type CaptureStreamErrors, loadVoiceAddon, resolveVoicePackDir, voiceChe
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
 
@@ -40,7 +41,7 @@ export type CaptureBackendResolution =
   | { state: 'ok'; kind: CaptureBackendKind; detail: string; pinned: boolean }
   | { state: 'none'; note: string; tried: string[] }
 
-export function findOnPath(name: string, env: NodeJS.ProcessEnv = process.env): string | null {
+export function findOnPath(name: string, env: NodeJS.ProcessEnv = hostEnv()): string | null {
   const dirs = (env.PATH ?? '').split(delimiter).filter(d => d !== '')
   const suffixes = process.platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : ['']
   for (const dir of dirs) {
@@ -86,7 +87,7 @@ function pathToolResolution(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proc
   return { state: 'ok', kind, detail: `${kind} on PATH (${found})`, pinned: false }
 }
 
-export function resolveCaptureBackend(env: NodeJS.ProcessEnv = process.env): CaptureBackendResolution {
+export function resolveCaptureBackend(env: NodeJS.ProcessEnv = hostEnv()): CaptureBackendResolution {
   const pin = (flagEnv('MERCURY_VOICE_BACKEND') ?? '').trim().toLowerCase()
   if (pin !== '') {
     if (!(CAPTURE_BACKEND_KINDS as readonly string[]).includes(pin)) {
@@ -318,7 +319,7 @@ export function voiceDebugWavDir(): string | null {
 }
 
 export async function startCapture(opts: StartCaptureOptions = {}): Promise<CaptureHandle> {
-  const env = opts.env ?? process.env
+  const env = opts.env ?? hostEnv()
   const backend = opts.backend ?? resolveCaptureBackend(env)
   if (backend.state === 'none') throw new CaptureError('none', backend.note)
   const now = opts.now ?? Date.now

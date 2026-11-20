@@ -1,4 +1,5 @@
 import { credentialFingerprint } from '../credentialIdentity.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const ZAI_KEY_PLAN_ENV = 'ZAI_KEY_PLAN'
 export type ZaiKeyPlanWord = 'general' | 'coding'
@@ -11,12 +12,12 @@ function planWordOf(env: Record<string, string | undefined>): string | undefined
   return raw ? raw : undefined
 }
 
-function explicitZaiKeyPlan(env: Record<string, string | undefined> = process.env): ZaiKeyPlanWord | undefined {
+function explicitZaiKeyPlan(env: Record<string, string | undefined> = hostEnv()): ZaiKeyPlanWord | undefined {
   const word = planWordOf(env)
   return word !== undefined && PLAN_WORDS.has(word) ? (word as ZaiKeyPlanWord) : undefined
 }
 
-export function zaiKeyPlanUnknownWord(env: Record<string, string | undefined> = process.env): string | undefined {
+export function zaiKeyPlanUnknownWord(env: Record<string, string | undefined> = hostEnv()): string | undefined {
   const word = planWordOf(env)
   if (word === undefined || PLAN_WORDS.has(word)) return undefined
   return `${ZAI_KEY_PLAN_ENV}=${word} is not a plan Mercury knows — coding (a GLM Coding Plan key) or general; unset it and the plan is read from the key's own models list`
@@ -38,7 +39,7 @@ export function forgetZaiKeyPlans(): void {
 
 export function planlessZaiKeyPlan(
   key: string,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): { plan: ZaiKeyPlanWord; planSource: 'env' | 'learned' | 'assumed' } {
   const explicit = explicitZaiKeyPlan(env)
   if (explicit) return { plan: explicit, planSource: 'env' }

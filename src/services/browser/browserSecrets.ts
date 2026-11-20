@@ -8,6 +8,7 @@ import { getMacOsKeychainStorageServiceName, getUsername, keychainReachable } fr
 import { readKeychainServiceSync } from '../../utils/secureStorage/macOsKeychainStorage.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const BROWSER_SECRET_ENV_PREFIX = 'MERCURY_BROWSER_SECRET_'
 export const BROWSER_SECRET_REF_GRAMMAR = /^[A-Z][A-Z0-9_]{0,63}$/
@@ -100,7 +101,7 @@ export function resolveBrowserSecret(ref: string, opts?: { fileDir?: string; ori
       note: `secretRef "${ref}" does not match the name grammar (UPPER_SNAKE, letter-led, up to 64 chars)`,
     }
   }
-  const fromEnv = process.env[`${BROWSER_SECRET_ENV_PREFIX}${ref}`]
+  const fromEnv = hostEnv()[`${BROWSER_SECRET_ENV_PREFIX}${ref}`]
   if (typeof fromEnv === 'string' && fromEnv !== '') return { state: 'ok', value: fromEnv, source: 'env' }
   const dir = opts?.fileDir ?? getMercuryHome()
   const file = path.join(dir, BROWSER_SECRETS_FILENAME)

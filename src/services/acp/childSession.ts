@@ -10,6 +10,7 @@ import type { RpcError } from '../../runner/wire/errors.js'
 import { flagEnv, flagPair, flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export interface TurnEndDetail {
   status: string
@@ -125,7 +126,7 @@ export class MercuryChildSession {
       ...(opts.mcpConfig ? ['--mcp', opts.mcpConfig] : []),
     ]
     const env: NodeJS.ProcessEnv = {
-      ...process.env,
+      ...hostEnv(),
       ...flagPair('MERCURY_TASKS', flagEnv('MERCURY_TASKS') ?? '1'),
       ...flagPair('MERCURY_TASK_LIST_ID', opts.resumeSessionId ?? opts.sessionId ?? ''),
       ...(opts.env ?? {}),

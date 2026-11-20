@@ -11,6 +11,7 @@ import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { sleep } from '../../../utils/sleep.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const XAI_OAUTH_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
 const XAI_OAUTH_SCOPE = 'openid profile email offline_access grok-cli:access api:access'
@@ -59,7 +60,7 @@ export function readPreferredXaiSource(): AuthFile['preferredSource'] { return r
 export function writePreferredXaiSource(source: NonNullable<AuthFile['preferredSource']>): void {
   writeAuth({ ...readAuth(), preferredSource: source })
 }
-function xaiAuthBase(env: NodeJS.ProcessEnv = process.env): string {
+function xaiAuthBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_XAI_AUTH_BASE', env)?.trim() || 'https://auth.x.ai').replace(/\/+$/, '')
 }
 function jwt(token: string): Record<string, unknown> {

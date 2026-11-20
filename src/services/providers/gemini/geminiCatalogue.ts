@@ -21,6 +21,7 @@ import {
 import { fetchGeminiPlanRoster, GeminiPlanHttpError, geminiPlanTierWords, type GeminiPlanRoster } from './geminiPlanAccess.js'
 import { GEMINI_TIER_ROW, geminiRequestPin } from './geminiPins.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
@@ -210,7 +211,7 @@ function storeSnapshot(identity: string, snapshot: GeminiCatalogueSnapshot): voi
 
 export function getCachedGeminiCatalogue(
   sourceKind: GeminiSourceKind,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): GeminiCatalogueSnapshot | null {
   return catalogueCache.get(catalogueIdentity(sourceKind, env)) ?? null
 }
@@ -222,7 +223,7 @@ export function refreshGeminiCatalogue(
   const now = opts?.now ?? Date.now
   const identity = catalogueIdentity(sourceKind, opts?.env)
   const cached = catalogueCache.get(identity)
-  if (!catalogueTrafficVerdict('gemini', opts?.env ?? process.env).allowed) {
+  if (!catalogueTrafficVerdict('gemini', opts?.env ?? hostEnv()).allowed) {
     return Promise.resolve(cached ?? null)
   }
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
@@ -315,7 +316,7 @@ export function refreshGeminiCatalogue(
 
 export function geminiListedModel(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): GeminiLiveModel | undefined {
   if (declaredRouteOf(model) !== 'gemini') return undefined
   const account = resolveGeminiAccount(env)
@@ -328,7 +329,7 @@ export function geminiListedModel(
 
 export function geminiContextWindowFor(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { window: number; source: 'live-current' } | undefined {
   const listed = geminiListedModel(model, env)
   return listed?.inputTokenLimit !== undefined && listed.inputTokenLimit > 0
@@ -338,7 +339,7 @@ export function geminiContextWindowFor(
 
 export function geminiOutputTokenLimitFor(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): number | undefined {
   const listed = geminiListedModel(model, env)
   if (listed === undefined) return undefined
@@ -357,7 +358,7 @@ function geminiPlanReachesXhigh(model: string, listed: GeminiLiveModel, env: Nod
 
 export function geminiEffortVocabularyFor(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): readonly string[] {
   const account = resolveGeminiAccount(env)
   const listed = geminiListedModel(model, env)
@@ -423,7 +424,7 @@ export interface GeminiPlanRosterKin {
   siblings: GeminiLiveModel[]
 }
 
-export function geminiPlanRosterKin(model: string, env: NodeJS.ProcessEnv = process.env): GeminiPlanRosterKin {
+export function geminiPlanRosterKin(model: string, env: NodeJS.ProcessEnv = hostEnv()): GeminiPlanRosterKin {
   const snapshot = getCachedGeminiCatalogue('plan', env)
   const wanted = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
   const bare = wanted.startsWith(GEMINI_PLAN_ROSTER_PREFIX) ? wanted.slice(GEMINI_PLAN_ROSTER_PREFIX.length) : wanted
@@ -454,7 +455,7 @@ export function geminiPlanEffortOrder(want: GeminiEffortSuffix): GeminiEffortSuf
   return want === 'low' ? ['low', 'medium', 'high'] : want === 'medium' ? ['medium', 'high', 'low'] : want === 'xhigh' ? ['xhigh', 'high', 'medium', 'low'] : ['high', 'medium', 'low']
 }
 
-export function geminiPlanEffortRow(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): GeminiLiveModel | undefined {
+export function geminiPlanEffortRow(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = hostEnv()): GeminiLiveModel | undefined {
   const bare = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
   if (bare === '' || declaredRouteOf(bare) !== 'gemini' || GEMINI_TIER_ROW.test(bare)) return undefined
   const rows = geminiGenerateModels(getCachedGeminiCatalogue('plan', env))
@@ -466,11 +467,11 @@ export function geminiPlanEffortRow(model: string, effort: string | undefined, e
   return undefined
 }
 
-export function geminiPlanWireModel(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
+export function geminiPlanWireModel(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = hostEnv()): string {
   return geminiPlanEffortRow(model, effort, env)?.id ?? model
 }
 
-export function geminiPlanRideWords(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function geminiPlanRideWords(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   if (resolveGeminiAccount(env)?.kind !== 'plan') return undefined
   const row = geminiPlanEffortRow(model, effort, env)
   return row === undefined ? undefined : row.id
@@ -486,7 +487,7 @@ export function geminiPlanRosterKinWords(kin: GeminiPlanRosterKin, tier: string 
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
 const liveIdSets = new WeakMap<GeminiCatalogueSnapshot, ReadonlySet<string>>()
 
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
   const account = resolveGeminiAccount(env)
   if (!account) return EMPTY_LIVE_IDS
@@ -528,7 +529,7 @@ function httpStatusIn(message: string): number | undefined {
   return match === null ? undefined : Number(match[1])
 }
 
-export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): GeminiAvailability {
+export function getGeminiAvailability(env: NodeJS.ProcessEnv = hostEnv()): GeminiAvailability {
   const account = resolveGeminiAccount(env)
   if (!account) {
     return {
@@ -604,7 +605,7 @@ export function geminiRowLabels(models: ReadonlyArray<Pick<GeminiLiveModel, 'id'
   return model => (model.displayName === undefined || (idsByName.get(model.displayName)?.size ?? 0) > 1 ? model.id : model.displayName)
 }
 
-export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
+export function getGeminiModelOptions(env: NodeJS.ProcessEnv = hostEnv()): ModelOption[] {
   const availability = getGeminiAvailability(env)
   if (availability.state === 'disabled') {
     const signIn = availability.why === 'no-account' || availability.why === 'auth-invalid'

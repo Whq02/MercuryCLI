@@ -31,6 +31,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
 import { scrollKeyHandlersOf } from './scrollKeybinding/handlers.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 
 export type WheelAccelState = {
@@ -405,7 +406,7 @@ export function ScrollKeybindingHandler({
         if (!wheelModelLogged.current) {
           wheelModelLogged.current = true
           logForDebugging(
-            `wheel model: ${isXtermJs() ? 'browser-hosted' : 'native'} (TERM_PROGRAM=${process.env.TERM_PROGRAM ?? ''})`,
+            `wheel model: ${isXtermJs() ? 'browser-hosted' : 'native'} (TERM_PROGRAM=${hostEnv().TERM_PROGRAM ?? ''})`,
           )
         }
       }

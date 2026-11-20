@@ -5,6 +5,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { configuredCompatEndpoints, compatModelEndpoint, isCompatEndpointCredentialed, resolveCompatApiKey, type CompatEndpoint } from './compatAccounts.js'
 import { inspectCompatServer, type CompatServerReading } from './compatProbe.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface CompatCatalogue extends CompatServerReading {
   fetchedAtMs: number
@@ -18,11 +19,11 @@ function identity(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv): string {
   return createHash('sha256').update(JSON.stringify([endpoint.name, endpoint.baseUrl, endpoint.headers, endpoint.dialect, resolveCompatApiKey(env, endpoint.name)?.key])).digest('hex')
 }
 
-export function cachedCompatCatalogue(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv = process.env): CompatCatalogue | undefined {
+export function cachedCompatCatalogue(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv = hostEnv()): CompatCatalogue | undefined {
   return cache.get(identity(endpoint, env))
 }
 
-export function compatEndpointModelIds(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv = process.env): string[] {
+export function compatEndpointModelIds(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv = hostEnv()): string[] {
   return endpoint.models.length > 0 ? endpoint.models : cachedCompatCatalogue(endpoint, env)?.models ?? []
 }
 
@@ -32,12 +33,12 @@ export function compatContextWindowFor(model: string): number | undefined {
 }
 
 export function rememberCompatCatalogue(endpoint: CompatEndpoint, reading: CompatServerReading): void {
-  cache.set(identity(endpoint, process.env), { ...reading, fetchedAtMs: Date.now(), attemptedAtMs: Date.now() })
+  cache.set(identity(endpoint, hostEnv()), { ...reading, fetchedAtMs: Date.now(), attemptedAtMs: Date.now() })
   bumpCatalogueEpoch()
 }
 
 export async function refreshCompatCatalogues(opts: { force?: boolean; env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch; name?: string; signal?: AbortSignal } = {}): Promise<void> {
-  const env = opts.env ?? process.env
+  const env = opts.env ?? hostEnv()
   await Promise.all(configuredCompatEndpoints(env).map(async endpoint => {
     if (!endpoint.named || (opts.name !== undefined && endpoint.name !== opts.name) || !catalogueTrafficVerdict('openai-compat', env).allowed) return
     const id = identity(endpoint, env)
@@ -93,7 +94,7 @@ export function namedCompatModelOptions(): import('../../../utils/model/modelOpt
     return models.length && !unavailable ? models.map(id => ({
       value: `compat/${endpoint.name}/${id}`,
       label: id,
-      description: resolveCompatApiKey(process.env, endpoint.name) ? '' : 'no key (local/auth-free endpoint)',
+      description: resolveCompatApiKey(hostEnv(), endpoint.name) ? '' : 'no key (local/auth-free endpoint)',
       group,
       ...(boxNotice ? { unavailable: boxNotice } : {}),
     })) : [{

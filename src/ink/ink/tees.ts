@@ -4,16 +4,17 @@ import type { DOMElement } from '../dom.js'
 import type { Frame, Patch } from '../frame.js'
 import type Ink from '../ink.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
-export const TREE_DUMP_PATH = process.env.INK_TREE_DUMP
+export const TREE_DUMP_PATH = hostEnv().INK_TREE_DUMP
 
-export const COMPOSED_TEE_PATH = process.env.INK_COMPOSED_TEE
+export const COMPOSED_TEE_PATH = hostEnv().INK_COMPOSED_TEE
 
-export const COMMIT_TEE_PATH = process.env.INK_COMMIT_TEE
+export const COMMIT_TEE_PATH = hostEnv().INK_COMMIT_TEE
 
-export const WRITE_TEE_PATH = process.env.INK_WRITE_TEE
+export const WRITE_TEE_PATH = hostEnv().INK_WRITE_TEE
 
-const WRITE_TEE_PROBE = process.env.INK_TEE_PROBE
+const WRITE_TEE_PROBE = hostEnv().INK_TEE_PROBE
 
 export const TREE_DUMP_BUDGET = 24
 

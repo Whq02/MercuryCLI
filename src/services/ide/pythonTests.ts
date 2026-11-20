@@ -17,6 +17,7 @@ import {
   selectPythonInterpreter,
 } from './pythonProject.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export function pythonTestsEnabled(): boolean {
   return flagEnabled('MERCURY_TESTS')
@@ -583,7 +584,7 @@ export async function discoverPythonTests(opts?: {
     writeFileSync(path.join(scratch, 'mercury_report_plugin.py'), PYTEST_PLUGIN_SOURCE)
     const pluginEnv: NodeJS.ProcessEnv = {
       ...subprocessEnv(),
-      PYTHONPATH: `${scratch}${path.delimiter}${process.env.PYTHONPATH ?? ''}`,
+      PYTHONPATH: `${scratch}${path.delimiter}${hostEnv().PYTHONPATH ?? ''}`,
     }
     const r = await spawnCollecting(
       selection.command,
@@ -707,7 +708,7 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
     windowsHide: true,
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...subprocessEnv(), PYTHONPATH: `${scratch}${path.delimiter}${process.env.PYTHONPATH ?? ''}` },
+    env: { ...subprocessEnv(), PYTHONPATH: `${scratch}${path.delimiter}${hostEnv().PYTHONPATH ?? ''}` },
   })
   const output: string[] = []
   const push = (chunk: Buffer): void => {

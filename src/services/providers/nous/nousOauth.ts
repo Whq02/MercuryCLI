@@ -12,6 +12,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { presentedNousClient } from './nousClientContract.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const NOUS_DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
 export const NOUS_REFRESH_TOKEN_HEADER = 'x-nous-refresh-token'
@@ -157,7 +158,7 @@ function trustedInferenceBase(value: unknown, io?: NousOauthIo): string | undefi
   try {
     const url = new URL(value)
     if (url.username || url.password || url.search || url.hash) return undefined
-    const fixture = flagEnv('MERCURY_NOUS_API_BASE', io?.env ?? process.env)?.trim()
+    const fixture = flagEnv('MERCURY_NOUS_API_BASE', io?.env ?? hostEnv())?.trim()
     const loopback = fixture ? new URL(fixture) : undefined
     const sameBox = loopback !== undefined && ['127.0.0.1', 'localhost', '[::1]'].includes(loopback.hostname) && url.origin === loopback.origin
     if (!sameBox && !(url.protocol === 'https:' && (url.hostname === 'nousresearch.com' || url.hostname.endsWith('.nousresearch.com')))) return undefined
@@ -189,7 +190,7 @@ export function tokensFromNousBody(body: Record<string, unknown>, io?: NousOauth
 }
 
 function portalBase(env: NodeJS.ProcessEnv | undefined): string {
-  return (flagEnv('MERCURY_NOUS_PORTAL_BASE', env ?? process.env)?.trim() || 'https://portal.nousresearch.com').replace(/\/+$/, '')
+  return (flagEnv('MERCURY_NOUS_PORTAL_BASE', env ?? hostEnv())?.trim() || 'https://portal.nousresearch.com').replace(/\/+$/, '')
 }
 
 export interface NousPortalAnswer {

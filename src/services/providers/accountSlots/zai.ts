@@ -2,9 +2,10 @@ import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { readStoredZaiApiKey, readStoredZaiKeyPlan } from '../providerSecrets.js'
 import { label } from './keyLane.js'
 import { maskedKeyTail } from '../credentialIdentity.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function zaiSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.zaiEnvKey ? reads.zaiEnvKey() : process.env.ZAI_API_KEY?.trim() || undefined
+  const envKey = reads.zaiEnvKey ? reads.zaiEnvKey() : hostEnv().ZAI_API_KEY?.trim() || undefined
   const storedKey = (reads.zaiStoredKey ?? readStoredZaiApiKey)()
   const storedPlan = (reads.zaiStoredKeyPlan ?? readStoredZaiKeyPlan)()
   const slots: AccountSlot[] = []

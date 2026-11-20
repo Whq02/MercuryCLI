@@ -8,6 +8,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { whichSync } from '../../utils/which.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const BLEND_FILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
@@ -127,7 +128,7 @@ export function locateBlender(testOpts?: {
   if (platform === 'win32') {
     const root =
       testOpts?.programFilesRoot ??
-      path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Blender Foundation')
+      path.join(hostEnv().ProgramFiles ?? 'C:\\Program Files', 'Blender Foundation')
     let dirs: string[] = []
     try {
       dirs = readdirSync(root).filter(name => isDir(path.join(root, name)))

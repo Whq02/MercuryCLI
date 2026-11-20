@@ -13,6 +13,7 @@ import {
   type HuggingfaceOauthIo,
 } from './huggingfaceAccounts.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const HUGGINGFACE_USAGE_ABSENCE_NOTE =
   'no spend or credit API is documented for Inference Providers — the Hub states the plan and a payment method to the token (whoami-v2), not the credits used or left; huggingface.co/settings/billing is the view (monthly credits apply first, then pay-as-you-go at provider rates, no markup)'
@@ -146,7 +147,7 @@ export type HuggingfaceAccountFactsProbe =
   | { state: 'refused'; status: number }
   | { state: 'unreachable'; message: string }
 
-export function huggingfaceWhoamiUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function huggingfaceWhoamiUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${huggingfaceHubBase(env)}/api/whoami-v2`
 }
 
@@ -158,7 +159,7 @@ let observedFactsIdentity = 'none'
 let lastFactsFailure: HuggingfaceAccountFactsFailure | null = null
 let factsInFlight: Promise<HuggingfaceAccountFacts | null> | null = null
 
-function activeCredentialIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeCredentialIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   const key = resolveHuggingfaceApiKey(env)
   if (!key) return 'none'
   if (key.source === 'oauth') {
@@ -168,7 +169,7 @@ function activeCredentialIdentity(env: NodeJS.ProcessEnv = process.env): string 
   return credentialFingerprint(key.key)
 }
 
-function dropStaleFacts(env: NodeJS.ProcessEnv = process.env): void {
+function dropStaleFacts(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (observedFactsIdentity !== activeCredentialIdentity(env)) {
     observedFacts = null
     observedFactsIdentity = 'none'
@@ -191,12 +192,12 @@ export function decodeHuggingfaceAccountFacts(body: unknown, nowMs: number): Hug
   }
 }
 
-export function huggingfaceObservedAccountFacts(env: NodeJS.ProcessEnv = process.env): HuggingfaceAccountFacts | null {
+export function huggingfaceObservedAccountFacts(env: NodeJS.ProcessEnv = hostEnv()): HuggingfaceAccountFacts | null {
   dropStaleFacts(env)
   return observedFacts
 }
 
-export function huggingfaceAccountFactsFailure(env: NodeJS.ProcessEnv = process.env): HuggingfaceAccountFactsFailure | null {
+export function huggingfaceAccountFactsFailure(env: NodeJS.ProcessEnv = hostEnv()): HuggingfaceAccountFactsFailure | null {
   dropStaleFacts(env)
   return lastFactsFailure
 }
@@ -207,7 +208,7 @@ export function huggingfaceAccountFactsFailureWords(failure: HuggingfaceAccountF
 }
 
 export async function fetchHuggingfaceAccountFacts(token: string, io?: HuggingfaceUsageIo): Promise<HuggingfaceAccountFactsProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now?.() ?? Date.now()
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxyOptions = io?.fetchImpl ? {} : (getProxyFetchOptions() as Record<string, unknown>)
@@ -241,7 +242,7 @@ export async function fetchHuggingfaceAccountFacts(token: string, io?: Huggingfa
 
 export function refreshHuggingfaceAccountFacts(io?: HuggingfaceUsageIo): Promise<HuggingfaceAccountFacts | null> {
   const now = io?.now?.() ?? Date.now()
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   dropStaleFacts(env)
   if (!io?.force) {
     if (observedFacts !== null && now - observedFacts.observedAtMs < FACTS_REFRESH_TTL_MS) return Promise.resolve(observedFacts)

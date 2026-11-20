@@ -5,6 +5,7 @@ import { sleep } from '../../../utils/sleep.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { antigravityUserAgent } from './antigravityClientContract.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const ANTIGRAVITY_CODE_ASSIST_BASES = ['https://daily-cloudcode-pa.googleapis.com', 'https://daily-cloudcode-pa.sandbox.googleapis.com'] as const
 const ANTIGRAVITY_CODE_ASSIST_VERSION = 'v1internal'
@@ -101,8 +102,8 @@ class GeminiPlanIneligibleError extends Error {
   }
 }
 
-export function antigravityCodeAssistBases(env: NodeJS.ProcessEnv = process.env): string[] {
-  const pinned = (env === process.env ? flagEnv('MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE') : flagEnv('MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE', env))?.trim()
+export function antigravityCodeAssistBases(env: NodeJS.ProcessEnv = hostEnv()): string[] {
+  const pinned = (env === hostEnv() ? flagEnv('MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE') : flagEnv('MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE', env))?.trim()
   if (pinned && /^https?:\/\//i.test(pinned)) return [pinned.replace(/\/+$/, '')]
   return [...ANTIGRAVITY_CODE_ASSIST_BASES]
 }
@@ -251,7 +252,7 @@ function transient(error: unknown): boolean {
 }
 
 async function overBases<T>(io: GeminiPlanIo, work: (base: string) => Promise<T>): Promise<{ answer: T; base: string }> {
-  const bases = antigravityCodeAssistBases(io.env ?? process.env)
+  const bases = antigravityCodeAssistBases(io.env ?? hostEnv())
   let last: unknown
   for (let i = 0; i < bases.length; i++) {
     const base = bases[i]!

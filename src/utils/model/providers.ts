@@ -1,7 +1,8 @@
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export function isFirstPartyAnthropicBaseUrl(): boolean {
-  const baseUrl = process.env.ANTHROPIC_BASE_URL
+  const baseUrl = hostEnv().ANTHROPIC_BASE_URL
   if (!baseUrl) return true
   try {
     return new URL(baseUrl).host === 'api.anthropic.com'

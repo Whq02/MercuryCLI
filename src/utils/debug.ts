@@ -13,6 +13,7 @@ import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { getFsImplementation } from './fsOperations.js'
 import { writeToStderr } from './process.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
@@ -29,7 +30,7 @@ let runtimeToggleEnabled = false
 
 export const isDebugMode = memoize((): boolean => {
   if (runtimeToggleEnabled) return true
-  if (isEnvTruthy(process.env.DEBUG)) return true
+  if (isEnvTruthy(hostEnv().DEBUG)) return true
   if (process.argv.includes('--debug') || process.argv.includes('-d')) return true
   if (isDebugToStdErr()) return true
   if (process.argv.some(arg => arg.startsWith('--debug='))) return true

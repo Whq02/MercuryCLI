@@ -6,6 +6,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { zaiApiBase } from './zaiClient.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface ZaiUsageIo {
   fetchImpl?: typeof fetch
@@ -54,7 +55,7 @@ const MESSAGE_LIMIT = 80
 const UNIT_MINUTES: Record<number, number> = { 3: 60, 5: 30 * 24 * 60, 6: 7 * 24 * 60 }
 const CREDIT_TYPES = new Set(['CREDIT_LIMIT', 'TOKENS_LIMIT'])
 
-export function zaiQuotaLimitUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function zaiQuotaLimitUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${new URL(zaiApiBase(env, 'coding')).origin}${QUOTA_PATH}`
 }
 
@@ -184,11 +185,11 @@ let authForm: ZaiAuthForm = 'raw'
 let stateIdentity = 'none'
 let inFlight: Promise<ZaiObservedQuota | null> | null = null
 
-function activeKeyIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeKeyIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   return credentialFingerprint(resolveZaiDispatch(env)?.key)
 }
 
-function dropStale(env: NodeJS.ProcessEnv = process.env): void {
+function dropStale(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (stateIdentity !== activeKeyIdentity(env)) {
     observed = null
     lastFailure = null
@@ -197,17 +198,17 @@ function dropStale(env: NodeJS.ProcessEnv = process.env): void {
   }
 }
 
-export function zaiObservedQuota(env: NodeJS.ProcessEnv = process.env): ZaiObservedQuota | null {
+export function zaiObservedQuota(env: NodeJS.ProcessEnv = hostEnv()): ZaiObservedQuota | null {
   dropStale(env)
   return observed
 }
 
-export function zaiLastQuotaFailure(env: NodeJS.ProcessEnv = process.env): ZaiQuotaFailure | null {
+export function zaiLastQuotaFailure(env: NodeJS.ProcessEnv = hostEnv()): ZaiQuotaFailure | null {
   dropStale(env)
   return lastFailure
 }
 
-export function zaiQuotaAuthForm(env: NodeJS.ProcessEnv = process.env): ZaiAuthForm {
+export function zaiQuotaAuthForm(env: NodeJS.ProcessEnv = hostEnv()): ZaiAuthForm {
   dropStale(env)
   return authForm
 }
@@ -221,7 +222,7 @@ async function askQuota(
   form: ZaiAuthForm,
   io: ZaiUsageIo | undefined,
 ): Promise<{ state: 'confirmed'; quota: ZaiObservedQuota } | { state: 'refused'; status: number; code?: number; message?: string; auth: boolean } | { state: 'unreachable'; message: string }> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const { fetchImpl, proxyOptions } = usageFetch(io)
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'zai', PROBE_TIMEOUT_MS, zaiQuotaLimitUrl(env), {
@@ -300,7 +301,7 @@ async function fetchZaiQuota(key: string, io?: ZaiUsageIo): Promise<ZaiQuotaProb
 
 export function refreshZaiQuota(io?: ZaiUsageIo): Promise<ZaiObservedQuota | null> {
   const now = io?.now?.() ?? Date.now()
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   dropStale(env)
   if (!io?.force && observed !== null && now - observed.observedAtMs < usagePollTtlMs()) {
     return Promise.resolve(observed)

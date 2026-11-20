@@ -3,6 +3,7 @@ import { getAuthConfigHomeDir, withAuthScope } from '../../utils/envUtils.js'
 import { refreshHuggingfaceTokens, resolveHuggingfaceApiKey, resolveHuggingfaceDispatchCredential } from '../providers/huggingface/huggingfaceAccounts.js'
 import { readHostCredential, removeHostCredential, writeHostCredential } from '../providers/providerSecrets.js'
 import { configuredProviderKeyCommand } from '../providers/providerKeyCommand.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type HostHuggingfaceCredential = { home: string; source: 'stored' } | { home: string; source: 'captured'; id: string; job: string }
 type CredentialRecord = { id: string; huggingfaceCredential?: HostHuggingfaceCredential }
@@ -26,7 +27,7 @@ export async function hostHuggingfaceDispatchCredential(record?: CredentialRecor
   const reference = record?.huggingfaceCredential
   if (reference?.source === 'captured') return refresh ? undefined : hostHuggingfaceCredential(record!)
   return withAuthScope(reference?.home ?? getAuthConfigHomeDir(), async () => {
-    const env = reference ? { ...process.env, HF_TOKEN: undefined } : process.env
+    const env = reference ? { ...hostEnv(), HF_TOKEN: undefined } : hostEnv()
     if (refresh) {
       if (resolveHuggingfaceApiKey(env)?.source !== 'oauth') return
       const fresh = await refreshHuggingfaceTokens({ env })

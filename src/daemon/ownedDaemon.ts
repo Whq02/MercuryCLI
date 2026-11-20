@@ -15,6 +15,7 @@ import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/f
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import type { Socket } from 'node:net'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 const OWNER_PIPE_STDIO_INDEX = 3
 const ownerPipeEnds = new Set<Socket>()
@@ -273,7 +274,7 @@ export function spawnOwnedDaemon(
   }
   spawnHistory.set(label, { lastAt: now, count: (history?.count ?? 0) + 1 })
   try {
-    const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair(OWNER_PID_ENV, String(process.pid)) }
+    const env: NodeJS.ProcessEnv = { ...hostEnv(), ...flagPair(OWNER_PID_ENV, String(process.pid)) }
     const pinnedHome = flagEnv('MERCURY_CONFIG_DIR')
     const homeStamped = !pinnedHome || canonicalHomeSpelling(pinnedHome) !== getMercuryHome()
     stampFlagOnEnv(env, 'MERCURY_CONFIG_DIR', getMercuryHome())

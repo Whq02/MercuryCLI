@@ -78,7 +78,7 @@ function liveFactsWords(facts: LiveListFacts, models: LiveModelRow[]): string {
   return facts.words
 }
 
-async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env): Promise<LiveListFacts> {
+async function listFactsOf(route: string, env: NodeJS.ProcessEnv = hostEnv()): Promise<LiveListFacts> {
   const stamp = (ms: number): string => stampLocal(new Date(ms).toISOString())
   const family = bareFamilyWordOfRoute(route)
   if (family !== undefined) {
@@ -220,7 +220,7 @@ function rowOf(option: ModelOption, current: string | undefined, familyWordHeads
 }
 
 export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineModel'>, opts?: { boundMs?: number; env?: NodeJS.ProcessEnv }): Promise<LiveModelsReference> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   await readCataloguesForOtherFamilies(null, { boundMs: opts?.boundMs ?? 5_000 })
   const presences = providerFamilyPresences().filter(presence => !isProviderDisabled(presence.id))
   const options = getModelOptions().filter(option => !isProviderActionRow(option.value))
@@ -270,6 +270,7 @@ export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineMode
 }
 
 import { MODEL_LOOKUP_LADDER, PROVIDER_MODEL_PAGES } from '../../../utils/model/modelLookup.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function liveModelsReferenceText(reference: LiveModelsReference): string {
   const lines: string[] = [

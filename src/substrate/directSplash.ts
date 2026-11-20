@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { runningBundlePayloadDir } from '../services/privateChannel/vendoredRuntime.js'
 import { flagEnv, setFlagEnv, stampFlagOnEnv } from './flagRegistry.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export const SPLASH_EXIT = {
   HANDOFF_HELD: 0,
@@ -121,7 +122,7 @@ export function runDirectSplash(opts: { home: string | null }): DirectSplashRun 
     args: process.argv.slice(2),
     stdinTTY: Boolean(process.stdin.isTTY),
     stdoutTTY: Boolean(process.stdout.isTTY),
-    env: process.env,
+    env: hostEnv(),
   })
   if (!decision.run) return { verdict: 'skipped', reason: decision.reason }
   const asset = resolveSplashAsset({ bundleDir: runningBundlePayloadDir(), home: opts.home })
@@ -135,14 +136,14 @@ export function runDirectSplash(opts: { home: string | null }): DirectSplashRun 
   try {
     const r = spawnSync(process.execPath, [asset.driver], {
       stdio: 'inherit',
-      env: process.env,
+      env: hostEnv(),
       windowsHide: false,
     })
     exitCode = shellExitCodeOf(r)
   } finally {
     process.removeListener('SIGINT', outlive)
   }
-  const verdict = applySplashExit(exitCode, process.env, bytes => {
+  const verdict = applySplashExit(exitCode, hostEnv(), bytes => {
     try {
       process.stdout.write(bytes)
     } catch (error) {

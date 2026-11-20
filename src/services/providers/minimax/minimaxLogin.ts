@@ -4,6 +4,7 @@ import { writeStoredMinimaxApiKey } from '../providerSecrets.js'
 import { minimaxApiBase, minimaxEnvKey } from './minimaxAccounts.js'
 import { fetchMinimaxLiveModels, MinimaxCatalogueHttpError } from './minimaxCatalogue.js'
 import { fetchMinimaxPlanUsage, minimaxPlanWindowLine } from './minimaxUsageState.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface MinimaxKeyLoginOutcome {
   ok: boolean
@@ -16,7 +17,7 @@ const MINIMAX_KEY_RECEIPT_TAIL = 'Text models only; an M Plan Subscription Key d
 export async function storeMinimaxApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<MinimaxKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty MiniMax API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   try {

@@ -62,6 +62,7 @@ import { isWarmBackgroundEnabled } from './utils/cockpit/warmBackground.js'
 import type { InternalPermissionMode } from './types/permissions.js'
 import { modeBypassesPermissions } from './utils/permissions/PermissionMode.js'
 import { passedOver } from './utils/passedOver.js'
+import { hostEnv } from './utils/hostEnv.js'
 
 
 function completeOnboarding(): void {
@@ -284,7 +285,7 @@ export async function showSetupScreens(
   }
   void applySafeConfigEnvironmentVariables
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = hostEnv().ANTHROPIC_API_KEY
   if (apiKey && apiKey.length > 0) {
     const truncated = apiKey.slice(-20)
     if (getCustomApiKeyStatus(truncated) === 'new') {

@@ -12,6 +12,7 @@ import { GIT_BASH_REMEDY, installedGitBashes, locateGitBash, pinnedGitBash, type
 import type { ShellEngineResolution } from './engineSession.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
 import type { ShellOrigin, ShellRecord } from './shellRecord.js'
+import { hostEnv } from '../hostEnv.js'
 
 
 export type ShippedBash = { path: string; programsDir: string | null }
@@ -395,7 +396,7 @@ export function shellFollowsTheRecord(served: string | null): void {
 }
 
 function exportShell(shell: string): void {
-  process.env.SHELL = shell
+  hostEnv().SHELL = shell
 }
 
 export function armWindowsShellRoad(): void {

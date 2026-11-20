@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { win32 as pathWin32 } from 'node:path'
 import { sleep } from './sleep.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export type ProcessTreeKillReceipt = {
@@ -25,7 +26,7 @@ const MSYS_SWEEP_ROUNDS = 3
 
 export function win32TaskkillCommand(pid: number): { file: string; args: string[] } {
   return {
-    file: pathWin32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'),
+    file: pathWin32.join(hostEnv().SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'),
     args: ['/PID', String(pid), '/T', '/F'],
   }
 }

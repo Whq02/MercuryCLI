@@ -7,6 +7,7 @@ import { expandPath } from '../../path.js'
 import { protectedPathForms, spelling } from './paths.js'
 import { GLOB_PART, HOLDS_CONVENTIONAL_HOME, SECRET_NAME_SAMPLES, secretsHeld, wildcardSource } from './homes.js'
 import { passedOver } from '../../passedOver.js'
+import { hostEnv } from '../../hostEnv.js'
 
 function gitUnindexedGrep(layer: Layer): { folder: string | undefined; rest: string[] } | undefined {
   if (layer.program !== 'git') return undefined
@@ -267,7 +268,7 @@ export function ripgrepReachesHidden(layer: Layer, simple: ReadCommand, read: Sh
   if (unrestricted >= 2) return true
   if (words.includes('--no-config')) return false
   const named = (entries: ReadonlyArray<{ name: string; value: string }>): boolean => entries.some(entry => entry.name === 'RIPGREP_CONFIG_PATH' && entry.value !== '')
-  return named(simple.env) || named(layer.env) || (read.exported.get('RIPGREP_CONFIG_PATH') ?? []).some(value => value !== '') || !!process.env.RIPGREP_CONFIG_PATH
+  return named(simple.env) || named(layer.env) || (read.exported.get('RIPGREP_CONFIG_PATH') ?? []).some(value => value !== '') || !!hostEnv().RIPGREP_CONFIG_PATH
 }
 
 export function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolean): string[] {

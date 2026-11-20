@@ -6,6 +6,7 @@ import { memoize } from 'lodash-es'
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { whichSync } from './which.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export function globalConfigFileIn(home: string): string {
@@ -44,11 +45,11 @@ function normalizedPlatform(): NormalizedPlatform {
 }
 
 function isSshSession(): boolean {
-  return Boolean(process.env.SSH_CONNECTION || process.env.SSH_CLIENT || process.env.SSH_TTY)
+  return Boolean(hostEnv().SSH_CONNECTION || hostEnv().SSH_CLIENT || hostEnv().SSH_TTY)
 }
 
 function detectTerminal(): string | null {
-  const envVars = process.env
+  const envVars = hostEnv()
   if (envVars.CURSOR_TRACE_ID) return 'cursor'
   const askpass = envVars.VSCODE_GIT_ASKPASS_MAIN
   if (askpass) {
@@ -105,7 +106,7 @@ const HYPERVISOR_UUID_FILE = '/sys/hypervisor/uuid'
 const DIGITALOCEAN_APP_DOMAIN = 'ondigitalocean.app'
 
 export const detectDeploymentEnvironment = memoize((): string => {
-  const envVars = process.env
+  const envVars = hostEnv()
   if (isEnvTruthy(envVars.CODESPACES)) return 'codespaces'
   if (envVars.GITPOD_WORKSPACE_ID) return 'gitpod'
   if (envVars.REPL_ID || envVars.REPL_SLUG) return 'replit'
@@ -166,7 +167,7 @@ const isWslEnvironment = memoize((): boolean => {
 })
 
 export const env = {
-  isCI: isEnvTruthy(process.env.CI),
+  isCI: isEnvTruthy(hostEnv().CI),
   platform: normalizedPlatform(),
   arch: process.arch,
   nodeVersion: process.version,

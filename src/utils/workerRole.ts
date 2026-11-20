@@ -1,4 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { hostEnv } from './hostEnv.js'
 
 export const RETIRED_SEAT_ENV_VARS: readonly string[] = [
   'MERCURY_TANK',
@@ -17,7 +18,7 @@ export const ALL_ROLE_ENV_VARS: readonly string[] = [
 
 export function assertSingleRole(): void {
   const liveSet = LIVE_ROLE_ENV_VARS.filter(v => flagEnv(v) === '1')
-  const retiredSet = RETIRED_SEAT_ENV_VARS.filter(v => process.env[v] === '1')
+  const retiredSet = RETIRED_SEAT_ENV_VARS.filter(v => hostEnv()[v] === '1')
   const set = [...liveSet, ...retiredSet]
   if (set.length > 1) {
     throw new Error(

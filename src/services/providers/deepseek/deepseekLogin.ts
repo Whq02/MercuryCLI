@@ -1,6 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredDeepseekApiKey } from '../providerSecrets.js'
 import { fetchDeepseekBalance } from './deepseekUsageState.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface DeepseekKeyLoginOutcome {
   ok: boolean
@@ -12,7 +13,7 @@ export async function storeDeepseekApiKeyLogin(
   key: string,
   io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number },
 ): Promise<DeepseekKeyLoginOutcome> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const probe = await fetchDeepseekBalance(key, io)
   if (probe.state === 'refused') {
     return {

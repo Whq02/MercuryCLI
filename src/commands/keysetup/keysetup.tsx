@@ -20,6 +20,7 @@ import { createHyperlink } from '../../utils/hyperlink.js'
 import { addItemToJSONCArray, safeParseJSONC } from '../../utils/json.js'
 import { logError } from '../../utils/log.js'
 import { getTheme, type ThemeName } from '../../utils/theme.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const NATIVE_TERMINALS: Record<string, string> = {
   ghostty: 'Ghostty',
@@ -68,8 +69,8 @@ function paintFor(theme: ThemeName): Paint {
 
 
 function isRemoteVscodeSession(): boolean {
-  const askpass = process.env.VSCODE_GIT_ASKPASS_MAIN ?? ''
-  const pathVar = process.env.PATH ?? ''
+  const askpass = hostEnv().VSCODE_GIT_ASKPASS_MAIN ?? ''
+  const pathVar = hostEnv().PATH ?? ''
   const markers = ['.vscode-server', '.cursor-server', '.windsurf-server']
   return markers.some(marker => askpass.includes(marker) || pathVar.includes(marker))
 }
@@ -235,13 +236,13 @@ const ALACRITTY_TABLE = `[[keyboard.bindings]]\nkey = "Return"\nmods = "Shift"\n
 async function installAlacritty(paint: Paint): Promise<TerminalSetupResult> {
   try {
     const candidates: string[] = []
-    if (process.env.XDG_CONFIG_HOME) {
-      candidates.push(join(process.env.XDG_CONFIG_HOME, 'alacritty', 'alacritty.toml'))
+    if (hostEnv().XDG_CONFIG_HOME) {
+      candidates.push(join(hostEnv().XDG_CONFIG_HOME!, 'alacritty', 'alacritty.toml'))
     } else {
       candidates.push(join(homedir(), '.config', 'alacritty', 'alacritty.toml'))
     }
-    if (process.platform === 'win32' && process.env.APPDATA) {
-      candidates.push(join(process.env.APPDATA, 'alacritty', 'alacritty.toml'))
+    if (process.platform === 'win32' && hostEnv().APPDATA) {
+      candidates.push(join(hostEnv().APPDATA!, 'alacritty', 'alacritty.toml'))
     }
     if (candidates.length === 0) throw new Error('No Alacritty config path could be produced')
     let target: string | null = null

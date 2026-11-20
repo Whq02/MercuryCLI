@@ -30,6 +30,7 @@ import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 const OPENAI_AUTH_ISSUER = 'https://auth.openai.com'
@@ -41,13 +42,13 @@ const OPENAI_OAUTH_SCOPE =
 const OPENAI_CHATGPT_BASE_URL = 'https://chatgpt.com/backend-api/codex'
 const OPENAI_API_BASE_URL = 'https://api.openai.com/v1'
 
-function openaiIssuerBase(env: NodeJS.ProcessEnv = process.env): string {
+function openaiIssuerBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_OPENAI_AUTH_BASE', env)?.trim() || OPENAI_AUTH_ISSUER
 }
-function openaiChatgptBase(env: NodeJS.ProcessEnv = process.env): string {
+function openaiChatgptBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_OPENAI_CHATGPT_BASE', env)?.trim() || OPENAI_CHATGPT_BASE_URL
 }
-function openaiApiBase(env: NodeJS.ProcessEnv = process.env): string {
+function openaiApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_OPENAI_API_BASE', env)?.trim() || OPENAI_API_BASE_URL
 }
 
@@ -212,7 +213,7 @@ export function openaiSubscriptionRef(): OpenaiAccountRef | undefined {
 }
 
 export function resolveOpenaiApiKey(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env.OPENAI_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -229,7 +230,7 @@ export function readPreferredOpenaiSource(): OpenaiAccountSourceKind | undefined
 
 export function openaiSourceIdentity(
   sourceKind: OpenaiAccountSourceKind,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): string {
   if (sourceKind === 'api-key') return credentialFingerprint(resolveOpenaiApiKey(env)?.key)
   const tokens = readAuthFile()?.tokens
@@ -250,7 +251,7 @@ export function writePreferredOpenaiSource(kind: OpenaiAccountSourceKind | null)
 }
 
 export function resolveOpenaiAccount(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenaiAccountRef | undefined {
   const file = readAuthFile()
   const sub = file?.tokens?.refreshToken ? file.tokens : undefined
@@ -434,7 +435,7 @@ export async function currentSubscriptionTokens(opts?: {
   readOnly?: boolean
   force?: boolean
 }): Promise<OpenaiStoredTokens | undefined> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const tokens = readAuthFile()?.tokens
   if (!tokens?.refreshToken) return undefined
@@ -559,7 +560,7 @@ export function beginOpenaiBrowserConnect(opts?: {
   onSettledAfterCancel?: (ref: OpenaiAccountRef) => void
   loopbackPort?: number
 }): OpenaiConnectHandles {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const requestedPort = opts?.loopbackPort ?? OPENAI_OAUTH_REDIRECT_PORT
   const verifier = generateCodeVerifier()
   const challenge = generateCodeChallenge(verifier)
@@ -770,7 +771,7 @@ export async function beginOpenaiDeviceConnect(opts?: {
   pollIntervalMsOverride?: number
   maxWaitMs?: number
 }): Promise<OpenaiDeviceConnectStart> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
   const base = openaiIssuerBase(env)
   const accountsBase = `${base}/api/accounts`
@@ -875,7 +876,7 @@ export async function resolveOpenaiRequestAuth(opts?: {
   forceRefresh?: boolean
   readOnly?: boolean
 }): Promise<OpenaiRequestAuth | undefined> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const account = resolveOpenaiAccount(env)
   const kind = opts?.sourceKind ?? account?.kind
   if (!kind) return undefined

@@ -1,13 +1,14 @@
 import { accessSync, constants, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 type BunWhich = { which?: (command: string, options?: { PATH?: string }) => string | null }
 
 function bunWhich(command: string): string | null | undefined {
   if (typeof Bun !== 'undefined' && typeof (Bun as BunWhich).which === 'function') {
-    return (Bun as Required<BunWhich>).which(command, { PATH: process.env.PATH ?? '' })
+    return (Bun as Required<BunWhich>).which(command, { PATH: hostEnv().PATH ?? '' })
   }
   return undefined
 }
@@ -42,7 +43,7 @@ export interface LookupWorld {
 }
 
 export function hostLookupWorld(): LookupWorld {
-  return { platform: process.platform, path: process.env.PATH ?? '' }
+  return { platform: process.platform, path: hostEnv().PATH ?? '' }
 }
 
 function searchDirs(world: LookupWorld): string[] {
@@ -100,7 +101,7 @@ const foundExecutables = new Map<string, string>()
 const KEY_JOIN = String.fromCharCode(0)
 
 function foundKey(command: string): string {
-  return `${command}${KEY_JOIN}${process.env.PATH ?? ''}`
+  return `${command}${KEY_JOIN}${hostEnv().PATH ?? ''}`
 }
 
 export function whichSync(command: string): string | null {

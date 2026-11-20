@@ -8,6 +8,7 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 import { metaApiBase, resolveMetaApiKey } from './metaAccounts.js'
 import { isMetaChatModelId, isMetaContributorModel, metaDisplayName, metaDisplayPin } from './metaPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface MetaLiveModel {
   id: string
@@ -69,13 +70,13 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${metaApiBase(env)}` : 'none'
 }
 
-export function getCachedMetaCatalogue(env: NodeJS.ProcessEnv = process.env): MetaCatalogueSnapshot | null {
+export function getCachedMetaCatalogue(env: NodeJS.ProcessEnv = hostEnv()): MetaCatalogueSnapshot | null {
   return resolveMetaApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<MetaCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (cache.size === 0) return EMPTY_IDS
   const snapshot = getCachedMetaCatalogue(env)
   if (!snapshot?.fetchedAtMs) return EMPTY_IDS
@@ -88,7 +89,7 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
 }
 
 export function refreshMetaCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<MetaCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveMetaApiKey(env)
   const identity = identityOf(env)
@@ -122,7 +123,7 @@ export function refreshMetaCatalogue(opts?: { force?: boolean; fetchImpl?: typeo
 }
 
 export function kickMetaCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('meta', env).allowed) return false
   const snapshot = getCachedMetaCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
@@ -139,7 +140,7 @@ export interface MetaCatalogueRow {
 }
 export type MetaCatalogueSource = { kind: 'live'; count: number; fetchedAtMs: number } | { kind: 'unread' }
 
-export function metaCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: MetaCatalogueRow[]; source: MetaCatalogueSource } {
+export function metaCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: MetaCatalogueRow[]; source: MetaCatalogueSource } {
   const snapshot = getCachedMetaCatalogue(env)
   if (!snapshot?.fetchedAtMs) return { rows: [], source: { kind: 'unread' } }
   const rows = snapshot.models.map(model => {
@@ -151,7 +152,7 @@ export function metaCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows:
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function newestMetaModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function newestMetaModel(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   return metaCatalogueRows(env).rows.find(row => !isMetaContributorModel(row.id))?.id
 }
 

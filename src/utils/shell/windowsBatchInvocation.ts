@@ -12,6 +12,7 @@ import { TaskOutput } from '../task/TaskOutput.js'
 import { wrapSpawn, createFailedCommand, type ShellCommand } from '../ShellCommand.js'
 import { windowsBatchTail } from './windowsBatchLine.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export { windowsBatchTail }
 
@@ -56,8 +57,8 @@ export async function planWindowsBatchInvocation(
 ): Promise<WindowsBatchInvocation> {
   const world: WindowsBatchWorld = options.world ?? {
     platform: process.platform,
-    path: process.env.PATH ?? '',
-    comSpec: process.env.ComSpec,
+    path: hostEnv().PATH ?? '',
+    comSpec: hostEnv().ComSpec,
   }
   if (world.platform !== 'win32') return { kind: 'ordinary' }
   if (/^\s*!/.test(command)) return { kind: 'ordinary' }

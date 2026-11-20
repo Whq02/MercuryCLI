@@ -5,6 +5,7 @@ import { APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortEr
 import { AnthropicStream } from './anthropicStream.js'
 import type { AnthropicMessageParams } from './anthropicWire.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export type AnthropicClientOptions = {
   apiKey?: string | null
@@ -95,9 +96,9 @@ export class AnthropicClient {
   readonly beta: { messages: Messages }
 
   constructor(private readonly options: AnthropicClientOptions = {}) {
-    this.apiKey = options.apiKey === undefined ? process.env.ANTHROPIC_API_KEY ?? null : options.apiKey
-    this.authToken = options.authToken === undefined ? process.env.ANTHROPIC_AUTH_TOKEN ?? null : options.authToken
-    this.baseURL = options.baseURL ?? process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com'
+    this.apiKey = options.apiKey === undefined ? hostEnv().ANTHROPIC_API_KEY ?? null : options.apiKey
+    this.authToken = options.authToken === undefined ? hostEnv().ANTHROPIC_AUTH_TOKEN ?? null : options.authToken
+    this.baseURL = options.baseURL ?? hostEnv().ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com'
     this.timeout = options.timeout ?? 600_000
     this.maxRetries = options.maxRetries ?? 2
     this.messages = new Messages(this, false)

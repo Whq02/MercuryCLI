@@ -3,6 +3,7 @@ import { seatCeilingFacts, stampedSeats, type SeatCeilingSource } from '../switc
 import { governorCeilings, setGovernorCeilings, type CeilingProvenance, type GovernorCeilings } from './governor.js'
 import type { EffortValue } from '../../utils/effort.js'
 import type { SeatNarrowing } from './seatWords.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 interface CeilingFacts {
   seats: number
@@ -39,13 +40,13 @@ function liveDelegationBand(): { band: 1 | 2 | 3 | null; profileId: string | nul
   return { band: null, profileId: null }
 }
 
-export function operatorLanesFromEnv(env: NodeJS.ProcessEnv = process.env): number | null {
+export function operatorLanesFromEnv(env: NodeJS.ProcessEnv = hostEnv()): number | null {
   const raw = flagEnv('MERCURY_MODEL_LANES', env) ?? ''
   const n = Number.parseInt(raw, 10)
   return Number.isFinite(n) && n >= 1 ? n : null
 }
 
-export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = process.env): number | null {
+export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = hostEnv()): number | null {
   const raw = flagEnv('MERCURY_SEATS', env) ?? ''
   const n = Number.parseInt(raw, 10)
   return Number.isFinite(n) && n >= 1 ? n : null

@@ -5,6 +5,7 @@ import { getApiKeyFromConfigOrMacOSKeychain } from './auth.js'
 import { getAuthConfigHomeDir } from './envUtils.js'
 import { getSecureStorage } from './secureStorage/index.js'
 import { redactSecrets as redactKnownShapes } from './secrets/secretScanner.js'
+import { hostEnv } from './hostEnv.js'
 
 const SECRET_REDACTION = '[redacted]'
 const SECRET_NAME = /(?:api[-_]?key|private[-_]?key|token|password|passwd|secret|authorization|credential)s?$/i
@@ -61,7 +62,7 @@ export async function sessionSecretValues(): Promise<string[]> {
   const values = new Set<string>()
   credentialStringsIn(await getSecureStorage().readAsync(), values)
   stringsIn(getApiKeyFromConfigOrMacOSKeychain(), true, values)
-  for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) stringsIn(process.env[name], true, values)
+  for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) stringsIn(hostEnv()[name], true, values)
   const home = getAuthConfigHomeDir()
   for (const file of [
     '.credentials.json', '.provider-secrets.json', '.openai-auth.json', '.openrouter-auth.json',
@@ -91,8 +92,8 @@ function exactMatcher(values: readonly string[]): RegExp | null {
 }
 
 export function createShellResultRedactor(): (text: string) => string {
-  const names = new Set([...ALL_PROVIDER_CREDENTIAL_ENV_VARS, ...Object.keys(process.env).filter(name => ENV_SECRET_NAME.test(name))])
-  const exact = exactMatcher([...names].map(name => process.env[name]).filter((value): value is string => typeof value === 'string' && value.length >= 8))
+  const names = new Set([...ALL_PROVIDER_CREDENTIAL_ENV_VARS, ...Object.keys(hostEnv()).filter(name => ENV_SECRET_NAME.test(name))])
+  const exact = exactMatcher([...names].map(name => hostEnv()[name]).filter((value): value is string => typeof value === 'string' && value.length >= 8))
   return (text: string): string => {
     let result = exact ? text.replace(exact, () => SECRET_REDACTION) : text
     result = result.replace(PRIVATE_KEY_BLOCK, SECRET_REDACTION)

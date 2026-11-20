@@ -8,6 +8,7 @@ import { memoize } from 'lodash-es'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from '../cli/sessionArgs.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export function defaultMercuryHome(): string {
@@ -93,7 +94,7 @@ export function displayConfigHome(): string {
 }
 
 export function hasNodeOption(flag: string): boolean {
-  const nodeOptions = process.env.NODE_OPTIONS
+  const nodeOptions = hostEnv().NODE_OPTIONS
   if (!nodeOptions) return false
   return nodeOptions.split(/\s+/).includes(flag)
 }

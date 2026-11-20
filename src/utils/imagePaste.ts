@@ -16,6 +16,7 @@ import { logError } from './log.js'
 import { logForDebugging } from './debug.js'
 import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 export const PASTE_THRESHOLD = 800
 
@@ -40,7 +41,7 @@ function clipboardPlatform(): ClipboardPlatform {
 function tempDir(): string {
   const override = flagEnv('MERCURY_TMPDIR')
   if (override) return override
-  if (clipboardPlatform() === 'win32') return process.env.TEMP || 'C:\\Temp'
+  if (clipboardPlatform() === 'win32') return hostEnv().TEMP || 'C:\\Temp'
   return '/tmp'
 }
 

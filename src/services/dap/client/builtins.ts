@@ -31,6 +31,7 @@ import {
   resolveLldbDap,
 } from './probes.js'
 import type { DapAdapterSpec, DapLaunchOptions } from './shared.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 function godotLaunchArgs(options: DapLaunchOptions): Record<string, unknown> {
   const programDir = options.program.endsWith('project.godot')
@@ -78,7 +79,7 @@ let phpModulesMemo: { key: string; at: number; error?: string } | undefined
 function phpDebugPreflight(): string | undefined {
   const php = findOnPathLocal('php')
   if (!php) return 'no php on PATH'
-  const key = [php, statSync(php).mtimeMs, process.env.PHPRC, process.env.PHP_INI_SCAN_DIR].join('|')
+  const key = [php, statSync(php).mtimeMs, hostEnv().PHPRC, hostEnv().PHP_INI_SCAN_DIR].join('|')
   if (phpModulesMemo?.key === key && Date.now() - phpModulesMemo.at < 30_000) return phpModulesMemo.error
   const probe = spawnSync(php, ['-m'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: subprocessEnv() })
   const error = probe.status === 0 && /^xdebug\s*$/im.test(probe.stdout ?? '')

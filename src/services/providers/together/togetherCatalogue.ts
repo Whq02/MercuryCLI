@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { resolveTogetherApiKey, togetherApiBase } from './togetherAccounts.js'
 import { TOGETHER_DISPLAY_PINS, TOGETHER_OBSERVED_AT, togetherDisplayPin, togetherQualifiedId, togetherWireId } from './togetherPins.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface TogetherLiveModel {
   id: string
@@ -90,13 +91,13 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${togetherApiBase(env)}` : 'none'
 }
 
-export function getCachedTogetherCatalogue(env: NodeJS.ProcessEnv = process.env): TogetherCatalogueSnapshot | null {
+export function getCachedTogetherCatalogue(env: NodeJS.ProcessEnv = hostEnv()): TogetherCatalogueSnapshot | null {
   return resolveTogetherApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<TogetherCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (cache.size === 0) return EMPTY_IDS
   const snapshot = getCachedTogetherCatalogue(env)
   if (!snapshot?.fetchedAtMs) return EMPTY_IDS
@@ -114,7 +115,7 @@ export function togetherListedModel(snapshot: TogetherCatalogueSnapshot | null, 
 }
 
 export function refreshTogetherCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<TogetherCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveTogetherApiKey(env)
   const identity = identityOf(env)
@@ -161,7 +162,7 @@ function togetherPinRows(): TogetherCatalogueRow[] {
   return TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName, observedAt: TOGETHER_OBSERVED_AT, ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}), free: pin.free === true, listedLive: false }))
 }
 
-export function togetherCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: TogetherCatalogueRow[]; source: TogetherCatalogueSource } {
+export function togetherCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: TogetherCatalogueRow[]; source: TogetherCatalogueSource } {
   const snapshot = getCachedTogetherCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: togetherPinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
@@ -174,7 +175,7 @@ export function togetherCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
   return { rows, source: { kind: 'live', count: rows.length, otherKinds: snapshot.otherKinds, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function togetherCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function togetherCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const snapshot = getCachedTogetherCatalogue(env)
   const { source } = togetherCatalogueRows(env)
   if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
@@ -182,7 +183,7 @@ export function togetherCatalogueSourceWords(env: NodeJS.ProcessEnv = process.en
   return source.kind === 'live' ? `${source.count} chat ${source.count === 1 ? 'model' : 'models'} live${source.otherKinds > 0 ? ` · ${source.otherKinds} image, video, audio and other rows not listed` : ''}` : undefined
 }
 
-export function togetherContextWindowFor(model: string, env: NodeJS.ProcessEnv = process.env): number | undefined {
+export function togetherContextWindowFor(model: string, env: NodeJS.ProcessEnv = hostEnv()): number | undefined {
   return togetherListedModel(getCachedTogetherCatalogue(env), model)?.contextLength ?? togetherDisplayPin(model)?.contextWindow
 }
 

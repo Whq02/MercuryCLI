@@ -20,6 +20,7 @@ import {
 import { findPythonTestFiles } from './pythonProject.js'
 import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
 
@@ -48,7 +49,7 @@ function profileId(parts: string[]): string {
 
 export function resolveRunnerBinary(
   bin: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
   platform: string = process.platform,
 ): string | null {
   const explicit = path.isAbsolute(bin) || bin.includes('/') || bin.includes('\\')
@@ -761,7 +762,7 @@ export async function runRunnerProfile(
       windowsHide: true,
       cwd: profile.root,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...subprocessEnv(), CI: process.env.CI ?? '1', NO_COLOR: '1', ...(opts.env ?? {}) },
+      env: { ...subprocessEnv(), CI: hostEnv().CI ?? '1', NO_COLOR: '1', ...(opts.env ?? {}) },
     })
     const append = (chunk: Buffer): void => {
       for (const b of chunk) if (b === 0x0a) lineCount++

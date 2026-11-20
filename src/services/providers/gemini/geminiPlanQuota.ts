@@ -5,6 +5,7 @@ import type { UsageFigureView, UsageRefreshIo } from '../providerUsage.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { resolveGeminiAccount } from './geminiAccounts.js'
 import { geminiPlanEffortOrder, geminiPlanEffortSuffix, getCachedGeminiCatalogue, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface GeminiPlanQuotaView {
   active?: UsageFigureView
@@ -21,7 +22,7 @@ export function geminiPlanQuotaUnreportedWords(model: string): string {
 export function geminiPlanQuotaView(
   figures: readonly UsageFigureView[],
   session: { model?: string; effort?: string; usedModels: readonly string[] },
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): GeminiPlanQuotaView {
   void env
   const quotas = figures.filter(figure => figure.key.startsWith('plan-quota:'))
@@ -81,7 +82,7 @@ export function geminiPlanQuotaFoldWords(count: number, expanded: boolean): stri
 }
 
 export async function refreshGeminiPlanQuota(io?: UsageRefreshIo): Promise<void> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now ?? Date.now
   if (resolveGeminiAccount(env)?.kind !== 'plan') return
   const reason = io?.reason ?? 'open'

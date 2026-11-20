@@ -15,6 +15,7 @@ import {
 } from '../services/providers/providerUsage.js'
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../services/wallet/wallet.js'
 import { resolveProviderUsability } from '../services/providers/providerUsability.js'
+import { hostEnv } from './hostEnv.js'
 
 
 type Property = {
@@ -134,15 +135,15 @@ export function buildAccountProperties(): Property[] {
 
 export function buildAPIProviderProperties(): Property[] {
   const properties: Property[] = []
-  if (process.env.ANTHROPIC_BASE_URL) {
-    properties.push({ label: 'Anthropic base URL', value: <Text>{process.env.ANTHROPIC_BASE_URL}</Text> })
+  if (hostEnv().ANTHROPIC_BASE_URL) {
+    properties.push({ label: 'Anthropic base URL', value: <Text>{hostEnv().ANTHROPIC_BASE_URL!}</Text> })
   }
   const proxyUrl = getProxyUrl()
   if (proxyUrl) {
     properties.push({ label: 'Proxy', value: <Text>{proxyUrl}</Text> })
   }
-  if (process.env.NODE_EXTRA_CA_CERTS) {
-    properties.push({ label: 'Additional CA cert(s)', value: <Text>{extraCaCertsStatusLine() ?? process.env.NODE_EXTRA_CA_CERTS}</Text> })
+  if (hostEnv().NODE_EXTRA_CA_CERTS) {
+    properties.push({ label: 'Additional CA cert(s)', value: <Text>{extraCaCertsStatusLine() ?? hostEnv().NODE_EXTRA_CA_CERTS!}</Text> })
   }
   const mtlsConfig = getMTLSConfig()
   if (mtlsConfig) {

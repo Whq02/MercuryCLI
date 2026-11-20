@@ -6,6 +6,7 @@ import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../../utils/privacyLevel.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const ANTIGRAVITY_OAUTH_CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com'
 export const ANTIGRAVITY_OAUTH_CLIENT_SECRET = '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'
@@ -140,12 +141,12 @@ export function antigravityUserAgent(presented: AntigravityClientPresented = pre
   return `antigravity/hub/${presented.version} (aidev_client; os_type=${ANTIGRAVITY_CLIENT_OS}; arch=${ANTIGRAVITY_CLIENT_ARCH}; cl=${presented.changelist})`
 }
 
-export function antigravityManifestBase(env: NodeJS.ProcessEnv = process.env): string {
-  const pinned = (env === process.env ? flagEnv('MERCURY_ANTIGRAVITY_MANIFEST_BASE') : flagEnv('MERCURY_ANTIGRAVITY_MANIFEST_BASE', env))?.trim()
+export function antigravityManifestBase(env: NodeJS.ProcessEnv = hostEnv()): string {
+  const pinned = (env === hostEnv() ? flagEnv('MERCURY_ANTIGRAVITY_MANIFEST_BASE') : flagEnv('MERCURY_ANTIGRAVITY_MANIFEST_BASE', env))?.trim()
   return pinned && /^https?:\/\//i.test(pinned) ? pinned.replace(/\/+$/, '') : ANTIGRAVITY_MANIFEST_DEFAULT_BASE
 }
 
-export function antigravityManifestUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function antigravityManifestUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${antigravityManifestBase(env)}${ANTIGRAVITY_MANIFEST_PATH}`
 }
 
@@ -178,7 +179,7 @@ async function boundedText(response: Response): Promise<string | null> {
 }
 
 export async function readAntigravityVersionFromManifest(io?: AntigravityClientIo): Promise<AntigravityManifestAnswer> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const url = antigravityManifestUrl(env)
   if (isProofShapeRun() && !isLoopbackUrl(url)) return { ok: false, words: proofShapeReason() }
   const controller = new AbortController()
@@ -218,7 +219,7 @@ let peekInFlight: Promise<AntigravityClientPeek> | null = null
 
 export function peekAntigravityClient(io?: AntigravityClientIo & { force?: boolean }): Promise<AntigravityClientPeek> {
   if (peekInFlight) return peekInFlight
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now ?? Date.now
   if (getEssentialTrafficOnlyReason(env) !== null) return Promise.resolve({ kind: 'skipped', why: 'traffic-off' })
   if (isProofShapeRun() && !isLoopbackUrl(antigravityManifestUrl(env))) return Promise.resolve({ kind: 'skipped', why: 'proof-shape' })

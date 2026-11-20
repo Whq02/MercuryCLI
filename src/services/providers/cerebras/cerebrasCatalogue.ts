@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { cerebrasApiBase, resolveCerebrasApiKey } from './cerebrasAccounts.js'
 import { CEREBRAS_DISPLAY_PINS, CEREBRAS_OBSERVED_AT, isCerebrasTextModelId, cerebrasDisplayName, cerebrasDisplayPin, cerebrasWireId, cerebrasQualifiedId } from './cerebrasPins.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface CerebrasLiveModel {
   id: string
@@ -77,7 +78,7 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${cerebrasApiBase(env)}` : 'none'
 }
 
-export function getCachedCerebrasCatalogue(env: NodeJS.ProcessEnv = process.env): CerebrasCatalogueSnapshot | null {
+export function getCachedCerebrasCatalogue(env: NodeJS.ProcessEnv = hostEnv()): CerebrasCatalogueSnapshot | null {
   return resolveCerebrasApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
@@ -87,7 +88,7 @@ export function cerebrasListedModel(snapshot: CerebrasCatalogueSnapshot | null, 
 }
 
 export function refreshCerebrasCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<CerebrasCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveCerebrasApiKey(env)
   const identity = identityOf(env)
@@ -133,7 +134,7 @@ function cerebrasPinRows(): CerebrasCatalogueRow[] {
   return CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName, observedAt: CEREBRAS_OBSERVED_AT, contextWindow: pin.contextWindow, listedLive: false }))
 }
 
-export function cerebrasCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: CerebrasCatalogueRow[]; source: CerebrasCatalogueSource } {
+export function cerebrasCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: CerebrasCatalogueRow[]; source: CerebrasCatalogueSource } {
   const snapshot = getCachedCerebrasCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: cerebrasPinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
@@ -145,7 +146,7 @@ export function cerebrasCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
   return { rows, source: { kind: 'live', count: rows.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function cerebrasCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function cerebrasCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const snapshot = getCachedCerebrasCatalogue(env)
   const { source } = cerebrasCatalogueRows(env)
   if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`

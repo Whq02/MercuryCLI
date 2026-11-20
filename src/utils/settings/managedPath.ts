@@ -5,6 +5,7 @@ import memoize from 'lodash-es/memoize.js'
 
 import { getPlatform, type Platform } from '../platform.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 
 export function managedRootCandidates(platform: Platform): string[] {
@@ -12,7 +13,7 @@ export function managedRootCandidates(platform: Platform): string[] {
     case 'macos':
       return ['/Library/Application Support/Mercury']
     case 'windows': {
-      const programData = process.env.ProgramData ?? 'C:\\ProgramData'
+      const programData = hostEnv().ProgramData ?? 'C:\\ProgramData'
       return [`${programData}\\Mercury`]
     }
     default:

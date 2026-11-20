@@ -2,6 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredZaiApiKey } from '../providerSecrets.js'
 import { probeZaiKey, type ZaiKeyProbe } from './zaiCatalogue.js'
 import { ZAI_CODING_API_BASE_URL, zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface ZaiKeyLoginOutcome {
   ok: boolean
@@ -16,7 +17,7 @@ export function zaiPlanLabel(plan: ZaiApiPlan): string {
 export async function storeZaiApiKeyLogin(
   key: string,
   plan: ZaiApiPlan,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
   io?: { fetchImpl?: typeof fetch; probeKey?: (key: string, plan: ZaiApiPlan) => Promise<ZaiKeyProbe> },
 ): Promise<ZaiKeyLoginOutcome> {
   key = key.trim()

@@ -11,6 +11,7 @@ import { reconcileManagedShims, resolveLayoutRoots } from './installLayout.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
 import { nixInstallRoot } from './installProvenance.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const UPDATE_NOTICE_CACHE_FILE = 'update-notice.json'
 export const UPDATE_NOTICE_DAILY_MS = 24 * 60 * 60 * 1000
@@ -173,7 +174,7 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
   return 'failed'
 }
 
-export function quietUpdateCheckArmed(env: NodeJS.ProcessEnv = process.env): boolean {
+export function quietUpdateCheckArmed(env: NodeJS.ProcessEnv = hostEnv()): boolean {
   return flagEnabled('MERCURY_UPDATE_NOTICE') && getEssentialTrafficOnlyReason(env) === null
 }
 

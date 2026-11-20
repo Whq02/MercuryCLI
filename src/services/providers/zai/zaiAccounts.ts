@@ -1,6 +1,7 @@
 import { readStoredZaiApiKey, readStoredZaiKeyPlan } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { planlessZaiKeyPlan, type ZaiKeyPlanWord, type ZaiPlanSource } from './zaiKeyPlan.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface ZaiDispatch {
   key: string
@@ -10,7 +11,7 @@ export interface ZaiDispatch {
 }
 
 export function resolveZaiApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): string | undefined {
   const envKey = env.ZAI_API_KEY?.trim()
   if (envKey) return envKey
@@ -20,7 +21,7 @@ export function resolveZaiApiKey(
 }
 
 export function resolveZaiDispatch(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): ZaiDispatch | undefined {
   const envKey = env.ZAI_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env', ...planlessZaiKeyPlan(envKey, env) }

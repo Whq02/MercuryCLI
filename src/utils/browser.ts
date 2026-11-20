@@ -1,5 +1,6 @@
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 export async function openPath(path: string): Promise<boolean> {
@@ -30,7 +31,7 @@ export async function openBrowser(url: string): Promise<boolean> {
   try {
     assertValidBrowserUrl(url)
     if (process.platform === 'win32') {
-      const browserEnv = process.env.BROWSER
+      const browserEnv = hostEnv().BROWSER
       if (browserEnv) {
         const result = await execFileNoThrow(browserEnv, [url])
         return result.code === 0
@@ -38,7 +39,7 @@ export async function openBrowser(url: string): Promise<boolean> {
       const result = await execFileNoThrow('rundll32', ['url,OpenURL', url], {})
       return result.code === 0
     }
-    const handler = process.env.BROWSER || (process.platform === 'darwin' ? 'open' : 'xdg-open')
+    const handler = hostEnv().BROWSER || (process.platform === 'darwin' ? 'open' : 'xdg-open')
     const result = await execFileNoThrow(handler, [url])
     return result.code === 0
   } catch (error) {

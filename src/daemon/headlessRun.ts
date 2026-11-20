@@ -18,13 +18,14 @@ import type { Capabilities } from '../runner/wire/methods.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
 function sweptRoleSpellings(): string[] {
   return [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...RETIRED_SEAT_ENV_VARS]
 }
 
-export function scrubDaemonRoleEnv(env: NodeJS.ProcessEnv = process.env): string[] {
+export function scrubDaemonRoleEnv(env: NodeJS.ProcessEnv = hostEnv()): string[] {
   const removed: string[] = []
   for (const v of sweptRoleSpellings()) {
     if (env[v] !== undefined) {
@@ -102,7 +103,7 @@ export function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): vo
 }
 
 function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env }
+  const env: NodeJS.ProcessEnv = { ...hostEnv() }
   for (const v of sweptRoleSpellings()) {
     delete env[v]
   }
@@ -215,7 +216,7 @@ export function buildRunnerInvocation(
     ...(opts?.respawn ? respawnArgvOf(spec) : identityArgvOf(spec, spec.extraArgv ?? [])),
     ...sessionPinArgv(spec.sessionPin),
   ]
-  const inherited: NodeJS.ProcessEnv = { ...process.env }
+  const inherited: NodeJS.ProcessEnv = { ...hostEnv() }
   for (const v of spec.stripEnv ?? []) {
     delete inherited[v]
   }

@@ -11,6 +11,7 @@ import { isReservedLabel, NAME_PATTERN } from './manifest.js'
 import { getSourceCacheDir, getSourcesDir } from './paths.js'
 import { installedOrEmpty, logAct, readSources, sourcesOrEmpty, updateSources, type SourceRecord } from './records.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export const SOURCE_FETCH_TIMEOUT_MS = 120_000
 export const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
@@ -104,7 +105,7 @@ const GIT_ENV = (): NodeJS.ProcessEnv => ({
   ...subprocessEnv(),
   GIT_TERMINAL_PROMPT: '0',
   GIT_ASKPASS: '',
-  GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes -o StrictHostKeyChecking=yes',
+  GIT_SSH_COMMAND: hostEnv().GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes -o StrictHostKeyChecking=yes',
 })
 
 export async function gitAvailable(): Promise<boolean> {

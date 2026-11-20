@@ -5,6 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { minimaxPlanRemainsUrl, resolveMinimaxApiKey } from './minimaxAccounts.js'
 import { minimaxBaseRespFailure, minimaxPlanAnswerVerdict } from './minimaxCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const MINIMAX_BALANCE_NOTE = 'a pay-as-you-go key draws the Open Platform balance, shown at platform.minimax.io (the API states no balance to clients)'
 export const MINIMAX_PLAN_ABSENT_NOTE = 'no M Plan window on this key — turns draw the pay-as-you-go balance'
@@ -43,18 +44,18 @@ interface MinimaxPlanObservation {
 let observation: MinimaxPlanObservation = { usage: null, plan: 'unknown', failure: null }
 let observedIdentity = 'none'
 
-function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   return credentialFingerprint(resolveMinimaxApiKey(env)?.key)
 }
 
-function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
+function dropIfStale(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (observedIdentity !== activeIdentity(env)) {
     observation = { usage: null, plan: 'unknown', failure: null }
     observedIdentity = 'none'
   }
 }
 
-export function minimaxObservedPlanUsage(env: NodeJS.ProcessEnv = process.env): MinimaxPlanObservation {
+export function minimaxObservedPlanUsage(env: NodeJS.ProcessEnv = hostEnv()): MinimaxPlanObservation {
   dropIfStale(env)
   return observation
 }
@@ -135,7 +136,7 @@ export async function fetchMinimaxPlanUsage(
   const nowMs = io?.now?.() ?? Date.now()
   let probe: MinimaxPlanProbe
   try {
-    const response = await fetchWithProviderDeadline(fetchImpl, 'minimax', PROBE_TIMEOUT_MS, minimaxPlanRemainsUrl(io?.env ?? process.env), {
+    const response = await fetchWithProviderDeadline(fetchImpl, 'minimax', PROBE_TIMEOUT_MS, minimaxPlanRemainsUrl(io?.env ?? hostEnv()), {
       method: 'GET',
       headers: { accept: 'application/json', authorization: `Bearer ${key}`, 'user-agent': getUserAgent() },
       ...(proxyOptions as Record<string, unknown>),
@@ -202,7 +203,7 @@ export function refreshMinimaxPlanUsage(io?: {
   force?: boolean
 }): Promise<MinimaxPlanObservation> {
   const now = io?.now?.() ?? Date.now()
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   dropIfStale(env)
   const fresh = observation.usage !== null ? now - observation.usage.observedAtMs < USAGE_POLL_TTL_MS : observation.plan === 'none' && now - lastAttemptAtMs < USAGE_POLL_TTL_MS
   if (!io?.force && fresh) return Promise.resolve(observation)

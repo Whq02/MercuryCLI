@@ -13,6 +13,7 @@ import { OPENROUTER_REASONING_EFFORTS } from '../openaicompat/compatWire.js'
 import { nousApiBase, nousAccountIdentity, resolveNousAccount, resolveNousCredentialSnapshot, type NousCredentialSource } from './nousAccounts.js'
 import { NOUS_SIGNIN_EXPIRED_LINE } from './nousOauth.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const NOUS_CATALOGUE_TTL_MS = 5 * 60_000
@@ -166,7 +167,7 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
   return `${key.source}:${key.source === 'signin' ? nousAccountIdentity(env) : credentialFingerprint(key.key)}:${nousApiBase(env)}`
 }
 
-export function getCachedNousCatalogue(env: NodeJS.ProcessEnv = process.env): NousCatalogueSnapshot | null {
+export function getCachedNousCatalogue(env: NodeJS.ProcessEnv = hostEnv()): NousCatalogueSnapshot | null {
   if (!resolveNousCredentialSnapshot(env)) return null
   return catalogueCache.get(catalogueIdentity(env)) ?? null
 }
@@ -177,7 +178,7 @@ export function refreshNousCatalogue(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
 }): Promise<NousCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveNousCredentialSnapshot(env)
   const identity = catalogueIdentity(env)
@@ -219,7 +220,7 @@ type NousAvailability =
   | { state: 'disabled'; why: NousDisabledWhy; reason: string }
   | { state: 'ready'; ids: string[]; modelCount: number; source: string; keySource?: 'env' | 'stored'; fetchedAtMs: number }
 
-export function getNousAvailability(env: NodeJS.ProcessEnv = process.env): NousAvailability {
+export function getNousAvailability(env: NodeJS.ProcessEnv = hostEnv()): NousAvailability {
   const account = resolveNousAccount(env)
   if (!account) return { state: 'disabled', why: 'no-account', reason: `${connectToBrowseReason('nous')} — /logins nous connects` }
   if (account.expired) return { state: 'disabled', why: 'auth-invalid', reason: NOUS_SIGNIN_EXPIRED_LINE }
@@ -250,7 +251,7 @@ export function getNousAvailability(env: NodeJS.ProcessEnv = process.env): NousA
   }
 }
 
-export function nousListedModel(model: string, env: NodeJS.ProcessEnv = process.env): NousLiveModel | undefined {
+export function nousListedModel(model: string, env: NodeJS.ProcessEnv = hostEnv()): NousLiveModel | undefined {
   if (declaredRouteOf(model) !== 'nous') return undefined
   const snapshot = getCachedNousCatalogue(env)
   if (!snapshot || snapshot.models.length === 0) return undefined
@@ -259,17 +260,17 @@ export function nousListedModel(model: string, env: NodeJS.ProcessEnv = process.
   return snapshot.models.find(m => m.id.toLowerCase() === slug)
 }
 
-export function nousContextWindowFor(model: string, env: NodeJS.ProcessEnv = process.env): { window: number; source: 'live-current' } | undefined {
+export function nousContextWindowFor(model: string, env: NodeJS.ProcessEnv = hostEnv()): { window: number; source: 'live-current' } | undefined {
   const listed = nousListedModel(model, env)
   return listed?.contextLength !== undefined && listed.contextLength > 0 ? { window: listed.contextLength, source: 'live-current' } : undefined
 }
 
-export function nousMaxCompletionTokensFor(model: string, env: NodeJS.ProcessEnv = process.env): number | undefined {
+export function nousMaxCompletionTokensFor(model: string, env: NodeJS.ProcessEnv = hostEnv()): number | undefined {
   const listed = nousListedModel(model, env)
   return listed?.maxCompletionTokens !== undefined && listed.maxCompletionTokens > 0 ? listed.maxCompletionTokens : undefined
 }
 
-export function nousEffortVocabularyFor(model: string, env: NodeJS.ProcessEnv = process.env): readonly string[] {
+export function nousEffortVocabularyFor(model: string, env: NodeJS.ProcessEnv = hostEnv()): readonly string[] {
   const listed = nousListedModel(model, env)
   if (!listed) return []
   const stated = listed.reasoning?.supportedEfforts
@@ -277,13 +278,13 @@ export function nousEffortVocabularyFor(model: string, env: NodeJS.ProcessEnv = 
   return listed.supportedParameters?.includes('reasoning') ? OPENROUTER_REASONING_EFFORTS : []
 }
 
-export function nousDeclaresTools(model: string, env: NodeJS.ProcessEnv = process.env): boolean | undefined {
+export function nousDeclaresTools(model: string, env: NodeJS.ProcessEnv = hostEnv()): boolean | undefined {
   const listed = nousListedModel(model, env)
   if (!listed?.supportedParameters) return undefined
   return listed.supportedParameters.includes('tools')
 }
 
-export function nousWireModelId(modelId: string, env: NodeJS.ProcessEnv = process.env): string {
+export function nousWireModelId(modelId: string, env: NodeJS.ProcessEnv = hostEnv()): string {
   const slug = qualifiedWireId(modelId)
   const snapshot = getCachedNousCatalogue(env)
   if (!snapshot || snapshot.models.length === 0) return slug
@@ -324,7 +325,7 @@ function headFirst(models: NousLiveModel[]): NousLiveModel[] {
   return [...head, ...plain, ...variants]
 }
 
-export function getNousModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
+export function getNousModelOptions(env: NodeJS.ProcessEnv = hostEnv()): ModelOption[] {
   const availability = getNousAvailability(env)
   if (availability.state === 'disabled') {
     const signIn = availability.why === 'no-account' || availability.why === 'auth-invalid'
@@ -380,7 +381,7 @@ export function getNousModelOptions(env: NodeJS.ProcessEnv = process.env): Model
   return rows
 }
 
-export function getNousFullModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
+export function getNousFullModelOptions(env: NodeJS.ProcessEnv = hostEnv()): ModelOption[] {
   const availability = getNousAvailability(env)
   if (availability.state !== 'ready') return []
   const models = getCachedNousCatalogue(env)?.models ?? []

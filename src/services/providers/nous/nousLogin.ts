@@ -7,6 +7,7 @@ import { peekNousClient } from './nousClientContract.js'
 import { pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
 import { fetchNousAccount, nousCreditsDisplay, type NousObservedAccount, type NousUsageIo } from './nousUsageState.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface NousKeyLoginOutcome {
   ok: boolean
@@ -33,7 +34,7 @@ export function nousAccountReceiptLine(account: NousObservedAccount): string {
 }
 
 export async function storeNousApiKeyLogin(key: string, io?: NousUsageIo): Promise<NousKeyLoginOutcome> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   try {
     writeStoredNousApiKey(key)
     writePreferredNousSource('api-key')
@@ -128,8 +129,8 @@ export async function runNousDeviceLogin(args: {
       : probe.state === 'refused'
         ? `UNVERIFIED — the Portal account endpoint answered HTTP ${probe.status}; the first turn proves the sign-in`
         : 'UNVERIFIED — the Portal account endpoint did not answer; the first turn proves the sign-in'
-    const shadow = (args.io?.env ?? process.env)[NOUS_API_KEY_ENV]?.trim() ? ` NOTE: ${NOUS_API_KEY_ENV} is set and wins over this sign-in.` : ''
-    return { ok: true, receipt: `Nous Portal sign-in stored (auth-scoped, mode 600) · ${note}. Requests ride ${nousApiBase(args.io?.env ?? process.env, approved)} on the account's credits or subscription; /usage reads the plan and credits; /accounts manages it.${shadow}` }
+    const shadow = (args.io?.env ?? hostEnv())[NOUS_API_KEY_ENV]?.trim() ? ` NOTE: ${NOUS_API_KEY_ENV} is set and wins over this sign-in.` : ''
+    return { ok: true, receipt: `Nous Portal sign-in stored (auth-scoped, mode 600) · ${note}. Requests ride ${nousApiBase(args.io?.env ?? hostEnv(), approved)} on the account's credits or subscription; /usage reads the plan and credits; /accounts manages it.${shadow}` }
   }
   return cancelled() ? { ok: false, receipt: `Nous Portal sign-in cancelled — nothing stored. ${NOUS_KEY_LEG_OFFER}` } : fail('Nous Portal sign-in code expired before it was approved')
 }

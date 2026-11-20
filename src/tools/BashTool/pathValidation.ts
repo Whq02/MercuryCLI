@@ -31,6 +31,7 @@ import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
 import { stripSafeWrappers } from './safeWrappers.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 export type PathCommand =
@@ -70,7 +71,7 @@ function extractBaseline(args: string[]): string[] {
   return operands
 }
 
-const HOME = (): string => process.env.HOME || process.env.USERPROFILE || ''
+const HOME = (): string => hostEnv().HOME || hostEnv().USERPROFILE || ''
 
 const FIND_PATH_PREDICATES = new Set([
   '-newer', '-anewer', '-cnewer', '-mnewer', '-samefile', '-path', '-wholename',

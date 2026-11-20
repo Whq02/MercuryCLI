@@ -5,6 +5,7 @@ import { catalogueEpoch } from './catalogueEpoch.js'
 import { deriveFamilySlotGroups, type AccountSlot, type AccountSlotReads, type FamilySlotGroup } from './accountSlots.js'
 import { presenceIdentityWords, providerFamilyPresences, type ProviderFamilyPresence } from './providerUsage.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const NO_ACCOUNT_WORDS = 'no account'
 const SIGNED_IN_AS_WORDS = 'Signed in as'
@@ -74,7 +75,7 @@ function presenceDigest(): string {
 
 function memoKey(): string {
   let env = ''
-  for (const name of credentialEnvNames()) env += `${name}=${process.env[name] ?? ''}\u0000`
+  for (const name of credentialEnvNames()) env += `${name}=${hostEnv()[name] ?? ''}\u0000`
   return `${signInLedgerEpoch()}:${catalogueEpoch()}:${env}:${presenceDigest()}`
 }
 

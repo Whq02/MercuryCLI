@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 type ShellHint = 'powershell' | 'cmd' | 'posix-sh' | 'unknown'
 
@@ -26,7 +27,7 @@ interface InvocationFileV1 {
 
 const MAX_ROWS = 10
 
-export function classifyShellHint(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): ShellHint {
+export function classifyShellHint(env: NodeJS.ProcessEnv = hostEnv(), platform: NodeJS.Platform = process.platform): ShellHint {
   if (platform === 'win32') {
     if (typeof env.PSModulePath === 'string' && env.PSModulePath.length > 0) return 'powershell'
     if (typeof env.ComSpec === 'string') return 'cmd'
@@ -48,8 +49,8 @@ function captureInvocationRecord(): InvocationCapabilityRecordV1 {
     stdoutTTY: process.stdout.isTTY === true,
     stderrTTY: process.stderr.isTTY === true,
     shellHint: classifyShellHint(),
-    ...(typeof process.env.TERM_PROGRAM === 'string' && process.env.TERM_PROGRAM
-      ? { termProgram: process.env.TERM_PROGRAM }
+    ...(typeof hostEnv().TERM_PROGRAM === 'string' && hostEnv().TERM_PROGRAM!
+      ? { termProgram: hostEnv().TERM_PROGRAM! }
       : {}),
   }
 }

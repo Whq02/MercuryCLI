@@ -23,6 +23,7 @@ import {
   splitHuggingfaceSlug,
 } from './huggingfacePins.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -173,7 +174,7 @@ function catalogueKey(env: NodeJS.ProcessEnv): HuggingfaceCatalogueKey {
 }
 
 export function getCachedHuggingfaceCatalogue(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): HuggingfaceCatalogueSnapshot | null {
   return catalogueCache.get(catalogueKey(env)) ?? catalogueCache.get('anonymous') ?? null
 }
@@ -184,7 +185,7 @@ export function refreshHuggingfaceCatalogue(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
 }): Promise<HuggingfaceCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = catalogueKey(env)
   const cached = catalogueCache.get(key)
@@ -229,7 +230,7 @@ export function refreshHuggingfaceCatalogue(opts?: {
 
 export function huggingfaceLiveModel(
   wireSlug: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): HuggingfaceLiveModel | undefined {
   const snapshot = getCachedHuggingfaceCatalogue(env)
   if (!snapshot) return undefined
@@ -251,7 +252,7 @@ function reachableProviders(model: HuggingfaceLiveModel, suffix: string | undefi
 
 export function huggingfaceLiveContextWindow(
   wireSlug: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): number | undefined {
   const model = huggingfaceLiveModel(wireSlug, env)
   if (!model) return undefined
@@ -264,7 +265,7 @@ export function huggingfaceLiveContextWindow(
 
 export function huggingfaceLiveSupportsTools(
   wireSlug: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): boolean | undefined {
   const model = huggingfaceLiveModel(wireSlug, env)
   if (!model) return undefined
@@ -278,7 +279,7 @@ export function huggingfaceLiveSupportsTools(
 
 export function huggingfaceContextWindowFor(
   model: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { window: number; source: 'live-current' | 'static-pin' } | undefined {
   if (!isHuggingfaceModelId(model)) return undefined
   const slug = model.trim().slice(HUGGINGFACE_MODEL_PREFIX.length)
@@ -308,7 +309,7 @@ export type HuggingfaceAvailability =
       catalogueNote?: string
     }
 
-export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = process.env): HuggingfaceAvailability {
+export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = hostEnv()): HuggingfaceAvailability {
   const account = resolveHuggingfaceAccount(env)
   if (!account) {
     return {
@@ -390,14 +391,14 @@ function huggingfaceCatalogueRows(models: HuggingfaceLiveModel[], source: string
   return rows
 }
 
-export function getHuggingfaceFullModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
+export function getHuggingfaceFullModelOptions(env: NodeJS.ProcessEnv = hostEnv()): ModelOption[] {
   const availability = getHuggingfaceAvailability(env)
   if (availability.state !== 'ready') return []
   const models = getCachedHuggingfaceCatalogue(env)?.models ?? []
   return huggingfaceCatalogueRows(models, availability.source, models.length)
 }
 
-export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
+export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = hostEnv()): ModelOption[] {
   const availability = getHuggingfaceAvailability(env)
   const rows: ModelOption[] = []
   if (availability.state === 'disabled') {

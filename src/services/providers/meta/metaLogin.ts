@@ -21,6 +21,7 @@ import {
   type MetaSubsUsageRecord,
 } from './metaAccounts.js'
 import { fetchMetaLiveModels, MetaCatalogueHttpError } from './metaCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const META_MUSE_CODE_ROW = 'Sign in with Meta — a Muse Code subscription, a device code in your browser'
 export const META_KEY_ROW = 'API key — pay-as-you-go Model API key (stored locally, mode 600)'
@@ -95,7 +96,7 @@ export function metaConnectRows(
   ]
 }
 
-export function liveMetaConnectFacts(env: NodeJS.ProcessEnv = process.env): MetaConnectFacts {
+export function liveMetaConnectFacts(env: NodeJS.ProcessEnv = hostEnv()): MetaConnectFacts {
   const rawKey = resolveMetaRawApiKey(env)
   const muse = metaMuseCodeFacts()
   const active = resolveMetaAccount(env)?.kind
@@ -128,7 +129,7 @@ export function metaSourceRides(kind: MetaSourceKind): string {
   return kind === 'api-key' ? META_KEY_RIDES : META_MUSE_CODE_RIDES
 }
 
-function otherSourceTail(active: MetaSourceKind, env: NodeJS.ProcessEnv = process.env): string {
+function otherSourceTail(active: MetaSourceKind, env: NodeJS.ProcessEnv = hostEnv()): string {
   const facts = liveMetaConnectFacts(env)
   if (active === 'api-key' && facts.museCodeConnected) {
     return ' The Muse Code sign-in stays stored — ↵ on its /logins row makes it active.'
@@ -141,7 +142,7 @@ function otherSourceTail(active: MetaSourceKind, env: NodeJS.ProcessEnv = proces
 
 export function activateMetaSource(
   kind: MetaSourceKind,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { ok: boolean; receipt: string } {
   try {
     writePreferredMetaSource(kind)
@@ -207,7 +208,7 @@ export async function runMetaDeviceLogin(args: MetaDeviceLoginArgs = {}): Promis
   const { io, onEvent } = args
   const pause = args.sleep ?? sleep
   const cancelled = args.cancelled ?? (() => false)
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = (): number => io?.now?.() ?? Date.now()
   onEvent?.({ phase: 'starting' })
   let start: MetaDeviceAuthStart
@@ -365,7 +366,7 @@ export interface MetaKeyLoginOutcome {
 export async function storeMetaApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<MetaKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Meta Model API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   try {

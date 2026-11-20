@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { basename, delimiter, join } from 'node:path'
 import { ADAPTER_VERSION, LLAMACPP_RELEASE, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './identity.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 type LlamaIo = {
   platform?: NodeJS.Platform
@@ -34,7 +35,7 @@ export function llamaRuntimeBin(home: string = homedir()): string {
 
 function llamaServerCandidates(io: LlamaIo = {}): string[] {
   const platform = io.platform ?? process.platform
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const home = io.home ?? homedir()
   const name = platform === 'win32' ? 'llama-server.exe' : 'llama-server'
   const pathDirs = (env.PATH ?? env.Path ?? '').split(platform === 'win32' ? ';' : delimiter).filter(dir => dir !== '')
@@ -49,7 +50,7 @@ type LlamaResolution = { found: true; binary: string; pinned: boolean } & LlamaS
 
 export async function resolveLlamaServer(io: LlamaIo = {}): Promise<LlamaResolution> {
   const exists = io.exists ?? executable
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const runtime = llamaRuntimeBin(io.home ?? homedir())
   const refusals: string[] = []
   for (const binary of llamaServerCandidates(io).filter(exists)) {
@@ -71,7 +72,7 @@ function parseLlamaServerVersion(text: string | undefined): LlamaServerVersion {
   return { ...(version !== undefined ? { version } : {}), ...(build !== undefined ? { build } : {}), ...(commit !== undefined ? { commit } : {}) }
 }
 
-export function readLlamaServerVersion(binary: string, env: NodeJS.ProcessEnv = process.env): Promise<LlamaServerVersion> {
+export function readLlamaServerVersion(binary: string, env: NodeJS.ProcessEnv = hostEnv()): Promise<LlamaServerVersion> {
   return new Promise(resolve => {
     try {
       execFile(binary, ['--version'], { encoding: 'utf8', timeout: 15_000, maxBuffer: 1 << 20, windowsHide: true, env }, (_error, stdout, stderr) => resolve(parseLlamaServerVersion(`${String(stdout)}\n${String(stderr)}`)))
@@ -144,7 +145,7 @@ export async function installLlamaServer(io: LlamaInstallIo = {}): Promise<Llama
   const binary = join(bin, 'llama-server.exe')
   if (!(io.exists ?? executable)(binary)) throw new LlamaInstallError(`${asset.name} held no llama-server.exe; ${placed} files were unpacked into ${bin}`)
   say(`unpacked ${placed} files into ${bin}`)
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const outcome = llamaServerStartsOutcome(await (io.startCheck ?? llamaServerExitCode)(binary, env), platform)
   if (outcome !== undefined) throw new LlamaInstallError(outcome)
   return { binary, ...(await readLlamaServerVersion(binary, env)) }

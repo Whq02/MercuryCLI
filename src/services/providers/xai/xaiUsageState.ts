@@ -8,6 +8,7 @@ import { quietBodyJson, serviceWordsOf, wordsNameTheKey } from '../catalogueBody
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveXaiAccount, resolveXaiApiKey, resolveXaiCredential, resolveXaiManagementApiKey, xaiApiBase, xaiGrokProxyBase, xaiGrokProxyBillingHeaders, xaiManagementBase } from './xaiAccounts.js'
 import { xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const XAI_MANAGEMENT_KEY_HINT = "add a management key from the console's settings page to read usage — /logins xai"
 export const XAI_MANAGEMENT_KEY_PAGE = "Optional management key from console.x.ai's settings page unlocks the team usage meter."
@@ -174,7 +175,7 @@ export function decodeXaiSubscriptionCredits(body: unknown, observedAtMs: number
 }
 
 export async function fetchXaiSubscriptionCredits(token: string, io?: XaiUsageIo): Promise<XaiSubscriptionProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now?.() ?? Date.now()
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxy = io?.fetchImpl ? {} : getProxyFetchOptions()
@@ -203,7 +204,7 @@ class UsageReadError extends Error {
 }
 
 export async function fetchXaiUsage(apiKey: string, managementKey: string, io?: XaiUsageIo): Promise<XaiUsageProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now?.() ?? Date.now()
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxy = io?.fetchImpl ? {} : getProxyFetchOptions()
@@ -288,13 +289,13 @@ function syncIdentity(env: NodeJS.ProcessEnv): string {
   return next
 }
 
-export function xaiObservedUsage(env: NodeJS.ProcessEnv = process.env): { usage: XaiObservedUsage | null; failure: XaiUsageFailure | null } {
+export function xaiObservedUsage(env: NodeJS.ProcessEnv = hostEnv()): { usage: XaiObservedUsage | null; failure: XaiUsageFailure | null } {
   syncIdentity(env)
   return { usage: observed, failure }
 }
 
 export function refreshXaiUsage(io?: XaiUsageIo): Promise<XaiObservedUsage | null> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const id = syncIdentity(env)
   const apiKey = resolveXaiApiKey(env)?.key
   const managementKey = resolveXaiManagementApiKey(env)?.key
@@ -347,13 +348,13 @@ function syncPoolIdentity(env: NodeJS.ProcessEnv): string {
   return next
 }
 
-export function xaiObservedSubscriptionCredits(env: NodeJS.ProcessEnv = process.env): { credits: XaiSubscriptionCredits | null; failure: XaiUsageFailure | null } {
+export function xaiObservedSubscriptionCredits(env: NodeJS.ProcessEnv = hostEnv()): { credits: XaiSubscriptionCredits | null; failure: XaiUsageFailure | null } {
   syncPoolIdentity(env)
   return { credits: poolObserved, failure: poolFailure }
 }
 
 export function refreshXaiSubscriptionCredits(io?: XaiUsageIo & XaiOauthIo): Promise<XaiSubscriptionCredits | null> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const id = syncPoolIdentity(env)
   if (resolveXaiAccount(env)?.kind !== 'grok-subscription') return Promise.resolve(null)
   if (poolInFlight?.identity === id) return poolInFlight.work

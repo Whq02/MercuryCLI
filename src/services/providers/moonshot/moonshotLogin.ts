@@ -21,6 +21,7 @@ import {
   type MoonshotUsageIo,
 } from './moonshotUsageState.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export type KimiDeviceLoginEvent =
   | { phase: 'starting' }
@@ -71,7 +72,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
   const { region, io, onEvent } = args
   const pause = args.sleep ?? sleep
   const cancelled = args.cancelled ?? (() => false)
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = (): number => io?.now?.() ?? Date.now()
   onEvent?.({ phase: 'starting' })
   try {
@@ -192,7 +193,7 @@ export async function storeMoonshotApiKeyLogin(
   key: string,
   io?: MoonshotUsageIo,
 ): Promise<MoonshotKeyLoginOutcome> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const probe = await fetchMoonshotBalance(key, io)
   if (probe.state === 'refused') {
     return {

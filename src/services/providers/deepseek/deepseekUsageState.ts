@@ -5,6 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveDeepseekApiKey } from './deepseekAccounts.js'
 import { deepseekBalanceUrl } from './deepseekAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface DeepseekBalanceInfo {
   currency: string
@@ -22,18 +23,18 @@ interface DeepseekObservedBalance {
 let observed: DeepseekObservedBalance | null = null
 let observedIdentity = 'none'
 
-function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   return credentialFingerprint(resolveDeepseekApiKey(env)?.key)
 }
 
-function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
+function dropIfStale(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (observedIdentity !== activeIdentity(env)) {
     observed = null
     observedIdentity = 'none'
   }
 }
 
-export function deepseekObservedBalance(env: NodeJS.ProcessEnv = process.env): DeepseekObservedBalance | null {
+export function deepseekObservedBalance(env: NodeJS.ProcessEnv = hostEnv()): DeepseekObservedBalance | null {
   dropIfStale(env)
   return observed
 }
@@ -84,7 +85,7 @@ export async function fetchDeepseekBalance(
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   try {
-    const response = await fetchWithProviderDeadline(fetchImpl, 'deepseek', PROBE_TIMEOUT_MS, deepseekBalanceUrl(io?.env ?? process.env), {
+    const response = await fetchWithProviderDeadline(fetchImpl, 'deepseek', PROBE_TIMEOUT_MS, deepseekBalanceUrl(io?.env ?? hostEnv()), {
       method: 'GET',
       headers: {
         accept: 'application/json',
@@ -114,7 +115,7 @@ export function refreshDeepseekBalance(io?: {
   force?: boolean
 }): Promise<DeepseekObservedBalance | null> {
   const now = io?.now?.() ?? Date.now()
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   dropIfStale(env)
   if (!io?.force && observed !== null && now - observed.observedAtMs < REFRESH_TTL_MS) {
     return Promise.resolve(observed)

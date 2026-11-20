@@ -24,6 +24,7 @@ import {
   type SetupIo,
 } from './setupTypes.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export interface ResolvedSetupIo {
   env: NodeJS.ProcessEnv
@@ -121,7 +122,7 @@ function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Prom
           fd = openSync(opts.logPath, 'a')
           stdio = ['ignore', fd, fd]
         }
-        const child = spawn(file, args, { detached: true, stdio, cwd: opts.cwd, env: opts.env ?? process.env, windowsHide: true })
+        const child = spawn(file, args, { detached: true, stdio, cwd: opts.cwd, env: opts.env ?? hostEnv(), windowsHide: true })
         child.on('error', error => resolve({ rc: 1, stdout: '', stderr: String(error), lastLine: String(error), detached: true }))
         child.unref()
         if (fd !== undefined) closeSync(fd)
@@ -134,7 +135,7 @@ function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Prom
   return new Promise(resolve => {
     try {
       const verbatim = process.platform === 'win32' && /(?:^|[\\/])cmd(?:\.exe)?$/i.test(file)
-      execFile(file, args, { timeout: opts.timeoutMs ?? SETUP_EXEC_TIMEOUT_MS, maxBuffer: 1 << 24, cwd: opts.cwd, env: opts.env ?? process.env, windowsHide: true, ...(verbatim ? { windowsVerbatimArguments: true } : {}) }, (error, stdout, stderr) => {
+      execFile(file, args, { timeout: opts.timeoutMs ?? SETUP_EXEC_TIMEOUT_MS, maxBuffer: 1 << 24, cwd: opts.cwd, env: opts.env ?? hostEnv(), windowsHide: true, ...(verbatim ? { windowsVerbatimArguments: true } : {}) }, (error, stdout, stderr) => {
         const out = String(stdout)
         const err = String(stderr)
         const rc = error ? (typeof (error as { code?: unknown }).code === 'number' ? ((error as { code: number }).code) : 1) : 0
@@ -156,7 +157,7 @@ function defaultParallelSlots(): number | undefined {
 }
 
 export function resolveSetupIo(io: SetupIo = {}): ResolvedSetupIo {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const platform = io.platform ?? process.platform
   const exists = io.exists ?? ((path: string) => existsSync(path))
   const home = io.home ?? homedir()

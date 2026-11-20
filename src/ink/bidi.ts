@@ -1,6 +1,7 @@
 
 import bidiFactory from 'bidi-js'
 import presentationData from './arabicPresentationForms.json'
+import { hostEnv } from '../utils/hostEnv.js'
 
 type BidiChar = {
   value: string
@@ -29,8 +30,8 @@ function needsSoftwareBidi(): boolean {
   if (softwareBidi === null) {
     softwareBidi =
       process.platform === 'win32' ||
-      process.env.WT_SESSION !== undefined ||
-      process.env.TERM_PROGRAM === 'vscode'
+      hostEnv().WT_SESSION !== undefined ||
+      hostEnv().TERM_PROGRAM === 'vscode'
   }
   return softwareBidi
 }

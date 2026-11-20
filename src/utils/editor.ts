@@ -10,6 +10,7 @@ import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { logForDebugging } from './debug.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { hostLookupWorld, resolveExecutable, whichSync, type LookupWorld } from './which.js'
+import { hostEnv } from './hostEnv.js'
 
 
 const EDITOR_CANDIDATES = ['code', 'nano', 'vi']
@@ -76,9 +77,9 @@ const PLUS_LINE_EDITORS = /\b(vi|vim|nvim|nano|emacs|pico|micro|helix|hx)\b/
 const TERMINAL_EDITORS = /^(?:vi|vim|nvim|nano|emacs|pico|micro|helix|hx|kak)(?![a-z])/
 
 export const getExternalEditor = memoize((): string | undefined => {
-  const visual = process.env.VISUAL?.trim()
+  const visual = hostEnv().VISUAL?.trim()
   if (visual) return visual
-  const editor = process.env.EDITOR?.trim()
+  const editor = hostEnv().EDITOR?.trim()
   if (editor) return editor
   if (process.platform === 'win32') return WINDOWS_DEFAULT_EDITOR
   for (const candidate of EDITOR_CANDIDATES) {
@@ -90,8 +91,8 @@ export const getExternalEditor = memoize((): string | undefined => {
 export type EditorVariable = 'VISUAL' | 'EDITOR' | 'default'
 
 function editorVariable(): EditorVariable {
-  if (process.env.VISUAL?.trim()) return 'VISUAL'
-  if (process.env.EDITOR?.trim()) return 'EDITOR'
+  if (hostEnv().VISUAL?.trim()) return 'VISUAL'
+  if (hostEnv().EDITOR?.trim()) return 'EDITOR'
   return 'default'
 }
 

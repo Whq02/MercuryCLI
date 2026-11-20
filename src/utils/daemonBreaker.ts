@@ -1,4 +1,5 @@
-import { flagEnv, flagEnvLoose } from '../substrate/flagRegistry.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
+import { hostEnv } from './hostEnv.js'
 
 const DEFAULT_BREAKER_CONSECUTIVE_FAILS = 5
 const DEFAULT_BREAKER_WINDOW = 10
@@ -6,13 +7,13 @@ const DEFAULT_BREAKER_RATE = 0.8
 const DEFAULT_BREAKER_COOLDOWN_MS = 60 * 1000
 
 function intEnv(name: string, dflt: number): number {
-  const raw = flagEnvLoose(name)
+  const raw = hostEnv()[name]
   const parsed = raw ? parseInt(raw, 10) : NaN
   return Number.isFinite(parsed) && parsed > 0 ? parsed : dflt
 }
 
 function rateEnv(name: string, dflt: number): number {
-  const raw = flagEnvLoose(name)
+  const raw = hostEnv()[name]
   const parsed = raw ? parseFloat(raw) : NaN
   return Number.isFinite(parsed) && parsed > 0 && parsed <= 1 ? parsed : dflt
 }

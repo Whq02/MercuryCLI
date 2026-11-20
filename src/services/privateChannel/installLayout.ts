@@ -39,6 +39,7 @@ import { checkVendoredPython, payloadVendoredPython, readPythonRecord } from './
 import { payloadDigestOf } from './payloadDigest.js'
 import { nixInstallRoot } from './nixInstallRoot.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export interface LayoutRoots {
   versionsDir: string
@@ -94,7 +95,7 @@ export function resolveLayoutRoots(platform: string = process.platform): LayoutR
   const versionsDir = strip(flagEnv('MERCURY_VERSIONS_DIR') || join(getMercuryHome(), 'versions'))
   const binDir = strip(
     isWindows
-      ? join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Mercury', 'bin')
+      ? join(hostEnv().LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Mercury', 'bin')
       : join(homedir(), '.local', 'bin'),
   )
   const shimPath = join(binDir, isWindows ? 'mercury.cmd' : 'mercury')

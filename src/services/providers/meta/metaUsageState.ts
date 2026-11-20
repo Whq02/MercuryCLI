@@ -8,6 +8,7 @@ import {
   writeMetaMuseCodeGrant,
   type MetaSubsUsageRecord,
 } from './metaAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const META_USAGE_ABSENCE = 'account credit balance and remaining plan allowance are not reported by the Meta Model API; API keys are billed pay-as-you-go'
 
@@ -130,7 +131,7 @@ export function refreshMetaMuseCodeUsage(io?: {
   force?: boolean
   reason?: 'open' | 'operator' | 'sign-in'
 }): Promise<{ usage: MetaMuseCodeUsageView | null; failure: MetaMuseCodeUsageFailure | null }> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now?.() ?? Date.now()
   if (resolveMetaAccount(env)?.kind !== 'muse-code') {
     return Promise.resolve(metaObservedMuseCodeUsage())

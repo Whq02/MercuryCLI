@@ -4,6 +4,7 @@ import { writeStoredMistralAdminApiKey, writeStoredMistralApiKey } from '../prov
 import { mistralApiBase, mistralEnvKey } from './mistralAccounts.js'
 import { fetchMistralLiveModels, MistralCatalogueHttpError } from './mistralCatalogue.js'
 import { fetchMistralIdentity, fetchMistralLimits, mistralUsageFailureWords, type MistralUsageIo } from './mistralUsageState.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface MistralKeyLoginOutcome {
   ok: boolean
@@ -14,7 +15,7 @@ export interface MistralKeyLoginOutcome {
 export async function storeMistralApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<MistralKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Mistral API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   const usageIo: MistralUsageIo = { env, ...(io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}) }
   let note: string
@@ -47,7 +48,7 @@ export async function storeMistralApiKeyLogin(key: string, io?: { fetchImpl?: ty
 export async function storeMistralAdminKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<MistralKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Mistral Admin API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   const probe = await fetchMistralLimits(key, { env, ...(io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}) })
   if (probe.state === 'failed' && probe.failure.kind === 'refused') {

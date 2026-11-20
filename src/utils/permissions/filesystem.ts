@@ -48,6 +48,7 @@ import {
 } from '../../services/remoteFiles/target.js'
 import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -1345,7 +1346,7 @@ function modeSuggestion(context: ToolPermissionContext): PermissionUpdate[] {
 
 
 function getHomeDir(): string {
-  return process.env.HOME || process.env.USERPROFILE || tmpdir()
+  return hostEnv().HOME || hostEnv().USERPROFILE || tmpdir()
 }
 
 function normalizeNfc(path: string): string {

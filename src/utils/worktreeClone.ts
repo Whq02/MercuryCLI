@@ -8,6 +8,7 @@ import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'held' | 'unsupported' | 'failed'
 
@@ -99,7 +100,7 @@ function cloneRoad(): CloneRoad | null {
 }
 
 function machineCpTakesReflink(): Promise<boolean> {
-  const path = process.env.PATH ?? ''
+  const path = hostEnv().PATH ?? ''
   let answer = cpAnswers.get(path)
   if (answer === undefined) {
     answer = execFileNoThrowWithCwd('cp', ['--reflink=always', '--version'], { timeout: 10_000, maxBuffer: 64 * 1024 }).then(asked => asked.code === 0)

@@ -2,8 +2,9 @@ import { localProbeTargets, refreshLocalDiscovery, type LocalServerKind, type Lo
 import { LOCAL_SERVER_NAMES } from '../providers/local/localCatalogue.js'
 import { resolveSetupIo } from './setupIo.js'
 import type { DetectedServer, SetupIo } from './setupTypes.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
-export function ollamaRootOf(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function ollamaRootOf(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const targets = localProbeTargets(env)
   return targets.find(t => t.kind === 'ollama')?.root ?? targets.find(t => t.kind === 'openai-compatible')?.root
 }
@@ -24,7 +25,7 @@ function probeUrl(target: { kind: LocalServerKind; root: string }): string {
   }
 }
 
-export function probeWords(env: NodeJS.ProcessEnv = process.env): string {
+export function probeWords(env: NodeJS.ProcessEnv = hostEnv()): string {
   const targets = localProbeTargets(env)
   if (targets.length === 0) return 'nothing: probing is off (MERCURY_LOCAL_PROBE_TARGETS=none)'
   return targets.map(probeUrl).join(' · ')

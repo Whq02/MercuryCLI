@@ -8,6 +8,7 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 import { cohereApiBase, resolveCohereApiKey } from './cohereAccounts.js'
 import { COHERE_DISPLAY_PINS, isCohereChatModelId, cohereDisplayName, cohereDisplayPin } from './coherePins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface CohereLiveModel {
   id: string
@@ -73,13 +74,13 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${cohereApiBase(env)}` : 'none'
 }
 
-export function getCachedCohereCatalogue(env: NodeJS.ProcessEnv = process.env): CohereCatalogueSnapshot | null {
+export function getCachedCohereCatalogue(env: NodeJS.ProcessEnv = hostEnv()): CohereCatalogueSnapshot | null {
   return resolveCohereApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<CohereCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (cache.size === 0) return EMPTY_IDS
   const snapshot = getCachedCohereCatalogue(env)
   if (!snapshot?.fetchedAtMs) return EMPTY_IDS
@@ -97,7 +98,7 @@ export function cohereListedModel(snapshot: CohereCatalogueSnapshot | null, id: 
 }
 
 export function refreshCohereCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<CohereCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveCohereApiKey(env)
   const identity = identityOf(env)
@@ -131,7 +132,7 @@ export function refreshCohereCatalogue(opts?: { force?: boolean; fetchImpl?: typ
 }
 
 export function kickCohereCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('cohere', env).allowed) return false
   const snapshot = getCachedCohereCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
@@ -152,7 +153,7 @@ export function coherePinRows(): CohereCatalogueRow[] {
   return COHERE_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName, observedAt: pin.observedAt, contextWindow: pin.contextWindow, listedLive: false }))
 }
 
-export function cohereCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: CohereCatalogueRow[]; source: CohereCatalogueSource } {
+export function cohereCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: CohereCatalogueRow[]; source: CohereCatalogueSource } {
   const snapshot = getCachedCohereCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: coherePinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
@@ -164,7 +165,7 @@ export function cohereCatalogueRows(env: NodeJS.ProcessEnv = process.env): { row
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function newestCohereModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function newestCohereModel(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   return cohereCatalogueRows(env).rows[0]?.id
 }
 

@@ -15,6 +15,7 @@ import { hostRecipeSchema, hostWeightManifestSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
 import { fastLoadEstimate, keptVolumes, matchesVolume, vastVolumeBilling, volumeModel, type KeptVolume } from './volumes.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const bankedModelSchema = z.object({
   path: z.string(), bytes: z.number().nonnegative(), verifiedAt: z.string().optional(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -29,7 +30,7 @@ export interface BankState { folder?: string; path?: string; banked: boolean; se
 interface BankReceipt { sha256: string; bytes: number; files: number; check: 'manifest' | 'download'; at: string }
 export const BANK_DOOR = 'Bank · your weights'
 const registryPath = (): string => join(hostDirectory(), 'bank.json')
-const homeDirectory = (): string => process.platform === 'win32' ? homedir() : process.env.HOME?.trim() || homedir()
+const homeDirectory = (): string => process.platform === 'win32' ? homedir() : hostEnv().HOME?.trim() || homedir()
 const isDirectory = (path: string): boolean => { try { return statSync(path).isDirectory() } catch (error) { passedOver(error); return false } }
 const fileSize = (path: string): number | undefined => { try { const stat = lstatSync(path); return stat.isFile() ? stat.size : undefined } catch (error) { passedOver(error); return undefined } }
 const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex')

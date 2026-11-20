@@ -1,5 +1,6 @@
 import { getCachedLocalDiscovery } from './localDiscovery.js'
 import { resolveLocalApiKey } from './localApiKey.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export { resolveLocalApiKey, resolveLocalApiKeyFor, sharedTensorFoldKey, type LocalApiKeyReads } from './localApiKey.js'
 
@@ -22,7 +23,7 @@ export interface LocalAccountRef {
   modelCount: number
 }
 
-export function resolveLocalAccount(env: NodeJS.ProcessEnv = process.env): LocalAccountRef | undefined {
+export function resolveLocalAccount(env: NodeJS.ProcessEnv = hostEnv()): LocalAccountRef | undefined {
   const snapshot = getCachedLocalDiscovery()
   if (!snapshot || snapshot.servers.length === 0) return undefined
   const modelCount = snapshot.servers.reduce((n, s) => n + s.models.length, 0)

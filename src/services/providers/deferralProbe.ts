@@ -5,6 +5,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import type { AnthropicMessageParams } from './anthropic/anthropicWire.js'
 import type { OpenaiResponsesRequest } from './openai/openaiWire.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type GatewayProbeVerdict =
   | 'block'
@@ -128,7 +129,7 @@ export function classifyGatewayProbe(answer: GatewayProbeAnswer): GatewayProbeCl
 }
 
 
-export function gatewayProbePolicyAllows(env: Record<string, string | undefined> = process.env): boolean {
+export function gatewayProbePolicyAllows(env: Record<string, string | undefined> = hostEnv()): boolean {
   if (flagEnv('MERCURY_TOOL_DEFER_PROBE') !== '1') return false
   const traffic = flagEnv('MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', env)
   if (traffic !== undefined && traffic !== '' && traffic !== '0' && traffic.toLowerCase() !== 'false') return false

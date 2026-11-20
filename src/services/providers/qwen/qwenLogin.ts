@@ -3,6 +3,7 @@ import { writeStoredQwenApiKey } from '../providerSecrets.js'
 import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenConsoleOfBase, qwenConsoleWords, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase, type QwenConsole } from './qwenAccounts.js'
 import { fetchQwenLiveModels, forgetQwenCatalogue, probeQwenEndpoints, qwenPinRows, QwenCatalogueHttpError } from './qwenCatalogue.js'
 import { qwenDisplayName } from './qwenPins.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface QwenKeyLoginOutcome {
   ok: boolean
@@ -22,7 +23,7 @@ function hostOf(baseUrl: string): string {
 export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<QwenKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: `Paste a non-empty ${QWEN_CONSOLES} API key.` }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const fetchImpl = io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string

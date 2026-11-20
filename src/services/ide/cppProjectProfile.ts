@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { compileDbRemedy, probeCompileDb } from '../lsp/clangdLane.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type CompileDbSource = 'root' | 'build-dir' | 'compile-flags' | 'clangd-config'
 
@@ -207,7 +208,7 @@ function findCppBuildDirs(root: string, presets: CppCmakePreset[]): CppBuildDirI
 let profileCache: { at: number; key: string; profile: CppProjectProfile } | null = null
 
 function profileKey(root: string, from: string): string {
-  return [root, path.resolve(from), process.env.PATH ?? ''].join('\0')
+  return [root, path.resolve(from), hostEnv().PATH ?? ''].join('\0')
 }
 
 export function _resetCppProjectForTesting(): void {

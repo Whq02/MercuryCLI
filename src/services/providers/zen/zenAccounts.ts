@@ -1,37 +1,38 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredZenApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const ZEN_API_BASE_URL = 'https://opencode.ai/zen/v1'
 export const ZEN_GO_API_BASE_URL = 'https://opencode.ai/zen/go/v1'
 export const ZEN_CONSOLE_URL = 'https://opencode.ai/console'
 export const ZEN_ENV_KEY = 'OPENCODE_API_KEY'
 
-export function zenApiBase(env: NodeJS.ProcessEnv = process.env): string {
+export function zenApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_ZEN_API_BASE', env)?.trim() || ZEN_API_BASE_URL).replace(/\/+$/, '')
 }
 
-export function zenGoApiBase(env: NodeJS.ProcessEnv = process.env): string {
+export function zenGoApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_ZEN_GO_API_BASE', env)?.trim() || ZEN_GO_API_BASE_URL).replace(/\/+$/, '')
 }
 
-export function zenChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function zenChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${zenApiBase(env)}/chat/completions`
 }
 
-export function zenResponsesUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function zenResponsesUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${zenApiBase(env)}/responses`
 }
 
-export function zenModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function zenModelsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${zenApiBase(env)}/models`
 }
 
-export function zenGoUsageUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function zenGoUsageUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${zenGoApiBase(env)}/usage`
 }
 
-export function resolveZenApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
+export function resolveZenApiKey(env: NodeJS.ProcessEnv = hostEnv()): { key: string; source: 'env' | 'stored' } | undefined {
   const key = env[ZEN_ENV_KEY]?.trim()
   if (key) return { key, source: 'env' }
   const fromCommand = resolveProviderKeyCommand('zen')
@@ -46,7 +47,7 @@ export interface ZenAccountRef {
   keySource: 'env' | 'stored'
 }
 
-export function resolveZenAccount(env: NodeJS.ProcessEnv = process.env): ZenAccountRef | undefined {
+export function resolveZenAccount(env: NodeJS.ProcessEnv = hostEnv()): ZenAccountRef | undefined {
   const key = resolveZenApiKey(env)
   return key
     ? { kind: 'api-key', label: key.source === 'env' ? `${ZEN_ENV_KEY} (env)` : 'OpenCode Zen API key (stored, auth-scoped)', keySource: key.source }

@@ -6,6 +6,7 @@ import { existsSync, fstatSync, readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 import { delimiter, join } from 'node:path'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
 
@@ -14,7 +15,7 @@ export const OWNER_FD_ENV = 'MERCURY_DAEMON_OWNER_FD'
 let win32PsExeCached: string | null = null
 function win32PsExe(): string {
   if (win32PsExeCached !== null) return win32PsExeCached
-  const fromPath = (process.env.PATH ?? '')
+  const fromPath = (hostEnv().PATH ?? '')
     .split(delimiter)
     .filter(Boolean)
     .map(dir => join(dir, 'pwsh.exe'))
@@ -26,7 +27,7 @@ function win32PsExe(): string {
         return false
       }
     })
-  const fixed = join(process.env.ProgramFiles ?? 'C:\\Program Files', 'PowerShell', '7', 'pwsh.exe')
+  const fixed = join(hostEnv().ProgramFiles ?? 'C:\\Program Files', 'PowerShell', '7', 'pwsh.exe')
   win32PsExeCached = fromPath ?? (existsSync(fixed) ? fixed : 'powershell.exe')
   return win32PsExeCached
 }
@@ -399,14 +400,14 @@ export const OWNER_WATCH_GRACE_CHECKS = 2
 export const OWNER_IDENTITY_FLOOR_MS = 60_000
 export const OWNER_PROBE_BACKOFF_FACTOR = 4
 
-export function parseOwnerPid(env: NodeJS.ProcessEnv = process.env): number | null {
+export function parseOwnerPid(env: NodeJS.ProcessEnv = hostEnv()): number | null {
   const raw = flagEnv(OWNER_PID_ENV, env)?.trim()
   if (!raw) return null
   const pid = Number(raw)
   return Number.isInteger(pid) && pid > 0 ? pid : null
 }
 
-export function parseOwnerFd(env: NodeJS.ProcessEnv = process.env): number | null {
+export function parseOwnerFd(env: NodeJS.ProcessEnv = hostEnv()): number | null {
   const raw = flagEnv(OWNER_FD_ENV, env)?.trim()
   if (!raw) return null
   const fd = Number(raw)

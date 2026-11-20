@@ -105,6 +105,7 @@ import { zaiUsageView } from './providerUsage/zai.js'
 export { zaiAccountFacts, zaiQuotaFigures, zaiQuotaWindowViews } from './providerUsage/zai.js'
 import { zenUsageView } from './providerUsage/zen.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 export { zenGoWindowViews } from './providerUsage/zen.js'
 
 export type UsageProvider = 'anthropic' | 'openai'
@@ -555,7 +556,7 @@ export async function refreshProviderUsage(provider: ProviderFamilyId, io?: Usag
     try {
       const view = usageForProvider(provider)
       const account = provider === 'anthropic' || provider === 'openai' ? activeWalletEntry(provider)?.id : engineIdentityLive(provider)
-      const envIdentity = credentialFingerprint(PROVIDER_CREDENTIAL_ENV_VARS[provider].map(name => process.env[name] ?? '').join('\0'))
+      const envIdentity = credentialFingerprint(PROVIDER_CREDENTIAL_ENV_VARS[provider].map(name => hostEnv()[name] ?? '').join('\0'))
       const key = `${view.sourceKind}:${account ?? 'unidentified'}:${readSignInRecord(provider)?.at ?? 'untimed'}:${envIdentity}`
       await recordUsageObservations(provider, key, [...view.windows, ...view.pools])
     } catch (error) {

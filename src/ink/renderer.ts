@@ -25,6 +25,7 @@ import { consumeAbsoluteRemovedFlag } from './node-cache.js'
 import { applyRecessPass } from './recessLayer.js'
 import { logForDebugging } from '../utils/debug.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 type RenderOptions = {
   frontFrame: Frame
@@ -44,7 +45,7 @@ export type RenderResult = {
 
 export type Renderer = (options: RenderOptions) => RenderResult
 
-const COMPOSED_TEE = process.env.INK_COMPOSED_TEE
+const COMPOSED_TEE = hostEnv().INK_COMPOSED_TEE
 let teeFrameNumber = 0
 
 function teeComposedFrame(screen: Screen, signals: ComposeSignals): void {

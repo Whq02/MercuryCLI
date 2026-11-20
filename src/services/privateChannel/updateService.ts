@@ -55,6 +55,7 @@ import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, 
 import { foreignInstallerOf, resolveInstallProvenance } from './installProvenance.js'
 import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export function runningRuntime(): RunningRuntime {
   return describeRunningRuntime({
@@ -673,7 +674,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
     }
     const shim = writeShim(roots, { force: opts.force })
     const { removed: pruned, left } = pruneSupersededVersions(roots, await livePayloadDirs(roots))
-    const binDirOnPath = (process.env.PATH ?? '')
+    const binDirOnPath = (hostEnv().PATH ?? '')
       .split(roots.isWindows ? ';' : ':')
       .some(p => pathEntryEquals(p, roots.binDir, roots.isWindows))
     const io = pathEntryIo()

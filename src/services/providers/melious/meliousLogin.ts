@@ -2,11 +2,12 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredMeliousApiKey } from '../providerSecrets.js'
 import { meliousApiBase, meliousEnvKey } from './meliousAccounts.js'
 import { fetchMeliousLiveModels, MeliousCatalogueHttpError, refreshMeliousCatalogue } from './meliousCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export async function storeMeliousApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<{ ok: boolean; stored: boolean; receipt: string }> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Melious AI API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let listUnavailable = false
   try {

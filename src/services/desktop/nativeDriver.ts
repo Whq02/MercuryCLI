@@ -58,6 +58,7 @@ import {
   type DesktopAddonClickablePoint,
 } from './pack.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type DesktopDriverLoad =
   | { state: 'ok'; driver: DesktopDriver }
@@ -699,7 +700,7 @@ async function nativeOwnTerminalApplication(this: NativeDesktopDriver, front?: D
       return fail(classifyThrown(error))
     }
     if (terminal === null) {
-      const program = (process.env.TERM_PROGRAM ?? '').trim()
+      const program = (hostEnv().TERM_PROGRAM ?? '').trim()
       const identity = process.platform === 'darwin' && Object.hasOwn(TERMINAL_IDENTITIES, program) ? TERMINAL_IDENTITIES[program] : undefined
       if (identity !== undefined) terminal = { identity, name: program, pid: null, title: null, bounds: null }
     }

@@ -2,6 +2,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { MODEL_ALIASES } from '../../utils/model/aliases.js'
 import { MISTRAL_HOSTED_DEEPSEEK_IDS } from './mistral/mistralPins.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type CallModelRoute =
   | 'anthropic'
@@ -97,7 +98,7 @@ function liveIdsReaderOf(family: LiveListFamily): LiveIdsReader {
   }
 }
 
-export function cachedLiveIdsOf(family: LiveListFamily, env: Record<string, string | undefined> = process.env): ReadonlySet<string> | undefined {
+export function cachedLiveIdsOf(family: LiveListFamily, env: Record<string, string | undefined> = hostEnv()): ReadonlySet<string> | undefined {
   try {
     return liveIdsReaderOf(family).cachedLiveIds?.(env as NodeJS.ProcessEnv)
   } catch (error) {
@@ -108,7 +109,7 @@ export function cachedLiveIdsOf(family: LiveListFamily, env: Record<string, stri
 
 export function liveListedRouteOf(
   model: string,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): LiveListFamily | undefined {
   const lowered = model.trim().replace(ANNOTATION_RE, '').toLowerCase()
   if (lowered === '' || lowered.includes('/')) return undefined
@@ -164,7 +165,7 @@ export type ModelIdRecognition =
 
 export function recognizeModelId(
   model: string,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): ModelIdRecognition {
   const bare = model.trim().replace(ANNOTATION_RE, '')
   const lowered = bare.toLowerCase()
@@ -200,7 +201,7 @@ export type ModelRouteVerdict =
 
 export function classifyModelRoute(
   model: string | undefined,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): ModelRouteVerdict {
   if (model === undefined || model.trim() === '') return { kind: 'absence' }
   const recognition = recognizeModelId(model, env)

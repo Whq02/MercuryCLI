@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { groqApiBase, resolveGroqApiKey } from './groqAccounts.js'
 import { GROQ_DISPLAY_PINS, GROQ_OBSERVED_AT, isGroqTextModelId, groqDisplayName, groqDisplayPin, groqWireId, groqQualifiedId } from './groqPins.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface GroqLiveModel {
   id: string
@@ -79,7 +80,7 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${groqApiBase(env)}` : 'none'
 }
 
-export function getCachedGroqCatalogue(env: NodeJS.ProcessEnv = process.env): GroqCatalogueSnapshot | null {
+export function getCachedGroqCatalogue(env: NodeJS.ProcessEnv = hostEnv()): GroqCatalogueSnapshot | null {
   return resolveGroqApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
@@ -89,7 +90,7 @@ export function groqListedModel(snapshot: GroqCatalogueSnapshot | null, id: stri
 }
 
 export function refreshGroqCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<GroqCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveGroqApiKey(env)
   const identity = identityOf(env)
@@ -135,7 +136,7 @@ function groqPinRows(): GroqCatalogueRow[] {
   return GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName, observedAt: GROQ_OBSERVED_AT, contextWindow: pin.contextWindow, listedLive: false }))
 }
 
-export function groqCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: GroqCatalogueRow[]; source: GroqCatalogueSource } {
+export function groqCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: GroqCatalogueRow[]; source: GroqCatalogueSource } {
   const snapshot = getCachedGroqCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: groqPinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
@@ -147,7 +148,7 @@ export function groqCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows:
   return { rows, source: { kind: 'live', count: rows.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function groqCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function groqCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const snapshot = getCachedGroqCatalogue(env)
   const { source } = groqCatalogueRows(env)
   if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`

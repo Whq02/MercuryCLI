@@ -11,6 +11,7 @@ import { ggufServerRoots } from '../../localSetup/ggufServers.js'
 import { tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
 import { helperPort, tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export type { LocalServerKind }
 
@@ -118,7 +119,7 @@ export function rememberedTensorFoldTargets(): { kind: 'tensorfold'; root: strin
 }
 
 export function localProbeTargets(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { kind: LocalServerKind; root: string }[] {
   const pinned = flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()
   let targets: { kind: LocalServerKind; root: string }[]
@@ -163,7 +164,7 @@ async function probeJson(
 ): Promise<unknown | undefined> {
   const fetchImpl = io.fetchImpl ?? getApiFetch()
   const timeoutMs = init?.timeoutMs ?? io.timeoutMs ?? LOCAL_PROBE_TIMEOUT_MS
-  const key = resolveLocalApiKeyFor(probeRoot(url), io.env ?? process.env)
+  const key = resolveLocalApiKeyFor(probeRoot(url), io.env ?? hostEnv())
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'local', timeoutMs, url, {
       method: init?.method ?? 'GET',
@@ -219,7 +220,7 @@ function ollamaServedMap(psBody: unknown): Map<string, OllamaServed> {
 }
 
 export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
-  const answer = await fetchTensorFold(`${root}/api/tags`, io, resolveLocalApiKeyFor(probeRoot(root), io.env ?? process.env)?.key)
+  const answer = await fetchTensorFold(`${root}/api/tags`, io, resolveLocalApiKeyFor(probeRoot(root), io.env ?? hostEnv())?.key)
   const tags = answer !== undefined && answer.status >= 200 && answer.status < 300 ? rec(answer.body) : undefined
   if (!tags || !Array.isArray(tags.models)) return undefined
   const engine = tensorFoldAnswers(answer) ? await probeTensorFold(root, io) : undefined
@@ -440,7 +441,7 @@ function tensorFoldModelRecord(m: Record<string, unknown>, baseUrl: string): Loc
 }
 
 export async function probeTensorFold(root: string, io: LocalDiscoveryIo, prefetched?: { models?: unknown }): Promise<LocalServerRecord | undefined> {
-  const key = resolveLocalApiKeyFor(root, io.env ?? process.env)?.key
+  const key = resolveLocalApiKeyFor(root, io.env ?? hostEnv())?.key
   const modelsBody = prefetched?.models !== undefined ? prefetched.models : (await fetchTensorFold(`${root}/v1/models`, io, key))?.body
   const list = tensorFoldModelList(modelsBody)
   if (!list) return undefined
@@ -605,7 +606,7 @@ async function probeTarget(target: { kind: LocalServerKind; root: string }, io: 
 }
 
 export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<LocalDiscoverySnapshot> {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const targets = localProbeTargets(env)
   let targetCount = targets.length
   const results = await Promise.all(targets.map(async target => {

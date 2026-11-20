@@ -21,6 +21,7 @@ import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
 import { UNREAD_PART, layersOf, printedBy, readShellCommands, type ReadCommand } from '../wards/wardsShellRead.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
@@ -172,11 +173,11 @@ function projectRoots(): string[] {
 }
 
 function ownRoots(): { roots: string[]; temps: string[] } {
-  const key = [getOriginalCwd(), getStartingCwd(), process.env.TMPDIR ?? '', flagEnv('MERCURY_TMPDIR') ?? ''].join('\0')
+  const key = [getOriginalCwd(), getStartingCwd(), hostEnv().TMPDIR ?? '', flagEnv('MERCURY_TMPDIR') ?? ''].join('\0')
   if (ownRootsCache?.key === key) return ownRootsCache
   const roots = projectRoots().flatMap(root => [root, realForm(root)])
   const temps = new Set<string>()
-  for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, flagEnv('MERCURY_TMPDIR'), process.env.TEMP, process.env.TMP, '/tmp', '/private/tmp', '/var/tmp', '/private/var/tmp']) {
+  for (const temp of [getMercuryTempDir(), tmpdir(), hostEnv().TMPDIR, flagEnv('MERCURY_TMPDIR'), hostEnv().TEMP, hostEnv().TMP, '/tmp', '/private/tmp', '/var/tmp', '/private/var/tmp']) {
     if (!temp) continue
     temps.add(temp.replace(/[\\/]+$/, ''))
     temps.add(realForm(temp).replace(/[\\/]+$/, ''))
@@ -221,7 +222,7 @@ function expandKnown(text: string, cwd: string | null): string | null {
   const home = homedir()
   if (out === '~' || out.startsWith('~/') || out.startsWith('~\\')) out = home + out.slice(1)
   out = out.replace(/\$\{?HOME\}?|\$env:USERPROFILE|\$env:HOME/gi, home)
-  out = out.replace(/\$\{?TMPDIR\}?|\$env:TEMP|\$env:TMP/gi, process.env.TMPDIR ?? tmpdir())
+  out = out.replace(/\$\{?TMPDIR\}?|\$env:TEMP|\$env:TMP/gi, hostEnv().TMPDIR ?? tmpdir())
   if (/\$\{?PWD\}?/.test(out)) {
     if (cwd === null) return null
     out = out.replace(/\$\{?PWD\}?/g, cwd)

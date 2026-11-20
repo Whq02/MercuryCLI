@@ -1,7 +1,8 @@
 import { getMercuryHome } from '../../envUtils.js'
+import { hostEnv } from '../../hostEnv.js'
 
 export function normalizeInlineScript(script: string): string {
-  const home = (process.env.HOME || process.env.USERPROFILE || '').replace(/\\/g, '/')
+  const home = (hostEnv().HOME || hostEnv().USERPROFILE || '').replace(/\\/g, '/')
   const config = getMercuryHome().replace(/\\/g, '/')
   const exe = process.execPath.replace(/\\/g, '/')
   return script

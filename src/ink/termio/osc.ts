@@ -5,6 +5,7 @@ import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { BEL, ESC, SEP } from './ansi.js'
 import type { Action, Color, TabStatusAction } from './display-types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const OSC_PREFIX = `${ESC}]`
 const ST = `${ESC}\\`
@@ -18,10 +19,10 @@ export function osc(...parts: (string | number)[]): string {
 }
 
 export function wrapForMultiplexer(sequence: string): string {
-  if (process.env.TMUX) {
+  if (hostEnv().TMUX) {
     return `${ESC}Ptmux;${sequence.replaceAll(ESC, ESC + ESC)}${ESC}\\`
   }
-  if (process.env.STY) {
+  if (hostEnv().STY) {
     return `${ESC}P${sequence}${ESC}\\`
   }
   return sequence
@@ -71,8 +72,8 @@ export const CLEAR_TERMINAL_TITLE = belTerminated(OSC.SET_TITLE_AND_ICON, '')
 type ClipboardPath = 'native' | 'tmux-buffer' | 'osc52'
 
 export function getClipboardPath(): ClipboardPath {
-  if (process.platform === 'darwin' && !process.env.SSH_CONNECTION) return 'native'
-  if (process.env.TMUX) return 'tmux-buffer'
+  if (process.platform === 'darwin' && !hostEnv().SSH_CONNECTION) return 'native'
+  if (hostEnv().TMUX) return 'tmux-buffer'
   return 'osc52'
 }
 
@@ -97,8 +98,8 @@ export function copyReceipt(path: ClipboardPath | 'unsettled'): CopyReceipt {
 const SUBPROCESS_TIMEOUT_MS = 2000
 
 async function tmuxLoadBuffer(text: string): Promise<boolean> {
-  if (!process.env.TMUX) return false
-  const args = process.env.LC_TERMINAL === 'iTerm2' ? ['load-buffer', '-'] : ['load-buffer', '-w', '-']
+  if (!hostEnv().TMUX) return false
+  const args = hostEnv().LC_TERMINAL === 'iTerm2' ? ['load-buffer', '-'] : ['load-buffer', '-w', '-']
   const result = await execFileNoThrow('tmux', args, {
     useCwd: false,
     timeout: SUBPROCESS_TIMEOUT_MS,
@@ -115,7 +116,7 @@ export function windowsPowershellInput(text: string): Buffer {
   return Buffer.from(text, 'utf8')
 }
 
-export function windowsPowershellEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+export function windowsPowershellEnv(base: NodeJS.ProcessEnv = hostEnv()): NodeJS.ProcessEnv {
   const overrides: NodeJS.ProcessEnv = {}
   for (const key of Object.keys(base)) if (key.toUpperCase() === 'PSMODULEPATH') overrides[key] = undefined
   return overrides
@@ -148,7 +149,7 @@ async function runNative(
   return result.code === 0
 }
 
-export function pbcopyLocaleEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv | undefined {
+export function pbcopyLocaleEnv(env: NodeJS.ProcessEnv = hostEnv()): NodeJS.ProcessEnv | undefined {
   const effective = env.LC_ALL || env.LC_CTYPE || env.LANG || ''
   return /utf-?8/i.test(effective) ? undefined : { LC_ALL: 'en_US.UTF-8' }
 }
@@ -201,7 +202,7 @@ async function copyNative(text: string): Promise<NativeRoute | null> {
 
 const TERMINALS_WITHOUT_OSC52: ReadonlySet<string> = new Set(['Apple_Terminal'])
 
-export function terminalDropsOsc52(env: NodeJS.ProcessEnv = process.env): boolean {
+export function terminalDropsOsc52(env: NodeJS.ProcessEnv = hostEnv()): boolean {
   return TERMINALS_WITHOUT_OSC52.has(env.TERM_PROGRAM ?? '')
 }
 
@@ -247,7 +248,7 @@ export async function setClipboardWithReceipt(text: string): Promise<ClipboardRe
   const base64 = Buffer.from(text, 'utf8').toString('base64')
   const rawSequence = osc(OSC.CLIPBOARD, 'c', base64)
 
-  const nativePromise = process.env.SSH_CONNECTION
+  const nativePromise = hostEnv().SSH_CONNECTION
     ? Promise.resolve<NativeRoute | null>(null)
     : copyNative(text)
   const tmuxBufferLoaded = await tmuxLoadBuffer(text)

@@ -19,6 +19,7 @@ import { axisReusable, markSubtreeDirty, type SizingEntry, storeSizing, zeroSubt
 import { resolveFlexibleLengths } from './cellLayout/flex.js'
 import { type FinalRect, roundPass } from './cellLayout/rounding.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 let _visited = 0
 let _measured = 0
@@ -965,7 +966,7 @@ let _traceFile: string | undefined | null = null
 function traceContamination(node: CellLayoutNode, w: number, h: number): void {
   if (_traceFile === null) {
     _traceFile =
-      typeof process !== 'undefined' ? process.env['INK_YOGA_TRACE'] : undefined
+      typeof process !== 'undefined' ? hostEnv()['INK_YOGA_TRACE'] : undefined
   }
   if (!_traceFile) return
   for (const c of node.children) {

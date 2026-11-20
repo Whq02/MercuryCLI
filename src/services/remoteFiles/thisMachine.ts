@@ -2,6 +2,7 @@ import { homedir, hostname, networkInterfaces, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { isRemotePath, parseRemotePath, resolvedAuthority, type RemoteTarget } from './target.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const LOOPBACK_NAMES: ReadonlySet<string> = new Set(['localhost', 'localhost.localdomain', 'ip6-localhost', 'ip6-loopback'])
 
@@ -112,7 +113,7 @@ function ownUserName(): string | undefined {
   try {
     return userInfo().username
   } catch {
-    return process.env.USER ?? process.env.USERNAME
+    return hostEnv().USER ?? hostEnv().USERNAME
   }
 }
 

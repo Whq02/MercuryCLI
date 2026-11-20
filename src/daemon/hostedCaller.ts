@@ -1,5 +1,6 @@
 import { getAncestorPidsAsync } from '../utils/genericProcessUtils.js'
 import { parseWorkerParentPid } from './workerParentWatch.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export const HOSTED_CALLER_REFUSAL = 'run it from a plain shell; from inside a hosted session your own turn would end'
 
@@ -33,7 +34,7 @@ export async function hostedCallerOf(
 ): Promise<HostedCallerVerdict> {
   const pids = usablePids(daemonPids)
   if (pids.length === 0) return { hosted: false }
-  const workerParentPid = parseWorkerParentPid(opts.env ?? process.env)
+  const workerParentPid = parseWorkerParentPid(opts.env ?? hostEnv())
   const stamped = pids.find(pid => workerParentPid === pid)
   if (stamped !== undefined) return { hosted: true, daemonPid: stamped, road: 'stamp' }
   const ancestors = await (opts.ancestors ?? getAncestorPidsAsync)(opts.pid ?? process.pid)

@@ -29,6 +29,7 @@ import {
   tierLeaseWarm,
 } from './cacheClockCore.js'
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 const ROLLUP_FLUSH_EVERY = 8
 const ROLLUP_KEEP_FILES = 200
@@ -95,7 +96,7 @@ function resolvePin(): TtlChoice | null {
 }
 
 function resolveClass(): CacheClockClass {
-  const e = process.env
+  const e = hostEnv()
   const worker = (flagEnv('MERCURY_DAEMON_PERMISSION_MODE', e) ?? '') !== ''
   if (worker) return 'worker'
   return getIsNonInteractiveSession() ? 'headless' : 'interactive'

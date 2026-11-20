@@ -26,6 +26,7 @@ import { resetLineOf, fullWindowLine, figuresLine } from './lines.js'
 import { type UsageSection, orderUsageSections, liveSessionFamily, liveSignInRecency, usageSectionPlan } from './plan.js'
 import { rentalUsageLines } from './sections.js'
 import { markOpenAsked } from './anthropicSection.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function usageColumns(width: number, count: number): { perRow: number; colW: number; meterW: number; gap: number } {
   const inner = Math.max(1, Math.floor(width))
@@ -148,7 +149,7 @@ export function usageCompactLines(
       lines.push({ text: section.title, heading: true }, ...rentalUsageLines(rental).map(text => ({ text: `  ${text}`, heading: false })))
       continue
     }
-    const identity = endpoint ? resolveCompatAccount(process.env, endpoint.name)?.label ?? reads.identity(section.id) : reads.identity(section.id)
+    const identity = endpoint ? resolveCompatAccount(hostEnv(), endpoint.name)?.label ?? reads.identity(section.id) : reads.identity(section.id)
     lines.push({ text: `${section.title} · ${identity}`, heading: true })
     if (!section.family.credentialed) continue
     if (section.id === 'local') {

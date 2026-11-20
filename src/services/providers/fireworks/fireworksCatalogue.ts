@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { fireworksApiBase, resolveFireworksApiKey } from './fireworksAccounts.js'
 import { FIREWORKS_DISPLAY_PINS, FIREWORKS_OBSERVED_AT, isFireworksTextModelId, fireworksDisplayName, fireworksDisplayPin, fireworksWireId, fireworksQualifiedId } from './fireworksPins.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface FireworksLiveModel {
   id: string
@@ -78,7 +79,7 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${fireworksApiBase(env)}` : 'none'
 }
 
-export function getCachedFireworksCatalogue(env: NodeJS.ProcessEnv = process.env): FireworksCatalogueSnapshot | null {
+export function getCachedFireworksCatalogue(env: NodeJS.ProcessEnv = hostEnv()): FireworksCatalogueSnapshot | null {
   return resolveFireworksApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
@@ -88,7 +89,7 @@ export function fireworksListedModel(snapshot: FireworksCatalogueSnapshot | null
 }
 
 export function refreshFireworksCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<FireworksCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveFireworksApiKey(env)
   const identity = identityOf(env)
@@ -134,7 +135,7 @@ function fireworksPinRows(): FireworksCatalogueRow[] {
   return FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName, observedAt: pin.observedAt ?? FIREWORKS_OBSERVED_AT, contextWindow: pin.contextWindow, listedLive: false }))
 }
 
-export function fireworksCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: FireworksCatalogueRow[]; source: FireworksCatalogueSource } {
+export function fireworksCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: FireworksCatalogueRow[]; source: FireworksCatalogueSource } {
   const snapshot = getCachedFireworksCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: fireworksPinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
@@ -146,7 +147,7 @@ export function fireworksCatalogueRows(env: NodeJS.ProcessEnv = process.env): { 
   return { rows, source: { kind: 'live', count: rows.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function fireworksCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function fireworksCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const snapshot = getCachedFireworksCatalogue(env)
   const { source } = fireworksCatalogueRows(env)
   if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`

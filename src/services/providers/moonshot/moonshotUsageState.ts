@@ -14,6 +14,7 @@ import {
   type KimiRegion,
   type MoonshotOauthIo,
 } from './moonshotAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface MoonshotUsageIo {
   fetchImpl?: typeof fetch
@@ -30,7 +31,7 @@ function usageFetch(io?: MoonshotUsageIo): { fetchImpl: typeof fetch; proxyOptio
 }
 
 
-export function moonshotBalanceUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function moonshotBalanceUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${moonshotApiBase(env)}/users/me/balance`
 }
 
@@ -44,18 +45,18 @@ export interface MoonshotObservedBalance {
 let observed: MoonshotObservedBalance | null = null
 let observedIdentity = 'none'
 
-function activeKeyIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeKeyIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   return credentialFingerprint(resolveMoonshotApiKey(env)?.key)
 }
 
-function dropStaleBalance(env: NodeJS.ProcessEnv = process.env): void {
+function dropStaleBalance(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (observedIdentity !== activeKeyIdentity(env)) {
     observed = null
     observedIdentity = 'none'
   }
 }
 
-export function moonshotObservedBalance(env: NodeJS.ProcessEnv = process.env): MoonshotObservedBalance | null {
+export function moonshotObservedBalance(env: NodeJS.ProcessEnv = hostEnv()): MoonshotObservedBalance | null {
   dropStaleBalance(env)
   return observed
 }
@@ -89,7 +90,7 @@ export type MoonshotKeyProbe =
 const PROBE_TIMEOUT_MS = 10_000
 
 export async function fetchMoonshotBalance(key: string, io?: MoonshotUsageIo): Promise<MoonshotKeyProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const { fetchImpl, proxyOptions } = usageFetch(io)
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'moonshot', PROBE_TIMEOUT_MS, moonshotBalanceUrl(env), {
@@ -117,7 +118,7 @@ let inFlight: Promise<MoonshotObservedBalance | null> | null = null
 
 export function refreshMoonshotBalance(io?: MoonshotUsageIo): Promise<MoonshotObservedBalance | null> {
   const now = io?.now?.() ?? Date.now()
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   dropStaleBalance(env)
   if (!io?.force && observed !== null && now - observed.observedAtMs < REFRESH_TTL_MS) {
     return Promise.resolve(observed)
@@ -342,7 +343,7 @@ export async function fetchKimiManagedUsage(
   region: KimiRegion,
   io?: MoonshotUsageIo,
 ): Promise<KimiUsageProbe> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const { fetchImpl, proxyOptions } = usageFetch(io)
   dropStaleManaged()
   const identity = activeSignInIdentity()

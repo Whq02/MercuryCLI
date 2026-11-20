@@ -53,6 +53,7 @@ interface TreeSitterModule {
 
 import { GRAMMAR_REGISTRY, type GrammarRegistryEntry } from './grammarRegistry.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type PolyglotLanguage = GrammarRegistryEntry
 
@@ -281,7 +282,7 @@ function probeFragileGrammarOnce(
   let verdict: { state: 'unavailable'; note: string } | null
   try {
     const probe = spawnSync(process.execPath, [...(held ? HELD_TIER_NODE_FLAGS : []), '-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {
-      env: process.env,
+      env: hostEnv(),
       timeout: 30_000,
       stdio: 'ignore',
       windowsHide: true,
@@ -372,7 +373,7 @@ function holdsOptimisingTier(lang: PolyglotLanguage): boolean {
     optimisingTierCanBeHeld({
       versions: process.versions as Record<string, string | undefined>,
       execArgv: process.execArgv,
-      nodeOptions: process.env.NODE_OPTIONS,
+      nodeOptions: hostEnv().NODE_OPTIONS,
       released: !flagEnabled('MERCURY_GRAMMAR_BASELINE'),
     })
   )

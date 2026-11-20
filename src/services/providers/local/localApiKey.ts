@@ -3,9 +3,10 @@ import { readStoredLocalApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { tensorFoldHostKey, tensorFoldHostRoot } from './tensorfoldHosts.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function resolveLocalApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = flagEnv('MERCURY_LOCAL_API_KEY', env)?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -39,7 +40,7 @@ export function sharedTensorFoldKey(root: string): string | undefined {
 
 export function resolveLocalApiKeyFor(
   baseUrl: string,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
   reads: LocalApiKeyReads = {},
 ): { key: string; source: 'env' | 'stored' | 'host' | 'shared' } | undefined {
   const root = tensorFoldHostRoot(baseUrl)

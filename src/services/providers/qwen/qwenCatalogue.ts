@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
 import { QWEN_CONSOLES, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenEndpointWhere, qwenListAnswersEveryCaller, qwenProbeLane, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
 import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPinWireId, qwenPinsFor, qwenPreservesThinking, qwenThinkingDial, type QwenPinScope, type QwenThinkingDial } from './qwenPins.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface QwenLiveModel {
   id: string
@@ -62,7 +63,7 @@ async function authenticateQwenCodingKey(opts: { baseUrl: string; key: string; m
 }
 
 export async function fetchQwenLiveModels(opts: { baseUrl: string; key: string; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<{ models: QwenLiveModel[]; otherLines: number; fetchedAtMs: number }> {
-  const env = opts.env ?? process.env
+  const env = opts.env ?? hostEnv()
   const label = qwenEndpointWhere(opts.baseUrl, env)
   let response: Response
   try {
@@ -99,7 +100,7 @@ export type QwenProbeOutcome =
   | { kind: 'unreachable'; words: string; tried: number }
 
 export async function probeQwenEndpoints(opts: { key: string; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<QwenProbeOutcome> {
-  const env = opts.env ?? process.env
+  const env = opts.env ?? hostEnv()
   const endpoints = qwenProbeLane(opts.key, env)
   const faults: string[] = []
   const refusalWords: string[] = []
@@ -137,7 +138,7 @@ export interface QwenCatalogueSnapshot {
 
 const cache = new Map<string, QwenCatalogueSnapshot>()
 const inFlight = new Map<string, Promise<QwenCatalogueSnapshot | null>>()
-export function qwenCatalogueIdentity(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function qwenCatalogueIdentity(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const identity = identityOf(env)
   return identity === 'none' ? undefined : identity
 }
@@ -147,13 +148,13 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${qwenBaseOverride(env) ?? 'bound'}` : 'none'
 }
 
-export function getCachedQwenCatalogue(env: NodeJS.ProcessEnv = process.env): QwenCatalogueSnapshot | null {
+export function getCachedQwenCatalogue(env: NodeJS.ProcessEnv = hostEnv()): QwenCatalogueSnapshot | null {
   return resolveQwenCredentialSnapshot(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<QwenCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (cache.size === 0) return EMPTY_IDS
   const snapshot = getCachedQwenCatalogue(env)
   if (!snapshot?.fetchedAtMs) return EMPTY_IDS
@@ -171,7 +172,7 @@ export function qwenListedModel(snapshot: QwenCatalogueSnapshot | null, id: stri
 }
 
 export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<QwenCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveQwenCredentialSnapshot(env)
   const identity = identityOf(env)
@@ -232,7 +233,7 @@ export interface QwenCatalogueRow {
 }
 export type QwenCatalogueSource = { kind: 'live'; count: number; otherLines: number; fetchedAtMs: number } | { kind: 'plan'; count: number; fetchedAtMs: number } | { kind: 'pins' } | { kind: 'unread' }
 
-export function qwenPinScope(env: NodeJS.ProcessEnv = process.env, snapshot: QwenCatalogueSnapshot | null = getCachedQwenCatalogue(env)): QwenPinScope {
+export function qwenPinScope(env: NodeJS.ProcessEnv = hostEnv(), snapshot: QwenCatalogueSnapshot | null = getCachedQwenCatalogue(env)): QwenPinScope {
   const base = snapshot?.baseUrl ?? qwenBoundBase(env)
   if (base === undefined) return 'pay-as-you-go'
   if (qwenListAnswersEveryCaller(base, env)) return 'coding-plan'
@@ -243,7 +244,7 @@ function pinRow(pin: (typeof QWEN_DISPLAY_PINS)[number], listedLive: boolean): Q
   return { id: pin.id, displayName: pin.displayName, observedAt: QWEN_OBSERVED_AT, ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}), listedLive }
 }
 
-export function qwenPinRows(env: NodeJS.ProcessEnv = process.env, scope: QwenPinScope = qwenPinScope(env)): QwenCatalogueRow[] {
+export function qwenPinRows(env: NodeJS.ProcessEnv = hostEnv(), scope: QwenPinScope = qwenPinScope(env)): QwenCatalogueRow[] {
   return qwenPinsFor(scope).map(pin => pinRow(pin, false))
 }
 
@@ -252,7 +253,7 @@ const pinRank = (id: string): number => {
   return index === -1 ? QWEN_DISPLAY_PINS.length : index
 }
 
-export function qwenCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: QwenCatalogueRow[]; source: QwenCatalogueSource } {
+export function qwenCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: QwenCatalogueRow[]; source: QwenCatalogueSource } {
   const snapshot = getCachedQwenCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   const scope = qwenPinScope(env, snapshot)
@@ -271,16 +272,16 @@ export function qwenCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows:
   return { rows, source: { kind: 'live', count: live.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function newestQwenModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function newestQwenModel(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   return qwenCatalogueRows(env).rows[0]?.id
 }
 
-export function qwenWireId(model: string, env: NodeJS.ProcessEnv = process.env): string {
+export function qwenWireId(model: string, env: NodeJS.ProcessEnv = hostEnv()): string {
   const asked = model.trim().replace(/\[(?:[0-9]+m|served)\]/gi, '')
   return qwenListedModel(getCachedQwenCatalogue(env), asked)?.id ?? (qwenDisplayPin(asked) ? qwenPinWireId(asked) : asked)
 }
 
-export function qwenCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function qwenCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const snapshot = getCachedQwenCatalogue(env)
   const { source } = qwenCatalogueRows(env)
   if (source.kind === 'plan') return `the Coding Plan's documented models on ${snapshot?.endpointLabel ?? 'the Coding Plan endpoint'} — its model list answers every caller and is not the plan's list`

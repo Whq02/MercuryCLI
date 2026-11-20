@@ -7,6 +7,7 @@ import { flagEnabled, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
 import { addBootNote } from './bootNotes.js'
 import { logForDebugging } from '../utils/debug.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export interface MenuRow {
   env: string
@@ -365,7 +366,7 @@ export function bootEnvAppliedKeys(): ReadonlySet<string> {
 
 const BOOT_ENV_APPLIED_MARKER = 'MERCURY_BOOT_ENV_APPLIED'
 
-export function bootEnvSelfApplied(env: NodeJS.ProcessEnv = process.env): ReadonlyMap<string, string> {
+export function bootEnvSelfApplied(env: NodeJS.ProcessEnv = hostEnv()): ReadonlyMap<string, string> {
   const out = new Map<string, string>()
   const raw = flagSpellings(BOOT_ENV_APPLIED_MARKER)
     .map(sp => env[sp])
@@ -386,7 +387,7 @@ export function bootEnvSelfApplied(env: NodeJS.ProcessEnv = process.env): Readon
 
 export function realEnvPin(
   rowEnv: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { spelling: string; value: string } | null {
   const stamped = bootEnvSelfApplied(env)
   for (const spelling of flagSpellings(rowEnv)) {
@@ -467,7 +468,7 @@ function syncSelfAppliedMarker(env: NodeJS.ProcessEnv, nextSelf: ReadonlyMap<str
 
 export function applyBootMenuEnv(
   path: string = bootEnvPath(),
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): BootEnvApplyResult | null {
   if (!flagEnabled('MERCURY_ENTER_MENU')) return null
   const fp = statFingerprint(path)
@@ -536,7 +537,7 @@ export function applyBootMenuEnv(
 
 export function applyLiveBootMenuEnv(
   path: string = bootEnvPath(),
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): LiveBootEnvApplyResult | null {
   if (!flagEnabled('MERCURY_ENTER_MENU')) return null
   const fp = statFingerprint(path)
@@ -816,7 +817,7 @@ export function resolveEffectiveSettingsSnapshot(args: {
   path?: string
   env?: NodeJS.ProcessEnv
 }): SessionEffectiveSettingsSnapshotV1 {
-  const processEnv = args.env ?? process.env
+  const processEnv = args.env ?? hostEnv()
   const profile = readBootDefaultsProfile(args.path ?? bootEnvPath())
   const rows: EffectiveSettingRow[] = STARTUP_MENU.map(row => {
     const pin = realEnvPin(row.env, processEnv)

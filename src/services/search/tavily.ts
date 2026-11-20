@@ -23,7 +23,7 @@ function tavilySearchUrl(): string {
 }
 
 export function resolveTavilyApiKey(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): { key: string; source: SearchKeySource } | undefined {
   const envKey = env.TAVILY_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -67,6 +67,7 @@ export function tavilyRequestBodyFor(request: SearchRequest): Record<string, unk
 }
 
 import { liveSearchClock, noteRateLimited, secondsLeftLabel, serverSearchWaitMs, withSearchTurn } from './searchPacing.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const TAVILY_PACING = { intervalMs: 600, windowMs: 60_000, maxRequests: 100, why: 'https://docs.tavily.com/documentation/rate-limits — development keys 100/minute, production 1,000/minute; use the lower rate and honour Retry-After, never infer a wait from message wording.' }
 
@@ -79,7 +80,7 @@ export async function tavilySearch(request: SearchRequest, io: KeyedSearchIo = {
 }
 
 async function requestTavilySearch(request: SearchRequest, io: KeyedSearchIo): Promise<SearchOutcome> {
-  const key = resolveTavilyApiKey(io.env ?? process.env)
+  const key = resolveTavilyApiKey(io.env ?? hostEnv())
   if (!key) return searchFailure('no-backend', 'tavily', 'no Tavily key (set TAVILY_API_KEY)')
   const fetchImpl = io.fetchImpl ?? getApiFetch()
   const proxyOptions = io.fetchImpl ? {} : getProxyFetchOptions()

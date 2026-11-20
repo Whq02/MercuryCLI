@@ -32,6 +32,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 import { toRelativePath, toTildePath } from '../../utils/path.js'
 import { editFileInEditor } from '../../utils/promptEditor.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type MemoryRoute = 'centre' | 'files'
 
@@ -67,8 +68,8 @@ async function openMemoryFile(path: string, onDone: LocalJSXCommandOnDone): Prom
       )
       return
     }
-    const visual = process.env.VISUAL
-    const editor = process.env.EDITOR
+    const visual = hostEnv().VISUAL
+    const editor = hostEnv().EDITOR
     const editorNote = visual
       ? `> $VISUAL is in effect: ${visual}`
       : editor

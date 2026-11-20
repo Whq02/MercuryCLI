@@ -3,6 +3,7 @@ import stringWidth from 'string-width'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { readUsageHistory, type UsageHistoryReport, type UsageTotals } from '../../cost-tracker.js'
 import { DEEPSEEK_PRICING_SOURCE, DEEPSEEK_PRICING_OBSERVED_AT } from '../../services/providers/deepseek/deepseekPins.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const clean = (value: string): string => value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?')
 const count = (value: number): string => value.toLocaleString('en-US')
@@ -78,6 +79,6 @@ export function formatUsageHistory(report: UsageHistoryReport, columns = 80): st
 
 export async function usageHistoryCli(opts: { json?: boolean; days?: number; project?: boolean }): Promise<void> {
   const report = await readUsageHistory({ ...(opts.days === undefined ? {} : { days: opts.days }), ...(opts.project ? { project: getOriginalCwd() } : {}) })
-  const columns = process.stdout.columns || Number(process.env.COLUMNS) || 80
+  const columns = process.stdout.columns || Number(hostEnv().COLUMNS) || 80
   writeSync(1, opts.json ? JSON.stringify(report, null, 2) + '\n' : formatUsageHistory(report, columns))
 }

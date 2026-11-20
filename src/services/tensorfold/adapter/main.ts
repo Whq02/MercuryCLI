@@ -5,6 +5,7 @@ import { LlamaInstallError, installLlamaServer, llamaRuntimeBin, readLlamaServer
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, adapterFamilies } from './models.js'
 import { GgufPullError, pullGguf } from './pull.js'
 import { ServeRefusal, parseServeArgs, runServe } from './serve.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 type AdapterIo = {
   env?: NodeJS.ProcessEnv
@@ -42,7 +43,7 @@ export function capabilitiesJson(facts: { chip?: string; llama: AdapterLlamaFact
 }
 
 async function readLlamaFacts(io: AdapterIo = {}): Promise<AdapterLlamaFacts> {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const home = io.home ?? homedir()
   const runtime = llamaRuntimeBin(home)
   if (io.llamaServer !== undefined) return { found: true, binary: io.llamaServer, pinned: true, runtime, release: LLAMACPP_RELEASE, ...(await readLlamaServerVersion(io.llamaServer, env)) }
@@ -79,7 +80,7 @@ export async function adapterCapabilities(io: AdapterIo = {}): Promise<{ stdout:
 export async function runTensorFoldAdapter(argv: readonly string[], io: AdapterIo = {}): Promise<number> {
   const out = io.stdout ?? ((text: string) => process.stdout.write(text))
   const err = io.stderr ?? ((text: string) => process.stderr.write(text))
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const home = io.home ?? homedir()
   const [verb, ...rest] = argv
   try {

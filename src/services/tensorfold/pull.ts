@@ -13,6 +13,7 @@ import type { InventoryIo } from './inventory.js'
 import { isGgufRepo, isRepoId, startingPointOf, tensorFoldLabel, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
 import { configFactsOf, type ConfigFacts } from './configFacts.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type PullIo = InventoryIo & {
   binary?: string
@@ -97,7 +98,7 @@ export function stopTensorFoldPull(repo: string): boolean {
 }
 
 async function pullOne(binary: string, repo: string, totalBytes: number | undefined, onProgress: (progress: TensorFoldPullProgress) => void, io: PullIo): Promise<void> {
-  const env = io.env ?? process.env
+  const env = io.env ?? hostEnv()
   const home = io.home ?? homedir()
   const root = io.cacheRoot ?? hfCacheRoot(env, home)
   const adapter = isAdapterEntry(binary)

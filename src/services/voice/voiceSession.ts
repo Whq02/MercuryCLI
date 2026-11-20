@@ -7,6 +7,7 @@ import type { CaptureStreamErrors } from './voicePack.js'
 import { localDecodesInFlight, resolveTranscriber, transcribeWav, warmLocalTranscriber, type TranscriberResolution } from './transcribe.js'
 import { mbWords, whisperDownloadDoor, whisperModelByName } from './whisperModels.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 type VoicePhase = 'idle' | 'recording' | 'transcribing'
 interface VoiceReceipt { seq: number; text: string; tone: 'info' | 'error' }
@@ -161,7 +162,7 @@ export function stopVoiceCapture(_opts: { env?: NodeJS.ProcessEnv } = {}): boole
 }
 
 export async function startVoiceCapture(opts: { env?: NodeJS.ProcessEnv; road?: VoiceRoad } = {}): Promise<VoiceToggleOutcome> {
-  const env = opts.env ?? process.env
+  const env = opts.env ?? hostEnv()
   const refuse = (text: string): VoiceToggleOutcome => { receipt(text, 'error'); return { kind: 'refused', text } }
   if (snapshot.phase === 'transcribing') {
     receipt(BUSY_RECEIPT, 'info')
@@ -243,7 +244,7 @@ function onDeviceMemoryWords(model: string): string {
   return `about ${mb} MB more memory while the model is loaded${row ? ` (the file is ${mbWords(row.bytes)})` : ''}`
 }
 
-export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): string {
+export function describeVoiceStatus(env: NodeJS.ProcessEnv = hostEnv()): string {
   const on = voiceInputEnabled()
   const transcriber = resolveTranscriber()
   const door = downloadDoorWords(transcriber)
@@ -258,7 +259,7 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
 }
 
 interface VoiceReadiness { ready: boolean; line: string; detail: string }
-export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): VoiceReadiness {
+export function describeVoiceReadiness(env: NodeJS.ProcessEnv = hostEnv()): VoiceReadiness {
   const backend = resolveCaptureBackend(env)
   const transcriber = resolveTranscriber()
   const on = voiceInputEnabled()

@@ -8,6 +8,7 @@ import { link } from '../termio/osc.js'
 import { noteTerminalWriteHeld } from '../terminalOut.js'
 import { sleepSync } from '../../utils/timers.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 export type Terminal = {
@@ -152,10 +153,10 @@ export function writeDiffToTerminal(
     })
   }
 
-  if (process.env.INK_WRITE_TEE) {
+  if (hostEnv().INK_WRITE_TEE) {
     try {
       appendFileSync(
-        process.env.INK_WRITE_TEE,
+        hostEnv().INK_WRITE_TEE!,
         JSON.stringify({
           ts: Date.now(),
           len: buffer.length,
@@ -164,10 +165,10 @@ export function writeDiffToTerminal(
           ...(useFd
             ? { spins: lastWriteSpins, waitMs: Math.round(lastWriteSpins * SPIN_QUANTUM_MS) }
             : {}),
-          ...(process.env.INK_WRITE_TEE_FULL ? { content: buffer } : { sample: buffer.slice(0, 40) }),
+          ...(hostEnv().INK_WRITE_TEE_FULL ? { content: buffer } : { sample: buffer.slice(0, 40) }),
         }) + '\n',
       )
-      appendFileSync(process.env.INK_WRITE_TEE + '.raw', buffer)
+      appendFileSync(hostEnv().INK_WRITE_TEE! + '.raw', buffer)
     } catch (error) {
       passedOver(error)
     }

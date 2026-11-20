@@ -41,6 +41,7 @@ import {
   type EffortLevel,
   type EffortValue,
 } from '../../utils/effort.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const EFFORT_POPUP_VIEW = 'effort'
 export const EFFORT_POPUP_HINT = '↑↓ move · ↵ apply · esc or click outside closes'
@@ -57,7 +58,7 @@ export function effortPopupRows(model: string): EffortPopupRow[] {
   return [{ value: EFFORT_POPUP_AUTO, word: EFFORT_POPUP_AUTO, description: `The model's own default — currently ${getDisplayedEffortLabel(model, undefined)}` }, ...tiers]
 }
 
-function effortPopupEnvLine(env: NodeJS.ProcessEnv = process.env): string | null {
+function effortPopupEnvLine(env: NodeJS.ProcessEnv = hostEnv()): string | null {
   const view = describeEffortEnvOverride(env)
   if (view.state !== 'level' && view.state !== 'deferred') return null
   return `${EFFORT_POPUP_ENV_VAR}=${view.raw} controls this session`

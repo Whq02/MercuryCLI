@@ -2,9 +2,10 @@ import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../providerSecrets.js'
 import { keyLaneSlots } from './keyLane.js'
 import { xaiStoredTokens, readPreferredXaiSource } from '../xai/xaiOauth.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
-  const envKey = reads.xaiEnvKey ? reads.xaiEnvKey() : process.env.XAI_API_KEY?.trim() || undefined
+  const envKey = reads.xaiEnvKey ? reads.xaiEnvKey() : hostEnv().XAI_API_KEY?.trim() || undefined
   const storedKey = (reads.xaiStoredKey ?? readStoredXaiApiKey)()
   const slots = keyLaneSlots({ family: 'xai', envVar: 'XAI_API_KEY', envKey, storedKey, storedRemoval: { route: 'xai-stored-key' } })
   const oauth = (reads.xaiOauth ?? xaiStoredTokens)()
@@ -15,7 +16,7 @@ export function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
       identity: oauth.email ?? 'Grok account', active, envPinned: false, signedIn: Boolean(oauth.refreshToken),
       ...(oauth.refreshToken ? {} : { stateNote: 'sign-in expired — /logins xai reconnects it' }), removal: { route: 'xai-oauth' } })
   }
-  const managementEnv = reads.xaiManagementEnvKey ? reads.xaiManagementEnvKey() : process.env.XAI_MANAGEMENT_API_KEY?.trim() || undefined
+  const managementEnv = reads.xaiManagementEnvKey ? reads.xaiManagementEnvKey() : hostEnv().XAI_MANAGEMENT_API_KEY?.trim() || undefined
   const managementStored = (reads.xaiManagementStoredKey ?? readStoredXaiManagementApiKey)()
   for (const [source, key] of [['env', managementEnv], ['stored', managementStored]] as const) {
     if (!key) continue

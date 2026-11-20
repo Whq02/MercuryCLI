@@ -9,6 +9,7 @@ import { getUserAgent } from '../../utils/http.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { kvGeometryOf, type KvGeometry } from './localServerMemory.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type { LocalServerKind }
 
@@ -195,7 +196,7 @@ function defaultUid(): number | undefined {
 
 export function resolveLocalServerIo(io: LocalServerIo): Required<Omit<LocalServerIo, 'uid'>> & { uid?: number } {
   return {
-    env: io.env ?? process.env,
+    env: io.env ?? hostEnv(),
     fetchImpl: io.fetchImpl ?? getApiFetch(),
     timeoutMs: io.timeoutMs ?? LOCAL_SERVER_READ_TIMEOUT_MS,
     now: io.now ?? Date.now,
@@ -598,7 +599,7 @@ async function readOther(io: Io, kind: LocalServerKind, root: string): Promise<P
   return undefined
 }
 
-export function localServerProbingOff(env: NodeJS.ProcessEnv = process.env): boolean {
+export function localServerProbingOff(env: NodeJS.ProcessEnv = hostEnv()): boolean {
   return localProbeTargets(env).length === 0
 }
 

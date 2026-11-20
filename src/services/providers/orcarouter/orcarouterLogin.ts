@@ -6,6 +6,7 @@ import { writeStoredOrcarouterApiKey } from '../providerSecrets.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { orcarouterApiBase } from './orcarouterAccounts.js'
 import { fetchOrcarouterLiveModels, OrcarouterCatalogueHttpError } from './orcarouterCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const ORCAROUTER_CONNECT_ROWS = [
   { label: 'Sign in with your OrcaRouter account — browser approval', value: 'device' },
@@ -24,7 +25,7 @@ export async function storeOrcarouterApiKeyLogin(key: string, io?: { fetchImpl?:
     writeStoredOrcarouterApiKey(key)
     recordSignIn('orcarouter', 'api-key')
   } catch { return { ok: false, stored: false, receipt: 'Could not store the OrcaRouter key — retry from /logins orcarouter.' } }
-  const shadow = (io?.env ?? process.env).ORCAROUTER_API_KEY?.trim() ? ' ORCAROUTER_API_KEY is set and wins over this stored key.' : ''
+  const shadow = (io?.env ?? hostEnv()).ORCAROUTER_API_KEY?.trim() ? ' ORCAROUTER_API_KEY is set and wins over this stored key.' : ''
   return { ok: true, stored: true, receipt: `OrcaRouter API key stored. Requests bill OrcaRouter credits.${shadow}` }
 }
 

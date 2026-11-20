@@ -23,6 +23,7 @@ import {
 } from './jevEvalResult.js'
 import { type JevEvalInput, type JevEvalInputSchema, type JevEvalKind, jevEvalInputSchema } from './jevEvalSchema.js'
 import { JEV_EVAL_DESCRIPTION, JEV_EVAL_PROMPT, JEV_EVAL_SEARCH_HINT } from './prompt.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 interface JevEvalOutput {
   status: string
@@ -53,7 +54,7 @@ export async function jevEvalCall(input: JevEvalInput, signal?: AbortSignal): Pr
   if (before.kind !== 'ready') return unavailable(before, road)
   const assembled = assembleJevEvalRequest(input, road)
   if (!assembled.ok) return { status: 'refused', text: jevEvalRefusedText(assembled.reason) }
-  const key = resolveJevApiKey(process.env, road)
+  const key = resolveJevApiKey(hostEnv(), road)
   if (key === undefined) return unavailable(jevStatus(agent, Date.now(), settings), road)
   const rows: JevEvalRow[] = []
   const flights: Promise<void>[] = []

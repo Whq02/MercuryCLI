@@ -25,6 +25,7 @@ import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TE
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE } from '../../services/tensorfold/starting.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type TensorFoldAct =
   | { kind: 'installing'; line?: string }
@@ -216,7 +217,7 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const keyed = served.length === 0 && takenOutside === undefined && answersAsOf(records, preferred) === undefined && !helperServed.some(row => row.port === preferred) ? await (io.keyedAt ?? defaultKeyedAt)(preferred) : false
   const busyAs = takenOutside !== undefined ? tensorFoldWho(takenOutside.servedBy) : keyed ? 'TensorFold' : answersAsOf(records, preferred)
   const port = served.length > 0 ? { next: preferred } : busyAs !== undefined ? { next: preferred + 1, busy: { port: preferred, answersAs: busyAs } } : { next: preferred }
-  const root = io.cacheRoot ?? hfCacheRoot(io.env ?? process.env, io.home ?? homedir())
+  const root = io.cacheRoot ?? hfCacheRoot(io.env ?? hostEnv(), io.home ?? homedir())
   const freeBytes = (io.diskFreeBytes ?? defaultDiskFree)(root)
   const facts: Omit<TensorFoldPanelFacts, 'live' | 'copySupportOffered'> = {
     platform,

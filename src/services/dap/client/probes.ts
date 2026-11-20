@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import { execFileNoThrow } from '../../../utils/execFileNoThrow.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export const GDB_DAP_MIN_MAJOR = 14
 
@@ -18,7 +19,7 @@ let gdbProbeRun: Promise<GdbProbe> | null = null
 const GDB_PROBE_TTL_MS = 30_000
 
 export function findOnPathLocal(name: string): string | undefined {
-  const dirs = (process.env.PATH ?? '').split(path.delimiter).filter(Boolean)
+  const dirs = (hostEnv().PATH ?? '').split(path.delimiter).filter(Boolean)
   const suffixes = process.platform === 'win32' ? ['.exe', ''] : ['']
   for (const dir of dirs) {
     for (const suffix of suffixes) {
@@ -194,7 +195,7 @@ function gdbProbeOf(stdout: string, status: number | null, timedOut: boolean): G
 }
 
 export function probeGdbDap(): GdbProbe {
-  const key = process.env.PATH ?? ''
+  const key = hostEnv().PATH ?? ''
   const fresh = gdbProbeFresh(key)
   if (fresh !== null) return fresh
   let result: GdbProbe
@@ -214,7 +215,7 @@ export function probeGdbDap(): GdbProbe {
 }
 
 export function probeGdbDapAsync(): Promise<GdbProbe> {
-  const key = process.env.PATH ?? ''
+  const key = hostEnv().PATH ?? ''
   const fresh = gdbProbeFresh(key)
   if (fresh !== null) return Promise.resolve(fresh)
   gdbProbeRun ??= (async (): Promise<GdbProbe> => {
@@ -236,7 +237,7 @@ export function probeGdbDapAsync(): Promise<GdbProbe> {
 export function gdbProbeFromMemo(): GdbProbe {
   if (findOnPathLocal('gdb') === undefined) return { viable: false, reason: 'no gdb on PATH' }
   const last = gdbProbeCache
-  if (last === null || gdbProbeFresh(process.env.PATH ?? '') === null) void probeGdbDapAsync().catch(passedOver)
+  if (last === null || gdbProbeFresh(hostEnv().PATH ?? '') === null) void probeGdbDapAsync().catch(passedOver)
   return last?.result ?? { viable: false, reason: 'gdb --version has not answered yet' }
 }
 

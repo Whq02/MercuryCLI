@@ -14,6 +14,7 @@ import {
 } from '../manifest.js'
 import { substituteRootAndData } from '../options.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 type ResolvedSkill = { name: string; skillName: string; dir: string; file: string; body: string; frontmatter: FrontmatterData }
@@ -49,12 +50,12 @@ export type Probes = {
 }
 
 
-const PATH_EXTS = process.platform === 'win32' ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';') : ['']
+const PATH_EXTS = process.platform === 'win32' ? (hostEnv().PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';') : ['']
 
 function isOnPath(binary: string): boolean {
   if (binary === '') return false
   if (binary.includes('/') || binary.includes('\\')) return existsSync(binary)
-  const dirs = (process.env.PATH ?? '').split(delimiter).filter(Boolean)
+  const dirs = (hostEnv().PATH ?? '').split(delimiter).filter(Boolean)
   for (const dir of dirs) {
     for (const ext of PATH_EXTS) {
       const candidate = join(dir, binary + ext)
@@ -72,7 +73,7 @@ function isOnPath(binary: string): boolean {
 }
 
 function isEnvSet(name: string): boolean {
-  const value = process.env[name]
+  const value = hostEnv()[name]
   return value !== undefined && value !== ''
 }
 

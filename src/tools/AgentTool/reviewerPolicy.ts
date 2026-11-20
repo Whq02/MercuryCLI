@@ -15,6 +15,7 @@ import type { Tool, Tools } from '../../Tool.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { sectionHeadings } from '../FileEditTool/sectionEdit.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const REVIEW_BRIEF = `You are reviewing one committed change for Mercury, on frozen inputs. Find what the author missed, with evidence, and record it where the next reader looks.
 
@@ -102,7 +103,7 @@ function confinedVerification(command: string, worktree: string, receipt: string
     const bin = join(scratch, 'bin')
     mkdirSync(bin)
     writeFileSync(join(bin, 'mktemp'), '#!/bin/sh\nexec /usr/bin/mktemp -p "${TMPDIR:?}" "$@"\n', { mode: 0o700 })
-    environment.push(`PATH=${bin}:${process.env.PATH ?? ''}`)
+    environment.push(`PATH=${bin}:${hostEnv().PATH ?? ''}`)
   }
   const inner = `cd ${quote([worktree])} && env ${quote(environment)} ${command}`
   const writeConfig = { allowOnly: [scratch, ...(lockRoot ? [lockRoot] : []), '/dev/null', '/dev/stdout', '/dev/stderr', '/dev/tty'], denyWithinAllow: [worktree, receipt] }

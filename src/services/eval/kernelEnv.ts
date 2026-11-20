@@ -1,5 +1,6 @@
 
 import { credentialEnvNames } from '../providers/providerSecrets.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const SECRET_SUFFIX = /(_API_KEY|_TOKEN|_SECRET|_PASSWORD|_CREDENTIALS?)$/i
 
@@ -12,7 +13,7 @@ export function isDeniedKernelEnvName(name: string): boolean {
   return SECRET_SUFFIX.test(name)
 }
 
-export function buildKernelEnv(base: NodeJS.ProcessEnv = process.env): Record<string, string> {
+export function buildKernelEnv(base: NodeJS.ProcessEnv = hostEnv()): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [name, value] of Object.entries(base)) {
     if (value === undefined) continue

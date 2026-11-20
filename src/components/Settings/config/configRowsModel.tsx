@@ -14,6 +14,7 @@ import { swarmMasterEnabled } from '../../../services/crewBoard/seam.js'
 import { setAdvisorEnabled, setAdvisorMinutes } from '../../../services/advisor/advisorSettings.js'
 import type { SettingsItem, ConfigRowKit } from './configItems.js'
 import { mainLoopPointerText, localModelWindowRow, configProviderRows } from './configRowFacts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function configModelRows({ config, merged, tokens, writeGlobal, writeSource, recordToggle, recordSet, bump, appState, servedModel, mainRoute, configStamp, localServer }: ConfigRowKit & {
   appState: AppState
@@ -156,15 +157,15 @@ export function configApiKeyRows({ boolValue, writeGlobal, recordToggle, provide
   providerScoped: (item: SettingsItem, appliesTo: 'anthropic' | 'openrouter') => SettingsItem
 }): SettingsItem[] {
   const items: SettingsItem[] = []
-  if (process.env.ANTHROPIC_API_KEY !== undefined && process.env.ANTHROPIC_API_KEY !== '') {
-    const status = getCustomApiKeyStatus(process.env.ANTHROPIC_API_KEY)
+  if (hostEnv().ANTHROPIC_API_KEY !== undefined && hostEnv().ANTHROPIC_API_KEY! !== '') {
+    const status = getCustomApiKeyStatus(hostEnv().ANTHROPIC_API_KEY!)
     items.push(providerScoped({
       id: 'customApiKey',
       label: 'Use custom API key',
       kind: 'boolean',
       value: boolValue(status === 'approved'),
       change: () => {
-        const key = process.env.ANTHROPIC_API_KEY as string
+        const key = hostEnv().ANTHROPIC_API_KEY as string
         const truncated = key.slice(-20)
         writeGlobal(c => {
           const approved = new Set(c.customApiKeyResponses?.approved ?? [])

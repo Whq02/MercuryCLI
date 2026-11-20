@@ -8,6 +8,7 @@ import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWor
 import { xaiGrokProxyListHeaders, xaiInferenceBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
 import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } from './xaiPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const XAI_CATALOGUE_TTL_MS = 5 * 60_000
@@ -125,12 +126,12 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
   const key = resolveXaiCredentialSnapshot(env)
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${xaiInferenceBase(key.source, env)}` : 'none'
 }
-export function getCachedXaiCatalogue(env: NodeJS.ProcessEnv = process.env): XaiCatalogueSnapshot | null {
+export function getCachedXaiCatalogue(env: NodeJS.ProcessEnv = hostEnv()): XaiCatalogueSnapshot | null {
   return resolveXaiCredentialSnapshot(env) ? catalogueCache.get(catalogueIdentity(env)) ?? null : null
 }
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<XaiCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
   const snapshot = getCachedXaiCatalogue(env)
   if (!snapshot || snapshot.fetchedAtMs === 0) return EMPTY_LIVE_IDS
@@ -147,7 +148,7 @@ export function refreshXaiCatalogue(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
 }): Promise<XaiCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveXaiCredentialSnapshot(env)
   const identity = catalogueIdentity(env)
@@ -187,7 +188,7 @@ export function refreshXaiCatalogue(opts?: {
   return work
 }
 export function kickXaiCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('xai', env).allowed) return false
   const cached = getCachedXaiCatalogue(env)
   if (cached && cached.lastError === undefined) return false
@@ -205,7 +206,7 @@ export type XaiCatalogueSource =
   | { kind: 'live'; count: number; fetchedAtMs: number }
   | { kind: 'pin'; observedAt: string }
 
-export function xaiCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: XaiCatalogueRow[]; source: XaiCatalogueSource } {
+export function xaiCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: XaiCatalogueRow[]; source: XaiCatalogueSource } {
   const snapshot = getCachedXaiCatalogue(env)
   if (!snapshot || snapshot.fetchedAtMs === 0) return { rows: [], source: { kind: 'pin', observedAt: '' } }
   const rows = snapshot.models.map(model => {
@@ -222,7 +223,7 @@ export function __resetXaiCatalogueForTest(): void {
   catalogueInFlight.clear()
 }
 
-export function xaiModelFacts(id: string, env: NodeJS.ProcessEnv = process.env): XaiDisplayPin | undefined {
+export function xaiModelFacts(id: string, env: NodeJS.ProcessEnv = hostEnv()): XaiDisplayPin | undefined {
   const lowered = id.trim().toLowerCase().replace(/\[(?:[0-9]+m|served)\]/gi, '')
   const snapshot = getCachedXaiCatalogue(env)
   const model = snapshot?.models.find(row => row.id.toLowerCase() === lowered || row.aliases?.some(alias => alias.toLowerCase() === lowered))

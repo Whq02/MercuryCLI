@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { vendoredNodeBeside, selfScriptPath } from '../../daemon/daemonBuild.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const QUERY_BOUND_MS = 10 * 60_000
 const OWN_BOUND_MARGIN_MS = 5000
@@ -158,7 +159,7 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
   const child = spawn(executable, ['--input-type=module', '-e', `(${sqliteQueryChild.toString()})(${JSON.stringify(sqliteQueryWork.toString())})`], {
     stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     windowsHide: true,
-    env: { LANG: 'C.UTF-8', ...(executable === 'node' && process.env.PATH ? { PATH: process.env.PATH } : {}), ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}), ...(process.env.WINDIR ? { WINDIR: process.env.WINDIR } : {}) },
+    env: { LANG: 'C.UTF-8', ...(executable === 'node' && hostEnv().PATH ? { PATH: hostEnv().PATH! } : {}), ...(hostEnv().SystemRoot ? { SystemRoot: hostEnv().SystemRoot! } : {}), ...(hostEnv().WINDIR ? { WINDIR: hostEnv().WINDIR! } : {}) },
   }) as ChildProcessWithoutNullStreams
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
   let output = '', diagnostic = '', completed = false, late = false

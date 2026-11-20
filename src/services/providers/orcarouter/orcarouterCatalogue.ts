@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { canonicalWireModelId } from '../routeLaw.js'
 import { orcarouterApiBase, resolveOrcarouterApiKey } from './orcarouterAccounts.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 const ORCAROUTER_OBSERVED_AT = '2026-10-24'
 export const ORCAROUTER_DISPLAY_PINS = [
@@ -123,16 +124,16 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${orcarouterApiBase(env)}` : 'none'
 }
 
-export function getCachedOrcarouterCatalogue(env: NodeJS.ProcessEnv = process.env): OrcarouterCatalogueSnapshot | null {
+export function getCachedOrcarouterCatalogue(env: NodeJS.ProcessEnv = hostEnv()): OrcarouterCatalogueSnapshot | null {
   return resolveOrcarouterApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
-export function orcarouterListedModel(model: string, env: NodeJS.ProcessEnv = process.env): OrcarouterLiveModel | undefined {
+export function orcarouterListedModel(model: string, env: NodeJS.ProcessEnv = hostEnv()): OrcarouterLiveModel | undefined {
   return getCachedOrcarouterCatalogue(env)?.models.find(row => row.id.toLowerCase() === orcarouterWireId(model).toLowerCase())
 }
 
 export function refreshOrcarouterCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<OrcarouterCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveOrcarouterApiKey(env)
   const identity = identityOf(env)
@@ -163,7 +164,7 @@ export function refreshOrcarouterCatalogue(opts?: { force?: boolean; fetchImpl?:
 }
 
 type CatalogueSource = { kind: 'live'; count: number; otherLines: number; fetchedAtMs: number } | { kind: 'pins' } | { kind: 'unread' }
-export function orcarouterCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: { id: string; displayName: string; observedAt: string; contextWindow?: number; listedLive: boolean }[]; source: CatalogueSource } {
+export function orcarouterCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: { id: string; displayName: string; observedAt: string; contextWindow?: number; listedLive: boolean }[]; source: CatalogueSource } {
   const snapshot = getCachedOrcarouterCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   if (!snapshot.models.length && snapshot.lastError && !snapshot.lastError.includes('refused the credential')) {
@@ -174,7 +175,7 @@ export function orcarouterCatalogueRows(env: NodeJS.ProcessEnv = process.env): {
   return { rows, source: { kind: 'live', count: rows.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function orcarouterCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function orcarouterCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   const snapshot = getCachedOrcarouterCatalogue(env)
   const { source } = orcarouterCatalogueRows(env)
   if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError}`

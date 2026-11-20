@@ -1,5 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
@@ -44,7 +45,7 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
       case 'openrouter': {
         const [{ getCachedOpenrouterCatalogue, refreshOpenrouterCatalogue }, { resolveOpenrouterRequestAuth }] =
           await Promise.all([import('./openrouter/openrouterCatalogue.js'), import('./openrouter/openrouterAccounts.js')])
-        const auth = resolveOpenrouterRequestAuth(process.env)
+        const auth = resolveOpenrouterRequestAuth(hostEnv())
         if (!auth || !catalogueTrafficVerdict('openrouter').allowed) return false
         if (!nothingUsable(getCachedOpenrouterCatalogue(auth.account.keySource))) return false
         await bounded(refreshOpenrouterCatalogue(auth.account.keySource, { force }), boundMs)
@@ -53,7 +54,7 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
       case 'gemini': {
         const [{ getCachedGeminiCatalogue, refreshGeminiCatalogue }, { resolveGeminiAccount }] =
           await Promise.all([import('./gemini/geminiCatalogue.js'), import('./gemini/geminiAccounts.js')])
-        const account = resolveGeminiAccount(process.env)
+        const account = resolveGeminiAccount(hostEnv())
         if (!account || !catalogueTrafficVerdict('gemini').allowed) return false
         const sourceKind = account.kind
         if (!nothingUsable(getCachedGeminiCatalogue(sourceKind))) return false
@@ -154,7 +155,7 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
       case 'huggingface': {
         const [{ getCachedHuggingfaceCatalogue, refreshHuggingfaceCatalogue }, { resolveHuggingfaceAccount }] =
           await Promise.all([import('./huggingface/huggingfaceCatalogue.js'), import('./huggingface/huggingfaceAccounts.js')])
-        if (!resolveHuggingfaceAccount(process.env) || !catalogueTrafficVerdict('huggingface').allowed) return false
+        if (!resolveHuggingfaceAccount(hostEnv()) || !catalogueTrafficVerdict('huggingface').allowed) return false
         if (!nothingUsable(getCachedHuggingfaceCatalogue())) return false
         await bounded(refreshHuggingfaceCatalogue({ force }), boundMs)
         return true

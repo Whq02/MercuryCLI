@@ -19,6 +19,7 @@ import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 
 const OPENROUTER_AUTH_PAGE = 'https://openrouter.ai/auth'
@@ -28,12 +29,12 @@ const openrouterRedirectUri = (port: number): string =>
   `http://127.0.0.1:${port}/auth/callback`
 const OPENROUTER_KEY_LABEL = 'Mercury'
 
-function openrouterAuthPage(env: NodeJS.ProcessEnv = process.env): string {
+function openrouterAuthPage(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_OPENROUTER_AUTH_BASE', env)?.trim() || OPENROUTER_AUTH_PAGE
 }
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
-export function openrouterApiBase(env: NodeJS.ProcessEnv = process.env): string {
+export function openrouterApiBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return flagEnv('MERCURY_OPENROUTER_API_BASE', env)?.trim() || OPENROUTER_API_BASE
 }
 
@@ -174,7 +175,7 @@ export function forgetOpenrouterKeyRefusal(): void {
   })
 }
 
-export function openrouterKeyRefusal(env: NodeJS.ProcessEnv = process.env): OpenrouterKeyRefusal | undefined {
+export function openrouterKeyRefusal(env: NodeJS.ProcessEnv = hostEnv()): OpenrouterKeyRefusal | undefined {
   const active = resolveOpenrouterApiKey(env)
   if (active === undefined) return undefined
   const current = refusalOf(readAuthFile())
@@ -193,7 +194,7 @@ export interface OpenrouterAccountRef {
 }
 
 export function resolveOpenrouterApiKey(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): { key: string; source: OpenrouterKeySource } | undefined {
   const envKey = env.OPENROUTER_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
@@ -206,13 +207,13 @@ export function resolveOpenrouterApiKey(
 }
 
 export function openrouterKeySource(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenrouterKeySource | undefined {
   return resolveOpenrouterApiKey(env)?.source
 }
 
 export function resolveOpenrouterAccount(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenrouterAccountRef | undefined {
   const key = resolveOpenrouterApiKey(env)
   if (!key) return undefined
@@ -240,7 +241,7 @@ export interface OpenrouterRequestAuth {
 }
 
 export function resolveOpenrouterRequestAuth(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = hostEnv(),
 ): OpenrouterRequestAuth | undefined {
   const account = resolveOpenrouterAccount(env)
   const key = resolveOpenrouterApiKey(env)
@@ -325,7 +326,7 @@ export function beginOpenrouterConnect(opts?: {
   loopbackPort?: number
   onSettledAfterCancel?: (ref: OpenrouterAccountRef) => void
 }): OpenrouterConnectHandles {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const mode = opts?.mode ?? 'browser'
   const requestedPort = opts?.loopbackPort ?? OPENROUTER_REDIRECT_PORT
   const verifier = generateCodeVerifier()

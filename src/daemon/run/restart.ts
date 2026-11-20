@@ -13,6 +13,7 @@ import { nodeForBuild, resolveScriptPath, selfScriptPath } from '../daemonBuild.
 import { isProcessAlive } from '../ownerWatch.js'
 import { isScreenHealAsk } from '../verbs.js'
 import type { DaemonRunState } from './state.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const RESTART_STORM_GUARD_MS = 60_000
 export const ARMED_RESTART_BEAT_MS = 4_000
@@ -138,7 +139,7 @@ function unchangedSuccessorDetail(ageSeconds: number): string {
 
 export function spawnSuccessorDaemon(): number | undefined {
   try {
-    const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
+    const env: NodeJS.ProcessEnv = { ...hostEnv(), ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
     for (const spelling of flagSpellings('MERCURY_DAEMON_HANDOVER_FROM')) delete env[spelling]
     stampSpawnReceipt(env, ['MERCURY_DAEMON_SUCCESSOR_OF'])
     if (hasStoredOAuthToken()) {

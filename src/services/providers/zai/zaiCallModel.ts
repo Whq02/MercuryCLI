@@ -107,6 +107,7 @@ import {
   compatTerminalFaultText,
 } from '../openaicompat/compatChatCallModel.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 function apiErrorMessage(
   content: string,
@@ -224,7 +225,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     )
     return
   }
-  const planWord = dispatch.planSource === 'stored' ? undefined : zaiKeyPlanUnknownWord(process.env)
+  const planWord = dispatch.planSource === 'stored' ? undefined : zaiKeyPlanUnknownWord(hostEnv())
   if (planWord !== undefined) {
     yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${planWord}. Model '${modelId}' cannot run.`)
     return
@@ -319,7 +320,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     let outcome = yield* streamOneZaiAttempt({
       request,
       apiKey,
-      requestUrl: zaiChatCompletionsUrl(process.env, dispatch.plan),
+      requestUrl: zaiChatCompletionsUrl(hostEnv(), dispatch.plan),
       signal,
       tools,
       options,
@@ -347,7 +348,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       const kind = compatFaultToTypedError(fault)
       return kind === 'authentication_failed' || kind === 'billing_error'
     }
-    const otherBaseDiffers = zaiChatCompletionsUrl(process.env, otherZaiKeyPlan(dispatch.plan)) !== zaiChatCompletionsUrl(process.env, dispatch.plan)
+    const otherBaseDiffers = zaiChatCompletionsUrl(hostEnv(), otherZaiKeyPlan(dispatch.plan)) !== zaiChatCompletionsUrl(hostEnv(), dispatch.plan)
     if (outcome.retryEligible && refusedClass(outcome.fault) && (dispatch.planSource === 'assumed' || dispatch.planSource === 'learned') && planTrial === undefined && otherBaseDiffers) {
       planTrial = { from: dispatch.plan, fault: outcome.fault }
       dispatch = { ...dispatch, plan: otherZaiKeyPlan(dispatch.plan), planSource: 'assumed' }

@@ -1,5 +1,6 @@
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { realEnvPin, type EffectiveSettingRow } from '../../substrate/startupMenu.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type SpawnSwitchKind = 'subagents'
 
@@ -46,7 +47,7 @@ export function spawnSwitchOnFromValue(value: string | null | undefined): boolea
   return value !== '0'
 }
 
-export function bornSpawnSwitch(kind: SpawnSwitchKind, env: NodeJS.ProcessEnv = process.env): SpawnSwitchState {
+export function bornSpawnSwitch(kind: SpawnSwitchKind, env: NodeJS.ProcessEnv = hostEnv()): SpawnSwitchState {
   const row = SPAWN_SWITCH_ENV[kind]
   const value = flagSpellings(row)
     .map(spelling => env[spelling])

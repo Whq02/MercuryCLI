@@ -3,6 +3,7 @@ import { lstat, mkdir, opendir, readdir, rename, rm, writeFile } from 'node:fs/p
 import { join, resolve } from 'node:path'
 import { compileCacheDirUsable } from './compileCachePath.js'
 import { passedOverAs } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export const COMPILE_CACHE_MAX_BYTES = 512 * 1024 * 1024
 export const COMPILE_CACHE_MAX_FILES = 8192
@@ -12,7 +13,7 @@ const RETIRED = /^\.prune-(v\d+\.\d+\.\d+-[A-Za-z0-9_]+-[0-9a-f]{8}(?:-\d+)?)-[0
 
 type PruneResult = { state: 'skipped' | 'fresh' | 'busy' | 'complete' | 'failed'; removed: string[] }
 
-export async function pruneCompileCache(home: string, env: NodeJS.ProcessEnv = process.env): Promise<PruneResult> {
+export async function pruneCompileCache(home: string, env: NodeJS.ProcessEnv = hostEnv()): Promise<PruneResult> {
   const root = join(home, 'compile-cache')
   const samePath = (a: string, b: string): boolean => process.platform === 'win32'
     ? resolve(a).toLowerCase() === resolve(b).toLowerCase() : resolve(a) === resolve(b)

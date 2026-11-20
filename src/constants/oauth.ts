@@ -1,5 +1,6 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 type OauthConfig = {
   BASE_API_URL: string
@@ -126,5 +127,5 @@ export function getOauthConfig(): OauthConfig {
 }
 
 export function anthropicAccountApiBase(): string {
-  return process.env.ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL
+  return hostEnv().ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL
 }

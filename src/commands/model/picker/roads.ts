@@ -42,6 +42,7 @@ import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type
 import { getCachedOpenaiCatalogue, refreshOpenaiCatalogue, type OpenaiCatalogueSnapshot } from '../../../services/providers/openai/openaiCatalogue.js'
 import { openaiSourceIdentity, resolveOpenaiAccount } from '../../../services/providers/openai/openaiAccounts.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 type CatalogueRoad<S> = {
   family: string
@@ -199,7 +200,7 @@ export const ZAI_ROAD: CatalogueRoad<ZaiCatalogueSnapshot> = {
   family: 'Z.AI',
   identity: () => {
     const dispatch = resolveZaiDispatch()
-    return dispatch ? `${dispatch.source}:${credentialFingerprint(dispatch.key)}:${zaiApiBase(process.env, dispatch.plan)}` : undefined
+    return dispatch ? `${dispatch.source}:${credentialFingerprint(dispatch.key)}:${zaiApiBase(hostEnv(), dispatch.plan)}` : undefined
   },
   cached: () => getCachedZaiCatalogue(),
   refresh: () => refreshZaiCatalogue({ force: true }),

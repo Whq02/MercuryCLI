@@ -15,6 +15,7 @@ import { officialSearchIntent, SEARCH_SOURCE_POLICIES, type OfficialSearchSource
 import { cachedAnswerNote, coolDownRemainingMs, liveSearchClock, nextSearchGroupId, noteAnswered, noteRateLimited, rememberSearch, secondsLeftLabel, takeCachedSearch, takeKeyedDoorHint, type SearchClock } from './searchPacing.js'
 import { failureLine, KEYED_DOOR_COMMANDS, KEYED_DOOR_FREE_TIER, normaliseHits, searchBackendLabel, searchFailure, type SearchBackendId, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest, type SearchTier } from './searchContract.js'
 import { resolveTavilyApiKey, tavilySearch } from './tavily.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type SearchDoor =
   | { kind: 'native'; family: NativeSearchFamily }
@@ -71,7 +72,7 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads, query = ''): Searc
   if (!reads.keylessAllowed) closed.push(`DuckDuckGo page scraping is off (${DUCKDUCKGO_OFF_DOORS})`)
   return { doors, closed, override: parsed }
 }
-export function liveSearchDoorReads(env: Record<string, string | undefined> = process.env): SearchDoorReads {
+export function liveSearchDoorReads(env: Record<string, string | undefined> = hostEnv()): SearchDoorReads {
   const brave = resolveBraveSearchApiKey(env), tavily = resolveTavilyApiKey(env)
   return {
     ...(brave ? { braveKey: brave.source } : {}), ...(tavily ? { tavilyKey: tavily.source } : {}),
@@ -92,7 +93,7 @@ export function searchDoorLabel(door: SearchDoor): string {
 export function describeSearchDoorPlan(plan: SearchDoorPlan): string {
   return `${plan.doors.length ? plan.doors.map(searchDoorLabel).join(' → ') : 'no source selected for this query'}${plan.override === 'auto' ? '' : ` [MERCURY_SEARCH_BACKEND=${plan.override}]`}${plan.closed.length ? ` · not in the walk: ${plan.closed.join('; ')}` : ''}`
 }
-export function searchDoorFact(mainModel: string, env: Record<string, string | undefined> = process.env): string {
+export function searchDoorFact(mainModel: string, env: Record<string, string | undefined> = hostEnv()): string {
   const configured = configuredSearxngInstances(flagEnv('MERCURY_SEARCH_SEARXNG_INSTANCES', env) ?? '')
   const metasearch = configured.error ? ` · ${configured.error}` : configured.instances.length ? ` · ${configured.instances.length} metasearch instance(s) configured` : ''
   return `WebSearch: ${describeSearchDoorPlan(resolveSearchDoorPlan({ ...liveSearchDoorReads(env), mainModel }))} · official APIs selected by query shape${metasearch}`

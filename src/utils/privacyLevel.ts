@@ -1,5 +1,6 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 type PrivacyLevel = 'default' | 'essential-traffic'
@@ -34,6 +35,6 @@ export function isEssentialTrafficOnly(): boolean {
   return getPrivacyLevel() === 'essential-traffic'
 }
 
-export function getEssentialTrafficOnlyReason(env: NodeJS.ProcessEnv = process.env): string | null {
+export function getEssentialTrafficOnlyReason(env: NodeJS.ProcessEnv = hostEnv()): string | null {
   return flagEnv(NONESSENTIAL_TRAFFIC_VAR, env) ? NONESSENTIAL_TRAFFIC_VAR : null
 }

@@ -41,6 +41,7 @@ import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import TextInput from '../TextInput.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const JEV_POPUP_WIDTH = 120
 export const JEV_POPUP_HINT = '↑↓ select · pgup/pgdn page · ←→ change · ↵ act · ⌫ default · esc or click outside closes'
@@ -236,12 +237,12 @@ export function nextCeiling(current: number | null, direction: 1 | -1): number |
 }
 
 export function jevKeyStoredReceipt(): string {
-  const envShadow = Boolean(process.env[JEV_KEY_ENV]?.trim())
+  const envShadow = Boolean(hostEnv()[JEV_KEY_ENV]?.trim())
   return `TypeSafe API key stored (auth-scoped, mode 600)${envShadow ? ` — ${JEV_KEY_ENV} outranks the store` : ''} · ⌫ on the Key row clears it`
 }
 
 export function jevKeyClearedReceipt(hadKey: boolean): string {
-  const envShadow = Boolean(process.env[JEV_KEY_ENV]?.trim())
+  const envShadow = Boolean(hostEnv()[JEV_KEY_ENV]?.trim())
   const tail = envShadow ? ` · ${JEV_KEY_ENV} in the environment still supplies a key this session` : ''
   return hadKey ? `stored TypeSafe API key cleared (auth-scoped)${tail}` : `no stored TypeSafe API key — nothing to clear${tail}`
 }

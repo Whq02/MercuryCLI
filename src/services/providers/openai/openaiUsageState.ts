@@ -4,6 +4,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { openaiSourceIdentity, openaiSubscriptionRef, resolveOpenaiRequestAuth } from './openaiAccounts.js'
 import { noteOpenaiSourceIdentity, openaiObservedUsage, openaiSubscriptionRevision, recordOpenaiUsageResponse } from './openaiLimitState.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 let revision = -1
 let nextReadAtMs = 0
@@ -11,7 +12,7 @@ let readerNote: string | undefined
 let readerWait = false
 let inFlight: Promise<void> | undefined
 
-function syncIdentity(env: NodeJS.ProcessEnv = process.env): void {
+function syncIdentity(env: NodeJS.ProcessEnv = hostEnv()): void {
   noteOpenaiSourceIdentity('chatgpt-subscription', openaiSourceIdentity('chatgpt-subscription', env))
   const current = openaiSubscriptionRevision()
   if (revision === current) return
@@ -39,7 +40,7 @@ export function refreshOpenaiUsage(io?: {
   force?: boolean
   reason?: 'open' | 'operator' | 'sign-in'
 }): Promise<void> {
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const now = io?.now ?? Date.now
   syncIdentity(env)
   if (openaiSubscriptionRef() === undefined) return Promise.resolve()

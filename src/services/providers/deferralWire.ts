@@ -7,6 +7,7 @@ import { parseGptModelId } from './openai/gptPins.js'
 import { deepseekCurrentModelId } from './deepseek/deepseekPins.js'
 import { localServerKind } from '../../constants/localPromptProfile.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type DeferralWireForm =
   | 'block'
@@ -67,7 +68,7 @@ export interface DeferralWireVerdict {
     | 'self-hosted-engine'
 }
 
-export function gatewayHost(env: Record<string, string | undefined> = process.env): string | null {
+export function gatewayHost(env: Record<string, string | undefined> = hostEnv()): string | null {
   const baseUrl = env.ANTHROPIC_BASE_URL
   if (!baseUrl) return null
   try {
@@ -80,7 +81,7 @@ export function gatewayHost(env: Record<string, string | undefined> = process.en
 }
 
 export function homeLaneWireForm(reads: DeferralWireReads = {}): DeferralWireVerdict {
-  const env = reads.env ?? process.env
+  const env = reads.env ?? hostEnv()
   const firstParty = reads.firstPartyBaseUrl ? reads.firstPartyBaseUrl() : isFirstPartyAnthropicBaseUrl()
   if (firstParty) return { form: 'block', why: 'first-party-contract' }
   const asserted = flagEnv('MERCURY_TOOL_SEARCH', env)
@@ -147,7 +148,7 @@ export function gptModelCarriesNativeDeferral(model: string): boolean {
   return identity.minor >= OPENAI_NATIVE_DEFERRAL_FLOOR.minor
 }
 
-export function openaiGatewayHost(env: Record<string, string | undefined> = process.env): { firstParty: true } | { firstParty: false; host: string | null } {
+export function openaiGatewayHost(env: Record<string, string | undefined> = hostEnv()): { firstParty: true } | { firstParty: false; host: string | null } {
   for (const key of OPENAI_BASE_ENV_KEYS) {
     const baseUrl = flagEnv(key, env)?.trim()
     if (!baseUrl) continue
@@ -162,7 +163,7 @@ export function openaiGatewayHost(env: Record<string, string | undefined> = proc
 }
 
 export function openaiLaneWireForm(model: string, reads: DeferralWireReads = {}): DeferralWireVerdict {
-  const env = reads.env ?? process.env
+  const env = reads.env ?? hostEnv()
   if (!gptModelCarriesNativeDeferral(model)) return { form: 'text', why: 'model-below-native-floor' }
   const endpoint = openaiGatewayHost(env)
   const verdictOf = (key: string): DeferralWireForm | undefined => (reads.probeVerdict ? reads.probeVerdict(key) : readGatewayProbeVerdict(key))

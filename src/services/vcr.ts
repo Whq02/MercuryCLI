@@ -14,6 +14,7 @@ import { normalizeMessagesForAPI } from '../utils/messages.js'
 import { calculateUSDCost } from '../utils/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
 import { passedOver } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 
 type VcrMessage = AssistantMessage | BetaRawMessageStreamEvent | Message | StreamEvent
@@ -100,7 +101,7 @@ function mapStringsDeep(value: unknown, map: (text: string) => string): unknown 
 
 
 function isCiEnvironment(): boolean {
-  return env.isCI || Boolean(process.env.CI)
+  return env.isCI || Boolean(hostEnv().CI)
 }
 
 function recordsFixtures(): boolean {

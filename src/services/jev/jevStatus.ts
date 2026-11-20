@@ -2,6 +2,7 @@ import { type JevStatus, type JevStatusKind, jevClockLabel, jevRoadWords, jevWai
 import { type JevKeyPresence, jevKeyPresence } from './jevKey.js'
 import { type JevLedgerSnapshot, jevAdmission, jevCreditHold, jevLedgerSnapshot } from './jevLedger.js'
 import { type JevSettings, readJevSettings } from './jevSetting.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export interface JevAgentIdentity {
   id: string
@@ -83,7 +84,7 @@ export function resolveJevStatus(inputs: JevStatusInputs): JevStatus {
 }
 
 export function jevStatus(agent?: JevAgentIdentity, now: number = Date.now(), settings: JevSettings = readJevSettings()): JevStatus {
-  const key = jevKeyPresence(process.env, settings.road)
+  const key = jevKeyPresence(hostEnv(), settings.road)
   return resolveJevStatus({ settings, key, ledger: jevLedgerSnapshot(now, settings.road), now, agent })
 }
 

@@ -41,6 +41,7 @@ import {
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export type WalletProvider = 'anthropic' | 'openai' | 'openrouter' | 'gemini' | 'moonshot' | 'huggingface'
 
@@ -130,7 +131,7 @@ let entriesMemo: { at: number; key: string; entries: WalletEntry[] } | null = nu
 
 function entriesKey(): string {
   let env = ''
-  for (const name of credentialEnvNames()) env += `${name}=${process.env[name] ?? ''}\u0000`
+  for (const name of credentialEnvNames()) env += `${name}=${hostEnv()[name] ?? ''}\u0000`
   return `${signInLedgerEpoch()}:${env}`
 }
 
@@ -219,7 +220,7 @@ function composeWalletEntries(): WalletEntry[] {
     })
   }
   {
-    const envKey = process.env.OPENROUTER_API_KEY?.trim()
+    const envKey = hostEnv().OPENROUTER_API_KEY?.trim()
     const storedKey = readStoredOpenrouterApiKey()
     if (envKey || storedKey) {
       const keyTail = maskedKeyTail(envKey || storedKey)
@@ -315,7 +316,7 @@ function composeWalletEntries(): WalletEntry[] {
     })
   }
   {
-    const envKey = process.env.HF_TOKEN?.trim()
+    const envKey = hostEnv().HF_TOKEN?.trim()
     const storedKey = readStoredHuggingfaceApiKey()
     if (envKey || storedKey) {
       const keyTail = maskedKeyTail(envKey || storedKey)

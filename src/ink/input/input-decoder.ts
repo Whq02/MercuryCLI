@@ -16,6 +16,7 @@ import {
   interpretResponse,
   type ParsedInput,
 } from './interpreter.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 
 export type KeyParseState = {
@@ -42,7 +43,7 @@ export function __setBurstCrHostForTest(v: boolean | null): void {
 
 export function burstCrIsLineBreak(
   platform: string = process.platform,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = hostEnv(),
 ): boolean {
   if (burstCrHostOverride !== null) return burstCrHostOverride
   return platform === 'win32' && !isModernWindowsTerminal(env, platform)

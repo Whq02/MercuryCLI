@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import { blenderBridgeAddonDirOverride } from '../../utils/blender/bridgeGates.js'
 import { locateBlender, probeBlenderVersion } from '../ide/blenderProject.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export const BLENDER_ADDON_MODULE = 'mercury_blender_bridge'
 
@@ -45,7 +46,7 @@ export function resolveBlenderAddonHome(testOpts?: {
       reason: `MERCURY_BLENDER_BRIDGE_ADDON_DIR is set but ${pin} is not an existing directory`,
     }
   }
-  const env = testOpts?.env ?? process.env
+  const env = testOpts?.env ?? hostEnv()
   const userScripts = env.BLENDER_USER_SCRIPTS
   if (userScripts && userScripts.trim() !== '') {
     return { home: { path: path.join(userScripts, 'addons'), source: 'blender-user-scripts' } }

@@ -1,4 +1,5 @@
 import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 type WardScope = 'edit' | 'bash'
 
@@ -833,7 +834,7 @@ const WINDOWS_MSYS_TARGETS = [
 ]
 
 export function windowsRemovalPatterns(): RegExp[] {
-  const home = (process.env.USERPROFILE || process.env.HOME || '').replace(/\\/g, '/').replace(/\/+$/, '')
+  const home = (hostEnv().USERPROFILE || hostEnv().HOME || '').replace(/\\/g, '/').replace(/\/+$/, '')
   if (windowsRootPatterns?.home === home) return windowsRootPatterns.patterns
   const escape = (path: string): string => path.split(/[\\/]/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[/\\\\]')
   const homes = /^[a-z]:\//i.test(home) ? [escape(home), escape(`/${home[0]}${home.slice(2)}`)] : []
@@ -859,7 +860,7 @@ export function setHomeSpellings(door: HomeSpellings | undefined): void {
 }
 
 function envHomeSpellings(): readonly string[] {
-  const home = process.platform === 'win32' ? process.env.USERPROFILE || process.env.HOME : process.env.HOME || process.env.USERPROFILE
+  const home = process.platform === 'win32' ? hostEnv().USERPROFILE || hostEnv().HOME : hostEnv().HOME || hostEnv().USERPROFILE
   return home === undefined || home === '' ? [] : [home]
 }
 
@@ -909,7 +910,7 @@ function homePatterns(): HomePatterns {
 let pipelineRemovalCache: { key: string; pattern: RegExp } | undefined
 
 function pipelineRemovalPattern(): RegExp {
-  const spellings = [...homeSpellings(), process.env.USERPROFILE ?? ''].filter(Boolean)
+  const spellings = [...homeSpellings(), hostEnv().USERPROFILE ?? ''].filter(Boolean)
   const key = JSON.stringify(spellings)
   if (pipelineRemovalCache?.key === key) return pipelineRemovalCache.pattern
   const escaped = spellings.map(path => path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -930,7 +931,7 @@ const SEGMENT = '[^\\n;|&]*'
 
 export function ownHomeNames(): string[] {
   const names: string[] = []
-  const spellings = [...(homeSpellingsDoor === undefined ? envHomeSpellings() : homeSpellingsDoor()), process.env.USERPROFILE ?? '', process.env.HOME ?? '']
+  const spellings = [...(homeSpellingsDoor === undefined ? envHomeSpellings() : homeSpellingsDoor()), hostEnv().USERPROFILE ?? '', hostEnv().HOME ?? '']
   for (const spelling of spellings) {
     const name = spelling.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? ''
     if (name !== '' && !names.includes(name)) names.push(name)

@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nodePackPlatform, runtimeBinaryFor } from '../../services/privateChannel/vendoredRuntime.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 const QUERY_BOUND_MS = 10 * 60_000
 
@@ -62,7 +63,7 @@ export async function runJsonQuery(
     execArgv: [],
     stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     windowsHide: true,
-    env: { HOME: request.directory, USERPROFILE: request.directory, TMPDIR: request.directory, LANG: 'C.UTF-8', ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}), ...(process.env.WINDIR ? { WINDIR: process.env.WINDIR } : {}) },
+    env: { HOME: request.directory, USERPROFILE: request.directory, TMPDIR: request.directory, LANG: 'C.UTF-8', ...(hostEnv().SystemRoot ? { SystemRoot: hostEnv().SystemRoot! } : {}), ...(hostEnv().WINDIR ? { WINDIR: hostEnv().WINDIR! } : {}) },
   })
   const kill = (): void => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL') }
   process.once('exit', kill)

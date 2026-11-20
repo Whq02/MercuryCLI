@@ -8,6 +8,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import type { ProcessSweepEntry, ProcessSweepObservation, ProcessSweepTable } from './processSweep.js'
 import { processSweepWindowsHost } from './processSweepWindowsHost.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 const rawRowSchema = z.object({
   pid: z.number().int().positive().max(0xffffffff),
@@ -72,7 +73,7 @@ export function windowsSignalRefusal(expected: Identity, fresh: ProcessSweepObse
 
 function openHost() {
   if (process.platform !== 'win32') throw new Error('The Windows process reader requires Windows')
-  const executable = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+  const executable = join(hostEnv().SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
   const encoded = Buffer.from(processSweepWindowsHost, 'utf16le').toString('base64')
   const child = spawn(executable, ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
     windowsHide: true,
@@ -89,7 +90,7 @@ function openHost() {
   const lines = reader[Symbol.asyncIterator]()
   const endTree = (): void => {
     if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return
-    spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, env: { ...subprocessEnv() }, stdio: 'ignore' }).on('error', () => child.kill())
+    spawn(join(hostEnv().SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, env: { ...subprocessEnv() }, stdio: 'ignore' }).on('error', () => child.kill())
   }
   return {
     async ask(request: Record<string, unknown>, timeoutMs = 30_000): Promise<Record<string, unknown>> {

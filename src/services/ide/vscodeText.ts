@@ -1,3 +1,5 @@
+import { hostEnv } from '../../utils/hostEnv.js'
+
 export function stripJsonc(text: string): string {
   let out = ''
   let inString = false
@@ -52,7 +54,7 @@ export function stripJsonc(text: string): string {
   return out.replace(/,(\s*[}\]])/g, '$1')
 }
 
-export function expandVsCodeVar(value: string, root: string, env: NodeJS.ProcessEnv = process.env): string | null {
+export function expandVsCodeVar(value: string, root: string, env: NodeJS.ProcessEnv = hostEnv()): string | null {
   const expanded = value.replaceAll('${workspaceFolder}', root).replace(/\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}/g, (_m, name: string) => env[name] ?? '')
   return expanded.includes('${') ? null : expanded
 }

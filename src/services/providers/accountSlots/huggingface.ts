@@ -4,10 +4,11 @@ import { readStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import { label } from './keyLane.js'
 import { maskedKeyTail } from '../credentialIdentity.js'
 import { signInWords } from '../../wallet/identityWords.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
-    reads.huggingfaceEnvKey ? reads.huggingfaceEnvKey() : process.env.HF_TOKEN?.trim() || undefined
+    reads.huggingfaceEnvKey ? reads.huggingfaceEnvKey() : hostEnv().HF_TOKEN?.trim() || undefined
   const oauth = (reads.huggingfaceOauth ?? huggingfaceStoredTokens)()
   const storedKey = (reads.huggingfaceStoredKey ?? readStoredHuggingfaceApiKey)()
   const identityOf = reads.huggingfaceStoredKeyIdentity ?? huggingfaceStoredTokenIdentity

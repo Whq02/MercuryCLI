@@ -4,6 +4,7 @@ import { getPlatform } from '../platform.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPowerShellEdition } from './powershellDetection.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
+import { hostEnv } from '../hostEnv.js'
 
 export function buildPowerShellArgs(command: string): string[] {
   return ['-NoProfile', '-NonInteractive', '-Command', command]
@@ -52,8 +53,8 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
         overrides.MSYS2_ARG_CONV_EXCL = '*'
         overrides.MSYS_NO_PATHCONV = '1'
         if ((await getPowerShellEdition()) === 'desktop') {
-          const programFiles = process.env.ProgramFiles || 'C:\\Program Files'
-          const systemRoot = process.env.SystemRoot || 'C:\\Windows'
+          const programFiles = hostEnv().ProgramFiles || 'C:\\Program Files'
+          const systemRoot = hostEnv().SystemRoot || 'C:\\Windows'
           overrides.PSModulePath = [
             `${programFiles}\\WindowsPowerShell\\Modules`,
             `${systemRoot}\\system32\\WindowsPowerShell\\v1.0\\Modules`,

@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve, sep, win32 as pathWin32 } from 'node:
 import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { resolveLayoutRoots } from './installLayout.js'
 import { nixInstallRoot } from './nixInstallRoot.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export { nixInstallRoot } from './nixInstallRoot.js'
 
@@ -204,7 +205,7 @@ function realpathSafe(p: string): string {
 const pathSegments = (p: string, isWindows = false): string[] =>
   (isWindows && winDriveOrUnc(p) ? pathWin32.resolve(p) : resolve(p)).split(/[/\\]/)
 
-export function homebrewKegOf(invokedPath: string, env: NodeJS.ProcessEnv = process.env, isWindows = false): string | null {
+export function homebrewKegOf(invokedPath: string, env: NodeJS.ProcessEnv = hostEnv(), isWindows = false): string | null {
   if (!invokedPath) return null
   const clean = isWindows ? stripExtendedLengthPrefix(invokedPath) : invokedPath
   const parts = pathSegments(clean, isWindows)
@@ -258,7 +259,7 @@ export function gatherInstallProbeFacts(overrides?: {
   const isWindows = platform === 'win32'
   const strip = (p: string): string => (isWindows ? stripExtendedLengthPrefix(p) : p)
   const dirOf = isWindows ? pathWin32.dirname : dirname
-  const env = overrides?.env ?? process.env
+  const env = overrides?.env ?? hostEnv()
   const rawInvoked = strip(overrides?.invokedPath ?? process.argv[1] ?? '')
   const invokedPath = rawInvoked ? strip(realpathSafe(rawInvoked)) : ''
   const entryDir = invokedPath ? dirOf(invokedPath) : ''

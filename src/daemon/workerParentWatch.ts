@@ -2,13 +2,14 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { isProcessAlive, decideOrphanShutdown } from './ownerWatch.js'
 import { runCleanupFunctions } from '../utils/cleanupRegistry.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 export const WORKER_PARENT_PID_ENV = 'MERCURY_WORKER_PARENT_PID'
 
 export const WORKER_WATCH_INTERVAL_MS = 4000
 export const WORKER_WATCH_GRACE_CHECKS = 2
 
-export function parseWorkerParentPid(env: NodeJS.ProcessEnv = process.env): number | null {
+export function parseWorkerParentPid(env: NodeJS.ProcessEnv = hostEnv()): number | null {
   const raw = flagEnv(WORKER_PARENT_PID_ENV, env)?.trim()
   if (!raw) return null
   const pid = Number(raw)

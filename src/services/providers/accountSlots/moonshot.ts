@@ -4,10 +4,11 @@ import { readStoredMoonshotApiKey } from '../providerSecrets.js'
 import { label } from './keyLane.js'
 import { maskedKeyTail } from '../credentialIdentity.js'
 import { signInWords, kimiHostWords } from '../../wallet/identityWords.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
-    reads.moonshotEnvKey ? reads.moonshotEnvKey() : process.env.MOONSHOT_API_KEY?.trim() || undefined
+    reads.moonshotEnvKey ? reads.moonshotEnvKey() : hostEnv().MOONSHOT_API_KEY?.trim() || undefined
   const oauth = (reads.moonshotOauth ?? moonshotStoredTokens)()
   const storedKey = (reads.moonshotStoredKey ?? readStoredMoonshotApiKey)()
   const slots: AccountSlot[] = []

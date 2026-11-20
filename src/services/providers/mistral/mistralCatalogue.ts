@@ -8,6 +8,7 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 import { mistralApiBase, resolveMistralApiKey } from './mistralAccounts.js'
 import { MISTRAL_DISPLAY_PINS, isMistralChatModelId, mistralDisplayName, mistralDisplayPin } from './mistralPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface MistralLiveModel {
   id: string
@@ -89,13 +90,13 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${mistralApiBase(env)}` : 'none'
 }
 
-export function getCachedMistralCatalogue(env: NodeJS.ProcessEnv = process.env): MistralCatalogueSnapshot | null {
+export function getCachedMistralCatalogue(env: NodeJS.ProcessEnv = hostEnv()): MistralCatalogueSnapshot | null {
   return resolveMistralApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<MistralCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (cache.size === 0) return EMPTY_IDS
   const snapshot = getCachedMistralCatalogue(env)
   if (!snapshot?.fetchedAtMs) return EMPTY_IDS
@@ -113,7 +114,7 @@ export function mistralListedModel(snapshot: MistralCatalogueSnapshot | null, id
 }
 
 export function refreshMistralCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<MistralCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveMistralApiKey(env)
   const identity = identityOf(env)
@@ -147,7 +148,7 @@ export function refreshMistralCatalogue(opts?: { force?: boolean; fetchImpl?: ty
 }
 
 export function kickMistralCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('mistral', env).allowed) return false
   const snapshot = getCachedMistralCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
@@ -164,7 +165,7 @@ export interface MistralCatalogueRow {
 }
 export type MistralCatalogueSource = { kind: 'live'; count: number; fetchedAtMs: number } | { kind: 'unread' }
 
-export function mistralCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: MistralCatalogueRow[]; source: MistralCatalogueSource } {
+export function mistralCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: MistralCatalogueRow[]; source: MistralCatalogueSource } {
   const snapshot = getCachedMistralCatalogue(env)
   if (!snapshot?.fetchedAtMs) return { rows: [], source: { kind: 'unread' } }
   const rows = snapshot.models.filter(model => model.deprecation === undefined).map(model => {
@@ -176,11 +177,11 @@ export function mistralCatalogueRows(env: NodeJS.ProcessEnv = process.env): { ro
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function newestMistralModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function newestMistralModel(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   return mistralCatalogueRows(env).rows[0]?.id
 }
 
-export function mistralModelFacts(id: string, env: NodeJS.ProcessEnv = process.env): { contextWindow?: number; reasoning?: boolean; images?: boolean; tools?: boolean; efforts: readonly string[] } {
+export function mistralModelFacts(id: string, env: NodeJS.ProcessEnv = hostEnv()): { contextWindow?: number; reasoning?: boolean; images?: boolean; tools?: boolean; efforts: readonly string[] } {
   const pin = mistralDisplayPin(id)
   const live = mistralListedModel(getCachedMistralCatalogue(env), id)
   const reasoning = live?.reasoning ?? pin?.reasoning

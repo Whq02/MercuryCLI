@@ -5,6 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { nousAccountIdentity, nousAccountUrl, resolveNousCredential, type NousCredentialSource } from './nousAccounts.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface NousSubscriptionFacts {
   plan?: string
@@ -49,11 +50,11 @@ let observed: NousObservedAccount | null = null
 let failure: NousAccountFailure | null = null
 let observedIdentity = 'none'
 
-function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
+function activeIdentity(env: NodeJS.ProcessEnv = hostEnv()): string {
   return nousAccountIdentity(env)
 }
 
-function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
+function dropIfStale(env: NodeJS.ProcessEnv = hostEnv()): void {
   if (observedIdentity !== activeIdentity(env)) {
     observed = null
     failure = null
@@ -61,12 +62,12 @@ function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
   }
 }
 
-export function nousObservedAccount(env: NodeJS.ProcessEnv = process.env): NousObservedAccount | null {
+export function nousObservedAccount(env: NodeJS.ProcessEnv = hostEnv()): NousObservedAccount | null {
   dropIfStale(env)
   return observed
 }
 
-export function nousAccountFailure(env: NodeJS.ProcessEnv = process.env): NousAccountFailure | null {
+export function nousAccountFailure(env: NodeJS.ProcessEnv = hostEnv()): NousAccountFailure | null {
   dropIfStale(env)
   return failure
 }
@@ -157,7 +158,7 @@ export async function fetchNousAccount(key: string, io?: NousUsageIo, source: No
   const now = io?.now?.() ?? Date.now()
   const identity = identityOverride ?? credentialFingerprint(key)
   try {
-    const response = await fetchWithProviderDeadline(fetchImpl, 'nous', PROBE_TIMEOUT_MS, nousAccountUrl(io?.env ?? process.env), {
+    const response = await fetchWithProviderDeadline(fetchImpl, 'nous', PROBE_TIMEOUT_MS, nousAccountUrl(io?.env ?? hostEnv()), {
       method: 'GET',
       headers: { accept: 'application/json', authorization: `Bearer ${key}`, 'user-agent': getUserAgent() },
       ...(proxyOptions as Record<string, unknown>),
@@ -199,7 +200,7 @@ let inFlight: Promise<NousObservedAccount | null> | null = null
 
 export function refreshNousAccount(io?: NousUsageIo & { force?: boolean }): Promise<NousObservedAccount | null> {
   const now = io?.now?.() ?? Date.now()
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   dropIfStale(env)
   const anchor = observed?.observedAtMs ?? failure?.atMs
   if (!io?.force && anchor !== undefined && now - anchor < REFRESH_TTL_MS) return Promise.resolve(observed)

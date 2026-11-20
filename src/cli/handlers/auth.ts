@@ -217,6 +217,7 @@ export async function authLogin(opts: {
 
 import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../utils/accounts/signInRefusal.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { hostEnv } from '../../utils/hostEnv.js'
 
 export async function authStatus(opts: { json?: boolean }): Promise<void> {
   const readable = opts.json !== true && process.stdout.isTTY === true
@@ -228,7 +229,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
       return { key: null, source: 'none' }
     }
   })()
-  const envApiKeyPresent = Boolean(process.env.ANTHROPIC_API_KEY)
+  const envApiKeyPresent = Boolean(hostEnv().ANTHROPIC_API_KEY)
   const account = getGlobalConfig().oauthAccount
   const subscriptionType = getSubscriptionType()
 

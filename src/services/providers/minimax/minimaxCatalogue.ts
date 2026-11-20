@@ -8,6 +8,7 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 import { minimaxApiBase, resolveMinimaxApiKey } from './minimaxAccounts.js'
 import { MINIMAX_DISPLAY_PINS, isMinimaxTextModelId, minimaxDisplayName, minimaxDisplayPin, type MinimaxThinkingDial } from './minimaxPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface MinimaxLiveModel {
   id: string
@@ -96,13 +97,13 @@ function identityOf(env: NodeJS.ProcessEnv): string {
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${minimaxApiBase(env)}` : 'none'
 }
 
-export function getCachedMinimaxCatalogue(env: NodeJS.ProcessEnv = process.env): MinimaxCatalogueSnapshot | null {
+export function getCachedMinimaxCatalogue(env: NodeJS.ProcessEnv = hostEnv()): MinimaxCatalogueSnapshot | null {
   return resolveMinimaxApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<MinimaxCatalogueSnapshot, ReadonlySet<string>>()
-export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+export function cachedLiveIds(env: NodeJS.ProcessEnv = hostEnv()): ReadonlySet<string> {
   if (cache.size === 0) return EMPTY_IDS
   const snapshot = getCachedMinimaxCatalogue(env)
   if (!snapshot?.fetchedAtMs) return EMPTY_IDS
@@ -120,7 +121,7 @@ export function minimaxListedModel(snapshot: MinimaxCatalogueSnapshot | null, id
 }
 
 export function refreshMinimaxCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<MinimaxCatalogueSnapshot | null> {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const key = resolveMinimaxApiKey(env)
   const identity = identityOf(env)
@@ -154,7 +155,7 @@ export function refreshMinimaxCatalogue(opts?: { force?: boolean; fetchImpl?: ty
 }
 
 export function kickMinimaxCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? process.env
+  const env = opts?.env ?? hostEnv()
   if (!catalogueTrafficVerdict('minimax', env).allowed) return false
   const snapshot = getCachedMinimaxCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
@@ -175,7 +176,7 @@ export function minimaxPinRows(): MinimaxCatalogueRow[] {
   return MINIMAX_DISPLAY_PINS.map(pin => ({ id: pin.wireId, displayName: pin.displayName, observedAt: pin.observedAt, contextWindow: pin.contextWindow, listedLive: false }))
 }
 
-export function minimaxCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: MinimaxCatalogueRow[]; source: MinimaxCatalogueSource } {
+export function minimaxCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: MinimaxCatalogueRow[]; source: MinimaxCatalogueSource } {
   const snapshot = getCachedMinimaxCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
   if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: minimaxPinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
@@ -187,11 +188,11 @@ export function minimaxCatalogueRows(env: NodeJS.ProcessEnv = process.env): { ro
   return { rows, source: { kind: 'live', count: rows.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function newestMinimaxModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function newestMinimaxModel(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
   return minimaxCatalogueRows(env).rows[0]?.id
 }
 
-export function minimaxWireId(model: string, env: NodeJS.ProcessEnv = process.env): string {
+export function minimaxWireId(model: string, env: NodeJS.ProcessEnv = hostEnv()): string {
   const asked = model.trim().replace(/\[(?:[0-9]+m|served)\]/gi, '')
   return minimaxListedModel(getCachedMinimaxCatalogue(env), asked)?.id ?? minimaxDisplayPin(asked)?.wireId ?? asked
 }

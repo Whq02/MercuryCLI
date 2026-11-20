@@ -3,6 +3,7 @@ import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredCerebrasApiKey } from '../providerSecrets.js'
 import { cerebrasApiBase, cerebrasEnvKey } from './cerebrasAccounts.js'
 import { fetchCerebrasLiveModels, CerebrasCatalogueHttpError } from './cerebrasCatalogue.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface CerebrasKeyLoginOutcome {
   ok: boolean
@@ -15,7 +16,7 @@ const CEREBRAS_KEY_RECEIPT_TAIL = 'Text models only. Trial and paid accounts hav
 export async function storeCerebrasApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<CerebrasKeyLoginOutcome> {
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Cerebras API key.' }
-  const env = io?.env ?? process.env
+  const env = io?.env ?? hostEnv()
   const safe = (message: string): string => message.split(key).join('[redacted]')
   let note: string
   try {

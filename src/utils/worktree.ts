@@ -29,6 +29,7 @@ import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } 
 import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
 import { runGit } from './worktree/git.js'
 import { passedOver, passedOverAs } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 
 
@@ -1339,7 +1340,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
   const insideTmux = isInsideTmuxSync()
   const controlMode = isInITerm2() && !classicMode && !insideTmux
 
-  const childEnv: NodeJS.ProcessEnv = { ...process.env }
+  const childEnv: NodeJS.ProcessEnv = { ...hostEnv() }
 
   if (controlMode && !sessionExists) {
     process.stdout.write(
