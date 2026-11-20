@@ -276,7 +276,13 @@ export function registerWardsGuard(
         pending.isMercurySource = path => {
           const { path: resolved, root } = resolveTarget(path)
           if (root === undefined || !resolved.startsWith(`${join(root, 'src')}${sep}`) || !existsSync(join(root, 'src', 'components', 'mercuryPalette.ts'))) return false
-          return JSON.parse(readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null')?.name === 'mercury'
+          const manifest = readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null'
+          try {
+            return JSON.parse(manifest)?.name === 'mercury'
+          } catch {
+            logForDebugging(`wards: ${join(root, 'package.json')} could not be read as a manifest (its first 64 KB are not valid JSON), so ${resolved} is not judged as Mercury source`)
+            return false
+          }
         }
         const refusal = pending.shellCommand === undefined ? evaluateWards(REFUSAL_WARDS, pending, work) : await refusalOfShellCommand(pending, getCwd(), work)
         if (!refusal.allow && level !== 'warn') {

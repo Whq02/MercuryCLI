@@ -258,6 +258,18 @@ function runIsolated(body: string): Record<string, unknown> {
         callId: 'w2',
         messages: [],
       })
+      out.unreadPkgVerdict = null
+      if (${POSIX_MODES}) {
+        fs.writeFileSync(path.join(repo, 'package.json'), '{"name":"mercury"}')
+        fs.chmodSync(path.join(repo, 'package.json'), 0o000)
+        out.unreadPkgVerdict = await guardsMod.judgeToolCall('wards-fn05', {
+          tool: 'Edit',
+          input: { file_path: path.join(repo, 'src/components/a.tsx'), old_string: '1', new_string: 'const c = "#ff0000"' },
+          callId: 'w3',
+          messages: [],
+        })
+        fs.chmodSync(path.join(repo, 'package.json'), 0o644)
+      }
       out.loopThrew = false
       try {
         wardsGuard.realTargetPath(path.join(repo, 'loop-a'))
@@ -277,7 +289,9 @@ function runIsolated(body: string): Record<string, unknown> {
   const throwV = r.throwVerdict as { refused?: boolean; reason?: string }
   const badPkgV = r.badPkgVerdict as { refused?: boolean; reason?: string }
   check('wardsGuard: unexpected throw in judge refuses instead of allowing', throwV?.refused === true && String(throwV.reason).includes('boom-in-ward'), JSON.stringify(throwV))
-  check('wardsGuard: corrupt package.json refuses instead of skipping mercurySourceOnly wards', badPkgV?.refused === true, JSON.stringify(badPkgV))
+  const unreadPkgV = r.unreadPkgVerdict as { refused?: boolean; reason?: string } | null
+  check('wardsGuard: a package.json that does not parse cannot identify Mercury, so the call is not refused', badPkgV?.refused === false, JSON.stringify(badPkgV))
+  if (POSIX_MODES) check('wardsGuard: a package.json that cannot be read refuses the call with the words of an unread file', unreadPkgV?.refused === true && String(unreadPkgV.reason).includes('could not read'), JSON.stringify(unreadPkgV))
   check('wardsGuard: symlink loop throws in realTargetPath instead of leaving unresolved', r.loopThrew === true, JSON.stringify(r))
   check('wardsGuard: NUL path throws in makeTargetResolver instead of returning unexpanded', r.nulThrew === true, JSON.stringify(r))
 }
