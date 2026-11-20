@@ -5,7 +5,6 @@ import type { ServerCapabilities } from 'vscode-languageserver-protocol'
 import { z } from 'zod/v4'
 import { type LSPServerInstance } from '../../../services/lsp/LSPServerInstance.js'
 import { normalizeWorkspaceEdit, type LspRangeLike, type LspTextEditLike, type NormalizedFileEdits, type WorkspaceEditLike } from '../../../services/lsp/workspaceEditApply.js'
-import { isENOENT } from '../../../utils/errors.js'
 import type { OpEnv } from './types.js'
 import { PREPARE_ROUNDS, IGNORED_WALK_DIRS, displayPathFor, uriToFilePath, syncFileFromDisk } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
@@ -46,8 +45,8 @@ export async function pathRenameClaimants(
     try {
       entries = await readdir(dir, { withFileTypes: true })
     } catch (error) {
-      if (isENOENT(error)) return
-      throw error
+      passedOver(error)
+      return
     }
     for (const entry of entries) {
       if (scanned >= FILE_SCAN_CAP) return

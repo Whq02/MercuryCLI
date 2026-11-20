@@ -122,16 +122,12 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 
   const claimants = await pathRenameClaimants(env, oldPath, newPath, isDirectory)
+  const unprepared: string[] = []
   for (const c of claimants) {
     if (c.state !== 'running') {
-      try {
-        await c.start()
-      } catch (error) {
-        return moveFailed(
-          `LspMoveFile failed while preparing import edits: ${c.name}: ${errorMessage(error)}. Nothing was written or moved; all files are unchanged.`,
-          'import-edit preparation failed — all files unchanged',
-        )
-      }
+      await c.start().catch((error: unknown) => {
+        unprepared.push(`${c.name} could not start (${errorMessage(error)}), so the move goes on without its import updates`)
+      })
     }
   }
   const askable = claimants.filter(c => advertisesFileOperation(c, 'willRename'))
@@ -141,17 +137,12 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
 
   let prepared: { ok: true; files: NormalizedFileEdits[]; snapshots: Map<string, string> }
   let supportNote: string
-  const fanOutNotes: string[] = []
+  const fanOutNotes: string[] = [...unprepared]
   if (askable.length > 0) {
     if (!isDirectory) {
-      try {
-        await syncFileFromDisk(env.manager, oldPath)
-      } catch (error) {
-        return moveFailed(
-          `LspMoveFile failed while preparing import edits: could not sync ${display}: ${errorMessage(error)}. Nothing was written or moved; all files are unchanged.`,
-          'import-edit preparation failed — all files unchanged',
-        )
-      }
+      await syncFileFromDisk(env.manager, oldPath).catch((error: unknown) => {
+        fanOutNotes.push(`${display} could not be re-read for the language server (${errorMessage(error)}), so its import updates come from the copy it already had`)
+      })
     }
     const fan = await prepareApplyFanOut(
       env,

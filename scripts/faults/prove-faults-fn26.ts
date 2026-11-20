@@ -290,7 +290,7 @@ try {
       tool: { name: 'LspMoveFile' } as never,
       context: baseCtx,
     })
-    check('path-rename-claimant-start-fail: refuses with claimant start error instead of claiming none advertises', startFail.effect.outcome === 'failed' && startFail.result.includes('broken-ts') && startFail.result.includes('start-failed-boom') && !startFail.result.includes('none advertises'), startFail.result)
+    check('path-rename-claimant-start-fail: a server that cannot start does not stop the move, and a note names it', startFail.effect?.outcome !== 'failed' && startFail.result.includes('note: broken-ts could not start (start-failed-boom)'), startFail.result)
 
     let willRenameCalled = 0
     const readyServer = {
@@ -311,10 +311,10 @@ try {
       tool: { name: 'LspMoveFile' } as never,
       context: baseCtx,
     })
-    check('path-rename-sync-fail: refuses with sync-open-boom and does not call willRenameFiles', syncFail.effect.outcome === 'failed' && syncFail.result.includes('sync-open-boom') && willRenameCalled === 0, JSON.stringify({ result: syncFail.result, willRenameCalled }))
+    check('path-rename-sync-fail: a sync that fails does not stop the move, and a note says so', syncFail.effect?.outcome !== 'failed' && syncFail.result.includes('sync-open-boom') && syncFail.result.includes('note: ') && willRenameCalled >= 1, JSON.stringify({ result: syncFail.result, willRenameCalled }))
   }
 
-  console.log('\n10. LSPTool/mercuryOps/pathRenameFanOut.ts: unreadable directory rejects instead of returning no claimants')
+  console.log('\n10. LSPTool/mercuryOps/pathRenameFanOut.ts: an unreadable directory does not stop the move, as before')
   if (POSIX_MODES) {
     const { pathRenameClaimants } = await import('../../src/tools/LSPTool/mercuryOps/pathRenameFanOut.js')
     const unreadableDir = join(scratch, 'unreadable-pkg')
@@ -333,7 +333,7 @@ try {
       } catch (err) {
         threw = err instanceof Error ? err.message : String(err)
       }
-      check('path-rename-dir-eacces: rejects with EACCES instead of returning empty claimants', threw !== null && /EACCES|permission denied/i.test(threw), String(threw))
+      check('path-rename-dir-eacces: a folder that cannot be listed does not stop the move, as before', threw === null, String(threw))
     } finally {
       chmodSync(unreadableDir, 0o700)
     }
