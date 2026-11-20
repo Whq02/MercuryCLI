@@ -111,11 +111,56 @@ async function runPromptDraft(): Promise<void> {
   check('draftPasteHashes throws EACCES when drafts dir is unreadable', threwCode === 'EACCES', String(threwCode))
 }
 
+async function runPromptEditor(): Promise<void> {
+  console.log('\npromptEditor — statSync/read failure returns EditorResult.error instead of silent null')
+  const instances = (await import('../../src/ink/instances.ts')).default
+  const { editFileInEditor } = await import('../../src/utils/promptEditor.ts')
+  const prevEditor = process.env.EDITOR
+  const prevVisual = process.env.VISUAL
+  const fakeInstance = {
+    awaitTerminalQueries: async () => {},
+    enterAlternateScreen: () => {},
+    exitAlternateScreen: () => {},
+    pause: () => {},
+    resume: () => {},
+    suspendStdin: () => {},
+    resumeStdin: () => {},
+  }
+  instances.set(process.stdout, fakeInstance as never)
+  const rmScript = join(SCRATCH, 'remove-file.sh')
+  writeFileSync(rmScript, '#!/bin/sh\nrm -f "$1"\n', { mode: 0o755 })
+  process.env.EDITOR = rmScript
+  delete process.env.VISUAL
+  try {
+    const missing = await editFileInEditor(join(SCRATCH, 'does-not-exist-editor.txt'))
+    check(
+      'editFileInEditor reports ENOENT error when file does not exist',
+      missing.content === null && typeof missing.error === 'string' && /ENOENT|no such file/i.test(missing.error),
+      JSON.stringify(missing),
+    )
+    const vanished = join(SCRATCH, 'editor-vanished.txt')
+    writeFileSync(vanished, 'before')
+    const afterRemove = await editFileInEditor(vanished)
+    check(
+      'editFileInEditor reports ENOENT error when reading edited file fails',
+      afterRemove.content === null && typeof afterRemove.error === 'string' && /ENOENT|no such file/i.test(afterRemove.error),
+      JSON.stringify(afterRemove),
+    )
+  } finally {
+    instances.delete(process.stdout)
+    if (prevEditor === undefined) delete process.env.EDITOR
+    else process.env.EDITOR = prevEditor
+    if (prevVisual === undefined) delete process.env.VISUAL
+    else process.env.VISUAL = prevVisual
+  }
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
   await runProjectBoundary()
   await runPromptDraft()
+  await runPromptEditor()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
