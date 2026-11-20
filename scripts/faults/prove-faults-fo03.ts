@@ -74,5 +74,25 @@ try { console.log('RESULT', holdBoxFire(${HELD}, ${JSON.stringify(dir)})) } catc
   check('box-read-eacces-file-kept: the unreadable file still stands as written', readFileSync(path, 'utf8') === body)
 }
 
+console.log('mcp needsAuth')
+if (POSIX_MODES) {
+  const NEEDS = join(SRC, 'services/mcp/client/needsAuth.ts')
+  for (const road of ['clear', 'forget'] as const) {
+    const home = scratch(`needs-${road}`)
+    const cache = join(home, 'mcp-needs-auth-cache.json')
+    writeFileSync(cache, JSON.stringify({ srv: { timestamp: Date.now() } }))
+    chmodSync(cache, 0o400)
+    chmodSync(home, 0o500)
+    const call = road === 'clear' ? 'm.clearMcpAuthCache(); await new Promise(r => setTimeout(r, 100))' : "await m.forgetMcpNeedsAuth('srv')"
+    const r = runChild(`process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
+const m = await import(${JSON.stringify(NEEDS)})
+console.log('BEFORE', await m.isNeedsAuthWarm('srv'))
+${call}
+console.log('AFTER', await m.isNeedsAuthWarm('srv'))`)
+    chmodSync(home, 0o700)
+    check(`needs-auth-${road}-unwritten: a ${road} the cache file refuses no longer reads the server as needing auth`, /BEFORE true/.test(r.out) && /AFTER false/.test(r.out), r.out.slice(0, 200))
+  }
+}
+
 console.log(failures === 0 ? 'all rows pass' : `${failures} row(s) failed`)
 process.exit(failures === 0 ? 0 : 1)
