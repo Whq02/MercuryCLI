@@ -3,7 +3,7 @@ import * as React from 'react'
 import { Box } from '../../ink.js'
 import type { SetToolJSXFn } from '../../Tool.js'
 import { BASH_BACKGROUND_TASK_TAG, BASH_DURATION_MS_TAG, BASH_EXIT_CODE_TAG, BASH_INPUT_TAG } from '../../constants/xml.js'
-import { escapeXml } from '../xml.js'
+import { escapeXml } from '../../utils/xml.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AttachmentMessage, Message, UserMessage } from '../../types/message.js'
 import type { ShellProgress } from '../../types/tools.js'
@@ -12,10 +12,10 @@ import {
   createSyntheticUserCaveatMessage,
   createUserMessage,
   INTERRUPT_MESSAGE,
-} from '../messages.js'
-import { resolveDefaultShell } from '../shell/resolveDefaultShell.js'
-import { isPowerShellToolEnabled } from '../shell/shellToolUtils.js'
-import { bashToolAvailable, WINDOWS_BASH_NOTICE } from '../shell/windowsShellRoad.js'
+} from '../../utils/messages.js'
+import { resolveDefaultShell } from '../../utils/shell/resolveDefaultShell.js'
+import { isPowerShellToolEnabled } from '../../utils/shell/shellToolUtils.js'
+import { bashToolAvailable, WINDOWS_BASH_NOTICE } from '../../utils/shell/windowsShellRoad.js'
 import { BashTool, type Out } from '../../tools/BashTool/BashTool.tsx'
 import { BashModeProgress } from '../../components/BashModeProgress.js'
 import type { ProcessUserInputContext } from './processUserInput.js'

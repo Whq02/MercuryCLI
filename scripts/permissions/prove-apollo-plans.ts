@@ -77,7 +77,7 @@ section('§1 the command roster: an unregistered planning word answers as any un
   check('the probes made no model request', api.messageRequests().length === 0, String(api.messageRequests().length))
 
   const { builtinCommands } = await import('../../src/commands.ts')
-  const { resolveUnknownSlashName } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+  const { resolveUnknownSlashName } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
   type Named = { name: string; aliases?: string[] }
   const roster = builtinCommands() as unknown as Named[]
   const names = new Set(roster.flatMap(c => [c.name, ...(c.aliases ?? [])]))

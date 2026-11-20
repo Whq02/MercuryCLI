@@ -9,9 +9,9 @@ import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { builtinCommands, commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands.js'
 import samples, { SAMPLES_OFF_SENTENCE } from '../../commands/samples/index.js'
 import { bareUsageLine, requiresArgument } from '../../skills/argumentHint.js'
-import { generateCommandSuggestions } from '../suggestions/commandSuggestions.js'
+import { generateCommandSuggestions } from '../../utils/suggestions/commandSuggestions.js'
 import { concourseOffSentence } from '../../context/surfaceRoute.js'
-import { markTransitionStart } from '../observability/frictionStopwatch.js'
+import { markTransitionStart } from '../../utils/observability/frictionStopwatch.js'
 import {
   COMMAND_ARGS_TAG,
   COMMAND_MESSAGE_TAG,
@@ -29,8 +29,8 @@ import type {
 import {
   createAttachmentMessage,
   getAttachmentMessages,
-} from '../attachments.js'
-import { isFullscreenEnvEnabled } from '../fullscreen.js'
+} from '../../utils/attachments.js'
+import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import {
   createCommandInputMessage,
   createSyntheticUserCaveatMessage,
@@ -38,23 +38,23 @@ import {
   createUserMessage,
   INTERRUPT_MESSAGE,
   isCompactBoundaryMessage,
-} from '../messages.js'
-import { parseSlashCommand } from '../slashCommandParsing.js'
-import { logError } from '../log.js'
-import { resetMicrocompactState } from '../../services/compact/microCompact.js'
-import { recordSkillUsage } from '../suggestions/skillUsageTracking.js'
-import { getAgentContext } from '../agentContext.js'
+} from '../../utils/messages.js'
+import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
+import { logError } from '../../utils/log.js'
+import { resetMicrocompactState } from '../compact/microCompact.js'
+import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
+import { getAgentContext } from '../../utils/agentContext.js'
 import { addInvokedSkill, getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { registerSkillHooks } from '../hooks/registerFrontmatterHooks.js'
+import { registerSkillHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
 
 import { getSessionId } from '../../bootstrap/state.js'
-import { isRestrictedToExtensionsOnly } from '../settings/extensionOnlyPolicy.js'
-import { parseSlashCommandToolsFromFrontmatter } from '../markdownConfigLoader.js'
+import { isRestrictedToExtensionsOnly } from '../../utils/settings/extensionOnlyPolicy.js'
+import { parseSlashCommandToolsFromFrontmatter } from '../../utils/markdownConfigLoader.js'
 import type {
   ProcessUserInputBaseResult,
   ProcessUserInputContext,
 } from './processUserInput.js'
-import { passedOver } from '../passedOver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const UNKNOWN_COMMAND_PREFIX = 'Unknown skill'
 
@@ -331,7 +331,7 @@ async function runForkedPromptCommand(
     getLastCacheSafeParams,
     prepareForkedCommandContext,
     runForkedAgent,
-  } = await import('../forkedAgent.js')
+  } = await import('../../utils/forkedAgent.js')
   const echoed = createUserMessage({
     content: formatCommandLoadingMetadata(getCommandName(command), args),
   })

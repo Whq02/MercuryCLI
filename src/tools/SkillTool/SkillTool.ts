@@ -418,7 +418,7 @@ export const SkillTool = buildTool({
       }
     }
 
-    const { processPromptSlashCommand } = await import('../../utils/processUserInput/processSlashCommand.js')
+    const { processPromptSlashCommand } = await import('../../services/processUserInput/processSlashCommand.js')
     const processed = await processPromptSlashCommand(name, args, commands, context)
     if (!processed.shouldQuery) {
       throw refusedExpansionError(name, processed)

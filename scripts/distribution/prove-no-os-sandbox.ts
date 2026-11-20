@@ -47,7 +47,7 @@ section('(b) the build vendors no vendor/seccomp and the notices carry no socket
 section('(c) /sandbox is not a command: the unknown-command sentence')
 {
   const { builtinCommands, findCommand } = await import('../../src/commands.ts')
-  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
   const commands = [...builtinCommands()]
   check('no built-in command is named sandbox', findCommand('sandbox', commands) === undefined)
   check('/sandbox resolves as an unknown slash name', resolveUnknownSlashName('/sandbox', commands) === 'sandbox')
