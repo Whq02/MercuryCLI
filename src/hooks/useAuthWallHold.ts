@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo, useRef } from 'react'
+import { usePublish } from './effects.js'
 import { credentialWallLineForModel } from '../services/providers/credentialWall.js'
 import type { Message } from '../types/message.js'
 import { signInLedgerEpoch } from '../utils/accounts/signInLedger.js'
@@ -48,7 +49,7 @@ export function useAuthWallHold(
   const modelRef = useRef(model)
   modelRef.current = model
 
-  useEffect(() => {
+  usePublish(() => {
     const hold = promptBehindAuthWall(messages)
     if (hold === null || seenRef.current.has(hold.errorUuid)) return
     seenRef.current.add(hold.errorUuid)

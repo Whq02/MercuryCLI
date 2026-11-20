@@ -1,6 +1,7 @@
 
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useTimer } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import { formatDuration } from '../utils/format.js'
 import { FAINT, IVORY } from './mercuryPalette.js'
@@ -20,7 +21,7 @@ export function MercuryMissionIndicator(): React.ReactNode {
   const [, setTick] = useState(0)
   const aliveRef = useRef(true)
 
-  useEffect(() => {
+  useTimer(() => {
     aliveRef.current = true
     if (setAt === undefined) return
     let timer: ReturnType<typeof setTimeout> | undefined

@@ -1,5 +1,6 @@
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useDerivedState, usePublish } from '../../hooks/effects.js'
 import type { PastedContent } from '../../utils/config.js'
 import { maybeTruncateInput } from './inputPaste.js'
 
@@ -20,7 +21,7 @@ export function useMaybeTruncateInput({
 }): void {
   const appliedRef = useRef(false)
 
-  useEffect(() => {
+  useDerivedState(() => {
     if (appliedRef.current) return
     const { newInput, newPastedContents } = maybeTruncateInput(
       input,
@@ -33,7 +34,7 @@ export function useMaybeTruncateInput({
     setCursorOffset(newInput.length)
   }, [input, pastedContents, onInputChange, setCursorOffset, setPastedContents])
 
-  useEffect(() => {
+  usePublish(() => {
     if (input === '') appliedRef.current = false
   }, [input])
 }

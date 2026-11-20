@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useTimer } from '../../../hooks/effects.js';
 import { readFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { flagEnv } from '../../../substrate/flagRegistry.js';
@@ -73,7 +74,7 @@ export function useConcourseSnapshot(): {
       }, () => alive.current),
     [],
   )
-  useEffect(() => {
+  useTimer(() => {
     alive.current = true
     rebuild()
     const unsubObl = subscribeObligations(

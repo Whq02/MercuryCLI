@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useClaim, useLoad, usePublish, useTimer } from '../../hooks/effects.js'
 import { pickerFactsOf } from '../../commands/tensorfold/pickerFacts.js'
 import { subscribeTensorFoldRoad, tensorFoldRoadState, tensorFoldRoadVersion } from '../../commands/tensorfold/road.js'
 import { readTensorFoldPanelFacts, type FactsIo, type TensorFoldPanelFacts } from '../../commands/tensorfold/scene.js'
@@ -50,26 +51,26 @@ export function useModelTensorFoldFacts(current: string | undefined, onNotice: (
     reading.current = next
     return next
   }, [])
-  useEffect(() => {
+  useClaim(() => {
     alive.current = true
     return () => {
       alive.current = false
     }
   }, [])
-  useEffect(() => {
+  useLoad(() => {
     if (!off) void read().catch(() => undefined)
   }, [off, read, version, discovery])
-  useEffect(() => {
+  useLoad(() => {
     if (!off) void refreshTensorFoldAnnouncements()
   }, [off])
   const inFlight = facts !== undefined && Object.values(facts.panel.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing')
-  useEffect(() => {
+  useTimer(() => {
     if (!inFlight) return
     const timer = setInterval(() => void read().catch(() => undefined), REFRESH_MS)
     return () => clearInterval(timer)
   }, [inFlight, read])
   const notice = useRef(tensorFoldRoadState().notice)
-  useEffect(() => {
+  usePublish(() => {
     const next = tensorFoldRoadState().notice
     if (next === notice.current) return
     notice.current = next
