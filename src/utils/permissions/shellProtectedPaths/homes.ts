@@ -3,8 +3,7 @@ import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
 import { logForDebugging } from '../../debug.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../../envUtils.js'
-import { type ReadWorld, type ShellRead, UNREAD_PART, wordKnown } from '../../wards/wardsShellRead.js'
-import { readCommand } from '../decision/commandAnalysis.js'
+import { type CommandReading, type ReadWorld, UNREAD_PART, readCommand, wordKnown } from '../decision/commandAnalysis.js'
 import { mercurySecretPath, protectedPathForms, spelling } from './paths.js'
 import { passedOver } from '../../passedOver.js'
 import { hostEnv } from '../../hostEnv.js'
@@ -32,7 +31,7 @@ export function floorsWorld(cwd: string): ReadWorld {
 
 let homeUnknownSaid = false
 
-export async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
+export async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<CommandReading | null> {
   let world: ReadWorld
   try {
     world = floorsWorld(cwd)
