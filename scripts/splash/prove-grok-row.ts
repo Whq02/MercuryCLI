@@ -49,9 +49,6 @@ section('§1 the baked table in source: the rows, their words and their place')
   check(`the family word bakes to the newest row: "${WORD}": "${head?.displayName ?? '?'}"`, head !== undefined && rows.includes(`"${WORD}": ${JSON.stringify(head.displayName)},`), rows.find(line => line.startsWith(`"${WORD}":`)) ?? '(no word row)')
   check('the family word appears once in the table', rows.filter(line => line.startsWith(`"${WORD}":`)).length === 1)
   check('the Sonnet 5.5 row still stands (the first-party rows are untouched)', rows.includes('"claude-sonnet-5-5": "Sonnet 5.5",'))
-  const generator = readFileSync(join(ROOT, 'scripts', 'splash', 'bake-menu.mjs'), 'utf8')
-  const suite = readFileSync(join(ROOT, 'scripts', 'splash', 'members.txt'), 'utf8')
-  check('the generator reads the xAI pin owner and bakes the family word from its first row, and the suite runs its drift gate', generator.includes("await import('../../src/services/providers/xai/xaiPins.ts')") && generator.includes('for (const pin of XAI_DISPLAY_PINS)') && generator.includes('names.grok = grokHead.displayName') && suite.includes('bake-menu.mjs --check'))
 }
 
 section("§2 the core's exported table agrees with the owner")

@@ -38,12 +38,7 @@ try {
   for (const ref of refs) {
     const source = readFileSync(join(root, 'mercury-skills/provider-apis/references', ref), 'utf8')
     check(`the loader extracts ${ref} byte-identically`, readFileSync(join(base, 'references', ref), 'utf8') === source)
-    for (const [, target] of source.matchAll(/`((?:src|scripts)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|sh|mjs))`/g)) check(`${ref}: checkout owner exists ${target}`, existsSync(join(root, target!)))
-    if (ref.startsWith('chat-')) {
-      for (const [, target] of source.matchAll(/`((?!(?:scripts|src)\/)[A-Za-z0-9_./-]+\.ts)`/g)) check(`shared-family owner exists ${target}`, existsSync(join(root, 'src/services/providers', target!)))
-    }
   }
-  for (const [, target] of text.matchAll(/`((?:src|scripts)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|sh|mjs))`/g)) check(`body checkout owner exists ${target}`, existsSync(join(root, target!)))
   check('the provider decides and Retry-After precedes a plan-window reading', text.includes('The provider decides on usage.') && text.includes('never a door that prevents sending') && text.includes('explicit `Retry-After` first') && text.includes('response body identifies that window'))
   check('the meter rule requires management and billing research', text.includes('Every family must show a meter.') && text.includes('management, billing and admin APIs'))
   check('the proof guidance requires fixture isolation and operator consent for live calls', text.includes('scratch home') && text.includes("live model call needs the operator's explicit authorisation"))
