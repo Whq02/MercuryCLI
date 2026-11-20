@@ -822,7 +822,11 @@ async function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, inp
   return tool.shellCommandOf?.(input)
 }
 
-export async function flowAskFor(tool: Pick<Tool, 'name' | 'shellCommandOf'> & { getPath?: (input: never) => string | undefined; isReadOnly?: (input: never) => boolean }, input: Record<string, unknown>, rules?: ToolPermissionContext): Promise<FlowAsk | null> {
+export async function flowAskFor<Input extends Record<string, unknown> = Record<string, unknown>>(
+  tool: Pick<Tool, 'name' | 'shellCommandOf'> & { getPath?: (input: Input) => string | undefined; isReadOnly?: (input: Input) => boolean },
+  input: Input,
+  rules?: ToolPermissionContext,
+): Promise<FlowAsk | null> {
   if ((tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME || tool.name === MONITOR_TOOL_NAME) && typeof input.command === 'string') {
     const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
     return flowShellAsk(input.command, cwd, tool.name === POWERSHELL_TOOL_NAME ? 'powershell' : 'bash', rules)
@@ -831,8 +835,8 @@ export async function flowAskFor(tool: Pick<Tool, 'name' | 'shellCommandOf'> & {
   if (started !== undefined) return flowShellAsk(started, resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined), 'bash', rules)
   if (typeof tool.getPath !== 'function') return null
   try {
-    if (tool.isReadOnly?.(input as never) === true) return null
-    const path = tool.getPath(input as never)
+    if (tool.isReadOnly?.(input) === true) return null
+    const path = tool.getPath(input)
     return typeof path === 'string' && path !== '' ? flowPathAsk(path, rules) : null
   } catch {
     return null

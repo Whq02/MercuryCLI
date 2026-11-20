@@ -619,14 +619,6 @@ function fillGround(buffer: ComposeBuffer, x: number, y: number, columns: number
   buffer.fill(x, y, columns, rows, bg ? applyTextStyles(' ', { backgroundColor: bg }) : undefined)
 }
 
-type FillMemo = {
-  __prevOwnBg?: unknown
-  __prevUniformBg?: unknown
-  __prevOpaque?: boolean
-  __prevOwnRowBg?: boolean
-  __prevRowSampler?: boolean
-}
-
 function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, hasRemovedChild: boolean): void {
   const { buffer } = walk
   const ownRowBg = node.style.fillRowBg
@@ -651,19 +643,18 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
     const clipRight = clipsAcross ? x + layoutNode.getComputedWidth() - layoutNode.getComputedBorder(LayoutEdge.Right) : undefined
     buffer.clip({ x1: clipLeft, x2: clipRight, y1: clipTop, y2: clipBottom })
   }
-  const memo = node as unknown as FillMemo
-  const prevOwnBg = memo.__prevOwnBg
-  const prevUniformBg = memo.__prevUniformBg
-  const prevOpaque = memo.__prevOpaque
-  const prevOwnRowBg = memo.__prevOwnRowBg
-  const prevRowSampler = memo.__prevRowSampler
+  const prevOwnBg = node.__prevOwnBg
+  const prevUniformBg = node.__prevUniformBg
+  const prevOpaque = node.__prevOpaque
+  const prevOwnRowBg = node.__prevOwnRowBg
+  const prevRowSampler = node.__prevRowSampler
   const isOpaque = node.style.opaque === true
   const fillRemoved = (prevOwnBg !== undefined && ownGround === undefined) || (prevOpaque === true && !isOpaque) || (prevOwnRowBg === true && ownRowBg === undefined)
-  memo.__prevOwnBg = ownGround
-  memo.__prevUniformBg = boxBackgroundColor
-  memo.__prevOpaque = isOpaque
-  memo.__prevOwnRowBg = ownRowBg !== undefined
-  memo.__prevRowSampler = rowSampler !== undefined
+  node.__prevOwnBg = ownGround
+  node.__prevUniformBg = boxBackgroundColor
+  node.__prevOpaque = isOpaque
+  node.__prevOwnRowBg = ownRowBg !== undefined
+  node.__prevRowSampler = rowSampler !== undefined
   if (down === 'scroll') {
     const scrollPlacement = prevOwnBg !== ownGround ? { ...placement, prevScreen: undefined } : placement
     composeScrollBox(node, walk, scrollPlacement, x, y, width, height, layoutNode, clipTop, clipBottom, hasRemovedChild, boxBackgroundColor, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height), rowSampler)
@@ -676,7 +667,7 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
     composeChildren(node, walk, x, y, hasRemovedChild, rectHeld && (!fills || fillHeld) ? placement.prevScreen : undefined, boxBackgroundColor, rowSampler, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height))
   }
   if (clips) buffer.unclip()
-  renderBorder(x, y, node, buffer as never, boxBackgroundColor)
+  renderBorder(x, y, node, buffer, boxBackgroundColor)
 }
 
 function fillInterior(walk: Walk, layoutNode: LayoutNode, x: number, y: number, width: number, height: number, ownBackgroundColor: Color | undefined, rowSampler: RowGround | undefined, inheritedBackgroundColor: Color | undefined): void {

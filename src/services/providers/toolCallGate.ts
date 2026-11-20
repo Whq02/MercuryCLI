@@ -1,3 +1,4 @@
+import type { ZodTypeAny } from 'zod/v4'
 import type { Tools } from '../../Tool.js'
 import { findToolByName, offeredToolNamesClause } from '../../Tool.js'
 import type { AssistantMessage, RefusedToolCall } from '../../types/message.js'
@@ -106,7 +107,7 @@ export function straightenQuoteArgs(
 }
 
 export function repairToolInput<Input extends Record<string, unknown>>(
-  tool: { inputSchema: unknown; inputJSONSchema?: unknown; keepEmptyInputs?: readonly string[]; isMcp?: boolean },
+  tool: { inputSchema: ZodTypeAny; inputJSONSchema?: unknown; keepEmptyInputs?: readonly string[]; isMcp?: boolean },
   input: Input,
 ): Input {
   const declared = declaredInputSchema(tool)

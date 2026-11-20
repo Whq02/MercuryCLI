@@ -132,11 +132,9 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
         agents: [],
         querySource: 'model_validation',
         mcpTools: [],
-        maxOutputTokens: 1,
-        maxRetries: 0,
         skipCacheWrite: true,
       },
-    } as never)
+    })
     if (answer.isApiErrorMessage === true) {
       const said = answer.message.content
         .map(block => (block.type === 'text' ? block.text : ''))

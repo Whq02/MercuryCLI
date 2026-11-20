@@ -117,8 +117,15 @@ export function promptRows(records: readonly Message[]): PromptRow[] {
   const rows: PromptRow[] = []
   for (const m of records) {
     const drained = drainedPromptTextOf(m)
-    if (drained === null && !selectableUserMessagesFilter(m)) continue
-    const { mode, text } = classifyPrompt(drained ?? textOf((m as { message: { content: unknown } }).message.content as never))
+    let raw: string
+    if (drained !== null) {
+      raw = drained
+    } else if (selectableUserMessagesFilter(m)) {
+      raw = textOf(m.message.content)
+    } else {
+      continue
+    }
+    const { mode, text } = classifyPrompt(raw)
     const body = text === '' ? '(no prompt text)' : text
     rows.push({
       kind: 'prompt',

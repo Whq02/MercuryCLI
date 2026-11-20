@@ -1,3 +1,4 @@
+import type { ZodTypeAny } from 'zod/v4'
 import { inlineLocalSchemaRefs } from '../../../utils/inlineSchemaRefs.js'
 import { zodToJsonSchema } from '../../../utils/zodToJsonSchema.js'
 
@@ -143,9 +144,9 @@ export function repairArgumentsBySchema(args: Record<string, unknown>, schema: u
   return node === undefined ? args : repairObject(args, node, 0)
 }
 
-export function declaredInputSchema(tool: { inputSchema: unknown; inputJSONSchema?: unknown }): Record<string, unknown> | undefined {
+export function declaredInputSchema(tool: { inputSchema: ZodTypeAny; inputJSONSchema?: unknown }): Record<string, unknown> | undefined {
   try {
-    return inlineLocalSchemaRefs(rec(tool.inputJSONSchema) ?? zodToJsonSchema(tool.inputSchema as never))
+    return inlineLocalSchemaRefs(rec(tool.inputJSONSchema) ?? zodToJsonSchema(tool.inputSchema))
   } catch {
     return undefined
   }
