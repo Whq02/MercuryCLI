@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, said, section, shown, type Rules } from './floorsKit.ts'
+import { check, decide, fillBash, finish, note, said, section, shown, type Rules } from './floorsKit.ts'
 
 const MODES = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign'] as const
 type Mode = (typeof MODES)[number]
-const monitor = (command: string, mode: Mode, rules: Rules = {}) => decide('Monitor', { command: fill(command), description: 'watch' }, mode, rules)
-const bash = (command: string, mode: Mode, rules: Rules = {}) => decide('Bash', { command: fill(command) }, mode, rules)
+const monitor = (command: string, mode: Mode, rules: Rules = {}) => decide('Monitor', { command: fillBash(command), description: 'watch' }, mode, rules)
+const bash = (command: string, mode: Mode, rules: Rules = {}) => decide('Bash', { command: fillBash(command) }, mode, rules)
 
 async function pair(label: string, command: string, mode: Mode, rules: Rules = {}): Promise<void> {
   const viaBash = await bash(command, mode, rules)
   const viaMonitor = await monitor(command, mode, rules)
-  check(`${mode} · ${label} · ${shown(fill(command))} · Bash: ${viaBash.behavior} · through Monitor it is not approved outright`, viaMonitor.behavior !== 'allow', `Monitor: ${said(viaMonitor)} — Bash: ${said(viaBash)}`)
+  check(`${mode} · ${label} · ${shown(fillBash(command))} · Bash: ${viaBash.behavior} · through Monitor it is not approved outright`, viaMonitor.behavior !== 'allow', `Monitor: ${said(viaMonitor)} — Bash: ${said(viaBash)}`)
 }
 
 
@@ -54,7 +54,7 @@ for (const mode of MODES) {
   for (const command of PARITY) {
     const viaBash = await bash(command, mode, { deny: ['Read(secrets/**)'] })
     const viaMonitor = await monitor(command, mode, { deny: ['Read(secrets/**)'] })
-    if (viaBash.behavior !== viaMonitor.behavior || (viaBash.behavior === 'deny' && viaBash.message !== viaMonitor.message?.replace('Permission to use Monitor', 'Permission to use Bash'))) differing.push(`${shown(fill(command))}: Bash ${said(viaBash)} · Monitor ${said(viaMonitor)}`)
+    if (viaBash.behavior !== viaMonitor.behavior || (viaBash.behavior === 'deny' && viaBash.message !== viaMonitor.message?.replace('Permission to use Monitor', 'Permission to use Bash'))) differing.push(`${shown(fillBash(command))}: Bash ${said(viaBash)} · Monitor ${said(viaMonitor)}`)
   }
   check(`${mode} · ${PARITY.length} commands get through Monitor the answer Bash gives them`, differing.length === 0, differing.join(' ‖ '))
 }

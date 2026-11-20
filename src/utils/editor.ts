@@ -1,12 +1,11 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 
 import { memoize } from 'lodash-es'
 
 import instances from '../ink/instances.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { parseLegacyCommandString } from './resolvedInvocation.js'
+import { guiEditorSpawnSpec, parseEditorCommandLine, terminalEditorSpawnSpec } from './platform/spawn.js'
 import { logForDebugging } from './debug.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { hostLookupWorld, resolveExecutable, whichSync, type LookupWorld } from './which.js'
@@ -153,73 +152,8 @@ export function classifyGuiEditor(editor: string): string | undefined {
   return undefined
 }
 
-function parseWindowsCommandArgs(raw: string): string[] {
-  const tokens: string[] = []
-  let cur = ''
-  let started = false
-  let inQuotes = false
-  for (let i = 0; i < raw.length; i++) {
-    let slashes = 0
-    while (i < raw.length && raw[i] === '\\') {
-      slashes++
-      i++
-    }
-    if (i < raw.length && raw[i] === '"') {
-      cur += '\\'.repeat(Math.floor(slashes / 2))
-      started = true
-      if (slashes % 2 === 1) {
-        cur += '"'
-      } else if (inQuotes && raw[i + 1] === '"') {
-        cur += '"'
-        i++
-      } else {
-        inQuotes = !inQuotes
-      }
-      continue
-    }
-    if (slashes > 0) {
-      cur += '\\'.repeat(slashes)
-      started = true
-    }
-    if (i >= raw.length) break
-    const c = raw[i]!
-    if (!inQuotes && (c === ' ' || c === '\t')) {
-      if (started || cur.length > 0) {
-        tokens.push(cur)
-        cur = ''
-        started = false
-      }
-      continue
-    }
-    cur += c
-    started = true
-  }
-  if (started || cur.length > 0) tokens.push(cur)
-  return tokens
-}
-
 function parseEditorCommand(editor: string, world: LookupWorld): { executable: string; args: string[] } {
-  if (world.platform === 'win32' && !editor.startsWith("'")) {
-    if (!editor.startsWith('"')) {
-      const boundaries = [editor.length, ...Array.from(editor.matchAll(/\s+/g), match => match.index).reverse()]
-      for (const end of boundaries) {
-        const executable = editor.slice(0, end)
-        if (resolveExecutable(executable, world) !== null) {
-          return { executable, args: parseWindowsCommandArgs(editor.slice(end).trim()) }
-        }
-      }
-    }
-    const tokens = parseWindowsCommandArgs(editor)
-    if (tokens.length > 0 && tokens[0]!.length > 0) {
-      return { executable: tokens[0]!, args: tokens.slice(1) }
-    }
-    return { executable: editor, args: [] }
-  }
-  const invocation = parseLegacyCommandString(editor)
-  if (invocation.executablePath.length > 0) {
-    return { executable: invocation.executablePath, args: invocation.args }
-  }
-  return { executable: editor, args: [] }
+  return parseEditorCommandLine(editor, world)
 }
 
 function gotoLineArgs(guiFamily: string, filePath: string, line?: number): string[] {
@@ -233,10 +167,6 @@ function gotoLineArgs(guiFamily: string, filePath: string, line?: number): strin
   return [filePath]
 }
 
-function quoteForWindowsShell(value: string): string {
-  return `"${value}"`
-}
-
 export function openFileInExternalEditor(filePath: string, line?: number): boolean {
   const resolved = resolveExternalEditor()
   if (!resolved.ok) {
@@ -248,16 +178,10 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
 
   if (guiFamily !== undefined) {
     const targetArgs = gotoLineArgs(guiFamily, filePath, line)
-    let child
-    if (process.platform === 'win32') {
-      const commandString =
-        editor.includes(' ') && existsSync(editor)
-          ? [quoteForWindowsShell(editor), ...targetArgs.map(quoteForWindowsShell)].join(' ')
-          : [quoteForWindowsShell(executable), ...args.map(quoteForWindowsShell), ...targetArgs.map(quoteForWindowsShell)].join(' ')
-      child = spawn(commandString, { windowsHide: true, shell: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
-    } else {
-      child = spawn(executable, [...args, ...targetArgs], { windowsHide: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
-    }
+    const spec = guiEditorSpawnSpec(editor, executable, args, targetArgs)
+    const child = spec.shell
+      ? spawn(spec.command, { windowsHide: true, shell: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
+      : spawn(spec.file, spec.args, { windowsHide: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
     child.on('error', err => {
       logForDebugging(`editor spawn failed: ${String(err)}`, { level: 'error' })
     })
@@ -271,13 +195,10 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
   const lineArgs = line !== undefined && supportsPlusLine ? [`+${line}`] : []
   instance.enterAlternateScreen()
   try {
-    let result
-    if (process.platform === 'win32') {
-      const commandString = [editor, ...lineArgs, quoteForWindowsShell(filePath)].join(' ')
-      result = spawnSync(commandString, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
-    } else {
-      result = spawnSync(executable, [...args, ...lineArgs, filePath], { windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
-    }
+    const spec = terminalEditorSpawnSpec(editor, executable, args, lineArgs, filePath)
+    const result = spec.shell
+      ? spawnSync(spec.command, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
+      : spawnSync(spec.file, spec.args, { windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
     if (result.error) {
       logForDebugging(`terminal editor failed: ${String(result.error)}`, { level: 'error' })
       return false

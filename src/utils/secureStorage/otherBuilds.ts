@@ -1,11 +1,12 @@
 import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
-import { dirname, join, posix, win32 } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { bundleArgOf, bundleDirOf, sameBundlePath, tokenBinding, type ProcessSweepCensus, type ProcessSweepEntry } from '../../daemon/processSweep.js'
 import type { ProcessSweepDeps } from '../../daemon/processSweepRun.js'
 import { runningBuildTree } from '../artifactIdentity.js'
 import { getMercuryHome } from '../envUtils.js'
 import { passedOver } from '../passedOver.js'
+import { pathModuleFor, stripExtendedLengthPrefixForPlatform } from '../platform/paths.js'
 
 const NO_OWN_BUNDLE = 'this process does not run from a mercury.mjs it can name, so it cannot tell its own build from another'
 
@@ -40,9 +41,7 @@ function ownBundleAtLoad(): string | null {
 const BUNDLE_AT_LOAD = ownBundleAtLoad()
 
 function asWritten(path: string, platform: NodeJS.Platform): string {
-  if (platform !== 'win32') return path
-  if (/^\\\\\?\\UNC\\/i.test(path)) return `\\\\${path.slice(8)}`
-  return path.startsWith('\\\\?\\') ? path.slice(4) : path
+  return stripExtendedLengthPrefixForPlatform(path, platform)
 }
 
 function recordOf(records: readonly OwnRecord[], entry: ProcessSweepEntry): OwnRecord | 'none' | 'unknown' {
@@ -67,7 +66,7 @@ export function otherBuildIn(
   const self = census.entries.find(entry => entry.process.pid === selfPid)
   if (self === undefined || !(self.process.startedAtMs > 0)) return 'this process was not found in the process table with its start time'
   if (self.process.startedAtMs < own.putInPlaceMs) return 'this process started before its bundle was last put in place'
-  const paths = census.platform === 'win32' ? win32 : posix
+  const paths = pathModuleFor(census.platform)
   for (const entry of census.entries) {
     const other = entry.process
     if (other.pid === selfPid || entry.state.startsWith('Z')) continue

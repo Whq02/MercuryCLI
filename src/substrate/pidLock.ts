@@ -3,10 +3,10 @@ import { randomUUID } from 'crypto'
 import { link, mkdir, readFile, unlink, writeFile } from 'fs/promises'
 import { dirname } from 'path'
 import {
-  isTransientWin32FsCode,
   renameRetryDelayMs,
   renameWithWin32Retry,
 } from './durablePublish.js'
+import { isTransientHeldFileCode } from '../utils/platform/files.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode, isENOENT } from '../utils/errors.js'
 import { procStartToken, currentProcStart } from '../utils/genericProcessUtils.js'
@@ -406,7 +406,7 @@ export async function releasePidLock(
     const delay = renameRetryDelayMs(code, attempt, platform)
     if (delay === null) {
       return settle({
-        outcome: platform === 'win32' && isTransientWin32FsCode(code) ? 'deferred' : 'failed',
+        outcome: isTransientHeldFileCode(code, platform) ? 'deferred' : 'failed',
         attempts: attempt,
         fsCode: code,
       })

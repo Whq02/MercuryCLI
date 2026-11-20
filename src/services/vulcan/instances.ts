@@ -4,6 +4,7 @@ import * as net from 'node:net'
 import * as path from 'node:path'
 import { engineTreesDir } from './engine/paths.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isOwnedPrivateEntry } from '../../utils/platform/files.js'
 
 export const VULCAN_INSTANCE_ENV = 'MERCURY_VULCAN_INSTANCE'
 const VULCAN_INSTANCE_ROLES = ['operator-editor', 'agent-editor', 'headless-worker', 'native-worker'] as const
@@ -74,7 +75,7 @@ function privateFile(file: string, maxBytes: number): string {
   const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0))
   try {
     const st = fstatSync(fd)
-    if (!st.isFile() || st.size > maxBytes || (process.platform !== 'win32' && ((st.mode & 0o077) !== 0 || st.uid !== process.getuid?.()))) throw new Error('instance credentials are not private')
+    if (!st.isFile() || st.size > maxBytes || !isOwnedPrivateEntry(st)) throw new Error('instance credentials are not private')
     return readFileSync(fd, 'utf8')
   } finally { closeSync(fd) }
 }
@@ -87,7 +88,7 @@ export function readVulcanInstanceToken(instance: VulcanInstance): string {
   }
   const dir = vulcanInstanceDir(instance.projectRoot, instance.id)
   const st = lstatSync(dir)
-  if (!st.isDirectory() || st.isSymbolicLink() || (process.platform !== 'win32' && ((st.mode & 0o077) !== 0 || st.uid !== process.getuid?.()))) throw new Error('instance directory is not private')
+  if (!st.isDirectory() || st.isSymbolicLink() || !isOwnedPrivateEntry(st)) throw new Error('instance directory is not private')
   const token = privateFile(path.join(dir, 'token'), 256).trim()
   if (!/^[a-f0-9]{64}$/.test(token)) throw new Error('instance token is invalid')
   return token

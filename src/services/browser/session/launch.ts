@@ -14,6 +14,7 @@ import { resolveHostLanguages, resolveNavigatorPlatform, resolveHostTimeZone, pa
 import { newWiring, listenProtocol, listenDownloads, targetIdOf, tabSession, listenPage } from './wiring.js'
 import { watchFrames, watchBirths } from './births.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { posixFileModesApply } from '../../../utils/platform/files.js'
 
 export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey): string | null {
   if (typeof urlOrOrigin !== 'string' || urlOrOrigin.trim() === '' || /[\s;"'\\]/.test(urlOrOrigin)) return null
@@ -180,7 +181,7 @@ function readyProfileDir(owner: OwnerKey, profileDir: string, opts: EnsureBrowse
   const profilesRoot = path.dirname(profileDir)
   fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
   fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 })
-  if (process.platform !== 'win32') {
+  if (posixFileModesApply()) {
     for (const dir of [profilesRoot, profileDir]) {
       try {
         fs.chmodSync(dir, 0o700)
