@@ -62,7 +62,7 @@ import {
   renderToolUseTag,
   userFacingName,
 } from './UI.js'
-import { inputSchema, type Input, type Output, outputSchema } from './read/schema.js'
+import { inputSchema, type Input, outputSchema } from './read/schema.js'
 import './read/reminder.js'
 import { remoteAlso, splitPathRangeSelector } from './read/target.js'
 import './read/serialize.js'
