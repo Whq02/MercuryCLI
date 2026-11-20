@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import {
   CANCEL_MESSAGE,
   INTERRUPT_MESSAGE,
@@ -24,7 +23,6 @@ import { isNotEmptyMessage } from '../../src/utils/messages/text.ts'
 import { createAssistantMessage, createUserMessage } from '../../src/utils/messages.ts'
 import type { Message } from '../../src/types/message.ts'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const IDLE = turnCutOf({ code: 'DEADLINE_EXCEEDED' })
 const STORED_PARENT_STOP = '[Request cut off: the workflow that ran this crewmate stopped]'
 
@@ -180,9 +178,8 @@ section('D the crewmate transcript reader, and the cut lines a stored transcript
   rmSync(dir, { recursive: true, force: true })
 }
 
-section('E the source census over every recogniser of the interrupt text')
+section('E the runtime check over every recogniser of the interrupt text')
 {
-  const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const t = await import('../core-runtime/turnScenarios.ts')
   const settledTextsOf = (events: Array<{ kind: string; message?: unknown }>): string[] =>
     events.filter(event => event.kind === 'tool_settled').map(event => String((event.message as { message: { content: Array<{ content?: unknown }> } }).message.content[0]?.content))
@@ -212,10 +209,9 @@ section('E the source census over every recogniser of the interrupt text')
   }
   for (const run of [cutMidStream[0]!, cutMidTool]) gather(run.events, new Set())
   const minted = said.filter(text => PARTIAL.test(text))
-  const turnCut = src('src/utils/messages/turnCut.ts')
   check(
-    'the facts are minted in turnCut.ts and nowhere else',
-    /partially executed/.test(turnCut) && cutMidTool.terminal.reason === 'aborted_tools' && minted.length > 0 && minted.every(text => text === result),
+    'the facts come from turnCutResultText and nowhere else',
+    PARTIAL.test(result) && cutMidTool.terminal.reason === 'aborted_tools' && minted.length > 0 && minted.every(text => text === result),
     `a run the operator cuts, in the stream or in the tools, must say what may have happened only in the owner's result text, word for word: the steps under src/run-core/turn/ write no such sentence of their own; of ${said.length} strings in the two runs' events these name the facts and are not the owner's text: ${JSON.stringify(minted.filter(text => text !== result))}${minted.length === 0 ? ' (and none names them at all)' : ''}`,
   )
 }
