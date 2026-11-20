@@ -175,7 +175,7 @@ type Credentials = {
   anthropicPreferredSource?: 'subscription' | 'api-key'
   defaultProvider?: string
   compatProvider?: import('../settings/compatProvider.js').CompatProviderSettings
-  videoProvider?: import('../../services/video/types.js').VideoProviderSettings
+  videoProvider?: import('../video/types.js').VideoProviderSettings
 }
 
 type Servers = {
