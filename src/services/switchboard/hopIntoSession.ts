@@ -225,10 +225,16 @@ async function admitResumedSession(
       if (!(await ensureOwnedDaemon())) return 'the daemon did not start'
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       const worn = peekWornPresetKit()
-      const reply = (await daemonControlRpc(
+      const admit = async (): Promise<Record<string, unknown>> => (await daemonControlRpc(
         { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...((): Record<string, string> => { const mode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined; return mode !== undefined ? { permissionMode: mode } : {} })(), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) } as never,
         { timeoutMs: 60_000 },
       )) as Record<string, unknown>
+      const parkedStill = (): boolean => Object.values(workers.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined && r.parkedAt !== undefined)
+      let reply = await admit()
+      for (const leavesBy = Date.now() + workers.RETIREMENT_EXIT_WAIT_MS; reply.liveHop === true && parkedStill() && Date.now() < leavesBy; ) {
+        await sleep(100)
+        if (workers.sessionOwnedByLiveWorker(sessionId) === null) reply = await admit()
+      }
       if (reply.ok !== true) return typeof reply.error === 'string' && reply.error !== '' ? reply.error : 'the daemon refused the resume'
       won = launchWonOf(launch, saved, {
         ...(typeof reply.modelId === 'string' ? { model: reply.modelId } : {}),

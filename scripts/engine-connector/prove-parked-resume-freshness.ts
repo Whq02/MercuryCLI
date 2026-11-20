@@ -21,10 +21,11 @@ let answer!: (reply: Record<string, unknown>) => void
 let admission = new Promise<Record<string, unknown>>(resolve => { answer = resolve })
 const asked: Array<Record<string, unknown>> = []
 let pingAnswers = true
+let scripted: (request: Record<string, unknown>) => Record<string, unknown> | undefined = () => undefined
 mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonControlRpc: async (request: { op: string }) => {
   asked.push(request as Record<string, unknown>)
   if (request.op === 'ping' && !pingAnswers) return { ok: false, code: 'ENOCONN', error: 'daemon unreachable (ENOENT)' }
-  return request.op === 'sessionAdmit' ? admission : { ok: true, outcome: 'applied' }
+  return scripted(request as Record<string, unknown>) ?? (request.op === 'sessionAdmit' ? admission : { ok: true, outcome: 'applied' })
 } }))
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
 const { sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.js')
@@ -33,6 +34,9 @@ const { getFocusedSessionConnector, releaseFocusedSessionConnector } = await imp
 const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.js')
 const { statusLine } = await import('../../src/components/SwitchboardTagBar.js')
 const { sessionOwnedByLiveWorker } = await import('../../src/daemon/concourseWorkers.js')
+const { subscribeSeatReceipts } = await import('../../src/utils/model/seatReceipts.js')
+const receipts: string[] = []
+subscribeSeatReceipts(receipt => { receipts.push(receipt.text) })
 const sid = '00000000-0000-4000-8000-000000000099'
 const project = getProjectDir(work)
 mkdirSync(project, { recursive: true })
@@ -196,6 +200,31 @@ try {
   pingAnswers = true
   const askedAt = (op: string, action?: string): number => asked.findIndex(request => request.op === op && (action === undefined || request.action === action))
   check("an admission the daemon answers as a live hop is followed by the launch's dials, asked of the daemon that answered", askedAt('sessionAdmit') >= 0 && askedAt('sessionControl', 'set-model') > askedAt('sessionAdmit') && asked[askedAt('sessionControl', 'set-model')]?.model === 'claude-sonnet-5' && asked[askedAt('sessionControl', 'set-effort')]?.effort === 'high', askedWords())
+  writeFileSync(factsFile, JSON.stringify({ ...seed, atMs: 1009, model: { effective: 'claude-opus-5', setting: 'claude-opus-5' }, effort: 'max', effortSent: 'max' }))
+  connector.readFacts()
+  releaseFocusedSessionConnector()
+  record({ modelKey: 'claude-opus-5', effort: 'max', parkedAt: 1500, pid: process.pid })
+  let oldRunnerStands = true
+  scripted = request =>
+    !oldRunnerStands ? undefined
+      : request.op === 'sessionAdmit' ? { ok: true, liveHop: true, modelId: 'claude-opus-5', effort: 'max' }
+        : dialled(request) ? { ok: true, outcome: 'refused', detail: "the runner's door is closed while its process (pid 1) still stands — retry in a moment" }
+          : undefined
+  waitNextAdmission()
+  asked.length = 0
+  receipts.length = 0
+  const leaving = await focusResumedSession(sid, transcript, { firstPaintMs: 10, model: 'claude-sonnet-5', effort: 'high' })
+  await new Promise(resolve => setTimeout(resolve, 300))
+  oldRunnerStands = false
+  record({ modelKey: 'claude-opus-5', effort: 'max', parkedAt: 1500 })
+  for (let waited = 0; asked.filter(request => request.op === 'sessionAdmit').length < 2 && waited < 3000; waited += 20) await new Promise(resolve => setTimeout(resolve, 20))
+  record({ modelKey: 'claude-sonnet-5', effort: 'high', parkedAt: undefined, parkedBy: undefined })
+  answer({ ok: true, modelId: 'claude-sonnet-5', effort: 'high' })
+  await leaving.admitted
+  await new Promise(resolve => setTimeout(resolve, 50))
+  scripted = () => undefined
+  const admissions = asked.filter(request => request.op === 'sessionAdmit')
+  check("a resume the daemon answers as a live hop while the parked session's old runner is still leaving waits for that runner to go and is admitted again with the launch's words: nothing is dialled, nothing is refused", admissions.length >= 2 && admissions.every(request => request.model === 'claude-sonnet-5' && request.effort === 'high') && !asked.some(dialled) && !receipts.some(text => text.includes('was refused') || text.includes('still holds this session')), `${askedWords()} ${JSON.stringify(receipts)}`)
 } finally {
   releaseFocusedSessionConnector()
 }
