@@ -19,9 +19,10 @@ export function memoryChecks(): CheckSpec[] {
         if (!mnemeEnabled()) {
           return { status: 'off', evidence: 'memory is off (memory.enabled is false in settings) — nothing is loaded or saved' }
         }
-        const { readFrontPage, readPinnedStatus } = await import('../../../mneme/mnemeFrontPage.js')
+        const { pinnedStatusPath, readFrontPage, readPinnedStatus } = await import('../../../mneme/mnemeFrontPage.js')
         const { formatTextSize } = await import('../../../mneme/mnemeUsage.js')
-        const { readHandoverReceipt } = await import('../../../mneme/mnemeHandover.js')
+        const { handoverReceiptPath, readHandoverReceipt } = await import('../../../mneme/mnemeHandover.js')
+        const { mnemeUnreadSentence } = await import('../../../mneme/mnemeUnread.js')
         const dir = mnemeLibraryDir()
         const page = readFrontPage(dir)
         if (page === null) {
@@ -30,6 +31,16 @@ export function memoryChecks(): CheckSpec[] {
         const pinned = readPinnedStatus(dir)
         const topics = page.split('\n').filter(l => /^- /.test(l) && !/ <seq=/.test(l)).length
         const intake = readHandoverReceipt(dir)
+        const unread = mnemeUnreadSentence([pinnedStatusPath(dir), handoverReceiptPath(dir)])
+        if (unread !== null) {
+          const pinnedPart = pinned ? ` · pinned ${pinned.pinned} rule(s) ${formatTextSize(pinned.used)} of ${formatTextSize(pinned.limit)}` : ''
+          const intakePart = intake ? ` · intake ${intake.notes} note(s) → ${intake.facts} fact(s)` : ''
+          return {
+            status: 'warn',
+            evidence: `front page ${formatTextSize(page.length)} · ${topics} topic line(s)${pinnedPart}${intakePart} · ${unread}`,
+            link: '/memory',
+          }
+        }
         const evidence = `front page ${formatTextSize(page.length)} · ${topics} topic line(s) · pinned ${pinned?.pinned ?? 0} rule(s) ${pinned ? `${formatTextSize(pinned.used)} of ${formatTextSize(pinned.limit)}` : ''}${intake ? ` · intake ${intake.notes} note(s) → ${intake.facts} fact(s)` : ''}`
         if (pinned?.over) {
           return {

@@ -1,9 +1,11 @@
+import { join } from 'node:path'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { expandSeqRange, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins } from './mnemeUsage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { readLedger } from './ledger.js'
-import { mnemeProjectKey } from './paths.js'
+import { getMemoryBaseDir, mnemeProjectKey } from './paths.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import type { LedgerEntry } from './types.js'
 import { gradeLines, HANDOFF_GRADE } from './memoryEvidence.js'
 import { passedOver } from '../utils/passedOver.js'
@@ -38,9 +40,13 @@ export interface FootnoteContext {
 }
 
 export function currentLedger(): LedgerEntry[] {
+  const projectsDir = join(getMemoryBaseDir(), 'projects')
   try {
-    return readLedger(mnemeProjectKey())
+    const entries = readLedger(mnemeProjectKey())
+    clearMnemeUnread(projectsDir)
+    return entries
   } catch (error) {
+    recordMnemeUnread(projectsDir, error)
     passedOver(error)
     return []
   }

@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { join } from 'node:path'
 import { useDerivedState, useLayoutDerivedState, useLayoutPublish, usePublish } from '../../hooks/effects.js'
 import { useInput } from '../../ink.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
@@ -8,7 +9,7 @@ import { factMemoryState, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
 import { mnemeEnabled, mnemeLibraryDir } from '../../mneme/mnemeGates.js'
 import { mnemeUnreadSentence } from '../../mneme/mnemeUnread.js'
-import { mnemeProjectKey, projectRecordsDir } from '../../mneme/paths.js'
+import { getMemoryBaseDir, mnemeProjectKey, projectRecordsDir } from '../../mneme/paths.js'
 import { readSignalLog, signalCounts, SIGNAL_TURN_LIMIT } from '../../mneme/mnemeSignal.js'
 import { readDocLines } from '../../mneme/mnemeRetrieval.js'
 import { liveEntryIndex } from '../../mneme/mnemeFrontPage.js'
@@ -329,7 +330,7 @@ export function MemoryCentreView({
     const pending = correcting.ts === null ? undefined : pendingRows().find(r => r.ts === correcting.ts)
     return wrapText(live?.entry.text ?? pending?.text ?? detail?.summary ?? '', Math.max(8, textWidth - 5))
   }, [correcting, detail, textWidth])
-  const unreadText = mnemeUnreadSentence([mnemeLibraryDir(), projectRecordsDir(mnemeProjectKey())])
+  const unreadText = mnemeUnreadSentence([mnemeLibraryDir(), projectRecordsDir(mnemeProjectKey())], [join(getMemoryBaseDir(), 'projects')])
   const activeNote = fl.note ?? (unreadText !== null ? { kind: 'warn' as const, text: unreadText } : null)
   const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 6 - (activeNote ? 2 : 0))
   const openLines = page ? page.lines : detail ? detailLines : []

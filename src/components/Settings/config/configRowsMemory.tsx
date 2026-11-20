@@ -1,7 +1,8 @@
 import { Text } from '../../../ink.js'
 import { EDITOR_MODES } from '../../../utils/config.js'
 import { journalSettingOn } from '../../../mneme/journalSetting.js'
-import { readPinnedStatus } from '../../../mneme/mnemeFrontPage.js'
+import { pinnedStatusPath, readPinnedStatus } from '../../../mneme/mnemeFrontPage.js'
+import { mnemeUnreadSentence } from '../../../mneme/mnemeUnread.js'
 import { runDueMaintenance } from '../../../mneme/mnemeMaintenance.js'
 import { memoryAtStartStatus } from '../../../mneme/entryKnapsack.js'
 import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit, START_TEXT_LIMIT_MIN, START_TEXT_LIMIT_STEP, startTextLimit } from '../../../mneme/mnemeUsage.js'
@@ -17,15 +18,16 @@ export function configMemoryRows({ config, merged, tokens, boolValue, writeGloba
   {
     const pinned = readPinnedStatus()
     const limit = pinnedTextLimit()
+    const pinnedUnread = mnemeUnreadSentence([pinnedStatusPath()])
     const fill = pinned ? `${formatTextSize(pinned.used)} of ${formatTextSize(limit)}` : `0 of ${formatTextSize(limit)}`
     items.push({
       id: 'memory.pinnedLimit',
       label: 'Pinned memory limit',
       searchText: 'pinned memory limit rules shelf text size',
       kind: 'enum',
-      value: <Text color={pinned?.over ? tokens.warning : undefined}>{`${fill}${pinned?.over ? ' · over, all still loaded' : ''}`}</Text>,
+      value: <Text color={pinned?.over || pinnedUnread !== null ? tokens.warning : undefined}>{`${fill}${pinned?.over ? ' · over, all still loaded' : ''}`}</Text>,
       setByYou: merged.memory?.pinnedLimit !== undefined,
-      warning: `how much pinned memory text loads into every session before Mercury says the shelf is full (${pinned?.pinned ?? 0} rule${pinned?.pinned === 1 ? '' : 's'} pinned) · every pinned rule still loads past it · ←/→ move the limit by ${formatTextSize(PINNED_TEXT_LIMIT_STEP)} · pin and unpin in /memory`,
+      warning: pinnedUnread ?? `how much pinned memory text loads into every session before Mercury says the shelf is full (${pinned?.pinned ?? 0} rule${pinned?.pinned === 1 ? '' : 's'} pinned) · every pinned rule still loads past it · ←/→ move the limit by ${formatTextSize(PINNED_TEXT_LIMIT_STEP)} · pin and unpin in /memory`,
       change: direction => {
         const next = Math.max(PINNED_TEXT_LIMIT_MIN, limit + direction * PINNED_TEXT_LIMIT_STEP)
         if (writeSource('userSettings', { memory: { pinnedLimit: next } })) {
