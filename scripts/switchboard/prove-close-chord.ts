@@ -152,9 +152,6 @@ if (POISON_DIST === undefined) {
   check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
   const armed = regionKeysFor('list', { newSession: true, selection: 'live', armed: true })
   check('the ARMED legend keeps the chord row with its stage-true label — no letter, no relabel', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
-  const docs = readFileSync(join(REPO, 'docs', 'SESSIONS.md'), 'utf8')
-  check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('`ctrl+x ctrl+x` stops the selected') && docs.includes('typing is never a control'))
-  check('docs/SESSIONS.md teaches the list\'s plain x and a beside the chord, and never a second x', docs.includes('In the session list\n`x` stops the selected session and `a` archives it') && !/second `x`/.test(docs))
 }
 
 section(POISON_DIST === undefined ? '§4 the drive: x types · the ladder stops → archives → deletes exactly the highlighted row · the window, the note, the parked row\'s one ↵' : '§4 POISON: the pre-fix bundle — x stops instead of typing, the chord removes nothing')

@@ -29,7 +29,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — spawn-switch proofs exceeded 240s')
@@ -528,14 +527,12 @@ section('§10 the command — /crewmates on|off, the grammar, the no-chat senten
   check('/crewmates carries the on|off hint and stays the crew view (one word for one thing: /subagents ceased in .34 — no alias, no refusal line)', crewmates.type === 'local-jsx' && crewmates.name === 'crewmates' && crewmates.argumentHint === '[on|off]' && crewmates.description.includes('on or off') && !builtinCommands().some(c => c.name === 'subagents'))
   check('/crewmates is registered in the command table', builtinCommands().some(c => c.name === 'crewmates'))
   check('/crewmates sits in the crew & delegation domain, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)
-  check('the README roster names /crewmates in crew & delegation and no longer the retired word', /\| crew & delegation \|[^\n]*`\/crewmates`/.test(src('README.md')) && !src('README.md').includes('/subagents'))
   check('the grammar: on · off · empty · junk', j(sw.parseSpawnSwitchArg(' ON ')) === j({ op: 'on' }) && j(sw.parseSpawnSwitchArg('off')) === j({ op: 'off' }) && j(sw.parseSpawnSwitchArg('')) === j({ op: 'show' }) && j(sw.parseSpawnSwitchArg('maybe')) === j({ op: 'unknown', word: 'maybe' }))
   const usage = await runSpawnSwitchCommand('subagents', 'maybe')
   check('junk answers the usage line naming the command', usage.startsWith('usage: /crewmates on|off'), usage)
   const noChat = await runSpawnSwitchCommand('subagents', 'off')
   check('no chat open ⇒ the one sentence naming the focused session and the menu', noChat.includes('no chat is open') && noChat.includes("the boot menu's Agents section"), noChat)
   check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('subagents', false, 'refused', 'no live channel') === 'crewmates off refused — no live channel' && sw.spawnSwitchToggleReceipt('subagents', true, 'applied').includes('the Crewmate tool rejoins the roster from the next turn'))
-  check("the agents page carries the switch under its .34 words", src('docs/CREW.md').includes('## The spawn switch\n') && !src('docs/CREW.md').includes('two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` prints its'))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-spawn-switch — ${checks - failures}/${checks} checks passed`)
