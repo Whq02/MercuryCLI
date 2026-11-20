@@ -8,6 +8,7 @@ import type { ToolPermissionContext } from '../../../Tool.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { getPlatform } from '../../../utils/platform.js'
 import { posixPathToWindowsPath } from '../../../utils/windowsPaths.js'
+import { getErrnoCode } from '../../../utils/errors.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
 function agentDirectoryOf(spelling: string): string {
@@ -19,8 +20,8 @@ function agentDirectoryOf(spelling: string): string {
     try {
       return statSync(onDisk)
     } catch (error) {
-      passedOver(error)
-      return null
+      if (getErrnoCode(error) === 'ENOENT') return null
+      throw error
     }
   })()
   if (entry === null) {
