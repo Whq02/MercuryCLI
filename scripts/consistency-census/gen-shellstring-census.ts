@@ -63,6 +63,11 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'drives Shell.exec at a PATH-found .cmd on purpose — whether the Windows system shell runs a batch by its bare name with every argument byte intact is the subject under test',
   },
   {
+    test: f => f === 'scripts/faults/prove-faults-fn27.ts',
+    cls: 'test-fixture',
+    why: 'drives Shell.exec on purpose at a working folder that is missing, is not a folder or cannot be read — what the shell door answers there is the subject under test',
+  },
+  {
     test: f => f.startsWith('scripts/ide/'),
     cls: 'platform-owner',
     why: 'IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile',
