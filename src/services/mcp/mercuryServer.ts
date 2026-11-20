@@ -85,50 +85,17 @@ export async function createMercuryServer(): Promise<{
     },
   )
 
-  type ZodShape = Record<string, z.ZodType>
-  type ShapeArgs<I extends ZodShape> = { [K in keyof I]: z.output<I[K]> }
-  const server = {
-    registerTool<I extends ZodShape>(
-      name: string,
-      config: {
-        title: string
-        description: string
-        inputSchema?: I
-        outputSchema?: ZodShape
-        annotations?: Record<string, boolean>
-      },
-      handler: (args: ShapeArgs<I>) => Promise<CallToolResult>,
-    ): void {
-      const { inputSchema, outputSchema, ...rest } = config
-      ;(
-        sdkServer.registerTool as unknown as (
-          name: string,
-          config: unknown,
-          handler: unknown,
-        ) => void
-      )(
-        name,
-        {
-          ...rest,
-          inputSchema: z.object(inputSchema ?? {}),
-          ...(outputSchema ? { outputSchema: z.object(outputSchema) } : {}),
-        },
-        handler,
-      )
-    },
-  }
-
   const holderShape = z.object({ sessionId: z.string(), agentId: z.string(), pid: z.number(), procStart: z.string().optional() })
   const leaseShape = z.object({ path: z.string(), acquiredAt: z.string(), holder: holderShape })
   const holderSummaryShape = z.object({ holder: holderShape, count: z.number(), under: z.string() })
 
-  server.registerTool(
+  sdkServer.registerTool(
     'lease_take',
     {
       title: 'Take project file leases',
       description:
         'Take project-relative paths for this session and agent: files, or a directory with a trailing slash, which is one lease covering everything under it. Live holders are named and refused. Released via lease_release or when the holder ends.',
-      inputSchema: { paths: z.array(z.string()).min(1).describe('Project-relative files or "/"-suffixed directories (no globs).') },
+      inputSchema: z.object({ paths: z.array(z.string()).min(1).describe('Project-relative files or "/"-suffixed directories (no globs).') }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async ({ paths }): Promise<CallToolResult> => {
@@ -140,21 +107,21 @@ export async function createMercuryServer(): Promise<{
     },
   )
 
-  server.registerTool(
+  sdkServer.registerTool(
     'lease_release',
     {
       title: 'Release your file leases',
       description: 'Release the current holder’s project leases (named paths, or all held when omitted). Session director may pass agentId or all: true for its session.',
-      inputSchema: {
+      inputSchema: z.object({
         paths: z.array(z.string()).nullish().describe('Exact project-relative paths (omit/null for all held).'),
         agentId: z.string().min(1).nullish().describe('Director only: target agent in session.'),
         all: z.boolean().nullish().describe('Director only: release every holder in session.'),
-      },
-      outputSchema: {
+      }),
+      outputSchema: z.object({
         ok: z.boolean(),
         agentId: z.string().optional(),
         released: z.boolean().optional(),
-      },
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async ({ paths, agentId, all }): Promise<CallToolResult> => {
@@ -168,21 +135,21 @@ export async function createMercuryServer(): Promise<{
     },
   )
 
-  server.registerTool(
+  sdkServer.registerTool(
     'lease_list',
     {
       title: 'List current file leases',
       description: 'List project lease holders (count and common directory per holder, plus lease rows when ≤100 or when agentId is given).',
-      inputSchema: {
+      inputSchema: z.object({
         agentId: z.string().min(1).nullish().describe('List this agent’s first 100 paths.'),
         sessionId: z.string().min(1).nullish().describe('Agent’s session (default own).'),
-      },
-      outputSchema: {
+      }),
+      outputSchema: z.object({
         ok: z.boolean(),
         total: z.number(),
         holders: z.array(holderSummaryShape),
         leases: z.array(leaseShape).optional(),
-      },
+      }),
       annotations: { readOnlyHint: true },
     },
     async ({ agentId, sessionId }): Promise<CallToolResult> => {
@@ -194,17 +161,17 @@ export async function createMercuryServer(): Promise<{
     },
   )
 
-  server.registerTool(
+  sdkServer.registerTool(
     'render_tui',
     {
       title: 'Render the Mercury TUI to a PNG image',
       description:
         'Capture the real Mercury TUI in a PTY as an inline PNG image to verify UI/Ink changes (not shown in mercury run). Defaults: scenario resume-2turn, cols 120, rows 44.',
-      inputSchema: {
+      inputSchema: z.object({
         scenario: z.string().optional(),
         cols: z.number().optional(),
         rows: z.number().optional(),
-      },
+      }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async ({ scenario, cols, rows }): Promise<CallToolResult> =>

@@ -212,6 +212,7 @@ type LeaseDatabase = {
 }
 
 type HolderRow = { session: string; agent: string; pid: number; proc_start: string | null }
+type SummaryRow = HolderRow & { count: number; first: string; last: string }
 
 const HOLDER_COLUMNS: Record<string, string> = { session: 'TEXT', agent: 'TEXT', pid: 'INTEGER', proc_start: 'TEXT' }
 const READABLE_HOLDER = "json_valid(record) AND json_type(record, '$.holder.sessionId') = 'text' AND json_extract(record, '$.holder.sessionId') <> '' AND json_type(record, '$.holder.agentId') = 'text' AND json_extract(record, '$.holder.agentId') <> '' AND json_type(record, '$.holder.pid') = 'integer' AND json_extract(record, '$.holder.pid') > 1"
@@ -261,8 +262,8 @@ function leaseDetail(db: LeaseDatabase, where: string, values: SqlValue[]): Proj
 }
 
 function summaries(db: LeaseDatabase, where: string, values: SqlValue[]): LeaseHolderSummary[] {
-  return db.prepare(`SELECT session, agent, pid, proc_start, COUNT(*) AS count, MIN(path) AS first, MAX(path) AS last FROM leases${where ? ` WHERE ${where}` : ''} GROUP BY session, agent, pid, proc_start ORDER BY count DESC, session, agent, pid`).all(...values)
-    .map(row => ({ holder: holderOf(row as unknown as HolderRow), count: Number(row.count), under: commonDirectory(String(row.first), String(row.last)) }))
+  const rows = db.prepare(`SELECT session, agent, pid, proc_start, COUNT(*) AS count, MIN(path) AS first, MAX(path) AS last FROM leases${where ? ` WHERE ${where}` : ''} GROUP BY session, agent, pid, proc_start ORDER BY count DESC, session, agent, pid`).all(...values) as SummaryRow[]
+  return rows.map(row => ({ holder: holderOf(row), count: Number(row.count), under: commonDirectory(String(row.first), String(row.last)) }))
 }
 
 type Conflict = { lease: ProjectLease; message: string }

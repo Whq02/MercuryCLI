@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { toolMatchesName, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
+import { asAgentId } from '../../types/ids.js'
 import { ALL_AGENT_DISALLOWED_TOOLS } from '../../constants/tools.js'
 import { clearGuards } from '../../guards/guards.js'
 import { registerStructuredOutputGuard } from '../../guards/structuredOutput.js'
@@ -64,9 +65,9 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
       const permissionContext = state.toolPermissionContext as ToolPermissionContext
       return { ...state, toolPermissionContext: { ...permissionContext, mode: 'dontAsk' }, effortValue: call.effortValue }
     }
-    const childContext = {
+    const childContext: ToolUseContext = {
       ...run.toolUseContext,
-      agentId: hookAgentId,
+      agentId: asAgentId(hookAgentId),
       abortController: agentAbortController,
       getAppState,
       options: {
@@ -77,7 +78,7 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
         thinkingConfig: call.thinkingConfig,
       },
       setInProgressToolUseIDs: () => {},
-    } as unknown as ToolUseContext
+    }
     registerStructuredOutputGuard(hookAgentId)
     let assistantTurns = 0
     let answer: unknown

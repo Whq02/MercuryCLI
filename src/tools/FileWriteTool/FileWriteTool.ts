@@ -1,4 +1,4 @@
-import { buildTool, type ToolUseContext } from '../../Tool.js'
+import { buildTool, type Tool, type ToolUseContext } from '../../Tool.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -34,7 +34,7 @@ import { inputSchema, outputSchema, type Input, type Output } from './write/sche
 
 export type { FileWriteToolInput, Output } from './write/schema.js'
 
-function writeToolItself(): unknown {
+function writeToolItself(): Tool {
   return FileWriteTool
 }
 
