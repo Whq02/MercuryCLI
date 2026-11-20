@@ -13,9 +13,9 @@ import {
 import { RowErrorBoundary } from './RowErrorBoundary.js'
 import { Settings } from './Settings/Settings.js'
 import { FloatingPopup, POPUP_GUTTER, PopupGutter, popupGeometry, popupWidth } from './PopupGutter.js'
+import { SETTINGS_POPUP_CHROME_ROWS, SETTINGS_POPUP_COMPACT_CHROME_ROWS } from './settingsPopupChrome.js'
 
-export const SETTINGS_POPUP_CHROME_ROWS = 7
-export const SETTINGS_POPUP_COMPACT_CHROME_ROWS = 3
+export { SETTINGS_POPUP_CHROME_ROWS, SETTINGS_POPUP_COMPACT_CHROME_ROWS }
 
 export type SettingsPopupPlacement = SettingsPopupGeometry & {
   left: number
