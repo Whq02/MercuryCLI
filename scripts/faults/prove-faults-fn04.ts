@@ -117,6 +117,54 @@ console.log('\nmcp — buildServePermissionContext refuses to drop deny rules wh
   check('mcp.buildServePermissionContext rejects instead of returning empty permission context', r.hasExport === true && r.threw === 'EACCES: permission rules unreadable', JSON.stringify(r))
 }
 
+console.log('\ncontributions — unreadable folders and markdown files report unreadable instead of missing or parse failure')
+if (!POSIX_MODES) skip('contributions unreadable folder and file', 'chmod 0o000/0o200 needs non-root POSIX')
+else {
+  const r = runScenario(`
+    const mod = await import(path.join(SRC, 'extensions/load/contributions.ts'))
+    const root = path.join(SCRATCH, 'ext-contrib')
+    const skillsDir = path.join(root, 'skills')
+    const lockedSkills = path.join(root, 'locked-skills')
+    const cmdsDir = path.join(root, 'commands')
+    const lockedSub = path.join(cmdsDir, 'nested')
+    const skillOne = path.join(skillsDir, 'alpha')
+    fs.mkdirSync(skillOne, { recursive: true })
+    fs.mkdirSync(lockedSkills, { recursive: true })
+    fs.mkdirSync(lockedSub, { recursive: true })
+    const skillFile = path.join(skillOne, 'SKILL.md')
+    fs.writeFileSync(skillFile, '---\\ndescription: ok\\n---\\nbody\\n')
+    fs.writeFileSync(path.join(cmdsDir, 'ok.md'), '---\\ndescription: ok\\n---\\nbody\\n')
+    fs.chmodSync(lockedSkills, 0o000)
+    fs.chmodSync(lockedSub, 0o000)
+    fs.chmodSync(skillFile, 0o200)
+    try {
+      const res = mod.resolveContributions(
+        {
+          name: 'demo',
+          version: '1.0.0',
+          description: 'demo',
+          contributes: {
+            skills: ['./skills', './locked-skills', './absent-skills'],
+            commands: ['./commands'],
+          },
+        },
+        root,
+        'demo@test',
+      )
+      out.defects = res.defects
+    } finally {
+      fs.chmodSync(lockedSkills, 0o700)
+      fs.chmodSync(lockedSub, 0o700)
+      fs.chmodSync(skillFile, 0o600)
+    }
+  `)
+  const defects = (r.defects as string[]) ?? []
+  check('contributions reports unreadable top-level folder as folder unreadable, not folder missing', defects.some(d => d.includes('locked-skills') && d.includes('folder unreadable')) && !defects.some(d => d.includes('locked-skills') && d.includes('folder missing')), JSON.stringify(defects))
+  check('contributions keeps absent folder as folder missing', defects.some(d => d.includes('absent-skills') && d.includes('folder missing')), JSON.stringify(defects))
+  check('contributions reports unreadable command subfolder instead of treating it as empty', defects.some(d => d.includes('nested') && d.includes('folder unreadable')), JSON.stringify(defects))
+  check('contributions reports unreadable SKILL.md as file unreadable, not frontmatter parse failure', defects.some(d => d.includes('alpha/SKILL.md') && d.includes('file unreadable')) && !defects.some(d => d.includes('alpha/SKILL.md') && d.includes('frontmatter did not parse')), JSON.stringify(defects))
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
