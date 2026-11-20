@@ -5,7 +5,7 @@ import mergeWith from 'lodash-es/mergeWith.js'
 import { z } from 'zod/v4'
 
 import { getFlagSettingsInline, getFlagSettingsPath, getOriginalCwd } from '../../bootstrap/state.js'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { durableAtomicPublishSync, DurablePublishError } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { getMercuryHome } from '../envUtils.js'
 import { errorMessage, isENOENT } from '../errors.js'
@@ -726,6 +726,16 @@ export function updateSettingsForSource(
     return { error: null }
   } catch (error) {
     logError(error)
+    if (error instanceof DurablePublishError && error.phase === 'rename') {
+      logForDebugging(`Failed to update settings file ${writePath}: ${error.message}`, { level: 'error' })
+      const code = error.fsCode ?? 'write error'
+      return {
+        error: new Error(
+          `Could not save settings: ${writePath} could not be written (${code}); nothing was written. Close what holds the file, then try again.`,
+          { cause: error },
+        ),
+      }
+    }
     return { error: new Error(`Failed to update settings file ${writePath}: ${errorMessage(error)}`, { cause: error }) }
   } finally {
     unlock?.()

@@ -195,6 +195,26 @@ const AFTER_CD_ALLOWED = (project: string, home: string): Array<[string, string,
   ['Push-Location ~; Pop-Location; Remove-Item -Recurse -Force *', 'PowerShell', project],
   ['Remove-Item -Recurse -Force .\\build', 'PowerShell', home],
 ]
+const BARE_LISTER_REFUSED: Array<[string, string]> = [
+  ['cd ~ && ls | xargs rm -rf', 'Bash'],
+  ['cd ~ && ls -A | xargs rm -rf', 'Bash'],
+  ['cd ~; Get-ChildItem | Remove-Item -Recurse -Force', 'PowerShell'],
+]
+const LISTER_WITH_OPERAND_REFUSED: Array<[string, string]> = [['cd ~ && ls . | xargs rm -rf', 'Bash']]
+const BARE_LISTER_ALLOWED: Array<[string, string]> = [
+  ['ls | xargs rm -rf', 'Bash'],
+  ['ls -A | xargs rm -rf', 'Bash'],
+  ['cd build && ls | xargs rm -rf', 'Bash'],
+  ['cd ~/proj && ls | xargs rm -rf', 'Bash'],
+  ['ls | xargs rm', 'Bash'],
+  ['cd ~ && ls | xargs rm', 'Bash'],
+  ['ls | xargs echo', 'Bash'],
+  ['ls | grep -v keep | xargs rm -rf', 'Bash'],
+  ['(cd ~ && ls); ls | xargs rm -rf', 'Bash'],
+  ['pushd ~; popd; ls | xargs rm -rf', 'Bash'],
+  ['Get-ChildItem | Remove-Item -Recurse -Force', 'PowerShell'],
+  ['Get-ChildItem | Where-Object Name -ne keep | Remove-Item -Recurse -Force', 'PowerShell'],
+]
 
 async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
@@ -248,6 +268,21 @@ async function main(): Promise<void> {
     for (const [command, tool, cwd] of AFTER_CD_REFUSED(PROJECT, HOME_FOLDER)) check(`refused (${tool}, standing in ${cwd}): ${JSON.stringify(command)}`, (await through(command, tool, cwd)) === 'no-root-recursive-delete', await through(command, tool, cwd))
     section('§6f win32 — what was allowed for a project folder stays allowed: a cd that does not end in the home, a cd undone, a cd inside a subshell, a subfolder of the home, a narrowed find, a share subfolder')
     for (const [command, tool, cwd] of AFTER_CD_ALLOWED(PROJECT, HOME_FOLDER)) check(`not warded (${tool}, standing in ${cwd}): ${JSON.stringify(command)}`, (await through(command, tool, cwd)) === '(allowed)', await through(command, tool, cwd))
+    section('§6g every platform — a lister with no operand, piped into a recursive delete, is judged as `.` of the folder the reading stands in, as the same lister with `.` already is; a project folder, a delete that is not recursive and a cd undone stay allowed; nothing is executed')
+    const STANDS: Array<[NodeJS.Platform, string, string]> = [['darwin', '/Users/alice', '/Users/alice/work/app'], ['linux', '/home/alice', '/home/alice/work/app'], ['win32', HOME_FOLDER, PROJECT]]
+    for (const [platform, home, project] of STANDS) {
+      pinPlatform(platform)
+      if (platform === 'win32') {
+        process.env.USERPROFILE = home
+        delete process.env.HOME
+      } else {
+        process.env.HOME = home
+        delete process.env.USERPROFILE
+      }
+      for (const [command, tool] of BARE_LISTER_REFUSED) check(`${platform} · refused (${tool}): ${JSON.stringify(command)}`, (await through(command, tool, project)) === 'no-root-recursive-delete', await through(command, tool, project))
+      for (const [command, tool] of LISTER_WITH_OPERAND_REFUSED) check(`${platform} · refused as before (${tool}): ${JSON.stringify(command)}`, (await through(command, tool, project)) === 'no-root-recursive-delete', await through(command, tool, project))
+      for (const [command, tool] of BARE_LISTER_ALLOWED) check(`${platform} · not warded (${tool}): ${JSON.stringify(command)}`, (await through(command, tool, project)) === '(allowed)', await through(command, tool, project))
+    }
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME
