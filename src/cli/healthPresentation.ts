@@ -31,8 +31,8 @@ export function writeOutAndExit(text: string, code: number): Promise<never> {
       const guard = startTimeout(() => process.exit(code), 30_000)
       ;(guard as { unref?: () => void }).unref?.()
     }
-  } catch {
-    process.exit(code)
+  } catch (error) {
+    process.exit((error as NodeJS.ErrnoException | null)?.code === 'EPIPE' ? code : 1)
   }
   return new Promise<never>(() => {})
 }

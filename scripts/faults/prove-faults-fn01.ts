@@ -256,5 +256,23 @@ console.log('\nhealthJson.ts — serialization failure emits cert-failed error a
   check('healthJson: serialization bug exits 1 with cert-failed JSON instead of {} with exit 0', r.status === 1 && parsed?.code === 'cert-failed' && typeof parsed.error === 'string' && parsed.error.length > 0, `status=${r.status} stdout=${r.stdout.slice(0, 200)}`)
 }
 
+console.log('\nhealthPresentation.ts — sync non-EPIPE stdout error exits 1 instead of exiting 0')
+{
+  const enospc = runSubprocess(`
+    const path = await import('node:path')
+    const { writeOutAndExit } = await import(path.join(SRC, 'cli/healthPresentation.ts'))
+    process.stdout.write = () => { throw Object.assign(new Error('no space'), { code: 'ENOSPC' }) }
+    await writeOutAndExit('ok\\n', 0)
+  `, { allowNonZero: true })
+  const epipe = runSubprocess(`
+    const path = await import('node:path')
+    const { writeOutAndExit } = await import(path.join(SRC, 'cli/healthPresentation.ts'))
+    process.stdout.write = () => { throw Object.assign(new Error('broken pipe'), { code: 'EPIPE' }) }
+    await writeOutAndExit('ok\\n', 0)
+  `, { allowNonZero: true })
+  check('healthPresentation: sync ENOSPC exits 1 instead of 0', enospc.status === 1, `status=${enospc.status}`)
+  check('healthPresentation: sync EPIPE still exits with requested code 0', epipe.status === 0, `status=${epipe.status}`)
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
