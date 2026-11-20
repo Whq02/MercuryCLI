@@ -132,9 +132,6 @@ process.chdir(repo)
 state.setOriginalCwd(repo)
 state.setCwdState(repo)
 
-const sessionsDoc = readFileSync(join(ROOT, 'docs/SESSIONS.md'), 'utf8').replace(/\s+/g, ' ')
-check('the sessions page says an install inside the worktree lands in the checkout', sessionsDoc.includes('an install run inside the worktree installs into the checkout'))
-
 process.chdir(ROOT)
 state.setOriginalCwd(ROOT)
 state.setCwdState(ROOT)

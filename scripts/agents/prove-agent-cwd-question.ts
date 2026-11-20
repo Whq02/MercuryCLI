@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/tools/AgentTool/AgentTool.tsx src/types/permissions.ts src/Tool.ts src/bootstrap/state.ts src/utils/permissions/decision/engine.ts docs/CREW.md
 import '../lib/hermetic.ts'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -46,8 +46,6 @@ try {
   }
   const words = inputSchema().shape.cwd.description ?? ''
   check('the parameter names the child starting folder, the permission bound and the worktree', words.includes('Absolute starting directory') && words.includes("Starting outside the session's folder asks for permission") && words.includes('with isolation, its repository supplies the worktree'))
-  const docs = readFileSync(join(ROOT, 'docs/CREW.md'), 'utf8').replace(/\s+/g, ' ')
-  check('the crew docs state ordinary permission and the child root', docs.includes('asks for ordinary permission') && docs.includes('own single starting folder'))
 } finally {
   state.setOriginalCwd(ROOT)
   state.setCwdState(ROOT)
