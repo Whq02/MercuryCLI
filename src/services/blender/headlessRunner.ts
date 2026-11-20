@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
-import { probeBlenderVersion, seedBlenderVersionProbe } from '../ide/blenderProject.js'
+import { probeBlenderVersion, seedBlenderVersionProbe } from '../../utils/blender/blenderProject.js'
 import {
   BLENDER_BRIDGE_FILES,
   BLENDER_HEADLESS_DRIVER_SOURCE,
@@ -12,7 +12,7 @@ import {
   BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES,
   BLENDER_HEADLESS_RENDER_TIMEOUT_MS,
   type BlenderBridgeError,
-} from './bridgeProtocol.js'
+} from '../../utils/blender/bridgeProtocol.js'
 
 const HEADLESS_PYTHON_EXIT_CODE = '1'
 const HEADLESS_DEFAULT_TIMEOUT_MS = 30_000

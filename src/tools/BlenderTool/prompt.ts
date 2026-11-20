@@ -4,7 +4,7 @@ import {
   BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE,
   blenderBridgeVerbNames,
   type BlenderBridgeVerbSpec,
-} from '../../services/blender/bridgeProtocol.js'
+} from '../../utils/blender/bridgeProtocol.js'
 import { blenderBridgePort } from '../../utils/blender/bridgeGates.js'
 
 export const BLENDER_TOOL_NAME = 'Blender' as const

@@ -16,7 +16,7 @@ import {
 import {
   buildBlenderContextProfile,
   mercuryBlenderEnabled,
-} from './blenderProject.js'
+} from '../../utils/blender/blenderProject.js'
 import {
   findPythonProjectRoot,
   buildPythonProjectProfile,
