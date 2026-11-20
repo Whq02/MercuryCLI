@@ -33,6 +33,25 @@ import {
 } from '../../utils/sessionStorage.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
+export async function crossProjectResumeNotice(
+  command: string,
+  copy: typeof setClipboard = setClipboard,
+): Promise<string> {
+  let copied = false
+  try {
+    const sequence = await copy(command)
+    if (sequence) process.stdout.write(sequence)
+    copied = true
+  } catch (thrown) {
+    logError(thrown)
+  }
+  return [
+    'This conversation is from a different directory. To resume it, run:',
+    `  ${command}`,
+    ...(copied ? ['(copied to the clipboard)'] : []),
+  ].join('\n')
+}
+
 async function performResume(
   context: LocalJSXCommandContext,
   onDone: LocalJSXCommandOnDone,
@@ -128,20 +147,7 @@ function SessionsLogPicker({
       const full = isLiteListing(log) ? await fillSessionListing(log) : log
       const cross = checkCrossProjectResume(full, showAllProjects, worktreePathsRef.current)
       if (cross.isCrossProject && !cross.isSameRepoWorktree) {
-        try {
-          const sequence = await setClipboard(cross.command)
-          if (sequence) process.stdout.write(sequence)
-        } catch (thrown) {
-          logError(thrown)
-        }
-        onDone(
-          [
-            'This conversation is from a different directory. To resume it, run:',
-            `  ${cross.command}`,
-            '(copied to the clipboard)',
-          ].join('\n'),
-          { display: 'user' },
-        )
+        onDone(await crossProjectResumeNotice(cross.command), { display: 'user' })
         return
       }
       await performResume(context, onDone, sessionId, full, 'slash_command_picker')

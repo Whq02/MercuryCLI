@@ -38,7 +38,6 @@ import { familyOfModelGroup, providerHeadingsOf } from './picker/headings.js'
 import { resolveCurrentRowId, subscribeFocusedModelFeed, getFocusedModelKey, modelChoiceOf, expandRowsOf, pickLabelOf, slotSwitchOf, seatGroupOf, orderedModelChoices, servedByTensorFold, tensorFoldPodEndpoints, runModelTensorFoldAct } from './picker/rows.js'
 import { type PickRoad, type PickContext, selectHostRow, connectClaude, connectGpt, connectOpenrouter, connectNous, connectGemini, connectHuggingface, selectKeyLane, selectThroughGate } from './picker/select.js'
 import { applyOnSeat, applyLocally } from './picker/apply.js'
-import { passedOverAs } from '../../utils/passedOver.js'
 
 export { familyOfModelGroup } from './picker/headings.js'
 export { servedByTensorFold, tensorFoldPodEndpoints, modelChoiceLabel, modelChoiceRow } from './picker/rows.js'
@@ -47,6 +46,25 @@ export { MercurySessionModelPicker } from './picker/SessionPicker.js'
 export { MercuryModelChoicePicker } from './picker/ChoicePicker.js'
 
 type ModelNameAsk = { notice: string; filter: string }
+
+export function runModelTensorFoldPair(
+  act: Extract<TensorFoldAct, { kind: 'pair' }>,
+  io: {
+    pair?: typeof pairTensorFoldHost
+    read: () => Promise<unknown>
+    setNotice: (words: string) => void
+    isOpen: () => boolean
+  },
+): Promise<unknown> {
+  return (io.pair ?? pairTensorFoldHost)(act.host, act.code)
+    .then(words => {
+      if (words !== undefined && io.isOpen()) io.setNotice(words)
+      return io.read()
+    })
+    .catch(error => {
+      if (io.isOpen()) io.setNotice(error instanceof Error ? error.message : String(error))
+    })
+}
 
 function MercuryModelWrapper({
   messages,
@@ -282,12 +300,11 @@ function MercuryModelWrapper({
   const onTensorFold = (act: TensorFoldAct): void => {
     if (tensorFold === undefined) return
     if (act.kind === 'pair') {
-      void pairTensorFoldHost(act.host, act.code)
-        .then(words => {
-          if (words !== undefined && pickerOpen.current) setNotice(words)
-          return tensorFold.read()
-        })
-        .catch(passedOverAs(undefined))
+      void runModelTensorFoldPair(act, {
+        read: () => tensorFold.read(),
+        setNotice,
+        isOpen: () => pickerOpen.current,
+      })
       return
     }
     void runModelTensorFoldAct(act, tensorFold, { setAppState }, { close: words => onDone(words, { display: 'system' }), read: async () => void (await tensorFold.read(true)) }).catch(error => {

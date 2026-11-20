@@ -16,7 +16,10 @@ import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
 import type { AppState } from '../../../state/AppState.js'
 import type { AppStateStore } from '../../../state/AppStateStore.js'
 import { retryNamedCompatRow } from './rows.js'
-import { passedOverAs } from '../../../utils/passedOver.js'
+
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 export type PickRoad = { flip: boolean; door?: string }
 
@@ -81,11 +84,16 @@ export function connectGpt({ onDone, setNotice }: PickContext): void {
         return
       }
       setNotice(`GPT — refreshing the live catalogue from the ${account.label}…`)
-      const snapshot = await refreshOpenaiCatalogue(account.kind, { force: true }).catch(passedOverAs(null))
+      let refreshError: string | undefined
+      const snapshot = await refreshOpenaiCatalogue(account.kind, { force: true }).catch((error: unknown) => {
+        refreshError = errorDetail(error)
+        return null
+      })
+      const detail = snapshot?.lastError ?? refreshError
       setNotice(
         snapshot && snapshot.models.length > 0 && !snapshot.lastError
           ? `GPT catalogue landed: ${snapshot.models.length} model(s) from the ${account.label} — pick one above`
-          : `GPT catalogue unavailable — ↵ retries · /logins shows readiness${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
+          : `GPT catalogue unavailable — ↵ retries · /logins shows readiness${detail ? ` (${detail})` : ''}`,
       )
     })()
     return
@@ -113,11 +121,16 @@ export function connectOpenrouter({ onDone, setNotice }: PickContext): void {
       const auth = resolveOpenrouterRequestAuth()
       if (auth) {
         setNotice('OpenRouter — refreshing the live catalogue…')
-        const snapshot = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true }).catch(passedOverAs(null))
+        let refreshError: string | undefined
+        const snapshot = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true }).catch((error: unknown) => {
+          refreshError = errorDetail(error)
+          return null
+        })
+        const detail = snapshot?.lastError ?? refreshError
         setNotice(
           snapshot && snapshot.models.length > 0 && !snapshot.lastError
             ? `OpenRouter catalogue landed: ${snapshot.models.length} model(s) — pick one above`
-            : `OpenRouter catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
+            : `OpenRouter catalogue unavailable — ↵ retries${detail ? ` (${detail})` : ''}`,
         )
         return
       }
@@ -134,11 +147,16 @@ export function connectNous({ onDone, setNotice }: PickContext): void {
     const availability = getNousAvailability()
     if (availability.state === 'ready' || availability.why === 'catalogue-pending' || availability.why === 'catalogue-error') {
       setNotice('Nous Portal — refreshing the live catalogue…')
-      const snapshot = await refreshNousCatalogue({ force: true }).catch(passedOverAs(null))
+      let refreshError: string | undefined
+      const snapshot = await refreshNousCatalogue({ force: true }).catch((error: unknown) => {
+        refreshError = errorDetail(error)
+        return null
+      })
+      const detail = snapshot?.lastError ?? refreshError
       setNotice(
         snapshot && snapshot.models.length > 0 && !snapshot.lastError
           ? `Nous Portal catalogue landed: ${snapshot.models.length} model(s) — pick one above`
-          : `Nous Portal catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
+          : `Nous Portal catalogue unavailable — ↵ retries${detail ? ` (${detail})` : ''}`,
       )
       return
     }
@@ -167,11 +185,16 @@ export function connectGemini({ onDone, setNotice }: PickContext): void {
       if (account) {
         const sourceKind = account.kind
         setNotice('Gemini — refreshing the live catalogue…')
-        const snapshot = await refreshGeminiCatalogue(sourceKind, { force: true }).catch(passedOverAs(null))
+        let refreshError: string | undefined
+        const snapshot = await refreshGeminiCatalogue(sourceKind, { force: true }).catch((error: unknown) => {
+          refreshError = errorDetail(error)
+          return null
+        })
+        const detail = snapshot?.lastError ?? refreshError
         setNotice(
           snapshot && snapshot.models.length > 0 && !snapshot.lastError
             ? `Gemini catalogue landed: ${snapshot.models.length} model(s) — pick one above`
-            : `Gemini catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
+            : `Gemini catalogue unavailable — ↵ retries${detail ? ` (${detail})` : ''}`,
         )
         return
       }
@@ -191,11 +214,16 @@ export function connectHuggingface({ onDone, setNotice }: PickContext): void {
     const availability = getHuggingfaceAvailability()
     if (availability.state === 'ready') {
       setNotice('Hugging Face — refreshing the live catalogue…')
-      const snapshot = await refreshHuggingfaceCatalogue({ force: true }).catch(passedOverAs(null))
+      let refreshError: string | undefined
+      const snapshot = await refreshHuggingfaceCatalogue({ force: true }).catch((error: unknown) => {
+        refreshError = errorDetail(error)
+        return null
+      })
+      const detail = snapshot?.lastError ?? refreshError
       setNotice(
         snapshot && snapshot.models.length > 0 && !snapshot.lastError
           ? `Hugging Face catalogue landed: ${snapshot.models.length} model(s) — pick one above (any listed id types as huggingface/<org>/<model>)`
-          : `Hugging Face catalogue unavailable — ↵ retries; the dated pins dispatch directly${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
+          : `Hugging Face catalogue unavailable — ↵ retries; the dated pins dispatch directly${detail ? ` (${detail})` : ''}`,
       )
       return
     }
@@ -224,12 +252,17 @@ export function selectKeyLane({ onDone, setNotice }: PickContext, id: string, ke
       if (account) {
         const { moonshotCatalogueRows, refreshMoonshotCatalogue } = await import('../../../services/providers/moonshot/moonshotCatalogue.js')
         setNotice(`Moonshot — reading the model list of the ${account.label}…`)
-        await refreshMoonshotCatalogue({ force: true }).catch(passedOverAs(null))
+        let refreshError: string | undefined
+        await refreshMoonshotCatalogue({ force: true }).catch((error: unknown) => {
+          refreshError = errorDetail(error)
+          return null
+        })
         const { source } = moonshotCatalogueRows()
+        const detail = (source.kind === 'unread' ? source.error : undefined) ?? refreshError
         setNotice(
           source.kind === 'live'
             ? `Moonshot model list landed: ${source.count} model(s) from the ${account.label} — pick one above`
-            : `Moonshot model list unavailable — ↵ retries${source.kind === 'unread' && source.error !== undefined ? ` (${source.error})` : ''}`,
+            : `Moonshot model list unavailable — ↵ retries${detail !== undefined ? ` (${detail})` : ''}`,
         )
         return
       }
