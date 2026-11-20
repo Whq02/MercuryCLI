@@ -149,7 +149,7 @@ section("§3 the strip's own label law, run from the splash's source against the
 section('§4 the wiring: the generator reads the owners and the suite runs this proof')
 {
   const generator = readFileSync(GENERATOR, 'utf8')
-  const suite = readFileSync(join(ROOT, 'scripts', 'splash', 'run-all.sh'), 'utf8')
+  const suite = readFileSync(join(ROOT, 'scripts', 'splash', 'members.txt'), 'utf8')
   for (const family of FAMILIES) check(`the generator reads ${family.owner}`, generator.includes(`await import('../../${family.owner}')`))
   check('the generator bakes the retired DeepSeek spellings and the Kimi plan rows', generator.includes('DEEPSEEK_RETIRED_ALIASES.keys()') && generator.includes('KIMI_PLAN_PINS'))
   check('the suite runs this proof beside the Grok row proof', suite.includes('prove-grok-row.ts') && suite.includes('prove-deepseek-kimi-glm-rows.ts'))

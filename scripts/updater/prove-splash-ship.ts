@@ -48,7 +48,7 @@ section('(2) the canonical splash — parses, dependency-free, menu baked, self-
   check('the compose core imports NOTHING (pure, side-effect-free)', !/^import /m.test(coreSrc) && !coreSrc.includes('require('))
   check(
     'the boot menu is baked into the core (the MENU and MODEL_NAMES declarations the bake writes, drift-gated by the suite)',
-    /^const MENU = \[$/m.test(coreSrc) && /^const MODEL_NAMES = \{$/m.test(coreSrc) && readFileSync(join(ROOT, 'scripts', 'splash', 'run-all.sh'), 'utf8').includes('bake-menu.mjs" --check'),
+    /^const MENU = \[$/m.test(coreSrc) && /^const MODEL_NAMES = \{$/m.test(coreSrc) && readFileSync(join(ROOT, 'scripts', 'splash', 'members.txt'), 'utf8').includes('bake-menu.mjs --check'),
   )
   check('the TTY/off/static self-guard exists (exit 0, silent)', splashSrc.includes("process.env.MERCURY_SPLASH === 'off' || process.env.MERCURY_SPLASH === 'static' || !out.isTTY) process.exit(0)"))
   check('boot-env handover targets <config-home>/boot-env.json', splashSrc.includes("join(CONFIG_HOME, 'boot-env.json')"))

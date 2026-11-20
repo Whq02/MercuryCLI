@@ -162,7 +162,7 @@ t.section('§5 — bake contract integrity')
   t.check(
     "the baked RAMP-LAW block is the bake's own shape (RAMP · RAMP_FIXTURE · CAPABILITY_TRUTH on consecutive lines) and its drift gate is enrolled",
     /^const RAMP = \[[^\n]*\]\nconst RAMP_FIXTURE = \[[^\n]*\]\nconst CAPABILITY_TRUTH = \[[^\n]*\]$/m.test(src) &&
-      readFileSync(join(import.meta.dir, 'run-all.sh'), 'utf8').includes('bake-ramp.mjs" --check'),
+      readFileSync(join(import.meta.dir, 'members.txt'), 'utf8').includes('bake-ramp.mjs --check'),
     'block shape + drift gate',
   )
   t.check(
