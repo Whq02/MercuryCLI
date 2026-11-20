@@ -54,7 +54,7 @@ function runScenario(body: string, extraEnv: Record<string, string> = {}): Recor
   }
 }
 
-console.log('\ngatewayTrust.ts — failed TLS fingerprint probe refuses to activate the gateway')
+console.log('\ngatewayTrust.ts — a failed TLS fingerprint probe says so once and the gateway is still activated')
 {
   const r = runScenario(`
     const net = await import('node:net')
@@ -89,13 +89,13 @@ console.log('\ngatewayTrust.ts — failed TLS fingerprint probe refuses to activ
       process.stderr.write = origStderrWrite
     }
     out.activated = logs.some(l => l.includes('verified session'))
-    out.refused = logs.some(l => l.includes('TLS fingerprint probe failed'))
+    out.unchecked = logs.some(l => l.includes('proceeding without re-verify'))
     out.stderr = stderrLines.join('')
   `)
   const stderr = typeof r.stderr === 'string' ? r.stderr : ''
   check(
-    'gatewayTrust:restore-refuses-on-tls-probe-failure',
-    r.activated === false && r.refused === true && /^Cloud gateway 127\.0\.0\.1 could not be verified \(.+\) — run \/logins to reconnect\.\n$/.test(stderr),
+    'gatewayTrust:restore-goes-on-when-tls-probe-fails',
+    r.activated === true && r.unchecked === true && /^Cloud gateway 127\.0\.0\.1 could not be verified \(.+\), so its TLS certificate was not checked this time — run \/logins to verify and reconnect\.\n$/.test(stderr),
     JSON.stringify(r),
   )
 }
@@ -236,7 +236,7 @@ else {
     }
   `)
   check('git:getGitState-propagates-read-error', r.stateErr === 'EACCES', JSON.stringify(r))
-  check('git:unreadable-dotgit-file-fails-closed', r.verdict === 'gitdir-redirect-plantable', JSON.stringify(r))
+  check('git:unreadable-dotgit-file-is-passed-over', r.verdict === false, JSON.stringify(r))
 }
 
 console.log('\ngitDiff.ts — unreadable transient-state marker rejects instead of pretending no merge in progress')

@@ -738,8 +738,9 @@ function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClas
     try {
       contents = readFileSync(entryPath, 'utf8')
     } catch (error) {
+      if (!isENOENT(error)) logForDebugging(`[git] ${entryPath} could not be read (${error instanceof Error ? error.message : String(error)}), so the git gate passes over it`, { level: 'warn' })
       passedOver(error)
-      return isENOENT(error) ? 'none' : 'plantable'
+      return 'none'
     }
     if (contents.includes('\0')) return 'plantable'
     if (!contents.startsWith('gitdir: ')) return 'none'
