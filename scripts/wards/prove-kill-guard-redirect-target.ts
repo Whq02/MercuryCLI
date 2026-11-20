@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -113,6 +113,36 @@ section('C. the body of a quoted here-document is data: words in it that spell a
   check('a quoted here-document whose body names a kill of this very process is not refused', answered === null, answered ?? '')
   const live = await reason(`cat >> notes.md <<'EOF'\nnote\nEOF\npkill -f ${OWN_WORD}`)
   check('a kill written after the here-document is still read and refused', live !== null && live.includes(`Killing by image ${OWN_WORD} is refused`), live ?? 'not refused')
+}
+
+section('D. a check the guard could not finish does not refuse the command: a pattern it cannot compile, a property list it cannot read, a launchctl that gives no answer')
+{
+  const uncompiled = await reason("pkill -f 'light_lab**'")
+  check('pkill -f with a pattern JavaScript cannot compile is not refused', uncompiled === null, uncompiled ?? '')
+  const compiled = await reason(`pkill -f '${OWN_WORD}.*'`)
+  check('control: a pattern that compiles and names this process is still refused', compiled !== null && compiled.includes('is refused: it can terminate'), compiled ?? 'not refused')
+  const plist = join(project, 'other.agent.plist')
+  writeFileSync(plist, '<plist><dict><key>Program</key><string>/usr/bin/true</string></dict></plist>')
+  chmodSync(plist, 0o000)
+  const unreadable = await reason(`launchctl unload ${plist}`)
+  chmodSync(plist, 0o644)
+  check('launchctl unload of a property list that is there and cannot be read is not refused', process.getuid?.() === 0 || unreadable === null, unreadable ?? '')
+  const named = await reason('launchctl bootout gui/501/com.example.mercury-daemon')
+  check('control: a service target that names Mercury is still refused', named !== null && named.includes('it owns Mercury'), named ?? 'not refused')
+  if (process.platform === 'darwin') {
+    const fake = join(RESPAWNED, 'fake-launchctl')
+    mkdirSync(fake)
+    const path = process.env.PATH
+    process.env.PATH = `${fake}:${path}`
+    writeFileSync(join(fake, 'launchctl'), '#!/bin/sh\nexec sleep 6\n', { mode: 0o755 })
+    const startedAt = Date.now()
+    const slow = await reason('launchctl bootout gui/501/com.example.other')
+    check('launchctl bootout is not refused when launchctl print gives no answer within its 2 s limit', slow === null && Date.now() - startedAt >= 1_500, `${slow ?? 'not refused'} after ${Date.now() - startedAt} ms`)
+    writeFileSync(join(fake, 'launchctl'), '#!/bin/sh\nkill -KILL $$\n', { mode: 0o755 })
+    const dead = await reason('launchctl bootout gui/501/com.example.other')
+    check('…nor when launchctl print ends without an exit status', dead === null, dead ?? '')
+    process.env.PATH = path
+  }
 }
 
 if (failures > 0) {
