@@ -5,7 +5,6 @@ import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { gitArgs } from '../../../utils/git/spawnArgs.js'
-import { passedOver } from '../../../utils/passedOver.js'
 
 const GODOT_STATE_DIR = '.godot'
 
@@ -192,7 +191,9 @@ export async function materializeEngineTree(
     let isFile = false
     try {
       isFile = statSync(live).isFile()
-    } catch {
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException | null)?.code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
       isFile = false
     }
     if (isFile) {
@@ -252,8 +253,9 @@ function readTextOrEmpty(file: string): string {
   try {
     return readFileSync(file, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return ''
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return ''
+    throw error
   }
 }
 
@@ -319,7 +321,9 @@ export async function liveTreeFacts(projectRoot: string, git: GitRunner = runGit
       if (norm === null || isEngineInternalPath(norm)) continue
       try {
         overlay.set(norm, gitBlobId(readFileSync(path.join(projectRoot, norm))))
-      } catch {
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException | null)?.code
+        if (code !== 'ENOENT' && code !== 'ENOTDIR' && code !== 'EISDIR') throw error
         overlay.set(norm, null)
       }
     }

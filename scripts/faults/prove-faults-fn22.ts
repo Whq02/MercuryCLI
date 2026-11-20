@@ -250,5 +250,39 @@ else {
   check('compileGate-scriptModeHead: unreadable script records a failure and makes ok false', r.checkOk === false && checkFailures.some(f => f.file === 'res://suite.gd' && typeof f.spawnError === 'string' && f.spawnError.includes('EACCES')), JSON.stringify(r))
 }
 
+console.log('\n6. vulcan/engine/frozenTree.ts — unreadable files throw in materializeEngineTree, engineTreeHashes, and liveTreeFacts')
+if (!POSIX_MODES) skip('frozenTree', 'needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const m = await import(path.join(SRC, 'services/vulcan/engine/frozenTree.ts'))
+    const aPath = path.join(PROJECT, 'a.gd')
+    fs.writeFileSync(aPath, 'class_name Foo\\n', { mode: 0o600 })
+    fs.chmodSync(aPath, 0o200)
+    out.hashesUnreadable = await attempt(() => m.engineTreeHashes({ path: PROJECT, baseBlobs: new Map([['a.gd', '1111']]), overlay: new Map() }))
+    out.hashesAbsent = await attempt(() => m.engineTreeHashes({ path: PROJECT, baseBlobs: new Map([['missing.gd', '1111']]), overlay: new Map() }))
+    const fakeGit = async (_root, args) => {
+      if (args[0] === 'rev-parse') return { code: 0, stdout: 'a'.repeat(40) + '\\n', stderr: '' }
+      if (args[0] === 'ls-tree') return { code: 0, stdout: '100644 blob ' + 'b'.repeat(40) + '\\ta.gd\\0', stderr: '' }
+      if (args[0] === 'status') return { code: 0, stdout: ' M a.gd\\0', stderr: '' }
+      return { code: 0, stdout: '', stderr: '' }
+    }
+    out.liveUnreadable = await attempt(() => m.liveTreeFacts(PROJECT, fakeGit))
+    fs.chmodSync(aPath, 0o600)
+    const subDir = path.join(PROJECT, 'locked')
+    fs.mkdirSync(subDir, { recursive: true })
+    fs.writeFileSync(path.join(subDir, 'b.gd'), 'extends Node\\n')
+    fs.chmodSync(subDir, 0o000)
+    out.materializeUnreadable = await attempt(() => m.materializeEngineTree(PROJECT, { ref: 'HEAD', files: ['locked/b.gd'], working: false, label: 'HEAD+locked/b.gd' }, path.join(HOME, 'tree-dest'), fakeGit))
+    fs.chmodSync(subDir, 0o700)
+  `)
+  const hashesUnreadable = r.hashesUnreadable as Attempt
+  const hashesAbsent = r.hashesAbsent as Attempt
+  const liveUnreadable = r.liveUnreadable as Attempt
+  const materializeUnreadable = r.materializeUnreadable as Attempt
+  check('frozenTree-hashes: unreadable file throws EACCES in engineTreeHashes while absent file still succeeds', !hashesUnreadable.ok && hashesUnreadable.code === 'EACCES' && hashesAbsent.ok, JSON.stringify({ hashesUnreadable, hashesAbsent }))
+  check('frozenTree-liveTreeFacts: unreadable modified file throws EACCES instead of recording deletion', !liveUnreadable.ok && liveUnreadable.code === 'EACCES', JSON.stringify(liveUnreadable))
+  check('frozenTree-materialize: unreadable overlay path throws EACCES instead of deleting from tree', !materializeUnreadable.ok && materializeUnreadable.code === 'EACCES', JSON.stringify(materializeUnreadable))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
