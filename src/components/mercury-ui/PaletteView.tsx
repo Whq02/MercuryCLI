@@ -27,6 +27,28 @@ type PaletteRow = {
 
 const MAX_VISIBLE = 12
 
+export async function loadPaletteRows(
+  cwd: string,
+): Promise<{ ok: true; rows: PaletteRow[] } | { ok: false; error: string }> {
+  try {
+    const commands = await getCommands(cwd)
+    const built: PaletteRow[] = commands
+      .filter(cmd => !cmd.isHidden)
+      .map(cmd => ({
+        command: cmd,
+        name: getCommandName(cmd),
+        description: formatDescriptionWithSource(cmd),
+      }))
+    return { ok: true, rows: built }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export function paletteLoadErrorLine(error: string): string {
+  return `Could not read the command roster (${error})`
+}
+
 export function PaletteView({
   onClose,
   onPick,
@@ -38,27 +60,22 @@ export function PaletteView({
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
   const [rows, setRows] = useState<PaletteRow[] | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const pastOpenEvent = useOpenEventGate()
 
   useLoad(() => {
     let alive = true
-    void (async () => {
-      try {
-        const commands = await getCommands(getCwd())
-        if (!alive) return
-        const built: PaletteRow[] = commands
-          .filter(cmd => !cmd.isHidden)
-          .map(cmd => ({
-            command: cmd,
-            name: getCommandName(cmd),
-            description: formatDescriptionWithSource(cmd),
-          }))
-        setRows(built)
-      } catch {
-        if (alive) setRows([])
+    void loadPaletteRows(getCwd()).then(result => {
+      if (!alive) return
+      if (result.ok) {
+        setLoadError(null)
+        setRows(result.rows)
+      } else {
+        setLoadError(result.error)
+        setRows([])
       }
-    })()
+    })
     return () => {
       alive = false
     }
@@ -126,6 +143,16 @@ export function PaletteView({
       <CommandCenter view="palette" onClose={onClose} captureInput={false} footer="loading">
         <Box marginTop={1}>
           <EmptyState title="Reading the command roster…" glyph={GLYPH.inProgress} />
+        </Box>
+      </CommandCenter>
+    )
+  }
+
+  if (loadError !== null) {
+    return (
+      <CommandCenter view="palette" onClose={onClose} captureInput={false} footer="esc / ← close">
+        <Box marginTop={1}>
+          <EmptyState title={paletteLoadErrorLine(loadError)} hint="esc / ← close" tone="gated" />
         </Box>
       </CommandCenter>
     )

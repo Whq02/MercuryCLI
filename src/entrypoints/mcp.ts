@@ -41,6 +41,13 @@ export async function servedCallRefusal(tool: Pick<Tool, 'name' | 'shellCommandO
   return judgement.refused ? judgement.reason : null
 }
 
+export async function buildServePermissionContext(): Promise<ReturnType<typeof getEmptyToolPermissionContext>> {
+  const context = getEmptyToolPermissionContext()
+  const { loadAllPermissionRulesFromDisk } = await import('../utils/permissions/permissionsLoader.js')
+  const { applyPermissionRulesToPermissionContext } = await import('../utils/permissions/permissions.js')
+  return applyPermissionRulesToPermissionContext(context, loadAllPermissionRulesFromDisk())
+}
+
 export async function startMCPServer(
   cwd: string,
   debug: boolean,
@@ -54,17 +61,6 @@ export async function startMCPServer(
     { name: 'mercury', version: MACRO.VERSION },
     { capabilities: { tools: {} } },
   )
-
-  const buildServePermissionContext = async (): Promise<ReturnType<typeof getEmptyToolPermissionContext>> => {
-    const context = getEmptyToolPermissionContext()
-    try {
-      const { loadAllPermissionRulesFromDisk } = await import('../utils/permissions/permissionsLoader.js')
-      const { applyPermissionRulesToPermissionContext } = await import('../utils/permissions/permissions.js')
-      return applyPermissionRulesToPermissionContext(context, loadAllPermissionRulesFromDisk())
-    } catch {
-      return context
-    }
-  }
 
   server.setRequestHandler('tools/list', async () => {
     const permissionContext = await buildServePermissionContext()

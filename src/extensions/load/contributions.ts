@@ -98,23 +98,31 @@ function isLegalSkillName(name: string): boolean {
   return !SKILL_NAME_HOSTILE.test(name)
 }
 
-function readMarkdown(file: string): { body: string; frontmatter: FrontmatterData; parsed: boolean } | null {
+type MarkdownRead =
+  | { ok: true; body: string; frontmatter: FrontmatterData; parsed: boolean }
+  | { ok: false; reason: string }
+
+function readMarkdown(file: string): MarkdownRead {
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
   }
   const md = parseFrontmatter(raw, file)
   const block = FRONTMATTER_BLOCK.exec(raw)
   const parsed = md.parseError === undefined && !(block && block[1]!.trim() !== '' && Object.keys(md.frontmatter).length === 0)
-  return { body: md.content, frontmatter: md.frontmatter, parsed }
+  return { ok: true, body: md.content, frontmatter: md.frontmatter, parsed }
 }
 
-function listDir(dir: string): Array<{ name: string; isDir: boolean }> | null {
+type DirListing =
+  | { ok: true; entries: Array<{ name: string; isDir: boolean }> }
+  | { ok: false; missing: true }
+  | { ok: false; missing: false; reason: string }
+
+function listDir(dir: string): DirListing {
   try {
-    return readdirSync(dir, { withFileTypes: true }).map(entry => {
+    const entries = readdirSync(dir, { withFileTypes: true }).map(entry => {
       let isDir = entry.isDirectory()
       if (entry.isSymbolicLink()) {
         try {
@@ -125,9 +133,11 @@ function listDir(dir: string): Array<{ name: string; isDir: boolean }> | null {
       }
       return { name: entry.name, isDir }
     })
+    return { ok: true, entries }
   } catch (error) {
-    passedOver(error)
-    return null
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { ok: false, missing: true }
+    return { ok: false, missing: false, reason: error instanceof Error ? error.message : String(error) }
   }
 }
 
@@ -218,20 +228,24 @@ export function resolveContributions(
   for (const dir of c.skills ?? []) {
     const abs = resolveInsideRoot(root, dir)
     if (abs === null) continue
-    const entries = listDir(abs)
-    if (entries === null) {
-      defects.push(`skills ${dir}: folder missing`)
+    const listed = listDir(abs)
+    if (!listed.ok) {
+      defects.push(listed.missing ? `skills ${dir}: folder missing` : `skills ${dir}: folder unreadable: ${listed.reason}`)
       continue
     }
     let loaded = 0
     const own = existsSync(join(abs, SKILL_FILE)) ? [{ name: basename(abs), isDir: true, self: true }] : []
-    const candidates = own.length > 0 ? own : entries.filter(e => e.isDir).map(e => ({ ...e, self: false }))
+    const candidates = own.length > 0 ? own : listed.entries.filter(e => e.isDir).map(e => ({ ...e, self: false }))
     for (const entry of candidates) {
       const skillDir = entry.self ? abs : join(abs, entry.name)
       const file = join(skillDir, SKILL_FILE)
       if (!existsSync(file)) continue
       const md = readMarkdown(file)
-      if (md === null || !md.parsed) {
+      if (!md.ok) {
+        defects.push(`skill ${dir}/${entry.name}/${SKILL_FILE}: file unreadable: ${md.reason} — skipped`)
+        continue
+      }
+      if (!md.parsed) {
         defects.push(`skill ${dir}/${entry.name}/${SKILL_FILE}: frontmatter did not parse — skipped`)
         continue
       }
@@ -250,16 +264,21 @@ export function resolveContributions(
   for (const dir of c.commands ?? []) {
     const abs = resolveInsideRoot(root, dir)
     if (abs === null) continue
-    const entries = listDir(abs)
-    if (entries === null) {
-      defects.push(`commands ${dir}: folder missing`)
+    const listed = listDir(abs)
+    if (!listed.ok) {
+      defects.push(listed.missing ? `commands ${dir}: folder missing` : `commands ${dir}: folder unreadable: ${listed.reason}`)
       continue
     }
     let loaded = 0
-    const holdsMarkdownAnywhere = (folder: string): boolean => {
-      for (const item of listDir(folder) ?? []) {
+    const holdsMarkdownAnywhere = (folder: string, namespace: string[]): boolean => {
+      const sub = listDir(folder)
+      if (!sub.ok) {
+        if (!sub.missing) defects.push(`command ${dir}/${namespace.join('/')}: folder unreadable: ${sub.reason}`)
+        return false
+      }
+      for (const item of sub.entries) {
         if (item.isDir) {
-          if (holdsMarkdownAnywhere(join(folder, item.name))) return true
+          if (holdsMarkdownAnywhere(join(folder, item.name), [...namespace, item.name])) return true
         } else if (extname(item.name).toLowerCase() === '.md') {
           return true
         }
@@ -267,12 +286,16 @@ export function resolveContributions(
       return false
     }
     const visit = (folder: string, namespace: string[], depth: number): void => {
-      const items = listDir(folder) ?? []
-      for (const item of items) {
+      const sub = listDir(folder)
+      if (!sub.ok) {
+        if (!sub.missing) defects.push(`command ${dir}/${namespace.join('/')}: folder unreadable: ${sub.reason}`)
+        return
+      }
+      for (const item of sub.entries) {
         if (item.isDir) {
           if (depth === 0) {
             visit(join(folder, item.name), [...namespace, item.name], 1)
-          } else if (holdsMarkdownAnywhere(join(folder, item.name))) {
+          } else if (holdsMarkdownAnywhere(join(folder, item.name), [...namespace, item.name])) {
             defects.push(
               `command ${dir}/${[...namespace, item.name].join('/')}: nested deeper than one level — its .md files are not loaded (the commands namespace is one folder deep)`,
             )
@@ -282,7 +305,11 @@ export function resolveContributions(
         if (extname(item.name).toLowerCase() !== '.md') continue
         const file = join(folder, item.name)
         const md = readMarkdown(file)
-        if (md === null || !md.parsed) {
+        if (!md.ok) {
+          defects.push(`command ${dir}/${[...namespace, item.name].join('/')}: file unreadable: ${md.reason} — skipped`)
+          continue
+        }
+        if (!md.parsed) {
           defects.push(`command ${dir}/${[...namespace, item.name].join('/')}: frontmatter did not parse — skipped`)
           continue
         }
@@ -299,17 +326,21 @@ export function resolveContributions(
   for (const dir of c.agents ?? []) {
     const abs = resolveInsideRoot(root, dir)
     if (abs === null) continue
-    const entries = listDir(abs)
-    if (entries === null) {
-      defects.push(`agents ${dir}: folder missing`)
+    const listed = listDir(abs)
+    if (!listed.ok) {
+      defects.push(listed.missing ? `agents ${dir}: folder missing` : `agents ${dir}: folder unreadable: ${listed.reason}`)
       continue
     }
     let loaded = 0
-    for (const entry of entries) {
+    for (const entry of listed.entries) {
       if (entry.isDir || extname(entry.name).toLowerCase() !== '.md') continue
       const file = join(abs, entry.name)
       const md = readMarkdown(file)
-      if (md === null || !md.parsed) {
+      if (!md.ok) {
+        defects.push(`agent ${dir}/${entry.name}: file unreadable: ${md.reason} — skipped`)
+        continue
+      }
+      if (!md.parsed) {
         defects.push(`agent ${dir}/${entry.name}: frontmatter did not parse — skipped`)
         continue
       }
