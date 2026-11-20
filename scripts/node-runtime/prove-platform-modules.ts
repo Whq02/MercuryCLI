@@ -379,6 +379,7 @@ import {
   isOwnedPrivateEntry,
   isPrivateFileMode,
   isTransientHeldFileCode,
+  localIpcDoorKind,
   pathEntryKindSync,
   posixFileModesApply,
   readExposedFileModeSync,
@@ -666,6 +667,22 @@ const FILES: Row[] = [
       linux: [false, false, false, false, false, false, true, true, false, true],
       'win32 by process.platform alone': [false, false, false, false, false, false, false, false, false, true],
       'win32 by getPlatform() alone': [false, false, false, false, false, false, true, true, false, true],
+    },
+  },
+  {
+    name: 'files · localIpcDoorKind',
+    answers: () => [
+      localIpcDoorKind(),
+      localIpcDoorKind('win32'),
+      localIpcDoorKind('darwin'),
+      localIpcDoorKind('linux'),
+    ],
+    recorded: {
+      win32: ['named-pipe', 'named-pipe', 'unix-socket', 'unix-socket'],
+      darwin: ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
+      linux: ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
+      'win32 by process.platform alone': ['named-pipe', 'named-pipe', 'unix-socket', 'unix-socket'],
+      'win32 by getPlatform() alone': ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
     },
   },
 ]
