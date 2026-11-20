@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { z } from 'zod/v4'
-import { runAseprite } from '../../services/aseprite/asepriteApp.js'
+import { runAseprite } from '../../utils/aseprite/asepriteApp.js'
 import { writeFileAndFlushAtomically } from '../../utils/file.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { SPRITE_ART_LUA } from './artLuaScripts.js'

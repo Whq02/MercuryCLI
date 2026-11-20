@@ -3,11 +3,11 @@ import { readdirSync, statSync, type Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
-import { getCwd } from '../../utils/cwd.js'
-import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
-import { whichSync } from '../../utils/which.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { getCwd } from '../cwd.js'
+import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
+import { whichSync } from '../which.js'
+import { passedOver } from '../passedOver.js'
+import { hostEnv } from '../hostEnv.js'
 
 export const SPRITE_FILE_CAP = 50
 const DIR_VISIT_CAP = 4_000

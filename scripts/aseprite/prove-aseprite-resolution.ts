@@ -28,7 +28,7 @@ const {
   _resetAsepriteVersionProbeForTesting,
   ASEPRITE_INSTALL_REMEDY,
   SPRITE_FILE_CAP,
-} = await import('../../src/services/aseprite/asepriteApp.js')
+} = await import('../../src/utils/aseprite/asepriteApp.js')
 const { asepriteToolCatalogEnabled, _resetAsepriteContextCacheForTesting } = await import(
   '../../src/utils/aseprite/gates.js'
 )
