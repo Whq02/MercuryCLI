@@ -68,6 +68,44 @@ async function run(): Promise<void> {
       }
     }
   }
+
+  {
+    const root = join(scratch, 'plan-headsha')
+    const unbornRoot = join(scratch, 'plan-unborn')
+    mkdirSync(root, { recursive: true })
+    mkdirSync(unbornRoot, { recursive: true })
+    const gitEnv = { ...process.env, HOME: configHome, XDG_CONFIG_HOME: join(configHome, '.config'), GIT_CONFIG_GLOBAL: join(configHome, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1' }
+    execFileSync('git', ['init', '--quiet', '--initial-branch=main'], { cwd: root, env: gitEnv })
+    execFileSync('git', ['config', 'user.name', 'proof'], { cwd: root, env: gitEnv })
+    execFileSync('git', ['config', 'user.email', 'proof@local'], { cwd: root, env: gitEnv })
+    writeFileSync(join(root, 'base.txt'), 'base\n')
+    execFileSync('git', ['add', 'base.txt'], { cwd: root, env: gitEnv })
+    execFileSync('git', ['commit', '--quiet', '-m', 'init'], { cwd: root, env: gitEnv })
+    writeFileSync(join(root, 'a.txt'), 'change\n')
+
+    execFileSync('git', ['init', '--quiet', '--initial-branch=main'], { cwd: unbornRoot, env: gitEnv })
+    execFileSync('git', ['config', 'user.name', 'proof'], { cwd: unbornRoot, env: gitEnv })
+    execFileSync('git', ['config', 'user.email', 'proof@local'], { cwd: unbornRoot, env: gitEnv })
+    writeFileSync(join(unbornRoot, 'first.txt'), 'hello\n')
+
+    const { preparePlan, applyPlan } = await import('../../src/services/gitGraph/plan.ts')
+    const owner = 'session:fn12-plan' as import('../../src/services/run/ownerKey.ts').OwnerKey
+    const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim()
+    const fakeBin = join(scratch, 'fake-git-bin')
+    mkdirSync(fakeBin, { recursive: true })
+    const fakeGit = join(fakeBin, 'git')
+    writeFileSync(fakeGit, `#!/bin/sh\nfor a in "$@"; do\n  if [ "$a" = "--verify" ]; then\n    echo "fatal: bad HEAD" >&2\n    exit 128\n  fi\ndone\nexec ${JSON.stringify(realGit)} "$@"\n`)
+    chmodSync(fakeGit, 0o755)
+    const p1 = preparePlan(owner, root, [{ message: 'add a', files: ['a.txt'] }])
+    const savedPath = process.env.PATH
+    process.env.PATH = `${fakeBin}:${savedPath ?? ''}`
+    let r1: ReturnType<typeof applyPlan> | typeof p1
+    try { r1 = 'id' in p1 ? applyPlan(owner, p1.id) : p1 } finally { process.env.PATH = savedPath }
+    const p2 = preparePlan(owner, unbornRoot, [{ message: 'initial', files: ['first.txt'] }])
+    const r2 = 'id' in p2 ? applyPlan(owner, p2.id) : p2
+    check('plan-headsha-error: non-1 rev-parse error refuses apply instead of building empty index', r1.state === 'refused' && 'code' in r1 && r1.code === 'io' && r1.reason.includes('bad HEAD'), JSON.stringify(r1))
+    check('plan-headsha-unborn: unborn HEAD (exit 1) still commits cleanly', r2.state === 'applied', JSON.stringify(r2))
+  }
 }
 
 try {
