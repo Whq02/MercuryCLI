@@ -13,7 +13,7 @@ import { isENOENT } from '../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
 import { glob, extractGlobBaseDirectory } from '../../utils/glob.js'
 import { globSearchDepth, normalizeGlobPattern } from '../../utils/globPattern.js'
-import { controlCharacterPathRefusal, expandPath, toRelativePath } from '../../utils/path.js'
+import { NUL_PATH_MESSAGE, controlCharacterPathRefusal, expandPath, hasNulByte, toRelativePath } from '../../utils/path.js'
 import { suggestPathUnderCwd } from '../../utils/file.js'
 import { DESCRIPTION, GLOB_TOOL_NAME } from './prompt.js'
 import {
@@ -110,6 +110,7 @@ export const GlobTool = buildTool({
     return DESCRIPTION
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    if (hasNulByte(input.pattern)) return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
     const far = remoteSearchRoot(input.path, input.pattern)
     if (far !== null) {
       const pathRefusal = controlCharacterPathRefusal(far.root)

@@ -1,5 +1,5 @@
 import { type Node, PARSE_ABORTED, extractHeredocs, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
-import { expandPath } from '../../path.js'
+import { expandPath, hasNulByte } from '../../path.js'
 import { spelling } from './paths.js'
 import { groups, unwrapCommand, verb } from './words.js'
 
@@ -92,7 +92,7 @@ function updateTrackedCwd(argv: string[], cwd: string): string {
   const name = verb(argv[0] ?? '')
   if (['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location'].includes(name)) {
     const target = argv.slice(1).find(word => !word.startsWith('-'))
-    if (target) return expandPath(spelling(target), cwd)
+    if (target) return hasNulByte(target) ? cwd : expandPath(spelling(target), cwd)
     if (['cd', 'chdir', 'set-location', 'sl'].includes(name) && !argv.includes('-')) return expandPath(spelling('~'), cwd)
   }
   return cwd

@@ -52,6 +52,7 @@ const cases: Array<[string, { validateInput?: never; backfillObservableInput?: (
   ['Write', FileWriteTool as never, { file_path: nulPath, content: 'x' }],
   ['Grep', GrepTool as never, { pattern: 'plain', path: nulPath }],
   ['Glob', GlobTool as never, { pattern: '*.txt', path: nulPath }],
+  ['Glob pattern', GlobTool as never, { pattern: `*${String.fromCharCode(0)}.txt` }],
 ]
 for (const [name, tool, input] of cases) {
   const { verdict, threw } = await validate(tool as never, input)
@@ -94,6 +95,23 @@ console.log('[3] an ordinary path still passes the guard')
   const copy = { file_path: 'xy.txt' }
   ;(FileReadTool as { backfillObservableInput: (input: { file_path: string }) => void }).backfillObservableInput(copy)
   check('a relative Read path is still expanded by the backfill', copy.file_path === join(PROJ, 'xy.txt'), copy.file_path)
+}
+
+console.log('[4] a cd whose operand holds a NUL byte is answered by the Bash tool\'s own check, never thrown')
+{
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const nul = String.fromCharCode(0)
+  const checked = BashTool as never as { checkPermissions(input: unknown, context: unknown): Promise<{ behavior?: string; message?: string }> }
+  for (const command of [`cat xy.txt; cd x${nul}y`, `cd x${nul}y && cat xy.txt`, `pushd x${nul}y; cat xy.txt`]) {
+    let threw: string | null = null
+    let verdict: { behavior?: string; message?: string } | undefined
+    try {
+      verdict = await checked.checkPermissions({ command }, context)
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err)
+    }
+    check(`the check of ${JSON.stringify(command.replaceAll(nul, '<NUL>'))} answers a refusal`, threw === null && verdict?.behavior === 'deny', threw ?? JSON.stringify(verdict))
+  }
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
