@@ -21,8 +21,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const settle = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const appSrc = readFileSync(join(ROOT, 'src/ink/components/App.tsx'), 'utf8')
-const gapMs = Number(/const STDIN_GAP_REASSERT_MS = (\d+)/.exec(appSrc)?.[1])
+const gapMs = 5000
 
 type Spy = { writes: string[]; errors: string[] }
 function fakeTty(): { stdout: NodeJS.WriteStream; spy: Spy } {

@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, waitFor } from '../lib/settingsPopupHarness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const J = (...parts: string[]): string => parts.join('')
@@ -69,14 +70,73 @@ for (const row of RETIRED) {
   check(`${row.was} → ${row.now}`, hits.length === 0, hits.slice(0, 5).join(', '))
 }
 
-const themeOwner = readFileSync(join(ROOT, 'src/utils/theme.ts'), 'utf8')
-check('the one theme-label owner names the three appearances a user reads', themeOwner.includes("dark: 'Oasis dark'") && themeOwner.includes("'true-black': 'True Black'") && themeOwner.includes("mono: 'Black and white'") && themeOwner.includes('export function themeLabel('))
-const appearance = readFileSync(join(ROOT, 'src/commands/appearance/appearance.tsx'), 'utf8')
-check('the appearance receipt reads the owner', appearance.includes('Theme set to ${themeLabel(setting)}'))
-const home = readFileSync(join(ROOT, 'src/components/MercuryHome.tsx'), 'utf8')
-check('the welcome card labels the critter row critter and tells a stranger what the model row is', home.includes("'  critter '") && home.includes("'   the model this session runs on · /model changes it'"))
-const cron = readFileSync(join(ROOT, 'src/utils/cron.ts'), 'utf8')
-check('a one-shot wake reads as a time on a date, never as a cron string', cron.includes('on ${dom} ${MONTH_NAMES[month - 1]}'))
+const HOME = pinScratchHome('mercury-screen-words-plain')
+const PROJECT = join(HOME, 'project')
+mkdirSync(PROJECT, { recursive: true })
+process.chdir(PROJECT)
+try {
+  const { enableConfigs } = await import('../../src/utils/config.js')
+  enableConfigs()
+  const { themeLabel } = await import('../../src/utils/theme.js')
+  check(
+    'the one theme-label owner names the three appearances a user reads',
+    themeLabel('dark') === 'Oasis dark' && themeLabel('true-black') === 'True Black' && themeLabel('mono') === 'Black and white',
+    `${themeLabel('dark')} · ${themeLabel('true-black')} · ${themeLabel('mono')}`,
+  )
+
+  const React = await import('react')
+  const h = React.createElement
+  const { ThemeProvider } = await import('../../src/ink.js')
+  const { App } = await import('../../src/components/App.tsx')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+  const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
+  const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
+  const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
+  const appearance = await import('../../src/commands/appearance/appearance.tsx')
+  const { MercuryHome } = await import('../../src/components/MercuryHome.tsx')
+  const { CockpitActiveContext } = await import('../../src/context/cockpitActiveContext.js')
+  const wrap = (node: React.ReactNode): React.ReactNode =>
+    h(ThemeProvider as never, null, h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node)))
+
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
+  resetChromeModeLatchForTests()
+  const done: unknown[][] = []
+  const appearanceEl = await appearance.call((...call: unknown[]) => { done.push(call) }, { messages: [], options: {} } as never, '')
+  const mountedAppearance = await mountOffscreen(wrap(appearanceEl as React.ReactNode), 120, 40)
+  try {
+    await waitFor(() => mountedAppearance.screen().includes('Black and white'), 10000)
+    mountedAppearance.push('3')
+    const settled = await waitFor(() => done.length === 1, 8000)
+    const receipt = String(done[0]?.[0] ?? '')
+    check('the appearance receipt reads the owner', settled && receipt.startsWith(`Theme set to ${themeLabel('mono')}`), receipt)
+  } finally {
+    mountedAppearance.unmount()
+    resetOverlayStackForTests()
+  }
+
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
+  resetChromeModeLatchForTests()
+  const mountedHome = await mountOffscreen(wrap(h(CockpitActiveContext.Provider, { value: true }, h(MercuryHome, null))), 120, 40)
+  try {
+    const painted = await waitFor(() => mountedHome.screen().includes('critter') && mountedHome.screen().includes('/model changes it'), 10000)
+    const screen = mountedHome.screen()
+    check(
+      'the welcome card labels the critter row critter and tells a stranger what the model row is',
+      painted && screen.includes('  critter ') && screen.includes('   the model this session runs on · /model changes it'),
+      mountedHome.lines().filter(l => l.trim()).slice(0, 12).join(' | '),
+    )
+  } finally {
+    mountedHome.unmount()
+    resetOverlayStackForTests()
+  }
+
+  const { cronToHuman } = await import('../../src/utils/cron.js')
+  const wake = cronToHuman('30 9 15 4 *')
+  check('a one-shot wake reads as a time on a date, never as a cron string', wake.includes('on 15 April') && !wake.includes('*'), wake)
+} finally {
+  await releaseScratchHome(HOME)
+}
 
 console.log(failures === 0 ? '\n✅ prove-screen-words-plain — every retired screen spelling stays gone' : `\n❌ prove-screen-words-plain — ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

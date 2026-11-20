@@ -1,21 +1,11 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-const ROOT = join(import.meta.dir, '..', '..')
-const SRC_PATH = join(ROOT, 'src/constants/spinnerVerbs.ts')
+;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
+const { getSpinnerVerbs, isTensorFoldTurn, sampleSpinnerVerb } = await import('../../src/constants/spinnerVerbs.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-}
-
-function extractList(src: string, name: string): string[] {
-  const re = new RegExp(`(?:export\\s+)?const\\s+${name}:\\s*readonly\\s+string\\[\\]\\s*=\\s*\\[([\\s\\S]*?)\\n\\]`)
-  const m = re.exec(src)
-  if (!m) return []
-  return [...m[1]!.matchAll(/^\s*(?:'([^']+)'|"([^"]+)"),\s*$/gm)].map(hit => (hit[1] ?? hit[2])!)
 }
 
 const LEGACY_SHORT = new Set(['Basking', 'Molting'])
@@ -49,36 +39,6 @@ function auditDesertVerbs(desert: readonly string[], others: readonly string[]):
   return errs
 }
 
-const src = readFileSync(SRC_PATH, 'utf8')
-const desert = extractList(src, 'MERCURY_DESERT_VERBS')
-const stock = extractList(src, 'STOCK_VERBS')
-const qsMain = extractList(src, 'MERCURY_QUICKSILVER')
-const qsCode = extractList(src, 'MERCURY_QUICKSILVER_CODE')
-const qsFlow = extractList(src, 'MERCURY_QUICKSILVER_FLOW')
-const others = [...stock, ...qsMain, ...qsCode, ...qsFlow]
-
-console.log('prove-desert-verbs-cadence — cadence laws and register for MERCURY_DESERT_VERBS')
-
-{
-  const baseSample = desert.slice(0, 37)
-  check('self-test: purposeful trailing punctuation trips', auditDesertVerbs([...baseSample, 'Cairn-sighting…'], others).some(e => e.includes('trailing punctuation')))
-  check('self-test: purposeful exclamation mark trips', auditDesertVerbs([...baseSample, 'Cairn-sighting!'], others).some(e => e.includes('exclamation mark')))
-  check('self-test: purposeful emoji trips', auditDesertVerbs([...baseSample, 'Cairn-sighting🌵'], others).some(e => e.includes('emoji')))
-  check('self-test: purposeful short verb (<8 chars) trips', auditDesertVerbs([...baseSample, 'Pacing'], others).some(e => e.includes('length')))
-  check('self-test: purposeful long verb (>20 chars) trips', auditDesertVerbs([...baseSample, 'Sandstone-weathering-out'], others).some(e => e.includes('length')))
-  check('self-test: purposeful lowercase or mid-cap trips', auditDesertVerbs([...baseSample, 'Cairn-Sighting'], others).some(e => e.includes('Title-case')) && auditDesertVerbs([...baseSample, 'cairn-sighting'], others).some(e => e.includes('Title-case')))
-  check('self-test: purposeful 3-part compound beyond Salt-flat-gliding trips', auditDesertVerbs([...baseSample, 'Dry-wash-following'], others).some(e => e.includes('Title-case')))
-  check('self-test: purposeful non-participle trips', auditDesertVerbs([...baseSample, 'Cairn-sighted'], others).some(e => e.includes('present participle')))
-  check('self-test: purposeful hyphen-insensitive duplicate trips', auditDesertVerbs([...baseSample, 'Dunerunning'], others).some(e => e.includes('duplicate')))
-  check('self-test: purposeful cross-list duplicate trips', auditDesertVerbs([...baseSample, 'Thinking'], others).some(e => e.includes('duplicate')))
-}
-
-const violations = auditDesertVerbs(desert, others)
-check('every entry in MERCURY_DESERT_VERBS obeys all cadence and register laws', violations.length === 0, violations.join(' | '))
-check('original 37 desert verbs stay anchored from Scuttling to Sand-slicked', desert[0] === 'Scuttling' && desert[36] === 'Sand-slicked', `0=${desert[0]} 36=${desert[36]}`)
-const added = desert.slice(37)
-check('20 or more new desert thinking verbs are landed after Sand-slicked (the 30 of the second batch, then the 20 ops verbs of 2026-10-26)', added.length >= 20, `added=${added.length}`)
-
 const APPROVED_PHRASES: readonly string[] = [
   'Parsing the dunes',
   'Hashing the oasis',
@@ -105,7 +65,47 @@ const APPROVED_PHRASES: readonly string[] = [
   'Disassembling the ankh',
   'Hex-editing the sarcophagus',
 ]
-const phrases = extractList(src, 'MERCURY_DESERT_PHRASES')
+
+function poolFor(hip: string | undefined, desertOn: string | undefined): string[] {
+  if (hip === undefined) delete process.env.MERCURY_HIP
+  else process.env.MERCURY_HIP = hip
+  if (desertOn === undefined) delete process.env.MERCURY_DESERT_VERBS
+  else process.env.MERCURY_DESERT_VERBS = desertOn
+  return getSpinnerVerbs({ tensorfold: false })
+}
+
+const desertAll = poolFor('0', undefined)
+const phraseStart = desertAll.indexOf(APPROVED_PHRASES[0]!)
+const desert = phraseStart >= 0 ? desertAll.slice(0, phraseStart) : desertAll
+const phrases = phraseStart >= 0 ? desertAll.slice(phraseStart) : []
+const stock = poolFor('0', '0')
+const quicksilverList = poolFor('1', undefined)
+const others = [...stock, ...quicksilverList]
+delete process.env.MERCURY_HIP
+delete process.env.MERCURY_DESERT_VERBS
+
+console.log('prove-desert-verbs-cadence — cadence laws and register for MERCURY_DESERT_VERBS')
+
+{
+  const baseSample = desert.slice(0, 37)
+  check('self-test: purposeful trailing punctuation trips', auditDesertVerbs([...baseSample, 'Cairn-sighting…'], others).some(e => e.includes('trailing punctuation')))
+  check('self-test: purposeful exclamation mark trips', auditDesertVerbs([...baseSample, 'Cairn-sighting!'], others).some(e => e.includes('exclamation mark')))
+  check('self-test: purposeful emoji trips', auditDesertVerbs([...baseSample, 'Cairn-sighting🌵'], others).some(e => e.includes('emoji')))
+  check('self-test: purposeful short verb (<8 chars) trips', auditDesertVerbs([...baseSample, 'Pacing'], others).some(e => e.includes('length')))
+  check('self-test: purposeful long verb (>20 chars) trips', auditDesertVerbs([...baseSample, 'Sandstone-weathering-out'], others).some(e => e.includes('length')))
+  check('self-test: purposeful lowercase or mid-cap trips', auditDesertVerbs([...baseSample, 'Cairn-Sighting'], others).some(e => e.includes('Title-case')) && auditDesertVerbs([...baseSample, 'cairn-sighting'], others).some(e => e.includes('Title-case')))
+  check('self-test: purposeful 3-part compound beyond Salt-flat-gliding trips', auditDesertVerbs([...baseSample, 'Dry-wash-following'], others).some(e => e.includes('Title-case')))
+  check('self-test: purposeful non-participle trips', auditDesertVerbs([...baseSample, 'Cairn-sighted'], others).some(e => e.includes('present participle')))
+  check('self-test: purposeful hyphen-insensitive duplicate trips', auditDesertVerbs([...baseSample, 'Dunerunning'], others).some(e => e.includes('duplicate')))
+  check('self-test: purposeful cross-list duplicate trips', auditDesertVerbs([...baseSample, 'Thinking'], others).some(e => e.includes('duplicate')))
+}
+
+const violations = auditDesertVerbs(desert, others)
+check('every entry in MERCURY_DESERT_VERBS obeys all cadence and register laws', violations.length === 0, violations.join(' | '))
+check('original 37 desert verbs stay anchored from Scuttling to Sand-slicked', desert[0] === 'Scuttling' && desert[36] === 'Sand-slicked', `0=${desert[0]} 36=${desert[36]}`)
+const added = desert.slice(37)
+check('20 or more new desert thinking verbs are landed after Sand-slicked (the 30 of the second batch, then the 20 ops verbs of 2026-10-26)', added.length >= 20, `added=${added.length}`)
+
 console.log('\nMERCURY_DESERT_PHRASES — the approved lines, their hygiene and their place in the pool')
 check('MERCURY_DESERT_PHRASES holds exactly the 24 approved phrases, in order, verbatim', phrases.length === 24 && phrases.every((p, i) => p === APPROVED_PHRASES[i]), phrases.join(' | '))
 check('no phrase carries trailing punctuation, an exclamation mark or an emoji', phrases.every(p => !/[.!?,;:…]$/.test(p) && !p.includes('!') && !/\p{Extended_Pictographic}/u.test(p)))
@@ -117,11 +117,9 @@ check('no phrase carries trailing punctuation, an exclamation mark or an emoji',
 }
 check('the existing cadence laws still read the verbs alone (the phrase list is its own array)', !desert.some(v => v.includes(' ')) && !desert.some(v => phrases.includes(v)), `desert=${desert.length}`)
 {
-  ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-  const { sampleSpinnerVerb } = await import('../../src/constants/spinnerVerbs.ts')
   const phraseSet = new Set(phrases)
   const desertSet = new Set(desert)
-  const quicksilver = new Set([...qsMain, ...qsCode, ...qsFlow])
+  const quicksilver = new Set(quicksilverList)
   const draw = (n: number): string[] => Array.from({ length: n }, () => sampleSpinnerVerb())
   delete process.env.MERCURY_HIP
   delete process.env.MERCURY_DESERT_VERBS
@@ -137,7 +135,6 @@ check('the existing cadence laws still read the verbs alone (the phrase list is 
   const stockSet = new Set(stock)
   check('MERCURY_DESERT_VERBS=0 drops the phrases with the desert verbs: every draw is stock or quicksilver', draw(300).every(v => stockSet.has(v) || quicksilver.has(v)))
   delete process.env.MERCURY_DESERT_VERBS
-  const { getSpinnerVerbs, isTensorFoldTurn } = await import('../../src/constants/spinnerVerbs.ts')
   check(
     'the six owner-added verbs are present in the pool in house form',
     ['Tensorfolding', 'Open-sourcing', 'Flatlining', 'Microsofting'].every(v => desertSet.has(v)) &&

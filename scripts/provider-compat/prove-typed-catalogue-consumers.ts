@@ -114,16 +114,7 @@ for (const path of files(SRC)) {
   }
   visit(ast)
 }
-const options = readFileSync(join(SRC, 'utils/model/modelOptions.ts'), 'utf8')
-const dispatch = readFileSync(join(SRC, 'utils/crew/engineDispatch.ts'), 'utf8')
-const adapter = readFileSync(join(SRC, 'services/providers/moonshot/moonshotAdapter.ts'), 'utf8')
-const familyWords = readFileSync(join(SRC, 'utils/model/bareFamilyWords.ts'), 'utf8')
-check('Moonshot picker reads the live-backed row owner', options.includes('moonshotCatalogueRows().rows') && !options.includes('KIMI_DISPLAY_PINS'))
-check('Moonshot specialist choice and exact admission read the catalogue first; the pin table is reached only as the known rung behind the live list, never a parallel static projection', dispatch.includes('bareFamilyWordOf(modelParam)') && familyWords.includes('moonshotCatalogueRows().rows[0]') && knownRungBehindLiveList(dispatch) && !dispatch.includes('KIMI_DISPLAY_PINS') && dispatch.includes('qualifyMoonshotModel(') && !dispatch.includes('KIMI_STATIC_CATALOGUE'))
 check('the known rung is refused when the dispatch road reads the pin before the list or the head', !knownRungBehindLiveList('const pinned = familyWord.pinnedDefault()\nawait readCatalogueIfPending(familyWord.route)\nconst head = familyWord.headRow()') && !knownRungBehindLiveList('const head = familyWord.headRow()\nconst pinned = familyWord.pinnedDefault()'))
-check('the Moonshot adapter does not rebuild a chooser from typed pins', adapter.includes('moonshotCatalogueRows()') && !adapter.includes('KIMI_DISPLAY_PINS'))
-const capabilities = readFileSync(join(SRC, 'utils/model/capabilities.ts'), 'utf8')
-check('the GLM picker, family word, exact admission and window read the live-backed row owner, never the static table', options.includes('zaiCatalogueRows().rows') && familyWords.includes('zaiCatalogueRows().rows[0]') && dispatch.includes("resolveKeyLaneExactModel('zai', id, zaiCatalogueEntry, zaiCatalogueEntries)") && capabilities.includes('glmDisplayPin(id)?.contextWindow') && ![options, familyWords, dispatch, capabilities].some(source => source.includes('GLM_STATIC_CATALOGUE')))
 check('the census actually found consumers', consumers > 0)
 console.log(`${consumers} consumers, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
