@@ -452,5 +452,46 @@ console.log('\n§10 w10-10 — unreadable hook settings file goes on without ref
   )
 }
 
+console.log('\n§12 w10-12 — extension hook reports real stat error instead of does not exist for unreachable folder')
+{
+  const r = runScenario(`
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { startCommandHook } = await import(SRC + '/utils/hooks/commandRunner.ts')
+    const runWithRoot = async (root) => {
+      const proc = await startCommandHook({
+        command: 'echo hi',
+        event: 'tool.before',
+        index: 0,
+        timeoutMs: 5000,
+        payload: {},
+        source: { kind: 'extension', name: 'demo', id: 'demo@local', root },
+      })
+      return proc.result
+    }
+    const missing = join(PROJECT, 'no-such-ext')
+    out.missing = await runWithRoot(missing)
+
+    const blockedParent = join(PROJECT, 'blocked-parent')
+    const unreachable = join(blockedParent, 'ext-dir')
+    mkdirSync(unreachable, { recursive: true })
+    chmodSync(blockedParent, 0o000)
+    try {
+      out.unreachable = await runWithRoot(unreachable)
+    } finally {
+      chmodSync(blockedParent, 0o700)
+    }
+    out.unreachablePath = unreachable
+  `)
+  const missingDetail = String((r.missing as { ending?: { detail?: string } } | undefined)?.ending?.detail ?? '')
+  const unreachDetail = String((r.unreachable as { ending?: { detail?: string } } | undefined)?.ending?.detail ?? '')
+  check('w10-12: ENOENT still says Extension folder does not exist', missingDetail.startsWith('Extension folder does not exist:'), missingDetail)
+  check(
+    'w10-12: non-ENOENT stat error replaces does not exist with error message',
+    !unreachDetail.includes('does not exist') && unreachDetail.startsWith('Extension folder ') && unreachDetail.includes(String(r.unreachablePath)) && unreachDetail.includes('EACCES'),
+    unreachDetail,
+  )
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

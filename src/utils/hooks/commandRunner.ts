@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
-import { unlink } from 'node:fs/promises'
+import { stat, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flagEnv, stampFlagOnEnv } from '../../substrate/flagRegistry.js'
@@ -95,8 +95,13 @@ async function prepareCommand(run: CommandHookRun): Promise<{ command: string; e
     MERCURY_HOOK_EVENT: run.event,
   }
   if (run.source.kind === 'extension') {
-    if (!(await pathExists(run.source.root))) {
-      throw new Error(`Extension folder does not exist: ${run.source.root} (${run.source.id} — /extensions shows its state)`)
+    try {
+      await stat(run.source.root)
+    } catch (error) {
+      if (getErrnoCode(error) === 'ENOENT') {
+        throw new Error(`Extension folder does not exist: ${run.source.root} (${run.source.id} — /extensions shows its state)`)
+      }
+      throw new Error(`Extension folder ${errorMessage(error)}: ${run.source.root} (${run.source.id} — /extensions shows its state)`)
     }
     const rootPath = toHookPath(run.source.root)
     const dataPath = toHookPath(getExtensionDataDir(run.source.id))
