@@ -9,7 +9,7 @@ import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from
 import { getLspServerManager } from '../../../services/lsp/manager.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readRangeViaIde, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../../services/acp/ideToolBridge.js'
-import { isRemotePath, markRemoteRead } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, markRemoteRead } from '../../../utils/remoteFiles/target.js'
 import { countLinesChanged } from '../../../utils/diff.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { isENOENT } from '../../../utils/errors.js'

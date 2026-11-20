@@ -8,7 +8,7 @@ import type { DiagnosticFile } from '../../services/diagnosticTracking.js'
 import type { DiscoverySignal } from '../../services/skillSearch/signals.js'
 import type { TaskType } from '../../Task.js'
 import type { Output as FileReadToolOutput } from '../../tools/FileReadTool/FileReadTool.js'
-import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
+import type { InstructionSourceEntry } from '../instructions/contracts.js'
 import type { Task } from '../tasks.js'
 
 export type CapsuleWorkingRef = {

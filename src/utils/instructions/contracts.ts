@@ -1,5 +1,5 @@
-import type { FrontmatterData } from '../../utils/frontmatterParser.js'
-import type { MemoryType } from '../../utils/memory/types.js'
+import type { FrontmatterData } from '../frontmatterParser.js'
+import type { MemoryType } from '../memory/types.js'
 
 export type InstructionProfile = 'auto' | 'native'
 

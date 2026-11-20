@@ -46,7 +46,7 @@ import {
   remoteRuleEndpointForms,
   remoteRulePattern,
   remoteSessionRule,
-} from '../../services/remoteFiles/target.js'
+} from '../remoteFiles/target.js'
 import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'

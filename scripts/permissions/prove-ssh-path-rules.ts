@@ -31,7 +31,7 @@ const {
   pathMatchesRulePattern,
   readDenialFilter,
 } = await import('../../src/utils/permissions/filesystem.ts')
-const { noteResolvedAuthority } = await import('../../src/services/remoteFiles/target.ts')
+const { noteResolvedAuthority } = await import('../../src/utils/remoteFiles/target.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(PROJ)
