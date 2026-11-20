@@ -184,6 +184,40 @@ try {
       chmodSync(lockedDir, 0o700)
     }
   }
+
+  console.log('\n7. LSPTool/LSPTool.ts: failed revalidateOpenDocuments fails the query instead of returning stale facts')
+  {
+    const sampleTs = join(scratch, 'sample.ts')
+    writeFileSync(sampleTs, 'export const stale = 1\n')
+    const childSrc = `
+      import { mock } from 'bun:test'
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const mgrPath = ${JSON.stringify(join(SRC, 'services/lsp/manager.ts'))}
+      const realMgr = await import(mgrPath)
+      let sent = 0
+      const fakeManager = {
+        revalidateOpenDocuments: async () => { throw new Error('revalidation-boom') },
+        isFileOpen: () => true,
+        getAllServers: () => new Map(),
+        sendRequest: async () => { sent++; return [{ name: 'staleSym', kind: 13, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } }, selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } } }] },
+      }
+      mock.module(mgrPath, () => ({
+        ...realMgr,
+        getInitializationStatus: () => ({ status: 'initialized' }),
+        getLspServerManager: () => fakeManager,
+      }))
+      const { LspReadTool } = await import(${JSON.stringify(join(SRC, 'tools/LSPTool/LSPTool.ts'))})
+      const ctx = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: {} }), options: { tools: [] } } as never
+      const res = await LspReadTool.call({ operation: 'documentSymbol', filePath: ${JSON.stringify(sampleTs)} } as never, ctx, null as never, undefined as never)
+      process.stdout.write('\\n' + JSON.stringify({ outcome: res.data.outcome, result: res.data.result, sent }))
+    `
+    const res = spawnSync(BUN, ['-e', childSrc], {
+      encoding: 'utf8',
+      env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' },
+    })
+    const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { outcome: string; result: string; sent: number }) : { outcome: 'err', result: `exit ${res.status}: ${res.stderr.slice(-200)}`, sent: -1 }
+    check('lsp-read-revalidate-fail: fails with revalidation-boom and does not sendRequest stale symbols', out.outcome === 'failed' && out.result.includes('revalidation-boom') && out.sent === 0, JSON.stringify(out))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
