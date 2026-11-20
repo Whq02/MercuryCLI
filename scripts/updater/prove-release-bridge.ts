@@ -196,8 +196,15 @@ try {
       timeout: 600_000,
       env: pathFrontedEnv(binDir, {
         HOME: home,
+        USERPROFILE: home,
+        LOCALAPPDATA: join(home, 'AppData', 'Local'),
+        APPDATA: join(home, 'AppData', 'Roaming'),
+        XDG_CONFIG_HOME: join(home, '.config'),
         MERCURY_CONFIG_DIR: configHome,
         MERCURY_VERSIONS_DIR: versionsDir,
+        MERCURY_HOME: '',
+        HOMEDRIVE: undefined,
+        HOMEPATH: undefined,
         MERCURY_UPDATE_CHANNEL_REPO: 'fixture-owner/fixture-bridge-repo',
         MERCURY_GH_CMD: JSON.stringify(['node', fakeGhJs]),
         GH_SHIM_FIXTURES: fixtures,
@@ -205,7 +212,6 @@ try {
         MERCURY_FAKE_GH_JS: fakeGhJs,
         CI: '1',
         TERM: 'dumb',
-        ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
       }),
     })
 
@@ -228,11 +234,17 @@ try {
   check('stable command exists after the update', existsSync(shim), shim)
   const shimEnv = pathFrontedEnv(binDir, {
     HOME: home,
+    USERPROFILE: home,
+    LOCALAPPDATA: join(home, 'AppData', 'Local'),
+    APPDATA: join(home, 'AppData', 'Roaming'),
+    XDG_CONFIG_HOME: join(home, '.config'),
     MERCURY_CONFIG_DIR: configHome,
     MERCURY_VERSIONS_DIR: versionsDir,
+    MERCURY_HOME: '',
+    HOMEDRIVE: undefined,
+    HOMEPATH: undefined,
     CI: '1',
     TERM: 'dumb',
-    ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
   })
   const shimRun = IS_WIN
     ? spawnSync(`"${shim}" --version`, { encoding: 'utf8', timeout: 600_000, env: shimEnv, shell: true })

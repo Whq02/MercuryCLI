@@ -1,10 +1,41 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'updstatus-home-')))
-process.env.MERCURY_CONFIG_DIR = HOME
+if (!process.env.MERCURY_PROOF_LAYOUT_SCRATCH) {
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'updstatus-home-')))
+  const userHome = join(scratch, 'userhome')
+  const configDir = join(scratch, 'config')
+  const localAppData = join(userHome, 'AppData', 'Local')
+  const appData = join(userHome, 'AppData', 'Roaming')
+  for (const d of [userHome, configDir, localAppData, appData]) mkdirSync(d, { recursive: true })
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    MERCURY_PROOF_LAYOUT_SCRATCH: scratch,
+    HOME: userHome,
+    USERPROFILE: userHome,
+    LOCALAPPDATA: localAppData,
+    APPDATA: appData,
+    XDG_CONFIG_HOME: join(userHome, '.config'),
+    MERCURY_CONFIG_DIR: configDir,
+    MERCURY_VERSIONS_DIR: join(configDir, 'versions'),
+  }
+  delete env.MERCURY_HOME
+  delete env.HOMEDRIVE
+  delete env.HOMEPATH
+  try {
+    const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: 'inherit', env })
+    process.exit(child.status ?? 1)
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+const SCRATCH = process.env.MERCURY_PROOF_LAYOUT_SCRATCH!
+const HOME = join(SCRATCH, 'config')
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -15,8 +46,20 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
+const { resolveLayoutRoots } = await import('../../src/services/privateChannel/installLayout.js')
 const { update } = await import('../../src/cli/update.js')
 
+const assertRootsUnder = (rootDir: string): void => {
+  const roots = resolveLayoutRoots()
+  const base = resolve(rootDir)
+  for (const p of [roots.versionsDir, roots.binDir, roots.shimPath, ...(roots.shimSetPaths ?? [])]) {
+    const rel = relative(base, resolve(p))
+    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+      console.log(`  [FAIL] SAFETY: resolved layout root escapes scratch: ${p}`)
+      process.exit(1)
+    }
+  }
+}
 const drive = async (
   options: Record<string, boolean>,
 ): Promise<{ code: number | null; stdout: string; stderr: string }> => {
@@ -49,6 +92,8 @@ const drive = async (
 
 section('§1 DAMAGED POINTER — STATUS SPEAKS THE VERDICT')
 {
+  assertRootsUnder(SCRATCH)
+  check('every resolved layout root lies under scratch', true)
   mkdirSync(join(HOME, 'versions', 'current.txt'), { recursive: true })
   const r = await drive({ status: true })
   check('--status exits 1 on the unreadable pointer', r.code === 1, `code=${r.code}`)
@@ -74,9 +119,11 @@ section('§1 DAMAGED POINTER — STATUS SPEAKS THE VERDICT')
 
 section('§2 HEALTHY INSTALL — STATUS EXITS 0 (control)')
 {
-  const HOME2 = realpathSync(mkdtempSync(join(tmpdir(), 'updstatus-ok-')))
-  process.env.MERCURY_CONFIG_DIR = HOME2
+  const HOME2 = join(SCRATCH, 'config-ok')
   mkdirSync(join(HOME2, 'versions'), { recursive: true })
+  process.env.MERCURY_CONFIG_DIR = HOME2
+  process.env.MERCURY_VERSIONS_DIR = join(HOME2, 'versions')
+  assertRootsUnder(SCRATCH)
   writeFileSync(join(HOME2, 'versions', 'current.txt'), '1.0.0\n')
   const r = await drive({ status: true })
   check('--status exits 0', r.code === 0, `code=${r.code}`)
