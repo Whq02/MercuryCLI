@@ -140,6 +140,7 @@ import {
   hostPathDelimiter,
   isExecutableFile,
   isExecutablePath,
+  missingSpawnCommandError,
   pathDelimiter,
   pathExtensions,
   resolveProgramInPath,
@@ -243,6 +244,23 @@ const PROGRAMS: Row[] = [
       debugpyCmds: debugpyPythonCommands(),
     }),
     recorded: {"win32":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"darwin":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python","/usr/bin/python3"]},"linux":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]},"win32 by process.platform alone":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"win32 by getPlatform() alone":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]}},
+  },
+  {
+    name: 'programs: missingSpawnCommandError',
+    answers: () =>
+      withProgramFixture(dir => {
+        const codeOf = (err: NodeJS.ErrnoException | null): string | null => err?.code ?? null
+        const env: NodeJS.ProcessEnv = { Path: dir, PATHEXT: '.EXE;.CMD;.CUSTOM' }
+        return {
+          missingBare: codeOf(missingSpawnCommandError('definitely-absent-279', env, dir)),
+          missingExplicit: codeOf(missingSpawnCommandError(p02Path.join(dir, 'nope'), env, dir)),
+          empty: codeOf(missingSpawnCommandError('', env, dir)),
+          foundExe: codeOf(missingSpawnCommandError('run-x', env, dir)),
+          foundShim: codeOf(missingSpawnCommandError('shim', env, dir)),
+          foundExplicit: codeOf(missingSpawnCommandError(p02Path.join(dir, 'run-x.exe'), env, dir)),
+        }
+      }),
+    recorded: {"win32":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"darwin":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"linux":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by process.platform alone":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by getPlatform() alone":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null}},
   },
 ]
 
