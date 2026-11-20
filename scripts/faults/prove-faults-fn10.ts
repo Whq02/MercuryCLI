@@ -54,6 +54,33 @@ try {
       check('projectActivity.runningByProjectKey rejects on unreadable records file', permErr !== null, 'returned empty map instead of rejecting')
     }
   }
+
+  console.log('2. src/services/concourse/sessionTitleMint.ts')
+  {
+    const { transcriptHeadFacts } = await import('../../src/services/concourse/sessionTitleMint.ts')
+    const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+    const workspaceId = join(SCRATCH, 'ws-title')
+    mkdirSync(workspaceId, { recursive: true })
+    const absent = transcriptHeadFacts({ sessionId: 'absent-session', workspaceId })
+    check('sessionTitleMint.transcriptHeadFacts absent transcript returns zero turns', absent.assistantTurns === 0 && absent.description === '')
+
+    if (POSIX_MODES) {
+      const rec = { sessionId: 'unreadable-session', workspaceId }
+      const file = workerTranscriptPath(rec)
+      mkdirSync(join(file, '..'), { recursive: true })
+      writeFileSync(file, '{}\n')
+      chmodSync(file, 0o200)
+      let threw: unknown = null
+      try {
+        transcriptHeadFacts(rec)
+      } catch (error) {
+        threw = error
+      } finally {
+        chmodSync(file, 0o600)
+      }
+      check('sessionTitleMint.transcriptHeadFacts throws on unreadable transcript', threw !== null, 'returned zero turns on EACCES')
+    }
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
