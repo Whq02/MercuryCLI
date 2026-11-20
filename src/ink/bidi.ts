@@ -2,6 +2,7 @@
 import bidiFactory from 'bidi-js'
 import presentationData from './arabicPresentationForms.json'
 import { hostEnv } from '../utils/hostEnv.js'
+import { isWindowsTerminalHost } from '../utils/platform/terminal.js'
 
 type BidiChar = {
   value: string
@@ -28,10 +29,11 @@ let bidi: BidiApi | null = null
 
 function needsSoftwareBidi(): boolean {
   if (softwareBidi === null) {
+    const env = hostEnv()
     softwareBidi =
-      process.platform === 'win32' ||
-      hostEnv().WT_SESSION !== undefined ||
-      hostEnv().TERM_PROGRAM === 'vscode'
+      isWindowsTerminalHost(env) ||
+      env.WT_SESSION !== undefined ||
+      env.TERM_PROGRAM === 'vscode'
   }
   return softwareBidi
 }
