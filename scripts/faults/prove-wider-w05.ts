@@ -527,5 +527,98 @@ console.log('\nw05-4 — storeOAuthAccountInfo keeps daemon restart failure for 
   )
 }
 
+console.log('\nw05-5 — unreadable MERCURY_CLIENT_CERT / MERCURY_CLIENT_KEY warned once at start and shown in /status')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mtls = await import(path.join(SRC, 'utils/mtls.ts'))
+    const status = await import(path.join(SRC, 'utils/status.tsx'))
+
+    const missingCert = path.join(SCRATCH, 'missing-cert.pem')
+    const missingKey = path.join(SCRATCH, 'missing-key.pem')
+    process.env.MERCURY_CLIENT_CERT = missingCert
+    process.env.MERCURY_CLIENT_KEY = missingKey
+    mtls.clearMTLSCache()
+
+    const stderrChunks = []
+    const origWrite = process.stderr.write
+    process.stderr.write = (chunk => { stderrChunks.push(String(chunk)); return true })
+    try {
+      out.configMissing = mtls.getMTLSConfig() ?? null
+      mtls.configureGlobalMTLS()
+      const afterFirst = stderrChunks.join('')
+      mtls.configureGlobalMTLS()
+      const afterSecond = stderrChunks.join('')
+      out.stderrFirst = afterFirst
+      out.stderrRepeatSame = afterSecond === afterFirst
+    } finally {
+      process.stderr.write = origWrite
+    }
+
+    const propsMissing = status.buildAPIProviderProperties().map(p => ({ label: p.label, text: status.propertyValueToText(p.value) }))
+    out.propsMissing = propsMissing
+    out.missingCert = missingCert
+    out.missingKey = missingKey
+
+    const okCert = path.join(SCRATCH, 'ok-cert.pem')
+    const okKey = path.join(SCRATCH, 'ok-key.pem')
+    fs.writeFileSync(okCert, 'FAKE-CERT-MATERIAL-NEVER-LEAK')
+    fs.writeFileSync(okKey, 'FAKE-KEY-MATERIAL-NEVER-LEAK')
+    process.env.MERCURY_CLIENT_CERT = okCert
+    process.env.MERCURY_CLIENT_KEY = okKey
+    mtls.clearMTLSCache()
+    const okChunks = []
+    process.stderr.write = (chunk => { okChunks.push(String(chunk)); return true })
+    try {
+      out.configOk = Boolean(mtls.getMTLSConfig()?.cert && mtls.getMTLSConfig()?.key)
+      mtls.configureGlobalMTLS()
+      out.stderrOk = okChunks.join('')
+    } finally {
+      process.stderr.write = origWrite
+    }
+    const propsOk = status.buildAPIProviderProperties().map(p => ({ label: p.label, text: status.propertyValueToText(p.value) }))
+    out.propsOk = propsOk
+    out.okCert = okCert
+    out.okKey = okKey
+    out.leakedMaterial = JSON.stringify({ propsOk, okChunks }).includes('FAKE-KEY-MATERIAL-NEVER-LEAK')
+  `)
+  const stderrFirst = String(r.stderrFirst ?? '')
+  const missingCert = String(r.missingCert ?? '')
+  const missingKey = String(r.missingKey ?? '')
+  check(
+    'w05-5: unreadable mTLS files keep getMTLSConfig non-throwing and warn once on stderr at startup',
+    r.configMissing === null &&
+      stderrFirst.includes(`MERCURY_CLIENT_CERT is set to ${missingCert}, which could not be read (`) &&
+      stderrFirst.includes('so requests go out without the client certificate — fix the path or unset it.') &&
+      stderrFirst.includes(`MERCURY_CLIENT_KEY is set to ${missingKey}, which could not be read (`) &&
+      r.stderrRepeatSame === true,
+    JSON.stringify({ cfg: r.configMissing, stderrFirst, repeatSame: r.stderrRepeatSame }),
+  )
+  const propsM = r.propsMissing as Array<{ label?: string; text: string }>
+  const certRow = propsM.find(p => p.label === 'mTLS client cert')
+  const keyRow = propsM.find(p => p.label === 'mTLS client key')
+  check(
+    'w05-5: /status buildAPIProviderProperties shows unread sentences for MERCURY_CLIENT_CERT and MERCURY_CLIENT_KEY',
+    certRow !== undefined &&
+      certRow.text.startsWith(`MERCURY_CLIENT_CERT is set to ${missingCert}, which could not be read (`) &&
+      certRow.text.endsWith(') , so requests go out without the client certificate — fix the path or unset it.'.replace(') ,', '),')) &&
+      keyRow !== undefined &&
+      keyRow.text.startsWith(`MERCURY_CLIENT_KEY is set to ${missingKey}, which could not be read (`) &&
+      keyRow.text.endsWith('), so requests go out without the client certificate — fix the path or unset it.'),
+    JSON.stringify(propsM),
+  )
+  const propsOk = r.propsOk as Array<{ label?: string; text: string }>
+  check(
+    'w05-5: readable mTLS files control prints nothing to stderr, shows paths in /status, and leaks no material',
+    r.configOk === true &&
+      r.stderrOk === '' &&
+      propsOk.some(p => p.label === 'mTLS client cert' && p.text === r.okCert) &&
+      propsOk.some(p => p.label === 'mTLS client key' && p.text === r.okKey) &&
+      r.leakedMaterial === false,
+    JSON.stringify({ configOk: r.configOk, stderrOk: r.stderrOk, propsOk, leaked: r.leakedMaterial }),
+  )
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
