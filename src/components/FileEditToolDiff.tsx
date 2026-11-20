@@ -62,7 +62,8 @@ export async function loadDiff(
       const hunks = whole.flatMap(edit => {
         try {
           return getPatchForEdits({ filePath, fileContents: edit.old_string, edits: [edit] }).patch
-        } catch {
+        } catch (inner) {
+          passedOver(inner)
           return []
         }
       })

@@ -80,13 +80,16 @@ export function registerPerTurnHandlers(clients: MCPServerConnection[], ports: R
     if (client.type !== 'connected') continue
     if (elicitationRegistered.has(client.name)) continue
     elicitationRegistered.add(client.name)
-    void Promise.resolve()
-      .then(() => registerElicitationHandlersForClient(client, client.name))
-      .catch((error: unknown) => {
-        elicitationRegistered.delete(client.name)
-        logError(error)
-        passedOver(error)
-      })
+    const failed = (error: unknown): void => {
+      elicitationRegistered.delete(client.name)
+      logError(error)
+      passedOver(error)
+    }
+    try {
+      void registerElicitationHandlersForClient(client, client.name).catch(failed)
+    } catch (error) {
+      failed(error)
+    }
   }
 }
 
