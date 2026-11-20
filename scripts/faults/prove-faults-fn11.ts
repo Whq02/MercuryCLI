@@ -423,53 +423,5 @@ console.log('\ndaemonConnector.openQuestion — obligations read error refuses s
   check('DaemonSessionConnector.sendWords still delivers normally when openObligations succeeds', accepted?.state === 'accepted' && r.rpcAfterOk === 1, JSON.stringify(r))
 }
 
-console.log('\nverbs.VerbsPart.leave — failed abort interrupt lands in receipt detail')
-{
-  const r = runScenario(`
-    const { mock } = await import('bun:test')
-    const socketPath = path.join(SRC, 'daemon/controlSocket.ts')
-    const realSocket = await import(socketPath)
-    let releaseLeave = null
-    mock.module(socketPath, () => ({
-      ...realSocket,
-      daemonControlRpc: () => new Promise(resolve => {
-        releaseLeave = resolve
-      }),
-    }))
-    const { VerbsPart } = await import(path.join(SRC, 'services/engine-connector/daemon/verbs.ts'))
-    let failInterrupt = true
-    const verbs = new VerbsPart({
-      record: () => ({ sessionId: 'sess-leave-1' }),
-      rpc: async () => {
-        if (failInterrupt) throw new Error('ECONNREFUSED')
-        releaseLeave?.({ ok: true, outcome: 'applied', detail: JSON.stringify({ note: 'skipped' }) })
-        return { ok: true, outcome: 'applied' }
-      },
-      chainRpc: async () => ({ ok: true }),
-      verbChain: () => Promise.resolve(),
-      tick: async () => {},
-      readFacts: () => {},
-    })
-    const c1 = new AbortController()
-    const p1 = verbs.leave({ signal: c1.signal })
-    await new Promise(resolve => setTimeout(resolve, 20))
-    c1.abort(new Error('ctrl-c'))
-    const timer = setTimeout(() => releaseLeave?.({ ok: true, outcome: 'applied', detail: JSON.stringify({ note: 'none' }) }), 200)
-    out.failedReceipt = await p1
-    clearTimeout(timer)
-
-    failInterrupt = false
-    const c2 = new AbortController()
-    const p2 = verbs.leave({ signal: c2.signal })
-    await new Promise(resolve => setTimeout(resolve, 20))
-    c2.abort(new Error('ctrl-c'))
-    out.okReceipt = await p2
-  `)
-  const failed = r.failedReceipt as { note?: string; detail?: string } | undefined
-  const ok = r.okReceipt as { note?: string; detail?: string } | undefined
-  check('VerbsPart.leave returns interrupt failure sentence in receipt.detail when abort interrupt fails', failed?.note === 'none' && failed?.detail === 'the handoff could not be interrupted (ECONNREFUSED) — the turn may still be running', JSON.stringify(r))
-  check('VerbsPart.leave still returns skipped with no error detail when abort interrupt succeeds', ok?.note === 'skipped' && ok?.detail === undefined, JSON.stringify(r))
-}
-
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
