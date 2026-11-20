@@ -2,6 +2,7 @@ import type * as TS from 'typescript'
 import { type LspLocation, spanToRange, toUri, symbolKindOf } from '../lsp.js'
 import { spansToLocations, navTreeToSymbols } from '../convert.js'
 import type { DocContext, RequireState } from '../needs.js'
+import { logForDebugging } from '../../../../../utils/debug.js'
 import { passedOver } from '../../../../../utils/passedOver.js'
 
 export function definitionRequest(params: unknown, docContext: DocContext): unknown {
@@ -76,6 +77,7 @@ export function workspaceSymbolRequest(params: unknown, requireState: RequireSta
       items = project.service.getNavigateToItems(query, 128, undefined, false, true)
     } catch (error) {
       passedOver(error)
+      logForDebugging(`tsSidecar workspace/symbol skipped throwing project ${project.key}: ${String(error)}`)
       continue
     }
     for (const item of items) {
