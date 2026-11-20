@@ -127,6 +127,27 @@ try {
     const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { threw: string | null; removedDir: string | null; hasReturn: boolean }) : { threw: `exit ${res.status}: ${res.stderr.slice(-200)}`, removedDir: null, hasReturn: true }
     check('pdf-lane-page-throw: rejects with page-resize-boom and cleans up outputDir', out.threw === 'page-resize-boom' && out.removedDir === pdfDir && !out.hasReturn, JSON.stringify(out))
   }
+
+  console.log('\n4. FileWriteTool/structuredTargets.ts: non-ENOENT stat failure is not reported as absent')
+  if (POSIX_MODES) {
+    const { parseStructuredWriteTarget, structuredTargetRefusal } = await import('../../src/tools/FileWriteTool/structuredTargets.js')
+    const lockedDir = join(scratch, 'locked-structured')
+    mkdirSync(lockedDir, { recursive: true })
+    const dbInLocked = join(lockedDir, 'data.sqlite')
+    writeFileSync(dbInLocked, '')
+    const missingDb = join(scratch, 'missing.sqlite')
+    chmodSync(lockedDir, 0o000)
+    try {
+      const lockedTarget = parseStructuredWriteTarget(`${dbInLocked}:items/1`)!
+      const lockedRefusal = structuredTargetRefusal(lockedTarget, 'write')
+      check('structured-target-eacces: refuses with EACCES instead of saying no SQLite database', lockedRefusal !== null && /EACCES|permission denied/i.test(lockedRefusal.message) && !lockedRefusal.message.includes('There is no SQLite database'), JSON.stringify(lockedRefusal))
+      const missingTarget = parseStructuredWriteTarget(`${missingDb}:items/1`)!
+      const missingRefusal = structuredTargetRefusal(missingTarget, 'write')
+      check('structured-target-enoent: absent database still reports There is no SQLite database', missingRefusal !== null && missingRefusal.message.includes('There is no SQLite database'), JSON.stringify(missingRefusal))
+    } finally {
+      chmodSync(lockedDir, 0o700)
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

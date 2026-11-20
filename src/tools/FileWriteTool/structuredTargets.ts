@@ -10,6 +10,7 @@ import { recordNoChangeOutcome, serializeIntentDigest } from '../../services/cha
 import { checkAnchor, mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { countLinesChanged, getPatchForDisplay, getPatchFromContents } from '../../utils/diff.js'
+import { isENOENT } from '../../utils/errors.js'
 import { getFileModificationTime } from '../../utils/file.js'
 import { cacheKeys, type FileState } from '../../utils/fileStateCache.js'
 import { checkReadPermissionForTool, getMercuryTempDir } from '../../utils/permissions/filesystem.js'
@@ -143,8 +144,8 @@ function hostIsRegularFile(hostPath: string): boolean | null {
   try {
     return statSync(hostPath).isFile()
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
 }
 
@@ -191,7 +192,17 @@ export function structuredTargetRefusal(target: StructuredWriteTarget, verb: 'wr
     return { result: false, behavior: 'ask', message: target.reason, errorCode: 4 }
   }
   if (target.kind === 'sqlite-row' && target.deleting && verb === 'edit') return { result: false, behavior: 'ask', message: 'A SQLite row deletion uses Write with content "DELETE".', errorCode: 4 }
-  const hostKind = hostIsRegularFile(target.hostPath)
+  let hostKind: boolean | null
+  try {
+    hostKind = hostIsRegularFile(target.hostPath)
+  } catch (err) {
+    return {
+      result: false,
+      behavior: 'ask',
+      message: err instanceof Error ? err.message : String(err),
+      errorCode: 4,
+    }
+  }
   if (hostKind === false) {
     return {
       result: false,
