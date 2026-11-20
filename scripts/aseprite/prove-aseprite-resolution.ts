@@ -2,6 +2,7 @@
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { fakeCommand } from '../dap/fakeCommand.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -117,9 +118,13 @@ section('§3 · location rungs')
   delete process.env.MERCURY_ASEPRITE_BIN
   const binDir = path.join(scratch, 'path-bin')
   mkdirSync(binDir, { recursive: true })
-  const onPath = path.join(binDir, 'aseprite')
-  writeFileSync(onPath, '#!/bin/sh\nexit 0\n')
-  chmodSync(onPath, 0o755)
+  const onPath = path.join(binDir, process.platform === 'win32' ? 'aseprite.cmd' : 'aseprite')
+  if (process.platform === 'win32') {
+    writeFileSync(onPath, '@echo off\r\nexit /b 0\r\n')
+  } else {
+    writeFileSync(onPath, '#!/bin/sh\nexit 0\n')
+    chmodSync(onPath, 0o755)
+  }
   const savedPath = process.env.PATH
   process.env.PATH = binDir
   census = locateAseprite()
@@ -190,21 +195,25 @@ section('§3 · location rungs')
 section('§4 · the version probe (shim fake)')
 {
   restore()
-  const release = shim('release-aseprite', '#!/bin/sh\necho "Aseprite 1.3.7-arm64"\nexit 0\n')
+  const release = fakeCommand(scratch, 'release-aseprite', 'Aseprite 1.3.7-arm64\n', scratch)
   let v = await probeAsepriteVersion(release)
   check('parses the release shape "Aseprite 1.3.7-arm64"', v.version === '1.3.7-arm64' && v.reason === undefined, v.reason)
   _resetAsepriteVersionProbeForTesting()
-  const dev = shim('dev-aseprite', '#!/bin/sh\necho "Aseprite 1.x-dev"\nexit 0\n')
+  const dev = fakeCommand(scratch, 'dev-aseprite', 'Aseprite 1.x-dev\n', scratch)
   v = await probeAsepriteVersion(dev)
   check('parses the source-build shape "Aseprite 1.x-dev"', v.version === '1.x-dev' && v.reason === undefined, v.reason)
   _resetAsepriteVersionProbeForTesting()
-  const foreign = shim('foreign-aseprite', '#!/bin/sh\necho "something else"\nexit 0\n')
+  const foreign = fakeCommand(scratch, 'foreign-aseprite', 'something else\n', scratch)
   v = await probeAsepriteVersion(foreign)
   check('foreign output ⇒ reason, never a throw', v.version === undefined && (v.reason ?? '').includes('unparseable'), v.reason)
   _resetAsepriteVersionProbeForTesting()
-  const flip = shim('flip-aseprite', '#!/bin/sh\necho "Aseprite 9.9.9"\nexit 0\n')
+  const flip = fakeCommand(scratch, 'flip-aseprite', 'Aseprite 9.9.9\n', scratch)
   v = await probeAsepriteVersion(flip)
-  writeFileSync(flip, '#!/bin/sh\necho "Aseprite 0.0.0"\nexit 0\n')
+  if (process.platform === 'win32') {
+    writeFileSync(path.join(scratch, 'flip-aseprite.out'), 'Aseprite 0.0.0\n')
+  } else {
+    writeFileSync(flip, '#!/bin/sh\necho "Aseprite 0.0.0"\nexit 0\n')
+  }
   const again = await probeAsepriteVersion(flip)
   check('30s cache serves the second read', v.version === '9.9.9' && again.version === '9.9.9')
 }
@@ -244,7 +253,9 @@ section('§5 · catalog-gate truth table')
 }
 
 section('§6 · the spawn owner (-b law, bounds, caps)')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: spawn owner shims use POSIX #!/bin/sh')
+} else {
   restore()
   const argvLog = path.join(scratch, 'argv.log')
   const recorder = shim(
