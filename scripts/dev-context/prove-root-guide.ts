@@ -19,6 +19,8 @@ section('(1) AGENTS.md — the one root guide, a screen long, complete')
   const path = join(ROOT, 'AGENTS.md')
   check('AGENTS.md exists', existsSync(path))
   const guide = existsSync(path) ? readFileSync(path, 'utf8') : ''
+  const lines = guide.split('\n').length
+  check(`AGENTS.md stays a screen long (${lines} lines ≤ 80)`, lines <= 80)
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { engines?: { node?: string } }
   const range = pkg.engines?.node ?? ''
   check(`AGENTS.md states the supported Node range (${range})`, range !== '' && guide.includes(range))
