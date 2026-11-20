@@ -1,0 +1,6 @@
+prove-checkpoints-without-the-role.ts
+prove-per-turn-schema.ts
+prove-run-completion.ts
+prove-run-owner-isolation.ts
+prove-run-resume.ts
+prove-run-verification-stale.ts
