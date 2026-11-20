@@ -102,15 +102,15 @@ export function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): Mo
     const windowProbe = has1mContext(shown)
       ? withContext1m(parseUserSpecifiedModel(stripContext1m(shown)))
       : parseUserSpecifiedModel(shown)
-    ctx = fmtCtx(getContextWindowForModel(windowProbe as never, betas))
+    ctx = fmtCtx(getContextWindowForModel(windowProbe, betas))
     if (focusedOptionSupports1m(v)) {
       const pairBase = parseUserSpecifiedModel(stripContext1m(v))
-      ctxBase = fmtCtx(getContextWindowForModel(pairBase as never, betas))
-      ctx1m = fmtCtx(getContextWindowForModel(withContext1m(pairBase) as never, betas))
+      ctxBase = fmtCtx(getContextWindowForModel(pairBase, betas))
+      ctx1m = fmtCtx(getContextWindowForModel(withContext1m(pairBase), betas))
     }
     if (parseGptModelId(opt.value) && liveGptContextCeiling(opt.value) !== undefined) {
-      ctxBase = fmtCtx(getContextWindowForModel(withGptServedWindowSuffix(opt.value) as never, betas))
-      ctx1m = fmtCtx(getContextWindowForModel(opt.value as never, betas))
+      ctxBase = fmtCtx(getContextWindowForModel(withGptServedWindowSuffix(opt.value), betas))
+      ctx1m = fmtCtx(getContextWindowForModel(opt.value, betas))
     }
   } catch {
     ctx = ''

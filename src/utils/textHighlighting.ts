@@ -58,8 +58,9 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
     if (targetVisible <= visiblePos) return
     if (tokenIndex >= tokens.length) return
 
-    while (tokenIndex < tokens.length && (tokens[tokenIndex] as { type: string }).type === 'ansi') {
-      const token = tokens[tokenIndex] as unknown as AnsiCode & { type: 'ansi' }
+    while (tokenIndex < tokens.length) {
+      const token = tokens[tokenIndex]
+      if (token.type !== 'ansi') break
       activeCodes.push(token)
       rawPos += token.code.length
       tokenIndex++
@@ -70,10 +71,7 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
     const segmentRawStart = rawPos
 
     while (tokenIndex < tokens.length && visiblePos < targetVisible) {
-      const token = tokens[tokenIndex] as unknown as
-        | (AnsiCode & { type: 'ansi' })
-        | { type: 'control'; code: string }
-        | { type: 'char'; value: string }
+      const token = tokens[tokenIndex]
       if (token.type === 'ansi') {
         activeCodes.push(token)
         rawPos += token.code.length

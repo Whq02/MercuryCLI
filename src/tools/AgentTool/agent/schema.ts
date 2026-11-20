@@ -5,6 +5,7 @@ import { lazySchema } from '../../../utils/lazySchema.js'
 import { agentToolResultSchema } from '../agentToolUtils.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../constants.js'
 import type { AgentToolProgress, ShellProgress } from '../../../types/tools.js'
+import type { describeAgentRuntimeRef } from '../../../services/providers/primaryBackend.js'
 
 export type Progress = AgentToolProgress | ShellProgress
 
@@ -152,4 +153,5 @@ export const outputSchema = lazySchema(() => {
 export type AgentToolOutput = z.infer<ReturnType<typeof outputSchema>> & {
   isAsync?: true
   agentName?: string
+  runtimeRef?: ReturnType<typeof describeAgentRuntimeRef>
 }

@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
+import type { MercuryRecord } from '../../fabric/record.js'
 import { MAX_TRANSCRIPT_READ_BYTES } from '../../utils/sessionStorage/paths.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
@@ -80,7 +81,7 @@ export function readSessionReceipts(home: string, sessionId: string): SessionRec
 
 type SessionCloseSeam = 'settle' | 'park'
 
-interface MachineFloorDetails {
+type MachineFloorDetails = {
   closedBy: SessionCloseSeam
   firstAt?: string
   lastAt?: string
@@ -189,7 +190,7 @@ export function deriveSessionFloor(home: string, sessionId: string, closedBy: Se
         continue
       }
       try {
-        entry = recordToEntry(row as never) as Record<string, unknown>
+        entry = recordToEntry(row as MercuryRecord)
       } catch {
         unreadLines++
         continue
@@ -341,7 +342,7 @@ export function writeSessionCloseReceipts(
     by: 'daemon',
     kind: 'machine-floor',
     summary: machineFloorSummaryOf(walked.floor),
-    details: walked.floor as unknown as Record<string, unknown>,
+    details: walked.floor,
   })
   if (walked.finalAssistant === undefined) return 1
   appendSessionReceipt(home, sessionId, {

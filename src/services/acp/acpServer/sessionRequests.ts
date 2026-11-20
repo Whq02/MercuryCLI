@@ -103,10 +103,10 @@ export function sessionRequests(app: AgentApp, server: AcpServerState, opts: Acp
           mcpServers: ctx.params.mcpServers,
         })
         try {
-          for (const update of replayUpdatesOf(withoutRetractedReplies(sessionLineOf(messages)) as unknown as Iterable<Record<string, unknown>>)) {
+          for (const update of replayUpdatesOf(withoutRetractedReplies(sessionLineOf(messages)))) {
             await ctx.client.notify(methods.client.session.update, {
               sessionId: requested,
-              update: update as never,
+              update,
             })
           }
         } catch (e) {
@@ -127,16 +127,11 @@ export function sessionRequests(app: AgentApp, server: AcpServerState, opts: Acp
       const all = await listSessionsImpl({ limit: cursor + limit + 1 })
       const page = all.slice(cursor, cursor + limit)
       return {
-        sessions: page.map(s => {
-          const raw = s as unknown as Record<string, unknown>
-          return {
-            sessionId: String(raw.sessionId ?? raw.id ?? ''),
-            cwd: String(raw.cwd ?? raw.projectPath ?? ''),
-            ...(typeof raw.summary === 'string' && raw.summary !== ''
-              ? { title: raw.summary }
-              : {}),
-          }
-        }),
+        sessions: page.map(s => ({
+          sessionId: s.sessionId,
+          cwd: s.cwd ?? '',
+          ...(s.summary !== '' ? { title: s.summary } : {}),
+        })),
         ...(all.length > cursor + limit ? { nextCursor: String(cursor + limit) } : {}),
       }
     })
@@ -151,8 +146,8 @@ export function sessionRequests(app: AgentApp, server: AcpServerState, opts: Acp
       const editorResource = editorContextResource(state.editorContext)
       const blocks = composerDocumentBlocks(
         acpPromptToComposerDocument([
-          ...(editorResource !== null ? [editorResource as unknown as Record<string, unknown>] : []),
-          ...(ctx.params.prompt as unknown as Array<Record<string, unknown>>),
+          ...(editorResource !== null ? [editorResource] : []),
+          ...ctx.params.prompt,
         ]),
       )
       state.cancelled = false

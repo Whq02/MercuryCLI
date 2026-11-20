@@ -1,3 +1,4 @@
+import type { ContentBlock } from '@agentclientprotocol/sdk'
 import {
   createComposerDocument,
   addShelfItem,
@@ -12,7 +13,7 @@ interface AcpPromptMaterial {
 }
 
 export function acpPromptToComposerDocument(
-  content: Array<Record<string, unknown>>,
+  content: ReadonlyArray<ContentBlock | Record<string, unknown>>,
 ): AcpPromptMaterial {
   let doc = createComposerDocument('acp-prompt')
   const bodies = new Map<string, string>()

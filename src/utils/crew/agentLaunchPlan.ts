@@ -5,7 +5,6 @@ import { classifyModelRoute, laneLabelForVerdict, providerDisplayName } from '..
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { getAgentModel } from '../model/agent.js'
-import type { ModelAlias } from '../model/aliases.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
 import {
   filterDeniedAgents,
@@ -20,7 +19,7 @@ export type AgentLaunchPlanInput = {
   toolPermissionContext: ToolPermissionContext
   defaultAgentType: string
   engineModel: string
-  modelParam?: ModelAlias
+  modelParam?: string
   resolvedModel?: string
   permissionMode?: PermissionMode
   isolationParam?: 'worktree' | 'remote'

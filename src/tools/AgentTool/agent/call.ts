@@ -42,7 +42,7 @@ import { runAgent, type RunAgentParams } from '../runAgent.js'
 import { reserveSwarmLaunch, watchSwarmLaunch } from '../../../services/crewBoard/seam.js'
 import { setAgentColor } from '../agentColorManager.js'
 import { sleep } from '../../../utils/sleep.js'
-import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput } from './schema.js'
+import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput, type AgentToolOutput } from './schema.js'
 import { resolveAgentCwd } from './cwd.js'
 import { toolPoolOfTheTable } from '../../toolTable.js'
 
@@ -137,10 +137,9 @@ export async function agentToolCall(
     toolPermissionContext: context.getAppState().toolPermissionContext,
     defaultAgentType: DEFAULT_AGENT_TYPE,
     engineModel: options.engineModel,
-    modelParam: engineDispatch ? undefined : (modelWord as never),
+    modelParam: engineDispatch ? undefined : modelWord,
     resolvedModel: modelParam || undefined,
-    permissionMode: context.getAppState().toolPermissionContext
-      .mode as never,
+    permissionMode: context.getAppState().toolPermissionContext.mode,
     isolationParam: input.isolation,
     runInBackground: input.run_in_background,
     backgroundTasksDisabled: BACKGROUND_TASKS_DISABLED,
@@ -468,7 +467,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
             agentId: earlyAgentId,
             abortController: task.abortController!,
           },
-          onCacheSafeParams: onCacheSafeParams as never,
+          onCacheSafeParams,
           ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
         }),
       metadata,
@@ -483,7 +482,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
   return lifecycle
 }
 
-function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition) {
+function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition): { data: AgentToolOutput } {
   const canReadOutputFile = options.tools.some(
     tool =>
       toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
@@ -504,7 +503,7 @@ function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: A
         ? { backgroundReason: 'agent-type' as const }
         : {}),
       runtimeRef: describeAgentRuntimeRef(plan.model),
-    } as never,
+    },
   }
 }
 
