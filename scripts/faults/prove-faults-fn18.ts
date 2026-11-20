@@ -264,5 +264,24 @@ console.log('\nminimaxUsageState — non-JSON HTTP 200 plan read reports invalid
   check('minimaxUsageState-non-json-200-invalid: HTTP 200 non-JSON reports invalid instead of no-plan', r.probeState === 'invalid' && (r.observed as { failure?: { kind?: string }; plan?: string })?.failure?.kind === 'invalid' && (r.observed as { plan?: string })?.plan !== 'none', JSON.stringify(r))
 }
 
+console.log('\nmoonshotUsageState — refreshKimiManagedUsage records error when credential resolution throws')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const real = await import(path.join(SRC, 'services/providers/moonshot/moonshotAccounts.ts'))
+    mock.module(path.join(SRC, 'services/providers/moonshot/moonshotAccounts.js'), () => ({
+      ...real,
+      moonshotStoredTokens: () => ({ accessToken: 'at-fixture', refreshToken: 'rt-fixture' }),
+      resolveMoonshotDispatchCredential: async () => { throw new Error('token-refresh-boom') },
+    }))
+    const usage = await import(path.join(SRC, 'services/providers/moonshot/moonshotUsageState.ts'))
+    usage.__resetMoonshotUsageForTest()
+    await usage.refreshKimiManagedUsage({ force: true })
+    out.error = usage.kimiManagedUsageError() ?? null
+  `)
+  check('moonshotUsageState-refresh-records-error: kimiManagedUsageError records thrown credential error', typeof r.error === 'string' && r.error.includes('token-refresh-boom'), JSON.stringify(r.error))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
