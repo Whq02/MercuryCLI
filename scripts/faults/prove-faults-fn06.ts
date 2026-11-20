@@ -414,5 +414,68 @@ console.log('\nsrc/main/runLaunch.ts')
     JSON.stringify(r),
   )
 }
+console.log('\nsrc/main/interactiveLaunch.ts')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const inkPath = path.join(SRC, 'ink.ts')
+    const realInk = await import(inkPath)
+    mock.module(inkPath, () => ({
+      ...realInk,
+      createRoot: async () => ({ render() {}, unmount() {}, waitUntilExit: async () => {} }),
+    }))
+    const ihPath = path.join(SRC, 'interactiveHelpers.tsx')
+    const realIh = await import(ihPath)
+    mock.module(ihPath, () => ({
+      ...realIh,
+      showSetupScreens: async () => false,
+      exitWithError: async (_root, msg) => {
+        out.exitMessage = msg
+      },
+    }))
+    const ssPath = path.join(SRC, 'utils/sessionStorage.ts')
+    const realSs = await import(ssPath)
+    mock.module(ssPath, () => ({
+      ...realSs,
+      lastSession: async () => {
+        const err = new Error('EACCES: permission denied')
+        err.code = 'EACCES'
+        throw err
+      },
+    }))
+    mock.module(path.join(SRC, 'boot/launchGraph.ts'), () => ({
+      armBackgroundDiscovery: () => {},
+      registerBackgroundNode: () => {},
+    }))
+    const { setIsInteractive } = await import(path.join(SRC, 'bootstrap/state.ts'))
+    setIsInteractive(true)
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const { interactiveLaunch } = await import(path.join(SRC, 'main/interactiveLaunch.ts'))
+    const uuid = '11111111-1111-4111-8111-111111111111'
+    await interactiveLaunch({
+      opts: { resume: uuid },
+      commands: [],
+      prompt: undefined,
+      permissionMode: 'default',
+      toolPermissionContext: getEmptyToolPermissionContext(),
+      allowDangerousSkip: false,
+      dynamicMcpConfig: undefined,
+      thinkingConfig: { type: 'disabled' },
+      resolvedInitialModel: 'claude-sonnet-4-6',
+      userSpecifiedModel: undefined,
+      mainThreadAgentDefinition: undefined,
+      activeAgents: [],
+      allAgents: [],
+      sessionTitle: undefined,
+    })
+  `)
+  check(
+    'interactive-resume-read-error-not-not-found',
+    typeof r.exitMessage === 'string' &&
+      r.exitMessage.startsWith('Failed to resume session 11111111-1111-4111-8111-111111111111:') &&
+      r.exitMessage.includes('EACCES'),
+    JSON.stringify(r),
+  )
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
