@@ -187,5 +187,45 @@ else {
   check('gitFilesystem:unreadable-worktrees-dir-rejects', r.absentWorktrees === 1 && r.wtErr === 'EACCES', JSON.stringify(r))
 }
 
+console.log('\ngit.ts — getGitState propagates read failures and unreadable .git file fails closed')
+if (!POSIX_MODES) skip('git:read-failures-and-unreadable-gitdir', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const repo = path.join(PROJECT, 'repo')
+    const gitDir = path.join(repo, '.git')
+    fs.mkdirSync(path.join(gitDir, 'refs', 'heads'), { recursive: true })
+    fs.mkdirSync(path.join(gitDir, 'objects'), { recursive: true })
+    fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\\n')
+    fs.writeFileSync(path.join(gitDir, 'refs', 'heads', 'main'), '0123456789abcdef0123456789abcdef01234567\\n')
+    const cfg = path.join(gitDir, 'config')
+    fs.writeFileSync(cfg, '[core]\\n\\trepositoryformatversion = 0\\n')
+    fs.chmodSync(cfg, 0o000)
+    process.chdir(repo)
+    const { getGitState, isCurrentDirectoryBareGitRepo } = await import(SRC + '/utils/git.ts')
+    try {
+      out.state = await getGitState()
+      out.stateErr = null
+    } catch (e) {
+      out.stateErr = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(cfg, 0o600)
+    }
+    const sub = path.join(repo, 'sub')
+    fs.mkdirSync(sub, { recursive: true })
+    const dotGitFile = path.join(sub, '.git')
+    fs.writeFileSync(dotGitFile, 'gitdir: ./evil\\n')
+    fs.chmodSync(dotGitFile, 0o000)
+    try {
+      out.verdict = isCurrentDirectoryBareGitRepo(sub)
+    } finally {
+      fs.chmodSync(dotGitFile, 0o600)
+    }
+  `)
+  check('git:getGitState-propagates-read-error', r.stateErr === 'EACCES', JSON.stringify(r))
+  check('git:unreadable-dotgit-file-fails-closed', r.verdict === 'gitdir-redirect-plantable', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
