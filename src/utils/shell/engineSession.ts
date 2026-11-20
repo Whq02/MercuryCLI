@@ -31,6 +31,7 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
 import { startImmediate, startTimeout, stopTimeout } from '../timers.js'
+import { withDeadline } from '../deadline.js'
 
 const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
@@ -223,18 +224,14 @@ async function admitAgentSession(
   waitingOwners.add(owned.owner)
   taskOutput.setLiveNotice(rowNote())
   taskOutput.emitLiveView()
-  let onAbort: (() => void) | undefined
-  const aborted = new Promise<'aborted'>(resolve => {
-    onAbort = () => resolve('aborted')
-    options.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timedOut = new Promise<'timed out'>(resolve => {
-    timer = startTimeout(() => resolve('timed out'), options.timeout)
-  })
+  const deadline = Date.now() + options.timeout
   try {
     for (;;) {
-      const woke = await Promise.race([nextRelease().then(() => 'released' as const), aborted, timedOut])
+      if (options.signal.aborted) return 'aborted'
+      const left = deadline - Date.now()
+      const woke = left <= 0
+        ? 'timed out'
+        : await withDeadline(nextRelease().then(() => 'released' as const), left, () => 'timed out' as const, { signal: options.signal, onAbort: () => 'aborted' as const })
       if (woke === 'aborted') return 'aborted'
       if (woke === 'timed out') {
         return {
@@ -251,8 +248,6 @@ async function admitAgentSession(
   } finally {
     waitingOwners.delete(owned.owner)
     taskOutput.setLiveNotice(null)
-    if (timer !== undefined) stopTimeout(timer)
-    if (onAbort !== undefined) options.signal.removeEventListener('abort', onAbort)
   }
 }
 let snapshotPromise: Promise<string | undefined> | null = null

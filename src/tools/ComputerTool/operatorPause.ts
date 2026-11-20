@@ -1,8 +1,8 @@
 import type { DesktopDriver } from '../../services/desktop/driver.js'
 import { isTypingActive, TYPING_HOLD_MS } from '../../utils/cockpit/typingActivity.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
-import { sleep } from '../../utils/sleep.js'
 
 const OPERATOR_QUIET_MS = TYPING_HOLD_MS
 const OPERATOR_PAUSE_CAP_MS = 3000
@@ -24,13 +24,14 @@ export async function operatorIsTyping(driver: DesktopDriver): Promise<boolean> 
 }
 
 export async function waitForOperatorPause(driver: DesktopDriver, signal: AbortSignal): Promise<boolean> {
-  const deadline = Date.now() + OPERATOR_PAUSE_CAP_MS
-  for (;;) {
-    if (signal.aborted) return false
-    const typing = await operatorIsTyping(driver)
-    if (signal.aborted) return false
-    if (!typing) return true
-    if (Date.now() >= deadline) return false
-    await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
-  }
+  return pollUntil(
+    async () => {
+      const typing = await operatorIsTyping(driver)
+      return signal.aborted ? false : typing ? undefined : true
+    },
+    100,
+    OPERATOR_PAUSE_CAP_MS,
+    () => false,
+    { signal, onAbort: () => false },
+  )
 }
