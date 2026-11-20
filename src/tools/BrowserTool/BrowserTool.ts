@@ -308,6 +308,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           content: `${output.result}\n(image not inlined — could not read ${path} (${errorMessage(error)}))`,
         }
       }
+    }
     const text =
       output.imagePath && !modelReceivesImageBlocks(getEngineModel())
         ? `${output.result}\n(image not inlined — this model takes no image input; open the file to view it)`
