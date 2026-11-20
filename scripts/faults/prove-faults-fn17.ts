@@ -183,6 +183,28 @@ if (POSIX_MODES) {
     JSON.stringify(w),
   )
 }
+{
+  const t = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import(SRC + '/services/providers/gemini/antigravityClientContract.ts')
+    const file = mod.antigravityClientContractPath()
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, 'torn-not-json {', { mode: 0o600 })
+    const peek = await mod.peekAntigravityClient({
+      force: true,
+      env: { ...process.env, MERCURY_ANTIGRAVITY_MANIFEST_BASE: 'http://127.0.0.1:9' },
+      fetchImpl: async () => new Response('version: 99.0.0\\n', { status: 200 }),
+    })
+    out.peekLearned = peek.kind === 'read' ? peek.learned : null
+    out.healedVersion = mod.readAntigravityClientRecord().learned?.version ?? null
+  `)
+  check(
+    'antigravityClientContract:peekAntigravityClient replaces a torn contract file with the next record',
+    t.peekLearned === true && t.healedVersion === '99.0.0',
+    JSON.stringify(t),
+  )
+}
 
 console.log('deferralProbe — recordGatewayProbe does not overwrite an unreadable probe store')
 if (POSIX_MODES) {
@@ -206,6 +228,23 @@ if (POSIX_MODES) {
     'deferralProbe:recordGatewayProbe keeps unreadable store file byte-identical while reader stays non-throwing',
     r.readerAbsent === true && r.sameBytes === true,
     JSON.stringify(r),
+  )
+}
+{
+  const t = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import(SRC + '/services/providers/deferralProbe.ts')
+    const file = path.join(HOME, 'tool-deferral-probe.json')
+    fs.writeFileSync(file, 'torn-not-json {', { mode: 0o600 })
+    mod.recordGatewayProbe('b.example', { verdict: 'text', evidence: 'http 400', status: 400, probedAt: '2026-11-20T00:00:00.000Z' })
+    mod._resetGatewayProbeStoreForTesting()
+    out.healedVerdict = mod.readGatewayProbeRecord('b.example')?.verdict ?? null
+  `)
+  check(
+    'deferralProbe:recordGatewayProbe replaces a torn probe store file with the next record',
+    t.healedVerdict === 'text',
+    JSON.stringify(t),
   )
 }
 

@@ -125,14 +125,21 @@ export function readAntigravityClientRecord(): AntigravityClientRecord {
 
 function readAntigravityClientRecordForWrite(): AntigravityClientRecord | null {
   const path = antigravityClientContractPath()
+  let raw: string
   try {
-    if (statSync(path).size > RECORD_MAX_BYTES) return null
-    return decodeAntigravityClientRecord(JSON.parse(readFileSync(path, 'utf8')))
+    if (statSync(path).size > RECORD_MAX_BYTES) return {}
+    raw = readFileSync(path, 'utf8')
   } catch (error) {
     if (isENOENT(error)) return {}
     passedOver(error)
     logForDebugging(`antigravityClientContract: existing record at ${path} could not be read (${String(error)}); skipping write`)
     return null
+  }
+  try {
+    return decodeAntigravityClientRecord(JSON.parse(raw))
+  } catch (error) {
+    passedOver(error)
+    return {}
   }
 }
 
