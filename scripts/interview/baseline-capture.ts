@@ -280,7 +280,6 @@ interface JourneyArtifact {
   note: string
   cols: number
   rows: number
-  capturedAt: string
   screens: { atMs: number; rows: string[] }[]
   probe: { counters: Record<string, number>; frames: unknown } | null
   requests: unknown[]
@@ -335,7 +334,6 @@ async function captureJourney(j: Journey): Promise<{ ok: boolean; line: string }
       note: j.note,
       cols: j.cols,
       rows: j.rows,
-      capturedAt: new Date().toISOString(),
       screens: screens.map(s => ({ atMs: s.atMs, rows: s.rows })),
       probe: run.probe
         ? { counters: run.probe.counters, frames: run.probe.frames }

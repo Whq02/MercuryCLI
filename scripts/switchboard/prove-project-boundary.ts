@@ -6,7 +6,9 @@ import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 process.chdir(join(import.meta.dir, '..', '..'))
-const REAL_GIT = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+const REAL_GIT = process.platform === 'win32'
+  ? execFileSync('where.exe', ['git'], { encoding: 'utf8' }).trim().split(/\r?\n/)[0]!
+  : execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'project-boundary-')))
 const HOME_FX = join(SCRATCH, 'home')
 const PROJ = join(HOME_FX, 'Desktop', 'proj')
@@ -38,10 +40,12 @@ const voxelTop = git(VOXEL, 'rev-parse', '--show-toplevel')
 git(REAL, 'init', '-q')
 git(REAL, 'add', '.')
 git(REAL, 'commit', '-q', '-m', 'seed')
-writeFileSync(join(BIN, 'git'), `#!/bin/sh\nprintf '%s\\t%s\\n' "$PWD" "$*" >> '${LOG}'\nexec '${REAL_GIT}' "$@"\n`)
-chmodSync(join(BIN, 'git'), 0o755)
-writeFileSync(LOG, '')
-process.env.PATH = `${BIN}:${process.env.PATH ?? ''}`
+if (process.platform !== 'win32') {
+  writeFileSync(join(BIN, 'git'), `#!/bin/sh\nprintf '%s\\t%s\\n' "$PWD" "$*" >> '${LOG}'\nexec '${REAL_GIT}' "$@"\n`)
+  chmodSync(join(BIN, 'git'), 0o755)
+  writeFileSync(LOG, '')
+  process.env.PATH = `${BIN}:${process.env.PATH ?? ''}`
+}
 process.env.HOME = HOME_FX
 process.env.USERPROFILE = HOME_FX
 process.env.MERCURY_CONFIG_DIR = CFG
@@ -117,6 +121,9 @@ async function exercise(cwd: string): Promise<Row[]> {
   return drain()
 }
 
+if (process.platform === 'win32') {
+  console.log('\n  [SKIP] not read on Windows: git shim requires a POSIX executable script (B2, B2b, B3)')
+} else {
 console.log('\nB2 the probes from a folder under a home repository carry the boundary')
 {
   drain()
@@ -151,6 +158,7 @@ console.log('\nB3 the same probes from a real project carry no pathspec tail (no
   check('at least the six probe shapes ran', probes.length >= 6, String(probes.length))
   check('no probe carries a `--` pathspec tail', probes.every(r => !/ -- /.test(r.args) && !r.args.endsWith('--')), probes.filter(r => / -- /.test(r.args)).map(r => r.args).join(' | '))
   check('the @-file index listed the whole repository from its root', probes.some(r => /ls-files --recurse-submodules$/.test(r.args) && probeCwd(r) === REAL))
+}
 }
 
 removeScratch(SCRATCH)

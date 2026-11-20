@@ -165,7 +165,7 @@ type Scene = { lines: () => string[]; push: (data: string) => void; resize: (col
 
 type ReportFixture = Parameters<typeof certificate.MercuryHealthCertificate>[0]['report']
 
-async function openScene(cols: number, rows: number, fixture?: ReportFixture): Promise<Scene> {
+async function openScene(cols: number, rows: number, fixture?: ReportFixture, waitForVerdict = true): Promise<Scene> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
@@ -218,11 +218,13 @@ async function openScene(cols: number, rows: number, fixture?: ReportFixture): P
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const painted = await until(() => lines().join('\n').includes(TITLE) && lines().join('\n').includes(COMPOSER))
   check(`the session painted the popup at ${cols}x${rows}`, painted, lines().slice(0, 6).join(' | '))
-  const settled = await until(() => {
-    const window = windowOf(lines())
-    return window !== null && VERDICT.test(window.rows[1] ?? '')
-  }, 60000)
-  check(`the certificate settled with a verdict at ${cols}x${rows}`, settled, (windowOf(lines())?.rows ?? []).slice(0, 3).join(' | '))
+  if (waitForVerdict) {
+    const settled = await until(() => {
+      const window = windowOf(lines())
+      return window !== null && VERDICT.test(window.rows[1] ?? '')
+    }, 60000)
+    check(`the certificate settled with a verdict at ${cols}x${rows}`, settled, (windowOf(lines())?.rows ?? []).slice(0, 3).join(' | '))
+  }
   await sleep(400)
   return {
     lines,
@@ -428,6 +430,112 @@ section('§5 the fix card inside the popup: a destructive consent card never pus
   await sleep(300)
   check('r after d re-runs DEEP again (the depth last run, as before)', depths.join(',') === 'fast,deep,deep', depths.join(','))
   await scene.close()
+}
+
+section('§7 progressive arrival: cursor and open row follow the check id when a late check lands above the cursor')
+{
+  const buildCheck = { id: 'build', label: 'Build', status: 'ok' as const, evidence: 'v1.0.12 · clean' }
+  const nodeCheck = { id: 'node', label: 'Node', status: 'ok' as const, evidence: 'v24.22.1' }
+  const mcpCheck = { id: 'mcp', label: 'MCP policy', status: 'info' as const, evidence: '1 server(s): fixture-echo (configured)' }
+  const extCheck = { id: 'extensions', label: 'Extensions', status: 'ok' as const, evidence: '3 on · 0 partial · 0 broken · 1 off' }
+  const finalCert = () => ({
+    verdict: 'certified' as const,
+    ranAt: new Date().toISOString(),
+    head: { sha: 'abc1234def', branch: 'lane/fixture', dirty: false },
+    version: '1.0.0',
+    durationMs: 25,
+    depth: 'fast' as const,
+    sections: [
+      { id: 'runtime', title: 'RUNTIME', checks: [buildCheck, nodeCheck, mcpCheck] },
+      { id: 'durability', title: 'DURABILITY', checks: [extCheck] },
+    ],
+  })
+
+  let releaseLateA: (() => void) | null = null
+  const lateA = new Promise<void>(resolve => { releaseLateA = resolve })
+  const progressiveBeforeEnter: ReportFixture = async opts => {
+    opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: buildCheck, done: 1, total: 4 })
+    opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: nodeCheck, done: 2, total: 4 })
+    opts?.onProgress?.({ sectionId: 'durability', sectionTitle: 'DURABILITY', check: extCheck, done: 3, total: 4 })
+    await lateA
+    opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: mcpCheck, done: 4, total: 4 })
+    return finalCert() as never
+  }
+  const sceneA = await openScene(120, 40, progressiveBeforeEnter, false)
+  const sawExtA = await until(() => sceneA.lines().join('\n').includes('Extensions'), 5000)
+  check('case A: Extensions painted while MCP policy is still pending', sawExtA && !sceneA.lines().join('\n').includes('MCP policy'))
+  sceneA.push(DOWN)
+  await sleep(150)
+  sceneA.push(DOWN)
+  await sleep(250)
+  const beforeLateA = windowOf(sceneA.lines())
+  check('case A: cursor moved onto Extensions before late check arrives', beforeLateA !== null && cursorLabel(beforeLateA) === 'Extensions', beforeLateA ? String(cursorLabel(beforeLateA)) : 'no window')
+  releaseLateA!()
+  const settledA = await until(() => {
+    const w = windowOf(sceneA.lines())
+    return w !== null && VERDICT.test(w.rows[1] ?? '') && sceneA.lines().join('\n').includes('MCP policy')
+  }, 5000)
+  await sleep(250)
+  const afterLateA = windowOf(sceneA.lines())
+  check('case A: after MCP policy arrives above Extensions, cursor stays on Extensions (position 4/4, never jumps to MCP policy)', settledA && afterLateA !== null && cursorLabel(afterLateA) === 'Extensions' && counter(afterLateA) === 4, afterLateA ? `cursor=${cursorLabel(afterLateA)} counter=${counter(afterLateA)}` : 'no window')
+  sceneA.push(ENTER)
+  await sleep(300)
+  const openedTextA = sceneA.lines().join('\n')
+  check('case A: Enter opens Extensions (the row the user moved onto), not MCP policy', openedTextA.includes('3 on · 0 partial · 0 broken · 1 off') && !openedTextA.includes('fixture-echo'), openedTextA.slice(0, 600))
+  await sceneA.close()
+
+  let releaseLateB: (() => void) | null = null
+  const lateB = new Promise<void>(resolve => { releaseLateB = resolve })
+  const progressiveAfterEnter: ReportFixture = async opts => {
+    opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: buildCheck, done: 1, total: 4 })
+    opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: nodeCheck, done: 2, total: 4 })
+    opts?.onProgress?.({ sectionId: 'durability', sectionTitle: 'DURABILITY', check: extCheck, done: 3, total: 4 })
+    await lateB
+    opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: mcpCheck, done: 4, total: 4 })
+    return finalCert() as never
+  }
+  const sceneB = await openScene(120, 40, progressiveAfterEnter, false)
+  await until(() => sceneB.lines().join('\n').includes('Extensions'), 5000)
+  sceneB.push(DOWN)
+  await sleep(150)
+  sceneB.push(DOWN)
+  await sleep(150)
+  sceneB.push(ENTER)
+  await sleep(250)
+  check('case B: Extensions opened before late check arrives', sceneB.lines().join('\n').includes('3 on · 0 partial · 0 broken · 1 off'))
+  releaseLateB!()
+  await until(() => {
+    const w = windowOf(sceneB.lines())
+    return w !== null && VERDICT.test(w.rows[1] ?? '') && sceneB.lines().join('\n').includes('MCP policy')
+  }, 5000)
+  await sleep(250)
+  const afterLateB = windowOf(sceneB.lines())
+  check('case B: after MCP policy arrives above an open Extensions row, cursor stays on Extensions and it stays open', afterLateB !== null && cursorLabel(afterLateB) === 'Extensions' && sceneB.lines().join('\n').includes('3 on · 0 partial · 0 broken · 1 off'), afterLateB ? `cursor=${cursorLabel(afterLateB)}` : 'no window')
+  sceneB.push(ENTER)
+  await sleep(250)
+  const foldedTextB = sceneB.lines().join('\n')
+  check('case B: pressing Enter again folds Extensions (does not open MCP policy)', !foldedTextB.includes('3 on · 0 partial · 0 broken · 1 off') && !foldedTextB.includes('fixture-echo'))
+  await sceneB.close()
+
+  let releaseLateC: (() => void) | null = null
+  const lateC = new Promise<void>(resolve => { releaseLateC = resolve })
+  const progressiveAtRest: ReportFixture = async opts => {
+    opts?.onProgress?.({ sectionId: 'durability', sectionTitle: 'DURABILITY', check: extCheck, done: 1, total: 4 })
+    await lateC
+    opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: buildCheck, done: 2, total: 4 })
+    return finalCert() as never
+  }
+  const sceneC = await openScene(120, 40, progressiveAtRest, false)
+  await until(() => sceneC.lines().join('\n').includes('Extensions'), 5000)
+  releaseLateC!()
+  await until(() => {
+    const w = windowOf(sceneC.lines())
+    return w !== null && VERDICT.test(w.rows[1] ?? '') && sceneC.lines().join('\n').includes('Build')
+  }, 5000)
+  await sleep(250)
+  const restingC = windowOf(sceneC.lines())
+  check('case C: at rest with no user move, cursor stays on the first row (Build, 1/4) when earlier sections settle', restingC !== null && cursorLabel(restingC) === 'Build' && counter(restingC) === 1, restingC ? `cursor=${cursorLabel(restingC)} counter=${counter(restingC)}` : 'no window')
+  await sceneC.close()
 }
 
 console.error = originalError

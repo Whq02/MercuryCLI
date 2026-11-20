@@ -8,6 +8,7 @@ import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CallToolResult } from '../../utils/mcp/sdk.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { executableName } from '../../utils/platform/programs.js'
 
 const RENDER_TUI_SCRIPT = join('scripts', 'ui', 'render-tui.ts')
 
@@ -35,7 +36,7 @@ export function renderTuiRuntime(opts: { env?: NodeJS.ProcessEnv; home?: string 
   if (pinned !== '') {
     return existsSync(pinned) ? { bun: pinned } : { missing: `the MERCURY_BUN pin ${pinned} does not exist` }
   }
-  const exe = process.platform === 'win32' ? 'bun.exe' : 'bun'
+  const exe = executableName('bun')
   const userBun = join(home, '.bun', 'bin', exe)
   if (existsSync(userBun)) return { bun: userBun }
   for (const dir of (env.PATH ?? '').split(delimiter)) {

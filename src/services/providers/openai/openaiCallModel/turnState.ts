@@ -80,9 +80,9 @@ export function withEffort(turn: OpenaiTurn, message: AssistantMessage): Assista
   return { ...message, effort: effortOnWire(turn) }
 }
 
-export function busyPrefix(turn: OpenaiTurn, line: string, fault: OpenaiFault, typed: string): string {
+export function busyPrefix(turn: OpenaiTurn, line: string, fault: OpenaiFault): string {
   const { retries: { busy, emptyEnd }, turnStartedAtMs } = turn
-  return busy !== undefined && takesBusyLadder(fault, typed)
+  return busy !== undefined && takesBusyLadder(fault)
     ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
     : emptyEnd
       ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords('OpenAI', Date.now() - turnStartedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`

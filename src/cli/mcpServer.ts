@@ -7,6 +7,7 @@ import { pipeline } from 'node:stream/promises'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { isPathTrusted } from '../utils/config/trust.js'
 import { initialPermissionModeFromCLI } from '../utils/permissions/permissionSetup.js'
+import { isPrivateFileMode } from '../utils/platform/files.js'
 import { createMcpHandler, serveStdio, validateHostHeader, type AuthInfo } from '../utils/mcp/sdk.js'
 import { AutomationBridge, type AutomationOptions } from '../services/mcp/automationBridge.js'
 import { automationServerFactory } from '../services/mcp/automationServer.js'
@@ -27,7 +28,7 @@ async function startMcpServer(options: McpServerOptions): Promise<{ close: () =>
     const location = relative(cwd, await realpath(options.tokenFile))
     if (location !== '..' && !location.startsWith('../') && !location.startsWith('..\\') && !isAbsolute(location)) throw new Error('Keep --token-file outside the project served by MCP')
     const info = await stat(options.tokenFile)
-    if (!info.isFile() || (process.platform !== 'win32' && (info.mode & 0o077) !== 0)) throw new Error('--token-file must be a private file (chmod 600)')
+    if (!info.isFile() || !isPrivateFileMode(info.mode)) throw new Error('--token-file must be a private file (chmod 600)')
     grants = automationAccessSchema.parse(JSON.parse(await readFile(options.tokenFile, 'utf8'))).clients
   } else grants = [{ name: 'mcp-client', token: randomBytes(32).toString('base64url'), run: false, send: [] }]
   const roles = { lead: options.lead ?? await launchingSession(cwd), coordinator: options.coordinator }

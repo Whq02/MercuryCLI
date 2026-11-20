@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { proofHome } from '../lib/hermetic.ts'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { removeScratch } from '../lib/removeScratch.ts'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 
@@ -91,7 +92,11 @@ try {
   await releaseProjectLeases(root, projectLeaseHolder(), undefined, { all: true })
   await server.close()
   await client.close()
-  rmSync(proofHome, { recursive: true, force: true })
+  try {
+    removeScratch(proofHome, { maxRetries: 4, retryDelayMs: 50 })
+  } catch (error) {
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EBUSY') throw error
+  }
 }
 console.log(`${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)

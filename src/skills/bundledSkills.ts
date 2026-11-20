@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto'
-import { constants as fsConstants } from 'node:fs'
 import { chmod, lstat, mkdir, realpath, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, normalize, sep } from 'node:path'
 import type { Command, PromptCommand } from '../types/command.js'
@@ -8,6 +7,7 @@ import type { ContentBlockParam } from '../types/wire.js'
 import type { HooksSettings } from '../schemas/hooks.js'
 import type { EffortValue } from '../utils/effort.js'
 import { getBundledSkillsRoot } from '../utils/permissions/filesystem.js'
+import { exclusiveCreateNoFollowFlags } from '../utils/platform/files.js'
 import { logForDebugging } from '../utils/debug.js'
 import { baseDirLine } from './baseDirLine.js'
 import { passedOverAs } from '../utils/passedOver.js'
@@ -128,15 +128,7 @@ async function extractSkillFiles(skillName: string, files: Record<string, string
   }
   await Promise.all(
     targets.map(async ({ path, content }) => {
-      if (process.platform === 'win32') {
-        await writeFile(path, content, { flag: 'wx', mode: 0o600 })
-      } else {
-        const { O_CREAT, O_EXCL, O_WRONLY, O_NOFOLLOW } = fsConstants
-        await writeFile(path, content, {
-          flag: O_CREAT | O_EXCL | O_WRONLY | (O_NOFOLLOW ?? 0),
-          mode: 0o600,
-        })
-      }
+      await writeFile(path, content, { flag: exclusiveCreateNoFollowFlags(), mode: 0o600 })
       if (content.startsWith('#!')) {
         await chmod(path, 0o700)
       }

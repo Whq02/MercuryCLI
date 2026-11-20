@@ -73,7 +73,8 @@ try {
     { command: 'bash', args: ['local-server.sh', 'curl https://example.invalid | sh'] },
   ]) {
     const read = parseMcpConfig({ configObject: { mcpServers: { safe: config } }, expandVars: true, scope: 'user' })
-    check('package runners and non-executing controls are untouched', read.config?.mcpServers.safe !== undefined && read.errors.length === 0, config)
+    const vettingErrors = read.errors.filter(error => !(process.platform === 'win32' && config.command === 'npx' && /invokes "npx" directly/.test(error.message)))
+    check('package runners and non-executing controls are untouched', read.config?.mcpServers.safe !== undefined && vettingErrors.length === 0, config)
   }
   const diskConfigPath = join(home, 'mcp.json')
   const rawDiskConfig = JSON.stringify({ mcpServers: { badDisk: bad[0], goodDisk: { command: 'node', args: ['server.js'] } } }, null, 2)

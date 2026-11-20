@@ -28,6 +28,7 @@ import {
   PROJECT_CONFIG_DIR_NAMES,
   projectConfigCandidatePaths,
 } from '../utils/projectConfig.js'
+import { toPosixSeparators } from '../utils/platform/paths.js'
 import { getMercuryHome, isBareMode, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { getManagedFilePath } from '../utils/settings/managedPath.js'
 import {
@@ -249,7 +250,7 @@ export function createSkillCommand(options: {
     }
     content = substituteArguments(content, args, true, fields.argNames)
     if (baseDir !== undefined) {
-      const dirForShell = process.platform === 'win32' ? baseDir.replaceAll('\\', '/') : baseDir
+      const dirForShell = toPosixSeparators(baseDir)
       content = content.replace(SKILL_DIR_TOKEN, dirForShell)
     }
     const sessionId = getSessionId()

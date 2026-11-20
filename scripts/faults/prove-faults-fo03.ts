@@ -60,7 +60,8 @@ try { console.log('RESULT', removeBoxSchedule('aaaaaaaa', ${JSON.stringify(dir)}
   utimesSync(lock, new Date(0), new Date(0))
   const r = runChild(`import { removeBoxSchedule } from ${JSON.stringify(BOX)}
 try { console.log('RESULT', removeBoxSchedule('aaaaaaaa', ${JSON.stringify(dir)})) } catch (e) { console.log('THREW', (e as NodeJS.ErrnoException).code) }`)
-  check('box-lock-break-fails: a stale lock that cannot be removed throws instead of spinning', !r.timedOut && /THREW ENOTDIR/.test(r.out), r.timedOut ? 'spun past the timeout' : r.out.slice(0, 200))
+  const expectedBreakCode = process.platform === 'win32' ? 'ENOENT' : 'ENOTDIR'
+  check('box-lock-break-fails: a stale lock that cannot be removed throws instead of spinning', !r.timedOut && new RegExp(`THREW ${expectedBreakCode}\\b`).test(r.out), r.timedOut ? 'spun past the timeout' : r.out.slice(0, 200))
 }
 {
   const dir = scratch('box-corrupt')

@@ -8,6 +8,7 @@ import { getMCPUserAgent } from '../../../utils/http.js'
 import { logMCPDebug, logMCPError } from '../../../utils/log.js'
 import { getWebSocketTLSOptions } from '../../../utils/mtls.js'
 import { getApiFetch, getProxyFetchOptions, getProxyUrl } from '../../../utils/proxy.js'
+import { missingSpawnCommandError } from '../../../utils/platform/programs.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { MercuryMcpAuthProvider, wrapFetchWithStepUpDetection } from '../auth.js'
 import { mcpStdioCommandRefusal } from '../stdioCommandSafety.js'
@@ -21,6 +22,25 @@ import { OwnedStdioClientTransport } from './protocolClient.js'
 import { createWsTransport } from './wsTransport.js'
 
 export type RemoteConfig = ScopedMcpServerConfig & { url?: string; headers?: Record<string, string> }
+
+class CheckedStdioClientTransport extends OwnedStdioClientTransport {
+  private readonly spawnCommand: string
+  private readonly spawnEnv: Record<string, string> | undefined
+  private readonly spawnCwd: string | undefined
+
+  constructor(parameters: ConstructorParameters<typeof OwnedStdioClientTransport>[0]) {
+    super(parameters)
+    this.spawnCommand = parameters.command
+    this.spawnEnv = parameters.env
+    this.spawnCwd = parameters.cwd
+  }
+
+  override async start(): Promise<void> {
+    const missing = missingSpawnCommandError(this.spawnCommand, this.spawnEnv, this.spawnCwd)
+    if (missing !== null) throw missing
+    return super.start()
+  }
+}
 
 export function buildStdioTransport(name: string, serverRef: ScopedMcpServerConfig, config: RemoteConfig): StdioClientTransport {
   const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
@@ -38,7 +58,7 @@ export function buildStdioTransport(name: string, serverRef: ScopedMcpServerConf
   }
   return serverRef.bundledBootstrap
     ? new LazyStdioClientTransport(parameters, serverRef.bundledBootstrap, connectTimeoutMs())
-    : new OwnedStdioClientTransport(parameters)
+    : new CheckedStdioClientTransport(parameters)
 }
 
 export async function sseTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {

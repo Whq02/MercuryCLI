@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, delimiter, extname, isAbsolute, join, resolve } from 'node:path'
 import { validateAgentIdentifier } from '../../services/agents/codec.js'
 import { parseFrontmatter, type FrontmatterData } from '../../utils/frontmatterParser.js'
@@ -13,8 +13,8 @@ import {
   serverRuntimeName,
 } from '../manifest.js'
 import { substituteRootAndData } from '../options.js'
-import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { isExecutableFile, isExecutablePath, pathExtensions } from '../../utils/platform/programs.js'
 
 
 type ResolvedSkill = { name: string; skillName: string; dir: string; file: string; body: string; frontmatter: FrontmatterData }
@@ -50,23 +50,15 @@ export type Probes = {
 }
 
 
-const PATH_EXTS = process.platform === 'win32' ? (hostEnv().PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';') : ['']
-
 function isOnPath(binary: string): boolean {
   if (binary === '') return false
   if (binary.includes('/') || binary.includes('\\')) return existsSync(binary)
-  const dirs = (hostEnv().PATH ?? '').split(delimiter).filter(Boolean)
+  const env = hostEnv()
+  const dirs = (env.PATH ?? '').split(delimiter).filter(Boolean)
+  const exts = pathExtensions(env)
   for (const dir of dirs) {
-    for (const ext of PATH_EXTS) {
-      const candidate = join(dir, binary + ext)
-      try {
-        const stat = statSync(candidate)
-        if (!stat.isFile()) continue
-        if (process.platform !== 'win32') accessSync(candidate, constants.X_OK)
-        return true
-      } catch (error) {
-        passedOver(error)
-      }
+    for (const ext of exts) {
+      if (isExecutableFile(join(dir, binary + ext))) return true
     }
   }
   return false
@@ -142,14 +134,7 @@ function listDir(dir: string): DirListing {
 }
 
 function isExecutable(path: string): boolean {
-  if (process.platform === 'win32') return existsSync(path)
-  try {
-    accessSync(path, constants.X_OK)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return isExecutablePath(path)
 }
 
 const INTERPRETERS = new Set(['sh', 'bash', 'zsh', 'node', 'bun', 'python', 'python3', 'ruby', 'perl', 'pwsh', 'powershell', 'deno'])

@@ -13,12 +13,13 @@ import { ggufModelName, type GgufModel } from './ggufModels.js'
 import { forgetGgufServer, rememberGgufServer } from './ggufServers.js'
 import { resolveSetupIo } from './setupIo.js'
 import type { SetupIo } from './setupTypes.js'
+import { executableName } from '../../utils/platform/programs.js'
 
 export interface GgufServerIo extends SetupIo { cwd?: string; port?: number; owner?: OwnerKey; serverCommand?: string; serverArgs?: string[]; availableMemory?: () => Promise<number> }
 async function llamaBinary(seam: GgufServerIo = {}): Promise<string> {
   if (seam.serverCommand) return seam.serverCommand
   const io = resolveSetupIo(seam)
-  const built = join(io.home, '.local', 'share', 'mercury-host', 'runtime', 'llama.cpp', 'build', 'bin', io.platform === 'win32' ? 'llama-server.exe' : 'llama-server')
+  const built = join(io.home, '.local', 'share', 'mercury-host', 'runtime', 'llama.cpp', 'build', 'bin', executableName('llama-server', io.platform))
   if (io.exists(built)) return built
   const path = await io.which('llama-server')
   if (path) return path

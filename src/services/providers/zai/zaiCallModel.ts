@@ -410,7 +410,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     }
     const terminalText = compatTerminalFaultText(ZAI_FAULT_PROFILE, outcome.fault, typed)
     const stayedBusy =
-      busy !== undefined && takesBusyLadder(outcome.fault, typed)
+      busy !== undefined && takesBusyLadder(outcome.fault)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${ZAI_FAULT_PROFILE.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
         : emptyEnd
           ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(ZAI_FAULT_PROFILE.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`

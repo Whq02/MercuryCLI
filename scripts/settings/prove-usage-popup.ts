@@ -242,16 +242,25 @@ for (const fixture of ['absent', 'signed-in']) {
   if (rich) {
     const bars = board.meters()
     const anthropicX = board.sizes().find(section => section.title === 'Anthropic usage')?.x ?? 0
-    const painted = (): string[] => bars.filter(bar => board.frame().split('\n').some(line => line.slice(anthropicX, anthropicX + 42).padEnd(42) === bar))
-    const top = painted()
-    check('the four meters are 42 cells and the top frame paints three of them byte-exact (the JEV row costs the viewport one row, so the last weekly pool waits one step below)', bars.length === 4 && bars.every(bar => stringWidth(bar) === 42) && top.length === 3, `${bars.length} bars · ${top.length} painted`)
+    const geminiX = board.sizes().find(section => section.title === 'Gemini usage')?.x ?? 0
+    const paintedAt = (colX: number): string[] => {
+      const seen: string[] = []
+      for (const line of board.frame().split('\n')) {
+        const cell = line.slice(colX, colX + 42).padEnd(42)
+        if (bars.includes(cell)) seen.push(cell)
+      }
+      return seen
+    }
+    const top = paintedAt(anthropicX)
+    const geminiTop = paintedAt(geminiX)
+    check('the seven meters (4 Anthropic + 3 Gemini) are 42 cells, Anthropic paints three on the top frame and Gemini paints its meters in its column', bars.length === 7 && bars.every(bar => stringWidth(bar) === 42) && top.length === 3 && geminiTop.length >= 2, `${bars.length} bars · anthropic=${top.length} · gemini=${geminiTop.length}`)
     await board.key('down')
     await board.key('down')
-    const stepped = painted()
-    check('two down-steps paint the fourth meter, the second weekly pool, at 42 cells too (the identity line under the title costs the second step)', stepped.length === 4 && bars.every(bar => stepped.includes(bar)), `${stepped.length} painted`)
+    const stepped = paintedAt(anthropicX)
+    check('two down-steps paint the fourth Anthropic meter, the second weekly pool, at 42 cells too (the identity line under the title costs the second step)', stepped.length === 4, `${stepped.length} painted`)
     await board.key('up')
     await board.key('up')
-    const back = painted()
+    const back = paintedAt(anthropicX)
     check('two up-steps return to the top frame', back.length === 3 && back.every(bar => top.includes(bar)), `${back.length} painted`)
   } else {
     check('six providers at the top leave the exact four names from the design', board.frame().includes('↓ 4 more · Z.AI · OpenRouter · Custom endpoint · Local models'))
@@ -284,10 +293,12 @@ delayed.close()
 {
   const folded = await mount(146, 60, 178, token++)
   const before = folded.runs()
-  check("the Google sign-in slot reads in the owner's order: the tier, the session's model first (resolved to its effort row), the models used this session, then one folded line for the rest — never the 27-line list", before.some(run => run.startsWith('tier Google reports: Google AI Pro')) && before.findIndex(run => run.startsWith('gemini-4-argon-high quota left: 98%')) < before.findIndex(run => run.startsWith('gemini-3.8-flash-high quota left: 97%')) && before.findIndex(run => run.startsWith('gemini-4-argon-high quota left: 98%')) >= 0 && before.some(run => run.startsWith('gemini-4-argon-high quota left: 98%') && run.includes("the session's model (gemini-4-argon ▸ gemini-4-argon-high)")) && before.some(run => run.startsWith('gemini-3.8-flash-high quota left: 97%') && run.includes('used this session')) && before.some(run => run.startsWith('google/claude-opus-4-6-thinking quota left: 96%') && run.includes('used this session')) && before.includes('24 other roster models — ↵ lists them') && !before.some(run => run.startsWith('gemini-5-row1-high quota left')), JSON.stringify(before.filter(run => /quota|roster|tier/.test(run))))
+  const barsBefore = folded.meters().length
+  check("the Google sign-in slot reads in the owner's order as meters: the tier, the session's model first (resolved to its effort row), the models used this session, then one folded line for the rest — never the 27-line list", barsBefore === 7 && before.some(run => run.startsWith('tier Google reports: Google AI Pro')) && before.indexOf('gemini-4-argon-high · 2%') >= 0 && before.indexOf('gemini-4-argon-high · 2%') < before.indexOf('gemini-3.8-flash-high · 3%') && before.some(run => run.includes("the session's model (gemini-4-argon ▸ gemini-4-argon-high)")) && before.filter(run => run.includes('used this session')).length === 2 && before.includes('google/claude-opus-4-6-thinking · 4%') && before.includes('24 other roster models — ↵ lists them') && !before.some(run => run.startsWith('gemini-5-row1-high ·')), JSON.stringify({ barsBefore, runs: before.filter(run => /gemini|opus|roster|tier|used this session|session's model/.test(run)) }))
   const consumed = await folded.key('return')
   const after = folded.runs()
-  check('↵ lists the other roster models under the fold line (the key stays in the popup) and ↵ again folds them', consumed && after.includes('24 other roster models — ↵ folds them') && after.some(run => run.startsWith('gemini-5-row1-high quota left: 95%')) && after.some(run => run.startsWith('gemini-5-row23-high quota left: 73%')) && (await folded.key('return')) && folded.runs().includes('24 other roster models — ↵ lists them') && !folded.runs().some(run => run.startsWith('gemini-5-row1-high quota left')), JSON.stringify(after.filter(run => /roster|row1|row23/.test(run))))
+  const barsAfter = folded.meters().length
+  check('↵ lists the other roster models as meters under the fold line (the key stays in the popup) and ↵ again folds them', consumed && barsAfter === barsBefore + 24 && after.includes('24 other roster models — ↵ folds them') && after.includes('gemini-5-row1-high · 5%') && after.includes('gemini-5-row23-high · 27%') && (await folded.key('return')) && folded.meters().length === barsBefore && folded.runs().includes('24 other roster models — ↵ lists them') && !folded.runs().includes('gemini-5-row1-high · 5%'), JSON.stringify({ barsBefore, barsAfter, runs: after.filter(run => /roster|row1|row23/.test(run)) }))
   folded.close()
 }
 {

@@ -572,6 +572,16 @@ if python3 "$repo/scripts/gate/reseed-durations.py" gate=999999 zz-unlisted=9 --
 else
   echo "  ✗ seed --out: $(tail -1 "$work/own-seed.log" 2>/dev/null)"; fail=1
 fi
+if python3 "$repo/scripts/gate/reseed-durations.py" health=1 gate=999999 >"$work/guard-seed.log" 2>&1 \
+   && [ "$(cksum <"$repo/scripts/gate/duration-seed.tsv")" = "$seed_sum" ] \
+   && grep -q '1 row(s) move · 1 row(s) keep their seconds' "$work/guard-seed.log" \
+   && grep -qE 'health +900 kept \(measured 1 s; its hosted limit would fall 1800 -> 600 s\)' "$work/guard-seed.log" \
+   && grep -qE 'gate +[0-9]+ -> +999999' "$work/guard-seed.log" \
+   && ! grep -qE 'health +[0-9]+ -> +1' "$work/guard-seed.log"; then
+  echo "  ✓ seed hosted-limit guard: a fall that would lower a suite's hosted time limit keeps its seconds and is listed while a safe move still moves"
+else
+  echo "  ✗ seed hosted-limit guard: $(head -5 "$work/guard-seed.log" 2>/dev/null | tr '\n' ' ')"; fail=1
+fi
 gate_yml="$repo/.github/workflows/gate.yml"; drives_yml="$repo/.github/workflows/drives.yml"
 rel_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class release' "$gate_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)
 drv_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class drives' "$drives_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)

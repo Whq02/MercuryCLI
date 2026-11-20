@@ -7,10 +7,12 @@ import { takeTesterDoor } from '../commands/feedback/testerDoor.js'
 
 export function MercuryExitConfirm({
   liveWords,
+  hasRunning = true,
   onQuit,
   onStay,
 }: {
   liveWords: string
+  hasRunning?: boolean
   onQuit: () => void
   onStay: () => void
 }): React.ReactNode {
@@ -39,7 +41,11 @@ export function MercuryExitConfirm({
           {liveWords} still running
         </Text>
       </Text>
-      <Text color={t.textMuted}>quitting stops them · see them with /runs · the session itself stays resumable</Text>
+      <Text color={t.textMuted}>
+        {hasRunning
+          ? 'quitting stops them · see them with /runs · the session itself stays resumable'
+          : 'the session itself stays resumable'}
+      </Text>
       {testerDoor !== null ? <Text color={t.textMuted}>{testerDoor}</Text> : null}
       <Text>
         {}

@@ -1,6 +1,5 @@
 
 import { chmod, mkdir, open, readFile, readdir, rm, stat, unlink } from 'node:fs/promises'
-import { isTransientWin32FsCode, WIN32_RENAME_RETRY_DELAYS_MS } from '../../substrate/durablePublish.js'
 import { dirname, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -9,6 +8,7 @@ import {
   faultPoint,
   renameWithWin32Retry,
 } from '../../substrate/durablePublish.js'
+import { heldFileRetryDelayMs } from '../../utils/platform/files.js'
 import {
   compactJournalDir,
   isJournalWriterAlive,
@@ -757,8 +757,8 @@ async function unlinkWithWin32Retry(path: string): Promise<void> {
       return
     } catch (e) {
       const code = (e as NodeJS.ErrnoException).code
-      const delay = WIN32_RENAME_RETRY_DELAYS_MS[attempt]
-      if (process.platform !== 'win32' || !isTransientWin32FsCode(code) || delay === undefined) throw e
+      const delay = heldFileRetryDelayMs(code, attempt + 1)
+      if (delay === null) throw e
       attempt++
       await sleep(delay)
     }

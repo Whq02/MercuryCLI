@@ -28,7 +28,7 @@ export function healthCertificateView({
   checks,
   scrollRef,
   selRowRef,
-  moveTo,
+  selectId,
   toggleOpen,
   selId,
   counts,
@@ -55,9 +55,9 @@ export function healthCertificateView({
   checks: HealthCheck[]
   scrollRef: React.RefObject<ScrollBoxHandle | null>
   selRowRef: React.RefObject<DOMElement | null>
-  moveTo: (index: number) => void
-  toggleOpen: (index: number) => void
-  selId: string
+  selectId: (id: string) => void
+  toggleOpen: (id: string) => void
+  selId: string | null
   counts: Record<HealthStatus, number> | null
   meta: { state: 'live' | 'gated' | 'failed'; label: string } | null
   actions: ReturnType<typeof nextActions>
@@ -125,9 +125,7 @@ export function healthCertificateView({
         {sections.map((section, sectionIndex) => (
           <Box key={section.id} flexDirection="column">
             <SectionHeader marginTop={sectionIndex === 0 && actions.length === 0 ? 0 : 1}>{section.title}</SectionHeader>
-            {section.checks.map(c => {
-              const index = checks.findIndex(candidate => candidate.id === c.id)
-              return (
+            {section.checks.map(c => (
                 <CheckRow
                   key={c.id}
                   check={c}
@@ -135,11 +133,10 @@ export function healthCertificateView({
                   open={openId === c.id}
                   width={Math.max(1, innerW - (scrolls ? 1 : 0))}
                   rowRef={selId === c.id ? selRowRef : undefined}
-                  onSelect={() => moveTo(index)}
-                  onActivate={() => toggleOpen(index)}
+                  onSelect={() => selectId(c.id)}
+                  onActivate={() => toggleOpen(c.id)}
                 />
-              )
-            })}
+            ))}
           </Box>
         ))}
       </ScrollBox>

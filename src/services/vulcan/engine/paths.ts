@@ -2,6 +2,7 @@ import { mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { projectLocalPath } from '../../../utils/projectLocal/paths.js'
+import { foldPathCase } from '../../../utils/platform/paths.js'
 
 const ENGINE_DIR_SEGMENT = 'engine'
 export const ENGINE_RESULT_FILE = 'result.json'
@@ -116,11 +117,7 @@ export function ensureEngineEstate(projectRoot: string): string {
 }
 
 export function isEnginePath(projectRoot: string, candidate: string, platform: NodeJS.Platform = process.platform): boolean {
-  const norm = (p: string): string => {
-    let s = p.replace(/\\/g, '/').replace(/\/+$/, '')
-    if (platform === 'win32') s = s.toLowerCase()
-    return s
-  }
+  const norm = (p: string): string => foldPathCase(p.replace(/\\/g, '/').replace(/\/+$/, ''), platform)
   const spellings = [projectRoot]
   try {
     const real = realpathSync(projectRoot)

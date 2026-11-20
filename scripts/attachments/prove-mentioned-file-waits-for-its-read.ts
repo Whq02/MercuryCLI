@@ -444,6 +444,39 @@ try {
       await fixture.close()
     }
   }
+
+  console.log('\nI — a 62 KB mentioned file when the provider address refuses with a bad-port Connection error: kept via estimate at once, never held 10 s')
+  {
+    const bigPath = file('big-read.txt', Array.from({ length: 1_000 }, (_, i) => `line ${String(i + 1).padStart(4, '0')} ${'a'.repeat(50)}`).join('\n') + '\n')
+    const realFetch = globalThis.fetch
+    const prevBase = process.env.ANTHROPIC_BASE_URL
+    const prevKey = process.env.ANTHROPIC_API_KEY
+    const prevScale = process.env.MERCURY_BUSY_RETRY_SCALE
+    let countAttempts = 0
+    process.env.ANTHROPIC_BASE_URL = 'https://127.0.0.1:9'
+    process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
+    delete process.env.MERCURY_BUSY_RETRY_SCALE
+    globalThis.fetch = (async () => {
+      countAttempts++
+      throw Object.assign(new TypeError('fetch failed'), { cause: new Error('bad port') })
+    }) as unknown as typeof fetch
+    try {
+      const started = performance.now()
+      const rows = (await mentioned(`look at @${bigPath} how many lines?`, mentionContext())) ?? []
+      const elapsed = performance.now() - started
+      check('I: the 62 KB mention finishes at once (< 2 s) without waiting for the 10 s ceiling', elapsed < 2_000, `${Math.round(elapsed)} ms (attempts=${countAttempts})`)
+      check('I: the file is attached via its estimate, never dropped as past the ceiling', rows.length === 1 && rows[0]!.type === 'file', j(rows.map(r => [r.type, r.reason])))
+      check('I: the count gave up on the first connection error without retrying', countAttempts === 1, `attempts=${countAttempts}`)
+    } finally {
+      globalThis.fetch = realFetch
+      if (prevBase === undefined) delete process.env.ANTHROPIC_BASE_URL
+      else process.env.ANTHROPIC_BASE_URL = prevBase
+      if (prevKey === undefined) delete process.env.ANTHROPIC_API_KEY
+      else process.env.ANTHROPIC_API_KEY = prevKey
+      if (prevScale === undefined) delete process.env.MERCURY_BUSY_RETRY_SCALE
+      else process.env.MERCURY_BUSY_RETRY_SCALE = prevScale
+    }
+  }
 } finally {
   process.chdir(priorCwd)
   rmSync(scratch, { recursive: true, force: true })

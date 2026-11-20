@@ -722,9 +722,11 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     process.exit(0)
   `)
   const errLinesC = r10c.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  const expectedFlushRe =
+    /^Could not save the settings changed in this session: .+[/\\]\.mercury\.json could not be written \(EPERM\); nothing was written and those changes were lost\. Close what holds the file, then try again\.$/
   check(
-    'w10-13(R10c): with no prior refusal, a failing exit flush still prints its existing sentence',
-    errLinesC.some(l => l.includes('The settings changed in this session could not be saved to ') && l.includes('they are lost — set them again next time.')),
+    'w10-13(R10c): with no prior refusal, a held-file exit flush prints the unified sentence without naming inner store steps',
+    errLinesC.some(l => expectedFlushRe.test(l)) && !r10c.stderr.includes('rename step'),
     `rc=${r10c.status} lines=${JSON.stringify(errLinesC)}`,
   )
 
@@ -748,8 +750,8 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
   `)
   const errLinesD = r10d.stderr.split('\n').map(l => l.trim()).filter(Boolean)
   check(
-    'w10-13(R10d): when a caller swallows a failed save without saying anything, the failing exit flush still prints its sentence',
-    errLinesD.some(l => l.includes('The settings changed in this session could not be saved to ') && l.includes('they are lost — set them again next time.')),
+    'w10-13(R10d): when a caller swallows a failed save without saying anything, the held-file exit flush prints the unified sentence',
+    errLinesD.some(l => expectedFlushRe.test(l)) && !r10d.stderr.includes('rename step'),
     `rc=${r10d.status} lines=${JSON.stringify(errLinesD)}`,
   )
 }

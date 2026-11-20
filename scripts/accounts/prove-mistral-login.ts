@@ -1,7 +1,8 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { strict as assert } from 'node:assert'
-import { rmSync, statSync, readFileSync } from 'node:fs'
+import { statSync, readFileSync } from 'node:fs'
 import { mistralFixture, MISTRAL_FIXTURE_API_KEY, MISTRAL_FIXTURE_ADMIN_KEY } from '../providers/lib/mistral-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of ['MISTRAL_API_KEY', 'MISTRAL_ADMIN_API_KEY']) delete process.env[name]
@@ -28,7 +29,7 @@ try {
   const saved = await storeMistralApiKeyLogin(key, { env })
   check('a listed key is stored with the model count, the account and the plan words, never its secret', saved.ok && saved.stored && saved.receipt.includes('6 chat models listed') && saved.receipt.includes('fixture@example.invalid (Fixture org / Fixture workspace)') && saved.receipt.includes('included monthly usage') && !saved.receipt.includes(key) && readStoredMistralApiKey() === key)
   check('the key leg read the model list and the identity, nothing of the admin road', fixture.requests.some(request => request.path === '/v1/models') && fixture.requests.some(request => request.path === '/v1/users/me' && request.headers['x-api-key'] === key) && !fixture.requests.some(request => request.path.startsWith('/v1/admin/')))
-  check('at-rest storage is auth-scoped and mode 600', providerSecretsPathForDisplay().startsWith(proofHome) && (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600)
+  check('at-rest storage is auth-scoped and mode 600', providerSecretsPathForDisplay().startsWith(proofHome) && (process.platform === 'win32' || (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600))
   check('sign-in recency records the Mistral key', readSignInLedger().mistral?.kind === 'api-key')
   check('account labels contain presence, never the secret', resolveMistralApiKey({})?.source === 'stored' && !JSON.stringify(resolveMistralAccount({} as NodeJS.ProcessEnv)).includes(key))
   process.env.MISTRAL_API_KEY = 'proof-key-mistral-env'
@@ -62,5 +63,9 @@ try {
   writeStoredMistralApiKey(null)
   writeStoredMistralAdminApiKey(null)
   fixture.stop()
-  rmSync(proofHome, { recursive: true, force: true })
+  try {
+    removeScratch(proofHome, { maxRetries: 4, retryDelayMs: 50 })
+  } catch (error) {
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EBUSY') throw error
+  }
 }

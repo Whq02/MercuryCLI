@@ -15,7 +15,7 @@ import { passedOver } from '../../../../utils/passedOver.js'
 
 export async function refuseUsageLimit(turn: OpenaiTurn, fault: AttemptFault): Promise<AssistantMessage> {
   const { auth } = turn
-  const { outcome, typed } = fault
+  const { outcome } = fault
   noteOpenaiSourceIdentity(auth.account.kind, openaiSourceIdentity(auth.account.kind))
   recordOpenaiUsageLimit(outcome.fault.resetsAtMs, auth.account.kind)
   const slotAppendix = ((): string => {
@@ -54,7 +54,7 @@ export async function refuseUsageLimit(turn: OpenaiTurn, fault: AttemptFault): P
   })()
   return withEffort(turn, stampProviderWait(
     markUnknownModel(apiErrorMessage(
-      busyPrefix(turn, `${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} request was refused (${outcome.fault.code}) — ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time. Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry now · pick another model via /model · switch the OpenAI source explicitly (s on the OpenAI row in /logins).'}${laneRemedy}`, outcome.fault, typed),
+      busyPrefix(turn, `${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} request was refused (${outcome.fault.code}) — ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time. Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry now · pick another model via /model · switch the OpenAI source explicitly (s on the OpenAI row in /logins).'}${laneRemedy}`, outcome.fault),
       openaiFaultToTypedError(outcome.fault),
       `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
     ), outcome.fault.status),

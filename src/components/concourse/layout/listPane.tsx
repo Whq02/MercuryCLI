@@ -18,7 +18,7 @@ function sectionNoticeNodes(notices: readonly string[] | undefined, t: MercuryTh
   if (!notices || notices.length === 0) return []
   return notices.map((notice, i) => (
     <Box key={`notice:${i}`} flexShrink={0} paddingX={1}>
-      <Text color={t.warning} wrap="truncate-end">
+      <Text color={t.warning} wrap="wrap">
         {notice}
       </Text>
     </Box>

@@ -159,7 +159,7 @@ export async function loadInitialMessages(
         return refuse(
           parsedSessionId.isJsonlFile
             ? `No conversation could be loaded from: ${typeof options.resume === 'string' ? options.resume : parsedSessionId.sessionId}`
-            : await resumeMissMessage(parsedSessionId.sessionId),
+            : await resumeMissMessage(parsedSessionId.sessionId, sourceFile),
         )
       }
 
