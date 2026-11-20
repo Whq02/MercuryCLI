@@ -166,6 +166,24 @@ try {
       chmodSync(lockedDir, 0o700)
     }
   }
+
+  console.log('\n6. JevEvalTool/jevEvalEvidence.ts: non-ENOENT stat failure says could not be read, not does not exist')
+  if (POSIX_MODES) {
+    const { expandJevEvalEvidence } = await import('../../src/tools/JevEvalTool/jevEvalEvidence.js')
+    const lockedDir = join(scratch, 'locked-jev')
+    mkdirSync(lockedDir, { recursive: true })
+    const fileInLocked = join(lockedDir, 'notes.txt')
+    writeFileSync(fileInLocked, 'hello\n')
+    chmodSync(lockedDir, 0o000)
+    try {
+      const eaccesRes = expandJevEvalEvidence([{ file: { path: fileInLocked } }])
+      check('jev-evidence-eacces: refuses with could not be read and EACCES, not does not exist', !eaccesRes.ok && eaccesRes.reason.includes('could not be read') && /EACCES|permission denied/i.test(eaccesRes.reason) && !eaccesRes.reason.includes('does not exist'), JSON.stringify(eaccesRes))
+      const enoentRes = expandJevEvalEvidence([{ file: { path: join(scratch, 'missing-jev.txt') } }])
+      check('jev-evidence-enoent: absent file still reports does not exist', !enoentRes.ok && enoentRes.reason.includes('does not exist'), JSON.stringify(enoentRes))
+    } finally {
+      chmodSync(lockedDir, 0o700)
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

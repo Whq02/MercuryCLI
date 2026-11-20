@@ -1,4 +1,5 @@
 import { basename, extname } from 'node:path'
+import { isENOENT } from '../../utils/errors.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { expandPath, hasControlCharacter, hasNulByte } from '../../utils/path.js'
 import {
@@ -305,8 +306,9 @@ function readEvidenceFile(index: number, given: string): FileRead {
     if (stat.isDirectory()) return refuse(`evidence[${index}].file.path ${path} is a directory, not a file; nothing was sent`)
     if (!stat.isFile()) return refuse(`evidence[${index}].file.path ${path} is not a regular file; nothing was sent`)
     size = stat.size
-  } catch {
-    return refuse(`evidence[${index}].file.path ${path} does not exist; nothing was sent`)
+  } catch (error) {
+    if (isENOENT(error)) return refuse(`evidence[${index}].file.path ${path} does not exist; nothing was sent`)
+    return refuse(`evidence[${index}].file.path ${path} could not be read (${error instanceof Error ? error.message : String(error)}); nothing was sent`)
   }
   if (size > JEV_EVAL_MAX_FILE_BYTES) return refuse(`evidence[${index}].file.path ${path} is ${size} bytes; a file of evidence is at most ${JEV_EVAL_MAX_FILE_BYTES} bytes (measured before reading); nothing was read and nothing was sent`)
   let text: string
