@@ -123,11 +123,9 @@ function cycleTolerant<T>(get: () => T): T | undefined {
   try {
     return get()
   } catch (error) {
-    if (error instanceof ReferenceError) {
-      passedOver(error)
-      return undefined
-    }
-    throw error
+    if (!(error instanceof ReferenceError)) logError(error)
+    passedOver(error)
+    return undefined
   }
 }
 
