@@ -224,5 +224,59 @@ else {
   check('restartCarry: genuinely absent agent folder still counts stopped', absentF.stopped === 1 && absentF.relaunched === 0, JSON.stringify(absentF))
 }
 
+console.log('\nclaimSession.ts — loadConversationForResume error reports resume failure instead of no conversation found')
+{
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const loading = await import(path.join(SRC, 'utils/sessionStorage/loading.ts'))
+    const sid = '33333333-3333-4333-8333-333333333333'
+    const file = loading.sessionFilePath(sid)
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, '{"type":"user"}\\n')
+    const shutdownCodes = []
+    const emitted = []
+    mock.module(path.join(SRC, 'utils/conversationRecovery.js'), () => ({
+      loadConversationForResume: async () => { throw new Error('disk read fault') },
+    }))
+    mock.module(path.join(SRC, 'utils/gracefulShutdown.js'), () => ({
+      gracefulShutdownSync: code => { shutdownCodes.push(code) },
+    }))
+    mock.module(path.join(SRC, 'cli/headless/resume.js'), () => ({
+      emitLoadError: message => { emitted.push(message) },
+    }))
+    const { claimSession } = await import(path.join(SRC, 'cli/headless/claimSession.ts'))
+    const live = { awaitingSessionClaim: true, claimSettling: null, runnerRestartReason: null }
+    const ports = {
+      armSessionRunnerWiring: async () => {},
+      driver: { kick: () => {} },
+      enqueueRow: () => {},
+      getAppState: () => ({ toolPermissionContext: { mode: 'default' } }),
+      heldNoticeWaits: () => false,
+      hydrateResumedRun: async () => {},
+      live,
+      liveMcp: { refresh: async () => {} },
+      liveScope: () => ({ session_id: sid }),
+      messages: [],
+      options: { outputFormat: 'text' },
+      peer: null,
+      persistBootModelRefusal: async () => {},
+      releaseQueueUntilClaimed: null,
+      setAppState: () => {},
+      settleClearBirth: () => {},
+      settleSessionBriefs: () => {},
+      wire: false,
+    }
+    await claimSession({ session_id: sid, resume: true }, ports)
+    await live.claimSettling
+    out.emitted = emitted
+    out.shutdownCodes = shutdownCodes
+  `)
+  const emitted = r.out.emitted as string[]
+  const codes = r.out.shutdownCodes as number[]
+  check('claimSession: resume load throw reports Failed to resume session with the error message', emitted.length === 1 && emitted[0] === 'Failed to resume session: disk read fault' && codes[0] === 1, JSON.stringify({ emitted, codes }))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
