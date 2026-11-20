@@ -103,16 +103,15 @@ function runScenario(body: string): Record<string, unknown> {
         encodeTranscriptLine(existing, { type: 'user', uuid: '00000000-0000-4000-8000-000000000012' })
         out.threw = null
       } catch (e) {
-        out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+        out.threw = String(e)
       } finally {
         fs.chmodSync(existing, 0o600)
       }
-      const absent = path.join(HOME, 'fresh.jsonl')
-      const fresh = encodeTranscriptLine(absent, { type: 'user', uuid: '00000000-0000-4000-8000-000000000013' })
-      out.freshHasHeader = fresh.line.includes('mercury-transcript-header')
+      const after = encodeTranscriptLine(existing, { type: 'user', uuid: '00000000-0000-4000-8000-000000000013' })
+      out.afterOrdinal = Number(after.record.creationOrdinal)
+      out.afterHasHeader = after.line.includes('mercury-transcript-header')
     `)
-    const threw = r.threw as { code: string | null; message: string } | null
-    check('vnext-unreadable-throws', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.freshHasHeader === true, JSON.stringify(r))
+    check('vnext-unreadable-not-cached', r.threw === null && Number(r.afterOrdinal) > 5 && r.afterHasHeader === false, JSON.stringify(r))
   }
 }
 {
