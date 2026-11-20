@@ -12,7 +12,7 @@ enableConfigs()
 const policy = await import('../../src/services/compact/autoCompact.ts')
 const { contextFillView } = await import('../../src/utils/contextFill.ts')
 const { contextLeftOutput } = await import('../../src/tools/ContextLeftTool/ContextLeftTool.ts')
-const forecast = await import('../../src/utils/cockpit/ctxForecast.ts')
+const forecast = await import('../../src/services/cockpit/ctxForecast.ts')
 const { foldAvailability, overflowRefusalText } = await import('../../src/services/compact/overflowRecovery.ts')
 let failures = 0
 let checks = 0

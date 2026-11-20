@@ -5,7 +5,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { isENOENT } from '../../utils/errors.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { findGitRoot } from '../../utils/git.js'
-import { projectLocalPath } from '../projectLocal/paths.js'
+import { projectLocalPath } from '../../utils/projectLocal/paths.js'
 import type { SettingSource } from '../../utils/settings/constants.js'
 import { decodeAgentDocument, validateAgentIdentifier } from './codec.js'
 import {

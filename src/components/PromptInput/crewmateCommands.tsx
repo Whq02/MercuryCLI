@@ -26,7 +26,7 @@ import {
 } from '../../utils/cockpit/crewmateWords.js'
 import { closeSettingsPopup, openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { getContextWindowForModel } from '../../utils/context.js'
-import { crewmateModelOverride } from '../../utils/crew/crewmateModelWord.js'
+import { crewmateModelOverride } from '../../services/crew/crewmateModelWord.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString, resolveStampedEffortTruth, selectableEffortLevels, type EffortLevel } from '../../utils/effort.js'
 import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'

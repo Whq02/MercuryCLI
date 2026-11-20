@@ -37,7 +37,7 @@ console.log("§1 the card's spelling matrix")
 
 console.log('\n§2 the substrate row mirrors the read')
 {
-  const { substrateSnapshot } = await import('../../src/utils/cockpit/substrateSnapshot.ts')
+  const { substrateSnapshot } = await import('../../src/services/cockpit/substrateSnapshot.ts')
   const rowFor = (v: string | undefined): { on: boolean; hint: string } | undefined => {
     if (v === undefined) delete process.env.MERCURY_SKILL_SELF_AUTH
     else process.env.MERCURY_SKILL_SELF_AUTH = v

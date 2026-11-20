@@ -1,7 +1,7 @@
 import { DaemonView } from '../../components/mercury-ui/parity/DaemonView.js'
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { haltAll, summarizeHalt } from '../../utils/haltAll.js'
+import { haltAll, summarizeHalt } from '../../daemon/haltAll.js'
 import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
 import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
 import type { LocalCommandResult, LocalJSXCommandCall } from '../../types/command.js'

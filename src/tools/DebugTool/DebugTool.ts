@@ -12,7 +12,7 @@ import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { expandPath } from '../../utils/path.js'
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
-import { findUnityProjectRoot, mercuryUnityEnabled } from '../../services/ide/unityProject.js'
+import { findUnityProjectRoot, mercuryUnityEnabled } from '../../utils/unity/unityProject.js'
 import {
   type DapBreakpointSpec,
   type DapFunctionBreakpointSpec,

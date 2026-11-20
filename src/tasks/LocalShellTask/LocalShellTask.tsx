@@ -44,7 +44,7 @@ import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './guard
 import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { pollUntil } from '../../utils/deadline.js'
 
 
 export const BACKGROUND_BASH_SUMMARY_PREFIX = 'Background command '
@@ -130,76 +130,70 @@ function armStallWatchdog(args: {
   agentId: string | undefined
 }): () => void {
   const outputPath = getTaskOutputPath(args.taskId)
-  let latched = false
+  const controller = new AbortController()
   let lastSize = 0
   let lastGrowthAt = Date.now()
-  let checking = false
 
-  const timer = startInterval(() => {
-    if (latched || checking) return
-    checking = true
-    void (async () => {
+  void pollUntil<true, void, void>(
+    async () => {
+      let size = lastSize
       try {
-        let size = lastSize
-        try {
-          size = (await fs.promises.stat(outputPath)).size
-        } catch (error) {
-          passedOver(error)
-          return
-        }
-        if (size > lastSize) {
-          lastSize = size
-          lastGrowthAt = Date.now()
-          return
-        }
-        if (Date.now() - lastGrowthAt < WATCHDOG_STALL_THRESHOLD_MS) return
-        let tail: { content: string }
-        try {
-          tail = await tailFile(outputPath, WATCHDOG_TAIL_BYTES)
-        } catch (error) {
-          passedOver(error)
-          return
-        }
-        if (!looksLikePrompt(tail.content)) {
-          lastGrowthAt = Date.now()
-          return
-        }
-        if (latched) return
-        latched = true
-        stopInterval(timer)
-        const lastOutput = tail.content.trimEnd()
-        const summary =
-          `${BACKGROUND_BASH_SUMMARY_PREFIX}"${args.description}" seems to be blocked ` +
-          `waiting for keyboard input`
-        const toolUseIdLine = args.toolUseId
-          ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
-          : ''
-        const message = `<${TASK_NOTIFICATION_TAG}>
+        size = (await fs.promises.stat(outputPath)).size
+      } catch (error) {
+        passedOver(error)
+        return undefined
+      }
+      if (size > lastSize) {
+        lastSize = size
+        lastGrowthAt = Date.now()
+        return undefined
+      }
+      if (Date.now() - lastGrowthAt < WATCHDOG_STALL_THRESHOLD_MS) return undefined
+      let tail: { content: string }
+      try {
+        tail = await tailFile(outputPath, WATCHDOG_TAIL_BYTES)
+      } catch (error) {
+        passedOver(error)
+        return undefined
+      }
+      if (!looksLikePrompt(tail.content)) {
+        lastGrowthAt = Date.now()
+        return undefined
+      }
+      if (controller.signal.aborted) return true
+      const lastOutput = tail.content.trimEnd()
+      const summary =
+        `${BACKGROUND_BASH_SUMMARY_PREFIX}"${args.description}" seems to be blocked ` +
+        `waiting for keyboard input`
+      const toolUseIdLine = args.toolUseId
+        ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
+        : ''
+      const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
 <${OUTPUT_FILE_TAG}>${outputPath}</${OUTPUT_FILE_TAG}>
 <${SUMMARY_TAG}>${keepTagClosed(
-          `${summary}. Last output:\n${lastOutput}\n` +
-            `To proceed: stop the task, then launch the command again with its answers ` +
-            `piped into standard input, or with whatever non-interactive option it offers.`,
-          SUMMARY_TAG,
-        )}</${SUMMARY_TAG}>
+        `${summary}. Last output:\n${lastOutput}\n` +
+          `To proceed: stop the task, then launch the command again with its answers ` +
+          `piped into standard input, or with whatever non-interactive option it offers.`,
+        SUMMARY_TAG,
+      )}</${SUMMARY_TAG}>
 </${TASK_NOTIFICATION_TAG}>`
-        enqueuePendingNotification({
-          value: message,
-          mode: 'task-notification',
-          priority: 'next',
-          agentId: args.agentId as AgentId | undefined,
-        })
-      } finally {
-        checking = false
-      }
-    })()
-  }, WATCHDOG_POLL_INTERVAL_MS)
-  timer.unref?.()
+      enqueuePendingNotification({
+        value: message,
+        mode: 'task-notification',
+        priority: 'next',
+        agentId: args.agentId as AgentId | undefined,
+      })
+      return true
+    },
+    WATCHDOG_POLL_INTERVAL_MS,
+    Infinity,
+    () => {},
+    { signal: controller.signal, onAbort: () => {}, unref: true },
+  )
 
   return () => {
-    latched = true
-    stopInterval(timer)
+    controller.abort()
   }
 }
 

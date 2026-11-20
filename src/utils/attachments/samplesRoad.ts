@@ -1,4 +1,4 @@
-import { samplesEnabled } from '../../services/samples/contracts.js'
+import { samplesEnabled } from '../samples/contracts.js'
 import type { Message } from '../../types/message.js'
 import type { Attachment } from './types.js'
 

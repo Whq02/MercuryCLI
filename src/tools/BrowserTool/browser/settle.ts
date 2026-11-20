@@ -10,8 +10,9 @@ import {
 } from '../../../services/browser/browserSession.js'
 import { emulationActive, emulationSummary, inheritEmulation } from '../../../services/browser/browserEmulation.js'
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
-import { type LiveSession, bounded, pageWhere } from './page.js'
+import { type LiveSession, pageWhere } from './page.js'
 import { downloadWords } from './downloads.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 
 interface ActMarks {
@@ -29,27 +30,31 @@ export function markAct(s: LiveSession): ActMarks {
 
 export async function settleAfterAct(s: LiveSession, deadline: number, marks: ActMarks): Promise<void> {
   if (s.popups.count === marks.popups && !popupInFlight(s)) {
-    await Promise.race([
-      s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))).catch(passedOverAs(undefined)),
-      bounded(1000),
-      new Promise<void>(wake => s.popups.waiters.push(wake)),
-    ])
+    await withDeadline(
+      new Promise<void>(wake => {
+        s.popups.waiters.push(wake)
+        void s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))).then(() => wake(), () => wake())
+      }),
+      1000,
+      () => {},
+      { unref: true },
+    )
   }
   await popupsSettled(s)
   const until = Date.now() + deadline
   while ((s.navWatch.pendingUrl !== null || s.navWatch.frames > 0) && Date.now() < until) {
-    await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(until - Date.now())])
+    await withDeadline(new Promise<void>(wake => s.navWatch.waiters.push(wake)), Math.max(0, until - Date.now()), () => {}, { unref: true })
   }
   if (s.navWatch.abortedAt >= marks.at && s.downloads.count === marks.downloads) {
-    await Promise.race([new Promise<void>(wake => s.downloads.waiters.push(wake)), bounded(1000)])
+    await withDeadline(new Promise<void>(wake => s.downloads.waiters.push(wake)), 1000, () => {}, { unref: true })
   }
   const download = s.downloads.last
-  if (download !== null && s.downloads.count > marks.downloads) await Promise.race([download.transfer?.done ?? download.done, bounded(1000)])
+  if (download !== null && s.downloads.count > marks.downloads) await withDeadline(download.transfer?.done ?? download.done, 1000, () => {}, { unref: true })
 }
 
 export async function errorPageSettled(s: LiveSession): Promise<void> {
   if (s.navFailure.last === null || isBrowserErrorPage(s.page.url())) return
-  await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(1000)])
+  await withDeadline(new Promise<void>(wake => s.navWatch.waiters.push(wake)), 1000, () => {}, { unref: true })
 }
 
 export function firstRequestWords(s: LiveSession): string {

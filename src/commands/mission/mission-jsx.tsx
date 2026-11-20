@@ -60,7 +60,7 @@ async function sessionMissionCard(): Promise<SessionMissionCardRead> {
   const fact = connector.workRoster().missionCard
   if (fact !== undefined && fact !== null) return { state: 'ok', card: fact }
   try {
-    const { inspectMissionCard, missionCardUnreadWords } = await import('../../services/mission/missionCard.js')
+    const { inspectMissionCard, missionCardUnreadWords } = await import('../../utils/mission/missionCard.js')
     const read = inspectMissionCard(connector.sessionId(), connector.workspace().originalCwd)
     if (read.state === 'unreadable') {
       passedOver(read.error)

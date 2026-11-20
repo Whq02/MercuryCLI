@@ -122,7 +122,7 @@ export function interfaceChecks(): CheckSpec[] {
       id: 'iface-samples',
       label: 'Samples',
       run: async () => {
-        const { samplesEnabled } = await import('../../samples/contracts.js')
+        const { samplesEnabled } = await import('../../../utils/samples/contracts.js')
         const on = samplesEnabled()
         return {
           status: on ? ('ok' as const) : ('info' as const),

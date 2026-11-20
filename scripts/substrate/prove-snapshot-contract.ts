@@ -17,17 +17,17 @@ function setStamp(on: boolean): void {
   else delete (globalThis as Record<string, unknown>)[MACRO_KEY]
 }
 
-const BASE = '../../src/utils/cockpit/'
+const BASE = '../../src/'
 const BRIDGES: Array<[string, string]> = [
-  ['substrateSnapshot', 'substrateSnapshot'],
-  ['permissionsSnapshot', 'permissionsSnapshot'],
-  ['mcpGauge', 'mcpGauge'],
-  ['daemonSnapshot', 'daemonSnapshot'],
-  ['fleetGauge', 'fleetGauge'],
-  ['traceSnapshot', 'traceSnapshot'],
-  ['gitSnapshot', 'gitSnapshot'],
-  ['modelGauge', 'modelGauge'],
-  ['contextGauge', 'contextGauge'],
+  ['services/cockpit/substrateSnapshot', 'substrateSnapshot'],
+  ['services/cockpit/permissionsSnapshot', 'permissionsSnapshot'],
+  ['services/cockpit/mcpGauge', 'mcpGauge'],
+  ['services/cockpit/daemonSnapshot', 'daemonSnapshot'],
+  ['services/cockpit/fleetGauge', 'fleetGauge'],
+  ['utils/cockpit/traceSnapshot', 'traceSnapshot'],
+  ['utils/cockpit/gitSnapshot', 'gitSnapshot'],
+  ['services/cockpit/modelGauge', 'modelGauge'],
+  ['utils/cockpit/contextGauge', 'contextGauge'],
 ]
 
 let fail = 0

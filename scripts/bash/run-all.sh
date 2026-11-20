@@ -4,7 +4,7 @@
 # gate-watch: src/tasks/LocalShellTask/*
 # gate-watch: src/tools/TaskStopTool/*
 # gate-watch: src/utils/hooks/background.ts src/tools/MonitorTool/*
-# gate-watch: src/services/projectLocal/paths.ts
+# gate-watch: src/utils/projectLocal/paths.ts
 # gate-watch: src/utils/shell/shellProvider*
 # gate-watch: src/utils/*
 # gate-watch: src/utils/hooks/fire.ts
@@ -12,7 +12,7 @@
 # gate-watch: .gitattributes
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/messages/**
-# gate-watch: src/services/structure/grammarFacility.ts
+# gate-watch: src/utils/structure/grammarFacility.ts
 # gate-watch: src/utils/shell/** src/utils/bash/** src/utils/powershell/** src/tools/PowerShellTool/** src/tasks/LocalShellTask/**
 # gate-watch: src/cli/headless/*
 set -u

@@ -1094,7 +1094,7 @@ let grammarPackMissing: string[] = [];
   const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_TREESITTER === '1';
   const srcDir = resolve(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm');
   const wasmDir = resolve(srcDir, 'wasm');
-  const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('./src/services/structure/grammarRegistry.ts');
+  const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('./src/utils/structure/grammarRegistry.ts');
   const vscodeWasms = GRAMMAR_REGISTRY.filter(g => (g.source ?? 'vscode-pack') === 'vscode-pack').map(g => g.wasm);
   const packWasms = GRAMMAR_REGISTRY.filter(g => g.source === 'grammar-pack').map(g => g.wasm);
   const runtimeFiles = [...GRAMMAR_ENGINE_RUNTIME_FILES];

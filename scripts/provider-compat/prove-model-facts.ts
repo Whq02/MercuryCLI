@@ -17,7 +17,7 @@ enableConfigs()
 const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
 const { SettingsSchema } = await import(`${root}/src/utils/settings/types.ts`)
 const capabilities = await import(`${root}/src/utils/model/capabilities.ts`)
-const pricing = await import(`${root}/src/utils/modelCost.ts`)
+const pricing = await import(`${root}/src/services/usage/modelCost.ts`)
 const { isModelAllowed } = await import(`${root}/src/utils/model/modelAllowlist.ts`)
 const factsOwner = existsSync(`${root}/src/utils/model/modelOverrides.ts`) ? await import(`${root}/src/utils/model/modelOverrides.ts`) : undefined
 let checks = 0

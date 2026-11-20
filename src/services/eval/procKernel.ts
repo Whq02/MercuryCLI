@@ -12,6 +12,7 @@ import {
 import { EVAL_SHUTDOWN_GRACE_MS } from './contracts.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree, strikeProcessGroupNow } from '../../utils/processGroup.js'
+import { withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
@@ -349,16 +350,11 @@ export class ProcKernel {
     if (!this.alive) return
     this.send({ t: 'bye' })
     const exited = (): Promise<void> => (this.alive ? once(this.child, 'exit').then(() => undefined) : Promise.resolve())
-    const grace = (ms: number): Promise<'timeout'> =>
-      new Promise(resolve => {
-        const t = startTimeout(() => resolve('timeout'), ms)
-        t.unref?.()
-      })
-    if ((await Promise.race([exited(), grace(EVAL_SHUTDOWN_GRACE_MS)])) === 'timeout' && this.alive) {
+    if ((await withDeadline(exited(), EVAL_SHUTDOWN_GRACE_MS, () => 'timeout' as const, { unref: true })) === 'timeout' && this.alive) {
       await endProcessTree(this.child, 'SIGTERM')
-      if ((await Promise.race([exited(), grace(EVAL_SHUTDOWN_GRACE_MS)])) === 'timeout' && this.alive) {
+      if ((await withDeadline(exited(), EVAL_SHUTDOWN_GRACE_MS, () => 'timeout' as const, { unref: true })) === 'timeout' && this.alive) {
         await endProcessTree(this.child, 'SIGKILL')
-        await Promise.race([exited(), grace(1_000)])
+        await withDeadline(exited(), 1_000, () => 'timeout' as const, { unref: true })
       }
     }
     await endProcessTree(this.child, 'SIGKILL')

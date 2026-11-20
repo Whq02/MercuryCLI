@@ -1,6 +1,7 @@
 
 import { configuredCompatEndpoints } from '../services/providers/openaicompat/compatAccounts.js'
 import { cachedCompatCatalogue, compatEndpointPodTerminated } from '../services/providers/openaicompat/compatCatalogue.js'
+import { META_SIGN_IN_ROADS } from '../utils/model/loginWords.js'
 export type LoginFamilyValue =
   | 'anthropic'
   | 'openai'
@@ -54,7 +55,6 @@ export function tensorFoldFamilyRow(offer: TensorFoldOffer): LoginFamilyRow {
   return { label: `TensorFold — ${words} (/tensorfold)`, value: TENSORFOLD_FAMILY_VALUE }
 }
 
-export const META_SIGN_IN_ROADS = 'Muse Code sign-in or API key'
 export const META_LOGIN_FAMILY_LABEL = `Meta — ${META_SIGN_IN_ROADS}`
 export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or Console sign-in / API key'
 

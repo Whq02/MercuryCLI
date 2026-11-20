@@ -216,7 +216,7 @@ export async function countTokensViaHaikuFallback(
   try {
     const [{ addToTotalSessionCost }, { calculateUSDCost }, { EMPTY_USAGE }] = await Promise.all([
       import('../cost-tracker.js'),
-      import('../utils/modelCost.js'),
+      import('./usage/modelCost.js'),
       import('./api/emptyUsage.js'),
     ])
     const billed = {

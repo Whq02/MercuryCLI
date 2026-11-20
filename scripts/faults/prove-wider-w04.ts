@@ -596,7 +596,7 @@ try {
 
   {
     const { setActiveMission, clearActiveMission, missionCardView } = await import('../../src/guards/mission.ts')
-    const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
+    const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
     const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
     const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
     const { dirname } = await import('node:path')

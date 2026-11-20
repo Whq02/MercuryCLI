@@ -15,7 +15,7 @@ import {
   buildUnityBridgeHelloFrame,
   buildUnityBridgeRequestFrame,
   parseUnityBridgeFrame,
-} from '../../src/services/unity/bridgeProtocol.js'
+} from '../../src/utils/unity/bridgeProtocol.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

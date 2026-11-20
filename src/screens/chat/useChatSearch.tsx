@@ -17,7 +17,7 @@ import { useKeybinding } from '../../keybindings/useKeybinding.js';
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
 import type { Tools } from '../../Tool.js';
 import type { Message } from '../../types/message.js';
-import { renderMessagesToPlainText } from '../../utils/exportRenderer.js';
+import { renderMessagesToPlainText } from '../../components/exportRenderer.js';
 import { parseSearchQuery } from '../../utils/transcriptSearch.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { Screen } from './screen.js';

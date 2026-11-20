@@ -2,7 +2,7 @@
 import type { DOMElement } from '../../ink.js'
 import { useAnimationValue } from '../../ink/hooks/use-animation-value.js'
 import { stringWidth } from '../../ink/stringWidth.js'
-import type { SpinnerMode } from './types.js'
+import type { SpinnerMode } from '../../types/spinner.js'
 import { FOCAL_TICK_MS, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 
 const CYCLE_PAD = 20

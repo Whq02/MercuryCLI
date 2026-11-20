@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
-import { projectLocalPath } from '../../projectLocal/paths.js'
+import { projectLocalPath } from '../../../utils/projectLocal/paths.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
 const ENGINE_MANIFEST_FILE = 'engine-suites.json'

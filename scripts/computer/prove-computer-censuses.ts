@@ -2,7 +2,7 @@
 import { check, finish, section, sourceText } from './computerProofKit.ts'
 import { COMPUTER_ACTIONS } from './computerToolKit.ts'
 
-const { CAPABILITY_UNITS } = await import('../../src/utils/capability/census.ts')
+const { CAPABILITY_UNITS } = await import('../../src/services/capability/census.ts')
 const { EXECUTION_DOMAIN_CENSUS } = await import('../../src/services/primitives/executionCensus.ts')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
 const state = await import('../../src/bootstrap/state.ts')

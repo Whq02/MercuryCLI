@@ -14,7 +14,7 @@ process.env.MERCURY_GEMINI_API_BASE = `http://127.0.0.1:${server.port}/v1beta`
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 let failures = 0
 try {
   for (const [list, expected] of [[ids, 'gemini-3.8-flash'], [['gemini-2.5-flash', 'gemini-3.7-flash'], 'gemini-3.7-flash'], [['gemini-2.5-flash'], 'gemini-2.5-flash']] as Array<[string[], string]>) {

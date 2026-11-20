@@ -31,7 +31,7 @@ const { getPublicModelDisplayName, getMarketingNameForModel, renderModelChip } =
   '../../src/utils/model/model.js'
 )
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/utils/modelCost.js')
+const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/services/usage/modelCost.js')
 const { decideModelTransition, providerFamilyOfSetting, crossProviderNote } = await import(
   '../../src/utils/model/modelTransition.js'
 )

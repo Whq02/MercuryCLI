@@ -1,6 +1,6 @@
 import { isInvocationTraceEnabled } from '../../../../utils/observability/invocationTrace.js'
-import { mcpGauge } from '../../../../utils/cockpit/mcpGauge.js'
-import { substrateSnapshot } from '../../../../utils/cockpit/substrateSnapshot.js'
+import { mcpGauge } from '../../../cockpit/mcpGauge.js'
+import { substrateSnapshot } from '../../../cockpit/substrateSnapshot.js'
 import { describeUntrustedMcpHardening, getMcpPolicyRejects } from '../../../mcp/toolPolicy.js'
 import { summarizeMcpAuthCurrency } from '../../../mcp/auth.js'
 import { describeMcpProtocolCurrency } from '../../../mcp/protocolRevision.js'

@@ -18,9 +18,9 @@ writeFileSync(join(DIR, 'not-a-grammar.wasm'), 'these bytes are no wasm at all')
 writeFileSync(join(DIR, 'package.json'), JSON.stringify({ type: 'commonjs' }, null, 2) + '\n')
 process.env.MERCURY_TREESITTER_VENDOR_DIR = DIR
 
-const facility = await import('../../src/services/structure/grammarFacility.ts')
+const facility = await import('../../src/utils/structure/grammarFacility.ts')
 const { loadGrammarEngine, _resetFragileProbeForTesting } = facility
-const { GRAMMAR_REGISTRY } = await import('../../src/services/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY } = await import('../../src/utils/structure/grammarRegistry.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { BlenderBridgeClient } from '../../src/services/blender/bridgeClient.js'
-import { BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES } from '../../src/services/blender/bridgeProtocol.js'
+import { BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES } from '../../src/utils/blender/bridgeProtocol.js'
 import { startFakeBlenderBridge } from './fake-bridge.js'
 
 let failures = 0

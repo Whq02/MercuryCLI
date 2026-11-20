@@ -38,7 +38,7 @@ const perM = (tokens: number, rate: number): number => (tokens * rate) / 1e6
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 
-const cost = await import('../../src/utils/modelCost.ts')
+const cost = await import('../../src/services/usage/modelCost.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const { glmPricePin } = await import('../../src/services/providers/zai/glmPins.ts')
 const { geminiPricePin, geminiPriceTierFor } = await import('../../src/services/providers/gemini/geminiPins.ts')
@@ -397,7 +397,7 @@ section('nous — the list\'s own long tier: pricing.overrides chosen by prompt 
 
 section('a price that turns on a date is the price of the day the request was made: as it settles, resumed and in /usage')
 {
-  const { readUsageHistory } = await import('../../src/utils/usageHistory.ts')
+  const { readUsageHistory } = await import('../../src/services/usage/usageHistory.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
   const RealDate = Date

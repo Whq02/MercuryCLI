@@ -18,7 +18,7 @@ const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/utils/mo
 const { xaiCatalogueEntries } = await import('../../src/services/providers/xai/xaiAdapter.ts')
 const { keyLanePins, getModelOptions, XAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
 const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
 let count = 0
 const check = (name: string, ok: unknown): void => { assert.ok(ok, name); count++; console.log(`[PASS] ${name}`) }

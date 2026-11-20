@@ -18,7 +18,7 @@ import {
   findUnityProjectRoot,
   mercuryUnityEnabled,
   type UnityProjectResult,
-} from './unityProject.js'
+} from '../../utils/unity/unityProject.js'
 import { readUnityTestResults } from './unityTests.js'
 
 export const UNITY_LANES_ARM_SURFACE =

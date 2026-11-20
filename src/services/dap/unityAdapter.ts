@@ -7,7 +7,7 @@ import { whichSync } from '../../utils/which.js'
 import {
   compareUnityVersionsDesc,
   findUnityProjectRoot,
-} from '../ide/unityProject.js'
+} from '../../utils/unity/unityProject.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const UNITY_DAP_ADAPTER_KEY = 'unity'

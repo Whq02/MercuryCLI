@@ -23,7 +23,7 @@ const {
   readUnityTestResults,
   unityRerunFailedArgs,
 } = await import('../../src/services/ide/unityTests.js')
-const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.js')
+const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.js')
 
 const fixtures = path.join(import.meta.dir, 'fixtures', 'unity')
 const load = (name: string): string => readFileSync(path.join(fixtures, name), 'utf8')

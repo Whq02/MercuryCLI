@@ -147,7 +147,7 @@ const { buildLocalExtras } = await import('../../src/services/providers/openaico
 const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
 const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 
 section('1 · the probe set + one bounded discovery pass')
 {
@@ -324,7 +324,7 @@ section('8 · identity collision across servers (the namespace law)')
 
 section('9 · the cockpit gauge on a local main (the model line is the served truth)')
 {
-  const g = await import('../../src/utils/cockpit/modelGauge.ts')
+  const g = await import('../../src/services/cockpit/modelGauge.ts')
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })

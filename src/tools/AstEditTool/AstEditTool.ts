@@ -15,7 +15,7 @@ import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snaps
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { structurePolyglotEnabled } from '../../services/structure/contracts.js'
-import { resolveGrammarEngineDir } from '../../services/structure/grammarFacility.js'
+import { resolveGrammarEngineDir } from '../../utils/structure/grammarFacility.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,

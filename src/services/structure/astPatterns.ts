@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { buildDiffHunks } from '../changeTransaction/diffBudget.js'
-import { loadGrammarEngine, parsePolyglot, patternLanguageForFile, type TSNode } from './grammarFacility.js'
+import { loadGrammarEngine, parsePolyglot, patternLanguageForFile, type TSNode } from '../../utils/structure/grammarFacility.js'
 import { encodePattern, substituteRewrite } from './pattern.js'
 import { applyEdits, digestOf, lineExtendedRange, type Edit } from './transform.js'
 import { AST_BOUNDS } from './astPatterns/languages.js'

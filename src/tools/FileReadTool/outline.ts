@@ -3,7 +3,7 @@ import {
   loadGrammarEngine,
   parsePolyglot,
   type TSNode,
-} from '../../services/structure/grammarFacility.js'
+} from '../../utils/structure/grammarFacility.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { addAnchoredLineNumbers } from '../../services/changeTransaction/lineAnchors.js'
 import { addLineNumbers } from '../../utils/file.js'
