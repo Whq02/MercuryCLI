@@ -447,7 +447,7 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
     depth: 'fast' as const,
     sections: [
       { id: 'runtime', title: 'RUNTIME', checks: [buildCheck, nodeCheck, mcpCheck] },
-      { id: 'plugins', title: 'PLUGINS', checks: [extCheck] },
+      { id: 'durability', title: 'DURABILITY', checks: [extCheck] },
     ],
   })
 
@@ -456,7 +456,7 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
   const progressiveBeforeEnter: ReportFixture = async opts => {
     opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: buildCheck, done: 1, total: 4 })
     opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: nodeCheck, done: 2, total: 4 })
-    opts?.onProgress?.({ sectionId: 'plugins', sectionTitle: 'PLUGINS', check: extCheck, done: 3, total: 4 })
+    opts?.onProgress?.({ sectionId: 'durability', sectionTitle: 'DURABILITY', check: extCheck, done: 3, total: 4 })
     await lateA
     opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: mcpCheck, done: 4, total: 4 })
     return finalCert() as never
@@ -489,7 +489,7 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
   const progressiveAfterEnter: ReportFixture = async opts => {
     opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: buildCheck, done: 1, total: 4 })
     opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: nodeCheck, done: 2, total: 4 })
-    opts?.onProgress?.({ sectionId: 'plugins', sectionTitle: 'PLUGINS', check: extCheck, done: 3, total: 4 })
+    opts?.onProgress?.({ sectionId: 'durability', sectionTitle: 'DURABILITY', check: extCheck, done: 3, total: 4 })
     await lateB
     opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: mcpCheck, done: 4, total: 4 })
     return finalCert() as never
@@ -520,7 +520,7 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
   let releaseLateC: (() => void) | null = null
   const lateC = new Promise<void>(resolve => { releaseLateC = resolve })
   const progressiveAtRest: ReportFixture = async opts => {
-    opts?.onProgress?.({ sectionId: 'plugins', sectionTitle: 'PLUGINS', check: extCheck, done: 1, total: 4 })
+    opts?.onProgress?.({ sectionId: 'durability', sectionTitle: 'DURABILITY', check: extCheck, done: 1, total: 4 })
     await lateC
     opts?.onProgress?.({ sectionId: 'runtime', sectionTitle: 'RUNTIME', check: buildCheck, done: 2, total: 4 })
     return finalCert() as never
