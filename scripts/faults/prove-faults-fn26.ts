@@ -148,6 +148,24 @@ try {
       chmodSync(lockedDir, 0o700)
     }
   }
+
+  console.log('\n5. GitTool/GitTool.ts: non-ENOENT stat failure on cwd is not reported as missing')
+  if (POSIX_MODES) {
+    const { GitTool } = await import('../../src/tools/GitTool/GitTool.js')
+    const lockedDir = join(scratch, 'locked-git')
+    mkdirSync(lockedDir, { recursive: true })
+    const repoInLocked = join(lockedDir, 'repo')
+    mkdirSync(repoInLocked, { recursive: true })
+    chmodSync(lockedDir, 0o000)
+    try {
+      const eaccesRes = await GitTool.validateInput!({ op: 'status', cwd: repoInLocked }, {} as never)
+      check('git-cwd-eacces: refuses with EACCES instead of saying cwd does not exist', !eaccesRes.result && /EACCES|permission denied/i.test(eaccesRes.message) && !eaccesRes.message.includes('cwd does not exist'), JSON.stringify(eaccesRes))
+      const enoentRes = await GitTool.validateInput!({ op: 'status', cwd: join(scratch, 'no-such-repo') }, {} as never)
+      check('git-cwd-enoent: absent cwd still reports cwd does not exist', !enoentRes.result && enoentRes.message.includes('cwd does not exist'), JSON.stringify(enoentRes))
+    } finally {
+      chmodSync(lockedDir, 0o700)
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
