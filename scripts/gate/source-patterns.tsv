@@ -76,7 +76,9 @@ setTimeout	src/hooks/usePrStatus.ts	1
 setTimeout	src/hooks/useTurnEndPing.ts	1
 setTimeout	src/ink/components/App.tsx	4
 setTimeout	src/ink/components/Button.tsx	1
-setTimeout	src/ink/ink.tsx	4
+setTimeout	src/ink/ink/alt-screen.ts	1
+setTimeout	src/ink/ink/resize.ts	1
+setTimeout	src/ink/ink/stdin.ts	2
 setTimeout	src/ink/reconciler.ts	1
 setTimeout	src/ink/root/render-scheduler.ts	1
 setTimeout	src/ink/session/querier.ts	2
@@ -330,7 +332,7 @@ queueMicrotask	src/components/PromptInput/useComposerSubmit.ts	1
 queueMicrotask	src/components/mercury-ui/screens/anthropicLoginModel.ts	1
 queueMicrotask	src/guards/guards.ts	1
 queueMicrotask	src/ink/components/ScrollBox.tsx	1
-queueMicrotask	src/ink/ink.tsx	2
+queueMicrotask	src/ink/ink/frame-loop.ts	2
 queueMicrotask	src/ink/root.ts	2
 queueMicrotask	src/ink/root/render-scheduler.ts	1
 queueMicrotask	src/runner/wire/peer.ts	1
@@ -653,7 +655,8 @@ as-unknown-as	src/daemon/run/control.ts	1
 as-unknown-as	src/entrypoints/mcp.ts	3
 as-unknown-as	src/fabric/entryCodec.ts	8
 as-unknown-as	src/ink/compose-walk.ts	1
-as-unknown-as	src/ink/ink.tsx	2
+as-unknown-as	src/ink/ink/console-patch.ts	1
+as-unknown-as	src/ink/ink/stdin.ts	1
 as-unknown-as	src/ink/layout/cellLayout.ts	1
 as-unknown-as	src/ink/reconciler.ts	1
 as-unknown-as	src/ink/root/console-read.ts	1
@@ -1036,7 +1039,12 @@ empty-catch	src/hooks/fileSuggestions.ts	2
 empty-catch	src/hooks/useVirtualScroll.ts	1
 empty-catch	src/ink/compose-walk.ts	1
 empty-catch	src/ink/geometry/hit.ts	1
-empty-catch	src/ink/ink.tsx	14
+empty-catch	src/ink/ink.tsx	1
+empty-catch	src/ink/ink/console-patch.ts	1
+empty-catch	src/ink/ink/exit.ts	1
+empty-catch	src/ink/ink/stdin.ts	4
+empty-catch	src/ink/ink/stop-continue.ts	2
+empty-catch	src/ink/ink/tees.ts	5
 empty-catch	src/ink/launcherAltHold.ts	1
 empty-catch	src/ink/layout/cellLayout.ts	1
 empty-catch	src/ink/reconciler.ts	1
@@ -2338,7 +2346,8 @@ env-read	src/ink/bidi.ts	2
 env-read	src/ink/colorize.ts	10
 env-read	src/ink/components/App.tsx	1
 env-read	src/ink/compose-walk.ts	2
-env-read	src/ink/ink.tsx	6
+env-read	src/ink/ink.tsx	1
+env-read	src/ink/ink/tees.ts	5
 env-read	src/ink/layout/cellLayout.ts	1
 env-read	src/ink/reconciler.ts	2
 env-read	src/ink/renderer.ts	1

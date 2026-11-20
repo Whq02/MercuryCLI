@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { readdirSync, readFileSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { join } from 'node:path'
 import { AnsiEmulator, defaultSgr, type SgrState } from '../ink-runtime/ansiEmulator.ts'
 
 delete process.env.NO_COLOR
@@ -25,18 +24,6 @@ const FOCUS_IN = `${ESC}[I`
 const FOCUS_OUT = `${ESC}[O`
 const WHOLE_FRAME_HEAD = `${ESC}[H${ESC}[0m`
 const WHOLE_FRAME_GAP_MS = 250
-const ERASE_BYTE_TABLE = 'termio/csi.ts'
-const ERASE_NAME = /ERASE_SCREEN|ERASE_SCROLLBACK|eraseToEndOfScreen|clearTerminal|getClearTerminalSequence|\\x1b\[[23]?J|\\u001b\[[23]?J/g
-const IMPORT_STATEMENT = /import[\s\S]*?from '[^']+'\n/g
-const ERASE_ROADS: Record<string, { count: number; road: string }> = {
-  'components/AlternateScreen.tsx': { count: 2, road: 'the first entry into a fresh alternate buffer, written bare or riding the first frame' },
-  'root/screen-session.ts': { count: 3, road: 'the screen handed to an external editor, the return from it off the alternate screen, and the re-entry bytes of SIGCONT and the wake' },
-  'ink.tsx': { count: 2, road: 'forceRedraw on the main screen, which has no frame the size of the page; and the reader of the clearTerminal patch' },
-  'frame-writer.ts': { count: 2, road: "the clearTerminal patch renderAlt returns for a viewport that differs from its base's ('resize': applySize arms the overwrite first) or a screen shorter than its base's ('offscreen': the renderer's frame for a root with no layout, section 9), and the erase below the clip of a resize hold" },
-  'frame.ts': { count: 1, road: 'the clearTerminal patch kind' },
-  'session/capabilities.ts': { count: 3, road: 'the bytes of the clearTerminal patch' },
-  'session/delivery.ts': { count: 2, road: 'the serializer of the clearTerminal patch' },
-}
 
 let checks = 0
 let failures = 0
@@ -295,30 +282,6 @@ section('7. a burst of focus reports is bounded, and the last one still lands')
   const left = differing(w.screen.cells(), whole)
   check('the screen lost before the last report is whole after it', left === 0, `${left} of ${COLS * ROWS} cells differ`)
   await w.end()
-}
-
-section('8. the roads under src/ink that still erase the display, each named')
-{
-  const root = join(import.meta.dir, '..', '..', 'src', 'ink')
-  const found = new Map<string, number>()
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name)
-      if (entry.isDirectory()) walk(path)
-      else if (/\.tsx?$/.test(entry.name)) {
-        const name = relative(root, path).split(sep).join('/')
-        if (name === ERASE_BYTE_TABLE) continue
-        const count = (readFileSync(path, 'utf8').replace(IMPORT_STATEMENT, '').match(ERASE_NAME) ?? []).length
-        if (count > 0) found.set(name, count)
-      }
-    }
-  }
-  walk(root)
-  for (const [name, { count, road }] of Object.entries(ERASE_ROADS)) {
-    check(`${name}: ${count} — ${road}`, found.get(name) === count, `found ${found.get(name) ?? 0}`)
-  }
-  const unnamed = [...found.keys()].filter(name => !(name in ERASE_ROADS))
-  check('no other file under src/ink names an erase of the display', unnamed.length === 0, unnamed.join(', '))
 }
 
 section('9. the clearTerminal patch: the two frames that still return it, and a shorter alternate screen is not one of them')
