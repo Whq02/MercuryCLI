@@ -55,7 +55,7 @@ const BUILD_HOLD_FILE = 'manifest.json'
 
 let buildHoldFd: number | null = null
 
-export function holdBuild(buildDir: string = selfBuildDir()): 'held' | 'no-manifest' | 'already-held' {
+export function holdBuild(buildDir: string = selfBuildDir()): 'held' | 'no-manifest' | 'already-held' | { unheld: string } {
   if (buildHoldFd !== null) return 'already-held'
   if (buildDir === '') return 'no-manifest'
   const path = join(buildDir, BUILD_HOLD_FILE)
@@ -63,7 +63,8 @@ export function holdBuild(buildDir: string = selfBuildDir()): 'held' | 'no-manif
     buildHoldFd = openSync(path, 'r')
     return 'held'
   } catch (error) {
-    passedOver(error)
-    return 'no-manifest'
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return 'no-manifest'
+    return { unheld: code ?? (error instanceof Error ? error.message : String(error)) }
   }
 }

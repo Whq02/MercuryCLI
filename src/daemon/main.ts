@@ -200,7 +200,7 @@ async function daemonRun(args: string[]): Promise<void> {
     `${stampDaemonLogLine(`[mercury-daemon] engaged v${MERCURY_VERSION} pid ${process.pid} dir ${dir}`)}\n`,
   )
   if (!foreground) installStampedDaemonLog()
-  console.error(`[daemon] build ${bootBuildTree ?? 'unstamped'} at ${bootScript || '?'} (${buildHold === 'held' ? 'the build folder is held open for the installer' : 'no manifest beside the bundle'})`)
+  console.error(`[daemon] build ${bootBuildTree ?? 'unstamped'} at ${bootScript || '?'} (${buildHold === 'held' ? 'the build folder is held open for the installer' : typeof buildHold === 'object' ? `the build folder could not be held open for the installer (${buildHold.unheld}), so it may be replaced while this daemon runs` : 'no manifest beside the bundle'})`)
 
   const scrubbed = scrubDaemonRoleEnv()
   if (scrubbed.length > 0) {
