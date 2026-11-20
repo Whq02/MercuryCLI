@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
 import { largestCycle, readImports, staticPairs, type Edge, type Kind, type Unread } from '../lib/importCycle.ts'
@@ -142,6 +142,23 @@ const UNREAD: Array<[string, number]> = [
   ['src/utils/pdfTextWorker.mjs', 1],
 ]
 
+const GRAMMAR_READERS: Array<[string, number]> = [
+  ['src/tools/AgentTool/reviewerPolicy.ts', 3],
+  ['src/tools/BashTool/bashCommandHelpers.ts', 1],
+  ['src/tools/BashTool/bashPermissions.ts', 7],
+  ['src/tools/BashTool/denyRuleReach.ts', 32],
+  ['src/tools/BashTool/readOnlyValidation.ts', 1],
+  ['src/utils/bash/ParsedCommand.ts', 2],
+  ['src/utils/bash/ast.ts', 89],
+  ['src/utils/bash/ast/preCheck.ts', 4],
+  ['src/utils/bash/commands.ts', 21],
+  ['src/utils/bash/treeSitterAnalysis.ts', 8],
+  ['src/utils/permissions/flowLaw.ts', 27],
+  ['src/utils/permissions/serviceInputHistory.ts', 5],
+  ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
+  ['src/utils/wards/wardsShellRead.ts', 69],
+]
+
 let failures = 0
 function check(label: string, cond: boolean, detail: string[] = []): void {
   if (!cond) failures++
@@ -165,9 +182,14 @@ check(
   misplaced.map(path => `${path} holds no source file: name where it went in SHELL_DIRS or SHELL_FILES of ${SELF}`),
 )
 const inOrder = (rows: string[]): boolean => rows.every((row, i) => i === 0 || rows[i - 1]! < row)
-const lists: Array<[string, string[]]> = [['IMPORTERS', IMPORTERS], ['IN_CYCLE', IN_CYCLE], ['UNREAD', UNREAD.map(row => row[0])]]
+const lists: Array<[string, string[]]> = [
+  ['IMPORTERS', IMPORTERS],
+  ['IN_CYCLE', IN_CYCLE],
+  ['UNREAD', UNREAD.map(row => row[0])],
+  ['GRAMMAR_READERS', GRAMMAR_READERS.map(row => row[0])],
+]
 check(
-  'the three lists are in path order with no row twice',
+  'the four lists are in path order with no row twice',
   lists.every(([, rows]) => inOrder(rows)),
   lists.filter(([, rows]) => !inOrder(rows)).map(([name]) => `put the rows of ${name} in ${SELF} in path order, each once`),
 )
@@ -392,6 +414,208 @@ section('(4) the record — which shell this is, asked in one place: places that
           `${RECORD} is gone: name the module that owns the record of the shell in RECORD of ${SELF}`,
           ...outside.flatMap(row => row.lines.map(line => `${row.file}:${line} tests a shell's name or spells one shell's own words`)),
         ],
+  )
+}
+
+section("(5) the walker — files under src/ outside the walker folder and parser.ts that compare a .type with a grammar node kind or import the parser's Node")
+{
+  const WALKER_DIR = 'src/utils/permissions/decision/commandAnalysis/'
+  const PARSER = 'src/utils/bash/parser.ts'
+  const BASH_PARSER = 'src/utils/bash/bashParser.ts'
+  const COMPLETION = 'src/utils/bash/shellCompletion.ts'
+  const SEED_WALKERS = ['src/utils/bash/ast.ts', 'src/utils/bash/ast/preCheck.ts', 'src/utils/wards/wardsShellRead.ts']
+  const WRITE = process.argv.includes('--write')
+  const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
+  const SHARED_WORDS = new Set(['string', 'number', 'local', 'done', 'readonly', 'list', 'command', 'comment', 'ERROR', 'function_definition', 'compound_statement'])
+  const isDotType = (node: ts.Expression): boolean => ts.isPropertyAccessExpression(node) && node.name.text === 'type'
+  const isNodeSource = (file: string): boolean => file === PARSER || file === BASH_PARSER || file === PARSE_DOOR || file.startsWith(WALKER_DIR)
+  const isParseDoor = (file: string): boolean => isNodeSource(file) || file === 'src/utils/bash/ParsedCommand.ts' || file === 'src/utils/bash/ast.ts' || file === 'src/utils/wards/wardsShellRead.ts'
+
+  type TypeHit = { line: number; text: string; words: string[] }
+  const collectSets = (source: ts.SourceFile): Map<string, Set<string>> => {
+    const sets = new Map<string, Set<string>>()
+    const visit = (node: ts.Node): void => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+        let init = node.initializer
+        while (ts.isAsExpression(init) || ts.isSatisfiesExpression(init) || ts.isParenthesizedExpression(init)) init = init.expression
+        let arr: ts.ArrayLiteralExpression | undefined
+        if (ts.isArrayLiteralExpression(init)) arr = init
+        else if (ts.isNewExpression(init) && ts.isIdentifier(init.expression) && init.expression.text === 'Set' && init.arguments?.[0] && ts.isArrayLiteralExpression(init.arguments[0])) arr = init.arguments[0]
+        if (arr) {
+          const vals = new Set<string>()
+          for (const el of arr.elements) if (ts.isStringLiteralLike(el)) vals.add(el.text)
+          if (vals.size > 0) sets.set(node.name.text, vals)
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+    return sets
+  }
+
+  const typeHitsIn = (file: string, text: string): TypeHit[] => {
+    const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+    const sets = collectSets(source)
+    const hits: TypeHit[] = []
+    const lineOf = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+    const visit = (node: ts.Node): void => {
+      if (ts.isBinaryExpression(node) && EQUALITY.has(node.operatorToken.kind)) {
+        const lit = isDotType(node.left) && ts.isStringLiteralLike(node.right)
+          ? node.right
+          : isDotType(node.right) && ts.isStringLiteralLike(node.left)
+            ? node.left
+            : null
+        if (lit) hits.push({ line: lineOf(node), text: node.getText(source), words: [lit.text] })
+      }
+      if (ts.isSwitchStatement(node) && isDotType(node.expression)) {
+        const words: string[] = []
+        for (const clause of node.caseBlock.clauses) {
+          if (ts.isCaseClause(clause) && ts.isStringLiteralLike(clause.expression)) words.push(clause.expression.text)
+        }
+        if (words.length > 0) hits.push({ line: lineOf(node), text: `switch (${node.expression.getText(source)})`, words })
+      }
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.arguments.length === 1 && isDotType(node.arguments[0]!)) {
+        const method = node.expression.name.text
+        const target = node.expression.expression
+        if (method === 'has' && ts.isIdentifier(target) && sets.has(target.text)) {
+          hits.push({ line: lineOf(node), text: node.getText(source), words: [...sets.get(target.text)!] })
+        }
+        if (method === 'includes') {
+          if (ts.isIdentifier(target) && sets.has(target.text)) {
+            hits.push({ line: lineOf(node), text: node.getText(source), words: [...sets.get(target.text)!] })
+          } else if (ts.isArrayLiteralExpression(target)) {
+            const words: string[] = []
+            for (const el of target.elements) if (ts.isStringLiteralLike(el)) words.push(el.text)
+            if (words.length > 0) hits.push({ line: lineOf(node), text: node.getText(source), words })
+          }
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+    return hits
+  }
+
+  const hitsByFile = new Map(files.map(file => [file, typeHitsIn(file, readFileSync(join(ROOT, file), 'utf8'))]))
+  const listed = new Map(GRAMMAR_READERS)
+  const kindSources = files.filter(file => file.startsWith(WALKER_DIR) || file === PARSER || (SEED_WALKERS.includes(file) && listed.has(file)))
+  const grammarKinds = new Set<string>()
+  for (const file of kindSources) {
+    for (const hit of hitsByFile.get(file) ?? []) {
+      for (const word of hit.words) grammarKinds.add(word)
+    }
+  }
+  check(
+    `grammar node kinds read from the walker folder and ${PARSER}: ${grammarKinds.size} kinds across ${kindSources.length} source file(s)`,
+    grammarKinds.size > 0,
+    [`no grammar node kinds were found in ${WALKER_DIR} or ${PARSER}`],
+  )
+
+  const matchHits = (hits: TypeHit[], touchesDoor: boolean): TypeHit[] =>
+    hits.filter(hit => {
+      const matched = hit.words.filter(word => grammarKinds.has(word))
+      if (matched.length === 0) return false
+      return touchesDoor ? true : matched.some(word => !SHARED_WORDS.has(word))
+    })
+
+  const SPELLINGS: Array<[string, string]> = [
+    ['equality', "if (node.type === 'command') run()"],
+    ['inequality', "if (child.type !== 'command_name') run()"],
+    ['switch', "switch (node.type) { case 'file_redirect': break }"],
+    ['Set.has', "const KINDS = new Set(['variable_assignment', 'declaration_command']); if (KINDS.has(node.type)) run()"],
+    ['inline array includes', "if (['command', 'pipeline'].includes(node.type)) run()"],
+    ['const array includes', "const KINDS = ['word', 'string']; if (KINDS.includes(child.type)) run()"],
+  ]
+  const missed = SPELLINGS.filter(([, text]) => matchHits(typeHitsIn('spelling.ts', text), true).length !== 1).map(([name]) => name)
+  check(`a grammar node kind test is read however it is spelled: ${SPELLINGS.map(([name]) => name).join(', ')}`, missed.length === 0, missed.map(name => `${name} is not read`))
+
+  const NOT_A_KIND = ["if (type === 'command') run()", "if (context.type !== 'file') run()", "if (rule.type === 'exact') run()"]
+  const misread = NOT_A_KIND.filter(text => matchHits(typeHitsIn('spelling.ts', text), true).length !== 0)
+  check("non-grammar type checks are not read as grammar kinds (including shellCompletion's type === 'command' and context.type !== 'file')", misread.length === 0, misread.map(text => `${text} is read as a grammar node kind test`))
+
+  const nodeImports = new Map<string, number>()
+  const doorImporters = new Set<string>()
+  for (const edge of edges) {
+    if (isNodeSource(edge.to) && (edge.names.includes('Node') || edge.names.includes('TsNode'))) {
+      nodeImports.set(edge.from, (nodeImports.get(edge.from) ?? 0) + 1)
+    }
+    if (isParseDoor(edge.to)) doorImporters.add(edge.from)
+  }
+
+  type FoundReader = { total: number; typeHits: TypeHit[]; nodeImports: number }
+  const found = new Map<string, FoundReader>()
+  for (const file of files) {
+    if (file.startsWith(WALKER_DIR) || file === PARSER) continue
+    const importsNode = file === PARSE_DOOR ? 0 : (nodeImports.get(file) ?? 0)
+    const touchesDoor = doorImporters.has(file) || file.startsWith('src/utils/bash/')
+    const typeHits = matchHits(hitsByFile.get(file) ?? [], touchesDoor)
+    const total = typeHits.length + importsNode
+    if (total > 0) found.set(file, { total, typeHits, nodeImports: importsNode })
+  }
+
+  const completionHits = found.get(COMPLETION)?.total ?? 0
+  check(
+    `the eleventh file of the brief (${COMPLETION}) is not a grammar reader: ${completionHits} grammar-kind reads (its type === 'command' is ShellCompletionType)`,
+    known.has(COMPLETION) && completionHits === 0,
+    completionHits > 0 ? [`${COMPLETION} now holds ${completionHits} grammar-kind read(s)`] : [`${COMPLETION} is gone`],
+  )
+
+  const over = [...found].filter(([file, row]) => row.total > (listed.get(file) ?? 0)).sort((a, b) => (a[0] < b[0] ? -1 : 1))
+  let under = GRAMMAR_READERS.filter(([file, count]) => (found.get(file)?.total ?? 0) < count)
+
+  if (WRITE && over.length === 0 && under.length > 0) {
+    const nextRows: Array<[string, number]> = []
+    for (const [file] of GRAMMAR_READERS) {
+      const now = found.get(file)?.total ?? 0
+      if (now > 0) nextRows.push([file, now])
+    }
+    const selfPath = join(ROOT, SELF)
+    const raw = readFileSync(selfPath, 'utf8')
+    const marker = 'const GRAMMAR_READERS: Array<[string, number]> = ['
+    const start = raw.indexOf(marker)
+    const end = start === -1 ? -1 : raw.indexOf('\n]', start)
+    if (start !== -1 && end !== -1) {
+      const body = nextRows.map(([file, count]) => `  ['${file}', ${count}],`).join('\n')
+      const block = nextRows.length === 0 ? `${marker}\n]` : `${marker}\n${body}\n]`
+      writeFileSync(selfPath, raw.slice(0, start) + block + raw.slice(end + 2))
+      console.log(`  [WRITE] lowered GRAMMAR_READERS in ${SELF}: ${GRAMMAR_READERS.length} -> ${nextRows.length} rows (${under.map(([file, count]) => `${file} ${count}->${found.get(file)?.total ?? 0}`).join(', ')})`)
+      under = []
+    }
+  }
+
+  const totalPlaces = [...found.values()].reduce((sum, row) => sum + row.total, 0)
+  check(
+    `every file outside ${WALKER_DIR} and ${PARSER} that tests a grammar node kind or imports Node is on GRAMMAR_READERS: ${found.size} files, ${totalPlaces} places`,
+    over.length === 0,
+    [
+      ...over.flatMap(([file, row]) => {
+        const allowed = listed.get(file) ?? 0
+        const details = [
+          ...row.typeHits.map(hit => `  ${file}:${hit.line} ${hit.text}`),
+          ...(row.nodeImports > 0 ? [`  ${file} imports Node from the parser (${row.nodeImports})`] : []),
+        ]
+        return [
+          allowed > 0
+            ? `${file} holds ${row.total} places and GRAMMAR_READERS says ${allowed}:`
+            : `${file} is not on GRAMMAR_READERS (${row.total} places):`,
+          ...details,
+        ]
+      }),
+      `ask ${PARSE_DOOR} instead; GRAMMAR_READERS in ${SELF} only shrinks (--write lets rows fall and nothing else)`,
+    ],
+  )
+
+  check(
+    `every row of GRAMMAR_READERS still holds as many: ${GRAMMAR_READERS.length} rows`,
+    under.length === 0,
+    [
+      ...under.map(([file, count]) => {
+        const now = found.get(file)?.total ?? 0
+        if (now === 0) return `${file} ${known.has(file) ? 'holds 0 grammar-kind reads' : 'is gone'}: delete its row from GRAMMAR_READERS`
+        return `${file} holds ${now} and GRAMMAR_READERS says ${count}: lower its row to ${now}`
+      }),
+      `run \`bun ${SELF} --write\` to lower fallen rows (rows may only fall)`,
+    ],
   )
 }
 console.log('')
