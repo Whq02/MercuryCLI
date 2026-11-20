@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import type { AnthropicMessageParams } from './anthropic/anthropicWire.js'
 
 type GatewayProbeVerdict =
   | 'block'
@@ -80,7 +81,7 @@ export function _resetGatewayProbeStoreForTesting(): void {
 }
 
 
-export function gatewayProbeBody(model: string): Record<string, unknown> {
+export function gatewayProbeBody(model: string): AnthropicMessageParams {
   return {
     model,
     max_tokens: 1,
@@ -135,7 +136,7 @@ const attempted = new Set<string>()
 
 export async function ensureGatewayProbe(
   host: string,
-  send: (body: Record<string, unknown>, betaHeader: string) => Promise<GatewayProbeAnswer>,
+  send: (body: AnthropicMessageParams, betaHeader: string) => Promise<GatewayProbeAnswer>,
   model: string,
 ): Promise<GatewayProbeClassification | null> {
   if (attempted.has(host)) {

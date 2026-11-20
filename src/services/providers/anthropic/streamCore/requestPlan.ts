@@ -42,10 +42,11 @@ import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
 import { getPromptCachingEnabled } from '../requestParams.js'
 import type { RequestImageFit } from '../../../../utils/imageResizer.js'
 import type { Options } from '../streamCore.js'
+import type { AnthropicMessageParams } from '../anthropicWire.js'
 
 const GATEWAY_PROBE_TIMEOUT_MS = 8_000
 async function sendGatewayProbe(
-  body: Record<string, unknown>,
+  body: AnthropicMessageParams,
   betaHeader: string,
   options: Options,
 ): Promise<GatewayProbeAnswer> {
@@ -56,7 +57,7 @@ async function sendGatewayProbe(
       source: options.querySource,
     })
     await client.beta.messages.create(
-      { ...body, betas: [betaHeader] } as never,
+      { ...body, betas: [betaHeader] },
       { timeout: GATEWAY_PROBE_TIMEOUT_MS, maxRetries: 0 },
     )
     return { status: 200, bodyText: '' }
@@ -204,7 +205,7 @@ export function wireRequestOf(
       max_uses: maxUses,
     })
   }
-  const allTools = [...toolSchemas, ...extraToolSchemas] as unknown as BetaToolUnion[]
+  const allTools: BetaToolUnion[] = [...toolSchemas, ...extraToolSchemas]
 
   const carryPrefix = thinkingCarryRides() ? thinkingPrefixDigest(system, allTools) : undefined
   const droppedThinking = droppedThinkingMarks(messages)

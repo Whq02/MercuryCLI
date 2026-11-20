@@ -129,14 +129,14 @@ export async function readPdfLane(
     throw new Error(result.error.message)
   }
   if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
-  const documentBlock = {
+  const documentBlock: ContentBlockParam = {
     type: 'document',
     source: {
       type: 'base64',
       media_type: 'application/pdf',
       data: result.data.file.base64,
     },
-  } as unknown as ContentBlockParam
+  }
   return {
     data: result.data,
     newMessages: [createUserMessage({ content: [documentBlock], isMeta: true })],
