@@ -45,7 +45,7 @@ export function scopeSlugForDir(dir: string): string {
   return slug(d, 'default').slice(0, 80) + '-' + hash
 }
 
-export function getArtifactsRootDir(): string {
+function getArtifactsRootDir(): string {
   return join(getMercuryHome(), 'artifacts')
 }
 

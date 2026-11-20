@@ -39,7 +39,7 @@ export function freshLoopFireChainState(): LoopFireChainStateV1 {
 }
 
 
-export function isLoopPersistentPreambleEnabled(): boolean {
+function isLoopPersistentPreambleEnabled(): boolean {
   if (isEnvTruthy(flagEnv('MERCURY_LOOP_PERSISTENT'))) {
     return true
   }

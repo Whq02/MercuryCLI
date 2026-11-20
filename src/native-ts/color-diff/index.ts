@@ -741,30 +741,12 @@ export class ColorFile {
   }
 }
 
-type ColorDiffClass = typeof ColorDiff
-type ColorFileClass = typeof ColorFile
-
 export type SyntaxTheme = { theme: string; source: string | null }
 
 export function getSyntaxTheme(uiTheme: string): SyntaxTheme {
   const theme =
     uiTheme === 'dark' || uiTheme === 'true-black' ? 'Monokai Extended' : 'GitHub'
   return { theme, source: null }
-}
-
-type NativeModule = {
-  ColorDiff: ColorDiffClass
-  ColorFile: ColorFileClass
-  getSyntaxTheme: typeof getSyntaxTheme
-}
-
-let nativeModule: NativeModule | null = null
-
-export function getNativeModule(): NativeModule | null {
-  if (!nativeModule) {
-    nativeModule = { ColorDiff, ColorFile, getSyntaxTheme }
-  }
-  return nativeModule
 }
 
 export const __test = {

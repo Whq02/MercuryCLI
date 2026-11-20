@@ -23,7 +23,7 @@ export interface ImpactSelection {
   perPath: Record<string, string[]>
 }
 
-export function parseWatchHeader(runnerText: string): string[] {
+function parseWatchHeader(runnerText: string): string[] {
   const globs: string[] = []
   for (const line of runnerText.split('\n')) {
     const m = line.match(/^# gate-watch:\s*(.+)$/)

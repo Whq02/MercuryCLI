@@ -10,7 +10,7 @@ function opSignature(op: VulcanOp): string {
   return `${op.name}(${args.join(', ')})${op.cls === 'exec' ? ' [exec]' : ''}`
 }
 
-export function getGodotOpCatalog(): string {
+function getGodotOpCatalog(): string {
   const lite = vulcanLiteMode()
   const ops = VULCAN_OPS.filter(o => (lite ? o.lite || o.category === 'frontier' : true))
   const byCat = new Map<string, VulcanOp[]>()
