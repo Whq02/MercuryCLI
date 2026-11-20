@@ -55,6 +55,42 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
   }
 }
 
+{
+  const { getTransaction, latestTransaction, listTransactions, openTransactionIdFor } = await import('../../src/services/ide/ideTransaction.ts')
+  const { projectHomeStore } = await import('../../src/utils/projectHomeStores.ts')
+  const dir = makeTempDir('fn14-idetx-')
+  try {
+    check('ideTransaction: absent store returns null and empty list', latestTransaction(dir) === null && listTransactions(dir).length === 0)
+    const store = projectHomeStore(dir, 'ide-transactions')
+    mkdirSync(store, { recursive: true })
+    writeFileSync(join(store, 'latest.json'), '{not-json')
+    writeFileSync(join(store, 'tx-100-abc.json'), '{not-json')
+    const r1 = throwsMatching(() => latestTransaction(dir), /corrupt|JSON|parse/i)
+    const r2 = throwsMatching(() => getTransaction('tx-100-abc', dir), /corrupt|JSON|parse/i)
+    const r3 = throwsMatching(() => listTransactions(dir), /corrupt|JSON|parse/i)
+    const r4 = throwsMatching(() => openTransactionIdFor(dir), /corrupt|JSON|parse/i)
+    check('ideTransaction: corrupt latest.json throws on latestTransaction', r1.threw, r1.message)
+    check('ideTransaction: corrupt record throws on getTransaction', r2.threw, r2.message)
+    check('ideTransaction: corrupt record throws on listTransactions', r3.threw, r3.message)
+    check('ideTransaction: corrupt latest.json throws on openTransactionIdFor', r4.threw, r4.message)
+    if (POSIX_MODES) {
+      const dir2 = makeTempDir('fn14-idetx-perm-')
+      const store2 = projectHomeStore(dir2, 'ide-transactions')
+      mkdirSync(store2, { recursive: true })
+      chmodSync(store2, 0o000)
+      try {
+        const r5 = throwsMatching(() => listTransactions(dir2), /EACCES|permission/i)
+        check('ideTransaction: unreadable store dir throws on listTransactions', r5.threw, r5.message)
+      } finally {
+        chmodSync(store2, 0o700)
+        rmSync(dir2, { recursive: true, force: true })
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
