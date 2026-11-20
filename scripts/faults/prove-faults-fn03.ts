@@ -427,5 +427,42 @@ console.log('\nobligationControls.ts:134 — failed claimObligation reports fail
   )
 }
 
+console.log('\nworkerTranscriptFold.ts:147 — unreadable worker transcript surfaces readError instead of silent empty fold')
+{
+  if (!POSIX_MODES) {
+    skip('worker-transcript-eacces-surfaces-error', 'a mode-0200 file needs a POSIX process that is not root')
+  } else {
+    const res = runScenario(`
+      const mod = await import(${JSON.stringify(join(SRC, 'components/concourse/workerTranscriptFold.ts'))})
+      const wt = await import(${JSON.stringify(join(SRC, 'services/concourse/workerTranscript.ts'))})
+      if (typeof mod.openInitialWorkerTranscript !== 'function') {
+        out.missing = true
+      } else {
+        const unreadable = path.join(process.cwd(), 'seat.jsonl')
+        fs.writeFileSync(unreadable, '{"schemaVersion":1,"payload":{}}\\n', { mode: 0o600 })
+        fs.chmodSync(unreadable, 0o200)
+        out.eacces = mod.openInitialWorkerTranscript(unreadable, wt.openWorkerTranscript)
+        fs.chmodSync(unreadable, 0o600)
+        out.absent = mod.openInitialWorkerTranscript(path.join(process.cwd(), 'missing.jsonl'), wt.openWorkerTranscript)
+      }
+    `)
+    const eacces = res.eacces as { ok: boolean; error?: string } | undefined
+    const absent = res.absent as { ok: boolean; result?: { records: unknown[] } } | undefined
+    check(
+      'worker-transcript-eacces-surfaces-error',
+      res.missing !== true &&
+        eacces?.ok === false &&
+        typeof eacces.error === 'string' &&
+        /EACCES|permission denied/i.test(eacces.error),
+      JSON.stringify(res),
+    )
+    check(
+      'worker-transcript-absent-control-ok',
+      res.missing !== true && absent?.ok === true && absent.result?.records.length === 0,
+      JSON.stringify(res),
+    )
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
