@@ -77,18 +77,22 @@ try {
 section('§1 LIVE — a walk cut off mid-flight says so, and keeps what it found')
 {
   check('the completeness-bearing door exists', typeof ripGrepAnswer === 'function')
-  const out = await driveShim('slow', '#!/bin/sh\necho "a.ts"\necho "b.ts"\necho "c.ts"\nsleep 30\n', { timeoutMs: 900 })
-  const answer = out.answer
-  check('the cut walk produced an answer rather than a throw (lines were salvaged)', answer !== undefined, out.raw.slice(0, 200))
-  check('a walk that could not finish is reported INCOMPLETE (never a clean short answer)', answer?.complete === false, JSON.stringify(answer))
-  check('the partial lines are KEPT', (answer?.lines.length ?? 0) >= 2, JSON.stringify(answer?.lines))
-  check("the reason names the timeout in the operator's words", /timed out/i.test(answer?.reason ?? ''), answer?.reason ?? '(none)')
-  check('…and says the walk did not finish, so the answer is partial', /partial|did not finish/i.test(answer?.reason ?? ''), answer?.reason ?? '')
-  check('…and counts what it kept', /line\(s\) kept/.test(answer?.reason ?? ''), answer?.reason ?? '')
+  if (process.platform === 'win32') {
+    console.log('  [SKIP] not read on Windows: ripgrep stand-in shim requires a POSIX executable script (§1–§2)')
+  } else {
+    const out = await driveShim('slow', '#!/bin/sh\necho "a.ts"\necho "b.ts"\necho "c.ts"\nsleep 30\n', { timeoutMs: 900 })
+    const answer = out.answer
+    check('the cut walk produced an answer rather than a throw (lines were salvaged)', answer !== undefined, out.raw.slice(0, 200))
+    check('a walk that could not finish is reported INCOMPLETE (never a clean short answer)', answer?.complete === false, JSON.stringify(answer))
+    check('the partial lines are KEPT', (answer?.lines.length ?? 0) >= 2, JSON.stringify(answer?.lines))
+    check("the reason names the timeout in the operator's words", /timed out/i.test(answer?.reason ?? ''), answer?.reason ?? '(none)')
+    check('…and says the walk did not finish, so the answer is partial', /partial|did not finish/i.test(answer?.reason ?? ''), answer?.reason ?? '')
+    check('…and counts what it kept', /line\(s\) kept/.test(answer?.reason ?? ''), answer?.reason ?? '')
+  }
 }
 
 section('§2 LIVE — a binary that exits 101 with stderr is a NAMED refusal')
-{
+if (process.platform !== 'win32') {
   const out = await driveShim('panic', '#!/bin/sh\necho "rg: thread panicked at src/main.rs:42" >&2\nexit 101\n')
   check('the exit-101 run produced a verdict', out.answer !== undefined || out.threw !== undefined, out.raw.slice(0, 200))
   const reason = out.answer?.reason ?? out.threw?.message ?? ''
