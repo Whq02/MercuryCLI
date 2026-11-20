@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useClaim, useLoad } from './effects.js'
 import { getSessionId } from '../bootstrap/state.js'
 import {
   agentNeedsYouEnabled,
@@ -30,7 +31,7 @@ export function useAgentNeedsYou(
   const abortRef = useRef<AbortController | null>(null)
   messagesRef.current = messages
 
-  useEffect(() => {
+  useLoad(() => {
     if (!agentNeedsYouEnabled()) return
     const wasLoading = prevLoadingRef.current
     prevLoadingRef.current = isLoading
@@ -56,7 +57,7 @@ export function useAgentNeedsYou(
     )
   }, [isLoading])
 
-  useEffect(() => {
+  useClaim(() => {
     return () => abortRef.current?.abort()
   }, [])
 }

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { currentSurfaceRoute, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import type { AppState } from '../../state/AppState.js'
 import { enterCrewmateView, exitCrewmateView } from '../../state/crewmateViewHelpers.js'
@@ -33,7 +34,7 @@ export function useComposerHelm({
   const surfaceCovered = currentSurfaceRoute().kind !== 'repl'
   const submitRef = useRef(submit)
   submitRef.current = submit
-  useEffect(() => {
+  useLoad(() => {
     const activation = consumeHelmActivation()
     const dispatch = consumeCommandDispatch()
     if (activation !== null) {

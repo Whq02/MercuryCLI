@@ -1,5 +1,6 @@
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
+import { useClaim, useMeasure } from '../hooks/effects.js'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
 import { Box, Text } from '../ink.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
@@ -98,7 +99,7 @@ export function ThemePicker({
 
   const cancelPreviewRef = useRef(cancelPreview)
   cancelPreviewRef.current = cancelPreview
-  useEffect(
+  useClaim(
     () => () => {
       cancelPreviewRef.current()
     },
@@ -107,7 +108,7 @@ export function ThemePicker({
 
   const demoBoxRef = useRef<DOMElement | null>(null)
   const [measuredDemoWidth, setMeasuredDemoWidth] = useState<number | null>(null)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     const el = demoBoxRef.current
     if (!el) return
     const { width } = measureElement(el)

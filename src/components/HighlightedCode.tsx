@@ -1,5 +1,6 @@
 
-import React, { memo, useLayoutEffect, useRef, useState } from 'react'
+import React, { memo, useRef, useState } from 'react'
+import { useMeasure } from '../hooks/effects.js'
 import { Ansi, Box, NoSelect, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
 import { useAppState } from '../state/AppState.js'
@@ -25,7 +26,7 @@ export const HighlightedCode = memo(function HighlightedCode({
   const boxRef = useRef<DOMElement | null>(null)
   const [measured, setMeasured] = useState<number | null>(null)
 
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (width !== undefined) return
     if (boxRef.current) {
       const { width: measuredWidth } = measureElement(boxRef.current)

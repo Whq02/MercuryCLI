@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useClaim, useLayoutClaim, useLoad } from '../../hooks/effects.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { RawAnsi } from '../../ink/components/RawAnsi.js'
 import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
@@ -71,18 +72,18 @@ export function ImageSetupBody({ geometry, io, preview, initialError, initialSou
     const next = await io.read()
     if (alive.current) setSnapshot(next)
   }, [io])
-  React.useEffect(() => {
+  useLoad(() => {
     alive.current = true
     void reload().catch(error => { if (alive.current) setError(String(error instanceof Error ? error.message : error)) })
     return () => { alive.current = false; operation.current?.abort(); consent.current?.(false) }
   }, [reload])
-  React.useLayoutEffect(() => {
+  useLayoutClaim(() => {
     frame.setOwnsEscape(true)
     frame.setHint(places ? LLM_HOST_WORDS.hint : null)
     frame.setLine(places ? LLM_HOST_WORDS.where : snapshot ? `${snapshot.location ?? snapshot.root} · ${gibWords(snapshot.totalMemoryBytes)} memory · ${mediaSizeWords(snapshot.freeBytes)} free` : 'Local images and video')
     return () => frame.setOwnsEscape(false)
   }, [snapshot, places, frame.setLine, frame.setHint, frame.setOwnsEscape])
-  React.useEffect(() => {
+  useLoad(() => {
     if (!image) { setCells(''); return }
     let active = true
     void imageToCells(image.png, Math.max(1, geometry.inner - 2), Math.max(1, geometry.rowBudget - 3)).then(value => { if (active) setCells(value) }, error => { if (active) setError(String(error)) })
@@ -121,7 +122,7 @@ export function ImageSetupBody({ geometry, io, preview, initialError, initialSou
       pendingSource.current = undefined
     })
   }
-  React.useEffect(() => {
+  useLoad(() => {
     if (!snapshot || !initialSource || added.current) return
     added.current = true
     addSource(initialSource)
@@ -203,7 +204,7 @@ export function ImageSetupBody({ geometry, io, preview, initialError, initialSou
 
 function ImageTestProgress({ model, controller }: { model: string; controller: AbortController }): React.ReactNode {
   const frame = useSettingsPopupFrame()
-  React.useEffect(() => { frame.setOwnsEscape(true); return () => frame.setOwnsEscape(false) }, [frame.setOwnsEscape])
+  useClaim(() => { frame.setOwnsEscape(true); return () => frame.setOwnsEscape(false) }, [frame.setOwnsEscape])
   useInput((_input, key, event) => { if (key.escape) { event.stopImmediatePropagation(); controller.abort() } })
   return <Box flexDirection="column"><Text>{model} · 256×256</Text><Text>A red apple on a wooden table, soft daylight</Text></Box>
 }
