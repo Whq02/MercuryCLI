@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'refresh-save-truth-'))
 const HOME = join(SCRATCH, 'home')
@@ -82,6 +83,9 @@ function seed(access: string, refresh: string): boolean {
   return result.success
 }
 
+if (process.platform === 'win32') {
+  console.log('  [SKIP] not read on Windows: chmod 0o500 does not make a directory read-only on NTFS (§1–§4)')
+} else {
 section('§1 A REFUSED SAVE HOLDS THE FRESH PAIR')
 {
   check('the expired sign-in is seeded', seed('at_old', 'rt_old'))
@@ -150,6 +154,7 @@ section('§4 A STORE THAT MOVES UNDER A HELD PAIR WINS')
   check('the readers answer the disk again — the pair is dropped', accessNow() === 'at_login', String(accessNow()))
   check('the failure clears with the pair', held() === null)
 }
+}
 
 section('§5 CONTROL: A WRITABLE STORE SAVES THE PAIR AND HOLDS NOTHING')
 {
@@ -163,6 +168,6 @@ section('§5 CONTROL: A WRITABLE STORE SAVES THE PAIR AND HOLDS NOTHING')
 }
 
 writable()
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-refresh-save-truth: ALL PASS' : `\nprove-refresh-save-truth: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)

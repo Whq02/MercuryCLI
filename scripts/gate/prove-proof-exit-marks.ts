@@ -154,6 +154,16 @@ try {
   const apiCount = promisedMarks(readFileSync(join(root, 'scripts/api/run-all.sh'), 'utf8'), ['run-all.sh']) + listOf('api').length
   const enrolled = variant('api-enrolled', 'api', ['prove-enrolled-later.ts'], line => [line])
   check(`enrolling a proof in a runner's list moves the runner's own count (${apiCount} → ${apiCount + 1}); the census stays green with no table to edit`, apiCount > 0 && enrolled.promised === apiCount + 1 && enrolled.rows.length === enrolled.promised && enrolled.rows.every(row => row.code === 0))
+  const crlfDir = join(estate, 'scripts/api-crlf')
+  mkdirSync(crlfDir)
+  const crlfList = listOf('api')
+  writeFileSync(join(crlfDir, 'members.txt'), `# comment\r\n\r\n${crlfList.join('\r\n')}\r\nprove-crlf-args.ts --flag\r\n`)
+  for (const row of crlfList) writeFileSync(join(crlfDir, fileOf(row)), fixture)
+  writeFileSync(join(crlfDir, 'prove-crlf-args.ts'), fixture)
+  writeFileSync(join(crlfDir, 'run-all.sh'), readFileSync(join(root, 'scripts/api/run-all.sh'), 'utf8').replaceAll('scripts/api', 'scripts/api-crlf'))
+  const crlfResult = spawnSync('bash', [join(crlfDir, 'run-all.sh')], { cwd: estate, env: env(0), encoding: 'utf8', timeout: 10000 })
+  const crlfRows = marks(crlfResult.stdout)
+  check(`a CRLF member list starts the same tests (${crlfRows.length} of ${apiCount + 1})`, crlfResult.status === 0 && crlfRows.length === apiCount + 1 && crlfRows.every(row => row.code === 0) && !crlfResult.stdout.includes('\r'))
   const splashRunner = readFileSync(join(root, 'scripts/splash/run-all.sh'), 'utf8')
   const markCall = /prover_mark\s.*$/.exec(splashRunner.split('\n').findLast(line => line.includes('__t=$SECONDS')) ?? '')?.[0] ?? ''
   const splashCount = promisedMarks(splashRunner, ['run-all.sh']) + listOf('splash').length

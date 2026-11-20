@@ -6,6 +6,7 @@ import { engineCheckTreeDir, engineChecksDir, engineRunPath, engineRunResultFile
 import { logForDebugging } from '../../../utils/debug.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../../utils/timers.js'
+import { foldPathCase } from '../../../utils/platform/paths.js'
 
 const ENGINE_ORPHAN_GRACE_FLAG = 'MERCURY_GODOT_ORPHAN_GRACE_MS'
 const ENGINE_ORPHAN_GRACE_DEFAULT_MS = 30 * 60_000
@@ -32,9 +33,7 @@ function engineOrphanGraceMs(): number {
 }
 
 function normalized(p: string, platform: NodeJS.Platform): string {
-  let s = p.replace(/\\/g, '/').replace(/\/+$/, '')
-  if (platform === 'win32') s = s.toLowerCase()
-  return s
+  return foldPathCase(p.replace(/\\/g, '/').replace(/\/+$/, ''), platform)
 }
 
 function projectSpellings(projectRoot: string): string[] {

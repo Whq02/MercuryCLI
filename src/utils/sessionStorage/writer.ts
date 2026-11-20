@@ -238,6 +238,10 @@ export async function recordSidechainTranscript(
   )
 }
 
+export function closeAgentTranscript(agentId: string): void {
+  project?.closeTranscript(agentTranscriptDestinations.get(agentId) ?? getAgentTranscriptPath(asAgentId(agentId)))
+}
+
 export async function recordQueueOperation(queueOp: QueueOperationMessage) {
   await getProject().insertQueueOperation(queueOp)
 }
@@ -511,6 +515,10 @@ class Project {
 
   settleMessage(message: Message): Promise<void> {
     return this.settlePart.settleMessage(message)
+  }
+
+  closeTranscript(file: string): void {
+    this.settlePart.closeTranscript(file)
   }
 }
 

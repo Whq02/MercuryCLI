@@ -1,10 +1,11 @@
-import { chmodSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mintTensorFoldKey } from '../../lan/pairing.js'
 import { publishAtomicSync } from '../../../substrate/fileStore.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
+import { readExposedFileModeSync } from '../../../utils/platform/files.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
@@ -34,7 +35,7 @@ export function tensorFoldKeyFilePath(home: string = getMercuryHome()): string {
 function probeTensorFoldKeyFile(path: string): TensorFoldKeyFileRead {
   let line: string | undefined
   try {
-    if (process.platform !== 'win32' && (statSync(path).mode & 0o066) !== 0) return { state: 'unusable', why: 'can be read by other users' }
+    if (readExposedFileModeSync(path, 0o066) !== null) return { state: 'unusable', why: 'can be read by other users' }
     line = readFileSync(path, 'utf8').split('\n').find(row => row.trim() !== '' && !row.trim().startsWith('#'))
   } catch (error) {
     const code = getErrnoCode(error)

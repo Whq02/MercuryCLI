@@ -12,6 +12,7 @@ import { getSourceCacheDir, getSourcesDir } from './paths.js'
 import { installedOrEmpty, logAct, readSources, sourcesOrEmpty, updateSources, type SourceRecord } from './records.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { posixFileModesApply } from '../utils/platform/files.js'
 
 export const SOURCE_FETCH_TIMEOUT_MS = 120_000
 export const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
@@ -200,7 +201,7 @@ async function extractArchive(where: string, remote: boolean, format: 'zip' | 't
         mkdirSync(dirname(target), { recursive: true })
         writeFileSync(target, data)
         const mode = modes[name]
-        if (mode !== undefined && process.platform !== 'win32') chmodSync(target, mode & 0o777)
+        if (mode !== undefined && posixFileModesApply()) chmodSync(target, mode & 0o777)
       }
     } else {
       const archivePath = join(dirname(into), `${basename(into)}.tgz`)
