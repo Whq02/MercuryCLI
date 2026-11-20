@@ -125,14 +125,7 @@ const IMPORTERS = [
   'src/utils/wards/wardsShellRead.ts',
 ]
 
-const IN_CYCLE = [
-  'src/tasks/LocalShellTask/LocalShellTask.tsx',
-  'src/tasks/LocalShellTask/killShellTasks.ts',
-  'src/tools/BashTool/BashTool.tsx',
-  'src/tools/BashTool/BashToolResultMessage.tsx',
-  'src/tools/BashTool/UI.tsx',
-  'src/tools/BashTool/utils.ts',
-]
+const IN_CYCLE: string[] = []
 
 const UNREAD: Array<[string, number]> = [
   ['src/extensions/installConsent.ts', 2],

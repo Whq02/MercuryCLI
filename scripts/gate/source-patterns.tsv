@@ -876,6 +876,7 @@ as-never	src/services/providers/openai/openaiCallModel/attemptSettle.ts	2
 as-never	src/services/providers/openai/openaiCallModel/resumeTrim.ts	3
 as-never	src/services/providers/openai/openaiSocketTransport.ts	4
 as-never	src/services/providers/zai/zaiCallModel.ts	2
+as-never	src/services/roughTokenEstimation.ts	1
 as-never	src/services/structure/grammarFacility.ts	3
 as-never	src/services/switchboard/attachedSession.ts	1
 as-never	src/services/switchboard/bornSession.ts	1
@@ -884,7 +885,7 @@ as-never	src/services/switchboard/hopIntoSession.ts	10
 as-never	src/services/switchboard/quitParksAll.ts	1
 as-never	src/services/switchboard/sessionReceipts.ts	1
 as-never	src/services/tensorfold/adapter/pull.ts	1
-as-never	src/services/tokenEstimation.ts	5
+as-never	src/services/tokenEstimation.ts	4
 as-never	src/services/tools/loopGuard.ts	1
 as-never	src/services/tools/toolBatching.ts	4
 as-never	src/services/tools/toolExecution.ts	19
@@ -911,9 +912,9 @@ as-never	src/tools/EnterWorktreeTool/EnterWorktreeTool.ts	1
 as-never	src/tools/EvalTool/EvalTool.ts	1
 as-never	src/tools/EvalTool/UI.tsx	5
 as-never	src/tools/FileEditTool/edit/call.ts	2
-as-never	src/tools/FileReadTool/FileReadTool.ts	1
 as-never	src/tools/FileReadTool/jsonQuerySource.ts	2
 as-never	src/tools/FileReadTool/read/call.ts	2
+as-never	src/tools/FileReadTool/read/resultBlock.ts	1
 as-never	src/tools/FileReadTool/readRichFormats.ts	1
 as-never	src/tools/FileReadTool/readViewSource.ts	2
 as-never	src/tools/FileWriteTool/write/call.ts	2
@@ -1130,7 +1131,7 @@ empty-catch	src/services/host/ssh.ts	2
 empty-catch	src/services/host/tensorfoldPod.ts	1
 empty-catch	src/services/host/tune.ts	2
 empty-catch	src/services/ide/blenderProject.ts	1
-empty-catch	src/services/ide/cppProject.ts	1
+empty-catch	src/services/ide/cppProjectProfile.ts	1
 empty-catch	src/services/ide/projectRunners.ts	4
 empty-catch	src/services/instructions/discovery.ts	2
 empty-catch	src/services/instructions/effectiveSize.ts	1
@@ -1150,7 +1151,7 @@ empty-catch	src/services/media/host.ts	1
 empty-catch	src/services/media/setup.ts	1
 empty-catch	src/services/mission/projection.ts	1
 empty-catch	src/services/notices/idleNudge.ts	1
-empty-catch	src/services/oauth/client.ts	1
+empty-catch	src/services/oauth/refresh.ts	1
 empty-catch	src/services/preventSleep.ts	2
 empty-catch	src/services/primitives/canonicalStream.ts	2
 empty-catch	src/services/primitives/evidencePlane.ts	3
@@ -1182,7 +1183,7 @@ empty-catch	src/services/providers/gemini/geminiClient.ts	1
 empty-catch	src/services/providers/gemini/geminiUsageState.ts	1
 empty-catch	src/services/providers/huggingface/huggingfaceAccounts.ts	3
 empty-catch	src/services/providers/huggingface/huggingfaceUsageState.ts	1
-empty-catch	src/services/providers/local/localAccounts.ts	1
+empty-catch	src/services/providers/local/localApiKey.ts	1
 empty-catch	src/services/providers/local/localDiscovery.ts	3
 empty-catch	src/services/providers/local/localWarm.ts	1
 empty-catch	src/services/providers/local/ollamaChatTransport.ts	1
@@ -1204,7 +1205,7 @@ empty-catch	src/services/providers/openaicompat/compatProbe.ts	2
 empty-catch	src/services/providers/openrouter/openrouterAccounts.ts	1
 empty-catch	src/services/providers/openrouter/openrouterResponsesTransport.ts	1
 empty-catch	src/services/providers/openrouter/openrouterUsageState.ts	2
-empty-catch	src/services/providers/providerSecrets.ts	3
+empty-catch	src/services/providers/providerSecrets.ts	2
 empty-catch	src/services/providers/providerUsage.ts	3
 empty-catch	src/services/providers/streamIdleBudget.ts	1
 empty-catch	src/services/providers/xai/xaiOauth.ts	2
@@ -1222,6 +1223,7 @@ empty-catch	src/services/resources/adapters/file.ts	1
 empty-catch	src/services/resources/adapters/project.ts	1
 empty-catch	src/services/resources/adapters/transcript.ts	1
 empty-catch	src/services/resources/contracts.ts	1
+empty-catch	src/services/roughTokenEstimation.ts	1
 empty-catch	src/services/run/effectObserver.ts	3
 empty-catch	src/services/run/ownerLifecycle.ts	4
 empty-catch	src/services/run/runContinuationCapsule.ts	1
@@ -1245,7 +1247,6 @@ empty-catch	src/services/tensorfold/adapter/pull.ts	2
 empty-catch	src/services/tensorfold/adapter/serve.ts	1
 empty-catch	src/services/tensorfold/pull.ts	1
 empty-catch	src/services/tensorfold/serve.ts	1
-empty-catch	src/services/tokenEstimation.ts	1
 empty-catch	src/services/tools/toolExecution.ts	8
 empty-catch	src/services/vcr.ts	1
 empty-catch	src/services/voice/capture.ts	4
@@ -1342,8 +1343,10 @@ empty-catch	src/utils/fileHistory.ts	3
 empty-catch	src/utils/flux/fluxProbe.ts	1
 empty-catch	src/utils/fsOperations.ts	1
 empty-catch	src/utils/fullscreen.ts	1
-empty-catch	src/utils/git.ts	5
+empty-catch	src/utils/git.ts	2
+empty-catch	src/utils/git/gitExe.ts	2
 empty-catch	src/utils/git/gitFilesystem.ts	1
+empty-catch	src/utils/git/gitRoot.ts	1
 empty-catch	src/utils/glob.ts	1
 empty-catch	src/utils/globPrefix.ts	1
 empty-catch	src/utils/gracefulShutdown.ts	12
@@ -1432,7 +1435,6 @@ empty-catch	src/utils/windowsPaths.ts	2
 empty-catch	src/utils/worktree.ts	6
 empty-catch	src/utils/worktreeClone.ts	3
 empty-catch-handler	src/cli/agentFreshness.ts	1
-empty-catch-handler	src/cli/handlers/mcp.tsx	1
 empty-catch-handler	src/cli/handlers/usage.ts	1
 empty-catch-handler	src/cli/headless/boot/bindIdleAndPark.ts	1
 empty-catch-handler	src/cli/headless/boot/laneMcpChanges.ts	1
@@ -1553,7 +1555,7 @@ empty-catch-handler	src/services/mcp/client.ts	8
 empty-catch-handler	src/services/mcp/client/needsAuth.ts	3
 empty-catch-handler	src/services/mcp/eraVerdictCache.ts	1
 empty-catch-handler	src/services/mcp/lazyStdio.ts	1
-empty-catch-handler	src/services/oauth/client.ts	1
+empty-catch-handler	src/services/oauth/refresh.ts	1
 empty-catch-handler	src/services/privateChannel/channelTransport.ts	1
 empty-catch-handler	src/services/projectServices/executionProjection.ts	1
 empty-catch-handler	src/services/projectServices/serviceManager.ts	3
@@ -1720,7 +1722,7 @@ catch-default	src/daemon/handshake.ts	1
 catch-default	src/daemon/idleRetirement.ts	2
 catch-default	src/daemon/ownerWatch.ts	4
 catch-default	src/daemon/permissionAsks.ts	2
-catch-default	src/daemon/planeRecords.ts	2
+catch-default	src/daemon/planeRecords.ts	1
 catch-default	src/daemon/processSweepPosix.ts	1
 catch-default	src/daemon/processSweepRun.ts	8
 catch-default	src/daemon/processTree.ts	2
@@ -1879,7 +1881,7 @@ catch-default	src/services/mission/goalJudge.ts	1
 catch-default	src/services/mission/missionCard.ts	1
 catch-default	src/services/privateChannel/installLayout.ts	6
 catch-default	src/services/privateChannel/installPath.ts	2
-catch-default	src/services/privateChannel/installProvenance.ts	1
+catch-default	src/services/privateChannel/nixInstallRoot.ts	1
 catch-default	src/services/privateChannel/provenanceNotice.ts	2
 catch-default	src/services/privateChannel/quietUpdateNotice.ts	1
 catch-default	src/services/privateChannel/updateService.ts	1
@@ -1910,7 +1912,7 @@ catch-default	src/services/providers/gemini/geminiCatalogue.ts	2
 catch-default	src/services/providers/huggingface/huggingfaceAccounts.ts	1
 catch-default	src/services/providers/idSpaces.ts	1
 catch-default	src/services/providers/limitWarning.ts	1
-catch-default	src/services/providers/local/localAccounts.ts	1
+catch-default	src/services/providers/local/localApiKey.ts	1
 catch-default	src/services/providers/local/localDiscovery.ts	3
 catch-default	src/services/providers/local/ollamaChatTransport.ts	1
 catch-default	src/services/providers/local/schemaTyping.ts	2
@@ -2371,12 +2373,12 @@ env-read	src/services/host/bank.ts	1
 env-read	src/services/host/recipesFile.ts	1
 env-read	src/services/ide/blenderProject.ts	1
 env-read	src/services/ide/cppBuild.ts	1
-env-read	src/services/ide/cppProject.ts	1
-env-read	src/services/ide/launchProfiles.ts	1
+env-read	src/services/ide/cppProjectProfile.ts	1
 env-read	src/services/ide/projectRunners.ts	4
 env-read	src/services/ide/pythonProject.ts	9
 env-read	src/services/ide/pythonTests.ts	2
 env-read	src/services/ide/unityProject.ts	1
+env-read	src/services/ide/vscodeText.ts	1
 env-read	src/services/instructions/adapters/copilot.ts	1
 env-read	src/services/jev/jevKey.ts	1
 env-read	src/services/llmHost/index.ts	2
@@ -2479,7 +2481,7 @@ env-read	src/utils/env.ts	66
 env-read	src/utils/envUtils.ts	1
 env-read	src/utils/exampleCommands.ts	1
 env-read	src/utils/fullscreen.ts	6
-env-read	src/utils/git.ts	1
+env-read	src/utils/git/gitExe.ts	1
 env-read	src/utils/git/gitFilesystem.ts	1
 env-read	src/utils/gracefulShutdown.ts	2
 env-read	src/utils/imagePaste.ts	1
@@ -2548,8 +2550,8 @@ env-whole	src/services/eval/interpreters.ts	1
 env-whole	src/services/eval/kernelEnv.ts	1
 env-whole	src/services/host/door.ts	1
 env-whole	src/services/host/jobCredentials.ts	2
-env-whole	src/services/ide/launchProfiles.ts	1
 env-whole	src/services/ide/projectRunners.ts	1
+env-whole	src/services/ide/vscodeText.ts	1
 env-whole	src/services/jev/jevKey.ts	2
 env-whole	src/services/jev/jevStatus.ts	1
 env-whole	src/services/llmHost/index.ts	2
@@ -2592,7 +2594,8 @@ env-whole	src/services/providers/huggingface/huggingfaceAccounts.ts	16
 env-whole	src/services/providers/huggingface/huggingfaceCatalogue.ts	9
 env-whole	src/services/providers/huggingface/huggingfaceUsageState.ts	7
 env-whole	src/services/providers/idSpaces.ts	4
-env-whole	src/services/providers/local/localAccounts.ts	3
+env-whole	src/services/providers/local/localAccounts.ts	1
+env-whole	src/services/providers/local/localApiKey.ts	2
 env-whole	src/services/providers/local/localDiscovery.ts	5
 env-whole	src/services/providers/localLiveness.ts	1
 env-whole	src/services/providers/melious/meliousAccounts.ts	5
