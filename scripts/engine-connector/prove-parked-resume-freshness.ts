@@ -21,11 +21,13 @@ let answer!: (reply: Record<string, unknown>) => void
 let admission = new Promise<Record<string, unknown>>(resolve => { answer = resolve })
 const asked: Array<Record<string, unknown>> = []
 let pingAnswers = true
-let scripted: (request: Record<string, unknown>) => Record<string, unknown> | undefined = () => undefined
-mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonControlRpc: async (request: { op: string }) => {
+let scripted: (request: Record<string, unknown>) => Record<string, unknown> | Promise<Record<string, unknown>> | undefined = () => undefined
+let unreachableAt = 0
+mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonLastUnreachableAt: () => unreachableAt, daemonControlRpc: async (request: { op: string }) => {
   asked.push(request as Record<string, unknown>)
-  if (request.op === 'ping' && !pingAnswers) return { ok: false, code: 'ENOCONN', error: 'daemon unreachable (ENOENT)' }
-  return scripted(request as Record<string, unknown>) ?? (request.op === 'sessionAdmit' ? admission : { ok: true, outcome: 'applied' })
+  const reply = request.op === 'ping' && !pingAnswers ? { ok: false, code: 'ENOCONN', error: 'daemon unreachable (ENOENT)' } : await (scripted(request as Record<string, unknown>) ?? (request.op === 'sessionAdmit' ? admission : { ok: true, outcome: 'applied' }))
+  if (reply.code === 'ENOCONN') unreachableAt = Date.now()
+  return reply
 } }))
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
 const { sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.js')
@@ -225,6 +227,26 @@ try {
   scripted = () => undefined
   const admissions = asked.filter(request => request.op === 'sessionAdmit')
   check("a resume the daemon answers as a live hop while the parked session's old runner is still leaving waits for that runner to go and is admitted again with the launch's words: nothing is dialled, nothing is refused", admissions.length >= 2 && admissions.every(request => request.model === 'claude-sonnet-5' && request.effort === 'high') && !asked.some(dialled) && !receipts.some(text => text.includes('was refused') || text.includes('still holds this session')), `${askedWords()} ${JSON.stringify(receipts)}`)
+  writeFileSync(factsFile, JSON.stringify({ ...seed, atMs: 1010, effort: 'high', effortSent: 'high' }))
+  connector.readFacts()
+  releaseFocusedSessionConnector()
+  record({ modelKey: 'claude-sonnet-5', effort: 'high', parkedAt: undefined, parkedBy: undefined, pid: process.pid })
+  let dialSeen = false
+  scripted = request => {
+    if (request.op === 'ping') return dialSeen ? { ok: false, code: 'ETIMEOUT', error: 'daemon did not answer within 500ms (ETIMEOUT)' } : undefined
+    if (request.action !== 'set-model') return undefined
+    dialSeen = true
+    return { ok: true, outcome: 'refused', detail: 'model refused (no-credential)' }
+  }
+  waitNextAdmission()
+  asked.length = 0
+  receipts.length = 0
+  const refusedLive = await focusResumedSession(sid, transcript, { firstPaintMs: 10, model: 'claude-opus-5', effort: 'max' })
+  await refusedLive.admitted
+  await new Promise(resolve => setTimeout(resolve, 100))
+  scripted = () => undefined
+  check('a dial the daemon refuses on a live session is shown as refused and the other dial is still made, though the daemon is slow to answer a ping: no resume is asked', receipts.some(text => text.includes('--model Opus 5 was refused') && text.includes('model refused (no-credential)')) && asked.some(request => request.action === 'set-effort' && request.effort === 'max') && !asked.some(request => request.op === 'sessionAdmit'), `${askedWords()} ${JSON.stringify(receipts)}`)
+  answer({ ok: true, liveHop: true })
 } finally {
   releaseFocusedSessionConnector()
 }

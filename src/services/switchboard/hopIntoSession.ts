@@ -498,6 +498,9 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
     const connector = seat.getDaemonSessionConnector(sessionId)
     if (connector === undefined) return
     const { renderModelName } = await import('../../utils/model/model.js')
+    const { daemonLastUnreachableAt } = await import('../../daemon/controlSocket.js')
+    const dialledAt = Date.now()
+    const daemonWentAway = (): boolean => resumeWithLaunchWords !== null && daemonLastUnreachableAt() >= dialledAt
     const facts = connector.modelFacts()
     const parts: string[] = []
     let daemonLeft = false
@@ -506,7 +509,7 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--model ${renderModelName(launch.model)} wins over the session's ${renderModelName(facts.effective)}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        daemonLeft = resumeWithLaunchWords !== null && !(await heldLiveUnderDaemon(sessionId))
+        daemonLeft = daemonWentAway()
         if (!daemonLeft) parts.push(`--model ${renderModelName(launch.model)} was refused, the session keeps ${renderModelName(facts.effective)}: ${receipt.detail}`)
       }
     }
@@ -516,7 +519,7 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--effort ${launch.effort} wins over the session's ${sessionEffort ?? 'own effort'}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        daemonLeft = resumeWithLaunchWords !== null && !(await heldLiveUnderDaemon(sessionId))
+        daemonLeft = daemonWentAway()
         if (!daemonLeft) parts.push(`--effort ${launch.effort} was refused, the session keeps ${sessionEffort ?? 'its own effort'}: ${receipt.detail}`)
       }
     }
