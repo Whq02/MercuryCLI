@@ -407,5 +407,41 @@ console.log('\nrename — failed name generation reports the failure instead of 
   check('control: empty conversation still says no conversation context', typeof r.emptyText === 'string' && r.emptyText.startsWith('No conversation context'), JSON.stringify(r))
 }
 
+console.log('\nBootSaturnScreen — unreadable receipt file surfaces fire-history error line in detail pane')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const receiptsPath = path.join(SRC, 'services/switchboard/sessionReceipts.ts')
+    const realReceipts = await import(receiptsPath)
+    mock.module(receiptsPath, () => ({
+      ...realReceipts,
+      readSessionReceipts: () => { throw new Error('receipts EACCES') },
+    }))
+    const screen = await import(path.join(SRC, 'components/BootSaturnScreen.tsx'))
+    if (typeof screen.liveReceiptsOf !== 'function') {
+      out.missing = true
+    } else {
+      const row = {
+        sessionTitle: 'demo',
+        sessionId: 'sess-1',
+        workspaceId: PROJECT,
+        parked: false,
+        facts: { id: 'sched-1', kind: 'fire', when: 'every hour', nextFireMs: Date.now() + 60_000 },
+        schedule: {
+          id: 'sched-1',
+          when: { kind: 'cron', cron: '0 * * * *' },
+          modelKey: 'claude-sonnet-4-6',
+          account: { family: 'anthropic', source: 'oauth' },
+          action: { kind: 'fire', prompt: 'hi' },
+        },
+        held: [],
+      }
+      const receipts = screen.liveReceiptsOf(row)
+      out.lines = screen.saturnDetailLines(row, Date.now(), receipts).join(' ')
+    }
+  `)
+  check('unreadable receipts show fire history error sentence in saturnDetailLines', typeof r.lines === 'string' && r.lines.includes('fire history could not be read (receipts EACCES) — press r to retry'), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
