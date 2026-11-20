@@ -464,36 +464,29 @@ function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
   }
 }
 
-function liveModelOptions(): string[] {
-  try {
-    return [
-      ...new Set(
-        getModelOptions()
-          .map(o => o.value)
-          .filter(v => v.length > 0 && !v.startsWith(KEY_CONNECT_PREFIX)),
-      ),
-    ];
-  } catch (error) {
-    passedOver(error)
-    return [];
-  }
+export function liveModelOptions(): string[] {
+  return [
+    ...new Set(
+      getModelOptions()
+        .map(o => o.value)
+        .filter(v => v.length > 0 && !v.startsWith(KEY_CONNECT_PREFIX)),
+    ),
+  ];
 }
 
-function livePresets(): string[] {
-  try {
-    return listKitPresets();
-  } catch (error) {
-    passedOver(error)
-    return [];
-  }
+export function livePresets(): string[] {
+  return listKitPresets();
 }
 
-function liveProjectDirs(): string[] {
+export function liveProjectDirs(): string[] {
+  return workedInProjects().map(p => p.dir);
+}
+
+export function runSaturnFormRowEdit(run: () => void, setFormNote: (note: string | null) => void): void {
   try {
-    return workedInProjects().map(p => p.dir);
+    run();
   } catch (error) {
-    passedOver(error)
-    return [];
+    setFormNote(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -636,7 +629,10 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
   };
 
   const editFormRow = (id: SaturnFormRowId): void => {
-    editFormRowOf({ form, setFormNote, setFormPrompt, setFormPick, modelOptionsOf, liveModelOptions, saturnWorkspacePickOptions, projectsOf, liveProjectDirs, setForm, presetsOf, livePresets, saturnOpeningPickOptions }, id);
+    runSaturnFormRowEdit(
+      () => editFormRowOf({ form, setFormNote, setFormPrompt, setFormPick, modelOptionsOf, liveModelOptions, saturnWorkspacePickOptions, projectsOf, liveProjectDirs, setForm, presetsOf, livePresets, saturnOpeningPickOptions }, id),
+      setFormNote,
+    );
   };
 
   const clearFormRow = (id: SaturnFormRowId): void => {

@@ -181,5 +181,55 @@ console.log('\nsessions — failed clipboard copy omits the false copied-to-clip
   check('control: succeeding clipboard copy keeps (copied to the clipboard)', typeof r.ok === 'string' && r.ok.includes('(copied to the clipboard)'), JSON.stringify(r))
 }
 
+console.log('\nBootSaturnScreen — model/preset/project listing failures surface in formNote instead of empty pickers')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const optsPath = path.join(SRC, 'utils/model/modelOptions.ts')
+    const presetPath = path.join(SRC, 'services/mcp/presetStore.ts')
+    const factsPath = path.join(SRC, 'utils/bootCardFacts.ts')
+    const [realOpts, realPresets, realFacts] = await Promise.all([import(optsPath), import(presetPath), import(factsPath)])
+    mock.module(optsPath, () => ({ ...realOpts, getModelOptions: () => { throw new Error('model options unreadable') } }))
+    mock.module(presetPath, () => ({ ...realPresets, listKitPresets: () => { throw new Error('presets config unreadable') } }))
+    mock.module(factsPath, () => ({ ...realFacts, workedInProjects: () => { throw new Error('projects dir EACCES') } }))
+    const screen = await import(path.join(SRC, 'components/BootSaturnScreen.tsx'))
+    const actions = await import(path.join(SRC, 'components/bootSaturn/actions.ts'))
+    if (typeof screen.runSaturnFormRowEdit !== 'function' || typeof screen.liveModelOptions !== 'function') {
+      out.missing = true
+    } else {
+      const form = screen.freshSaturnForm({ modelKey: 'claude-sonnet-4-6', workspaceDir: PROJECT })
+      const probe = field => {
+        const notes = []
+        const picks = []
+        screen.runSaturnFormRowEdit(
+          () => actions.editFormRowOf({
+            form,
+            setFormNote: n => notes.push(n),
+            setFormPrompt: () => {},
+            setFormPick: p => picks.push(p),
+            modelOptionsOf: undefined,
+            liveModelOptions: screen.liveModelOptions,
+            saturnWorkspacePickOptions: screen.saturnWorkspacePickOptions,
+            projectsOf: undefined,
+            liveProjectDirs: screen.liveProjectDirs,
+            setForm: () => {},
+            presetsOf: undefined,
+            livePresets: screen.livePresets,
+            saturnOpeningPickOptions: screen.saturnOpeningPickOptions,
+          }, field),
+          n => notes.push(n),
+        )
+        return { note: notes.at(-1) ?? null, picks: picks.length }
+      }
+      out.model = probe('model')
+      out.kit = probe('kit')
+      out.workspace = probe('workspace')
+    }
+  `)
+  check('model listing throw sets formNote and opens no empty picker', (r.model as { note?: string; picks?: number } | undefined)?.note === 'model options unreadable' && (r.model as { picks?: number } | undefined)?.picks === 0, JSON.stringify(r.model ?? r))
+  check('preset listing throw sets formNote and opens no empty picker', (r.kit as { note?: string; picks?: number } | undefined)?.note === 'presets config unreadable' && (r.kit as { picks?: number } | undefined)?.picks === 0, JSON.stringify(r.kit ?? r))
+  check('project listing throw sets formNote and opens no empty picker', (r.workspace as { note?: string; picks?: number } | undefined)?.note === 'projects dir EACCES' && (r.workspace as { picks?: number } | undefined)?.picks === 0, JSON.stringify(r.workspace ?? r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
