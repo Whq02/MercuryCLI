@@ -57,6 +57,6 @@ export async function generateSessionName(
     return null
   } catch (thrown) {
     logForDebugging(`generateSessionName failed: ${String(thrown)}`)
-    return null
+    throw thrown
   }
 }

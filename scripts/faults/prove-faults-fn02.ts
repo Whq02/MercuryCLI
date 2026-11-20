@@ -342,5 +342,245 @@ console.log('\nKitMenuScreen — failed liveCount returns null instead of falsel
   check('failed countLiveConcourseWorkers resolves to null instead of 0', r.failedCount === null && r.okCount === 2, JSON.stringify(r))
 }
 
+console.log('\npicker/headings — failed slot derivation reports unread account status instead of not connected')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const slotsPath = path.join(SRC, 'services/providers/accountSlots.ts')
+    const usabilityPath = path.join(SRC, 'services/providers/providerUsability.ts')
+    const [realSlots, realUsability] = await Promise.all([import(slotsPath), import(usabilityPath)])
+    const baseUsability = realUsability.resolveProviderUsability()
+    mock.module(slotsPath, () => ({ ...realSlots, deriveFamilySlotGroups: () => { throw new Error('auth file EACCES') } }))
+    mock.module(usabilityPath, () => ({
+      ...realUsability,
+      resolveProviderUsability: () => ({
+        ...baseUsability,
+        deepseek: { ...baseUsability.deepseek, credential: 'api-key', blockers: [] },
+      }),
+    }))
+    const { providerHeadingsOf } = await import(path.join(SRC, 'commands/model/picker/headings.ts'))
+    const { DEEPSEEK_MODEL_GROUP } = await import(path.join(SRC, 'utils/model/modelOptions.ts'))
+    const headings = providerHeadingsOf(999)
+    out.deepseek = headings[DEEPSEEK_MODEL_GROUP]
+  `)
+  const ds = r.deepseek as { reason?: string } | undefined
+  check('credentialed key lane reports unreadable account status instead of not connected', ds?.reason === 'account status could not be read (auth file EACCES) — run /logins to check', JSON.stringify(ds ?? r))
+}
+
+console.log('\nrename — failed name generation reports the failure instead of saying no conversation context')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const streamPath = path.join(SRC, 'services/providers/anthropic/streamCore.ts')
+    const realStream = await import(streamPath)
+    mock.module(streamPath, () => ({
+      ...realStream,
+      queryUtility: async () => { throw new Error('rate limited') },
+    }))
+    const { generateSessionName } = await import(path.join(SRC, 'commands/rename/generateSessionName.ts'))
+    const { call } = await import(path.join(SRC, 'commands/rename/rename.ts'))
+    const userMsg = { type: 'user', message: { role: 'user', content: 'Fix the billing webhook retries' } }
+    let threwMsg = null
+    try {
+      await generateSessionName([userMsg], new AbortController().signal)
+    } catch (e) {
+      threwMsg = e instanceof Error ? e.message : String(e)
+    }
+    out.threwMsg = threwMsg
+    let doneText = null
+    await call(
+      text => { doneText = text },
+      { messages: [userMsg], abortController: new AbortController(), setAppState: () => {} },
+      '',
+    )
+    out.doneText = doneText
+    let emptyText = null
+    await call(
+      text => { emptyText = text },
+      { messages: [], abortController: new AbortController(), setAppState: () => {} },
+      '',
+    )
+    out.emptyText = emptyText
+  `)
+  check('generateSessionName rethrows queryUtility errors', r.threwMsg === 'rate limited', JSON.stringify(r))
+  check('rename surfaces failure sentence instead of no conversation context', r.doneText === 'Could not generate a session name (rate limited). Use /rename <name> to name the session directly.', JSON.stringify(r))
+  check('control: empty conversation still says no conversation context', typeof r.emptyText === 'string' && r.emptyText.startsWith('No conversation context'), JSON.stringify(r))
+}
+
+console.log('\nBootSaturnScreen — unreadable receipt file surfaces fire-history error line in detail pane')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const receiptsPath = path.join(SRC, 'services/switchboard/sessionReceipts.ts')
+    const realReceipts = await import(receiptsPath)
+    mock.module(receiptsPath, () => ({
+      ...realReceipts,
+      readSessionReceipts: () => { throw new Error('receipts EACCES') },
+    }))
+    const screen = await import(path.join(SRC, 'components/BootSaturnScreen.tsx'))
+    if (typeof screen.liveReceiptsOf !== 'function') {
+      out.missing = true
+    } else {
+      const row = {
+        sessionTitle: 'demo',
+        sessionId: 'sess-1',
+        workspaceId: PROJECT,
+        parked: false,
+        facts: { id: 'sched-1', kind: 'fire', when: 'every hour', nextFireMs: Date.now() + 60_000 },
+        schedule: {
+          id: 'sched-1',
+          when: { kind: 'cron', cron: '0 * * * *' },
+          modelKey: 'claude-sonnet-4-6',
+          account: { family: 'anthropic', source: 'oauth' },
+          action: { kind: 'fire', prompt: 'hi' },
+        },
+        held: [],
+      }
+      const receipts = screen.liveReceiptsOf(row)
+      out.lines = screen.saturnDetailLines(row, Date.now(), receipts).join(' ')
+    }
+  `)
+  check('unreadable receipts show fire history error sentence in saturnDetailLines', typeof r.lines === 'string' && r.lines.includes('fire history could not be read (receipts EACCES) — press r to retry'), JSON.stringify(r))
+}
+
+console.log('\nSelectInputOption — failed clipboard image paste reports the failure sentence instead of swallowing it')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/CustomSelect/select-input-option.tsx'))
+    if (typeof mod.runSelectImagePaste !== 'function') {
+      out.missing = true
+    } else {
+      const errors = []
+      await mod.runSelectImagePaste({
+        read: async () => { throw new Error('clipboard unavailable') },
+        onImagePaste: () => {},
+        onError: msg => errors.push(msg),
+      })
+      out.error = errors.at(-1) ?? null
+    }
+  `)
+  check('clipboard paste rejection produces the error sentence', r.error === 'Could not paste image from clipboard (clipboard unavailable) — copy the image again and retry', JSON.stringify(r))
+}
+
+console.log('\nLogSelector — failed session rename reports the failure sentence instead of closing silently')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/LogSelector.tsx'))
+    if (typeof mod.commitLogRename !== 'function') {
+      out.missing = true
+    } else {
+      const errors = []
+      let renamed = 0
+      await mod.commitLogRename(
+        { sessionId: '11111111-1111-4111-8111-111111111111', fullPath: '/tmp/session.jsonl' },
+        'my-name',
+        {
+          save: async () => { throw new Error('disk full') },
+          onRenamed: () => { renamed++ },
+          onError: msg => errors.push(msg),
+        },
+      )
+      out.error = errors.at(-1) ?? null
+      out.renamed = renamed
+    }
+  `)
+  check('rename failure produces the error sentence and does not call onRenamed', r.error === 'Could not rename session (disk full) — press ctrl+r to try again' && r.renamed === 0, JSON.stringify(r))
+}
+
+console.log('\nMercuryContentSearch — non-abort search failure returns failure sentence instead of 0 hits')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/MercuryContentSearch.tsx'))
+    if (typeof mod.runContentSearch !== 'function') {
+      out.missing = true
+    } else {
+      const ac1 = new AbortController()
+      out.failed = await mod.runContentSearch('needle', ac1.signal, async () => { throw new Error('rg EACCES') })
+      const ac2 = new AbortController()
+      ac2.abort()
+      out.aborted = await mod.runContentSearch('needle', ac2.signal, async () => { throw new Error('aborted') })
+    }
+  `)
+  const failed = r.failed as { matches?: unknown[]; error?: string | null } | undefined
+  check('non-abort loadMatches failure returns the failure sentence', failed?.error === 'search could not run (rg EACCES) — edit the query or retry', JSON.stringify(failed ?? r))
+  check('aborted loadMatches returns null without surfacing an error', r.aborted === null, JSON.stringify(r))
+}
+
+console.log('\nMercuryFileOpen — failed file listing returns failure sentence instead of 0 files')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/MercuryFileOpen.tsx'))
+    if (typeof mod.runFileOpenLoad !== 'function') {
+      out.missing = true
+    } else {
+      out.failed = await mod.runFileOpenLoad('src', async () => { throw new Error('readdir EACCES') })
+      out.ok = await mod.runFileOpenLoad('src', async () => [{ id: 'a', displayText: 'a.ts' }])
+    }
+  `)
+  const failed = r.failed as { results?: unknown[]; error?: string | null } | undefined
+  const ok = r.ok as { results?: unknown[]; error?: string | null } | undefined
+  check('loadFiles rejection returns failure sentence', failed?.error === 'could not list files (readdir EACCES) — edit the filter or retry', JSON.stringify(failed ?? r))
+  check('control: succeeding loadFiles returns results with null error', ok?.error === null && ok?.results?.length === 1, JSON.stringify(ok ?? r))
+}
+
+console.log('\nMercuryFilesMenu — unreadable folder returns a warning row instead of looking empty')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/MercuryFilesMenu.tsx'))
+    const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    out.posix = posix
+    if (typeof mod.readFolder !== 'function') {
+      out.missing = true
+    } else {
+      const locked = path.join(PROJECT, 'locked')
+      fs.mkdirSync(locked, { recursive: true })
+      fs.writeFileSync(path.join(locked, 'secret.txt'), 'hi\\n')
+      if (posix) fs.chmodSync(locked, 0o000)
+      try {
+        out.locked = mod.readFolder(PROJECT, 'locked')
+        out.absent = mod.readFolder(PROJECT, 'does-not-exist')
+      } finally {
+        if (posix) fs.chmodSync(locked, 0o700)
+      }
+    }
+  `)
+  if (r.posix === true) {
+    const locked = Array.isArray(r.locked) ? (r.locked as Array<{ name?: string; path?: string }>) : []
+    check('unreadable folder produces warning entry instead of empty array', locked.length === 1 && typeof locked[0]?.name === 'string' && locked[0].name.includes('folder could not be read (') && locked[0].name.includes('— check permissions'), JSON.stringify(locked))
+    check('control: absent folder (ENOENT) still returns empty array', Array.isArray(r.absent) && (r.absent as unknown[]).length === 0, JSON.stringify(r.absent))
+  }
+}
+
+console.log('\nOnboarding — failed terminal setup shows failure sentence instead of advancing silently')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/Onboarding.tsx'))
+    if (typeof mod.runOnboardingTerminalSetup !== 'function') {
+      out.missing = true
+    } else {
+      let doneOnFail = 0
+      let errMsg = null
+      await mod.runOnboardingTerminalSetup(
+        async () => { throw new Error('permission denied') },
+        () => { doneOnFail++ },
+        msg => { errMsg = msg },
+      )
+      let doneOnOk = 0
+      let errOnOk = null
+      await mod.runOnboardingTerminalSetup(
+        async () => {},
+        () => { doneOnOk++ },
+        msg => { errOnOk = msg },
+      )
+      out.doneOnFail = doneOnFail
+      out.errMsg = errMsg
+      out.doneOnOk = doneOnOk
+      out.errOnOk = errOnOk
+    }
+  `)
+  check('failed setupTerminal holds the step and surfaces the failure sentence', r.doneOnFail === 0 && r.errMsg === 'Terminal setup failed (permission denied) — run /terminal-setup later; press Enter to continue', JSON.stringify(r))
+  check('control: succeeding setupTerminal calls onDone without error', r.doneOnOk === 1 && r.errOnOk === null, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

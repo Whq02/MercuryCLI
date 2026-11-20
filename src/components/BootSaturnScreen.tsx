@@ -39,7 +39,8 @@ import { LOCAL_PULL_RECOMMENDATION } from '../services/providers/local/localAcco
 import { LOCAL_SETUP_OFFER } from '../commands/localsetup/words.js';
 import { clearFormRowOf, commitPromptOf, editFormRowOf, runNowOf, scheduleEditRpcOf, submitFormOf, type SaturnFormRowId } from './bootSaturn/actions.js';
 import { saturnMenuOf, saturnRowsView } from './bootSaturn/menu.js';
-import { passedOver } from '../utils/passedOver.js';
+import { getErrnoCode } from '../utils/errors.js';
+import { logError } from '../utils/log.js';
 
 
 const DETAIL_W = 38;
@@ -448,7 +449,7 @@ interface BootSaturnScreenProps {
   preflightOf?: (modelKey: string, nextFireMs: number | null) => SaturnFormPreflightV1;
 }
 
-function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
+export function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
   if (row.box === true) return [];
   try {
     return readSessionReceipts(getProjectDir(row.workspaceId), row.sessionId)
@@ -459,8 +460,16 @@ function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
       )
       .slice(-4);
   } catch (error) {
-    passedOver(error)
-    return [];
+    if (getErrnoCode(error) === 'ENOENT') return [];
+    logError(error);
+    return [
+      {
+        at: '',
+        by: 'saturn-screen',
+        kind: 'schedule-held',
+        summary: `fire history could not be read (${error instanceof Error ? error.message : String(error)}) — press r to retry`,
+      },
+    ];
   }
 }
 

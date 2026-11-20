@@ -18,6 +18,22 @@ import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 type SearchMatch = { file: string; line: number; text: string }
 type SearchLoader = (query: string, signal: AbortSignal) => Promise<SearchMatch[]>
 
+export function runContentSearch(
+  query: string,
+  signal: AbortSignal,
+  loadMatches: SearchLoader,
+): Promise<{ matches: SearchMatch[]; error: string | null } | null> {
+  return loadMatches(query, signal)
+    .then(matches => ({ matches, error: null }))
+    .catch((error: unknown) => {
+      if (signal.aborted) return null
+      return {
+        matches: [],
+        error: `search could not run (${error instanceof Error ? error.message : String(error)}) — edit the query or retry`,
+      }
+    })
+}
+
 const MAX_MATCHES = 200
 const MIN_QUERY = 2
 const FILE_WIDTH = 34
@@ -108,6 +124,7 @@ export function MercuryContentSearch({
   const [sel, setSel] = useState(0)
   const [cursorOffset, setCursorOffset] = useState(0)
   const [matches, setMatches] = useState<SearchMatch[] | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const genRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -117,19 +134,19 @@ export function MercuryContentSearch({
     const q = query.trim()
     if (q.length < MIN_QUERY) {
       setMatches([])
+      setSearchError(null)
       return
     }
     const controller = new AbortController()
     abortRef.current = controller
     let alive = true
     setMatches(null)
-    void loadMatches(q, controller.signal)
-      .then(items => {
-        if (alive && gen === genRef.current) setMatches(items)
-      })
-      .catch(() => {
-        if (alive && gen === genRef.current) setMatches([])
-      })
+    setSearchError(null)
+    void runContentSearch(q, controller.signal, loadMatches).then(outcome => {
+      if (!alive || gen !== genRef.current || outcome === null) return
+      setMatches(outcome.matches)
+      setSearchError(outcome.error)
+    })
     return () => {
       alive = false
       controller.abort()
@@ -145,7 +162,9 @@ export function MercuryContentSearch({
     ? 'type ≥2 chars to grep file contents'
     : searching
       ? 'searching…'
-      : `${hitCount}${hitCount >= MAX_MATCHES ? '+' : ''} ${hitCount === 1 ? 'hit' : 'hits'} · ↑↓ move · ↵ insert @file#L`
+      : searchError !== null
+        ? searchError
+        : `${hitCount}${hitCount >= MAX_MATCHES ? '+' : ''} ${hitCount === 1 ? 'hit' : 'hits'} · ↑↓ move · ↵ insert @file#L`
 
   const pastOpenEvent = useOpenEventGate()
 
@@ -210,6 +229,10 @@ export function MercuryContentSearch({
       ) : searching ? (
         <Box marginTop={1}>
           <Text color={tokens.textMuted}>scanning file contents…</Text>
+        </Box>
+      ) : searchError !== null ? (
+        <Box marginTop={1}>
+          <Text color={tokens.warning}>{searchError}</Text>
         </Box>
       ) : shown.length === 0 ? (
         <Box marginTop={1}>

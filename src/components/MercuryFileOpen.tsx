@@ -16,6 +16,19 @@ import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
 
 type FileLoader = (query: string) => Promise<SuggestionItem[]>
+
+export function runFileOpenLoad(
+  query: string,
+  loadFiles: FileLoader,
+): Promise<{ results: SuggestionItem[]; error: string | null }> {
+  return loadFiles(query)
+    .then(results => ({ results, error: null }))
+    .catch((error: unknown) => ({
+      results: [],
+      error: `could not list files (${error instanceof Error ? error.message : String(error)}) — edit the filter or retry`,
+    }))
+}
+
 const defaultLoadFiles: FileLoader = async query => {
   const { generateFileSuggestions } = await import('../hooks/fileSuggestions.js')
   return generateFileSuggestions(query, true)
@@ -52,19 +65,19 @@ export function MercuryFileOpen({
   const [sel, setSel] = useState(0)
   const [cursorOffset, setCursorOffset] = useState(0)
   const [results, setResults] = useState<SuggestionItem[] | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const genRef = useRef(0)
 
   useLoad(() => {
     setResults(null)
+    setLoadError(null)
     const gen = ++genRef.current
     let alive = true
-    void loadFiles(query)
-      .then(items => {
-        if (alive && gen === genRef.current) setResults(items)
-      })
-      .catch(() => {
-        if (alive && gen === genRef.current) setResults([])
-      })
+    void runFileOpenLoad(query, loadFiles).then(outcome => {
+      if (!alive || gen !== genRef.current) return
+      setResults(outcome.results)
+      setLoadError(outcome.error)
+    })
     return () => {
       alive = false
     }
@@ -75,7 +88,9 @@ export function MercuryFileOpen({
   const loading = results === null
   const footer = loading
     ? 'indexing files…'
-    : `${results?.length ?? 0} ${(results?.length ?? 0) === 1 ? 'file' : 'files'} · ↑↓ move · ↵ insert @path`
+    : loadError !== null
+      ? loadError
+      : `${results?.length ?? 0} ${(results?.length ?? 0) === 1 ? 'file' : 'files'} · ↑↓ move · ↵ insert @path`
 
   const pastOpenEvent = useOpenEventGate()
 
@@ -136,6 +151,10 @@ export function MercuryFileOpen({
       {loading ? (
         <Box marginTop={1}>
           <Text color={tokens.textMuted}>scanning the working tree…</Text>
+        </Box>
+      ) : loadError !== null ? (
+        <Box marginTop={1}>
+          <Text color={tokens.warning}>{loadError}</Text>
         </Box>
       ) : shown.length === 0 ? (
         <Box marginTop={1}>
