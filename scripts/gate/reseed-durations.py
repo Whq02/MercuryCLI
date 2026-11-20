@@ -9,11 +9,14 @@ SEED = os.path.join(HERE, "duration-seed.tsv")
 
 def usage(code):
     sys.stderr.write(
-        "usage: reseed-durations.py <verdict.json | suite=seconds ...> [--write] [--top N]\n"
+        "usage: reseed-durations.py <verdict.json | suite=seconds ...> [--write | --out <file>] [--top N]\n"
         "  prints every row the verdict's pooled seconds would move in scripts/gate/duration-seed.tsv\n"
         "  (suite · seeded · measured) and the longest measured walls; --write rewrites those rows in place,\n"
         "  keeping every other row, the comments and the order. A suite the file does not know is listed,\n"
-        "  never added: a new suite earns its row by hand under the class it belongs to.\n")
+        "  never added: a new suite earns its row by hand under the class it belongs to.\n"
+        "  --out <file> writes the same rows, and a row for each suite the file does not know, to <file>\n"
+        "  and leaves scripts/gate/duration-seed.tsv alone: a check that pins its own time limits orders its\n"
+        "  queues from <file> through MERCURY_CI_SHARD_SEED_FILE.\n")
     sys.exit(code)
 
 
@@ -41,6 +44,7 @@ def measured_from(args):
 def main(argv):
     write = "--write" in argv
     top = 10
+    out_path = None
     args = []
     skip = False
     for i, arg in enumerate(argv):
@@ -53,8 +57,14 @@ def main(argv):
             top = int(argv[i + 1])
             skip = True
             continue
+        if arg == "--out":
+            if i + 1 >= len(argv):
+                usage(2)
+            out_path = argv[i + 1]
+            skip = True
+            continue
         args.append(arg)
-    if not args:
+    if not args or (write and out_path is not None):
         usage(2)
     measured = measured_from(args)
     lines = open(SEED).read().split("\n")
@@ -82,7 +92,14 @@ def main(argv):
     print("the %d longest measured walls:" % len(longest))
     for suite, secs in longest:
         print("  %-28s %6d s" % (suite, secs))
-    if write and moved:
+    if out_path is not None:
+        body = "\n".join(out)
+        if unknown:
+            body = body.rstrip("\n") + "\n" + "".join("%s\t%d\n" % (suite, measured[suite]) for suite in unknown)
+        with open(out_path, "w") as target:
+            target.write(body)
+        print("written: %s (%d row(s) moved, %d added; %s is unchanged)" % (out_path, len(moved), len(unknown), SEED))
+    elif write and moved:
         with open(SEED, "w") as target:
             target.write("\n".join(out))
         print("written: %s (%d row(s))" % (SEED, len(moved)))
