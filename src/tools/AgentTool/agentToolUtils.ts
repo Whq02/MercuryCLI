@@ -835,7 +835,7 @@ export function armBudgetCutResume(args: {
     if (!isLocalAgentTask(row) || row.status !== 'failed' || row.registration !== args.registration) return
     const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
     if (liveAgentOwner(args.taskId, tasksNow) !== null) return
-    const resume = args.resume ?? (resumeAgentBackground as unknown as NonNullable<typeof args.resume>)
+    const resume = args.resume ?? resumeAgentBackground
     let resumed: { note?: string } | void
     try {
       resumed = await resume({
@@ -1003,7 +1003,7 @@ export function armOverloadProbe(args: {
       return prev
     })
     if (liveAgentOwner(args.taskId, tasksNow) !== null) return
-    const resume = args.resume ?? (resumeAgentBackground as unknown as NonNullable<typeof args.resume>)
+    const resume = args.resume ?? resumeAgentBackground
     try {
       const resumed = await resume({
         agentId: args.taskId,
@@ -1138,7 +1138,7 @@ export async function runAsyncAgentLifecycle(args: {
                 const { stop } = startAgentSummarization(
                   taskId,
                   taskId,
-                  params as never,
+                  params,
                   rootSetAppState,
                 )
                 stopSummarization = stop
@@ -1358,7 +1358,7 @@ export async function runAsyncAgentLifecycle(args: {
       const { clearInvokedSkillsForAgent } = await import(
         '../../bootstrap/state.js'
       )
-      clearInvokedSkillsForAgent(agentIdForCleanup as never)
+      clearInvokedSkillsForAgent(agentIdForCleanup)
     } catch (error) {
       logForDebugging(
         `agent lifecycle: final cleanup failed: ${errorMessage(error)}`,

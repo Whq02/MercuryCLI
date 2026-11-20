@@ -255,7 +255,7 @@ export function getGlobalConfigFieldDrops(): readonly GlobalConfigFieldDrop[] {
 
 export function decodeGlobalConfigFields(parsed: unknown): unknown {
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return parsed
-  const defaults = createDefaultGlobalConfig() as unknown as Record<string, unknown>
+  const defaults: Record<string, unknown> = createDefaultGlobalConfig()
   const source = parsed as Record<string, unknown>
   const drops: GlobalConfigFieldDrop[] = []
   let out: Record<string, unknown> | null = null

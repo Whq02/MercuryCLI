@@ -7,7 +7,6 @@ import { fileReferenceCandidates } from '../../services/resources/referencePaths
 import { getCwd } from '../../utils/cwd.js'
 import { expandPath } from '../../utils/path.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
-import type { CanUseToolFn } from '../../Tool.js'
 import type { ReadQueryRequest } from './readQuery.js'
 import { parseRichFormatTarget, renderArchiveTarget } from './readRichFormats.js'
 
@@ -39,11 +38,12 @@ export async function withJsonQuerySource<T>(request: ReadQueryRequest, director
     const slash = source.indexOf('/', source.indexOf('://') + 3)
     const rich = slash < 0 ? null : parseRichFormatTarget(source.slice(slash))
     const named = rich?.subtarget !== undefined ? `${source.slice(0, slash)}${rich.containerPath}` : source
+    const { canUseTool, parentMessage } = request
     const remote = await bridge.remoteReadTarget(named, null, request.context,
-      typeof request.canUseTool === 'function' && request.parentMessage !== undefined
+      typeof canUseTool === 'function' && parentMessage !== undefined
         ? async path => {
             const { FileReadTool } = await import('./FileReadTool.js')
-            return (request.canUseTool as CanUseToolFn)(FileReadTool as never, { ...request.input, file_path: path }, request.context, request.parentMessage as never, `${request.context.toolUseId ?? 'read'}-resolved`)
+            return canUseTool(FileReadTool, { ...request.input, file_path: path }, request.context, parentMessage, `${request.context.toolUseId ?? 'read'}-resolved`)
           }
         : null, false)
     if (remote.kind !== 'file') throw new Error(`${source} is not a JSON file.`)

@@ -54,7 +54,7 @@ export const liveAdvisorCall: AdvisorCall = async args => {
         messages: [createUserMessage({ content: args.prompt })],
         systemPrompt: asSystemPrompt([args.system]),
         thinkingConfig: { type: 'disabled' },
-        tools: [] as never,
+        tools: [],
         signal,
         options: {
           model: args.model,
@@ -68,7 +68,7 @@ export const liveAdvisorCall: AdvisorCall = async args => {
           async getToolPermissionContext() {
             return getEmptyToolPermissionContext()
           },
-        } as never,
+        },
       }),
     )
     const text = textOf(settled.message.content).trim()

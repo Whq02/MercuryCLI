@@ -13,7 +13,7 @@ export function armQuitParksAll(): void {
     try {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'sessionControl', action: 'park-all', sessionId: 'all', by: SEAT_BY } as never,
+        { op: 'sessionControl', action: 'park-all', sessionId: 'all', by: SEAT_BY },
         { timeoutMs: PARK_ALL_BUDGET_MS },
       )) as { ok?: boolean; detail?: string; error?: string }
       logForDebugging(`[switchboard] the quit parks all: ${reply.ok === true ? (reply.detail ?? 'applied') : (reply.error ?? 'no daemon answered — its own orphan reap parks the estate')}`)
