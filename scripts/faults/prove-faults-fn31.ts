@@ -767,5 +767,32 @@ else {
   check('crew/scratch:unreadable-cleanup-sentinel-reported', Boolean(row?.evidence?.includes('last sweep unreadable (')), JSON.stringify(r))
 }
 
+console.log('\ncoding-loop-fast.ts — anvil-workbench-fast reports unreadable grammar dir instead of 0 missing')
+if (!POSIX_MODES) skip('coding-loop-fast:unreadable-grammar-dir-reported', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const grammarDir = path.join(PROJECT, 'locked-grammars')
+    fs.mkdirSync(grammarDir, { recursive: true })
+    fs.chmodSync(grammarDir, 0o000)
+    const realGram = await import(SRC + '/services/structure/grammarFacility.ts')
+    mock.module(SRC + '/services/structure/grammarFacility.js', () => ({
+      ...realGram,
+      resolveGrammarEngineDir: () => ({ state: 'ok', source: 'vendored', dir: grammarDir }),
+    }))
+    const { codingLoopFastChecks } = await import(SRC + '/utils/health/sections/coding-loop-fast.ts')
+    const spec = codingLoopFastChecks().find(c => c.id === 'anvil-workbench-fast')
+    try {
+      out.row = await spec.run()
+    } finally {
+      fs.chmodSync(grammarDir, 0o700)
+    }
+  `)
+  const row = r.row as { detail?: string } | undefined
+  check('coding-loop-fast:unreadable-grammar-dir-reported', Boolean(row?.detail?.includes('grammar dir unreadable (')), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
