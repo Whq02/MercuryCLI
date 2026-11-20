@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { useClaim, useDerivedState } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import {
   atlasMatches,
@@ -114,7 +115,7 @@ export function MercuryInputAtlas({
   const shown = filtered.slice(winStart, winStart + listRows)
   const current = filtered[Math.min(sel, Math.max(0, filtered.length - 1))]
 
-  useEffect(() => {
+  useDerivedState(() => {
     setSel(s => Math.min(s, Math.max(0, filtered.length - 1)))
   }, [filtered.length])
 
@@ -206,7 +207,7 @@ export function MercuryInputAtlas({
     [current, contexts, kb.bindings, defaultCount, pending, leaveCapture],
   )
 
-  useEffect(() => {
+  useClaim(() => {
     if (mode === 'lookup') return claimKeyCapture(onLookupKey)
     if (mode === 'rebind') return claimKeyCapture(onRebindKey)
     return undefined

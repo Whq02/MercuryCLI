@@ -1,5 +1,6 @@
 
 import * as React from 'react'
+import { useLayoutClaim, useMount, useSubscription } from '../../hooks/effects.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useElevatedSurface } from './useElevatedSurface.js'
 import { Box, MotionParkContext, Text, useInput, useTheme, wrapText } from '../../ink.js'
@@ -109,9 +110,9 @@ export function CommandCenter({
   const t = useMercuryTokens()
   const embedded = embeddedProp || React.useContext(CockpitEmbeddedContext)
   const elevatedRef = useElevatedSurface()
-  React.useEffect(() => {
+  useMount(() => {
     if (!embedded) markTransitionEnd('screen-switch')
-  }, [])
+  })
   const closable = closeKeys !== 'none'
   const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded && closable)
   useInput(
@@ -152,7 +153,7 @@ export function CommandCenter({
   const bodyFooterText = bodyWindow.total > bodyWindow.rows && declaredRow.current === null && !bodyOwnsPageKeys && !topOverlayOwnsPageKeys()
     ? packFooter(`↑↓ scroll · pgup/pgdn page · ${footerText}`, Math.max(0, cols - 4))
     : footerText
-  React.useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (!insideModal || embedded || !modalScrollRef) return
     modalScrollRef.current = bodyRef.current
     return () => {
@@ -344,7 +345,7 @@ export function Divider({
 export function useNowTick(ms: number | null = 1000): number {
   const parked = React.useContext(MotionParkContext)
   const [now, setNow] = React.useState(() => Date.now())
-  React.useEffect(() => {
+  useSubscription(() => {
     if (!ms || parked) return
     setNow(quantizedNow(ms))
     return subscribeUiClock(ms, () => setNow(quantizedNow(ms)))

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useLoad } from '../../../hooks/effects.js';
 import { logForDebugging } from '../../../utils/debug.js';
 import { getCwd } from '../../../utils/cwd.js';
 import { readConcourseSeedOverrides, writeConcourseSeedOverride } from '../../../services/concourse/concourseSnapshot.js';
@@ -18,7 +19,7 @@ export function useConcourseAdmissionPump({
   noteControl: (control: string, state: ControlNoteState) => void
 }): void {
   const bootGroundApplied = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     if (fixture !== null || bootGroundApplied.current) return
     bootGroundApplied.current = true
     void (async () => {
@@ -33,7 +34,7 @@ export function useConcourseAdmissionPump({
     })()
   }, [fixture, refresh])
   const pumpBusyRef = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     if (fixture !== null) return
     if (pumpBusyRef.current) return
     const snap = liveSnapshot

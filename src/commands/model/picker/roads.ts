@@ -1,4 +1,4 @@
-import * as React from 'react'
+import { useLoad } from '../../../hooks/effects.js'
 import { isDeepStrictEqual } from 'node:util'
 import { getCachedOpenrouterCatalogue, refreshOpenrouterCatalogue, type OpenrouterCatalogueSnapshot } from '../../../services/providers/openrouter/openrouterCatalogue.js'
 import { resolveOpenrouterRequestAuth } from '../../../services/providers/openrouter/openrouterAccounts.js'
@@ -357,7 +357,7 @@ export const LOCAL_ROAD: CatalogueRoad<LocalDiscoverySnapshot> = {
 
 export function useCatalogueRefreshOnOpen<S>(road: CatalogueRoad<S>, setNotice: (notice: string) => void): void {
   const identity = road.identity()
-  React.useEffect(() => {
+  useLoad(() => {
     if (identity === undefined) return
     const before = road.cached()
     let open = true
