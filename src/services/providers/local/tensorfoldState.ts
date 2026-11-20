@@ -129,8 +129,7 @@ export function __tensorFoldStateReadsForTest(): number {
 }
 
 export function tensorFoldPresenceCached(reads: { installed?: () => boolean; snapshot?: () => LocalDiscoverySnapshot | null; hosts?: () => readonly TensorFoldHost[] } = {}): TensorFoldPresenceCached {
-  const { tensorFoldEngineFound } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
-  const installed = (reads.installed ?? tensorFoldEngineFound)()
+  const installed = reads.installed ? reads.installed() : (require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')).tensorFoldEngineFound()
   const snapshot = (reads.snapshot ?? getCachedLocalDiscovery)()
   const serving = (snapshot?.servers ?? []).some(server => server.kind === 'tensorfold' && server.models.length > 0)
   const paired = (reads.hosts ?? tensorFoldHostRecords)().some(host => host.origin !== 'app' && host.origin !== 'shared')
