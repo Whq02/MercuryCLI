@@ -24,12 +24,16 @@ function transcriptReadFailure(filePath: string): string | null {
   }
 }
 
-export async function resumeMissMessage(sessionId: string, sourceFile?: string): Promise<string> {
+export function unreadableTranscriptMessage(sessionId: string, sourceFile?: string): string | null {
   const target = sourceFile ?? sessionFilePath(sessionId as UUID)
   const readError = transcriptReadFailure(target)
-  if (readError !== null) {
-    return `Session ${sessionId} transcript could not be read: ${target} (${readError}).`
-  }
+  if (readError === null) return null
+  return `Session ${sessionId} transcript could not be read: ${target} (${readError}).`
+}
+
+export async function resumeMissMessage(sessionId: string, sourceFile?: string): Promise<string> {
+  const unreadable = unreadableTranscriptMessage(sessionId, sourceFile)
+  if (unreadable !== null) return unreadable
   try {
     const current = getProjectDir(getOriginalCwd())
     const { allStatLogs } = await listSessionsAcrossProjectsProgressive(undefined, 0)

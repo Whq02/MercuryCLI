@@ -15,7 +15,7 @@ import { consumeSessionHomePin } from '../../utils/sessionStorage/sessionHomePin
 import { join, dirname } from 'node:path'
 import { existsSync } from 'node:fs'
 import { sessionFilePath } from '../../utils/sessionStorage/loading.js'
-import { resumeMissMessage } from '../../utils/sessionStorage/resumeMiss.js'
+import { unreadableTranscriptMessage } from '../../utils/sessionStorage/resumeMiss.js'
 import type { UUID } from 'node:crypto'
 import { setFlagEnv } from '../../substrate/flagRegistry.js'
 import { isSessionPersistenceDisabled, switchSession, setEngineModelOverride } from '../../bootstrap/state.js'
@@ -98,7 +98,7 @@ export async function claimSession(params: ParamsOf<'session/claim'>, ports: Run
       if (params.resume === true) {
         const resumed = await loadConversationForResume(sid, resumeFile)
         if (!resumed || resumed.messages.length === 0) {
-          endAsColdRunnerWould(await resumeMissMessage(sid, resumeFile))
+          endAsColdRunnerWould(unreadableTranscriptMessage(sid, resumeFile) ?? `No conversation found for session id ${sid}`)
           return
         }
         if (claimedModel === undefined) {
