@@ -189,8 +189,17 @@ async function readOrNull(path: string): Promise<Buffer | null> {
   try {
     return await readFile(path)
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
+  }
+}
+
+async function unlinkIfPresent(path: string): Promise<void> {
+  try {
+    await unlink(path)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
   }
 }
 
@@ -337,7 +346,7 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
           if (state === 'planned') {
             faultPoint('changeset-during-compensate', t.canonicalPath)
             if (kind === 'create') {
-              await unlinkQuiet(t.canonicalPath)
+              await unlinkIfPresent(t.canonicalPath)
               if ((await readOrNull(t.canonicalPath)) !== null) diverged.push(t.canonicalPath)
               continue
             }
@@ -430,8 +439,12 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
       let othersOriginal = true
       for (const t of targets) {
         if (driftedBeforeRename.includes(t.canonicalPath)) continue
-        const cur = await readOrNull(t.canonicalPath)
-        if (classifyDiskState(t.kind ?? 'write', cur, t.originalDigest, t.plannedDigest) !== 'original') othersOriginal = false
+        try {
+          const cur = await readOrNull(t.canonicalPath)
+          if (classifyDiskState(t.kind ?? 'write', cur, t.originalDigest, t.plannedDigest) !== 'original') othersOriginal = false
+        } catch {
+          othersOriginal = false
+        }
       }
       if (othersOriginal) return { kind: 'stale', stalePaths: [...driftedBeforeRename] }
     }
@@ -444,7 +457,14 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
     const diverged: string[] = []
     let allOriginal = true
     for (const t of targets) {
-      const cur = await readOrNull(t.canonicalPath)
+      let cur: Buffer | null
+      try {
+        cur = await readOrNull(t.canonicalPath)
+      } catch {
+        allOriginal = false
+        diverged.push(t.canonicalPath)
+        continue
+      }
       const state = classifyDiskState(t.kind ?? 'write', cur, t.originalDigest, t.plannedDigest)
       if (state === 'original') continue
       allOriginal = false
@@ -502,7 +522,15 @@ type ReconcileVerdict =
 async function reconcileFromPayload(p: TextChangeSetPayload): Promise<ReconcileVerdict> {
   const states: ('planned' | 'original' | 'other')[] = []
   for (const t of p.targets) {
-    const cur = await readOrNull(t.path)
+    let cur: Buffer | null
+    try {
+      cur = await readOrNull(t.path)
+    } catch (e) {
+      return {
+        kind: 'unresolved',
+        note: `unresolved: ${t.path} could not be read (${(e as Error).message}) — recovery will not act on it (bundle retained: ${p.bundleDir})`,
+      }
+    }
     states.push(classifyDiskState(t.kind ?? 'write', cur, t.originalDigest, t.plannedDigest))
   }
   if (states.includes('other')) {
@@ -523,11 +551,10 @@ async function reconcileFromPayload(p: TextChangeSetPayload): Promise<ReconcileV
     const kind = t.kind ?? 'write'
     if (kind === 'create') {
       faultPoint('changeset-during-compensate', t.path)
-      await unlinkQuiet(t.path)
+      await unlinkIfPresent(t.path)
       if ((await readOrNull(t.path)) !== null) {
         return { kind: 'unresolved', note: `compensation of created ${t.path} did not verify (still present)` }
       }
-      restored.push(t.path)
       continue
     }
     let orig: Buffer
