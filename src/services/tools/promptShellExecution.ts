@@ -1,28 +1,28 @@
 import { randomUUID } from 'node:crypto'
 
-import { canAnswerAsks, getSessionId } from '../bootstrap/state.js'
-import { guardKeysOf, judgeToolCall } from '../guards/guards.js'
-import type { ToolUseContext } from '../Tool.js'
-import { BashTool } from '../tools/BashTool/BashTool.js'
-import { logForDebugging } from './debug.js'
-import { MalformedCommandError, ShellError } from './errors.js'
-import { errorMessage } from './errors.js'
-import type { FrontmatterShell } from './frontmatterParser.js'
-import { createAssistantMessage } from './messages.js'
-import { hasPermissionsToUseTool } from './permissions/permissions.js'
-import { isPowerShellToolEnabled } from './shell/shellToolUtils.js'
-import { processToolResultBlock } from './toolResultStorage.js'
+import { canAnswerAsks, getSessionId } from '../../bootstrap/state.js'
+import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'
+import type { ToolUseContext } from '../../Tool.js'
+import { BashTool } from '../../tools/BashTool/BashTool.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { MalformedCommandError, ShellError } from '../../utils/errors.js'
+import { errorMessage } from '../../utils/errors.js'
+import type { FrontmatterShell } from '../../utils/frontmatterParser.js'
+import { createAssistantMessage } from '../../utils/messages.js'
+import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
+import { isPowerShellToolEnabled } from '../../utils/shell/shellToolUtils.js'
+import { processToolResultBlock } from '../../utils/toolResultStorage.js'
 
 
 const BLOCK_PATTERN = /```!\s*\n?([\s\S]*?)\n?```/g
 const INLINE_PATTERN = /(?<=\s|^)!`([^`]+)`/g
 const INLINE_OPENER = '!`'
 
-type ShellTool = typeof BashTool | typeof import('../tools/PowerShellTool/PowerShellTool.js').PowerShellTool
+type ShellTool = typeof BashTool | typeof import('../../tools/PowerShellTool/PowerShellTool.js').PowerShellTool
 
 function resolveShellTool(shell: FrontmatterShell | undefined): ShellTool {
   if (shell === 'powershell' && isPowerShellToolEnabled()) {
-    const { PowerShellTool } = require('../tools/PowerShellTool/PowerShellTool.js') as typeof import('../tools/PowerShellTool/PowerShellTool.js')
+    const { PowerShellTool } = require('../../tools/PowerShellTool/PowerShellTool.js') as typeof import('../../tools/PowerShellTool/PowerShellTool.js')
     return PowerShellTool
   }
   return BashTool
