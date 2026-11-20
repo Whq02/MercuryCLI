@@ -220,9 +220,11 @@ for (const family of FAMILIES) {
       out.held = out.asides.map(name => raw(path.join(dir, name))).sort()
       out.reasons = (await recovery.readStoreRecoveryEvents()).map(event => event.reason)
       out.wrote = wrote()
+      out.keys = Object.keys(parsed(file) ?? {})
     `)
     check('with the clock held at one millisecond the three writes land and the three old files are kept, each under its own name', r.first === null && r.second === null && r.third === null && r.wrote === true && (r.asides as string[]).length === 3 && (r.asides as string[]).every(name => family.aside.test(name)) && JSON.stringify(r.held) === JSON.stringify(['"a bare string"', '[1, 2]', 'first torn bytes {']), `${JSON.stringify(r.asides)} holding ${JSON.stringify(r.held)}`)
     check('the ledger says why each was not used', JSON.stringify(r.reasons) === JSON.stringify(['not valid JSON', 'not a JSON object', 'not a JSON object']), JSON.stringify(r.reasons))
+    check('no item of the list that stood in the file is carried into the new one', !(r.keys as string[]).some(key => /^\d+$/.test(key)), JSON.stringify(r.keys))
   }
 
   console.log(`${family.label} — a file that is not valid JSON and cannot be kept aside is not replaced`)
@@ -323,6 +325,16 @@ else {
     check(`${family.label}: the sign-out of the family says it on the error stream and exits 1`, r.verbThrew === null && said.err === `${words}\n` && said.out === '' && said.exit === 1, JSON.stringify({ threw: r.verbThrew, said }))
     check(`${family.label}: the sign-out of every provider answers it once, and the file stands byte for byte`, r.every === null && JSON.stringify(r.everyAnswered) === JSON.stringify([words]) && r.same === true, `${JSON.stringify(r.every ?? r.everyAnswered)} · file ${r.same === true ? 'kept' : 'changed'}`)
   }
+  const marked = runIn(FAMILIES[4]!, `
+    const child = await import('node:child_process')
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(file, FULL, { mode: 0o600 })
+    child.spawnSync('/usr/bin/chflags', ['uchg', file])
+    out.threw = attempt(() => m.markOpenrouterKeyRefused({ key: 'sk-or-fixture-refused', source: 'stored' }, 401, 'refused by the fixture'))
+    child.spawnSync('/usr/bin/chflags', ['nouchg', file])
+    out.same = raw(file) === FULL
+  `)
+  check('OpenRouter: the mark of a refused key throws nothing when its file takes no write, so a turn still shows OpenRouter\'s own refusal', marked.threw === null && marked.same === true, JSON.stringify(marked.threw))
 }
 
 console.log('\nthe terminal sign-out of one family — a file that cannot be read is named with exit 1, and a file that is not valid JSON is kept aside')
