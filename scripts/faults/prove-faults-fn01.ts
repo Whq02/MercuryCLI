@@ -108,5 +108,47 @@ else {
   check('sessionsVerb: unreadable project store rejects with EACCES instead of saying absent', store.threw?.code === 'EACCES' && store.errLines.length === 0, JSON.stringify(store))
 }
 
+console.log('\ninputDoor.ts — unreadable transcript rejects instead of answering not-duplicate')
+if (!POSIX_MODES) skip('inputDoor unreadable transcript', 'chmod 0200 needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const state = await import(path.join(SRC, 'bootstrap/state.ts'))
+    const loading = await import(path.join(SRC, 'utils/sessionStorage/loading.ts'))
+    const door = await import(path.join(SRC, 'cli/headless/inputDoor.ts'))
+    const sid = state.getSessionId()
+    const file = loading.sessionFilePath(sid)
+    const ports = {
+      driver: { isRunning: () => false, kick: () => {} },
+      getAppState: () => ({ tasks: {}, mcp: { commands: [] } }),
+      live: { sessionInitialized: false },
+      localCommandInput: () => false,
+      missionLineOf: () => null,
+      options: {},
+      receivedUuids: new Set(),
+      setAppState: () => {},
+    }
+    const absentAnswer = await door.acceptInput({ kind: 'prompt', content: 'first', id: '11111111-1111-4111-8111-111111111111' }, ports)
+    out.absentAccepted = absentAnswer.accepted
+    const logs = await import(path.join(SRC, 'utils/sessionStorage/logs.ts'))
+    logs.clearSessionMessagesCache()
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, '{"type":"user","uuid":"22222222-2222-4222-8222-222222222222"}\\n', { mode: 0o600 })
+    fs.chmodSync(file, 0o200)
+    try {
+      const res = await door.acceptInput({ kind: 'prompt', content: 'second', id: '22222222-2222-4222-8222-222222222222' }, ports)
+      out.unreadable = { threw: null, res }
+    } catch (e) {
+      out.unreadable = { threw: { code: e?.code ?? null, message: String(e?.message ?? e) }, res: null }
+    } finally {
+      fs.chmodSync(file, 0o600)
+    }
+  `)
+  const unreadable = r.out.unreadable as { threw: { code: string | null } | null; res: unknown }
+  check('inputDoor: absent transcript still accepts a new message id', r.out.absentAccepted === true, JSON.stringify(r.out))
+  check('inputDoor: unreadable transcript rejects with EACCES instead of accepting', unreadable.threw?.code === 'EACCES', JSON.stringify(unreadable))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
