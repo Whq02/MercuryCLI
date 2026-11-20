@@ -1,14 +1,14 @@
 import * as React from 'react'
 import stripAnsi from 'strip-ansi'
 
-import { Messages } from '../components/Messages.tsx'
+import { Messages } from './Messages.tsx'
 import { KeybindingProvider, type HandlerRegistry } from '../keybindings/KeybindingContext.tsx'
 import type { KeybindingContextName, ParsedKeystroke } from '../keybindings/types.js'
 import { loadKeybindingsSync } from '../keybindings/loadUserBindings.js'
 import { AppStateProvider } from '../state/AppState.tsx'
 import type { Tools } from '../Tool.js'
 import type { Message } from '../types/message.js'
-import { renderToAnsiString } from './staticRender.tsx'
+import { renderToAnsiString } from '../utils/staticRender.tsx'
 
 
 type ExportOptions = {

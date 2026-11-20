@@ -16,7 +16,7 @@ process.env.MERCURY_FORCE_SYNC_OUTPUT = '1'
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { streamRenderedMessages } = await import('../../src/utils/exportRenderer.tsx')
+const { streamRenderedMessages } = await import('../../src/components/exportRenderer.tsx')
 const { NO_RESPONSE_REQUESTED, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages.ts')
 const { startsWithApiErrorPrefix } = await import('../../src/services/api/errors.ts')
 const { listingsOfSessionFile } = await import('../../src/utils/sessionStorage/logs.ts')

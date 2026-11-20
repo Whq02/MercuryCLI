@@ -1,10 +1,10 @@
-import { daemonControlRpc } from '../daemon/controlSocket.js'
-import { markDaemonHaltStanddown } from './daemonStanddown.js'
+import { daemonControlRpc } from './controlSocket.js'
+import { markDaemonHaltStanddown } from '../utils/daemonStanddown.js'
 import { stopTask } from '../tasks/stopTask.js'
-import { errorMessage } from './errors.js'
-import { runningTaskIds, type HaltResult } from './haltDecide.js'
+import { errorMessage } from '../utils/errors.js'
+import { runningTaskIds, type HaltResult } from '../utils/haltDecide.js'
 
-export { summarizeHalt } from './haltDecide.js'
+export { summarizeHalt } from '../utils/haltDecide.js'
 
 type LooseTask = { id: string; status: string }
 type HaltContext = {
