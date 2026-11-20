@@ -114,11 +114,13 @@ async function releaseIdleRental(record: HostRecord, verdict: HostIdleVerdict): 
     if (record.cluster) await terminateHostResource(runpodOnly(api, 'Clusters'), { id: record.id, name: record.name, status: record.status, cost: record.price, createdAt: record.startedAt, family: record.cluster }, read)
     else await terminateVerified(api, record.id, read, api.label)
     if (record.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(record.provider) }
-    { const { restoreRentingSession } = await import('./worker.js'); await restoreRentingSession(record) }
+    const { restoreRentingSessionOutcome } = await import('./worker.js')
+    const restored = await restoreRentingSessionOutcome(record)
+    const restoreNote = restored.state === 'failed' ? ' · this session stays on a model that is gone (' + restored.detail + ') — run /model ' + record.sessionModelBefore : ''
     const volume = record.volumeId ? readKeptVolume(record.volumeId) : undefined
     if (volume && volume.preparingPod === record.id) writeKeptVolume({ ...volume, preparingPod: undefined })
     const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept and bills ' + keptDiskPrice(volume) : record.volumeId ? 'weights disk billing is not verified; check your account' : ''
-    const ended = reason + ' · ' + machine + ' terminated · ' + (disk || 'nothing more bills')
+    const ended = reason + ' · ' + machine + ' terminated · ' + (disk || 'nothing more bills') + restoreNote
     patchHostRecord(record.id, { status: 'TERMINATED', jobState: 'failed', step: 'terminated after ' + hostIdleHoursWords + ' idle', error: ended })
     hostNotice(record, 'ended', record.name + ' · ' + ended)
   } catch (error) {
