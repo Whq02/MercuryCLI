@@ -264,5 +264,81 @@ console.log('\n§5 w10-5 — daemon status reports unreadable or damaged daemon 
   check('w10-5: unreadable record reports unreadable daemon record sentence', typeof r.unreadableErr === 'string' && r.unreadableErr.startsWith(prefix) && String(r.unreadableText ?? '').includes(prefix) && !String(r.unreadableText ?? '').includes('not running'), JSON.stringify({ err: r.unreadableErr, text: r.unreadableText }))
 }
 
+console.log('\n§6 w10-6 — health rows throw strictly on unreadable launch-milestones, operation-journal, and crash-reports')
+{
+  const r = runScenario(`
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    const { launchMilestonesPath, lastBootReachedInputLive } = await import(SRC + '/substrate/launchMilestones.ts')
+    const { launchSpineCheck } = await import(SRC + '/utils/health/sections/crew/boot.ts')
+    const { listJournalOperations } = await import(SRC + '/substrate/operationJournal.ts')
+    const { changeSetJournalDir } = await import(SRC + '/services/changeTransaction/changeSetContracts.ts')
+    const { durabilityChecks } = await import(SRC + '/utils/health/sections/durability.ts')
+    const { crashReportDir, listCrashReports } = await import(SRC + '/utils/crashReport.ts')
+    const { crashReportsCheck } = await import(SRC + '/utils/health/sections/runtime/host.ts')
+
+    mkdirSync(launchMilestonesPath(), { recursive: true })
+    out.bootSafe = lastBootReachedInputLive()
+    try {
+      out.bootProbe = await launchSpineCheck().run()
+      out.bootThrew = null
+    } catch (e) {
+      out.bootThrew = e instanceof Error ? e.message : String(e)
+    }
+
+    const jDir = changeSetJournalDir()
+    mkdirSync(dirname(jDir), { recursive: true })
+    writeFileSync(jDir, 'not-a-dir')
+    out.journalSafe = await listJournalOperations(jDir)
+    try {
+      const spec = durabilityChecks().find(c => c.id === 'durable-journals')
+      out.journalProbe = await spec.run()
+      out.journalThrew = null
+    } catch (e) {
+      out.journalThrew = e instanceof Error ? e.message : String(e)
+    }
+
+    const cDir = crashReportDir()
+    mkdirSync(dirname(cDir), { recursive: true })
+    writeFileSync(cDir, 'not-a-dir')
+    out.crashSafe = listCrashReports(3)
+    try {
+      out.crashProbe = await crashReportsCheck().run()
+      out.crashThrew = null
+    } catch (e) {
+      out.crashThrew = e instanceof Error ? e.message : String(e)
+    }
+  `)
+  check('w10-6: launchSpineCheck throws on unreadable milestones while non-strict reader keeps null', r.bootSafe === null && typeof r.bootThrew === 'string' && r.bootThrew.length > 0, JSON.stringify({ safe: r.bootSafe, threw: r.bootThrew, probe: r.bootProbe }))
+  check('w10-6: durable-journals throws on unreadable journal dir while non-strict reader keeps []', Array.isArray(r.journalSafe) && r.journalSafe.length === 0 && typeof r.journalThrew === 'string' && r.journalThrew.length > 0, JSON.stringify({ safe: r.journalSafe, threw: r.journalThrew, probe: r.journalProbe }))
+  check('w10-6: crashReportsCheck throws on unreadable crash dir while non-strict reader keeps []', Array.isArray(r.crashSafe) && r.crashSafe.length === 0 && typeof r.crashThrew === 'string' && r.crashThrew.length > 0, JSON.stringify({ safe: r.crashSafe, threw: r.crashThrew, probe: r.crashProbe }))
+}
+
+console.log('\n§7 w10-7 — resolveGitDir does not cache null on transient/permission error reading .git')
+{
+  const r = runScenario(`
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { clearResolveGitDirCache, resolveGitDir } = await import(SRC + '/utils/git/gitFilesystem.ts')
+    const repo = join(PROJECT, 'git-transient')
+    const realGit = join(PROJECT, 'real-gitdir')
+    mkdirSync(repo, { recursive: true })
+    mkdirSync(realGit, { recursive: true })
+    const dotGit = join(repo, '.git')
+    writeFileSync(dotGit, 'gitdir: ' + realGit + '\\n')
+    chmodSync(dotGit, 0o000)
+    clearResolveGitDirCache()
+    try {
+      out.whileUnreadable = await resolveGitDir(repo)
+    } finally {
+      chmodSync(dotGit, 0o644)
+    }
+    out.afterRecover = await resolveGitDir(repo)
+    out.expected = realGit
+  `)
+  check('w10-7: returns null while .git file is unreadable (EACCES)', r.whileUnreadable === null, JSON.stringify(r))
+  check('w10-7: does not cache null so recovery succeeds without cache clear', r.afterRecover === r.expected, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

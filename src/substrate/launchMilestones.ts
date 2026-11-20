@@ -132,12 +132,27 @@ function readAllSafe(): LaunchMilestoneRowV1[] {
   }
 }
 
+function readAllStrict(): LaunchMilestoneRowV1[] {
+  let text: string
+  try {
+    text = readFileSync(launchMilestonesPath(), 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
+  }
+  const raw = JSON.parse(text) as MilestoneFileV1
+  if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
+    throw new Error(`${launchMilestonesPath()} has unexpected shape`)
+  }
+  return raw.rows
+}
+
 export function readLaunchMilestones(): LaunchMilestoneRowV1[] {
   return readAllSafe()
 }
 
-export function lastInteractiveBootSpine(): LaunchMilestoneRowV1[] {
-  const rows = readAllSafe()
+export function lastInteractiveBootSpine(options?: { strict?: boolean }): LaunchMilestoneRowV1[] {
+  const rows = options?.strict ? readAllStrict() : readAllSafe()
   const headless = new Set(rows.filter(r => r.boot === 'headless').map(r => r.pid))
   for (let i = rows.length - 1; i >= 0; i--) {
     const pid = rows[i]!.pid
@@ -147,8 +162,8 @@ export function lastInteractiveBootSpine(): LaunchMilestoneRowV1[] {
   return []
 }
 
-export function lastBootReachedInputLive(): boolean | null {
-  const spine = lastInteractiveBootSpine()
+export function lastBootReachedInputLive(options?: { strict?: boolean }): boolean | null {
+  const spine = lastInteractiveBootSpine(options)
   if (spine.length === 0) return null
   return spine.some(r => r.milestone === 'input-live')
 }
