@@ -73,7 +73,7 @@ section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edit
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const { publishSessionFacts, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
   const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
   const SESSION = '550e8400-e29b-41d4-a716-4466554401e6'
   const record = { sessionId: SESSION, runnerId: 'concourse-w1', title: 'tally', projectLabel: 'project', workspaceId: work, home }
   const base = { schema: 1 as const, sessionId: SESSION, atMs: Date.now(), model: { effective: 'claude-sonnet-5-5', setting: null }, usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default' as const, workspace: { cwd: work, originalCwd: work, projectRoot: work, instructionRoots: [] }, queue: [], pendingModel: null, busy: false }

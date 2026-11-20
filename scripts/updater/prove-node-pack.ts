@@ -243,7 +243,7 @@ section('§7 the packager + the workflows')
 
 section('§8 the surfaces — health, status, dry-run, registry, notices, docs, launcher')
 {
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { runningRuntime: runningNow } = await import('../../src/services/privateChannel/updateService.ts')
   const { runtimeLine: lineOfRuntime } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
   const nodeSays = await runtimeChecks().find(row => row.id === 'runtime')?.run()

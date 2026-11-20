@@ -18,7 +18,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { FLAG_REGISTRY, getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 type Row = { status: string; evidence: string; fix?: string; detail?: string }
 const flagsRow = async (): Promise<Row> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
@@ -31,7 +31,7 @@ for (const name of UNKNOWN) delete process.env[name]
 console.log('§1 the registry knows registered flags and nothing else')
 {
   check('a name that left the registry is unknown to it', UNKNOWN.every(name => getFlagSpec(name) === undefined))
-  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
   const flagsCheck = settingsChecks().find(row => row.id === 'flags')
   const unset = JSON.stringify(await flagsCheck?.run())
   for (const name of UNKNOWN) process.env[name] = 'set-by-the-proof'

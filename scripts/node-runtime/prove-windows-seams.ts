@@ -88,7 +88,7 @@ section('(3) one folder, one config key; the trust card compares keys')
 
 section('(4) executable probes ride the one PATHEXT-aware owner')
 {
-  const { codingLoopFastChecks } = await import('../../src/utils/health/sections/coding-loop-fast.ts')
+  const { codingLoopFastChecks } = await import('../../src/services/health/sections/coding-loop-fast.ts')
   const { whichSync: lookup } = await import('../../src/utils/which.ts')
   const workbench = codingLoopFastChecks().find(row => row.id === 'anvil-workbench-fast')
   const repoLineOf = (detail: string | undefined): string => detail?.split('\n')[0] ?? ''
@@ -166,7 +166,7 @@ section('(12) the reserved-shortcut table knows Windows')
 section('(14) a deep probe\'s scratch sweep never outranks its verdict')
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
-  const { sweepProbeDir } = await import('../../src/utils/healthDeepProbes.js')
+  const { sweepProbeDir } = await import('../../src/services/health/healthDeepProbes.js')
   let calls = 0
   const flakyTwice = (): void => {
     calls++

@@ -15,7 +15,7 @@
 # gate-watch: src/services/crewBoard/seam.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/attachments/types.ts
-# gate-watch: src/utils/health/sections/memory.ts
+# gate-watch: src/services/health/sections/memory.ts
 # gate-watch: src/run-core/turn/**
 # gate-watch: src/cli/headless/*
 set -uo pipefail

@@ -209,7 +209,7 @@ section('FC-141 — a mistyped tightening never widens SILENTLY (forgive + name)
     const globals = globalThis as Record<string, unknown>
     if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
     ;(await import('../../src/utils/config.ts')).enableConfigs()
-    const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+    const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
     const { getMcpPolicyRejects: rejectsNow } = await import('../../src/services/mcp/toolPolicy.ts')
     const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
     check(

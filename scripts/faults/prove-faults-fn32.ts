@@ -96,8 +96,8 @@ function skip(label: string, why: string): void {
 }
 
 {
-  const { gateVerdictPath } = await import('../../src/utils/healthReport.ts')
-  const { _resetBootPreflightForTesting, runAndRecordPreflight } = await import('../../src/utils/healthPreflight.ts')
+  const { gateVerdictPath } = await import('../../src/services/health/healthReport.ts')
+  const { _resetBootPreflightForTesting, runAndRecordPreflight } = await import('../../src/services/health/healthPreflight.ts')
   const prevState = process.env.MERCURY_HEALTH_STATE_DIR
   const stateDir = join(SCRATCH, 'hp-state')
   mkdirSync(stateDir, { recursive: true })
@@ -138,7 +138,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 }
 
 {
-  const { homeRepositoryCheck } = await import('../../src/utils/healthReport.ts')
+  const { homeRepositoryCheck } = await import('../../src/services/health/healthReport.ts')
   if (!POSIX_MODES) {
     skip('healthReport: unreadable home dir throws in homeRepositoryCheck', 'needs non-root POSIX chmod')
     skip('healthReport: unreadable user folder throws on .git stat in homeRepositoryCheck', 'needs non-root POSIX chmod')
@@ -184,7 +184,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   const rDefault = runIsolated(`
     const { mock } = await import('bun:test')
     mock.module(${JSON.stringify(join(SRC, 'utils/model/model.ts'))}, () => ({ getUserSpecifiedModelSetting: () => { throw new Error('routing boom') } }))
-    const { unresolvedDefaultRow } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { unresolvedDefaultRow } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     try {
       out.val = unresolvedDefaultRow()
     } catch (e) {
@@ -201,7 +201,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
       HELPER_HEALTH_LABEL: 'Helper model',
       readTensorFoldHealth: async () => { throw new Error('tf read boom') },
     }))
-    const { tensorFoldHealthChecks } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { tensorFoldHealthChecks } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     const specs = await tensorFoldHealthChecks()
     out.count = specs.length
     out.id = specs[0]?.id ?? null
@@ -221,7 +221,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
       getSkillDirCommands: async () => { throw new Error('skills boom') },
       getSkillLoadRefusals: () => [],
     }))
-    const { skillsRefusedEvidence } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { skillsRefusedEvidence } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     try {
       out.val = await skillsRefusedEvidence('/tmp')
     } catch (e) {
@@ -472,7 +472,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realRealpathSync(p, ...rest)
       },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evWs = String((rWs.res as { evidence?: string })?.evidence ?? '')
@@ -493,7 +493,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
     mock.module(${JSON.stringify(join(SRC, 'daemon/concourseWorkers.ts'))}, () => ({
       readSessionWorkers: () => { throw new Error('workers file corrupt') },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evWorkers = String((rWorkers.res as { evidence?: string })?.evidence ?? '')
@@ -520,7 +520,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realStatSync(p, ...rest)
       },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evLock = String((rLock.res as { evidence?: string })?.evidence ?? '')
@@ -547,7 +547,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realReaddirSync(p, ...rest)
       },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evObj = String((rObj.res as { evidence?: string })?.evidence ?? '')
@@ -579,7 +579,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realExecFile(cmd, args, opts, cb)
       },
     }))
-    const { projectEstateCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    const { projectEstateCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     out.res = await projectEstateCheck()
   `)
   const fixEstate = String((rEstate.res as { fix?: string })?.fix ?? '')

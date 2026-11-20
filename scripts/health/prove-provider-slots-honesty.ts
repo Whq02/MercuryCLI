@@ -22,7 +22,7 @@ console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+const { authChecks } = await import('../../src/services/health/sections/auth.ts')
 const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const slots = await (await authChecks()).find(row => row.id === 'provider-slots')?.run()
 const snap = buildProviderSnapshot()

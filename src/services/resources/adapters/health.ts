@@ -1,7 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 import { decodeGateVerdict, decodeLastCertSummary } from '../../../utils/healthCertCore.js'
-import { gateVerdictPath, lastCertPath } from '../../../utils/healthReport.js'
+import { gateVerdictPath, lastCertPath } from '../../health/healthReport.js'
 import type {
   ParsedRef,
   ResourceAdapter,

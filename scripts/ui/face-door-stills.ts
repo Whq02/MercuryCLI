@@ -15,7 +15,7 @@ import {
   type HealthFixFlow,
 } from '../../src/components/BootHealthScreen.js'
 import { formatAge } from '../../src/utils/healthCertCore.js'
-import type { HealthCertificate } from '../../src/utils/healthReport.js'
+import type { HealthCertificate } from '../../src/services/health/healthReport.js'
 import {
   pruneCardLines,
   pruneLegendOf,

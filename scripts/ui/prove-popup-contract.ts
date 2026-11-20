@@ -717,9 +717,9 @@ for (const cols of [80, 120]) {
 }
 
 
-const readinessModule = await import('../../src/utils/readiness.ts')
+const readinessModule = await import('../../src/services/health/readiness.ts')
 const readinessRows = options.map(row => ({ id: row.value, kind: 'tool', label: 'capability-' + row.value, state: 'ready', detail: 'Fixture capability ' + row.value, source: 'fixture', remedy: '', lastCheckedAt: Date.now() }))
-mock.module('../../src/utils/readiness.ts', () => ({ ...readinessModule, collectReadiness: () => ({ records: readinessRows }) }))
+mock.module('../../src/services/health/readiness.ts', () => ({ ...readinessModule, collectReadiness: () => ({ records: readinessRows }) }))
 const osModule = await import('node:os')
 mock.module('node:os', () => ({ ...osModule, homedir: () => process.env.MERCURY_CONFIG_DIR! }))
 const accountsModule = await import('../../src/services/providers/accountSlots.ts')

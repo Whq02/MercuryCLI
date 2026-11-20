@@ -218,8 +218,8 @@ console.log('5. src/utils/cockpit/healthCertSnapshot.ts — corrupt or unreadabl
   const r = runIsolated(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { lastCertPath } = await import(SRC + '/utils/healthReport.ts')
-    const { healthCertSnapshot } = await import(SRC + '/utils/cockpit/healthCertSnapshot.ts')
+    const { lastCertPath } = await import(SRC + '/services/health/healthReport.ts')
+    const { healthCertSnapshot } = await import(SRC + '/services/health/healthCertSnapshot.ts')
     out.absent = healthCertSnapshot()
     const certFile = lastCertPath()
     fs.mkdirSync(path.dirname(certFile), { recursive: true })

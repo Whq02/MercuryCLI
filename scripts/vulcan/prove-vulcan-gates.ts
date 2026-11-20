@@ -208,7 +208,7 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   check('boot menu: VULCAN row in miscellaneous with detail', vulcanRow?.group === 'miscellaneous' && (vulcanRow?.detail?.controls ?? '').length > 100)
   check('boot menu: Godot lanes row moved to miscellaneous', lanesRow?.group === 'miscellaneous')
 
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { vulcanEnabled: armedNow } = await import('../../src/utils/vulcan/vulcanGates.ts')
   const vulcanCheck = runtimeChecks().find(row => row.id === 'vulcan')
   const vulcanSays = await vulcanCheck?.run()

@@ -160,8 +160,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   process.chdir(project)
 
   if (options.plant === 'preflight') {
-    const real = await import('../../src/utils/healthPreflight.ts')
-    mock.module('../../src/utils/healthPreflight.ts', () => ({
+    const real = await import('../../src/services/health/healthPreflight.ts')
+    mock.module('../../src/services/health/healthPreflight.ts', () => ({
       ...real,
       mercuryBootPreflightEnabled: () => true,
       runAndRecordPreflight: async () => ({ verdict: 'fail', ranAt: FIXED_STAMP, failing: [{ id: 'ripgrep', evidence: 'ripgrep MISSING @ rg' }], degraded: [], durationMs: 1, via: 'preflight' }),

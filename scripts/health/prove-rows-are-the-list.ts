@@ -15,9 +15,9 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-const { runHealthReport, healthContext, SHELL_READS } = await import('../../src/utils/healthReport.ts')
-const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
-const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
+const { runHealthReport, healthContext, SHELL_READS } = await import('../../src/services/health/healthReport.ts')
+const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
+const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/services/health/sections/auth.ts')
 
 type Row = Awaited<ReturnType<(typeof HEALTH_SECTIONS)[number]['checks']>>[number]
 const shownAt = (row: Row, depth: 'fast' | 'deep'): boolean => depth === 'deep' || (row.depth ?? 'fast') === 'fast'

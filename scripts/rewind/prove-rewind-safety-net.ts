@@ -173,7 +173,7 @@ try {
   const extra = makeStore('b-latest', 1, 0)
   const over = await sweep()
   check('one byte over 500 MB prunes oldest first, not directory-name order', over.errors === 0 && !existsSync(oldest) && existsSync(middle) && existsSync(newest) && existsSync(extra), over)
-  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
   const certificate = await runHealthReport()
   const row = certificate.sections.flatMap(section => section.checks).find(check => check.id === 'lifecycle-collection')
   check('/health State cleanup reports actual usage and the 500 MB cap', row?.evidence.includes('file history 300.0 MB / 500 MB') === true, row?.evidence)

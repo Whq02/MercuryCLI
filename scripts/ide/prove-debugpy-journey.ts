@@ -174,7 +174,7 @@ await journey('bundled', 'forge-proof', machinePythonReachesTheFloor ? null : bu
 
 section('(3) readiness agreement — the production consumer reads the same probe')
 {
-  const { collectReadiness } = await import('../../src/utils/readiness.js')
+  const { collectReadiness } = await import('../../src/services/health/readiness.js')
   const report = collectReadiness({ includeEnv: false })
   const row = report.records.find(r => r.id === 'lane:dap:python')
   check('lane:dap:python row exists', row !== undefined)

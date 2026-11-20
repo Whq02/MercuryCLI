@@ -28,7 +28,7 @@ import { crashReportDirDisplay, markCrashReportsNoticed, resolveCrashTranscript,
 import { getCwd } from '../../utils/cwd.js';
 import { logForDebugging } from '../../utils/debug.js';
 import { maybeGetTmuxMouseHint } from '../../utils/fullscreen.js';
-import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../../utils/healthPreflight.js';
+import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../../services/health/healthPreflight.js';
 import { recordBootInteractive } from '../../utils/observability/frictionStopwatch.js';
 import { useKickOffCheckAndDisableSovereignIfNeeded } from '../../utils/permissions/bypassPermissionsKillswitch.js';
 import { clearedSessionAt } from '../../utils/sessionStorage/clearedSessions.js';
