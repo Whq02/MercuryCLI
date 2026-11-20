@@ -3,8 +3,8 @@ import {
   isTerminalExecutionState,
   type ExecutionSpec,
   type ExecutionState,
-} from './execution.js'
-import { canTransitionExecution, legalExecutionTransitions } from './execution.js'
+} from '../../utils/primitives/execution.js'
+import { canTransitionExecution, legalExecutionTransitions } from '../../utils/primitives/execution.js'
 import {
   getExecution,
   registerExecution,

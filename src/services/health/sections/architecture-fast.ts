@@ -67,7 +67,7 @@ export function architectureFastChecks(): CheckSpec[] {
       label: 'Record consistency',
       run: async () => {
         const { listExecutions } = await import('../../primitives/executionPlane.js')
-        const { isTerminalExecutionState } = await import('../../primitives/execution.js')
+        const { isTerminalExecutionState } = await import('../../../utils/primitives/execution.js')
         const { processMainOwner } = await import('../../../utils/run/resolveOwner.js')
         const { transactionsFor } = await import('../../primitives/transactionPlane.js')
         const owner = processMainOwner()

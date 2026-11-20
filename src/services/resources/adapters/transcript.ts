@@ -2,7 +2,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { boundedTextView, type ResourceAdapter, type ResourceChild, type ResourceContext } from '../contracts.js'
-import { parseOwnerKey } from '../../primitives/owner.js'
+import { parseOwnerKey } from '../../../utils/primitives/owner.js'
 import { projectIntelEnabled } from '../../../utils/projectIntel/contracts.js'
 import { readAgentTranscript, transcriptEndWords } from '../../crew/agentTranscriptReader.js'
 import { recordToEntry } from '../../../fabric/entryCodec.js'

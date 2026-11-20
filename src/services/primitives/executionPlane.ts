@@ -14,7 +14,7 @@ import {
   type ExecutionRecord,
   type ExecutionSpec,
   type ExecutionState,
-} from './execution.js'
+} from '../../utils/primitives/execution.js'
 import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
 

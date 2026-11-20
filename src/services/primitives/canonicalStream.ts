@@ -5,7 +5,7 @@ import {
   registerExecution,
   settleExecution,
 } from './executionPlane.js'
-import { isTerminalExecutionState } from './execution.js'
+import { isTerminalExecutionState } from '../../utils/primitives/execution.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 

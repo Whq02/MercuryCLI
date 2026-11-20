@@ -6,7 +6,7 @@ import {
   settleExecution,
   getExecution,
 } from '../primitives/executionPlane.js'
-import type { ExecutionRecord } from '../primitives/execution.js'
+import type { ExecutionRecord } from '../../utils/primitives/execution.js'
 import { registerOwnerDisposer, unregisterOwnerDisposer } from '../../utils/run/ownerLifecycle.js'
 import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { fetchRun, repoHostEnabled, type RunView } from './repoHost.js'

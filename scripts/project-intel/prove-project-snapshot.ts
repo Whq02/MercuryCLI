@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   const intel = await import('../../src/services/projectIntel/snapshot.js')
   const verification = await import('../../src/utils/verification/verificationState.js')
   const contracts = await import('../../src/utils/projectIntel/contracts.js')
-  const owner = await import('../../src/services/primitives/owner.js')
+  const owner = await import('../../src/utils/primitives/owner.js')
   const registry = await import('../../src/services/resources/registry.js')
 
   const cleanup: string[] = []

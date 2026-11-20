@@ -220,7 +220,7 @@ export const projectAdapter: ResourceAdapter = {
       const { getContextMarks } =
         require('../../projectIntel/pins.js') as typeof import('../../projectIntel/pins.js')
       const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
-        require('../../primitives/owner.js') as typeof import('../../primitives/owner.js')
+        require('../../../utils/primitives/owner.js') as typeof import('../../../utils/primitives/owner.js')
       const identity = parseOwnerKey(ctx.owner)
       const mainOwner =
         describeOwner(ctx.owner).parent ?? makeOwnerKey({ ...identity, lane: MAIN_LANE })

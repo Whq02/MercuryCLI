@@ -8,8 +8,8 @@ import {
   transitionExecution,
 } from '../primitives/executionPlane.js'
 import { recordCanonicalEvidence } from '../primitives/evidencePlane.js'
-import { isTerminalExecutionState, type ExecutionState } from '../primitives/execution.js'
-import { projectOwner } from '../primitives/owner.js'
+import { isTerminalExecutionState, type ExecutionState } from '../../utils/primitives/execution.js'
+import { projectOwner } from '../../utils/primitives/owner.js'
 import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import type { ServiceRecord } from './contracts.js'
 import { errorMessage } from '../../utils/errors.js'

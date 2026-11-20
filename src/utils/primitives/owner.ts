@@ -5,7 +5,7 @@ import {
   parseOwnerKey,
   type OwnerIdentity,
   type OwnerKey,
-} from '../../utils/run/ownerKey.js'
+} from '../run/ownerKey.js'
 
 export {
   agentLane,
@@ -14,9 +14,9 @@ export {
   makeOwnerKey,
   ownerEquals,
   parseOwnerKey,
-} from '../../utils/run/ownerKey.js'
-export type { OwnerKey } from '../../utils/run/ownerKey.js'
-export { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
+} from '../run/ownerKey.js'
+export type { OwnerKey } from '../run/ownerKey.js'
+export { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
 type OwnerScope =
   | 'session'
