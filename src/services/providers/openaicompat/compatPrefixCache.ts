@@ -20,10 +20,15 @@ export function noteCompatPrefixCache(endpoint: { baseUrl: string }, model: stri
 }
 
 export function compatEndpointLastTurnAt(endpoint: { baseUrl: string }): number | undefined {
+  let raw: string
   try {
-    const row = JSON.parse(readFileSync(cachePath(endpoint.baseUrl), 'utf8')) as { at?: unknown }
-    return typeof row.at === 'number' && Number.isFinite(row.at) ? row.at : undefined
-  } catch (error) { passedOver(error); return undefined }
+    raw = readFileSync(cachePath(endpoint.baseUrl), 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
+  const row = JSON.parse(raw) as { at?: unknown }
+  return typeof row.at === 'number' && Number.isFinite(row.at) ? row.at : undefined
 }
 
 export function compatPrefixCacheWords(endpoint: { baseUrl: string }, now = Date.now()): string {
