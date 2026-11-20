@@ -134,7 +134,7 @@ export const hostMachineName = (vendor: keyof typeof HOST_VENDOR_INFO, id: strin
 
 export interface HostEngineDeathFacts { at: number; line: string; oom: boolean; contextTokens?: number; budgetTokens?: number; poolTokens?: number }
 
-export const hostTokensWords = (n: number): string => n >= 1048576 ? (n % 1048576 === 0 ? String(n / 1048576) : (n / 1048576).toFixed(1).replace(/\.0$/, '')) + 'M' : Math.max(1, Math.round(n / 1024)) + 'k'
+const hostTokensWords = (n: number): string => n >= 1048576 ? (n % 1048576 === 0 ? String(n / 1048576) : (n / 1048576).toFixed(1).replace(/\.0$/, '')) + 'M' : Math.max(1, Math.round(n / 1024)) + 'k'
 
 export function hostEngineOomWords(facts: Pick<HostEngineDeathFacts, 'contextTokens' | 'budgetTokens'>): string {
   const at = facts.contextTokens ? ' at ' + hostTokensWords(facts.contextTokens) + ' tokens of context' : ' after setup'
