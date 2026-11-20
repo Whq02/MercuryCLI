@@ -108,5 +108,19 @@ console.log('fresh sign-in restart: a failed ask is asked again')
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ spawnLabel: null })
 }
 
+console.log('build hold: a manifest that cannot be opened is not "no manifest"')
+if (!POSIX_MODES) skip('build hold unreadable', 'no file modes here')
+else {
+  const { holdBuild } = await import('../../src/daemon/daemonBuild.js')
+  const absentDir = mkdtempSync(join(tmpdir(), 'faults-fo01-build-'))
+  check('a build folder with no manifest answers no-manifest', holdBuild(absentDir) === 'no-manifest')
+  const lockedDir = mkdtempSync(join(tmpdir(), 'faults-fo01-build-'))
+  writeFileSync(join(lockedDir, 'manifest.json'), '{}')
+  chmodSync(join(lockedDir, 'manifest.json'), 0o000)
+  const answer = holdBuild(lockedDir)
+  chmodSync(join(lockedDir, 'manifest.json'), 0o600)
+  check('a manifest that cannot be opened answers unheld with its code', typeof answer === 'object' && answer.unheld === 'EACCES', JSON.stringify(answer))
+}
+
 console.log(failures === 0 ? '\nall rows green' : `\n${failures} row(s) red`)
 process.exit(failures === 0 ? 0 : 1)
