@@ -328,5 +328,19 @@ console.log('\nFileEditToolDiff — colliding remote multi-edits fall back to pe
   check('control: genuinely byte-identical remote edit still yields 0 hunks', r.noopHunkCount === 0, JSON.stringify(r))
 }
 
+console.log('\nKitMenuScreen — failed liveCount returns null instead of falsely reporting 0 established sessions')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/KitMenuScreen.tsx'))
+    if (typeof mod.readKitLiveSessionCount !== 'function') {
+      out.missing = true
+    } else {
+      out.failedCount = await mod.readKitLiveSessionCount(async () => { throw new Error('workers file EACCES') })
+      out.okCount = await mod.readKitLiveSessionCount(async () => 2)
+    }
+  `)
+  check('failed countLiveConcourseWorkers resolves to null instead of 0', r.failedCount === null && r.okCount === 2, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

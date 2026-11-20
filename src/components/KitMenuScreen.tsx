@@ -38,8 +38,16 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { kitMenuView } from './kitMenu/kitMenuView.js';
+import { logError } from '../utils/log.js';
 import { passedOver } from '../utils/passedOver.js';
 import { afterMicrotask } from '../utils/timers.js';
+
+export function readKitLiveSessionCount(load: () => Promise<number>): Promise<number | null> {
+  return load().catch(error => {
+    logError(error);
+    return null;
+  });
+}
 
 
 interface KitMenuScreenProps {
@@ -299,13 +307,9 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   const [liveCount, setLiveCount] = useState<number | null>(null);
   useLoad(() => {
     let cancelled = false;
-    void import('../daemon/concourseWorkers.js')
-      .then(sup => {
-        if (!cancelled) setLiveCount(sup.countLiveConcourseWorkers());
-      })
-      .catch(() => {
-        if (!cancelled) setLiveCount(0);
-      });
+    void readKitLiveSessionCount(() => import('../daemon/concourseWorkers.js').then(sup => sup.countLiveConcourseWorkers())).then(count => {
+      if (!cancelled) setLiveCount(count);
+    });
     return () => {
       cancelled = true;
     };
