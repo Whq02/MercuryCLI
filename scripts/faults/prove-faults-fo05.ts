@@ -47,7 +47,19 @@ async function flowCheckThatThrowsAsks(): Promise<void> {
   check('flow-throw-asks: a flow check that throws asks instead of allowing', verdict.stage !== 'flowAllow' && verdict.decision.behavior === 'ask', `got ${verdict.stage}/${verdict.decision.behavior}`)
 }
 
-const rows: Array<() => Promise<void>> = [capPolicyThatThrowsRefuses, flowCheckThatThrowsAsks]
+async function wardPatternThatFailsIsNotDropped(): Promise<void> {
+  const m = await import(join(SRC, 'utils/wards/wards.ts'))
+  const rule = { name: 'fixture-ward', scope: 'bash', teach: 'fixture', patterns: ['rm -rf (', 'never-matches-fixture'] }
+  let verdict: unknown
+  try {
+    verdict = m.evaluateWards([rule], { toolName: 'Bash', input: { command: 'rm -rf (' }, shellCommand: 'rm -rf (' })
+  } catch (error) {
+    verdict = error
+  }
+  check('ward-pattern-not-dropped: a ward pattern that does not compile is not dropped as if it allowed', (verdict as { allow?: unknown })?.allow !== true, JSON.stringify(verdict))
+}
+
+const rows: Array<() => Promise<void>> = [capPolicyThatThrowsRefuses, flowCheckThatThrowsAsks, wardPatternThatFailsIsNotDropped]
 for (const row of rows) {
   try {
     await row()
