@@ -200,6 +200,10 @@ await expect('floor 4', bash('rm -rf <CONFIG>/runtime'), FOUR, refused, 'Bash re
 await expect('floor 4', bash('kill -9 <DAEMON_PID>'), FOUR, refused, 'Bash refuses')
 await expect('floor 4', bash('pkill -f mercury'), FOUR, refused, 'Bash refuses')
 await expect('floor 4', call('Write', { file_path: '<CONFIG>/runtime/current/mercury.mjs', content: 'x' }), FOUR, refused, 'the Write tool refuses')
+await expect('floor 2', bash('cat <CONFIG>/.cred[a-z]*', 'a glob that names the store'), FOUR, refused, 'Bash refuses')
+await expect('floor 2', bash('cat <CONFIG>/.cred[z-a]*', 'a glob part that does not compile'), ['sovereign', 'flow'], notRefused, 'a glob Mercury could not read as a pattern is not refused for what it might name')
+await expect('floor 4', bash(`cd ${RUN_ROOT}/c[a-z]* && rm -rf runtime`, 'a cd by a glob that names the config home'), FOUR, refused, 'Bash refuses')
+await expect('floor 4', bash(`cd ${RUN_ROOT}/c[z-a]* && rm -rf runtime`, 'a cd by a glob part that does not compile'), ['sovereign', 'flow'], notRefused, 'a glob Mercury could not read as a pattern is not refused for where it might lead')
 
 const EVERY: Mode[] = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign']
 section('the page says "in every permission mode" of the credential and runtime floors for a shell command: each asked plainly on both shell tools in all six')

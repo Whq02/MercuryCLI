@@ -7,7 +7,7 @@ import { type ShellRead, UNREAD_PART, absolutePath, moveOf, printedBy, wordKnown
 import { placedUnder } from '../runtimeProtection.js'
 import { expandPath } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
-import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globPartSource, mercuryHomes, wildcardSource } from './homes.js'
+import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globNotCompiled, mercuryHomes, wildcardSource } from './homes.js'
 import { passedOver } from '../../passedOver.js'
 import { hostEnv } from '../../hostEnv.js'
 
@@ -48,8 +48,9 @@ function foldersOnDisk(pattern: string): string[] {
       let test: RegExp
       try {
         test = new RegExp(`^${wildcardSource(part)}$`)
-      } catch {
-        test = new RegExp(`^${globPartSource(part)}$`)
+      } catch (error) {
+        globNotCompiled(part, error)
+        continue
       }
       if (test.test('')) next.push(folder)
       let names: string[] = []
