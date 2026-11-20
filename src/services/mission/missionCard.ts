@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { isENOENT } from '../../utils/errors.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { sanitizePathComponent } from '../../utils/tasks.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -39,31 +40,64 @@ function missionCardPath(sessionId: string, cwd?: string): string {
   return join(missionCardsDir(cwd), `${sanitizePathComponent(sessionId)}.json`)
 }
 
+function persistMissionCard(card: MissionCard, cwd?: string): void {
+  const dir = missionCardsDir(cwd)
+  mkdirSync(dir, { recursive: true })
+  durableAtomicPublishSync(missionCardPath(card.sessionId, cwd), JSON.stringify(card, null, 1))
+}
+
 export function writeMissionCard(card: MissionCard, cwd?: string): void {
   try {
-    const dir = missionCardsDir(cwd)
-    mkdirSync(dir, { recursive: true })
-    durableAtomicPublishSync(missionCardPath(card.sessionId, cwd), JSON.stringify(card, null, 1))
+    persistMissionCard(card, cwd)
   } catch (error) {
     logForDebugging(`missionCard: write failed: ${String(error)}`)
   }
 }
 
-export function readMissionCard(sessionId: string, cwd?: string): MissionCard | null {
+type MissionCardRead =
+  | { state: 'absent' }
+  | { state: 'ok'; card: MissionCard }
+  | { state: 'unreadable'; error: unknown }
+
+function inspectMissionCard(sessionId: string, cwd?: string): MissionCardRead {
+  const path = missionCardPath(sessionId, cwd)
+  let raw: string
   try {
-    const path = missionCardPath(sessionId, cwd)
-    if (!existsSync(path)) return null
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as MissionCard
-    return parsed && parsed.schema === 1 && typeof parsed.goal === 'string' ? parsed : null
+    raw = readFileSync(path, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return { state: 'absent' }
+    return { state: 'unreadable', error }
   }
+  try {
+    const parsed = JSON.parse(raw) as MissionCard
+    if (parsed && parsed.schema === 1 && typeof parsed.goal === 'string') {
+      return { state: 'ok', card: parsed }
+    }
+    return { state: 'unreadable', error: new Error(`invalid mission card at ${path}`) }
+  } catch (error) {
+    return { state: 'unreadable', error }
+  }
+}
+
+export function readMissionCard(sessionId: string, cwd?: string): MissionCard | null {
+  const inspected = inspectMissionCard(sessionId, cwd)
+  if (inspected.state === 'ok') return inspected.card
+  if (inspected.state === 'unreadable') {
+    passedOver(inspected.error)
+    logForDebugging(`missionCard: read failed for ${sessionId}: ${String(inspected.error)}`)
+  }
+  return null
 }
 
 export function migrateOrphanedMissionCard(conversationId: string, cwd?: string): boolean {
   try {
-    if (readMissionCard(conversationId, cwd) !== null) return false
+    const existing = inspectMissionCard(conversationId, cwd)
+    if (existing.state !== 'absent') {
+      if (existing.state === 'unreadable') {
+        logForDebugging(`missionCard: skipping migration over unreadable card for ${conversationId}: ${String(existing.error)}`)
+      }
+      return false
+    }
     const dir = missionCardsDir(cwd)
     if (!existsSync(dir)) return false
     const projectDir = getProjectDir(cwd ?? getOriginalCwd())
@@ -78,8 +112,8 @@ export function migrateOrphanedMissionCard(conversationId: string, cwd?: string)
     if (orphans.length !== 1) return false
     const orphan = orphans[0]!
     const now = new Date().toISOString()
-    writeMissionCard({ ...orphan, sessionId: conversationId, updatedAt: now }, cwd)
-    writeMissionCard({ ...orphan, state: 'continued', nextStep: `continued in session ${conversationId}`, updatedAt: now }, cwd)
+    persistMissionCard({ ...orphan, sessionId: conversationId, updatedAt: now }, cwd)
+    persistMissionCard({ ...orphan, state: 'continued', nextStep: `continued in session ${conversationId}`, updatedAt: now }, cwd)
     logForDebugging(`[mission] migrated the card keyed by a process id (${orphan.sessionId}) to the conversation ${conversationId}`)
     return true
   } catch (error) {

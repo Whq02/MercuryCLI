@@ -112,6 +112,74 @@ console.log('\ngoalJudge.ts — judgeGoal fails closed when helper judge throws'
   )
 }
 
+const { chmodSync, readFileSync, writeFileSync } = await import('node:fs')
+const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
+const { migrateOrphanedMissionCard, readMissionCard, writeMissionCard } = await import('../../src/services/mission/missionCard.js')
+const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+
+console.log('\nmissionCard.ts — migrateOrphanedMissionCard never clobbers corrupt/unreadable cards and never reports success on failed write')
+{
+  const makeOrphan = (cwd: string, orphanId: string) => {
+    mkdirSync(cwd, { recursive: true })
+    writeMissionCard(
+      {
+        schema: 1,
+        sessionId: orphanId,
+        goal: 'orphan goal',
+        state: 'armed',
+        nextStep: 'keep going',
+        iterations: 1,
+        setAt: '2026-11-20T00:00:00.000Z',
+        updatedAt: '2026-11-20T00:00:00.000Z',
+      },
+      cwd,
+    )
+    return join(getProjectDir(cwd), 'missions')
+  }
+
+  const corruptCwd = join(scratch, 'mission-corrupt')
+  const corruptDir = makeOrphan(corruptCwd, 'orphan-1')
+  const targetPath = join(corruptDir, 'conv-corrupt.json')
+  writeFileSync(targetPath, '{broken json', 'utf8')
+  const migratedCorrupt = migrateOrphanedMissionCard('conv-corrupt', corruptCwd)
+  check(
+    'migrateOrphanedMissionCard refuses to overwrite a corrupt card and leaves the orphan armed',
+    migratedCorrupt === false &&
+      readFileSync(targetPath, 'utf8') === '{broken json' &&
+      readMissionCard('orphan-1', corruptCwd)?.state === 'armed',
+    `migrated=${migratedCorrupt} target=${readFileSync(targetPath, 'utf8')} orphan=${readMissionCard('orphan-1', corruptCwd)?.state}`,
+  )
+
+  if (POSIX_MODES) {
+    const unreadCwd = join(scratch, 'mission-unreadable')
+    const unreadDir = makeOrphan(unreadCwd, 'orphan-2')
+    const unreadPath = join(unreadDir, 'conv-unread.json')
+    const keptBytes = JSON.stringify({ schema: 1, sessionId: 'conv-unread', goal: 'existing goal', state: 'armed', nextStep: null, iterations: 2, setAt: '2026-11-20T00:00:00.000Z', updatedAt: '2026-11-20T00:00:00.000Z' })
+    writeFileSync(unreadPath, keptBytes, { mode: 0o600 })
+    chmodSync(unreadPath, 0o200)
+    const migratedUnread = migrateOrphanedMissionCard('conv-unread', unreadCwd)
+    chmodSync(unreadPath, 0o600)
+    check(
+      'migrateOrphanedMissionCard refuses to overwrite an unreadable card and leaves the orphan armed',
+      migratedUnread === false &&
+        readFileSync(unreadPath, 'utf8') === keptBytes &&
+        readMissionCard('orphan-2', unreadCwd)?.state === 'armed',
+      `migrated=${migratedUnread} same=${readFileSync(unreadPath, 'utf8') === keptBytes} orphan=${readMissionCard('orphan-2', unreadCwd)?.state}`,
+    )
+
+    const readonlyCwd = join(scratch, 'mission-readonly')
+    const readonlyDir = makeOrphan(readonlyCwd, 'orphan-3')
+    chmodSync(readonlyDir, 0o500)
+    const migratedReadonly = migrateOrphanedMissionCard('conv-readonly', readonlyCwd)
+    chmodSync(readonlyDir, 0o700)
+    check(
+      'migrateOrphanedMissionCard returns false when the new card write fails',
+      migratedReadonly === false && readMissionCard('orphan-3', readonlyCwd)?.state === 'armed',
+      `migrated=${migratedReadonly} orphan=${readMissionCard('orphan-3', readonlyCwd)?.state}`,
+    )
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
