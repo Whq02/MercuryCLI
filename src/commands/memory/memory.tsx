@@ -192,6 +192,9 @@ export function memoryPopupRequest(initialRoute: MemoryRoute, onDone: LocalJSXCo
 async function statsReply(): Promise<string> {
   const { mnemeStatus, readMaintenanceReceipts } = await import('../../mneme/mnemeMaintenance.js')
   const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../../mneme/memoryVerbs.js')
+  const { mnemeLibraryDir } = await import('../../mneme/mnemeGates.js')
+  const { mnemeProjectKey, projectRecordsDir } = await import('../../mneme/paths.js')
+  const { mnemeUnreadSentence } = await import('../../mneme/mnemeUnread.js')
   const status = mnemeStatus()
   if (!status.enabled) {
     return 'memory is off (memory.enabled is false in settings) — no buffer, no topic pages, no memory verbs.'
@@ -201,6 +204,7 @@ async function statsReply(): Promise<string> {
   const verbs = memoryVerbsEnabled()
     ? 'Retain/Recall/Reflect/Correct available'
     : `memory verbs absent — ${memoryVerbsWhyNot() ?? 'unknown'}`
+  const unread = mnemeUnreadSentence([mnemeLibraryDir(), projectRecordsDir(mnemeProjectKey())])
   return [
     `buffer: ${plural(status.buffered, 'row')}${status.pendingConsuming > 0 ? ` (+${status.pendingConsuming} mid-consolidation)` : ''}`,
     `library: ${plural(status.topicCount, 'topic page')} · ${plural(status.entryCount, 'live fact')} · ${status.historyCount} in history`,
@@ -208,6 +212,7 @@ async function statsReply(): Promise<string> {
     `validator refusals (last ${plural(receipts.length, 'maintenance run')}): ${refusals}`,
     verbs,
     ...(status.degraded.length > 0 ? [`degraded: ${status.degraded.join(' · ')}`] : []),
+    ...(unread !== null ? [unread] : []),
   ].join('\n')
 }
 
