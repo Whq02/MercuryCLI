@@ -3,7 +3,7 @@ import { dapAdapterProbePending, mercuryDapEnabled, reachableDapAdapterKeys } fr
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
 import { mercuryUnityEnabled } from '../unity/unityProject.js'
 import { locateBlender, mercuryBlenderEnabled } from '../blender/blenderProject.js'
-import { mercuryAsepriteEnabled } from '../../services/aseprite/asepriteApp.js'
+import { mercuryAsepriteEnabled } from '../aseprite/asepriteApp.js'
 import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
