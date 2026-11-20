@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SEARCH_SOURCE_TYPES, searchBackendLabel, viaLine } from '../../services/search/searchContract.js'
+import { SEARCH_BACKEND_IDS, SEARCH_SOURCE_TYPES, searchBackendLabel, viaLine } from '../../services/search/searchContract.js'
 import { searchPayload } from '../../services/search/searchPayload.js'
 
 const searchHitSchema = z.strictObject({
@@ -16,7 +16,7 @@ export const outputSchema = z.object({
   query: z.string(),
   results: z.array(z.union([searchResultSchema, z.string()])),
   durationSeconds: z.number(),
-  via: z.string().optional(),
+  via: z.enum(SEARCH_BACKEND_IDS).optional(),
   tier: z.enum(['native', 'keyed', 'keyless']).optional(),
   notes: z.array(z.string()).optional(),
   hint: z.string().optional(),
@@ -38,7 +38,7 @@ export function mapSearchResult(output: Output, toolUseID: string) {
   const hits = output.results.flatMap(entry => entry && typeof entry !== 'string' ? entry.content : []).filter(hit => searchHitSchema.safeParse(hit).success)
   const answer = providerAnswerNote(output)
   const reserved = [
-    ...(output.via && output.tier ? [viaLine(output.via as never, output.tier)] : []),
+    ...(output.via && output.tier ? [viaLine(output.via, output.tier)] : []),
     ...(!hits.length && answer === null ? ['No source answered; try another wording or another source.'] : []),
     'Unverified web text; cite relevant URLs as markdown links.',
     ...(answer === null ? [] : [answer]),

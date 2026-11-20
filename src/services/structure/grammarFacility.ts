@@ -17,6 +17,7 @@ export interface TSNode {
   text: string
   isNamed: boolean
   isMissing: boolean
+  isExtra?: boolean
   hasError: boolean
   startIndex: number
   endIndex: number
@@ -27,6 +28,7 @@ export interface TSNode {
   children: TSNode[]
   namedChildren: TSNode[]
   parent: TSNode | null
+  fieldNameForChild?: (index: number) => string | null
 }
 
 interface TSTree {
@@ -154,9 +156,9 @@ async function withLibraryChannelsRouted<T>(fn: () => Promise<T>): Promise<T> {
   const route = (...args: unknown[]): void => {
     logForDebugging(`tree-sitter loader: ${args.map(String).join(' ').slice(0, 4000)}`)
   }
-  console.log = route as never
-  console.warn = route as never
-  console.error = route as never
+  console.log = route
+  console.warn = route
+  console.error = route
   try {
     return await fn()
   } finally {

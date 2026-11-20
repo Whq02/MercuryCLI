@@ -22,7 +22,8 @@ import type {
   PermissionRule,
   PermissionRuleSource,
   PermissionRuleValue,
-  } from '../../types/permissions.js'
+  ToolPermissionRulesBySource,
+} from '../../types/permissions.js'
 
 
 function contentMatchesDangerousPattern(content: string | undefined, patterns: string[]): boolean {
@@ -163,9 +164,11 @@ export function findDangerousPermissions(
 }
 
 
-type MutableRuleMaps = {
-  alwaysAllowRules: Record<string, string[]>
-  strippedDangerousRules?: Record<string, string[]>
+type ReadonlyRuleMap = ToolPermissionContext['alwaysAllowRules']
+
+type ClonedContext = Omit<ToolPermissionContext, 'alwaysAllowRules' | 'strippedDangerousRules'> & {
+  alwaysAllowRules: ToolPermissionRulesBySource
+  strippedDangerousRules?: ToolPermissionRulesBySource
 }
 
 const VALID_DESTINATIONS = new Set(['userSettings', 'projectSettings', 'localSettings', 'cliArg', 'session'])
@@ -176,40 +179,38 @@ export function stripDangerousPermissionsForFlow(
   const allowRules = getAllowRulesFromContext(context)
   const dangerous = findDangerousPermissions(allowRules, [])
   const next = cloneContext(context)
-  const maps = next as unknown as MutableRuleMaps
 
   if (dangerous.length === 0) {
-    if (!maps.strippedDangerousRules) maps.strippedDangerousRules = {}
+    if (!next.strippedDangerousRules) next.strippedDangerousRules = {}
     return next
   }
 
-  const stash: Record<string, string[]> = { ...(maps.strippedDangerousRules ?? {}) }
+  const stash: ToolPermissionRulesBySource = { ...(next.strippedDangerousRules ?? {}) }
   for (const perm of dangerous) {
     if (!VALID_DESTINATIONS.has(perm.source)) continue
     logForDebugging(
       `flow: setting aside ${perm.ruleDisplay} from ${perm.sourceDisplay} (a dangerous allow rule never applies in flow)`,
     )
     const serialized = permissionRuleValueToString(perm.ruleValue)
-    const arr = maps.alwaysAllowRules[perm.source] ?? []
-    maps.alwaysAllowRules[perm.source] = arr.filter(
+    const arr = next.alwaysAllowRules[perm.source] ?? []
+    next.alwaysAllowRules[perm.source] = arr.filter(
       entry => permissionRuleValueToString(permissionRuleValueFromString(entry)) !== serialized,
     )
     stash[perm.source] = [...new Set([...(stash[perm.source] ?? []), serialized])]
   }
-  maps.strippedDangerousRules = stash
+  next.strippedDangerousRules = stash
   return next
 }
 
 export function restoreDangerousPermissions(context: ToolPermissionContext): ToolPermissionContext {
-  const maps = context as unknown as MutableRuleMaps
-  if (!maps.strippedDangerousRules) return context
+  if (!context.strippedDangerousRules) return context
   const next = cloneContext(context)
-  const nextMaps = next as unknown as MutableRuleMaps
-  for (const [source, rules] of Object.entries(maps.strippedDangerousRules)) {
-    if (rules.length === 0) continue
-    nextMaps.alwaysAllowRules[source] = [...(nextMaps.alwaysAllowRules[source] ?? []), ...rules]
+  for (const [source, rules] of Object.entries(context.strippedDangerousRules)) {
+    if (!rules || rules.length === 0) continue
+    const key = source as PermissionRuleSource
+    next.alwaysAllowRules[key] = [...(next.alwaysAllowRules[key] ?? []), ...rules]
   }
-  nextMaps.strippedDangerousRules = {}
+  next.strippedDangerousRules = {}
   return next
 }
 
@@ -529,15 +530,15 @@ export async function initializeToolPermissionContext(args: {
     }
   }
 
-  let context = {
+  let context: ToolPermissionContext = {
     mode: args.permissionMode,
     ...(args.baseToolsCli === undefined ? {} : { baseTools: parseToolListFromCLI(args.baseToolsCli) }),
     alwaysAllowRules: { cliArg: allowRules },
     alwaysDenyRules: { cliArg: denyRules },
     alwaysAskRules: {},
     isBypassPermissionsModeAvailable: bypassAvailable,
-    ...{ isFlowAvailable: isFlowGateEnabled() },
-  } as unknown as ToolPermissionContext
+    isFlowAvailable: isFlowGateEnabled(),
+  }
 
   context = applyPermissionRulesToPermissionContext(context, diskRules)
   forgetLateAllowRules()
@@ -557,29 +558,27 @@ function normalizeRuleString(rule: string): string {
 }
 
 
-function cloneContext(context: ToolPermissionContext): ToolPermissionContext {
-  const c = context as unknown as {
-    alwaysAllowRules?: Record<string, string[]>
-    strippedDangerousRules?: Record<string, string[]>
-  }
+function cloneContext(context: ToolPermissionContext): ClonedContext {
   return {
-    ...(context as object),
-    alwaysAllowRules: cloneMap(c.alwaysAllowRules),
-    strippedDangerousRules: c.strippedDangerousRules ? cloneMap(c.strippedDangerousRules) : undefined,
-  } as unknown as ToolPermissionContext
+    ...context,
+    alwaysAllowRules: cloneMap(context.alwaysAllowRules),
+    strippedDangerousRules: context.strippedDangerousRules ? cloneMap(context.strippedDangerousRules) : undefined,
+  }
 }
 
-function cloneMap(map?: Record<string, string[]>): Record<string, string[]> {
-  const out: Record<string, string[]> = {}
-  for (const [key, value] of Object.entries(map ?? {})) out[key] = [...value]
+function cloneMap(map?: ReadonlyRuleMap): ToolPermissionRulesBySource {
+  const out: ToolPermissionRulesBySource = {}
+  for (const [key, value] of Object.entries(map ?? {})) {
+    if (value !== undefined) out[key as PermissionRuleSource] = [...value]
+  }
   return out
 }
 
 function getAllowRulesFromContext(context: ToolPermissionContext): PermissionRule[] {
-  const bySource = (context as unknown as { alwaysAllowRules?: Record<string, string[]> }).alwaysAllowRules ?? {}
+  const bySource = context.alwaysAllowRules ?? {}
   const rules: PermissionRule[] = []
   for (const [source, entries] of Object.entries(bySource)) {
-    for (const entry of entries) {
+    for (const entry of entries ?? []) {
       rules.push({
         source: source as PermissionRuleSource,
         ruleBehavior: 'allow',
