@@ -197,7 +197,7 @@ async function* openaiTurn(
       yield withEffort(turn, createAssistantMessage({ content: resumeTrimReissued }))
     }
     yield withEffort(turn, apiErrorMessage(
-      busyPrefix(turn, text, outcome.fault, typed),
+      busyPrefix(turn, text, outcome.fault),
       typed,
       outcome.fault.code,
       overflow,

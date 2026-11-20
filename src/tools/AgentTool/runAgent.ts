@@ -56,6 +56,7 @@ import type { CanUseToolFn } from '../../Tool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import { flushSessionStorage, recordSidechainTranscript, writtenChainTail } from '../../utils/sessionStorage.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
+import { closeAgentTranscript } from '../../utils/sessionStorage/writer.js'
 import { latchSwarmAgent, settleSwarmAgent } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import {
@@ -821,6 +822,7 @@ export async function* runAgent(
       executorClaims.delete(agentId)
       settleSwarmAgent(agentId)
       forgetAgentEffortWord(agentId)
+      closeAgentTranscript(agentId)
       if (agentDefinition.hooks) {
         removeSessionHooks(rootSetAppState, hookScope)
       }

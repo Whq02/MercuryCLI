@@ -379,6 +379,66 @@ console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable 
   )
 }
 
+console.log('\nstudioEditorModel.ts:457 — opening an unreadable agent file surfaces the advice note instead of opening silent')
+{
+  const res = runScenario(`
+    const { createStudioEditorMachine } = await import(${JSON.stringify(join(SRC, 'components/agents/studio/studioEditorModel.ts'))})
+    const raw = '---\\nname: scout\\ndescription: Checks code carefully\\n---\\nInspect files thoroughly.\\n'
+    const base = { identity: { filePath: '/repo/.mercury/agents/scout.md', revision: 'rev-1' }, agent: { agentType: 'scout' } }
+    const unreadMachine = createStudioEditorMachine(
+      {
+        mode: 'edit',
+        base,
+        cwd: process.cwd(),
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-sonnet-5-5',
+        onSaved: () => {},
+        onCancel: () => {},
+      },
+      () => {},
+      {
+        readFile: () => {
+          throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+        },
+        listDrafts: () => [],
+      },
+    )
+    out.unreadNote = unreadMachine.snapshot().note
+    unreadMachine.dispose()
+    const okMachine = createStudioEditorMachine(
+      {
+        mode: 'edit',
+        base,
+        cwd: process.cwd(),
+        getExistingAgents: () => [],
+        getParentModel: () => 'claude-sonnet-5-5',
+        onSaved: () => {},
+        onCancel: () => {},
+      },
+      () => {},
+      {
+        readFile: () => raw,
+        listDrafts: () => [],
+      },
+    )
+    out.okNote = okMachine.snapshot().note
+    out.okName = okMachine.snapshot().doc.fields.name
+    okMachine.dispose()
+  `)
+  const unreadNote = res.unreadNote as { text?: string; tone?: string } | null
+  check(
+    'studio-open-unreadable-base-sets-note',
+    unreadNote !== null &&
+      unreadNote.text === 'Could not read existing agent file — check permissions before saving (EACCES: permission denied).',
+    JSON.stringify(unreadNote),
+  )
+  check(
+    'studio-open-readable-base-control',
+    res.okNote === null && res.okName === 'scout',
+    JSON.stringify({ okNote: res.okNote, okName: res.okName }),
+  )
+}
+
 console.log('\nConcourseRoute.tsx:181 — failed project ground switch notifies strip:composer instead of silent drop')
 {
   const res = runScenario(`

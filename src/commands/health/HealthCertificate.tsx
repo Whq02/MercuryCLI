@@ -263,6 +263,18 @@ function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
   )
 }
 
+function resolveHealthSelection(
+  checks: readonly Pick<HealthCheck, 'id'>[],
+  selectedId: string | null,
+): { id: string | null; index: number } {
+  if (checks.length === 0) return { id: null, index: 0 }
+  if (selectedId !== null) {
+    const found = checks.findIndex(c => c.id === selectedId)
+    if (found >= 0) return { id: selectedId, index: found }
+  }
+  return { id: checks[0]!.id, index: 0 }
+}
+
 function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }: { onClose: () => void; report?: typeof runAndRecordHealthReport }): React.ReactNode {
   const tok = useMercuryTokens()
   const elevatedRef = useElevatedSurface()
@@ -283,13 +295,13 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
   const depthRef = React.useRef<'fast' | 'deep'>('fast')
   const runStartedAt = React.useRef(Date.now())
 
-  const [sel, setSel] = useState(0)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
 
   const [fixFlow, setFixFlow] = useState<FixFlow | null>(null)
 
   const checksRef = React.useRef<HealthCheck[]>([])
-  const selRef = React.useRef(0)
+  const selIdRef = React.useRef<string | null>(null)
   const fixFlowRef = React.useRef<FixFlow | null>(null)
   fixFlowRef.current = fixFlow
 
@@ -348,6 +360,9 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
     [cert, liveSections],
   )
   checksRef.current = checks
+  const resolved = resolveHealthSelection(checks, selectedId)
+  const sel = resolved.index
+  const selId = resolved.id
 
   const scrollRef = React.useRef<ScrollBoxHandle>(null)
   const selRowRef = React.useRef<DOMElement | null>(null)
@@ -362,10 +377,11 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
     if (selRowRef.current) {
       box.scrollToElement(selRowRef.current, -CONTEXT_ROWS_ABOVE)
     }
-  }, [sel, openId, cert, frameRows, width])
+  }, [sel, selId, openId, cert, frameRows, width])
   const openRowScrollStep = (direction: -1 | 1): boolean => {
     const box = scrollRef.current
-    const open = openId !== null && openId === checksRef.current[selRef.current]?.id
+    const currentId = resolveHealthSelection(checksRef.current, selIdRef.current).id
+    const open = openId !== null && openId === currentId
     const span = open ? rowSpanInEstate(selRowRef.current) : null
     if (!box || !span) return false
     const scrollTop = box.getScrollTop()
@@ -379,18 +395,27 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
     box.scrollTo(scrollTop + direction)
     return true
   }
-  const moveTo = (index: number): void => {
-    selRef.current = Math.min(Math.max(0, checksRef.current.length - 1), Math.max(0, index))
-    setSel(selRef.current)
+  const selectId = (id: string | null): void => {
+    selIdRef.current = id
+    setSelectedId(id)
   }
-  const toggleOpen = (index: number): void => {
-    const c = checksRef.current[index]
-    if (c) setOpenId(o => (o === c.id ? null : c.id))
+  const moveTo = (index: number): void => {
+    const clamped = Math.min(Math.max(0, checksRef.current.length - 1), Math.max(0, index))
+    selectId(checksRef.current[clamped]?.id ?? null)
+  }
+  const moveBy = (delta: number): void => {
+    const current = resolveHealthSelection(checksRef.current, selIdRef.current).index
+    moveTo(current + delta)
+  }
+  const toggleOpen = (id: string | null): void => {
+    if (id === null) return
+    selectId(id)
+    setOpenId(o => (o === id ? null : id))
   }
   const rerun = (depth: 'fast' | 'deep'): void => {
     depthRef.current = depth
     run()
-    moveTo(0)
+    selectId(null)
   }
 
   useInput(
@@ -434,13 +459,13 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
         event.stopImmediatePropagation()
         const step = action === 'moveNext' ? 1 : -1
         if (openRowScrollStep(step)) return
-        moveTo(selRef.current + step)
+        moveBy(step)
         return
       }
       if (action === 'pagePrevious' || action === 'pageNext') {
         event.stopImmediatePropagation()
         const page = Math.max(4, pageRowsRef.current)
-        moveTo(action === 'pagePrevious' ? selRef.current - page : selRef.current + page)
+        moveBy(action === 'pagePrevious' ? -page : page)
         return
       }
       if (action === 'first' || action === 'last') {
@@ -450,17 +475,18 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
       }
       if (action === 'enterChild' || action === 'leaveChild') {
         event.stopImmediatePropagation()
-        const c = checksRef.current[selRef.current]
-        if (!c) return
-        if (action === 'enterChild') setOpenId(c.id)
-        else setOpenId(o => (o === c.id ? null : o))
+        const cur = resolveHealthSelection(checksRef.current, selIdRef.current)
+        if (!cur.id) return
+        selectId(cur.id)
+        if (action === 'enterChild') setOpenId(cur.id)
+        else setOpenId(o => (o === cur.id ? null : o))
         return
       }
 
       if (!pastOpenEvent()) return
       if (action === 'activate') {
         event.stopImmediatePropagation()
-        toggleOpen(selRef.current)
+        toggleOpen(resolveHealthSelection(checksRef.current, selIdRef.current).id)
         return
       }
       if (input === 'd' && !key.ctrl && !key.meta) {
@@ -472,7 +498,8 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
         return
       }
       if (input === 'f' && !key.ctrl && !key.meta) {
-        const c = checksRef.current[selRef.current]
+        const cur = resolveHealthSelection(checksRef.current, selIdRef.current)
+        const c = checksRef.current[cur.index]
         if (c && healthFixEnabled() && isFixable(c)) {
           setFixFlow({ phase: 'confirm', check: c })
         }
@@ -481,7 +508,6 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
     { isActive: true },
   )
 
-  const selId = checks[sel]?.id ?? null
   const counts = cert ? countByStatus(checks) : null
   const meta = cert ? VERDICT_META[cert.verdict] : null
   const actions = cert && cert.verdict !== 'certified' ? nextActions(checks, 3) : []
@@ -499,7 +525,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
       ? `◐ Checking…${progress ? ` ${progress.done}/${progress.total} · ${progress.current}` : ''}`
       : `▲ Health check failed — r retries${loadError ? ` · ${loadError}` : ''}`
 
-  return healthCertificateView({ tok, elevatedRef, width, innerW, ground, cert, loading, openId, fixFlow, checks, scrollRef, selRowRef, moveTo, toggleOpen, selId, counts, meta, actions, sections, layout, footer, statusLine, statusColor, HEALTH_POPUP_VIEW, CheckRow, FixCard })
+  return healthCertificateView({ tok, elevatedRef, width, innerW, ground, cert, loading, openId, fixFlow, checks, scrollRef, selRowRef, selectId, toggleOpen, selId, counts, meta, actions, sections, layout, footer, statusLine, statusColor, HEALTH_POPUP_VIEW, CheckRow, FixCard })
 }
 
 export { MercuryHealthCertificate }
