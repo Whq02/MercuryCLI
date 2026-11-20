@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, waitFor } from '../lib/settingsPopupHarness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
@@ -45,11 +46,54 @@ const classified = [...readFileSync(join(ROOT, 'scripts/consistency-census/gen-l
 const classifiedAbsent = classified.filter(file => !existsSync(join(ROOT, file)))
 check('§A every file the role table classifies stands in the tree', classified.length > 0 && classifiedAbsent.length === 0, classifiedAbsent.join(', '))
 
-const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
-check('§B /model renders the shared ProductLockup', picker.includes('<ProductLockup view="model"'))
-check('§B the old hand-composed header is gone', !/bold color=\{TERRA\}> Mercury</.test(picker))
-const kit = readFileSync(join(ROOT, 'src/components/mercury-ui/components.tsx'), 'utf8')
-check('§B CommandCenter consumes the SAME ProductLockup line', kit.includes('<ProductLockup view={view} subtitle={subtitle}'))
+{
+  const prevCwd = process.cwd()
+  const scratchHome = pinScratchHome('lockup-census')
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  const React = await import('react')
+  const { enableConfigs } = await import('../../src/utils/config.js')
+  enableConfigs()
+  const { Text } = await import('../../src/ink.js')
+  const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
+  const { CommandCenter } = await import('../../src/components/mercury-ui/components.js')
+  const pickerMounted = await mountOffscreen(
+    React.createElement(MercuryModelPicker as never, {
+      models: [{ id: 'claude-fable-5-1', name: 'Fable 5.1', tag: '', ctx: '1M ctx', group: 'Anthropic' }],
+      current: 'claude-fable-5-1',
+    }),
+    120,
+    30,
+  )
+  try {
+    const pickerOk = await waitFor(() => pickerMounted.screen().includes('Mercury · model'), 4000)
+    check('§B /model renders the shared ProductLockup', pickerOk, pickerOk ? '' : pickerMounted.screen().slice(0, 300))
+  } finally {
+    pickerMounted.unmount()
+  }
+  const centerMounted = await mountOffscreen(
+    React.createElement(
+      CommandCenter as never,
+      { view: 'sessions', subtitle: '3 active', onClose: () => {} },
+      React.createElement(Text as never, {}, 'body'),
+    ),
+    120,
+    30,
+  )
+  try {
+    const centerOk = await waitFor(
+      () => {
+        const frame = centerMounted.screen()
+        return frame.includes('▟▆▙') && frame.includes('Mercury — sessions') && frame.includes('3 active')
+      },
+      4000,
+    )
+    check('§B CommandCenter consumes the SAME ProductLockup line', centerOk, centerOk ? '' : centerMounted.screen().slice(0, 300))
+  } finally {
+    centerMounted.unmount()
+    await releaseScratchHome(scratchHome)
+    process.chdir(prevCwd)
+  }
+}
 
 const ALLOWED_GLYPH_AUTHORS = new Set([
   'src/components/mercury-ui/assets.tsx',
