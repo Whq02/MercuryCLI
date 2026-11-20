@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs'
+import { parseLegacyCommandString } from '../resolvedInvocation.js'
+import { resolveExecutable, type LookupWorld } from '../which.js'
 type DirectOrCmdSpec = {
   file: string
   args: string[]
@@ -79,4 +82,187 @@ export function executableNeedsVerbatimArgs(file: string, platform: NodeJS.Platf
 
 export function hostScriptDialect(platform: NodeJS.Platform = process.platform): 'powershell' | 'posix-sh' {
   return platform === 'win32' ? 'powershell' : 'posix-sh'
+}
+
+function parseWindowsCommandArgs(raw: string): string[] {
+  const tokens: string[] = []
+  let cur = ''
+  let started = false
+  let inQuotes = false
+  for (let i = 0; i < raw.length; i++) {
+    let slashes = 0
+    while (i < raw.length && raw[i] === '\\') {
+      slashes++
+      i++
+    }
+    if (i < raw.length && raw[i] === '"') {
+      cur += '\\'.repeat(Math.floor(slashes / 2))
+      started = true
+      if (slashes % 2 === 1) {
+        cur += '"'
+      } else if (inQuotes && raw[i + 1] === '"') {
+        cur += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+    if (slashes > 0) {
+      cur += '\\'.repeat(slashes)
+      started = true
+    }
+    if (i >= raw.length) break
+    const c = raw[i]!
+    if (!inQuotes && (c === ' ' || c === '\t')) {
+      if (started || cur.length > 0) {
+        tokens.push(cur)
+        cur = ''
+        started = false
+      }
+      continue
+    }
+    cur += c
+    started = true
+  }
+  if (started || cur.length > 0) tokens.push(cur)
+  return tokens
+}
+
+export function parseEditorCommandLine(
+  editor: string,
+  world: LookupWorld,
+): { executable: string; args: string[] } {
+  if (world.platform === 'win32' && !editor.startsWith("'")) {
+    if (!editor.startsWith('"')) {
+      const boundaries = [editor.length, ...Array.from(editor.matchAll(/\s+/g), match => match.index).reverse()]
+      for (const end of boundaries) {
+        const executable = editor.slice(0, end)
+        if (resolveExecutable(executable, world) !== null) {
+          return { executable, args: parseWindowsCommandArgs(editor.slice(end).trim()) }
+        }
+      }
+    }
+    const tokens = parseWindowsCommandArgs(editor)
+    if (tokens.length > 0 && tokens[0]!.length > 0) {
+      return { executable: tokens[0]!, args: tokens.slice(1) }
+    }
+    return { executable: editor, args: [] }
+  }
+  const invocation = parseLegacyCommandString(editor)
+  if (invocation.executablePath.length > 0) {
+    return { executable: invocation.executablePath, args: invocation.args }
+  }
+  return { executable: editor, args: [] }
+}
+
+export function editorInvocationOf(
+  editor: string,
+  editorCommand: string,
+  resolved: { executable: string; args: string[] },
+  platform: NodeJS.Platform = process.platform,
+): { executablePath: string; args: string[] } {
+  if (platform === 'win32' && editorCommand === editor) {
+    return { executablePath: resolved.executable, args: resolved.args }
+  }
+  return parseLegacyCommandString(editorCommand)
+}
+
+export function editorShellCommandLine(
+  editorExe: string,
+  args: readonly string[],
+  filePath: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const quotedPath = platform === 'win32' ? '"%MERCURY_EDITOR_FILE%"' : `'${filePath.replaceAll("'", `'\\''`)}'`
+  return [`"${editorExe}"`, ...args.map(arg => `"${arg}"`), quotedPath].join(' ')
+}
+
+type PromptEditorSpawnSpec =
+  | {
+      shell: false
+      file: string
+      args: string[]
+      windowsVerbatimArguments: boolean
+      extraEnv: Record<string, string>
+    }
+  | {
+      shell: true
+      commandLine: string
+    }
+
+export function promptEditorSpawnSpec(
+  editorExe: string,
+  args: readonly string[],
+  filePath: string,
+  comSpec: string | undefined,
+  platform: NodeJS.Platform = process.platform,
+): PromptEditorSpawnSpec {
+  if (platform === 'win32') {
+    const interpreter = (comSpec ?? 'cmd.exe').trim().replace(/^"+|"+$/g, '') || 'cmd.exe'
+    if (/(?:^|[\\/])(?:pwsh|powershell)(?:\.exe)?$/i.test(interpreter)) {
+      const psQuote = (s: string): string => `'${s.replaceAll("'", "''")}'`
+      const psArgs = args.map(arg => ` ${psQuote(arg)}`).join('')
+      return {
+        shell: false,
+        file: interpreter,
+        args: ['-NoLogo', '-NoProfile', '-Command', `& ${psQuote(editorExe)}${psArgs} $env:MERCURY_EDITOR_FILE`],
+        windowsVerbatimArguments: false,
+        extraEnv: { MERCURY_EDITOR_FILE: filePath },
+      }
+    }
+    const cmdLine = editorShellCommandLine(editorExe, args, '', 'win32')
+    return {
+      shell: false,
+      file: interpreter,
+      args: ['/d', '/v:off', '/s', '/c', `"${cmdLine}"`],
+      windowsVerbatimArguments: true,
+      extraEnv: { MERCURY_EDITOR_FILE: filePath },
+    }
+  }
+  return {
+    shell: true,
+    commandLine: editorShellCommandLine(editorExe, args, filePath, platform),
+  }
+}
+
+type ExternalEditorSpawnSpec =
+  | { shell: true; command: string }
+  | { shell: false; file: string; args: string[] }
+
+function quoteForWindowsShell(value: string): string {
+  return `"${value}"`
+}
+
+export function guiEditorSpawnSpec(
+  editor: string,
+  executable: string,
+  args: readonly string[],
+  targetArgs: readonly string[],
+  editorExistsOnDisk?: boolean,
+  platform: NodeJS.Platform = process.platform,
+): ExternalEditorSpawnSpec {
+  if (platform === 'win32') {
+    const exists = editorExistsOnDisk ?? (editor.includes(' ') && existsSync(editor))
+    const command =
+      editor.includes(' ') && exists
+        ? [quoteForWindowsShell(editor), ...targetArgs.map(quoteForWindowsShell)].join(' ')
+        : [quoteForWindowsShell(executable), ...args.map(quoteForWindowsShell), ...targetArgs.map(quoteForWindowsShell)].join(' ')
+    return { shell: true, command }
+  }
+  return { shell: false, file: executable, args: [...args, ...targetArgs] }
+}
+
+export function terminalEditorSpawnSpec(
+  editor: string,
+  executable: string,
+  args: readonly string[],
+  lineArgs: readonly string[],
+  filePath: string,
+  platform: NodeJS.Platform = process.platform,
+): ExternalEditorSpawnSpec {
+  if (platform === 'win32') {
+    return { shell: true, command: [editor, ...lineArgs, quoteForWindowsShell(filePath)].join(' ') }
+  }
+  return { shell: false, file: executable, args: [...args, ...lineArgs, filePath] }
 }
