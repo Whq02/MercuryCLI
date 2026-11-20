@@ -437,5 +437,95 @@ exit 44
   )
 }
 
+console.log('\nw05-4 — storeOAuthAccountInfo keeps daemon restart failure for auth CLI and login screen')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const cfg = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    cfg.enableConfigs()
+    let failRestart = true
+    mock.module(path.join(SRC, 'daemon/ownedDaemon.js'), () => ({
+      restartOwnedDaemonForFreshSignin: async () => {
+        if (failRestart) throw new Error('daemon-socket-gone')
+        return 'asked'
+      },
+    }))
+    const refresh = await import(path.join(SRC, 'services/oauth/refresh.ts'))
+    const authCli = await import(path.join(SRC, 'cli/handlers/auth.ts'))
+    const { createAnthropicLoginMachine } = await import(path.join(SRC, 'components/mercury-ui/screens/anthropicLoginModel.ts'))
+
+    out.hasAwaitExport = typeof refresh.awaitStoredOAuthDaemonRestart === 'function'
+    const ret = refresh.storeOAuthAccountInfo({ accountUuid: 'u-1', emailAddress: 'fake1@example.com' })
+    out.syncReturn = ret === undefined
+    out.firstRestartErr = out.hasAwaitExport ? await refresh.awaitStoredOAuthDaemonRestart() : null
+
+    const installed = await authCli.installOAuthTokens({
+      accessToken: 'fake-at-4',
+      refreshToken: 'fake-rt-4',
+      expiresAt: 4102444800000,
+      scopes: ['user:inference'],
+      subscriptionType: 'pro',
+      rateLimitTier: null,
+      tokenAccount: { uuid: 'u-2', emailAddress: 'fake2@example.com' },
+    })
+    out.installed = installed ?? null
+
+    let snapshot = null
+    const ctrl = createAnthropicLoginMachine(
+      { onDone: () => {} },
+      next => { snapshot = next },
+      {
+        createService: () => ({
+          startOAuthFlow: async () => ({
+            accessToken: 'fake-at-5',
+            refreshToken: 'fake-rt-5',
+            expiresAt: 4102444800000,
+            scopes: ['user:inference'],
+            subscriptionType: 'pro',
+            rateLimitTier: null,
+            tokenAccount: { uuid: 'u-3', emailAddress: 'fake3@example.com' },
+          }),
+          handleManualAuthCodeInput: () => {},
+          cleanup: () => {},
+        }),
+        saveTokens: () => ({ success: true }),
+        usesClaudeAiAuth: () => true,
+        mintApiKey: async () => null,
+        validateOrg: async () => ({ valid: true }),
+        storeAccount: account => refresh.storeOAuthAccountInfo(account),
+        shadowWarning: () => null,
+        recordSignIn: () => {},
+        settings: () => ({}),
+        clipboard: async () => null,
+        writeStdout: () => {},
+        log: () => {},
+        setTimer: (fn) => { queueMicrotask(fn); return 1 },
+        clearTimer: () => {},
+      },
+    )
+    ctrl.start(true)
+    for (let i = 0; i < 40 && snapshot?.flow?.name !== 'success'; i++) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    out.loginFlow = snapshot?.flow ?? null
+
+    failRestart = false
+    refresh.storeOAuthAccountInfo({ accountUuid: 'u-4', emailAddress: 'fake4@example.com' })
+    out.okRestartErr = out.hasAwaitExport ? await refresh.awaitStoredOAuthDaemonRestart() : 'missing'
+  `)
+  check('w05-4: storeOAuthAccountInfo stays synchronous and exposes failed daemon restart error', r.hasAwaitExport === true && r.syncReturn === true && r.firstRestartErr === 'daemon-socket-gone' && r.okRestartErr === null, JSON.stringify({ has: r.hasAwaitExport, sync: r.syncReturn, first: r.firstRestartErr, ok: r.okRestartErr }))
+  const inst = r.installed as { daemonRestartError?: string } | null
+  check('w05-4: installOAuthTokens returns daemonRestartError when daemon restart fails', inst !== null && inst.daemonRestartError === 'daemon-socket-gone', JSON.stringify(inst))
+  const lf = r.loginFlow as { name?: string; warning?: string } | null
+  check(
+    'w05-4: anthropicLoginModel success receipt carries the daemon restart warning sentence',
+    lf !== null &&
+      lf.name === 'success' &&
+      lf.warning === 'signed in, but the background daemon could not be restarted (daemon-socket-gone) — run `mercury daemon restart` so it uses this sign-in',
+    JSON.stringify(lf),
+  )
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

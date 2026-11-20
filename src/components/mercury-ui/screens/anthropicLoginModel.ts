@@ -8,6 +8,10 @@ import {
   shouldUseClaudeAIAuth,
   storeOAuthAccountInfo,
 } from '../../../services/oauth/client.js'
+import {
+  awaitStoredOAuthDaemonRestart,
+  daemonRestartFailedNotice,
+} from '../../../services/oauth/refresh.js'
 import type { OAuthTokens } from '../../../services/oauth/types.js'
 import { PROFILE_SCOPE } from '../../../constants/oauth.js'
 import {
@@ -123,6 +127,7 @@ export interface AnthropicLoginDeps {
   mintApiKey: (accessToken: string) => Promise<unknown>
   validateOrg: () => Promise<unknown>
   storeAccount: (account: AccountInfo) => void
+  awaitDaemonRestart?: () => Promise<string | null>
   fetchRoles?: typeof fetchAndStoreUserRoles
   shadowWarning: () => string | null
   recordSignIn: (kind: SignInKind) => void
@@ -143,6 +148,7 @@ function liveDeps(): AnthropicLoginDeps {
     mintApiKey: accessToken => createAndStoreApiKey(accessToken),
     validateOrg: () => validateForceLoginOrg(),
     storeAccount: account => storeOAuthAccountInfo(account),
+    awaitDaemonRestart: () => awaitStoredOAuthDaemonRestart(),
     fetchRoles: fetchAndStoreUserRoles,
     shadowWarning: () => loginShadowWarning(),
     recordSignIn: kind => recordSignInLedger('anthropic', kind),
@@ -274,11 +280,20 @@ export function createAnthropicLoginMachine(
         }
       }
       if (disposed || gen !== generation) return
+      const daemonRestartError =
+        subscription && landed !== undefined && deps.awaitDaemonRestart !== undefined
+          ? await deps.awaitDaemonRestart()
+          : null
+      if (disposed || gen !== generation) return
+      const daemonWarning =
+        daemonRestartError !== null ? daemonRestartFailedNotice(daemonRestartError) : undefined
+      const warning =
+        [saveWarning, daemonWarning].filter((item): item is string => item !== undefined).join('\n') || undefined
       deps.recordSignIn(deps.usesClaudeAiAuth(tokens.scopes) ? 'oauth' : 'api-key')
       deps.notify?.(LOGIN_SUCCESS_NOTICE)
       shadowWarning = deps.shadowWarning()
       accountLabel = landed?.emailAddress ?? null
-      setFlow({ name: 'success', ...(saveWarning !== undefined ? { warning: saveWarning } : {}) })
+      setFlow({ name: 'success', ...(warning !== undefined ? { warning } : {}) })
     } catch (error) {
       if (disposed || gen !== generation) return
       setFlow({ name: 'error', message: String((error as Error).message ?? error), retry: { name: 'ready', loginWithClaudeAi: deps.usesClaudeAiAuth(tokens.scopes) } })
