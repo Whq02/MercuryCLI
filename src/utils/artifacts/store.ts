@@ -204,32 +204,28 @@ export async function storeArtifact(
 }
 
 export async function listArtifacts(scope: string): Promise<ArtifactMeta[]> {
+  const dir = getArtifactScopeDir(scope)
+  let names: string[]
   try {
-    const dir = getArtifactScopeDir(scope)
-    let names: string[]
-    try {
-      names = await readdir(dir)
-    } catch (error) {
-      passedOver(error)
-      return []
-    }
-    const metas: ArtifactMeta[] = []
-    for (const f of names) {
-      if (!f.endsWith(META_SUFFIX)) continue
-      try {
-        const raw = await readFile(join(dir, f), 'utf8')
-        const parsed = JSON.parse(raw) as unknown
-        if (isValidMeta(parsed)) metas.push(parsed)
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    metas.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
-    return metas
+    names = await readdir(dir)
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return []
+    throw error
   }
+  const metas: ArtifactMeta[] = []
+  for (const f of names) {
+    if (!f.endsWith(META_SUFFIX)) continue
+    try {
+      const raw = await readFile(join(dir, f), 'utf8')
+      const parsed = JSON.parse(raw) as unknown
+      if (isValidMeta(parsed)) metas.push(parsed)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') continue
+      throw error
+    }
+  }
+  metas.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+  return metas
 }
 
 function isValidMeta(v: unknown): v is ArtifactMeta {
@@ -251,19 +247,19 @@ export async function getArtifact(
   scope: string,
   id: string,
 ): Promise<RetrievedArtifact | null> {
+  if (typeof id !== 'string' || !id) return null
+  if (!/^[A-Za-z0-9._-]+$/.test(id) || id.includes('..')) return null
+  const dir = getArtifactScopeDir(scope)
+  const metaPath = join(dir, `${id}${META_SUFFIX}`)
+  const blobPath = join(dir, id)
   try {
-    if (typeof id !== 'string' || !id) return null
-    if (!/^[A-Za-z0-9._-]+$/.test(id) || id.includes('..')) return null
-    const dir = getArtifactScopeDir(scope)
-    const metaPath = join(dir, `${id}${META_SUFFIX}`)
-    const blobPath = join(dir, id)
     const meta = JSON.parse(await readFile(metaPath, 'utf8')) as unknown
     if (!isValidMeta(meta)) return null
     const content = await readFile(blobPath, 'utf8')
     return { meta, content }
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return null
+    throw error
   }
 }
 

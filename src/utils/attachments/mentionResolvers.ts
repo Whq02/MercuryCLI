@@ -6,11 +6,11 @@ import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { createChildAbortController } from '../abortController.js'
 import { logError } from '../log.js'
 import { expandPath } from '../path.js'
-import { generateFileAttachment, mentionDeniedByRule, mentionPastCeiling } from './fileAttachments.js'
+import { generateFileAttachment, mentionDeniedByRule, mentionPastCeiling, mentionReadFailed } from './fileAttachments.js'
 import { extractAgentMentions, extractAtMentionedFiles, extractMcpResourceMentions, parseAtMentionedFileLines } from './mentions.js'
 import { isFileReadDenied } from './shared.js'
 import type { Attachment } from './types.js'
-import { passedOver, passedOverAs } from '../passedOver.js'
+import { passedOverAs } from '../passedOver.js'
 import { startTimeout, stopTimeout } from '../timers.js'
 
 export function processAgentMentions(input: string, agents: AgentDefinition[]): Attachment[] {
@@ -22,24 +22,19 @@ export function processAgentMentions(input: string, agents: AgentDefinition[]): 
 }
 
 async function readMentionedResource(word: string, context: ToolUseContext, clients: ToolUseContext['options']['mcpClients']): Promise<Attachment[]> {
+  const colon = word.indexOf(':')
+  if (colon < 1 || colon === word.length - 1) return []
+  const server = word.slice(0, colon)
+  const uri = word.slice(colon + 1)
+  const connection = clients.find(client => client.name === server)
+  if (connection?.type !== 'connected') return []
+  const info = (context.options.mcpResources?.[server] || []).find(resource => resource.uri === uri)
+  if (!info) return []
   try {
-    const colon = word.indexOf(':')
-    if (colon < 1 || colon === word.length - 1) return []
-    const server = word.slice(0, colon)
-    const uri = word.slice(colon + 1)
-    const connection = clients.find(client => client.name === server)
-    if (connection?.type !== 'connected') return []
-    const info = (context.options.mcpResources?.[server] || []).find(resource => resource.uri === uri)
-    if (!info) return []
-    try {
-      const content = await connection.client.readResource({ uri })
-      return [{ type: 'mcp_resource', server, uri, name: info.name || uri, description: info.description, content }]
-    } catch (error) {
-      logError(error)
-      return []
-    }
+    const content = await connection.client.readResource({ uri })
+    return [{ type: 'mcp_resource', server, uri, name: info.name || uri, description: info.description, content }]
   } catch (error) {
-    passedOver(error)
+    logError(error)
     return []
   }
 }
@@ -61,8 +56,8 @@ async function directoryMention(path: string): Promise<Attachment[]> {
     if (remaining > 0) lines.push(`… and ${remaining} more entries`)
     return [{ type: 'directory', path, content: lines.join('\n'), displayPath: relative(getCwd(), path) }]
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    return [mentionReadFailed(path, error)]
   }
 }
 
