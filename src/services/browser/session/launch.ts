@@ -211,6 +211,7 @@ function launchArgsFor(proxy: Awaited<ReturnType<typeof startMetadataProxy>>, ho
     '--disable-quic',
     '--no-first-run',
     '--no-default-browser-check',
+    '--disable-component-update',
     '--disable-features=Translate',
     '--disable-dev-shm-usage',
     '--disable-blink-features=AutomationControlled',
