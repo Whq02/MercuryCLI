@@ -201,6 +201,7 @@ console.log('6 · qwenLogin: a DASHSCOPE_BASE_URL that is not a URL does not ref
       }) as unknown as typeof fetch,
     })
     check('the sign-in goes on to its endpoint check and is not refused for the variable', fetched > 0 && !out.receipt.includes('DASHSCOPE_BASE_URL is not a valid'), JSON.stringify({ fetched, out }))
+    check('the stored key receipt says once that the variable is not used and where requests go', out.stored && out.receipt.includes('NOTE: DASHSCOPE_BASE_URL is not a usable URL (') && out.receipt.includes('so it is not used and requests go to the endpoint above; fix or unset it.'), JSON.stringify(out))
   })
 }
 
