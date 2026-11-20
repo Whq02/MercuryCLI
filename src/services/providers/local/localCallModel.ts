@@ -119,7 +119,7 @@ function unrenderedApiTool(tool: Tool): ApiShapedTool {
   const explicit = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
   let input_schema: unknown = {}
   try {
-    input_schema = inlineLocalSchemaRefs((explicit as Record<string, unknown> | undefined) ?? zodToJsonSchema(tool.inputSchema as never))
+    input_schema = inlineLocalSchemaRefs((explicit as Record<string, unknown> | undefined) ?? zodToJsonSchema(tool.inputSchema))
   } catch {
     input_schema = {}
   }

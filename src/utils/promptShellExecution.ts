@@ -18,21 +18,14 @@ const BLOCK_PATTERN = /```!\s*\n?([\s\S]*?)\n?```/g
 const INLINE_PATTERN = /(?<=\s|^)!`([^`]+)`/g
 const INLINE_OPENER = '!`'
 
-type ShellToolLike = {
-  name: string
-  maxResultSizeChars: number
-  call: (input: never, context: ToolUseContext) => Promise<unknown> | AsyncIterable<unknown>
-  mapToolResultToToolResultBlockParam: (result: never, toolUseID: string) => never
-}
+type ShellTool = typeof BashTool | typeof import('../tools/PowerShellTool/PowerShellTool.js').PowerShellTool
 
-function resolveShellTool(shell: FrontmatterShell | undefined): ShellToolLike {
+function resolveShellTool(shell: FrontmatterShell | undefined): ShellTool {
   if (shell === 'powershell' && isPowerShellToolEnabled()) {
-    const { PowerShellTool } = require('../tools/PowerShellTool/PowerShellTool.js') as {
-      PowerShellTool: ShellToolLike
-    }
+    const { PowerShellTool } = require('../tools/PowerShellTool/PowerShellTool.js') as typeof import('../tools/PowerShellTool/PowerShellTool.js')
     return PowerShellTool
   }
-  return BashTool as unknown as ShellToolLike
+  return BashTool
 }
 
 function formatShellOutput(stdout: string, stderr: string, inline: boolean = false): string {
@@ -61,7 +54,7 @@ async function runEmbeddedCommand(
       input: { command },
       callId: randomUUID(),
       messages: context.messages,
-      toolRef: tool as never,
+      toolRef: tool,
       asksAnswerable: canAnswerAsks() && context.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts !== true,
     },
     context.abortController.signal,
@@ -73,8 +66,8 @@ async function runEmbeddedCommand(
   for (const note of judgement.notes) context.appendSystemMessage?.(note)
   const syntheticAssistant = createAssistantMessage({ content: [] })
   const permission = await hasPermissionsToUseTool(
-    tool as never,
-    { command } as never,
+    tool,
+    { command },
     context,
     syntheticAssistant,
     '',
@@ -87,13 +80,13 @@ async function runEmbeddedCommand(
     logForDebugging(`promptShellExecution: permission check failed for ${slashCommandName}: ${command} (${reason})`)
     throw new MalformedCommandError(`Permission check failed for the matched pattern "${command}": ${reason}`)
   }
-  let lastResult = await tool.call({ command } as never, context)
+  let lastResult: unknown = await tool.call({ command }, context)
   if (lastResult !== null && typeof lastResult === 'object' && Symbol.asyncIterator in lastResult) {
     for await (const update of lastResult as AsyncIterable<unknown>) lastResult = update
   }
   const result = (lastResult as { data?: unknown })?.data ?? lastResult
-  const block = await processToolResultBlock(tool as never, result as never, randomUUID(), context.options.engineModel)
-  const content = (block as { content?: unknown }).content
+  const block = await processToolResultBlock(tool, result, randomUUID(), context.options.engineModel)
+  const content = block.content
   if (typeof content === 'string') return content
   const shellResult = result as { stdout?: string; stderr?: string }
   return formatShellOutput(shellResult?.stdout ?? '', shellResult?.stderr ?? '')
