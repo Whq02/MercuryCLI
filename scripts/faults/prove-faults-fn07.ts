@@ -80,5 +80,66 @@ function threwOf(fn: () => unknown): Error | null {
   }
 }
 
+{
+  console.log('\nmnemeUsage-readPins-unreadable')
+  const { readPins, pinFact, unpinFact, movePin, pinsPath } = await import('../../src/mneme/mnemeUsage.ts')
+  const dir = makeScratch('pins')
+  try {
+    check('absent pins.json returns empty list', readPins(dir).length === 0)
+    const p = pinsPath(dir)
+    const prior = JSON.stringify({ version: 1, pins: [{ seq: 7, at: '2026-01-01T00:00:00.000Z', asked: true }] }, null, 1)
+    writeFileSync(p, prior, { mode: 0o600 })
+    check('valid pins.json reads prior pin', readPins(dir).length === 1 && readPins(dir)[0]!.seq === 7)
+
+    writeFileSync(p, '{corrupt', { mode: 0o600 })
+    check('corrupt pins.json throws on readPins', threwOf(() => readPins(dir)) !== null)
+    check('corrupt pins.json throws on pinFact without replacing file', threwOf(() => pinFact(9, dir)) !== null && readFileSync(p, 'utf8') === '{corrupt')
+
+    if (POSIX_MODES) {
+      writeFileSync(p, prior, { mode: 0o600 })
+      chmodSync(p, 0o200)
+      const readErr = threwOf(() => readPins(dir))
+      const pinErr = threwOf(() => pinFact(9, dir))
+      const unpinErr = threwOf(() => unpinFact(7, dir))
+      const moveErr = threwOf(() => movePin(7, 8, dir))
+      chmodSync(p, 0o600)
+      check('unreadable pins.json throws EACCES on readPins', readErr !== null && (readErr as NodeJS.ErrnoException).code === 'EACCES', String(readErr))
+      check('pinFact/unpinFact/movePin refuse unreadable pins.json and keep file intact', pinErr !== null && unpinErr !== null && moveErr !== null && readFileSync(p, 'utf8') === prior)
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+{
+  console.log('\nmnemeUsage-readUsage-unreadable')
+  const { readUsage, bumpUsage, usagePath } = await import('../../src/mneme/mnemeUsage.ts')
+  const dir = makeScratch('usage')
+  try {
+    check('absent usage.json returns empty map', Object.keys(readUsage(dir)).length === 0)
+    const p = usagePath(dir)
+    const prior = JSON.stringify({ version: 1, rows: { '5': { last: '2026-01-01T00:00:00.000Z', count: 12 } } })
+    writeFileSync(p, prior, { mode: 0o600 })
+    check('valid usage.json reads prior count', readUsage(dir)['5']?.count === 12)
+
+    writeFileSync(p, '{corrupt', { mode: 0o600 })
+    check('corrupt usage.json throws on readUsage', threwOf(() => readUsage(dir)) !== null)
+    bumpUsage([9], dir)
+    check('bumpUsage leaves corrupt usage.json untouched', readFileSync(p, 'utf8') === '{corrupt', readFileSync(p, 'utf8'))
+
+    if (POSIX_MODES) {
+      writeFileSync(p, prior, { mode: 0o600 })
+      chmodSync(p, 0o200)
+      const readErr = threwOf(() => readUsage(dir))
+      bumpUsage([9], dir)
+      chmodSync(p, 0o600)
+      check('unreadable usage.json throws EACCES on readUsage', readErr !== null && (readErr as NodeJS.ErrnoException).code === 'EACCES', String(readErr))
+      check('bumpUsage leaves unreadable usage.json untouched', readFileSync(p, 'utf8') === prior, readFileSync(p, 'utf8'))
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
