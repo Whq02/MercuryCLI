@@ -39,8 +39,14 @@ export async function resolveGitDir(startPath: string = getCwd()): Promise<strin
       }
     }
     result = dotGitPath
-  } catch {
-    result = null
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      gitDirCache.set(resolvedStart, null)
+      return null
+    }
+    passedOver(error)
+    return null
   }
   gitDirCache.set(resolvedStart, result)
   return result

@@ -314,5 +314,31 @@ console.log('\n§6 w10-6 — health rows throw strictly on unreadable launch-mil
   check('w10-6: crashReportsCheck throws on unreadable crash dir while non-strict reader keeps []', Array.isArray(r.crashSafe) && r.crashSafe.length === 0 && typeof r.crashThrew === 'string' && r.crashThrew.length > 0, JSON.stringify({ safe: r.crashSafe, threw: r.crashThrew, probe: r.crashProbe }))
 }
 
+console.log('\n§7 w10-7 — resolveGitDir does not cache null on transient/permission error reading .git')
+{
+  const r = runScenario(`
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { clearResolveGitDirCache, resolveGitDir } = await import(SRC + '/utils/git/gitFilesystem.ts')
+    const repo = join(PROJECT, 'git-transient')
+    const realGit = join(PROJECT, 'real-gitdir')
+    mkdirSync(repo, { recursive: true })
+    mkdirSync(realGit, { recursive: true })
+    const dotGit = join(repo, '.git')
+    writeFileSync(dotGit, 'gitdir: ' + realGit + '\\n')
+    chmodSync(dotGit, 0o000)
+    clearResolveGitDirCache()
+    try {
+      out.whileUnreadable = await resolveGitDir(repo)
+    } finally {
+      chmodSync(dotGit, 0o644)
+    }
+    out.afterRecover = await resolveGitDir(repo)
+    out.expected = realGit
+  `)
+  check('w10-7: returns null while .git file is unreadable (EACCES)', r.whileUnreadable === null, JSON.stringify(r))
+  check('w10-7: does not cache null so recovery succeeds without cache clear', r.afterRecover === r.expected, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
