@@ -1,7 +1,9 @@
 
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { logForDebugging } from '../utils/debug.js'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { errorMessage, getErrnoCode } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
 
 interface BootAttemptResidue {
@@ -34,10 +36,19 @@ export function readBootAttemptResidue(
 }
 
 export function clearBootAttempts(home: string = getMercuryHome()): void {
+  const p = bootAttemptsPath(home)
   try {
-    rmSync(bootAttemptsPath(home), { force: true })
-  } catch (error) {
-    passedOver(error)
+    rmSync(p, { force: true })
+  } catch (rmError) {
+    try {
+      writeFileSync(p, JSON.stringify({ version: 1, attempts: [] }) + '\n')
+    } catch (writeError) {
+      passedOver(writeError)
+      logForDebugging(
+        `[boot-beacon] could not clear ${p}: rm=${getErrnoCode(rmError) ?? errorMessage(rmError)} write=${getErrnoCode(writeError) ?? errorMessage(writeError)}`,
+        { level: 'warn' },
+      )
+    }
   }
 }
 
