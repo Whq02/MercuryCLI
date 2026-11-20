@@ -45,14 +45,18 @@ export function launchMilestonesPath(): string {
 }
 
 function readAll(): LaunchMilestoneRowV1[] {
+  let text: string
   try {
-    const raw = JSON.parse(readFileSync(launchMilestonesPath(), 'utf8')) as MilestoneFileV1
-    if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
-    return raw.rows
+    text = readFileSync(launchMilestonesPath(), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
   }
+  const raw = JSON.parse(text) as MilestoneFileV1
+  if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
+    throw new Error(`Invalid launch milestones file at ${launchMilestonesPath()}`)
+  }
+  return raw.rows
 }
 
 const seenThisProcess = new Set<LaunchMilestone>()
