@@ -61,6 +61,8 @@ const IMPORTERS = [
   'src/schemas/hooks.ts',
   'src/screens/chat/useChatBoot.tsx',
   'src/services/acp/ideToolBridge.ts',
+  'src/services/capability/census.ts',
+  'src/services/cockpit/helmLanesModel.ts',
   'src/services/context/contextSuggestions.ts',
   'src/services/dap/dapTerminal.ts',
   'src/services/engine-connector/shellRunning.ts',
@@ -91,8 +93,6 @@ const IMPORTERS = [
   'src/tools/TaskStopTool/TaskStopTool.ts',
   'src/utils/api.ts',
   'src/utils/attachments/diagnostics.ts',
-  'src/utils/capability/census.ts',
-  'src/utils/cockpit/helmLanesModel.ts',
   'src/utils/cockpit/runtimePosture.ts',
   'src/utils/collapseBackgroundBashNotifications.ts',
   'src/utils/crossProjectResume.ts',
@@ -128,7 +128,6 @@ const UNREAD: Array<[string, number]> = [
   ['src/services/lsp/tsSidecar/sidecar.ts', 1],
   ['src/services/media/host.ts', 1],
   ['src/services/media/settings.ts', 2],
-  ['src/services/structure/grammarFacility.ts', 1],
   ['src/services/structure/tsFacility.ts', 1],
   ['src/services/voice/voicePack.ts', 1],
   ['src/services/voice/whisperPack.ts', 1],
@@ -137,6 +136,7 @@ const UNREAD: Array<[string, number]> = [
   ['src/tools/FileReadTool/readRichFormats.ts', 1],
   ['src/utils/bash/registry.ts', 1],
   ['src/utils/pdfTextWorker.mjs', 1],
+  ['src/utils/structure/grammarFacility.ts', 1],
 ]
 
 let failures = 0
