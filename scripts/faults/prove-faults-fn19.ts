@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -63,6 +63,41 @@ console.log('1 · qualificationStore: unreadable or corrupt file throws on read 
       chmodSync(file, 0o600)
       check('unreadable file throws EACCES on readQualificationReceipts', (eaccesErr as NodeJS.ErrnoException | undefined)?.code === 'EACCES', String(eaccesErr))
       check('recordLiveQualification leaves unreadable file untouched', writeOnUnreadable === undefined && readFileSync(file, 'utf8') === valid)
+    }
+  })
+}
+
+console.log('2 · compatPrefixCache: compatEndpointLastTurnAt distinguishes absent from corrupt or unreadable')
+{
+  const { compatEndpointLastTurnAt, noteCompatPrefixCache } = await import('../../src/services/providers/openaicompat/compatPrefixCache.js')
+  const { compatEndpointDigest } = await import('../../src/services/providers/openaicompat/compatSlots.js')
+  withScratchConfig(dir => {
+    const endpoint = { baseUrl: 'http://127.0.0.1:8080/v1' }
+    check('absent prefix cache returns undefined', compatEndpointLastTurnAt(endpoint) === undefined)
+
+    const cacheDir = join(dir, 'cache', 'compat-prefix')
+    mkdirSync(cacheDir, { recursive: true })
+    const file = join(cacheDir, compatEndpointDigest(endpoint.baseUrl) + '.json')
+    writeFileSync(file, '{corrupt', 'utf8')
+    let corruptErr: unknown
+    try {
+      compatEndpointLastTurnAt(endpoint)
+    } catch (error) {
+      corruptErr = error
+    }
+    check('corrupt prefix cache throws on compatEndpointLastTurnAt', corruptErr instanceof Error, String(corruptErr))
+
+    if (POSIX_MODES) {
+      noteCompatPrefixCache(endpoint, 'm', { inputTokens: 10, outputTokens: 2, cachedInputTokens: 5 })
+      chmodSync(file, 0o200)
+      let eaccesErr: unknown
+      try {
+        compatEndpointLastTurnAt(endpoint)
+      } catch (error) {
+        eaccesErr = error
+      }
+      chmodSync(file, 0o600)
+      check('unreadable prefix cache throws EACCES on compatEndpointLastTurnAt', (eaccesErr as NodeJS.ErrnoException | undefined)?.code === 'EACCES', String(eaccesErr))
     }
   })
 }
