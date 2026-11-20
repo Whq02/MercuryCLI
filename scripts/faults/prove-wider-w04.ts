@@ -262,6 +262,160 @@ try {
       await rp.close()
     }
   }
+
+  {
+    const { runpodFixture } = await import('../host/runpodFixture.mjs')
+    const { createHostRoad } = await import('../../src/services/host/index.ts')
+    const { sweepHostIdle, HOST_IDLE_LIMIT_MS } = await import('../../src/services/host/idle.ts')
+    const { terminateTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
+    const { removeHostEndpoint } = await import('../../src/services/host/door.ts')
+    const { writeHostRecord, readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
+    const { saveVendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
+    const { HostVendorHttpError } = await import('../../src/services/host/vendors/http.ts')
+    const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+    const { bumpCatalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
+    const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
+    const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
+
+    const localSetupDir = join(home, 'local-setup')
+    mkdirSync(localSetupDir, { recursive: true, mode: 0o700 })
+    const tfHostsFile = join(localSetupDir, 'tensorfold-hosts.json')
+    writeFileSync(tfHostsFile, '{not valid json\n', { mode: 0o600 })
+    const rp = await runpodFixture()
+    const registerProvider = (name: string, podId: string): void => {
+      updateSettingsForSource('userSettings', raw => ({
+        compatProvider: {
+          ...(typeof raw.compatProvider === 'object' && raw.compatProvider !== null ? raw.compatProvider : {}),
+          [name]: { baseUrl: 'http://127.0.0.1:1/v1', label: name, dialect: 'chat-completions', hostPodId: podId },
+        },
+      }))
+      bumpCatalogueEpoch()
+    }
+    try {
+      saveVendorKey('runpod', rp.key)
+      const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })
+      const offer = (await api.offers(new AbortController().signal))[0]!
+
+      const podIdle = await api.create(offer, 'ssh-ed25519 fixture', 'w04-unreg-idle')
+      registerProvider('pod-unreg-idle', podIdle.id)
+      const oldAt = Date.now() - HOST_IDLE_LIMIT_MS - 60_000
+      writeHostRecord({
+        id: podIdle.id,
+        vendor: 'runpod',
+        name: podIdle.name,
+        recipe: offer.recipe.id,
+        price: podIdle.cost,
+        startedAt: new Date(oldAt).toISOString(),
+        status: 'RUNNING',
+        jobState: 'ready',
+        steps: [{ step: 'ready', at: oldAt }],
+        advancedAt: oldAt,
+        apiBaseUrl: rp.baseUrl,
+        provider: 'pod-unreg-idle',
+      })
+      await sweepHostIdle({ now: Date.now() })
+      const idleAfter = readHostRecord(podIdle.id)
+      check(
+        'w04-3 idle termination reports failed TensorFold host unregister',
+        Boolean(idleAfter?.error?.includes('it is still listed in the TensorFold hosts (')) &&
+          Boolean(idleAfter?.error?.includes(') — remove it there')),
+        idleAfter?.error ?? '(no error)',
+      )
+      removeHostRecord(podIdle.id)
+
+      const podRoad = await api.create(offer, 'ssh-ed25519 fixture', 'w04-unreg-road')
+      registerProvider('pod-unreg-road', podRoad.id)
+      writeHostRecord({
+        id: podRoad.id,
+        vendor: 'runpod',
+        name: podRoad.name,
+        recipe: offer.recipe.id,
+        price: podRoad.cost,
+        startedAt: podRoad.createdAt,
+        status: 'RUNNING',
+        jobState: 'ready',
+        apiBaseUrl: rp.baseUrl,
+        provider: 'pod-unreg-road',
+      })
+      const road = createHostRoad({ apiBaseUrl: rp.baseUrl, pauseMs: 1 })
+      const roadResult = await road(
+        async q => {
+          if (q.step === 'door-models') return 'pods'
+          if (q.step === 'paid-pods') return podRoad.id
+          if (q.step === 'pod-controls' || q.step === 'pod-confirm') return 'terminate'
+          return null
+        },
+        () => {},
+        new AbortController().signal,
+      )
+      check(
+        'w04-3 host road termination reports failed TensorFold host unregister',
+        roadResult.ok &&
+          roadResult.words.includes('it is still listed in the TensorFold hosts (') &&
+          roadResult.words.includes(') — remove it there'),
+        roadResult.words,
+      )
+
+      const goneClient = {
+        vendor: 'runpod',
+        label: 'Runpod',
+        keyHelp: '',
+        capabilities: { stop: true, dataCenters: true, persistentDisk: 'volume' },
+        rateLimitPolicy: () => undefined,
+        shapes: () => [],
+        offers: async () => [],
+        watchOffer: async () => undefined,
+        pods: async () => [],
+        get: async () => { throw new HostVendorHttpError('Runpod GET /pods returned HTTP 404', 404) },
+        create: async () => { throw new Error('unused') },
+        stop: async () => { throw new Error('unused') },
+        terminate: async () => {},
+        logs: async () => '',
+      } as never
+      const podTfId = 'tf-unreg-fail-1'
+      registerProvider('pod-unreg-tf', podTfId)
+      writeHostRecord({
+        id: podTfId,
+        vendor: 'runpod',
+        name: 'tf-unreg-fail',
+        recipe: 'tensorfold-qwen',
+        price: 2.0,
+        startedAt: new Date(Date.now() - 60_000).toISOString(),
+        status: 'RUNNING',
+        provider: 'pod-unreg-tf',
+      })
+      let tfWords = ''
+      let tfOk = false
+      try {
+        const tfRes = await terminateTensorFoldPod(podTfId, { client: goneClient })
+        tfOk = tfRes.ok
+        tfWords = tfRes.words
+      } catch (error) {
+        tfWords = 'THREW: ' + (error instanceof Error ? error.message : String(error))
+      }
+      check(
+        'w04-3 terminateTensorFoldPod reports failed TensorFold host unregister without throwing',
+        tfOk &&
+          tfWords.includes('it is still listed in the TensorFold hosts (') &&
+          tfWords.includes(') — remove it there'),
+        tfWords,
+      )
+
+      registerProvider('pod-unreg-door', 'pod-door-1')
+      const ep = configuredCompatEndpoints().find(row => row.name === 'pod-unreg-door')
+      if (ep) await refreshCompatCatalogues({ name: ep.name, force: true })
+      const doorRemoved = await removeHostEndpoint('pod-unreg-door')
+      check(
+        'w04-3 removeHostEndpoint reports failed TensorFold host unregister',
+        doorRemoved.includes('it is still listed in the TensorFold hosts (') &&
+          doorRemoved.includes(') — remove it there'),
+        doorRemoved,
+      )
+    } finally {
+      rmSync(tfHostsFile, { force: true })
+      await rp.close()
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

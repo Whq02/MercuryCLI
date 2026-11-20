@@ -113,14 +113,19 @@ async function releaseIdleRental(record: HostRecord, verdict: HostIdleVerdict): 
     const api = vendorClient(record)
     if (record.cluster) await terminateHostResource(runpodOnly(api, 'Clusters'), { id: record.id, name: record.name, status: record.status, cost: record.price, createdAt: record.startedAt, family: record.cluster }, read)
     else await terminateVerified(api, record.id, read, api.label)
-    if (record.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(record.provider) }
+    let unregisterNote = ''
+    if (record.provider) {
+      const { removeLlmHostProvider, tensorFoldUnregisterFailedNote } = await import('../llmHost/index.js')
+      const removed = await removeLlmHostProvider(record.provider)
+      if (removed.tensorFoldUnregisterError) unregisterNote = ' · ' + tensorFoldUnregisterFailedNote(removed.tensorFoldUnregisterError)
+    }
     const { restoreRentingSessionOutcome } = await import('./worker.js')
     const restored = await restoreRentingSessionOutcome(record)
     const restoreNote = restored.state === 'failed' ? ' · this session stays on a model that is gone (' + restored.detail + ') — run /model ' + record.sessionModelBefore : ''
     const volume = record.volumeId ? readKeptVolume(record.volumeId) : undefined
     if (volume && volume.preparingPod === record.id) writeKeptVolume({ ...volume, preparingPod: undefined })
     const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept and bills ' + keptDiskPrice(volume) : record.volumeId ? 'weights disk billing is not verified; check your account' : ''
-    const ended = reason + ' · ' + machine + ' terminated · ' + (disk || 'nothing more bills') + restoreNote
+    const ended = reason + ' · ' + machine + ' terminated · ' + (disk || 'nothing more bills') + restoreNote + unregisterNote
     patchHostRecord(record.id, { status: 'TERMINATED', jobState: 'failed', step: 'terminated after ' + hostIdleHoursWords + ' idle', error: ended })
     hostNotice(record, 'ended', record.name + ' · ' + ended)
   } catch (error) {
