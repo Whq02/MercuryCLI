@@ -457,5 +457,53 @@ console.log('\nw06-5: agents/store.discardAgentDraft and studioEditorModel — f
   check('studioEditorModel surfaces removal failure sentence on declineRecover and save', declineNote?.text === expected && saveNote?.text === expected && String(r.savedMessage ?? '').includes(expected), JSON.stringify({ declineNote, saveNote, savedMessage: r.savedMessage }))
 }
 
+console.log('\nw06-6: extensions/load/servers and reload — failed dataDir mkdir and media server env surface in reload receipt')
+{
+  const r = runScenario(`
+    const { setCwdState, setOriginalCwd, setProjectRoot } = await import(path.join(SRC, 'bootstrap/state.ts'))
+    setCwdState(SCRATCH)
+    setOriginalCwd(SCRATCH)
+    setProjectRoot(SCRATCH)
+    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    enableConfigs()
+    const { updateSettingsForSource } = await import(path.join(SRC, 'utils/settings/settings.ts'))
+    const { MEDIA_EXTENSION_ID } = await import(path.join(SRC, 'services/media/settings.ts'))
+    const { setSwitch } = await import(path.join(SRC, 'extensions/install.ts'))
+    const { getExtensionDataDir } = await import(path.join(SRC, 'extensions/paths.ts'))
+    const { reloadExtensions } = await import(path.join(SRC, 'extensions/reload.ts'))
+    const { getExtensionMcpServers } = await import(path.join(SRC, 'extensions/load/servers.ts'))
+
+    setSwitch(MEDIA_EXTENSION_ID, true)
+    updateSettingsForSource('userSettings', { media: { serverPath: 'relative/not-absolute.js' } })
+    const dataDir = getExtensionDataDir(MEDIA_EXTENSION_ID)
+    fs.mkdirSync(path.dirname(dataDir), { recursive: true })
+    fs.writeFileSync(dataDir, 'file-blocking-dir', 'utf8')
+
+    const bad = await reloadExtensions({ cwd: SCRATCH })
+    out.badLine = bad.line
+    out.badWarnings = bad.warnings ?? null
+    out.dataDir = dataDir
+    out.serversWhenBad = Object.keys(getExtensionMcpServers())
+
+    fs.rmSync(dataDir, { force: true })
+    const okRoot = path.join(SCRATCH, 'media-root')
+    const okServer = path.join(SCRATCH, 'media-server.js')
+    fs.mkdirSync(okRoot, { recursive: true })
+    fs.writeFileSync(okServer, '', 'utf8')
+    updateSettingsForSource('userSettings', { media: { root: okRoot, serverPath: okServer } })
+    const ok = await reloadExtensions({ cwd: SCRATCH })
+    out.okLine = ok.line
+    out.okWarnings = ok.warnings ?? null
+    out.serversWhenOk = Object.keys(getExtensionMcpServers())
+  `)
+  const dataDir = String(r.dataDir ?? '')
+  const badLine = String(r.badLine ?? '')
+  const okLine = String(r.okLine ?? '')
+  const serversWhenBad = (r.serversWhenBad as string[] | undefined) ?? []
+  const serversWhenOk = (r.serversWhenOk as string[] | undefined) ?? []
+  check('reloadExtensions receipt includes dataDir mkdir failure and media server load failure while keeping other servers', badLine.includes(`mercury-media: its data folder ${dataDir} could not be made (`) && badLine.includes('mercury-media: its media server was not loaded (media.serverPath must be an absolute path.)') && serversWhenBad.length >= 3, JSON.stringify({ badLine, badWarnings: r.badWarnings, serversWhenBad }))
+  check('reloadExtensions stays quiet and loads media server when dataDir and media settings succeed', r.okWarnings === null && !okLine.includes('could not be made') && !okLine.includes('was not loaded') && serversWhenOk.some(s => s.includes('mercury-media')), JSON.stringify({ okLine, okWarnings: r.okWarnings, serversWhenOk }))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)
