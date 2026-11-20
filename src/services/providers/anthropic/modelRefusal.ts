@@ -219,8 +219,8 @@ function readModelRefusals(home = getAuthConfigHomeDir()): ModelRefusalFile[] {
     modelRefusalCache = { path, stamp, files }
     return files
   } catch (error) {
-    passedOver(error)
-    return []
+    if (isENOENT(error)) return []
+    throw error
   }
 }
 
@@ -247,9 +247,9 @@ export function noteModelRefusal(refusal: ModelRefusal, home = getAuthConfigHome
   const key = modelRefusalKey(row)
   const directory = modelRefusalsDirectory(home)
   const path = join(directory, `${key}.json`)
-  if (readModelRefusals(home).some(file => file.path === path && file.row.seenAtMs > row.seenAtMs)) return
   const temporary = join(directory, `${key}.${randomUUID()}.tmp`)
   try {
+    if (readModelRefusals(home).some(file => file.path === path && file.row.seenAtMs > row.seenAtMs)) return
     mkdirSync(directory, { recursive: true, mode: 0o700 })
     writeFileSync(temporary, JSON.stringify({ version: 1, refusal: row }) + '\n', { encoding: 'utf8', flag: 'wx', mode: 0o600 })
     renameSync(temporary, path)

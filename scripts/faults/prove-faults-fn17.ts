@@ -88,5 +88,35 @@ console.log('anthropicUsageState — dropIfAccountMoved lets reset bugs throw')
   check('anthropicUsageState:resetLimitsForCredentialSwitch throws on sign-in reset bug', r.threw === 'limits-reset-boom', `got ${JSON.stringify(r.threw)}`)
 }
 
+console.log('modelRefusal — readModelRefusals throws on unreadable directory instead of answering empty')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import(SRC + '/services/providers/anthropic/modelRefusal.ts')
+    out.absentStanding = mod.standingModelRefusals().length
+    out.absentForget = mod.forgetModelRefusals(HOME)
+    const dir = path.join(HOME, 'model-refusals')
+    fs.writeFileSync(dir, 'not-a-directory')
+    try {
+      mod.standingModelRefusals()
+      out.standingCode = null
+    } catch (e) {
+      out.standingCode = e?.code ?? String(e)
+    }
+    try {
+      mod.forgetModelRefusals(HOME)
+      out.forgetCode = null
+    } catch (e) {
+      out.forgetCode = e?.code ?? String(e)
+    }
+  `)
+  check(
+    'modelRefusal:readModelRefusals throws on non-ENOENT directory error and returns empty on ENOENT',
+    r.absentStanding === 0 && r.absentForget === 0 && r.standingCode === 'ENOTDIR' && r.forgetCode === 'ENOTDIR',
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
