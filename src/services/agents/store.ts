@@ -471,10 +471,13 @@ export function listAgentDrafts(): { path: string; draft: AgentDraft }[] {
   return listAgentDraftsWithError().drafts
 }
 
-export function discardAgentDraft(path: string): void {
+export function discardAgentDraft(path: string): { ok: true } | { ok: false; error: string } {
   try {
     unlinkSync(path)
+    return { ok: true }
   } catch (error) {
     passedOver(error)
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { ok: true }
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
