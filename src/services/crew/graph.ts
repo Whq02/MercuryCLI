@@ -1,6 +1,6 @@
 
 import { getCwd } from '../../utils/cwd.js'
-import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
+import { listReviewArtifactHeadsSource } from '../artifacts/reviewStore.js'
 import { listAgentSessions } from './identity.js'
 import { listConversations } from './conversations.js'
 import { resolveCrewSnapshot } from './projection.js'

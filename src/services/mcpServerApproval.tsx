@@ -4,7 +4,7 @@ import type { Root } from '../ink.js'
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js'
 import { AppStateProvider } from '../state/AppState.js'
 import { getProjectMcpConfigsFromCwd } from './mcp/config.js'
-import type { ScopedMcpServerConfig } from './mcp/types.js'
+import type { ScopedMcpServerConfig } from '../utils/mcp/types.js'
 import { getProjectMcpServerStatus } from './mcp/utils.js'
 
 export async function handleProjectMcpServerApprovals(root: Root): Promise<void> {

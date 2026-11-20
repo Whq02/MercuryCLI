@@ -11,7 +11,7 @@ import {
 import { isMercuryServerEnabled, mercuryServerConfig, MERCURY_SERVER_NAME } from '../services/mcp/mercuryServer.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isBareMode } from '../utils/envUtils.js'
-import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
+import type { ScopedMcpServerConfig } from '../utils/mcp/types.js'
 import chalk from 'chalk'
 import { failCli, writeErr, type RootOptions } from './cli.js'
 

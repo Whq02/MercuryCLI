@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { flagPair } from '../../substrate/flagRegistry.js'
-import type { McpServerConfig, ScopedMcpServerConfig } from '../../services/mcp/types.js'
+import type { McpServerConfig, ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 import { activeFor } from '../active.js'
 import { optionEnv, substituteOptionsInCommand, substituteRootAndData } from '../options.js'
 import { getExtensionDataDir } from '../paths.js'

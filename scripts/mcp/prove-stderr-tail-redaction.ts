@@ -11,7 +11,7 @@ process.env.MERCURY_MCP_TIMEOUT_MS = '1500'
 
 const { connectToServer, clearServerCache, mcpServerStderrRedactor } = await import('../../src/services/mcp/client.ts')
 const { createSecretRedactor } = await import('../../src/utils/redactSecrets.ts')
-type ServerConfig = import('../../src/services/mcp/types.ts').ScopedMcpServerConfig
+type ServerConfig = import('../../src/utils/mcp/types.ts').ScopedMcpServerConfig
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

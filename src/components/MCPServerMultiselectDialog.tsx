@@ -3,7 +3,7 @@ import React, { useCallback } from 'react'
 import { Box, Text } from '../ink.js'
 import { SelectMulti } from './CustomSelect/index.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import type { McpServerConfig, ScopedMcpServerConfig } from '../services/mcp/types.js'
+import type { McpServerConfig, ScopedMcpServerConfig } from '../utils/mcp/types.js'
 import { recordProjectMcpServerChoices } from '../services/mcp/utils.js'
 
 export function MCPServerMultiselectDialog({

@@ -32,7 +32,7 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const utils = await import('../../src/services/mcp/utils.ts')
 const { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS: TelemetrySafeError } = await import('../../src/utils/errors.ts')
-const { McpServerConfigSchema } = await import('../../src/services/mcp/types.ts')
+const { McpServerConfigSchema } = await import('../../src/utils/mcp/types.ts')
 
 console.log('============================================================')
 console.log(' MCP connect-failure reasons — true words, the next step named')

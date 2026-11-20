@@ -1,7 +1,7 @@
 
 import { z } from 'zod'
 import { evalNestedToolIds } from '../../services/eval/bridgeProgress.js'
-import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
+import { expandLspFamily, lspFamilyMatches } from '../../utils/lsp/toolFamily.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,

@@ -5,7 +5,7 @@ import { unescapeXml } from '../utils/xml.js'
 import { displayToolName } from '../utils/toolNameDisplay.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
-import type { NonNullableUsage } from '../services/api/emptyUsage.js'
+import type { NonNullableUsage } from '../utils/api/emptyUsage.js'
 import type { ModelUsage } from '../bootstrap/state.js'
 import type { RefusedToolCall, ReplyMark } from '../types/message.js'
 import {

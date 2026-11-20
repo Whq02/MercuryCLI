@@ -9,7 +9,7 @@ import {
 import {
   listReviewArtifactHeads,
   readReviewArtifactState,
-} from '../../utils/artifacts/reviewStore.js'
+} from '../../services/artifacts/reviewStore.js'
 import type { ReviewArtifactVersion } from '../../utils/artifacts/reviewContracts.js'
 import { gitWorktrees } from '../../services/gitGraph/observe.js'
 import { laneDisplayName } from '../../services/workbench/selectors.js'

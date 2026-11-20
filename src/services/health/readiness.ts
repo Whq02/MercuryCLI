@@ -37,7 +37,7 @@ import {
 } from '../dap/unityAdapter.js'
 import { summarizeMcpAuthCurrency } from '../mcp/auth.js'
 import { isMcpServerDisabled, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SPELLING } from '../mcp/config.js'
-import type { MCPServerConnection } from '../mcp/types.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import { resolvePrimaryAgentBackend } from '../providers/primaryBackend.js'
 import { getBundledSkills } from '../../skills/bundledSkills.js'
 import { logForDebugging } from '../../utils/debug.js'

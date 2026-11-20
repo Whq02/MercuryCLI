@@ -5,7 +5,7 @@
 # gate-watch: src/tools/AgentTool/foregroundExecution*
 # gate-watch: scripts/lib/* src/cli/headless/hostAskLiveness.ts
 # gate-watch: src/services/compact/compact.ts
-# gate-watch: src/services/mcp/types.ts
+# gate-watch: src/utils/mcp/types.ts
 # gate-watch: src/utils/*
 # gate-watch: src/utils/permissions/ruleReason.ts
 # gate-watch: src/entrypoints/shellParentGuard.ts

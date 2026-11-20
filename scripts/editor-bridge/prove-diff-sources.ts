@@ -108,7 +108,7 @@ section('(1) parameterized git fetchers — the right file set per source')
 section('(2) artifact diff sources — stored bodies, never reparsed')
 {
   const { createReviewArtifact, reviseReviewArtifact } = await import(
-    '../../src/utils/artifacts/reviewStore.js'
+    '../../src/services/artifacts/reviewStore.js'
   )
   const { artifactDiffData } = await import('../../src/components/diff/diffSources.js')
 
@@ -159,7 +159,7 @@ section('(3) the review glue')
 {
   const { buildAnchorForHunk, diffDataToBodyFiles, ensureDiffArtifact, annotateHunk, reviewMarksForFile, buildReviewTurnMessage, _resetReviewLayerForTesting } =
     await import('../../src/components/diff/reviewLayer.js')
-  const { readReviewArtifactState } = await import('../../src/utils/artifacts/reviewStore.js')
+  const { readReviewArtifactState } = await import('../../src/services/artifacts/reviewStore.js')
   const { contentDigest } = await import('../../src/utils/artifacts/anchors.js')
   _resetReviewLayerForTesting()
 

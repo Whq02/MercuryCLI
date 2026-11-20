@@ -1,4 +1,4 @@
-import type { ScopedMcpServerConfig, MCPServerConnection } from '../../../services/mcp/types.js'
+import type { ScopedMcpServerConfig, MCPServerConnection } from '../../../utils/mcp/types.js'
 import { getMcpConfigByName, getMercuryMcpConfigs, filterMcpServersByPolicy } from '../../../services/mcp/config.js'
 import { fetchToolsForClient, fetchCommandsForClient, fetchResourcesForClient, reconnectMcpServerImpl, clearServerCache } from '../../../services/mcp/client.js'
 import { getMcpPrefix } from '../../../utils/mcp/mcpStringUtils.js'

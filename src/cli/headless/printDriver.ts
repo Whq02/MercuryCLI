@@ -28,7 +28,7 @@ import { statusListeners } from '../../services/anthropicLimits.js'
 import { noteRunPhase, runPhaseReport } from '../../utils/runPhases.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { isShuttingDown, gracefulShutdown } from '../../utils/gracefulShutdown.js'
-import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getInMemoryErrors, withoutStackFrames } from '../../utils/log.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -113,7 +113,7 @@ export function printDriverPorts(ports: RunnerPorts): TurnDriverPorts {
       if (isConcourseWorker) return
       const { exitNoteDue } = await import('../../mneme/exitHandoff.js')
       const ranHere = exitNoteDue()
-      let closeUsage: import('../../services/api/emptyUsage.js').NonNullableUsage | undefined
+      let closeUsage: import('../../utils/api/emptyUsage.js').NonNullableUsage | undefined
       const beforeNote = ledgerMark()
       const outcome = await leaveNoteBeforeExit({
         budgetMs: HANDOFF_ASK_BUDGET_MS,

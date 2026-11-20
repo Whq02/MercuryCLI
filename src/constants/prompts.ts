@@ -55,7 +55,7 @@ import {
 import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
 import { missionSection, missionSectionKey, type ServedMission } from '../services/mission/served.js'
 import type { Tools } from '../Tool.js'
-import type { MCPServerConnection } from '../services/mcp/types.js'
+import type { MCPServerConnection } from '../utils/mcp/types.js'
 import { passedOver } from '../utils/passedOver.js'
 
 const MODEL_CURRENCY_NOTE = `Model currency: your training-era knowledge of model ids, capabilities, and prices — any vendor's — may be stale. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice instead of defaulting to remembered ones.`

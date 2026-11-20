@@ -31,7 +31,7 @@ const {
   listReviewArtifactHeads,
   setReviewArtifactStatus,
   setReviewCommentState,
-} = await import('../../src/utils/artifacts/reviewStore.js')
+} = await import('../../src/services/artifacts/reviewStore.js')
 const { contentDigest, listMdBlocks, listDiffLineSites, validateAnchor } = await import(
   '../../src/utils/artifacts/anchors.js'
 )
@@ -370,7 +370,7 @@ section('(8) verify-wave fixes — fence · ordinal · damaged≠absent · CRLF 
     childScript,
     `
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = ${JSON.stringify(root)}
-const { reviseReviewArtifact } = await import(${JSON.stringify(process.cwd() + '/src/utils/artifacts/reviewStore.ts')})
+const { reviseReviewArtifact } = await import(${JSON.stringify(process.cwd() + '/src/services/artifacts/reviewStore.ts')})
 const r = reviseReviewArtifact({
   id: ${JSON.stringify(raceId)},
   body: { kind: 'plan', markdown: 'revised by ' + process.argv[2] + ' at ' + Date.now() + '\\n' },

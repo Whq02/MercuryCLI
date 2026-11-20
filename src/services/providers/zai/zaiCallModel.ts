@@ -27,7 +27,7 @@ import { emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
-import { EMPTY_USAGE } from '../../api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../../utils/api/emptyUsage.js'
 import {
   checkResponseForCacheBreak,
   recordPromptState,

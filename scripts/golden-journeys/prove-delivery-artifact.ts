@@ -28,7 +28,7 @@ const { acceptUserRequest, getRunSnapshot, noteRunEvent } = await import(
 const { mintDeliveryArtifact, _resetDeliveryLatchForTesting, headlessMintAllowed } = await import(
   '../../src/guards/runStopAdapter.ts'
 )
-const { listReviewArtifactHeads } = await import('../../src/utils/artifacts/reviewStore.ts')
+const { listReviewArtifactHeads } = await import('../../src/services/artifacts/reviewStore.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(true)
 

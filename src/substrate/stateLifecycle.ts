@@ -736,7 +736,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'review-artifacts',
     lane: 'semantic-state',
-    owner: 'src/utils/artifacts/reviewStore.ts',
+    owner: 'src/services/artifacts/reviewStore.ts',
     root: '<config>/review-artifacts/<ra-id>/journal.jsonl',
     kind: 'semantic',
     liveReference: 'append-only journal — every version stays byte-identical forever',

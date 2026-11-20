@@ -2,7 +2,7 @@ import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer
 import type {
   AssistantMessage,
 } from '../../../../types/message.js'
-import { EMPTY_USAGE } from '../../../api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../../../utils/api/emptyUsage.js'
 import {
   checkResponseForCacheBreak,
 } from '../../../api/promptCacheBreakDetection.js'
