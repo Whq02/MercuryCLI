@@ -17,7 +17,8 @@ import { openBrowser } from '../../utils/browser.js';
 import { lateSettleNotice } from './facts.js';
 import type { FaceDeviceFamily, HandlesLegId, DeviceWaitStateV1 } from './flowLines.js';
 import type { LoginsFlowContext } from './context.js';
-import { passedOver } from '../../utils/passedOver.js';
+import { logError } from '../../utils/log.js';
+import { createSovereignDisabledContext } from '../../utils/permissions/permissionSetup.js';
 
 export function postLoginSettleOf(ctx: LoginsFlowContext): void {
   const { given, setAppStateMaybe } = ctx;
@@ -37,11 +38,18 @@ export function postLoginSettleOf(ctx: LoginsFlowContext): void {
           return { ...prev, authVersion: (prev.authVersion ?? 0) + 1 };
         });
         if (capturedContext !== null) {
-          void killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe).catch(passedOver);
+          await killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe);
         }
       }
     } catch (error) {
-      passedOver(error)
+      logError(error);
+      if (setAppStateMaybe !== null) {
+        setAppStateMaybe(prev =>
+          prev.toolPermissionContext.isBypassPermissionsModeAvailable
+            ? { ...prev, toolPermissionContext: createSovereignDisabledContext(prev.toolPermissionContext) }
+            : prev,
+        );
+      }
     }
   })();
 }

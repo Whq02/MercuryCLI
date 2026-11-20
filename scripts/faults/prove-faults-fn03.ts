@@ -161,5 +161,96 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
   )
 }
 
+console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when sovereign killswitch check throws')
+{
+  const rejected = runScenario(`
+    const { mock } = await import('bun:test')
+    const killswitchPath = ${JSON.stringify(join(SRC, 'utils/permissions/bypassPermissionsKillswitch.ts'))}
+    mock.module(killswitchPath, () => ({
+      resetSovereignCheck: () => {},
+      checkAndDisableSovereignIfNeeded: async () => { throw new Error('killswitch probe failed') },
+    }))
+    const { postLoginSettleOf } = await import(${JSON.stringify(join(SRC, 'components/bootLogins/runs.ts'))})
+    let state = {
+      authVersion: 0,
+      toolPermissionContext: {
+        mode: 'sovereign',
+        isBypassPermissionsModeAvailable: true,
+      },
+    }
+    postLoginSettleOf({
+      given: undefined,
+      setAppStateMaybe: updater => { state = updater(state) },
+    })
+    await new Promise(resolve => setTimeout(resolve, 60))
+    out.mode = state.toolPermissionContext.mode
+    out.available = state.toolPermissionContext.isBypassPermissionsModeAvailable
+    out.authVersion = state.authVersion
+  `)
+  check(
+    'bootlogins-killswitch-reject-fails-closed',
+    rejected.mode === 'default' && rejected.available === false,
+    `mode=${String(rejected.mode)} available=${String(rejected.available)}`,
+  )
+
+  const outerThrow = runScenario(`
+    const { mock } = await import('bun:test')
+    const userPath = ${JSON.stringify(join(SRC, 'utils/user.ts'))}
+    mock.module(userPath, () => ({
+      resetUserCache: () => { throw new Error('user cache reset failed') },
+    }))
+    const { postLoginSettleOf } = await import(${JSON.stringify(join(SRC, 'components/bootLogins/runs.ts'))})
+    let state = {
+      authVersion: 0,
+      toolPermissionContext: {
+        mode: 'sovereign',
+        isBypassPermissionsModeAvailable: true,
+      },
+    }
+    postLoginSettleOf({
+      given: undefined,
+      setAppStateMaybe: updater => { state = updater(state) },
+    })
+    await new Promise(resolve => setTimeout(resolve, 60))
+    out.mode = state.toolPermissionContext.mode
+    out.available = state.toolPermissionContext.isBypassPermissionsModeAvailable
+  `)
+  check(
+    'bootlogins-settle-throw-fails-closed',
+    outerThrow.mode === 'default' && outerThrow.available === false,
+    `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)}`,
+  )
+
+  const control = runScenario(`
+    const { mock } = await import('bun:test')
+    const killswitchPath = ${JSON.stringify(join(SRC, 'utils/permissions/bypassPermissionsKillswitch.ts'))}
+    mock.module(killswitchPath, () => ({
+      resetSovereignCheck: () => {},
+      checkAndDisableSovereignIfNeeded: async () => {},
+    }))
+    const { postLoginSettleOf } = await import(${JSON.stringify(join(SRC, 'components/bootLogins/runs.ts'))})
+    let state = {
+      authVersion: 0,
+      toolPermissionContext: {
+        mode: 'sovereign',
+        isBypassPermissionsModeAvailable: true,
+      },
+    }
+    postLoginSettleOf({
+      given: undefined,
+      setAppStateMaybe: updater => { state = updater(state) },
+    })
+    await new Promise(resolve => setTimeout(resolve, 60))
+    out.mode = state.toolPermissionContext.mode
+    out.available = state.toolPermissionContext.isBypassPermissionsModeAvailable
+    out.authVersion = state.authVersion
+  `)
+  check(
+    'bootlogins-killswitch-ok-keeps-sovereign',
+    control.mode === 'sovereign' && control.available === true && control.authVersion === 1,
+    `mode=${String(control.mode)} available=${String(control.available)} authVersion=${String(control.authVersion)}`,
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
