@@ -31,7 +31,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { isTransientWin32FsCode } from '../../substrate/durablePublish.js'
 import type { HealthCheck } from '../../utils/healthCertCore.js'
 import { deleteFlagEnv, flagEnv, setFlagEnv } from '../../substrate/flagRegistry.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import type { Message } from '../../types/message.js'
 import type { LSPServerInstance } from '../lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../lsp/LSPServerManager.js'
@@ -450,37 +450,38 @@ export async function probeJsDebugBoot(signal?: AbortSignal): Promise<CheckResul
   }
   child.stdout.on('data', keepTail)
   child.stderr.on('data', keepTail)
-  const deadline = Date.now() + 8_000
   try {
-    for (;;) {
-      if (signal?.aborted) return { status: 'unknown', evidence: 'health run cancelled' }
-      if (child.exitCode !== null) {
-        return {
-          status: 'fail',
-          evidence: `the resolved js-debug server exited ${child.exitCode} before listening — ${outputTail.trim().slice(-180) || 'no output'} (${resolved.path})`,
+    return await pollUntil<CheckResult, CheckResult, CheckResult>(
+      async () => {
+        if (child.exitCode !== null) {
+          return {
+            status: 'fail',
+            evidence: `the resolved js-debug server exited ${child.exitCode} before listening — ${outputTail.trim().slice(-180) || 'no output'} (${resolved.path})`,
+          }
         }
-      }
-      const accepted = await new Promise<boolean>(resolve => {
-        const socket = net.connect({ host: '127.0.0.1', port }, () => {
-          socket.destroy()
-          resolve(true)
+        const accepted = await new Promise<boolean>(resolve => {
+          const socket = net.connect({ host: '127.0.0.1', port }, () => {
+            socket.destroy()
+            resolve(true)
+          })
+          socket.on('error', () => resolve(false))
         })
-        socket.on('error', () => resolve(false))
-      })
-      if (accepted) {
-        return {
-          status: 'ok',
-          evidence: `functional: the resolved js-debug server booted and listened on 127.0.0.1:${port} (via ${jsDebugSourceLabel(resolved.source)})`,
+        if (accepted) {
+          return {
+            status: 'ok',
+            evidence: `functional: the resolved js-debug server booted and listened on 127.0.0.1:${port} (via ${jsDebugSourceLabel(resolved.source)})`,
+          }
         }
-      }
-      if (Date.now() > deadline) {
-        return {
-          status: 'fail',
-          evidence: `the resolved js-debug server never listened on 127.0.0.1:${port} within 8s — ${outputTail.trim().slice(-180) || 'no output'}`,
-        }
-      }
-      await sleep(150, signal)
-    }
+        return undefined
+      },
+      150,
+      8_000,
+      () => ({
+        status: 'fail',
+        evidence: `the resolved js-debug server never listened on 127.0.0.1:${port} within 8s — ${outputTail.trim().slice(-180) || 'no output'}`,
+      }),
+      { signal, onAbort: () => ({ status: 'unknown', evidence: 'health run cancelled' }) },
+    )
   } finally {
     child.kill()
   }
