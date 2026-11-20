@@ -45,7 +45,7 @@ env-read	src/utils/gracefulShutdown.ts	2
 env-read	src/utils/sessionStorage/paths.ts	1
 env-read	src/utils/slowOperations.ts	1
 env-read	src/utils/warningHandler.ts	1
-Promise.race	src/boot/launchGraph.ts	2	deadline 1 · events 1
+Promise.race	src/boot/launchGraph.ts	1	events 1
 Promise.race	src/chatLauncher.tsx	2	deadline 2
 Promise.race	src/cli/handlers/mcp.tsx	1	deadline 1
 Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
@@ -57,7 +57,6 @@ Promise.race	src/main/runLaunch.ts	1	deadline 1
 Promise.race	src/mneme/lineageSession.ts	1	deadline 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
 Promise.race	src/services/browser/session/navigation.ts	2	deadline 2
-Promise.race	src/services/browser/session/owners.ts	3	deadline 3
 Promise.race	src/services/eval/procKernel.ts	1	events 1
 Promise.race	src/services/host/door.ts	1	events 1
 Promise.race	src/services/journeys/runner.ts	1	deadline 1
@@ -72,7 +71,6 @@ Promise.race	src/services/privateChannel/quietUpdateNotice.ts	1	deadline 1
 Promise.race	src/services/providers/cerebras/cerebrasCallModel.ts	1	events 1
 Promise.race	src/services/providers/cohere/cohereCallModel.ts	1	events 1
 Promise.race	src/services/providers/fireworks/fireworksCallModel.ts	1	events 1
-Promise.race	src/services/providers/gemini/geminiCallModel.ts	1	deadline 1
 Promise.race	src/services/providers/groq/groqCallModel.ts	1	events 1
 Promise.race	src/services/providers/melious/meliousCallModel.ts	1	events 1
 Promise.race	src/services/providers/meta/metaCallModel.ts	1	events 1
@@ -85,18 +83,14 @@ Promise.race	src/services/providers/together/togetherCallModel.ts	1	events 1
 Promise.race	src/services/providers/xai/xaiCallModel.ts	1	events 1
 Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
 Promise.race	src/services/switchboard/hopIntoSession.ts	2	deadline 2
-Promise.race	src/services/voice/capture.ts	1	deadline 1
-Promise.race	src/services/voice/transcribe.ts	1	deadline 1
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
 Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
 Promise.race	src/tools/BrowserTool/browser/downloads.ts	1	deadline 1
 Promise.race	src/tools/BrowserTool/browser/page.ts	1	deadline 1
 Promise.race	src/tools/BrowserTool/browser/settle.ts	5	deadline 5
 Promise.race	src/tools/BrowserTool/browser/upload.ts	1	deadline 1
-Promise.race	src/tools/LSPTool/mercuryOps/afterWrite.ts	2	deadline 2
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	2	deadline 1 · events 1
-Promise.race	src/tools/ScheduleCronTool/CronCreateTool.ts	1	events 1
 Promise.race	src/utils/attachments/mentionResolvers.ts	1	deadline 1
 Promise.race	src/utils/attachments/orchestrator.ts	1	deadline 1
 Promise.race	src/utils/exitCliffDrain.ts	1	deadline 1
@@ -105,7 +99,6 @@ Promise.race	src/utils/gracefulShutdown.ts	3	deadline 3
 Promise.race	src/utils/health/sections/interface.ts	1	deadline 1
 Promise.race	src/utils/healthReport.ts	1	deadline 1
 Promise.race	src/utils/model/contextWindowWarmup.ts	1	deadline 1
-Promise.race	src/utils/processGroup.ts	1	deadline 1
 Promise.race	src/utils/wards/wardsRefusals.ts	2	row8 2
 Promise.race	src/utils/worktreeClone.ts	1	deadline 1
 startInterval	src/cli/headless/boot/watchBuildBehind.ts	1	periodic 1
