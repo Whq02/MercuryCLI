@@ -218,10 +218,15 @@ const PROGRAMS: Row[] = [
 ]
 
 import {
+  commandShellArgv,
   commandShellOption,
+  executableNeedsVerbatimArgs,
+  hostScriptDialect,
   hostShellHint,
+  isBatchShim,
   shellBinarySpec,
   shellCommandSpec,
+  shimShellOption,
 } from '../../src/utils/platform/spawn.js'
 const SPAWN: Row[] = [
   {
@@ -257,6 +262,43 @@ const SPAWN: Row[] = [
       hostShellHint({ PSModulePath: '', ComSpec: 'C:\\cmd.exe', SHELL: '' }),
     ],
     recorded: {"win32":["powershell","cmd","unknown","unknown","cmd"],"darwin":["posix-sh","unknown","posix-sh","unknown","unknown"],"linux":["posix-sh","unknown","posix-sh","unknown","unknown"],"win32 by process.platform alone":["powershell","cmd","unknown","unknown","cmd"],"win32 by getPlatform() alone":["posix-sh","unknown","posix-sh","unknown","unknown"]},
+  },
+  {
+    name: 'spawn.isBatchShim',
+    answers: () => [
+      isBatchShim('C:\\tools\\code.cmd'),
+      isBatchShim('C:\\tools\\RUN.BAT'),
+      isBatchShim('C:\\tools\\node.exe'),
+      isBatchShim('/usr/bin/code.cmd'),
+      isBatchShim(''),
+    ],
+    recorded: {"win32":[true,true,false,true,false],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,false,true,false],"win32 by getPlatform() alone":[false,false,false,false,false]},
+  },
+  {
+    name: 'spawn.shimShellOption',
+    answers: () => shimShellOption(),
+    recorded: {"win32":{"shell":true},"darwin":{},"linux":{},"win32 by process.platform alone":{"shell":true},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.commandShellArgv',
+    answers: () => [commandShellArgv('echo hello'), commandShellArgv('')],
+    recorded: {"win32":[["cmd.exe","/d","/s","/c","echo hello"],["cmd.exe","/d","/s","/c",""]],"darwin":[["/bin/sh","-c","echo hello"],["/bin/sh","-c",""]],"linux":[["/bin/sh","-c","echo hello"],["/bin/sh","-c",""]],"win32 by process.platform alone":[["cmd.exe","/d","/s","/c","echo hello"],["cmd.exe","/d","/s","/c",""]],"win32 by getPlatform() alone":[["/bin/sh","-c","echo hello"],["/bin/sh","-c",""]]},
+  },
+  {
+    name: 'spawn.executableNeedsVerbatimArgs',
+    answers: () => [
+      executableNeedsVerbatimArgs('cmd.exe'),
+      executableNeedsVerbatimArgs('C:\\Windows\\System32\\CMD.EXE'),
+      executableNeedsVerbatimArgs('cmd'),
+      executableNeedsVerbatimArgs('/bin/sh'),
+      executableNeedsVerbatimArgs('mycmd.exe'),
+    ],
+    recorded: {"win32":[true,true,true,false,false],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,true,false,false],"win32 by getPlatform() alone":[false,false,false,false,false]},
+  },
+  {
+    name: 'spawn.hostScriptDialect',
+    answers: () => hostScriptDialect(),
+    recorded: {"win32":"powershell","darwin":"posix-sh","linux":"posix-sh","win32 by process.platform alone":"powershell","win32 by getPlatform() alone":"posix-sh"},
   },
 ]
 
