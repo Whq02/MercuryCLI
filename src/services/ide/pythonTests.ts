@@ -10,13 +10,14 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { storeArtifact } from '../../utils/artifacts/store.js'
 import { getCwd } from '../../utils/cwd.js'
+import { logForDebugging } from '../../utils/debug.js'
 import {
   findPythonProjectRoot,
   buildPythonProjectProfile,
   selectPythonInterpreter,
 } from './pythonProject.js'
+import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-
 export function pythonTestsEnabled(): boolean {
   return flagEnabled('MERCURY_TESTS')
 }
@@ -483,15 +484,12 @@ export function listRuns(from: string = getCwd()): Array<{ id: string; startedAt
   const rows: Array<{ id: string; startedAt: number; counts: TestRunRecord['counts'] }> = []
   for (const f of files) {
     if (!f.startsWith('run-') || !f.endsWith('.json')) continue
-    let raw: string
     try {
-      raw = readFileSync(path.join(runsDir(root), f), 'utf8')
+      const r = JSON.parse(readFileSync(path.join(runsDir(root), f), 'utf8')) as TestRunRecord
+      rows.push({ id: r.id, startedAt: r.startedAt, counts: r.counts })
     } catch (error) {
-      if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') continue
-      throw error
+      logForDebugging(`pythonTests: skipping unreadable run record ${f}: ${error instanceof Error ? error.message : String(error)}`)
     }
-    const r = JSON.parse(raw) as TestRunRecord
-    rows.push({ id: r.id, startedAt: r.startedAt, counts: r.counts })
   }
   return rows.sort((a, b) => b.startedAt - a.startedAt).slice(0, 50)
 }
@@ -518,7 +516,15 @@ function readNdjson(reportPath: string): NdjsonEvent[] {
   return raw
     .split('\n')
     .filter(l => l.trim())
-    .map(l => JSON.parse(l) as NdjsonEvent)
+    .map(l => {
+      try {
+        return JSON.parse(l) as NdjsonEvent
+      } catch (error) {
+        passedOver(error)
+        return null
+      }
+    })
+    .filter((e): e is NdjsonEvent => e !== null)
 }
 
 async function spawnCollecting(
@@ -804,7 +810,14 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
     ...(verdict !== undefined ? { verdict } : {}),
     ...(verdictNote ? { verdictNote } : {}),
   }
-  await persistRun(root, record)
+  try {
+    await persistRun(root, record)
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e)
+    logForDebugging(`pythonTests: run record persistence failed: ${detail}`)
+    const note = `this test run could not be saved (${detail}) — rerunFailed and report will not see it`
+    record.verdictNote = record.verdictNote ? `${record.verdictNote} · ${note}` : note
+  }
   return { state: 'ok', record }
 }
 

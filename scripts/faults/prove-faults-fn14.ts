@@ -102,12 +102,13 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
     mkdirSync(runs, { recursive: true })
     writeFileSync(join(runs, 'latest.json'), '{broken')
     writeFileSync(join(runs, 'run-1-1.json'), '{broken')
+    writeFileSync(join(runs, 'run-2-1.json'), JSON.stringify({ id: 'run-2-1', startedAt: 2, counts: { passed: 1, failed: 0, skipped: 0, errored: 0 } }))
     const r1 = throwsMatching(() => latestRunAtRoot(dir), /JSON|parse|corrupt|unexpected/i)
     const r2 = throwsMatching(() => getRun('run-1-1', dir), /JSON|parse|corrupt|unexpected/i)
-    const r3 = throwsMatching(() => listRuns(dir), /JSON|parse|corrupt|unexpected/i)
+    const listed = listRuns(dir)
     check('pythonTests: corrupt latest.json throws on latestRunAtRoot', r1.threw, r1.message)
     check('pythonTests: corrupt run file throws on getRun', r2.threw, r2.message)
-    check('pythonTests: corrupt run file throws on listRuns', r3.threw, r3.message)
+    check('pythonTests: corrupt run file is skipped without hiding valid runs in listRuns', listed.length === 1 && listed[0]?.id === 'run-2-1', JSON.stringify(listed))
     if (POSIX_MODES) {
       const dir2 = makeTempDir('fn14-pytests-perm-')
       const runs2 = testRunsDir(dir2)
@@ -120,13 +121,13 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
         chmodSync(runs2, 0o700)
         rmSync(dir2, { recursive: true, force: true })
       }
-      const fakePy = join(dir, 'fake-python.sh')
+      const fakePyUnreadable = join(dir, 'fake-python-unreadable.sh')
       writeFileSync(
-        fakePy,
-        '#!/bin/sh\nif [ "$1" = "-c" ]; then echo \'{"v":"3.12.0","prefix":"/tmp"}\'; exit 0; fi\nprintf "{corrupt-ndjson\\n" > "$2"\nexit 0\n',
+        fakePyUnreadable,
+        '#!/bin/sh\nif [ "$1" = "-c" ]; then echo \'{"v":"3.12.0","prefix":"/tmp"}\'; exit 0; fi\nprintf \'{"t":"case","id":"t.a","outcome":"passed"}\\n\' > "$2"\nchmod 200 "$2"\nexit 0\n',
         { mode: 0o755 },
       )
-      process.env.MERCURY_PYTHON = fakePy
+      process.env.MERCURY_PYTHON = fakePyUnreadable
       _resetPythonProjectForTesting()
       let ndjsonThrew = false
       let ndjsonMsg = '(did not throw)'
@@ -134,34 +135,36 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
         await runPythonTests({ from: dir, framework: 'unittest' })
       } catch (err) {
         ndjsonMsg = err instanceof Error ? err.message : String(err)
-        ndjsonThrew = /JSON|parse|corrupt|unexpected/i.test(ndjsonMsg)
+        ndjsonThrew = /EACCES|permission/i.test(ndjsonMsg)
       }
-      check('pythonTests: corrupt NDJSON report throws instead of empty events', ndjsonThrew, ndjsonMsg)
+      check('pythonTests: unreadable NDJSON report throws instead of empty events', ndjsonThrew, ndjsonMsg)
 
-      const fakePyGood = join(dir, 'fake-python-good.sh')
+      const fakePyTruncated = join(dir, 'fake-python-trunc.sh')
       writeFileSync(
-        fakePyGood,
-        '#!/bin/sh\nif [ "$1" = "-c" ]; then echo \'{"v":"3.12.0","prefix":"/tmp"}\'; exit 0; fi\nprintf \'{"t":"case","id":"t.a","outcome":"passed"}\\n\' > "$2"\nexit 0\n',
+        fakePyTruncated,
+        '#!/bin/sh\nif [ "$1" = "-c" ]; then echo \'{"v":"3.12.0","prefix":"/tmp"}\'; exit 0; fi\nprintf \'{"t":"case","id":"t.a","outcome":"passed"}\\n{truncated\' > "$2"\nexit 0\n',
         { mode: 0o755 },
       )
       const dirPersist = makeTempDir('fn14-pytests-persist-')
       const blockedRunsDir = testRunsDir(dirPersist)
       mkdirSync(join(blockedRunsDir, '..'), { recursive: true })
       writeFileSync(blockedRunsDir, 'block-dir')
-      process.env.MERCURY_PYTHON = fakePyGood
+      process.env.MERCURY_PYTHON = fakePyTruncated
       _resetPythonProjectForTesting()
-      let persistThrew = false
-      let persistMsg = '(did not throw)'
       try {
-        await runPythonTests({ from: dirPersist, framework: 'unittest' })
-      } catch (err) {
-        persistMsg = err instanceof Error ? err.message : String(err)
-        persistThrew = true
+        const out = await runPythonTests({ from: dirPersist, framework: 'unittest' })
+        check(
+          'pythonTests: truncated NDJSON line skipped and failed persistRun noted in verdictNote',
+          out.state === 'ok' &&
+            out.record.counts.passed === 1 &&
+            Boolean(out.record.verdictNote?.includes('this test run could not be saved (')) &&
+            Boolean(out.record.verdictNote?.includes('rerunFailed and report will not see it')),
+          out.state === 'ok' ? JSON.stringify({ counts: out.record.counts, verdictNote: out.record.verdictNote }) : JSON.stringify(out),
+        )
       } finally {
         rmSync(blockedRunsDir, { force: true })
         rmSync(dirPersist, { recursive: true, force: true })
       }
-      check('pythonTests: persistRun failure throws instead of returning ok', persistThrew, persistMsg)
     }
   } finally {
     if (origPy === undefined) delete process.env.MERCURY_PYTHON
