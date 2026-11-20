@@ -445,23 +445,23 @@ async function settle(): Promise<void> {
   state.settleTimer = null
   if (state.context === null) return
   const model = getEngineModel()
-  startHelperSlot()
   const record = await resolveRecord(model)
   if (state.settleTimer !== null || state.context === null) return
   if (record === undefined || record.server !== 'ollama') {
     cancelInFlight('the model is no longer a local Ollama model')
     stopClock('the model is no longer a local Ollama model')
-    return
   }
   if (!state.live()) {
     if (state.liveWaits < LOCAL_WARM_LIVE_WAITS) {
       state.liveWaits += 1
       scheduleSettle()
     } else {
-      logForDebugging(`[local-warm] warm of ${record.id} not started: the session is busy or unclaimed`)
+      logForDebugging(`[local-warm] warm of ${record?.id ?? model} not started: the session is busy or unclaimed`)
     }
     return
   }
+  startHelperSlot()
+  if (record === undefined || record.server !== 'ollama') return
   startClock(record)
   const key = keyOf(record)
   if (state.inFlight?.key === key) return
