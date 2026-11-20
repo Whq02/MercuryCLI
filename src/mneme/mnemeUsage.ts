@@ -1,7 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { isENOENT } from '../utils/errors.js'
+import { passedOver } from '../utils/passedOver.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
@@ -63,15 +64,30 @@ export function usagePath(dir: string = mnemeLibraryDir()): string {
   return join(dir, 'usage.json')
 }
 
+function readPinsStrict(dir: string): PinRecord[] {
+  const p = pinsPath(dir)
+  let raw: string
+  try {
+    raw = readFileSync(p, 'utf8')
+  } catch (e) {
+    if (isENOENT(e)) return []
+    throw e
+  }
+  const parsed = JSON.parse(raw) as PinsFile
+  if (!Array.isArray(parsed?.pins)) {
+    throw new Error(`memory pins unreadable at ${p}`)
+  }
+  return parsed.pins
+    .filter(p => Number.isInteger(p?.seq) && p.seq > 0 && typeof p?.at === 'string')
+    .map(p => ({ seq: p.seq, at: p.at, ...(p.asked === true ? { asked: true as const } : {}), ...(validatedApplicability(p.applicability) ? { applicability: validatedApplicability(p.applicability) } : {}) }))
+}
+
 export function readPins(dir: string = mnemeLibraryDir()): PinRecord[] {
   try {
-    const parsed = JSON.parse(readFileSync(pinsPath(dir), 'utf8')) as PinsFile
-    if (!Array.isArray(parsed?.pins)) return []
-    return parsed.pins
-      .filter(p => Number.isInteger(p?.seq) && p.seq > 0 && typeof p?.at === 'string')
-      .map(p => ({ seq: p.seq, at: p.at, ...(p.asked === true ? { asked: true as const } : {}), ...(validatedApplicability(p.applicability) ? { applicability: validatedApplicability(p.applicability) } : {}) }))
+    return readPinsStrict(dir)
   } catch (e) {
-    if (!isENOENT(e)) logForDebugging(`memory pins unreadable at ${pinsPath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
+    logForDebugging(`memory pins unreadable at ${pinsPath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
+    passedOver(e)
     return []
   }
 }
@@ -93,7 +109,7 @@ export function pinFact(
   now: Date = new Date(),
   opts: { asked?: boolean; applicability?: MemoryApplicability } = {},
 ): PinOutcome {
-  const pins = readPins(dir)
+  const pins = readPinsStrict(dir)
   const existing = pins.find(p => p.seq === seq)
   const applicability = validatedApplicability(opts.applicability)
   if (existing && applicability) existing.applicability = applicability
@@ -110,14 +126,14 @@ export function pinFact(
 }
 
 export function unpinFact(seq: number, dir: string = mnemeLibraryDir()): { ok: boolean; pinned: number } {
-  const pins = readPins(dir)
+  const pins = readPinsStrict(dir)
   const kept = pins.filter(p => p.seq !== seq)
   if (kept.length !== pins.length) writePins(kept, dir)
   return { ok: true, pinned: kept.length }
 }
 
 export function movePin(fromSeq: number, toSeq: number, dir: string = mnemeLibraryDir(), asked?: boolean): boolean {
-  const pins = readPins(dir)
+  const pins = readPinsStrict(dir)
   const at = pins.findIndex(p => p.seq === fromSeq)
   if (at < 0) return false
   const already = pins.find(p => p.seq === toSeq)
@@ -129,13 +145,28 @@ export function movePin(fromSeq: number, toSeq: number, dir: string = mnemeLibra
   return true
 }
 
-export function readUsage(dir: string = mnemeLibraryDir()): Record<string, UsageRecord> {
-  if (!existsSync(usagePath(dir))) return {}
+function readUsageStrict(dir: string): Record<string, UsageRecord> {
+  const p = usagePath(dir)
+  let raw: string
   try {
-    const parsed = JSON.parse(readFileSync(usagePath(dir), 'utf8')) as UsageFile
-    return parsed?.rows && typeof parsed.rows === 'object' ? parsed.rows : {}
+    raw = readFileSync(p, 'utf8')
   } catch (e) {
-    if (!isENOENT(e)) logForDebugging(`memory usage unreadable at ${usagePath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
+    if (isENOENT(e)) return {}
+    throw e
+  }
+  const parsed = JSON.parse(raw) as UsageFile
+  if (!parsed?.rows || typeof parsed.rows !== 'object' || Array.isArray(parsed.rows)) {
+    throw new Error(`memory usage unreadable at ${p}`)
+  }
+  return parsed.rows
+}
+
+export function readUsage(dir: string = mnemeLibraryDir()): Record<string, UsageRecord> {
+  try {
+    return readUsageStrict(dir)
+  } catch (e) {
+    logForDebugging(`memory usage unreadable at ${usagePath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
+    passedOver(e)
     return {}
   }
 }
@@ -144,7 +175,7 @@ export function bumpUsage(seqs: readonly number[], dir: string = mnemeLibraryDir
   const distinct = [...new Set(seqs.filter(s => Number.isInteger(s) && s > 0))]
   if (distinct.length === 0) return
   try {
-    const rows = readUsage(dir)
+    const rows = readUsageStrict(dir)
     const stamp = now.toISOString()
     for (const seq of distinct) {
       const prior = rows[String(seq)]

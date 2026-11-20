@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react'
 import { useLoad, usePublish } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
+import { errorMessage } from '../utils/errors.js'
 import { logError } from '../utils/log.js'
 import { setCwd } from '../utils/Shell.js'
 import { plural } from '../utils/stringUtils.js'
@@ -16,8 +17,6 @@ import {
 import { Select } from './CustomSelect/index.js'
 import Dialog from './design-system/Dialog.js'
 import { Spinner } from './Spinner.js'
-import { passedOver } from '../utils/passedOver.js'
-
 type ExitChoice =
   | 'keep'
   | 'keep-with-tmux'
@@ -37,17 +36,28 @@ async function recordWorktreeExit(): Promise<void> {
   saveWorktreeState(null)
 }
 
-function restoreDirectories(session: WorktreeSession): void {
+export function restoreWorktreeDirectories(
+  session: Pick<WorktreeSession, 'originalCwd'>,
+  ops: { chdir: (dir: string) => void; setCwd: (dir: string) => void } = {
+    chdir: dir => process.chdir(dir),
+    setCwd,
+  },
+): string | null {
+  let failure: unknown = null
   try {
-    process.chdir(session.originalCwd)
+    ops.chdir(session.originalCwd)
   } catch (error) {
-    passedOver(error)
+    logError(error)
+    failure = error
   }
   try {
-    setCwd(session.originalCwd)
+    ops.setCwd(session.originalCwd)
   } catch (error) {
-    passedOver(error)
+    logError(error)
+    if (failure === null) failure = error
   }
+  if (failure === null) return null
+  return `Could not return to ${session.originalCwd} (${errorMessage(failure)}) — switch back to that folder before continuing.`
 }
 
 async function killTmuxSession(name: string): Promise<void> {
@@ -85,7 +95,7 @@ export function WorktreeExitDialog({
     try {
       if (session.tmuxSessionName) await killTmuxSession(session.tmuxSessionName)
       await cleanupWorktree()
-      restoreDirectories(session)
+      const restoreNote = restoreWorktreeDirectories(session)
       await recordWorktreeExit()
       const parts: string[] = []
       const status = statusRef.current
@@ -104,6 +114,9 @@ export function WorktreeExitDialog({
       if (withTmux && session.tmuxSessionName) {
         message += ' The tmux session was terminated.'
       }
+      if (restoreNote !== null) {
+        message += ` ${restoreNote}`
+      }
       finish(message)
     } catch (error) {
       logError(error)
@@ -120,13 +133,16 @@ export function WorktreeExitDialog({
         await killTmuxSession(session.tmuxSessionName)
       }
       await keepWorktree()
-      restoreDirectories(session)
+      const restoreNote = restoreWorktreeDirectories(session)
       await recordWorktreeExit()
       let message = `Work saved at ${session.worktreePath}${session.worktreeBranch ? ` on ${session.worktreeBranch}` : ''}.`
       if (tmux === 'keep' && session.tmuxSessionName) {
         message += ` Reattach with: tmux attach -t ${session.tmuxSessionName}`
       } else if (tmux === 'kill') {
         message += ' The tmux session was terminated.'
+      }
+      if (restoreNote !== null) {
+        message += ` ${restoreNote}`
       }
       finish(message)
     } catch (error) {
@@ -166,9 +182,13 @@ export function WorktreeExitDialog({
         setPhase({ kind: 'removing' })
         try {
           await cleanupWorktree()
-          restoreDirectories(session)
+          const restoreNote = restoreWorktreeDirectories(session)
           await recordWorktreeExit()
-          finish('Removed the worktree — there was nothing to keep.')
+          finish(
+            restoreNote !== null
+              ? `Removed the worktree — there was nothing to keep. ${restoreNote}`
+              : 'Removed the worktree — there was nothing to keep.',
+          )
         } catch (error) {
           logError(error)
           finish(`Could not remove ${session.worktreePath}: ${error instanceof Error ? error.message : String(error)}. Fix the error and try again.`)

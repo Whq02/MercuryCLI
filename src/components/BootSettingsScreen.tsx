@@ -30,9 +30,72 @@ import { commitBackgroundLaunchOf, commitMotionOf, commitJevOf, commitSeatsOf, c
 import { settingsRowLine } from './bootSettings/rows.js';
 import type { SettingsContext } from './bootSettings/context.js';
 import { armBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
-import { passedOver } from '../utils/passedOver.js';
+import { logError } from '../utils/log.js';
 import { afterMicrotask } from '../utils/timers.js';
 export { JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, backgroundLaunchBootDetailLines } from './bootSettings/detailLines.js';
+
+export function readLiveSessionCount(load: () => Promise<number>): Promise<number | null> {
+  return load().catch(error => {
+    logError(error);
+    return null;
+  });
+}
+
+export function deliverSpawnSwitchReceipt(
+  sessionId: string,
+  receipt: ExplicitApplyReceipt,
+  kind: NonNullable<ReturnType<typeof spawnSwitchKindOfEnv>>,
+  io: {
+    rpc?: typeof daemonControlRpc;
+    isCancelled: () => boolean;
+    setApply: (updater: (prev: ApplyState) => ApplyState) => void;
+  },
+): Promise<void> {
+  const applySettled = (settled: ExplicitApplyReceipt): void => {
+    io.setApply(prev =>
+      prev.phase !== 'ready'
+        ? prev
+        : {
+            phase: 'ready',
+            workers: prev.workers.map(w =>
+              w.sessionId !== sessionId || !w.receipts
+                ? w
+                : { ...w, receipts: w.receipts.map(r => (r.env === receipt.env ? settled : r)) },
+            ),
+          },
+    );
+  };
+  return (io.rpc ?? daemonControlRpc)(
+    {
+      op: 'sessionControl',
+      action: 'set-spawn-switch',
+      sessionId,
+      by: 'operator',
+      spawnSwitch: { kind, on: spawnSwitchOnFromValue(receipt.target) },
+    } as DaemonRequest,
+    { timeoutMs: 3000 },
+  )
+    .then(reply => {
+      if (io.isCancelled()) return;
+      const settledControl = reply.ok === true && (reply.op === 'sessionControl' || reply.op === 'concourseControl') ? reply : null;
+      const outcome = settledControl !== null ? settledControl.outcome : 'refused';
+      const detail = settledControl !== null ? settledControl.detail : reply.ok === true ? undefined : reply.error;
+      applySettled({
+        ...receipt,
+        outcome: outcome === 'applied' || outcome === 'queued' ? outcome : outcome === 'noop' ? 'no-change' : 'refused',
+        reason: typeof detail === 'string' && detail !== '' ? detail : receipt.reason,
+      });
+    })
+    .catch(error => {
+      if (io.isCancelled()) return;
+      const message = error instanceof Error ? error.message : String(error);
+      applySettled({
+        ...receipt,
+        outcome: 'refused',
+        reason: message !== '' ? message : receipt.reason,
+      });
+    });
+}
 
 
 function savedChoicesByRow(profile: BootDefaultsProfileV1 | null): Record<string, string> {
@@ -128,13 +191,9 @@ export function BootSettingsScreen({
   const [apply, setApply] = useState<ApplyState>({ phase: 'closed' });
   useLoad(() => {
     let cancelled = false;
-    void import('../daemon/concourseWorkers.js')
-      .then(sup => {
-        if (!cancelled) setLiveCount(sup.countLiveConcourseWorkers());
-      })
-      .catch(() => {
-        if (!cancelled) setLiveCount(0);
-      });
+    void readLiveSessionCount(() => import('../daemon/concourseWorkers.js').then(sup => sup.countLiveConcourseWorkers())).then(count => {
+      if (!cancelled) setLiveCount(count);
+    });
     return () => {
       cancelled = true;
     };
@@ -179,40 +238,10 @@ export function BootSettingsScreen({
           for (const receipt of worker.receipts ?? []) {
             const kind = spawnSwitchKindOfEnv(receipt.env);
             if (receipt.outcome !== 'queued' || kind === null) continue;
-            void daemonControlRpc(
-              {
-                op: 'sessionControl',
-                action: 'set-spawn-switch',
-                sessionId: worker.sessionId,
-                by: 'operator',
-                spawnSwitch: { kind, on: spawnSwitchOnFromValue(receipt.target) },
-              } as DaemonRequest,
-              { timeoutMs: 3000 },
-            )
-              .then(reply => {
-                if (cancelled) return;
-                const settledControl = reply.ok === true && (reply.op === 'sessionControl' || reply.op === 'concourseControl') ? reply : null;
-                const outcome = settledControl !== null ? settledControl.outcome : 'refused';
-                const detail = settledControl !== null ? settledControl.detail : reply.ok === true ? undefined : reply.error;
-                const settled: ExplicitApplyReceipt = {
-                  ...receipt,
-                  outcome: outcome === 'applied' || outcome === 'queued' ? outcome : outcome === 'noop' ? 'no-change' : 'refused',
-                  reason: typeof detail === 'string' && detail !== '' ? detail : receipt.reason,
-                };
-                setApply(prev =>
-                  prev.phase !== 'ready'
-                    ? prev
-                    : {
-                        phase: 'ready',
-                        workers: prev.workers.map(w =>
-                          w.sessionId !== worker.sessionId || !w.receipts
-                            ? w
-                            : { ...w, receipts: w.receipts.map(r => (r.env === receipt.env ? settled : r)) },
-                        ),
-                      },
-                );
-              })
-              .catch(passedOver);
+            void deliverSpawnSwitchReceipt(worker.sessionId, receipt, kind, {
+              isCancelled: () => cancelled,
+              setApply,
+            });
           }
         }
       })

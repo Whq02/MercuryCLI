@@ -1,11 +1,9 @@
 
 import { getCwd } from '../../utils/cwd.js'
 import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
-import { valueOr } from '../../substrate/sourceState.js'
 import { listAgentSessions } from './identity.js'
 import { listConversations } from './conversations.js'
 import { resolveCrewSnapshot } from './projection.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 export const GRAPH_EDGE_KINDS = [
   'spawned-by',
@@ -95,7 +93,7 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
     }
   }
 
-  const sessions = await listAgentSessions().catch((error) => { passedOver(error); return [] })
+  const sessions = await listAgentSessions()
   for (const s of sessions) {
     if (s.endedAt !== undefined) continue
     addNode({ id: `session:${s.sessionId}`, kind: 'session', label: s.sessionId, agentId: s.agentId as string })
@@ -113,7 +111,7 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
     }
   }
 
-  const conversations = await listConversations().catch((error) => { passedOver(error); return [] })
+  const conversations = await listConversations()
   const windowed = [...conversations]
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, 60)
@@ -149,19 +147,19 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
     }
   }
 
-  try {
-    const heads = valueOr(listReviewArtifactHeadsSource({ root: getCwd() }), [])
-    for (const h of heads.slice(0, 40)) {
-      addNode({ id: `artifact:${h.id}`, kind: 'artifact', label: h.title })
-      addEdge({
-        kind: 'folio',
-        from: `session:${h.producerSessionId}`,
-        to: `artifact:${h.id}`,
-        owner: 'review-journal',
-      })
-    }
-  } catch (error) {
-    passedOver(error)
+  const headsSource = listReviewArtifactHeadsSource({ root: getCwd() })
+  if (headsSource.state === 'unavailable') {
+    throw new Error(headsSource.reason)
+  }
+  const heads = headsSource.state === 'ready' ? headsSource.value : []
+  for (const h of heads.slice(0, 40)) {
+    addNode({ id: `artifact:${h.id}`, kind: 'artifact', label: h.title })
+    addEdge({
+      kind: 'folio',
+      from: `session:${h.producerSessionId}`,
+      to: `artifact:${h.id}`,
+      owner: 'review-journal',
+    })
   }
 
   const structural = [...nodes.values()].filter(n => n.kind === 'agent' || n.kind === 'session' || n.kind === 'worktree')

@@ -28,7 +28,7 @@ import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { decodeNavKey } from '../navSemantics.js'
 import { prunePaneOf, sessionListView, type OwnSessionStateWords } from './sessionManager/views.js'
-import { passedOver } from '../../../utils/passedOver.js'
+import { logError } from '../../../utils/log.js'
 
 function shellInteriorWidth(columns: number): number {
   return Math.max(40, columns - 4)
@@ -47,12 +47,25 @@ export function ownSessionStateWords(rec: { parkedAt?: number; parkReason?: stri
   return { glyph: '●', state: 'active', tail: ' · browsing never closes it · switching pauses the current, state kept', parked: false }
 }
 
-function ownSessionRecord(sessionId: string): { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined {
+export function ownSessionRecord(sessionId: string): { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined {
   try {
     return Object.values(readSessionWorkers()).find(rec => rec.sessionId === sessionId && rec.endedAt === undefined)
   } catch (error) {
-    passedOver(error)
+    logError(new Error(`ownSessionRecord failed: ${error instanceof Error ? error.message : String(error)}`))
     return undefined
+  }
+}
+
+export async function runSessionSwitch(
+  onResume: (sessionId: UUID, log: SessionListing, entrypoint: ResumeEntrypoint) => Promise<void>,
+  sessionId: UUID,
+  log: SessionListing,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    await onResume(sessionId, log, 'slash_command_picker')
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, message: `Could not switch to that session (${error instanceof Error ? error.message : String(error)})` }
   }
 }
 
@@ -132,7 +145,7 @@ function LiveSessionManager({
   const ownState = useMemo(() => ownSessionStateWords(ownSessionRecord(getFocusedSessionConnector().sessionId())), [])
   const { columns } = useTerminalSize()
   const W = shellInteriorWidth(columns)
-  const [switching, setSwitching] = useState<'swapping' | null>(null)
+  const [switching, setSwitching] = useState<'swapping' | { failed: string } | null>(null)
   const switchGenRef = useRef(0)
   const [scope, setScope] = useState<SessionScope>(initialScope)
   const { logs, pendingMore, flat, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
@@ -199,13 +212,10 @@ function LiveSessionManager({
     if (!sessionId) return
     const gen = ++switchGenRef.current
     setSwitching('swapping')
-    try {
-      await onResume(sessionId, log, 'slash_command_picker')
-      if (gen !== switchGenRef.current) return
-      onCloseAll()
-    } catch {
-      if (gen === switchGenRef.current) setSwitching(null)
-    }
+    const result = await runSessionSwitch(onResume, sessionId, log)
+    if (gen !== switchGenRef.current) return
+    if (result.ok) onCloseAll()
+    else setSwitching({ failed: result.message })
   }
 
   const leaveSwitch = (): void => {
@@ -220,7 +230,7 @@ function LiveSessionManager({
   useInput(
     (input, key) => {
       if (switching !== null) {
-        if (key.escape) leaveSwitch()
+        if (key.escape || (switching !== 'swapping' && key.leftArrow)) leaveSwitch()
         return
       }
       if (prune !== null) {
@@ -317,6 +327,15 @@ function LiveSessionManager({
         : `n new · d prune · ${scopeHint} · esc / ← close`
 
   if (switching !== null) {
+    if (switching !== 'swapping') {
+      return (
+        <CommandCenter view="sessions" onClose={leaveSwitch} captureInput={false} footer="esc / ← back">
+          <Box marginTop={1}>
+            <EmptyState title={switching.failed} hint="esc / ← back" tone="gated" />
+          </Box>
+        </CommandCenter>
+      )
+    }
     return (
       <CommandCenter
         view="sessions"

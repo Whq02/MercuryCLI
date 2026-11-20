@@ -82,10 +82,16 @@ function agentTypeOf(crewmate: CrewmateInView, meta: AgentMetadata | null): stri
 
 async function readRecord(file: string): Promise<AgentMetadata | null> {
   try {
-    return JSON.parse(await readFile(file, 'utf8')) as AgentMetadata
+    const parsed: unknown = JSON.parse(await readFile(file, 'utf8'))
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new SyntaxError('not a JSON object')
+    }
+    return parsed as AgentMetadata
   } catch (error) {
-    if (!isENOENT(error)) logError(new Error(`crewmate metadata ${file} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
-    return null
+    if (isENOENT(error)) return null
+    const wrapped = new Error(`crewmate metadata ${file} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`)
+    logError(wrapped)
+    throw wrapped
   }
 }
 
@@ -276,7 +282,13 @@ async function seatOf(crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<
 }
 
 export async function openCrewmateModelPickerFor(crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<void> {
-  const seat = await seatOf(crewmate, io)
+  let seat: CrewmateSeat | null
+  try {
+    seat = await seatOf(crewmate, io)
+  } catch (error) {
+    io.receipt(errorMessage(error), 'warning')
+    return
+  }
   if (seat === null) {
     io.receipt(crewmateCommandUnreachableWords(crewmate.name, 'model'), 'warning')
     return
@@ -286,13 +298,13 @@ export async function openCrewmateModelPickerFor(crewmate: CrewmateInView, io: C
 
 export async function runCrewmateCommand(command: Command, line: string, crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<void> {
   const name = getCommandName(command)
-  const seat = await seatOf(crewmate, io)
-  if (seat === null) {
-    io.receipt(crewmateCommandUnreachableWords(crewmate.name, name), 'warning')
-    return
-  }
   const args = argsOf(line)
   try {
+    const seat = await seatOf(crewmate, io)
+    if (seat === null) {
+      io.receipt(crewmateCommandUnreachableWords(crewmate.name, name), 'warning')
+      return
+    }
     switch (command.name) {
       case 'model':
         return await runModel(seat, args)

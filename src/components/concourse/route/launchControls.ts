@@ -3,7 +3,7 @@ import { logForDebugging } from '../../../utils/debug.js';
 import { getCwd } from '../../../utils/cwd.js';
 import { getInitialEffortSetting } from '../../../utils/effort.js';
 import { enterRootChat, surfaceGeneration } from '../../../context/surfaceRoute.js';
-import { dispatchSeedInputs, readConcourseSeedOverrides, resolveHarnessGround } from '../../../services/concourse/concourseSnapshot.js';
+import { dispatchSeedInputs, readConcourseSeedOverrides, readHarnessGround } from '../../../services/concourse/concourseSnapshot.js';
 import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from '../contracts.js';
 
 type LaunchControls = {
@@ -22,7 +22,8 @@ export function newSession({ noteControl, splitFrameStands, birthInFlightRef, se
   void (async () => {
     try {
       await seedWriteChain.current
-      const ground = await resolveHarnessGround()
+      const { ground, unread } = await readHarnessGround()
+      const groundNote = unread === undefined ? '' : ` — the repo choice could not be read (${unread}), so it starts in ${basename(ground) || ground}`
       const { bornSession } = await import('../../../services/switchboard/bornSession.js')
       const born = await bornSession({ workspaceDir: ground })
       if (!born.ok) {
@@ -47,9 +48,9 @@ export function newSession({ noteControl, splitFrameStands, birthInFlightRef, se
       }
       if (surfaceGeneration() === gen) {
         if (splitFrameStands()) {
-          noteControl('board:new-session', { state: 'applied', reason: `${born.title} — in the chat pane${contractNote}` })
+          noteControl('board:new-session', { state: 'applied', reason: `${born.title} — in the chat pane${contractNote}${groundNote}` })
         } else {
-          noteControl('board:new-session', { state: 'applied', reason: `entering ${born.title}${contractNote}` })
+          noteControl('board:new-session', { state: 'applied', reason: `entering ${born.title}${contractNote}${groundNote}` })
           enterRootChat()
         }
       }

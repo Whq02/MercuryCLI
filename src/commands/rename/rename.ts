@@ -20,10 +20,19 @@ export async function call(
       (found, message, index) => (isCompactBoundaryMessage(message) ? index : found),
       -1,
     )
-    const generated = await generateSessionName(
-      messages.slice(lastBoundary + 1),
-      context.abortController.signal,
-    )
+    let generated: string | null
+    try {
+      generated = await generateSessionName(
+        messages.slice(lastBoundary + 1),
+        context.abortController.signal,
+      )
+    } catch (thrown) {
+      onDone(
+        `Could not generate a session name (${thrown instanceof Error ? thrown.message : String(thrown)}). Use /rename <name> to name the session directly.`,
+        { display: 'system' },
+      )
+      return null
+    }
     if (generated === null) {
       onDone(
         'No conversation context to generate a name from yet. Use /rename <name> to name the session directly.',

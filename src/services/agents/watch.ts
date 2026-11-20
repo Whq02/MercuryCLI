@@ -119,14 +119,18 @@ function probeMissingRoots(): void {
       still.push(root)
       continue
     }
-    watcher.add(root)
-    logForDebugging(`agent watch: new root armed — ${root}`)
-    let entries: string[] = []
+    let entries: string[]
     try {
       entries = readdirSync(root)
     } catch (error) {
-      passedOver(error)
+      logForDebugging(
+        `agent watch: failed to list new root ${root}: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      still.push(root)
+      continue
     }
+    watcher.add(root)
+    logForDebugging(`agent watch: new root armed — ${root}`)
     for (const name of entries) {
       if (name.toLowerCase().endsWith('.md')) {
         handleChange(platformPath.join(root, name))

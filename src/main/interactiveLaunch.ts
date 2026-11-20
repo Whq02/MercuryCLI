@@ -46,7 +46,7 @@ import { reconcileManagedShims, resolveLayoutRoots } from '../services/privateCh
 import type { Root } from '../ink.js'
 import { typedString, writeErr, UUID_SHAPE, type RootOptions } from './cli.js'
 import { startDeferredPrefetches } from './deferredPrefetches.js'
-import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { passedOver } from '../utils/passedOver.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
 
 let abandonAnnounced = false
@@ -332,7 +332,13 @@ async function routeBootJourney({ args, opts, root, appProps, chatProps, inputPr
         searchTerm = resumeValue
       }
     } else if (typeof resumeValue === 'string') {
-      const log = await lastSession(resumeValue as UUID).catch(passedOverAs(null))
+      let log: Awaited<ReturnType<typeof lastSession>>
+      try {
+        log = await lastSession(resumeValue as UUID)
+      } catch (error) {
+        await exitWithError(root, `Failed to resume session ${resumeValue}: ${error instanceof Error ? error.message : String(error)}`)
+        return false
+      }
       if (!log) {
         const { resumeMissMessage } = await import('../utils/sessionStorage/resumeMiss.js')
         await exitWithError(root, await resumeMissMessage(resumeValue))

@@ -2,6 +2,7 @@
 import { appendFileSync, existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
+import { isENOENT } from '../utils/errors.js'
 import { appendObservation, currentBufferPath, observationOverflow, pendingRows, type MnemeObservation } from './mnemeBuffer.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
 import { memorySecretRefusal } from './mnemeSecretGuard.js'
@@ -356,8 +357,8 @@ function bufferFiles(dir: string): string[] {
   try {
     names = readdirSync(dir)
   } catch (error) {
-    passedOver(error)
-    return []
+    if (isENOENT(error)) return []
+    throw error
   }
   return [...names.filter(n => /^consuming-.*\.jsonl$/.test(n)).sort().map(n => join(dir, n)), currentBufferPath(dir)]
 }

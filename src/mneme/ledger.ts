@@ -6,6 +6,7 @@ import { getProcessStartToken, isProcessAlive } from '../daemon/ownerWatch.js'
 import { parseProcessStartToken } from '../daemon/processSweep.js'
 import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
 import type { LedgerEntry, LiveSession } from './types.js'
 import { passedOver } from '../utils/passedOver.js'
@@ -174,11 +175,7 @@ export function openEntry(projectKey: string, session: { sessionId: string; mode
           pid: process.pid,
           pidAt: now,
         }
-  try {
-    appendLine(projectKey, entry)
-  } catch (error) {
-    logForDebugging(`lineage ledger open failed for ${session.sessionId}: ${error instanceof Error ? error.message : String(error)}`)
-  }
+  appendLine(projectKey, entry)
   return entry
 }
 
@@ -230,7 +227,9 @@ export function closeEntry(projectKey: string, sessionId: string, close: { outco
 export const INTERRUPTED_OUTCOME = 'interrupted'
 
 export function reconcileInterruptedEntries(projectKey: string, currentSessionId: string, cutAt: (sessionId: string) => string | null): LedgerEntry[] {
-  const live = new Set(liveSessions(projectKey).map(session => session.sessionId))
+  const liveList = readLiveSessions(projectKey)
+  if (liveList === null) return []
+  const live = new Set(liveList.map(session => session.sessionId))
   const bootAt = Date.now() - uptime() * 1000
   const reconciled: LedgerEntry[] = []
   for (const entry of readLedger(projectKey)) {
@@ -260,15 +259,25 @@ export function sessionWorkersFile(): string {
   return join(daemonDir(), 'concourse-workers.json')
 }
 
-export function liveSessions(projectKey: string): LiveSession[] {
+function readLiveSessions(projectKey: string, onError?: (error: unknown) => void): LiveSession[] | null {
+  let raw: string
+  try {
+    raw = readFileSync(sessionWorkersFile(), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return []
+    onError?.(error)
+    logForDebugging(`lineage liveSessions read failed: ${error instanceof Error ? error.message : String(error)}`)
+    return null
+  }
   let workers: Record<string, WorkerRow>
   try {
-    const parsed = JSON.parse(readFileSync(sessionWorkersFile(), 'utf8')) as { version?: unknown; workers?: unknown }
-    if (parsed?.version !== 1 || typeof parsed.workers !== 'object' || parsed.workers === null) return []
+    const parsed = JSON.parse(raw) as { version?: unknown; workers?: unknown }
+    if (parsed?.version !== 1 || typeof parsed.workers !== 'object' || parsed.workers === null) return null
     workers = parsed.workers as Record<string, WorkerRow>
   } catch (error) {
-    passedOver(error)
-    return []
+    onError?.(error)
+    logForDebugging(`lineage liveSessions parse failed: ${error instanceof Error ? error.message : String(error)}`)
+    return null
   }
   const out: LiveSession[] = []
   for (const row of Object.values(workers)) {
@@ -281,4 +290,8 @@ export function liveSessions(projectKey: string): LiveSession[] {
   }
   out.sort((a, b) => a.startedAt.localeCompare(b.startedAt))
   return out
+}
+
+export function liveSessions(projectKey: string): LiveSession[] {
+  return readLiveSessions(projectKey, passedOver) ?? []
 }

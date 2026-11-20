@@ -5,7 +5,7 @@ import { getClaudeAIOAuthTokens, hasProfileScope, isClaudeAISubscriber } from '.
 import { getAuthHeaders } from '../../utils/http.js'
 import { getAnthropicClientUserAgent } from '../../utils/userAgent.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { logError } from '../../utils/log.js'
 
 
 export type RateLimit = {
@@ -50,12 +50,12 @@ export async function fetchUtilization(): Promise<Utilization | null> {
           require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
         foldUtilizationFromEndpoint(mocked, undefined)
       } catch (error) {
-        passedOver(error)
+        logError(new Error(`fetchUtilization mock foldUtilizationFromEndpoint: ${error instanceof Error ? error.message : String(error)}`))
       }
       return mocked
     }
   } catch (error) {
-    passedOver(error)
+    logError(new Error(`fetchUtilization mockUtilizationPayload: ${error instanceof Error ? error.message : String(error)}`))
   }
 
   const tokens = getClaudeAIOAuthTokens()
@@ -71,7 +71,8 @@ export async function fetchUtilization(): Promise<Utilization | null> {
     const { getUsageCredentialEpoch } =
       require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
     issuedEpoch = getUsageCredentialEpoch()
-  } catch {
+  } catch (error) {
+    logError(new Error(`fetchUtilization getUsageCredentialEpoch: ${error instanceof Error ? error.message : String(error)}`))
     issuedEpoch = undefined
   }
 
@@ -91,7 +92,7 @@ export async function fetchUtilization(): Promise<Utilization | null> {
         require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       foldUtilizationFromEndpoint(data, issuedEpoch)
     } catch (error) {
-      passedOver(error)
+      logError(new Error(`fetchUtilization foldUtilizationFromEndpoint: ${error instanceof Error ? error.message : String(error)}`))
     }
   }
   return data

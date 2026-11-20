@@ -28,10 +28,11 @@ import type {
   CustomAgentDefinition,
 } from '../../../tools/AgentTool/loadAgentsDir.js'
 import type { EffortValue } from '../../../utils/effort.js'
+import { errorMessage } from '../../../utils/errors.js'
+import { logError } from '../../../utils/log.js'
 import { AMBER, CRIMSON, SECOND, TEAL } from '../../mercuryPalette.js'
 import { truncateToWidth } from '../../mercury-ui/glyphs.js'
 import type { generateAgent } from '../generateAgent.js'
-import { passedOver } from '../../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 
@@ -284,16 +285,18 @@ export function buildReviewFacts(
   base: StudioDraftBase | undefined,
   readFile: (path: string) => string = path => readFileSync(path, 'utf-8'),
 ): StudioReviewFacts {
-  const beforeRaw = base
-    ? (() => {
-        try {
-          return readFile(base.identity.filePath)
-        } catch (error) {
-          passedOver(error)
-          return ''
-        }
-      })()
-    : ''
+  let beforeRaw = ''
+  if (base) {
+    try {
+      beforeRaw = readFile(base.identity.filePath)
+    } catch (error) {
+      logError(error)
+      return {
+        changed: ['(existing file unreadable)'],
+        diffLines: [`Could not read existing agent file (${errorMessage(error)}) — check permissions before saving.`],
+      }
+    }
+  }
   const beforeFields = base
     ? decodeAgentDocument(beforeRaw).fields
     : ({} as Partial<AgentSpecFields>)

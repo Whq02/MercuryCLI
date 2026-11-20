@@ -275,6 +275,7 @@ export function registerWardsGuard(
   const unattendedRules = rulesFor(true)
   const resolveTarget = makeTargetResolver(getCwd(), work)
   const startingFolder = realTargetPath(getCwd())
+  let unjudgedSaid = false
   engageToolGuard(sessionId, {
     id: WARDS_HOOK_ID,
     timeoutMs: 5000,
@@ -320,8 +321,10 @@ export function registerWardsGuard(
           ),
         }
       } catch (error) {
-        logForDebugging(`wards: the judgement of this ${call.tool} call threw (${errorMessage(error)}), so the call goes on`, { level: 'warn' })
-        return { allow: true }
+        logForDebugging(`wards: the ${call.tool} call could not be judged (${errorMessage(error)}), so it goes on unchecked`, { level: 'error' })
+        if (unjudgedSaid) return { allow: true }
+        unjudgedSaid = true
+        return { allow: true, note: createSystemMessage(`The wards could not check this ${call.tool} call (${errorMessage(error)}), so this call and any later one they cannot check run without them.`, 'warning', call.callId) }
       }
     },
   })

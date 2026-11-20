@@ -23,7 +23,6 @@ import { buildDiffHunks } from './diffBudget.js'
 import { applyHunks, countLines, planHunks, type EditHunkInput, type HunkSpan } from './hunks.js'
 import { checkAnchor, mintFileAnchor, normalizeForAnchor } from './snapshotAnchor.js'
 import { relocateStaleHunksFromRing } from './stalePatchRecovery.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 type LineRange = { start: number; end: number }
 
@@ -61,12 +60,14 @@ export function canonicalPathKey(canonical: string): string {
   return CASE_INSENSITIVE_FS ? canonical.toLowerCase() : canonical
 }
 
-function canonicalize(requested: string): { canonical: string } | { error: string } {
+function canonicalize(
+  requested: string,
+): { canonical: string } | { error: string; code: string | undefined; message: string } {
   const expanded = expandPath(requested)
   try {
     return { canonical: realpathSync(expanded) }
-  } catch {
-    return { error: expanded }
+  } catch (e) {
+    return { error: expanded, code: (e as NodeJS.ErrnoException).code, message: (e as Error).message }
   }
 }
 
@@ -288,18 +289,31 @@ function resolveMembers(members: ChangeSetMemberInput[]): Resolved[] | ChangeSet
   for (const m of members) {
     const canon = canonicalize(m.file_path)
     if ('error' in canon) {
-      classFailures.push({
-        path: m.file_path,
-        code: 'missing',
-        message: 'file does not exist — ChangeSet edits EXISTING text files only; file creation stays with the Write tool',
-      })
+      if (canon.code === 'ENOENT' || canon.code === 'ENOTDIR') {
+        classFailures.push({
+          path: m.file_path,
+          code: 'missing',
+          message: 'file does not exist — ChangeSet edits EXISTING text files only; file creation stays with the Write tool',
+        })
+      } else {
+        classFailures.push({
+          path: m.file_path,
+          code: 'io',
+          message: `unreadable — ${canon.message}`,
+        })
+      }
       continue
     }
     let st
     try {
       st = lstatSync(canon.canonical)
-    } catch {
-      classFailures.push({ path: m.file_path, code: 'missing', message: 'file vanished during planning — re-check the path' })
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        classFailures.push({ path: m.file_path, code: 'missing', message: 'file vanished during planning — re-check the path' })
+      } else {
+        classFailures.push({ path: m.file_path, code: 'io', message: `unreadable — ${(e as Error).message}` })
+      }
       continue
     }
     if (st.isDirectory()) {
@@ -351,14 +365,26 @@ function destinationRefusal(resolved: Resolved[]): ChangeSetRefusal | null {
     try {
       canonicalDest = join(realpathSync(destDir), basename(rawDest))
     } catch (error) {
-      passedOver(error)
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        return refusal(
+          'destination',
+          `${r.member.file_path}: move destination '${r.member.new_path}' could not be resolved (${(error as Error).message})`,
+          'Check the destination path permissions and symlinks, then try again.',
+        )
+      }
     }
     let destExists = false
     try {
       lstatSync(canonicalDest)
       destExists = true
     } catch (error) {
-      passedOver(error)
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        return refusal(
+          'destination',
+          `${r.member.file_path}: move destination '${r.member.new_path}' could not be checked (${(error as Error).message})`,
+          'Check the destination path permissions, then try again.',
+        )
+      }
     }
     if (destExists) {
       return refusal(

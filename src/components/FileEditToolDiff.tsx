@@ -43,7 +43,7 @@ function diffToolInputs(filePath: string, edits: CompleteEdit[]): LoadedDiff {
   return { hunks: patch, firstLine: null }
 }
 
-async function loadDiff(
+export async function loadDiff(
   filePath: string,
   rawEdits: Edit[],
 ): Promise<LoadedDiff> {
@@ -57,8 +57,17 @@ async function loadDiff(
     const whole = edits.map(edit => ({ ...edit, old_string: closed(edit.old_string), new_string: closed(edit.new_string) }))
     try {
       return { hunks: getPatchForEdits({ filePath, fileContents: whole.map(edit => edit.old_string).join(''), edits: whole }).patch, firstLine: null }
-    } catch {
-      return { hunks: [], firstLine: null }
+    } catch (error) {
+      logError(error)
+      const hunks = whole.flatMap(edit => {
+        try {
+          return getPatchForEdits({ filePath, fileContents: edit.old_string, edits: [edit] }).patch
+        } catch (inner) {
+          passedOver(inner)
+          return []
+        }
+      })
+      return { hunks, firstLine: null }
     }
   }
 

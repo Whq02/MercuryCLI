@@ -414,10 +414,12 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
       text = workingPaths.has(path)
         ? readFileSync(join(root, path), 'utf8')
         : execFileSync('git', gitArgs([...prefix, 'show', `:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
-    } catch {
+    } catch (error) {
+      logForDebugging(`[commit-gate] ${path} could not be read as the commit holds it (${failureReason(error)}), so its working copy is matched against the map's re: sources`)
       try {
         text = readFileSync(join(root, path), 'utf8')
-      } catch {
+      } catch (inner) {
+        logForDebugging(`[commit-gate] ${path} could not be read (${failureReason(inner)}), so it is not matched against the map's re: sources`)
         text = null
       }
     }

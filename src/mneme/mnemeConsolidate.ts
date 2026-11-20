@@ -266,8 +266,8 @@ export function claimBufferFile(dir: string, stem: string): string | null {
     renameWithWin32RetrySync(current, claim)
     return claim
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
 }
 
@@ -289,7 +289,7 @@ function consumeBuffer(dir: string): Consumed {
         .map(n => join(dir, n)),
     )
   } catch (error) {
-    passedOver(error)
+    if (!isENOENT(error)) throw error
   }
   const current = currentBufferPath(dir)
   if (existsSync(current)) {
@@ -298,7 +298,7 @@ function consumeBuffer(dir: string): Consumed {
       renameWithWin32RetrySync(current, consuming)
       files.push(consuming)
     } catch (error) {
-      passedOver(error)
+      if (!isENOENT(error)) throw error
     }
   }
   const landedByHash = new Map<string, ManifestRow>()
@@ -501,7 +501,7 @@ export function maybeConsolidate(
   try {
     staleConsuming = readdirSync(dir).some(n => /^consuming-.*\.jsonl$/.test(n))
   } catch (error) {
-    passedOver(error)
+    if (!isENOENT(error)) return none(`error: ${errorMessage(error).slice(0, 120)}`)
   }
   const now = opts.now ?? new Date()
   if (peek.length === 0 && !staleConsuming) {

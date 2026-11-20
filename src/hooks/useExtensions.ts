@@ -47,7 +47,15 @@ export function useExtensions({ enabled = true }: { enabled?: boolean } = {}): v
           })
         }
       } catch (error) {
-        logForDebugging(`extensions: the boot load failed: ${error instanceof Error ? error.message : String(error)}`)
+        const detail = error instanceof Error ? error.message : String(error)
+        logForDebugging(`extensions: the boot load failed: ${detail}`)
+        setAppState(prev => (prev.extensions.pending ? { ...prev, extensions: { ...prev.extensions, pending: false } } : prev))
+        addNotificationRef.current({
+          key: 'extensions-load-failed',
+          text: `Extensions could not be loaded (${detail}) — /extensions`,
+          color: 'warning',
+          priority: 'medium',
+        })
       }
     })()
   }, [enabled, setAppState])

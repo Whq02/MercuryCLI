@@ -95,12 +95,7 @@ export async function claimSession(params: ParamsOf<'session/claim'>, ports: Run
     try {
       clearSystemPromptSections()
       if (params.resume === true) {
-        let resumed: Awaited<ReturnType<typeof loadConversationForResume>> = null
-        try {
-          resumed = await loadConversationForResume(sid, resumeFile)
-        } catch (error) {
-          logError(error)
-        }
+        const resumed = await loadConversationForResume(sid, resumeFile)
         if (!resumed || resumed.messages.length === 0) {
           endAsColdRunnerWould(`No conversation found for session id ${sid}`)
           return
