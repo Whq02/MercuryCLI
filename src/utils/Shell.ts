@@ -1,6 +1,6 @@
 import { spawnOwnedShell, tellWhatTheShellGuardReads } from './shell/parentGuard.js'
 import { randomBytes } from 'node:crypto'
-import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
@@ -13,6 +13,9 @@ import { errorMessage, isENOENT } from './errors.js'
 import { normalizePathForComparison } from './file.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { getPlatform } from './platform.js'
+import { appendNoFollowFlags } from './platform/files.js'
+import { nativeCwdFromRecordedShell, shellPathToNative } from './platform/paths.js'
+import { posixExitSignalsCount } from './platform/processes.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
 import { createEngineCommandProvider, perCommandEngineBinary, resolveShellEngine, runEngineCommand, resolveEngineSessionCeiling } from './shell/engineSession.js'
@@ -27,7 +30,7 @@ import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.j
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
-import { WINDOWS_STARTS_A_PROGRAM_IN, nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
+import { WINDOWS_STARTS_A_PROGRAM_IN, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 import { windowsShellRoadActive, withRoadPrograms } from './shell/windowsShellRoad.js'
 import { passedOver } from './passedOver.js'
@@ -114,7 +117,7 @@ export async function terminalShellInvocation(
   const invocationId = randomBytes(6).toString('hex')
   const built = await road.provider.buildExecCommand(command, { id: invocationId })
   const { env, scrubbed } = await commandEnvironment(road, 'bash', command, inheritSessionEnv)
-  const native = (path: string): string => (getPlatform() === 'windows' ? posixPathToWindowsPath(path) : path)
+  const native = (path: string): string => shellPathToNative(path)
   const handed = built.handOver?.(env)
   if (handed?.file !== undefined) writeFileSync(handed.file.path, handed.file.text)
   return {
@@ -127,16 +130,14 @@ export async function terminalShellInvocation(
   }
 }
 
-if (process.platform === 'win32') {
-  tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
-  tellProcessGroupTheShell(() => subprocessEnv().SHELL)
-  tellWhatTheShellGuardReads(line => logForDebugging(`shell guard: ${line}`))
-}
+tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
+tellProcessGroupTheShell(() => subprocessEnv().SHELL)
+tellWhatTheShellGuardReads(line => logForDebugging(`shell guard: ${line}`))
 
 const ranUnderABashOfWindows = new WeakSet<ExecResult>()
 
 export function signalsCountIn(result: ExecResult): boolean {
-  return process.platform !== 'win32' || ranUnderABashOfWindows.has(result)
+  return posixExitSignalsCount() || ranUnderABashOfWindows.has(result)
 }
 
 function noteServingShell(shellPath: string): void {
@@ -311,11 +312,7 @@ type ExecOptions = {
 }
 
 function openTaskOutputFile(path: string): number {
-  if (getPlatform() === 'windows') {
-    return openSync(path, 'w')
-  }
-  const noFollow = typeof fsConstants.O_NOFOLLOW === 'number' ? fsConstants.O_NOFOLLOW : 0
-  return openSync(path, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_APPEND | noFollow)
+  return openSync(path, appendNoFollowFlags('w'))
 }
 
 export async function exec(
@@ -532,8 +529,7 @@ async function execOnARoad(
 
   void shellCommand.result.then(result => {
     if (handed !== undefined && provider.origin !== 'engine') ranUnderABashOfWindows.add(result)
-    const cwdFilePath =
-      getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
+    const cwdFilePath = shellPathToNative(built.cwdFilePath)
 
     const told = (line: string): void => tellInResult(result, shellType, line)
     let named: string | undefined
@@ -545,8 +541,7 @@ async function execOnARoad(
           if (result.code === 0) result.code = 126
         }
       } else if (result && !options.preventCwdChanges && cwdOverride === undefined && result.backgroundTaskId === undefined) {
-        const recorded =
-          getPlatform() === 'windows' ? nativeCwdFromShellRecord(record) : { path: record.trim() }
+        const recorded = nativeCwdFromRecordedShell(record)
         if (road.recordsBash && record.trim() === '') {
           logForDebugging('bash cwd tracking: the shell directory stays put — the command left no directory')
         } else if ('refused' in recorded) {
@@ -570,7 +565,7 @@ async function execOnARoad(
     }
 
     if (built.pipelineStatusPath !== undefined) {
-      const file = getPlatform() === 'windows' ? posixPathToWindowsPath(built.pipelineStatusPath) : built.pipelineStatusPath
+      const file = shellPathToNative(built.pipelineStatusPath)
       try {
         const text = readFileSync(file, 'utf8').trim()
         if (/^\d+(?:\s+\d+)+$/.test(text)) result.pipelineStatus = text.split(/\s+/).map(Number)
