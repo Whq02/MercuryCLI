@@ -136,5 +136,94 @@ console.log('3 · xaiCallModel: resolveCredential propagates credential read or 
   })
 }
 
+console.log('4 · streamIdleBudget: estimateRequestTokens falls back to body length over four when estimator throws')
+{
+  const { spawnSync } = await import('node:child_process')
+  const { dirname, resolve } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const srcRoot = process.env.PROVE_SRC ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../src')
+  const tokenEstPath = join(srcRoot, 'services/tokenEstimation.ts')
+  const budgetPath = join(srcRoot, 'services/providers/streamIdleBudget.ts')
+  const { estimateRequestTokens } = await import('../../src/services/providers/streamIdleBudget.js')
+
+  const circular: Record<string, unknown> = { payload: 'a'.repeat(40_000) }
+  circular.self = circular
+  const circularEst = estimateRequestTokens(circular, 'test-model')
+  check('circular 40k body estimates about length/4 instead of 1', circularEst >= 9_000 && circularEst <= 12_000, `got ${circularEst}`)
+  check('undefined body still estimates as 1', estimateRequestTokens(undefined) === 1)
+
+  const script = `
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    process.env.NODE_ENV = 'test'
+    const { mock } = await import('bun:test')
+    const actual = await import(${JSON.stringify(tokenEstPath)})
+    mock.module(${JSON.stringify(tokenEstPath)}, () => ({
+      ...actual,
+      estimateRequestTokens: () => { throw new Error('estimator boom') },
+    }))
+    const { estimateRequestTokens } = await import(${JSON.stringify(budgetPath)})
+    const big = { messages: [{ role: 'user', content: 'x'.repeat(40_000) }] }
+    const est = estimateRequestTokens(big, 'test-model')
+    process.stdout.write(JSON.stringify({ est }))
+  `
+  const res = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' })
+  const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { est?: number }) : {}
+  check('throwing estimator on 40k body answers about length/4 instead of 1', res.status === 0 && typeof out.est === 'number' && out.est >= 9_000 && out.est <= 12_000, `${res.stderr.slice(-200)} ${JSON.stringify(out)}`)
+}
+
+console.log('5 · qwenAccounts: malformed DASHSCOPE_BASE_URL refuses dispatch instead of falling back')
+{
+  const qa = await import('../../src/services/providers/qwen/qwenAccounts.js')
+  const env: NodeJS.ProcessEnv = { DASHSCOPE_API_KEY: 'sk-fixture-qwen', DASHSCOPE_BASE_URL: 'not a valid url' }
+  check('resolveQwenAccount stays non-throwing on malformed DASHSCOPE_BASE_URL', qa.resolveQwenAccount(env)?.kind === 'api-key')
+  let dispatchErr: unknown
+  try {
+    await qa.resolveQwenCredential({ env })
+  } catch (error) {
+    dispatchErr = error
+  }
+  const msg = dispatchErr instanceof Error ? dispatchErr.message : ''
+  check('resolveQwenCredential rejects malformed DASHSCOPE_BASE_URL with the sentence', msg.includes('DASHSCOPE_BASE_URL is not a valid http(s) URL') && msg.includes('requests are not sent to another endpoint') && msg.includes('fix or unset DASHSCOPE_BASE_URL, then retry.'), msg)
+  const validEnv: NodeJS.ProcessEnv = { DASHSCOPE_API_KEY: 'sk-fixture-qwen', DASHSCOPE_BASE_URL: 'https://example.invalid/v1' }
+  const ok = await qa.resolveQwenCredential({ env: validEnv })
+  check('valid DASHSCOPE_BASE_URL still resolves normally', ok?.requestUrl === 'https://example.invalid/v1/chat/completions')
+}
+
+console.log('6 · qwenLogin: malformed DASHSCOPE_BASE_URL refuses sign-in without probing or storing')
+{
+  const { storeQwenApiKeyLogin } = await import('../../src/services/providers/qwen/qwenLogin.js')
+  await withScratchConfig(async () => {
+    let fetched = 0
+    const env: NodeJS.ProcessEnv = { DASHSCOPE_BASE_URL: 'not a valid url' }
+    const out = await storeQwenApiKeyLogin('sk-fixture-qwen', {
+      env,
+      fetchImpl: (async () => {
+        fetched++
+        return new Response('{}', { status: 200 })
+      }) as unknown as typeof fetch,
+    })
+    check('malformed DASHSCOPE_BASE_URL refuses login with no network calls and nothing stored', !out.ok && !out.stored && fetched === 0 && out.receipt.includes('DASHSCOPE_BASE_URL is not a valid http(s) URL') && out.receipt.includes('fix or unset DASHSCOPE_BASE_URL, then retry.'), JSON.stringify({ out, fetched }))
+  })
+}
+
+console.log('7 · qwenCatalogue: malformed DASHSCOPE_BASE_URL refuses catalogue probe and surfaces the sentence')
+{
+  const { __resetQwenCatalogueForTest, qwenCatalogueSourceWords, refreshQwenCatalogue } = await import('../../src/services/providers/qwen/qwenCatalogue.js')
+  __resetQwenCatalogueForTest()
+  let fetched = 0
+  const env: NodeJS.ProcessEnv = { DASHSCOPE_API_KEY: 'sk-fixture-qwen', DASHSCOPE_BASE_URL: 'https://user:pass@example.invalid/v1' }
+  const snapshot = await refreshQwenCatalogue({
+    force: true,
+    env,
+    fetchImpl: (async () => {
+      fetched++
+      return new Response('{"data":[]}', { status: 200 })
+    }) as unknown as typeof fetch,
+  })
+  const words = qwenCatalogueSourceWords(env) ?? ''
+  check('malformed DASHSCOPE_BASE_URL makes no catalogue request and surfaces the sentence in qwenCatalogueSourceWords', fetched === 0 && snapshot?.models.length === 0 && words.includes('DASHSCOPE_BASE_URL must be an http(s) URL without credentials, query or fragment') && words.includes('fix or unset DASHSCOPE_BASE_URL, then retry.'), JSON.stringify({ fetched, words, lastError: snapshot?.lastError }))
+  __resetQwenCatalogueForTest()
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

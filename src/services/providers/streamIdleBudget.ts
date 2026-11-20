@@ -104,18 +104,71 @@ export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; i
 
 let estimateFailureSaid: string | undefined
 
+function safeBodyChars(value: unknown, seen: WeakSet<object> = new WeakSet()): number {
+  if (value === null || value === undefined) return 0
+  const kind = typeof value
+  if (kind === 'string') return (value as string).length
+  if (kind === 'number' || kind === 'boolean' || kind === 'bigint') return String(value).length
+  if (kind !== 'object') return 0
+  const obj = value as object
+  if (seen.has(obj)) return 0
+  seen.add(obj)
+  if (Array.isArray(obj)) {
+    let total = 2
+    for (let i = 0; i < obj.length; i++) {
+      try {
+        total += safeBodyChars(obj[i], seen) + 1
+      } catch {
+        total += 1
+      }
+    }
+    return total
+  }
+  if (ArrayBuffer.isView(obj)) return obj.byteLength
+  let total = 2
+  let keys: string[]
+  try {
+    keys = Object.keys(obj)
+  } catch {
+    return total
+  }
+  for (const key of keys) {
+    total += key.length + 3
+    try {
+      total += safeBodyChars((obj as Record<string, unknown>)[key], seen)
+    } catch {
+      total += 1
+    }
+  }
+  return total
+}
+
+function fallbackRequestTokens(body: unknown): number {
+  try {
+    const serialized = JSON.stringify(body)
+    if (typeof serialized === 'string') return Math.max(1, Math.ceil(serialized.length / 4))
+  } catch {
+  }
+  try {
+    return Math.max(1, Math.ceil(safeBodyChars(body) / 4))
+  } catch {
+    return 1
+  }
+}
+
 export function estimateRequestTokens(body: unknown, model?: string): number {
   try {
     const { estimateRequestTokens: estimate } = require('../tokenEstimation.js') as typeof import('../tokenEstimation.js')
     return Math.max(1, estimate(body, model))
   } catch (error) {
+    const fallback = fallbackRequestTokens(body)
     const why = error instanceof SyntaxError ? 'a part of the request is not valid JSON' : error instanceof Error ? error.message : String(error)
     if (why !== estimateFailureSaid) {
       estimateFailureSaid = why
       const { logForDebugging } = require('../../utils/debug.js') as typeof import('../../utils/debug.js')
-      logForDebugging(`[stream-budget] the tokens of a request to ${model ?? 'the model'} could not be estimated (${why}), so it counts as 1 token: the served-window fit and the first-byte allowance read it as small`, { level: 'warn' })
+      logForDebugging(`[stream-budget] the tokens of a request to ${model ?? 'the model'} could not be estimated (${why}), using length-based estimate of ${fallback} tokens`, { level: 'warn' })
     }
-    return 1
+    return fallback
   }
 }
 

@@ -5,7 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
-import { QWEN_CONSOLES, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenEndpointWhere, qwenListAnswersEveryCaller, qwenProbeLane, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenBaseOverrideError, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenEndpointWhere, qwenListAnswersEveryCaller, qwenProbeLane, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
 import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPinWireId, qwenPinsFor, qwenPreservesThinking, qwenThinkingDial, type QwenPinScope, type QwenThinkingDial } from './qwenPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
@@ -145,7 +145,9 @@ export function qwenCatalogueIdentity(env: NodeJS.ProcessEnv = hostEnv()): strin
 
 function identityOf(env: NodeJS.ProcessEnv): string {
   const key = resolveQwenCredentialSnapshot(env)
-  return key ? `${key.source}:${credentialFingerprint(key.key)}:${qwenBaseOverride(env) ?? 'bound'}` : 'none'
+  const rawOverride = env[QWEN_BASE_OVERRIDE_ENV]?.trim()
+  const scope = qwenBaseOverride(env) ?? (rawOverride ? `invalid:${rawOverride}` : 'bound')
+  return key ? `${key.source}:${credentialFingerprint(key.key)}:${scope}` : 'none'
 }
 
 export function getCachedQwenCatalogue(env: NodeJS.ProcessEnv = hostEnv()): QwenCatalogueSnapshot | null {
@@ -185,6 +187,15 @@ export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeo
   const fetchImpl = opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}
   const work = (async (): Promise<QwenCatalogueSnapshot | null> => {
     try {
+      const invalidOverride = qwenBaseOverrideError(env)
+      if (invalidOverride !== undefined) {
+        const snapshot: QwenCatalogueSnapshot = {
+          keySource: key.source, models: [], otherLines: 0, fetchedAtMs: 0, lastAttemptAtMs: now(),
+          lastError: invalidOverride,
+        }
+        cache.set(identity, snapshot)
+        return snapshot
+      }
       const bound = qwenBoundBase(env)
       if (bound !== undefined) {
         const result = await fetchQwenLiveModels({ baseUrl: bound, key: key.key, env, ...fetchImpl })
@@ -261,7 +272,7 @@ export function qwenCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { rows: Q
     const rows = qwenPinRows(env, scope)
     return { rows, source: { kind: 'plan', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
   }
-  if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: qwenPinRows(env, scope), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
+  if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && !snapshot.lastError?.startsWith(QWEN_BASE_OVERRIDE_ENV) && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: qwenPinRows(env, scope), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
   const created = new Map(snapshot.models.map(model => [model.id.toLowerCase(), model.created]))
   const live = snapshot.models.map(model => {
     const pin = qwenDisplayPin(model.id)
