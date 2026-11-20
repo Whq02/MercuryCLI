@@ -1,4 +1,4 @@
-import { mediaRefusalOf } from '../../services/api/mediaRefusal.js'
+import { mediaRefusalOf } from '../../utils/api/mediaRefusal.js'
 import { declaredRouteOf, providerDisplayName } from '../../services/providers/routeLaw.js'
 import type { Message, UserMessage } from '../../types/message.js'
 import { createUserMessage } from '../../utils/messages.js'

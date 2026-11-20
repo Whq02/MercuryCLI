@@ -60,7 +60,7 @@ enableConfigs()
 const ladderModule = (await import('../../src/services/api/backupEngines.ts').catch(() => null)) as Record<string, unknown> | null
 const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
 const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
-const { APIError, APIConnectionError } = await import('../../src/services/api/sdkErrors.ts')
+const { APIError, APIConnectionError } = await import('../../src/utils/api/sdkErrors.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/utils/messages.ts')

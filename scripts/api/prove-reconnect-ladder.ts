@@ -23,7 +23,7 @@ delete process.env.MERCURY_MAX_RETRIES
 
 const budget = await import('../../src/services/api/recoveryBudget.js')
 const retry = await import('../../src/services/api/withRetry.js')
-const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/services/api/sdkErrors.js')
+const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/utils/api/sdkErrors.js')
 const ladder = await import('../../src/services/api/reconnectLadder.js').catch(() => null)
 const transport = await import('../../src/services/api/transportEvidence.js')
 const apiClient = await import('../../src/services/api/client.js')

@@ -1,7 +1,7 @@
 import {
   APIConnectionTimeoutError,
   APIUserAbortError,
-} from '../../../api/sdkErrors.js'
+} from '../../../../utils/api/sdkErrors.js'
 import type { ApiMessage as BetaMessage } from '../../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams } from '../anthropicWire.js'
 import type { QuerySource } from 'src/constants/querySource.js'

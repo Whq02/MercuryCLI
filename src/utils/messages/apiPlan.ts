@@ -14,7 +14,7 @@ import {
   getPdfTooLargeErrorMessage,
   getRequestTooLargeErrorMessage,
 } from '../../services/api/errors.js'
-import { mediaRefusalOf } from '../../services/api/mediaRefusal.js'
+import { mediaRefusalOf } from '../api/mediaRefusal.js'
 import { isSyntheticApiErrorMessage } from './factories.js'
 import {
   isSystemLocalCommandMessage,

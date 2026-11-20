@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { APIUserAbortError } from '../../services/api/sdkErrors.js'
+import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
 import { getUserContext } from '../../context.js'
 import {

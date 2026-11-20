@@ -14,7 +14,7 @@ import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../../providers/local
 import { routedCallModel, settleAssistantTurn } from '../../providers/callModelRouter.js'
 import { coldPrefixOf } from '../../providers/streamIdleBudget.js'
 import { getRetryDelay } from '../../api/withRetry.js'
-import { APIUserAbortError } from '../../api/sdkErrors.js'
+import { APIUserAbortError } from '../../../utils/api/sdkErrors.js'
 import { rosterOwnerFromToolUseContext } from '../../run/resolveOwner.js'
 import { FileReadTool } from '../../../tools/FileReadTool/FileReadTool.js'
 import { ToolSearchTool } from '../../../tools/ToolSearchTool/ToolSearchTool.js'

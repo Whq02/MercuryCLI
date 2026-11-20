@@ -2,7 +2,7 @@ import '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { createServer, type ServerResponse } from 'node:http'
 import { AnthropicClient } from '../../src/services/providers/anthropic/anthropicClient.ts'
-import { APIConnectionTimeoutError, APIUserAbortError } from '../../src/services/api/sdkErrors.ts'
+import { APIConnectionTimeoutError, APIUserAbortError } from '../../src/utils/api/sdkErrors.ts'
 
 const responses = new Set<ServerResponse>()
 const server = createServer((request, response) => {

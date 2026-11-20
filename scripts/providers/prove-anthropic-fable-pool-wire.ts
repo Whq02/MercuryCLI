@@ -242,7 +242,7 @@ section("§9 the runner's reading reaches the window process: the relay carries 
 
 section("§10 the refusal: the provider's claim for that week is seven_day_overage_included, and it reads as the Fable limit it is")
 {
-  const { APIError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
   const { getRateLimitErrorMessage } = await import('../../src/services/rateLimitMessages.ts')
   const { fullWindowLine } = await import('../../src/components/Settings/Usage.tsx')
   const refused = (shape: Record<string, string>): InstanceType<typeof APIError> =>

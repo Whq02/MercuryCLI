@@ -1,4 +1,4 @@
-import { APIUserAbortError } from '../services/api/sdkErrors.js'
+import { APIUserAbortError } from './api/sdkErrors.js'
 
 
 class MercuryError extends Error {

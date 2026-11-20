@@ -48,7 +48,7 @@ async function main(): Promise<void> {
     if (!snapshot || snapshot.models.length !== ids.length) throw new Error(`the fixture list did not seed: ${JSON.stringify(snapshot)}`)
   }
   const { settleAssistantTurn } = await import('../../src/services/providers/callModelRouter.js')
-  const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.js')
 
   section('§1 utilityCallFor — the seat\'s own model on all ten routing-law families, never a second id')
   {

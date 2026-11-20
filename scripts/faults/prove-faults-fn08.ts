@@ -173,7 +173,7 @@ async function main(): Promise<void> {
         },
       }))
       const errors = await import(${JSON.stringify(join(SRC, 'services/api/errors.ts'))})
-      const { APIError } = await import(${JSON.stringify(join(SRC, 'services/api/sdkErrors.ts'))})
+      const { APIError } = await import(${JSON.stringify(join(SRC, 'utils/api/sdkErrors.ts'))})
       const overflowMsg = errors.getAssistantMessageFromError(
         new APIError(400, { error: { message: 'prompt is too long' } }, 'prompt is too long', new Headers()),
         'gpt-5',

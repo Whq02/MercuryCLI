@@ -1,4 +1,4 @@
-import { APIError } from '../../../api/sdkErrors.js'
+import { APIError } from '../../../../utils/api/sdkErrors.js'
 import type {
   ContentBlock as BetaContentBlock,
   ApiMessage as BetaMessage,

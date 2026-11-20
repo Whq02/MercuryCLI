@@ -21,7 +21,7 @@ const {
 const { withFoldStatus, ERROR_MESSAGE_USER_ABORT } = await import('../../src/services/compact/compact.ts')
 
 let failures = 0
-const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.ts')
+const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.ts')
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++

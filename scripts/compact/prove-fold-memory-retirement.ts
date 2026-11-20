@@ -30,7 +30,7 @@ const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
 const { memoryPointerForId, searchPointers } = await import('../../src/mneme/mnemePointers.ts')
 const { recallQuery, readMemoryRecord } = await import('../../src/mneme/memoryVerbs.ts')
 const { strikePendingRow } = await import('../../src/mneme/mnemeCorrect.ts')
-const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.ts')
+const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.ts')
 const { groupMessagesByApiRound } = await import('../../src/services/compact/grouping.ts')
 const { foldReceipt, foldReceiptWords } = await import('../../src/services/compact/foldReceipt.ts')
 

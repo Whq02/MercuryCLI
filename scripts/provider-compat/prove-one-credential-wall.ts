@@ -87,7 +87,7 @@ console.log('§1 — the table: every family, every cause, both postures — one
 
 console.log("§2 — the owner's wire: the first-party presenter paints the shared line — the family and the door, never the account's address, never a sentence about an organisation")
 {
-  const { APIError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
   const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
   const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
   const { isClaudeAISubscriber } = await import('../../src/utils/auth.ts')
@@ -159,7 +159,7 @@ console.log("§3 — the compat door: OpenRouter's real client answers the table
 
 console.log('§5 — a 400 Anthropic calls a disabled organisation is no longer detected by name: it paints what every family\'s unrecognised 400 paints — the generic row with the provider\'s own sentence inside it, no Mercury sentence of its own')
 {
-  const { APIError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
   const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
   const { decodeApiErrorBlobMessage } = await import('../../src/services/api/errorUtils.ts')
   const SENTENCE = 'This organization has been disabled.'

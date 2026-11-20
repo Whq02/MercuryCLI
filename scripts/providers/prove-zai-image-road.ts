@@ -19,7 +19,7 @@ const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabil
 const { glmTakesImages } = await import('../../src/services/providers/zai/glmPins.ts')
 const { imagesSupportedForCompatModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { buildZaiChatRequest, imageRefusalWords, requestCarriesImage } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { classifyImageRefusalFault, providerRefusedImage } = await import('../../src/services/api/mediaRefusal.ts')
+const { classifyImageRefusalFault, providerRefusedImage } = await import('../../src/utils/api/mediaRefusal.ts')
 const { stripImagesRefusedByStamp } = await import('../../src/utils/messages/apiPlan.ts')
 const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 

@@ -202,7 +202,7 @@ section('§3 the error composer with a stored account record: the sign-in wall r
   config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, oauthAccount: { accountUuid: 'uuid-record-fixture', emailAddress: EMAIL, organizationUuid: 'org-record-fixture' } }))
   const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
   setIsInteractive(true)
-  const { APIError } = await import('../../src/services/api/sdkErrors.ts')
+  const { APIError } = await import('../../src/utils/api/sdkErrors.ts')
   const errors = await import('../../src/services/api/errors.ts')
   const rowFor = (status: number, message: string): string => {
     const error = new APIError(status, { type: 'error', error: { type: 'authentication_error', message } }, message, new Headers())

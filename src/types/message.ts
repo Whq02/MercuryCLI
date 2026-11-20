@@ -1,8 +1,8 @@
 
 import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ContentBlockParam } from './wire.js'
-import type { APIError } from '../services/api/sdkErrors.js'
+import type { APIError } from '../utils/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
-import type { MediaRefusal } from '../services/api/mediaRefusal.js'
+import type { MediaRefusal } from '../utils/api/mediaRefusal.js'
 import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
 import type { EffortAdjustedV1, EffortLevel } from '../utils/effort.js'
 import type { EffortStampV1 } from '../fabric/record.js'

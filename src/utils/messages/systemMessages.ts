@@ -1,7 +1,7 @@
 import type { UUID } from 'crypto'
 import type * as Rows from '../../types/message.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
-import type { APIError } from '../../services/api/sdkErrors.js'
+import type { APIError } from '../api/sdkErrors.js'
 import type { ModelTransitionReceipt } from '../model/modelTransition.js'
 import { deepestErrorDetail, recentTransportFailure } from '../../services/api/transportEvidence.js'
 import { MESSAGE_STAMPER } from '../../rows/project.js'

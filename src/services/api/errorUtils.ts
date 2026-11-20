@@ -1,4 +1,4 @@
-import { APIError } from './sdkErrors.js'
+import { APIError } from '../../utils/api/sdkErrors.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 
