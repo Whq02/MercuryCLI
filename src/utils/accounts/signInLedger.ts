@@ -109,6 +109,25 @@ export function publishSignInRecord(path: string, text: string): void {
   durableAtomicPublishSync(path, text, { mode: 0o600 })
 }
 
+export function signInRecordRestorer(family: string, io?: SignInLedgerIo): () => void {
+  const name = normaliseFamily(family)
+  const previous = name === undefined ? undefined : readFile(io)?.signIns?.[name]
+  return () => {
+    if (name === undefined) return
+    try {
+      const existing = readFile(io)
+      if (existing === null || typeof existing.signIns !== 'object' || existing.signIns === null) return
+      const signIns: Record<string, unknown> = { ...existing.signIns }
+      if (previous === undefined) delete signIns[name]
+      else signIns[name] = previous
+      durableAtomicPublishSync(ledgerPath(io), JSON.stringify({ ...existing, version: SIGN_IN_LEDGER_VERSION, signIns }, null, 2) + '\n', { mode: 0o600 })
+      bumpEpoch()
+    } catch (error) {
+      logForDebugging(`[accounts] the sign-in of ${name} that was refused could not be taken out of the sign-in ledger: ${errorMessage(error)}`, { level: 'warn' })
+    }
+  }
+}
+
 export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedgerIo): boolean {
   const name = normaliseFamily(family)
   if (name === undefined || !KINDS.has(kind)) return false

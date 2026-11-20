@@ -408,6 +408,18 @@ else {
   }
 }
 
+console.log('\na Gemini key that Google refuses — nothing of it stays: no key, and no sign-in in the ledger')
+{
+  const r = runIn(FAMILIES[0]!, `
+    const login = await import(${JSON.stringify(join(SRC, 'services/providers/gemini/geminiLogin.ts'))})
+    out.outcome = await login.storeGeminiApiKeyLogin('fixture-key-google-refuses', { refreshCatalogue: async () => ({ models: [], lastError: 'Google refused the credential', lastStatus: 400, lastSaid: 'API key not valid' }) })
+    out.ledger = Object.keys((parsed(path.join(dir, '.sign-ins.json')) ?? {}).signIns ?? {})
+    out.storedKey = (parsed(path.join(dir, '.provider-secrets.json')) ?? {}).geminiApiKey ?? null
+  `)
+  const outcome = r.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
+  check('the sign-in answers that Google refused the key, stores no key and leaves no sign-in of it in the ledger', outcome?.ok === false && outcome.stored === false && (outcome.receipt ?? '').startsWith('Google refused this key') && r.storedKey === null && (r.ledger as string[]).length === 0, JSON.stringify({ outcome, ledger: r.ledger, storedKey: r.storedKey }))
+}
+
 console.log('\nMoonshot — the served-model note, whose caller drops the refusal, leaves an unreadable file as it stands')
 if (!POSIX_MODES) skip('the dropped refusal', 'a mode-0200 file needs a POSIX process that is not root')
 else {
