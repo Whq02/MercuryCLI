@@ -236,6 +236,82 @@ try {
       JSON.stringify(r),
     )
   }
+
+  {
+    const r = runIsolated(`
+      const { mock } = await import('bun:test')
+      const pathsMod = await import(SRC + '/utils/sessionStorage/paths.ts')
+      const launchMod = await import(SRC + '/tasks/LocalAgentTask/launchReceipts.ts')
+      let failPath = false
+      mock.module(SRC + '/utils/sessionStorage/paths.ts', () => ({
+        ...pathsMod,
+        getAgentTranscriptPath: id => {
+          if (failPath) throw new Error('bad-transcript-path')
+          return pathsMod.getAgentTranscriptPath(id)
+        },
+      }))
+      mock.module(SRC + '/utils/sessionStorage/paths.js', () => ({
+        ...pathsMod,
+        getAgentTranscriptPath: id => {
+          if (failPath) throw new Error('bad-transcript-path')
+          return pathsMod.getAgentTranscriptPath(id)
+        },
+      }))
+      mock.module(SRC + '/tasks/LocalAgentTask/launchReceipts.ts', () => ({
+        ...launchMod,
+        recordedLaunchesNamed: async () => { throw new Error('launch-read-failed') },
+        recordedNamedLaunches: async () => { throw new Error('launch-list-failed') },
+      }))
+      mock.module(SRC + '/tasks/LocalAgentTask/launchReceipts.js', () => ({
+        ...launchMod,
+        recordedLaunchesNamed: async () => { throw new Error('launch-read-failed') },
+        recordedNamedLaunches: async () => { throw new Error('launch-list-failed') },
+      }))
+      const { resolveCrewAddress, unknownAgentRefusal } = await import(SRC + '/tools/SendMessageTool/crewAddress.ts')
+      const ctx = {
+        messages: [],
+        getAppState: () => ({ tasks: {}, agentNameRegistry: new Map() }),
+      }
+      failPath = true
+      try {
+        await resolveCrewAddress('a12345678', ctx)
+        out.pathThrew = false
+      } catch (e) {
+        out.pathThrew = true
+        out.pathMessage = e instanceof Error ? e.message : String(e)
+      }
+      failPath = false
+      try {
+        await resolveCrewAddress('worker-one', ctx)
+        out.namedThrew = false
+      } catch (e) {
+        out.namedThrew = true
+        out.namedMessage = e instanceof Error ? e.message : String(e)
+      }
+      try {
+        await unknownAgentRefusal('worker-one', ctx, 'deliver to')
+        out.knownThrew = false
+      } catch (e) {
+        out.knownThrew = true
+        out.knownMessage = e instanceof Error ? e.message : String(e)
+      }
+    `)
+    check(
+      'crew-address-path-throws: resolveCrewAddress propagates getAgentTranscriptPath bug instead of returning unknown',
+      r.pathThrew === true && String(r.pathMessage ?? '').includes('bad-transcript-path'),
+      JSON.stringify(r),
+    )
+    check(
+      'crew-address-recorded-named-throws: resolveCrewAddress propagates recordedLaunchesNamed failure instead of returning unknown',
+      r.namedThrew === true && String(r.namedMessage ?? '').includes('launch-read-failed'),
+      JSON.stringify(r),
+    )
+    check(
+      'crew-address-known-launched-throws: unknownAgentRefusal propagates recordedNamedLaunches failure instead of claiming an incomplete list is complete',
+      r.knownThrew === true && String(r.knownMessage ?? '').includes('launch-list-failed'),
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
