@@ -39,7 +39,9 @@ const probe = (cmd: string, timeoutMs = 15_000): CliProbe => {
 }
 
 t.section('§0 — the machine gate tells absent from broken (deterministic fixtures)')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: CLI probe fixtures use POSIX #!/bin/sh and 0o644 modes')
+} else {
   const bin = join(scratch, 'bin')
   mkdirSync(bin, { recursive: true })
   const script = (name: string, body: string): string => {
