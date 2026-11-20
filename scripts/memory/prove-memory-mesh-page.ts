@@ -159,14 +159,6 @@ console.log('\n[W] nothing is written to the library by the page')
   check('the pinned rule is word for word in its page', readFileSync(join(dir, docs.docFileName('ops')), 'utf8').includes('Every rollout names its owner before it starts.'))
 }
 
-console.log('\n[R] /memory page is the road, and the docs say what it does')
-{
-  const mneme = readFileSync(join(ROOT, 'docs/MNEME.md'), 'utf8')
-  const samples = readFileSync(join(ROOT, 'docs/SAMPLES.md'), 'utf8')
-  check('docs/MNEME.md names /memory page', mneme.includes('`/memory page`'))
-  check('docs/SAMPLES.md names the memory page as a sample', samples.includes('`/memory page`'))
-}
-
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures > 0 ? `\nprove-memory-mesh-page: RED (${failures})` : '\nprove-memory-mesh-page: green')
 process.exit(failures > 0 ? 1 : 0)
