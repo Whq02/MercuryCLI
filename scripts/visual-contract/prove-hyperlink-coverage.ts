@@ -107,6 +107,15 @@ function seedSession(home: string): string {
   return SID
 }
 
+const TERMINAL_IDENTITY_ENV = [
+  'TERM_PROGRAM', 'TERM_PROGRAM_VERSION', 'LC_TERMINAL', 'LC_TERMINAL_VERSION',
+  'ITERM_SESSION_ID', 'ITERM_PROFILE', 'TERM_SESSION_ID', '__CFBundleIdentifier',
+  'KITTY_WINDOW_ID', 'KITTY_PID', 'WEZTERM_EXECUTABLE', 'WEZTERM_PANE',
+  'GHOSTTY_RESOURCES_DIR', 'WT_SESSION', 'VTE_VERSION', 'KONSOLE_VERSION',
+  'DOMTERM', 'ZED_TERM', 'ConEmuANSI', 'ConEmuPID', 'ConEmuTask',
+  'FORCE_HYPERLINK', 'TMUX', 'TMUX_PANE', 'STY',
+] as const
+
 function runResume(name: string, extraEnv: Record<string, string>): { status: number | null; tee: string } {
   const home = seedHome(`home-${name}`)
   const SID = seedSession(home)
@@ -126,19 +135,23 @@ function runResume(name: string, extraEnv: Record<string, string>): { status: nu
       out,
     }),
   )
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    TERM: 'xterm-256color',
+    MERCURY_CONFIG_DIR: home,
+    ANTHROPIC_API_KEY: FIXTURE_KEY,
+    MERCURY_BOOT_PREFLIGHT: '0',
+    MERCURY_LIVE_GLYPHS: '0',
+    MERCURY_HEALTH_STATE_DIR: join(scratch, `health-${name}`),
+    MERCURY_DAEMON_DIR: join(scratch, `daemon-${name}`),
+    VSHOT_TEE: tee,
+    ...extraEnv,
+  }
+  for (const k of TERMINAL_IDENTITY_ENV) {
+    if (!(k in extraEnv)) delete childEnv[k]
+  }
   const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {
-    env: {
-      ...process.env,
-      TERM: 'xterm-256color',
-      MERCURY_CONFIG_DIR: home,
-      ANTHROPIC_API_KEY: FIXTURE_KEY,
-      MERCURY_BOOT_PREFLIGHT: '0',
-      MERCURY_LIVE_GLYPHS: '0',
-      MERCURY_HEALTH_STATE_DIR: join(scratch, `health-${name}`),
-      MERCURY_DAEMON_DIR: join(scratch, `daemon-${name}`),
-      VSHOT_TEE: tee,
-      ...extraEnv,
-    },
+    env: childEnv,
     encoding: 'utf8',
     timeout: vshotBudgetMs(240_000),
   })
@@ -158,6 +171,7 @@ if (!existsSync(BIN)) {
 
 t.section('§1 — the owners emit COMPLETE OSC 8 links on the flow path')
 {
+  for (const k of TERMINAL_IDENTITY_ENV) delete process.env[k]
   process.env.TERM_PROGRAM = 'iTerm.app'
   const React = (await import('react')).default
   const { createHyperlink } = await import('../../src/utils/hyperlink.ts')

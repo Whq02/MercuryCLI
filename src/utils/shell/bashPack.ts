@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { brushPackTreeDigest } from './brushPack.js'
+import { packPlatformFor } from '../platform/programs.js'
 
 const BASH_PACK_SEGMENTS = ['vendor', 'bash'] as const
 export const BASH_PACK_PATH = BASH_PACK_SEGMENTS.join('/')
@@ -16,13 +17,7 @@ export const BASH_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', '
 export type BashPackPlatform = (typeof BASH_PACK_PLATFORMS)[number]
 
 export function bashPackPlatform(platform: string = process.platform, arch: string = process.arch): BashPackPlatform | null {
-  if (platform === 'darwin' && arch === 'arm64') return 'darwin-arm64'
-  if (platform === 'darwin' && arch === 'x64') return 'darwin-x64'
-  if (platform === 'linux' && arch === 'x64') return 'linux-x64'
-  if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
-  if (platform === 'win32' && arch === 'x64') return 'win-x64'
-  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
-  return null
+  return packPlatformFor(platform, arch)
 }
 
 export function bashPackIsFetched(packPlatform: string): boolean {

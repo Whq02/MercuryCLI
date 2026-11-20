@@ -1,3 +1,5 @@
+import { localIpcDoorKind } from '../utils/platform/files.js'
+
 export interface PlaneBootFactsV1 {
   selfPid: number
   selfBuildTree: string | null
@@ -29,7 +31,7 @@ export function decidePlaneBoot(facts: PlaneBootFactsV1, platform: NodeJS.Platfo
     if (facts.handoverFrom !== null) {
       if (facts.handoverFrom !== serverPid) return { road: 'stand-down', why: `the plane moved to pid ${serverPid} since the handover from pid ${facts.handoverFrom} was asked` }
       if (sameBuildTree(serverBuild, facts.selfBuildTree)) return { road: 'stand-down', why: `the predecessor pid ${serverPid} already runs this build — nothing to move` }
-      if (platform === 'win32' && facts.plane !== null && other(facts.plane.pid) === serverPid) {
+      if (localIpcDoorKind(platform) === 'named-pipe' && facts.plane !== null && other(facts.plane.pid) === serverPid) {
         return { road: 'wait-lock', for: serverPid, why: `the predecessor pid ${serverPid} still holds the control pipe — on Windows it is taken once the predecessor leaves` }
       }
       return { road: 'handover', from: serverPid, why: `the predecessor pid ${serverPid} serves the plane on another build` }

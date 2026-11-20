@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fakeCommand } from '../dap/fakeCommand.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -43,9 +44,7 @@ section('(1) the GDB fallback row — probed, never assumed')
   const savedPath = process.env.PATH
   const shimDir = mkdtempSync(join(tmpdir(), 'gdb-shim-'))
   const writeShim = (version: string): void => {
-    const shim = join(shimDir, 'gdb')
-    writeFileSync(shim, `#!/bin/sh\necho "GNU gdb (GDB) ${version}"\n`)
-    chmodSync(shim, 0o755)
+    fakeCommand(shimDir, 'gdb', `GNU gdb (GDB) ${version}\n`, shimDir)
   }
   try {
     process.env.PATH = mkdtempSync(join(tmpdir(), 'empty-path-'))

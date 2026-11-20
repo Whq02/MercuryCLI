@@ -254,19 +254,22 @@ import { chmodSync as p02ChmodSync, mkdirSync as p02MkdirSync, mkdtempSync as p0
 import { tmpdir as p02Tmpdir } from 'node:os'
 import * as p02Path from 'node:path'
 import {
-  debugpyPythonCommands,
   envPathDirs,
-  evalPythonCommands,
   executableName,
   executableSuffixes,
+  hostOsFamily,
   hostPathDelimiter,
   isExecutableFile,
   isExecutablePath,
+  missingSpawnCommandError,
+  normalizedOsPlatform,
+  packPlatformFor,
   pathDelimiter,
   pathExtensions,
   resolveProgramInPath,
   spawnableCommandSpellings,
   vendoredNodeRelativePath,
+  vendorPlatformTag,
   venvPythonPath,
 } from '../../src/utils/platform/programs.js'
 
@@ -358,26 +361,67 @@ const PROGRAMS: Row[] = [
     recorded: {"win32":{"names":["llama-server.exe","bun.exe","rg.exe","godot.exe","godot4.exe"],"nodeRel":"node.exe"},"darwin":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"},"linux":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"},"win32 by process.platform alone":{"names":["llama-server.exe","bun.exe","rg.exe","godot.exe","godot4.exe"],"nodeRel":"node.exe"},"win32 by getPlatform() alone":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"}},
   },
   {
-    name: 'programs: venvPythonPath, evalPythonCommands and debugpyPythonCommands',
+    name: 'programs: venvPythonPath',
+    answers: () => venvPythonPath('/proj/.venv').replaceAll('\\', '/'),
+    recorded: {"win32":"/proj/.venv/Scripts/python.exe","darwin":"/proj/.venv/bin/python","linux":"/proj/.venv/bin/python","win32 by process.platform alone":"/proj/.venv/Scripts/python.exe","win32 by getPlatform() alone":"/proj/.venv/bin/python"},
+  },
+  {
+    name: 'programs: missingSpawnCommandError',
+    answers: () =>
+      withProgramFixture(dir => {
+        const codeOf = (err: NodeJS.ErrnoException | null): string | null => err?.code ?? null
+        const env: NodeJS.ProcessEnv = { Path: dir, PATHEXT: '.EXE;.CMD;.CUSTOM' }
+        return {
+          missingBare: codeOf(missingSpawnCommandError('definitely-absent-279', env, dir)),
+          missingExplicit: codeOf(missingSpawnCommandError(p02Path.join(dir, 'nope'), env, dir)),
+          empty: codeOf(missingSpawnCommandError('', env, dir)),
+          foundExe: codeOf(missingSpawnCommandError('run-x', env, dir)),
+          foundShim: codeOf(missingSpawnCommandError('shim', env, dir)),
+          foundExplicit: codeOf(missingSpawnCommandError(p02Path.join(dir, 'run-x.exe'), env, dir)),
+        }
+      }),
+    recorded: {"win32":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"darwin":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"linux":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by process.platform alone":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by getPlatform() alone":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null}},
+  },
+  {
+    name: 'programs: packPlatformFor, vendorPlatformTag, hostOsFamily and normalizedOsPlatform',
     answers: () => ({
-      venv: venvPythonPath('/proj/.venv').replaceAll('\\', '/'),
-      evalCmds: evalPythonCommands(),
-      debugpyCmds: debugpyPythonCommands(),
+      pack: ['arm64', 'x64', 'ia32'].map(arch => packPlatformFor(process.platform, arch)),
+      packExplicit: [packPlatformFor('freebsd', 'x64'), packPlatformFor('win32', 'arm64')],
+      vendorTag: ['arm64', 'x64'].map(arch => vendorPlatformTag(process.platform, arch)),
+      hostOs: hostOsFamily(),
+      hostOsExplicit: [hostOsFamily('freebsd'), hostOsFamily('win32'), hostOsFamily('darwin')],
+      normOs: normalizedOsPlatform(),
+      normOsExplicit: [normalizedOsPlatform('freebsd'), normalizedOsPlatform('win32'), normalizedOsPlatform('darwin')],
     }),
-    recorded: {"win32":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"darwin":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python","/usr/bin/python3"]},"linux":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]},"win32 by process.platform alone":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"win32 by getPlatform() alone":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]}},
+    recorded: {"win32":{"pack":["win-arm64","win-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["win-arm64","win-x64"],"hostOs":"windows","hostOsExplicit":["linux","windows","darwin"],"normOs":"win32","normOsExplicit":["linux","win32","darwin"]},"darwin":{"pack":["darwin-arm64","darwin-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["darwin-arm64","darwin-x64"],"hostOs":"darwin","hostOsExplicit":["linux","windows","darwin"],"normOs":"darwin","normOsExplicit":["linux","win32","darwin"]},"linux":{"pack":["linux-arm64","linux-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["linux-arm64","linux-x64"],"hostOs":"linux","hostOsExplicit":["linux","windows","darwin"],"normOs":"linux","normOsExplicit":["linux","win32","darwin"]},"win32 by process.platform alone":{"pack":["win-arm64","win-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["win-arm64","win-x64"],"hostOs":"windows","hostOsExplicit":["linux","windows","darwin"],"normOs":"win32","normOsExplicit":["linux","win32","darwin"]},"win32 by getPlatform() alone":{"pack":["linux-arm64","linux-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["linux-arm64","linux-x64"],"hostOs":"linux","hostOsExplicit":["linux","windows","darwin"],"normOs":"linux","normOsExplicit":["linux","win32","darwin"]}},
   },
 ]
 
 import {
+  commandByteBudget,
   commandShellArgv,
   commandShellOption,
+  decodeShellScriptBytes,
+  editorInvocationOf,
+  editorShellCommandLine,
+  envVarKey,
   executableNeedsVerbatimArgs,
+  extraToolShellDefaults,
+  guiEditorSpawnSpec,
+  headlessGitDefaults,
   hostScriptDialect,
   hostShellHint,
   isBatchShim,
+  isPlatformAskpassVar,
+  loginPathOverride,
+  mergeLoginPath,
+  parseEditorCommandLine,
+  promptEditorSpawnSpec,
   shellBinarySpec,
   shellCommandSpec,
   shimShellOption,
+  terminalEditorSpawnSpec,
+  toolShellEnvKey,
 } from '../../src/utils/platform/spawn.js'
 const SPAWN: Row[] = [
   {
@@ -451,15 +495,134 @@ const SPAWN: Row[] = [
     answers: () => hostScriptDialect(),
     recorded: {"win32":"powershell","darwin":"posix-sh","linux":"posix-sh","win32 by process.platform alone":"powershell","win32 by getPlatform() alone":"posix-sh"},
   },
+  {
+    name: 'spawn.parseEditorCommandLine',
+    answers: () => [
+      parseEditorCommandLine('"C:\\Program Files\\Code\\code.exe" --wait', { platform: process.platform, path: '' }),
+      parseEditorCommandLine("vim -u 'NONE'", { platform: process.platform, path: '' }),
+      parseEditorCommandLine('nano', { platform: process.platform, path: '' }),
+    ],
+    recorded: {"win32":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","'NONE'"]},{"executable":"nano","args":[]}],"darwin":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}],"linux":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}],"win32 by process.platform alone":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","'NONE'"]},{"executable":"nano","args":[]}],"win32 by getPlatform() alone":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}]},
+  },
+  {
+    name: 'spawn.editorInvocationOf',
+    answers: () => [
+      editorInvocationOf('C:\\Program Files\\ed.exe', 'C:\\Program Files\\ed.exe', { executable: 'C:\\Program Files\\ed.exe', args: ['--wait'] }),
+      editorInvocationOf('code', 'code -w', { executable: 'code', args: [] }),
+    ],
+    recorded: {"win32":[{"executablePath":"C:\\Program Files\\ed.exe","args":["--wait"]},{"executablePath":"code","args":["-w"]}],"darwin":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}],"linux":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}],"win32 by process.platform alone":[{"executablePath":"C:\\Program Files\\ed.exe","args":["--wait"]},{"executablePath":"code","args":["-w"]}],"win32 by getPlatform() alone":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}]},
+  },
+  {
+    name: 'spawn.editorShellCommandLine',
+    answers: () => [
+      editorShellCommandLine('/usr/bin/vim', ['-n'], "/tmp/a'b.txt"),
+      editorShellCommandLine('C:\\bin\\code.cmd', ['-w'], 'C:\\Users\\100%\\a.txt'),
+    ],
+    recorded: {"win32":["\"/usr/bin/vim\" \"-n\" \"%MERCURY_EDITOR_FILE%\"","\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\""],"darwin":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"],"linux":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"],"win32 by process.platform alone":["\"/usr/bin/vim\" \"-n\" \"%MERCURY_EDITOR_FILE%\"","\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\""],"win32 by getPlatform() alone":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"]},
+  },
+  {
+    name: 'spawn.promptEditorSpawnSpec',
+    answers: () => [
+      promptEditorSpawnSpec('C:\\bin\\code.cmd', ['-w'], 'C:\\tmp\\p.txt', 'C:\\Windows\\System32\\cmd.exe'),
+      promptEditorSpawnSpec('C:\\bin\\code.cmd', ['-w'], 'C:\\tmp\\p.txt', 'C:\\Program Files\\PowerShell\\7\\pwsh.exe'),
+      promptEditorSpawnSpec('/usr/bin/vim', [], "/tmp/a'b.txt", undefined),
+    ],
+    recorded: {"win32":[{"shell":false,"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/v:off","/s","/c","\"\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"C:\\Program Files\\PowerShell\\7\\pwsh.exe","args":["-NoLogo","-NoProfile","-Command","& 'C:\\bin\\code.cmd' '-w' $env:MERCURY_EDITOR_FILE"],"windowsVerbatimArguments":false,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"cmd.exe","args":["/d","/v:off","/s","/c","\"\"/usr/bin/vim\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"/tmp/a'b.txt"}}],"darwin":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}],"linux":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}],"win32 by process.platform alone":[{"shell":false,"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/v:off","/s","/c","\"\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"C:\\Program Files\\PowerShell\\7\\pwsh.exe","args":["-NoLogo","-NoProfile","-Command","& 'C:\\bin\\code.cmd' '-w' $env:MERCURY_EDITOR_FILE"],"windowsVerbatimArguments":false,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"cmd.exe","args":["/d","/v:off","/s","/c","\"\"/usr/bin/vim\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"/tmp/a'b.txt"}}],"win32 by getPlatform() alone":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}]},
+  },
+  {
+    name: 'spawn.guiEditorSpawnSpec',
+    answers: () => [
+      guiEditorSpawnSpec('C:\\Program Files\\Code\\code.exe', 'C:\\Program Files\\Code\\code.exe', [], ['-g', 'f.ts:10'], true),
+      guiEditorSpawnSpec('code --reuse-window', 'code', ['--reuse-window'], ['-g', 'f.ts:10'], false),
+    ],
+    recorded: {"win32":[{"shell":true,"command":"\"C:\\Program Files\\Code\\code.exe\" \"-g\" \"f.ts:10\""},{"shell":true,"command":"\"code\" \"--reuse-window\" \"-g\" \"f.ts:10\""}],"darwin":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}],"linux":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}],"win32 by process.platform alone":[{"shell":true,"command":"\"C:\\Program Files\\Code\\code.exe\" \"-g\" \"f.ts:10\""},{"shell":true,"command":"\"code\" \"--reuse-window\" \"-g\" \"f.ts:10\""}],"win32 by getPlatform() alone":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}]},
+  },
+  {
+    name: 'spawn.terminalEditorSpawnSpec',
+    answers: () => [
+      terminalEditorSpawnSpec('vim -n', 'vim', ['-n'], ['+42'], '/tmp/a b.ts'),
+      terminalEditorSpawnSpec('nano', 'nano', [], [], 'C:\\tmp\\a b.ts'),
+    ],
+    recorded: {"win32":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"darwin":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"linux":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"win32 by process.platform alone":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"win32 by getPlatform() alone":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}]},
+  },
+  {
+    name: 'spawn.isPlatformAskpassVar',
+    answers: () => [
+      isPlatformAskpassVar('DISPLAY', 'needs-to-be-defined'),
+      isPlatformAskpassVar('display', 'needs-to-be-defined'),
+      isPlatformAskpassVar('DISPLAY', ':0'),
+      isPlatformAskpassVar('SSH_ASKPASS', 'C:\\Program Files\\Git\\mingw64\\bin\\git-askpass.exe'),
+      isPlatformAskpassVar('git_askpass', '"/usr/libexec/git-core/git-gui--askpass"'),
+      isPlatformAskpassVar('SSH_ASKPASS', '/usr/bin/my-askpass'),
+      isPlatformAskpassVar('SSH_ASKPASS', undefined),
+    ],
+    recorded: {"win32":[true,true,false,true,true,false,false],"darwin":[false,false,false,false,false,false,false],"linux":[false,false,false,false,false,false,false],"win32 by process.platform alone":[true,true,false,true,true,false,false],"win32 by getPlatform() alone":[false,false,false,false,false,false,false]},
+  },
+  {
+    name: 'spawn.envVarKey',
+    answers: () => [envVarKey('Path'), envVarKey('PATH'), envVarKey('npm_config_yes')],
+    recorded: {"win32":["PATH","PATH","NPM_CONFIG_YES"],"darwin":["Path","PATH","npm_config_yes"],"linux":["Path","PATH","npm_config_yes"],"win32 by process.platform alone":["PATH","PATH","NPM_CONFIG_YES"],"win32 by getPlatform() alone":["Path","PATH","npm_config_yes"]},
+  },
+  {
+    name: 'spawn.toolShellEnvKey',
+    answers: () => [toolShellEnvKey('Path'), toolShellEnvKey('npm_config_yes'), toolShellEnvKey('PNPM_CONFIG_FOO'), toolShellEnvKey('myVar')],
+    recorded: {"win32":["PATH","NPM_CONFIG_YES","PNPM_CONFIG_FOO","MYVAR"],"darwin":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"],"linux":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"],"win32 by process.platform alone":["PATH","NPM_CONFIG_YES","PNPM_CONFIG_FOO","MYVAR"],"win32 by getPlatform() alone":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"]},
+  },
+  {
+    name: 'spawn.extraToolShellDefaults',
+    answers: () => extraToolShellDefaults(),
+    recorded: {"win32":{"PYTHONIOENCODING":"utf-8","PYTHONUTF8":"1","LANG":"C.UTF-8","LC_ALL":"C.UTF-8","GCM_INTERACTIVE":"never"},"darwin":{},"linux":{},"win32 by process.platform alone":{"PYTHONIOENCODING":"utf-8","PYTHONUTF8":"1","LANG":"C.UTF-8","LC_ALL":"C.UTF-8","GCM_INTERACTIVE":"never"},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.headlessGitDefaults',
+    answers: () => headlessGitDefaults(),
+    recorded: {"win32":{"GIT_ASKPASS":"","SSH_ASKPASS":"","GCM_INTERACTIVE":"never"},"darwin":{},"linux":{},"win32 by process.platform alone":{"GIT_ASKPASS":"","SSH_ASKPASS":"","GCM_INTERACTIVE":"never"},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.mergeLoginPath',
+    answers: () => [
+      mergeLoginPath('/usr/bin:/bin', { PATH: '/opt/homebrew/bin:/usr/bin' }),
+      mergeLoginPath('/custom:/usr/bin', { Path: '/extra:/usr/bin' }),
+      mergeLoginPath('', { PATH: '/a:/b' }),
+    ],
+    recorded: {"win32":["/usr/bin:/bin:/opt/homebrew/bin","/custom:/usr/bin:/extra","/a:/b"],"darwin":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"],"linux":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"],"win32 by process.platform alone":["/usr/bin:/bin:/opt/homebrew/bin","/custom:/usr/bin:/extra","/a:/b"],"win32 by getPlatform() alone":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"]},
+  },
+  {
+    name: 'spawn.loginPathOverride',
+    answers: () => loginPathOverride('/usr/bin', { PATH: '/opt/homebrew/bin:/usr/bin' }),
+    recorded: {"win32":"undefined","darwin":"/opt/homebrew/bin:/usr/bin","linux":"/opt/homebrew/bin:/usr/bin","win32 by process.platform alone":"undefined","win32 by getPlatform() alone":"/opt/homebrew/bin:/usr/bin"},
+  },
+  {
+    name: 'spawn.commandByteBudget',
+    answers: () => commandByteBudget(6400, 4500),
+    recorded: {"win32":6400,"darwin":4500,"linux":4500,"win32 by process.platform alone":6400,"win32 by getPlatform() alone":4500},
+  },
+  {
+    name: 'spawn.decodeShellScriptBytes',
+    answers: () => [
+      decodeShellScriptBytes(Buffer.from('export A=1\r\nexport B=2\r\n', 'utf8')),
+      decodeShellScriptBytes(Buffer.from('\uFEFFexport C=3\r\n', 'utf8')),
+      decodeShellScriptBytes(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('export D=4\r\n', 'utf16le')])),
+    ],
+    recorded: {"win32":["export A=1\nexport B=2","export C=3","export D=4"],"darwin":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"],"linux":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"],"win32 by process.platform alone":["export A=1\nexport B=2","export C=3","export D=4"],"win32 by getPlatform() alone":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"]},
+  },
 ]
 
 import {
   availableMemoryReader,
+  canReraiseOwnSignal,
   childGetsOwnProcessGroup,
+  isOwnKillExitCode,
+  killSignalForChild,
+  msysSignalExitCode,
+  posixExitSignalsCount,
   processInstantStartForm,
   processListCommand,
   processStartFormFor,
   processStartProbeKind,
+  processTreeEndMethod,
+  supportsGracefulSigterm,
+  wasEndedByProcessTreeKill,
 } from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
   {
@@ -497,23 +660,104 @@ const PROCESSES: Row[] = [
     answers: stand => [processListCommand(), processListCommand(stand.node)],
     recorded: {"win32":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"darwin":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"linux":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"win32 by process.platform alone":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"win32 by getPlatform() alone":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}]},
   },
+  {
+    name: 'posixExitSignalsCount',
+    answers: stand => [posixExitSignalsCount(), posixExitSignalsCount(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'isOwnKillExitCode',
+    answers: stand => [
+      isOwnKillExitCode(true, 1),
+      isOwnKillExitCode(true, 137),
+      isOwnKillExitCode(true, 0),
+      isOwnKillExitCode(false, 1),
+      isOwnKillExitCode(true, 1, stand.node),
+    ],
+    recorded: {"win32":[true,true,false,false,true],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,false,false,true],"win32 by getPlatform() alone":[false,false,false,false,false]},
+  },
+  {
+    name: 'wasEndedByProcessTreeKill',
+    answers: stand => [
+      wasEndedByProcessTreeKill('SIGTERM', 0, null),
+      wasEndedByProcessTreeKill(null, 1, 1),
+      wasEndedByProcessTreeKill(null, 0, 1),
+      wasEndedByProcessTreeKill(null, 1, 0),
+      wasEndedByProcessTreeKill(null, 2, 1, stand.node),
+    ],
+    recorded: {"win32":[true,true,false,false,true],"darwin":[true,false,false,false,false],"linux":[true,false,false,false,false],"win32 by process.platform alone":[true,true,false,false,true],"win32 by getPlatform() alone":[true,false,false,false,false]},
+  },
+  {
+    name: 'msysSignalExitCode',
+    answers: stand => [
+      msysSignalExitCode(9 * 256, true),
+      msysSignalExitCode(9 * 256, false),
+      msysSignalExitCode(1, true),
+      msysSignalExitCode(65 * 256, true),
+      msysSignalExitCode(15 * 256, true, stand.node),
+    ],
+    recorded: {"win32":[137,2304,1,16640,143],"darwin":[2304,2304,1,16640,3840],"linux":[2304,2304,1,16640,3840],"win32 by process.platform alone":[137,2304,1,16640,143],"win32 by getPlatform() alone":[2304,2304,1,16640,3840]},
+  },
+  {
+    name: 'canReraiseOwnSignal',
+    answers: stand => [canReraiseOwnSignal(), canReraiseOwnSignal(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'killSignalForChild',
+    answers: stand => [
+      killSignalForChild('SIGKILL'),
+      killSignalForChild('SIGTERM'),
+      killSignalForChild('SIGINT'),
+      killSignalForChild('SIGKILL', stand.node),
+    ],
+    recorded: {"win32":["undefined","undefined","undefined","undefined"],"darwin":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"linux":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"win32 by process.platform alone":["undefined","undefined","undefined","undefined"],"win32 by getPlatform() alone":["SIGKILL","SIGTERM","SIGINT","SIGKILL"]},
+  },
+  {
+    name: 'supportsGracefulSigterm',
+    answers: stand => [supportsGracefulSigterm(), supportsGracefulSigterm(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'processTreeEndMethod',
+    answers: stand => [processTreeEndMethod(), processTreeEndMethod(stand.node)],
+    recorded: {"win32":["win32-taskkill","win32-taskkill"],"darwin":["posix-group","posix-group"],"linux":["posix-group","posix-group"],"win32 by process.platform alone":["win32-taskkill","win32-taskkill"],"win32 by getPlatform() alone":["posix-group","posix-group"]},
+  },
+  {
+    name: 'ripgrep platformDir equal arms',
+    answers: () => ['x64', 'arm64'].map(arch => `${arch}-${process.platform}`),
+    recorded: {"win32":["x64-win32","arm64-win32"],"darwin":["x64-darwin","arm64-darwin"],"linux":["x64-linux","arm64-linux"],"win32 by process.platform alone":["x64-win32","arm64-win32"],"win32 by getPlatform() alone":["x64-linux","arm64-linux"]},
+  },
 ]
 
 import { chmodSync, constants as fsConstants, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { rememberedPlatform } from '../../src/utils/platform/host.js'
 import {
   appendNoFollowFlags,
+  boundedProjectTempName,
+  defaultMercuryTempBase,
+  dirFsyncErrorIsFatal,
+  envUserHomeDir,
   exclusiveCreateNoFollowFlags,
+  heldFileRetryDelayMs,
   isDirAbsentOnRmdirError,
   isOwnedPrivateEntry,
   isPrivateFileMode,
+  isTransientHeldFileCode,
+  localIpcDoorKind,
+  mercuryTempDirName,
+  mountedVolumeRoots,
   pathEntryKindSync,
+  platformTempRoots,
   posixFileModesApply,
   readExposedFileModeSync,
   symlinkDeniedByPrivilege,
   symlinksMayRequirePrivilege,
+  userConfigRoot,
+  userHomeDir,
+  xdgAndRoamingConfigRoots,
 } from '../../src/utils/platform/files.js'
 
 const FILES: Row[] = [
@@ -735,6 +979,180 @@ const FILES: Row[] = [
       linux: [false, false, false, true, false],
       'win32 by process.platform alone': [true, true, false, true, false],
       'win32 by getPlatform() alone': [false, false, false, true, false],
+    },
+  },
+  {
+    name: 'files · isTransientHeldFileCode',
+    answers: () => [
+      isTransientHeldFileCode('EPERM'),
+      isTransientHeldFileCode('EBUSY'),
+      isTransientHeldFileCode('EACCES'),
+      isTransientHeldFileCode('ENOENT'),
+      isTransientHeldFileCode(undefined),
+      isTransientHeldFileCode('EBUSY', 'win32'),
+      isTransientHeldFileCode('EBUSY', 'linux'),
+    ],
+    recorded: {
+      win32: [true, true, true, false, false, true, false],
+      darwin: [false, false, false, false, false, true, false],
+      linux: [false, false, false, false, false, true, false],
+      'win32 by process.platform alone': [true, true, true, false, false, true, false],
+      'win32 by getPlatform() alone': [false, false, false, false, false, true, false],
+    },
+  },
+  {
+    name: 'files · heldFileRetryDelayMs',
+    answers: () => [
+      heldFileRetryDelayMs('EBUSY', 0),
+      heldFileRetryDelayMs('EBUSY', 1),
+      heldFileRetryDelayMs('EPERM', 2),
+      heldFileRetryDelayMs('EACCES', 3),
+      heldFileRetryDelayMs('EBUSY', 4),
+      heldFileRetryDelayMs('ENOENT', 1),
+      heldFileRetryDelayMs('EBUSY', 1, 'win32'),
+      heldFileRetryDelayMs('EBUSY', 1, 'darwin'),
+    ],
+    recorded: {
+      win32: [null, 50, 100, 200, null, null, 50, null],
+      darwin: [null, null, null, null, null, null, 50, null],
+      linux: [null, null, null, null, null, null, 50, null],
+      'win32 by process.platform alone': [null, 50, 100, 200, null, null, 50, null],
+      'win32 by getPlatform() alone': [null, null, null, null, null, null, 50, null],
+    },
+  },
+  {
+    name: 'files · dirFsyncErrorIsFatal',
+    answers: () => [
+      dirFsyncErrorIsFatal({ code: 'EINVAL' }),
+      dirFsyncErrorIsFatal({ code: 'EISDIR' }),
+      dirFsyncErrorIsFatal({ code: 'EPERM' }),
+      dirFsyncErrorIsFatal({ code: 'EACCES' }),
+      dirFsyncErrorIsFatal({ code: 'ENOTSUP' }),
+      dirFsyncErrorIsFatal({ code: 'EBADF' }),
+      dirFsyncErrorIsFatal({ code: 'EIO' }),
+      dirFsyncErrorIsFatal(new Error('plain')),
+      dirFsyncErrorIsFatal({ code: 'EIO' }, 'win32'),
+      dirFsyncErrorIsFatal({ code: 'EIO' }, 'linux'),
+    ],
+    recorded: {
+      win32: [false, false, false, false, false, false, false, false, false, true],
+      darwin: [false, false, false, false, false, false, true, true, false, true],
+      linux: [false, false, false, false, false, false, true, true, false, true],
+      'win32 by process.platform alone': [false, false, false, false, false, false, false, false, false, true],
+      'win32 by getPlatform() alone': [false, false, false, false, false, false, true, true, false, true],
+    },
+  },
+  {
+    name: 'files · localIpcDoorKind',
+    answers: () => [
+      localIpcDoorKind(),
+      localIpcDoorKind('win32'),
+      localIpcDoorKind('darwin'),
+      localIpcDoorKind('linux'),
+    ],
+    recorded: {
+      win32: ['named-pipe', 'named-pipe', 'unix-socket', 'unix-socket'],
+      darwin: ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
+      linux: ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
+      'win32 by process.platform alone': ['named-pipe', 'named-pipe', 'unix-socket', 'unix-socket'],
+      'win32 by getPlatform() alone': ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
+    },
+  },
+  {
+    name: 'files · userHomeDir and envUserHomeDir',
+    answers: () => {
+      const norm = (s: string): string => (s === homedir() ? '<homedir>' : s)
+      const both = { HOME: ' /posix/home ', USERPROFILE: 'C:\\Users\\win' }
+      const empty = { HOME: '   ', USERPROFILE: '' }
+      return [
+        norm(userHomeDir(both)),
+        norm(userHomeDir(empty)),
+        norm(userHomeDir(both, 'win32')),
+        norm(userHomeDir(both, 'linux')),
+        norm(envUserHomeDir(both)),
+        norm(envUserHomeDir(empty)),
+        norm(envUserHomeDir(both, 'win32')),
+        norm(envUserHomeDir(both, 'linux')),
+      ]
+    },
+    recorded: {
+      win32: ['<homedir>', '<homedir>', '<homedir>', '/posix/home', 'C:\\Users\\win', '<homedir>', 'C:\\Users\\win', ' /posix/home '],
+      darwin: ['/posix/home', '<homedir>', '<homedir>', '/posix/home', ' /posix/home ', '   ', 'C:\\Users\\win', ' /posix/home '],
+      linux: ['/posix/home', '<homedir>', '<homedir>', '/posix/home', ' /posix/home ', '   ', 'C:\\Users\\win', ' /posix/home '],
+      'win32 by process.platform alone': ['<homedir>', '<homedir>', '<homedir>', '/posix/home', 'C:\\Users\\win', '<homedir>', 'C:\\Users\\win', ' /posix/home '],
+      'win32 by getPlatform() alone': ['/posix/home', '<homedir>', '<homedir>', '/posix/home', ' /posix/home ', '   ', 'C:\\Users\\win', ' /posix/home '],
+    },
+  },
+  {
+    name: 'files · mountedVolumeRoots',
+    answers: () => [
+      mountedVolumeRoots(),
+      mountedVolumeRoots('win32'),
+      mountedVolumeRoots('darwin'),
+      mountedVolumeRoots('linux'),
+    ],
+    recorded: {
+      win32: [[], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      darwin: [['/Volumes', '/mnt'], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      linux: [['/Volumes', '/mnt'], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      'win32 by process.platform alone': [[], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      'win32 by getPlatform() alone': [['/Volumes', '/mnt'], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+    },
+  },
+  {
+    name: 'files · userConfigRoot and xdgAndRoamingConfigRoots',
+    answers: () => {
+      const norm = (s: string): string => s.replace(/\\/g, '/')
+      const withBoth = { XDG_CONFIG_HOME: '/xdg', APPDATA: 'C:\\AppData' }
+      const withAppData = { APPDATA: 'C:\\AppData' }
+      return [
+        norm(userConfigRoot('H')),
+        norm(userConfigRoot('H', 'win32')),
+        norm(userConfigRoot('H', 'darwin')),
+        norm(userConfigRoot('H', 'linux')),
+        xdgAndRoamingConfigRoots(withBoth, 'H').map(norm),
+        xdgAndRoamingConfigRoots(withAppData, 'H').map(norm),
+        xdgAndRoamingConfigRoots({}, 'H').map(norm),
+      ]
+    },
+    recorded: {
+      win32: ['H/AppData/Roaming', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg', 'C:/AppData'], ['H/.config', 'C:/AppData'], ['H/.config']],
+      darwin: ['H/Library/Application Support', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg'], ['H/.config'], ['H/.config']],
+      linux: ['H/.config', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg'], ['H/.config'], ['H/.config']],
+      'win32 by process.platform alone': ['H/AppData/Roaming', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg', 'C:/AppData'], ['H/.config', 'C:/AppData'], ['H/.config']],
+      'win32 by getPlatform() alone': ['H/.config', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg'], ['H/.config'], ['H/.config']],
+    },
+  },
+  {
+    name: 'files · platformTempRoots, mercuryTempDirName, defaultMercuryTempBase, boundedProjectTempName',
+    answers: () => {
+      const normTmp = (s: string): string => (s === tmpdir() ? '<tmpdir>' : s)
+      const uid = typeof process.getuid === 'function' ? process.getuid() : 0
+      const normDir = (s: string): string => (s === `mercury-${uid}` ? 'mercury-<uid>' : s)
+      const longName = 'a'.repeat(60)
+      return [
+        platformTempRoots().map(normTmp),
+        platformTempRoots(true).map(normTmp),
+        platformTempRoots(true, 'win32').map(normTmp),
+        platformTempRoots(false, 'linux').map(normTmp),
+        normDir(mercuryTempDirName()),
+        normDir(mercuryTempDirName('windows')),
+        normDir(mercuryTempDirName('linux')),
+        normTmp(defaultMercuryTempBase()),
+        normTmp(defaultMercuryTempBase('windows')),
+        normTmp(defaultMercuryTempBase('macos')),
+        boundedProjectTempName('short', 'deadbeef'),
+        boundedProjectTempName(longName, 'deadbeef'),
+        boundedProjectTempName(longName, 'deadbeef', 48, 'windows'),
+        boundedProjectTempName(longName, 'deadbeef', 48, 'linux'),
+      ]
+    },
+    recorded: {
+      win32: [['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury', 'mercury', 'mercury-<uid>', '<tmpdir>', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      darwin: [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      linux: [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      'win32 by process.platform alone': [['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      'win32 by getPlatform() alone': [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury', 'mercury', 'mercury-<uid>', '<tmpdir>', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
     },
   },
 ]

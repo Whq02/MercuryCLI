@@ -24,6 +24,7 @@ import {
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 
 
@@ -124,10 +125,9 @@ export function useWorkerTranscriptFold(
     setFold(null)
     setMalformed(0)
     setReadError(null)
-    let cancelled = false
+    const controller = new AbortController()
     let cursorRef: import('../../services/concourse/workerTranscript.js').TranscriptCursor | null = null
     let watcher: import('node:fs').FSWatcher | null = null
-    let armTimer: ReturnType<typeof setInterval> | null = null
     let heartbeat: ReturnType<typeof setInterval> | null = null
     const liftSeq = { n: 0 }
     const foldRecords = (records: unknown[], rewound: boolean, newlyMalformed: number): void => {
@@ -153,10 +153,10 @@ export function useWorkerTranscriptFold(
       import('node:fs'),
     ]).then(
       ([wt, fs]) => {
-        if (cancelled) return
+        if (controller.signal.aborted) return
         const path = wt.workerTranscriptPath({ sessionId, workspaceId })
         const drain = (): void => {
-          if (cancelled) return
+          if (controller.signal.aborted) return
           if (cursorRef === null) {
             const opened = openInitialWorkerTranscript(path, wt.openWorkerTranscript)
             if (!opened.ok) {
@@ -199,23 +199,29 @@ export function useWorkerTranscriptFold(
         }
         drain()
         if (!arm()) {
-          armTimer = startInterval(() => {
-            drain()
-            if (arm() && armTimer) {
-              stopInterval(armTimer)
-              armTimer = null
-            }
-          }, 1000)
-          armTimer.unref?.()
+          let first = true
+          void pollUntil(
+            () => {
+              if (first) {
+                first = false
+                return undefined
+              }
+              drain()
+              return arm() ? true : undefined
+            },
+            1000,
+            Infinity,
+            () => false,
+            { signal: controller.signal, onAbort: () => false, unref: true },
+          )
         }
         heartbeat = startInterval(drain, 5000)
         heartbeat.unref?.()
       },
     )
     return () => {
-      cancelled = true
+      controller.abort()
       if (watcher) watcher.close()
-      if (armTimer) stopInterval(armTimer)
       if (heartbeat) stopInterval(heartbeat)
     }
   }, [sessionId, workspaceId])

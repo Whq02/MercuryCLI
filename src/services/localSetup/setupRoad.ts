@@ -7,6 +7,7 @@ import { resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
 import { pickAndProve, proveRecordFor, proveRequestOf, proveTimingWords, proveWillRun, setupModelIdOf } from './setupProve.js'
 import { modelListed, pullModel } from './setupPull.js'
 import { planStart, readOllamaVersion, startServer } from './setupStart.js'
+import { normalizedOsPlatform } from '../../utils/platform/programs.js'
 import {
   SETUP_KEYS_LINE,
   SETUP_MODEL_LIBRARY,
@@ -66,7 +67,7 @@ export function summaryWords(summary: Omit<SetupSummary, 'words'>): string {
 }
 
 function platformOf(platform: NodeJS.Platform): SetupPlatform {
-  return platform === 'darwin' || platform === 'win32' ? platform : 'linux'
+  return normalizedOsPlatform(platform)
 }
 
 async function proveWillRunFor(tag: string, root: string, server: LocalServerKind, seam: SetupIo): Promise<string> {

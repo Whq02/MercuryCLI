@@ -2,6 +2,7 @@ import { existsSync, watch as watchDir, type FSWatcher } from 'node:fs'
 import { basename, dirname, join } from 'path'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { localIpcDoorKind } from '../../utils/platform/files.js'
 import { controlKeyPath, controlSockPath, daemonStatePath, reassertControlKey } from '../controlSocket.js'
 import { daemonHomeStands } from '../daemonHome.js'
 import { deployedRuntime, predecessorSockPath, releaseVersionsDir } from '../handover.js'
@@ -26,7 +27,7 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
   let healInflight = false
   let healQueued = false
   let recordUnreadSaid: string | undefined
-  const ownSockPath = process.platform === 'win32' ? null : predecessorSockPath(process.pid)
+  const ownSockPath = localIpcDoorKind() === 'named-pipe' ? null : predecessorSockPath(process.pid)
   const healCheck = async (): Promise<void> => {
     if (healInflight) {
       healQueued = true
@@ -35,7 +36,7 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
     healInflight = true
     try {
       if (!daemonHomeStands('the plane heal')) return
-      const sockMissing = process.platform === 'win32' ? false : !existsSync(controlSockPath())
+      const sockMissing = localIpcDoorKind() === 'named-pipe' ? false : !existsSync(controlSockPath())
       const keyMissing = !existsSync(controlKeyPath())
       let foreignOwner = false
       let stateMissing = false
@@ -100,10 +101,10 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
   const planeNames = new Set([
     basename(controlKeyPath()),
     basename(daemonStatePath()),
-    ...(process.platform === 'win32' ? [] : [basename(controlSockPath())]),
+    ...(localIpcDoorKind() === 'named-pipe' ? [] : [basename(controlSockPath())]),
     ...(ownSockPath === null ? [] : [basename(ownSockPath)]),
   ])
-  const planeDirs = new Set([dirname(controlKeyPath()), ...(process.platform === 'win32' ? [] : [dirname(controlSockPath())]), ...(ownSockPath === null ? [] : [dirname(ownSockPath)])])
+  const planeDirs = new Set([dirname(controlKeyPath()), ...(localIpcDoorKind() === 'named-pipe' ? [] : [dirname(controlSockPath())]), ...(ownSockPath === null ? [] : [dirname(ownSockPath)])])
   let healSignal: ReturnType<typeof setTimeout> | undefined
   const planeWatchers: FSWatcher[] = []
   for (const planeDir of planeDirs) {

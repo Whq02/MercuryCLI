@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'keychain-never-touched-'))
@@ -12,13 +12,17 @@ const LOG = join(SCRATCH, 'security-invocations.log')
 mkdirSync(BIN, { recursive: true })
 mkdirSync(HOME, { recursive: true })
 
-const SHIM = join(BIN, 'security')
-writeFileSync(
-  SHIM,
-  `#!/bin/sh\nprintf '%s\\n' "$*" >> '${LOG}'\necho "prove-keychain-never-touched: the keychain tool was reached: $*" >&2\nexit 1\n`,
-)
-chmodSync(SHIM, 0o755)
-process.env.PATH = `${BIN}:${process.env.PATH ?? ''}`
+if (process.platform === 'win32') {
+  writeFileSync(join(BIN, 'security.cmd'), `@echo off\r\necho %*>>"${LOG}"\r\nexit /b 1\r\n`)
+} else {
+  const SHIM = join(BIN, 'security')
+  writeFileSync(
+    SHIM,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> '${LOG}'\necho "prove-keychain-never-touched: the keychain tool was reached: $*" >&2\nexit 1\n`,
+  )
+  chmodSync(SHIM, 0o755)
+}
+process.env.PATH = `${BIN}${delimiter}${process.env.PATH ?? ''}`
 
 process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.MERCURY_HOME
@@ -82,8 +86,18 @@ const KEY = 'fixture-key-never-touched'
 await auth.saveApiKey(KEY)
 auth.getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
 check('the saved managed key answers from the scratch home config — off the keychain', auth.getApiKeyFromConfigOrMacOSKeychain() === KEY)
-const configFiles = spawnSync('grep', ['-rl', KEY, HOME], { encoding: 'utf8' })
-check('the key is on disk under the scratch home (the file estate, not a keychain entry)', (configFiles.stdout ?? '').trim() !== '')
+const treeContains = (dir: string, needle: string): boolean => {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (treeContains(full, needle)) return true
+    } else if (entry.isFile()) {
+      try { if (readFileSync(full, 'utf8').includes(needle)) return true } catch {}
+    }
+  }
+  return false
+}
+check('the key is on disk under the scratch home (the file estate, not a keychain entry)', treeContains(HOME, KEY))
 await auth.removeApiKey()
 auth.getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
 check('the removed key answers none again', auth.getApiKeyFromConfigOrMacOSKeychain() === null)
@@ -108,7 +122,9 @@ if (existsSync(DIST) && nodeBin) {
     timeout: 120_000,
     env: {
       ...process.env,
-      PATH: `${BIN}:/usr/bin:/bin:${dirname(nodeBin)}`,
+      PATH: process.platform === 'win32'
+        ? `${BIN}${delimiter}${dirname(nodeBin)}${delimiter}${process.env.PATH ?? ''}`
+        : `${BIN}:/usr/bin:/bin:${dirname(nodeBin)}`,
       MERCURY_CONFIG_DIR: bootHome,
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_DAEMON_DIR: join(bootHome, 'daemon'),

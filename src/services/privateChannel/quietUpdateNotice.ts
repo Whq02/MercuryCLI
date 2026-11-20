@@ -154,7 +154,7 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
   const deadline = armInactivityDeadline({ seam: 'quiet update check', limitMs: deps.limitMs ?? UPDATE_NOTICE_CHECK_LIMIT_MS })
   let outcome: CheckOutcome
   try {
-    outcome = await Promise.race([deps.check(), deadline.expiry])
+    outcome = await deadline.within(deps.check())
   } catch (error) {
     logForDebugging(`update notice: check failed silently: ${error instanceof Error ? error.message : String(error)}`)
     return 'failed'

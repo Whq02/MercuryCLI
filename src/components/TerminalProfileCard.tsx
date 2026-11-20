@@ -17,7 +17,7 @@ import { Select } from './CustomSelect/index.js'
 import { MercurySetupFrame } from './MercurySetupFrame.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { startInterval, stopInterval } from '../utils/timers.js'
+import { pollUntil } from '../utils/deadline.js'
 
 
 const RERESOLVE_TICK_MS = 150
@@ -44,18 +44,27 @@ export function TerminalProfileCard({
   }
 
   useTimer(() => {
+    const controller = new AbortController()
     let ticks = 0
-    const timer = startInterval(() => {
-      ticks += 1
-      const live = resolveTerminalProfile()
-      if (live.verdict !== 'unsupported') {
-        stopInterval(timer)
-        finish('continue')
-        return
-      }
-      if (ticks >= RERESOLVE_TICKS) stopInterval(timer)
-    }, RERESOLVE_TICK_MS)
-    return () => stopInterval(timer)
+    void pollUntil(
+      () => {
+        if (ticks > 0) {
+          const live = resolveTerminalProfile()
+          if (live.verdict !== 'unsupported') {
+            finish('continue')
+            return true
+          }
+          if (ticks >= RERESOLVE_TICKS) return false
+        }
+        ticks += 1
+        return undefined
+      },
+      RERESOLVE_TICK_MS,
+      Infinity,
+      () => false,
+      { signal: controller.signal, onAbort: () => false },
+    )
+    return () => controller.abort()
   }, [])
 
   useLoad(() => {
@@ -71,27 +80,32 @@ export function TerminalProfileCard({
   const [installWatch, setInstallWatch] = React.useState<HostSetupAction['id'] | null>(null)
   useTimer(() => {
     if (installWatch === null || process.platform !== 'win32') return
-    let alive = true
+    const controller = new AbortController()
     let ticks = 0
-    const timer = startInterval(() => {
-      ticks += 1
-      void detectWindowsHostInventory().then(inv => {
-        if (!alive) return
-        setInventory(inv)
-        const landed =
-          installWatch === 'install-windows-terminal'
-            ? inv.windowsTerminal === 'present'
-            : inv.pwsh7 === 'present'
-        if (landed || ticks >= INSTALL_WATCH_TICKS) {
-          stopInterval(timer)
-          setInstallWatch(null)
+    void pollUntil(
+      async () => {
+        if (ticks > 0) {
+          const inv = await detectWindowsHostInventory()
+          if (controller.signal.aborted) return false
+          setInventory(inv)
+          const landed =
+            installWatch === 'install-windows-terminal'
+              ? inv.windowsTerminal === 'present'
+              : inv.pwsh7 === 'present'
+          if (landed || ticks >= INSTALL_WATCH_TICKS) {
+            setInstallWatch(null)
+            return true
+          }
         }
-      })
-    }, INSTALL_WATCH_TICK_MS)
-    return () => {
-      alive = false
-      stopInterval(timer)
-    }
+        ticks += 1
+        return undefined
+      },
+      INSTALL_WATCH_TICK_MS,
+      Infinity,
+      () => false,
+      { signal: controller.signal, onAbort: () => false },
+    )
+    return () => controller.abort()
   }, [installWatch])
 
   const failing = resolution.checks.filter(c => c.requirement === 'required' && !c.ok)

@@ -337,6 +337,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       const conn = connection
       try {
         const shutdown = conn.sendRequest('shutdown', null)
+        shutdown.catch(passedOver)
         await withDeadline(shutdown, budget, () => {
           throw new Error(`LSP server ${serverName} shutdown timed out after ${budget}ms`)
         })

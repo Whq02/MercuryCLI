@@ -3,7 +3,7 @@ import { readdirSync, rmSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagSpellings, stampFlagOnEnv } from '../../../substrate/flagRegistry.js'
 import { endProcessTree, endProcessTreeSurvivors, win32TaskkillCommand, type ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
-import { childGetsOwnProcessGroup } from '../../../utils/platform/processes.js'
+import { childGetsOwnProcessGroup, processTreeEndMethod } from '../../../utils/platform/processes.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
 import { engineChecksDir, engineTreesDir, isEnginePath } from './paths.js'
@@ -57,7 +57,7 @@ let exitHookArmed = false
 
 function killLiveEnginesSync(): void {
   for (const pid of LIVE.keys()) {
-    if (process.platform === 'win32') {
+    if (processTreeEndMethod() === 'win32-taskkill') {
       const { file, args } = win32TaskkillCommand(pid)
       spawnSync(file, args, { windowsHide: true, stdio: 'ignore', timeout: 5_000, env: subprocessEnv() })
       continue

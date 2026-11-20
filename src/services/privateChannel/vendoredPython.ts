@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { lockPathParts, payloadBinaryPath } from './vendoredRuntime.js'
+import { lockPathParts, nodePackPlatform, payloadBinaryPath } from './vendoredRuntime.js'
 
 export const PYTHON_PACK_PATH = 'vendor/python'
 
@@ -9,13 +9,7 @@ export const PYTHON_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64',
 export type PythonPackPlatform = (typeof PYTHON_PACK_PLATFORMS)[number]
 
 export function pythonPackPlatform(platform: string, arch: string): PythonPackPlatform | null {
-  if (platform === 'darwin' && arch === 'arm64') return 'darwin-arm64'
-  if (platform === 'darwin' && arch === 'x64') return 'darwin-x64'
-  if (platform === 'linux' && arch === 'x64') return 'linux-x64'
-  if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
-  if (platform === 'win32' && arch === 'x64') return 'win-x64'
-  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
-  return null
+  return nodePackPlatform(platform, arch)
 }
 
 export function pythonBinaryFor(packPlatform: string): string {
