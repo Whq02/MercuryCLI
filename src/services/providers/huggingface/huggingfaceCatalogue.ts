@@ -21,7 +21,7 @@ import {
   huggingfaceSlugModelName,
   isHuggingfaceModelId,
   splitHuggingfaceSlug,
-} from './huggingfacePins.js'
+} from '../../../utils/model/pins/huggingfacePins.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

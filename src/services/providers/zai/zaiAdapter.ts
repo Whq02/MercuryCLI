@@ -1,6 +1,6 @@
 import { getCachedProviderDiscovery, primeZaiDiscovery } from '../providerDiscovery.js'
 import { resolveZaiDispatch } from './zaiAccounts.js'
-import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from './glmPins.js'
+import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from '../../../utils/model/pins/glmPins.js'
 import { zaiCatalogueRows } from './zaiCatalogue.js'
 import type {
   ProviderCatalogueEntry,

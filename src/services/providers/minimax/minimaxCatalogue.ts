@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { minimaxApiBase, resolveMinimaxApiKey } from './minimaxAccounts.js'
-import { MINIMAX_DISPLAY_PINS, isMinimaxTextModelId, minimaxDisplayName, minimaxDisplayPin, type MinimaxThinkingDial } from './minimaxPins.js'
+import { MINIMAX_DISPLAY_PINS, isMinimaxTextModelId, minimaxDisplayName, minimaxDisplayPin, type MinimaxThinkingDial } from '../../../utils/model/pins/minimaxPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

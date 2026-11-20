@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { cohereApiBase, resolveCohereApiKey } from './cohereAccounts.js'
-import { COHERE_DISPLAY_PINS, isCohereChatModelId, cohereDisplayName, cohereDisplayPin } from './coherePins.js'
+import { COHERE_DISPLAY_PINS, isCohereChatModelId, cohereDisplayName, cohereDisplayPin } from '../../../utils/model/pins/coherePins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

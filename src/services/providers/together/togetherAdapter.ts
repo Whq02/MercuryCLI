@@ -1,6 +1,6 @@
 import { togetherCatalogueRows } from './togetherCatalogue.js'
 import { resolveTogetherAccount } from './togetherAccounts.js'
-import { togetherEffortVocabulary } from './togetherPins.js'
+import { togetherEffortVocabulary } from '../../../utils/model/pins/togetherPins.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 

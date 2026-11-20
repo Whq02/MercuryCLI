@@ -1,5 +1,5 @@
 import { getCachedProviderDiscovery, primeMoonshotDiscovery } from '../providerDiscovery.js'
-import { kimiEffortsFor } from './kimiPins.js'
+import { kimiEffortsFor } from '../../../utils/model/pins/kimiPins.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,

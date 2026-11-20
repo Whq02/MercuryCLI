@@ -16,7 +16,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 
 const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-const { glmTakesImages } = await import('../../src/services/providers/zai/glmPins.ts')
+const { glmTakesImages } = await import('../../src/utils/model/pins/glmPins.ts')
 const { imagesSupportedForCompatModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { buildZaiChatRequest, imageRefusalWords, requestCarriesImage } = await import('../../src/services/providers/zai/zaiCodec.ts')
 const { classifyImageRefusalFault, providerRefusedImage } = await import('../../src/services/api/mediaRefusal.ts')

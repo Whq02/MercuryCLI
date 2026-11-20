@@ -16,7 +16,7 @@ import {
   ZAI_CHAT_COMPLETIONS_URL,
   type ZaiStreamEvent,
 } from '../../src/services/providers/zai/zaiClient.ts'
-import { GLM_EFFORTS, glmAcceptsEffort, isGlmModelId } from '../../src/services/providers/zai/glmPins.ts'
+import { GLM_EFFORTS, glmAcceptsEffort, isGlmModelId } from '../../src/utils/model/pins/glmPins.ts'
 import { zaiProviderAdapter } from '../../src/services/providers/zai/zaiAdapter.ts'
 
 const t = checker()

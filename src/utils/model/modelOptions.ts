@@ -9,9 +9,9 @@ import {
   type GptDisqualification,
   type GptSeatAvailability,
 } from '../../services/providers/openai/openaiCatalogue.js'
-import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
-import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
-import { deepseekDisplayPin } from '../../services/providers/deepseek/deepseekPins.js'
+import { gptDisplayName } from './pins/gptPins.js'
+import { kimiDisplayName } from './pins/kimiPins.js'
+import { deepseekDisplayPin } from './pins/deepseekPins.js'
 import {
   GEMINI_MODEL_GROUP,
   getGeminiModelOptions,
@@ -778,27 +778,27 @@ function liveKeyLaneReads(): KeyLaneReads {
 export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): KeyLanePin[] {
   if (provider === 'qwen') {
     const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
-    const { qwenDisplayPin } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+    const { qwenDisplayPin } = require('./pins/qwenPins.js') as typeof import('./pins/qwenPins.js')
     return qwenCatalogueRows().rows.map(row => ({ ...row, ...(qwenDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'minimax') {
     const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
-    const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+    const { minimaxDisplayPin } = require('./pins/minimaxPins.js') as typeof import('./pins/minimaxPins.js')
     return minimaxCatalogueRows().rows.map(row => ({ ...row, ...(minimaxDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'together') {
     const { togetherCatalogueRows } = require('../../services/providers/together/togetherCatalogue.js') as typeof import('../../services/providers/together/togetherCatalogue.js')
-    const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
+    const { togetherDisplayPin } = require('./pins/togetherPins.js') as typeof import('./pins/togetherPins.js')
     return togetherCatalogueRows().rows.map(row => ({ id: row.id, displayName: row.free && !row.displayName.endsWith('(free)') ? `${row.displayName} (free)` : row.displayName, observedAt: row.observedAt, ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}), listedLive: row.listedLive, ...(togetherDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'cohere') {
     const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
-    const { cohereDisplayPin } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+    const { cohereDisplayPin } = require('./pins/coherePins.js') as typeof import('./pins/coherePins.js')
     return cohereCatalogueRows().rows.map(row => ({ ...row, ...(cohereDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'groq') {
     const { groqCatalogueRows } = require('../../services/providers/groq/groqCatalogue.js') as typeof import('../../services/providers/groq/groqCatalogue.js')
-    const { groqDisplayPin } = require('../../services/providers/groq/groqPins.js') as typeof import('../../services/providers/groq/groqPins.js')
+    const { groqDisplayPin } = require('./pins/groqPins.js') as typeof import('./pins/groqPins.js')
     return groqCatalogueRows().rows.map(row => ({ ...row, ...(groqDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'melious') {
@@ -811,32 +811,32 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
   }
   if (provider === 'cerebras') {
     const { cerebrasCatalogueRows } = require('../../services/providers/cerebras/cerebrasCatalogue.js') as typeof import('../../services/providers/cerebras/cerebrasCatalogue.js')
-    const { cerebrasDisplayPin } = require('../../services/providers/cerebras/cerebrasPins.js') as typeof import('../../services/providers/cerebras/cerebrasPins.js')
+    const { cerebrasDisplayPin } = require('./pins/cerebrasPins.js') as typeof import('./pins/cerebrasPins.js')
     return cerebrasCatalogueRows().rows.map(row => ({ ...row, ...(cerebrasDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'fireworks') {
     const { fireworksCatalogueRows } = require('../../services/providers/fireworks/fireworksCatalogue.js') as typeof import('../../services/providers/fireworks/fireworksCatalogue.js')
-    const { fireworksDisplayPin } = require('../../services/providers/fireworks/fireworksPins.js') as typeof import('../../services/providers/fireworks/fireworksPins.js')
+    const { fireworksDisplayPin } = require('./pins/fireworksPins.js') as typeof import('./pins/fireworksPins.js')
     return fireworksCatalogueRows().rows.map(row => ({ ...row, ...(fireworksDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'xai') {
     const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
-    const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+    const { xaiDisplayPin } = require('./pins/xaiPins.js') as typeof import('./pins/xaiPins.js')
     return xaiCatalogueRows().rows.map(row => ({ ...row, ...(xaiDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'meta') {
     const { metaCatalogueRows } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
-    const { metaDisplayPin } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
+    const { metaDisplayPin } = require('./pins/metaPins.js') as typeof import('./pins/metaPins.js')
     return metaCatalogueRows().rows.map(row => ({ ...row, ...(metaDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'mistral') {
     const { mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
-    const { mistralDisplayPin } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+    const { mistralDisplayPin } = require('./pins/mistralPins.js') as typeof import('./pins/mistralPins.js')
     return mistralCatalogueRows().rows.map(row => ({ ...row, ...(mistralDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'zen') {
     const { zenCatalogueRows } = require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')
-    const { zenDisplayPin, zenQualifiedId, zenPinObservedAt } = require('../../services/providers/zen/zenPins.js') as typeof import('../../services/providers/zen/zenPins.js')
+    const { zenDisplayPin, zenQualifiedId, zenPinObservedAt } = require('./pins/zenPins.js') as typeof import('./pins/zenPins.js')
     return zenCatalogueRows().rows.map(row => {
       const pin = zenDisplayPin(row.id)
       return {

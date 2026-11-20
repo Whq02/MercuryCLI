@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { groqApiBase, resolveGroqApiKey } from './groqAccounts.js'
-import { GROQ_DISPLAY_PINS, GROQ_OBSERVED_AT, isGroqTextModelId, groqDisplayName, groqDisplayPin, groqWireId, groqQualifiedId } from './groqPins.js'
+import { GROQ_DISPLAY_PINS, GROQ_OBSERVED_AT, isGroqTextModelId, groqDisplayName, groqDisplayPin, groqWireId, groqQualifiedId } from '../../../utils/model/pins/groqPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface GroqLiveModel {

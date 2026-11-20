@@ -9,7 +9,7 @@ import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { mistralChatCompletionsUrl, resolveMistralAccount, resolveMistralApiKey } from './mistralAccounts.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { getCachedMistralCatalogue, mistralListedModel, mistralModelFacts, newestMistralModel } from './mistralCatalogue.js'
-import { isMistralChatModelId } from './mistralPins.js'
+import { isMistralChatModelId } from '../../../utils/model/pins/mistralPins.js'
 
 export function buildMistralExtras(args: LaneExtrasArgs, outputFormat?: CallModelParams['options']['outputFormat']): Record<string, unknown> {
   const facts = mistralModelFacts(args.wireModel)

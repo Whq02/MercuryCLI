@@ -20,7 +20,7 @@ import {
   gptDisplayPin,
   hasGptServedWindowSuffix,
   parseGptModelId,
-} from '../../services/providers/openai/gptPins.js'
+} from './pins/gptPins.js'
 import {
   liveGptContextWindow,
   liveGptContextCeiling,
@@ -32,44 +32,44 @@ import {
   glmEffortsFor,
   glmTakesImages,
   isGlmModelId,
-} from '../../services/providers/zai/glmPins.js'
+} from './pins/glmPins.js'
 import {
   KIMI_EFFORT_STEPS,
   isKimiModelId,
   kimiDefaultEffort,
   kimiDisplayPin,
   kimiEffortsFor,
-} from '../../services/providers/moonshot/kimiPins.js'
+} from './pins/kimiPins.js'
 import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
-import { isXaiModelId } from '../../services/providers/xai/xaiPins.js'
+import { isXaiModelId } from './pins/xaiPins.js'
 import { xaiModelFacts, getCachedXaiCatalogue } from '../../services/providers/xai/xaiCatalogue.js'
-import { isMetaModelId, metaDisplayPin } from '../../services/providers/meta/metaPins.js'
-import { isMistralModelId } from '../../services/providers/mistral/mistralPins.js'
+import { isMetaModelId, metaDisplayPin } from './pins/metaPins.js'
+import { isMistralModelId } from './pins/mistralPins.js'
 import { mistralModelFacts } from '../../services/providers/mistral/mistralCatalogue.js'
-import { isZenModelId, zenDisplayPin } from '../../services/providers/zen/zenPins.js'
-import { isMinimaxModelId, minimaxDisplayPin } from '../../services/providers/minimax/minimaxPins.js'
-import { isTogetherModelId, togetherDisplayPin, togetherEffortVocabulary, togetherThinkingDial } from '../../services/providers/together/togetherPins.js'
+import { isZenModelId, zenDisplayPin } from './pins/zenPins.js'
+import { isMinimaxModelId, minimaxDisplayPin } from './pins/minimaxPins.js'
+import { isTogetherModelId, togetherDisplayPin, togetherEffortVocabulary, togetherThinkingDial } from './pins/togetherPins.js'
 import { togetherContextWindowFor } from '../../services/providers/together/togetherCatalogue.js'
 import { cohereModelFacts } from '../../services/providers/cohere/cohereCatalogue.js'
-import { isCohereModelId } from '../../services/providers/cohere/coherePins.js'
-import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from '../../services/providers/groq/groqPins.js'
+import { isCohereModelId } from './pins/coherePins.js'
+import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from './pins/groqPins.js'
 import { groqContextWindowFor, groqOutputMaxFor } from '../../services/providers/groq/groqCatalogue.js'
 import { isMeliousModelId, meliousListedModel, meliousEffortVocabulary, meliousContextWindowFor, meliousOutputMaxFor } from '../../services/providers/melious/meliousCatalogue.js'
 import { isOrcarouterModelId, orcarouterListedModel, orcarouterEffortVocabulary } from '../../services/providers/orcarouter/orcarouterCatalogue.js'
-import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from '../../services/providers/cerebras/cerebrasPins.js'
+import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from './pins/cerebrasPins.js'
 import { cerebrasContextWindowFor, cerebrasOutputMaxFor } from '../../services/providers/cerebras/cerebrasCatalogue.js'
-import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from '../../services/providers/fireworks/fireworksPins.js'
+import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from './pins/fireworksPins.js'
 import { fireworksContextWindowFor, fireworksOutputMaxFor } from '../../services/providers/fireworks/fireworksCatalogue.js'
-import { isQwenModelId, qwenDisplayPin } from '../../services/providers/qwen/qwenPins.js'
-import { QWEN_TEMPLATE_EFFORT_STEPS } from '../../services/providers/qwen/qwenTemplate.js'
+import { isQwenModelId, qwenDisplayPin } from './pins/qwenPins.js'
+import { QWEN_TEMPLATE_EFFORT_STEPS } from './pins/qwenTemplate.js'
 import { qwenModelFacts } from '../../services/providers/qwen/qwenCatalogue.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
   isDeepseekModelId,
-} from '../../services/providers/deepseek/deepseekPins.js'
+} from './pins/deepseekPins.js'
 import { deepseekLiveModel, deepseekModelFacts } from '../../services/providers/deepseek/deepseekCatalogue.js'
-import { isHuggingfaceModelId } from '../../services/providers/huggingface/huggingfacePins.js'
+import { isHuggingfaceModelId } from './pins/huggingfacePins.js'
 import { classifyModelRoute, declaredRouteOf, qualifiedWireId } from '../../services/providers/routeLaw.js'
 import type { CallModelRoute } from '../../services/providers/idSpaces.js'
 import { openrouterListedModel } from '../../services/providers/openrouter/openrouterCatalogue.js'

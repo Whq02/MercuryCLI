@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { fireworksApiBase, resolveFireworksApiKey } from './fireworksAccounts.js'
-import { FIREWORKS_DISPLAY_PINS, FIREWORKS_OBSERVED_AT, isFireworksTextModelId, fireworksDisplayName, fireworksDisplayPin, fireworksWireId, fireworksQualifiedId } from './fireworksPins.js'
+import { FIREWORKS_DISPLAY_PINS, FIREWORKS_OBSERVED_AT, isFireworksTextModelId, fireworksDisplayName, fireworksDisplayPin, fireworksWireId, fireworksQualifiedId } from '../../../utils/model/pins/fireworksPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface FireworksLiveModel {

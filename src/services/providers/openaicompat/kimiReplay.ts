@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import type { Message } from '../../../types/message.js'
 import { storedBlocksOf } from '../../../rows/content.js'
-import { KIMI_K3_MODELS } from '../moonshot/kimiPins.js'
+import { KIMI_K3_MODELS } from '../../../utils/model/pins/kimiPins.js'
 import type { ZaiWireMessage } from '../zai/zaiClient.js'
 
 export function isKimiK3WireModel(model: string): boolean {

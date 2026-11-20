@@ -15,7 +15,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 try {
   const entry = join(scratch, 'entry.ts')
-  writeFileSync(entry, `export { registerProviderApisSkill } from ${JSON.stringify(join(root, 'src/skills/bundled/provider-apis.ts'))}\nexport { getBundledSkills, getBundledSkillExtractDir } from ${JSON.stringify(join(root, 'src/skills/bundledSkills.ts'))}\nexport { classifyModelRoute, PROVIDER_ID_SPACES } from ${JSON.stringify(join(root, 'src/services/providers/idSpaces.ts'))}\nexport { MISTRAL_DISPLAY_PINS } from ${JSON.stringify(join(root, 'src/services/providers/mistral/mistralPins.ts'))}\nexport { buildMistralExtras } from ${JSON.stringify(join(root, 'src/services/providers/mistral/mistralCallModel.ts'))}\n`)
+  writeFileSync(entry, `export { registerProviderApisSkill } from ${JSON.stringify(join(root, 'src/skills/bundled/provider-apis.ts'))}\nexport { getBundledSkills, getBundledSkillExtractDir } from ${JSON.stringify(join(root, 'src/skills/bundledSkills.ts'))}\nexport { classifyModelRoute, PROVIDER_ID_SPACES } from ${JSON.stringify(join(root, 'src/services/providers/idSpaces.ts'))}\nexport { MISTRAL_DISPLAY_PINS } from ${JSON.stringify(join(root, 'src/utils/model/pins/mistralPins.ts'))}\nexport { buildMistralExtras } from ${JSON.stringify(join(root, 'src/services/providers/mistral/mistralCallModel.ts'))}\n`)
   const built = await Bun.build({ entrypoints: [entry], outdir: join(scratch, 'out'), target: 'bun', format: 'esm', loader: { '.md': 'text' }, define: { 'MACRO.VERSION': JSON.stringify('1.0.0'), 'process.env.NODE_ENV': JSON.stringify('test') } })
   if (!built.success) throw new Error(built.logs.map(String).join('\n'))
   const registry = await import(pathToFileURL(join(scratch, 'out/entry.js')).href)

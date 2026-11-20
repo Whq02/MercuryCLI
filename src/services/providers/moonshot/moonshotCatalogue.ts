@@ -20,7 +20,7 @@ import {
   type MoonshotDispatchSource,
 } from './moonshotAccounts.js'
 import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
-import { bindKimiDynamicToolSupport, KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiPlanPin, kimiShortName } from './kimiPins.js'
+import { bindKimiDynamicToolSupport, KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiPlanPin, kimiShortName } from '../../../utils/model/pins/kimiPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

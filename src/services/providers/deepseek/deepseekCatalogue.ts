@@ -12,7 +12,7 @@ import {
   deepseekDisplayName,
   deepseekDisplayPin,
   type DeepseekDisplayPin,
-} from './deepseekPins.js'
+} from '../../../utils/model/pins/deepseekPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

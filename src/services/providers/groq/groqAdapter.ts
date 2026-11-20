@@ -1,6 +1,6 @@
 import { groqCatalogueRows } from './groqCatalogue.js'
 import { resolveGroqAccount } from './groqAccounts.js'
-import { groqEffortVocabulary } from './groqPins.js'
+import { groqEffortVocabulary } from '../../../utils/model/pins/groqPins.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 

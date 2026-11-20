@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { mistralApiBase, resolveMistralApiKey } from './mistralAccounts.js'
-import { MISTRAL_DISPLAY_PINS, isMistralChatModelId, mistralDisplayName, mistralDisplayPin } from './mistralPins.js'
+import { MISTRAL_DISPLAY_PINS, isMistralChatModelId, mistralDisplayName, mistralDisplayPin } from '../../../utils/model/pins/mistralPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

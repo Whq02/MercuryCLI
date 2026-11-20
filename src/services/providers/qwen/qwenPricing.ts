@@ -1,5 +1,5 @@
 import { qwenPricingRegion } from './qwenAccounts.js'
-import { qwenDisplayPin, qwenPriceTierFor } from './qwenPins.js'
+import { qwenDisplayPin, qwenPriceTierFor } from '../../../utils/model/pins/qwenPins.js'
 import type { ResolvedModelPricing } from '../../usage/modelCost.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

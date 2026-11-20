@@ -42,7 +42,7 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }
 
-const pins = await import('../../src/services/providers/deepseek/deepseekPins.ts')
+const pins = await import('../../src/utils/model/pins/deepseekPins.ts')
 const { DEEPSEEK_DISPLAY_PINS, deepseekDisplayPin, deepseekDisplayName } = pins
 const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts').catch(() => null)
 const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')

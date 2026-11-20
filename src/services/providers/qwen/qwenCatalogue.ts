@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
 import { QWEN_CONSOLES, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenEndpointWhere, qwenListAnswersEveryCaller, qwenProbeLane, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
-import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPinWireId, qwenPinsFor, qwenPreservesThinking, qwenThinkingDial, type QwenPinScope, type QwenThinkingDial } from './qwenPins.js'
+import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPinWireId, qwenPinsFor, qwenPreservesThinking, qwenThinkingDial, type QwenPinScope, type QwenThinkingDial } from '../../../utils/model/pins/qwenPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 export interface QwenLiveModel {

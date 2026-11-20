@@ -70,10 +70,10 @@ const { MERCURY_VERSION } = await import('../../src/constants/product.ts')
 const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
 const zai = await import('../../src/services/providers/zai/zaiCatalogue.ts')
 const discovery = await import('../../src/services/providers/providerDiscovery.ts')
-const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiPins.ts')
-const { GLM_DISPLAY_PINS } = await import('../../src/services/providers/zai/glmPins.ts')
-const { KIMI_DISPLAY_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
-const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.ts')
+const { XAI_DISPLAY_PINS } = await import('../../src/utils/model/pins/xaiPins.ts')
+const { GLM_DISPLAY_PINS } = await import('../../src/utils/model/pins/glmPins.ts')
+const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
+const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.ts')
 
 type LivePage = import('../../src/services/resources/adapters/models.ts').LiveModelsReference
 type KnownPage = import('../../src/services/resources/adapters/models.ts').KnownModelsReference

@@ -24,7 +24,7 @@ import {
   wireEffortForListDefault,
   type GptDisplayPin,
   type GptModelIdentity,
-} from './gptPins.js'
+} from '../../../utils/model/pins/gptPins.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
@@ -40,8 +40,8 @@ export {
   parseGptModelId,
   stripGptServedWindowSuffix,
   withGptServedWindowSuffix,
-} from './gptPins.js'
-export type { GptDisplayPin, GptModelIdentity } from './gptPins.js'
+} from '../../../utils/model/pins/gptPins.js'
+export type { GptDisplayPin, GptModelIdentity } from '../../../utils/model/pins/gptPins.js'
 
 
 const OPENAI_CATALOGUE_TTL_MS = 5 * 60_000

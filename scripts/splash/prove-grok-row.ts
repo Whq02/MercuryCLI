@@ -25,7 +25,7 @@ function section(title: string): void {
 }
 
 const WORD = 'grok'
-const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiPins.ts')
+const { XAI_DISPLAY_PINS } = await import('../../src/utils/model/pins/xaiPins.ts')
 const head = XAI_DISPLAY_PINS[0]
 
 section('§0 the owner: the xAI pin table names the Grok rows the splash bakes')

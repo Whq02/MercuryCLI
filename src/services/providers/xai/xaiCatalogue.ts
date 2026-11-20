@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
 import { xaiGrokProxyListHeaders, xaiInferenceBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
-import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } from './xaiPins.js'
+import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } from '../../../utils/model/pins/xaiPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

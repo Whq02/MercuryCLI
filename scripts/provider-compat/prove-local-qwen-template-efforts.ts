@@ -92,7 +92,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root},llamacpp=${llamacpp
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const template = await import('../../src/services/providers/qwen/qwenTemplate.ts')
+const template = await import('../../src/utils/model/pins/qwenTemplate.ts')
 const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')

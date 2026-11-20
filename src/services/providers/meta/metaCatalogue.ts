@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { metaApiBase, resolveMetaApiKey } from './metaAccounts.js'
-import { isMetaChatModelId, isMetaContributorModel, metaDisplayName, metaDisplayPin } from './metaPins.js'
+import { isMetaChatModelId, isMetaContributorModel, metaDisplayName, metaDisplayPin } from '../../../utils/model/pins/metaPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

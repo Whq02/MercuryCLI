@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { resolveTogetherApiKey, togetherApiBase } from './togetherAccounts.js'
-import { TOGETHER_DISPLAY_PINS, TOGETHER_OBSERVED_AT, togetherDisplayPin, togetherQualifiedId, togetherWireId } from './togetherPins.js'
+import { TOGETHER_DISPLAY_PINS, TOGETHER_OBSERVED_AT, togetherDisplayPin, togetherQualifiedId, togetherWireId } from '../../../utils/model/pins/togetherPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface TogetherLiveModel {

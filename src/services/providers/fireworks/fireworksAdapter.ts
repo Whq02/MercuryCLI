@@ -1,6 +1,6 @@
 import { fireworksCatalogueRows } from './fireworksCatalogue.js'
 import { resolveFireworksAccount } from './fireworksAccounts.js'
-import { fireworksEffortVocabulary, fireworksQualifiedId } from './fireworksPins.js'
+import { fireworksEffortVocabulary, fireworksQualifiedId } from '../../../utils/model/pins/fireworksPins.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 

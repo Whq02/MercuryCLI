@@ -4,7 +4,7 @@
 # gate-watch: src/services/providers/openaicompat/**
 # gate-watch: src/services/providers/openrouter/** src/utils/settings/**
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**
-# gate-watch: src/services/providers/zai/glmPins* src/services/providers/**
+# gate-watch: src/utils/model/pins/glmPins* src/services/providers/**
 # gate-watch: src/types/message.ts src/components/CompatConnect.tsx
 # gate-watch: src/services/providers/gemini/** src/services/providers/xai/** src/services/providers/meta/**
 # gate-watch: src/services/providers/mistral/**

@@ -30,19 +30,19 @@ const effortWords = (id: string) => {
 }
 try {
   const pinTables: Array<[string, string, string?]> = [
-    ['openai/gptPins', 'GPT_DISPLAY_PINS'], ['zai/glmPins', 'GLM_DISPLAY_PINS'],
-    ['moonshot/kimiPins', 'KIMI_DISPLAY_PINS'], ['deepseek/deepseekPins', 'DEEPSEEK_DISPLAY_PINS'],
-    ['xai/xaiPins', 'XAI_DISPLAY_PINS'], ['meta/metaPins', 'META_DISPLAY_PINS'],
-    ['mistral/mistralPins', 'MISTRAL_DISPLAY_PINS'], ['gemini/geminiPins', 'GEMINI_PRICE_PINS'],
-    ['huggingface/huggingfacePins', 'HUGGINGFACE_DISPLAY_PINS', 'huggingface/'],
-    ['zen/zenPins', 'ZEN_DISPLAY_PINS', 'zen/'], ['minimax/minimaxPins', 'MINIMAX_DISPLAY_PINS'],
-    ['together/togetherPins', 'TOGETHER_DISPLAY_PINS', 'together/'], ['cohere/coherePins', 'COHERE_DISPLAY_PINS'],
-    ['groq/groqPins', 'GROQ_DISPLAY_PINS', 'groq/'], ['cerebras/cerebrasPins', 'CEREBRAS_DISPLAY_PINS', 'cerebras/'],
-    ['fireworks/fireworksPins', 'FIREWORKS_DISPLAY_PINS', 'fireworks/'],
+    ['gptPins', 'GPT_DISPLAY_PINS'], ['glmPins', 'GLM_DISPLAY_PINS'],
+    ['kimiPins', 'KIMI_DISPLAY_PINS'], ['deepseekPins', 'DEEPSEEK_DISPLAY_PINS'],
+    ['xaiPins', 'XAI_DISPLAY_PINS'], ['metaPins', 'META_DISPLAY_PINS'],
+    ['mistralPins', 'MISTRAL_DISPLAY_PINS'], ['geminiPins', 'GEMINI_PRICE_PINS'],
+    ['huggingfacePins', 'HUGGINGFACE_DISPLAY_PINS', 'huggingface/'],
+    ['zenPins', 'ZEN_DISPLAY_PINS', 'zen/'], ['minimaxPins', 'MINIMAX_DISPLAY_PINS'],
+    ['togetherPins', 'TOGETHER_DISPLAY_PINS', 'together/'], ['coherePins', 'COHERE_DISPLAY_PINS'],
+    ['groqPins', 'GROQ_DISPLAY_PINS', 'groq/'], ['cerebrasPins', 'CEREBRAS_DISPLAY_PINS', 'cerebras/'],
+    ['fireworksPins', 'FIREWORKS_DISPLAY_PINS', 'fireworks/'],
   ]
   const pinnedIds = ['claude-opus-5-5']
   for (const [module, table, prefix = ''] of pinTables) {
-    const owner = await import(`${root}/src/services/providers/${module}.ts`)
+    const owner = await import(`${root}/src/utils/model/pins/${module}.ts`)
     for (const row of owner[table]) pinnedIds.push(prefix + row.id)
   }
   const recorded = pinnedIds.filter(id => factsOwner?.modelHasRecordedFacts(id))

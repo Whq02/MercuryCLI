@@ -645,7 +645,7 @@ section("§3 the stranger's road — a gateway carries it on the Anthropic diale
 section('§4 the threshold is the SERVED window — the GPT ceiling and the [served] default, and the long-context cliff')
 {
   const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-  const { gptPriceTierFor } = await import('../../src/services/providers/openai/gptPins.ts')
+  const { gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
   const autoCompact = await import('../../src/services/compact/autoCompact.ts')
   const { contextFillView } = await import('../../src/utils/contextFill.ts')
   const tokens = await import('../../src/utils/tokens.ts')
