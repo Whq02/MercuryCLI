@@ -367,5 +367,45 @@ console.log('\npicker/headings — failed slot derivation reports unread account
   check('credentialed key lane reports unreadable account status instead of not connected', ds?.reason === 'account status could not be read (auth file EACCES) — run /logins to check', JSON.stringify(ds ?? r))
 }
 
+console.log('\nrename — failed name generation reports the failure instead of saying no conversation context')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const streamPath = path.join(SRC, 'services/providers/anthropic/streamCore.ts')
+    const realStream = await import(streamPath)
+    mock.module(streamPath, () => ({
+      ...realStream,
+      queryUtility: async () => { throw new Error('rate limited') },
+    }))
+    const { generateSessionName } = await import(path.join(SRC, 'commands/rename/generateSessionName.ts'))
+    const { call } = await import(path.join(SRC, 'commands/rename/rename.ts'))
+    const userMsg = { type: 'user', message: { role: 'user', content: 'Fix the billing webhook retries' } }
+    let threwMsg = null
+    try {
+      await generateSessionName([userMsg], new AbortController().signal)
+    } catch (e) {
+      threwMsg = e instanceof Error ? e.message : String(e)
+    }
+    out.threwMsg = threwMsg
+    let doneText = null
+    await call(
+      text => { doneText = text },
+      { messages: [userMsg], abortController: new AbortController(), setAppState: () => {} },
+      '',
+    )
+    out.doneText = doneText
+    let emptyText = null
+    await call(
+      text => { emptyText = text },
+      { messages: [], abortController: new AbortController(), setAppState: () => {} },
+      '',
+    )
+    out.emptyText = emptyText
+  `)
+  check('generateSessionName rethrows queryUtility errors', r.threwMsg === 'rate limited', JSON.stringify(r))
+  check('rename surfaces failure sentence instead of no conversation context', r.doneText === 'Could not generate a session name (rate limited). Use /rename <name> to name the session directly.', JSON.stringify(r))
+  check('control: empty conversation still says no conversation context', typeof r.emptyText === 'string' && r.emptyText.startsWith('No conversation context'), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
