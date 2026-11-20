@@ -139,5 +139,35 @@ function threwOf(fn: () => unknown): Error | null {
   }
 }
 
+{
+  console.log('\nmercuryRequests-run-sidecar-throw')
+  const { mock } = await import('bun:test')
+  const realSidecar = await import('../../src/services/run/runSidecar.ts')
+  let sidecarMode: 'absent' | 'throw' = 'absent'
+  mock.module('../../src/services/run/runSidecar.ts', () => ({
+    ...realSidecar,
+    loadRunSidecar: async () => {
+      if (sidecarMode === 'throw') throw new Error('sidecar EIO')
+      return { state: 'absent' as const }
+    },
+  }))
+  const { mercuryRequests } = await import('../../src/services/acp/acpServer/mercuryRequests.ts')
+  const handlers = new Map<string, (ctx: { params: unknown }) => unknown>()
+  const app = {
+    onRequest(name: string, _parse: unknown, handler: (ctx: { params: unknown }) => unknown) {
+      handlers.set(name, handler)
+      return app
+    },
+  }
+  mercuryRequests(app as never)
+  const runHandler = handlers.get('_mercury/run')!
+  sidecarMode = 'absent'
+  const absentRes = (await runHandler({ params: {} })) as { run?: unknown; unavailable?: unknown }
+  check('absent run sidecar answers run: null', absentRes.run === null && absentRes.unavailable === undefined, JSON.stringify(absentRes))
+  sidecarMode = 'throw'
+  const throwRes = (await runHandler({ params: {} })) as { run?: unknown; unavailable?: unknown; retryable?: unknown }
+  check('throwing loadRunSidecar answers unavailable instead of run: null', throwRes.unavailable === 'sidecar EIO' && throwRes.retryable === false && !('run' in throwRes), JSON.stringify(throwRes))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

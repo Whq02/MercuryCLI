@@ -174,7 +174,7 @@ export function mercuryRequests(app: AgentApp): AgentApp {
             return { unavailable: load.reason, retryable: load.retryable }
           }
         } catch (error) {
-          passedOver(error)
+          return { unavailable: error instanceof Error ? error.message : String(error), retryable: false }
         }
       }
       const revision = runRevision(owner)
