@@ -129,16 +129,14 @@ async function main(): Promise<void> {
   }
 
   if (flagEnv('MERCURY_ALT_HELD') === '1') {
+    const { releaseLauncherAltHoldNow } = await import('../ink/launcherAltHold.js')
     const nonTakeover =
       !process.stdout.isTTY ||
       runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
       ['daemon', 'acp', 'runner', 'host', 'tune', 'extension-api'].includes(args[0] ?? '')
-    if (nonTakeover) {
-      const { releaseLauncherAltHoldNow } = await import('../ink/launcherAltHold.js')
-      releaseLauncherAltHoldNow()
-    }
+    if (nonTakeover) releaseLauncherAltHoldNow()
   }
 
   const { profileCheckpoint } = await import('../utils/startupProfiler.js')
@@ -180,6 +178,7 @@ async function main(): Promise<void> {
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
     const { runHostJob } = await import('../services/host/worker.js')
+    await tellTheBuiltInCommands()
     return runHostJob(process.argv[3] ?? '', process.argv[4] ?? '')
   }
   if (process.argv[2] === '--mercury-tcp-bridge') {
@@ -191,6 +190,7 @@ async function main(): Promise<void> {
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
     const { hostCommand } = await import('../commands/host/index.js')
+    await tellTheBuiltInCommands()
     process.exitCode = await hostCommand(args.slice(1))
     return
   }
@@ -199,6 +199,7 @@ async function main(): Promise<void> {
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
     const { daemonMain } = await import('../daemon/main.js')
+    await tellTheBuiltInCommands()
     return daemonMain(args.slice(1))
   }
   if (args[0] === 'acp') {
@@ -223,6 +224,7 @@ async function main(): Promise<void> {
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
     const { runAcpServer } = await import('../services/acp/acpServer.js')
+    await tellTheBuiltInCommands()
     return runAcpServer()
   }
 
@@ -254,6 +256,12 @@ async function main(): Promise<void> {
   const cliMainModule = await import('../main.js')
   profileCheckpoint('after_main_import')
   await cliMainModule.main()
+}
+
+async function tellTheBuiltInCommands(): Promise<void> {
+  const { builtInCommandNames } = await import('../commands.js')
+  const { tellSessionStorageTheBuiltInCommands } = await import('../utils/sessionStorage/builtInCommands.js')
+  tellSessionStorageTheBuiltInCommands(builtInCommandNames)
 }
 
 async function resolveCompileCacheHome(): Promise<string | null> {
