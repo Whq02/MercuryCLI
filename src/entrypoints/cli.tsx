@@ -37,7 +37,7 @@ async function main(): Promise<void> {
   }
 
   const { flagEnv, stampFlagEnv } = await import('../substrate/flagRegistry.js')
-  const { inspectSessionArgs, readSessionOption } = await import('../cli/sessionArgs.js')
+  const { inspectSessionArgs, readSessionOption } = await import('../utils/sessionArgs.js')
   const runArgs = inspectSessionArgs(args)
   const hasProjectRoot = args[0] === '--project' || args[0]?.startsWith('--project=')
   if (hasProjectRoot) {
