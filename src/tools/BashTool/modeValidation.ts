@@ -15,10 +15,10 @@ const ACCEPT_EDITS_COMMANDS: ReadonlySet<string> = new Set([
   'sed',
 ])
 
-export function checkPermissionMode<I extends { command: string; cwd?: string }>(
-  input: I,
+export function checkPermissionMode(
+  input: { command: string; cwd?: string },
   toolPermissionContext: ToolPermissionContext,
-): PermissionResult<I> {
+): PermissionResult<{ command: string; cwd?: string }> {
   const own = preparedSecurityParse(input.command)
   if (own.kind === 'simple' && own.commands.length > 0 && own.commands.every(simple => ownGroundCommand(simple, resolveShellCwd(input.cwd)))) {
     return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: "the run's own ground" } }
@@ -41,7 +41,7 @@ export function checkPermissionMode<I extends { command: string; cwd?: string }>
     if (toolPermissionContext.mode === 'implement' && ACCEPT_EDITS_COMMANDS.has(base)) {
       return {
         behavior: 'allow',
-        updatedInput: { command: subcommand } as unknown as I,
+        updatedInput: { command: subcommand },
         decisionReason: { type: 'mode', mode: 'implement' },
       }
     }

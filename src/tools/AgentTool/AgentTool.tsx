@@ -10,7 +10,6 @@ import * as UI from './UI.js'
 import { isResultTruncated } from './UI.js'
 import type { CanUseToolFn } from '../../Tool.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
-import type { ZodType } from 'zod'
 import type { AssistantMessage } from '../../types/message.js'
 import { type Progress, type AgentToolInput, inputSchema, outputSchema, type AgentToolOutput } from './agent/schema.js'
 import { agentCwdQuestion } from './agent/cwd.js'
@@ -28,11 +27,11 @@ export const AgentTool = buildTool({
   maxResultSizeChars: RESULT_SIZE_CAP,
   searchHint: 'delegate a bounded task to an independent agent and receive its report',
   searchKeywords: ['swarm', 'agents', 'seats', 'team', 'launch', 'wave', 'delegate', 'crew', 'subagent'],
-  get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
-    return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>
+  get inputSchema() {
+    return inputSchema()
   },
-  get outputSchema(): ZodType {
-    return outputSchema() as unknown as ZodType
+  get outputSchema() {
+    return outputSchema()
   },
   async description() {
     return 'Delegate a task to a crewmate: a new crewmate that handles complex, multi-step work on its own'
@@ -126,7 +125,7 @@ export const AgentTool = buildTool({
     return agentToolResultBlock(output, toolUseID)
   },
 } satisfies ToolDef<
-  ZodType<AgentToolInput, AgentToolInput>,
+  ReturnType<typeof inputSchema>,
   AgentToolOutput,
   Progress
 >)

@@ -1,4 +1,4 @@
-
+import type { AppState } from '../../../state/AppState.js'
 
 export type UrlElicitation = { mode: 'url'; url: string; elicitationId: string; message: string }
 
@@ -21,7 +21,7 @@ export function queueUrlElicitation(
   serverName: string,
   elicitation: UrlElicitation,
   signal: AbortSignal,
-  setAppState: (updater: (prev: unknown) => unknown) => void,
+  setAppState: (updater: (prev: AppState) => AppState) => void,
 ): Promise<'accept' | 'decline' | 'cancel'> {
   if (signal.aborted) return Promise.resolve('cancel')
   return new Promise(resolve => {
@@ -48,9 +48,8 @@ export function queueUrlElicitation(
       onWaitingDismiss: (action: 'dismiss' | 'retry' | 'cancel') => finish(action === 'retry' ? 'accept' : 'cancel'),
     }
     setAppState(prev => {
-      const state = prev as { elicitation?: { queue?: unknown[] } }
-      const queue = state.elicitation?.queue ?? []
-      return { ...state, elicitation: { ...(state.elicitation ?? {}), queue: [...queue, event] } }
+      const queue = prev.elicitation?.queue ?? []
+      return { ...prev, elicitation: { ...(prev.elicitation ?? {}), queue: [...queue, event] } }
     })
   })
 }

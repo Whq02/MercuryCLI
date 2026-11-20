@@ -5,7 +5,10 @@ import { deadlineSecondsLabel } from '../providers/fetchDeadline.js'
 import type { Command } from '../../types/command.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
-import type { CanUseToolFn, Tool, ToolUseContext } from '../../Tool.js'
+import type { PermissionResult } from '../../types/permissions.js'
+import type { MCPProgress } from '../../types/tools.js'
+import type { AppState } from '../../state/AppState.js'
+import type { CanUseToolFn, Tool, ToolCallProgress, ToolUseContext } from '../../Tool.js'
 import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
 import { classifyMcpToolForCollapse } from '../../tools/MCPTool/classifyForCollapse.js'
 import { ListMcpResourcesTool } from '../../tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
@@ -384,8 +387,8 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const effectiveMaxPermission = ceilings !== undefined && Object.hasOwn(ceilings, toolName) ? ceilings[toolName] : undefined
   const displayName = `${serverName} - ${(annotations as { title?: string } | undefined)?.title ?? toolName} (MCP)`
 
-  const tool = {
-    ...(MCPTool as unknown as Record<string, unknown>),
+  const tool: Tool = {
+    ...MCPTool,
     name: modelFacingName,
     mcpInfo: { serverName, toolName, ...(effectiveMaxPermission ? { effectiveMaxPermission } : {}) },
     isMcp: true,
@@ -399,26 +402,27 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
     isOpenWorld: () => (annotations as { openWorldHint?: boolean } | undefined)?.openWorldHint === true,
     isSearchOrReadCommand: () => classifyMcpToolForCollapse(serverName, toolName),
     inputJSONSchema,
-    checkPermissions: async (input: Record<string, unknown>) => {
+    checkPermissions: async (input: Record<string, unknown>): Promise<PermissionResult> => {
       if (!mcpToolAllowed(serverName, toolName, annotations)) {
         const reason = mcpPolicyDenyReason(serverName, toolName, annotations)
         return { behavior: 'deny', message: reason, decisionReason: { type: 'other', reason } }
       }
-      return {
-        behavior: 'passthrough',
+      const passthrough = {
+        behavior: 'passthrough' as const,
         message: `Allow ${qualifiedName}?`,
         suggestions: [
-          { type: 'addRules', rules: [{ toolName: qualifiedName }], behavior: 'allow', destination: 'localSettings' },
+          { type: 'addRules' as const, rules: [{ toolName: qualifiedName }], behavior: 'allow' as const, destination: 'localSettings' as const },
         ],
         updatedInput: input,
       }
+      return passthrough
     },
     call: async (
       args: Record<string, unknown>,
       context: ToolUseContext,
       _canUseTool: CanUseToolFn,
       parentMessage: AssistantMessage,
-      onProgress?: (progress: unknown) => void,
+      onProgress?: ToolCallProgress<MCPProgress>,
     ) => {
       const pipeline = serverName === 'ext:mercury-media:engine' && toolName.startsWith('pipeline_') ? await import('../media/pipeline.js') : undefined
       const restored = restoreRenamedArgumentKeys(modelFacingName, args)
@@ -432,8 +436,8 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
         signal: context.abortController.signal,
         parentMessage,
         toolUseId: context.toolUseId,
-        onProgress: onProgress as ((progress: unknown) => void) | undefined,
-        setAppState: context.setAppState as unknown as (updater: (prev: unknown) => unknown) => void,
+        onProgress,
+        setAppState: context.setAppState,
         isNonInteractive: context.options.isNonInteractiveSession,
         handleUrlElicitation: context.handleElicitation
           ? async elicitation =>
@@ -447,7 +451,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
       return { data: discovery.length ? [...(Array.isArray(result.content) ? result.content : typeof result.content === 'string' ? [{ type: 'text' as const, text: result.content }] : []), ...discovery] : result.content }
     },
     userFacingName: () => displayName,
-  } as unknown as Tool
+  }
   return tool
 }
 
@@ -491,7 +495,7 @@ const fetchToolsForClientMemo = memoize(
   },
   client => client.name,
 )
-fetchToolsForClientMemo.cache = new LRUCache({ max: 20 }) as never
+fetchToolsForClientMemo.cache = new LRUCache<string, Promise<Tool[]>>({ max: 20 })
 
 export const fetchToolsForClient = Object.assign(
   (client: MCPServerConnection): Promise<Tool[]> => {
@@ -519,7 +523,7 @@ export const fetchResourcesForClient = memoize(
   },
   client => client.name,
 )
-fetchResourcesForClient.cache = new LRUCache({ max: 20 }) as never
+fetchResourcesForClient.cache = new LRUCache<string, Promise<ServerResource[]>>({ max: 20 })
 
 export const fetchCommandsForClient = memoize(
   async (client: MCPServerConnection): Promise<Command[]> => {
@@ -528,7 +532,7 @@ export const fetchCommandsForClient = memoize(
     try {
       const result = await client.client.request({ method: 'prompts/list', params: {} }, { timeout: connectTimeoutMs() })
       const prompts = recursivelySanitizeUnicode(result.prompts ?? [])
-      return prompts.map(prompt => {
+      return prompts.map((prompt): Command => {
         const commandName = `mcp__${normalizeNameForMCP(client.name)}__${normalizeNameForMCP(prompt.name)}`
         const argNames = (prompt.arguments ?? []).map(argument => argument.name)
         return {
@@ -559,7 +563,7 @@ export const fetchCommandsForClient = memoize(
               const blocks: ContentBlockParam[] = []
               for (const message of response.messages ?? []) {
                 const content = Array.isArray(message.content) ? message.content : [message.content]
-                blocks.push(...(await transformResultContent(content as never, client.name)))
+                blocks.push(...(await transformResultContent(content, client.name)))
               }
               return blocks
             } catch (err) {
@@ -567,7 +571,7 @@ export const fetchCommandsForClient = memoize(
               throw err
             }
           },
-        } as unknown as Command
+        }
       })
     } catch (err) {
       logMCPError(client.name, err)
@@ -577,9 +581,10 @@ export const fetchCommandsForClient = memoize(
   },
   client => client.name,
 )
-fetchCommandsForClient.cache = new LRUCache({ max: 20 }) as never
+fetchCommandsForClient.cache = new LRUCache<string, Promise<Command[]>>({ max: 20 })
 
 type MCPToolCallResult = { content: MCPToolResult; _meta?: Record<string, unknown>; structuredContent?: unknown }
+type McpProgressEvent = Omit<MCPProgress, 'type' | 'serverName' | 'toolName'>
 
 async function callToolOnce(
   connected: ConnectedMCPServer,
@@ -587,7 +592,7 @@ async function callToolOnce(
   args: Record<string, unknown>,
   signal: AbortSignal,
   toolUseId: string | undefined,
-  onProgress: ((event: Record<string, unknown>) => void) | undefined,
+  onProgress: ((event: McpProgressEvent) => void) | undefined,
   toolDefinition: McpSdkTool | undefined,
 ): Promise<MCPToolCallResult> {
   const startedAt = Date.now()
@@ -736,11 +741,11 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   signal: AbortSignal
   parentMessage?: AssistantMessage
   toolUseId?: string
-  onProgress?: (progress: unknown) => void
-  setAppState?: (updater: (prev: unknown) => unknown) => void
+  onProgress?: ToolCallProgress<MCPProgress>
+  setAppState?: (updater: (prev: AppState) => AppState) => void
   isNonInteractive?: boolean
   handleUrlElicitation?: (elicitation: UrlElicitation) => Promise<'accept' | 'decline' | 'cancel'>
-  callFn?: (attemptClient: ConnectedMCPServer, toolUseId: string | undefined, onProgress: ((event: Record<string, unknown>) => void) | undefined) => Promise<MCPToolCallResult>
+  callFn?: (attemptClient: ConnectedMCPServer, toolUseId: string | undefined, onProgress: ((event: McpProgressEvent) => void) | undefined) => Promise<MCPToolCallResult>
 }): Promise<MCPToolCallResult> {
   const { client, tool, args, signal, parentMessage, toolDefinition } = params
   const parentContent = parentMessage?.message.content
@@ -755,7 +760,7 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
       }
     }
   }
-  const progressSink = params.onProgress && toolUseId ? (event: Record<string, unknown>) => {
+  const progressSink = params.onProgress && toolUseId ? (event: McpProgressEvent) => {
     params.onProgress?.({ toolUseID: toolUseId, data: { type: 'mcp_progress', serverName: client.name, toolName: tool, ...event } })
   } : undefined
   const startedAt = Date.now()
@@ -838,7 +843,7 @@ async function discoverFor(connection: ConnectedMCPServer, includeResourceTools:
     connection.capabilities.resources ? fetchResourcesForClient(connection) : Promise.resolve([] as ServerResource[]),
   ])
   const allTools = includeResourceTools && connection.capabilities.resources
-    ? [...tools, ListMcpResourcesTool as unknown as Tool, ReadMcpResourceTool as unknown as Tool]
+    ? [...tools, ListMcpResourcesTool, ReadMcpResourceTool]
     : tools
   return { client: connection, tools: allTools, commands, ...(resources.length > 0 ? { resources } : {}) }
 }
@@ -865,7 +870,7 @@ export async function getMcpToolsCommandsAndResources(
   }
   let resourceToolsAdded = false
   const authTool = (name: string, config: ScopedMcpServerConfig): Tool =>
-    createMcpAuthTool(name, config as never) as unknown as Tool
+    createMcpAuthTool(name, config)
   const connectOne = async ([name, config]: [string, ScopedMcpServerConfig]): Promise<void> => {
     try {
       if (!isMcpCatalogueMember(name)) {
