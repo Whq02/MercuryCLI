@@ -10,7 +10,7 @@ import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress } from '../../types/tools.js'
 import { formatNumber } from '../../utils/format.js'
 import { createHyperlink } from '../../utils/hyperlink.js'
-import { getContentSizeEstimate, type MCPToolResult } from '../../utils/mcpValidation.js'
+import { getContentSizeEstimate, type MCPToolResult } from '../../services/mcp/mcpValidation.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 

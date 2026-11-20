@@ -444,7 +444,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
       ...te,
       countMessagesTokensWithAPI: async () => { throw new Error('token count api down') },
     }))
-    const { mcpContentNeedsTruncation } = await import(${JSON.stringify(join(SRC, 'utils/mcpValidation.ts'))})
+    const { mcpContentNeedsTruncation } = await import(${JSON.stringify(join(SRC, 'services/mcp/mcpValidation.ts'))})
     const huge = 'x'.repeat(200_000)
     out.needs = await mcpContentNeedsTruncation(huge)
   `)
