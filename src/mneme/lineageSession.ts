@@ -8,7 +8,7 @@ import { mnemeEnabled } from './mnemeGates.js'
 import { mnemeProjectKey } from './paths.js'
 import { runSessionClosers, type SessionCloseContext } from './sessionClose.js'
 import { passedOver } from '../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { withDeadline } from '../utils/deadline.js'
 
 interface OpenSession {
   projectKey: string
@@ -74,18 +74,10 @@ async function settle(session: OpenSession, outcome: string, budgetMs: number, k
     transcriptPath: getTranscriptPathForSession(session.sessionId),
     handoff: entry?.handoff?.text ?? null,
   }
-  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    await Promise.race([
-      runSessionClosers(ctx),
-      new Promise<void>(resolve => {
-        timer = startTimeout(resolve, budgetMs)
-      }),
-    ])
+    await withDeadline(runSessionClosers(ctx), budgetMs, () => undefined)
   } catch (error) {
     logForDebugging(`session closers failed for ${session.sessionId}: ${error instanceof Error ? error.message : String(error)}`)
-  } finally {
-    if (timer) stopTimeout(timer)
   }
   return ctx
 }
