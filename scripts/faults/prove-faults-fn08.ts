@@ -330,6 +330,79 @@ async function main(): Promise<void> {
     check('revoke failure on geolocation clear surfaces in outcome.failures', out.revokeReported === true)
     check('inherited header clear failure surfaces in outcome.failures', out.headerClearReported === true)
   })
+
+  await runRow('browserSecrets: refuses unreadable secrets file and keychain read or JSON errors instead of missing', () => {
+    const script = `
+      import { mock } from 'bun:test'
+      import * as childProcess from 'node:child_process'
+      import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+      import { tmpdir } from 'node:os'
+      import { join } from 'node:path'
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+      process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+      const dir = mkdtempSync(join(tmpdir(), 'fn08-secrets-'))
+      const file = join(dir, 'browser-secrets.json')
+      let keychainMode = 'absent'
+      const origPlatform = Object.getOwnPropertyDescriptor(process, 'platform')
+      const realSpawn = childProcess.spawnSync
+      mock.module('node:child_process', () => ({
+        ...childProcess,
+        spawnSync: (cmd, args, opts) => {
+          if (cmd !== 'security') return realSpawn(cmd, args, opts)
+          if (keychainMode === 'throw') throw new Error('keychain locked')
+          if (keychainMode === 'bad-json') return { status: 0, stdout: '{bad json\\n', stderr: '' }
+          return { status: 44, stdout: '', stderr: '' }
+        },
+      }))
+      try {
+        const secrets = await import(${JSON.stringify(join(SRC, 'services/browser/browserSecrets.ts'))})
+        process.env.MERCURY_CREDENTIAL_STORE = 'file'
+        const absentRes = secrets.resolveBrowserSecret('MISSING_ONE', { fileDir: dir })
+
+        let unreadableRes = { state: 'skipped', note: '' }
+        if (posix) {
+          writeFileSync(file, JSON.stringify({ UNREAD: 'secret' }), { mode: 0o600 })
+          chmodSync(file, 0o200)
+          try {
+            unreadableRes = secrets.resolveBrowserSecret('UNREAD', { fileDir: dir })
+          } finally {
+            chmodSync(file, 0o600)
+            rmSync(file, { force: true })
+          }
+        }
+
+        if (posix) Object.defineProperty(process, 'platform', { value: 'darwin' })
+        process.env.MERCURY_CREDENTIAL_STORE = 'keychain'
+        keychainMode = 'throw'
+        const kcThrowRes = posix ? secrets.resolveBrowserSecret('KC_ERR', { fileDir: dir }) : { state: 'skipped', note: '' }
+        keychainMode = 'bad-json'
+        const kcBadJsonRes = posix ? secrets.resolveBrowserSecret('KC_BAD', { fileDir: dir }) : { state: 'skipped', note: '' }
+        process.stdout.write('\\n' + JSON.stringify({ posix, absentRes, unreadableRes, kcThrowRes, kcBadJsonRes }))
+      } finally {
+        Object.defineProperty(process, 'platform', origPlatform)
+        rmSync(dir, { recursive: true, force: true })
+      }
+    `
+    const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
+    check('isolated browserSecrets check exited 0', res.status === 0, res.stderr.slice(-400))
+    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as {
+      posix?: boolean
+      absentRes?: { state: string; note: string }
+      unreadableRes?: { state: string; note: string }
+      kcThrowRes?: { state: string; note: string }
+      kcBadJsonRes?: { state: string; note: string }
+    }
+    check('absent secrets file still reports missing', out.absentRes?.state === 'missing')
+    if (out.posix) {
+      check('unreadable secrets file refuses instead of missing', out.unreadableRes?.state === 'refused' && out.unreadableRes.note.includes('could not be read'), JSON.stringify(out.unreadableRes))
+      check('keychain read error refuses instead of missing', out.kcThrowRes?.state === 'refused' && out.kcThrowRes.note.includes('keychain locked'), JSON.stringify(out.kcThrowRes))
+      check('keychain corrupt JSON refuses instead of missing', out.kcBadJsonRes?.state === 'refused' && out.kcBadJsonRes.note.includes('not valid JSON'), JSON.stringify(out.kcBadJsonRes))
+    }
+  })
 }
 
 try {
