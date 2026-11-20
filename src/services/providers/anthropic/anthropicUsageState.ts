@@ -321,19 +321,11 @@ function forgetAnthropicUsageRead(): void {
 }
 
 function dropIfAccountMoved(): boolean {
-  try {
-    dropCredentialMemos()
-  } catch (error) {
-    passedOver(error)
-  }
+  dropCredentialMemos()
   const current = currentCredential()
   if (current === observedCredential) return false
   observedCredential = current
-  try {
-    resetLimitsForCredentialSwitch()
-  } catch (error) {
-    passedOver(error)
-  }
+  resetLimitsForCredentialSwitch()
   return true
 }
 
