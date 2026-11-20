@@ -1,6 +1,7 @@
 
 import chalk from 'chalk'
-import React, { useContext, useLayoutEffect, useRef, useState } from 'react'
+import React, { useContext, useRef, useState } from 'react'
+import { useMeasure } from '../hooks/effects.js'
 import { Box, measureElement, type DOMElement } from '../ink.js'
 import { PopupFormContext } from '../context/popupFormContext.js'
 import { BaseTextInput } from './BaseTextInput.js'
@@ -57,7 +58,7 @@ export default function TextInput(props: Props): React.ReactNode {
   const fit = useContext(PopupFormContext)
   const fieldRef = useRef<DOMElement | null>(null)
   const [fieldWidth, setFieldWidth] = useState(props.columns)
-  useLayoutEffect(() => {
+  useMeasure(() => {
     if (!fit || !fieldRef.current) return
     const width = Math.max(1, Math.floor(measureElement(fieldRef.current).width))
     if (width !== fieldWidth) setFieldWidth(width)

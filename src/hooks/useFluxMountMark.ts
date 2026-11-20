@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useClaim } from './effects.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 
 export function useFluxMountMark(kind: string): void {
-  useEffect(() => {
+  useClaim(() => {
     fluxMark(`mount:${kind}`)
     return () => fluxMark(`unmount:${kind}`)
   }, [kind])

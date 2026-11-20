@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import TextInput from './TextInput.js'
 import { setClipboard } from '../ink/termio/osc.js'
@@ -61,7 +62,7 @@ export function OpenaiConnect({
     settle(outcome.receipt, outcome.ok)
   }
 
-  useEffect(() => {
+  useLoad(() => {
     let alive = true
     if (mode === 'device') {
       beginOpenaiDeviceConnect()

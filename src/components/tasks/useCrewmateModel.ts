@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useTimer } from '../../hooks/effects.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
@@ -35,7 +36,7 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
   const file = crewmateMetadataFile(crewmate)
   const startedAt = crewmate?.facts?.startedAt
   const [recorded, setRecorded] = useState<{ file: string; identity: CrewmateRecord } | null>(null)
-  useEffect(() => {
+  useTimer(() => {
     if (file === null) return
     let alive = true
     let reading = false

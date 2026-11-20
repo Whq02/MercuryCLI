@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { useDerivedState, usePublish } from '../../hooks/effects.js'
 import { useAnimationValue, useInput } from '../../ink.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { isXtermJs } from '../../ink/session/capabilities.js'
@@ -131,7 +132,7 @@ export function SessionMirror({
     Math.floor(time / WORK_TICK_MS),
   )
   const armedBucketRef = useRef<number | null>(null)
-  useEffect(() => {
+  useDerivedState(() => {
     if (!changePending) {
       armedBucketRef.current = null
       return
@@ -147,7 +148,7 @@ export function SessionMirror({
   }, [changePending, bucket, sessionId, workspaceId])
 
   const { fold } = useWorkerTranscriptFold(body.sessionId, body.workspaceId)
-  useEffect(() => {
+  usePublish(() => {
     if (fold !== null && fold.messages.length > 0) rememberSessionWarmth(body.sessionId, fold.messages, fold.shed)
   }, [fold, body.sessionId])
   const classifyAttribution = useCoordinatorAttribution(body.sessionId, fold)
@@ -165,7 +166,7 @@ export function SessionMirror({
     scrollRef.current?.scrollToBottom()
     setAway(false)
   }, [])
-  useEffect(() => {
+  usePublish(() => {
     jumpNewest()
   }, [body.sessionId, body.workspaceId, jumpNewest])
 

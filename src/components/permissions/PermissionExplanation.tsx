@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad, useTimer } from '../../hooks/effects.js'
 import { Box, Text } from '../../ink.js'
 import { ShimmerChar } from '../Spinner/ShimmerChar.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
@@ -65,7 +66,7 @@ export function usePermissionExplainerUI({
 
 function ShimmerLine({ message }: { message: string }): React.ReactNode {
   const [sweep, setSweep] = useState(0)
-  useEffect(() => {
+  useTimer(() => {
     const cycle = message.length + 10
     const timer = setInterval(() => setSweep(current => (current + 1) % cycle), 60)
     return () => clearInterval(timer)
@@ -96,7 +97,7 @@ export function PermissionExplainerContent({
   fallback?: React.ReactNode
 }): React.ReactNode {
   const [resolved, setResolved] = useState<PermissionExplanation | null | 'pending'>('pending')
-  useEffect(() => {
+  useLoad(() => {
     if (!promise) return
     let cancelled = false
     setResolved('pending')

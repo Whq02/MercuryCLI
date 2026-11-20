@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useDerivedState, useLayoutPublish } from '../../../hooks/effects.js'
 import { usePopupMarker } from '../../../context/popupFormContext.js'
 import { settingsPopupMarker } from '../../../utils/cockpit/settingsPopup.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
@@ -62,7 +63,7 @@ export function useConfigList({
   }, [query, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer.stamp, media.settings, media.catalogue, media.config, media.error])
 
   const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)
-  useLayoutEffect(() => {
+  useLayoutPublish(() => {
     onLine?.(line)
   }, [line, onLine])
 
@@ -75,7 +76,7 @@ export function useConfigList({
     return filtered.length > beside ? beside : Math.max(1, listRows - configWarningRows(warning, width))
   }
   const win = configListWindow(selected, offset, filtered.length, windowFor(Math.max(0, Math.min(selected, filtered.length - 1))))
-  useEffect(() => {
+  useDerivedState(() => {
     if (win.sel !== selected) setSelected(win.sel)
     if (win.off !== offset) setOffset(win.off)
   }, [win.sel, win.off, selected, offset])
