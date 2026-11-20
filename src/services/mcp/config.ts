@@ -13,6 +13,7 @@ import {
   saveCurrentProjectConfig,
   saveGlobalConfig,
 } from '../../utils/config.js'
+import { noteGlobalConfigRefusalSaid } from '../../utils/config/globalConfig.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
 import { MERCURY_PROJECT_DIR } from '../../utils/projectConfig.js'
@@ -950,6 +951,7 @@ export async function addMcpConfig(
       } catch (error) {
         const held = heldWriteFailure(error)
         if (held !== null) {
+          noteGlobalConfigRefusalSaid()
           logForDebugging(`Failed to save MCP server ${name} to ${held.path}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
           throw new Error(
             `Could not add MCP server ${name}: ${held.path} could not be written (${held.code}); nothing was written. Close what holds the file, then try again.`,

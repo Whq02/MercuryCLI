@@ -44,12 +44,17 @@ export function wouldLoseAuthState(fresh: AuthStateView): boolean {
 let pendingDeferredUpdaters: Array<(currentConfig: GlobalConfig) => GlobalConfig> = []
 
 let deferredExitFlushArmed = false
-let lastGlobalConfigSaveFailed = false
+let globalConfigRefusalSaid = false
+
+export function noteGlobalConfigRefusalSaid(): void {
+  globalConfigRefusalSaid = true
+}
+
 function armDeferredExitFlush(): void {
   if (deferredExitFlushArmed) return
   deferredExitFlushArmed = true
   process.once('exit', () => {
-    const alreadyReported = lastGlobalConfigSaveFailed
+    const alreadyReported = globalConfigRefusalSaid
     try {
       if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)
     } catch (error) {
@@ -174,12 +179,7 @@ export function saveGlobalConfig(
       return
     }
     written = config
-    try {
-      saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
-    } catch (saveError) {
-      lastGlobalConfigSaveFailed = true
-      throw saveError
-    }
+    saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
     writeThroughGlobalConfigCache(written)
   }
 }
@@ -430,7 +430,7 @@ export function saveConfig<A extends object>(
     },
   )
   if (file === getGlobalMercuryFile()) {
-    lastGlobalConfigSaveFailed = false
+    globalConfigRefusalSaid = false
     globalConfigWriteCount++
     writeThroughGlobalConfigCache(config as GlobalConfig)
     pendingDeferredUpdaters = []

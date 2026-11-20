@@ -727,6 +727,31 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     errLinesC.some(l => l.includes('The settings changed in this session could not be saved to ') && l.includes('they are lost — set them again next time.')),
     `rc=${r10c.status} lines=${JSON.stringify(errLinesC)}`,
   )
+
+  const r10d = runR10Child(`
+    const { mock } = await import('bun:test')
+    const realFile = await import(SRC + '/utils/file.ts')
+    const AtomicWriteRefusal = realFile.AtomicWriteRefusal
+    mock.module(SRC + '/utils/file.js', () => ({
+      ...realFile,
+      writeFileAndFlushAtomically: (targetPath) => {
+        throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
+      },
+    }))
+    const { enableConfigs, saveGlobalConfig, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    saveGlobalConfigDeferred(c => ({ ...c, numStartups: 77 }))
+    try {
+      saveGlobalConfig(c => ({ ...c, numStartups: 78 }))
+    } catch {}
+    process.exit(0)
+  `)
+  const errLinesD = r10d.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  check(
+    'w10-13(R10d): when a caller swallows a failed save without saying anything, the failing exit flush still prints its sentence',
+    errLinesD.some(l => l.includes('The settings changed in this session could not be saved to ') && l.includes('they are lost — set them again next time.')),
+    `rc=${r10d.status} lines=${JSON.stringify(errLinesD)}`,
+  )
 }
 
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
