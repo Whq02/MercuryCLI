@@ -828,6 +828,7 @@ export class DaemonSessionConnector extends ConnectorOwnWork implements EngineCo
       echoes: tailSeq => this.sendsPart.echoes(tailSeq),
       reconcileSends: () => this.sendsPart.reconcileSends(),
       placeDelivered: rows => this.sendsPart.placeDelivered(rows),
+      landingsAfter: seq => this.tailPart.landingsAfter(seq),
     })
     this.factsPart = new FactsPart({
       sessionId: () => this.record.sessionId,
