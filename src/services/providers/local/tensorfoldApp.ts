@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { logForDebugging } from '../../../utils/debug.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
+import { posixProcessTableSupported } from '../../../utils/platform/processes.js'
 
 interface TensorFoldProcessRow {
   pid: number
@@ -71,7 +72,7 @@ export function __tensorFoldProcessListsForTest(): number {
 }
 
 export function listProcesses(): Promise<TensorFoldProcessRow[]> {
-  if (process.platform === 'win32') return Promise.resolve([])
+  if (!posixProcessTableSupported()) return Promise.resolve([])
   processLists += 1
   return new Promise(resolve => {
     try {

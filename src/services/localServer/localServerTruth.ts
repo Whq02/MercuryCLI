@@ -10,6 +10,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { kvGeometryOf, type KvGeometry } from './localServerMemory.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { posixProcessTableSupported } from '../../utils/platform/processes.js'
 
 export type { LocalServerKind }
 
@@ -372,7 +373,7 @@ export function findServerProcess(rows: ProcessRow[], kind: LocalServerKind | un
 }
 
 async function readProcessTruth(io: Io, kind: LocalServerKind | undefined): Promise<{ process?: ServerProcessTruth; runners: RunnerTruth[] }> {
-  if (io.platform === 'win32') return { runners: [] }
+  if (!posixProcessTableSupported(io.platform)) return { runners: [] }
   const table = await io.run('ps', ['-axo', 'pid=,ppid=,command='])
   if (table === undefined) return { runners: [] }
   const found = findServerProcess(parseProcessTable(table), kind)

@@ -333,19 +333,24 @@ const SPAWN: Row[] = [
 ]
 
 import {
+  ancestorPidsCommand,
   availableMemoryReader,
   canReraiseOwnSignal,
   childGetsOwnProcessGroup,
   isOwnKillExitCode,
   killSignalForChild,
+  loadAverageSupported,
   msysSignalExitCode,
+  parentPidProbeKind,
   posixExitSignalsCount,
+  posixProcessTableSupported,
   processInstantStartForm,
   processListCommand,
   processStartFormFor,
   processStartProbeKind,
   processTreeEndMethod,
   supportsGracefulSigterm,
+  syncStartTokenSupported,
   wasEndedByProcessTreeKill,
 } from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
@@ -451,6 +456,31 @@ const PROCESSES: Row[] = [
     name: 'ripgrep platformDir equal arms',
     answers: () => ['x64', 'arm64'].map(arch => `${arch}-${process.platform}`),
     recorded: {"win32":["x64-win32","arm64-win32"],"darwin":["x64-darwin","arm64-darwin"],"linux":["x64-linux","arm64-linux"],"win32 by process.platform alone":["x64-win32","arm64-win32"],"win32 by getPlatform() alone":["x64-linux","arm64-linux"]},
+  },
+  {
+    name: 'posixProcessTableSupported',
+    answers: stand => [posixProcessTableSupported(), posixProcessTableSupported(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'syncStartTokenSupported',
+    answers: stand => [syncStartTokenSupported(), syncStartTokenSupported(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'loadAverageSupported',
+    answers: stand => [loadAverageSupported(), loadAverageSupported(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'parentPidProbeKind',
+    answers: stand => [parentPidProbeKind(), parentPidProbeKind(stand.node)],
+    recorded: {"win32":["win32-ancestors","win32-ancestors"],"darwin":["posix-ps","posix-ps"],"linux":["posix-ps","posix-ps"],"win32 by process.platform alone":["win32-ancestors","win32-ancestors"],"win32 by getPlatform() alone":["posix-ps","posix-ps"]},
+  },
+  {
+    name: 'ancestorPidsCommand',
+    answers: stand => [ancestorPidsCommand(42, 5), ancestorPidsCommand(42, 5, stand.node)],
+    recorded: {"win32":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","$p=42;$out=@();for($i=0;$i -lt 5;$i++){$proc=Get-CimInstance Win32_Process -Filter \"ProcessId=$p\" -ErrorAction SilentlyContinue;if(-not $proc){break};$pp=$proc.ParentProcessId;if(-not $pp -or $pp -eq 0){break};$out+=$pp;$p=$pp};$out -join ','"]},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","$p=42;$out=@();for($i=0;$i -lt 5;$i++){$proc=Get-CimInstance Win32_Process -Filter \"ProcessId=$p\" -ErrorAction SilentlyContinue;if(-not $proc){break};$pp=$proc.ParentProcessId;if(-not $pp -or $pp -eq 0){break};$out+=$pp;$p=$pp};$out -join ','"]}],"darwin":[{"file":"sh","args":["-c","p=42; i=0; while [ $i -lt 5 ]; do pp=$(ps -o ppid= -p \"$p\" 2>/dev/null | tr -d ' '); if [ -z \"$pp\" ] || [ \"$pp\" = \"0\" ] || [ \"$pp\" = \"1\" ]; then break; fi; echo \"$pp\"; p=$pp; i=$((i+1)); done"]},{"file":"sh","args":["-c","p=42; i=0; while [ $i -lt 5 ]; do pp=$(ps -o ppid= -p \"$p\" 2>/dev/null | tr -d ' '); if [ -z \"$pp\" ] || [ \"$pp\" = \"0\" ] || [ \"$pp\" = \"1\" ]; then break; fi; echo \"$pp\"; p=$pp; i=$((i+1)); done"]}],"linux":[{"file":"sh","args":["-c","p=42; i=0; while [ $i -lt 5 ]; do pp=$(ps -o ppid= -p \"$p\" 2>/dev/null | tr -d ' '); if [ -z \"$pp\" ] || [ \"$pp\" = \"0\" ] || [ \"$pp\" = \"1\" ]; then break; fi; echo \"$pp\"; p=$pp; i=$((i+1)); done"]},{"file":"sh","args":["-c","p=42; i=0; while [ $i -lt 5 ]; do pp=$(ps -o ppid= -p \"$p\" 2>/dev/null | tr -d ' '); if [ -z \"$pp\" ] || [ \"$pp\" = \"0\" ] || [ \"$pp\" = \"1\" ]; then break; fi; echo \"$pp\"; p=$pp; i=$((i+1)); done"]}],"win32 by process.platform alone":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","$p=42;$out=@();for($i=0;$i -lt 5;$i++){$proc=Get-CimInstance Win32_Process -Filter \"ProcessId=$p\" -ErrorAction SilentlyContinue;if(-not $proc){break};$pp=$proc.ParentProcessId;if(-not $pp -or $pp -eq 0){break};$out+=$pp;$p=$pp};$out -join ','"]},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","$p=42;$out=@();for($i=0;$i -lt 5;$i++){$proc=Get-CimInstance Win32_Process -Filter \"ProcessId=$p\" -ErrorAction SilentlyContinue;if(-not $proc){break};$pp=$proc.ParentProcessId;if(-not $pp -or $pp -eq 0){break};$out+=$pp;$p=$pp};$out -join ','"]}],"win32 by getPlatform() alone":[{"file":"sh","args":["-c","p=42; i=0; while [ $i -lt 5 ]; do pp=$(ps -o ppid= -p \"$p\" 2>/dev/null | tr -d ' '); if [ -z \"$pp\" ] || [ \"$pp\" = \"0\" ] || [ \"$pp\" = \"1\" ]; then break; fi; echo \"$pp\"; p=$pp; i=$((i+1)); done"]},{"file":"sh","args":["-c","p=42; i=0; while [ $i -lt 5 ]; do pp=$(ps -o ppid= -p \"$p\" 2>/dev/null | tr -d ' '); if [ -z \"$pp\" ] || [ \"$pp\" = \"0\" ] || [ \"$pp\" = \"1\" ]; then break; fi; echo \"$pp\"; p=$pp; i=$((i+1)); done"]}]},
   },
 ]
 
