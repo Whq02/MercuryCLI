@@ -97,3 +97,4 @@ prove-activity-screen-keys.ts
 prove-hip-vocab.ts
 prove-desert-verbs-cadence.ts
 prove-wrap-plain.ts
+scripts/ui-pure-1/prove-filtered-picker-first-match.ts

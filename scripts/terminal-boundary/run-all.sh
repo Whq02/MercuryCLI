@@ -8,20 +8,12 @@
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
-
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/terminal-boundary"
 fail=0
 echo "############################################################"
 echo "# terminal-boundary — presentation boundary + machine-output contracts"
 echo "############################################################"
-shopt -s nullglob
-claimed=$(cd "$here/../.." && members_cat scripts/terminal-boundary-*/members.txt)
-for proof in "$here"/prove-*.ts; do
-  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
-  echo
-  echo "── $(basename "$proof") ──"
-  __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
-done
+drive_members terminal-boundary 'scripts/terminal-boundary/$name' "$here/members.txt" || fail=1
 if [[ "$fail" == "0" ]]; then echo "✅ terminal-boundary suite GREEN"; exit 0; else
   echo "❌ terminal-boundary suite RED"; exit 1; fi

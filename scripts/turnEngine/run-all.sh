@@ -5,17 +5,13 @@
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
+cd "$(dirname "$0")/../.." || exit 1
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── turn-engine proofs ──"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-engine-contracts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-engine-contracts.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-laws.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-laws.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-query-laws.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-query-laws.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ptl-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ptl-recovery.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-cap-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-cap-vocabulary.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-end-without-terminal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stream-end-without-terminal.ts" "$__t" "$__rc"
+drive_members turnEngine 'scripts/turnEngine/$name' "$here/members.txt" || fail=1
 "${BUN:-$HOME/.bun/bin/bun}" -e "
 await import('$here/../../src/query.ts')
 await import('$here/../../src/rows/turn.ts')

@@ -3,17 +3,12 @@
 # gate-watch: src/services/voice/** src/commands/voice/** native/voice/** native/whisper/** vendor/whisper-models.lock.json build.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-cd "$(dirname "$0")/../.."
-BUN="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/voice"
 fail=0
 export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
-for f in scripts/voice/prove-*.ts; do
-  [ -e "$f" ] || continue
-  echo "▶ $f"
-  __t=$SECONDS; __rc=0; if ! { "$BUN" run "$f"; __rc=$?; [ "$__rc" -eq 0 ]; }; then fail=1; fi; prover_mark "$f" "$__t" "$__rc"
-  echo
-done
+drive_members voice 'scripts/voice/$name' "$here/members.txt" '' run || fail=1
 if [ "$fail" -eq 0 ]; then echo "✅ VOICE SUITE GREEN"; else echo "❌ VOICE SUITE RED"; fi
 exit "$fail"

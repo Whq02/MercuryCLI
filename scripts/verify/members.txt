@@ -1,0 +1,12 @@
+prove-baseline-source.ts
+prove-computed-watch.ts
+prove-impact-manifest.ts
+prove-impact-run.ts
+prove-piped-verification.ts
+prove-project-gates.ts
+prove-quick-check-runs-the-member.ts
+prove-slice-core.ts
+prove-slice-e2e.ts
+prove-tree-fingerprint-budget.ts
+prove-verification-state.ts
+prove-pre-push-guard.sh
