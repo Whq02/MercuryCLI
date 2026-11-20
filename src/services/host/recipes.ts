@@ -73,7 +73,7 @@ function withPrefixCaching(recipes: readonly HostRecipe[]): HostRecipe[] {
   })
 }
 
-export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
+const LLAMACPP_RECIPES: readonly HostRecipe[] = [
   {
     id: 'glm53-flash-gguf-b300', label: 'GLM-5.3-Flash · UD-Q4_K_XL', model: 'unsloth/GLM-5.3-Flash-GGUF', weightsGb: 200.844798752, gpu: 'B300', count: 1, vramGb: 288, diskGb: 300,
     engine: 'llamacpp', image: LLAMACPP_ENGINE_IMAGE, cuda: '13.0', imageSource: llamaImageSource, source: 'https://unsloth.ai/docs/models/glm-5.3-flash', verification: 'llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)',
@@ -95,6 +95,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     include: '*UD-Q3_K_XL*', mmproj: 'mmproj-BF16.gguf', weightFile: 'UD-Q3_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q3_K_XL-00001-of-00003.gguf',
     flags: ['--n-gpu-layers', 'all', '--jinja', '--ctx-size', '524288', '--parallel', '4', '--flash-attn', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0', '--cache-reuse', '256', '--temp', '1.0', '--top-p', '0.95', '--top-k', '0', '--min-p', '0.0', '--reasoning-format', 'deepseek'],
   },
+]
+
+const SGLANG_CORE_RECIPES: readonly HostRecipe[] = [
   {
     id: 'glm53-flash-b200-community', label: 'GLM-5.3-Flash · NVFP4', model: 'RadixArk/GLM-5.3-Flash-NVFP4', weightsGb: 202.951815003, gpu: 'B200', count: 4, vramGb: 180, diskGb: 300,
     image: 'lmsysorg/sglang:glm-5.3-flash', cuda: '13.0', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200', verification: 'community recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)',
@@ -181,6 +184,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     verified: { by: 'documented' as const, on: '2026-10-20', note: badge, source: mimoSource },
     flags: ['--tp', '8', '--trust-remote-code', '--reasoning-parser', 'mimo', '--tool-call-parser', 'mimo', ...(hw.gpu === 'H200' ? ['--moe-runner-backend', 'marlin'] : ['--ep', '8', '--dp', '1', '--pp-size', '1', '--moe-runner-backend', 'deep_gemm', '--moe-a2a-backend', 'deepep', '--deepep-mode', 'auto', '--moe-dense-tp-size', '1', '--enable-dp-lm-head', '--log-level-http', 'warning', '--enable-cache-report', '--page-size', '1', '--cuda-graph-max-bs-decode', '64', '--max-running-requests', '64', '--mem-fraction-static', '0.7', '--swa-full-tokens-ratio', '0.08', '--chunked-prefill-size', '49152', '--max-prefill-tokens', '65536', '--attention-backend', 'fa4', '--speculative-algorithm', 'DFLASH', '--speculative-draft-model-path', '/workspace/mercury-host/mimo26-pro-b300/weights/dflash', '--speculative-num-draft-tokens', '8', '--context-length', '1048576', '--cuda-graph-backend-prefill=disabled', '--mm-enable-dp-encoder', '--mm-attention-backend', 'fa4'])],
   })),
+]
+
+const MISTRAL_AND_GLM_BF16_RECIPES: readonly HostRecipe[] = [
   ...[{ gpu: 'H200', vramGb: 141 }, { gpu: 'B200', vramGb: 180 }].map(hw => ({
     id: 'mistral-large3-' + hw.gpu.toLowerCase(), label: 'Mistral Large 3 675B · FP8', model: 'mistralai/Mistral-Large-3-675B-Instruct-2512', ...hw, count: 8, weightsGb: 681.542908857, diskGb: 900, engine: 'vllm' as const,
     image: 'vllm/vllm-openai:v0.32.0', cuda: '13.0', source: mistralSource, context: 262144, contextPerSlot: 262144, verification: 'Apache-2.0 · vendor FP8 serving recipe',
@@ -196,6 +202,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     verified: { by: 'documented' as const, on: '2026-10-20', note: badge, source: glmSource },
     flags: ['--tp', String(hw.count * hw.nodes), ...mtp, '--mem-fraction-static', hw.gpu === 'B300' ? '0.9' : '0.85', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto'],
   })),
+]
+
+const BEAM_RECIPES: readonly HostRecipe[] = [
   {
     id: 'beam1-fp8-b300', label: 'Beam 1.0 501B-A23B · FP8', model: 'reflection/Beam-1.0-501B-A23B-FP8', weightsGb: 503.299122421, gpu: 'B300', count: 4, vramGb: 288, diskGb: 650,
     image: 'lmsysorg/sglang:beam', cuda: '13.0', source: 'https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0', context: 1048576, contextPerSlot: 1048576, verification: 'verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start',
@@ -233,6 +242,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     environment: { NCCL_MNNVL_ENABLE: '1', NCCL_CUMEM_ENABLE: '1', NCCL_NVLS_ENABLE: '1' },
     flags: ['--tp', '4', '--attention-backend', 'trtllm_mha', '--page-size', '64', '--context-length', '1048576', '--mem-fraction-static', '0.85', '--enable-unified-memory', '--speculative-algorithm', 'DFLASH', '--speculative-draft-model-path', 'reflection/Beam-1.0-501B-A23B-DFlash2', '--speculative-dflash-block-size', '8', '--tool-call-parser', 'beam', '--reasoning-parser', 'beam'],
   },
+]
+
+const HY4_PREVIEW_RECIPES: readonly HostRecipe[] = [
   {
     id: 'hy4-preview-mxfp8-b300', label: 'Hy4-preview 770B · MXFP8', model: 'tencent/Hy4-preview-FP8', weightsGb: 813.800659217, gpu: 'B300', count: 4, vramGb: 288, diskGb: 1000,
     image: 'lmsysorg/sglang:hy4-preview', cuda: '13.0', source: 'https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview', context: 262144, contextPerSlot: 262144, verification: 'Apache-2.0',
@@ -261,6 +273,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: ['high'], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/tencent/Hy4-preview/blob/main/chat_template.jinja', note: 'reasoning_effort takes high or no_think only; high is the default' } },
     flags: ['--context-length', '262144', '--tp', '8', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto', '--speculative-algorithm', 'NEXTN', '--speculative-num-steps', '3', '--speculative-eagle-topk', '1', '--speculative-num-draft-tokens', '4'],
   },
+]
+
+const STEP_AND_MINIMAX_RECIPES: readonly HostRecipe[] = [
   {
     id: 'step5-preview-b300', label: 'Step 5 Preview 604B-A27B · FP8', model: 'stepfun-ai/Step-5-Preview', weightsGb: 650.320093993, gpu: 'B300', count: 4, vramGb: 288, diskGb: 850,
     image: 'lmsysorg/sglang:step-5-preview', cuda: '13.0', source: 'https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview', context: 1048576, contextPerSlot: 1048576, verification: 'verified · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured',
@@ -303,6 +318,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/MiniMaxAI/MiniMax-M3/blob/main/chat_template.jinja', note: 'thinking_mode is enabled, disabled or adaptive; no effort levels' } },
     flags: ['--trust-remote-code', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto', '--tp', '8', '--mem-fraction-static', '0.75'],
   },
+]
+
+const INKLING_RECIPES: readonly HostRecipe[] = [
   {
     id: 'inkling-nvfp4-b200', label: 'Inkling 975B · NVFP4', model: 'thinkingmachines/Inkling-NVFP4', weightsGb: 592.037337118, gpu: 'B200', count: 8, vramGb: 180, diskGb: 800,
     image: 'lmsysorg/sglang:dev-inkling-dspark', cuda: '13.0', source: 'https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling', context: 1048576, contextPerSlot: 1048576, verification: 'verified · Apache-2.0 · configured 1M context, capacity not measured',
@@ -359,6 +377,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: ['low', 'medium', 'high', 'max'], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/thinkingmachines/Inkling-Small-NVFP4/blob/main/chat_template.jinja', note: 'low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted' } },
     flags: ['--trust-remote-code', '--tp', '8', '--quantization', 'modelopt_fp4', '--attention-backend', 'fa4', '--page-size', '128', '--fp4-gemm-backend', 'marlin', '--moe-runner-backend', 'marlin', '--enable-torch-symm-mem', '--mamba-radix-cache-strategy', 'extra_buffer', '--mem-fraction-static', '0.85', '--swa-full-tokens-ratio', '0.1', '--mamba-full-memory-ratio', '0.1', '--enable-multimodal', '--reasoning-parser', 'inkling', '--tool-call-parser', 'inkling'],
   },
+]
+
+const NEMOTRON3_ULTRA_RECIPES: readonly HostRecipe[] = [
   {
     id: 'nemotron3-ultra-nvfp4-b200', label: 'Nemotron 3 Ultra 550B-A55B · NVFP4', model: 'nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4', weightsGb: 352.381245755, gpu: 'B200', count: 4, vramGb: 180, diskGb: 500,
     image: 'lmsysorg/sglang:latest', cuda: '13.0', source: 'https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra', context: 262144, contextPerSlot: 262144, verification: 'documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144',
@@ -394,6 +415,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16/blob/main/chat_template.jinja', note: 'enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels' } },
     flags: ['--trust-remote-code', '--tp', '8', '--mamba-radix-cache-strategy', 'extra_buffer', '--attention-backend', 'trtllm_mha', '--tool-call-parser', 'qwen3_coder', '--reasoning-parser', 'nemotron_3'],
   },
+]
+
+const LONGCAT_AND_LING_RECIPES: readonly HostRecipe[] = [
   {
     id: 'longcat2-fp8-b300', label: 'LongCat-2.0 1.8T · FP8', model: 'meituan-longcat/LongCat-2.0-FP8', weightsGb: 2051.220418466, gpu: 'B300', count: 8, vramGb: 288, diskGb: 2500,
     image: 'lmsysorg/sglang:dev-cu13', cuda: '13.0', source: 'https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0', context: 262144, contextPerSlot: 262144, verification: 'verified · MIT · configured 256K context, capacity not measured',
@@ -437,6 +461,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/inclusionAI/Ling-3.1-flash/blob/main/chat_template.jinja', note: 'the template knows enable_thinking only; no effort levels' } },
     flags: ['--tp', '8', '--speculative-algorithm', 'NEXTN'],
   },
+]
+
+const FLASH_AND_SUPER_RECIPES: readonly HostRecipe[] = [
   {
     id: 'qwen38-flash-next-fp8-h200', label: 'Qwen3.8-Flash-Next 180B-A6B · FP8', model: 'Qwen/Qwen3.8-Flash-Next-FP8', weightsGb: 185.563783577, gpu: 'H200', count: 4, vramGb: 141, diskGb: 250,
     image: 'lmsysorg/sglang:latest', cuda: '13.0', source: 'https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next', context: 262144, contextPerSlot: 262144, verification: 'verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt',
@@ -486,6 +513,9 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/blob/main/chat_template.jinja', note: 'enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels' } },
     flags: ['--trust-remote-code', '--tp-size', '1', '--context-length', '262144', '--attention-backend', 'flashinfer', '--kv-cache-dtype', 'fp8_e4m3', '--mamba-ssm-dtype', 'bfloat16', '--max-running-requests', '2', '--mem-fraction-static', '0.90', '--max-total-tokens', '1016382', '--cuda-graph-max-bs-decode', '2', '--cuda-graph-bs-decode', '1', '2', '--max-mamba-cache-size', '25', '--chunked-prefill-size', '1024', '--max-prefill-tokens', '16384', '--speculative-algorithm', 'EAGLE', '--speculative-eagle-topk', '1', '--speculative-num-steps', '3', '--speculative-num-draft-tokens', '4', '--reasoning-parser', 'nemotron_3', '--tool-call-parser', 'qwen3_coder'],
   },
+]
+
+const GPT_OSS_AND_GEMMA_RECIPES: readonly HostRecipe[] = [
   {
     id: 'gpt-oss-120b-h100', label: 'gpt-oss-120b · MXFP4', model: 'openai/gpt-oss-120b', weightsGb: 195.764040609, gpu: 'H100', count: 1, vramGb: 80, diskGb: 260, engine: 'vllm' as const,
     image: 'vllm/vllm-openai:v0.32.0', cuda: '13.0', source: 'https://recipes.vllm.ai/openai/gpt-oss-120b', context: 131072, contextPerSlot: 131072, verification: 'Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three',
@@ -514,6 +544,20 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/google/gemma-4-31B-it/blob/main/chat_template.jinja', note: 'the template knows enable_thinking only; no effort levels' } },
     flags: ['--reasoning-parser', 'gemma4', '--tool-call-parser', 'gemma4'],
   },
+]
+
+export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
+  ...LLAMACPP_RECIPES,
+  ...SGLANG_CORE_RECIPES,
+  ...MISTRAL_AND_GLM_BF16_RECIPES,
+  ...BEAM_RECIPES,
+  ...HY4_PREVIEW_RECIPES,
+  ...STEP_AND_MINIMAX_RECIPES,
+  ...INKLING_RECIPES,
+  ...NEMOTRON3_ULTRA_RECIPES,
+  ...LONGCAT_AND_LING_RECIPES,
+  ...FLASH_AND_SUPER_RECIPES,
+  ...GPT_OSS_AND_GEMMA_RECIPES,
   ...tensorFoldHostRecipes(),
 ])
 
