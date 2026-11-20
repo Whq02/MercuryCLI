@@ -14,13 +14,14 @@ import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export const CREWMATE_TRANSCRIPT_TICK_MS = 2500
 export const CREWMATE_TRANSCRIPT_READING = 'reading the crewmate\'s transcript…'
 export const CREWMATE_TRANSCRIPT_EMPTY = 'no transcript yet — the crewmate has not written a row'
 
-export type CrewmateTranscript = { messages: Message[]; state: 'reading' | 'ready' | 'empty' }
+export type CrewmateTranscript = { messages: Message[]; state: 'reading' | 'ready' | 'empty' | 'error'; error?: string }
 
 const EMPTY: Message[] = []
 
@@ -102,7 +103,7 @@ export function mergeTranscriptRows(disk: readonly Message[], live: readonly Mes
 }
 
 export async function readCrewmateTranscriptFile(file: string, agentId: string): Promise<Message[]> {
-  const loaded = await loadTranscriptFile(file, { keepAllLeaves: true })
+  const loaded = await loadTranscriptFile(file, { keepAllLeaves: true, throwOnError: true })
   const rows: Message[] = []
   for (const row of loaded.messages.values()) {
     const tagged = row as { agentId?: string; isSidechain?: boolean; parentUuid?: string | null }
@@ -130,7 +131,7 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
   const name = crewmate?.name ?? ''
   const running = crewmate?.facts?.running ?? true
   const endedAt = crewmate?.facts?.endedAt ?? null
-  const [disk, setDisk] = useState<{ taskId: string; rows: Message[]; read: boolean }>({ taskId: '', rows: EMPTY, read: false })
+  const [disk, setDisk] = useState<{ taskId: string; rows: Message[]; read: boolean; error: string | null }>({ taskId: '', rows: EMPTY, read: false, error: null })
   const [tick, setTick] = useState(0)
   const queueVersion = useSyncExternalStore(subscribeCrewmateQueue, crewmateQueueVersion, crewmateQueueVersion)
   const inFlight = useRef(false)
@@ -150,19 +151,36 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
       inFlight.current = true
       try {
         let stamp = ''
+        let readError: string | null = null
         try {
           const facts = await stat(file)
           stamp = `${facts.size}:${facts.mtimeMs}`
-        } catch {
-          stamp = 'absent'
+        } catch (error) {
+          if (isENOENT(error)) {
+            stamp = 'absent'
+          } else {
+            passedOver(error)
+            readError = `the transcript at ${file} could not be read (${errorMessage(error)})`
+            stamp = `error:${readError}`
+          }
         }
-        stamp = `${file}|${agentId}|${stamp}`
-        if (stamp === lastStamp.current) return
-        const rows = stamp.endsWith('|absent') ? EMPTY : await readCrewmateTranscriptFile(file, agentId)
+        const fullStamp = `${file}|${agentId}|${stamp}`
+        if (fullStamp === lastStamp.current) return
+        let rows: Message[] = EMPTY
+        if (readError === null && stamp !== 'absent') {
+          try {
+            rows = await readCrewmateTranscriptFile(file, agentId)
+          } catch (error) {
+            if (!isENOENT(error)) {
+              passedOver(error)
+              readError = `the transcript at ${file} could not be read (${errorMessage(error)})`
+            }
+          }
+        }
         if (!alive) return
-        lastStamp.current = stamp
+        lastStamp.current = readError !== null ? `${file}|${agentId}|error:${readError}` : fullStamp
         pruneLandedCrewmateLines(taskId, landedUserTexts(rows))
-        setDisk({ taskId, rows, read: true })
+        setDisk({ taskId, rows, read: true, error: readError })
       } finally {
         inFlight.current = false
       }
@@ -186,9 +204,10 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
     void queueVersion
     void tick
     const fresh = disk.taskId === taskId
+    const error = fresh ? disk.error : null
     const queued = crewmateQueuedRows(taskId, { running, endedAt }, name, Date.now())
     const rows = mergeTranscriptRows(fresh ? disk.rows : EMPTY, [...liveTailOf(local), ...queued])
-    const state = rows.length > 0 ? 'ready' : fresh && disk.read ? 'empty' : 'reading'
-    return { messages: rows, state }
+    const state = rows.length > 0 ? 'ready' : error !== null ? 'error' : fresh && disk.read ? 'empty' : 'reading'
+    return error !== null ? { messages: rows, state, error } : { messages: rows, state }
   }, [taskId, disk, local, queueVersion, tick, running, endedAt, name])
 }
