@@ -381,6 +381,56 @@ if (POSIX_MODES) {
   check('useAuthWallHold: notifies user when sign-in state refresh throws in afterDoor', r.resent === false && texts.some(t => t === 'Sign-in state could not be refreshed (config unreadable) — press Enter to send your prompt.'), JSON.stringify(r))
 }
 
+{
+  const r = runIsolated(`
+    const { mock } = await import('bun:test')
+    const { EventEmitter: NodeEventEmitter } = await import('node:events')
+    const { PassThrough } = await import('node:stream')
+    const { createElement } = await import('react')
+    process.env.NODE_ENV = 'test'
+    const bootPath = ${JSON.stringify(join(SRC, 'extensions/boot.ts'))}
+    const realBoot = await import(bootPath)
+    mock.module(bootPath, () => ({
+      ...realBoot,
+      ensureExtensionsLoaded: async () => { throw new Error('disk offline') },
+    }))
+    const { useExtensions } = await import(${JSON.stringify(join(SRC, 'hooks/useExtensions.ts'))})
+    const { AppStoreContext, getDefaultAppState } = await import(${JSON.stringify(join(SRC, 'state/AppState.tsx'))})
+    const { createStore } = await import(${JSON.stringify(join(SRC, 'state/store.ts'))})
+    const { default: StdinContext } = await import(${JSON.stringify(join(SRC, 'ink/components/StdinContext.ts'))})
+    const { Box, EventEmitter, render, flushPendingSyncWork } = await import(${JSON.stringify(join(SRC, 'ink.ts'))})
+    const initial = getDefaultAppState()
+    initial.extensions.pending = true
+    const store = createStore(initial)
+    function Probe() {
+      useExtensions({ enabled: true })
+      return null
+    }
+    const emitter = new EventEmitter()
+    const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
+    const stream = new PassThrough()
+    stream.resume()
+    const stdout = Object.assign(stream, { columns: 80, rows: 24 })
+    const stdinValue = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
+    const inst = await render(
+      createElement(AppStoreContext.Provider, { value: store },
+        createElement(StdinContext.Provider, { value: stdinValue },
+          createElement(Box, null, createElement(Probe)))),
+      { stdin, stdout, patchConsole: false, exitOnCtrlC: false },
+    )
+    for (let i = 0; i < 6; i++) { flushPendingSyncWork(); await new Promise(res => setTimeout(res, 15)) }
+    const n = store.getState().notifications
+    const all = [...(n.current ? [n.current] : []), ...n.queue]
+    out.pending = store.getState().extensions.pending
+    out.texts = all.map(item => item.text).filter(Boolean)
+    inst.unmount()
+    inst.cleanup()
+    stream.destroy()
+  `)
+  const texts = (r.texts as string[]) ?? []
+  check('useExtensions: clears pending and notifies user when boot load fails', r.pending === false && texts.some(t => t === 'Extensions could not be loaded (disk offline) — /extensions'), JSON.stringify(r))
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
