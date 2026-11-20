@@ -42,9 +42,9 @@ function restoreEnv(): void {
   _resetClangdProbeCacheForTesting()
 }
 function fakeClangd(dir: string, name: string): string {
-  const p = path.join(dir, name)
-  writeFileSync(p, '#!/bin/sh\nexit 0\n')
-  chmodSync(p, 0o755)
+  const p = path.join(dir, process.platform === 'win32' ? `${name}.exe` : name)
+  writeFileSync(p, process.platform === 'win32' ? '' : '#!/bin/sh\nexit 0\n')
+  if (process.platform !== 'win32') chmodSync(p, 0o755)
   return p
 }
 
