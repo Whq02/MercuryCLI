@@ -336,16 +336,21 @@ const PROCESSES: Row[] = [
   },
 ]
 
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, constants as fsConstants, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { rememberedPlatform } from '../../src/utils/platform/host.js'
 import {
+  appendNoFollowFlags,
+  exclusiveCreateNoFollowFlags,
   isDirAbsentOnRmdirError,
   isOwnedPrivateEntry,
   isPrivateFileMode,
   pathEntryKindSync,
   posixFileModesApply,
   readExposedFileModeSync,
+  symlinkDeniedByPrivilege,
+  symlinksMayRequirePrivilege,
 } from '../../src/utils/platform/files.js'
 
 const FILES: Row[] = [
@@ -486,6 +491,87 @@ const FILES: Row[] = [
       linux: [true, true, true, false, false, false, true],
       'win32 by process.platform alone': [true, false, true, false, false, false, true],
       'win32 by getPlatform() alone': [true, true, true, false, false, false, true],
+    },
+  },
+  {
+    name: 'files · exclusiveCreateNoFollowFlags',
+    answers: () => {
+      const posixBits = fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | (fsConstants.O_NOFOLLOW ?? 0)
+      const label = (v: string | number): string | number => (v === posixBits ? 'posix-excl-nofollow' : v)
+      return [
+        label(exclusiveCreateNoFollowFlags()),
+        label(exclusiveCreateNoFollowFlags(rememberedPlatform())),
+        label(exclusiveCreateNoFollowFlags('win32')),
+        label(exclusiveCreateNoFollowFlags('linux')),
+      ]
+    },
+    recorded: {
+      win32: ['wx', 'wx', 'wx', 'posix-excl-nofollow'],
+      darwin: ['posix-excl-nofollow', 'posix-excl-nofollow', 'wx', 'posix-excl-nofollow'],
+      linux: ['posix-excl-nofollow', 'posix-excl-nofollow', 'wx', 'posix-excl-nofollow'],
+      'win32 by process.platform alone': ['wx', 'posix-excl-nofollow', 'wx', 'posix-excl-nofollow'],
+      'win32 by getPlatform() alone': ['posix-excl-nofollow', 'wx', 'wx', 'posix-excl-nofollow'],
+    },
+  },
+  {
+    name: 'files · appendNoFollowFlags',
+    answers: () => {
+      const posixBits = fsConstants.O_WRONLY | fsConstants.O_APPEND | fsConstants.O_CREAT | (fsConstants.O_NOFOLLOW ?? 0)
+      const label = (v: string | number): string | number => (v === posixBits ? 'posix-append-nofollow' : v)
+      return [
+        label(appendNoFollowFlags()),
+        label(appendNoFollowFlags('w')),
+        label(appendNoFollowFlags('a', 'windows')),
+        label(appendNoFollowFlags('w', 'windows')),
+        label(appendNoFollowFlags('a', 'macos')),
+        label(appendNoFollowFlags('w', 'linux')),
+      ]
+    },
+    recorded: {
+      win32: ['a', 'w', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      darwin: ['posix-append-nofollow', 'posix-append-nofollow', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      linux: ['posix-append-nofollow', 'posix-append-nofollow', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      'win32 by process.platform alone': ['posix-append-nofollow', 'posix-append-nofollow', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+      'win32 by getPlatform() alone': ['a', 'w', 'a', 'w', 'posix-append-nofollow', 'posix-append-nofollow'],
+    },
+  },
+  {
+    name: 'files · symlinksMayRequirePrivilege',
+    answers: () => [
+      symlinksMayRequirePrivilege(),
+      symlinksMayRequirePrivilege(rememberedPlatform()),
+      symlinksMayRequirePrivilege('win32'),
+      symlinksMayRequirePrivilege('darwin'),
+      symlinksMayRequirePrivilege('linux'),
+    ],
+    recorded: {
+      win32: [true, true, true, false, false],
+      darwin: [false, false, true, false, false],
+      linux: [false, false, true, false, false],
+      'win32 by process.platform alone': [true, false, true, false, false],
+      'win32 by getPlatform() alone': [false, true, true, false, false],
+    },
+  },
+  {
+    name: 'files · symlinkDeniedByPrivilege',
+    answers: () => {
+      const eperm = Object.assign(new Error('EPERM'), { code: 'EPERM' })
+      const eacces = Object.assign(new Error('EACCES'), { code: 'EACCES' })
+      const eexist = Object.assign(new Error('EEXIST'), { code: 'EEXIST' })
+      return [
+        symlinkDeniedByPrivilege(eperm),
+        symlinkDeniedByPrivilege(eacces),
+        symlinkDeniedByPrivilege(eexist),
+        symlinkDeniedByPrivilege(eperm, 'win32'),
+        symlinkDeniedByPrivilege(eperm, 'linux'),
+      ]
+    },
+    recorded: {
+      win32: [true, true, false, true, false],
+      darwin: [false, false, false, true, false],
+      linux: [false, false, false, true, false],
+      'win32 by process.platform alone': [true, true, false, true, false],
+      'win32 by getPlatform() alone': [false, false, false, true, false],
     },
   },
 ]
