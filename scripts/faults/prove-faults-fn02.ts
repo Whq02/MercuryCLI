@@ -231,5 +231,41 @@ console.log('\nBootSaturnScreen — model/preset/project listing failures surfac
   check('project listing throw sets formNote and opens no empty picker', (r.workspace as { note?: string; picks?: number } | undefined)?.note === 'projects dir EACCES' && (r.workspace as { picks?: number } | undefined)?.picks === 0, JSON.stringify(r.workspace ?? r))
 }
 
+console.log('\nBootSettingsScreen — failed liveCount returns null (not 0) and failed daemonControlRpc settles receipt as refused')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/BootSettingsScreen.tsx'))
+    if (typeof mod.readLiveSessionCount !== 'function' || typeof mod.deliverSpawnSwitchReceipt !== 'function') {
+      out.missing = true
+    } else {
+      out.failedCount = await mod.readLiveSessionCount(async () => { throw new Error('workers file EACCES') })
+      out.okCount = await mod.readLiveSessionCount(async () => 3)
+      let state = {
+        phase: 'ready',
+        workers: [{
+          runnerId: 'r1',
+          sessionId: 'sess-1234',
+          snapshotRevision: 1,
+          receipts: [{ env: 'MERCURY_SUBAGENTS', label: 'Subagents', target: '0', outcome: 'queued', reason: 'queued for next turn' }],
+        }],
+      }
+      await mod.deliverSpawnSwitchReceipt(
+        'sess-1234',
+        state.workers[0].receipts[0],
+        'subagents',
+        {
+          rpc: async () => { throw new Error('daemon socket ECONNREFUSED') },
+          isCancelled: () => false,
+          setApply: updater => { state = updater(state) },
+        },
+      )
+      out.settled = state.workers[0].receipts[0]
+    }
+  `)
+  check('failed countLiveConcourseWorkers resolves to null instead of 0', r.failedCount === null && r.okCount === 3, JSON.stringify(r))
+  const settled = r.settled as { outcome?: string; reason?: string } | undefined
+  check('rejected daemonControlRpc marks receipt refused with error message instead of queued', settled?.outcome === 'refused' && settled?.reason === 'daemon socket ECONNREFUSED', JSON.stringify(settled ?? r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
