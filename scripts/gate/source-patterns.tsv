@@ -48,7 +48,6 @@ env-read	src/utils/warningHandler.ts	1
 Promise.race	src/boot/launchGraph.ts	1	events 1
 Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
 Promise.race	src/cli/headless/runnerAsks.ts	1	events 1
-Promise.race	src/mneme/lineageSession.ts	1	deadline 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
 Promise.race	src/services/eval/procKernel.ts	1	events 1
 Promise.race	src/services/host/door.ts	1	events 1
@@ -70,7 +69,7 @@ Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
 Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
-Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	2	deadline 1 · events 1
+Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	1	events 1
 Promise.race	src/utils/generators.ts	1	events 1
 Promise.race	src/utils/health/sections/interface.ts	1	deadline 1
 Promise.race	src/utils/healthReport.ts	1	deadline 1
