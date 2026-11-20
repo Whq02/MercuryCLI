@@ -1,4 +1,4 @@
-import { getSecureStorage, removeSecureStorageField } from '../../../utils/secureStorage/index.js'
+import { credentialStoreUnread, credentialsPath, getSecureStorage, keychainReachable, removeSecureStorageField } from '../../../utils/secureStorage/index.js'
 import { logError } from '../../../utils/log.js'
 import { saveGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
@@ -8,7 +8,7 @@ import { resetUserCache } from '../../../utils/user.js'
 import { revokeOAuthToken } from '../../oauth/client.js'
 import type { AccountSlot, SlotRemovalOwners, AccountSlotKind } from './shapes.js'
 import { disconnectOpenaiSubscription, openaiAuthPathForDisplay, resolveOpenaiApiKey } from '../openai/openaiAccounts.js'
-import { writeStoredOpenaiApiKey, writeStoredZaiApiKey, writeStoredOpenrouterApiKey, writeStoredGeminiApiKey, writeStoredMoonshotApiKey, writeStoredMetaApiKey, writeStoredZenApiKey, writeStoredMinimaxApiKey, writeStoredTogetherApiKey, writeStoredCohereApiKey, writeStoredGroqApiKey, writeStoredMeliousApiKey, writeStoredOrcarouterApiKey, writeStoredCerebrasApiKey, writeStoredFireworksApiKey, writeStoredQwenApiKey, writeStoredDeepseekApiKey, writeStoredXaiApiKey, writeStoredXaiManagementApiKey, writeStoredNousApiKey, writeStoredCompatApiKey, writeStoredHuggingfaceApiKey, writeStoredLocalApiKey, writeStoredMistralApiKey, writeStoredMistralAdminApiKey, clearEveryStoredCompatKey, probeCredentialJson, refuseUnreadSecretsStore, takeCredentialKeptAside } from '../providerSecrets.js'
+import { writeStoredOpenaiApiKey, writeStoredZaiApiKey, writeStoredOpenrouterApiKey, writeStoredGeminiApiKey, writeStoredMoonshotApiKey, writeStoredMetaApiKey, writeStoredZenApiKey, writeStoredMinimaxApiKey, writeStoredTogetherApiKey, writeStoredCohereApiKey, writeStoredGroqApiKey, writeStoredMeliousApiKey, writeStoredOrcarouterApiKey, writeStoredCerebrasApiKey, writeStoredFireworksApiKey, writeStoredQwenApiKey, writeStoredDeepseekApiKey, writeStoredXaiApiKey, writeStoredXaiManagementApiKey, writeStoredNousApiKey, writeStoredCompatApiKey, writeStoredHuggingfaceApiKey, writeStoredLocalApiKey, writeStoredMistralApiKey, writeStoredMistralAdminApiKey, clearEveryStoredCompatKey, credentialFileUnwritten, probeCredentialJson, refuseUnreadSecretsStore, takeCredentialKeptAside } from '../providerSecrets.js'
 import { disconnectOpenrouterOauthKey, openrouterAuthPathForDisplay } from '../openrouter/openrouterAccounts.js'
 import { disconnectGeminiOauth, disconnectGeminiPlan, geminiAuthPathForDisplay } from '../gemini/geminiAccounts.js'
 import { disconnectMoonshotOauth, moonshotAuthPathForDisplay } from '../moonshot/moonshotAccounts.js'
@@ -21,10 +21,23 @@ export interface AnthropicSlotSignOutIo {
   revoke?: (refreshToken: string) => Promise<void>
 }
 
+export function credentialStoreLeftWords(where: 'keychain' | 'file'): string {
+  return where === 'keychain'
+    ? 'The keychain entry of Mercury could not be removed; the sign-ins it holds are still stored here. Unlock the keychain, then try again.'
+    : `The credential store at ${credentialsPath()} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
+}
+
+function refuseUnreadClaudeStore(): void {
+  if (getSecureStorage().read()?.claudeAiOauth !== undefined) return
+  const unread = credentialStoreUnread()
+  if (unread !== null) throw Object.assign(new Error(unread.warning), { code: unread.code })
+}
+
 export function signOutAnthropicSlot(
   dir: string,
   io: AnthropicSlotSignOutIo = {},
 ): { loginLeft: boolean } {
+  refuseUnreadClaudeStore()
   let refreshToken: string | null = null
   try {
     const stored = getSecureStorage().read()?.claudeAiOauth?.refreshToken
@@ -33,14 +46,17 @@ export function signOutAnthropicSlot(
     logError(error)
   }
   let loginLeft = false
+  let removal: ReturnType<typeof removeSecureStorageField> | undefined
   try {
-    const removal = removeSecureStorageField('claudeAiOauth')
+    removal = removeSecureStorageField('claudeAiOauth')
     loginLeft = removal.removed
-    if (!removal.success) {
-      logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
-    }
   } catch (error) {
     logError(error)
+  }
+  if (removal !== undefined && !removal.success) {
+    throw removal.kept === 0
+      ? Object.assign(new Error(credentialStoreLeftWords(keychainReachable() ? 'keychain' : 'file')), { code: removal.code ?? 'EUNKNOWN' })
+      : credentialFileUnwritten('The credential store', credentialsPath(), { code: removal.code })
   }
   try {
     saveGlobalConfig(current => ({ ...current, oauthAccount: undefined }))
@@ -110,7 +126,7 @@ export function signOutAccountFileNoSlotReads(family: string): { refused: string
       return false
     }
   }
-  if (family !== 'anthropic') attempt(refuseUnreadSecretsStore)
+  attempt(family === 'anthropic' ? refuseUnreadClaudeStore : refuseUnreadSecretsStore)
   const file = Object.hasOwn(ACCOUNT_FILE_SIGN_OUTS, family) ? ACCOUNT_FILE_SIGN_OUTS[family] : undefined
   const state = file === undefined ? 'absent' : probeCredentialJson(file.path()).state
   if (file !== undefined && state !== 'absent' && state !== 'ok') file.signOuts.every(attempt)

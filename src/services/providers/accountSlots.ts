@@ -51,7 +51,7 @@ import { compatSlots } from './accountSlots/compat.js'
 import { huggingfaceSlots } from './accountSlots/huggingface.js'
 import { localSlots } from './accountSlots/local.js'
 import { genericSlots } from './accountSlots/generic.js'
-export { type AnthropicSlotSignOutIo, signOutAnthropicSlot, executeSlotRemoval, familiesRefusedIn, signOutAccountFileNoSlotReads, signOutEveryEngineCredential } from './accountSlots/removal.js'
+export { type AnthropicSlotSignOutIo, signOutAnthropicSlot, credentialStoreLeftWords, executeSlotRemoval, familiesRefusedIn, signOutAccountFileNoSlotReads, signOutEveryEngineCredential } from './accountSlots/removal.js'
 
 export { maskedKeyTail }
 
