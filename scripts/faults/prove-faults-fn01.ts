@@ -236,5 +236,25 @@ console.log('\nclaimSession.ts — loadConversationForResume error reports resum
   check('claimSession: resume load throw reports Failed to resume session with the error message', emitted.length === 1 && emitted[0] === 'Failed to resume session: disk read fault' && codes[0] === 1, JSON.stringify({ emitted, codes }))
 }
 
+console.log('\nhealthJson.ts — serialization failure emits cert-failed error and exits 1 instead of {} and exit 0')
+{
+  const r = runSubprocess(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    mock.module(path.join(SRC, 'utils/healthReport.js'), () => ({
+      healthCertEnabled: () => true,
+      runAndRecordHealthReport: async () => ({ verdict: 'sound', broken: 1n }),
+    }))
+    mock.module(path.join(SRC, 'utils/readiness.js'), () => ({
+      collectReadiness: () => ({ records: [] }),
+    }))
+    const { runHealthJsonCli } = await import(path.join(SRC, 'cli/healthJson.ts'))
+    await runHealthJsonCli()
+  `, { allowNonZero: true })
+  let parsed: { code?: string; error?: string } | null = null
+  try { parsed = JSON.parse(r.stdout.trim()) as { code?: string; error?: string } } catch {}
+  check('healthJson: serialization bug exits 1 with cert-failed JSON instead of {} with exit 0', r.status === 1 && parsed?.code === 'cert-failed' && typeof parsed.error === 'string' && parsed.error.length > 0, `status=${r.status} stdout=${r.stdout.slice(0, 200)}`)
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
