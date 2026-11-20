@@ -67,6 +67,7 @@ prove-own-secret-read-floor.ts
 prove-own-tools-hostless.ts
 prove-permission-abort-total.ts
 prove-permission-entry-effects.ts
+prove-permission-explainer.ts
 prove-permission-posture.ts
 prove-permission-write-base.ts
 prove-pipeline-verdict.ts

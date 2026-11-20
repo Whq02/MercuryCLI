@@ -3,8 +3,8 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import type {
   InstructionProfile,
   InstructionProfileOrigin,
-} from './contracts.js'
-import { INSTRUCTION_PROFILES } from './contracts.js'
+} from '../../utils/instructions/contracts.js'
+import { INSTRUCTION_PROFILES } from '../../utils/instructions/contracts.js'
 
 let sessionProfile: InstructionProfile | null = null
 let agentProfile: InstructionProfile | null = null

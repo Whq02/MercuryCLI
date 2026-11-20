@@ -1,7 +1,7 @@
 
 import { assembleContextCapsule } from './capsule.js'
 import { projectImpact } from './impact.js'
-import { projectIntelEnabled, type SnapshotGeneration } from './contracts.js'
+import { projectIntelEnabled, type SnapshotGeneration } from '../../utils/projectIntel/contracts.js'
 import { getProjectSnapshot } from './snapshot.js'
 
 interface WorkSplitSuggestion {

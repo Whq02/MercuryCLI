@@ -98,6 +98,7 @@ async function generateSuggestion(
     forkLabel: 'prompt_suggestion',
     overrides: { abortController },
     skipTranscript: true,
+    skipCacheWrite: true,
   })
   const messages = (result as { messages?: unknown[] }).messages ?? []
   let requestId: string | undefined

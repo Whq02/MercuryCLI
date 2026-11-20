@@ -7,7 +7,7 @@ import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, 
 armEnvironment()
 
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
-const { planAstRewrite, resolveAstScope, searchAstPattern } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { planAstRewrite, resolveAstScope, searchAstPattern } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-spans-'))
 const nine = Array.from({ length: 9 }, (_, i) => `const broken${i} = ;`).join('\n') + '\nneedle(9);\n'

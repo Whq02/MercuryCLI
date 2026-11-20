@@ -5,7 +5,7 @@ import { cpuFixture, isolatedHome, readViewKit } from './readViewKit.js'
 
 const home = isolatedHome(import.meta.filename)
 const kit = await readViewKit(home)
-const { isRemotePath, parseRemotePath } = await import(`${kit.src}/services/remoteFiles/target.ts`)
+const { isRemotePath, parseRemotePath } = await import(`${kit.src}/utils/remoteFiles/target.ts`)
 kit.check('shared source parser accepts an uppercase SSH scheme', isRemotePath('SSH://box/rows.sqlite'))
 kit.check('shared source parser keeps a dotted authority and its port', parseRemotePath('ssh://box.db:27300/rows.sqlite')?.authority.host === 'box.db')
 if (process.platform === 'win32') {

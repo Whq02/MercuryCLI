@@ -28,7 +28,7 @@ const loaderCwd = join(scratch, 'loader-cwd')
 mkdirSync(loaderCwd, { recursive: true })
 bootstrap.setOriginalCwd(loaderCwd)
 bootstrap.setProjectRoot(loaderCwd)
-const { loadConversationForResume, getResumePrompt } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
 const { loadTranscriptFile } = await import('../../src/utils/sessionStorage.ts')
 const { ENDED_RUN_TOOL_RESULT } = await import('../../src/utils/messages/rejectionText.ts')
 import type { Message } from '../../src/types/message.ts'

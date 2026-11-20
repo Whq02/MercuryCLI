@@ -30,7 +30,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
 const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
-const remoteTarget = (await import('../../src/services/remoteFiles/target.ts')) as { remoteLastRead?: (ledger: unknown, path: string) => string | null }
+const remoteTarget = (await import('../../src/utils/remoteFiles/target.ts')) as { remoteLastRead?: (ledger: unknown, path: string) => string | null }
 const rewindScreen = (await import('../../src/components/MessageSelector.tsx')) as { writtenElsewhereLine?: (messages: never, from: string) => string | null }
 setSessionTrustAccepted(true)
 enableConfigs()

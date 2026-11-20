@@ -11,7 +11,7 @@ process.chdir(scratch)
 
 import { writeForkedFixture } from '../sessionStorage/forkedFixture.ts'
 
-const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
+const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

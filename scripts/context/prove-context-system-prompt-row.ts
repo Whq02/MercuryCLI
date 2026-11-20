@@ -19,7 +19,7 @@ function section(t: string): void {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { analyzeContextUsage } = await import('../../src/utils/analyzeContext.ts')
+const { analyzeContextUsage } = await import('../../src/services/context/analyzeContext.ts')
 const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')

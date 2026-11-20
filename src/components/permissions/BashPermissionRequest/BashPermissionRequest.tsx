@@ -13,7 +13,7 @@ import {
   getFirstWordPrefix,
   getSimpleCommandPrefix,
 } from '../../../tools/BashTool/bashPermissions.js'
-import { getDestructiveCommandWarning } from '../../../tools/BashTool/destructiveCommandWarning.js'
+import { getDestructiveCommandWarning } from '../../../utils/shell/destructiveCommandWarning.js'
 import { parseSedEditCommand } from '../../../tools/BashTool/sedEditParser.js'
 import { getCompoundCommandPrefixesStatic } from '../../../utils/bash/prefix.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'

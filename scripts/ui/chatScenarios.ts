@@ -201,8 +201,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
       return true
     },
   }))
-  const realWindows = { ...(await import('../../src/utils/model/contextWindowWarmup.ts')) }
-  mock.module('../../src/utils/model/contextWindowWarmup.ts', () => ({
+  const realWindows = { ...(await import('../../src/services/context/contextWindowWarmup.ts')) }
+  mock.module('../../src/services/context/contextWindowWarmup.ts', () => ({
     ...realWindows,
     warmContextWindowSources: async () => {
       warmed.contextWindows++

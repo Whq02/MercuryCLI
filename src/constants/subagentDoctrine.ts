@@ -6,7 +6,7 @@ import { MERCURY_CONSTITUTION, mercurySubagentContract, type MercuryAgentSeat } 
 import { getRuntimePostureDoctrineLine } from '../utils/cockpit/runtimePosture.js'
 import { getVulcanDoctrineLine } from '../utils/vulcan/vulcanGates.js'
 import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
-import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
+import { RETAIN_TOOL_NAME } from './tools/memory.js'
 import { changeTransactionEnabled } from '../services/changeTransaction/contracts.js'
 import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'
 import { MERCURY_SCOUT_AGENT } from '../tools/AgentTool/built-in/mercuryScoutAgent.js'

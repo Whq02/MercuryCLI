@@ -68,7 +68,7 @@ const preview = await import('../../src/services/providers/transitionPreview.ts'
 const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
 const windows = await import('../../src/services/providers/local/localWindow.ts')
-const { awaitContextWindowSource, contextWindowSourceReady } = await import('../../src/utils/model/contextWindowWarmup.ts')
+const { awaitContextWindowSource, contextWindowSourceReady } = await import('../../src/services/context/contextWindowWarmup.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
 

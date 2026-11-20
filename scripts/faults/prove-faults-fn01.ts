@@ -221,7 +221,7 @@ console.log('\nclaimSession.ts — loadConversationForResume error reports resum
     fs.writeFileSync(file, '{"type":"user"}\\n')
     const shutdownCodes = []
     const emitted = []
-    mock.module(path.join(SRC, 'utils/conversationRecovery.js'), () => ({
+    mock.module(path.join(SRC, 'services/resume/conversationRecovery.js'), () => ({
       loadConversationForResume: async () => { throw new Error('disk read fault') },
     }))
     mock.module(path.join(SRC, 'utils/gracefulShutdown.js'), () => ({

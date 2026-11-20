@@ -1,7 +1,7 @@
 
 import { basename } from 'node:path'
 import { discoverLaunchProfiles } from '../../ide/launchProfiles.js'
-import { projectIntelEnabled } from '../../projectIntel/contracts.js'
+import { projectIntelEnabled } from '../../../utils/projectIntel/contracts.js'
 import { assembleContextCapsule, renderCapsule } from '../../projectIntel/capsule.js'
 import { projectImpact } from '../../projectIntel/impact.js'
 import { suggestWorkSplit } from '../../projectIntel/split.js'

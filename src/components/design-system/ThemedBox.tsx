@@ -7,7 +7,7 @@ import type { FocusEvent } from '../../ink/events/focus-event.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
-import { resolveThemeColor } from './color.js'
+import { resolveThemeColor } from '../../utils/color.js'
 import { useTheme } from './ThemeProvider.js'
 
 type ThemeColor = (string & {}) | keyof Theme

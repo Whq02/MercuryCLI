@@ -5,7 +5,7 @@ import { getSkillToolCommands } from '../../commands.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { Command } from '../../types/command.js'
 import { truncateToWidth } from '../../utils/format.js'
-import { MAX_LISTING_DESC_CHARS } from './constants.js'
+import { MAX_LISTING_DESC_CHARS } from '../../constants/tools/skill.js'
 
 
 const SKILL_BUDGET_CONTEXT_PERCENT = 0.01

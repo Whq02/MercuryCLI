@@ -42,9 +42,9 @@ const { getOriginalCwd, setOriginalCwd, setCwdState, getSystemPromptSectionCache
 const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
 const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { TASK_CREATE_TOOL_NAME } = await import('../../src/tools/TaskCreateTool/constants.ts')
+const { TASK_CREATE_TOOL_NAME } = await import('../../src/constants/tools/taskCreate.ts')
 const { RECORD_CONVENTION_TOOL_NAME } = await import('../../src/tools/RecordConventionTool/prompt.ts')
-const { RETAIN_TOOL_NAME } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { RETAIN_TOOL_NAME } = await import('../../src/constants/tools/memory.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'static-sections-cwd-'))
 const cwd = process.cwd()

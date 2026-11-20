@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { lazySchema } from '../lazySchema.js'
 import type { TurnCutKind } from '../messages/turnCut.js'
 import { permissionUpdateSchema } from '../permissions/PermissionUpdateSchema.js'
-import { CONCOURSE_SESSION_STATES } from '../../daemon/concourseLifecycle.js'
+import { CONCOURSE_SESSION_STATES } from '../concourseLifecycle.js'
 import { ERROR_CLASSES, OUTCOME_STATUSES, STOP_WORDS, UsageSchema } from '../../rows/vocabulary.js'
 
 export const HOOK_ROADS = ['runner', 'crewmate', 'daemon', 'cockpit'] as const

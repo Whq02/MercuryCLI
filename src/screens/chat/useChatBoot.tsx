@@ -46,7 +46,7 @@ import { startTimeout, stopTimeout } from '../../utils/timers.js';
 
 const loadHopIntoSession = () => import('../../services/switchboard/hopIntoSession.js');
 const loadEnsureDaemon = () => import('../../services/switchboard/ensureDaemon.js');
-const loadContextWindowWarmup = () => import('../../utils/model/contextWindowWarmup.js');
+const loadContextWindowWarmup = () => import('../../services/context/contextWindowWarmup.js');
 const loadDaemonHandshake = () => import('../../daemon/handshake.js');
 const loadProjectSnapshot = () => import('../../services/projectIntel/snapshot.js');
 

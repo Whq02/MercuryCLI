@@ -23,7 +23,7 @@ const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../s
   process.env.MERCURY_TREESITTER_VENDOR_DIR = composed
 }
 const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/services/structure/grammarFacility.ts')
-const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/utils/astPatterns.ts')
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/services/structure/astPatterns.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

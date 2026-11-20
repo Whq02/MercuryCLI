@@ -21,7 +21,7 @@ const { keyLanePins, getModelOptions, MISTRAL_MODEL_GROUP } = await import('../.
 const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
 const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
-const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+const { validateModel } = await import('../../src/services/providers/validateModel.ts')
 let count = 0
 const check = (name: string, ok: unknown): void => { assert.ok(ok, name); count++; console.log(`[PASS] ${name}`) }
 let calls = 0

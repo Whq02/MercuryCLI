@@ -7,7 +7,7 @@ import { logError } from '../utils/log.js'
 import { initializeToolPermissionContext, stripDangerousPermissionsForFlow } from '../utils/permissions/permissionSetup.js'
 import { modeBypassesPermissions, type PermissionMode } from '../utils/permissions/PermissionMode.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
-import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
+import { isSessionRunArgv as isRunArgv } from '../utils/sessionArgs.js'
 import { failCli, typedString, type RootOptions } from './cli.js'
 import { passedOver } from '../utils/passedOver.js'
 

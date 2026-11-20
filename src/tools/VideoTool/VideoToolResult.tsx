@@ -4,7 +4,7 @@ import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
 import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js'
 import { FAINT } from '../../components/mercuryPalette.js'
-import type { VideoOutput } from '../../services/video/types.js'
+import type { VideoOutput } from '../../utils/video/types.js'
 
 export function VideoToolResult({ output }: { output: VideoOutput }): React.ReactNode {
   return <WithCardTone state={output.outcome}>
