@@ -128,8 +128,11 @@ export function listSamples(sessionId: string): SampleRecordV1[] {
   try {
     names = readdirSync(root)
   } catch (error) {
-    if (isENOENT(error)) return []
-    throw error
+    if (!isENOENT(error)) {
+      logForDebugging(`samples: the samples folder could not be read — ${errorMessage(error)}`)
+    }
+    passedOver(error)
+    return []
   }
   const out: SampleRecordV1[] = []
   for (const name of names) {

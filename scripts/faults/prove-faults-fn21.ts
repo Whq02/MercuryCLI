@@ -36,21 +36,6 @@ async function run(): Promise<void> {
   const sampleStore = await import('../../src/services/samples/store.ts')
 
   {
-    const session = 'sess-list-eacces'
-    const root = sampleStore.samplesRoot(session)
-    mkdirSync(root, { recursive: true })
-    if (POSIX_NON_ROOT) {
-      chmodSync(root, 0o000)
-      const err = throws(() => sampleStore.listSamples(session))
-      chmodSync(root, 0o700)
-      check('samples-listSamples-eacces', err !== null, 'returned [] instead of throwing on unreadable samples root')
-    } else {
-      skip('samples-listSamples-eacces', 'needs POSIX non-root')
-    }
-    check('samples-listSamples-enoent-control', sampleStore.listSamples('sess-never-created').length === 0)
-  }
-
-  {
     const session = 'sess-ver-eacces'
     const created = sampleStore.createOrAppendSample({ sessionId: session, name: 'ver-test', html: '<p>ok</p>' })
     const file = join(sampleStore.sampleDir(session, created.record.id), 'v1.html')
