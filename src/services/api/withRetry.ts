@@ -481,7 +481,7 @@ function faultNoticeError(fault: RetryFault): Error {
   })
 }
 
-async function* retryEmptyStream(
+export async function* retryEmptyStream(
   counter: { emptyStreamEnds: number },
   road: { provider: string; detail: string; cause?: unknown; log: string; signal: AbortSignal; onWait?: (wait: RequestWaitV1 | null) => void; whilePaused?: () => void },
 ): AsyncGenerator<SystemAPIErrorMessage, 'again' | 'cancelled' | 'spent'> {
