@@ -344,5 +344,46 @@ console.log('\nrun/runCoordinator.ts — syncVerification drops verified state w
   check('runCoordinator-syncVerification-clears-verified-on-throw', v?.state === 'unverified' && String(v?.detail).includes('verify boom'), JSON.stringify(v))
 }
 
+console.log('\nrun/runSidecar.ts — unreadable sidecar is not overwritten and failed delete throws')
+if (!POSIX_MODES) {
+  skip('runSidecar-save-refuses-unreadable-existing', 'needs non-root POSIX')
+  skip('runSidecar-delete-unwritable-dir-throws', 'needs non-root POSIX')
+} else {
+  const r = runSub(`
+    const { saveRunSidecar, deleteRunSidecar, runSidecarPath } = await import(path.join(SRC, 'services/run/runSidecar.ts'))
+    const { emptyRunSnapshot } = await import(path.join(SRC, 'services/run/runKernel.ts'))
+    const { makeOwnerKey, MAIN_LANE } = await import(path.join(SRC, 'services/run/ownerKey.ts'))
+    const owner = makeOwnerKey({ workspace: PROJECT, sessionId: '22222222-2222-2222-2222-222222222222', lane: MAIN_LANE })
+    const file = runSidecarPath(owner)
+    const dir = path.dirname(file)
+    fs.mkdirSync(dir, { recursive: true })
+    const original = JSON.stringify({ schema: 1, writeSeq: 7, snapshot: {} })
+    fs.writeFileSync(file, original, { mode: 0o600 })
+    fs.chmodSync(file, 0o000)
+    const snap = emptyRunSnapshot({ runId: 'r1', owner, objective: 'obj', rootMessageId: null, at: 1 })
+    try {
+      await saveRunSidecar(owner, snap)
+      out.saveOk = true
+    } catch (e) {
+      out.saveCode = e.code ?? e.name
+    } finally {
+      fs.chmodSync(file, 0o600)
+    }
+    out.preserved = fs.readFileSync(file, 'utf8') === original
+
+    fs.chmodSync(dir, 0o500)
+    try {
+      await deleteRunSidecar(owner)
+      out.delOk = true
+    } catch (e) {
+      out.delCode = e.code ?? e.name
+    } finally {
+      fs.chmodSync(dir, 0o700)
+    }
+  `)
+  check('runSidecar-save-refuses-unreadable-existing', r.saveCode === 'EACCES' && r.preserved === true, JSON.stringify(r))
+  check('runSidecar-delete-unwritable-dir-throws', r.delCode === 'EACCES', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
