@@ -46,7 +46,7 @@ import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
 import { isToolSearchEnabled, tellHowToolDefinitionsAreCounted } from './toolSearch.js'
 
 
-const TOOL_TOKEN_COUNT_OVERHEAD = 500
+export const TOOL_TOKEN_COUNT_OVERHEAD = 500
 
 interface DeferredBuiltinTool {
   name: string
@@ -222,7 +222,7 @@ async function projectToolSchemas(
   )
 }
 
-async function countToolDefinitionTokens(
+export async function countToolDefinitionTokens(
   tools: readonly Tool[],
   getToolPermissionContext: GetToolPermissionContext,
   agentInfo: AgentDefinitionsResult,
