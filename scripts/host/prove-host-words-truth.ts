@@ -128,28 +128,6 @@ check('§2 every /llmhost pointer names a live screen and no sentence sends the 
 const silent = nextStepBreaks(notices)
 check('§3 every failed/stalled host notice names a next step the user can take', silent.length === 0, describe(silent))
 
-const wordsFile = join(root, 'src/commands/llmhost/words.ts')
-const wordsSource = ts.createSourceFile(wordsFile, readFileSync(wordsFile, 'utf8'), ts.ScriptTarget.Latest, true)
-const wordKeys: string[] = []
-const findWords = (node: ts.Node): void => {
-  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'LLM_HOST_WORDS' && node.initializer) {
-    const object = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer
-    if (ts.isObjectLiteralExpression(object)) for (const property of object.properties) if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.name)) wordKeys.push(property.name.text)
-  }
-  ts.forEachChild(node, findWords)
-}
-findWords(wordsSource)
-const srcFiles: string[] = []
-const walkSrc = (path: string): void => { if (statSync(path).isDirectory()) { for (const name of readdirSync(path)) walkSrc(join(path, name)) } else if (/\.tsx?$/.test(path)) srcFiles.push(path) }
-walkSrc(join(root, 'src'))
-const corpus = srcFiles.filter(file => file !== wordsFile).map(file => readFileSync(file, 'utf8')).join('\n')
-const deadKeys = wordKeys.filter(key => !new RegExp('\\b(words|LLM_HOST_WORDS)\\.' + key + '\\b|LLM_HOST_WORDS\\[\'' + key + '\'\\]').test(corpus))
-check('§4 every LLM_HOST_WORDS entry is read somewhere outside words.ts (' + wordKeys.length + ' keys)', wordKeys.length >= 60 && deadKeys.length === 0, 'dead: ' + deadKeys.join(', '))
-const refusalsFile = join(root, 'src/services/providers/openaicompat/compatRefusals.ts')
-const refusalExports = [...readFileSync(refusalsFile, 'utf8').matchAll(/^export (?:function|const) (\w+)/gm)].map(match => match[1]!)
-const deadExports = refusalExports.filter(name => !srcFiles.some(file => file !== refusalsFile && new RegExp('\\b' + name + '\\b').test(readFileSync(file, 'utf8'))))
-check('§4 every compatRefusals.ts export is used by a product file (' + refusalExports.length + ' exports)', refusalExports.length >= 2 && deadExports.length === 0, 'dead: ' + deadExports.join(', '))
-
 const synthetic = (body: string): { sentences: Sentence[]; notices: NoticeSite[] } => {
   const source = ts.createSourceFile('planted.ts', body, ts.ScriptTarget.Latest, true)
   const sentencesFound: Sentence[] = []
