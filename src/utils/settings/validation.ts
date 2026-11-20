@@ -72,7 +72,7 @@ function receivedTypeName(issue: IssueLike): string {
 export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: string): ValidationError[] {
   const records: ValidationError[] = []
   for (const rawIssue of error.issues) {
-    const issue = rawIssue as unknown as IssueLike
+    const issue: IssueLike = rawIssue
     const path = issue.path.join('.')
 
     const tipContext = {
@@ -86,11 +86,11 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
         : {}),
       ...(issue.code === 'too_small' ? { expected: String(issue.minimum ?? '') } : {}),
       ...(issue.code === 'custom' && issue.received !== undefined
-        ? { received: issue.received as never, value: issue.received }
+        ? { received: issue.received, value: issue.received }
         : {}),
       message: issue.message,
     }
-    const tip = getValidationTip(tipContext as never)
+    const tip = getValidationTip(tipContext)
 
     let message: string
     let expected: string | undefined

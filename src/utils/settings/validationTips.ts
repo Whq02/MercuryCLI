@@ -9,7 +9,7 @@ type TipContext = {
   path: string
   code: string
   expected?: string
-  received?: string
+  received?: unknown
   enumValues?: string[]
   message?: string
   value?: unknown
