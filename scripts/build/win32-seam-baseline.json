@@ -113,7 +113,7 @@
  "src/skills/bundledSkills.ts :: split-slash": 1,
  "src/substrate/durablePublish.ts :: kill-signal": 1,
  "src/tools/BashTool/bashPermissions.ts :: platform-check": 2,
- "src/tools/BashTool/pathValidation.ts :: platform-check": 4,
+ "src/tools/BashTool/pathValidation.ts :: platform-check": 1,
  "src/tools/BashTool/readOnlyValidation.ts :: platform-check": 2,
  "src/tools/BashTool/utils.ts :: split-slash": 1,
  "src/tools/ComputerTool/computer/act.ts :: platform-check": 1,
