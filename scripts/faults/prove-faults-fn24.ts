@@ -351,6 +351,41 @@ async function provePauseCarry(): Promise<void> {
   })
 }
 
+async function proveTaskLaunchLedger(): Promise<void> {
+  const bootstrap = await import('../../src/bootstrap/state.js')
+  const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.js')
+  const tl = await import('../../src/tasks/taskLaunchLedger.js')
+  await withScratchHome(async home => {
+    const project = join(home, 'proj')
+    mkdirSync(project, { recursive: true })
+    bootstrap.setOriginalCwd(project)
+    bootstrap.setProjectRoot(project)
+    bootstrap.setCwdState(project)
+    const sid = '00000000-0000-4000-8000-00000000f025'
+    bootstrap.switchSession(sid as never, project)
+    const ledgerPath = join(getTranscriptPathForSession(sid), '..', `${sid}.task-launches.json`)
+    mkdirSync(join(ledgerPath, '..'), { recursive: true })
+
+    const corrupt = '{not-json'
+    writeFileSync(ledgerPath, corrupt, { mode: 0o600 })
+    await tl.recordTaskLaunch(sid, { taskId: 't2', kind: 'shell', toolUseId: 'u2', description: 'd', command: 'echo 2', persistent: false, outputPath: null, pid: null, armedAt: Date.now() })
+    check('taskLaunchLedger: recordTaskLaunch preserves corrupt ledger', readFileSync(ledgerPath, 'utf8') === corrupt)
+
+    if (POSIX_MODES) {
+      const existing = JSON.stringify({ v: 1, launches: [{ v: 1, taskId: 't1', kind: 'shell', toolUseId: 'u1', description: 'd1', command: 'sleep 1', persistent: false, outputPath: null, pid: 12345, startToken: null, armedAt: 1 }] })
+      writeFileSync(ledgerPath, existing, { mode: 0o600 })
+      chmodSync(ledgerPath, 0o200)
+      try {
+        await tl.recordTaskLaunch(sid, { taskId: 't2', kind: 'shell', toolUseId: 'u2', description: 'd2', command: 'echo 2', persistent: false, outputPath: null, pid: null, armedAt: Date.now() })
+        await tl.settleTaskLaunch(sid, 't1')
+      } finally {
+        chmodSync(ledgerPath, 0o600)
+      }
+      check('taskLaunchLedger: unreadable ledger is preserved byte-for-byte after record/settle', readFileSync(ledgerPath, 'utf8') === existing)
+    }
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
@@ -361,6 +396,7 @@ async function main(): Promise<void> {
   await proveStartupMenu()
   await proveStateLifecycle()
   await provePauseCarry()
+  await proveTaskLaunchLedger()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }

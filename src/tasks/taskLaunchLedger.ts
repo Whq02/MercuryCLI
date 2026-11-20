@@ -8,7 +8,7 @@ import { logError } from '../utils/log.js'
 import { endProcessTree } from '../utils/processGroup.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 import { loadTaskOutcomes } from './taskOutcomeEnvelope.js'
-import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { passedOverAs } from '../utils/passedOver.js'
 
 const TASK_LAUNCH_LEDGER_VERSION = 1
 const MAX_LAUNCHES = 200
@@ -46,14 +46,26 @@ function ledgerFailure(sessionId: string, what: string, error: unknown): Error {
   return new Error(`task launch ledger of session ${sessionId}: ${what} — ${error instanceof SyntaxError ? 'the file is not valid JSON' : errorMessage(error)}`)
 }
 
+async function loadFileStrict(sessionId: string): Promise<TaskLaunchRecord[]> {
+  let raw: string
+  try {
+    raw = await readFile(taskLaunchesPath(sessionId), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return []
+    throw error
+  }
+  const parsed = JSON.parse(raw) as LedgerFile
+  if (parsed?.v !== TASK_LAUNCH_LEDGER_VERSION || !Array.isArray(parsed.launches)) {
+    throw new Error(`invalid task launch ledger at ${taskLaunchesPath(sessionId)}`)
+  }
+  return parsed.launches.filter(row => typeof row?.taskId === 'string' && (row.kind === 'monitor' || row.kind === 'shell'))
+}
+
 async function loadFile(sessionId: string): Promise<TaskLaunchRecord[]> {
   try {
-    const raw = await readFile(taskLaunchesPath(sessionId), 'utf8')
-    const parsed = JSON.parse(raw) as LedgerFile
-    if (parsed?.v !== TASK_LAUNCH_LEDGER_VERSION || !Array.isArray(parsed.launches)) return []
-    return parsed.launches.filter(row => typeof row?.taskId === 'string' && (row.kind === 'monitor' || row.kind === 'shell'))
+    return await loadFileStrict(sessionId)
   } catch (error) {
-    if (!isENOENT(error)) logError(ledgerFailure(sessionId, 'it could not be read, so the next write keeps none of its launches', error))
+    logError(ledgerFailure(sessionId, 'it could not be read', error))
     return []
   }
 }
@@ -80,7 +92,7 @@ export function recordTaskLaunch(sessionId: string, launch: Omit<TaskLaunchRecor
   return chained(sessionId, async () => {
     try {
       const startToken = launch.pid === null ? null : await getProcessStartInstantAsync(launch.pid)
-      const launches = (await loadFile(sessionId)).filter(row => row.taskId !== launch.taskId)
+      const launches = (await loadFileStrict(sessionId)).filter(row => row.taskId !== launch.taskId)
       launches.push({ ...launch, v: TASK_LAUNCH_LEDGER_VERSION, command: launch.command.slice(0, MAX_COMMAND_CHARS), startToken })
       if (launches.length > MAX_LAUNCHES) launches.splice(0, launches.length - MAX_LAUNCHES)
       await publish(sessionId, launches)
@@ -93,14 +105,14 @@ export function recordTaskLaunch(sessionId: string, launch: Omit<TaskLaunchRecor
 export function settleTaskLaunch(sessionId: string, taskId: string): Promise<void> {
   return chained(sessionId, async () => {
     try {
-      const launches = await loadFile(sessionId)
+      const launches = await loadFileStrict(sessionId)
       if (!launches.some(row => row.taskId === taskId)) return
       await publish(
         sessionId,
         launches.filter(row => row.taskId !== taskId),
       )
     } catch (error) {
-      passedOver(error)
+      logError(ledgerFailure(sessionId, `settlement of task ${taskId} could not be written`, error))
     }
   })
 }
@@ -154,7 +166,7 @@ export async function reconcileTaskLaunchesOnResume(sessionId: string, liveTaskI
     try {
       if (kept.length !== launches.length) await publish(sessionId, kept)
     } catch (error) {
-      passedOver(error)
+      logError(ledgerFailure(sessionId, 'reconciled launch ledger could not be written', error))
     }
   })
   return { orphans, endedPids, settledTaskIds: settled }
