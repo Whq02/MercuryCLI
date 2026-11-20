@@ -131,52 +131,66 @@ export function toolShellEnv(
   return child
 }
 
-export function headlessChildDefaultsOwed(env: NodeJS.ProcessEnv): string[] {
+const WINDOWS_HEADLESS_GIT_DEFAULTS: Readonly<Record<string, string>> = {
+  GIT_ASKPASS: '',
+  SSH_ASKPASS: '',
+  GCM_INTERACTIVE: 'never',
+}
+
+export function headlessChildDefaultsOwed(env: NodeJS.ProcessEnv, platform: string = process.platform): string[] {
   if (!getIsNonInteractiveSession()) return []
-  const present = new Set(Object.keys(env).map(nameKey))
-  return Object.keys(HEADLESS_CHILD_DEFAULTS).filter(name => !present.has(nameKey(name)))
+  const present = new Set(Object.keys(env).map(name => nameKey(name, platform)))
+  return Object.keys(HEADLESS_CHILD_DEFAULTS).filter(name => !present.has(nameKey(name, platform)))
 }
 
-function nameKey(name: string): string {
-  return process.platform === 'win32' ? name.toUpperCase() : name
+function nameKey(name: string, platform: string = process.platform): string {
+  return platform === 'win32' ? name.toUpperCase() : name
 }
 
-function deleteNames(env: NodeJS.ProcessEnv, names: readonly string[]): void {
-  const doomed = new Set(names.map(nameKey))
+function deleteNames(env: NodeJS.ProcessEnv, names: readonly string[], platform: string = process.platform): void {
+  const doomed = new Set(names.map(name => nameKey(name, platform)))
   for (const key of Object.keys(env)) {
-    if (doomed.has(nameKey(key))) delete env[key]
+    if (doomed.has(nameKey(key, platform))) delete env[key]
   }
 }
 
-export function subprocessEnv(options: { stripProviderCredentials?: boolean } = {}): NodeJS.ProcessEnv {
+export function subprocessEnv(options: { stripProviderCredentials?: boolean; platform?: string } = {}): NodeJS.ProcessEnv {
+  const platform = options.platform ?? process.platform
   const env = process.env
   const scrubForCI = isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_ENV_SCRUB'))
   const isolateCredentials = options.stripProviderCredentials === true || isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION'))
   const hasTokenVar = ALWAYS_STRIP_TOKEN_VARS.some(name => env[name] !== undefined)
-  const hasOtelVar = Object.keys(env).some(key => nameKey(key).startsWith('OTEL_'))
-  const hasBrowserSecret = Object.keys(env).some(key => nameKey(key).startsWith(BROWSER_SECRET_PREFIX))
-  const owedDefaults = headlessChildDefaultsOwed(env)
-  if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret && owedDefaults.length === 0) {
+  const hasOtelVar = Object.keys(env).some(key => nameKey(key, platform).startsWith('OTEL_'))
+  const hasBrowserSecret = Object.keys(env).some(key => nameKey(key, platform).startsWith(BROWSER_SECRET_PREFIX))
+  const hasWindowsAskpass = platform === 'win32' && Object.entries(env).some(([key, value]) => isGitForWindowsAskpass(key, value, platform))
+  const owedDefaults = headlessChildDefaultsOwed(env, platform)
+  if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret && !hasWindowsAskpass && owedDefaults.length === 0) {
     return env
   }
 
   const clone: NodeJS.ProcessEnv = { ...env }
   for (const name of owedDefaults) clone[name] = HEADLESS_CHILD_DEFAULTS[name]
-  scrub(clone, scrubForCI, isolateCredentials)
+  scrub(clone, scrubForCI, isolateCredentials, platform)
+  if (platform === 'win32' && (owedDefaults.includes('GIT_TERMINAL_PROMPT') || hasWindowsAskpass)) {
+    const present = new Set(Object.keys(clone).map(key => nameKey(key, platform)))
+    for (const [name, value] of Object.entries(WINDOWS_HEADLESS_GIT_DEFAULTS)) {
+      if (!present.has(nameKey(name, platform))) clone[name] = value
+    }
+  }
   return clone
 }
 
-function scrub(clone: NodeJS.ProcessEnv, scrubForCI: boolean, isolateCredentials: boolean): void {
-  deleteNames(clone, ALWAYS_STRIP_TOKEN_VARS)
-  for (const key of Object.keys(clone)) {
-    const folded = nameKey(key)
-    if (folded.startsWith('OTEL_') || folded.startsWith(BROWSER_SECRET_PREFIX)) delete clone[key]
+function scrub(clone: NodeJS.ProcessEnv, scrubForCI: boolean, isolateCredentials: boolean, platform: string = process.platform): void {
+  deleteNames(clone, ALWAYS_STRIP_TOKEN_VARS, platform)
+  for (const [key, value] of Object.entries(clone)) {
+    const folded = nameKey(key, platform)
+    if (folded.startsWith('OTEL_') || folded.startsWith(BROWSER_SECRET_PREFIX) || isGitForWindowsAskpass(key, value, platform)) delete clone[key]
   }
   if (isolateCredentials) {
-    deleteNames(clone, ALL_PROVIDER_CREDENTIAL_ENV_VARS)
+    deleteNames(clone, ALL_PROVIDER_CREDENTIAL_ENV_VARS, platform)
   }
   if (scrubForCI) {
-    deleteNames(clone, CI_SCRUB_VARS.flatMap(name => [name, `INPUT_${name}`]))
+    deleteNames(clone, CI_SCRUB_VARS.flatMap(name => [name, `INPUT_${name}`]), platform)
   }
 }
 

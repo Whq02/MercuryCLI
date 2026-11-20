@@ -139,6 +139,63 @@ try {
     const loginMerged = owner.withLoginExports({ PATH: 'staged-path' }, { SSH_ASKPASS: '/mingw64/bin/git-askpass.exe', DISPLAY: 'needs-to-be-defined', EXTRA: 'kept' }, [], 'win32')
     check('Windows: login exports never re-introduce Git for Windows askpass or placeholder DISPLAY', loginMerged.SSH_ASKPASS === undefined && loginMerged.DISPLAY === undefined && loginMerged.EXTRA === 'kept', JSON.stringify(loginMerged))
   }
+  const savedSubEnv = Object.fromEntries(['SSH_ASKPASS', 'GIT_ASKPASS', 'DISPLAY', 'GCM_INTERACTIVE', 'GIT_TERMINAL_PROMPT', 'PAGER', 'GIT_PAGER'].map(key => [key, process.env[key]]))
+  try {
+    for (const key of Object.keys(savedSubEnv)) delete process.env[key]
+    state.setIsInteractive(false)
+    const psHeadlessWin = owner.subprocessEnv({ platform: 'win32' })
+    check(
+      'Windows headless subprocessEnv adds GIT_ASKPASS, SSH_ASKPASS and GCM_INTERACTIVE defaults',
+      psHeadlessWin.GIT_TERMINAL_PROMPT === '0' && psHeadlessWin.GIT_ASKPASS === '' && psHeadlessWin.SSH_ASKPASS === '' && psHeadlessWin.GCM_INTERACTIVE === 'never',
+      JSON.stringify({ GIT_TERMINAL_PROMPT: psHeadlessWin.GIT_TERMINAL_PROMPT, GIT_ASKPASS: psHeadlessWin.GIT_ASKPASS, SSH_ASKPASS: psHeadlessWin.SSH_ASKPASS, GCM_INTERACTIVE: psHeadlessWin.GCM_INTERACTIVE }),
+    )
+    const psHeadlessDarwin = owner.subprocessEnv({ platform: 'darwin' })
+    check(
+      'POSIX headless subprocessEnv stays unchanged',
+      psHeadlessDarwin.GIT_TERMINAL_PROMPT === '0' && psHeadlessDarwin.GIT_ASKPASS === undefined && psHeadlessDarwin.SSH_ASKPASS === undefined && psHeadlessDarwin.GCM_INTERACTIVE === undefined,
+      JSON.stringify({ GIT_TERMINAL_PROMPT: psHeadlessDarwin.GIT_TERMINAL_PROMPT, GIT_ASKPASS: psHeadlessDarwin.GIT_ASKPASS, SSH_ASKPASS: psHeadlessDarwin.SSH_ASKPASS, GCM_INTERACTIVE: psHeadlessDarwin.GCM_INTERACTIVE }),
+    )
+    process.env.SSH_ASKPASS = '/mingw64/bin/git-askpass.exe'
+    process.env.DISPLAY = 'needs-to-be-defined'
+    const gitBashHeadlessWin = owner.subprocessEnv({ platform: 'win32' })
+    check(
+      'Windows headless subprocessEnv clears inherited Git for Windows askpass and placeholder DISPLAY',
+      gitBashHeadlessWin.GIT_TERMINAL_PROMPT === '0' && gitBashHeadlessWin.SSH_ASKPASS === '' && gitBashHeadlessWin.GIT_ASKPASS === '' && gitBashHeadlessWin.GCM_INTERACTIVE === 'never' && gitBashHeadlessWin.DISPLAY === undefined,
+      JSON.stringify({ GIT_TERMINAL_PROMPT: gitBashHeadlessWin.GIT_TERMINAL_PROMPT, SSH_ASKPASS: gitBashHeadlessWin.SSH_ASKPASS, GIT_ASKPASS: gitBashHeadlessWin.GIT_ASKPASS, GCM_INTERACTIVE: gitBashHeadlessWin.GCM_INTERACTIVE, DISPLAY: gitBashHeadlessWin.DISPLAY }),
+    )
+    const gitBashHeadlessLinux = owner.subprocessEnv({ platform: 'linux' })
+    check(
+      'POSIX headless subprocessEnv leaves inherited SSH_ASKPASS and DISPLAY untouched',
+      gitBashHeadlessLinux.SSH_ASKPASS === '/mingw64/bin/git-askpass.exe' && gitBashHeadlessLinux.DISPLAY === 'needs-to-be-defined' && gitBashHeadlessLinux.GCM_INTERACTIVE === undefined,
+      JSON.stringify({ SSH_ASKPASS: gitBashHeadlessLinux.SSH_ASKPASS, DISPLAY: gitBashHeadlessLinux.DISPLAY, GCM_INTERACTIVE: gitBashHeadlessLinux.GCM_INTERACTIVE }),
+    )
+    state.setIsInteractive(true)
+    const gitBashInteractiveWin = owner.subprocessEnv({ platform: 'win32' })
+    check(
+      'Windows interactive subprocessEnv clears inherited Git for Windows askpass and placeholder DISPLAY',
+      gitBashInteractiveWin.SSH_ASKPASS === '' && gitBashInteractiveWin.GIT_ASKPASS === '' && gitBashInteractiveWin.GCM_INTERACTIVE === 'never' && gitBashInteractiveWin.DISPLAY === undefined,
+      JSON.stringify({ SSH_ASKPASS: gitBashInteractiveWin.SSH_ASKPASS, GIT_ASKPASS: gitBashInteractiveWin.GIT_ASKPASS, GCM_INTERACTIVE: gitBashInteractiveWin.GCM_INTERACTIVE, DISPLAY: gitBashInteractiveWin.DISPLAY }),
+    )
+    delete process.env.SSH_ASKPASS
+    delete process.env.DISPLAY
+    check('Windows interactive subprocessEnv keeps the live env hot path when clean', owner.subprocessEnv({ platform: 'win32' }) === process.env)
+    state.setIsInteractive(false)
+    process.env.SSH_ASKPASS = 'operator-askpass'
+    process.env.GCM_INTERACTIVE = 'always'
+    process.env.DISPLAY = ':0'
+    const operatorWin = owner.subprocessEnv({ platform: 'win32' })
+    check(
+      'Windows headless subprocessEnv preserves explicit operator askpass, GCM_INTERACTIVE and DISPLAY',
+      operatorWin.SSH_ASKPASS === 'operator-askpass' && operatorWin.GCM_INTERACTIVE === 'always' && operatorWin.DISPLAY === ':0' && operatorWin.GIT_ASKPASS === '',
+      JSON.stringify({ SSH_ASKPASS: operatorWin.SSH_ASKPASS, GCM_INTERACTIVE: operatorWin.GCM_INTERACTIVE, DISPLAY: operatorWin.DISPLAY, GIT_ASKPASS: operatorWin.GIT_ASKPASS }),
+    )
+  } finally {
+    state.setIsInteractive(true)
+    for (const [key, value] of Object.entries(savedSubEnv)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
 
   state.setOriginalCwd(scratch)
   mkdirSync(join(scratch, '.mercury'), { recursive: true })
