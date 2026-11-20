@@ -322,5 +322,26 @@ if (!POSIX_MODES) {
   check('w05-2: providerUsage readBearerTokenSource catch records error via passedOver', r.bearerPassed === true, JSON.stringify(r))
 }
 
+console.log('\nw05-6 — useSessionSignInGate stays open on throw and records error via passedOver')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const po = await import(path.join(SRC, 'utils/passedOver.ts'))
+    mock.module('react', () => ({ useMemo: (fn) => fn() }))
+    mock.module(path.join(SRC, 'utils/accounts/useSignInEpoch.js'), () => ({ useSignInEpoch: () => 0 }))
+    mock.module(path.join(SRC, 'hooks/useCatalogueEpoch.js'), () => ({ useCatalogueEpoch: () => 0 }))
+    mock.module(path.join(SRC, 'utils/accounts/sessionSignIn.js'), () => ({
+      sessionSignInGate: () => { throw new Error('gate-boom') },
+    }))
+    const { useSessionSignInGate } = await import(path.join(SRC, 'hooks/useSessionSignInGate.ts'))
+    const before = po.passedOverSoFar().count
+    out.gate = useSessionSignInGate('claude-sonnet-4-6')
+    const after = po.passedOverSoFar()
+    out.passed = after.count > before && String(after.last).includes('gate-boom')
+  `)
+  check('w05-6: throwing sessionSignInGate returns ok and calls passedOver(error)', (r.gate as { state?: string }).state === 'ok' && r.passed === true, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

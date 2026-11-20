@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { NotLoggedInGate } from '../services/wallet/wallet.js'
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'
 import { sessionSignInGate } from '../utils/accounts/sessionSignIn.js'
+import { passedOver } from '../utils/passedOver.js'
 import { useCatalogueEpoch } from './useCatalogueEpoch.js'
 
 const OK: NotLoggedInGate = { state: 'ok' }
@@ -14,7 +15,8 @@ export function useSessionSignInGate(mainModel: string): NotLoggedInGate {
     void catalogueEpoch
     try {
       return sessionSignInGate(mainModel)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return OK
     }
   }, [mainModel, signInEpoch, catalogueEpoch])
