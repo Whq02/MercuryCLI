@@ -37,6 +37,7 @@ const ports: Record<string, unknown> = {
   './lateAllowRules.js': {
     noteAllowRulesOfSettingsChange: (...args: unknown[]) => effect('arrived', ...args),
   },
+  '../hooks/toolPermission.js': { tellHooksHowAToolIsPermitted: () => {} },
 }
 const api = {} as typeof import('../../src/utils/permissions/permissions.js')
 const compiled = ts.transpileModule(readFileSync(resolve(import.meta.dir, '../../src/utils/permissions/permissions.ts'), 'utf8'), {

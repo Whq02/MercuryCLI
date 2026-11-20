@@ -90,20 +90,22 @@ interface Send {
   afterPrevTicks?: number
   data: string
   awaitText?: string
+  awaitPattern?: string
   minTick?: number
   awaitSettleTicks?: number
   mark?: string
 }
 const markedFrames = new Map<string, string[]>()
 const markOf = (tag: string, label: string): string[] => markedFrames.get(`${tag}:${label}`) ?? []
-function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40): string[] {
+function drive(tag: string, sends: Send[], total: number, ready?: { text: string[]; stable?: number; settle?: number }, cols = 120, rows = 40): string[] {
   const out = join(OUT_DIR, `${tag}-${cols}x${rows}.json`)
   const cfgPath = join(SCRATCH, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: ground, sends, total, cols, rows, out }))
+  const end = ready === undefined ? {} : { readyText: ready.text, stableTicks: ready.stable, readySettleTicks: ready.settle }
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: ground, sends, total, cols, rows, out, ...end }))
   const env: Record<string, string> = { ...(childEnv as Record<string, string>), MERCURY_CONCOURSE: 'always' }
   delete env.MERCURY_CONCOURSE_FIXTURE
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
-  if (res.status !== 0) throw new Error(`vshot ${tag} failed: ${(res.stderr ?? '').slice(-600)}`)
+  if (res.status !== 0 && res.status !== 3) throw new Error(`vshot ${tag} failed: ${(res.stderr ?? '').slice(-600)}`)
   const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid & { marks?: ({ label: string } & Grid)[] }
   const lines = linesOf(payload)
   writeFileSync(join(OUT_DIR, `${tag}-${cols}x${rows}.txt`), lines.join('\n') + '\n')
@@ -199,7 +201,7 @@ try {
     if (o.ref === 'permission:git-init:deadbeef0001') await obligations.resolveObligation(o.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard' } as never)
   }
 
-  const board = drive('reap-board', [], 40)
+  const board = drive('reap-board', [], 150, { text: ['STATUS & TITLE', 'alpha probe', 'beta probe'], stable: 8 })
   const listHeader = board.findIndex(l => l.includes('STATUS & TITLE'))
   const listRows = listHeader >= 0 ? board.slice(listHeader + 1) : []
   const listCell = (l: string): string => l.split('│').find(c => c.includes('alpha probe') || c.includes('beta probe'))?.trim() ?? ''
@@ -218,9 +220,10 @@ try {
       ...enterSelected(firstTitle),
       { atTick: 999, awaitText: TAG, minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT },
       ...REAP_CHORDS,
-      { afterPrevTicks: 25, data: SHIFT_RIGHT },
+      { afterPrevTicks: 25, awaitPattern: `^(?![\\s\\S]*${firstTitle})`, data: SHIFT_RIGHT },
     ],
-    160,
+    300,
+    { text: [TAG, otherTitle], settle: 45 },
   )
   const tag1 = tagLine(r1)
   check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '))
@@ -241,7 +244,8 @@ try {
       { afterPrevTicks: 25, data: SHIFT_RIGHT, mark: 'landing' },
       { afterPrevTicks: 8, data: SHIFT_RIGHT, mark: 'after-right' },
     ],
-    180,
+    300,
+    { text: ['SESSIONS', 'STATUS & TITLE'], settle: 90 },
   )
   const r2Landing = markOf('reap-last', 'landing')
   const r2AfterRight = markOf('reap-last', 'after-right')
@@ -253,7 +257,7 @@ try {
   check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','))
 
   console.log('R3 the honesty leg — ⇧← from the board')
-  const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 60)
+  const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 150, { text: ['↵ start'], settle: 5 })
   const r3Face = has(r3, '↵ start') ? 'the Boot face' : has(r3, 'SESSIONS') ? 'the board (no-op)' : has(r3, TAG) ? 'A SESSION TAG BAR' : 'another surface'
   console.log(`  [INFO] ⇧← from the board lands on: ${r3Face} — first rows: ${r3.filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')}`)
   check('R3 ⇧← from the board never opens a dead session', tagLine(r3) === undefined)

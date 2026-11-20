@@ -55,7 +55,7 @@ function sse(chunks: unknown[]): Response {
 type Hit = { url: string; key: string | null; body: { contents?: GeminiContent[]; tools?: unknown[] } }
 const hits: Hit[] = []
 let round = 0
-let shape: 'parallel' | 'sequential' | 'text-then-call' = 'parallel'
+let shape: 'parallel' | 'sequential' | 'text-then-call' | 'signed-tail' = 'parallel'
 const realFetch = globalThis.fetch
 globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const url = String(input)
@@ -71,6 +71,11 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   round += 1
   if (shape === 'parallel') return sse([
     { candidates: [{ content: { role: 'model', parts: [{ functionCall: { id: `native-${round}-a`, name: 'Bash', args: { command: `echo ${round}a` } }, thoughtSignature: `sig-${round}-a` }, { functionCall: { id: `native-${round}-b`, name: 'Read', args: { path: `/tmp/${round}` } } }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },
+  ])
+  if (shape === 'signed-tail') return sse([
+    { candidates: [{ content: { role: 'model', parts: [{ text: 'It is ' }] } }] },
+    { candidates: [{ content: { role: 'model', parts: [{ text: 'done.' }] } }] },
+    { candidates: [{ content: { role: 'model', parts: [{ text: '', thoughtSignature: `sig-tail-${round}` }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },
   ])
   if (shape === 'text-then-call') return sse([
     { candidates: [{ content: { role: 'model', parts: [{ text: 'Looking.' }] } }] },
@@ -161,6 +166,17 @@ try {
   const responses = (namedHit?.body.contents ?? []).filter(content => content.role === 'user' && content.parts.some(part => part.functionResponse !== undefined))
   check('Google-named calls keep their ids on the call and the response; Mercury-named calls carry no id and pair by order', named[0]?.parts[0]?.functionCall?.id === 'native-1-a' && responses[0]?.parts[0]?.functionResponse?.id === 'native-1-a' && named[1]?.parts[0]?.functionCall?.id === undefined && responses[1]?.parts[0]?.functionResponse?.id === undefined && responses.every(content => content.parts.every(part => part.functionResponse?.name === 'Bash' || part.functionResponse?.name === 'Read')), JSON.stringify(responses.slice(0, 2)))
   check('no request on this road ever carried the compatibility namespace or endpoint', hits.every(hit => !hit.url.includes('/openai/') && !JSON.stringify(hit.body).includes('default_api')))
+
+  console.log('── (e) an answer whose signature arrives on an empty last part: the next request sends Google\'s parts back apart ──')
+  shape = 'signed-tail'
+  const tailHistory: Message[] = [user('Say it.')]
+  const tail = foldSplitTurnsForWire(await drain(params(tailHistory))) as AssistantMessage[]
+  const tailSignature = `sig-tail-${round}`
+  tailHistory.push(...tail)
+  tailHistory.push(user('And again?'))
+  await drain(params(tailHistory))
+  const tailReplay = modelContents(hits.at(-1))
+  check('the next request sends back the answer text with no signature and, after it, the empty part that carries the signature: a part with a signature is never joined to a part without one (aistudio.google.com/docs/thinking, read 2026-11-20)', tailReplay.length === 1 && JSON.stringify(tailReplay[0]!.parts) === JSON.stringify([{ text: 'It is done.' }, { text: '', thoughtSignature: tailSignature }]), JSON.stringify(tailReplay))
 } finally {
   globalThis.fetch = realFetch
 }

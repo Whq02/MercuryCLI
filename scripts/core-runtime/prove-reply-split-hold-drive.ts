@@ -56,7 +56,7 @@ try {
       { sleep: 1.5 },
       { mark: 'after-reply' },
       { send: 'zz' },
-      { sleep: 1.0 },
+      { wait: '❯ zz', timeout: 30 },
       { mark: 'after-typing' },
     ],
   }
@@ -65,7 +65,7 @@ try {
   if (report !== null) {
     const up = report.marks['composer-up'] ?? []
     const after = report.marks['after-reply'] ?? []
-    const typed = report.marks['after-typing'] ?? []
+    const typed = report.marks['after-typing'] ?? report.final
     printFrame('the composer before the reply (inline, 120x40)', up.filter(r => r !== ''))
     printFrame('after the split device-attributes reply', after.filter(r => r !== ''))
     check('the bundle asked the terminal for its device attributes at boot (CSI c seen on the pty)', report.sawQueryAt !== null, JSON.stringify(report.events.slice(0, 6)))

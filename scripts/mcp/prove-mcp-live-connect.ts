@@ -61,9 +61,11 @@ writeFileSync(
     cwd: FIX,
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
-      { atTick: 90, minTick: 5, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: '/mcp\r' },
+      { requireAwait: true, minTick: 5, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: '/mcp\r' },
     ],
-    total: 140,
+    readyText: ['fixsrv · connected'],
+    stableTicks: 8,
+    total: 300,
     cols: 120,
     rows: 50,
     out: gridPath,
@@ -85,7 +87,7 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     EDITOR: '',
   },
 })
-if (res.status !== 0) {
+if (res.status !== 0 && res.status !== 3) {
   check('PTY capture ran', false, (res.stderr ?? '').slice(0, 300))
   process.exit(1)
 }

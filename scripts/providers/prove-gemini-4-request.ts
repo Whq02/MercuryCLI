@@ -44,11 +44,15 @@ type Road = 'api-key' | 'plan'
 const WINDOW = 1_048_576
 const ROSTER_CEILING = 262_144
 const live = (id: string, thinking = true) => ({ name: `models/${id}`, displayName: id, inputTokenLimit: WINDOW, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent', 'countTokens'], thinking })
-const LIVE_LIST = [live('gemini-4-hydrogen'), live('gemini-4-carbon'), live('gemini-4-argon'), live('gemini-3.8-flash'), live('gemini-2.5-pro')]
+const LIVE_LIST = [live('gemini-4-neon'), live('gemini-4-hydrogen'), live('gemini-4-carbon'), live('gemini-4-argon'), live('gemini-3.8-flash'), live('gemini-2.5-pro')]
 let liveList: unknown[] = LIVE_LIST
 let listFails = false
 const row = (displayName: string, maxOutputTokens: number) => ({ displayName, supportsThinking: true, supportsImages: true, maxTokens: WINDOW, maxOutputTokens })
 const ROSTER: Record<string, unknown> = {
+  'gemini-4-neon-low': row('Gemini 4 Neon (Low)', ROSTER_CEILING),
+  'gemini-4-neon-medium': row('Gemini 4 Neon (Medium)', ROSTER_CEILING),
+  'gemini-4-neon-high': row('Gemini 4 Neon (High)', ROSTER_CEILING),
+  'gemini-4-neon-xhigh': row('Gemini 4 Neon (XHigh)', ROSTER_CEILING),
   'gemini-4-hydrogen-low': row('Gemini 4 Hydrogen (Low)', ROSTER_CEILING),
   'gemini-4-hydrogen-medium': row('Gemini 4 Hydrogen (Medium)', ROSTER_CEILING),
   'gemini-4-hydrogen-high': row('Gemini 4 Hydrogen (High)', ROSTER_CEILING),
@@ -211,7 +215,7 @@ const vocabularyOf = (model: string): readonly string[] => {
 try {
   console.log('── the Google sign-in: a bare Gemini 4 id reads the window, the output ceiling and the efforts of the row it rides ──')
   await useRoad('plan')
-  for (const bare of ['gemini-4-hydrogen', 'gemini-4-carbon', 'gemini-4-argon']) {
+  for (const bare of ['gemini-4-neon', 'gemini-4-hydrogen', 'gemini-4-carbon', 'gemini-4-argon']) {
     const high = `${bare}-high`
     check(`${bare}: the window is the ${high} row's 1,048,576, not the 200,000 of an id no list names`, capabilities.getContextWindowForModel(bare) === WINDOW && capabilities.getContextWindowForModel(high) === WINDOW, `${capabilities.getContextWindowForModel(bare)}`)
     check(`${bare}: the output ceiling is that row's`, catalogue.geminiOutputTokenLimitFor(bare) === catalogue.geminiOutputTokenLimitFor(high) && catalogue.geminiOutputTokenLimitFor(bare) !== undefined, `${catalogue.geminiOutputTokenLimitFor(bare)} ${catalogue.geminiOutputTokenLimitFor(high)}`)
@@ -220,7 +224,7 @@ try {
   const bareTurn = await plain('gemini-4-hydrogen', { effort: 'high' })
   check('a turn on the bare gemini-4-hydrogen rides gemini-4-hydrogen-high and its output room is measured against 1,048,576 (read live on the build before this: 190,682 asked, 200,000 less the prompt)', bareTurn.wireModel === 'gemini-4-hydrogen-high' && bareTurn.generationConfig?.maxOutputTokens === (await plain('gemini-4-hydrogen-high', { effort: 'high' })).generationConfig?.maxOutputTokens, j(bareTurn.generationConfig))
   check('a Gemini 3.x bare id whose roster names only effort rows keeps what it had: the conservative 200,000', capabilities.getContextWindowForModel('gemini-3.8-flash') === 200_000 && capabilities.getContextWindowForModel('gemini-3.8-flash-high') === WINDOW, `${capabilities.getContextWindowForModel('gemini-3.8-flash')}`)
-  check('a row the roster names keeps its own facts, and an id no roster row leads to keeps the fallback', capabilities.getContextWindowForModel('gemini-3-flash') === WINDOW && capabilities.getContextWindowForModel('gemini-4-neon') === 200_000 && vocabularyOf('gemini-4-neon').length === 0)
+  check('a row the roster names keeps its own facts, and an id no roster row leads to keeps the fallback', capabilities.getContextWindowForModel('gemini-3-flash') === WINDOW && capabilities.getContextWindowForModel('gemini-4-unlisted') === 200_000 && vocabularyOf('gemini-4-unlisted').length === 0)
   await useRoad('api-key')
   check('with an API key the bare id is the listed id and nothing is borrowed from a row', capabilities.getContextWindowForModel('gemini-4-hydrogen') === WINDOW && capabilities.getContextWindowForModel('gemini-4-hydrogen-high') === 200_000)
 
@@ -232,6 +236,10 @@ try {
   check('…and the turn is stamped with what went out: asked xhigh, applied xhigh', stampOf(keyHydrogen.xhigh!).asked === 'xhigh' && stampOf(keyHydrogen.xhigh!).applied === 'xhigh' && stampOf(keyHydrogen.max!).applied === 'xhigh', j([stampOf(keyHydrogen.xhigh!), stampOf(keyHydrogen.max!)]))
   check('gemini-4-hydrogen with thinking switched off sends LOW: a Gemini 4 model cannot stop thinking, and neither a budget nor MINIMAL is a value its page takes', levelOf(await plain('gemini-4-hydrogen', { effort: 'xhigh', thinking: false })) === level('LOW'))
   check('the model list says what the wire takes on gemini-4-hydrogen: efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen') === 'efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen'))
+  const keyNeon = await sweep('gemini-4-neon')
+  check('gemini-4-neon: low, medium and high go out as LOW, MEDIUM and HIGH, xhigh and max as XHIGH, the fourth level its page lists (aistudio.google.com/docs/thinking, read 2026-11-20), and with no word nothing is sent', levelOf(keyNeon.low!) === level('LOW') && levelOf(keyNeon.medium!) === level('MEDIUM') && levelOf(keyNeon.high!) === level('HIGH') && levelOf(keyNeon.xhigh!) === level('XHIGH') && levelOf(keyNeon.max!) === level('XHIGH') && keyNeon.none!.generationConfig === undefined, j([keyNeon.high!.generationConfig, keyNeon.xhigh!.generationConfig, keyNeon.max!.generationConfig]))
+  check('…the turn is stamped asked xhigh, applied xhigh, and the model list says efforts low · medium · high · xhigh on gemini-4-neon', stampOf(keyNeon.xhigh!).asked === 'xhigh' && stampOf(keyNeon.xhigh!).applied === 'xhigh' && stampOf(keyNeon.max!).applied === 'xhigh' && listWords('gemini-4-neon') === 'efforts low · medium · high · xhigh', j([stampOf(keyNeon.xhigh!), listWords('gemini-4-neon')]))
+  check('gemini-4-neon with thinking switched off sends LOW, as every Gemini 4 model', levelOf(await plain('gemini-4-neon', { effort: 'xhigh', thinking: false })) === level('LOW'))
   for (const three of ['gemini-4-carbon', 'gemini-4-argon', 'gemini-3.8-flash']) {
     const sent = await sweep(three)
     check(`${three}: its page stops at high, so xhigh and max go out as HIGH and the list says efforts low · medium · high, as before`, levelOf(sent.low!) === level('LOW') && levelOf(sent.medium!) === level('MEDIUM') && levelOf(sent.high!) === level('HIGH') && levelOf(sent.xhigh!) === level('HIGH') && levelOf(sent.max!) === level('HIGH') && sent.none!.generationConfig === undefined && stampOf(sent.xhigh!).applied === 'high' && listWords(three) === 'efforts low · medium · high', j([levelOf(sent.xhigh!), levelOf(sent.max!), listWords(three)]))
@@ -260,6 +268,8 @@ try {
   const signCarbonHigh = await sweep('gemini-4-carbon-high')
   check('Carbon, whose roster names no -xhigh row: the bare id at xhigh and max rides -high with HIGH, the -high row sends HIGH, and both list efforts low · medium · high', signCarbon.xhigh!.wireModel === 'gemini-4-carbon-high' && levelOf(signCarbon.xhigh!) === level('HIGH') && signCarbon.max!.wireModel === 'gemini-4-carbon-high' && levelOf(signCarbon.max!) === level('HIGH') && levelOf(signCarbonHigh.xhigh!) === level('HIGH') && levelOf(signCarbonHigh.low!) === level('LOW') && listWords('gemini-4-carbon-high') === 'efforts low · medium · high' && listWords('gemini-4-carbon') === 'efforts low · medium · high', j([signCarbon.xhigh!.wireModel, levelOf(signCarbon.xhigh!), listWords('gemini-4-carbon')]))
   check('the bare gemini-4-hydrogen lists the four words its rows reach', listWords('gemini-4-hydrogen') === 'efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen'))
+  const signNeon = await sweep('gemini-4-neon')
+  check('the bare gemini-4-neon rides its four rows the same way: low, medium and high with the level in the body, xhigh and max on gemini-4-neon-xhigh with no level, and it lists four words', j([signNeon.low!.wireModel, levelOf(signNeon.low!), signNeon.medium!.wireModel, levelOf(signNeon.medium!), signNeon.high!.wireModel, levelOf(signNeon.high!), signNeon.xhigh!.wireModel, signNeon.xhigh!.generationConfig?.thinkingConfig, signNeon.max!.wireModel, signNeon.max!.generationConfig?.thinkingConfig]) === j(['gemini-4-neon-low', level('LOW'), 'gemini-4-neon-medium', level('MEDIUM'), 'gemini-4-neon-high', level('HIGH'), 'gemini-4-neon-xhigh', undefined, 'gemini-4-neon-xhigh', undefined]) && listWords('gemini-4-neon') === 'efforts low · medium · high · xhigh' && listWords('gemini-4-neon-xhigh') === 'efforts low · medium · high · xhigh' && listWords('gemini-4-neon-high') === 'efforts low · medium · high', j([signNeon.xhigh!.wireModel, signNeon.xhigh!.generationConfig, listWords('gemini-4-neon')]))
   check('the status row says the ride: gemini-4-hydrogen ▸ gemini-4-hydrogen-xhigh at xhigh and at max, ▸ gemini-4-hydrogen-high at high', resolveDisplayedSessionModel('gemini-4-hydrogen', null, catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'xhigh')).compact === 'gemini-4-hydrogen ▸ gemini-4-hydrogen-xhigh' && catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'max') === 'gemini-4-hydrogen-xhigh' && catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'high') === 'gemini-4-hydrogen-high' && catalogue.geminiPlanRideWords('gemini-4-carbon', 'xhigh') === 'gemini-4-carbon-high', j([catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'xhigh'), catalogue.geminiPlanRideWords('gemini-4-carbon', 'xhigh')]))
   const quotaFigures = ['low', 'medium', 'high', 'xhigh'].map(tier => ({ key: `plan-quota:gemini-4-hydrogen-${tier}`, label: `gemini-4-hydrogen-${tier}`, value: '80% left' }))
   check('/usage reads the quota of the row the session rides: -xhigh at xhigh and max, -high at high', geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow === 'gemini-4-hydrogen-xhigh' && geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'max', usedModels: [] }).activeRow === 'gemini-4-hydrogen-xhigh' && geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'high', usedModels: [] }).activeRow === 'gemini-4-hydrogen-high' && geminiPlanQuotaView(quotaFigures.slice(0, 3), { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow === 'gemini-4-hydrogen-high', j(geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow))
@@ -267,7 +277,7 @@ try {
   check('the effort row law keeps every older reading: a missing tier takes the nearest present, an exact row never resolves, minimal takes low', tierLaw('gemini-3.8-flash', 'xhigh') === 'gemini-3.8-flash-high' && tierLaw('gemini-3.8-flash', 'max') === 'gemini-3.8-flash-high' && tierLaw('gemini-3.8-flash', 'minimal') === 'gemini-3.8-flash-low' && tierLaw('gemini-4-hydrogen-high', 'xhigh') === 'gemini-4-hydrogen-high' && tierLaw('gemini-4-hydrogen-xhigh', 'low') === 'gemini-4-hydrogen-xhigh' && tierLaw('gemini-3-flash', 'xhigh') === 'gemini-3-flash')
 
   console.log('── the output ceiling of a Gemini 4 row is one streamed segment, 65,536, on both roads ──')
-  for (const signIn of ['gemini-4-hydrogen-low', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-high', 'gemini-4-hydrogen-xhigh', 'gemini-4-hydrogen', 'gemini-4-carbon-low', 'gemini-4-carbon-medium', 'gemini-4-carbon-high', 'gemini-4-carbon', 'gemini-4-argon-low', 'gemini-4-argon-medium', 'gemini-4-argon-high', 'gemini-4-argon']) {
+  for (const signIn of ['gemini-4-neon-low', 'gemini-4-neon-medium', 'gemini-4-neon-high', 'gemini-4-neon-xhigh', 'gemini-4-neon', 'gemini-4-hydrogen-low', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-high', 'gemini-4-hydrogen-xhigh', 'gemini-4-hydrogen', 'gemini-4-carbon-low', 'gemini-4-carbon-medium', 'gemini-4-carbon-high', 'gemini-4-carbon', 'gemini-4-argon-low', 'gemini-4-argon-medium', 'gemini-4-argon-high', 'gemini-4-argon']) {
     const sent = await plain(signIn, { effort: 'high' })
     check(`sign-in ${signIn}: the request asks 65,536 where the roster's 262,144 opened a long decode nothing followed`, sent.generationConfig?.maxOutputTokens === SEGMENT && capabilities.getModelMaxOutputTokens(signIn).upperLimit === SEGMENT && capabilities.getModelMaxOutputTokens(signIn).default === SEGMENT, j([sent.generationConfig?.maxOutputTokens, capabilities.getModelMaxOutputTokens(signIn)]))
   }
@@ -282,7 +292,7 @@ try {
   const olderCut = await runTurn('gemini-3.8-flash-high', 'Prove it.', [cutAfterThinking])
   check('sign-in gemini-3.8-flash-high: the same notice with its own row\'s figure, as before', olderCut.notices.includes('thinking ran to the output limit (65536) — continuing') && olderCut.requests.length === 2, j(olderCut.notices))
   await useRoad('api-key')
-  for (const keyed of ['gemini-4-hydrogen', 'gemini-4-carbon', 'gemini-4-argon']) {
+  for (const keyed of ['gemini-4-neon', 'gemini-4-hydrogen', 'gemini-4-carbon', 'gemini-4-argon']) {
     const unasked = await plain(keyed, { effort: 'high' })
     const asked = await plain(keyed, { effort: 'high', maxOutput: 200_000 })
     check(`API key ${keyed}: no ceiling is sent unasked (Google's own 65,536 governs) and a larger ask goes out as one segment`, unasked.generationConfig?.maxOutputTokens === undefined && asked.generationConfig?.maxOutputTokens === SEGMENT && (await plain(keyed, { effort: 'high', maxOutput: 4_096 })).generationConfig?.maxOutputTokens === 4_096, j([unasked.generationConfig, asked.generationConfig]))
@@ -314,12 +324,16 @@ try {
   const heavy = await mediaRound('gemini-4-hydrogen', ids => [seen(ids[0]!, 'a.png', picture('image/png', HEAVY[0]!)), seen(ids[1]!, 'b.png', picture('image/png', HEAVY[1]!))])
   check('gemini-4-hydrogen: a body over the 20 MiB limit drops its oldest picture as before, and the note that says so sits beside the responses, never inside one (a function response part takes media only)', j(heavy.at(-1)?.parts) === j([answered('a.png'), answered('b.png', ['image/png', HEAVY[1]!]), { text: IMAGE_ELIDED_TEXT }]), brief(heavy.at(-1)?.parts))
   sentLog.length -= 2
+  const insideNeon = await mediaRound('gemini-4-neon', twoPictures)
+  check('gemini-4-neon: the same, each picture inside the response of the call that returned it (its guide, read 2026-11-20, asks as Hydrogen\'s does: inside the function response rather than as separate user-turn parts)', insideNeon.at(-1)?.role === 'user' && j(insideNeon.at(-1)?.parts) === insideBoth, brief(insideNeon.at(-1)?.parts))
+  const papersNeon = await mediaRound('gemini-4-neon', ids => [seen(ids[0]!, 'a.pdf', { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: PDF } }), seen(ids[1]!, 'c.gif', picture('image/gif', GIF))])
+  check('gemini-4-neon: a PDF rides inside and a GIF, which its page does not list, stays beside', j(papersNeon.at(-1)?.parts) === j([answered('a.pdf', ['application/pdf', PDF]), answered('c.gif'), beside('image/gif', GIF)]), brief(papersNeon.at(-1)?.parts))
   for (const other of ['gemini-4-carbon', 'gemini-4-argon', 'gemini-3.8-flash', 'gemini-2.5-pro']) {
     const kept = await mediaRound(other, twoPictures)
-    check(`${other} with an API key keeps the pictures beside the responses, as before (only Hydrogen's guide asks for them inside)`, j(kept.at(-1)?.parts) === besideBoth, brief(kept.at(-1)?.parts))
+    check(`${other} with an API key keeps the pictures beside the responses, as before (only Hydrogen's and Neon's guides ask for them inside)`, j(kept.at(-1)?.parts) === besideBoth, brief(kept.at(-1)?.parts))
   }
   await useRoad('plan')
-  for (const signIn of ['gemini-4-hydrogen-high', 'gemini-4-hydrogen', 'gemini-4-carbon-high', 'gemini-3.8-flash-high']) {
+  for (const signIn of ['gemini-4-neon-high', 'gemini-4-neon', 'gemini-4-hydrogen-high', 'gemini-4-hydrogen', 'gemini-4-carbon-high', 'gemini-3.8-flash-high']) {
     const kept = await mediaRound(signIn, twoPictures)
     check(`sign-in ${signIn} keeps the pictures beside the responses, the shape that road answered 200 to and read on 15 November`, j(kept.at(-1)?.parts) === besideBoth, brief(kept.at(-1)?.parts))
   }
@@ -328,15 +342,19 @@ try {
   const cachedAnswer: Step = [{ candidates: [{ content: { role: 'model', parts: [{ text: 'ok', thoughtSignature: 'sig-cached' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 7_659, cachedContentTokenCount: 5_220, candidatesTokenCount: 9, thoughtsTokenCount: 30 } }]
   const fixedOf = (request: Record<string, any>): string => j([request.systemInstruction, request.tools, request.toolConfig, request.generationConfig])
   const beginsWith = (later: Record<string, any>, earlier: Record<string, any>): boolean => later.contents.length > earlier.contents.length && j(later.contents.slice(0, earlier.contents.length)) === j(earlier.contents) && fixedOf(later) === fixedOf(earlier)
-  for (const [road, model] of [['api-key', 'gemini-4-hydrogen'], ['plan', 'gemini-4-hydrogen-high'], ['plan', 'gemini-4-carbon-high']] as const) {
+  for (const [road, model] of [['api-key', 'gemini-4-hydrogen'], ['api-key', 'gemini-4-neon'], ['plan', 'gemini-4-hydrogen-high'], ['plan', 'gemini-4-neon-high'], ['plan', 'gemini-4-carbon-high']] as const) {
     await useRoad(road)
     const [first, second, third] = await rounds(model, twoPictures, { follow: cachedAnswer })
     check(`${road} ${model}: each request of a conversation begins with the one before it, the system instruction, the tool declarations, the configuration and every earlier turn byte for byte, the turn that carried pictures included`, beginsWith(second!.request, first!.request) && beginsWith(third!.request, second!.request) && typeof first!.request.systemInstruction === 'object' && Array.isArray(first!.request.tools), brief([fixedOf(first!.request) === fixedOf(third!.request), first!.request.contents.length, second!.request.contents.length, third!.request.contents.length]))
     const counted = third!.answer.at(-1)?.message.usage as { input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number } | undefined
     check(`${road} ${model}: of 7,659 prompt tokens Google reports 5,220 cached (the figures read live on 15 November): 2,439 count as fresh input, 5,220 as cache reads, and the thought tokens count once, as output`, counted?.input_tokens === 2_439 && counted.cache_read_input_tokens === 5_220 && counted.output_tokens === 39, j(counted))
-    if (road === 'api-key') {
+    if (road === 'api-key' && model === 'gemini-4-hydrogen') {
       const priced = modelCost.calculateUSDCost(model, counted as never)
       check(`${road} ${model}: that turn is priced $0.0043425, fresh input at $1.50 a million, cached at $0.075 and output at $7.50, where every prompt token at the fresh rate would read $0.011781`, Math.abs(priced - (2_439 * 1.5 + 5_220 * 0.075 + 39 * 7.5) / 1e6) < 1e-12, String(priced))
+    }
+    if (road === 'api-key' && model === 'gemini-4-neon') {
+      const priced = modelCost.calculateUSDCost(model, counted as never)
+      check(`${road} ${model}: that turn is priced $0.008685, fresh input at $3 a million, cached at $0.15 and output at $15 (aistudio.google.com/docs/pricing, read 2026-11-20), where an id with no price row read $0`, Math.abs(priced - (2_439 * 3 + 5_220 * 0.15 + 39 * 15) / 1e6) < 1e-12, String(priced))
     }
   }
 
@@ -354,11 +372,13 @@ try {
     const unread = await sweep('gemini-4-hydrogen')
     check(`the list ${how}: gemini-4-hydrogen still sends LOW, MEDIUM, HIGH and XHIGH for low, medium, high and xhigh, max lands on XHIGH, no word sends nothing, and the turn is stamped applied xhigh (read through the built bundle before this, with the list read failing or slower than the wait before a first request: every word was dropped and Google's default answered)`, levelOf(unread.low!) === level('LOW') && levelOf(unread.medium!) === level('MEDIUM') && levelOf(unread.high!) === level('HIGH') && levelOf(unread.xhigh!) === level('XHIGH') && levelOf(unread.max!) === level('XHIGH') && unread.none!.generationConfig === undefined && stampOf(unread.xhigh!).applied === 'xhigh', j([unread.low!.generationConfig, unread.xhigh!.generationConfig, unread.max!.generationConfig, stampOf(unread.xhigh!)]))
     check(`the list ${how}: the dial of gemini-4-hydrogen offers its four words`, listWords('gemini-4-hydrogen') === 'efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen'))
+    const unreadNeon = await sweep('gemini-4-neon')
+    check(`the list ${how}: gemini-4-neon sends its four levels from its own row too, max lands on XHIGH, no word sends nothing, and its dial offers four words`, levelOf(unreadNeon.low!) === level('LOW') && levelOf(unreadNeon.medium!) === level('MEDIUM') && levelOf(unreadNeon.high!) === level('HIGH') && levelOf(unreadNeon.xhigh!) === level('XHIGH') && levelOf(unreadNeon.max!) === level('XHIGH') && unreadNeon.none!.generationConfig === undefined && stampOf(unreadNeon.xhigh!).applied === 'xhigh' && listWords('gemini-4-neon') === 'efforts low · medium · high · xhigh', j([unreadNeon.low!.generationConfig, unreadNeon.xhigh!.generationConfig, listWords('gemini-4-neon')]))
     for (const three of ['gemini-4-carbon', 'gemini-4-argon']) {
       const sent = await sweep(three)
       check(`the list ${how}: ${three} sends LOW, MEDIUM and HIGH, the three levels its own page lists, and xhigh and max go out as HIGH`, levelOf(sent.low!) === level('LOW') && levelOf(sent.medium!) === level('MEDIUM') && levelOf(sent.high!) === level('HIGH') && levelOf(sent.xhigh!) === level('HIGH') && levelOf(sent.max!) === level('HIGH') && sent.none!.generationConfig === undefined && stampOf(sent.xhigh!).applied === 'high' && listWords(three) === 'efforts low · medium · high', j([sent.low!.generationConfig, sent.xhigh!.generationConfig, listWords(three)]))
     }
-    for (const unnamed of ['gemini-3.8-flash', 'gemini-2.5-pro', 'gemini-4-neon']) {
+    for (const unnamed of ['gemini-3.8-flash', 'gemini-2.5-pro', 'gemini-4-unlisted']) {
       const sent = await sweep(unnamed)
       check(`the list ${how}: ${unnamed}, a model no row names, sends no level and no budget until its list is read, as before`, Object.values(sent).every(one => one.generationConfig === undefined) && vocabularyOf(unnamed).length === 0, j([sent.high!.generationConfig, vocabularyOf(unnamed)]))
     }
@@ -377,7 +397,7 @@ try {
 
   console.log('── what no request carried ──')
   const gemini4 = sentLog.filter(sent => /^gemini-4-/.test(sent.model))
-  const allowed: Record<string, readonly string[]> = { hydrogen: ['LOW', 'MEDIUM', 'HIGH', 'XHIGH'], carbon: ['LOW', 'MEDIUM', 'HIGH'], argon: ['LOW', 'MEDIUM', 'HIGH'] }
+  const allowed: Record<string, readonly string[]> = { neon: ['LOW', 'MEDIUM', 'HIGH', 'XHIGH'], hydrogen: ['LOW', 'MEDIUM', 'HIGH', 'XHIGH'], carbon: ['LOW', 'MEDIUM', 'HIGH'], argon: ['LOW', 'MEDIUM', 'HIGH'] }
   const strays = gemini4.filter(sent => {
     const config = (sent.request.generationConfig ?? {}) as Record<string, any>
     const thinking = (config.thinkingConfig ?? {}) as Record<string, unknown>
@@ -389,9 +409,7 @@ try {
 
   console.log('── the page says what the code does ──')
   const engines = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8').replace(/\s+/g, ' ')
-  check('docs/ENGINES.md carries the effort row law with the fourth tier', engines.includes('(low → `-low`, medium → `-medium`, high or no effort → `-high`, xhigh or max → `-xhigh` where the roster names that row, as it does for Gemini 4 Hydrogen, and `-high` where it does not; a missing tier taking the nearest present)'))
   check('docs/ENGINES.md says the output ceiling a Gemini 4 row of the sign-in is listed and asked with: one streamed segment where the roster states more', engines.includes('with the roster\'s own display name, context window, output ceiling, thinking and image flags (a Gemini 4 row\'s output ceiling is one streamed segment, 65,536 tokens, where the roster states more: a longer answer comes in segments Mercury does not follow); the image models stay out of chat.'))
-  check('docs/ENGINES.md says which plans carry Hydrogen and when the three older rows leave, as Google\'s plan table read on 2026-11-15', engines.includes('read again on 2026-11-15 it lists Gemini 4 Hydrogen on every plan, Free and Google AI Plus included, with a fourth thinking level (Extra, the row `…-xhigh`)') && engines.includes('GPT-OSS-120b leave the roster on November 18, 2026 (the table read on 2026-11-15)') && !engines.includes('leave the roster on November 2, 2026'))
 } finally {
   globalThis.fetch = realFetch
 }

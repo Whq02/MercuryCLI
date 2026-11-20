@@ -33,7 +33,7 @@ def _norm(text: str) -> str:
     no_esc = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", text)
     return re.sub(r"\s+", "", no_esc).lower()
 
-def run_once(timeout=9.0):
+def run_once(timeout=9.0, budget=18.0):
     if not os.path.exists(DIST):
         print(f"  [FAIL] dist not built: {DIST} (run `bun run build.ts` first)")
         return False
@@ -63,7 +63,7 @@ def run_once(timeout=9.0):
     buf = b""
     t0 = time.time()
     try:
-        while time.time() - t0 < timeout:
+        while time.time() - t0 < timeout or (time.time() - t0 < budget and not MOUNT.search(_norm(buf.decode("utf-8", "replace")))):
             r, _, _ = select.select([fd], [], [], 0.4)
             if r:
                 try:

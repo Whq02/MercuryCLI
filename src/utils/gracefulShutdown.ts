@@ -445,6 +445,15 @@ export function isShuttingDown(): boolean {
   return shutdownInProgress
 }
 
+function leaveWatchesToProcessEnd(): void {
+  try {
+    const watches = require('./watchRoot.js') as typeof import('./watchRoot.js')
+    watches.leaveFileWatchesToProcessEnd()
+  } catch (err) {
+    logForDebugging(`gracefulShutdown: the file watches were not left to the process end: ${String(err)}`)
+  }
+}
+
 export async function gracefulShutdown(
   exitCode: number = 0,
   reason: SessionEndReason = 'closed',
@@ -452,6 +461,7 @@ export async function gracefulShutdown(
 ): Promise<void> {
   if (shutdownInProgress) return
   shutdownInProgress = true
+  leaveWatchesToProcessEnd()
 
   if (!restorationModule && process.stdout.isTTY) {
     try {
@@ -549,6 +559,7 @@ const CRASH_CLEANUP_CAP_MS = 700
 export async function crashShutdown(exitCode: number): Promise<void> {
   if (shutdownInProgress) return
   shutdownInProgress = true
+  leaveWatchesToProcessEnd()
 
   if (!restorationModule && process.stdout.isTTY) {
     try {

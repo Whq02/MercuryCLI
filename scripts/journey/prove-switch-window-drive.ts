@@ -98,7 +98,7 @@ async function runArm(arm: 'flat' | 'ceiling' | 'queued'): Promise<{ wire: Captu
   const out = path.join(RUN_HOME, `grid-${arm}.json`)
   const cardSends =
     arm === 'flat'
-      ? [{ atTick: 260, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'card' }]
+      ? [{ requireAwait: true, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'card' }]
       : []
   const queuedSends = [
     { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
@@ -113,12 +113,12 @@ async function runArm(arm: 'flat' | 'ceiling' | 'queued'): Promise<{ wire: Captu
     argv: ['node', DIST, '--model', 'claude-opus-4-8'],
     cwd: FIXTURE_CWD,
     sends: arm === 'queued' ? queuedSends : [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 80, minTick: 20, awaitText: '? for shortcuts', data: `${BIG_ASK}\r` },
-      { atTick: 220, minTick: 10, awaitText: BIG_REPLY_TAIL, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'switch-sent' },
+      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, minTick: 20, awaitText: '? for shortcuts', data: `${BIG_ASK}\r` },
+      { requireAwait: true, minTick: 10, awaitText: BIG_REPLY_TAIL, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'switch-sent' },
       ...cardSends,
-      { atTick: 420, minTick: 10, awaitText: 'GPT-5.6 Sol · ●', awaitSettleTicks: 3, data: `${PICKUP_ASK}\r`, mark: 'pickup-sent' },
-      { atTick: 560, minTick: 5, awaitText: 'context overflowed', awaitSettleTicks: 2, data: '', mark: 'notice' },
+      { requireAwait: true, minTick: 10, awaitText: 'ready · GPT-5.6 Sol', awaitSettleTicks: 3, data: `${PICKUP_ASK}\r`, mark: 'pickup-sent' },
+      { afterPrevTicks: 1, awaitPattern: `context overflowed|${GPT_REPLY}`, data: '', mark: 'notice' },
     ],
     readyText: [GPT_REPLY],
     readySettleTicks: 4,

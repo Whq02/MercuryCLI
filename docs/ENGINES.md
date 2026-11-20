@@ -42,7 +42,7 @@ arm.
 | `melious` | `melious/<model-id>[:speed\|:price\|:eco\|:batch]` (qualified; chat models) | Melious AI |
 | `cerebras` | `cerebras/<model-id>` (qualified; text models only) | Cerebras |
 | `fireworks` | `fireworks/<model-id>` (qualified; text models only) | Fireworks |
-| `qwen` | `qwen-*`, `qwen3*`, `qwen2*`, `qwq-*`, `qvq-*`, alias `qwen` (QwenCloud and Alibaba Cloud Model Studio's own Qwen text models; the speech, image, video, embedding and rerank ids refuse here) | Qwen |
+| `qwen` | `qwen-*`, `qwen4*`, `qwen3*`, `qwen2*`, `qwq-*`, `qvq-*`, alias `qwen` (QwenCloud and Alibaba Cloud Model Studio's own Qwen text models; the speech, image, video, embedding and rerank ids refuse here) | Qwen |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -559,8 +559,9 @@ workspace-dedicated domain such as
 `DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
 On a pay-as-you-go endpoint the picker lists the text models the endpoint
 serves live together with the dated pins this build knows (Qwen3.8 Max,
-Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
-Qwen3.6 Flash and Qwen3 Coder Flash, with their context windows and prices): a
+Qwen4 Max, Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash,
+Qwen3.7 Flash, Qwen3.6 Flash and Qwen3 Coder Flash, with their context windows
+and prices): a
 live row wins on a shared id, a pinned id the list does not name still shows
 from the pin and is sent for the bound endpoint's console to decide, and the pins alone stand,
 labelled as pins, when the list cannot be read. On the QwenCloud Token Plan
@@ -575,7 +576,8 @@ wherever it is a row. Requests carry Qwen's own `enable_thinking` switch and
 `preserve_thinking` on the rows that take them, the effort dial as
 `reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
 rows that document it and all three on a Qwen 4 id of a known tier (`qwen4-max`,
-`-plus`, `-flash`, `-omni-flash`, `-<n>b`) before this build pins one, a stated
+`-plus`, `-flash`, `-omni-flash`, `-<n>b`) whether or not this build pins it, a
+stated
 `models.<id>.thinkingBudget` as `thinking_budget`
 in place of the effort word, the system prompt in `messages[0]` alone, and tool
 calls on the shared wire. A 401 from the bound endpoint names the region and the
@@ -1011,9 +1013,12 @@ Run `/accounts` to see every connected account and API key across all providers:
   2026-10-25, lists Gemini 4 Argon on paid Google AI Pro plans (or trials
   with eligible premium devices), Google AI Ultra and Enterprise, but not
   Free or Google AI Plus; read again on 2026-11-11 it lists Gemini 4 Carbon
-  on Google AI Ultra and Enterprise alone; read again on 2026-11-15 it lists
-  Gemini 4 Hydrogen on every plan, Free and Google AI Plus included, with a
-  fourth thinking level (Extra, the row `…-xhigh`). Claude Sonnet 5.5
+  on Google AI Ultra and Enterprise alone; read again on 2026-11-20 it lists
+  Gemini 4 Hydrogen on paid Google AI Pro plans (not trials) and Gemini 4
+  Neon on paid Google AI Pro plans (or trials with eligible premium
+  devices), each of them on Ultra and Enterprise too and neither on Free or
+  Google AI Plus, both with a fourth thinking level (Extra, the row
+  `…-xhigh`). Claude Sonnet 5.5
   and Opus 5.5 require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus
   4.6 and GPT-OSS-120b leave the roster on November 18, 2026 (the table read
   on 2026-11-15). A disabled row is
@@ -1028,8 +1033,8 @@ Run `/accounts` to see every connected account and API key across all providers:
   rides the row of the session's effort the way Google's own client's
   collapse table routes it (low → `-low`, medium → `-medium`, high or no
   effort → `-high`, xhigh or max → `-xhigh` where the roster names that row,
-  as it does for Gemini 4 Hydrogen, and `-high` where it does not; a missing
-  tier taking the nearest present)
+  as it does for Gemini 4 Neon and Gemini 4 Hydrogen, and `-high` where it
+  does not; a missing tier taking the nearest present)
   and the status row says the ride (`gemini-4-argon ▸ gemini-4-argon-high`);
   a crewmate named onto the bare id takes the high row. The roster is never
   read only at sign-in: before a chat it is re-read when older than five

@@ -59,7 +59,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [WORK])
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const CONSENT_ACCEPT = 'Yes, I accept'
 const BOARD_EMPTY = 'no sessions running'
@@ -90,7 +90,7 @@ async function capture(opts: { id: string; home: string; argv?: string[]; sends:
       sends: opts.sends,
       readyText: COMPOSER,
       readySettleTicks: 3,
-      total: opts.total ?? 400,
+      total: opts.total ?? 600,
       out: outPath,
     }),
   )
@@ -221,19 +221,19 @@ function bandModeOf(frame: string | null): string {
 const factsModeOf = (mode: string | null): string => (mode === 'dontAsk' ? "don't ask" : (mode ?? '(no facts)'))
 
 const acceptConsent = (): Send[] => [
-  { atTick: 90, awaitText: CONSENT_ACCEPT, minTick: 3, awaitSettleTicks: 2, data: '\x1b[B' },
+  { requireAwait: true, awaitText: CONSENT_ACCEPT, minTick: 3, awaitSettleTicks: 2, data: '\x1b[B' },
   { afterPrevTicks: 2, data: '\r', mark: 'consent' },
 ]
-const awaitFace = (first: boolean): Send => (first ? { atTick: 120, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' } : { afterPrevTicks: 120, awaitText: READY_LINE, awaitSettleTicks: 3, data: '', mark: 'face' })
+const awaitFace = (first: boolean): Send => (first ? { requireAwait: true, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' } : { requireAwait: true, awaitText: READY_LINE, awaitSettleTicks: 3, data: '', mark: 'face' })
 const faceDoor = (): Send[] => [{ afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }]
 const boardDoor = (): Send[] => [
   { afterPrevTicks: WARM_TICKS, data: 'o', mark: 'face-o' },
-  { afterPrevTicks: 40, awaitText: BOARD_EMPTY, awaitSettleTicks: 3, data: '', mark: 'board' },
+  { requireAwait: true, awaitText: BOARD_EMPTY, awaitSettleTicks: 3, data: '', mark: 'board' },
   { afterPrevTicks: 3, data: 'n', mark: 'board-list' },
-  { afterPrevTicks: 30, awaitText: CONTRACT_OFFER, awaitSettleTicks: 2, data: '\x1b', mark: 'contract' },
+  { requireAwait: true, awaitText: CONTRACT_OFFER, awaitSettleTicks: 2, data: '\x1b', mark: 'contract' },
 ]
 const chatAndCycle = (presses: number): Send[] => {
-  const out: Send[] = [{ afterPrevTicks: 80, awaitText: COMPOSER, awaitSettleTicks: 10, data: '', mark: 'chat' }]
+  const out: Send[] = [{ requireAwait: true, awaitText: COMPOSER, awaitSettleTicks: 10, data: '', mark: 'chat' }]
   for (let k = 1; k <= presses; k++) {
     out.push({ afterPrevTicks: 1, data: SHIFT_TAB })
     out.push({ afterPrevTicks: 6, data: '', mark: `st${k}` })

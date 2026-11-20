@@ -2,7 +2,7 @@ import { statSync } from 'node:fs'
 import { basename, dirname } from 'node:path'
 import type { AwayRecapMetadata, LaunchWonV1 } from '../../types/message.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { emitFocusedSessionConnectorChanged, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
+import { emitFocusedSessionConnectorChanged, getFocusedSessionConnector, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
 import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWornPresetKit, settleLandingWords, takeWornPresetKit } from './bootBirthFacts.js'
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
@@ -140,6 +140,20 @@ export function focusResumedSession(
 
 type ResumeOptions = { title?: string; firstPaintMs?: number; permissionMode?: string; model?: string; effort?: string; restartReason?: 'update' }
 
+type LaunchWords = { model?: string; effort?: string }
+
+const HELD_LIVE_PING_MS = 500
+
+async function heldLiveUnderDaemon(sessionId: string): Promise<boolean> {
+  const workers = await import('../../daemon/concourseWorkers.js')
+  if (workers.sessionOwnedByLiveWorker(sessionId) === null) return false
+  const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+  const pong = await daemonControlRpc({ op: 'ping' }, { timeoutMs: HELD_LIVE_PING_MS })
+  if (pong.ok !== true) return false
+  const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  return rec !== undefined && rec.parkedAt === undefined && workers.sessionOwnedByLiveWorker(sessionId) !== null
+}
+
 async function focusResumedSessionLanding(
   sessionId: string,
   transcriptPath: string | undefined,
@@ -149,14 +163,25 @@ async function focusResumedSessionLanding(
     const reason = 'no live session record owns this id'
     return { ok: false, reason, admitted: Promise.resolve(false), refusal: Promise.resolve(reason) }
   }
-  const workers = await import('../../daemon/concourseWorkers.js')
-  const launch = { ...(opts?.model !== undefined ? { model: opts.model } : {}), ...(opts?.effort !== undefined ? { effort: opts.effort } : {}) }
+  const launch: LaunchWords = { ...(opts?.model !== undefined ? { model: opts.model } : {}), ...(opts?.effort !== undefined ? { effort: opts.effort } : {}) }
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
-  if (workers.sessionOwnedByLiveWorker(sessionId) !== null) {
+  if (await heldLiveUnderDaemon(sessionId)) {
     const hop = await hopIntoBoardSession(sessionId, opts)
-    if (hop.ok && launchGiven) void applyLaunchWordOnHop(sessionId, launch)
+    if (hop.ok && launchGiven) void applyLaunchWordOnHop(sessionId, launch, () => admitResumedSession(sessionId, transcriptPath, opts, launch))
     return { ...hop, admitted: Promise.resolve(hop.ok), refusal: Promise.resolve(hop.ok ? null : hop.reason) }
   }
+  return admitResumedSession(sessionId, transcriptPath, opts, launch)
+}
+
+async function admitResumedSession(
+  sessionId: string,
+  transcriptPath: string | undefined,
+  opts: ResumeOptions | undefined,
+  launch: LaunchWords,
+  admitsAgain = true,
+): Promise<ResumeOutcome> {
+  const workers = await import('../../daemon/concourseWorkers.js')
+  const launchGiven = launch.model !== undefined || launch.effort !== undefined
   const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   const workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
   const paths = await import('../../utils/sessionStorage/paths.js')
@@ -203,11 +228,19 @@ async function focusResumedSessionLanding(
       if (!(await ensureOwnedDaemon())) return 'the daemon did not start'
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       const worn = peekWornPresetKit()
-      const permissionMode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined
-      const reply = (await daemonControlRpc(
-        { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...(permissionMode !== undefined ? { permissionMode } : {}), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) },
-        { timeoutMs: 60_000 },
-      )) as Record<string, unknown>
+      const admit = async (): Promise<Record<string, unknown>> => {
+        const permissionMode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined
+        return (await daemonControlRpc(
+          { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...(permissionMode !== undefined ? { permissionMode } : {}), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) },
+          { timeoutMs: 60_000 },
+        )) as Record<string, unknown>
+      }
+      const parkedStill = (): boolean => Object.values(workers.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined && r.parkedAt !== undefined)
+      let reply = await admit()
+      for (const leavesBy = Date.now() + workers.RETIREMENT_EXIT_WAIT_MS; reply.liveHop === true && parkedStill() && Date.now() < leavesBy; ) {
+        await sleep(100)
+        if (workers.sessionOwnedByLiveWorker(sessionId) === null) reply = await admit()
+      }
       if (reply.ok !== true) return typeof reply.error === 'string' && reply.error !== '' ? reply.error : 'the daemon refused the resume'
       won = launchWonOf(launch, saved, {
         ...(typeof reply.modelId === 'string' ? { model: reply.modelId } : {}),
@@ -232,6 +265,7 @@ async function focusResumedSessionLanding(
         ...(settled.worktreePath !== undefined ? { worktreePath: settled.worktreePath } : {}),
       }, reply.liveHop === true)
       connector.assertSeat()
+      if (reply.liveHop === true && launchGiven) void applyLaunchWordOnHop(sessionId, launch, admitsAgain ? () => admitResumedSession(sessionId, transcriptPath, opts, launch, false) : null)
       return null
     } catch (error) {
       return error instanceof Error ? error.message : String(error)
@@ -468,32 +502,39 @@ function launchWonOf(
   return out.model === undefined && out.effort === undefined ? null : out
 }
 
-async function applyLaunchWordOnHop(sessionId: string, launch: { model?: string; effort?: string }): Promise<void> {
+async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resumeWithLaunchWords: (() => Promise<unknown>) | null): Promise<void> {
   try {
     const seat = await import('../engine-connector/daemonConnector.js')
     const connector = seat.getDaemonSessionConnector(sessionId)
     if (connector === undefined) return
     const { renderModelName } = await import('../../utils/model/model.js')
+    const { daemonLastUnreachableAt } = await import('../../daemon/controlSocket.js')
+    const dialledAt = Date.now()
+    const daemonWentAway = (): boolean => resumeWithLaunchWords !== null && daemonLastUnreachableAt() >= dialledAt
     const facts = connector.modelFacts()
     const parts: string[] = []
+    let daemonLeft = false
     if (launch.model !== undefined && launch.model !== facts.effective) {
       const receipt = await connector.setModel(launch.model)
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--model ${renderModelName(launch.model)} wins over the session's ${renderModelName(facts.effective)}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        parts.push(`--model ${renderModelName(launch.model)} was refused, the session keeps ${renderModelName(facts.effective)}: ${receipt.detail}`)
+        daemonLeft = daemonWentAway()
+        if (!daemonLeft) parts.push(`--model ${renderModelName(launch.model)} was refused, the session keeps ${renderModelName(facts.effective)}: ${receipt.detail}`)
       }
     }
     const sessionEffort = typeof facts.effort === 'string' ? facts.effort : undefined
-    if (launch.effort !== undefined && launch.effort !== sessionEffort) {
+    if (!daemonLeft && launch.effort !== undefined && launch.effort !== sessionEffort) {
       const receipt = await connector.setEffort(launch.effort)
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--effort ${launch.effort} wins over the session's ${sessionEffort ?? 'own effort'}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        parts.push(`--effort ${launch.effort} was refused, the session keeps ${sessionEffort ?? 'its own effort'}: ${receipt.detail}`)
+        daemonLeft = daemonWentAway()
+        if (!daemonLeft) parts.push(`--effort ${launch.effort} was refused, the session keeps ${sessionEffort ?? 'its own effort'}: ${receipt.detail}`)
       }
     }
     for (const part of parts) mintImmediateReceipt(part)
+    if (daemonLeft && resumeWithLaunchWords !== null && getFocusedSessionConnector().sessionId() === sessionId) await resumeWithLaunchWords()
   } catch (error) {
     passedOver(error)
   }
