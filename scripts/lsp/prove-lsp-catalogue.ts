@@ -4,6 +4,7 @@
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const repo = path.resolve(import.meta.dir, '../..')
 const fakeServer = path.join(repo, 'scripts/lsp/fixtures/fake-lsp-server.mjs')
@@ -23,9 +24,18 @@ const shimBin = path.join(scratch, 'shim-bin')
 mkdirSync(shimBin)
 writeFileSync(path.join(scratch, 'Cargo.toml'), '[package]\nname = "proof"\n')
 writeFileSync(path.join(scratch, 'x.rs'), 'fn main() {}\n')
-const shim = path.join(shimBin, 'rust-analyzer')
-writeFileSync(shim, `#!/bin/sh\nexec "${process.execPath}" "${fakeServer}"\n`)
-chmodSync(shim, 0o755)
+const plantServerShim = (dir: string, name: string): string => {
+  if (process.platform === 'win32') {
+    const file = path.join(dir, `${name}.cmd`)
+    writeFileSync(file, `@echo off\r\n"${process.execPath}" "${fakeServer}" %*\r\n`)
+    return file
+  }
+  const file = path.join(dir, name)
+  writeFileSync(file, `#!/bin/sh\nexec "${process.execPath}" "${fakeServer}"\n`)
+  chmodSync(file, 0o755)
+  return file
+}
+const shim = plantServerShim(shimBin, 'rust-analyzer')
 process.env.PATH = `${shimBin}${path.delimiter}${process.env.PATH ?? ''}`
 delete process.env.MERCURY_LSP
 process.chdir(scratch)
@@ -93,9 +103,7 @@ console.log('— D. detection truth —')
   check('an absent binary reads unavailable WITH its remedy', missing !== undefined && typeof missing.remedy === 'string', JSON.stringify(missing?.id))
   const localBin = path.join(scratch, 'node_modules', '.bin')
   mkdirSync(localBin, { recursive: true })
-  const localShim = path.join(localBin, 'rust-analyzer')
-  writeFileSync(localShim, `#!/bin/sh\nexec "${process.execPath}" "${fakeServer}"\n`)
-  chmodSync(localShim, 0o755)
+  const localShim = plantServerShim(localBin, 'rust-analyzer')
   const localProbe = probeCatalogueEntry(rust)
   check('project-local bin outranks PATH', localProbe.binaryPath === localShim && localProbe.binarySource === 'project-local', JSON.stringify(localProbe))
 }
@@ -114,7 +122,7 @@ const manager = mgrModule.getLspServerManager()!
   const server = await manager.ensureServerStarted(rsFile)
   check('first use SPAWNS the catalogue server (initialize completed)', server?.state === 'running', server?.state)
   const answer = await manager.sendRequest<unknown>(rsFile, 'textDocument/hover', {
-    textDocument: { uri: 'file://' + rsFile },
+    textDocument: { uri: pathToFileURL(rsFile).href },
     position: { line: 0, character: 0 },
   })
   check('a request round-trips through the spawned server', answer === null, JSON.stringify(answer))
@@ -206,7 +214,7 @@ const { LspReadTool, LspRequestTool } = await import('../../src/tools/LSPTool/LS
   check('rawRequest refuses the edit-class method by name', refused.effect.outcome === 'failed' && /edit-class/.test(refused.result) && /LspCodeAction/.test(refused.result), refused.result.slice(0, 160))
   const renameRefused = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'textDocument/rename', params: '{}' }))
   check('rawRequest points rename at the typed op', renameRefused.effect.outcome === 'failed' && /LspRename/.test(renameRefused.result), renameRefused.result.slice(0, 160))
-  const raw = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'textDocument/documentHighlight', params: JSON.stringify({ textDocument: { uri: 'file://' + rsFile }, position: { line: 0, character: 0 } }) }))
+  const raw = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'textDocument/documentHighlight', params: JSON.stringify({ textDocument: { uri: pathToFileURL(rsFile).href }, position: { line: 0, character: 0 } }) }))
   check('a non-edit method answers raw (nothing applied)', raw.effect.outcome === 'succeeded' && /nothing was applied/.test(raw.result), raw.result.slice(0, 160))
   const badJson = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'textDocument/documentHighlight', params: '{nope' }))
   check('malformed params JSON refuses typed', badJson.effect.outcome === 'failed' && /not valid JSON/.test(badJson.result))
