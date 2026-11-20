@@ -1,7 +1,7 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
@@ -13,15 +13,7 @@ export function isKeyedCatalogueFamily(family: string): family is KeyedCatalogue
 }
 
 async function bounded(refresh: Promise<unknown>, boundMs: number): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  await Promise.race([
-    refresh.catch(passedOverAs(null)),
-    new Promise<void>(resolve => {
-      timer = startTimeout(resolve, boundMs)
-      timer.unref?.()
-    }),
-  ])
-  stopTimeout(timer)
+  await withDeadline(refresh.catch(passedOverAs(null)), boundMs, () => undefined, { unref: true })
 }
 
 function nothingUsable(snapshot: { models: readonly unknown[]; lastError?: string } | null): boolean {

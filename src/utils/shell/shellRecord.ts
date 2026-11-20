@@ -8,7 +8,7 @@ import { errorMessage } from '../errors.js'
 import { logError } from '../log.js'
 import { endProcessTree, strikeProcessGroupNow } from '../processGroup.js'
 import { getInitialSettings } from '../settings/settings.js'
-import { sleep } from '../sleep.js'
+import { withDeadline } from '../deadline.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { which } from '../which.js'
 import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
@@ -421,9 +421,7 @@ function shellRowOf(record: ShellRecord | null, absent: LoginFilesAbsence | null
 }
 
 export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<ShellRow> {
-  const waited = new AbortController()
-  const settled = await Promise.race([shellRecordIfAny().then(record => ({ record })), sleep(waitMs, waited.signal).then(() => null)])
-  waited.abort()
+  const settled = await withDeadline(shellRecordIfAny().then(record => ({ record })), waitMs, () => null)
   if (settled === null) {
     return {
       status: 'warn',

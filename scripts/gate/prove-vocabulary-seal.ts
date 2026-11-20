@@ -169,7 +169,7 @@ const plainName = (key: string): RegExp => new RegExp('(?<![\\w$./\'"-])' + key 
 const moduleName = (name: string): RegExp => new RegExp('(?<![\\w$-])' + name + '(?![\\w$-])')
 const RELEASE_SETTINGS_LINES: Readonly<Record<string, string>> = {
   'docs/releases/1.0.0-beta.21.md': '  one stretch is asked once to continue past it; with loopGuardStopEnabled',
-  'src/constants/changelog.ts': '- Added a loop guard: a tool call repeated with identical arguments and an identical result is reminded at the third, fifth and eighth repeat, a cycle of up to five calls repeated five times is named, and a reply that chants one stretch is asked once to continue past it; with loopGuardStopEnabled true in settings the second detection of the same cycle ends the turn as loop_stopped (by default nothing is ended)',
+  'src/constants/changelogArchive.ts': '- Added a loop guard: a tool call repeated with identical arguments and an identical result is reminded at the third, fifth and eighth repeat, a cycle of up to five calls repeated five times is named, and a reply that chants one stretch is asked once to continue past it; with loopGuardStopEnabled true in settings the second detection of the same cycle ends the turn as loop_stopped (by default nothing is ended)',
 }
 const SETTINGS_KEY_RULES = [...RETIRED_SETTINGS_ROOTS, ...RETIRED_SETTINGS_GENERIC_ROOTS, ...RETIRED_SETTINGS_FIELDS].map(key => ({
   key,
@@ -185,7 +185,7 @@ const SETTINGS_MODULE_RULES = RETIRED_SETTINGS_MODULES.map(name => ({ name, re: 
 function settingsViolation(path: string, line: string): string | null {
   if (!SETTINGS_SCOPE.test(path) || allowed(path, 'settings')) return null
   if (RELEASE_SETTINGS_LINES[path] === line) return null
-  const prose = /\.md$/.test(path) || path === 'src/constants/changelog.ts'
+  const prose = /\.md$/.test(path) || path === 'src/constants/changelogArchive.ts'
   for (const place of RETIRED_POLICY_PLACES) if (line.includes(place)) return `settings:${place}`
   for (const { name, re } of SETTINGS_MODULE_RULES) if (re.test(line)) return `settings:${name}`
   for (const rule of SETTINGS_KEY_RULES) {
@@ -244,7 +244,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/browser/prove-browser-stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the detection checks read — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-prepared-once.ts', 'words', "the DOM's own name (navigator.plugins) among the five readings a frame is held to its page on — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-marked-names.ts', 'words', "the DOM's own names (navigator.plugins, Plugin, PluginArray) of the functions the stealth init marks, read beside Chrome's own — the browser's vocabulary, not Mercury's"],
-  ['src/constants/changelog.ts', 'retired', 'a published record keeps its lines'],
+  ['src/constants/changelogArchive.ts', 'retired', 'a published record keeps its lines'],
   ['docs/releases/', 'retired', 'published release pages keep their lines'],
   ['docs/COMPATIBILITY.md', 'other-tool-home', "the page names another tool's project folder among the files Mercury reads in a project; that tool's home folder is never read"],
   ['src/services/instructions/adapters/claudeCode.ts', 'other-tool-home', "the instruction engine's adapter for that tool names the project folder it reads; that tool's home folder is never read"],
@@ -311,7 +311,7 @@ const XAI_CLIENT_REFERENCES = new Set([
   'scripts/providers/fixtures/xai-subscription-contract.json',
 ])
 const RELEASE_RUN_LINES: Readonly<Record<string, string>> = {
-  'src/constants/changelog.ts': '- Fixed mercury -p /usage (and the other screen-only commands) printing nothing instead of saying they need the interactive session',
+  'src/constants/changelogArchive.ts': '- Fixed mercury -p /usage (and the other screen-only commands) printing nothing instead of saying they need the interactive session',
   'docs/releases/1.0.0-beta.26.md': '- Fixed mercury -p /usage (and the other screen-only commands) printing',
 }
 
@@ -650,7 +650,7 @@ function main(): void {
       "projectLocalPath(root, 'settings.json'); daemon.json; readDaemonState(); the supervision policy; a supervised child; MERCURY_ANTHROPIC_OAUTH_BASE; isLoopbackOauthOrigin(url); MERCURY_ANTHROPIC_CONNECTORS; anthropicLimits.ts; mcp/anthropicConnectors.js; /^(ANTHROPIC_|CLAUDE_|OPENAI_)/.test(name); CLAUDE_ID; CLAUDE_EMAIL; UNKNOWN_CLAUDE_ID",
     ]
     check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | '))
-    check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelog.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-retired-keys-unknown.ts', trips[1]![1]).length === 0)
+    check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelogArchive.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-retired-keys-unknown.ts', trips[1]![1]).length === 0)
     check('§5 self-test: a label-scoped exemption excuses its own word and no other', retiredHits('scripts/effort/prove-effort-persistence.ts', trips[1]![1]).length === 0 && retiredHits('scripts/effort/prove-effort-persistence.ts', trips[0]![1]).length === 1)
     check('§5 self-test: the one stored sidecar fixture keeps its type word and nothing beside it', retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[33]![1]).length === 0 && retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[32]![1]).length === 1)
   }
