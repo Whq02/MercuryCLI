@@ -253,8 +253,9 @@ export function requestWaitLinePastEstimate(line: string): boolean {
   return !line.includes(' — ') && (line.startsWith('waiting for the first byte from ') || line.startsWith('ingesting '))
 }
 
-export function firstByteTimeoutLine(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>): string {
-  return `no first byte from ${wait.model} after ${seconds(wait.budgetMs)} (${
+export function firstByteTimeoutLine(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>, elapsedMs?: number): string {
+  const waitedMs = elapsedMs !== undefined && Number.isFinite(elapsedMs) && elapsedMs >= 0 ? elapsedMs : wait.budgetMs
+  return `no first byte from ${wait.model} after ${seconds(waitedMs)} (${
     wait.cold ? `a ${kTokens(wait.promptTokens)} prompt ingesting uncached` : 'the request was accepted and nothing arrived'
   })`
 }
