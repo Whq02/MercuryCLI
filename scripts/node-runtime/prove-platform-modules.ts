@@ -113,6 +113,7 @@ import {
   evalPythonCommands,
   executableName,
   executableSuffixes,
+  hostPathDelimiter,
   isExecutableFile,
   isExecutablePath,
   pathDelimiter,
@@ -189,14 +190,18 @@ const PROGRAMS: Row[] = [
     recorded: {"win32":{"empty":null,"both":"run-x.exe","shim":"shim.cmd","plain":"only-plain","explicit":"run-x.exe","quotedOnly":"shim.cmd","missing":null},"darwin":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null},"linux":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null},"win32 by process.platform alone":{"empty":null,"both":"run-x.exe","shim":"shim.cmd","plain":"only-plain","explicit":"run-x.exe","quotedOnly":"shim.cmd","missing":null},"win32 by getPlatform() alone":{"empty":null,"both":"run-x","shim":null,"plain":null,"explicit":"run-x","quotedOnly":null,"missing":null}},
   },
   {
-    name: 'programs: pathDelimiter and envPathDirs',
-    answers: () => ({
-      sep: pathDelimiter(),
-      upper: envPathDirs({ PATH: '/a:/b;/c' }),
-      mixed: envPathDirs({ Path: 'C:\\a;;C:\\b:/d' }),
-      empty: envPathDirs({}),
-    }),
-    recorded: {"win32":{"sep":";","upper":["/a:/b","/c"],"mixed":["C:\\a","C:\\b:/d"],"empty":[]},"darwin":{"sep":":","upper":["/a","/b;/c"],"mixed":["C","\\a;;C","\\b","/d"],"empty":[]},"linux":{"sep":":","upper":["/a","/b;/c"],"mixed":["C","\\a;;C","\\b","/d"],"empty":[]},"win32 by process.platform alone":{"sep":";","upper":["/a:/b","/c"],"mixed":["C:\\a","C:\\b:/d"],"empty":[]},"win32 by getPlatform() alone":{"sep":":","upper":["/a","/b;/c"],"mixed":["C","\\a;;C","\\b","/d"],"empty":[]}},
+    name: 'programs: pathDelimiter, hostPathDelimiter and envPathDirs',
+    answers: () => {
+      const sep = process.platform === 'win32' ? ';' : p02Path.delimiter
+      return {
+        exactSep: pathDelimiter(),
+        hostSepMatches: hostPathDelimiter() === sep,
+        upper: envPathDirs({ PATH: `/a${sep}${sep}/b` }),
+        mixed: envPathDirs({ Path: `/x${sep}/y` }),
+        empty: envPathDirs({}),
+      }
+    },
+    recorded: {"win32":{"exactSep":";","hostSepMatches":true,"upper":["/a","/b"],"mixed":["/x","/y"],"empty":[]},"darwin":{"exactSep":":","hostSepMatches":true,"upper":["/a","/b"],"mixed":["/x","/y"],"empty":[]},"linux":{"exactSep":":","hostSepMatches":true,"upper":["/a","/b"],"mixed":["/x","/y"],"empty":[]},"win32 by process.platform alone":{"exactSep":";","hostSepMatches":true,"upper":["/a","/b"],"mixed":["/x","/y"],"empty":[]},"win32 by getPlatform() alone":{"exactSep":":","hostSepMatches":true,"upper":["/a","/b"],"mixed":["/x","/y"],"empty":[]}},
   },
   {
     name: 'programs: executableName and vendoredNodeRelativePath',
