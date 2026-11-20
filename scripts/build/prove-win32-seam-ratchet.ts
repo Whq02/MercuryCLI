@@ -24,12 +24,14 @@ const PLATFORM_HOME = /^src\/utils\/platform(?:\.ts$|\/)/
 const ROW_8 = /^src\/(?:utils\/(?:bash|wards|permissions\/shellProtectedPaths|permissions\/decision)\/|utils\/permissions\/flowLaw\.ts$|tools\/BashTool\/(?:denyRuleReach|bashPermissions)\.ts$)/
 
 const SINGLE: Array<[file: string, checks: number, reason: string]> = [
+  ['src/cli/editorBridge.ts', 1, 'the install places of another vendor on each platform'],
   ['src/commands/tensorfold/scene.ts', 3, 'the TensorFold engine has no Windows release: Windows is served by a host or by the llama.cpp adapter'],
   ['src/components/Feedback.tsx', 2, 'the sentence names the command or the place of this platform'],
   ['src/components/TerminalProfileCard.tsx', 3, 'the Windows host inventory card exists on Windows only'],
   ['src/components/tensorfold/tensorfoldFacts.ts', 4, 'the TensorFold engine has no Windows release: Windows is served by a host or by the llama.cpp adapter'],
   ['src/components/tensorfold/tensorfoldRows.ts', 3, 'the TensorFold engine has no Windows release: Windows is served by a host or by the llama.cpp adapter'],
   ['src/constants/prompts.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/daemon/daemonBuild.ts', 1, 'a Nix install exists outside Windows only'],
   ['src/daemon/processSweepWindows.ts', 1, 'the Windows process reader refuses to open elsewhere'],
   ['src/ink/session/windowsHostSetup.ts', 1, 'the Windows host inventory exists on Windows only'],
   ['src/interactiveHelpers.tsx', 1, 'the sentence names the command or the place of this platform'],
@@ -54,6 +56,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/services/mcp/config.ts', 1, 'the npx warning is for Windows, where npx is a batch shim'],
   ['src/services/mcp/oauthPort.ts', 1, 'the callback port range Windows leaves free differs'],
   ['src/services/privateChannel/installLayout.ts', 1, 'the script policies of PowerShell are read on Windows only'],
+  ['src/services/privateChannel/nixInstallRoot.ts', 1, 'a Nix install exists outside Windows only'],
   ['src/services/privateChannel/updateRemedy.ts', 2, 'the sentence names the command or the place of this platform'],
   ['src/services/providers/local/tensorfoldSupport.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/tensorfold/adapter/llama.ts', 2, 'the adapter installs the Windows x64 build of llama.cpp only, and names the missing-DLL exit of Windows'],
@@ -74,6 +77,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/utils/health/sections/interface.ts', 2, 'the sentence names the command or the place of this platform'],
   ['src/utils/health/sections/proofs.ts', 1, 'the POSIX render pipeline does not run from a Windows source checkout'],
   ['src/utils/healthReport.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/utils/hooks/commandRunner.ts', 2, 'a bash hook runs through the Windows bash road on Windows only'],
   ['src/utils/ocr.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/utils/settings/mdm/probeMemo.ts', 2, 'managed settings are the registry on Windows and a plist on macOS'],
   ['src/utils/settings/mdm/rawRead.ts', 1, 'managed settings are the registry on Windows and a plist on macOS'],
