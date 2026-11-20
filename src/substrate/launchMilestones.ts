@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { flagEnv, flagSpellings } from './flagRegistry.js'
 import { passedOver } from '../utils/passedOver.js'
+import { logForDebugging } from '../utils/debug.js'
 
 export type LaunchMilestone =
   | 'runtime-entry'
@@ -52,11 +53,18 @@ function readAll(): LaunchMilestoneRowV1[] {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
     throw error
   }
-  const raw = JSON.parse(text) as MilestoneFileV1
-  if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
-    throw new Error(`Invalid launch milestones file at ${launchMilestonesPath()}`)
+  try {
+    const raw = JSON.parse(text) as MilestoneFileV1
+    if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) {
+      logForDebugging(`[launch-milestones] ${launchMilestonesPath()} has unexpected shape; resetting`)
+      return []
+    }
+    return raw.rows
+  } catch (error) {
+    logForDebugging(`[launch-milestones] ${launchMilestonesPath()} is not valid JSON (${error}); resetting`)
+    passedOver(error)
+    return []
   }
-  return raw.rows
 }
 
 const seenThisProcess = new Set<LaunchMilestone>()

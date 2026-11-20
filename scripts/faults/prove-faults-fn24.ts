@@ -39,7 +39,7 @@ async function proveLaunchMilestones(): Promise<void> {
     writeFileSync(file, corrupt, { mode: 0o600 })
     check('launchMilestones: reader keeps answering empty on corrupt file', m.readLaunchMilestones().length === 0)
     m.recordLaunchMilestone('runtime-entry')
-    check('launchMilestones: recordLaunchMilestone preserves corrupt file', readFileSync(file, 'utf8') === corrupt)
+    check('launchMilestones: recordLaunchMilestone heals torn file', m.readLaunchMilestones().some(r => r.milestone === 'runtime-entry'))
     if (POSIX_MODES) {
       const valid = JSON.stringify({ version: 1, rows: [{ schema: 1, pid: 1, milestone: 'input-live', atMs: 1 }] })
       writeFileSync(file, valid, { mode: 0o600 })
