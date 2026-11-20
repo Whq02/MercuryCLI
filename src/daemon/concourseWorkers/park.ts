@@ -7,7 +7,7 @@ import { workerPidAlive } from '../workerIdentity.js'
 import { tokenBinding } from '../processSweep.js'
 import { readProcessTreeUnder, readProcessBirth } from '../processTree.js'
 import { endProcessTree } from '../../utils/processGroup.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { isNewbornRecord, turnInFlightOf, stampParked, type ConcourseWorkerRecordV1, withdrawTerminalParkRequest, stampedTerminalPid } from './record.js'
 import { settleConcourseWorker } from './settle.js'
@@ -150,14 +150,18 @@ export async function retireConcourseSession(
       roster.expectExit?.(runnerId, expected)
     },
     observeExit: async () => {
-      const deadline = Date.now() + (opts?.exitWaitMs ?? RETIREMENT_EXIT_WAIT_MS)
-      while (Date.now() < deadline) {
-        const seat = roster.has(runnerId)
-        const now = current()
-        if (!seat.alive && !(now !== undefined && workerPidAlive(now))) return true
-        await sleep(50)
-      }
-      return false
+      const waitMs = opts?.exitWaitMs ?? RETIREMENT_EXIT_WAIT_MS
+      if (waitMs <= 0) return false
+      return pollUntil(
+        () => {
+          const seat = roster.has(runnerId)
+          const now = current()
+          return !seat.alive && !(now !== undefined && workerPidAlive(now)) ? true : undefined
+        },
+        50,
+        waitMs,
+        () => false,
+      )
     },
     persistParked: token => {
       updateConcourseWorkers(workers => {
@@ -311,8 +315,12 @@ export async function endRunnersLeftWithoutHost(
     }
     if (tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
     await endProcessTree(pid, 'SIGTERM')
-    const deadline = Date.now() + (opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS)
-    while ((isProcessAlive(pid) || under.some(member => isProcessAlive(member.pid))) && Date.now() < deadline) await sleep(50)
+    await pollUntil(
+      () => (isProcessAlive(pid) || under.some(member => isProcessAlive(member.pid)) ? undefined : true),
+      50,
+      opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS,
+      () => false,
+    )
     let gone = !isProcessAlive(pid)
     if (!gone) {
       const still = tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart))
