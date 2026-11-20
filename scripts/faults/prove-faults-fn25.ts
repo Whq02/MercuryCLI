@@ -459,6 +459,30 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
+  const missingShot = join(scratch, 'missing-eval-shot.png')
+  const block = EvalTool.mapToolResultToToolResultBlockParam(
+    {
+      status: 'ok',
+      stdout: { text: 'ok', truncated: false },
+      stderr: { text: '', truncated: false },
+      displays: [],
+      annotations: [],
+      durationMs: 1,
+      language: 'js',
+      screenshot: { imagePath: missingShot },
+    } as never,
+    'tu-eval-shot',
+  )
+  const text = typeof block.content === 'string' ? block.content : ''
+  check(
+    'EvalTool: mapToolResultToToolResultBlockParam reports image-not-inlined note when screenshot read fails',
+    text.includes('(image not inlined') && /ENOENT|no such file/i.test(text),
+    text,
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
