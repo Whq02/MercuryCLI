@@ -23,7 +23,7 @@ import { createChildAbortController } from './abortController.js'
 import type { TurnAnswerContext } from '../query/turnAnswerContext.js'
 import { createUserMessage, extractTextContent, getLastAssistantMessage } from './messages.js'
 import { parseToolListFromCLI } from './permissions/permissionSetup.js'
-import { recordSidechainTranscript, writtenChainTail } from './sessionStorage.js'
+import { closeAgentTranscript, recordSidechainTranscript, writtenChainTail } from './sessionStorage.js'
 import { settledSidechainMessages } from './sessionStorage/settledSidechainMessages.js'
 import type { SystemPrompt } from './systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from './toolResultStorage.js'
@@ -345,6 +345,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
   } finally {
     context.readFileState.clear()
     messages.length = 0
+    if (agentId !== undefined) closeAgentTranscript(agentId)
   }
   const usage = settleForkUsageFold(fold)
   const durationMs = Date.now() - startedAt
