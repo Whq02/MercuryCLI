@@ -236,7 +236,9 @@ export function observeExecution(
   return next
 }
 
-export function requestStopExecution(owner: OwnerKey, id: string): ExecutionRecord | undefined {
+type StopExecutionRecord = ExecutionRecord & { stopHookError?: string }
+
+export function requestStopExecution(owner: OwnerKey, id: string): StopExecutionRecord | undefined {
   const record = store.peek(owner)?.records.get(id)
   if (!record) return undefined
   if (isTerminalExecutionState(record.state) || record.state === 'stopping') return record
@@ -252,6 +254,15 @@ export function requestStopExecution(owner: OwnerKey, id: string): ExecutionReco
     } catch (error) {
       logError(error)
       passedOver(error)
+      const message = error instanceof Error ? error.message : String(error)
+      const note = `the stop was asked for, but its hook failed (${message}) — it may still be running`
+      const noted: StopExecutionRecord = {
+        ...next,
+        outcome: { ...next.outcome, reason: note },
+        stopHookError: note,
+      }
+      store.peek(owner)?.records.set(id, noted)
+      return noted
     }
   }
   return next

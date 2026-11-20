@@ -506,8 +506,8 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
 
 export function cancelJourney(owner: OwnerKey, id: string): boolean {
   if (!liveAborts.has(id)) return false
-  requestStopExecution(owner, id)
-  return true
+  const stopped = requestStopExecution(owner, id)
+  return stopped !== undefined && stopped.stopHookError === undefined
 }
 
 export function _resetJourneysForTesting(): void {
