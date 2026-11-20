@@ -146,10 +146,10 @@ function characterHeuristic(deferrableTools: Tool[]): number {
     if (preRendered !== undefined) {
       total += JSON.stringify(preRendered).length
     } else {
-      const schema = (tool as { inputSchema?: unknown }).inputSchema
+      const schema = tool.inputSchema
       if (schema !== undefined) {
         try {
-          total += JSON.stringify(zodToJsonSchema(schema as never)).length
+          total += JSON.stringify(zodToJsonSchema(schema)).length
         } catch {
         }
       }

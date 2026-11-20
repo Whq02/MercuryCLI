@@ -47,26 +47,25 @@ const USAGE_LIFT: Array<[wire: string, mercury: keyof MercuryUsage]> = [
 ]
 
 function mapUsage(u: Raw): MercuryUsage {
-  const lifted: Raw = {}
+  const out: MercuryUsage = {}
   const rest: Raw = {}
   const liftedKeys = new Set(USAGE_LIFT.map(([l]) => l))
   for (const [k, v] of Object.entries(u)) {
     if (!liftedKeys.has(k)) rest[k] = v
   }
   for (const [wire, mercury] of USAGE_LIFT) {
-    if (wire in u) lifted[mercury] = u[wire]
+    if (wire in u) (out as Raw)[mercury] = u[wire]
   }
   if ('cache_creation' in rest) {
     const cc = rest.cache_creation as Raw | null
     if (cc && typeof cc === 'object' && 'ephemeral_1h_input_tokens' in cc && 'ephemeral_5m_input_tokens' in cc && Object.keys(cc).length === 2) {
-      lifted.cacheCreation = {
-        ephemeral1hInputTokens: cc.ephemeral_1h_input_tokens,
-        ephemeral5mInputTokens: cc.ephemeral_5m_input_tokens,
+      out.cacheCreation = {
+        ephemeral1hInputTokens: cc.ephemeral_1h_input_tokens as number,
+        ephemeral5mInputTokens: cc.ephemeral_5m_input_tokens as number,
       }
       delete rest.cache_creation
     }
   }
-  const out = lifted as unknown as MercuryUsage
   const extra = nonEmpty(rest)
   if (extra) out.extra = extra
   return out
@@ -91,64 +90,64 @@ function mapBlock(b: Raw): ContentBlock {
   const t = b.type
   if (t === 'text') {
     const { picked, rest } = take(b, ['type', 'text', 'citations'])
-    const block: Raw = { kind: 'text', text: picked.text }
-    if ('citations' in picked) block.citations = picked.citations
+    const block: Extract<ContentBlock, { kind: 'text' }> = { kind: 'text', text: picked.text as string }
+    if ('citations' in picked) block.citations = picked.citations as unknown[] | null
     const extra = nonEmpty(rest)
     if (extra) block.extra = extra
-    return block as unknown as ContentBlock
+    return block
   }
   if (t === 'thinking') {
     const { picked, rest } = take(b, ['type', 'thinking'])
-    const block: Raw = { kind: 'reasoning', text: picked.thinking }
+    const block: Extract<ContentBlock, { kind: 'reasoning' }> = { kind: 'reasoning', text: picked.thinking as string }
     const extra = nonEmpty(rest)
     if (extra) block.extra = extra
-    return block as unknown as ContentBlock
+    return block
   }
   if (t === 'redacted_thinking') {
     const { rest } = take(b, ['type'])
-    const block: Raw = { kind: 'redacted-reasoning' }
+    const block: Extract<ContentBlock, { kind: 'redacted-reasoning' }> = { kind: 'redacted-reasoning' }
     const extra = nonEmpty(rest)
     if (extra) block.extra = extra
-    return block as unknown as ContentBlock
+    return block
   }
   if (t === 'tool_use') {
     const { picked, rest } = take(b, ['type', 'id', 'name', 'input'])
-    const block: Raw = {
+    const block: Extract<ContentBlock, { kind: 'tool-use' }> = {
       kind: 'tool-use',
       callId: asToolCallId(String(picked.id)),
-      name: picked.name,
+      name: picked.name as string,
       input: picked.input,
     }
     const extra = nonEmpty(rest)
     if (extra) block.extra = extra
-    return block as unknown as ContentBlock
+    return block
   }
   if (t === 'tool_result') {
     const { picked, rest } = take(b, ['type', 'tool_use_id', 'content', 'is_error'])
-    const block: Raw = { kind: 'tool-result', callId: asToolCallId(String(picked.tool_use_id)) }
+    const block: Extract<ContentBlock, { kind: 'tool-result' }> = { kind: 'tool-result', callId: asToolCallId(String(picked.tool_use_id)) }
     if ('content' in picked) {
       block.body = Array.isArray(picked.content)
         ? (picked.content as Raw[]).map(mapBlock)
-        : picked.content
+        : (picked.content as string)
     }
-    if ('is_error' in picked) block.isError = picked.is_error
+    if ('is_error' in picked) block.isError = picked.is_error as boolean
     const extra = nonEmpty(rest)
     if (extra) block.extra = extra
-    return block as unknown as ContentBlock
+    return block
   }
   if (t === 'image') {
     const { picked, rest } = take(b, ['type', 'source'])
-    const block: Raw = { kind: 'image', source: picked.source }
+    const block: Extract<ContentBlock, { kind: 'image' }> = { kind: 'image', source: picked.source }
     const extra = nonEmpty(rest)
     if (extra) block.extra = extra
-    return block as unknown as ContentBlock
+    return block
   }
   if (t === 'document') {
     const { picked, rest } = take(b, ['type', 'source'])
-    const block: Raw = { kind: 'document', source: picked.source }
+    const block: Extract<ContentBlock, { kind: 'document' }> = { kind: 'document', source: picked.source }
     const extra = nonEmpty(rest)
     if (extra) block.extra = extra
-    return block as unknown as ContentBlock
+    return block
   }
   return { kind: 'opaque', provider: 'anthropic', blockType: String(t), payload: b }
 }

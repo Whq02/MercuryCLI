@@ -200,12 +200,11 @@ async function run(): Promise<void> {
     return values
   }
   program.hook('preAction', async (_thisCommand, actionCommand) => {
-    if (actionCommand === (program as unknown) || actionCommand.name() === 'run' || PRINT_ONLY_VERBS.has(actionCommand.name())) return
+    if (actionCommand === program || actionCommand.name() === 'run' || PRINT_ONLY_VERBS.has(actionCommand.name())) return
     try {
       const names: string[] = []
-      type CommandNode = { name(): string; parent: CommandNode | null }
-      let node: CommandNode | null = actionCommand as unknown as CommandNode
-      while (node !== null && (node as unknown) !== (program as unknown)) {
+      let node: CommanderCommand | null = actionCommand
+      while (node !== null && node !== program) {
         names.unshift(node.name())
         node = node.parent
       }

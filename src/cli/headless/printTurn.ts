@@ -283,8 +283,8 @@ export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[
         },
       })) {
         turnWatchdog.touch()
-        if (turnOpened(message as never)) {
-          live.currentTurnId = (message as unknown as { turn_id: string }).turn_id
+        if (turnOpened(message)) {
+          live.currentTurnId = message.turn_id
           if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
         }
         onMessage(message)
