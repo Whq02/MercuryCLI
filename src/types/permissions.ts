@@ -1,3 +1,5 @@
+import type { ContentBlockParam } from './wire.js'
+
 export const EXTERNAL_PERMISSION_MODES = ['default', 'dontAsk', 'implement', 'sovereign'] as const
 export const INTERNAL_PERMISSION_MODES = [...EXTERNAL_PERMISSION_MODES, 'flow', 'bubble', 'apollo'] as const
 export const PERMISSION_MODES = [...EXTERNAL_PERMISSION_MODES, 'flow', 'apollo'] as const
@@ -59,12 +61,12 @@ type Answered<Behavior extends string, Fields> = { behavior: Behavior } & Fields
 
 export type PermissionAllowDecision<ToolInput = Record<string, unknown>> = Answered<
   'allow',
-  Reasoned & { updatedInput?: ToolInput; userModified?: boolean; toolUseID?: string; acceptFeedback?: string; contentBlocks?: unknown[] }
+  Reasoned & { updatedInput?: ToolInput; userModified?: boolean; toolUseID?: string; acceptFeedback?: string; contentBlocks?: ContentBlockParam[] }
 >
 
 export type PermissionAskDecision<ToolInput = Record<string, unknown>> = Answered<
   'ask',
-  Reasoned & Steered & { message: string; updatedInput?: ToolInput; metadata?: PermissionMetadata; contentBlocks?: unknown[] }
+  Reasoned & Steered & { message: string; updatedInput?: ToolInput; metadata?: PermissionMetadata; contentBlocks?: ContentBlockParam[] }
 >
 
 export type PermissionDenyDecision = Answered<'deny', { message: string; decisionReason: PermissionDecisionReason; toolUseID?: string; unanswered?: true }>
@@ -91,7 +93,7 @@ export type ToolPermissionContext = {
   alwaysAskRules: ToolPermissionRulesBySource
   ruleReasons?: PermissionRuleReasonsBySource
   isBypassPermissionsModeAvailable: boolean
-  strippedDangerousRules?: string[]
+  strippedDangerousRules?: ToolPermissionRulesBySource
   shouldAvoidPermissionPrompts?: boolean
   awaitAutomatedChecksBeforeDialog?: boolean
 }
