@@ -137,5 +137,65 @@ console.log('\n2. voice/capture.ts + voice/voiceSession.ts — failed cancelCapt
   check('capture-cancelCapture-retry: retry calls addon cancelCapture again and settles handle', secondCancel.ok && r.settledAfterRetry === true && r.cancelCalls === 2, JSON.stringify(r))
 }
 
+console.log('\n3. voice/voiceSession.ts — cancelVoiceCapture keeps active handle on cancel error and retries cleanly')
+{
+  const r = runSubprocess(`
+    const { mock } = await import('bun:test')
+    const realPack = await import(path.join(SRC, 'services/voice/voicePack.ts'))
+    const realTranscribe = await import(path.join(SRC, 'services/voice/transcribe.ts'))
+    let cancelCalls = 0
+    const addon = {
+      packVersion: () => '1.0.0',
+      listInputDevices: () => ['mic'],
+      defaultInputDevice: () => 'mic',
+      startCapture: () => 42,
+      captureErrors: () => ({ transient: 0, lastTransient: null, fatal: null }),
+      stopCapture: () => Buffer.alloc(0),
+      cancelCapture: () => {
+        cancelCalls++
+        if (cancelCalls === 1) throw new Error('coreaudio stop busy')
+      },
+      lastCaptureErrors: () => null,
+      ttyForegroundGroup: () => ({}),
+      ownProcessGroup: () => ({}),
+      reclaimTerminal: () => ({ reclaimed: false }),
+    }
+    const manifest = {
+      name: 'mercury-voice', version: '1.0.0', platform: 'test', addon: 'a.node',
+      addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), cargo: '1', crates: [], fileCount: 1, treeDigest: '0'.repeat(64),
+    }
+    mock.module(path.join(SRC, 'services/voice/voicePack.ts'), () => ({
+      ...realPack,
+      resolveVoicePackDir: () => ({ state: 'ok', dir: PROJECT, addonPath: path.join(PROJECT, 'a.node'), manifest, source: 'override' }),
+      loadVoiceAddon: () => ({ state: 'ok', addon, dir: PROJECT, manifest, source: 'override' }),
+    }))
+    mock.module(path.join(SRC, 'services/voice/transcribe.ts'), () => ({
+      ...realTranscribe,
+      resolveTranscriber: () => ({
+        state: 'ok',
+        choice: { kind: 'local', label: 'stub', model: 'tiny' },
+        local: { state: 'ok', label: 'stub', model: 'tiny', language: 'en', pack: { version: '1', platform: 'test', engine: 'whisper 1', gpu: 'none', where: 'override', floor: 'met' } },
+      }),
+      localDecodesInFlight: () => 0,
+      warmLocalTranscriber: () => {},
+    }))
+    const session = await import(path.join(SRC, 'services/voice/voiceSession.ts'))
+    session.setVoiceInputEnabled(true)
+    const started = await session.startVoiceCapture({ road: 'command' })
+    out.started = started.kind
+    out.first = await attempt(() => session.cancelVoiceCapture())
+    out.receiptAfterFail = session.voiceSnapshot().receipt
+    out.phaseAfterFail = session.voiceSnapshot().phase
+    out.second = await attempt(() => session.cancelVoiceCapture())
+    out.phaseAfterRetry = session.voiceSnapshot().phase
+    out.cancelCalls = cancelCalls
+  `)
+  const first = r.first as Attempt
+  const second = r.second as Attempt
+  const receipt = r.receiptAfterFail as { text?: string; tone?: string } | null
+  check('voiceSession-cancelVoiceCapture-retry: first cancel does not throw, keeps recording active, and shows error receipt', r.started === 'started' && first.ok && first.value === false && r.phaseAfterFail === 'recording' && receipt?.tone === 'error' && receipt?.text?.includes('coreaudio stop busy') === true, JSON.stringify(r))
+  check('voiceSession-cancelVoiceCapture-retry: retry cancels the kept handle and returns to idle', second.ok && second.value === true && r.phaseAfterRetry === 'idle' && r.cancelCalls === 2, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
