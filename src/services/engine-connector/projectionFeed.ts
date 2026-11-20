@@ -36,7 +36,10 @@ export class ProjectionFeed {
     return true
   }
   private readonly report = (): void => {
-    if (this.tick() || this.recheck !== null) return
+    if (!this.tick()) this.recheckSoon()
+  }
+  recheckSoon(): void {
+    if (this.recheck !== null) return
     const recheck = startTimeout(() => {
       this.recheck = null
       this.tick()
