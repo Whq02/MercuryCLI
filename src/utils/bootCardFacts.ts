@@ -409,7 +409,12 @@ function isCatalogedGround(canonicalDir: string): boolean {
 export function workspaceRecognizedByGround(groundDir: string, workspaceDir: string): boolean {
   if (typeof workspaceDir !== 'string' || workspaceDir.length === 0) return false
   if (typeof groundDir !== 'string' || groundDir.length === 0) return false
-  if (getProjectDir(workspaceDir) === getProjectDir(groundDir)) return true
+  try {
+    if (getProjectDir(workspaceDir) === getProjectDir(groundDir)) return true
+  } catch (error) {
+    logError(error)
+    return false
+  }
   const ws = canonicalGroundSpelling(workspaceDir)
   const ground = canonicalGroundSpelling(groundDir)
   if (ws.path === ground.path) return true
@@ -474,7 +479,11 @@ function emitCatalogChanged(): void {
 }
 
 export function catalogFirstChat(dir: string, sessionId: string): void {
-  initializeProjectLocalEstate(dir)
+  try {
+    initializeProjectLocalEstate(dir)
+  } catch (error) {
+    logError(error)
+  }
   try {
     const store = getProjectDir(dir)
     if (!existsSync(join(store, PROJECT_CARD_FILE))) {
