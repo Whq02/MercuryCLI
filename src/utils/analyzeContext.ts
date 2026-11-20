@@ -106,6 +106,8 @@ export interface ContextData {
   autoCompactThreshold?: number
   isAutoCompactEnabled: boolean
   countsAvailable: boolean
+  toolDefinitionsUnmeasured?: boolean
+  messageBlocksUnmeasured?: boolean
   messageBreakdown?: {
     toolCallTokens: number
     toolResultTokens: number
@@ -246,10 +248,12 @@ async function countMcpToolTokens(
   mcpToolDetails: Array<{ name: string; serverName: string; tokens: number; isLoaded?: boolean }>
   deferredToolTokens: number
   loadedMcpToolNames: Set<string>
+  unmeasured: boolean
 }> {
   const schemas = await projectToolSchemas(tools, getToolPermissionContext, agentInfo, model)
   const bulkTotal = Math.max(0, ((await countMessagesTokens([], schemas)) ?? 0) - TOOL_TOKEN_COUNT_OVERHEAD)
 
+  let unmeasured = false
   const estimates = await Promise.all(
     tools.map(async tool => {
       let description = ''
@@ -275,6 +279,7 @@ async function countMcpToolTokens(
         )
       } catch (error) {
         passedOver(error)
+        unmeasured = true
         return 0
       }
     }),
@@ -333,6 +338,7 @@ async function countMcpToolTokens(
     mcpToolDetails,
     deferredToolTokens: deferralOn ? deferredSum : 0,
     loadedMcpToolNames,
+    unmeasured,
   }
 }
 
@@ -498,22 +504,29 @@ function buildGrid(
 }
 
 
-function roughBlockTokens(block: unknown): number {
+function roughBlockTokens(block: unknown, onUnmeasured?: () => void): number {
   try {
     return roughTokenCountEstimation(JSON.stringify(block))
   } catch (error) {
     passedOver(error)
+    onUnmeasured?.()
     return 0
   }
 }
 
-function computeMessageBreakdown(messages: Message[]): NonNullable<ContextData['messageBreakdown']> {
+function computeMessageBreakdown(messages: Message[]): {
+  breakdown: NonNullable<ContextData['messageBreakdown']>
+  unmeasured: boolean
+} {
   const toolCallTokensByName = new Map<string, number>()
   const toolResultTokensByName = new Map<string, number>()
   const attachmentTokensByType = new Map<string, number>()
   let assistantMessageTokens = 0
   let userMessageTokens = 0
-
+  let unmeasured = false
+  const markUnmeasured = (): void => {
+    unmeasured = true
+  }
   const toolNameByUseId = new Map<string, string>()
   for (const message of messages) {
     if (message.type !== 'assistant') continue
@@ -537,7 +550,7 @@ function computeMessageBreakdown(messages: Message[]): NonNullable<ContextData['
       if (!Array.isArray(content)) continue
       for (const block of content) {
         const type = (block as { type?: string }).type
-        const tokens = roughBlockTokens(block)
+        const tokens = roughBlockTokens(block, markUnmeasured)
         if (type === 'tool_use') {
           const name = (block as { name?: string }).name ?? UNKNOWN_NAME
           toolCallTokensByName.set(name, (toolCallTokensByName.get(name) ?? 0) + tokens)
@@ -548,13 +561,13 @@ function computeMessageBreakdown(messages: Message[]): NonNullable<ContextData['
     } else if (message.type === 'user') {
       const content = message.message.content
       if (typeof content === 'string') {
-        userMessageTokens += roughBlockTokens(content)
+        userMessageTokens += roughBlockTokens(content, markUnmeasured)
         continue
       }
       if (!Array.isArray(content)) continue
       for (const block of content) {
         const type = (block as { type?: string }).type
-        const tokens = roughBlockTokens(block)
+        const tokens = roughBlockTokens(block, markUnmeasured)
         if (type === 'tool_result') {
           const useId = (block as { tool_use_id?: string }).tool_use_id
           const name = (useId !== undefined && toolNameByUseId.get(useId)) || UNKNOWN_NAME
@@ -565,7 +578,7 @@ function computeMessageBreakdown(messages: Message[]): NonNullable<ContextData['
       }
     } else if (message.type === 'attachment') {
       const attachmentType = (message.attachment as { type?: string }).type ?? UNKNOWN_NAME
-      const tokens = roughBlockTokens(message.attachment)
+      const tokens = roughBlockTokens(message.attachment, markUnmeasured)
       attachmentTokensByType.set(attachmentType, (attachmentTokensByType.get(attachmentType) ?? 0) + tokens)
     }
   }
@@ -590,13 +603,16 @@ function computeMessageBreakdown(messages: Message[]): NonNullable<ContextData['
   for (const tokens of attachmentTokensByType.values()) attachmentTokens += tokens
 
   return {
-    toolCallTokens,
-    toolResultTokens,
-    attachmentTokens,
-    assistantMessageTokens,
-    userMessageTokens,
-    toolCallsByType,
-    attachmentsByType,
+    breakdown: {
+      toolCallTokens,
+      toolResultTokens,
+      attachmentTokens,
+      assistantMessageTokens,
+      userMessageTokens,
+      toolCallsByType,
+      attachmentsByType,
+    },
+    unmeasured,
   }
 }
 
@@ -727,7 +743,8 @@ export async function analyzeContextUsage(
     )
   }
 
-  const messageBreakdown = computeMessageBreakdown(analysisMessages)
+  const messageBreakdownResult = computeMessageBreakdown(analysisMessages)
+  const messageBreakdown = messageBreakdownResult.breakdown
   const normalizedForCount: CountableMessage[] = normalizeMessagesForAPI(analysisMessages).map(
     message => ({ role: message.message.role, content: message.message.content }),
   )
@@ -854,6 +871,12 @@ export async function analyzeContextUsage(
   }
   if (autoCompactThreshold !== undefined) {
     result.autoCompactThreshold = autoCompactThreshold
+  }
+  if (mcpResult.unmeasured) {
+    result.toolDefinitionsUnmeasured = true
+  }
+  if (messageBreakdownResult.unmeasured) {
+    result.messageBlocksUnmeasured = true
   }
   return result
 }

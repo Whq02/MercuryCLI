@@ -114,6 +114,8 @@ export function discoverPolyglotFiles(
   skippedUnsupported: number
   truncatedWalk: boolean
   skippedNoGrammar: Map<string, number>
+  skippedUnreadable: number
+  firstUnreadable?: { path: string; error: string }
 } {
   const rules = loadRootIgnoreRules(root)
   const files: Array<{ rel: string; lang: PolyglotLanguage; throughLink?: boolean }> = []
@@ -121,8 +123,9 @@ export function discoverPolyglotFiles(
   let scanned = 0
   let skippedUnsupported = 0
   let truncatedWalk = false
+  let skippedUnreadable = 0
+  let firstUnreadable: { path: string; error: string } | undefined
   const globs = normalizeFileGlobs(fileGlobs)
-
   let rootLinked = false
   if (trackLinks) {
     try {
@@ -140,6 +143,10 @@ export function discoverPolyglotFiles(
       entries = readdirSync(dir).sort()
     } catch (error) {
       passedOver(error)
+      skippedUnreadable++
+      if (firstUnreadable === undefined) {
+        firstUnreadable = { path: posixRelative(root, dir) || '.', error: error instanceof Error ? error.message : String(error) }
+      }
       return
     }
     for (const entry of entries) {
@@ -157,6 +164,10 @@ export function discoverPolyglotFiles(
         } else stat = statSync(full)
       } catch (error) {
         passedOver(error)
+        skippedUnreadable++
+        if (firstUnreadable === undefined) {
+          firstUnreadable = { path: rel, error: error instanceof Error ? error.message : String(error) }
+        }
         continue
       }
       if (stat.isDirectory()) {
@@ -187,7 +198,15 @@ export function discoverPolyglotFiles(
   }
   walk(root, rootLinked)
   files.sort((a, b) => a.rel.localeCompare(b.rel))
-  return { files, scanned, skippedUnsupported, truncatedWalk, skippedNoGrammar }
+  return {
+    files,
+    scanned,
+    skippedUnsupported,
+    truncatedWalk,
+    skippedNoGrammar,
+    skippedUnreadable,
+    ...(firstUnreadable !== undefined ? { firstUnreadable } : {}),
+  }
 }
 
 export type PatternRefusal = { state: 'refused'; note: string; textOnly?: boolean }
