@@ -317,14 +317,15 @@ const { z } = await import('zod/v4')
 }
 
 {
-  const { cpSync, readFileSync } = await import('node:fs')
+  const { cpSync } = await import('node:fs')
   const { resolve } = await import('node:path')
   const { mcpToolPartition } = await import('../../src/tools.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { registerBundledAppInstall } = await import('../../src/extensions/installConsent.ts')
   const root = resolve(import.meta.dir, '../..')
   const serverName = 'ext:filmcraft:app'
-  const platforms = Object.keys((JSON.parse(readFileSync(join(root, 'src/extensions/bundled/filmcraft/server/filmcraft.lock.json'), 'utf8')) as { platforms?: Record<string, unknown> }).platforms ?? {})
+  const { default: filmcraftLock } = (await import('../../src/extensions/bundled/filmcraft/server/filmcraft.lock.json', { with: { type: 'json' } })) as { default: { platforms?: Record<string, unknown> } }
+  const platforms = Object.keys(filmcraftLock.platforms ?? {})
   const { hostPlatform } = (await import('../../src/extensions/bundled/shared/install.mjs')) as unknown as { hostPlatform: () => string }
   if (!platforms.includes(hostPlatform())) process.env.MERCURY_CRAFT_PLATFORM = platforms[0]
   const delivered = mkdtempSync(join(proofHome, 'filmcraft-'))
