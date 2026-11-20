@@ -26,9 +26,6 @@ import { sessionLaneWall } from '../../tools/MonitorTool/laneWall.js'
 import { registerLocalWakeSink } from '../../services/saturn/sessionScheduleBridge.js'
 import { AGENT_MESSAGE_STATUS } from '../../constants/agentMessage.js'
 import { taskRow } from '../../rows/project.js'
-import { logForDebugging } from '../../utils/debug.js'
-import { errorMessage } from '../../utils/errors.js'
-import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout } from '../../utils/timers.js'
 
 export const taskNotificationPayloads = (command: QueuedCommand): string[] => {
@@ -63,11 +60,7 @@ export async function acceptInput(input: AcceptedInput, ports: RunnerPorts): Pro
     const historical = await doesMessageExistInSession(
       getSessionId(),
       uuid as UUID,
-    ).catch((error: unknown) => {
-      logForDebugging(`inputDoor: duplicate check failed for ${uuid}: ${errorMessage(error)}`)
-      passedOver(error)
-      return false
-    })
+    )
     const runtime = receivedUuids.has(uuid)
     if (historical || runtime) {
       if (historical && !runtime) {
