@@ -158,18 +158,32 @@ console.log('\nsrc/mneme/mnemeHandover.ts')
 {
   const r = runCase(`
     const ho = await import(${JSON.stringify(join(SRC, 'mneme/mnemeHandover.ts'))})
-    const memDir = path.join(home, 'ho-eloop')
-    fs.mkdirSync(memDir, { recursive: true })
-    fs.symlinkSync(path.join(memDir, 'b.md'), path.join(memDir, 'a.md'))
-    fs.symlinkSync(path.join(memDir, 'a.md'), path.join(memDir, 'b.md'))
+    const notesDir = path.join(home, 'ho-eloop')
+    fs.mkdirSync(notesDir, { recursive: true })
     try {
-      out.listed = ho.listOldNotes(memDir)
+      fs.symlinkSync(path.join(notesDir, 'b.md'), path.join(notesDir, 'a.md'))
+      fs.symlinkSync(path.join(notesDir, 'a.md'), path.join(notesDir, 'b.md'))
     } catch (e) {
-      out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      if (process.platform === 'win32' && e?.code === 'EPERM') {
+        out.noSymlink = true
+      } else {
+        throw e
+      }
+    }
+    if (!out.noSymlink) {
+      try {
+        out.listed = ho.listOldNotes(notesDir)
+      } catch (e) {
+        out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      }
     }
   `)
-  const threw = r.threw as { code: string | null } | undefined
-  check('handover-stat-failure-not-dropped', threw?.code === 'ELOOP', JSON.stringify(r))
+  if (r.noSymlink === true) {
+    skip('handover-stat-failure-not-dropped', 'not read on Windows: no symlink privilege')
+  } else {
+    const threw = r.threw as { code: string | null } | undefined
+    check('handover-stat-failure-not-dropped', threw?.code === 'ELOOP', JSON.stringify(r))
+  }
 }
 if (!POSIX_MODES) {
   skip('handover-unreadable-notes-dir', 'needs non-root POSIX chmod')

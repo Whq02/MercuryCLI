@@ -322,5 +322,120 @@ if (!POSIX_MODES) {
   check('w05-2: providerUsage readBearerTokenSource catch records error via passedOver', r.bearerPassed === true, JSON.stringify(r))
 }
 
+console.log('\nw05-6 — useSessionSignInGate stays open on throw and records error via passedOver')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const po = await import(path.join(SRC, 'utils/passedOver.ts'))
+    mock.module('react', () => ({ useMemo: (fn) => fn() }))
+    mock.module(path.join(SRC, 'utils/accounts/useSignInEpoch.js'), () => ({ useSignInEpoch: () => 0 }))
+    mock.module(path.join(SRC, 'hooks/useCatalogueEpoch.js'), () => ({ useCatalogueEpoch: () => 0 }))
+    mock.module(path.join(SRC, 'utils/accounts/sessionSignIn.js'), () => ({
+      sessionSignInGate: () => { throw new Error('gate-boom') },
+    }))
+    const { useSessionSignInGate } = await import(path.join(SRC, 'hooks/useSessionSignInGate.ts'))
+    const before = po.passedOverSoFar().count
+    out.gate = useSessionSignInGate('claude-sonnet-4-6')
+    const after = po.passedOverSoFar()
+    out.passed = after.count > before && String(after.last).includes('gate-boom')
+  `)
+  check('w05-6: throwing sessionSignInGate returns ok and calls passedOver(error)', (r.gate as { state?: string }).state === 'ok' && r.passed === true, JSON.stringify(r))
+}
+
+console.log('\nw05-3 — removeApiKey treats exit 44 as done and surfaces keychain refusal in logout and slot removal')
+if (process.platform !== 'darwin') {
+  skip('w05-3 keychain delete scenarios', 'macOS keychain backend only runs on darwin')
+} else {
+  const securityScript = `#!/bin/sh
+STATE="$MERCURY_CONFIG_DIR/del-mode"
+MODE="absent"
+if [ -f "$STATE" ]; then MODE=$(cat "$STATE"); fi
+if [ "$1" = "delete-generic-password" ]; then
+  case "$MODE" in
+    refuse) echo "User interaction is not allowed." >&2; exit 36 ;;
+    absent) exit 44 ;;
+    ok) exit 0 ;;
+  esac
+fi
+exit 44
+`
+  const r = runScenario(
+    `
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const cfg = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
+    cfg.enableConfigs()
+    const auth = await import(path.join(SRC, 'utils/auth.ts'))
+    const portable = await import(path.join(SRC, 'utils/authPortable.ts'))
+    const logout = await import(path.join(SRC, 'commands/logout/logout.tsx'))
+    const removal = await import(path.join(SRC, 'services/providers/accountSlots/removal.ts'))
+    const ps = await import(path.join(SRC, 'services/providers/providerSecrets.ts'))
+    const modeFile = path.join(HOME, 'del-mode')
+
+    fs.writeFileSync(modeFile, 'absent')
+    out.exit44Threw = await portable.maybeRemoveApiKeyFromMacOSKeychainThrows().then(() => null, e => String(e?.message ?? e))
+
+    cfg.saveGlobalConfig(c => ({ ...c, primaryApiKey: 'sk-ant-fake-key-1234567890' }))
+    ps.writeStoredOpenaiApiKey('sk-openai-fake-other-1234')
+    fs.writeFileSync(modeFile, 'refuse')
+
+    out.removeErr = await auth.removeApiKey().then(() => null, e => String(e?.message ?? e))
+    out.configKeptAfterRemoveErr = cfg.getGlobalConfig().primaryApiKey === 'sk-ant-fake-key-1234567890'
+
+    out.slotRemoval = removal.executeSlotRemoval({
+      family: 'anthropic',
+      id: 'anthropic:api-key',
+      name: 'api-key',
+      kind: 'api-key',
+      kindLabel: 'API key',
+      identity: 'managed',
+      active: true,
+      envPinned: false,
+      signedIn: true,
+      removal: { route: 'anthropic-managed-key' },
+    })
+    out.configKeptAfterSlotRefusal = cfg.getGlobalConfig().primaryApiKey === 'sk-ant-fake-key-1234567890'
+
+    out.logoutRefused = await logout.performLogout()
+    out.otherProviderCleared = ps.readStoredOpenaiApiKey() === undefined
+    out.leakedKey = JSON.stringify({ r: out.removeErr, s: out.slotRemoval, l: out.logoutRefused }).includes('sk-ant-fake-key-1234567890')
+
+    fs.writeFileSync(modeFile, 'absent')
+    out.removeOn44 = await auth.removeApiKey().then(() => null, e => String(e?.message ?? e))
+    out.configClearedOn44 = cfg.getGlobalConfig().primaryApiKey === undefined
+    `,
+    { fakeSecurityScript: securityScript },
+  )
+  check('w05-3: exit 44 from security delete-generic-password is treated as done', r.exit44Threw === null && r.removeOn44 === null && r.configClearedOn44 === true, JSON.stringify({ e44: r.exit44Threw, r44: r.removeOn44, cleared: r.configClearedOn44 }))
+  check(
+    'w05-3: removeApiKey rejects on keychain refusal with exact sentence and leaves config untouched',
+    typeof r.removeErr === 'string' &&
+      r.removeErr.startsWith('the API key could not be removed from the keychain (') &&
+      r.removeErr.endsWith(') — it is still stored; unlock the keychain and remove it again') &&
+      r.configKeptAfterRemoveErr === true,
+    JSON.stringify({ err: r.removeErr, kept: r.configKeptAfterRemoveErr }),
+  )
+  const slotR = r.slotRemoval as { note?: string; mutated?: boolean; refused?: boolean }
+  check(
+    'w05-3: executeSlotRemoval refuses synchronously with mutated:false and leaves config untouched',
+    slotR.refused === true &&
+      slotR.mutated === false &&
+      typeof slotR.note === 'string' &&
+      slotR.note.includes('the API key could not be removed from the keychain (') &&
+      r.configKeptAfterSlotRefusal === true,
+    JSON.stringify({ slotR, kept: r.configKeptAfterSlotRefusal }),
+  )
+  const logR = r.logoutRefused as string[]
+  check(
+    'w05-3: performLogout finishes signing out other providers and reports the keychain refusal without leaking key',
+    Array.isArray(logR) &&
+      logR.some(line => line.includes('the API key could not be removed from the keychain (')) &&
+      r.otherProviderCleared === true &&
+      r.leakedKey === false,
+    JSON.stringify({ logR, otherCleared: r.otherProviderCleared, leaked: r.leakedKey }),
+  )
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

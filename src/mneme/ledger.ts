@@ -8,6 +8,7 @@ import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isENOENT } from '../utils/errors.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import type { LedgerEntry, LiveSession } from './types.js'
 import { passedOver } from '../utils/passedOver.js'
 
@@ -79,12 +80,21 @@ export interface LedgerFile {
 }
 
 export function readLedgerFile(projectKey: string): LedgerFile {
+  const path = lineagePath(projectKey)
   let raw: string
   try {
-    raw = readFileSync(lineagePath(projectKey), 'utf8')
-  } catch {
+    raw = readFileSync(path, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) {
+      clearMnemeUnread(path)
+    } else {
+      recordMnemeUnread(path, error)
+      logForDebugging(`lineage ledger unreadable at ${path}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    passedOver(error)
     return { entries: [], skipped: 0 }
   }
+  clearMnemeUnread(path)
   const bySession = new Map<string, LedgerEntry>()
   let skipped = 0
   for (const line of raw.split('\n')) {

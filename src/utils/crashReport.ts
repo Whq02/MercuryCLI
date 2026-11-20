@@ -221,7 +221,8 @@ function readCrashReportsStrict(limit = KEEP): CrashReportSummary[] {
   })
 }
 
-export function listCrashReports(limit = KEEP): CrashReportSummary[] {
+export function listCrashReports(limit = KEEP, options?: { strict?: boolean }): CrashReportSummary[] {
+  if (options?.strict) return readCrashReportsStrict(limit)
   try {
     return readCrashReportsStrict(limit)
   } catch (error) {

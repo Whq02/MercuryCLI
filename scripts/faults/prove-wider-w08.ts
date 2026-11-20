@@ -343,12 +343,167 @@ async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void>
   }
 }
 
+async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
+  const plane = await import(join(SRC, 'services/primitives/executionPlane.ts'))
+  const runWatch = await import(join(SRC, 'services/repoHost/runWatch.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'services/primitives/owner.ts'))
+  const owner = makeOwnerKey('w08-6-owner')
+  const id = 'run-watch-9991'
+  plane.registerExecutionDomain('host-run-watch', {
+    requestStop() {
+      throw new Error('domain hook crashed')
+    },
+  })
+  plane.registerExecution({
+    version: 1,
+    id,
+    owner,
+    kind: 'host-run-watch',
+    label: 'watch run 9991',
+    lifecycle: 'session',
+  })
+  plane.transitionExecution(owner, id, 'starting')
+  plane.transitionExecution(owner, id, 'running')
+  const { GitTool } = await import(join(SRC, 'tools/GitTool/GitTool.ts'))
+  const { ownerFromToolUseContext } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  const gitCtx = { abortController: new AbortController(), options: {} } as never
+  const gitOwner = ownerFromToolUseContext(gitCtx)
+  const gitWatchId = 'run-watch-9992'
+  plane.registerExecution({
+    version: 1,
+    id: gitWatchId,
+    owner: gitOwner,
+    kind: 'host-run-watch',
+    label: 'watch run 9992',
+    lifecycle: 'session',
+  })
+  plane.transitionExecution(gitOwner, gitWatchId, 'starting')
+  plane.transitionExecution(gitOwner, gitWatchId, 'running')
+  const gitOut = await GitTool.call({ op: 'runWatch', run: '9992', cancel: true } as never, gitCtx)
+  check('w08-6: GitTool runWatch cancel surfaces stop hook failure sentence', gitOut.data.result.includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running'), JSON.stringify(gitOut.data))
+  const stopped = runWatch.cancelRunWatch(owner, '9991') as { state: string; stopHookError?: string; outcome?: { reason?: string } } | undefined
+  check('w08-6: requestStopExecution does not throw and surfaces stop hook failure in record outcome and stopHookError', stopped !== undefined && stopped.state === 'stopping' && typeof stopped.stopHookError === 'string' && stopped.stopHookError.includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running') && (stopped.outcome?.reason ?? '').includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running'), JSON.stringify(stopped))
+}
+
+async function w08_8_contextUnserializableToolAndMessageBlockNoted(): Promise<void> {
+  const { analyzeContextUsage } = await import(join(SRC, 'utils/analyzeContext.ts'))
+  const { ContextVisualization } = await import(join(SRC, 'components/ContextVisualization.tsx'))
+  const { renderToString } = await import(join(SRC, 'utils/staticRender.tsx'))
+  let schemaReads = 0
+  const mcpTool = {
+    name: 'mcp__srv__unserializable',
+    get inputJSONSchema() {
+      schemaReads++
+      if (schemaReads === 1) return { type: 'object', properties: {} }
+      return { type: 'object', bad: 1n }
+    },
+    prompt: async () => 'desc',
+    description: async () => 'desc',
+    isEnabled: () => true,
+    isReadOnly: () => true,
+    isConcurrencySafe: () => true,
+  }
+  const msg = {
+    type: 'attachment',
+    uuid: 'a-1',
+    attachment: { type: 'custom', bad: 1n },
+  }
+  const data = await analyzeContextUsage(
+    [msg] as never,
+    'claude-sonnet-4-6',
+    async () => ({ mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, isBypassPermissionsModeAvailable: false } as never),
+    [mcpTool] as never,
+    { activeAgents: [], allAgents: [], allowedAgentTypes: [] } as never,
+    100,
+    { options: {} },
+  )
+  check('w08-8: ContextData flags toolDefinitionsUnmeasured and messageBlocksUnmeasured', data.toolDefinitionsUnmeasured === true && data.messageBlocksUnmeasured === true, JSON.stringify({ toolDefinitionsUnmeasured: data.toolDefinitionsUnmeasured, messageBlocksUnmeasured: data.messageBlocksUnmeasured }))
+  const rendered = await renderToString(React.createElement(ContextVisualization, { data }), 120)
+  check('w08-8: ContextVisualization shows tool definition unmeasured notice', rendered.includes('Some tool definitions could not be measured; tool token counts may be understated.'), rendered.slice(0, 400))
+  check('w08-8: ContextVisualization shows message block unmeasured notice', rendered.includes('Some message blocks could not be measured; message breakdown figures may be understated.'), rendered.slice(0, 400))
+}
+
+async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
+  const { chmodSync, mkdirSync, symlinkSync } = await import('node:fs')
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-7-'))
+  const okFile = join(dir, 'ok.ts')
+  const lockedDir = join(dir, 'locked')
+  const brokenLink = join(dir, 'broken.ts')
+  writeFileSync(okFile, 'export const ok = 1\n')
+  mkdirSync(lockedDir)
+  writeFileSync(join(lockedDir, 'hidden.ts'), 'export const hidden = 2\n')
+  symlinkSync(join(dir, 'nonexistent-target.ts'), brokenLink)
+  chmodSync(lockedDir, 0o000)
+  const { resolveAstScope } = await import(join(SRC, 'utils/astPatterns/scope.ts'))
+  const { renderSearchTrailer } = await import(join(SRC, 'utils/astPatterns/render.ts'))
+  try {
+    const scope = resolveAstScope({ cwd: dir })
+    check('w08-7: resolveAstScope counts unreadable folder and dangling stat entry', !('refused' in scope) && scope.skippedUnreadable?.count === 2 && typeof scope.skippedUnreadable.firstPath === 'string' && typeof scope.skippedUnreadable.firstError === 'string', JSON.stringify(scope))
+    if (!('refused' in scope)) {
+      const trailer = renderSearchTrailer(scope, {
+        matches: [],
+        capped: false,
+        filesParsed: 1,
+        filesWithMatches: 0,
+        parseFailures: [],
+        patternRefusals: [],
+        captureNamesByLang: new Map(),
+        skippedLarge: 0,
+        truncatedParse: false,
+        languagesSearched: [['typescript', 1]],
+        compiledSomewhere: true,
+      }).join('\n')
+      check('w08-7: renderSearchTrailer adds unreadable folders/files note with count and first error', trailer.includes('2 folders or files could not be read and were not searched (first: '), trailer)
+    }
+  } finally {
+    chmodSync(lockedDir, 0o755)
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> {
+  const { mkdirSync } = await import('node:fs')
+  const { getTranscriptPathForSession } = await import(join(SRC, 'utils/sessionStorage.ts'))
+  const { getSessionId } = await import(join(SRC, 'bootstrap/state.ts'))
+  const { trackGitOperations } = await import(join(SRC, 'tools/shared/gitOperationTracking.ts'))
+  const { BashTool } = await import(join(SRC, 'tools/BashTool/BashTool.tsx'))
+  const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
+  const transcriptPath = getTranscriptPathForSession(String(getSessionId()) as never)
+  rmSync(transcriptPath, { recursive: true, force: true })
+  mkdirSync(transcriptPath, { recursive: true })
+  try {
+    const note = await trackGitOperations('gh pr create --fill', 0, 'https://github.com/org/repo/pull/42\n')
+    check('w08-9: trackGitOperations returns failure note when PR link write fails', typeof note === 'string' && note.includes('the pull request link could not be saved (') && note.includes('so this session will not show it'), JSON.stringify(note))
+
+    const ctx = {
+      abortController: new AbortController(),
+      getAppState: () => getDefaultAppState(),
+      setAppState: () => {},
+      messages: [],
+      options: {},
+      readFileState: new Map(),
+      userModified: false,
+      updateFileHistoryState: () => {},
+      dynamicSkillDirTriggers: new Set(),
+      nestedMemoryAttachmentTriggers: new Set(),
+    } as never
+    const res = await BashTool.call({ command: 'echo https://github.com/org/repo/pull/42 # gh pr create' } as never, ctx)
+    check('w08-9: BashTool includes the PR link save failure note in output', (res.data as { stdout: string }).stdout.includes('the pull request link could not be saved (') && (res.data as { stdout: string }).stdout.includes('so this session will not show it'), JSON.stringify(res.data))
+  } finally {
+    rmSync(transcriptPath, { recursive: true, force: true })
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
   w08_3_corruptPackageJsonReportedInTestAndHealth,
   w08_4_invalidMercuryLspServersReportedOnce,
   w08_5_tsSidecarWorkspaceSymbolIncompleteReported,
+  w08_6_executionStopHookFailureSurfaced,
+  w08_7_polyglotUnreadableDirAndStatNoted,
+  w08_8_contextUnserializableToolAndMessageBlockNoted,
+  w08_9_gitOperationTrackingPrLinkFailureSurfaced,
 ]
 for (const row of rows) {
   try {

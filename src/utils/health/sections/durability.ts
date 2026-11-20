@@ -5,7 +5,7 @@ export function durabilityChecks(): CheckSpec[] {
   const scanJournals = async () => {
     const { listJournalOperations } = await import('../../../substrate/operationJournal.js')
     const { changeSetJournalDir } = await import('../../../services/changeTransaction/changeSetContracts.js')
-    return Promise.all([changeSetJournalDir()].map(dir => listJournalOperations(dir)))
+    return Promise.all([changeSetJournalDir()].map(dir => listJournalOperations(dir, { strict: true })))
   }
   let scanning: ReturnType<typeof scanJournals> | null = null
   const journalScan = (): ReturnType<typeof scanJournals> =>

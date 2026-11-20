@@ -717,8 +717,15 @@ function reportConfigCorruption(file: string, error: ConfigParseError, disk: Ret
   process.stderr.write(`${location}${restore}\n`)
 }
 
+export class ConfigAccessBeforeAllowedError extends Error {
+  constructor() {
+    super('Config accessed before allowed.')
+    this.name = 'ConfigAccessBeforeAllowedError'
+  }
+}
+
 export function getConfig<A>(file: string, createDefault: () => A, throwOnInvalid?: boolean): A {
-  if (!configReadingAllowed && process.env.NODE_ENV !== 'test') throw new Error('Config accessed before allowed.')
+  if (!configReadingAllowed && process.env.NODE_ENV !== 'test') throw new ConfigAccessBeforeAllowedError()
   const disk = getFsImplementation()
   try {
     return decodeConfigRead(file, disk.readFileSync(file, { encoding: 'utf-8' }), createDefault)

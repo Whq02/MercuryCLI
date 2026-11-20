@@ -57,25 +57,30 @@ export function writeMissionCard(card: MissionCard, cwd?: string): void {
 type MissionCardRead =
   | { state: 'absent' }
   | { state: 'ok'; card: MissionCard }
-  | { state: 'unreadable'; error: unknown }
+  | { state: 'unreadable'; path: string; error: unknown }
 
-function inspectMissionCard(sessionId: string, cwd?: string): MissionCardRead {
+export function missionCardUnreadWords(path: string, error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error)
+  return `${path} could not be read (${detail}) — the mission is not shown`
+}
+
+export function inspectMissionCard(sessionId: string, cwd?: string): MissionCardRead {
   const path = missionCardPath(sessionId, cwd)
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
   } catch (error) {
     if (isENOENT(error)) return { state: 'absent' }
-    return { state: 'unreadable', error }
+    return { state: 'unreadable', path, error }
   }
   try {
     const parsed = JSON.parse(raw) as MissionCard
     if (parsed && parsed.schema === 1 && typeof parsed.goal === 'string') {
       return { state: 'ok', card: parsed }
     }
-    return { state: 'unreadable', error: new Error(`invalid mission card at ${path}`) }
+    return { state: 'unreadable', path, error: new Error(`invalid mission card at ${path}`) }
   } catch (error) {
-    return { state: 'unreadable', error }
+    return { state: 'unreadable', path, error }
   }
 }
 

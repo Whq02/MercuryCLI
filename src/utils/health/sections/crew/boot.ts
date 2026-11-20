@@ -35,10 +35,10 @@ export function launchSpineCheck(): CheckSpec {
       const { lastBootReachedInputLive, lastInteractiveBootSpine } = await import(
         '../../../../substrate/launchMilestones.js'
       )
-      const reached = lastBootReachedInputLive()
+      const reached = lastBootReachedInputLive({ strict: true })
       if (reached === null) return { status: 'off', evidence: 'no interactive boot recorded yet' }
       const RANK: Record<string, number> = { 'runtime-entry': 0, 'route-ready': 1, 'first-frame': 2, 'input-live': 3 }
-      const rungRows = lastInteractiveBootSpine().filter(r => r.milestone in RANK)
+      const rungRows = lastInteractiveBootSpine({ strict: true }).filter(r => r.milestone in RANK)
       const lastRungs = rungRows.map(r => r.milestone)
       const spine = lastRungs.join(' → ')
       const setupScreenFirst = rungRows.some(r => r.milestone === 'first-frame' && r.beforeLaunch === true)

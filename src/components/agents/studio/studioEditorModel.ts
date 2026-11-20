@@ -16,7 +16,7 @@ import { resolveEffectiveAgentRuntime } from '../../../services/agents/resolver.
 import {
   AgentStoreError,
   discardAgentDraft,
-  listAgentDrafts,
+  listAgentDraftsWithError,
   newAgentPath,
   saveAgentDocument,
   saveAgentDraft,
@@ -329,15 +329,25 @@ export interface StudioEditorSnapshot {
   textCursor: number
 }
 
+type DraftListResult = ReturnType<typeof listAgentDraftsWithError>
+
 interface StudioEditorDeps {
   readFile: (path: string) => string
   saveDocument: typeof saveAgentDocument
   saveDraft: typeof saveAgentDraft
-  listDrafts: typeof listAgentDrafts
-  discardDraft: typeof discardAgentDraft
+  listDrafts: () => DraftListResult['drafts'] | DraftListResult
+  discardDraft: (path: string) => ReturnType<typeof discardAgentDraft> | void
   generate: typeof generateAgent
   setTimer: (fn: () => void, ms: number) => unknown
   clearTimer: (handle: unknown) => void
+}
+
+function unpackDraftList(result: ReturnType<StudioEditorDeps['listDrafts']>): DraftListResult {
+  return Array.isArray(result) ? { drafts: result } : result
+}
+
+function discardDraftError(result: ReturnType<StudioEditorDeps['discardDraft']>): string | null {
+  return result !== undefined && result.ok === false ? result.error : null
 }
 
 function liveDeps(): StudioEditorDeps {
@@ -345,7 +355,7 @@ function liveDeps(): StudioEditorDeps {
     readFile: path => readFileSync(path, 'utf-8'),
     saveDocument: saveAgentDocument,
     saveDraft: saveAgentDraft,
-    listDrafts: listAgentDrafts,
+    listDrafts: listAgentDraftsWithError,
     discardDraft: discardAgentDraft,
     generate: async (prompt, model, existingIdentifiers, signal) =>
       (await import('../generateAgent.js')).generateAgent(prompt, model, existingIdentifiers, signal),
@@ -455,6 +465,12 @@ function studioEditorState({ deps, mode, base }: StudioEditorPorts): StudioEdito
     }
     return freshStudioDocument()
   })()
+  const draftList = unpackDraftList(deps.listDrafts())
+  const match = draftList.drafts.find(d =>
+    base
+      ? d.draft.baseIdentity?.filePath === base.identity.filePath
+      : d.draft.baseIdentity === undefined,
+  )
   return {
     doc,
     baseDocument: doc,
@@ -464,20 +480,12 @@ function studioEditorState({ deps, mode, base }: StudioEditorPorts): StudioEdito
       mode === 'create'
         ? { kind: 'guided', step: 'destination', history: [] }
         : { kind: 'advanced', cursor: 0, editing: null },
-    note: null,
+    note: draftList.error !== undefined ? { text: `saved drafts could not be read (${draftList.error})`, tone: AMBER } : null,
     busy: false,
     conflict: null,
     textBuffer: '',
     textCursor: 0,
-    recoverOffer: (() => {
-      const drafts = deps.listDrafts()
-      const match = drafts.find(d =>
-        base
-          ? d.draft.baseIdentity?.filePath === base.identity.filePath
-          : d.draft.baseIdentity === undefined,
-      )
-      return match ? { path: match.path, raw: match.draft.raw } : null
-    })(),
+    recoverOffer: match ? { path: match.path, raw: match.draft.raw } : null,
     generationAbort: null,
     autosaveTimer: null,
     disposed: false,
@@ -523,13 +531,27 @@ function studioEditorCore(state: StudioEditorState, { deps, base, cwd, onChange 
     }, STUDIO_AUTOSAVE_DEBOUNCE_MS)
   }
 
-  const discardDraftFile = (): void => {
-    for (const d of deps.listDrafts()) {
+  const discardDraftFile = (): string | null => {
+    const { drafts, error } = unpackDraftList(deps.listDrafts())
+    if (error !== undefined) {
+      const text = `saved drafts could not be read (${error})`
+      state.note = { text, tone: AMBER }
+      return text
+    }
+    let failedText: string | null = null
+    for (const d of drafts) {
       const matches = base
         ? d.draft.baseIdentity?.filePath === base.identity.filePath
         : d.draft.baseIdentity === undefined
-      if (matches) deps.discardDraft(d.path)
+      if (matches) {
+        const err = discardDraftError(deps.discardDraft(d.path))
+        if (err !== null) {
+          failedText = `the draft at ${d.path} could not be removed (${err}) — it will be offered again`
+          state.note = { text: failedText, tone: AMBER }
+        }
+      }
     }
+    return failedText
   }
 
   const adoptDoc = (next: AgentDocument): void => {
@@ -821,10 +843,9 @@ function studioSaveMethods(
             : { kind: 'new', scope: state.scope, cwd, slug: state.doc.fields.name },
           state.doc,
         )
-        discardDraftFile()
-        options.onSaved(
-          `${mode === 'create' ? 'Created' : 'Updated'} agent ${state.doc.fields.name} → ${receipt.path} (rev ${receipt.afterRevision}${receipt.semanticChanges.length > 0 ? `; changed: ${receipt.semanticChanges.join(', ')}` : ''})`,
-        )
+        const draftWarn = discardDraftFile()
+        const savedLine = `${mode === 'create' ? 'Created' : 'Updated'} agent ${state.doc.fields.name} → ${receipt.path} (rev ${receipt.afterRevision}${receipt.semanticChanges.length > 0 ? `; changed: ${receipt.semanticChanges.join(', ')}` : ''})`
+        options.onSaved(draftWarn !== null ? `${savedLine} · ${draftWarn}` : savedLine)
       } catch (e) {
         if (e instanceof AgentStoreError && e.code === 'revision-conflict') {
           state.conflict = { currentRaw: e.detail?.currentRaw ?? '' }
@@ -892,7 +913,13 @@ function studioSaveMethods(
 
     declineRecover() {
       if (!state.recoverOffer) return
-      deps.discardDraft(state.recoverOffer.path)
+      const err = discardDraftError(deps.discardDraft(state.recoverOffer.path))
+      if (err !== null) {
+        state.note = {
+          text: `the draft at ${state.recoverOffer.path} could not be removed (${err}) — it will be offered again`,
+          tone: AMBER,
+        }
+      }
       state.recoverOffer = null
       emit()
     },

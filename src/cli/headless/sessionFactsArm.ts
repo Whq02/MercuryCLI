@@ -45,6 +45,8 @@ import { sessionFactsToWire } from '../../services/engine-connector/seatWire.js'
 import type { RunnerPorts } from './runnerPorts.js'
 import { passedOver } from '../../utils/passedOver.js'
 
+const lastPublishedMission = new WeakMap<RunnerPorts['live'], SessionFactsAnswerV1['mission']>()
+
 function missionLedgerOf(metadata: Record<string, unknown> | undefined): string | undefined {
   const ledger = metadata?.ledger
   if (typeof ledger === 'string' && ledger.trim() !== '') return ledger.trim()
@@ -157,15 +159,24 @@ export async function answerSessionFacts(ports: RunnerPorts): Promise<ResultOf<'
     ...(swarmSessionEnabled() ? { swarm: swarmView() } : {}),
     editOutcomes: editOutcomeRows(processMainOwner()),
     notices: noticeRows(),
-    mission: (await listSessionMission().catch((error): Awaited<ReturnType<typeof listSessionMission>> => { passedOver(error); return [] })).map(task => ({
-      id: task.id,
-      subject: task.subject.slice(0, 120),
-      ...(task.activeForm !== undefined ? { activeForm: task.activeForm.slice(0, 120) } : {}),
-      status: task.status,
-      ...(task.blocks.length > 0 ? { blocks: task.blocks } : {}),
-      ...(task.blockedBy.length > 0 ? { blockedBy: task.blockedBy } : {}),
-      ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
-    })),
+    mission: await (async (): Promise<SessionFactsAnswerV1['mission']> => {
+      try {
+        const listed = (await listSessionMission()).map(task => ({
+          id: task.id,
+          subject: task.subject.slice(0, 120),
+          ...(task.activeForm !== undefined ? { activeForm: task.activeForm.slice(0, 120) } : {}),
+          status: task.status,
+          ...(task.blocks.length > 0 ? { blocks: task.blocks } : {}),
+          ...(task.blockedBy.length > 0 ? { blockedBy: task.blockedBy } : {}),
+          ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
+        }))
+        lastPublishedMission.set(live, listed)
+        return listed
+      } catch (error) {
+        passedOver(error)
+        return lastPublishedMission.get(live) ?? []
+      }
+    })(),
     samples: await sampleRowsOf(getSessionId()),
     ...((): { missionCard?: SessionFactsAnswerV1['missionCard'] } => {
       const card = missionGuard.missionCardView(String(getSessionId()))

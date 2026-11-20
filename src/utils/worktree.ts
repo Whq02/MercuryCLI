@@ -1191,10 +1191,18 @@ export async function createBaselineWorktree(
     }
   }
 
-  const lease = registerScratchLease({ kind: 'session', id: getSessionId() }, targetPath, {
-    cleanupPolicy: 'on-complete',
-    recovery: `baseline worktree at ${sha}; remove with: git worktree remove --force ${targetPath}`,
-  })
+  let lease: ReturnType<typeof registerScratchLease>
+  try {
+    lease = registerScratchLease({ kind: 'session', id: getSessionId() }, targetPath, {
+      cleanupPolicy: 'on-complete',
+      recovery: `baseline worktree at ${sha}; remove with: git worktree remove --force ${targetPath}`,
+    })
+  } catch (error) {
+    if (!alreadyThere) {
+      await execFileNoThrowWithCwd('git', ['worktree', 'remove', '--force', targetPath], { cwd: repoRoot })
+    }
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+  }
 
   return {
     ok: true,

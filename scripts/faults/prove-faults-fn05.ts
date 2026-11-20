@@ -19,7 +19,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-
+function skip(label: string, why: string): void {
+  console.log(`  [SKIP] ${label} — ${why}`)
+}
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 {
@@ -245,8 +247,16 @@ function runIsolated(body: string): Record<string, unknown> {
       fs.writeFileSync(path.join(repo, 'src/components/mercuryPalette.ts'), 'export const x = 1\\n')
       fs.writeFileSync(path.join(repo, 'package.json'), '{ corrupt json')
       fs.writeFileSync(path.join(repo, 'src/components/a.tsx'), 'export const a = 1\\n')
-      fs.symlinkSync(path.join(repo, 'loop-b'), path.join(repo, 'loop-a'))
-      fs.symlinkSync(path.join(repo, 'loop-a'), path.join(repo, 'loop-b'))
+      try {
+        fs.symlinkSync(path.join(repo, 'loop-b'), path.join(repo, 'loop-a'))
+        fs.symlinkSync(path.join(repo, 'loop-a'), path.join(repo, 'loop-b'))
+      } catch (e) {
+        if (process.platform === 'win32' && e?.code === 'EPERM') {
+          out.loopNoSymlink = true
+        } else {
+          throw e
+        }
+      }
       process.chdir(repo)
       const guardsMod = await import(${JSON.stringify(join(SRC, 'guards/guards.ts'))})
       const wardsGuard = await import(${JSON.stringify(join(SRC, 'guards/wardsGuard.ts'))})
@@ -286,10 +296,12 @@ function runIsolated(body: string): Record<string, unknown> {
         fs.chmodSync(path.join(repo, 'package.json'), 0o644)
       }
       out.loopThrew = false
-      try {
-        wardsGuard.realTargetPath(path.join(repo, 'loop-a'))
-      } catch {
-        out.loopThrew = true
+      if (!out.loopNoSymlink) {
+        try {
+          wardsGuard.realTargetPath(path.join(repo, 'loop-a'))
+        } catch {
+          out.loopThrew = true
+        }
       }
       out.nulThrew = false
       try {
@@ -315,7 +327,8 @@ function runIsolated(body: string): Record<string, unknown> {
   const unreadPkgV = r.unreadPkgVerdict as { refused?: boolean; reason?: string } | null
   check('wardsGuard: a package.json that does not parse cannot identify Mercury, so the call is not refused', badPkgV?.refused === false, JSON.stringify(badPkgV))
   if (POSIX_MODES) check('wardsGuard: a package.json that cannot be read cannot identify Mercury, so the call is not refused', unreadPkgV?.refused === false, JSON.stringify(unreadPkgV))
-  check('wardsGuard: a symlink loop is judged as a path not made yet, with no throw', r.loopThrew === false, JSON.stringify(r))
+  if (r.loopNoSymlink === true) skip('wardsGuard: a symlink loop is judged as a path not made yet, with no throw', 'not read on Windows: no symlink privilege')
+  else check('wardsGuard: a symlink loop is judged as a path not made yet, with no throw', r.loopThrew === false, JSON.stringify(r))
   check('wardsGuard: a path that cannot be expanded is judged by its own spelling, with no throw', r.nulThrew === false, JSON.stringify(r))
 }
 

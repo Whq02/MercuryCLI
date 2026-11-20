@@ -25,7 +25,7 @@ export function crashReportsCheck(): CheckSpec {
     label: 'Crash reports',
     run: async () => {
       const { crashReportDirDisplay, listCrashReports } = await import('../../../crashReport.js')
-      const reports = listCrashReports(3)
+      const reports = listCrashReports(3, { strict: true })
       if (reports.length === 0) return { status: 'ok', evidence: 'none recorded' }
       const newest = reports[0]!
       const where = [

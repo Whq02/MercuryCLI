@@ -49,18 +49,32 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
   )
 }
 
-async function sessionMissionCard(): Promise<MissionCardFactV1 | null> {
+type SessionMissionCardRead =
+  | { state: 'ok'; card: MissionCardFactV1 }
+  | { state: 'absent' }
+  | { state: 'unreadable'; words: string }
+
+async function sessionMissionCard(): Promise<SessionMissionCardRead> {
   const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
   const connector = getFocusedSessionConnector()
   const fact = connector.workRoster().missionCard
-  if (fact !== undefined && fact !== null) return fact
+  if (fact !== undefined && fact !== null) return { state: 'ok', card: fact }
   try {
-    const { readMissionCard } = await import('../../services/mission/missionCard.js')
-    const card = readMissionCard(connector.sessionId(), connector.workspace().originalCwd)
-    return card === null ? null : { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt, ...(card.outcome !== undefined ? { outcome: card.outcome } : {}) }
+    const { inspectMissionCard, missionCardUnreadWords } = await import('../../services/mission/missionCard.js')
+    const read = inspectMissionCard(connector.sessionId(), connector.workspace().originalCwd)
+    if (read.state === 'unreadable') {
+      passedOver(read.error)
+      return { state: 'unreadable', words: missionCardUnreadWords(read.path, read.error) }
+    }
+    if (read.state === 'absent') return { state: 'absent' }
+    const card = read.card
+    return {
+      state: 'ok',
+      card: { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt, ...(card.outcome !== undefined ? { outcome: card.outcome } : {}) },
+    }
   } catch (error) {
     passedOver(error)
-    return null
+    return { state: 'absent' }
   }
 }
 
@@ -96,11 +110,16 @@ export async function call(
   const hosted = hasFocusedSession()
 
   if (arg === '') {
-    const card = hosted ? await sessionMissionCard() : null
-    if (card === null) {
+    const read = hosted ? await sessionMissionCard() : { state: 'absent' as const }
+    if (read.state === 'unreadable') {
+      onDone(read.words)
+      return null
+    }
+    if (read.state === 'absent') {
       onDone('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
       return null
     }
+    const card = read.card
     if (card.state !== 'armed' && card.state !== 'paused' && card.state !== 'met') {
       onDone(`Mission card ${card.state}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`)
       return null
@@ -116,7 +135,8 @@ export async function call(
   }
 
   if (isMissionClearKeyword(arg)) {
-    const goal = (await sessionMissionCard())?.goal
+    const current = await sessionMissionCard()
+    const goal = current.state === 'ok' ? current.card.goal : undefined
     const receipt = await getFocusedSessionConnector().sendWords(`/mission ${arg}`, { metaFrom: { command: 'mission' } })
     if (receipt.state !== 'accepted') {
       onDone(`/mission ${arg} did not reach the session — ${receipt.detail}`, { display: 'system' })

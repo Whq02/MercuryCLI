@@ -23,10 +23,15 @@ export const call = async (
     const mission = getActiveMission()
     if (!mission) {
       try {
-        const { readMissionCard } = await import('../../services/mission/missionCard.js')
+        const { inspectMissionCard, missionCardUnreadWords } = await import('../../services/mission/missionCard.js')
         const { getSessionId } = await import('../../bootstrap/state.js')
-        const card = readMissionCard(getSessionId())
-        if (card) {
+        const read = inspectMissionCard(getSessionId())
+        if (read.state === 'unreadable') {
+          passedOver(read.error)
+          return text(missionCardUnreadWords(read.path, read.error))
+        }
+        if (read.state === 'ok') {
+          const card = read.card
           if (card.state === 'met' && card.outcome !== undefined) return text(missionCompletedLine({ condition: card.goal, setAt: Date.parse(card.setAt) }, card.outcome))
           const stateLine =
             card.state === 'armed' || card.state === 'paused'

@@ -416,6 +416,183 @@ try {
       await rp.close()
     }
   }
+
+  {
+    const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    const { acceptInput } = await import('../../src/cli/headless/inputDoor.ts')
+    const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
+    const { INPUT_REFUSED_CODE } = await import('../../src/cli/structuredIO.ts')
+    const { getSessionId, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+    const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { clearSessionMessagesCache } = await import('../../src/utils/sessionStorage/logs.ts')
+    const { getCommandQueue, remove } = await import('../../src/utils/messageQueueManager.ts')
+    const { dirname } = await import('node:path')
+    const { randomUUID } = await import('node:crypto')
+
+    const testSid = getSessionId()
+    const projCwd = join(scratch, 'input-door-proj')
+    mkdirSync(projCwd, { recursive: true })
+    setOriginalCwd(projCwd)
+    const transcriptPath = getTranscriptPath()
+    mkdirSync(dirname(transcriptPath), { recursive: true })
+    writeFileSync(transcriptPath, JSON.stringify({ uuid: randomUUID(), type: 'user', message: { role: 'user', content: 'hi' } }) + '\n', { mode: 0o600 })
+    clearSessionMessagesCache()
+
+    if (POSIX_MODES) {
+      chmodSync(transcriptPath, 0o000)
+      try {
+        remove([...getCommandQueue()])
+        const live = createRunnerState()
+        const received = new Set<string>()
+        const enqueuedRows: Array<{ type?: string; level?: string; text?: string; code?: string }> = []
+        const ports = {
+          live,
+          options: {},
+          driver: { kick: () => {}, isRunning: () => false, closeOutputOnce: async () => {} },
+          enqueueRow: (row: { type?: string; level?: string; text?: string; code?: string }) => { enqueuedRows.push(row) },
+          liveScope: () => ({ session_id: testSid }),
+          getAppState: () => ({}),
+          setAppState: () => {},
+          localCommandInput: () => false,
+          missionLineOf: () => null,
+          receivedUuids: { add: (id: string) => void received.add(id), has: (id: string) => received.has(id) },
+        } as unknown as Parameters<typeof acceptInput>[1]
+
+        const first = await acceptInput({ kind: 'prompt', content: 'first line', id: randomUUID() }, ports)
+        clearSessionMessagesCache()
+        const second = await acceptInput({ kind: 'prompt', content: 'second line', id: randomUUID() }, ports)
+        const queued = [...getCommandQueue()]
+        remove(queued)
+        const warnings = enqueuedRows.filter(r => r.level === 'warning' && r.code !== INPUT_REFUSED_CODE)
+        check(
+          'w04-4 acceptInput still accepts and queues rows when transcript is unreadable and emits warning notice once per session',
+          first.accepted === true &&
+            second.accepted === true &&
+            queued.length === 2 &&
+            warnings.length === 1 &&
+            Boolean(warnings[0]?.text?.includes(`the transcript at ${transcriptPath} could not be read (`)) &&
+            Boolean(warnings[0]?.text?.includes('), so this message was not checked for a duplicate')),
+          JSON.stringify({ first, second, queuedCount: queued.length, enqueuedRows }),
+        )
+      } finally {
+        chmodSync(transcriptPath, 0o600)
+        rmSync(transcriptPath, { force: true })
+        clearSessionMessagesCache()
+      }
+    }
+  }
+
+  {
+    const { call: localMission } = await import('../../src/commands/mission/mission.ts')
+    const { call: jsxMission } = await import('../../src/commands/mission/mission-jsx.tsx')
+    const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
+    const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
+    const { sessionFactsFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
+    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+    const { getSessionId, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+    const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { createTask, getTaskListId, getTasksDir, listSessionMission } = await import('../../src/utils/tasks.ts')
+
+    const sid = getSessionId()
+    const projCwd = join(scratch, 'mission-proj')
+    mkdirSync(projCwd, { recursive: true })
+    setOriginalCwd(projCwd)
+    const missionsDir = join(getProjectDir(projCwd), 'missions')
+    const cardPath = join(missionsDir, `${sid}.json`)
+
+    const absentRes = await localMission('', {} as never)
+    check(
+      'w04-5 /mission (text) says No mission set when card is absent',
+      absentRes.type === 'text' && absentRes.value.includes('No mission set'),
+      JSON.stringify(absentRes),
+    )
+
+    mkdirSync(missionsDir, { recursive: true })
+    writeFileSync(cardPath, '{not valid json\n', { mode: 0o600 })
+    try {
+      const corruptTextRes = await localMission('', {} as never)
+      check(
+        'w04-5 /mission (text) reports unreadable mission card instead of No mission set',
+        corruptTextRes.type === 'text' &&
+          corruptTextRes.value.includes(`${cardPath} could not be read (`) &&
+          corruptTextRes.value.includes(') — the mission is not shown') &&
+          !corruptTextRes.value.includes('No mission set'),
+        JSON.stringify(corruptTextRes),
+      )
+
+      let jsxDone = ''
+      setFocusedSessionConnector({
+        sessionId: () => sid,
+        workRoster: () => ({ rows: [], mission: [], missionCard: null, samples: [], reported: true }),
+        workspace: () => ({ cwd: projCwd, originalCwd: projCwd, projectRoot: projCwd }),
+      } as never)
+      try {
+        await jsxMission(value => { jsxDone = value ?? '' }, {} as never, '')
+      } finally {
+        releaseFocusedSessionConnector()
+      }
+      check(
+        'w04-5 /mission (jsx) reports unreadable mission card instead of No mission set',
+        jsxDone.includes(`${cardPath} could not be read (`) &&
+          jsxDone.includes(') — the mission is not shown') &&
+          !jsxDone.includes('No mission set'),
+        jsxDone,
+      )
+    } finally {
+      rmSync(cardPath, { force: true })
+    }
+
+    const listId = getTaskListId()
+    await createTask(listId, {
+      subject: 'preserve this mission row',
+      description: '',
+      status: 'in_progress',
+      blocks: [],
+      blockedBy: [],
+    })
+    const live = createRunnerState()
+    const appState = {
+      mcp: { clients: [], tools: [] },
+      toolPermissionContext: { mode: 'default' },
+      effortValue: 'medium',
+      tasks: {},
+      fileHistory: { snapshots: [], trackedFiles: new Set<string>() },
+    }
+    const factsPorts = {
+      live,
+      checkBuildBehind: async () => {},
+      getAppState: () => appState,
+      liveMcp: { addedAt: new Map() },
+      mcpSignIns: new Map(),
+      messages: [],
+      missionGuard: { missionCardView: () => null },
+    } as unknown as Parameters<typeof answerSessionFacts>[0]
+
+    const firstWire = await answerSessionFacts(factsPorts)
+    const firstFacts = sessionFactsFromWire(firstWire)
+    const epochFile = join(getTasksDir(listId), '.epoch')
+    writeFileSync(epochFile, '{corrupt epoch\n', { mode: 0o600 })
+    try {
+      let listThrew = false
+      try {
+        await listSessionMission()
+      } catch {
+        listThrew = true
+      }
+      const secondWire = await answerSessionFacts(factsPorts)
+      const secondFacts = sessionFactsFromWire(secondWire)
+      check(
+        'w04-5 listSessionMission surfaces read failure and sessionFactsArm keeps last published mission list',
+        listThrew &&
+          (firstFacts?.mission.length ?? 0) === 1 &&
+          secondFacts?.mission.length === 1 &&
+          secondFacts.mission[0]?.subject === 'preserve this mission row',
+        JSON.stringify({ listThrew, first: firstFacts?.mission, second: secondFacts?.mission }),
+      )
+    } finally {
+      rmSync(epochFile, { force: true })
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

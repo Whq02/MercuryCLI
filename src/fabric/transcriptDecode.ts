@@ -138,12 +138,17 @@ function firstParsedIsForeign(values: unknown[]): boolean {
 }
 
 export function decodeTranscriptBuffer<T>(data: string | Buffer): DecodedTranscript<T> {
-  const values = parseJSONL<unknown>(data)
+  let skipped = 0
+  const values = parseJSONL<unknown>(data, {
+    onSkipped: count => {
+      skipped += count
+    },
+  })
   const totalLines = countNonEmptyLines(data)
   if (firstParsedIsForeign(values)) {
     return { entries: [], malformed: [], invalid: [], totalLines, refusal: TRANSCRIPT_FORMAT_REFUSAL }
   }
-  const malformed = values.length === totalLines ? [] : classifyMalformed(data)
+  const malformed = skipped === 0 && values.length === totalLines ? [] : classifyMalformed(data)
   const { valid, invalid } = classifyInvalid(values)
   return { entries: valid as T[], malformed, invalid, totalLines }
 }

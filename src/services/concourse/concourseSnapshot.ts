@@ -904,6 +904,34 @@ function clockOf(nowMs: number): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
+async function peekSettingsOf(
+  peekRecord: ConcourseWorkerRecordV1 | null,
+  sectionNotices: string[],
+): Promise<{ settings?: { revisionLabel: string; profileRevision: number; current: boolean } }> {
+  const cap = peekRecord?.settingsSnapshot
+  if (cap === undefined) return {}
+  try {
+    const { readBootDefaultsProfileStrict } = await import('../../substrate/startupMenu.js')
+    const read = readBootDefaultsProfileStrict()
+    if (!read.ok) {
+      passedOver(read.reason)
+      sectionNotices.push(`Saved boot settings could not be read (${read.reason})`)
+      return {}
+    }
+    const nowRev = read.profile?.revision ?? 0
+    return {
+      settings: {
+        revisionLabel: `r${cap.profileRevision}`,
+        profileRevision: cap.profileRevision,
+        current: cap.profileRevision === nowRev,
+      },
+    }
+  } catch (error) {
+    passedOver(error)
+    return {}
+  }
+}
+
 export interface BuildConcourseSnapshotOpts {
   recordsDir?: string
   crewDir?: string
@@ -1114,6 +1142,7 @@ export async function buildConcourseSnapshot(
   const railEffort =
     (peekRecord !== null ? peekRecord.effort : (seedOverrides.effort ?? savedEffort)) ??
     workerRegistry.entries.find(e => e.modelId === railModelId)?.effort
+  const peekSettings = await peekSettingsOf(peekRecord, sectionNotices)
   return {
     schema: 1,
     revision: nowMs,
@@ -1150,24 +1179,7 @@ export async function buildConcourseSnapshot(
           agentLabel: sanitizeLabel(peekRecord.agentName ?? 'Mercury'),
           modelLabel:
             workerRegistry.entries.find(e => e.modelId === railModelId)?.displayName ?? peekRecord.modelKey,
-          ...(await (async () => {
-            const cap = peekRecord.settingsSnapshot
-            if (cap === undefined) return {}
-            try {
-              const { readBootDefaultsProfile } = await import('../../substrate/startupMenu.js')
-              const nowRev = readBootDefaultsProfile()?.revision ?? 0
-              return {
-                settings: {
-                  revisionLabel: `r${cap.profileRevision}`,
-                  profileRevision: cap.profileRevision,
-                  current: cap.profileRevision === nowRev,
-                },
-              }
-            } catch (error) {
-              passedOver(error)
-              return {}
-            }
-          })()),
+          ...peekSettings,
           seats: null,
           timeline: [{ clock: clockOf(peekRecord.spawnedAt), label: 'started' }],
           scope: scopeClear ? { kind: 'clear' } : { kind: 'overlap', detail: scopeDetail },

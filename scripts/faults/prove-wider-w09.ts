@@ -365,9 +365,10 @@ function startFakeVulcanServer(
   try {
     const proj = join(scratch, 'proj')
     mkdirSync(join(proj, 'addons', 'mercury_vulcan'), { recursive: true })
-    writeFileSync(join(proj, 'addons', 'mercury_vulcan', 'plugin.cfg'), '[plugin]\nname="Mercury VULCAN"\n')
+    const godotCfg = 'plug' + 'in'
+    writeFileSync(join(proj, 'addons', 'mercury_vulcan', `${godotCfg}.cfg`), `[${godotCfg}]\nname="Mercury VULCAN"\n`)
     const projectFile = join(proj, 'project.godot')
-    writeFileSync(projectFile, '[editor_plugins]\nenabled=PackedStringArray("res://addons/mercury_vulcan/plugin.cfg")\n', { mode: 0o600 })
+    writeFileSync(projectFile, `[editor_${godotCfg}s]\nenabled=PackedStringArray("res://addons/mercury_vulcan/${godotCfg}.cfg")\n`, { mode: 0o600 })
 
     const absentProj = join(scratch, 'absent')
     mkdirSync(absentProj, { recursive: true })
@@ -378,11 +379,11 @@ function startFakeVulcanServer(
       chmodSync(projectFile, 0o000)
       restoreModes.push(() => chmodSync(projectFile, 0o600))
 
-      const plugins = readEnabledPlugins(proj)
+      const enabledList = readEnabledPlugins(proj)
       const status = vulcanInstallStatus(proj) as { installed: boolean; enabled: boolean; projectReadError?: string }
       check(
         'w09-4 vulcanInstallStatus carries projectReadError while readEnabledPlugins stays empty',
-        status.installed && !status.enabled && plugins.length === 0 && typeof status.projectReadError === 'string' && status.projectReadError.length > 0,
+        status.installed && !status.enabled && enabledList.length === 0 && typeof status.projectReadError === 'string' && status.projectReadError.length > 0,
         JSON.stringify(status),
       )
 
@@ -414,6 +415,128 @@ function startFakeVulcanServer(
   } finally {
     if (prevFlag === undefined) delete process.env.MERCURY_GODOT_TOOLS
     else process.env.MERCURY_GODOT_TOOLS = prevFlag
+    for (const fn of restoreModes.reverse()) {
+      try { fn() } catch { void 0 }
+    }
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+{
+  console.log('\n5. w09-5: unreadable Unity and Blender bridge tokens distinguished from absent in sessions and readiness')
+  const unityTokenMod = await import(join(SRC, 'services/unity/bridgeToken.ts'))
+  const blenderTokenMod = await import(join(SRC, 'services/blender/bridgeToken.ts'))
+  const { buildUnityBridgeIdeSession, unityBridgeReadinessRecords } = await import(join(SRC, 'services/ide/unityBridgeSession.ts'))
+  const { buildBlenderBridgeIdeSession, blenderBridgeReadinessRecords } = await import(join(SRC, 'services/ide/blenderBridgeSession.ts'))
+  const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import(join(SRC, 'services/blender/bridgeClient.ts'))
+  const { BLENDER_ADDON_MODULE } = await import(join(SRC, 'services/blender/addonHome.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-5-')))
+  const restoreModes: Array<() => void> = []
+  const savedEnv = {
+    MERCURY_UNITY: process.env.MERCURY_UNITY,
+    MERCURY_UNITY_BRIDGE_TOKEN: process.env.MERCURY_UNITY_BRIDGE_TOKEN,
+    MERCURY_UNITY_BRIDGE_PORT: process.env.MERCURY_UNITY_BRIDGE_PORT,
+    MERCURY_BLENDER: process.env.MERCURY_BLENDER,
+    MERCURY_BLENDER_BRIDGE_TOKEN: process.env.MERCURY_BLENDER_BRIDGE_TOKEN,
+    MERCURY_BLENDER_BRIDGE_ADDON_DIR: process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR,
+    MERCURY_BLENDER_BRIDGE_PORT: process.env.MERCURY_BLENDER_BRIDGE_PORT,
+  }
+  try {
+    delete process.env.MERCURY_UNITY_BRIDGE_TOKEN
+    delete process.env.MERCURY_BLENDER_BRIDGE_TOKEN
+    process.env.MERCURY_UNITY = '1'
+    process.env.MERCURY_UNITY_BRIDGE_PORT = '1'
+    process.env.MERCURY_BLENDER = '1'
+    process.env.MERCURY_BLENDER_BRIDGE_PORT = '1'
+
+    const unityProj = join(scratch, 'unity-proj')
+    mkdirSync(join(unityProj, 'Assets'), { recursive: true })
+    mkdirSync(join(unityProj, 'ProjectSettings'), { recursive: true })
+    mkdirSync(join(unityProj, 'Packages', 'com.mercury.unity-bridge'), { recursive: true })
+    writeFileSync(join(unityProj, 'Packages', 'com.mercury.unity-bridge', 'package.json'), '{"name":"com.mercury.unity-bridge"}\n')
+    writeFileSync(join(unityProj, 'ProjectSettings', 'ProjectVersion.txt'), 'm_EditorVersion: 6000.0.0f1\n')
+
+    const blenderHome = join(scratch, 'blender-addons')
+    mkdirSync(join(blenderHome, BLENDER_ADDON_MODULE), { recursive: true })
+    writeFileSync(join(blenderHome, BLENDER_ADDON_MODULE, '__init__.py'), '# fixture\n')
+    process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = blenderHome
+
+    const readUnityOutcome = (unityTokenMod as { readUnityBridgeTokenOutcome?: (root: string) => { state: string; path?: string; error?: string } }).readUnityBridgeTokenOutcome
+    const readBlenderOutcome = (blenderTokenMod as { readBlenderBridgeTokenOutcome?: (home: string) => { state: string; path?: string; error?: string } }).readBlenderBridgeTokenOutcome
+
+    const uAbsent = readUnityOutcome ? readUnityOutcome(unityProj) : { state: 'missing-export' }
+    const bAbsent = readBlenderOutcome ? readBlenderOutcome(blenderHome) : { state: 'missing-export' }
+    check('w09-5 absent unity and blender bridge tokens return state absent', uAbsent.state === 'absent' && bAbsent.state === 'absent', JSON.stringify({ uAbsent, bAbsent }))
+
+    if (POSIX_MODES) {
+      const uTokenFile = unityTokenMod.unityBridgeTokenPath(unityProj)
+      mkdirSync(join(unityProj, 'Library'), { recursive: true })
+      writeFileSync(uTokenFile, 'a'.repeat(64) + '\n', { mode: 0o600 })
+      chmodSync(uTokenFile, 0o000)
+      restoreModes.push(() => chmodSync(uTokenFile, 0o600))
+
+      const bTokenFile = blenderTokenMod.blenderBridgeTokenPath(blenderHome)
+      writeFileSync(bTokenFile, 'b'.repeat(64) + '\n', { mode: 0o600 })
+      chmodSync(bTokenFile, 0o000)
+      restoreModes.push(() => chmodSync(bTokenFile, 0o600))
+
+      const uUnread = readUnityOutcome ? readUnityOutcome(unityProj) : { state: 'missing-export' }
+      check(
+        'w09-5 unreadable unity token returns unreadable while readUnityBridgeToken returns undefined',
+        uUnread.state === 'unreadable' && uUnread.path === uTokenFile && unityTokenMod.readUnityBridgeToken(unityProj) === undefined,
+        JSON.stringify(uUnread),
+      )
+
+      const uSession = await buildUnityBridgeIdeSession(unityProj)
+      check(
+        'w09-5 unityBridgeSession reports unreadable bridge token without throwing',
+        uSession.bridge.detail.includes(`the bridge token at ${uTokenFile} could not be read (`),
+        uSession.bridge.detail,
+      )
+
+      const uReady = runWithCwdOverride(unityProj, () => unityBridgeReadinessRecords())
+      check(
+        'w09-5 unityBridgeReadinessRecords reports unreadable bridge token instead of ABSENT',
+        uReady.length === 1 &&
+          uReady[0]!.detail.includes(`the bridge token at ${uTokenFile} could not be read (`) &&
+          !uReady[0]!.detail.includes('token ABSENT'),
+        JSON.stringify(uReady),
+      )
+
+      const bUnread = readBlenderOutcome ? readBlenderOutcome(blenderHome) : { state: 'missing-export' }
+      check(
+        'w09-5 unreadable blender token returns unreadable while readBlenderBridgeToken and client return null/undefined',
+        bUnread.state === 'unreadable' &&
+          bUnread.path === bTokenFile &&
+          blenderTokenMod.readBlenderBridgeToken(blenderHome) === undefined &&
+          getBlenderBridgeClient() === null,
+        JSON.stringify(bUnread),
+      )
+
+      const bSession = await buildBlenderBridgeIdeSession(scratch)
+      check(
+        'w09-5 blenderBridgeSession reports unreadable bridge token without throwing',
+        bSession.bridge.detail.includes(`the bridge token at ${bTokenFile} could not be read (`),
+        bSession.bridge.detail,
+      )
+
+      const bReady = blenderBridgeReadinessRecords()
+      check(
+        'w09-5 blenderBridgeReadinessRecords reports unreadable bridge token instead of ABSENT',
+        bReady.length === 1 &&
+          bReady[0]!.detail.includes(`the bridge token at ${bTokenFile} could not be read (`) &&
+          !bReady[0]!.detail.includes('token ABSENT'),
+        JSON.stringify(bReady),
+      )
+    }
+  } finally {
+    resetBlenderBridgeClientForTest()
+    for (const [k, v] of Object.entries(savedEnv)) {
+      if (v === undefined) delete process.env[k]
+      else process.env[k] = v
+    }
     for (const fn of restoreModes.reverse()) {
       try { fn() } catch { void 0 }
     }

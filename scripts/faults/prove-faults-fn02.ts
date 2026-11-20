@@ -578,7 +578,7 @@ console.log('\nOnboarding — failed terminal setup shows failure sentence inste
       out.errOnOk = errOnOk
     }
   `)
-  check('failed setupTerminal holds the step and surfaces the failure sentence', r.doneOnFail === 0 && r.errMsg === 'Terminal setup failed (permission denied) — run /terminal-setup later; press Enter to continue', JSON.stringify(r))
+  check('failed setupTerminal holds the step and surfaces the failure sentence', r.doneOnFail === 0 && r.errMsg === 'Terminal setup failed (permission denied) — run /keysetup later; press Enter to continue', JSON.stringify(r))
   check('control: succeeding setupTerminal calls onDone without error', r.doneOnOk === 1 && r.errOnOk === null, JSON.stringify(r))
 }
 

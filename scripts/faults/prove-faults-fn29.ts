@@ -185,8 +185,10 @@ console.log('4. src/utils/cockpit/harnessMap.ts — throwing DAP probe does not 
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
+    const realDap = await import(SRC + '/services/dap/dapClient.ts')
     let shouldThrow = true
     mock.module(SRC + '/services/dap/dapClient.js', () => ({
+      ...realDap,
       mercuryDapEnabled: () => true,
       dapAdapterProbePending: () => false,
       reachableDapAdapterKeys: () => {

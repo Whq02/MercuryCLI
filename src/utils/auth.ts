@@ -49,7 +49,7 @@ import {
   getApiKeyFromFileDescriptor,
   getOAuthTokenFromFileDescriptor,
 } from './authFileDescriptor.js'
-import { normalizeApiKeyForConfig } from './authPortable.js'
+import { maybeRemoveApiKeyFromMacOSKeychainSyncThrows, normalizeApiKeyForConfig } from './authPortable.js'
 import {
   isInvalidGrantError,
   isOAuthTokenExpired,
@@ -543,19 +543,26 @@ function writeKeychainHexStdin(key: string): boolean {
   }
 }
 
-export async function removeApiKey(): Promise<void> {
-  if (keychainReachable()) {
-    try {
-      const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
-      await maybeRemoveApiKeyFromMacOSKeychainThrows()
-    } catch (error) {
-      logError(error)
-    }
-  }
+function clearStoredApiKeyConfig(): void {
   saveGlobalConfig(current => ({ ...current, primaryApiKey: undefined, anthropicApiKeyWorkspace: undefined }))
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
   noteCredentialChange()
+}
+
+export async function removeApiKey(): Promise<void> {
+  if (keychainReachable()) {
+    const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
+    await maybeRemoveApiKeyFromMacOSKeychainThrows()
+  }
+  clearStoredApiKeyConfig()
+}
+
+export function removeApiKeySync(): void {
+  if (keychainReachable()) {
+    maybeRemoveApiKeyFromMacOSKeychainSyncThrows()
+  }
+  clearStoredApiKeyConfig()
 }
 
 
