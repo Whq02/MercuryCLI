@@ -246,7 +246,7 @@ console.log('a show path is checked again after the operation, when a new link m
   settle()
 
   const sockets = new Set<net.Socket>()
-  const { BLENDER_BRIDGE_PROTOCOL_VERSION } = await import(`${SRC}/services/blender/bridgeProtocol.ts`)
+  const { BLENDER_BRIDGE_PROTOCOL_VERSION } = await import(`${SRC}/utils/blender/bridgeProtocol.ts`)
   const server = net.createServer(socket => {
     sockets.add(socket)
     socket.on('close', () => sockets.delete(socket))

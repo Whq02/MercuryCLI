@@ -22,7 +22,7 @@ const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { isOperatorTurn, countOperatorTurns } = await import('../../src/utils/messages/operatorTurns.ts')
-const { selectOperatorMessages, operatorTextOf } = await import('../../src/services/compact/operatorMessages.ts')
+const { selectOperatorMessages, operatorTextOf } = await import('../../src/utils/compact/operatorMessages.ts')
 type AnyMsg = Parameters<typeof selectOperatorMessages>[0][number]
 
 const NOTICE = `<task-notification>\n<task-id>a1b2c3</task-id>\n<status>completed</status>\n<summary>Crewmate "builder" completed</summary>\n</task-notification>`
@@ -56,7 +56,7 @@ section('§2 the fold carries his words, never a notice, and the budget is his')
 section('§4 a carry written before the move is filtered on read: the first fold after the move re-admits his words only (the field row 2B-03)')
 {
   const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
-  const { OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/services/compact/operatorMessages.ts')
+  const { OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/utils/compact/operatorMessages.ts')
   const assistant = (text: string): AnyMsg => createAssistantMessage({ content: text }) as unknown as AnyMsg
   const olderCarry = createAttachmentMessage({
     type: OPERATOR_MESSAGES_ATTACHMENT_TYPE,

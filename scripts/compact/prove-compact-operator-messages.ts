@@ -20,7 +20,7 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'compact-operator-me
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SELECTION_MODULE = 'src/services/compact/operatorMessages.ts'
+const SELECTION_MODULE = 'src/utils/compact/operatorMessages.ts'
 const KIND = 'compact_operator_messages'
 
 let failures = 0

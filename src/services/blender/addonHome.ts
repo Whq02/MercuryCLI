@@ -3,7 +3,7 @@ import { statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { blenderBridgeAddonDirOverride } from '../../utils/blender/bridgeGates.js'
-import { locateBlender, probeBlenderVersion } from '../ide/blenderProject.js'
+import { locateBlender, probeBlenderVersion } from '../../utils/blender/blenderProject.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 
