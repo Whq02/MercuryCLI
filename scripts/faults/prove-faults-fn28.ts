@@ -72,6 +72,64 @@ function skip(label: string, why: string): void {
   }
 }
 
+{
+  console.log('\nreviewStore: unreadable journal fails mutators, heads source, and journal reader instead of answering absent/empty')
+  const { readFileSync } = await import('node:fs')
+  const store = await import('../../src/utils/artifacts/reviewStore.ts')
+  const created = store.createReviewArtifact({
+    kind: 'plan',
+    title: 'lock-test',
+    producer: { sessionId: 'sess-1' },
+    workspace: { roots: [SCRATCH] },
+    body: { kind: 'plan', markdown: '# plan\n' },
+  })
+  check('reviewStore-setup: artifact created', created.ok, created.ok ? '' : created.reason)
+  if (created.ok) {
+    const id = created.value.id
+    const journal = join(store.reviewArtifactsRoot(), id, 'journal.jsonl')
+    const beforeBytes = readFileSync(journal, 'utf8')
+    if (!POSIX_MODES) skip('reviewStore-unreadable-journal', 'needs non-root POSIX')
+    else {
+      chmodSync(journal, 0o200)
+      try {
+        const res = store.setReviewArtifactStatus({ id, version: 1, status: 'ready-for-review' })
+        check(
+          'reviewStore-mutator-refuses-unreadable: mutator reports write/read failure instead of no review artifact',
+          !res.ok && res.reason.startsWith('write failed:'),
+          JSON.stringify(res),
+        )
+        const heads = store.listReviewArtifactHeadsSource()
+        check(
+          'reviewStore-heads-source-reports-unreadable: listReviewArtifactHeadsSource classifies EACCES instead of omitting',
+          heads.state !== 'ready' && heads.state !== 'empty',
+          JSON.stringify(heads),
+        )
+        let journalThrew: NodeJS.ErrnoException | null = null
+        try {
+          store.readReviewArtifactJournal(id)
+        } catch (err) {
+          journalThrew = err as NodeJS.ErrnoException
+        }
+        check(
+          'reviewStore-journal-throws-unreadable: readReviewArtifactJournal throws EACCES on unreadable file',
+          journalThrew !== null && journalThrew.code === 'EACCES',
+          String(journalThrew),
+        )
+      } finally {
+        chmodSync(journal, 0o600)
+      }
+      check(
+        'reviewStore-mutator-keeps-bytes: journal is byte-identical after refused write',
+        readFileSync(journal, 'utf8') === beforeBytes,
+      )
+    }
+    check(
+      'reviewStore-journal-absent-empty: absent review artifact journal still answers []',
+      store.readReviewArtifactJournal('ra-deadbeef').length === 0,
+    )
+  }
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

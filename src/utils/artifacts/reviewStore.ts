@@ -168,7 +168,8 @@ function appendEvents(id: string, events: ReviewJournalEvent[]): void {
       const fd = readFileSync(file)
       needsLeadingNewline = fd.length > 0 && fd[fd.length - 1] !== 0x0a
     }
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     needsLeadingNewline = false
   }
   appendFileSync(file, (needsLeadingNewline ? '\n' : '') + lines, 'utf8')
@@ -290,11 +291,21 @@ function foldJournal(id: string, raw: string): ReviewArtifactState | null {
   return sawVersion ? state : null
 }
 
+function readReviewArtifactStateStrict(id: string): ReviewArtifactState | null {
+  if (!isReviewArtifactId(id)) return null
+  let raw: string
+  try {
+    raw = readFileSync(journalPath(id), 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
+  }
+  return foldJournal(id, raw)
+}
+
 export function readReviewArtifactState(id: string): ReviewArtifactState | null {
   try {
-    if (!isReviewArtifactId(id)) return null
-    const raw = readFileSync(journalPath(id), 'utf8')
-    return foldJournal(id, raw)
+    return readReviewArtifactStateStrict(id)
   } catch (error) {
     passedOver(error)
     return null
@@ -302,20 +313,21 @@ export function readReviewArtifactState(id: string): ReviewArtifactState | null 
 }
 
 export function readReviewArtifactJournal(id: string): ReviewJournalEvent[] {
+  if (!isReviewArtifactId(id)) return []
+  let raw: string
   try {
-    if (!isReviewArtifactId(id)) return []
-    const raw = readFileSync(journalPath(id), 'utf8')
-    const out: ReviewJournalEvent[] = []
-    for (const line of raw.split('\n')) {
-      if (!line.trim()) continue
-      const ev = decodeEvent(line)
-      if (ev) out.push(ev)
-    }
-    return out
+    raw = readFileSync(journalPath(id), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
   }
+  const out: ReviewJournalEvent[] = []
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    const ev = decodeEvent(line)
+    if (ev) out.push(ev)
+  }
+  return out
 }
 
 export function listReviewArtifactHeadsSource(filter?: {
@@ -333,7 +345,7 @@ export function listReviewArtifactHeadsSource(filter?: {
     const heads: ReviewArtifactHead[] = []
     for (const entry of readdirSync(root)) {
       if (!isReviewArtifactId(entry)) continue
-      const state = readReviewArtifactState(entry)
+      const state = readReviewArtifactStateStrict(entry)
       if (!state) continue
       const latest = state.versions[state.versions.length - 1]!
       if (filter?.sessionId && latest.producer.sessionId !== filter.sessionId) continue
@@ -397,7 +409,7 @@ export function createReviewArtifact(input: {
     id = `ra-${randomBytes(4).toString('hex')}`
   }
   return fencedWrite(id, () => {
-    if (readReviewArtifactState(id)) {
+    if (readReviewArtifactStateStrict(id)) {
       return { ok: false, reason: `artifact id collision on '${id}' — retry` }
     }
     const at = Date.now()
@@ -493,7 +505,7 @@ function reviseReviewArtifactLocked(input: {
   producer: ReviewArtifactProducer
   workspace: ReviewArtifactWorkspace
 }): ReviewWriteResult<{ version: number; relocation: RelocationReport }> {
-  const state = readReviewArtifactState(input.id)
+  const state = readReviewArtifactStateStrict(input.id)
   if (!state) return { ok: false, reason: `no review artifact '${input.id}'` }
   if (input.body.kind !== state.kind) {
     return { ok: false, reason: `body kind '${input.body.kind}' does not match artifact kind '${state.kind}'` }
@@ -570,7 +582,7 @@ function setReviewArtifactStatusLocked(input: {
   status: ReviewArtifactStatus
   by?: string
 }): ReviewWriteResult<{ status: ReviewArtifactStatus }> {
-  const state = readReviewArtifactState(input.id)
+  const state = readReviewArtifactStateStrict(input.id)
   if (!state) return { ok: false, reason: `no review artifact '${input.id}'` }
   if (input.version < 1 || input.version > state.latestVersion) {
     return { ok: false, reason: `no version ${input.version} (latest is ${state.latestVersion})` }
@@ -616,7 +628,7 @@ function addReviewCommentLocked(input: {
   parentCommentId?: string
   body: string
 }): ReviewWriteResult<{ commentId: string }> {
-  const state = readReviewArtifactState(input.artifactId)
+  const state = readReviewArtifactStateStrict(input.artifactId)
   if (!state) return { ok: false, reason: `no review artifact '${input.artifactId}'` }
   const version = state.versions.find(v => v.version === input.version)
   if (!version) {
@@ -668,7 +680,7 @@ function recordReviewScopeDecisionLocked(input: {
   by?: string
   authorRef?: ReviewActorRef
 }): ReviewWriteResult<{ fold: ScopeDecisionFold }> {
-  const state = readReviewArtifactState(input.artifactId)
+  const state = readReviewArtifactStateStrict(input.artifactId)
   if (!state) return { ok: false, reason: `no review artifact '${input.artifactId}'` }
   const version = state.versions.find(v => v.version === input.version)
   if (!version) {
@@ -690,7 +702,7 @@ function recordReviewScopeDecisionLocked(input: {
       ...(input.authorRef !== undefined ? { authorRef: input.authorRef } : {}),
     },
   ])
-  const after = readReviewArtifactState(input.artifactId)
+  const after = readReviewArtifactStateStrict(input.artifactId)
   return {
     ok: true,
     value: { fold: foldScopeDecisions(after?.scopeDecisions ?? [], input.version) },
@@ -757,7 +769,7 @@ function setReviewCommentStateLocked(input: {
   by?: string
   authorRef?: ReviewActorRef
 }): ReviewWriteResult<Record<string, never>> {
-  const state = readReviewArtifactState(input.artifactId)
+  const state = readReviewArtifactStateStrict(input.artifactId)
   if (!state) return { ok: false, reason: `no review artifact '${input.artifactId}'` }
   const comment = state.comments.find(c => c.id === input.commentId)
   if (!comment) return { ok: false, reason: `no comment '${input.commentId}'` }
