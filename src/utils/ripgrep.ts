@@ -17,6 +17,8 @@ import { logError } from './log.js'
 import { getPlatform } from './platform.js'
 import { passedOver } from './passedOver.js'
 import { startTimeout, stopTimeout } from './timers.js'
+import { executableName } from './platform/programs.js'
+import { killSignalForChild, supportsGracefulSigterm } from './platform/processes.js'
 
 
 export type RipgrepMode = 'system' | 'builtin' | 'embedded'
@@ -70,14 +72,14 @@ function timeoutSeconds(): number {
 
 function vendoredRgPath(): string {
   const moduleDir = dirname(fileURLToPath(import.meta.url))
-  const platformDir = process.platform === 'win32' ? `${process.arch}-win32` : `${process.arch}-${process.platform}`
-  return join(moduleDir, 'vendor', 'ripgrep', platformDir, process.platform === 'win32' ? 'rg.exe' : 'rg')
+  const platformDir = `${process.arch}-${process.platform}`
+  return join(moduleDir, 'vendor', 'ripgrep', platformDir, executableName('rg'))
 }
 
 function devDependencyRg(): string | null {
   const moduleDir = dirname(fileURLToPath(import.meta.url))
   const modules = join(moduleDir, '..', '..', 'node_modules', '@vscode')
-  const exe = process.platform === 'win32' ? 'rg.exe' : 'rg'
+  const exe = executableName('rg')
   const candidates = [
     join(modules, `ripgrep-${process.platform}-${process.arch}`, 'bin', exe),
     join(modules, 'ripgrep', 'bin', exe),
@@ -259,8 +261,9 @@ const liveChildren = new Set<ChildProcess>()
 function track<T extends ChildProcess>(child: T, abortSignal?: AbortSignal): T {
   liveChildren.add(child)
   const end = (): void => {
-    if (process.platform === 'win32') child.kill()
-    else child.kill('SIGKILL')
+    const sig = killSignalForChild('SIGKILL')
+    if (sig === undefined) child.kill()
+    else child.kill(sig)
   }
   if (abortSignal?.aborted) end()
   abortSignal?.addEventListener('abort', end, { once: true })
@@ -276,8 +279,9 @@ export function endLiveRipgrepChildren(): number {
   for (const child of liveChildren) {
     try {
       if (child.exitCode === null && child.signalCode === null) {
-        if (process.platform === 'win32') child.kill()
-        else child.kill('SIGKILL')
+        const sig = killSignalForChild('SIGKILL')
+        if (sig === undefined) child.kill()
+        else child.kill(sig)
         ended++
       }
     } catch (error) {
@@ -337,7 +341,7 @@ function spawnWithArgv0(
 
     let escalationTimer: ReturnType<typeof setTimeout> | null = null
     const timeoutTimer = startTimeout(() => {
-      if (process.platform === 'win32') {
+      if (!supportsGracefulSigterm()) {
         killedSignal = 'SIGTERM'
         child.kill()
         return
@@ -400,7 +404,7 @@ function spawnExecFile(
           timeout: timeoutMs,
           windowsHide: true,
           env: { ...subprocessEnv() },
-          killSignal: process.platform === 'win32' ? undefined : 'SIGKILL',
+          killSignal: killSignalForChild('SIGKILL'),
           ...(cwd !== undefined ? { cwd } : {}),
           ...(abortSignal ? { signal: abortSignal } : {}),
         },
