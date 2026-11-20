@@ -178,7 +178,7 @@ export function sqliteRowRewindNote(previous: string | null): string {
   return `${SQLITE_ROW_NOT_CHECKPOINTED} The row was:\n${previous.trimEnd()}`
 }
 
-export function sqliteRowReadRefusal(target: StructuredWriteTarget, input: unknown, context: ToolUseContext): Refusal | null {
+export function sqliteRowReadRefusal(target: StructuredWriteTarget, input: Record<string, unknown> | undefined, context: ToolUseContext): Refusal | null {
   if (target.kind !== 'sqlite-row') return null
   const decision = checkReadPermissionForTool({ name: FILE_READ_TOOL_NAME, getPath: () => target.hostPath }, input, context.getAppState().toolPermissionContext)
   return decision.behavior === 'deny' ? { result: false, behavior: 'ask', message: decision.message, errorCode: 1 } : null
