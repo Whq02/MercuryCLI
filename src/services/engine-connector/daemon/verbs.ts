@@ -10,7 +10,6 @@ import type {
   SendReceiptV1,
 } from '../types.js'
 import { REFUSED_EMPTY } from './shared.js'
-import { passedOver } from '../../../utils/passedOver.js'
 
 const LEAVE_RPC_TIMEOUT_MS = 135_000
 
@@ -152,18 +151,48 @@ export class VerbsPart {
   }
 
   async leave(opts?: { signal?: AbortSignal }): Promise<LeaveReceiptV1> {
+    let interruptFailure: string | null = null
+    let noteInterruptFailure: ((why: string) => void) | null = null
+    const skipFailed = new Promise<{ kind: 'interrupt-failed'; why: string }>(resolve => {
+      noteInterruptFailure = (why: string) => {
+        if (interruptFailure !== null) return
+        interruptFailure = why
+        resolve({ kind: 'interrupt-failed', why })
+      }
+    })
     const skip = (): void => {
-      void this.needs.rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID() }).catch(passedOver)
+      void this.needs
+        .rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID() })
+        .then(
+          reply => {
+            if (!(reply.ok === true && reply.outcome === 'applied')) {
+              noteInterruptFailure?.(String(reply.detail ?? reply.error ?? reply.outcome ?? 'refused'))
+            }
+          },
+          error => {
+            noteInterruptFailure?.(error instanceof Error ? error.message : String(error))
+          },
+        )
     }
     if (opts?.signal?.aborted) return { note: 'none', detail: 'the handoff was skipped' }
     opts?.signal?.addEventListener('abort', skip, { once: true })
     try {
       await this.needs.verbChain()
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc(
-        { op: 'sessionControl', action: 'leave', sessionId: this.needs.record().sessionId, by: 'operator' },
-        { timeoutMs: LEAVE_RPC_TIMEOUT_MS },
-      )) as Record<string, unknown>
+      const raced = await Promise.race([
+        (daemonControlRpc(
+          { op: 'sessionControl', action: 'leave', sessionId: this.needs.record().sessionId, by: 'operator' },
+          { timeoutMs: LEAVE_RPC_TIMEOUT_MS },
+        ) as Promise<Record<string, unknown>>).then(reply => ({ kind: 'reply' as const, reply })),
+        skipFailed,
+      ])
+      if (raced.kind === 'interrupt-failed') {
+        return { note: 'none', detail: `the handoff could not be interrupted (${raced.why}) — the turn may still be running` }
+      }
+      if (interruptFailure !== null) {
+        return { note: 'none', detail: `the handoff could not be interrupted (${interruptFailure}) — the turn may still be running` }
+      }
+      const reply = raced.reply
       if (reply.ok !== true) return { note: 'none', detail: String(reply.error ?? 'the daemon refused the verb') }
       const detail = typeof reply.detail === 'string' ? reply.detail : undefined
       if (reply.outcome !== 'applied') return { note: 'none', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
