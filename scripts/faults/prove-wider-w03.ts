@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { FAKE_BIN, GIB, MAC_48, QWEN_2B_REPO, fakeWorld } from '../tensorfold/fixtures/world.ts'
@@ -220,6 +220,113 @@ console.log('w03-2: stopTensorFold reports an unreadable or damaged served recor
   }
   const absentResult = await serve.stopTensorFold('m', { servedFile: join(world.home, 'absent.json') }) as { warnings?: readonly string[]; readError?: string }
   check('stopTensorFold on absent served.json has no readError', absentResult?.readError === undefined, JSON.stringify(absentResult))
+}
+
+console.log('w03-3: inventory read failures (listDir, readText, sizeOf) surface in scene notice and helper instead of silent absence')
+{
+  const inventory = await import('../../src/services/tensorfold/inventory.ts')
+  const helper = await import('../../src/services/providers/local/tensorfoldHelper.ts')
+  const world = fakeWorld('wider-w03-3')
+  const absentCache = join(world.root, 'absent-hf-cache')
+  const absentFacts = await scene.readTensorFoldPanelFacts({
+    cacheRoot: absentCache,
+    machine: MAC_48,
+    engine: null,
+    env: world.env,
+    home: world.home,
+    servedFile: join(world.home, 'served.json'),
+    localModels: () => [],
+    hosts: () => [],
+  }) as { readNotice?: string }
+  check('ENOENT cache folder produces no readNotice', absentFacts.readNotice === undefined, JSON.stringify(absentFacts.readNotice))
+
+  if (POSIX_MODES) {
+    const lockedCache = join(world.root, 'locked-hf-cache')
+    mkdirSync(lockedCache, { recursive: true })
+    chmodSync(lockedCache, 0o000)
+    const dirFacts = await scene.readTensorFoldPanelFacts({
+      cacheRoot: lockedCache,
+      machine: MAC_48,
+      engine: null,
+      env: world.env,
+      home: world.home,
+      servedFile: join(world.home, 'served.json'),
+      localModels: () => [],
+      hosts: () => [],
+    }) as { readNotice?: string }
+    chmodSync(lockedCache, 0o700)
+    check(
+      'unreadable models folder sets scene readNotice naming path and error',
+      typeof dirFacts.readNotice === 'string' &&
+        dirFacts.readNotice.startsWith(`${lockedCache} could not be read (`) &&
+        dirFacts.readNotice.endsWith('), so the models in it are not listed'),
+      JSON.stringify(dirFacts.readNotice),
+    )
+
+    const cfgWorld = fakeWorld('wider-w03-3-cfg')
+    const cfgPath = join(cfgWorld.cache, 'models--mlx-community--Qwen3.5-2B-MLX-4bit', 'snapshots', '93760be4f1f69842a46bc13dbdc0f19e291392a3', 'config.json')
+    chmodSync(cfgPath, 0o000)
+    const cfgFacts = await scene.readTensorFoldPanelFacts({
+      cacheRoot: cfgWorld.cache,
+      machine: MAC_48,
+      engine: null,
+      env: cfgWorld.env,
+      home: cfgWorld.home,
+      servedFile: join(cfgWorld.home, 'served.json'),
+      localModels: () => [],
+      hosts: () => [],
+    }) as { readNotice?: string }
+    const prevHub = process.env.HF_HUB_CACHE
+    process.env.HF_HUB_CACHE = cfgWorld.cache
+    const twoBChoice = helper.helperModelChoices({ usable: 36 * GIB, session: null, banked4b: false, engineFound: true, adapter: false }).find(choice => choice.size === '2b')
+    if (prevHub === undefined) delete process.env.HF_HUB_CACHE
+    else process.env.HF_HUB_CACHE = prevHub
+    chmodSync(cfgPath, 0o600)
+    check(
+      'unreadable config.json sets scene readNotice naming config.json',
+      typeof cfgFacts.readNotice === 'string' &&
+        cfgFacts.readNotice.startsWith(`${cfgPath} could not be read (`) &&
+        cfgFacts.readNotice.endsWith('), so the models in it are not listed'),
+      JSON.stringify(cfgFacts.readNotice),
+    )
+    check(
+      'helperModelChoices reports unreadable 2B config instead of "pull the 2B in /tensorfold"',
+      typeof twoBChoice?.reason === 'string' &&
+        twoBChoice.reason.includes('could not be read (') &&
+        twoBChoice.reason !== helper.HELPER_2B_NOT_PULLED_REASON,
+      JSON.stringify(twoBChoice),
+    )
+
+    const statWorld = fakeWorld('wider-w03-3-stat')
+    const snapDir = join(statWorld.cache, 'models--mlx-community--Qwen3.5-2B-MLX-4bit', 'snapshots', '93760be4f1f69842a46bc13dbdc0f19e291392a3')
+    const lockedTargetDir = join(statWorld.root, 'locked-target')
+    mkdirSync(lockedTargetDir, { recursive: true })
+    writeFileSync(join(lockedTargetDir, 'extra.safetensors'), 'x')
+    const badLink = join(snapDir, 'extra.safetensors')
+    symlinkSync(join(lockedTargetDir, 'extra.safetensors'), badLink)
+    chmodSync(lockedTargetDir, 0o000)
+    const statErrors: Array<{ path: string; error: string }> = []
+    inventory.readHfSnapshot(statWorld.cache, QWEN_2B_REPO, { onReadError: failure => statErrors.push(failure) })
+    const statFacts = await scene.readTensorFoldPanelFacts({
+      cacheRoot: statWorld.cache,
+      machine: MAC_48,
+      engine: null,
+      env: statWorld.env,
+      home: statWorld.home,
+      servedFile: join(statWorld.home, 'served.json'),
+      localModels: () => [],
+      hosts: () => [],
+    }) as { readNotice?: string }
+    chmodSync(lockedTargetDir, 0o700)
+    check(
+      'unreadable file stat (EACCES) reports readError in readHfSnapshot and scene readNotice',
+      statErrors.some(item => item.path === badLink) &&
+        typeof statFacts.readNotice === 'string' &&
+        statFacts.readNotice.startsWith(`${badLink} could not be read (`) &&
+        statFacts.readNotice.endsWith('), so the models in it are not listed'),
+      JSON.stringify({ statErrors, readNotice: statFacts.readNotice }),
+    )
+  }
 }
 
 console.log(`\n${failures === 0 ? 'GREEN' : `RED (${failures})`}: prove-wider-w03`)
