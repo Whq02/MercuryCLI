@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -58,6 +58,23 @@ export async function staleBuildAssets(root = REPOSITORY_ROOT) {
     if (run.status !== 0) stale.push({ ...run.row, output: run.output.trim() })
   }
   return stale
+}
+
+export function indexedExecutables(dir) {
+  const listed = spawnSync('git', ['ls-files', '-s', '-z'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20_000, windowsHide: true })
+  const out = new Map()
+  if (listed.error !== undefined || listed.status !== 0) return out
+  for (const entry of listed.stdout.split('\0')) {
+    const tab = entry.indexOf('\t')
+    if (tab !== -1) out.set(entry.slice(tab + 1), (Number.parseInt(entry, 8) & 0o111) !== 0)
+  }
+  return out
+}
+
+export function executableBit({ indexed, onDisk, committed, platform = process.platform }) {
+  if (indexed === true) return true
+  if (platform === 'win32') return committed
+  return indexed ?? onDisk
 }
 
 function generatorOf(line) {
