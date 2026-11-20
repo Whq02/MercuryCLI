@@ -216,6 +216,27 @@ else {
   check('sources keeps absent local archive as archive missing', missing?.ok === false && missing?.step === 'read' && String(missing?.reason).startsWith('archive missing · '), JSON.stringify(missing))
 }
 
+console.log('\nPaletteView — failed command load reports the error instead of No command matches')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const cmdsMod = path.join(SRC, 'commands.ts')
+    const real = await import(cmdsMod)
+    mock.module(cmdsMod, () => ({
+      ...real,
+      getCommands: async () => { throw new Error('EACCES: commands dir unreadable') },
+    }))
+    const mod = await import(path.join(SRC, 'components/mercury-ui/PaletteView.tsx'))
+    out.hasExport = typeof mod.loadPaletteRows === 'function' && typeof mod.paletteLoadErrorLine === 'function'
+    if (out.hasExport) {
+      const loaded = await mod.loadPaletteRows(PROJECT)
+      out.loaded = loaded
+      out.line = loaded.ok ? null : mod.paletteLoadErrorLine(loaded.error)
+    }
+  `)
+  check('PaletteView.loadPaletteRows returns failure and formats the error sentence', r.hasExport === true && (r.loaded as { ok?: boolean })?.ok === false && r.line === 'Could not read the command roster (EACCES: commands dir unreadable)', JSON.stringify(r))
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
