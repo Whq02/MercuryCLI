@@ -277,5 +277,113 @@ function runScenario(body: string): Record<string, unknown> {
     check('settings-unreadable-dropin-presence', presence.hasDropIns === true && absentPresence.hasDropIns === false, JSON.stringify(r))
   }
 }
+{
+  if (POSIX_MODES) {
+    const r = runScenario(`
+      const tasks = await import(path.join(SRC, 'utils/tasks.ts'))
+      const tasksRoot = path.join(HOME, 'tasks')
+
+      fs.writeFileSync(tasksRoot, 'not-a-directory', { mode: 0o600 })
+      try {
+        await tasks.ensureTasksDir('blocked-root')
+        out.ensureDirThrew = null
+      } catch (e) {
+        out.ensureDirThrew = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      } finally {
+        fs.unlinkSync(tasksRoot)
+      }
+
+      const epochList = 'epoch-list'
+      const epochDir = tasks.getTasksDir(epochList)
+      fs.mkdirSync(epochDir, { recursive: true })
+      out.absentEpoch = await tasks.readTaskEpoch(epochList)
+      const epochFile = path.join(epochDir, '.epoch')
+      fs.writeFileSync(epochFile, '{"epoch":3}', { mode: 0o600 })
+      fs.chmodSync(epochFile, 0o000)
+      try {
+        await tasks.readTaskEpoch(epochList)
+        out.unreadableEpochThrew = null
+      } catch (e) {
+        out.unreadableEpochThrew = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      } finally {
+        fs.chmodSync(epochFile, 0o600)
+      }
+      fs.writeFileSync(epochFile, '{corrupt', { mode: 0o600 })
+      try {
+        await tasks.readTaskEpoch(epochList)
+        out.corruptEpochThrew = null
+      } catch (e) {
+        out.corruptEpochThrew = { name: e?.name ?? null, message: String(e?.message ?? e) }
+      }
+
+      const listId = 'unreadable-list'
+      out.absentList = await tasks.listTasks('no-such-list')
+      const listDir = tasks.getTasksDir(listId)
+      fs.mkdirSync(listDir, { recursive: true })
+      fs.chmodSync(listDir, 0o000)
+      try {
+        await tasks.listTasks(listId)
+        out.unreadableListThrew = null
+      } catch (e) {
+        out.unreadableListThrew = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      } finally {
+        fs.chmodSync(listDir, 0o700)
+      }
+
+      const hwmList = 'hwm-list'
+      const hwmDir = tasks.getTasksDir(hwmList)
+      fs.mkdirSync(hwmDir, { recursive: true })
+      const hwmFile = path.join(hwmDir, '.highwatermark')
+      fs.writeFileSync(hwmFile, '5', { mode: 0o600 })
+      fs.chmodSync(hwmFile, 0o000)
+      try {
+        await tasks.createTask(hwmList, { subject: 's', description: 'd', status: 'pending', blocks: [], blockedBy: [] })
+        out.unreadableHwmThrew = null
+      } catch (e) {
+        out.unreadableHwmThrew = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      } finally {
+        fs.chmodSync(hwmFile, 0o600)
+      }
+
+      const delList = 'del-list'
+      const createdId = await tasks.createTask(delList, { subject: 's', description: 'd', status: 'pending', blocks: [], blockedBy: [] })
+      out.deleteAbsent = await tasks.deleteTask(delList, '999')
+      const delDir = tasks.getTasksDir(delList)
+      fs.chmodSync(delDir, 0o500)
+      try {
+        await tasks.deleteTask(delList, createdId)
+        out.deleteDeniedThrew = null
+      } catch (e) {
+        out.deleteDeniedThrew = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      } finally {
+        fs.chmodSync(delDir, 0o700)
+      }
+
+      const claimList = 'claim-list'
+      const claimId = await tasks.createTask(claimList, { subject: 's', description: 'd', status: 'pending', blocks: [], blockedBy: [] })
+      const claimEpoch = path.join(tasks.getTasksDir(claimList), '.epoch')
+      fs.writeFileSync(claimEpoch, '{broken', { mode: 0o600 })
+      try {
+        await tasks.claimTask(claimList, claimId, 'agent-1')
+        out.claimThrew = null
+      } catch (e) {
+        out.claimThrew = { name: e?.name ?? null, message: String(e?.message ?? e) }
+      }
+    `)
+    const ensureDirThrew = r.ensureDirThrew as { code: string | null } | null
+    const unreadableEpochThrew = r.unreadableEpochThrew as { code: string | null } | null
+    const corruptEpochThrew = r.corruptEpochThrew as { name: string | null } | null
+    const unreadableListThrew = r.unreadableListThrew as { code: string | null } | null
+    const unreadableHwmThrew = r.unreadableHwmThrew as { code: string | null } | null
+    const deleteDeniedThrew = r.deleteDeniedThrew as { code: string | null } | null
+    const claimThrew = r.claimThrew as { name: string | null } | null
+    check('tasks-ensure-dir-fails-on-enotdir', ensureDirThrew !== null && (ensureDirThrew.code === 'EEXIST' || ensureDirThrew.code === 'ENOTDIR'), JSON.stringify(r.ensureDirThrew))
+    check('tasks-epoch-unreadable-and-corrupt-throw', r.absentEpoch === 0 && unreadableEpochThrew !== null && (unreadableEpochThrew.code === 'EACCES' || unreadableEpochThrew.code === 'EPERM') && corruptEpochThrew !== null, JSON.stringify({ absent: r.absentEpoch, unreadable: r.unreadableEpochThrew, corrupt: r.corruptEpochThrew }))
+    check('tasks-list-unreadable-dir-throws', Array.isArray(r.absentList) && r.absentList.length === 0 && unreadableListThrew !== null && (unreadableListThrew.code === 'EACCES' || unreadableListThrew.code === 'EPERM'), JSON.stringify({ absent: r.absentList, unreadable: r.unreadableListThrew }))
+    check('tasks-highwatermark-unreadable-refuses-create', unreadableHwmThrew !== null && (unreadableHwmThrew.code === 'EACCES' || unreadableHwmThrew.code === 'EPERM'), JSON.stringify(r.unreadableHwmThrew))
+    check('tasks-delete-failure-throws', r.deleteAbsent === false && deleteDeniedThrew !== null && (deleteDeniedThrew.code === 'EACCES' || deleteDeniedThrew.code === 'EPERM'), JSON.stringify({ absent: r.deleteAbsent, denied: r.deleteDeniedThrew }))
+    check('tasks-claim-failure-throws', claimThrew !== null, JSON.stringify(r.claimThrew))
+  }
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

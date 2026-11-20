@@ -79,11 +79,7 @@ export function getTaskPath(taskListId: string, taskId: string): string {
 }
 
 export async function ensureTasksDir(taskListId: string): Promise<void> {
-  try {
-    await fs.promises.mkdir(getTasksDir(taskListId), { recursive: true })
-  } catch (error) {
-    passedOver(error)
-  }
+  await fs.promises.mkdir(getTasksDir(taskListId), { recursive: true })
 }
 
 function highWatermarkPath(taskListId: string): string {
@@ -140,14 +136,19 @@ async function withLock<T>(lockPath: string, label: string, fn: () => Promise<T>
 
 
 export async function readTaskEpoch(taskListId: string): Promise<number> {
+  let raw: string
   try {
-    const raw = await fs.promises.readFile(epochPath(taskListId), 'utf8')
-    const parsed = jsonParse(raw) as { epoch?: unknown } | undefined
-    return typeof parsed?.epoch === 'number' ? parsed.epoch : 0
+    raw = await fs.promises.readFile(epochPath(taskListId), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return 0
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return 0
+    throw error
   }
+  const parsed = jsonParse(raw) as { epoch?: unknown } | undefined
+  if (typeof parsed?.epoch !== 'number' || !Number.isFinite(parsed.epoch)) {
+    throw new SyntaxError(`invalid task epoch in ${epochPath(taskListId)}`)
+  }
+  return parsed.epoch
 }
 
 function isTaskBodyName(name: string): boolean {
@@ -162,8 +163,9 @@ async function listTaskIdsOnDisk(taskListId: string): Promise<string[]> {
       .map(name => name.slice(0, -'.json'.length))
       .sort(byCreationOrder)
   } catch (error) {
-    passedOver(error)
-    return []
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return []
+    throw error
   }
 }
 
@@ -184,14 +186,19 @@ async function highestNumericIdOnDisk(taskListId: string): Promise<number> {
 }
 
 async function readHighWatermark(taskListId: string): Promise<number> {
+  let raw: string
   try {
-    const raw = await fs.promises.readFile(highWatermarkPath(taskListId), 'utf8')
-    const parsed = jsonParse(raw)
-    return typeof parsed === 'number' && !Number.isNaN(parsed) ? parsed : 0
+    raw = await fs.promises.readFile(highWatermarkPath(taskListId), 'utf8')
   } catch (error) {
-    passedOver(error)
-    return 0
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return 0
+    throw error
   }
+  const parsed = jsonParse(raw)
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) {
+    throw new SyntaxError(`invalid highwatermark in ${highWatermarkPath(taskListId)}`)
+  }
+  return parsed
 }
 
 export async function resetTaskList(
@@ -370,29 +377,24 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskListId: string, taskId: string): Promise<boolean> {
-  try {
-    const numeric = parseInt(taskId, 10)
-    if (!Number.isNaN(numeric) && numeric > (await readHighWatermark(taskListId))) {
-      await publishAtomic(highWatermarkPath(taskListId), jsonStringify(numeric))
-    }
-    try {
-      await fs.promises.unlink(getTaskPath(taskListId, taskId))
-    } catch (error) {
-      if (getErrnoCode(error) === 'ENOENT') return false
-      throw error
-    }
-    for (const task of await listTasks(taskListId)) {
-      const blocks = task.blocks.filter(id => id !== taskId)
-      const blockedBy = task.blockedBy.filter(id => id !== taskId)
-      if (blocks.length === task.blocks.length && blockedBy.length === task.blockedBy.length) continue
-      await updateTask(taskListId, task.id, { blocks, blockedBy })
-    }
-    notifyTasksUpdated()
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
+  const numeric = parseInt(taskId, 10)
+  if (!Number.isNaN(numeric) && numeric > (await readHighWatermark(taskListId))) {
+    await publishAtomic(highWatermarkPath(taskListId), jsonStringify(numeric))
   }
+  try {
+    await fs.promises.unlink(getTaskPath(taskListId, taskId))
+  } catch (error) {
+    if (getErrnoCode(error) === 'ENOENT') return false
+    throw error
+  }
+  for (const task of await listTasks(taskListId)) {
+    const blocks = task.blocks.filter(id => id !== taskId)
+    const blockedBy = task.blockedBy.filter(id => id !== taskId)
+    if (blocks.length === task.blocks.length && blockedBy.length === task.blockedBy.length) continue
+    await updateTask(taskListId, task.id, { blocks, blockedBy })
+  }
+  notifyTasksUpdated()
+  return true
 }
 
 export async function blockTask(taskListId: string, fromTaskId: string, toTaskId: string): Promise<boolean> {
@@ -423,44 +425,14 @@ export async function claimTask(
   claimantAgentId: string,
   options?: ClaimTaskOptions,
 ): Promise<ClaimTaskResult> {
-  try {
-    if ((await getTask(taskListId, taskId)) === null) {
-      return { success: false, reason: 'task_not_found' }
-    }
+  if ((await getTask(taskListId, taskId)) === null) {
+    return { success: false, reason: 'task_not_found' }
+  }
 
-    if (options?.checkAgentBusy) {
-      return await withLock(listLockPath(taskListId), 'tasks-claim', async () => {
-        const tasks = await listTasks(taskListId)
-        const task = tasks.find(candidate => candidate.id === taskId)
-        if (!task) return { success: false, reason: 'task_not_found' } as const
-        if (task.owner && task.owner !== claimantAgentId) {
-          return { success: false, reason: 'already_claimed', task } as const
-        }
-        if (task.status === 'completed') {
-          return { success: false, reason: 'already_resolved', task } as const
-        }
-        const openIds = new Set(tasks.filter(candidate => candidate.status !== 'completed').map(t => t.id))
-        const blockedByTasks = task.blockedBy.filter(id => openIds.has(id))
-        if (blockedByTasks.length > 0) {
-          return { success: false, reason: 'blocked', task, blockedByTasks } as const
-        }
-        const busyWithTasks = tasks
-          .filter(
-            candidate =>
-              candidate.id !== taskId && candidate.owner === claimantAgentId && candidate.status !== 'completed',
-          )
-          .map(candidate => candidate.id)
-        if (busyWithTasks.length > 0) {
-          return { success: false, reason: 'agent_busy', task, busyWithTasks } as const
-        }
-        const claimed = await updateTask(taskListId, taskId, { owner: claimantAgentId })
-        if (!claimed) return { success: false, reason: 'task_not_found' } as const
-        return { success: true, task: claimed } as const
-      })
-    }
-
-    return await withLock(taskLockPath(taskListId, taskId), 'tasks-claim', async () => {
-      const task = await getTask(taskListId, taskId)
+  if (options?.checkAgentBusy) {
+    return await withLock(listLockPath(taskListId), 'tasks-claim', async () => {
+      const tasks = await listTasks(taskListId)
+      const task = tasks.find(candidate => candidate.id === taskId)
       if (!task) return { success: false, reason: 'task_not_found' } as const
       if (task.owner && task.owner !== claimantAgentId) {
         return { success: false, reason: 'already_claimed', task } as const
@@ -468,19 +440,43 @@ export async function claimTask(
       if (task.status === 'completed') {
         return { success: false, reason: 'already_resolved', task } as const
       }
-      const all = await listTasks(taskListId)
-      const openIds = new Set(all.filter(candidate => candidate.status !== 'completed').map(t => t.id))
+      const openIds = new Set(tasks.filter(candidate => candidate.status !== 'completed').map(t => t.id))
       const blockedByTasks = task.blockedBy.filter(id => openIds.has(id))
       if (blockedByTasks.length > 0) {
         return { success: false, reason: 'blocked', task, blockedByTasks } as const
       }
-      const claimed = await updateTaskUnlocked(taskListId, taskId, { owner: claimantAgentId })
+      const busyWithTasks = tasks
+        .filter(
+          candidate =>
+            candidate.id !== taskId && candidate.owner === claimantAgentId && candidate.status !== 'completed',
+        )
+        .map(candidate => candidate.id)
+      if (busyWithTasks.length > 0) {
+        return { success: false, reason: 'agent_busy', task, busyWithTasks } as const
+      }
+      const claimed = await updateTask(taskListId, taskId, { owner: claimantAgentId })
       if (!claimed) return { success: false, reason: 'task_not_found' } as const
       return { success: true, task: claimed } as const
     })
-  } catch (error) {
-    logForDebugging(`claimTask failed: ${taskListId}/${taskId}: ${String(error)}`)
-    logError(error)
-    return { success: false, reason: 'task_not_found' }
   }
+
+  return await withLock(taskLockPath(taskListId, taskId), 'tasks-claim', async () => {
+    const task = await getTask(taskListId, taskId)
+    if (!task) return { success: false, reason: 'task_not_found' } as const
+    if (task.owner && task.owner !== claimantAgentId) {
+      return { success: false, reason: 'already_claimed', task } as const
+    }
+    if (task.status === 'completed') {
+      return { success: false, reason: 'already_resolved', task } as const
+    }
+    const all = await listTasks(taskListId)
+    const openIds = new Set(all.filter(candidate => candidate.status !== 'completed').map(t => t.id))
+    const blockedByTasks = task.blockedBy.filter(id => openIds.has(id))
+    if (blockedByTasks.length > 0) {
+      return { success: false, reason: 'blocked', task, blockedByTasks } as const
+    }
+    const claimed = await updateTaskUnlocked(taskListId, taskId, { owner: claimantAgentId })
+    if (!claimed) return { success: false, reason: 'task_not_found' } as const
+    return { success: true, task: claimed } as const
+  })
 }
