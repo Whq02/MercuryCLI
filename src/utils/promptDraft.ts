@@ -1,5 +1,6 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../substrate/fileStore.js'
@@ -7,7 +8,7 @@ import type { PastedContent } from './config.js'
 import { getMercuryHome } from './envUtils.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
-import { isENOENT } from './errors.js'
+import { errorMessage, isENOENT } from './errors.js'
 import { getProjectDir } from './sessionStorage/paths.js'
 
 interface PromptDraft {
@@ -144,6 +145,17 @@ type PendingSave = { sessionId: string; draft: PromptDraft; filePath: string }
 let pending: PendingSave | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 let written: Promise<void> = Promise.resolve()
+const pendingDeletes = new Set<string>()
+
+async function unreadableExistingFile(path: string): Promise<unknown | null> {
+  try {
+    await readFile(path)
+    return null
+  } catch (error) {
+    if (isENOENT(error)) return null
+    return error
+  }
+}
 
 function flushPending(): Promise<void> {
   const p = pending
@@ -160,6 +172,15 @@ function flushPending(): Promise<void> {
 }
 
 async function writePage(p: PendingSave): Promise<void> {
+  const unread = await unreadableExistingFile(p.filePath)
+  if (unread !== null) {
+    passedOver(unread)
+    logForDebugging(
+      `[promptDraft] saved draft at ${p.filePath} could not be read (${errorMessage(unread)}), refusing to overwrite`,
+      { level: 'warn' },
+    )
+    return
+  }
   try {
     await draftStore().mutate(current => {
       const next: DraftFile = { ...current }
@@ -185,6 +206,7 @@ async function writePage(p: PendingSave): Promise<void> {
 
 export function saveDraftDebounced(sessionId: string | null | undefined, draft: Omit<PromptDraft, 'savedAt'>): void {
   if (!sessionId) return
+  pendingDeletes.delete(sessionId)
   if (pending && pending.sessionId !== sessionId) void flushPending()
   pending = { sessionId, draft: { ...draft, savedAt: Date.now() }, filePath: draftFilePath() }
   if (timer) stopTimeout(timer)
@@ -206,27 +228,41 @@ export function cancelPendingDraftSave(): void {
 
 export function deleteDraft(sessionId: string | null | undefined): void {
   if (!sessionId) return
-  void draftStore()
-    .mutate(current => {
-      if (!(sessionId in current)) return current
+  const targets = new Set<string>([...pendingDeletes, sessionId])
+  const op = (async () => {
+    const unread = await unreadableExistingFile(draftFilePath())
+    if (unread !== null) throw unread
+    await draftStore().mutate(current => {
+      let changed = false
       const next = { ...current }
-      delete next[sessionId]
-      return next
+      for (const id of targets) {
+        if (id in next) {
+          delete next[id]
+          changed = true
+        }
+      }
+      return changed ? next : current
     })
-    .catch(e => {
-      logForDebugging(`[promptDraft] delete failed for ${sessionId.slice(0, 8)}, the sent draft stays stored: ${String(e)}`, { level: 'warn' })
-    })
+    for (const id of targets) pendingDeletes.delete(id)
+  })().catch(e => {
+    pendingDeletes.add(sessionId)
+    logForDebugging(`[promptDraft] delete failed for ${sessionId.slice(0, 8)}, the sent draft stays stored and will be retried at the next send: ${String(e)}`, { level: 'warn' })
+  })
+  written = Promise.all([written, op]).then(() => undefined)
 }
 
 export function readDraftSync(sessionId: string | null | undefined): PromptDraft | null {
   if (!sessionId) return null
+  const p = draftFilePath()
   try {
-    const p = draftFilePath()
     if (!existsSync(p)) return null
     const parsed = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>
     return sanitizeDraft(parsed[sessionId]) ?? null
   } catch (error) {
     passedOver(error)
+    if (!isENOENT(error)) {
+      logForDebugging(`[promptDraft] saved draft at ${p} could not be read (${errorMessage(error)})`, { level: 'warn' })
+    }
     return null
   }
 }
@@ -284,6 +320,16 @@ async function flushScopedPending(): Promise<void> {
     scopedTimer = null
   }
   if (!pending) return
+  const scopedPath = scopedDocsPath()
+  const unread = await unreadableExistingFile(scopedPath)
+  if (unread !== null) {
+    passedOver(unread)
+    logForDebugging(
+      `[promptDraft] saved scoped docs at ${scopedPath} could not be read (${errorMessage(unread)}), refusing to overwrite`,
+      { level: 'warn' },
+    )
+    return
+  }
   try {
     await scopedStore().update(cur => {
       const next: ScopedDocsFile = { ...cur }
@@ -350,8 +396,8 @@ export function readScopedDocsSync(
   sessionId: string | null | undefined,
 ): Record<string, ComposerDocument> | null {
   if (!sessionId) return null
+  const p = scopedDocsPath()
   try {
-    const p = scopedDocsPath()
     if (!existsSync(p)) return null
     const parsed = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>
     if (sessionId === '_touched') return null
@@ -360,6 +406,9 @@ export function readScopedDocsSync(
     return scopes as Record<string, ComposerDocument>
   } catch (error) {
     passedOver(error)
+    if (!isENOENT(error)) {
+      logForDebugging(`[promptDraft] saved scoped docs at ${p} could not be read (${errorMessage(error)})`, { level: 'warn' })
+    }
     return null
   }
 }
@@ -368,6 +417,11 @@ export async function migrateOrphanedDraft(conversationId: string, left?: string
   try {
     const p = draftFilePath()
     if (!existsSync(p)) return false
+    const unread = await unreadableExistingFile(p)
+    if (unread !== null) {
+      passedOver(unread)
+      return false
+    }
     const projectDir = getProjectDir(getCwd())
     if (left && left !== conversationId && !left.startsWith('_') && !existsSync(join(projectDir, `${left}.jsonl`))) {
       let carried = false
