@@ -1,8 +1,8 @@
 import type { Entry } from '../../types/logs.js'
-import { servedModelOfAssistantRow } from '../model/retainedModel.js'
-import { calculateUSDCost, modelPricingBasis } from '../modelCost.js'
-import { listAgentTranscriptPaths } from './paths.js'
-import { scanTranscriptEntriesForward } from './transcriptReader.js'
+import { servedModelOfAssistantRow } from '../../utils/model/retainedModel.js'
+import { calculateUSDCost, modelPricingBasis } from './modelCost.js'
+import { listAgentTranscriptPaths } from '../../utils/sessionStorage/paths.js'
+import { scanTranscriptEntriesForward } from '../../utils/sessionStorage/transcriptReader.js'
 
 type RolledModelUsage = {
   inputTokens: number

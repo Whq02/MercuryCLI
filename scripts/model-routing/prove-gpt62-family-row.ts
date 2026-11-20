@@ -22,7 +22,7 @@ const zenCatalogue = await import('../../src/services/providers/zen/zenCatalogue
 const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
 const { NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.js')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
 const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
 

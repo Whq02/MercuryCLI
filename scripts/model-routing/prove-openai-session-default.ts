@@ -18,7 +18,7 @@ const catalogue = await import('../../src/services/providers/openai/openaiCatalo
 const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
 const { openaiSessionDefault } = await import('../../src/utils/model/providerFrontier.js')
 const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 
 const sol = 'gpt-6.2-sol'
