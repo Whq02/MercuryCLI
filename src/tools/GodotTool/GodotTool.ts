@@ -107,12 +107,17 @@ async function runLocalOp(
 async function classCacheHint(args: Record<string, unknown> | undefined): Promise<string> {
   const root = findGodotProjectRoot()
   if (!root) return ''
-  const { classCacheReport } = await import('../../services/vulcan/classCache.js')
+  const { classCacheReport, classCacheUnreadableNote } = await import('../../services/vulcan/classCache.js')
   const report = classCacheReport(root, 10)
-  if (report.state === 'fresh') return ''
-  const pathArg = typeof args?.path === 'string' ? args.path : undefined
-  const own = pathArg ? report.stale.find(s => s.path === pathArg) : undefined
-  return `\nclass cache: ${report.hint}${own ? ` (this script's ${own.class}: ${own.reason})` : ''}`
+  const lines: string[] = []
+  if (report.state !== 'fresh') {
+    const pathArg = typeof args?.path === 'string' ? args.path : undefined
+    const own = pathArg ? report.stale.find(s => s.path === pathArg) : undefined
+    lines.push(`class cache: ${report.hint}${own ? ` (this script's ${own.class}: ${own.reason})` : ''}`)
+  }
+  const unreadable = classCacheUnreadableNote(report.unreadable)
+  if (unreadable) lines.push(`class cache: ${unreadable}`)
+  return lines.length > 0 ? `\n${lines.join('\n')}` : ''
 }
 
 export function vulcanDeclaredBudgetMs(op: string, args: Record<string, unknown> | undefined): number {
