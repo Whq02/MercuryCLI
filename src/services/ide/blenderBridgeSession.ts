@@ -12,7 +12,7 @@ import {
   blenderBridgeInstallStatus,
   type BlenderBridgeInstallStatus,
 } from '../blender/bridgeInstaller.js'
-import { readBlenderBridgeToken } from '../blender/bridgeToken.js'
+import { readBlenderBridgeTokenOutcome } from '../blender/bridgeToken.js'
 import { BLENDER_ADDON_MODULE, resolveBlenderAddonHome } from '../blender/addonHome.js'
 import {
   buildBlenderContextProfile,
@@ -40,6 +40,7 @@ type BlenderBridgeState =
       addonHome: string
       install: BlenderBridgeInstallStatus
       tokenPresent: boolean
+      tokenError?: string
     }
   | {
       state: 'reachable'
@@ -48,6 +49,7 @@ type BlenderBridgeState =
       addonHome: string
       install: BlenderBridgeInstallStatus
       tokenPresent: boolean
+      tokenError?: string
       clientStatus: 'disconnected' | 'connecting' | 'ready'
     }
 
@@ -83,7 +85,12 @@ async function probeBridgeState(): Promise<BlenderBridgeState> {
   }
   const addonHome = census.home.path
   const install = blenderBridgeInstallStatus(addonHome)
-  const tokenPresent = readBlenderBridgeToken(addonHome) !== undefined
+  const tokenOutcome = readBlenderBridgeTokenOutcome(addonHome)
+  const tokenPresent = tokenOutcome.state === 'present'
+  const tokenError =
+    tokenOutcome.state === 'unreadable'
+      ? `the bridge token at ${tokenOutcome.path} could not be read (${tokenOutcome.error})`
+      : undefined
   const client = getBlenderBridgeClient()
   const reachable = client?.status() === 'ready' ? true : await probeBlenderBridgeReachable(port)
   if (!reachable) {
@@ -93,9 +100,11 @@ async function probeBridgeState(): Promise<BlenderBridgeState> {
       addonHome,
       install,
       tokenPresent,
+      ...(tokenError ? { tokenError } : {}),
       detail:
         `bridge not answering on 127.0.0.1:${port} — ${blenderBridgeHint(port)}` +
-        (install.installed ? '' : '; add-on not installed (op:"blender_bridge_install")'),
+        (install.installed ? '' : '; add-on not installed (op:"blender_bridge_install")') +
+        (tokenError ? `; ${tokenError}` : ''),
     }
   }
   return {
@@ -104,8 +113,9 @@ async function probeBridgeState(): Promise<BlenderBridgeState> {
     addonHome,
     install,
     tokenPresent,
+    ...(tokenError ? { tokenError } : {}),
     clientStatus: client?.status() ?? 'disconnected',
-    detail: `bridge answering on 127.0.0.1:${port}`,
+    detail: `bridge answering on 127.0.0.1:${port}${tokenError ? `; ${tokenError}` : ''}`,
   }
 }
 
@@ -121,7 +131,12 @@ async function collectEditorTruth(bridge: BlenderBridgeState): Promise<BlenderEd
   }
   const client = getBlenderBridgeClient()
   if (!client) {
-    return { state: 'unavailable', detail: 'unavailable (no client — no session token on disk; op:"blender_bridge_install" writes it)' }
+    return {
+      state: 'unavailable',
+      detail: bridge.tokenError
+        ? `unavailable (${bridge.tokenError})`
+        : 'unavailable (no client — no session token on disk; op:"blender_bridge_install" writes it)',
+    }
   }
   const fmt = (op: string, r: BlenderBridgeResult): string =>
     r.ok
@@ -198,7 +213,13 @@ export function blenderBridgeReadinessRecords(): Array<{
       },
     ]
   }
-  const tokenPresent = readBlenderBridgeToken(census.home.path) !== undefined
+  const tokenOutcome = readBlenderBridgeTokenOutcome(census.home.path)
+  const tokenClause =
+    tokenOutcome.state === 'present'
+      ? 'token present'
+      : tokenOutcome.state === 'unreadable'
+        ? `the bridge token at ${tokenOutcome.path} could not be read (${tokenOutcome.error})`
+        : 'token ABSENT (blender_bridge_install writes it)'
   return [
     {
       ...base,
@@ -206,7 +227,7 @@ export function blenderBridgeReadinessRecords(): Array<{
       detail:
         `add-on installed under ${path.join(census.home.path, BLENDER_ADDON_MODULE)}` +
         `${install.digestMatch ? ' (up to date)' : ' (out of date — blender_bridge_install refreshes it)'}` +
-        `; token ${tokenPresent ? 'present' : 'ABSENT (blender_bridge_install writes it)'}` +
+        `; ${tokenClause}` +
         `; enablement is unknowable from disk (binary userpref.blend) and reachability is probed by op:"blender_status", never here`,
     },
   ]

@@ -25,14 +25,26 @@ export function ensureBlenderBridgeToken(addonHome: string): string {
   return token
 }
 
-export function readBlenderBridgeToken(addonHome: string): string | undefined {
+type BlenderBridgeTokenOutcome =
+  | { state: 'present'; token: string }
+  | { state: 'absent' }
+  | { state: 'unreadable'; path: string; error: string }
+
+export function readBlenderBridgeTokenOutcome(addonHome: string): BlenderBridgeTokenOutcome {
   const override = blenderBridgeTokenOverride()
-  if (override) return override
+  if (override) return { state: 'present', token: override }
+  const file = blenderBridgeTokenPath(addonHome)
   try {
-    const existing = readFileSync(blenderBridgeTokenPath(addonHome), 'utf8').trim()
-    return /^[0-9a-f]{64}$/.test(existing) ? existing : undefined
+    const existing = readFileSync(file, 'utf8').trim()
+    return /^[0-9a-f]{64}$/.test(existing) ? { state: 'present', token: existing } : { state: 'absent' }
   } catch (error) {
     passedOver(error)
-    return undefined
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { state: 'absent' }
+    return { state: 'unreadable', path: file, error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+export function readBlenderBridgeToken(addonHome: string): string | undefined {
+  const outcome = readBlenderBridgeTokenOutcome(addonHome)
+  return outcome.state === 'present' ? outcome.token : undefined
 }
