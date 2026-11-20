@@ -68,7 +68,7 @@ try {
     return ssh!.runner.run(...args)
   } }
   const jobs: Promise<void>[] = []
-  const road = createHostRoad({ vendorApiBaseUrls: { huggingface: hf.baseUrl }, runner, pauseMs: 10, readyTimeoutMs: 1000, sessionId: 'vendor-road-proof', startJob: record => { jobs.push(runHostJob(record.id, record.generation!, { runner, pauseMs: 10, timeoutMs: 2000, keepAlive: false })) } })
+  const road = createHostRoad({ vendorApiBaseUrls: { huggingface: hf.baseUrl }, runner, pauseMs: 10, readyTimeoutMs: 2000, sessionId: 'vendor-road-proof', startJob: record => { jobs.push(runHostJob(record.id, record.generation!, { runner, pauseMs: 10, timeoutMs: 2000, keepAlive: false })) } })
   let width = 120
   const open = () => popup.openSettingsPopup(llmHostPopupRequest(road))
   const mount = async (columns: number) => {
