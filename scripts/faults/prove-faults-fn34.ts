@@ -114,5 +114,59 @@ function runScenario(body: string): Record<string, unknown> {
     check('vnext-unreadable-throws', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.freshHasHeader === true, JSON.stringify(r))
   }
 }
+{
+  if (POSIX_MODES) {
+    const r = runScenario(`
+      const writer = await import(path.join(SRC, 'utils/sessionStorage/writer.ts'))
+      const { getSessionId } = await import(path.join(SRC, 'bootstrap/state.ts'))
+      const sessionId = getSessionId()
+      const sessionFile = path.join(HOME, 'main.jsonl')
+      const agentFile = path.join(HOME, 'agent-a1.jsonl')
+      const existingUuid = '00000000-0000-4000-8000-000000000014'
+      fs.writeFileSync(sessionFile, '', { mode: 0o600 })
+      writer.appendEntryToFile(agentFile, {
+        type: 'user',
+        uuid: existingUuid,
+        parentUuid: null,
+        isSidechain: true,
+        agentId: 'a1',
+        sessionId,
+        timestamp: '2026-01-01T00:00:00.000Z',
+        cwd: PROJECT,
+        version: 'proof',
+        message: { role: 'user', content: 'already-on-disk' },
+      })
+      fs.chmodSync(agentFile, 0o000)
+      writer.setSessionFileForTesting(sessionFile)
+      writer.registerAgentTranscriptDestination('a1', agentFile)
+      try {
+        await writer.recordSidechainTranscript([{
+          type: 'user',
+          uuid: '00000000-0000-4000-8000-000000000015',
+          sessionId,
+          timestamp: '2026-01-01T00:00:00.000Z',
+          message: { role: 'user', content: 'while-unreadable' },
+        }], 'a1')
+        out.threw = null
+      } catch (e) {
+        out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      } finally {
+        fs.chmodSync(agentFile, 0o600)
+      }
+      await writer.recordSidechainTranscript([{
+        type: 'user',
+        uuid: existingUuid,
+        sessionId,
+        timestamp: '2026-01-01T00:00:00.000Z',
+        message: { role: 'user', content: 'already-on-disk' },
+      }], 'a1')
+      await writer.flushSessionStorage()
+      const occurrences = fs.readFileSync(agentFile, 'utf8').split('\\n').filter(l => l.includes(existingUuid)).length
+      out.occurrences = occurrences
+    `)
+    const threw = r.threw as { code: string | null; message: string } | null
+    check('writer-agent-messages-unreadable-rejects', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.occurrences === 1, JSON.stringify(r))
+  }
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
