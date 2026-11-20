@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/* src/screens/Chat.tsx src/utils/sessionStorage/paths.ts
+# gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/* src/screens/Chat.tsx
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/components/ScrollKeybindingHandler* src/components/VirtualMessageList*
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py
-# gate-watch: src/utils/sessionStoragePortable.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

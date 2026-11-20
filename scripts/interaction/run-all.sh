@@ -4,11 +4,10 @@
 # gate-watch: src/keybindings/**
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: scripts/lib/*
-# gate-watch: src/substrate/flagRegistry.ts
 # gate-watch: src/* src/components/* src/components/PromptInput/* src/components/mercury-ui/*
 # gate-watch: src/hooks/*
 # gate-watch: src/utils/*
-# gate-watch: docs/SESSIONS.md src/commands/copy/copy.ts src/commands/copy/index.ts src/components/HelpV2/ShortcutsTab.tsx src/components/Settings/Config.tsx src/utils/config/schema.ts src/utils/messages/normalize.ts
+# gate-watch: docs/SESSIONS.md src/commands/copy/index.ts src/components/HelpV2/ShortcutsTab.tsx src/components/Settings/Config.tsx src/utils/config/schema.ts
 # gate-watch: src/screens/chat/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

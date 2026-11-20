@@ -31,6 +31,7 @@ const WALKER = /^(?:Glob|readdir|opendir|scan|walk|glob|ls|list|collect|census|g
 const TOKEN = /(?<![A-Za-z0-9_@./-])(?:[A-Za-z0-9_@.-]+\/)+[A-Za-z0-9_@.*-]+/g
 const WHOLE = /^(?:(src|scripts)\/)?\*\*(?:\/.*)?$/
 const RUNNER = /^scripts\/[^/]+\/run-all\.sh$/
+const LIST_FOLDER = /scripts\/([A-Za-z0-9_-]+)\/\$name/
 const SOURCED = /^(?:\.|source)\s/
 const PY_SPAWNS = /\b(?:subprocess\.(?:run|Popen|call|check_call|check_output)|os\.(?:system|popen|exec[a-z]*|spawn[a-z]*))\s*\(/
 const PY_JOIN = /\bjoin\(\s*([A-Za-z_][\w.]*)\s*((?:,\s*['"][^'"\s]+['"])+)\s*\)/g
@@ -446,6 +447,7 @@ function readWatchGraph(root: string, tracked: string[], named: Map<string, stri
     const runner = `scripts/${row.suite}/run-all.sh`
     const executed = row.launched.map(slash).filter(f => tree.files.has(f))
     const runnerFacts = tree.files.has(runner) ? shellFacts(tree, runner, true) : blank()
+    const folder = (tree.files.has(runner) ? LIST_FOLDER.exec(readFileSync(join(root, runner), 'utf8'))?.[1] : undefined) ?? row.suite
     const sourced = runnerFacts.edges.map(e => e.to)
     const start = [...new Set([...executed, ...sourced])]
     const eager = reach(start, EAGER)
@@ -483,7 +485,7 @@ function readWatchGraph(root: string, tracked: string[], named: Map<string, stri
     }
     read(runner, runnerFacts)
     for (const f of [...value.keys()].sort()) if (!f.startsWith('src/')) read(f, factsAt(f))
-    return { suite: row.suite, members: executed, deps, typed: every.size - value.size, naming, bundle: [] as string[], whole, blind }
+    return { suite: row.suite, folder, members: executed, deps, typed: every.size - value.size, naming, bundle: [] as string[], whole, blind }
   })
   const back = new Map<string, string[]>()
   for (const [from, facts] of memo) {
@@ -601,12 +603,15 @@ export function computedWatch(root: string): Record<string, string[]> {
   const kept = tree === null ? null : keptWatch(store, tree)
   if (kept !== null) return kept
   const watch: Record<string, string[]> = {}
-  for (const s of watchGraphOf(root).suites) {
-    watch[s.suite] = [...s.deps]
-      .filter(([, dep]) => dep.how !== 'lazy' && !(dep.how === 'import' && dep.hops > 0))
-      .map(([file]) => file)
-      .sort()
+  const suites = watchGraphOf(root).suites
+  const shared = new Map<string, Set<string>>()
+  for (const s of suites) {
+    watch[s.suite] = [...s.deps].filter(([, dep]) => dep.how !== 'lazy' && !(dep.how === 'import' && dep.hops > 0)).map(([file]) => file)
+    const source = shared.get(s.folder) ?? new Set<string>()
+    shared.set(s.folder, source)
+    for (const file of watch[s.suite]!) if (file.startsWith('src/')) source.add(file)
   }
+  for (const s of suites) watch[s.suite] = [...new Set([...watch[s.suite]!, ...shared.get(s.folder)!])].sort()
   if (tree !== null) keepWatch(store, tree, watch)
   return watch
 }

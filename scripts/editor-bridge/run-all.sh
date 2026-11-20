@@ -11,7 +11,7 @@
 # gate-watch: src/utils/attachments/mentionResolvers.ts src/utils/attachments/types.ts
 # gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: src/rows/* src/runner/wire/* src/tools/AskUserQuestionTool/**
-# gate-watch: scripts/lib/ptyRecorder.ts src/components/ConsoleOAuthFlow.tsx src/components/loginFamilyRows.ts src/ink.ts src/ink/instances.ts
+# gate-watch: scripts/lib/ptyRecorder.ts
 # gate-watch: src/services/engine-connector/midTurnText.ts src/utils/sessionStorage/*
 # gate-watch: src/cli/headless/*
 set -u

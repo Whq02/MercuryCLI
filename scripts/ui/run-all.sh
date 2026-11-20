@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: src/tools/FileReadTool/** src/tools/FileWriteTool/**
-# gate-watch: src/screens/Chat.tsx src/services/engine-connector/** src/guards/** src/query/stopHooks.ts src/cli/run.ts src/services/mission/**
+# gate-watch: src/services/engine-connector/** src/guards/** src/query/stopHooks.ts src/services/mission/**
 # gate-env: MERCURY_UI_BILLED MERCURY_LOGINS_COPY_KEEP MERCURY_LOGINS_COPY_FRAMES MERCURY_RENDER_CWD MERCURY_CARD_FIT_CAPTURE_DIR MERCURY_MODE_BAND_DRIVE_CAPTURE_DIR
-# gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
-# gate-watch: src/commands/run/runInspectorModel* src/commands/feedback/** src/commands/exit/exit.tsx
-# gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
-# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
-# gate-watch: src/context/notifications*
+# gate-watch: src/commands/feedback/**
+# gate-watch: src/commands/crew/index* src/components/**
+# gate-watch: src/daemon/** src/hooks/useCwdState* src/ink/**
 # gate-watch: src/services/anthropicLimits*
-# gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
-# gate-watch: src/services/rateLimitMessages* src/services/run/**
+# gate-watch: src/hooks/fileSuggestions.ts
+# gate-watch: src/services/run/**
 # gate-watch: scripts/providers/anthropicAccountsFixture.ts
 # gate-watch: src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
@@ -22,13 +20,9 @@
 # gate-watch: scripts/lib/*
 # gate-watch: scripts/ops/launcher-mercury.sh
 # gate-watch: scripts/search/lib/bundle-for-node.ts
-# gate-watch: src/commands/config/config.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx
-# gate-watch: src/services/providers/anthropic/anthropicCatalogue.ts src/services/wallet/identityWords.ts
-# gate-watch: src/services/switchboard/capacityCheck.ts
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/components/mercury-ui/CritterArt.tsx
-# gate-watch: src/services/engine-connector/queuedNotices.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/input-core/command-queue.ts
-# gate-watch: src/types/message.ts src/tools/BashTool/BashTool.tsx
+# gate-watch: src/services/engine-connector/queuedNotices.ts
+# gate-watch: src/types/message.ts
 # gate-watch: scripts/host/runpodFixture.mjs scripts/providers/lib/llmhostFixture.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail

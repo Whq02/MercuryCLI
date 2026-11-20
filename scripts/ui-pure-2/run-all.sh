@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/ui/**
-# gate-watch: src/commands/run/runInspectorModel*
-# gate-watch: src/commands/crew/index* src/context/overlayContext*
-# gate-watch: src/daemon/** src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd*
+# gate-watch: src/commands/crew/index*
+# gate-watch: src/daemon/** src/hooks/useCwdState*
 # gate-watch: src/services/anthropicLimits*
-# gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
-# gate-watch: src/services/rateLimitMessages* src/services/run/**
+# gate-watch: src/hooks/fileSuggestions.ts
+# gate-watch: src/services/run/**
 # gate-watch: src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
 # gate-watch: scripts/lib/*
 # gate-watch: src/*
 # gate-watch: src/keybindings/*
-# gate-watch: src/native-ts/color-diff/index.ts
 # gate-watch: src/services/agents/*
 # gate-watch: src/tools/AgentTool/* src/tools/FileEditTool/UI.tsx
 # gate-watch: src/tools/FileWriteTool/UI.tsx

@@ -4,10 +4,9 @@
 # gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: scripts/lib/captureDriver.ts
 # gate-watch: scripts/streaming/artifactArena.ts
-# gate-watch: src/components/CustomSelect/* src/components/mercury-ui/glyphs.ts
+# gate-watch: src/components/CustomSelect/*
 # gate-watch: src/services/acp/**
 # gate-watch: src/substrate/flagRegistry.ts src/utils/*
-# gate-watch: src/utils/messages/rejectionText.ts
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -2,11 +2,9 @@
 # gate-class: pty
 # gate-watch: scripts/lib/settingsPopupHarness.ts
 # gate-watch: scripts/winreg/** package.json src/daemon/runPtyHost.ts scripts/lib/nodeBin.ts
-# gate-watch: src/Task.ts src/Tool.ts src/bootstrap/state.ts src/cli/structuredIO.ts src/daemon/*
-# gate-watch: src/hooks/useSkillsChange.ts src/native-ts/file-index/index.ts
-# gate-watch: src/services/privateChannel/installLayout.ts src/services/privateChannel/updateService.ts
-# gate-watch: src/utils/* src/utils/config/globalConfig.ts src/utils/permissions/filesystem.ts
-# gate-watch: src/utils/secureStorage/plainTextStorage.ts
+# gate-watch: src/daemon/*
+# gate-watch: src/hooks/useSkillsChange.ts
+# gate-watch: src/utils/*
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/health/sections/crew.ts
 set -uo pipefail

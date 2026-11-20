@@ -5,8 +5,7 @@
 # gate-watch: scripts/ui/renderScenarios.ts scripts/ui/vshot.py
 # gate-watch: src/commands/extensions/**
 # gate-watch: src/components/extensions/**
-# gate-watch: src/keybindings/defaultBindings.ts src/keybindings/schema.ts src/services/mcp/*
-# gate-watch: src/utils/sessionStoragePortable.ts
+# gate-watch: src/services/mcp/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

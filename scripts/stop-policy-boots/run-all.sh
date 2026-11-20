@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/services/run/**
-# gate-watch: src/services/providers/openai/openaiCallModel* src/services/providers/zai/zaiCallModel*
+# gate-watch: src/services/providers/zai/zaiCallModel*
 # gate-watch: scripts/stop-policy/*
 # gate-watch: src/run-core/turn/**
 set -u

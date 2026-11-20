@@ -3,7 +3,7 @@
 # gate-watch: scripts/ui/**
 # gate-watch: src/daemon/** src/hooks/useCwdState* src/ink/**
 # gate-watch: src/services/anthropicLimits*
-# gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
+# gate-watch: src/hooks/fileSuggestions.ts
 # gate-watch: src/services/run/**
 # gate-watch: src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**

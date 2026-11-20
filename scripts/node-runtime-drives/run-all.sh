@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/utils/runtime/**
 # gate-watch: scripts/release/** .github/workflows/** .node-version build.ts
 # gate-watch: src/**
 set -uo pipefail

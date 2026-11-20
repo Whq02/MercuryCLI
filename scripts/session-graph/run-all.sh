@@ -6,7 +6,7 @@
 # gate-watch: scripts/streaming/artifactArena.ts
 # gate-watch: scripts/ui/render-tui.ts
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx
-# gate-watch: src/components/prompts-panel/rows.ts src/ink/stringWidth.ts
+# gate-watch: src/components/prompts-panel/rows.ts
 # gate-watch: src/daemon/controlServer.ts
 # gate-watch: src/services/resources/registry.ts
 # gate-watch: src/components/messages/AttachmentMessage.tsx

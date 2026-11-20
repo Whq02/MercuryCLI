@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/cli/healthJson* src/services/dap/dapClient* src/services/run/ownerLifecycle*
+# gate-watch: src/cli/healthJson*
 # gate-watch: src/utils/**
 # gate-watch: scripts/health/* scripts/lib/*
 set -uo pipefail

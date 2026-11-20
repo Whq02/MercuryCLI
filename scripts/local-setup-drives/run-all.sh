@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/local-setup/fixtures/**
-# gate-watch: src/services/localSetup/** src/commands/localsetup/** src/components/LocalSetupDialog.tsx
+# gate-watch: src/services/localSetup/** src/commands/localsetup/**
 # gate-watch: src/services/localServer/** src/services/providers/local/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -4,17 +4,16 @@
 # gate-watch: src/components/** src/keybindings/**
 # gate-watch: src/run-core/attachment-drain*
 # gate-watch: src/run-core/turn-machine*
-# gate-watch: src/services/providers/zai/** src/services/providers/zai/zaiAdapter.ts
+# gate-watch: src/services/providers/zai/**
 # gate-watch: src/services/workbench/** src/utils/artifacts/** src/commands/diff/**
 # gate-watch: scripts/engine-durability/bench-prompt-attribution.ts
 # gate-watch: scripts/gate/ledger.ts scripts/lib/*
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/cockpit/helmVitalsModel.ts
-# gate-watch: src/Task.ts src/commands/workbench/workbench.tsx src/constants/subagentDoctrine.ts
-# gate-watch: src/hooks/useTurnEndPing.ts src/ink/session/focus-store.ts
-# gate-watch: src/ink/session/terminalProfile.ts src/ink/session/windowsHostSetup.ts src/services/attention/statusFeed.ts
+# gate-watch: src/commands/workbench/workbench.tsx src/constants/subagentDoctrine.ts
+# gate-watch: src/hooks/useTurnEndPing.ts
 # gate-watch: src/services/run/resolveOwner.ts src/skills/bundled/index.ts src/skills/bundledSkills.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/staticRender.tsx src/utils/toolSearch.ts src/utils/zodToJsonSchema.ts
+# gate-watch: src/utils/toolSearch.ts
 # gate-watch: scripts/lib/observed_walk.py
 # gate-watch: src/utils/analyzeContext.ts src/components/concourse/** src/components/mercury-ui/InteractiveRow.tsx
 # gate-watch: src/screens/chat/*
