@@ -31,6 +31,8 @@ import { settingsRowLine } from './bootSettings/rows.js';
 import type { SettingsContext } from './bootSettings/context.js';
 import { armBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
 import { logError } from '../utils/log.js';
+import { errorMessage } from '../utils/errors.js';
+import { passedOver } from '../utils/passedOver.js';
 import { afterMicrotask } from '../utils/timers.js';
 export { JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, backgroundLaunchBootDetailLines } from './bootSettings/detailLines.js';
 
@@ -245,8 +247,9 @@ export function BootSettingsScreen({
           }
         }
       })
-      .catch(() => {
-        if (!cancelled) setApply({ phase: 'ready', workers: [] });
+      .catch(error => {
+        passedOver(error);
+        if (!cancelled) setApply({ phase: 'ready', workers: [], error: errorMessage(error) });
       });
     return () => {
       cancelled = true;
