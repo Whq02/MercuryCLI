@@ -110,10 +110,11 @@ console.log('modelRefusal — readModelRefusals throws on unreadable directory i
     } catch (e) {
       out.forgetCode = e?.code ?? String(e)
     }
+    out.wordsReturned = mod.modelRefusalWords('claude-sonnet-4-6') ?? null
   `)
   check(
     'modelRefusal:readModelRefusals throws on non-ENOENT directory error and returns empty on ENOENT',
-    r.absentStanding === 0 && r.absentForget === 0 && r.standingCode === 'ENOTDIR' && r.forgetCode === 'ENOTDIR',
+    r.absentStanding === 0 && r.absentForget === 0 && r.standingCode === 'ENOTDIR' && r.forgetCode === 'ENOTDIR' && r.wordsReturned === null,
     JSON.stringify(r),
   )
 }

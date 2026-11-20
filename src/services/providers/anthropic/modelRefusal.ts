@@ -293,7 +293,13 @@ export function modelRefusalWords(id: string): string | undefined {
   const door = activeModelRefusalDoor()
   if (door === undefined) return undefined
   const normalized = modelRefusalId(id)
-  return standingModelRefusals()
-    .filter(row => row.id === normalized && row.door === door)
-    .sort((a, b) => b.seenAtMs - a.seenAtMs)[0]?.words
+  try {
+    return standingModelRefusals()
+      .filter(row => row.id === normalized && row.door === door)
+      .sort((a, b) => b.seenAtMs - a.seenAtMs)[0]?.words
+  } catch (error) {
+    passedOver(error)
+    logForDebugging(`[model-refusals] could not read standing refusals for ${id}: ${String(error)}`)
+    return undefined
+  }
 }
