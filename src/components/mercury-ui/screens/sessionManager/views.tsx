@@ -170,6 +170,7 @@ export function sessionListView({
   targetAt,
   targetLabel,
   W,
+  readNotice,
 }: {
   onClose: () => void
   footer: string
@@ -193,6 +194,7 @@ export function sessionListView({
   targetAt: (i: number) => SessionListing | null
   targetLabel: (i: number) => string
   W: number
+  readNotice?: string | null
 }): React.ReactNode {
   return (
     <CommandCenter view="sessions"
@@ -209,6 +211,11 @@ export function sessionListView({
       <SectionHeader count={flat.length}>
         {`${scope === 'project' ? 'Switch to' : 'Full history — every project, cleared included'}${pendingMore > 0 ? ` · loading ${pendingMore} more…` : ''}`}
       </SectionHeader>
+      {readNotice ? (
+        <Box>
+          <Text color={AMBER} wrap="wrap">{readNotice}</Text>
+        </Box>
+      ) : null}
       {logs === null || (flat.length === 0 && pendingMore > 0) ? (
         <Box>
           <Spinner />
