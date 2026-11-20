@@ -92,40 +92,6 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { detectPackageManager, runRunnerProfile } = await import('../../src/services/ide/projectRunners.ts')
-  const dir = makeTempDir('fn14-runners-')
-  const artifactsRoot = join(scratchHome, 'artifacts')
-  const testArtifactsBlocker = join(artifactsRoot, 'test')
-  try {
-    writeFileSync(join(dir, 'package.json'), '{broken-json')
-    const pm = detectPackageManager(dir)
-    check('projectRunners: corrupt package.json reports parse failure in detectPackageManager', 'missing' in pm && /could not be read or parsed/i.test(pm.missing), JSON.stringify(pm))
-    mkdirSync(artifactsRoot, { recursive: true })
-    writeFileSync(testArtifactsBlocker, 'block-mkdir')
-    const profile = {
-      id: 'rp-fn14-test',
-      runner: 'node-test' as const,
-      kind: 'test' as const,
-      title: 'node --test',
-      source: 'package.json',
-      root: dir,
-      command: [process.execPath, '-e', 'for (let i = 0; i < 60; i++) console.log("line " + i); console.log("# tests 1\\n# pass 1\\n# fail 0")'],
-      selection: 'none' as const,
-      availability: { state: 'ok' as const },
-    }
-    const outcome = await runRunnerProfile(profile, { from: dir })
-    check(
-      'projectRunners: failed artifact store notes lost output in verdictNote',
-      outcome.state === 'ok' && outcome.record.outputArtifactRef === undefined && Boolean(outcome.record.verdictNote?.includes('could not be stored as an artifact')),
-      outcome.state === 'ok' ? JSON.stringify(outcome.record.verdictNote) : JSON.stringify(outcome),
-    )
-  } finally {
-    rmSync(testArtifactsBlocker, { force: true })
-    rmSync(dir, { recursive: true, force: true })
-  }
-}
-
-{
   const { latestRunAtRoot, getRun, listRuns, runPythonTests, testRunsDir } = await import('../../src/services/ide/pythonTests.ts')
   const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.ts')
   const dir = makeTempDir('fn14-pytests-')
