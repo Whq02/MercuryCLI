@@ -158,5 +158,81 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
   check('projection: in-memory lane run snapshot bug surfaces instead of being swallowed', parsed.threw === 'lane run snapshot bug', JSON.stringify(parsed))
 }
 
+{
+  console.log('\n4. src/skills/loadSkillsDir.ts')
+  const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-skills-'))
+  try {
+    const proj = join(scratch, 'proj')
+    const skillDir = join(proj, '.mercury', 'skills', 'unreadable-skill')
+    const skillMd = join(skillDir, 'SKILL.md')
+    mkdirSync(skillDir, { recursive: true })
+    writeFileSync(skillMd, '---\nname: unreadable-skill\ndescription: A skill.\n---\n\nBody.\n', { mode: 0o600 })
+
+    const bunBin = process.env.BUN ?? process.execPath
+    if (!POSIX_MODES) {
+      skip('loadSkillsDir: unreadable SKILL.md is recorded in getSkillLoadRefusals', 'requires non-root POSIX')
+    } else {
+      chmodSync(skillMd, 0o200)
+      const readScript = `
+        import { join } from 'node:path'
+        const src = ${JSON.stringify(SRC)}
+        const { setSessionTrustAccepted } = await import(join(src, 'bootstrap/state.ts'))
+        setSessionTrustAccepted(true)
+        const { enableConfigs } = await import(join(src, 'utils/config/globalConfig.ts'))
+        enableConfigs()
+        const skills = await import(join(src, 'skills/loadSkillsDir.ts'))
+        skills.clearSkillCaches()
+        await skills.getSkillDirCommands(${JSON.stringify(proj)})
+        process.stdout.write(JSON.stringify(skills.getSkillLoadRefusals()))
+        process.exit(0)
+      `
+      const readRes = spawnSync(bunBin, ['-e', readScript], {
+        encoding: 'utf8',
+        env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'home-read'), MERCURY_BARE: '' },
+      })
+      chmodSync(skillMd, 0o600)
+      const refusals = readRes.status === 0 ? (JSON.parse(readRes.stdout.trim().split('\n').pop() ?? '[]') as Array<{ path: string; error: string }>) : []
+      check(
+        'loadSkillsDir: unreadable SKILL.md is recorded in getSkillLoadRefusals',
+        refusals.some(r => r.path === skillMd && /could not read/i.test(r.error)),
+        JSON.stringify(refusals),
+      )
+    }
+
+    const loadScript = `
+      import { mock } from 'bun:test'
+      import { join } from 'node:path'
+      const src = ${JSON.stringify(SRC)}
+      const fmPath = join(src, 'utils/frontmatterParser.ts')
+      const actualFm = await import(fmPath)
+      mock.module(fmPath, () => ({
+        ...actualFm,
+        parseFrontmatter: () => { throw new Error('frontmatter boom') },
+      }))
+      const { setSessionTrustAccepted } = await import(join(src, 'bootstrap/state.ts'))
+      setSessionTrustAccepted(true)
+      const { enableConfigs } = await import(join(src, 'utils/config/globalConfig.ts'))
+      enableConfigs()
+      const skills = await import(join(src, 'skills/loadSkillsDir.ts'))
+      skills.clearSkillCaches()
+      await skills.getSkillDirCommands(${JSON.stringify(proj)})
+      process.stdout.write(JSON.stringify(skills.getSkillLoadRefusals()))
+      process.exit(0)
+    `
+    const loadRes = spawnSync(bunBin, ['-e', loadScript], {
+      encoding: 'utf8',
+      env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'home-load'), MERCURY_BARE: '' },
+    })
+    const loadRefusals = loadRes.status === 0 ? (JSON.parse(loadRes.stdout.trim().split('\n').pop() ?? '[]') as Array<{ path: string; error: string }>) : []
+    check(
+      'loadSkillsDir: unexpected skill load throw is recorded in getSkillLoadRefusals',
+      loadRefusals.some(r => r.path === skillMd && r.error.includes('frontmatter boom')),
+      JSON.stringify(loadRefusals),
+    )
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
