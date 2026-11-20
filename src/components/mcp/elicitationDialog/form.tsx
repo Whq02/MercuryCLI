@@ -1,6 +1,6 @@
 import figures from 'figures'
 import * as React from 'react'
-import type { PrimitiveSchemaDefinition } from '../../../services/mcp/sdk.js'
+import type { PrimitiveSchemaDefinition } from '../../../utils/mcp/sdk.js'
 import { Box, Text, type Key } from '../../../ink.js'
 import { PopupListViewport, type popupListWindow } from '../../CustomSelect/popup-list.js'
 import type { ElicitationRequestEvent } from '../../../services/mcp/elicitationHandler.js'

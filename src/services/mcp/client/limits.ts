@@ -1,4 +1,4 @@
-import { Client } from '../sdk.js'
+import { Client } from '../../../utils/mcp/sdk.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { minutesKnobToMs } from '../../../utils/deadline.js'
 import { formatFileSize } from '../../../utils/format.js'

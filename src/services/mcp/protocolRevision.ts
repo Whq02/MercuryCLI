@@ -1,4 +1,4 @@
-import { LATEST_PROTOCOL_VERSION } from './sdk.js'
+import { LATEST_PROTOCOL_VERSION } from '../../utils/mcp/sdk.js'
 
 export const MCP_PROTOCOL_REVISION = '2026-07-28'
 export const MCP_PUBLISHED_REVISION = '2026-07-28'

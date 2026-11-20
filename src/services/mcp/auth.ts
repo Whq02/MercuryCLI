@@ -6,8 +6,8 @@ import {
   auth as sdkAuth,
   refreshAuthorization as sdkRefreshAuthorization,
   type OAuthClientProvider,
-} from './sdk.js'
-import { OAuthError, OAuthErrorCode } from './sdk.js'
+} from '../../utils/mcp/sdk.js'
+import { OAuthError, OAuthErrorCode } from '../../utils/mcp/sdk.js'
 import {
   type AuthorizationServerMetadata,
   type OAuthClientInformationMixed,
@@ -16,7 +16,7 @@ import {
   OAuthMetadataSchema,
   type OAuthTokens,
   OAuthTokensSchema,
-} from './sdk.js'
+} from '../../utils/mcp/sdk.js'
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'

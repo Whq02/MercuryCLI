@@ -1,4 +1,4 @@
-import { UnauthorizedError, StdioClientTransport, type Transport, ProtocolError, ProtocolErrorCode, SdkError, SdkErrorCode, type Tool as McpSdkTool } from './sdk.js'
+import { UnauthorizedError, StdioClientTransport, type Transport, ProtocolError, ProtocolErrorCode, SdkError, SdkErrorCode, type Tool as McpSdkTool } from '../../utils/mcp/sdk.js'
 import memoize from 'lodash-es/memoize.js'
 import { LRUCache } from 'lru-cache'
 import { deadlineSecondsLabel } from '../providers/fetchDeadline.js'

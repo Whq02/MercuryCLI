@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { McpServer, ResourceTemplate, type CallToolResult, type McpRequestContext } from './sdk.js'
+import { McpServer, ResourceTemplate, type CallToolResult, type McpRequestContext } from '../../utils/mcp/sdk.js'
 import { PERMISSION_MODES } from '../../../sdk/src/door.js'
 import { AutomationBridge } from './automationBridge.js'
 import { AutomationPermissionRefusal } from './automationAccess.js'

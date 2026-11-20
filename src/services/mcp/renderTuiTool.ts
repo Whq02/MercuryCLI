@@ -6,7 +6,7 @@ import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { CallToolResult } from './sdk.js'
+import type { CallToolResult } from '../../utils/mcp/sdk.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 
 const RENDER_TUI_SCRIPT = join('scripts', 'ui', 'render-tui.ts')

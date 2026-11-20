@@ -1,5 +1,5 @@
 import type { ContentBlockParam } from '../../types/wire.js'
-import type { ReadResourceResult } from '../../services/mcp/sdk.js'
+import type { ReadResourceResult } from '../mcp/sdk.js'
 import type { UUID } from 'crypto'
 import type { HookEvent } from '../hooks/contract.js'
 import type { BoundPrefixSection, BoundPrefixToolMark, DeadThinkingMark, MessageOrigin } from 'src/types/message.js'
