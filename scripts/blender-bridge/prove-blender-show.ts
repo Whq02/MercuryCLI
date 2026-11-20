@@ -65,7 +65,7 @@ const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/ut
 const installer = await import('../../src/services/blender/bridgeInstaller.js')
 const { readBlenderBridgeToken } = await import('../../src/services/blender/bridgeToken.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
-const { decodePng } = await import('../../src/tools/FileReadTool/imageProcessorJs.js')
+const { decodePng } = await import('../../src/utils/imageProcessor/imageProcessorJs.js')
 resetBlenderBridgeClientForTest()
 _resetBlenderBridgeContextCacheForTesting()
 

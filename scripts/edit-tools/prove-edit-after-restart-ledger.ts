@@ -15,7 +15,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.NODE_ENV
 
 const ledger = (await import('../../src/services/changeTransaction/seenLines.ts')) as typeof import('../../src/services/changeTransaction/seenLines.ts') & { rebuildSeenLinesFromTranscript?: (owner: unknown, messages: readonly unknown[]) => { files: number; lines: number } }
-const { processMainOwner, processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner, processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')

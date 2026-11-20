@@ -25,7 +25,7 @@ const { UnityTool } = await import('../../src/tools/UnityTool/UnityTool.js')
 const { getUnityToolDescription } = await import('../../src/tools/UnityTool/prompt.js')
 const { getUnityBridgeClient, resetUnityBridgeClientForTest } = await import('../../src/services/unity/bridgeClient.js')
 const { unityBridgeTokenPath } = await import('../../src/services/unity/bridgeToken.js')
-const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.js')
+const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.js')
 const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.js')
 const { startFakeUnityBridge } = await import('./fake-bridge.js')
 

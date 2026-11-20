@@ -140,14 +140,14 @@ section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
 {
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',
-    (await import('../../src/utils/health/sections/settings.ts')).settingsChecks().some(row => row.id === 'instruction-profile' && row.label === 'Instruction profile'),
+    (await import('../../src/services/health/sections/settings.ts')).settingsChecks().some(row => row.id === 'instruction-profile' && row.label === 'Instruction profile'),
   )
 }
 
 section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
 {
-  const { healthContext: contextOf } = await import('../../src/utils/healthReport.ts')
-  const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
+  const { healthContext: contextOf } = await import('../../src/services/health/healthReport.ts')
+  const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
   const listContext = await contextOf()
   const listed = (await Promise.all(HEALTH_SECTIONS.map(entry => entry.checks(listContext)))).flat()
   for (const id of ['agent-definitions', 'env-limits', 'keybindings', 'version-locks']) {

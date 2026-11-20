@@ -54,7 +54,7 @@ console.log('L3 the cache clear re-resolves')
 
 console.log('L4 the surfaces (source pins)')
 {
-  const { authChecks } = await import(join(SRC, 'utils/health/sections/auth.ts'))
+  const { authChecks } = await import(join(SRC, 'services/health/sections/auth.ts'))
   const { getExtraCaCertsOutcome } = await import(join(SRC, 'utils/caCerts.ts'))
   const caRow = (await authChecks()).find((row: { id: string }) => row.id === 'extra-ca-certs')
   const unset = await caRow?.run()

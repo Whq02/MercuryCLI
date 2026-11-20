@@ -1,7 +1,7 @@
 import {
   APIConnectionTimeoutError,
   APIUserAbortError,
-} from '../../../api/sdkErrors.js'
+} from '../../../../utils/api/sdkErrors.js'
 import type {
   ContentBlock as BetaContentBlock,
   ApiStreamEvent as BetaRawMessageStreamEvent,
@@ -11,7 +11,7 @@ import { cacheClockObserve } from 'src/utils/cache/cacheClock.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
-import { calculateUSDCost } from 'src/utils/modelCost.js'
+import { calculateUSDCost } from 'src/services/usage/modelCost.js'
 import { noteRunPhase } from 'src/utils/runPhases.js'
 import { noteCacheDiagnostics } from '../cacheDiagnostics.js'
 import type {

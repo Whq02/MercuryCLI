@@ -1,6 +1,6 @@
 import { metadataRefusal, metadataSafeAddresses } from '../../tools/WebFetchTool/privateHost.js'
 import { resolveMinimaxApiKey } from '../providers/minimax/minimaxAccounts.js'
-import type { VideoJob, VideoProvider, VideoStatus } from './types.js'
+import type { VideoJob, VideoProvider, VideoStatus } from '../../utils/video/types.js'
 
 const MINIMAX_VIDEO_BASE = 'https://api.minimax.io'
 export const MINIMAX_VIDEO_MODEL = 'MiniMax-H3'

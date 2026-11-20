@@ -49,7 +49,10 @@ Promise.race	src/boot/launchGraph.ts	1	events 1
 Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
 Promise.race	src/cli/headless/runnerAsks.ts	1	events 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
+Promise.race	src/services/context/contextWindowWarmup.ts	1	deadline 1
 Promise.race	src/services/eval/procKernel.ts	1	events 1
+Promise.race	src/services/health/healthReport.ts	1	deadline 1
+Promise.race	src/services/health/sections/interface.ts	1	deadline 1
 Promise.race	src/services/host/door.ts	1	events 1
 Promise.race	src/services/lsp/LSPClient.ts	1	events 1
 Promise.race	src/services/oauth/index.ts	1	events 1
@@ -71,9 +74,6 @@ Promise.race	src/tools/BashTool/BashTool.tsx	2	events 2
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	1	events 1
 Promise.race	src/utils/generators.ts	1	events 1
-Promise.race	src/utils/health/sections/interface.ts	1	deadline 1
-Promise.race	src/utils/healthReport.ts	1	deadline 1
-Promise.race	src/utils/model/contextWindowWarmup.ts	1	deadline 1
 Promise.race	src/utils/wards/wardsRefusals.ts	2	row8 2
 startInterval	src/cli/headless/boot/watchBuildBehind.ts	1	periodic 1
 startInterval	src/cli/headless/boot/wireProcess.ts	1	periodic 1
@@ -94,7 +94,6 @@ startInterval	src/components/tasks/ShellDetailDialog.tsx	1	clock 1
 startInterval	src/components/tasks/useCrewmateModel.ts	1	clock 1
 startInterval	src/components/tasks/useCrewmateTranscript.ts	1	clock 1
 startInterval	src/components/tensorfold/tensorfoldModelFacts.ts	1	clock 1
-startInterval	src/daemon/ownerWatch.ts	1	heartbeat 1
 startInterval	src/daemon/run/periodic.ts	1	periodic 1
 startInterval	src/daemon/saturnTicker.ts	1	periodic 1
 startInterval	src/daemon/warmRunner.ts	1	periodic 1
@@ -134,6 +133,7 @@ startInterval	src/utils/ShellCommand.ts	1	periodic 1
 startInterval	src/utils/cockpit/uiClock.ts	1	clock 1
 startInterval	src/utils/eventLoopStallDetector.ts	1	clock 1
 startInterval	src/utils/gracefulShutdown.ts	1	periodic 1
+startInterval	src/utils/ownerWatch.ts	1	heartbeat 1
 startInterval	src/utils/settings/changeDetector.ts	1	periodic 1
 startInterval	src/utils/task/TaskOutput.ts	1	periodic 1
 startInterval	src/utils/verification/verificationState.ts	1	periodic 1

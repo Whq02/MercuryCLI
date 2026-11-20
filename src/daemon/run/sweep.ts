@@ -4,7 +4,7 @@ import { concourseWorkersPath, readSessionWorkersSnapshot, reconcileConcourseWor
 import type { ControlServerDeps } from '../controlServer.js'
 import { daemonHomeStands } from '../daemonHome.js'
 import { sweepIdleEmptyConcourseSessions } from '../idleRetirement.js'
-import { isProcessAlive } from '../ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from '../processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from '../processSweepRun.js'
 import { fileMoveStamp } from '../saturnTicker.js'

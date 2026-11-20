@@ -145,7 +145,7 @@ const auth = await import('../../src/utils/auth.ts')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const fresh = await import('../../src/services/providers/usageFreshness.ts')
 const { isOAuthTokenExpired } = await import('../../src/services/oauth/client.ts')
-const { formatCountdown, formatCountdownCoarse } = await import('../../src/utils/cockpit/quota.ts')
+const { formatCountdown, formatCountdownCoarse } = await import('../../src/services/cockpit/quota.ts')
 
 let NOW = 1_790_000_000_000
 const clock = (): number => NOW

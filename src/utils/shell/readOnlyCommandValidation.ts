@@ -1,4 +1,4 @@
-import { sedCommandIsAllowedByAllowlist } from '../../tools/BashTool/sedValidation.js'
+import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { binaryName } from '../config/derived.js'
 
 type FlagValue = 'none' | 'number' | 'string' | 'char' | '{}' | 'EOF'

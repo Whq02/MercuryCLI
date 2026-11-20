@@ -2,7 +2,7 @@
 
 import { isMercurySubstrateProfileOn } from '../../src/utils/config.js'
 import { isInvocationTraceEnabled } from '../../src/utils/observability/invocationTrace.js'
-import { substrateSnapshot } from '../../src/utils/cockpit/substrateSnapshot.js'
+import { substrateSnapshot } from '../../src/services/cockpit/substrateSnapshot.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -151,7 +151,7 @@ t('a schema beyond the former size bound keeps every field instead of becoming p
 const fullDefinition = await toolToAPISchema(awkward, { getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools, agents: [], model: 'claude-sonnet-5' })
 t('the model wire keeps the complete MCP description and schema', fullDefinition.description === prompt && JSON.stringify(fullDefinition.input_schema) === JSON.stringify(wireSchema))
 {
-  const { APIError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
   const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
   const providerWords = 'tools.3.custom.input_schema: the JSON schema is too large for this request'
   const refused = new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: providerWords } }, undefined, undefined as never)
@@ -175,7 +175,7 @@ t('projected names stay unique', new Set(projected).size === projected.length)
 const longTool = byServerName.get('a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar')!
 t('the over-long tool keeps its server prefix and its real name in mcpInfo', longTool.name.startsWith(`mcp__${SERVER}__`) && (longTool as { mcpInfo?: { toolName: string } }).mcpInfo?.toolName === 'a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar', longTool.name)
 {
-  const { wireSafeMcpToolName, buildMcpToolName, getToolNameForPermissionCheck, WIRE_TOOL_NAME_MAX, mcpInfoFromString } = await import('../../src/services/mcp/mcpStringUtils.ts')
+  const { wireSafeMcpToolName, buildMcpToolName, getToolNameForPermissionCheck, WIRE_TOOL_NAME_MAX, mcpInfoFromString } = await import('../../src/utils/mcp/mcpStringUtils.ts')
   const LONG = 'a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar'
   t('wireSafeMcpToolName: a clean fitting name is unchanged and a lossy name stays distinct', wireSafeMcpToolName(SERVER, 'plain_echo') === buildMcpToolName(SERVER, 'plain_echo') && wireSafeMcpToolName(SERVER, 'plain.echo') !== wireSafeMcpToolName(SERVER, 'plain_echo'))
   const shortened = wireSafeMcpToolName(SERVER, LONG)

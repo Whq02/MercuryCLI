@@ -29,7 +29,7 @@ resetEnv()
 
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const gates = await import('../../src/utils/blender/bridgeGates.js')
-const { BLENDER_BRIDGE_DEFAULT_PORT } = await import('../../src/services/blender/bridgeProtocol.js')
+const { BLENDER_BRIDGE_DEFAULT_PORT } = await import('../../src/utils/blender/bridgeProtocol.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-gates-'))

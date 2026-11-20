@@ -465,7 +465,7 @@ section('(5e) TRUE cross-process parity — TUI-side durable writes, the ACP pro
 {
   const { saveRunSidecar, runRevision } = await import('../../src/services/run/runSidecar.js')
   const { emptyRunSnapshot } = await import('../../src/services/run/runKernel.js')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
   const owner = makeOwnerKey({
     workspace: process.cwd(),
     sessionId: `keel-parity-${Date.now().toString(36)}`,

@@ -8,13 +8,13 @@
 # gate-watch: src/services/workbench/** src/utils/artifacts/** src/commands/diff/**
 # gate-watch: scripts/lib/* scripts/ui/vshot.py
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cockpit/helmLanesModel.ts
+# gate-watch: src/services/cockpit/helmLanesModel.ts
 # gate-watch: src/constants/subagentDoctrine.ts
 # gate-watch: src/interactiveHelpers.tsx
-# gate-watch: src/services/run/resolveOwner.ts src/skills/bundled/index.ts src/skills/bundledSkills.ts
+# gate-watch: src/utils/run/resolveOwner.ts src/skills/bundled/index.ts src/skills/bundledSkills.ts
 # gate-watch: src/utils/projectConfig.ts
 # gate-watch: scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py scripts/streaming/screengrab.py scripts/lib/observed_walk.py
-# gate-watch: src/utils/analyzeContext.ts src/components/concourse/** src/components/mercury-ui/InteractiveRow.tsx
+# gate-watch: src/services/context/analyzeContext.ts src/components/concourse/** src/components/mercury-ui/InteractiveRow.tsx
 # gate-watch: scripts/notifications/concourseReferenceSeed.ts
 # gate-watch: src/services/concourse/concourseSnapshot.ts
 # gate-watch: scripts/ui/renderScenarios.ts

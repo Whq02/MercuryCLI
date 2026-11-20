@@ -11,7 +11,7 @@ import {
 } from '../concourseWorkers.js'
 import { readDaemonState, writeDaemonState } from '../controlSocket.js'
 import { sessionParkDrainMs } from '../idleRetirement.js'
-import { armOwnerPipe, getProcessStartTokenAsync, isProcessAlive, parseOwnerFd, startOwnerWatch } from '../ownerWatch.js'
+import { armOwnerPipe, getProcessStartTokenAsync, isProcessAlive, parseOwnerFd, startOwnerWatch } from '../../utils/ownerWatch.js'
 import { decideSessionlessExit } from '../sessionlessExit.js'
 import type { DaemonRunState } from './state.js'
 import { errorMessage } from '../../utils/errors.js'

@@ -5,8 +5,8 @@ import {
   continuationsThisTurn,
   turnBoundaryIndex,
 } from '../services/run/continuationLatch.js'
-import type { OwnerKey } from '../services/run/ownerKey.js'
-import { processMainOwner } from '../services/run/resolveOwner.js'
+import type { OwnerKey } from '../utils/run/ownerKey.js'
+import { processMainOwner } from '../utils/run/resolveOwner.js'
 import {
   getRunSnapshot,
   noteRunEvent,

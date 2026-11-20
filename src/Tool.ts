@@ -4,7 +4,7 @@ import type * as React from 'react'
 import { logError } from './utils/log.js'
 import type { ZodType, output as ZodOutput } from 'zod/v4'
 
-import type { OwnerKey } from './services/run/ownerKey.js'
+import type { OwnerKey } from './utils/run/ownerKey.js'
 import type { AgentId } from './types/ids.js'
 import type { Command } from './types/command.js'
 import type { ToolCapability } from './utils/capability/contract.js'
@@ -12,7 +12,7 @@ import type { ContentReplacementState } from './utils/toolResultStorage.js'
 import type { AppState } from './state/AppState.js'
 import type { MCPServerConnection } from './services/mcp/types.js'
 import type { AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
-import type { FileHistoryState } from './utils/fileHistory.js'
+import type { FileHistoryState } from './types/fileHistory.js'
 import type { FileStateCache } from './utils/fileStateCache.js'
 import type {
   AssistantMessage,

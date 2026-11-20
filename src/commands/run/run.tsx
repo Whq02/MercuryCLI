@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 import { useLoad, useSubscription } from '../../hooks/effects.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
 import { CommandCenter, SectionHeader } from '../../components/mercury-ui/components.js'
-import { padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
+import { padTo, truncateToWidth } from '../../utils/glyphs.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
 import { CursorRow } from '../../components/mercury-ui/CursorRow.js'
 import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
@@ -12,7 +12,7 @@ import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { usePopupListNavigation } from '../../components/CustomSelect/popup-list.js'
 import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import {
   flushRun,
   getRunSnapshot,

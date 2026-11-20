@@ -2,7 +2,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { PDF_MAX_EXTRACT_SIZE } from '../../constants/apiLimits.js'
 import { extname } from 'node:path'
 import { findEocdOffset, readZipEntries, extractZipEntryBuffer, RICH_CONTAINER_MAX_BYTES, RICH_ENTRY_MAX_BYTES } from '../FileReadTool/readRichFormats.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import { documentSchema, type DocumentInput, type DocumentProduct } from './schema.js'
@@ -24,7 +24,7 @@ cite: bibtex, references or dois; returns reference list and in-text keys (optio
 
 Renderers: PDF create uses bundled browser (renderer:"browser") or plain pdf-lib ("plain", limited script coverage). convert uses installed LibreOffice or pandoc in a temporary profile when suitable ("libreoffice"|"pandoc"), keeping external links/fields/embedded programs off external converters; JS fallback reflows content without slide layout. Results report the road and warnings. Check the exported pages before handing over a report.`
 
-export type DocumentIO = { read: (path: string) => Promise<Buffer>; signal: AbortSignal; owner?: import('../../services/run/ownerKey.js').OwnerKey }
+export type DocumentIO = { read: (path: string) => Promise<Buffer>; signal: AbortSignal; owner?: import('../../utils/run/ownerKey.js').OwnerKey }
 async function renderDocument(input: DocumentInput, io: DocumentIO): Promise<DocumentProduct> {
   if (input.op === 'create') return (await import('./create.js')).createDocument(input, io)
   if (input.op === 'convert') return (await import('./convert.js')).convertDocument(input, io)

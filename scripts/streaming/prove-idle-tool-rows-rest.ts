@@ -31,7 +31,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { publishSessionFacts, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.ts')
+const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.ts')
 
 const SID = '00000000-aaaa-bbbb-cccc-000000000501'
 const HUNG_ID = 'toolu_hung_mid_run'

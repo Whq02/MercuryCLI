@@ -1,6 +1,6 @@
 import { getSessionId } from '../../bootstrap/state.js'
 import { readSessionWorkers, stampedTerminalPid } from '../../daemon/concourseWorkers.js'
-import { isProcessAlive } from '../../daemon/ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } from './backgroundLaunch.js'
 import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchKind, type SpawnSwitchState } from './spawnSwitches.js'

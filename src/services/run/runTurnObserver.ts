@@ -7,7 +7,7 @@ import {
   settleModelTurnExecution,
 } from '../primitives/canonicalStream.js'
 import { acceptUserRequest, noteTurnEnd } from './runCoordinator.js'
-import { ownerFromToolUseContext } from './resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { markTreeSuspectAfterTurn } from '../../utils/verification/verificationState.js'
 import { isOperatorTurn } from '../../utils/messages/operatorTurns.js'
 import { passedOver } from '../../utils/passedOver.js'

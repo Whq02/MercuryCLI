@@ -295,7 +295,7 @@ async function main(): Promise<void> {
     {
       const { join } = await import('node:path')
       const fsH = await import('node:fs')
-      const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+      const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
       const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
       const guard = await import('../../src/guards/wardsGuard.ts')
       const unreadable = fsH.mkdtempSync(join((await import('node:os')).tmpdir(), 'wards-health-row-'))

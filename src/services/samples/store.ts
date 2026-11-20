@@ -13,7 +13,7 @@ import {
   type SampleRecordV1,
   type SampleState,
   type SampleVersionV1,
-} from './contracts.js'
+} from '../../utils/samples/contracts.js'
 import { renderSampleShell } from './shell.js'
 import { passedOver } from '../../utils/passedOver.js'
 

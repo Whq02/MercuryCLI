@@ -12,8 +12,8 @@ const plans = await import('../../src/services/ide/testDebugPlans.ts')
 const dap = await import('../../src/services/dap/dapClient.ts')
 const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 let failures = 0
 function check(name: string, ok: boolean, detail: unknown): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${JSON.stringify(detail)}`)

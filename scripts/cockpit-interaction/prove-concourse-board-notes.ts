@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/concourse/ConcourseScreen.tsx src/components/concourse/ConcourseStrips.tsx src/components/concourse/splitView.ts src/services/switchboard/capacityCheck.ts
+// gate-watch: src/components/concourse/ConcourseScreen.tsx src/components/concourse/ConcourseStrips.tsx src/components/concourse/splitView.ts src/utils/switchboard/capacityCheck.ts
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

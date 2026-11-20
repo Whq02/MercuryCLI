@@ -2,7 +2,7 @@ import type { UUID } from 'node:crypto'
 import type { AgentId } from '../types/ids.js'
 import type { TranscriptMessage } from '../types/logs.js'
 import type { QueueOperationMessage } from '../types/messageQueueTypes.js'
-import type { FileHistorySnapshot } from '../utils/fileHistory.js'
+import type { FileHistorySnapshot } from '../types/fileHistory.js'
 import type { ContentReplacementRecord } from '../utils/toolResultStorage.js'
 
 export type WorktreeBinding = {

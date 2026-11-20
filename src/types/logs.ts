@@ -1,7 +1,7 @@
 import type { UUID } from 'crypto'
 import type { Message } from './message.js'
 import type { ContentReplacementRecord } from '../utils/toolResultStorage.js'
-import type { FileHistorySnapshot } from '../utils/fileHistory.js'
+import type { FileHistorySnapshot } from './fileHistory.js'
 import type { FileAttribution, StorageRowKind, StorageRowOf, StoredRow, WorktreeBinding } from '../rows/storage.js'
 
 type Flattened<T> = { [K in keyof T]: T[K] }

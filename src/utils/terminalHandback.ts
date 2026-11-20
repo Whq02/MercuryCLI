@@ -1,7 +1,7 @@
 import { closeSync, openSync } from 'node:fs'
 
 import { flagEnabled } from '../substrate/flagRegistry.js'
-import { loadVoiceAddon, type VoiceAddon } from '../services/voice/voicePack.js'
+import { loadVoiceAddon, type VoiceAddon } from './voice/voicePack.js'
 import { logForDebugging } from './debug.js'
 import { passedOver } from './passedOver.js'
 

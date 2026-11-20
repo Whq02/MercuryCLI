@@ -1,11 +1,11 @@
 import { basename, extname } from 'node:path'
 
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import type { TSNode } from '../../services/structure/grammarFacility.js'
+import type { TSNode } from '../../utils/structure/grammarFacility.js'
 
 import { FRONTMATTER_REGEX, parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { parseYaml } from '../../utils/yaml.js'
-import { MAX_LISTING_DESC_CHARS } from '../SkillTool/constants.js'
+import { MAX_LISTING_DESC_CHARS } from '../../constants/tools/skill.js'
 import { stripBom } from '../../utils/readFileInRange.js'
 import { passedOver } from '../../utils/passedOver.js'
 type ParseFormat = 'JSON' | 'YAML'
@@ -81,7 +81,7 @@ function sourceParseErrors(root: TSNode): SourceParseError[] {
 
 async function checkSourceParseError(filePath: string, before: string | null, after: string): Promise<string | undefined> {
   try {
-    const { languageForFile, loadGrammarEngine, parsePolyglot } = await import('../../services/structure/grammarFacility.js')
+    const { languageForFile, loadGrammarEngine, parsePolyglot } = await import('../../utils/structure/grammarFacility.js')
     const language = languageForFile(filePath)
     if (!language) return undefined
     const engine = await loadGrammarEngine()

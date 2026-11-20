@@ -1,5 +1,5 @@
 import { stringWidth } from '../../ink/stringWidth.js'
-import { truncateToWidth } from '../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../utils/glyphs.js'
 
 const NOW_WORDS_FLOOR = 8
 const NOW_GLYPH_CELLS = 2

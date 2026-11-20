@@ -15,7 +15,7 @@ import {
 } from '../ink/session/windowsHostSetup.js'
 import { Select } from './CustomSelect/index.js'
 import { MercurySetupFrame } from './MercurySetupFrame.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { pollUntil } from '../utils/deadline.js'
 

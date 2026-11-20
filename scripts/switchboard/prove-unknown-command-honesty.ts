@@ -27,7 +27,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 console.log('§1 the resolver and the sentence')
 {
-  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.js')
+  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.js')
   const table = [
     { name: 'model', type: 'local', description: 'pick', aliases: [], isEnabled: true, isHidden: false, async call() {}, userFacingName: () => 'model' },
     { name: 'exit', type: 'local', description: 'leave', aliases: ['quit'], isEnabled: true, isHidden: false, async call() {}, userFacingName: () => 'exit' },

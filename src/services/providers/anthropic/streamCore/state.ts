@@ -2,7 +2,7 @@ import type {
   ContentBlock as BetaContentBlock,
   ApiMessage as BetaMessage,
 } from '../../../../types/wire.js'
-import type { AnthropicMessageParams as BetaMessageStreamParams } from '../anthropicWire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams } from '../../../../types/anthropicWire.js'
 import type { AnthropicStream } from '../anthropicStream.js'
 import type { ThinkingConfig } from 'src/utils/thinking.js'
 import type { PrefixMismatch } from '../prefixLedger.js'

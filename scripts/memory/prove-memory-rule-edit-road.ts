@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/mnemeCorrect.ts src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/tools/MemoryTools/prompt.ts src/tools/MemoryTools/MemoryTools.ts docs/MNEME.md
+// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/mnemeCorrect.ts src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/constants/tools/memory.ts src/tools/MemoryTools/MemoryTools.ts docs/MNEME.md
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -49,7 +49,7 @@ const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
 const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
 const { readFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
 const { USER_ASKED_RULE_ROAD } = await import('../../src/mneme/mnemeCorrect.ts')
-const { RETAIN_PROMPT, CORRECT_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { RETAIN_PROMPT, CORRECT_PROMPT } = await import('../../src/constants/tools/memory.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
 resetSettingsCache()

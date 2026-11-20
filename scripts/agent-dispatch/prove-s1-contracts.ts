@@ -7,7 +7,7 @@ import { zaiProviderAdapter } from '../../src/services/providers/zai/zaiAdapter.
 import {
   buildAgentLaunchPlan,
   type AgentLaunchPlanInput,
-} from '../../src/utils/crew/agentLaunchPlan.js'
+} from '../../src/services/crew/agentLaunchPlan.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

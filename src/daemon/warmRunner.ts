@@ -20,7 +20,7 @@ import {
   readSessionWorkers,
 } from './concourseWorkers.js'
 import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { passedOver } from '../utils/passedOver.js'

@@ -1,6 +1,6 @@
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
-import { extractConversationText, generateSessionTitle } from '../../utils/sessionTitle.js'
+import { extractConversationText, generateSessionTitle } from '../../services/concourse/sessionTitle.js'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,

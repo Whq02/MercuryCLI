@@ -18,11 +18,11 @@ for (const key of [
 }
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const pins = await import('../../src/services/providers/openai/gptPins.js')
+const pins = await import('../../src/utils/model/pins/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const capabilities = await import('../../src/utils/model/capabilities.js')
 const effort = await import('../../src/utils/effort.js')
-const cost = await import('../../src/utils/modelCost.js')
+const cost = await import('../../src/services/usage/modelCost.js')
 const model = await import('../../src/utils/model/model.js')
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
 const { providerFrontierFact, providerLightFact } = await import('../../src/utils/model/providerFrontier.js')

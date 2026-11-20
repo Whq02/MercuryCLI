@@ -22,7 +22,7 @@ import {
 } from '../../utils/model/providers.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { wrapFetchWithWireDump } from './dumpPrompts.js'
-import { recordTransportFailure } from './transportEvidence.js'
+import { recordTransportFailure } from '../../utils/api/transportEvidence.js'
 import { observeStreamActivity, streamActivityNoteOf } from '../providers/streamIdleBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'

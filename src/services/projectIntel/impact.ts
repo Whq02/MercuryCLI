@@ -5,7 +5,7 @@ import { git } from '../gitGraph/observe.js'
 import { collectCodeFiles, importNeighbours, pathTokens, SCAN_FILE_CAP } from './capsule.js'
 export { collectCodeFiles } from './capsule.js'
 import { getProjectSnapshot } from './snapshot.js'
-import { projectIntelEnabled, type SnapshotGeneration } from './contracts.js'
+import { projectIntelEnabled, type SnapshotGeneration } from '../../utils/projectIntel/contracts.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/

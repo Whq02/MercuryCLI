@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopPoint, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
 import type { ScreenMap } from '../../services/desktop/desktopSession.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
-import { registerOwnerScopedStore } from '../../services/run/ownerLifecycle.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 
 export type { ScreenMap }
 

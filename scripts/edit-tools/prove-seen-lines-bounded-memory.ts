@@ -23,7 +23,7 @@ async function runScene(name: string, args: SceneArgs): Promise<void> {
   }
   if (name === 'generations') return say({ generations: (args.paths ?? []).map(path => ledger.fileGeneration(path)) })
   if (name === 'generation') return say({ generation: ledger.fileGeneration(args.path!) })
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const owner = processMainOwner()
   const rows: unknown[] = []
   let ids = 0

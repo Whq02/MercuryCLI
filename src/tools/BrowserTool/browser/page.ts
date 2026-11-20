@@ -19,7 +19,7 @@ import {
 } from '../../../services/browser/browserSession.js'
 import { heldDevice } from '../../../services/browser/browserEmulation.js'
 import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../../services/browser/browserWords.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { withDeadline } from '../../../utils/deadline.js'
 import { sleep } from '../../../utils/sleep.js'
 import { EXTRACT_CAP, type Input } from './schema.js'

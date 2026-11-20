@@ -32,7 +32,7 @@ import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.j
 import { toTildePath } from '../utils/path.js'
 import { cockpitBottomSlotReserve, paneWindow, viewportRows } from './mercury-ui/geometry.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
-import { GLYPH, padTo } from './mercury-ui/glyphs.js'
+import { GLYPH, padTo } from '../utils/glyphs.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { atlasViewOf } from './inputAtlas/atlasView.js'

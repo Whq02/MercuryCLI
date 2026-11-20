@@ -50,7 +50,7 @@ export function anthropicRefusalFactsOf(error: unknown, signInExpired?: boolean)
 }
 
 function clockWords(ms: number): string {
-  const { formatClock } = require('../../utils/cockpit/quota.js') as typeof import('../../utils/cockpit/quota.js')
+  const { formatClock } = require('../cockpit/quota.js') as typeof import('../cockpit/quota.js')
   return formatClock(ms)
 }
 

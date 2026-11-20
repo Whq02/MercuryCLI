@@ -29,7 +29,7 @@ import {
 } from '../../utils/cockpit/helmFocus.js'
 import { popupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
-import { flipToSession } from '../../utils/sessionFlip.js'
+import { flipToSession } from '../../services/engine-connector/sessionFlip.js'
 import { getPlatform } from '../../utils/platform.js'
 import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { SuggestionsState } from '../../hooks/useTypeahead.js'

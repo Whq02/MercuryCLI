@@ -23,7 +23,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const { UserLocalCommandOutputMessage } = await import('../../src/components/messages/UserLocalCommandOutputMessage.js')
 const { earlierReleasesLine } = await import('../../src/utils/releaseNotes.js')
-const { ctrlOToExpand } = await import('../../src/components/CtrlOToExpand.js')
+const { ctrlOToExpand } = await import('../../src/utils/ctrlOToExpand.js')
 const { AppStoreContext } = await import('../../src/state/AppState.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 const { createStore } = await import('../../src/state/store.js')

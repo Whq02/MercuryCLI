@@ -8,7 +8,7 @@ import {
   loadAgentOverrides,
   type AgentOverrideProvenance,
 } from '../../services/agents/overrides.js'
-import type { InstructionProfile } from '../../services/instructions/contracts.js'
+import type { InstructionProfile } from '../../utils/instructions/contracts.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { logError } from '../../utils/log.js'
@@ -35,7 +35,7 @@ import {
   loadAgentMemoryPrompt,
   withMemoryVerbs,
   type AgentMemoryScope,
-} from './agentMemory.js'
+} from '../../utils/agentMemory.js'
 
 
 export type AgentMcpServerSpec = string | Record<string, McpServerConfig>

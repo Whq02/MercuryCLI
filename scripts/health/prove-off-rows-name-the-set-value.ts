@@ -11,16 +11,16 @@ if (process.argv.includes('--world')) {
   process.env.NODE_ENV = 'test'
   if (process.argv.includes('--readiness')) {
     ;(await import('../../src/utils/config.ts')).enableConfigs()
-    const { collectReadiness } = await import('../../src/utils/readiness.ts')
+    const { collectReadiness } = await import('../../src/services/health/readiness.ts')
     console.log(JSON.stringify({ rows: Object.fromEntries(collectReadiness().records.map(record => [record.id, String(record.detail)])), deep: {} }))
     process.exit(0)
   }
-  const report = await import('../../src/utils/healthReport.js')
+  const report = await import('../../src/services/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const rows = Object.fromEntries(cert.sections.flatMap(section => section.checks).map(row => [row.id, row.id === 'anvil-workbench-fast' ? String((row as { detail?: string }).detail) : String(row.evidence)]))
   let deep: Record<string, string> = {}
   if (process.argv.includes('--deep-probes')) {
-    const probes = await import('../../src/utils/healthDeepProbes.js')
+    const probes = await import('../../src/services/health/healthDeepProbes.js')
     deep = { changeReceipts: String((await probes.probeChangeTransaction()).evidence), services: String((await probes.probeServiceLifecycle()).evidence) }
   }
   console.log(JSON.stringify({ rows, deep }))

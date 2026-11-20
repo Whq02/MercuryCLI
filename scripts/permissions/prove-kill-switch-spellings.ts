@@ -69,7 +69,7 @@ section('§3 MCP SERVER SEMANTICS')
 
 section('§4 HEALTH WIRING')
 {
-  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
   const killsRow = settingsChecks().find(row => row.id === 'kills')
   reseedWith('nosuchbuiltin')
   const unmatchedSays = await killsRow?.run()

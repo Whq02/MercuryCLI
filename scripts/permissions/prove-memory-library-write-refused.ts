@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/pathValidation.ts src/utils/memoryFileDetection.ts
-// gate-watch: src/utils/collapseReadSearch.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts src/mneme/paths.ts
+// gate-watch: src/components/messages/collapseReadSearch.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts src/mneme/paths.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -37,11 +37,11 @@ const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
 const { getMnemeHome } = await import('../../src/mneme/paths.ts')
 const { isPathAllowed } = await import('../../src/utils/permissions/pathValidation.ts')
 const { checkEditableInternalPath, checkReadableInternalPath } = await import('../../src/utils/permissions/filesystem.ts')
-const { getToolSearchOrReadInfo } = await import('../../src/utils/collapseReadSearch.ts')
+const { getToolSearchOrReadInfo } = await import('../../src/components/messages/collapseReadSearch.ts')
 const { memoryWriteRefusal } = await import('../../src/utils/memoryFileDetection.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { RETAIN_TOOL_NAME, CORRECT_TOOL_NAME } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { RETAIN_TOOL_NAME, CORRECT_TOOL_NAME } = await import('../../src/constants/tools/memory.ts')
 
 const lib = mnemeLibraryDir()
 mkdirSync(lib, { recursive: true })

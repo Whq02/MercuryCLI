@@ -4,7 +4,7 @@
 
 import { join } from 'node:path'
 import { rampSampleAt, rampSegments, type RampSegment } from '../../src/components/mercury-ui/focalRamp.ts'
-import { displayWidth } from '../../src/components/mercury-ui/glyphs.ts'
+import { displayWidth } from '../../src/utils/glyphs.ts'
 import { BELLY, TERRA } from '../../src/components/mercuryPalette.ts'
 import { deriveFocalRamp, resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
 import { checker } from '../engine-durability/harness.ts'

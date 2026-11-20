@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
+import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
 import { isAdvisoryKind, readLedger } from '../gate/ledger.js'
 import { spawnSync } from 'node:child_process'
 import { gitOutOrNull } from '../lib/git.ts'

@@ -21,7 +21,7 @@ import { servedModelOfAssistantRow } from '../../../utils/model/retainedModel.js
 import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { PUBLIC_HOME_SLUG } from '../../privateChannel/channelCore.js'
-import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
+import { DEAD_THINKING_PLACEHOLDER } from '../../../utils/model/deadThinkingPlaceholder.js'
 import { forgetPersistedDropState, persistedDropState, rememberDropState, withoutCacheControl } from './prefixLedger.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
 import { passedOver } from '../../../utils/passedOver.js'

@@ -32,7 +32,7 @@ const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
 const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
 const { builtinCommands, isCommandEnabled } = await import('../../src/commands.ts')
 const { SAMPLES_OFF_SENTENCE } = await import('../../src/commands/samples/index.ts')
-const { processSlashCommand, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+const { processSlashCommand, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 type Command = import('../../src/types/command.ts').Command
 

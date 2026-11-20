@@ -1,5 +1,5 @@
 import type * as tls from 'node:tls'
-import type { Transport, JSONRPCMessage } from '../sdk.js'
+import type { Transport, JSONRPCMessage } from '../../../utils/mcp/sdk.js'
 import { getWebSocketTLSOptions } from '../../../utils/mtls.js'
 import { getWebSocketProxyAgent, getWebSocketProxyUrl } from '../../../utils/proxy.js'
 

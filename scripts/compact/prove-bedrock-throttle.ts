@@ -6,7 +6,7 @@ const { mapCompatHttpFailure } = await import('../../src/services/providers/open
 const { compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.js')
 const { classifyAPIError, getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
 const { isRetryableError } = await import('../../src/services/api/withRetry.js')
-const { APIError } = await import('../../src/services/api/sdkErrors.js')
+const { APIError } = await import('../../src/utils/api/sdkErrors.js')
 const failures: string[] = []
 for (const row of [
   { body: { message: 'Too many tokens, please wait before trying again. The input cannot exceed 5000 tokens.' } },

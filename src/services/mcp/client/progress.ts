@@ -1,4 +1,4 @@
-import { Client } from '../sdk.js'
+import { Client } from '../../../utils/mcp/sdk.js'
 
 type ProgressParams = { progressToken?: string | number; progress: number; total?: number; message?: string }
 const progressRouters = new WeakMap<Client, Map<string, (params: ProgressParams) => void>>()

@@ -1,6 +1,6 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
@@ -8,7 +8,7 @@ import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWor
 import { resolveZaiDispatch, type ZaiDispatch } from './zaiAccounts.js'
 import { zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
 import { rememberZaiKeyPlan, type ZaiKeyPlanWord } from './zaiKeyPlan.js'
-import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.js'
+import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from '../../../utils/model/pins/glmPins.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

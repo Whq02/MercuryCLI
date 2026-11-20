@@ -73,7 +73,7 @@ try {
   const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
   const { buildMeliousExtras, streamMeliousChat } = await import('../../src/services/providers/melious/meliousCallModel.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
   const tool = { name: 'get_weather', description: async () => 'Current weather for a city', prompt: async () => 'Current weather for a city', inputSchema: z.object({ city: z.string() }), userFacingName: () => 'get_weather', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'melious/glm-5.3', messages: Message[] = [createUserMessage({ content: 'Weather in Hamburg?' })]): CompatCallModelParams {
     return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal,

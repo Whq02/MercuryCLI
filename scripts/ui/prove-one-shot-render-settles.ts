@@ -21,7 +21,7 @@ if (process.argv[2] === '--child') {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
-  const { streamRenderedMessages } = await import('../../src/utils/exportRenderer.tsx')
+  const { streamRenderedMessages } = await import('../../src/components/exportRenderer.tsx')
   const uuidAt = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
   const stampAt = (n: number): string => `2026-06-19T12:00:${String(n).padStart(2, '0')}.000Z`
   const usage = { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }

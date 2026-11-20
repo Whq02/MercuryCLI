@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Text } from '../../ink.js';
-import { GLYPH } from '../mercury-ui/glyphs.js';
+import { GLYPH } from '../../utils/glyphs.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import type { AwayRecapMetadata } from '../../types/message.js';
 import { humanGap } from '../../utils/cockpit/awaySummary.js';

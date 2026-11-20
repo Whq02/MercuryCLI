@@ -84,7 +84,7 @@ console.log('§7 C7+C8 — the picker row measures in cells and its metadata lin
 
 console.log('§8 C9 — AGE right-aligns under its header; the filter echo is bounded')
 {
-  const { padStartTo, padTo } = await import('../../src/components/mercury-ui/glyphs.ts')
+  const { padStartTo, padTo } = await import('../../src/utils/glyphs.ts')
   check('padStartTo fills from the left', padStartTo('3m', 5) === '   3m' && padTo('3m', 5) === '3m   ')
   check('padStartTo truncates width-true past the cell', padStartTo('longest', 5).length <= 5)
   check('a full cell is identity', padStartTo('waits', 5) === 'waits')

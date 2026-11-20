@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import { performMCPOAuthFlow } from '../../services/mcp/auth.js'
-import { buildMcpToolName } from '../../services/mcp/mcpStringUtils.js'
+import { buildMcpToolName } from '../../utils/mcp/mcpStringUtils.js'
 import type { ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import {
   excludeCommandsByServer,

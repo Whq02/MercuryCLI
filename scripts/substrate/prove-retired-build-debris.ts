@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/substrate/stateLifecycle.ts src/utils/spawnLedger.ts src/extensions/paths.ts src/entrypoints/cli.tsx src/extensions/bundled/index.ts
+// gate-watch: src/substrate/stateLifecycle.ts src/daemon/spawnLedger.ts src/extensions/paths.ts src/entrypoints/cli.tsx src/extensions/bundled/index.ts
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,7 +14,7 @@ delete process.env.MERCURY_EXTENSIONS_DIR
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const lifecycle = await import('../../src/substrate/stateLifecycle.ts')
-const { bashAuditPath } = await import('../../src/utils/spawnLedger.ts')
+const { bashAuditPath } = await import('../../src/daemon/spawnLedger.ts')
 const { getBundledDir } = await import('../../src/extensions/paths.ts')
 
 let failures = 0

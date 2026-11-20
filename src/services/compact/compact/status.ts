@@ -1,5 +1,5 @@
 import type { ToolUseContext, CompactProgressEvent } from '../../../Tool.js'
-import { APIUserAbortError } from '../../api/sdkErrors.js'
+import { APIUserAbortError } from '../../../utils/api/sdkErrors.js'
 import { FOLD_STAMP_THROTTLE_MS, type FoldExit, type FoldStatusV1, type FoldTrigger, beginFoldStatus, foldStatusExit, foldStatusOnEvent } from '../foldStatus.js'
 import { ERROR_MESSAGE_NOT_ENOUGH_MESSAGES, ERROR_MESSAGE_USER_ABORT } from './limits.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'

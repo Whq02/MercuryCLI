@@ -1,9 +1,105 @@
 import { basename } from 'path'
-import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../utils/remoteFiles/target.js'
+import type { Tool } from '../../Tool.js'
+import { getAllBaseTools } from '../../tools.js'
 import { isSqliteRowTarget } from '../../tools/FileWriteTool/structuredTargets.js'
 import type { Message } from '../../types/message.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type CodeStats = { filesChanged: string[]; insertions: number; deletions: number }
+
+const SHELL_TOOL_NAMES = new Set(['Bash', 'PowerShell'])
+
+type ShellCall = {
+  id: string
+  tool: string
+  input: Record<string, unknown>
+}
+
+function shellCallsInRange(messages: Message[], start: number, end: number): ShellCall[] {
+  const calls: ShellCall[] = []
+  for (let i = start; i < end; i++) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_use') continue
+      if (!SHELL_TOOL_NAMES.has(block.name)) continue
+      const input = block.input
+      if (!input || typeof input !== 'object' || Array.isArray(input)) continue
+      const record = input as Record<string, unknown>
+      if (typeof record.command !== 'string') continue
+      calls.push({
+        id: block.id,
+        tool: block.name,
+        input: record,
+      })
+    }
+  }
+  return calls
+}
+
+function countMutatingShellInRange(
+  messages: Message[],
+  start: number,
+  end: number,
+  mutatingShellIds: ReadonlySet<string> | null | undefined,
+): number {
+  if (!mutatingShellIds || mutatingShellIds.size === 0 || start < 0) return 0
+  let count = 0
+  for (let i = start; i < end; i++) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type === 'tool_use' && mutatingShellIds.has(block.id)) count += 1
+    }
+  }
+  return count
+}
+
+export async function findMutatingShellToolUseIds(messages: Message[]): Promise<ReadonlySet<string>> {
+  const calls = shellCallsInRange(messages, 0, messages.length)
+  if (calls.length === 0) return new Set()
+  const toolsByName = new Map<string, Tool>()
+  for (const tool of getAllBaseTools()) {
+    if (SHELL_TOOL_NAMES.has(tool.name)) toolsByName.set(tool.name, tool)
+  }
+  const mutating = new Set<string>()
+  for (const call of calls) {
+    const tool = toolsByName.get(call.tool)
+    if (tool === undefined) {
+      mutating.add(call.id)
+      continue
+    }
+    if (typeof tool.prepare === 'function') {
+      try {
+        await tool.prepare(call.input)
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    try {
+      if (tool.isReadOnly(call.input) !== true) mutating.add(call.id)
+    } catch (error) {
+      passedOver(error)
+      mutating.add(call.id)
+    }
+  }
+  return mutating
+}
+
+export function mutatingShellCountAfter(
+  messages: Message[],
+  fromUuid: string,
+  mutatingShellIds: ReadonlySet<string> | null | undefined,
+): number {
+  const start = messages.findIndex(message => message.uuid === fromUuid)
+  if (start === -1) return 0
+  return countMutatingShellInRange(messages, start + 1, messages.length, mutatingShellIds)
+}
 
 type PatchHunk = { lines?: string[] }
 type EditResult = {
@@ -25,16 +121,18 @@ export function statsBetween(
   messages: Message[],
   fromUuid: string,
   toUuid: string | undefined,
-): { files: string[]; insertions: number; deletions: number } {
+  mutatingShellIds?: ReadonlySet<string> | null,
+): { files: string[]; insertions: number; deletions: number; shellCommands: number } {
   const start = messages.findIndex(message => message.uuid === fromUuid)
   const end =
     toUuid === undefined
       ? messages.length
       : messages.findIndex(message => message.uuid === toUuid)
+  const limit = end === -1 ? messages.length : end
   const files = new Set<string>()
   let insertions = 0
   let deletions = 0
-  for (let i = start + 1; i < (end === -1 ? messages.length : end); i++) {
+  for (let i = start + 1; i < limit; i++) {
     const message = messages[i]!
     if (message.type !== 'user') continue
     const content = message.message.content
@@ -72,7 +170,9 @@ export function statsBetween(
       }
     }
   }
-  return { files: [...files], insertions, deletions }
+  const shellCommands =
+    start === -1 ? 0 : countMutatingShellInRange(messages, start + 1, limit, mutatingShellIds)
+  return { files: [...files], insertions, deletions, shellCommands }
 }
 
 export function writtenElsewhereLine(messages: Message[], fromUuid: string): string | null {

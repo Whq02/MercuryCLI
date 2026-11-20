@@ -11,9 +11,9 @@ import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnch
 import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../../services/lsp/manager.js'
 import { runtimeKernel } from '../../../services/primitives/runtimeKernel.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../../services/acp/ideToolBridge.js'
-import { isRemotePath, markRemoteRead, remoteMovedSinceRead } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, markRemoteRead, remoteMovedSinceRead } from '../../../utils/remoteFiles/target.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -29,7 +29,7 @@ import {
   preserveUntouchedLineEndings,
   writeTextContent,
 } from '../../../utils/file.js'
-import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../../utils/fileHistory.js'
+import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../../services/changeTransaction/fileHistory.js'
 import { noteFileTouched } from '../../../mneme/lineageSession.js'
 import { readFileSyncWithMetadata, type LineEndingType } from '../../../utils/fileRead.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
@@ -41,7 +41,7 @@ import type { UUID } from 'node:crypto'
 
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../../FileEditTool/otherSession.js'
 import type { CanUseToolFn } from '../../../Tool.js'
-import { stripSequentialReadPrefixes } from '../../FileEditTool/utils.js'
+import { stripSequentialReadPrefixes } from '../../../utils/fileEditUtils.js'
 import { spellLineRanges } from '../../FileEditTool/readThrough.js'
 import { isFullReadEntry } from '../../FileEditTool/FileEditTool.js'
 import { checkIntroducedParseError } from '../parseCheck.js'
@@ -49,7 +49,7 @@ import {
   callStructuredWriteTarget,
   parseStructuredWriteTarget,
 } from '../structuredTargets.js'
-import { FILE_WRITE_TOOL_NAME } from '../prompt.js'
+import { FILE_WRITE_TOOL_NAME } from '../../../constants/tools/fileWrite.js'
 import type { AssistantMessage } from '../../../types/message.js'
 import type { Input, Output } from './schema.js'
 import { passedOverAs } from '../../../utils/passedOver.js'

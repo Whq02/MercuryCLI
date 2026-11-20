@@ -344,7 +344,7 @@ section('§8 PROVISIONAL SESSION RECONCILE')
 
 section('§9 WIRING')
 {
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const { getLifecycleHealth: lifecycleNow } = await import('../../src/substrate/stateLifecycle.ts')
   const lifecycleSays = await crewChecks().find(row => row.id === 'lifecycle-collection')?.run()
   const lastPass = lifecycleNow()

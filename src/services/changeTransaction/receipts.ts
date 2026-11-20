@@ -1,9 +1,9 @@
 
 import { randomBytes } from 'node:crypto'
-import { subscribeToolTerminal, type ToolTerminalEvent } from '../run/effectObserver.js'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { subscribeToolTerminal, type ToolTerminalEvent } from '../../utils/run/effectObserver.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import {
   CHANGE_CONTRACT_VERSION,
   type ChangeIntent,

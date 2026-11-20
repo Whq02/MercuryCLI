@@ -1,4 +1,4 @@
-import { getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
+import { getProcessStartTokenCachedOrRefresh, isProcessAlive } from '../utils/ownerWatch.js'
 import { tokenBinding } from './processSweep.js'
 
 export function workerPidAlive(rec: { pid?: number; procStart?: string }): boolean {

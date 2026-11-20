@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
-import type { ContextFillView } from '../../src/utils/contextFill.ts'
+import type { ContextFillView } from '../../src/services/context/contextFill.ts'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR)
 delete process.env.MERCURY_HOME
@@ -16,7 +16,7 @@ saveGlobalConfig(config => ({ ...config, compatProvider: { 'pod-current': { base
 const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
 const { rememberCompatCatalogue } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
 rememberCompatCatalogue(configuredCompatEndpoints()[0]!, { models: ['openai/gpt-oss-120b'], contextWindows: { 'openai/gpt-oss-120b': 131072 }, dialect: 'vllm' })
-const { contextFillView } = await import('../../src/utils/contextFill.ts')
+const { contextFillView } = await import('../../src/services/context/contextFill.ts')
 const { calculateTokenWarningState } = await import('../../src/services/compact/autoCompact.ts')
 const { sessionFactsToWire, sessionFactsFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
 const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')

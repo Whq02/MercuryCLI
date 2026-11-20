@@ -12,7 +12,7 @@ console.log('============================================================')
 console.log(' ToolSearch — a stripped admission record tells the model its tools are in the list')
 console.log('============================================================')
 
-const { STRIPPED_ADMISSION_RECORD_TEXT } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { STRIPPED_ADMISSION_RECORD_TEXT } = await import('../../src/constants/tools/toolSearch.ts')
 const { createUserMessage, stripToolReferenceBlocksFromUserMessage } = await import('../../src/utils/messages.ts')
 
 type Block = { type: string; text?: string; tool_name?: string; content?: Block[] }

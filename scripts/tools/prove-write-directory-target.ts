@@ -24,7 +24,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { findActualString } = await import('../../src/tools/FileEditTool/utils.ts')
+const { findActualString } = await import('../../src/utils/fileEditUtils.ts')
 
 const appState = getDefaultAppState()
 const context = { getAppState: () => appState, abortController: new AbortController(), options: { tools: [] } } as never

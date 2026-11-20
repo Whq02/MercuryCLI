@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { GLYPH } from '../../src/components/mercury-ui/glyphs.ts'
+import { GLYPH } from '../../src/utils/glyphs.ts'
 import { BELLY, TERRA } from '../../src/components/mercuryPalette.ts'
 import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
 import { checker } from '../engine-durability/harness.ts'

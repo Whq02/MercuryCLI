@@ -22,7 +22,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const j = (value: unknown): string => JSON.stringify(value)
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
-const { getProcessStartTokenAsync, isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { getProcessStartTokenAsync, isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
 
 const dir = process.env.MERCURY_DAEMON_DIR!

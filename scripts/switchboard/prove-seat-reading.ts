@@ -16,7 +16,7 @@ const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const cap = await import('../../src/services/switchboard/capacityCheck.ts')
+const cap = await import('../../src/utils/switchboard/capacityCheck.ts')
 
 const GB = 2 ** 30
 const MB = 2 ** 20

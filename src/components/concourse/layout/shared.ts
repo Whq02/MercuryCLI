@@ -1,4 +1,4 @@
-import { GLYPH } from '../../mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { effortLevelToSymbol } from '../../EffortIndicator.js'
 import { EFFORT_HIGH } from '../../../constants/figures.js'
 import { isEffortLevel } from '../../../utils/effort.js'

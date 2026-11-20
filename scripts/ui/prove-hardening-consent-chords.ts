@@ -13,11 +13,11 @@ process.env.MERCURY_LIVE_GLYPHS = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const config = await import('../../src/utils/config.js')
 config.enableConfigs()
-const capacity = await import('../../src/services/switchboard/capacityCheck.js')
+const capacity = await import('../../src/utils/switchboard/capacityCheck.js')
 const capacityAnswers: boolean[] = []
 const trustAnswers: string[] = []
 let capacityNeeded = true
-mock.module('../../src/services/switchboard/capacityCheck.js', () => ({
+mock.module('../../src/utils/switchboard/capacityCheck.js', () => ({
   ...capacity, needsCapacityAsk: () => capacityNeeded,
   recordCapacityDecision: async (allowed: boolean) => { capacityAnswers.push(allowed); return { recommendedSeats: 4 } },
 }))

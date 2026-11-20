@@ -3,7 +3,7 @@
 # gate-watch: src/services/run/**
 # gate-watch: src/query/stopHooks*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/healthReport.ts src/utils/hooks/fire.ts src/guards/**
+# gate-watch: src/services/health/healthReport.ts src/utils/hooks/fire.ts src/guards/**
 # gate-watch: src/run-core/turn/**
 # gate-watch: src/cli/headless/*
 set -u

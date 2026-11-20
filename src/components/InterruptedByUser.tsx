@@ -1,6 +1,6 @@
 import { Text } from '../ink.js';
 import { CRIMSON } from './mercuryPalette.js';
-import { GLYPH } from './mercury-ui/glyphs.js';
+import { GLYPH } from '../utils/glyphs.js';
 
 export function InterruptedByUser({ why }: { why?: string | null } = {}) {
   return (

@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Text, paletteCollapsed, useTheme } from '../../ink.js';
 import { useBlink } from '../../hooks/useBlink.js';
 import { critterDefForKey } from '../../utils/cockpit/critterData.js';
-import { GLYPH } from '../mercury-ui/glyphs.js';
+import { GLYPH } from '../../utils/glyphs.js';
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { ReadyBreath } from '../mercury-ui/LiveGlyphs.js';

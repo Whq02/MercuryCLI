@@ -6,7 +6,7 @@ import type { KeybindingContextName } from '../../keybindings/types.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { toTildePath } from '../../utils/path.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { padTo } from '../mercury-ui/glyphs.js'
+import { padTo } from '../../utils/glyphs.js'
 
 type Row = { action: string; context: KeybindingContextName; fallback: string; label: string; plainLabel?: string }
 type Section = { head: string; rows: Row[] }

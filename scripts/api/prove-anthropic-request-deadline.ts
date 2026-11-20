@@ -2,7 +2,7 @@ import '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { createServer, type ServerResponse } from 'node:http'
 import { AnthropicClient } from '../../src/services/providers/anthropic/anthropicClient.ts'
-import { APIConnectionTimeoutError, APIUserAbortError } from '../../src/services/api/sdkErrors.ts'
+import { APIConnectionTimeoutError, APIUserAbortError } from '../../src/utils/api/sdkErrors.ts'
 
 const responses = new Set<ServerResponse>()
 const server = createServer((request, response) => {
@@ -39,7 +39,7 @@ try {
     finally { clearTimeout(guard) }
     check(`${path} reaches its request deadline without external cancellation`, !proofAborted && error instanceof APIConnectionTimeoutError && error.requestDeadline === true && Date.now() - start < timeout * 5, { proofAborted, elapsed: Date.now() - start, error: error instanceof Error ? error.name : String(error) })
     const { outageCauseOf } = await import('../../src/services/api/reconnectLadder.ts')
-    const { recordTransportFailure } = await import('../../src/services/api/transportEvidence.ts')
+    const { recordTransportFailure } = await import('../../src/utils/api/transportEvidence.ts')
     recordTransportFailure(Object.assign(new Error('earlier connection timed out'), { code: 'UND_ERR_CONNECT_TIMEOUT' }))
     check(`${path} cannot borrow a connect timeout from the process ring`, outageCauseOf(error) === null, { outage: outageCauseOf(error) })
   }

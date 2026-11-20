@@ -6,7 +6,7 @@ import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 let requests = 0
 const server = createServer((req, res) => {
   requests++

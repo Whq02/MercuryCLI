@@ -3,7 +3,7 @@ import type { ModelSpendRowV1, UsageFactsV1 } from '../../engine-connector/types
 import { formatLaneSpend } from '../../../utils/spendSpelling.js'
 import { formatTokens } from '../../../utils/format.js'
 import { WORKLOAD_ADVISOR, WORKLOAD_CRON } from '../../../utils/workloadContext.js'
-import { modelPricingBasis } from '../../../utils/modelCost.js'
+import { modelPricingBasis } from '../../usage/modelCost.js'
 import { declaredRouteOf } from '../routeLaw.js'
 import type { ProviderFamilyId } from '../providerAdapter.js'
 import type { ModelSessionSpend, ProviderSessionSpend } from '../providerUsage.js'

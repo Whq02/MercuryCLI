@@ -1,4 +1,4 @@
-import { APIConnectionError, APIConnectionTimeoutError, APIError } from './sdkErrors.js'
+import { APIConnectionError, APIConnectionTimeoutError, APIError } from '../../utils/api/sdkErrors.js'
 import { isBedrockThrottle } from './bedrockThrottle.js'
 import { ANTHROPIC_WORKSPACE_FIX, needsAnthropicWorkspace } from '../providers/anthropic/anthropicWorkspace.js'
 

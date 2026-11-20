@@ -218,7 +218,7 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   const workers = await import('../../src/daemon/concourseWorkers.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-  const { restoreConversationModelFromMessages } = await import('../../src/utils/sessionRestore.ts')
+  const { restoreConversationModelFromMessages } = await import('../../src/services/resume/sessionRestore.ts')
   const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
@@ -303,7 +303,7 @@ section("§6c — the session's own model entry: written when the session starts
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-  const restore = (await import('../../src/utils/sessionRestore.ts')) as Record<string, unknown>
+  const restore = (await import('../../src/services/resume/sessionRestore.ts')) as Record<string, unknown>
   const fromRows = restore.restoreConversationModelFromMessages as (messages: unknown[]) => string | null
   const restoreConversationModel = (restore.restoreConversationModel ?? ((r: { messages: unknown[] }) => fromRows(r.messages))) as (r: { messages: unknown[]; model?: string }) => string | null
   const workspaceId = workers.canonicalWorkspaceId(work)

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { resolveBrowser } from '../../services/browser/browserResolver.js'
 import { closeBrowserSession, ensureBrowserSession } from '../../services/browser/browserSession.js'
-import { makeOwnerKey, parseOwnerKey, type OwnerKey } from '../../services/run/ownerKey.js'
+import { makeOwnerKey, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
 import type { DocumentInput } from './schema.js'
 
 export async function printDocument(html: string, input: DocumentInput, owner: OwnerKey | undefined, signal: AbortSignal): Promise<Uint8Array | null> {

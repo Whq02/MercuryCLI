@@ -1,4 +1,4 @@
-import { providerRefusedImage } from '../../api/mediaRefusal.js'
+import { providerRefusedImage } from '../../../utils/api/mediaRefusal.js'
 import { requestTurnOf } from '../../../rows/request.js'
 import type { MessageParam } from '../../../types/wire.js'
 import type { EffortWireFact } from '../../../utils/effortStamp.js'

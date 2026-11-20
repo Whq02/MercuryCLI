@@ -31,7 +31,7 @@ if (existsSync(PYRIGHT_CACHE)) process.env.MERCURY_PYRIGHT_VENDOR_DIR = PYRIGHT_
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const { collectReadiness } = await import('../../src/utils/readiness.js')
+const { collectReadiness } = await import('../../src/services/health/readiness.js')
 const proj_ = await import('../../src/services/ide/pythonProject.js')
 const { probeBuiltinClangd, probeCompileDb } = await import('../../src/services/lsp/clangdLane.js')
 proj_._resetPythonProjectForTesting()
@@ -80,7 +80,7 @@ try {
 
   section('(4) health parity — the ide-plane-fast check calls the SAME probes')
   {
-    const { codingLoopFastChecks } = await import('../../src/utils/health/sections/coding-loop-fast.ts')
+    const { codingLoopFastChecks } = await import('../../src/services/health/sections/coding-loop-fast.ts')
     const planeRow = codingLoopFastChecks().find(row => row.id === 'ide-plane-fast')
     check('health carries the ide-plane-fast check', planeRow?.label === 'IDE plane')
     const planeSays = await planeRow?.run()

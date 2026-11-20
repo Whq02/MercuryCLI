@@ -45,7 +45,7 @@ try {
   const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
   const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
   const { buildMoonshotExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-  const { calculateUSDCost, resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+  const { calculateUSDCost, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const { getModelUsage } = await import('../../src/bootstrap/state.ts')
   const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { firstByteBudgetMs } from '../../src/services/providers/streamIdleBudget.ts'
-import { GLYPH } from '../../src/components/mercury-ui/glyphs.ts'
+import { GLYPH } from '../../src/utils/glyphs.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')

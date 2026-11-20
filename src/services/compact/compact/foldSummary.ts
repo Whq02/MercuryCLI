@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage, Message } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../agents/forkedAgent.js'
 import type { OverflowSignal } from '../../api/overflowSignal.js'
 import { estimateRequestGauge, type readRequestGauge } from '../../run/requestGauge.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from '../verbatimTail.js'

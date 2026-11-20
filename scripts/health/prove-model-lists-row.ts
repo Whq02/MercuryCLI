@@ -142,11 +142,11 @@ section('§2b Moonshot over its cached live list: served, lacking, unread, unrea
 }
 
 section('§3 the reader: the facts come from the catalogue caches this process holds, never a fetch')
-const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.ts')
-const { GEMINI_PRICE_PINS } = await import('../../src/services/providers/gemini/geminiPins.ts')
-const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
-const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/services/providers/huggingface/huggingfacePins.ts')
-const { KIMI_DISPLAY_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.ts')
+const { GEMINI_PRICE_PINS } = await import('../../src/utils/model/pins/geminiPins.ts')
+const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/utils/model/pins/deepseekPins.ts')
+const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/utils/model/pins/huggingfacePins.ts')
+const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
 const openaiCatalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
 const moonshotCatalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
 const deepseekCatalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')

@@ -7,7 +7,7 @@ const root = arg < 0 ? resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
 enableConfigs()
 const { MercuryMcpAuthProvider, getServerKey } = await import(`${root}/src/services/mcp/auth.ts`)
-const { auth } = await import(`${root}/src/services/mcp/sdk.ts`)
+const { auth } = await import(`${root}/src/utils/mcp/sdk.ts`)
 const { getSecureStorage } = await import(`${root}/src/utils/secureStorage/index.ts`)
 let checks = 0
 let failures = 0

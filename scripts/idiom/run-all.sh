@@ -6,7 +6,7 @@
 # gate-watch: src/services/api/client.ts src/services/api/errorUtils.ts
 # gate-watch: src/services/api/errors.ts src/services/api/logging.ts src/services/api/withRetry.ts src/services/providers/anthropic/cacheAndUsage.ts src/services/providers/anthropic/requestParams.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/rateLimitMocking.ts src/services/tokenEstimation.ts src/services/vcr.ts
-# gate-watch: src/utils/model/validateModel.ts
+# gate-watch: src/services/providers/validateModel.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

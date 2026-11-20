@@ -1,6 +1,6 @@
 import { Text } from '../../../ink.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import { extractOutputRedirections } from '../../../utils/bash/commands.js'
 import { generateShellSuggestionsLabel } from '../shellPermissionHelpers.js'
 import type { PermissionDecisionReason, PermissionUpdate } from '../../../types/permissions.js'

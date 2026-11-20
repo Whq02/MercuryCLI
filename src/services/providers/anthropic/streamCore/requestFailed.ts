@@ -1,4 +1,4 @@
-import { APIUserAbortError } from '../../../api/sdkErrors.js'
+import { APIUserAbortError } from '../../../../utils/api/sdkErrors.js'
 import { getAssistantMessageFromError } from '../../../api/errors.js'
 import type { QueryCtx, QueryYield } from './state.js'
 

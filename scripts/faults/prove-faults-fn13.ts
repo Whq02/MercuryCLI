@@ -164,7 +164,7 @@ try {
   }
 
   {
-    const { locateBlender, blenderLaneReadinessRecords } = await import('../../src/services/ide/blenderProject.ts')
+    const { locateBlender, blenderLaneReadinessRecords } = await import('../../src/utils/blender/blenderProject.ts')
     const prevBin = process.env.MERCURY_BLENDER_BIN
     const prevEnabled = process.env.MERCURY_BLENDER
     try {

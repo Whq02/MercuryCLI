@@ -1,9 +1,9 @@
 import { realpathSync } from 'node:fs'
 import { checkSeenLines, fileGeneration } from '../../../services/changeTransaction/seenLines.js'
 import { type NormalizedFileEdits } from '../../../services/lsp/workspaceEditApply.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { getCheckedFileModificationTime } from '../../../utils/file.js'
-import { MAX_LINES_TO_READ } from '../../FileReadTool/prompt.js'
+import { MAX_LINES_TO_READ } from '../../../constants/tools/fileRead.js'
 import type { OpEnv } from './types.js'
 import { passedOver } from '../../../utils/passedOver.js'
 

@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.ts')
+const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 
 let failures = 0

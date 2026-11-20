@@ -7,11 +7,11 @@ import { z } from 'zod/v4'
 
 import { buildTool, type CanUseToolFn, type Tool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'
 import {
   LEFT_DOUBLE_CURLY_QUOTE,
@@ -48,7 +48,7 @@ import { plural } from '../../utils/stringUtils.js'
 import { getDescription, GREP_TOOL_NAME, rankedModeEnabled } from './prompt.js'
 import { discoveryArgs, documentTypeArgs, MAX_DOCUMENTS, searchDocuments } from './documentSearch.js'
 import { rankedRefusal, rankedScope, rankedSearch, renderRanked, type RankedPass } from './rankedSearch.js'
-import { isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../../utils/documentText.js'
+import { isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../shared/documentText.js'
 import {
   getToolUseSummary,
   isResultTruncated,

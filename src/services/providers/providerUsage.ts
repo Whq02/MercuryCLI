@@ -11,7 +11,7 @@ import {
 import { getEngineModel } from '../../utils/model/model.js'
 import { buildProviderSnapshot, type ProviderSnapshot } from './modelRegistry.js'
 import type { ProviderFamilyId } from './providerAdapter.js'
-import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
+import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../cockpit/quota.js'
 import {
   anthropicWindowClosedUntil,
   anthropicWindowFact,
@@ -33,9 +33,9 @@ import {
 } from '../anthropicLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { readSignInRecord, subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
-import { recordUsageObservations } from '../../utils/usageHistory.js'
+import { recordUsageObservations } from '../usage/usageHistory.js'
 import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
-import { credentialFingerprint } from './credentialIdentity.js'
+import { credentialFingerprint } from '../../utils/accounts/credentialIdentity.js'
 import { activeWalletEntry, anthropicCredentialAccount, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { accountIdentityShown, familyAccountWord } from '../wallet/identityWords.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES, providerDisplayName } from './routeLaw.js'

@@ -26,7 +26,7 @@ if (process.env.A11Y_RENDER_CHILD) {
     Box: React.ComponentType<Record<string, unknown>>
     Text: React.ComponentType<Record<string, unknown>>
   }
-  const { GLYPH } = (await import('../../src/components/mercury-ui/glyphs.js')) as {
+  const { GLYPH } = (await import('../../src/utils/glyphs.js')) as {
     GLYPH: Record<string, string>
   }
   const h = React.createElement

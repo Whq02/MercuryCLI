@@ -45,7 +45,7 @@ check('/init is gone', commands.findCommand('init', roster) === undefined)
 
 console.log('\nthe merged verbs drive the real road')
 
-const slash = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+const slash = await import('../../src/services/processUserInput/processSlashCommand.tsx')
 const { unknownCommandLine } = slash as unknown as { unknownCommandLine: (name: string, roster: unknown[]) => string }
 check('a retired name answers as any unknown input', unknownCommandLine('halt', roster).startsWith('Unknown command: /halt'))
 check('…never naming a replacement', !unknownCommandLine('speak', roster).includes('voice'))

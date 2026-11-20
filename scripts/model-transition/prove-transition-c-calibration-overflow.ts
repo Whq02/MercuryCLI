@@ -13,7 +13,7 @@ delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
 const cal = await import('../../src/services/run/contextCalibration.js')
 const planMod = await import('../../src/services/run/requestContextPlan.js')
 const sel = await import('../../src/services/run/contextSelection.js')
-const ok = await import('../../src/services/run/ownerKey.js')
+const ok = await import('../../src/utils/run/ownerKey.js')
 const auto = await import('../../src/services/compact/autoCompact.js')
 
 let failures = 0
@@ -101,7 +101,7 @@ section('§B C07 — settlement reconciliation through the applied plan')
   check('no calibration key ⇒ tokenEstimate null (explicit absence)', (await build(msgs, 'inspect', owner)).tokenEstimate === null)
   const t = await import('../core-runtime/turnScenarios.ts')
   const { declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
-  const { mainOwnerOfSession } = await import('../../src/services/run/resolveOwner.js')
+  const { mainOwnerOfSession } = await import('../../src/utils/run/resolveOwner.js')
   const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.js')
   const UNDECLARED = 'model-no-road-declares'
   const carried: string[] = []

@@ -40,7 +40,7 @@ const { guardLoginDriverWrite } = await import('../lib/loginDriverGuard.ts')
 guardLoginDriverWrite('the model lists health drive', process.env)
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const scenarios = await import('../ui/renderScenarios.ts')
-const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.ts')
+const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.ts')
 seedFirstRun(HOME, [CWD])
 
 const TYPED = GPT_DISPLAY_PINS.map(pin => pin.id)

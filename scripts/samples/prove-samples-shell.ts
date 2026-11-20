@@ -19,8 +19,8 @@ const { renderSampleShell } = await import('../../src/services/samples/shell.ts'
 const { formatMarksMessage, parseMarksBody } = await import('../../src/services/samples/marks.ts')
 const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
 const { ensureBrowserSession, disposeBrowserOwner } = await import('../../src/services/browser/browserSession.ts')
-const { makeOwnerKey, MAIN_LANE } = await import('../../src/services/run/ownerKey.ts')
-type SampleRecord = import('../../src/services/samples/contracts.ts').SampleRecordV1
+const { makeOwnerKey, MAIN_LANE } = await import('../../src/utils/run/ownerKey.ts')
+type SampleRecord = import('../../src/utils/samples/contracts.ts').SampleRecordV1
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

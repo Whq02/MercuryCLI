@@ -6,7 +6,7 @@ import { isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
+import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
 import sharp from 'sharp'
 
 const exec = promisify(execFile)

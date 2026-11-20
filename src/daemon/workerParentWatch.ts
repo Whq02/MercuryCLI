@@ -1,5 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { isProcessAlive, decideOrphanShutdown } from './ownerWatch.js'
+import { isProcessAlive, decideOrphanShutdown } from '../utils/ownerWatch.js'
 import { runCleanupFunctions } from '../utils/cleanupRegistry.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'

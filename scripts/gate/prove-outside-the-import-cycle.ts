@@ -21,6 +21,7 @@ const OUTSIDE = [
   'src/services/advisor/askAdvisor.ts',
   'src/services/agents/operatorStop.ts',
   'src/services/compact/overflowRecovery.ts',
+  'src/services/crew/agentLaunchPlan.ts',
   'src/services/eval/evalBridge.ts',
   'src/services/ide/godotSession.ts',
   'src/services/ide/launchProfiles.ts',
@@ -127,7 +128,6 @@ const OUTSIDE = [
   'src/tools/VideoTool/VideoTool.tsx',
   'src/tools/WebSearchTool/ProviderSearchTool.ts',
   'src/tools/WebSearchTool/WebSearchTool.ts',
-  'src/utils/crew/agentLaunchPlan.ts',
   'src/utils/task/sdkAgentFrames.ts',
 ]
 

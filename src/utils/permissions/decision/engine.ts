@@ -1,4 +1,4 @@
-import { APIUserAbortError } from '../../../services/api/sdkErrors.js'
+import { APIUserAbortError } from '../../api/sdkErrors.js'
 import type { Tool, ToolUseContext } from '../../../Tool.js'
 import { AbortError } from '../../errors.js'
 import { logForDebugging } from '../../debug.js'

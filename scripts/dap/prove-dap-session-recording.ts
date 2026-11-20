@@ -23,7 +23,7 @@ const STDOUT_THEN_MOCK = `process.stdout.write('recording adapter: on its port\\
 const scratch = mkdtempSync(path.join(tmpdir(), 'dap-session-recording-'))
 
 const { DapSession, createDapSession, removeDapSession, _dapSessionCountForTesting } = await import('../../src/services/dap/dapClient.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 type Session = InstanceType<typeof DapSession>
 const owner = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-session-recording', lane: 'main' })
 

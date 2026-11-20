@@ -21,8 +21,8 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_DAP
 
   const dap = await import('../../src/services/dap/dapClient.js')
-  const ok = await import('../../src/services/run/ownerKey.js')
-  const lifecycle = await import('../../src/services/run/ownerLifecycle.js')
+  const ok = await import('../../src/utils/run/ownerKey.js')
+  const lifecycle = await import('../../src/utils/run/ownerLifecycle.js')
 
   const A = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'conv-A', lane: 'main' })
   const B = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'conv-B', lane: 'main' })

@@ -1,12 +1,12 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { cerebrasApiBase, resolveCerebrasApiKey } from './cerebrasAccounts.js'
-import { CEREBRAS_DISPLAY_PINS, CEREBRAS_OBSERVED_AT, isCerebrasTextModelId, cerebrasDisplayName, cerebrasDisplayPin, cerebrasWireId, cerebrasQualifiedId } from './cerebrasPins.js'
+import { CEREBRAS_DISPLAY_PINS, CEREBRAS_OBSERVED_AT, isCerebrasTextModelId, cerebrasDisplayName, cerebrasDisplayPin, cerebrasWireId, cerebrasQualifiedId } from '../../../utils/model/pins/cerebrasPins.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 interface CerebrasLiveModel {

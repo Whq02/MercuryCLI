@@ -27,7 +27,7 @@ const { planToolPayload, toolsOnTheWire, toolRosterLatchFor, clearToolRosterLatc
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 
 let checks = 0
@@ -63,7 +63,7 @@ const schemasOf = async (tools: readonly { name: string }[], model: string): Pro
   check('an admitted tool\'s definition rides the text-append wire and so joins the fixed material (one more schema, the tools term itself unmoved)', admittedWire.length === localWire.length + 1 && admittedWire.some(tool => tool.name === 'Retain') && afterAdmission.roster.length === local.roster.length, `${admittedWire.length} vs ${localWire.length}`)
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { mainOwnerOfSession, rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { mainOwnerOfSession, rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const LOCAL = 'local/qwen3.5:9b'
   const FIRST_PARTY = 'claude-opus-4-8'
   const gaugedRequest = async (model: string, tools: readonly unknown[]): Promise<{ fixed: number; latched: boolean; key: string; rows: Message[] }> => {

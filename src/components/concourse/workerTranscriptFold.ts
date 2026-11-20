@@ -13,7 +13,7 @@ import {
   shouldShowUserMessage,
 } from '../../utils/messages.js'
 import { applyGrouping } from '../../utils/groupToolUses.js'
-import { collapseReadSearchGroups } from '../../utils/collapseReadSearch.js'
+import { collapseReadSearchGroups } from '../messages/collapseReadSearch.js'
 import { collapseBackgroundBashNotifications } from '../../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'

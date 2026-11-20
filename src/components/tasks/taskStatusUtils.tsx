@@ -5,7 +5,7 @@ import {
   isLocalAgentTask,
   isPanelAgentTask,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import {
   deriveAgentLifecycle,
   type AgentLifecycle,

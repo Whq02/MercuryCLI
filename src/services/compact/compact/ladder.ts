@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage, Message, UserMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../agents/forkedAgent.js'
 import { createUserMessage, getAssistantMessageText } from '../../../utils/messages.js'
 import { PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../../api/errors.js'
 import { overflowGapTokens, overflowSignalOf } from '../../api/overflowSignal.js'

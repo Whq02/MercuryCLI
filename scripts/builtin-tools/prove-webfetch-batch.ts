@@ -5,7 +5,7 @@ import axios from 'axios'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const seen: string[] = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   const url = request.headers.get('x-fixture-url')!

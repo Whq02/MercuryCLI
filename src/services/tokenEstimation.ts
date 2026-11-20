@@ -6,7 +6,7 @@ import { normalizeMessagesForAPI } from '../utils/messages.js'
 import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from '../utils/model/model.js'
 import { utilityCallFor } from '../utils/model/utilityModel.js'
 import { getModelBetas } from '../utils/betas.js'
-import { sideQuery } from '../utils/sideQuery.js'
+import { sideQuery } from './api/sideQuery.js'
 import { sleep } from '../utils/sleep.js'
 import { modelSupportsAdaptiveThinking } from '../utils/thinking.js'
 import { modelSupportsEffort } from '../utils/effort.js'
@@ -14,7 +14,7 @@ import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAnthropicClient } from './api/client.js'
 import { outageCauseOf, outageCauseWords } from './api/reconnectLadder.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow, retrySeconds } from './api/recoveryBudget.js'
-import { APIConnectionError, APIConnectionTimeoutError } from './api/sdkErrors.js'
+import { APIConnectionError, APIConnectionTimeoutError } from '../utils/api/sdkErrors.js'
 import { is529Error, isRetryableError, isStaleConnectionError } from './api/withRetry.js'
 import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from './providers/busyRetry.js'
 import { declaredRouteOf } from './providers/routeLaw.js'
@@ -217,7 +217,7 @@ export async function countTokensViaHaikuFallback(
   try {
     const [{ addToTotalSessionCost }, { calculateUSDCost }, { EMPTY_USAGE }] = await Promise.all([
       import('../cost-tracker.js'),
-      import('../utils/modelCost.js'),
+      import('./usage/modelCost.js'),
       import('./api/emptyUsage.js'),
     ])
     const billed = {

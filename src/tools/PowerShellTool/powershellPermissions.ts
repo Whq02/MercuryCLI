@@ -38,7 +38,7 @@ import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
-import { getDestructiveCommandWarning } from '../BashTool/destructiveCommandWarning.js'
+import { getDestructiveCommandWarning } from '../../utils/shell/destructiveCommandWarning.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 import { credentialStoreWriteRefusal } from '../../utils/permissions/filesystem.js'
 

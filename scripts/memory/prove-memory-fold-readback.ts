@@ -13,7 +13,7 @@ writeFileSync(join(home, 'settings.json'), JSON.stringify({ memory: { journal: f
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { retireFoldToMemory, readBackStoredRow, foldMemoryWitness, foldMemoryStoredText } = await import('../../src/services/compact/foldRetirement.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { acceptUserRequest, noteRunEvent } = await import('../../src/services/run/runCoordinator.ts')
 const { readMemoryRecord, consolidatedIdOf, retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
 const { memoryPointerForId, renderPointerLine } = await import('../../src/mneme/mnemePointers.ts')

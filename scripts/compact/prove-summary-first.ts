@@ -15,12 +15,12 @@ assert.deepEqual(decision, { kind: 'recover', rung: 'fold' }, 'the measured 154-
 console.log('PASS measured overflow chooses summary before 154-body prune')
 
 const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
 const { roughTokenCountEstimationForMessages } = await import('../../src/services/tokenEstimation.js')
 const { prepareFoldContext } = await import('../../src/services/compact/foldTransaction.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
-const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.js')
+const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.js')
 const messages: import('../../src/types/message.js').Message[] = []
 for (let index = 0; index < 154; index++) {
   const tokens = Math.floor(740942 / 154) + (index < 740942 % 154 ? 1 : 0)

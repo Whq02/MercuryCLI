@@ -20,7 +20,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { buildToolCensus, censusGapLines, CENSUS_NO_REASON } = await import('../../src/utils/capability/census.ts')
+const { buildToolCensus, censusGapLines, CENSUS_NO_REASON } = await import('../../src/services/capability/census.ts')
 type Census = ReturnType<typeof buildToolCensus>
 
 console.log('── census reasons ──')
@@ -107,7 +107,7 @@ console.log('[3] the truths driven on this box')
 
 console.log('[4] /health prints the lines (the row, run here)')
 {
-  const { toolCapabilityFastChecks } = await import('../../src/utils/health/sections/tool-capability-fast.ts')
+  const { toolCapabilityFastChecks } = await import('../../src/services/health/sections/tool-capability-fast.ts')
   const row = await toolCapabilityFastChecks().find(entry => entry.id === 'capability-census')?.run()
   const lines = censusGapLines(buildToolCensus())
   const printed = (row?.detail ?? '').split('\n')

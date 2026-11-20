@@ -1,9 +1,9 @@
 import type { ToolUseContext } from '../../../Tool.js'
-import { isRemotePath, remoteShellPath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, remoteShellPath } from '../../../utils/remoteFiles/target.js'
 import { getFileModificationTime } from '../../../utils/file.js'
 import { formatFileSize } from '../../../utils/format.js'
 import { readNotebook } from '../../../utils/notebook.js'
-import type { FileReadingLimits } from '../limits.js'
+import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'
 import type { Input, LaneResult } from './schema.js'
 import { MaxFileReadTokenExceededError, tokensOverCap } from './window.js'
 

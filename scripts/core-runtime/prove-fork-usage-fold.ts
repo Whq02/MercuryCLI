@@ -15,7 +15,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const fork = await import('../../src/utils/forkedAgent.ts')
+const fork = await import('../../src/services/agents/forkedAgent.ts')
 const { EMPTY_FORK_USAGE_FOLD, foldForkUsageEvent, settleForkUsageFold } = fork
 
 const start = (usage: Record<string, number>) => ({ type: 'message_start', message: { usage } })

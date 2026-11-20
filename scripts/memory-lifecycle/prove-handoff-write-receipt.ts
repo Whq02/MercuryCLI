@@ -16,7 +16,7 @@ try {
   const { noteSessionEngine } = await import('../../src/mneme/lineageSession.ts')
   const { leaveNoteBeforeExit } = await import('../../src/mneme/exitHandoff.ts')
   const handoff = await import('../../src/mneme/handoffAsk.ts')
-  const { saveCacheSafeParams } = await import('../../src/utils/forkedAgent.ts')
+  const { saveCacheSafeParams } = await import('../../src/services/agents/forkedAgent.ts')
   const { lineagePath, mnemeProjectKey } = await import('../../src/mneme/paths.ts')
   const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
   const params = { systemPrompt: [] as never, userContext: {}, systemContext: {}, toolUseContext: {} as never, forkContextMessages: [] }
@@ -36,7 +36,7 @@ try {
   assert.equal(note?.stored, false)
   assert.match(handoff.handoffNotice(note), /the note could not be stored/)
   const t = await import('../core-runtime/turnScenarios.ts')
-  const forked = await import('../../src/utils/forkedAgent.ts')
+  const forked = await import('../../src/services/agents/forkedAgent.ts')
   const bootstrap = await import('../../src/bootstrap/state.ts')
   const asks: string[] = []
   const runner = spyOn(forked, 'runForkedAgent').mockImplementation((async (asked: { forkLabel?: string }) => {

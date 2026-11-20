@@ -61,7 +61,7 @@ const { getOauthAccountInfo, getClaudeAIOAuthTokens } = await import('../../src/
 const { signInLedgerEpoch, subscribeSignInEpoch } = await import('../../src/utils/accounts/signInLedger.js')
 const { anthropicCredentialPresence } = await import('../../src/services/providers/providerUsage.js')
 const { scanAccountScopes } = await import('../../src/utils/accounts/scopeScan.js')
-const { sessionAccountWords } = await import('../../src/utils/accounts/sessionAccount.js')
+const { sessionAccountWords } = await import('../../src/services/accounts/sessionAccount.js')
 const { getUsageCredentialEpoch } = await import('../../src/services/anthropicLimits.js')
 
 let failures = 0

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
-import { GLYPH, displayWidth } from './glyphs.js'
+import { GLYPH, displayWidth } from '../../utils/glyphs.js'
 import { InteractiveRow } from './InteractiveRow.js'
 
 export const FOLD_OPEN_LEAD = '▾ '

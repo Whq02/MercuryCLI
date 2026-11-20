@@ -14,7 +14,7 @@ import {
   SectionHeader,
   StateBadge,
 } from '../components.js'
-import { GLYPH } from '../glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import {
   resolveProviderUsability,
   type ProviderId,

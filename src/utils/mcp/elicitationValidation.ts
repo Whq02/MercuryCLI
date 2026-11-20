@@ -1,4 +1,4 @@
-import type { PrimitiveSchemaDefinition } from '../../services/mcp/sdk.js'
+import type { PrimitiveSchemaDefinition } from './sdk.js'
 
 import { looksLikeISO8601, parseNaturalLanguageDateTime } from './dateTimeParser.js'
 import { passedOver } from '../passedOver.js'

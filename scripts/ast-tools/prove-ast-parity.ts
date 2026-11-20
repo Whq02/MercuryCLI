@@ -9,8 +9,8 @@ const { engineDir } = armEnvironment()
 
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
 const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
-const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
-const { resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/utils/structure/grammarRegistry.ts'))
+const { resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-parity-'))
 writeLanguageFixtures(root)

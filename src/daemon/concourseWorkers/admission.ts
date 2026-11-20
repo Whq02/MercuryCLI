@@ -1,6 +1,6 @@
 import { type GitInitRefusal, gitInitRefusal } from '../../utils/projectBoundary.js'
 import { inspectWorkspaceKind, workspaceGitCheckNote } from '../concourseWorktrees.js'
-import { describeSeatReading, resolveSeatCeiling } from '../../services/switchboard/capacityCheck.js'
+import { describeSeatReading, resolveSeatCeiling } from '../../utils/switchboard/capacityCheck.js'
 import { resolveDirectoryIdentity } from '../../utils/projectStoreIdentity.js'
 
 export const CONCOURSE_SHORT_PREFIX = 'concourse-w'

@@ -1,7 +1,7 @@
 import { agentToolRuleProblem } from '../../tools/AgentTool/agentToolRules.js'
 import { parseToolListFromCLI } from '../../utils/permissions/permissionSetup.js'
 import { AGENT_COLORS, type AgentColorName } from '../../tools/AgentTool/agentColorManager.js'
-import type { AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
+import type { AgentMemoryScope } from '../../utils/agentMemory.js'
 import { isInstructionProfile } from '../instructions/profile.js'
 import { EFFORT_LEVELS, parseEffortValue } from '../../utils/effort.js'
 import {

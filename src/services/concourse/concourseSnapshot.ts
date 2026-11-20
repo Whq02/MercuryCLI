@@ -948,7 +948,7 @@ export async function buildConcourseSnapshot(
   const nowMs = opts.nowMs ?? Date.now()
   const workers = await import('../../daemon/concourseWorkers.js')
   const obligations = await import('../crew/obligations.js')
-  const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
+  const { isProcessAlive } = await import('../../utils/ownerWatch.js')
 
   const project = opts.project ?? currentProject()
   const allRecords = workers.listConcourseWorkers(null, opts.recordsDir)

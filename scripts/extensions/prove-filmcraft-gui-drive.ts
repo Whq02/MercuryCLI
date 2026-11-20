@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createServer } from 'node:net'
-import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
+import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
 
 const automatic = process.argv[2] === undefined
 assert(automatic || process.argv.includes('--gui'), 'Pass --gui explicitly; this proof opens a FilmCraft window')

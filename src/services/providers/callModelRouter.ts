@@ -1,7 +1,7 @@
 import { queryModelWithStreaming } from '../providers/anthropic/index.js'
 import type { CallModelParams, CallModelStream } from './callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../api/errors.js'
-import { APIUserAbortError } from '../api/sdkErrors.js'
+import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { createAssistantAPIErrorMessage } from '../../utils/messages.js'
 import { openaiCallModel } from './openai/openaiCallModel.js'

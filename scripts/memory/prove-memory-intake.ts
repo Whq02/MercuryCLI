@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/mneme/mnemeHandover.ts src/mneme/mnemeMaintenance.ts src/mneme/mnemeBuffer.ts
-// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/utils/statusNoticeDefinitions.tsx
+// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/components/statusNotices/statusNoticeDefinitions.tsx
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -128,7 +128,7 @@ check('the front page carries all of them', (readFrontPage(bigLib) ?? '').includ
 check('an intake pin is not marked as asked for by the user', bigStatus?.asked.length === 0)
 const extraSeq = listTopicDocs(bigLib)[0]!.sections[0]!.entries[0]!.seq
 check('a later pin is still never refused', pinFact(extraSeq, bigLib).ok === true)
-const { pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
+const { pinnedOverLimitLine } = await import('../../src/components/statusNotices/statusNoticeDefinitions.js')
 check('the calm line names the count, the fill, the limit, that all are loaded, and both ways out',
   pinnedOverLimitLine({ pinned: bigStatus?.pinned ?? 0, used: bigStatus?.used ?? 0, limit: bigStatus?.limit ?? 0 }).startsWith(`Pinned memory: ${BIG} rules, `) &&
     pinnedOverLimitLine({ pinned: 1, used: 9600, limit: 8000 }) === 'Pinned memory: 1 rule, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')

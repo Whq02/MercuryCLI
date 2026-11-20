@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands.ts src/commands/effectiveCatalogue.ts src/components/HelpV2/commandDomains.ts src/utils/processUserInput/processSlashCommand.tsx src/constants/querySource.ts README.md
+// gate-watch: src/commands.ts src/commands/effectiveCatalogue.ts src/components/HelpV2/commandDomains.ts src/services/processUserInput/processSlashCommand.tsx src/constants/querySource.ts README.md
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -26,7 +26,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 console.log('a slash name Mercury does not have answers as any unknown command does')
 
 const commands = await import('../../src/commands.ts')
-const slash = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+const slash = await import('../../src/services/processUserInput/processSlashCommand.tsx')
 const catalogue = await import('../../src/commands/effectiveCatalogue.ts')
 const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 

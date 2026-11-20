@@ -176,7 +176,7 @@ console.log('\n§4 the floor: a signal inside the window dirties and arms the tr
 console.log('\n§5 the seams poke the owner: a Bash git word, a mutation, a turn end')
 {
   const vs = await import('../../src/utils/verification/verificationState.js')
-  const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
+  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
   clockOffset += 61_000
   await getGitState()
   let before = _gitFactsForTesting()
@@ -269,8 +269,8 @@ console.log('\n§8 a reground drops every entry; the next read recomputes')
 
 console.log('\n§9 the source pins')
 {
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
-  const { gitChecks } = await import('../../src/utils/health/sections/git.ts')
+  const { healthContext } = await import('../../src/services/health/healthReport.ts')
+  const { gitChecks } = await import('../../src/services/health/sections/git.ts')
   const { gitProbeNote: noteNow } = await import('../../src/utils/git.ts')
   await getGitState()
   resetMark()

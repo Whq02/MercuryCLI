@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { cpus, platform, arch, hostname } from 'node:os'
 import { engineManifestPath } from './manifest.js'
-import { projectLocalPath } from '../../projectLocal/paths.js'
+import { projectLocalPath } from '../../../utils/projectLocal/paths.js'
 
 type EngineMediaKind = 'capture' | 'profile'
 type EngineMediaRoute = 'headless' | 'hidden' | 'display'

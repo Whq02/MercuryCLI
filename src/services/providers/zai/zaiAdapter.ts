@@ -1,6 +1,6 @@
 import { getCachedProviderDiscovery, primeZaiDiscovery } from '../providerDiscovery.js'
 import { resolveZaiDispatch } from './zaiAccounts.js'
-import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from './glmPins.js'
+import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from '../../../utils/model/pins/glmPins.js'
 import { zaiCatalogueRows } from './zaiCatalogue.js'
 import type {
   ProviderCatalogueEntry,
@@ -32,7 +32,7 @@ export const GLM_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = GLM_STATI
   return pin ? [entryOf(pin)] : []
 })
 
-export function zaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+function zaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = zaiCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(entryOf) }
@@ -83,7 +83,7 @@ export function describeZaiProvider(): ProviderDescription {
   }
 }
 
-export function zaiStatus(): ProviderStatus {
+function zaiStatus(): ProviderStatus {
   const discovery = primeZaiDiscovery()
   return discovery?.keyPresent || resolveZaiDispatch() !== undefined
     ? { available: true }
@@ -104,13 +104,13 @@ export function listZaiModels(): ProviderModel[] {
   }))
 }
 
-export function resolveZaiModel(
+function resolveZaiModel(
   _modelClass: ProviderModelClass,
 ): ProviderModelRef | null {
   return null
 }
 
-export function buildZaiLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+function buildZaiLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
     'seat: provider zai has no SEAT runtime — roster seats stay Anthropic; GLM specialists dispatch through the AgentTool engine path',
   )

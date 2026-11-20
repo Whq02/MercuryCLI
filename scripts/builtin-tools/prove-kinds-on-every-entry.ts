@@ -12,7 +12,7 @@ const RESOLVER = 'src/services/resources/registry.ts'
 const TABLE = 'src/services/resources/kinds.ts'
 const FOLDER = 'src/services/resources/adapters/'
 const TOOL_LIST = 'src/tools.ts'
-const OWNER = 'src/services/run/resolveOwner.ts'
+const OWNER = 'src/utils/run/resolveOwner.ts'
 const NO_KIND = 'zz-no-such-kind'
 const NO_RECORD = 'zz-no-such-record'
 const POOL = 6
@@ -28,8 +28,8 @@ const ALSO: Array<[string, string]> = [
   ['src/services/privateChannel/verifyArtifactStandalone.ts', 'the artifact verifier bundle'],
 ]
 const ROWS: Array<[string, string, string]> = [
-  ['resource-plane-fast', 'src/utils/health/sections/coding-loop-fast.ts', 'codingLoopFastChecks'],
-  ['primitive-resources', 'src/utils/health/sections/architecture-fast.ts', 'architectureFastChecks'],
+  ['resource-plane-fast', 'src/services/health/sections/coding-loop-fast.ts', 'codingLoopFastChecks'],
+  ['primitive-resources', 'src/services/health/sections/architecture-fast.ts', 'architectureFastChecks'],
 ]
 
 interface Answer {
@@ -63,7 +63,7 @@ if (process.argv[2] === '--child') {
   const load = process.argv.slice(7)
   for (const file of load) await import(join(ROOT, file))
   const registry = (await import(join(ROOT, RESOLVER))) as typeof import('../../src/services/resources/registry.ts')
-  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/utils/run/resolveOwner.ts')
   const context = { owner: processMainOwner(), cwd: process.cwd() }
   const ask = async (kind: string): Promise<Answer> => {
     const answer = await registry.resolveResource(`mercury://${kind}/${NO_RECORD}`, context)
@@ -108,7 +108,7 @@ if (process.argv[2] === '--held') {
   })
   const threw = (error: unknown): string => `threw: ${error instanceof Error ? error.message : String(error)}`.split(ROOT).join('')
   const registry = (await import(join(ROOT, RESOLVER))) as typeof import('../../src/services/resources/registry.ts')
-  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/services/run/resolveOwner.ts')
+  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/utils/run/resolveOwner.ts')
   const context = { owner: processMainOwner(), cwd: process.cwd() }
   type Row = { id: string; run: (args: { signal: AbortSignal }) => unknown }
   const specs: Array<{ id: string; run: Row['run'] | undefined }> = []

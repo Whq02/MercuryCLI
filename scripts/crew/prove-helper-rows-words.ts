@@ -89,7 +89,7 @@ console.log('— CRW-15 a helper’s closing envelope reads as a close note in i
 console.log('— CRW-16 the CREW lane keeps the letters that tell helpers apart —')
 {
   const { railRowBudgets, RAIL_ROW_NAME_FLOOR } = await import('../../src/components/HelmLanesRail.tsx')
-  const { truncateToWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
+  const { truncateToWidth } = await import('../../src/utils/glyphs.ts')
   const tight = railRowBudgets(24, 'Helper A sleep 171'.length, '9.3k context'.length, 3)
   check('in a 28-column rail three "Helper <letter> sleep …" rows keep at least twelve columns of name — the letter shows', tight.name >= RAIL_ROW_NAME_FLOOR && truncateToWidth('Helper A sleep 171', tight.name).startsWith('Helper A'), JSON.stringify(tight))
   check('the verb yields the columns the name took', tight.verb === 9 && tight.name + 3 + tight.verb === 24)

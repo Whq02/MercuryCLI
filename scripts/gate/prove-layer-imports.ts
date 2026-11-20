@@ -18,6 +18,8 @@ const LAYERS: Rule = {
   from: ['src/utils/'],
   to: ['src/cli/', 'src/commands/', 'src/components/', 'src/daemon/', 'src/services/', 'src/tools/'],
   kept: [
+    ['src/components/mercury-ui/sessionAccent.ts', 'its path is the hex exemption of src/utils/wards/wards.ts'],
+    ['src/components/mercuryPalette.ts', 'src/guards/wardsGuard.ts knows a Mercury checkout by this path'],
     ['src/tools/BashTool/bashPermissions.ts', 'row 8'],
     ['src/tools/BashTool/denyRuleReach.ts', 'row 8'],
     ['src/utils/bash/', 'row 8'],
@@ -27,6 +29,15 @@ const LAYERS: Rule = {
     ['src/utils/wards/', 'row 8'],
   ],
   end: 'move the file above down into src/utils/<area> or src/constants when it imports nothing above src/utils itself; move the file under src/utils up into the folder of what it serves when it runs that layer; else hand the value in from its caller',
+}
+
+const ENGINE_TABLE = 'scripts/gate/screen-engine-imports.tsv'
+const ENGINE: Rule = {
+  title: 'files under src/components and src/screens that import a part below a door of the engine (src/run-core/turn-machine.ts over turn/, src/services/engine-connector/daemonConnector.ts over daemon/)',
+  from: ['src/components/', 'src/screens/'],
+  to: ['src/run-core/turn/', 'src/services/engine-connector/daemon/'],
+  kept: [],
+  end: 'take what the screen needs from the door, src/run-core/turn-machine.ts or the session connector of src/services/engine-connector/daemonConnector.ts, never from a part below it',
 }
 
 let failures = 0
@@ -147,6 +158,7 @@ function hold(table: string, rule: Rule): void {
 }
 
 hold(LAYERS_TABLE, LAYERS)
+hold(ENGINE_TABLE, ENGINE)
 
 console.log('')
 console.log(failures === 0 ? `prove-layer-imports: ALL HOLD — ${checks} checks` : `prove-layer-imports: ${failures} FAILURE(S) of ${checks}`)

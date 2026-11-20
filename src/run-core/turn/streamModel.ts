@@ -52,8 +52,8 @@ import { bindRequestGauge, settleRequestGauge } from '../../services/run/request
 import { getContextEpoch } from '../../services/run/contextEpochs.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../../services/providers/streamIdleBudget.js'
-import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
-import { recordSentRequest } from '../../utils/forkedAgent.js'
+import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../utils/run/resolveOwner.js'
+import { recordSentRequest } from '../../services/agents/forkedAgent.js'
 import type { Terminal } from '../../query/transitions.js'
 import {
   backfillCloneForYield,

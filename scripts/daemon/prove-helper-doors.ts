@@ -24,7 +24,7 @@ const handoverMod = (await import('../../src/daemon/handover.ts')) as typeof imp
 const { forwardFrame, predecessorSockPath, renameSocketForPredecessor } = handoverMod
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
 const hostedMod = (await import('../../src/daemon/hostedCaller.ts')) as typeof import('../../src/daemon/hostedCaller.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail: unknown = ''): boolean => {

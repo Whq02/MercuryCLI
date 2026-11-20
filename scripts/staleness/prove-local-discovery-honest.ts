@@ -63,7 +63,7 @@ globalConfig.enableConfigs()
 }
 
 {
-  const { authChecks, ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks, ENGINE_UNAVAILABLE_CODES } = await import('../../src/services/health/sections/auth.ts')
   const probedBefore = discovery.primeLocalDiscovery({ now: () => Date.now() })?.probedAtMs ?? 0
   const targetsBefore = process.env.MERCURY_LOCAL_PROBE_TARGETS
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'openai-compatible=http://127.0.0.1:9'

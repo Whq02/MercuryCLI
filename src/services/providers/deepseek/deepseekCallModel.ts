@@ -7,7 +7,7 @@ import {
 import { buildDeepseekExtras } from '../openaicompat/compatWire.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { deepseekChatCompletionsUrl, resolveDeepseekApiKey } from './deepseekAccounts.js'
-import { deepseekCurrentModelId } from './deepseekPins.js'
+import { deepseekCurrentModelId } from '../../../utils/model/pins/deepseekPins.js'
 
 export const deepseekLaneProfile: CompatLaneProfile = {
   lane: 'deepseek',

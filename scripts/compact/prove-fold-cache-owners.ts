@@ -11,7 +11,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { shouldRideCacheSharingFork } = await import('../../src/services/compact/compact.ts')
 const { addCacheBreakpoints } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
-const { lastAssistantTimestamp, restoreSessionStateFromLog } = await import('../../src/utils/sessionRestore.ts')
+const { lastAssistantTimestamp, restoreSessionStateFromLog } = await import('../../src/services/resume/sessionRestore.ts')
 const { getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } = await import('../../src/bootstrap/state.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 let failures = 0

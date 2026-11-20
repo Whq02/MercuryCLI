@@ -1,6 +1,6 @@
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import { validatePermissionRule } from '../../utils/settings/permissionValidation.js'
-import { AGENT_TOOL_NAME } from './constants.js'
+import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 
 export function agentToolRuleProblem(spec: string): string | null {
   if (!/[()]/.test(spec)) return null

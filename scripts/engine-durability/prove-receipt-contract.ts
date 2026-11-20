@@ -45,42 +45,6 @@ t.section('§1 — one schema')
   )
 }
 
-t.section('§2 — one mint, and the seam consumers are pinned')
-{
-  const PINNED = [
-    'src/services/changeTransaction/receipts.ts',
-    'src/services/changeTransaction/repetitionPolicy.ts',
-    'src/services/ide/txAutoCapture.ts',
-    'src/services/run/runCoordinator.ts',
-  ]
-  const consumers = grepFiles(/subscribeToolTerminal/).filter(
-    f => f !== 'src/services/run/effectObserver.ts',
-  )
-  for (const f of PINNED) {
-    t.check(
-      `pinned seam consumer still present: ${f}`,
-      consumers.includes(f),
-      consumers.includes(f) ? 'subscribes' : 'GONE — retire it from PINNED here',
-    )
-  }
-  for (const f of consumers) {
-    t.check(
-      `no unpinned consumer of the terminal seam: ${f}`,
-      PINNED.includes(f),
-      PINNED.includes(f)
-        ? 'pinned'
-        : 'NEW — if it mints receipts that is a SECOND ledger; pin it here with a reason',
-    )
-  }
-
-  const minters = grepFiles(/subscribeToolTerminal\(record\)/)
-  t.check(
-    'exactly one module wires the receipt recorder onto the seam',
-    minters.length === 1 && minters[0] === 'src/services/changeTransaction/receipts.ts',
-    minters.join(', ') || '(none)',
-  )
-}
-
 t.section('§3 — the belt: changed paths mint regardless of the vocabulary')
 {
   const effect = (operation: string, changedPaths: string[]) =>

@@ -1,6 +1,6 @@
 import { setAskChannel, setSessionKind } from '../../../bootstrap/state.js'
 import { consumeSessionKindPin } from '../../../utils/sessionKind.js'
-import { GLYPH } from '../../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../../utils/glyphs.js'
 import { markSessionNonInteractive, markSessionBootRules } from '../../../utils/cockpit/runtimePosture.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 

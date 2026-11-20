@@ -161,7 +161,7 @@ section('§5 one law, two shells, one schema row')
 
 section('refusals — real output that resembles progress or chatter is never dropped, and image output bypasses the filter')
 {
-  const { applyShellOutputFilter } = await import('../../src/tools/BashTool/utils.ts')
+  const { applyShellOutputFilter } = await import('../../src/utils/shell/utils.ts')
   const singlePct = 'Coverage summary: 85.4% of statements covered\nAll suites passed.\n'
   const singleOut = filterShellOutput(singlePct)
   check('a single percentage line in real output is never dropped (a run of one has 0 redraws)', singleOut.text === singlePct && singleOut.changed === false, JSON.stringify(singleOut))

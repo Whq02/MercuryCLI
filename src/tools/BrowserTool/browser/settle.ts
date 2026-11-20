@@ -9,7 +9,7 @@ import {
   popupsSettled,
 } from '../../../services/browser/browserSession.js'
 import { emulationActive, emulationSummary, inheritEmulation } from '../../../services/browser/browserEmulation.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { type LiveSession, pageWhere } from './page.js'
 import { downloadWords } from './downloads.js'
 import { withDeadline } from '../../../utils/deadline.js'

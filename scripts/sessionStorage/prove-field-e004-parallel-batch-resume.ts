@@ -12,7 +12,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'parallel-batch-'))
 process.chdir(scratch)
 
 const { encodeTranscriptLine } = await import(join(ROOT, 'src/utils/sessionStorage/vnext.ts'))
-const { loadConversationForResume } = await import(join(ROOT, 'src/utils/conversationRecovery.ts'))
+const { loadConversationForResume } = await import(join(ROOT, 'src/services/resume/conversationRecovery.ts'))
 const { loadTranscriptFile, pruneRecordBranchesBeforeParse } = await import(join(ROOT, 'src/utils/sessionStorage/loading.ts'))
 const { buildConversationChain } = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
 const { _resetTranscriptReaderForTesting } = await import(join(ROOT, 'src/utils/sessionStorage/transcriptReader.ts'))

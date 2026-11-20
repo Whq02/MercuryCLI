@@ -30,7 +30,7 @@ const finish = (note: string): never => {
 const pack = await import('../../src/mneme/embedPack.js')
 const models = await import('../../src/mneme/embedModels.js')
 
-const PLATFORM = (await import('../../src/services/voice/voicePack.js')).voicePackPlatform()
+const PLATFORM = (await import('../../src/utils/voice/voicePack.js')).voicePackPlatform()
 const PACK_DIR = pack.embedPackDirFor(ROOT, PLATFORM)
 const CACHE_DIR = join(ROOT, models.EMBED_MODELS_VENDOR_PATH)
 const BUN = process.execPath

@@ -50,7 +50,7 @@ const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSl
 const store = await import('../../src/utils/cockpit/settingsPopup.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const cap = await import('../../src/services/switchboard/capacityCheck.js')
+const cap = await import('../../src/utils/switchboard/capacityCheck.js')
 cap._setHeldMachineSeatReadingForTesting(6, { cores: 8, availableBytes: 6 * cap.SEAT_COST_BYTES.runner, read: 'vm_stat', sampledAt: 0 })
 const setting = await import('../../src/services/jev/jevSetting.js')
 const status = await import('../../src/services/jev/jevStatus.js')

@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/mneme/** src/utils/backgroundHousekeeping* src/query/stopHooks*
 # gate-watch: src/tools/JournalTool/** src/main.tsx
-# gate-watch: src/utils/gracefulShutdown.ts src/utils/fileHistory.ts
+# gate-watch: src/utils/gracefulShutdown.ts src/services/changeTransaction/fileHistory.ts
 # gate-watch: src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts
 # gate-watch: src/components/ExitFlow.tsx
 # gate-watch: src/services/engine-connector/types.ts
