@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, lstatSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { hostEnv } from '../hostEnv.js'
 import { passedOver } from '../passedOver.js'
@@ -35,6 +35,14 @@ export function isExecutableFile(candidate: string, platform: string = process.p
     return statSync(candidate).isFile()
   } catch (error) {
     passedOver(error)
+    if (platform === 'win32' && (error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      try {
+        return !lstatSync(candidate).isDirectory()
+      } catch (lstatError) {
+        passedOver(lstatError)
+        return false
+      }
+    }
     return false
   }
 }

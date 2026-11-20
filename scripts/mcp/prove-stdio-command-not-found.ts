@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -46,6 +46,7 @@ const watchdog = setTimeout(() => {
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()
+let lockedAliasDir: string | null = null
 
 try {
   const mcp = await import('../../src/services/mcp/client.ts')
@@ -110,12 +111,124 @@ try {
     loudReason.includes('server stderr: boot failed: bad key') && !loudReason.startsWith('command not found:'),
     loudReason,
   )
+
+  if (HOST_PLATFORM !== 'win32') {
+    const locked = join(SCRATCH, 'locked-apps')
+    const aliasDir = join(SCRATCH, 'windows-apps')
+    mkdirSync(locked)
+    mkdirSync(aliasDir)
+    const target = join(locked, 'alias-server.exe')
+    writeFileSync(target, 'mz')
+    chmodSync(locked, 0o000)
+    lockedAliasDir = locked
+    const aliasFull = join(aliasDir, 'alias-server.exe')
+    symlinkSync(target, aliasFull)
+    symlinkSync(join(SCRATCH, 'no-such-target.exe'), join(aliasDir, 'dangling-server.exe'))
+
+    const bareAliasReason = await connectFailed('alias-bare-win32', {
+      type: 'stdio',
+      command: 'alias-server',
+      args: [],
+      env: { PATH: aliasDir },
+    })
+    check(
+      'app execution alias (bare) is not refused as "command not found" on win32',
+      !bareAliasReason.startsWith('command not found:'),
+      bareAliasReason,
+    )
+
+    const fullAliasReason = await connectFailed('alias-full-win32', {
+      type: 'stdio',
+      command: aliasFull,
+      args: [],
+      env: {},
+    })
+    check(
+      'app execution alias (full path) is not refused as "command not found" on win32',
+      !fullAliasReason.startsWith('command not found:'),
+      fullAliasReason,
+    )
+
+    const danglingReason = await connectFailed('dangling-link-win32', {
+      type: 'stdio',
+      command: 'dangling-server',
+      args: [],
+      env: { PATH: aliasDir },
+    })
+    check(
+      'dangling link still reads "command not found" on win32',
+      danglingReason.startsWith('command not found: dangling-server') && danglingReason.includes('retry from /mcp'),
+      danglingReason,
+    )
+  } else {
+    const winApps = join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'WindowsApps')
+    let foundAlias: { file: string; bare: string } | null = null
+    try {
+      const entries = readdirSync(winApps)
+      const ordered = entries.filter(e => e.toLowerCase() === 'winget.exe').concat(entries.filter(e => e.toLowerCase().endsWith('.exe') && e.toLowerCase() !== 'winget.exe'))
+      for (const entry of ordered) {
+        const file = join(winApps, entry)
+        try {
+          statSync(file)
+          continue
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        }
+        try {
+          lstatSync(file)
+          foundAlias = { file, bare: entry.slice(0, -4) }
+          break
+        } catch {
+        }
+      }
+    } catch {
+    }
+    if (foundAlias === null) {
+      console.log('not read on Windows: no App Execution Alias here')
+    } else if (foundAlias.bare.toLowerCase() === 'winget') {
+      const bareAliasReason = await connectFailed('alias-bare-win32', {
+        type: 'stdio',
+        command: foundAlias.bare,
+        args: ['--version'],
+        env: {},
+      })
+      check(
+        'app execution alias (bare) is not refused as "command not found" on win32',
+        !bareAliasReason.startsWith('command not found:'),
+        bareAliasReason,
+      )
+      const fullAliasReason = await connectFailed('alias-full-win32', {
+        type: 'stdio',
+        command: foundAlias.file,
+        args: ['--version'],
+        env: {},
+      })
+      check(
+        'app execution alias (full path) is not refused as "command not found" on win32',
+        !fullAliasReason.startsWith('command not found:'),
+        fullAliasReason,
+      )
+    } else {
+      const { missingSpawnCommandError } = await import('../../src/utils/platform/programs.ts')
+      check(
+        'app execution alias passes missingSpawnCommandError on win32',
+        missingSpawnCommandError(foundAlias.bare) === null && missingSpawnCommandError(foundAlias.file) === null,
+        foundAlias.file,
+      )
+    }
+  }
 } finally {
   Object.defineProperty(process, 'platform', ORIG_PLATFORM)
   if (ORIG_COMSPEC === undefined) delete process.env.comspec
   else process.env.comspec = ORIG_COMSPEC
   if (ORIG_COMSPEC_UPPER === undefined) delete process.env.COMSPEC
   else process.env.COMSPEC = ORIG_COMSPEC_UPPER
+  if (lockedAliasDir !== null) {
+    try {
+      chmodSync(lockedAliasDir, 0o755)
+    } catch {
+    }
+  }
   try {
     rmSync(SCRATCH, { recursive: true, force: true })
   } catch {
