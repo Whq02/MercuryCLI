@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-env: MERCURY_FEEDBACK_ROAD_CAPTURE_DIR
-# gate-watch: src/commands/** src/components/HelpV2/** src/components/mercury-ui/** src/main* src/utils/processUserInput/** README.md
+# gate-watch: src/commands/** src/components/HelpV2/** src/components/mercury-ui/** src/main* src/services/processUserInput/** README.md
 # gate-watch: src/types/message.ts
 # gate-watch: src/hooks/useTypeahead.tsx src/components/PromptInput/PromptInput.tsx src/components/PromptInput/PromptInputFooterSuggestions.tsx
 # gate-watch: src/utils/secureStorage/**

@@ -7,9 +7,9 @@
 # gate-watch: src/services/compact/compact.ts
 # gate-watch: src/services/mcp/types.ts
 # gate-watch: src/utils/*
-# gate-watch: src/utils/processUserInput/processUserInput.ts
+# gate-watch: src/services/processUserInput/processUserInput.ts
 # gate-watch: src/setup.ts src/cli/runArgs.ts src/state/onChangeAppState.ts
-# gate-watch: src/services/instructions/** src/utils/processUserInput/** src/utils/config/trust.ts
+# gate-watch: src/services/instructions/** src/services/processUserInput/** src/utils/config/trust.ts
 # gate-watch: src/services/providers/openaicompat/**
 # gate-watch: src/rows/* src/query/transitions.ts src/utils/messages/turnCut.ts
 # gate-watch: src/daemon/runnerConnection.ts src/services/acp/childSession.ts

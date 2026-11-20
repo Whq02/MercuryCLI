@@ -10,7 +10,7 @@
 # gate-watch: src/utils/permissions/ruleReason.ts
 # gate-watch: src/entrypoints/shellParentGuard.ts
 # gate-watch: src/cli/runArgs.ts
-# gate-watch: src/services/instructions/** src/utils/processUserInput/** src/utils/config/trust.ts
+# gate-watch: src/services/instructions/** src/services/processUserInput/** src/utils/config/trust.ts
 # gate-watch: src/tools/BashTool/pathValidation.ts src/utils/permissions/shellProtectedPaths.ts
 # gate-watch: src/services/providers/openaicompat/**
 # gate-watch: src/rows/* scripts/mcp/_fixture-estate-server.mjs

@@ -305,7 +305,7 @@ async function preloadSkills(
   if (!skillNames || skillNames.length === 0) return []
   const commands = await getSkillToolCommands(getProjectRoot())
   const { formatSkillLoadingMetadata } = await import(
-    '../../utils/processUserInput/processSlashCommand.js'
+    '../../services/processUserInput/processSlashCommand.js'
   )
   const extensionPrefix =
     definition.source === 'extension' && 'extensionName' in definition

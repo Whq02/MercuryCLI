@@ -12,28 +12,28 @@ import type {
   SystemMessage,
   UserMessage,
 } from '../../types/message.js'
-import type { EffortValue } from '../effort.js'
-import type { PastedContent } from '../config.js'
+import type { EffortValue } from '../../utils/effort.js'
+import type { PastedContent } from '../../utils/config.js'
 import type { BatchedPrompt } from '../../types/textInputTypes.js'
 import {
   createAttachmentMessage,
   getAttachmentMessages,
-} from '../attachments.js'
+} from '../../utils/attachments.js'
 import { readToolCallChain } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import { fireHooks } from '../hooks/fire.js'
-import { hookRowsOfResult } from '../hooks/rows.js'
+import { fireHooks } from '../../utils/hooks/fire.js'
+import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import {
   createSystemMessage,
   createUserMessage,
   extractTextContent,
-} from '../messages.js'
-import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
-import { isStoredImageRef, readStoredImageRef, storeImages } from '../imageStore.js'
-import { logError } from '../log.js'
-import { parseSlashCommand } from '../slashCommandParsing.js'
-import { untoldSettingsFaultLines } from '../settings/faultNotices.js'
-import { untoldHiddenCharacterLines } from '../text/hiddenCharacterFindings.js'
+} from '../../utils/messages.js'
+import { maybeResizeAndDownsampleImageBlock } from '../../utils/imageResizer.js'
+import { isStoredImageRef, readStoredImageRef, storeImages } from '../../utils/imageStore.js'
+import { logError } from '../../utils/log.js'
+import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
+import { untoldSettingsFaultLines } from '../../utils/settings/faultNotices.js'
+import { untoldHiddenCharacterLines } from '../../utils/text/hiddenCharacterFindings.js'
 
 export type ProcessUserInputContext = ToolUseContext &
   import('../../commands.js').LocalJSXCommandContext

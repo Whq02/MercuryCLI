@@ -9,7 +9,7 @@
 # gate-watch: src/rows/turn.ts src/Tool.ts src/query.ts src/run-core/**
 # gate-watch: src/utils/messages/turnCut.ts src/utils/settings/settings.ts src/utils/settings/types.ts
 # gate-watch: src/services/tools/toolExecution.ts src/guards/**
-# gate-watch: src/utils/processUserInput/processUserInput.ts
+# gate-watch: src/services/processUserInput/processUserInput.ts
 # gate-watch: src/rows/project.ts
 # gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/transcriptReader.ts
 # gate-watch: src/components/Messages.tsx src/tools.ts

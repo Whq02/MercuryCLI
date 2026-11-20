@@ -31,7 +31,7 @@ try {
   const { setOriginalCwd, setCwdState, getSessionId } = await import('../../src/bootstrap/state.ts')
   setOriginalCwd(cwd)
   setCwdState(cwd)
-  const { processUserInput } = await import('../../src/utils/processUserInput/processUserInput.ts')
+  const { processUserInput } = await import('../../src/services/processUserInput/processUserInput.ts')
   const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands.ts')
   const { planApiConversation } = await import('../../src/utils/messages/apiPlan.ts')
   const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
