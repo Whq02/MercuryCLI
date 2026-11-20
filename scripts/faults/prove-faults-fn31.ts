@@ -485,5 +485,25 @@ console.log('\nruntime.ts — editOutcomeLedgerEnabled throw emits a throwing Ed
   )
 }
 
+console.log('\nruntime/services.ts — mcpCheck propagates getMcpPolicyRejects throw instead of hiding rejects')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const realPolicy = await import(SRC + '/services/mcp/toolPolicy.ts')
+    mock.module(SRC + '/services/mcp/toolPolicy.js', () => ({
+      ...realPolicy,
+      getMcpPolicyRejects: () => { throw new Error('policy parser boom') },
+    }))
+    const { mcpCheck } = await import(SRC + '/utils/health/sections/runtime/services.ts')
+    try {
+      out.row = mcpCheck().run()
+      out.err = null
+    } catch (e) {
+      out.err = e?.message ?? String(e)
+    }
+  `)
+  check('runtime/services:mcp-policy-rejects-throw-propagates', r.err === 'policy parser boom', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
