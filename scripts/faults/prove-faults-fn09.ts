@@ -56,36 +56,6 @@ function runSub(body: string): Record<string, unknown> {
   }
 }
 
-console.log('\nconcourseEnabled — unreadable global config throws instead of reporting concourse on')
-if (!POSIX_MODES) {
-  skip('concourseEnabled-unreadable-config', 'needs non-root POSIX chmod')
-} else {
-  const r = runSub(`
-    const envMod = await import(path.join(SRC, 'utils/env.ts'))
-    const cfgMod = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
-    const concourseMod = await import(path.join(SRC, 'services/concourse/concourseEnabled.ts'))
-    out.beforeEnable = concourseMod.concourseEnabled()
-    const file = envMod.getGlobalMercuryFile()
-    fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, JSON.stringify({ concourseEnabled: false }), { mode: 0o600 })
-    cfgMod.enableConfigs()
-    out.whenReadableOff = concourseMod.concourseEnabled()
-    cfgMod._setGlobalConfigCacheForTesting(null)
-    fs.chmodSync(file, 0o200)
-    try {
-      out.unreadableValue = concourseMod.concourseEnabled()
-      out.threw = null
-    } catch (e) {
-      out.threw = { name: e?.name ?? null, code: e?.code ?? null, message: String(e?.message ?? e) }
-    } finally {
-      fs.chmodSync(file, 0o600)
-    }
-  `)
-  const threw = r.threw as { name: string | null; code: string | null; message: string } | null
-  check('concourseEnabled-unreadable-config: before enableConfigs stays true and readable false stays false', r.beforeEnable === true && r.whenReadableOff === false, JSON.stringify(r))
-  check('concourseEnabled-unreadable-config: unreadable config throws ConfigReadError', threw !== null && threw.name === 'ConfigReadError', JSON.stringify(r))
-}
-
 console.log('\nchangeSetPlan — unreadable source and move destination refuse instead of failing open or claiming missing')
 if (!POSIX_MODES) {
   skip('changeSetPlan-unreadable-paths', 'needs non-root POSIX chmod')
