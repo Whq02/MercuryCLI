@@ -35,15 +35,22 @@ export function isExecutableFile(candidate: string, platform: string = process.p
     return statSync(candidate).isFile()
   } catch (error) {
     passedOver(error)
-    if (platform === 'win32' && (error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      try {
-        return !lstatSync(candidate).isDirectory()
-      } catch (lstatError) {
-        passedOver(lstatError)
-        return false
-      }
-    }
     return false
+  }
+}
+
+function isWin32SpawnCandidate(candidate: string): boolean {
+  try {
+    return statSync(candidate).isFile()
+  } catch (error) {
+    passedOver(error)
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    try {
+      return !lstatSync(candidate).isDirectory()
+    } catch (lstatError) {
+      passedOver(lstatError)
+      return false
+    }
   }
 }
 
@@ -163,7 +170,7 @@ export function missingSpawnCommandError(
   if (commandHasDirectoryPart(command, platform)) {
     for (const spelling of spellings) {
       const candidate = cwd !== undefined ? path.resolve(cwd, spelling) : path.resolve(spelling)
-      if (isExecutableFile(candidate, platform)) return null
+      if (isWin32SpawnCandidate(candidate)) return null
     }
     return missing()
   }
@@ -172,7 +179,7 @@ export function missingSpawnCommandError(
   for (const dir of dirs) {
     for (const spelling of spellings) {
       const candidate = path.resolve(dir, spelling)
-      if (isExecutableFile(candidate, platform)) return null
+      if (isWin32SpawnCandidate(candidate)) return null
     }
   }
   return missing()

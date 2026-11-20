@@ -733,11 +733,43 @@ const PROGRAMS: Row[] = [
             }
           },
           recorded: {
-            win32: { aliasExec: true, danglingExec: false, aliasResolved: true, danglingResolved: false, aliasMissing: null, danglingMissing: 'ENOENT' },
+            win32: { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: 'ENOENT' },
             darwin: { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: null },
             linux: { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: null },
-            'win32 by process.platform alone': { aliasExec: true, danglingExec: false, aliasResolved: true, danglingResolved: false, aliasMissing: null, danglingMissing: 'ENOENT' },
+            'win32 by process.platform alone': { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: 'ENOENT' },
             'win32 by getPlatform() alone': { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: null },
+          },
+        },
+        {
+          name: 'programs: the lookup answers null for an app execution alias',
+          hostArm: 'node' as const,
+          answers: () => {
+            if (p02HostPlatform === 'win32' && p02Win32AppAlias !== null) {
+              return { lookup: resolveProgramInPath(p02Win32AppAlias.bare, p02Win32AppAlias.dir) }
+            }
+            const dir = p02MkdtempSync(p02Path.join(p02Tmpdir(), 'mercury-p02-alias-'))
+            const locked = p02Path.join(dir, 'locked')
+            try {
+              p02MkdirSync(locked)
+              const target = p02Path.join(locked, 'target.exe')
+              p02WriteFileSync(target, 'mz')
+              p02ChmodSync(locked, 0o000)
+              p02SymlinkSync(target, p02Path.join(dir, 'alias.exe'))
+              return { lookup: resolveProgramInPath('alias', dir) }
+            } finally {
+              try {
+                p02ChmodSync(locked, 0o755)
+              } catch {
+              }
+              p02RmSync(dir, { recursive: true, force: true })
+            }
+          },
+          recorded: {
+            win32: { lookup: null },
+            darwin: { lookup: null },
+            linux: { lookup: null },
+            'win32 by process.platform alone': { lookup: null },
+            'win32 by getPlatform() alone': { lookup: null },
           },
         },
       ]),
