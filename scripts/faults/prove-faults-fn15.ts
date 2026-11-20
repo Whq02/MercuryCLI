@@ -20,6 +20,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const { workspaceSymbolRequest } = await import('../../src/services/lsp/tsSidecar/sidecar/requests/navigation.js')
+const { createFrameReader } = await import('../../src/services/lsp/sidecarFraming.js')
 
 console.log('\nnavigation.ts — workspaceSymbolRequest propagates project getNavigateToItems failures')
 {
@@ -46,6 +47,41 @@ console.log('\nnavigation.ts — workspaceSymbolRequest propagates project getNa
     'workspaceSymbolRequest throws instead of returning an empty symbol list',
     threw instanceof Error && threw.message === 'ts language service exploded',
     `threw=${String(threw)}`,
+  )
+}
+
+console.log('\nsidecarFraming.ts — createFrameReader does not mislabel onMessage errors as unparseable JSON')
+{
+  const protocolErrors: string[] = []
+  const reader = createFrameReader(
+    () => {
+      throw new Error('handler bug')
+    },
+    err => {
+      protocolErrors.push(err.message)
+    },
+  )
+  const payload = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' })
+  const frame = Buffer.from(`Content-Length: ${Buffer.byteLength(payload)}\r\n\r\n${payload}`, 'utf8')
+  let threw: unknown = null
+  try {
+    reader(frame)
+  } catch (error) {
+    threw = error
+  }
+  check(
+    'createFrameReader lets onMessage throw instead of reporting unparseable JSON-RPC body',
+    threw instanceof Error && threw.message === 'handler bug' && protocolErrors.length === 0,
+    `threw=${String(threw)} protocolErrors=${JSON.stringify(protocolErrors)}`,
+  )
+  const badErrors: string[] = []
+  const badReader = createFrameReader(() => {}, err => badErrors.push(err.message))
+  const badBody = '{not-json'
+  badReader(Buffer.from(`Content-Length: ${Buffer.byteLength(badBody)}\r\n\r\n${badBody}`, 'utf8'))
+  check(
+    'createFrameReader still reports unparseable JSON-RPC body on malformed JSON',
+    badErrors.length === 1 && badErrors[0] === 'unparseable JSON-RPC body',
+    `badErrors=${JSON.stringify(badErrors)}`,
   )
 }
 

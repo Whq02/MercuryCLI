@@ -52,11 +52,14 @@ export function createFrameReader(
       const body = buffer.subarray(0, expected).toString('utf8')
       buffer = buffer.subarray(expected)
       expected = null
+      let parsed: JsonRpcMessage
       try {
-        onMessage(JSON.parse(body) as JsonRpcMessage)
+        parsed = JSON.parse(body) as JsonRpcMessage
       } catch {
         onProtocolError(new Error('unparseable JSON-RPC body'))
+        continue
       }
+      onMessage(parsed)
     }
   }
 }
