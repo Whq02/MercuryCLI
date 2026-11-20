@@ -141,34 +141,35 @@ export type DaemonRequest =
   | { op: 'nudge'; proto?: number }
   | { op: 'shutdown'; proto?: number; reapWorkers?: boolean }
   | { op: 'leases'; proto?: number }
-  | { op: 'list'; proto: number; auth?: string }
-  | { op: 'has'; proto: number; auth?: string; short: string }
-  | { op: 'status'; proto: number; auth?: string }
-  | { op: 'dispatch'; proto: number; auth?: string; d: DispatchBody }
-  | { op: 'reply'; proto: number; auth?: string; short: string; text: string }
+  | { op: 'list'; proto?: number; auth?: string }
+  | { op: 'has'; proto?: number; auth?: string; short: string }
+  | { op: 'status'; proto?: number; auth?: string }
+  | { op: 'dispatch'; proto?: number; auth?: string; d: DispatchBody }
+  | { op: 'reply'; proto?: number; auth?: string; short: string; text: string }
   | {
       op: 'kill'
-      proto: number
+      proto?: number
       auth?: string
       short: string
       signal?: NodeJS.Signals
     }
   | {
       op: 'reconfigure'
-      proto: number
+      proto?: number
       auth?: string
       short: string
       model?: string
       effort?: string
     }
   | {
-      op: 'sessionAdmit'
-      proto: number
+      op: 'sessionAdmit' | 'concourseAdmit'
+      proto?: number
       auth?: string
       workspaceDir: string
       isolation?: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
       model?: string
       effort?: string
+      permissionMode?: string
       title?: string
       resumeSessionId?: string
       bornBlank?: true
@@ -179,13 +180,15 @@ export type DaemonRequest =
       waitForSeatMs?: number
       by?: string
       restartReason?: 'update'
+      runnerArgv?: string[]
+      vacatingSessionId?: string
     }
-  | { op: 'sessionList'; proto: number; auth?: string }
-  | { op: 'concourseWithdraw'; proto: number; auth?: string; clientMessageId: string }
-  | { op: 'sessionRelease'; proto: number; auth?: string; runnerId: string }
+  | { op: 'sessionList' | 'concourseList'; proto?: number; auth?: string }
+  | { op: 'concourseWithdraw'; proto?: number; auth?: string; clientMessageId: string }
+  | { op: 'sessionRelease' | 'concourseRelease'; proto?: number; auth?: string; runnerId: string }
   | {
       op: 'concourseWarm'
-      proto: number
+      proto?: number
       auth?: string
       workspaceDir: string
       retiring?: string
@@ -194,8 +197,8 @@ export type DaemonRequest =
       bypassConsent?: true
     }
   | {
-      op: 'sessionControl'
-      proto: number
+      op: 'sessionControl' | 'concourseControl'
+      proto?: number
       auth?: string
       action:
         | 'pause'
@@ -260,11 +263,12 @@ export type DaemonRequest =
       note?: string
       clientOpId?: string
       clientMessageId?: string
+      mintedAtMs?: number
     }
   | {
-      op: 'sessionDispatch'
+      op: 'sessionDispatch' | 'concourseDispatch'
       origin?: import('../utils/messages/outsideReport.js').OutsideReportOrigin
-      proto: number
+      proto?: number
       auth?: string
       clientMessageId: string
       prompt: string
@@ -293,13 +297,13 @@ export type DaemonRequest =
     }
   | {
       op: 'restart-when-idle'
-      proto: number
+      proto?: number
       auth?: string
       by?: string
     }
   | {
       op: 'sessionRewind'
-      proto: number
+      proto?: number
       auth?: string
       sessionId: string
       by: string
@@ -307,16 +311,16 @@ export type DaemonRequest =
       userMessageId: string
       dryRun?: boolean
     }
-  | ({ op: 'sessionFileRestore'; proto: number; auth?: string; sessionId: string; by: string } & SessionFileRestoreRequest)
+  | ({ op: 'sessionFileRestore'; proto?: number; auth?: string; sessionId: string; by: string } & SessionFileRestoreRequest)
   | {
       op: 'signIns'
-      proto: number
+      proto?: number
       auth?: string
       refresh?: true
     }
   | {
       op: 'processSweep'
-      proto: number
+      proto?: number
       auth?: string
       action: 'facts' | 'end'
       expected?: ProcessSweepEntry
