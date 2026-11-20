@@ -1,4 +1,5 @@
 import { stat } from 'node:fs/promises'
+import { isENOENT } from '../../../utils/errors.js'
 import { normalizeWorkspaceEdit, type NormalizedFileEdits, type WorkspaceEditLike } from '../../../services/lsp/workspaceEditApply.js'
 import type { OpEnv } from './types.js'
 import { PREPARE_ROUNDS, displayPathFor, uriToFilePath, foldFilesByPath, syncFileFromDisk } from './shared.js'
@@ -38,7 +39,13 @@ export async function prepareApply(
         try {
           await stat(abs)
           exists = true
-        } catch {
+        } catch (error) {
+          if (!isENOENT(error)) {
+            return {
+              ok: false,
+              reason: `could not sync ${displayPathFor(env.cwd, abs)}: ${error instanceof Error ? error.message : String(error)}`,
+            }
+          }
           exists = false
         }
         if (exists) {
