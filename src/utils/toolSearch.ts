@@ -182,7 +182,7 @@ export async function isToolSearchEnabled(
   const thresholdPermissionMode = (await getToolPermissionContext()).mode
   const deferrableTools = tools.filter(tool => isDeferredToolFor(tool, model, thresholdPermissionMode))
   const cacheKey = deferrableTools.map(tool => tool.name).join(',')
-  const exactTokens = await memoizedDeferredToolTokens(cacheKey, deferrableTools, getToolPermissionContext, agents, model)
+  const exactTokens = toolDefinitionCount === undefined ? null : await memoizedDeferredToolTokens(cacheKey, deferrableTools, getToolPermissionContext, agents, model)
   const suffix = source !== undefined ? ` (${source})` : ''
   if (exactTokens !== null) {
     const threshold = getAutoTokenThreshold(model)
