@@ -23,13 +23,6 @@ interface CppBuildDirInfo {
   generator?: 'ninja' | 'make'
 }
 
-export {
-  configurePreset,
-  configureConventional,
-  buildTarget,
-  type CppBuildRun,
-} from './cppBuild.js'
-
 export interface CppProjectProfile {
   projectRoot: string
   markers: string[]

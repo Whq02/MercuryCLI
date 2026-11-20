@@ -143,7 +143,7 @@ src/services/eval/interpreters.ts :: probeCache :: ttl-bounded
 src/services/host/bankManifest.ts :: memo :: keyed-by-truth
 src/services/ide/blenderProject.ts :: versionCache :: ttl-bounded
 src/services/ide/cppBuild.ts :: cmakeCache :: ttl-bounded
-src/services/ide/cppProject.ts :: profileCache :: ttl-bounded
+src/services/ide/cppProjectProfile.ts :: profileCache :: ttl-bounded
 src/services/ide/godotSession.ts :: parseCache :: keyed-by-truth
 src/services/ide/ideTransaction.ts :: rootMemo :: keyed-by-truth
 src/services/ide/pythonProject.ts :: profileCache :: ttl-bounded

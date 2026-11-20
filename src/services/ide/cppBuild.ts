@@ -13,7 +13,7 @@ import {
   parseCMakePresets,
   type CppCmakePreset,
   type CppProjectProfile,
-} from './cppProject.js'
+} from './cppProjectProfile.js'
 
 type CppBuildOp = 'configure-preset' | 'configure-conventional' | 'build' | 'clean'
 
