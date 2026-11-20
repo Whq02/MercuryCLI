@@ -21,7 +21,7 @@ const ROW = {
     'src/utils/staticRender.tsx',
     'src/tasks/LocalAgentTask/LocalAgentTask.tsx',
     'src/fabric/transcriptDecode.ts',
-    'src/utils/task/workRoster.ts',
+    'src/services/engine-connector/workRoster.ts',
     'src/services/engine-connector/seatWire.ts',
     'src/state/AppState.tsx',
     'src/ink/components/TerminalSizeContext.tsx',
