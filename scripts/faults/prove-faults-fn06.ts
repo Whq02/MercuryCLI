@@ -295,5 +295,69 @@ if (!POSIX_MODES) {
   )
   check('ledger-open-entry-unwritable-throws', r.openThrew === 'EACCES', JSON.stringify(r))
 }
+console.log('\nsrc/mneme/mnemeConsolidate.ts')
+if (!POSIX_MODES) {
+  skip('consolidate-claim-buffer-unwritable-throws', 'needs non-root POSIX chmod')
+  skip('consolidate-unreadable-dir-reports-error', 'needs non-root POSIX chmod')
+} else {
+  const r = runCase(`
+    const buf = await import(path.join(SRC, 'mneme/mnemeBuffer.ts'))
+    const con = await import(path.join(SRC, 'mneme/mnemeConsolidate.ts'))
+    const dir1 = path.join(home, 'con-claim-ro')
+    fs.mkdirSync(dir1, { recursive: true })
+    buf.appendObservation({ text: 'fact to claim', source: 'test' }, dir1)
+    fs.chmodSync(dir1, 0o500)
+    try {
+      out.claimed = con.claimBufferFile(dir1, 'striking')
+    } catch (e) {
+      out.claimThrew = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(dir1, 0o700)
+    }
+
+    const dir2 = path.join(home, 'con-unreadable-dir')
+    fs.mkdirSync(dir2, { recursive: true })
+    fs.chmodSync(dir2, 0o000)
+    try {
+      out.consolidateRes = con.maybeConsolidate({ dir: dir2 })
+    } finally {
+      fs.chmodSync(dir2, 0o700)
+    }
+  `)
+  const consolidateRes = r.consolidateRes as { consolidated: boolean; reason: string } | undefined
+  check('consolidate-claim-buffer-unwritable-throws', r.claimThrew === 'EACCES', JSON.stringify(r))
+  check(
+    'consolidate-unreadable-dir-reports-error',
+    consolidateRes?.consolidated === false && /^error:/i.test(consolidateRes.reason) && /EACCES/i.test(consolidateRes.reason),
+    JSON.stringify(r),
+  )
+}
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const dpPath = path.join(SRC, 'substrate/durablePublish.ts')
+    const realDp = await import(dpPath)
+    mock.module(dpPath, () => ({
+      ...realDp,
+      renameWithWin32RetrySync: () => {
+        const err = new Error('EBUSY: resource busy')
+        err.code = 'EBUSY'
+        throw err
+      },
+    }))
+    const buf = await import(path.join(SRC, 'mneme/mnemeBuffer.ts'))
+    const con = await import(path.join(SRC, 'mneme/mnemeConsolidate.ts'))
+    const dir = path.join(home, 'con-rename-ebusy')
+    fs.mkdirSync(dir, { recursive: true })
+    buf.appendObservation({ text: 'fact to rename', source: 'test' }, dir)
+    out.res = con.maybeConsolidate({ dir, force: true })
+  `)
+  const res = r.res as { consolidated: boolean; reason: string } | undefined
+  check(
+    'consolidate-consume-rename-failure-reports-error',
+    res?.consolidated === false && /^error:/i.test(res.reason) && /EBUSY/i.test(res.reason),
+    JSON.stringify(r),
+  )
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
