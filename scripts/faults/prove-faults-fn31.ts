@@ -519,19 +519,17 @@ console.log('\nhealthDeepProbes.ts — probeServiceLifecycle kills child PID if 
       stopService: async () => { throw new Error('stop boom') },
     }))
     const kills = []
-    const origKill = process.kill
-    process.kill = ((pid, sig) => {
-      if (pid === 424243) { kills.push({ pid, sig }); return true }
-      return origKill(pid, sig)
-    })
+    const realPg = await import(SRC + '/utils/processGroup.ts')
+    mock.module(SRC + '/utils/processGroup.js', () => ({
+      ...realPg,
+      endProcessTree: async (pid, sig) => { kills.push({ pid, sig }); return { ended: 1, survivors: [] } },
+    }))
     const { probeServiceLifecycle } = await import(SRC + '/utils/healthDeepProbes.ts')
     try {
       await probeServiceLifecycle()
       out.err = null
     } catch (e) {
       out.err = e?.message ?? String(e)
-    } finally {
-      process.kill = origKill
     }
     out.kills = kills
   `)

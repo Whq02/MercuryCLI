@@ -35,7 +35,7 @@ import { sleep } from './sleep.js'
 import type { Message } from '../types/message.js'
 import type { LSPServerInstance } from '../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../services/lsp/LSPServerManager.js'
-import { getErrnoCode } from './errors.js'
+import { endProcessTree } from './processGroup.js'
 import { passedOver } from './passedOver.js'
 import { sleepSync, startTimeout } from './timers.js'
 
@@ -787,9 +787,9 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
       }
       if (!stoppedOk && typeof startedPid === 'number' && startedPid > 1) {
         try {
-          process.kill(startedPid, 'SIGKILL')
+          await endProcessTree(startedPid, 'SIGKILL')
         } catch (error) {
-          if (getErrnoCode(error) !== 'ESRCH') logForDebugging(`deep probe: fallback SIGKILL for pid ${startedPid} failed: ${String(error)}`)
+          logForDebugging(`deep probe: fallback endProcessTree for pid ${startedPid} failed: ${String(error)}`)
         }
       }
     }
