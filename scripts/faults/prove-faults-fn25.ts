@@ -418,6 +418,28 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const { tableRefusal } = await import('../../src/tools/ComputerTool/computer/schema.ts')
+  const work = join(scratch, 'computer-file-loop')
+  mkdirSync(work, { recursive: true })
+  const loopA = join(work, 'a')
+  const loopB = join(work, 'b')
+  symlinkSync(loopB, loopA)
+  symlinkSync(loopA, loopB)
+  const loopMsg = tableRefusal({ action: 'file', x: 10, y: 10, path: loopA } as never)
+  const absentMsg = tableRefusal({ action: 'file', x: 10, y: 10, path: join(work, 'absent.txt') } as never)
+  check(
+    'ComputerTool/schema: non-ENOENT stat failure reports real error instead of "is not a file on this machine"',
+    loopMsg !== null && !loopMsg.includes('is not a file on this machine') && /ELOOP|too many/i.test(loopMsg),
+    String(loopMsg),
+  )
+  check(
+    'ComputerTool/schema: ENOENT still reports "is not a file on this machine"',
+    absentMsg !== null && absentMsg.includes('is not a file on this machine'),
+    String(absentMsg),
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
