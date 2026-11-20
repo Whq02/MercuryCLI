@@ -4,23 +4,15 @@
 # gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "$0")" && pwd)"
-bun="${BUN:-$HOME/.bun/bin/bun}"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/model-policy"
 fail=0
 echo "############################################################"
 echo "# model-policy — frontier-operator proofs"
 echo "############################################################"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-frontier-policy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-frontier-policy.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-policy-surfaces.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-policy-surfaces.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-neutral-model-doors.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-neutral-model-doors.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-pin-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-pin-census.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-utility-call-family.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-utility-call-family.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-retirements.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-retirements.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-roster-frontier-default.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-roster-frontier-default.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-roster-family-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-roster-family-words.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-roster-entry-names-one-generation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-roster-entry-names-one-generation.ts" "$__t" "$__rc"
+drive_members model-policy 'scripts/model-policy/$name' "$here/members.txt" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL MODEL-POLICY PROOFS PASS"; else echo "# ❌ SOME MODEL-POLICY PROOFS FAILED"; fi
 echo "############################################################"
