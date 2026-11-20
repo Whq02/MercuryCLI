@@ -62,24 +62,51 @@ function runIsolated(body: string): Record<string, unknown> {
 
 try {
   {
-    const { prepareApply } = await import(join(SRC, 'tools/LSPTool/mercuryOps/prepare.ts'))
     const dir = join(rootScratch, 'prepare-case')
     mkdirSync(dir, { recursive: true })
     const fileAsParent = join(dir, 'blocker')
     writeFileSync(fileAsParent, 'not a dir')
     const blockedPath = join(fileAsParent, 'child.ts')
-    const env = { cwd: dir, absolutePath: blockedPath, manager: {}, input: {}, tool: {}, context: {} } as never
-    const res = await prepareApply(
-      env,
-      async () => ({ documentChanges: [{ kind: 'create', uri: pathToFileURL(blockedPath).href }] }),
-      { allowCreate: true },
-    )
+    let res: { ok: boolean; reason?: string }
+    if (process.platform === 'win32') {
+      const r = runIsolated(`
+        const { mock } = await import('bun:test')
+        const { pathToFileURL } = await import('node:url')
+        const realFsp = await import('node:fs/promises')
+        const blockedPath = ${JSON.stringify(blockedPath)}
+        mock.module('node:fs/promises', () => ({
+          ...realFsp,
+          stat: async (p, ...rest) => {
+            if (String(p) === blockedPath) throw Object.assign(new Error('ENOTDIR: not a directory'), { code: 'ENOTDIR' })
+            return realFsp.stat(p, ...rest)
+          },
+        }))
+        const { prepareApply } = await import(SRC + '/tools/LSPTool/mercuryOps/prepare.ts')
+        const env = { cwd: ${JSON.stringify(dir)}, absolutePath: blockedPath, manager: {}, input: {}, tool: {}, context: {} }
+        out.res = await prepareApply(
+          env,
+          async () => ({ documentChanges: [{ kind: 'create', uri: pathToFileURL(blockedPath).href }] }),
+          { allowCreate: true },
+        )
+      `)
+      res = r.res as { ok: boolean; reason?: string }
+    } else {
+      const { prepareApply } = await import(join(SRC, 'tools/LSPTool/mercuryOps/prepare.ts'))
+      const env = { cwd: dir, absolutePath: blockedPath, manager: {}, input: {}, tool: {}, context: {} } as never
+      res = await prepareApply(
+        env,
+        async () => ({ documentChanges: [{ kind: 'create', uri: pathToFileURL(blockedPath).href }] }),
+        { allowCreate: true },
+      )
+    }
     check(
       'prepare-create-non-enoent: ENOTDIR from stat refuses create instead of treating path as absent',
-      res.ok === false && !res.reason.includes('already exists') && /ENOTDIR|not a directory|could not/i.test(res.reason),
+      res.ok === false && !(res.reason ?? '').includes('already exists') && /ENOTDIR|not a directory|could not/i.test(res.reason ?? ''),
       JSON.stringify(res),
     )
     if (POSIX_MODES) {
+      const { prepareApply } = await import(join(SRC, 'tools/LSPTool/mercuryOps/prepare.ts'))
+      const env = { cwd: dir, absolutePath: blockedPath, manager: {}, input: {}, tool: {}, context: {} } as never
       const locked = join(dir, 'locked')
       mkdirSync(locked)
       const hidden = join(locked, 'new.ts')
@@ -377,10 +404,24 @@ try {
     const r = runIsolated(`
       const fs = await import('node:fs')
       const path = await import('node:path')
-      const { exec } = await import(SRC + '/utils/Shell.ts')
       const blocker = path.join(SCRATCH, 'not-a-dir')
       fs.writeFileSync(blocker, 'file')
       const notDirChild = path.join(blocker, 'sub')
+      if (process.platform === 'win32') {
+        const { mock } = await import('bun:test')
+        const realFs = await import('node:fs')
+        mock.module('node:fs', () => ({
+          ...realFs,
+          realpathSync: Object.assign(
+            (p, opts) => {
+              if (String(p) === notDirChild) throw Object.assign(new Error('ENOTDIR: not a directory'), { code: 'ENOTDIR' })
+              return realFs.realpathSync(p, opts)
+            },
+            { native: realFs.realpathSync.native },
+          ),
+        }))
+      }
+      const { exec } = await import(SRC + '/utils/Shell.ts')
       const enotdirCmd = await exec('echo hi', new AbortController().signal, 'bash', { cwd: notDirChild })
       const enotdirRes = await enotdirCmd.result
       out.enotdirErr = enotdirRes.preSpawnError ?? ''
