@@ -161,7 +161,7 @@ console.log('\n── rewind list and card after shell commands ──')
             messages: msgs,
             ...(preselect !== undefined ? { preselectedMessage: preselect } : {}),
             onPreRestore: () => {},
-            onRestore: async () => ({ outcome: 'applied', mode: 'both', code: { filesChanged: [], insertions: 0, deletions: 0 } }),
+            onRestore: async () => ({ outcome: 'applied' as const, mode: 'both' as const, code: { filesChanged: [], insertions: 0, deletions: 0 } }),
             onSummarize: () => {},
             onClose: () => {},
           }),
@@ -180,7 +180,7 @@ console.log('\n── rewind list and card after shell commands ──')
       m.unmount()
       return screen
     } finally {
-      releaseFocusedSessionConnector(conn)
+      releaseFocusedSessionConnector()
     }
   }
 
@@ -220,6 +220,97 @@ console.log('\n── rewind list and card after shell commands ──')
         psCard.includes('No Edit or Write changes to restore; shell commands ran after this point and what they changed is not put back.'),
       `list=${psList.slice(0, 250)} card=${psCard.slice(0, 250)}`,
     )
+
+    const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+    const mixedMsgs = [
+      userMsg('u-pre-ro', 'check directory via bash'),
+      assistantTool('a-pre-ro', 'Bash', { command: 'pwd' }),
+      toolResult('tr-pre-ro', { stdout: workDir, stderr: '' }),
+      userMsg('u-pre-mut', 'append y via bash'),
+      assistantTool('a-pre-mut', 'Bash', { command: `echo y >> ${JSON.stringify(targetFile)}` }),
+      toolResult('tr-pre-mut', { stdout: '', stderr: '' }),
+    ] as never[]
+    const facts = { capture: 'on' as const, restorable: new Set(['u-pre-ro', 'u-pre-mut']), files: [] }
+    const baseConn = noSessionConnector()
+    const conn = Object.assign(Object.create(Object.getPrototypeOf(baseConn)), baseConn, {
+      checkpointFacts: () => facts,
+      subscribeCheckpoints: () => () => {},
+      rewind: async () => ({ outcome: 'applied' as const, mode: 'code' as const, code: { filesChanged: [], insertions: 0, deletions: 0 } }),
+    })
+    const origPrepare = BashTool.prepare
+    const origIsReadOnly = BashTool.isReadOnly
+    let releasePrepare!: () => void
+    const holdPrepare = new Promise<void>(resolve => {
+      releasePrepare = resolve
+    })
+    let isReadOnlyCalls = 0
+    BashTool.prepare = async input => {
+      await holdPrepare
+      await origPrepare?.(input)
+    }
+    BashTool.isReadOnly = input => {
+      isReadOnlyCalls += 1
+      return origIsReadOnly(input)
+    }
+    setFocusedSessionConnector(conn)
+    try {
+      const m = await mountOffscreen(
+        React.createElement(
+          ThemeProvider,
+          { initialState: 'dark' },
+          React.createElement(MessageSelector, {
+            messages: mixedMsgs,
+            onPreRestore: () => {},
+            onRestore: async () => ({ outcome: 'applied' as const, mode: 'both' as const, code: { filesChanged: [], insertions: 0, deletions: 0 } }),
+            onSummarize: () => {},
+            onClose: () => {},
+          }),
+        ),
+        120,
+        24,
+      )
+      await waitFor(() => m.screen().includes('check directory via bash'), 2000)
+      const beforePass = m.screen()
+      const callsBeforeSettle = isReadOnlyCalls
+      releasePrepare()
+      await waitFor(() => m.screen().includes('1 shell command ran — changes it made are not put back'), 2000)
+      const afterPass = m.screen()
+      const callsAfterSettle = isReadOnlyCalls
+      m.push('\x1b[A')
+      await new Promise(r => setTimeout(r, 80))
+      m.push('\x1b[B')
+      await new Promise(r => setTimeout(r, 80))
+      const callsAfterNav = isReadOnlyCalls
+      m.unmount()
+      const beforeNoShellGuess = !beforePass.includes('shell command ran') && beforePass.includes('no code changes')
+      const roIdx = afterPass.indexOf('check directory via bash')
+      const mutIdx = afterPass.indexOf('append y via bash')
+      const roSlice = roIdx >= 0 && mutIdx > roIdx ? afterPass.slice(roIdx, mutIdx) : ''
+      const mutSlice = mutIdx >= 0 ? afterPass.slice(mutIdx) : ''
+      check(
+        'before the async shell-check pass finishes, the list reads "no code changes" and never guesses shell mutations for a read-only turn',
+        beforeNoShellGuess && callsBeforeSettle === 0,
+        `callsBeforeSettle=${callsBeforeSettle} screen=${beforePass.slice(0, 400)}`,
+      )
+      check(
+        'after the pass finishes, the read-only turn still reads "no code changes" while the mutating turn reads the shell sentence',
+        roSlice.includes('no code changes') &&
+          !roSlice.includes('shell command ran') &&
+          mutSlice.includes('1 shell command ran — changes it made are not put back') &&
+          !mutSlice.includes('no code changes'),
+        afterPass.slice(0, 500),
+      )
+      check(
+        'subsequent paints and keypress navigation do not re-run isReadOnly',
+        callsAfterSettle === 2 && callsAfterNav === callsAfterSettle,
+        `callsAfterSettle=${callsAfterSettle} callsAfterNav=${callsAfterNav}`,
+      )
+    } finally {
+      releasePrepare()
+      BashTool.prepare = origPrepare
+      BashTool.isReadOnly = origIsReadOnly
+      releaseFocusedSessionConnector()
+    }
   } finally {
     rmSync(workDir, { recursive: true, force: true })
   }

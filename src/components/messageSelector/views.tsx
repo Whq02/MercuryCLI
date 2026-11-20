@@ -31,6 +31,7 @@ export function pickView({
   tokens,
   messages,
   hasSavedPoint,
+  mutatingShellIds,
 }: {
   selectable: UserMessage[]
   checkpoints: CheckpointFactsV1
@@ -41,6 +42,7 @@ export function pickView({
   tokens: Tokens
   messages: Message[]
   hasSavedPoint: (uuid: string) => boolean
+  mutatingShellIds?: ReadonlySet<string> | null
 }): React.ReactNode {
   const nothingToRewind = selectable.length === 0 && checkpoints.undo === undefined
   const half = Math.floor(VISIBLE_ROWS / 2)
@@ -91,6 +93,7 @@ export function pickView({
               messages,
               entry.uuid,
               selectable[entryIndex + 1]?.uuid,
+              mutatingShellIds,
             )
           : null
         const canRestore = historyOn && hasSavedPoint(entry.uuid)

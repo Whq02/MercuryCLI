@@ -11,12 +11,9 @@ export type CodeStats = { filesChanged: string[]; insertions: number; deletions:
 const SHELL_TOOL_NAMES = new Set(['Bash', 'PowerShell'])
 
 type ShellCall = {
+  id: string
   tool: string
   input: Record<string, unknown>
-}
-
-function shellToolNamed(name: string): Tool | undefined {
-  return getAllBaseTools().find(tool => tool.name === name)
 }
 
 function shellCallsInRange(messages: Message[], start: number, end: number): ShellCall[] {
@@ -34,6 +31,7 @@ function shellCallsInRange(messages: Message[], start: number, end: number): She
       const record = input as Record<string, unknown>
       if (typeof record.command !== 'string') continue
       calls.push({
+        id: block.id,
         tool: block.name,
         input: record,
       })
@@ -42,37 +40,65 @@ function shellCallsInRange(messages: Message[], start: number, end: number): She
   return calls
 }
 
-function isReadOnlyShellCall(call: ShellCall): boolean {
-  try {
-    const tool = shellToolNamed(call.tool)
-    return tool !== undefined && tool.isReadOnly(call.input) === true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
-export async function prepareShellChecksForRewind(messages: Message[]): Promise<boolean> {
-  const calls = shellCallsInRange(messages, 0, messages.length)
-  if (calls.length === 0) return false
-  let prepared = false
-  for (const call of calls) {
-    const tool = shellToolNamed(call.tool)
-    if (typeof tool?.prepare !== 'function') continue
-    try {
-      await tool.prepare(call.input)
-      prepared = true
-    } catch (error) {
-      passedOver(error)
+function countMutatingShellInRange(
+  messages: Message[],
+  start: number,
+  end: number,
+  mutatingShellIds: ReadonlySet<string> | null | undefined,
+): number {
+  if (!mutatingShellIds || mutatingShellIds.size === 0 || start < 0) return 0
+  let count = 0
+  for (let i = start; i < end; i++) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type === 'tool_use' && mutatingShellIds.has(block.id)) count += 1
     }
   }
-  return prepared
+  return count
 }
 
-export function mutatingShellCountAfter(messages: Message[], fromUuid: string): number {
+export async function findMutatingShellToolUseIds(messages: Message[]): Promise<ReadonlySet<string>> {
+  const calls = shellCallsInRange(messages, 0, messages.length)
+  if (calls.length === 0) return new Set()
+  const toolsByName = new Map<string, Tool>()
+  for (const tool of getAllBaseTools()) {
+    if (SHELL_TOOL_NAMES.has(tool.name)) toolsByName.set(tool.name, tool)
+  }
+  const mutating = new Set<string>()
+  for (const call of calls) {
+    const tool = toolsByName.get(call.tool)
+    if (tool === undefined) {
+      mutating.add(call.id)
+      continue
+    }
+    if (typeof tool.prepare === 'function') {
+      try {
+        await tool.prepare(call.input)
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    try {
+      if (tool.isReadOnly(call.input) !== true) mutating.add(call.id)
+    } catch (error) {
+      passedOver(error)
+      mutating.add(call.id)
+    }
+  }
+  return mutating
+}
+
+export function mutatingShellCountAfter(
+  messages: Message[],
+  fromUuid: string,
+  mutatingShellIds: ReadonlySet<string> | null | undefined,
+): number {
   const start = messages.findIndex(message => message.uuid === fromUuid)
   if (start === -1) return 0
-  return shellCallsInRange(messages, start + 1, messages.length).filter(call => !isReadOnlyShellCall(call)).length
+  return countMutatingShellInRange(messages, start + 1, messages.length, mutatingShellIds)
 }
 
 type PatchHunk = { lines?: string[] }
@@ -95,6 +121,7 @@ export function statsBetween(
   messages: Message[],
   fromUuid: string,
   toUuid: string | undefined,
+  mutatingShellIds?: ReadonlySet<string> | null,
 ): { files: string[]; insertions: number; deletions: number; shellCommands: number } {
   const start = messages.findIndex(message => message.uuid === fromUuid)
   const end =
@@ -144,7 +171,7 @@ export function statsBetween(
     }
   }
   const shellCommands =
-    start === -1 ? 0 : shellCallsInRange(messages, start + 1, limit).filter(call => !isReadOnlyShellCall(call)).length
+    start === -1 ? 0 : countMutatingShellInRange(messages, start + 1, limit, mutatingShellIds)
   return { files: [...files], insertions, deletions, shellCommands }
 }
 

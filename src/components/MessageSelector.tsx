@@ -42,7 +42,7 @@ import type {
   RewindReceiptV1,
 } from '../services/engine-connector/types.js'
 import { messageText, previewOf } from './messageSelector/preview.js'
-import { mutatingShellCountAfter, prepareShellChecksForRewind, writtenElsewhereLine, type CodeStats } from './messageSelector/stats.js'
+import { findMutatingShellToolUseIds, mutatingShellCountAfter, writtenElsewhereLine, type CodeStats } from './messageSelector/stats.js'
 import { confirmOptionsOf, confirmView, CURRENT_PROMPT, pickView, summarizeView, UNDO_REWIND, type PickEntry } from './messageSelector/views.js'
 
 export { statsBetween, writtenElsewhereLine } from './messageSelector/stats.js'
@@ -211,11 +211,12 @@ export function MessageSelector({
   const [feedback, setFeedback] = useState('')
   const [feedbackCursor, setFeedbackCursor] = useState(0)
   const [focusedConfirm, setFocusedConfirm] = useState('conversation')
-  const [, setShellCheckTick] = useState(0)
+  const [mutatingShellIds, setMutatingShellIds] = useState<ReadonlySet<string> | null>(null)
   useLoad(() => {
+    setMutatingShellIds(null)
     let cancelled = false
-    void prepareShellChecksForRewind(messages).then(prepared => {
-      if (!cancelled && prepared) setShellCheckTick(tick => tick + 1)
+    void findMutatingShellToolUseIds(messages).then(ids => {
+      if (!cancelled && ids.size > 0) setMutatingShellIds(ids)
     })
     return () => {
       cancelled = true
@@ -396,7 +397,7 @@ export function MessageSelector({
     )
   }
 
-  if (phase === 'pick') return pickView({ selectable, checkpoints, index, entries, columns, historyOn, tokens, messages, hasSavedPoint })
+  if (phase === 'pick') return pickView({ selectable, checkpoints, index, entries, columns, historyOn, tokens, messages, hasSavedPoint, mutatingShellIds })
 
   if (!chosen) {
     close()
@@ -407,7 +408,7 @@ export function MessageSelector({
 
   const canRestoreCode = historyOn && hasSavedPoint(chosen.uuid)
   const elsewhere = writtenElsewhereLine(messages, chosen.uuid)
-  const shellCommandsAfter = mutatingShellCountAfter(messages, chosen.uuid)
+  const shellCommandsAfter = mutatingShellCountAfter(messages, chosen.uuid, mutatingShellIds)
   const preview = previewOf(chosen, columns - 16)
   const age = formatRelativeTimeAgo(new Date(chosen.timestamp))
   const conversationText =
