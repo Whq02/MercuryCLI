@@ -6,6 +6,7 @@ import { basename } from 'node:path'
 import { getRipgrepStatus, warmRipgrepStatus } from '../../../../utils/ripgrep.js'
 import { CHALK_CLAMPED_FOR_MERCURY, CHALK_CLAMPED_FOR_TMUX, CHALK_DISABLED_FOR_NO_COLOR, colorDepthWhy, monochromeThemeActive } from '../../../../ink/colorize.js'
 import { SHELL_READS, type CheckSpec } from '../../healthReport.js'
+import { loadAverageSupported } from '../../../../utils/platform/processes.js'
 
 const MB = 1024 * 1024
 
@@ -149,7 +150,7 @@ export function resourcesCheck(): CheckSpec {
     run: async () => {
       const { availableB, source } = await deviceHeadroom()
       const cores = Math.max(1, cpus().length)
-      const loadKnown = process.platform !== 'win32'
+      const loadKnown = loadAverageSupported()
       const load1 = loadavg()[0] ?? 0
       const perCore = load1 / cores
       const loadText = loadKnown ? `load ${perCore.toFixed(2)}/core` : 'load n/a (win32 has no loadavg)'
