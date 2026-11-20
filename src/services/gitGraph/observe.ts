@@ -425,7 +425,7 @@ export function gitConflicts(root: string, owner?: import('../run/ownerKey.js').
       }
     })
   } catch (error) {
-    return { state: 'unavailable', note: `could not read conflict regions: ${error instanceof Error ? error.message : String(error)}` }
+    return { state: 'unavailable', note: error instanceof Error ? error.message : String(error) }
   }
 }
 
