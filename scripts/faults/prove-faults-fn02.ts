@@ -267,5 +267,45 @@ console.log('\nBootSettingsScreen — failed liveCount returns null (not 0) and 
   check('rejected daemonControlRpc marks receipt refused with error message instead of queued', settled?.outcome === 'refused' && settled?.reason === 'daemon socket ECONNREFUSED', JSON.stringify(settled ?? r))
 }
 
+console.log('\nFeedback — failed getIsGit records undefined + error instead of false, and unreadable transcript records error')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const gitPath = path.join(SRC, 'utils/git.ts')
+    const storagePath = path.join(SRC, 'utils/sessionStorage.ts')
+    const [realGit, realStorage] = await Promise.all([import(gitPath), import(storagePath)])
+    const transcriptFile = path.join(HOME, 'unreadable-transcript.jsonl')
+    fs.writeFileSync(transcriptFile, '{"type":"user"}\\n', { mode: 0o600 })
+    const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+    if (posix) fs.chmodSync(transcriptFile, 0o200)
+    mock.module(gitPath, () => ({ ...realGit, getIsGit: async () => { throw new Error('git binary missing') } }))
+    mock.module(storagePath, () => ({
+      ...realStorage,
+      getTranscriptPathForSession: () => transcriptFile,
+      loadAllSubagentTranscriptsFromDisk: async () => ({}),
+    }))
+    const mod = await import(path.join(SRC, 'components/Feedback.tsx'))
+    if (typeof mod.gatherReport !== 'function') {
+      out.missing = true
+    } else {
+      const gathered = await mod.gatherReport('bug desc', [], {})
+      out.isGit = gathered.report.is_git === undefined ? 'UNDEFINED' : gathered.report.is_git
+      out.errors = gathered.errors.map(e => e.error)
+      out.posix = posix
+      if (posix) fs.chmodSync(transcriptFile, 0o600)
+      fs.unlinkSync(transcriptFile)
+      const absent = await mod.gatherReport('bug desc', [], {})
+      out.absentHasTranscriptErr = absent.errors.some(e => e.error.includes('session transcript'))
+    }
+  `)
+  check('failed getIsGit does not report is_git as false', r.isGit === 'UNDEFINED', JSON.stringify(r))
+  const errs = Array.isArray(r.errors) ? (r.errors as string[]) : []
+  check('failed getIsGit appends git probe error to report errors', errs.some(e => e.includes('git binary missing')), JSON.stringify(errs))
+  if (r.posix === true) {
+    check('unreadable transcript appends transcript read error to report errors', errs.some(e => e.includes('session transcript could not be read')), JSON.stringify(errs))
+    check('control: absent transcript (ENOENT) does not record a transcript read error', r.absentHasTranscriptErr === false, JSON.stringify(r))
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
