@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.ts')
+const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

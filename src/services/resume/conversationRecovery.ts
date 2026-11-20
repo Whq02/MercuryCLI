@@ -1,23 +1,23 @@
-import { rebuildSeenLinesFromTranscript } from '../services/changeTransaction/seenLines.js'
-import { logForDebugging } from './debug.js'
-import { mainOwnerOfSession, processMainOwner } from '../services/run/resolveOwner.js'
+import { rebuildSeenLinesFromTranscript } from '../changeTransaction/seenLines.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { mainOwnerOfSession, processMainOwner } from '../run/resolveOwner.js'
 import type { UUID } from 'crypto'
 import { relative } from 'node:path'
 
-import { addInvokedSkill, getEngineModelOverride } from '../bootstrap/state.js'
-import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js'
-import { withoutRetractedReplies } from '../services/engine-connector/midTurnText.js'
-import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
-import { declaredRouteOf } from '../services/providers/routeLaw.js'
-import type { AssistantMessage, AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
-import type { SessionListing, SerializedMessage, TranscriptMessage, TurnEnded } from '../types/logs.js'
-import { PERMISSION_MODES } from '../types/permissions.js'
-import { suppressNextSkillListing } from './attachments/skillListing.js'
-import { getCwd } from './cwd.js'
-import { copyFileHistoryForResume } from './fileHistory.js'
-import { logError } from './log.js'
-import { parseUserSpecifiedModel } from './model/model.js'
-import { mintImmediateReceipt } from './model/seatReceipts.js'
+import { addInvokedSkill, getEngineModelOverride } from '../../bootstrap/state.js'
+import { rehydrateScreenshots } from '../desktop/screenshotRetention.js'
+import { withoutRetractedReplies } from '../engine-connector/midTurnText.js'
+import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import type { AssistantMessage, AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../../types/message.js'
+import type { SessionListing, SerializedMessage, TranscriptMessage, TurnEnded } from '../../types/logs.js'
+import { PERMISSION_MODES } from '../../types/permissions.js'
+import { suppressNextSkillListing } from '../../utils/attachments/skillListing.js'
+import { getCwd } from '../../utils/cwd.js'
+import { copyFileHistoryForResume } from '../../utils/fileHistory.js'
+import { logError } from '../../utils/log.js'
+import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import {
   createAssistantMessage,
   createUserMessage,
@@ -29,18 +29,18 @@ import {
   normalizeAttachmentForAPI,
   normalizeMessages,
   SYNTHETIC_MESSAGES,
-} from './messages.js'
-import { settleToolUsesOfEndedRun } from './messages/apiFilters.js'
-import { isCutResultText } from './messages/turnCut.js'
+} from '../../utils/messages.js'
+import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
+import { isCutResultText } from '../../utils/messages/turnCut.js'
 import {
   accumulateOpenToolUses,
   cloneOpenToolUses,
   freshOpenToolUses,
   openToolUseIDs,
   type OpenToolUses,
-} from './messages/openToolUses.js'
-import { runSessionStartHooks } from './sessionStart.js'
-import { resumeFactsOf, type ResumeFacts } from './sessionStorage/logs.js'
+} from '../../utils/messages/openToolUses.js'
+import { runSessionStartHooks } from '../../utils/sessionStart.js'
+import { resumeFactsOf, type ResumeFacts } from '../../utils/sessionStorage/logs.js'
 import {
   buildConversationChain,
   checkResumeConsistency,
@@ -51,9 +51,9 @@ import {
   listProjectSessions,
   loadTranscriptFile,
   removeExtraFields,
-} from './sessionStorage.js'
-import { PERSISTED_OUTPUT_TAG } from './toolResultStorage.js'
-import { asSessionId, type SessionId } from '../types/ids.js'
+} from '../../utils/sessionStorage.js'
+import { PERSISTED_OUTPUT_TAG } from '../../utils/toolResultStorage.js'
+import { asSessionId, type SessionId } from '../../types/ids.js'
 
 
 export type TurnInterruptionState =

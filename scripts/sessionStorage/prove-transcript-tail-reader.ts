@@ -15,7 +15,7 @@ delete process.env.MERCURY_RESUME_SNAPSHOT
 const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
 const loading = await import('../../src/utils/sessionStorage/loading.ts')
 const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
-const recovery = await import('../../src/utils/conversationRecovery.ts')
+const recovery = await import('../../src/services/resume/conversationRecovery.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
