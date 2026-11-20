@@ -1,4 +1,5 @@
-import { useContext, useEffect, useRef } from 'react'
+import { useContext, useRef } from 'react'
+import { useTimer } from './effects.js'
 import { getLastInteractionTime } from '../bootstrap/state.js'
 import { getTerminalFocusState } from '../ink/session/focus-store.js'
 import { TerminalWriteContext } from '../ink/terminalWrite.js'
@@ -34,7 +35,7 @@ export function useTurnEndPing(
   const write = useContext(TerminalWriteContext)
   const busyRef = useRef(turn.busy)
   busyRef.current = turn.busy
-  useEffect(() => {
+  useTimer(() => {
     if (write === null || turn.lastCompletedAt === null) return
     const fire = (): void => {
       if (busyRef.current || isUserAtScreen(threshold) || !pingEnabled()) return

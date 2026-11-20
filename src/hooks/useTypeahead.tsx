@@ -1,5 +1,6 @@
 
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useMemo, useRef, useState } from 'react'
+import { useClaim, useLoad, useSubscription } from './effects.js'
 import type { Command } from '../commands.js'
 import type {
   SuggestionItem as Suggestion,
@@ -140,7 +141,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     }
   }, [])
 
-  useEffect(
+  useClaim(
     () => () => {
       cancelFileFetch()
       cancelChannelFetch()
@@ -180,7 +181,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     [cancelFileFetch, publish, resetOnEmptyFetch],
   )
 
-  useEffect(() => {
+  useSubscription(() => {
     startBackgroundCacheRefresh()
     return onIndexBuildComplete(() => {
       const token = lastSearchTokenRef.current
@@ -190,7 +191,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     })
   }, [])
 
-  useEffect(
+  useSubscription(
     () =>
       subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))(() => {
         if (findChannelTargetQuery(inputRef.current, cursorOffsetRef.current)) setRosterStamp(stamp => stamp + 1)
@@ -198,7 +199,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     [],
   )
 
-  useEffect(() => {
+  useLoad(() => {
     const cursor = cursorOffsetRef.current
 
     if (suppressSuggestions) {

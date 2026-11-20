@@ -1,9 +1,10 @@
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { promises as fs } from 'node:fs'
 import { relative } from 'node:path'
 import { Box, NoSelect, Text } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
+import { useLoad } from '../../../hooks/effects.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import {
   boundHunks,
@@ -53,7 +54,7 @@ export function NotebookEditToolDiff({
   verbose,
 }: Props): React.ReactNode {
   const [cells, setCells] = useState<NotebookCell[] | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false
     void fs
       .readFile(notebook_path, 'utf8')
