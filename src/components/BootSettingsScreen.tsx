@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useLoad } from '../hooks/effects.js';
 import { execFile } from 'node:child_process';
 import { subprocessEnv } from '../utils/subprocessEnv.js';
 import { gitArgs } from '../utils/git/spawnArgs.js';
@@ -99,7 +100,7 @@ export function BootSettingsScreen({
   );
   const [seatsTick, setSeatsTick] = useState(0);
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null);
-  useEffect(() => {
+  useLoad(() => {
     let active = true;
     void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts); });
     return () => { active = false; };
@@ -123,7 +124,7 @@ export function BootSettingsScreen({
 
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const [apply, setApply] = useState<ApplyState>({ phase: 'closed' });
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false;
     void import('../daemon/concourseWorkers.js')
       .then(sup => {
@@ -136,7 +137,7 @@ export function BootSettingsScreen({
       cancelled = true;
     };
   }, [saveTick]);
-  useEffect(() => {
+  useLoad(() => {
     if (apply.phase !== 'loading') return;
     let cancelled = false;
     void import('../daemon/concourseWorkers.js')
@@ -301,7 +302,7 @@ export function BootSettingsScreen({
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
   const mainModel = useEngineModel();
   const [dirTail, setDirTail] = useState('');
-  useEffect(() => gitTailProbe(setDirTail), []);
+  useLoad(() => gitTailProbe(setDirTail), []);
 
   const changed = useMemo(() => STARTUP_MENU.filter(r => saved[r.env] !== undefined).length, [saved]);
   const menuM = useMemo(() => {

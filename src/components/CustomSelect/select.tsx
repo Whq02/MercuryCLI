@@ -1,7 +1,8 @@
 
 import figures from 'figures'
 import { GLYPH } from '../mercury-ui/glyphs.js'
-import React, { useContext, useEffect, useRef, useState } from 'react'
+import React, { useContext, useRef, useState } from 'react'
+import { usePublish } from '../../hooks/effects.js'
 import { PopupFormContext, usePopupCompact } from '../../context/popupFormContext.js'
 import { Ansi, Box, Text } from '../../ink.js'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
@@ -264,7 +265,7 @@ export function Select<T = string>({
 
   const visible = state.visibleOptions
   const { visibleFromIndex, visibleToIndex } = state
-  useEffect(() => {
+  usePublish(() => {
     onVisibleWindowChange?.(visibleFromIndex, visibleToIndex)
   }, [onVisibleWindowChange, visibleFromIndex, visibleToIndex])
 

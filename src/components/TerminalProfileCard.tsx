@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useLoad, useTimer } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import {
   resolveTerminalProfile,
@@ -41,7 +42,7 @@ export function TerminalProfileCard({
     onDone(choice)
   }
 
-  React.useEffect(() => {
+  useTimer(() => {
     let ticks = 0
     const timer = setInterval(() => {
       ticks += 1
@@ -56,7 +57,7 @@ export function TerminalProfileCard({
     return () => clearInterval(timer)
   }, [])
 
-  React.useEffect(() => {
+  useLoad(() => {
     let alive = true
     void detectWindowsHostInventory().then(inv => {
       if (alive && process.platform === 'win32') setInventory(inv)
@@ -67,7 +68,7 @@ export function TerminalProfileCard({
   }, [])
 
   const [installWatch, setInstallWatch] = React.useState<HostSetupAction['id'] | null>(null)
-  React.useEffect(() => {
+  useTimer(() => {
     if (installWatch === null || process.platform !== 'win32') return
     let alive = true
     let ticks = 0

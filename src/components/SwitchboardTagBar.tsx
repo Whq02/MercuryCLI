@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useSyncExternalStore } from 'react'
+import React, { useMemo, useSyncExternalStore } from 'react'
+import { useClaim } from '../hooks/effects.js'
 import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -331,7 +332,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const { folder, branch } = useFocusedWorkspaceBranch()
   const signedOutWords = signedOutStatusWords(useSessionSignInGate(effectiveModel))
   const painting = hasSeatLive(c)
-  useEffect(() => {
+  useClaim(() => {
     if (!painting) return
     rowsPainting += 1
     return () => {

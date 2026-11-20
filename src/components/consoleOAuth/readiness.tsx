@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react'
+import React from 'react'
+import { useMount } from '../../hooks/effects.js'
 import { Box, Text } from '../../ink.js'
 import wrapText from '../../ink/wrap-text.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -65,9 +66,9 @@ function readinessFamiliesShown(plan: { rows: number; lines: number[] }, rows: n
 export function ProviderReadinessBlock({ rows, statusWidth }: { rows: number; statusWidth: number | null }): React.ReactNode {
   const tokens = useMercuryTokens()
   useCatalogueEpoch()
-  useEffect(() => {
+  useMount(() => {
     resolveProviderUsability(undefined, { fetchCatalogues: true })
-  }, [])
+  })
   const map = resolveProviderUsability()
   const plan = readinessBlockPlan(map, statusWidth)
   const whole = rows >= plan.rows

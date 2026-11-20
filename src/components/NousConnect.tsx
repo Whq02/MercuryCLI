@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLoad } from '../hooks/effects.js'
 import { Select } from './CustomSelect/index.js'
 import { openBrowser } from '../utils/browser.js'
 import { setClipboard } from '../ink/termio/osc.js'
@@ -21,7 +22,7 @@ export function NousConnect({ onResult, onBack }: {
   const [step, setStep] = useState<'choice' | 'device' | 'key'>('choice')
   const [event, setEvent] = useState<NousDeviceLoginEvent>({ phase: 'starting' })
   const cancelled = useRef(false)
-  useEffect(() => {
+  useLoad(() => {
     if (step !== 'device') return
     let disposed = false
     void runNousDeviceLogin({ cancelled: () => disposed || cancelled.current, onEvent: e => {

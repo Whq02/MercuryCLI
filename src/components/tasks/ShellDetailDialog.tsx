@@ -1,5 +1,6 @@
 
-import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { useTimer } from '../../hooks/effects.js'
 import { closeSync, openSync, readSync } from 'node:fs'
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
 import { Box, Text, useInput } from '../../ink.js'
@@ -174,7 +175,7 @@ export function ShellDetailDialog({
 
   const count = useRef(freshLineCount(shell.outputFile))
   const [tail, setTail] = useState(() => readTail(shell.outputFile, count.current))
-  useEffect(() => {
+  useTimer(() => {
     if (count.current.path !== shell.outputFile) count.current = freshLineCount(shell.outputFile)
     setTail(readTail(shell.outputFile, count.current))
     if (!running) return
