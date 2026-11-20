@@ -184,5 +184,30 @@ if (POSIX_MODES) {
   )
 }
 
+console.log('deferralProbe — recordGatewayProbe does not overwrite an unreadable probe store')
+if (POSIX_MODES) {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import(SRC + '/services/providers/deferralProbe.ts')
+    const file = path.join(HOME, 'tool-deferral-probe.json')
+    const original = JSON.stringify({ version: 1, hosts: { 'a.example': { verdict: 'block', evidence: 'http 200', status: 200, probedAt: '2026-11-20T00:00:00.000Z' } } }, null, 2)
+    fs.writeFileSync(file, original, { mode: 0o600 })
+    fs.chmodSync(file, 0o200)
+    try {
+      out.readerAbsent = mod.readGatewayProbeRecord('a.example') === undefined
+      mod.recordGatewayProbe('b.example', { verdict: 'text', evidence: 'http 400', status: 400, probedAt: '2026-11-20T00:00:00.000Z' })
+    } finally {
+      fs.chmodSync(file, 0o600)
+    }
+    out.sameBytes = fs.readFileSync(file, 'utf8') === original
+  `)
+  check(
+    'deferralProbe:recordGatewayProbe keeps unreadable store file byte-identical while reader stays non-throwing',
+    r.readerAbsent === true && r.sameBytes === true,
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
