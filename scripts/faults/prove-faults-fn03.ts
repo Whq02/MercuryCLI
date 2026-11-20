@@ -344,5 +344,52 @@ console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable 
   )
 }
 
+console.log('\nConcourseRoute.tsx:181 — failed project ground switch notifies strip:composer instead of silent drop')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/concourse/ConcourseRoute.tsx'))})
+    if (typeof mod.applySeedProjectGround !== 'function') {
+      out.missing = true
+    } else {
+      const notes = []
+      const noteControl = (control, state) => notes.push({ control, state })
+      await mod.applySeedProjectGround('/repo/next', noteControl, async () => {
+        throw new Error('EACCES: permission denied')
+      })
+      out.rejectNote = notes.splice(0)
+      await mod.applySeedProjectGround('/repo/next', noteControl, async () => '/repo/old')
+      out.stayedNote = notes.splice(0)
+      await mod.applySeedProjectGround('/repo/next', noteControl, async dir => dir)
+      out.okNote = notes.splice(0)
+    }
+  `)
+  const rejectNote = res.rejectNote as Array<{ control: string; state: { state?: string; reason?: string } }> | undefined
+  const stayedNote = res.stayedNote as Array<{ control: string; state: { state?: string; reason?: string } }> | undefined
+  const okNote = res.okNote as Array<unknown> | undefined
+  check(
+    'concourse-route-ground-reject-sentence',
+    res.missing !== true &&
+      rejectNote?.length === 1 &&
+      rejectNote[0]?.control === 'strip:composer' &&
+      rejectNote[0]?.state.state === 'failed' &&
+      rejectNote[0]?.state.reason === 'Could not switch to /repo/next (EACCES: permission denied) — pick the repo again.',
+    JSON.stringify(res),
+  )
+  check(
+    'concourse-route-ground-stayed-sentence',
+    res.missing !== true &&
+      stayedNote?.length === 1 &&
+      stayedNote[0]?.control === 'strip:composer' &&
+      stayedNote[0]?.state.state === 'failed' &&
+      stayedNote[0]?.state.reason === 'Could not switch to /repo/next — stayed in /repo/old; pick the repo again.',
+    JSON.stringify(res),
+  )
+  check(
+    'concourse-route-ground-ok-silent',
+    res.missing !== true && okNote?.length === 0,
+    JSON.stringify(res),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
