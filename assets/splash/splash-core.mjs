@@ -199,6 +199,7 @@ const MODEL_NAMES = {
   "fireworks/accounts/fireworks/models/muse-spark-open": "Muse Spark Open",
   "fireworks/accounts/fireworks/models/deepseek-v4p1-flash-1017": "DeepSeek V4.1 Flash 1017",
   "qwen3.8-max": "Qwen3.8 Max",
+  "qwen4-max": "Qwen4 Max",
   "qwen3.7-max": "Qwen3.7 Max",
   "qwen3.7-plus": "Qwen3.7 Plus",
   "qwen3.8-flash": "Qwen3.8 Flash",
