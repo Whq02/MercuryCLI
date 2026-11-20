@@ -3,8 +3,8 @@ import type { UUID } from 'crypto'
 import { findToolByName, safeSearchOrReadClassification, type Tools } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { extractBashCommentLabel } from '../../tools/BashTool/commentLabel.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
+import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
+import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
 import {
   detectGitOperation,
   type BranchAction,
@@ -12,10 +12,10 @@ import {
   type PrAction,
 } from '../../tools/shared/gitOperationTracking.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
-import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
+import { TASK_CREATE_TOOL_NAME } from '../../constants/tools/taskCreate.js'
 import { TASK_GET_TOOL_NAME } from '../../tools/TaskGetTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
-import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
+import { TASK_UPDATE_TOOL_NAME } from '../../constants/tools/taskUpdate.js'
 import type {
   CollapsedReadSearchGroup,
   CollapsibleMessage,

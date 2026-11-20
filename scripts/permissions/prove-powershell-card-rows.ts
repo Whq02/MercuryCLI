@@ -18,7 +18,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { powershellToolUseOptions } = await import('../../src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.js')
-const { POWERSHELL_TOOL_NAME } = await import('../../src/tools/PowerShellTool/toolName.js')
+const { POWERSHELL_TOOL_NAME } = await import('../../src/constants/tools/powershell.js')
 type Row = ReturnType<typeof powershellToolUseOptions>[number] & { type?: string; placeholder?: string; initialValue?: string; onChange?: unknown; allowEmptySubmitToCancel?: boolean; showLabelWithValue?: boolean; labelValueSeparator?: string; resetCursorOnUpdate?: boolean }
 
 const accept = (): void => {}

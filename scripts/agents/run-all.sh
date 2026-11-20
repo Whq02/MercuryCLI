@@ -6,7 +6,7 @@
 # gate-watch: src/cli/run.ts
 # gate-watch: scripts/lib/*
 # gate-watch: src/constants/subagentDoctrine.ts
-# gate-watch: src/skills/bundled/mercuryDocs.ts src/commands/verify.ts src/tools/SkillTool/constants.ts src/skills/bundled/provider-apis/SKILL.md
+# gate-watch: src/skills/bundled/mercuryDocs.ts src/commands/verify.ts src/constants/tools/skill.ts src/skills/bundled/provider-apis/SKILL.md
 # gate-watch: src/tools/ResumeAgentTool/** src/tools/SendMessageTool/**
 # gate-watch: src/tools/AgentTool/*
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts

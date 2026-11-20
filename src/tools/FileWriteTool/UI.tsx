@@ -22,7 +22,7 @@ import { getDisplayPath } from '../../utils/file.js'
 import { toolErrorReason } from '../../utils/toolErrorReason.js'
 import { readFileInRange, FileTooLargeError } from '../../utils/readFileInRange.js'
 import { countCharInString, firstLineOf, plural } from '../../utils/stringUtils.js'
-import { FILE_WRITE_TOOL_NAME } from './prompt.js'
+import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
 import { isSqliteRowTarget } from './structuredTargets.js'
 import type { FileWriteToolInput, Output } from './FileWriteTool.js'
 

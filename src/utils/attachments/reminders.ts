@@ -2,8 +2,8 @@
 import type { Message } from 'src/types/message.js'
 import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
-import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
+import { TASK_CREATE_TOOL_NAME } from '../../constants/tools/taskCreate.js'
+import { TASK_UPDATE_TOOL_NAME } from '../../constants/tools/taskUpdate.js'
 import { isThinkingMessage } from '../messages.js'
 import {
   getTaskListId,
@@ -16,7 +16,7 @@ import {
   type Attachment,
 } from './types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { CONTRACT_TOOL_NAME } from '../../tools/ContractTool/prompt.js'
+import { CONTRACT_TOOL_NAME } from '../../constants/tools/contract.js'
 import { passedOver } from '../passedOver.js'
 
 function reminderClock(messages: Message[], kind: 'task_reminder' | 'contract_reminder', tools: readonly string[]) {

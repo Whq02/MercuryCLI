@@ -1,5 +1,5 @@
 import { EMPTY_USAGE, type NonNullableUsage } from '../../services/api/emptyUsage.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/SyntheticOutputTool/constants.js'
+import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../constants/tools/syntheticOutput.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
 import { reconstructContentReplacementState, type ContentReplacementState } from '../../utils/toolResultStorage.js'

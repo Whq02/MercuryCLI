@@ -16,7 +16,7 @@ const { mintFileAnchor } = await import('../../src/services/changeTransaction/sn
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/FileEditTool/constants.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
 
 let failures = 0
 let checks = 0
