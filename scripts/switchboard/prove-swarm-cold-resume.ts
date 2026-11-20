@@ -5,6 +5,7 @@ import { basename, dirname, join } from 'node:path'
 import { open } from '../../src/services/crewBoard/store.ts'
 import { DIST, NODE, makeWorld, closeWorld, findFiles, record, toolResultOf } from '../crew/crew-world.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
 const model = 'claude-fable-5-1', childModel = 'claude-opus-4-6'
@@ -150,8 +151,20 @@ try {
   record('swarm-cold-resume-requests.json', JSON.stringify(world.fixture.messageRequests().map(request => request.body)))
   if (board) record('swarm-cold-resume-board.json', JSON.stringify(board.view()))
   if (sessionId) { try { await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId, by: 'operator' } as never, { timeoutMs: 15_000 }) } catch {} }
+  const lastPid = owned()?.pid
   await stop()
+  if (lastPid) {
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline) {
+      try { process.kill(lastPid, 0); await new Promise(resolve => setTimeout(resolve, 100)) } catch { break }
+    }
+  }
   beat.stop()
   board?.close()
-  await closeWorld(world)
+  try {
+    await closeWorld(world)
+  } catch (error) {
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EBUSY') throw error
+    removeScratch(world.dir)
+  }
 }

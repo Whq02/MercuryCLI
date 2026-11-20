@@ -114,12 +114,58 @@ export function venvPythonPath(venvDir: string, platform: string = process.platf
   return platform === 'win32' ? path.join(venvDir, 'Scripts', 'python.exe') : path.join(venvDir, 'bin', 'python')
 }
 
-export function evalPythonCommands(platform: string = process.platform): string[] {
-  return platform === 'win32' ? ['python3', 'python', 'py'] : ['python3']
+function envValueInsensitive(env: NodeJS.ProcessEnv, target: string): string | undefined {
+  const upper = target.toUpperCase()
+  let found: string | undefined
+  for (const [key, value] of Object.entries(env)) {
+    if (key.toUpperCase() === upper) found = value
+  }
+  return found
 }
 
-export function debugpyPythonCommands(platform: string = process.platform): string[] {
-  if (platform === 'win32') return ['python3', 'python', 'py']
-  if (platform === 'darwin') return ['python3', 'python', '/usr/bin/python3']
-  return ['python3', 'python']
+function win32SpawnSpellings(command: string, env: NodeJS.ProcessEnv): string[] {
+  const exts: string[] = [...WIN32_SPAWNABLE_EXTENSIONS]
+  const seen = new Set<string>(exts)
+  const rawPathExt = envValueInsensitive(env, 'PATHEXT') ?? envValueInsensitive(hostEnv(), 'PATHEXT')
+  if (rawPathExt) {
+    for (const raw of rawPathExt.split(';')) {
+      const ext = raw.trim()
+      if (ext === '') continue
+      const lower = ext.toLowerCase()
+      if (!seen.has(lower)) {
+        seen.add(lower)
+        exts.push(ext)
+      }
+    }
+  }
+  return [...exts.map(ext => `${command}${ext}`), command]
+}
+
+export function missingSpawnCommandError(
+  command: string,
+  env: NodeJS.ProcessEnv = hostEnv(),
+  cwd?: string,
+  platform: string = process.platform,
+): NodeJS.ErrnoException | null {
+  if (platform !== 'win32') return null
+  const missing = (): NodeJS.ErrnoException =>
+    Object.assign(new Error(`spawn ${command} ENOENT`), { code: 'ENOENT' }) as NodeJS.ErrnoException
+  if (command === '') return missing()
+  const spellings = win32SpawnSpellings(command, env)
+  if (commandHasDirectoryPart(command, platform)) {
+    for (const spelling of spellings) {
+      const candidate = cwd !== undefined ? path.resolve(cwd, spelling) : path.resolve(spelling)
+      if (isExecutableFile(candidate, platform)) return null
+    }
+    return missing()
+  }
+  const pathValue = envValueInsensitive(env, 'PATH') ?? envValueInsensitive(hostEnv(), 'PATH') ?? ''
+  const dirs = [cwd ?? process.cwd(), ...searchDirs(pathValue, platform)]
+  for (const dir of dirs) {
+    for (const spelling of spellings) {
+      const candidate = path.resolve(dir, spelling)
+      if (isExecutableFile(candidate, platform)) return null
+    }
+  }
+  return missing()
 }

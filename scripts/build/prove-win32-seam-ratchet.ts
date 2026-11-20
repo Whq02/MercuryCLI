@@ -32,6 +32,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/components/tensorfold/tensorfoldRows.ts', 3, 'the TensorFold engine has no Windows release: Windows is served by a host or by the llama.cpp adapter'],
   ['src/constants/prompts.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/daemon/daemonBuild.ts', 1, 'a Nix install exists outside Windows only'],
+  ['src/daemon/ownedDaemon.ts', 1, 'the owner pipe is inherited off Windows only'],
   ['src/daemon/processSweepWindows.ts', 1, 'the Windows process reader refuses to open elsewhere'],
   ['src/ink/session/windowsHostSetup.ts', 1, 'the Windows host inventory exists on Windows only'],
   ['src/interactiveHelpers.tsx', 1, 'the sentence names the command or the place of this platform'],
@@ -42,20 +43,25 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/services/blender/addonHome.ts', 1, 'the install places of another vendor on each platform'],
   ['src/services/browser/browserResolver.ts', 2, 'the install places of another vendor on each platform'],
   ['src/services/browser/session/launch.ts', 1, 'the identity of the browser follows the host'],
+  ['src/services/browser/session/owners.ts', 1, 'the temp tree of a browser is ended by taskkill on Windows only'],
   ['src/services/browser/session/stealth.ts', 1, 'the navigator platform of the browser follows the host'],
   ['src/services/dap/client/probes.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/services/dap/debugpyResolver.ts', 1, 'the Python commands the debugger tries are its own on each platform'],
   ['src/services/desktop/nativeDriver.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/services/eval/interpreters.ts', 1, 'the Python commands the kernel tries are its own on each platform'],
+  ['src/services/eval/procKernel.ts', 1, 'the Python kernel speaks over loopback on Windows only'],
   ['src/services/host/bank.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/host/ssh.ts', 1, 'the OS of a box decides its inspection script'],
   ['src/services/ide/blenderProject.ts', 1, 'the install places of another vendor on each platform'],
   ['src/services/ide/unityProject.ts', 2, 'the install places of another vendor on each platform'],
+  ['src/services/localServer/localServerTruth.ts', 2, 'how a local server is launched and what memory it may use is told for each platform'],
   ['src/services/localSetup/setupInstall.ts', 1, 'the install places of another vendor on each platform'],
   ['src/services/localSetup/setupRoad.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/lsp/serverCatalogue.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/mcp/auth.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/mcp/config.ts', 1, 'the npx warning is for Windows, where npx is a batch shim'],
   ['src/services/mcp/oauthPort.ts', 1, 'the callback port range Windows leaves free differs'],
-  ['src/services/privateChannel/installLayout.ts', 1, 'the script policies of PowerShell are read on Windows only'],
+  ['src/services/privateChannel/installLayout.ts', 2, 'the script policies of PowerShell are read, and a binary in use is removed after exit, on Windows only'],
   ['src/services/privateChannel/nixInstallRoot.ts', 1, 'a Nix install exists outside Windows only'],
   ['src/services/privateChannel/updateRemedy.ts', 2, 'the sentence names the command or the place of this platform'],
   ['src/services/providers/local/tensorfoldSupport.ts', 1, 'the sentence names the command or the place of this platform'],
@@ -75,11 +81,13 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/utils/errors/classifyToolError.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/utils/exampleCommands.ts', 1, 'frequent-file examples are not gathered on Windows'],
   ['src/utils/ffmpeg.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/utils/gracefulShutdown.ts', 1, 'the orphaned-terminal check runs off Windows only'],
   ['src/utils/health/sections/interface.ts', 2, 'the sentence names the command or the place of this platform'],
   ['src/utils/health/sections/proofs.ts', 1, 'the POSIX render pipeline does not run from a Windows source checkout'],
   ['src/utils/healthReport.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/utils/hooks/commandRunner.ts', 2, 'a bash hook runs through the Windows bash road on Windows only'],
   ['src/utils/ocr.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/utils/processGroup.ts', 4, 'the MSYS job table and the taskkill drain exist on Windows only'],
   ['src/utils/sessionEnvironment.ts', 1, 'the Windows bash road exists on Windows only'],
   ['src/utils/settings/mdm/probeMemo.ts', 2, 'managed settings are the registry on Windows and a plist on macOS'],
   ['src/utils/settings/mdm/rawRead.ts', 1, 'managed settings are the registry on Windows and a plist on macOS'],
@@ -91,6 +99,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/utils/shell/windowsBatchInvocation.ts', 1, 'a batch file is planned through cmd on Windows only'],
   ['src/utils/shell/windowsShellRoad.ts', 1, 'the Windows bash road exists on Windows only'],
   ['src/utils/shutdownRestoration.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/utils/watchRoot.ts', 3, 'a watched root is resolved natively and guarded against its own removal on Windows only'],
   ['src/utils/worktree.ts', 1, 'the tmux worktree road does not exist on Windows'],
 ]
 
@@ -156,9 +165,11 @@ for (const gone of baselineFiles) {
 
 const grew: string[] = []
 const row8: string[] = []
+const classedSingle = new Map(SINGLE.map(([file, checks]) => [file, checks]))
 let shrank = 0
 for (const [key, n] of Object.entries(current)) {
-  const base = baseline[key] ?? baseline[`${cameFrom.get(fileOf(key)) ?? ''} :: ${tellOf(key)}`] ?? 0
+  const held = baseline[key] ?? baseline[`${cameFrom.get(fileOf(key)) ?? ''} :: ${tellOf(key)}`] ?? 0
+  const base = tellOf(key) === PLATFORM_CHECK ? Math.max(held, classedSingle.get(fileOf(key)) ?? 0) : held
   if (n > base && heldTells.has(tellOf(key))) (tellOf(key) === PLATFORM_CHECK && ROW_8.test(fileOf(key)) ? row8 : grew).push(`${key}  ${base} → ${n}`)
   else if (n < base) shrank++
 }

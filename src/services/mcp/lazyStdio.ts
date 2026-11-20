@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { StdioClientTransport, type Implementation, type JSONRPCMessage, type ServerCapabilities, type Tool } from './sdk.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { missingSpawnCommandError } from '../../utils/platform/programs.js'
 import { startMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type McpBootstrapManifest = {
@@ -15,9 +16,11 @@ export class LazyStdioClientTransport extends StdioClientTransport {
   private activation: Promise<void> | undefined
   private closed = false
   private rejectInitialization: ((error: Error) => void) | undefined
+  private readonly spawnParameters: ConstructorParameters<typeof StdioClientTransport>[0]
 
   constructor(parameters: ConstructorParameters<typeof StdioClientTransport>[0], private manifest: McpBootstrapManifest, private timeoutMs: number) {
     super(parameters)
+    this.spawnParameters = parameters
   }
 
   override async start(): Promise<void> {}
@@ -41,6 +44,8 @@ export class LazyStdioClientTransport extends StdioClientTransport {
       })
       void initialized.catch(passedOver)
       try {
+        const missing = missingSpawnCommandError(this.spawnParameters.command, this.spawnParameters.env, this.spawnParameters.cwd)
+        if (missing !== null) throw missing
         await super.start()
         if (this.closed) throw new Error('MCP transport is closed')
         await super.send({ ...this.initialize, id } as JSONRPCMessage)

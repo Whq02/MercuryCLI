@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { win32 as pathWin32 } from 'node:path'
 import { sleep } from './sleep.js'
+import { pollUntil, withDeadline } from './deadline.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
 
@@ -195,12 +196,7 @@ async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<Proces
   }
 
   const candidates = [...targets]
-  let remaining = candidates.filter(isAlivePid)
-  const deadline = Date.now() + REAP_BOUND_MS
-  while (remaining.length > 0 && Date.now() < deadline) {
-    await sleep(REAP_POLL_MS)
-    remaining = remaining.filter(isAlivePid)
-  }
+  let remaining = await reapRemainingPids(candidates)
   if (remaining.length > 0) remaining = await filterOutZombies(remaining)
   return { ended: candidates.length - remaining.length, survivors: remaining }
 }
@@ -507,12 +503,7 @@ async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTre
     if (!acted.includes(left)) acted.push(left)
   }
   const watched = acted.includes(pid) ? acted : [pid, ...acted]
-  let remaining = watched.filter(isAlivePid)
-  const deadline = Date.now() + REAP_BOUND_MS
-  while (remaining.length > 0 && Date.now() < deadline) {
-    await sleep(REAP_POLL_MS)
-    remaining = remaining.filter(isAlivePid)
-  }
+  const remaining = await reapRemainingPids(watched)
   const ended = acted.filter(actedPid => !remaining.includes(actedPid)).length
   return { ended, survivors: remaining }
 }
@@ -562,13 +553,29 @@ export async function endProcessTreeSurvivors(
   return { ended, survivors: [...new Set([...walked.survivors, ...still])] }
 }
 
+async function reapRemainingPids(pids: readonly number[]): Promise<number[]> {
+  let remaining = pids.filter(isAlivePid)
+  if (remaining.length === 0) return remaining
+  return pollUntil(
+    () => {
+      remaining = remaining.filter(isAlivePid)
+      return remaining.length === 0 ? remaining : undefined
+    },
+    REAP_POLL_MS,
+    REAP_BOUND_MS,
+    () => remaining,
+  )
+}
+
 const treeEndsStarted = new Set<Promise<ProcessTreeKillReceipt>>()
 
 export async function treeEndsSettled(boundMs: number): Promise<void> {
   if (process.platform !== 'win32' || treeEndsStarted.size === 0) return
-  const bound = sleep(boundMs, undefined, { unref: true }).then(() => 'bound' as const)
+  const deadline = Date.now() + boundMs
   while (treeEndsStarted.size > 0) {
-    const first = await Promise.race([Promise.allSettled([...treeEndsStarted]).then(() => 'ended' as const), bound])
+    const left = deadline - Date.now()
+    if (left <= 0) return
+    const first = await withDeadline(Promise.allSettled([...treeEndsStarted]).then(() => 'ended' as const), left, () => 'bound' as const, { unref: true })
     if (first === 'bound') return
   }
 }

@@ -3,7 +3,7 @@ import { holdOf } from './owners.js'
 import { pageKits } from './stealth.js'
 import { abortReason } from './launch.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../../utils/timers.js'
+import { withDeadline } from '../../../utils/deadline.js'
 
 function leftForHost(origins: Set<string>, url: string): boolean {
   let host: string
@@ -43,23 +43,6 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
     void pageKits.get(session.page)?.cdp?.send('Page.stopLoading').catch(passedOverAs(undefined))
     return abortReason(signal as AbortSignal)
   }
-  const quiet = (until: number | null): { over: Promise<null>; end: () => void } => {
-    let end = (): void => {}
-    const over = new Promise<null>(resolve => {
-      if (stopped()) {
-        resolve(null)
-        return
-      }
-      const bound = until === null ? undefined : startTimeout(() => resolve(null), Math.max(0, until - Date.now()))
-      const onAbort = (): void => resolve(null)
-      signal?.addEventListener('abort', onAbort, { once: true })
-      end = () => {
-        stopTimeout(bound)
-        signal?.removeEventListener('abort', onAbort)
-      }
-    })
-    return { over, end }
-  }
   try {
     let startedAt = Date.now()
     let attempt = go()
@@ -69,10 +52,13 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
         (value): { value: T } | { error: unknown } => ({ value }),
         (error: unknown): { value: T } | { error: unknown } => ({ error }),
       )
-      const ended = (until: number | null): Promise<{ value: T } | { error: unknown } | null> => {
-        const wait = quiet(until)
-        return Promise.race([settled, wait.over]).finally(wait.end)
-      }
+      const ended = (until: number | null): Promise<{ value: T } | { error: unknown } | null> =>
+        withDeadline(
+          settled,
+          until === null ? Number.POSITIVE_INFINITY : Math.max(0, until - Date.now()),
+          () => null,
+          { signal, onAbort: () => null },
+        )
       let outcome = await ended(web && !last ? startedAt + FIRST_NAVIGATION_SILENCE_MS : null)
       if (outcome === null && !stopped() && underWay()) outcome = await ended(null)
       if (outcome === null) {
@@ -83,8 +69,12 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
         if (stopped()) throw halted()
         if (last || !/net::ERR_ABORTED/.test((outcome.error as Error | undefined)?.message ?? '') || underWay()) throw outcome.error
         if (starts > 1) {
-          const gap = quiet(startedAt + FIRST_NAVIGATION_SILENCE_MS)
-          await gap.over.finally(gap.end)
+          await withDeadline(
+            new Promise<never>(() => {}),
+            Math.max(0, startedAt + FIRST_NAVIGATION_SILENCE_MS - Date.now()),
+            () => undefined,
+            { signal, onAbort: () => undefined },
+          )
           if (stopped()) throw halted()
           if (underWay()) throw outcome.error
         }
@@ -109,12 +99,7 @@ export async function popupsSettled(session: Session): Promise<void> {
     const pending = [...hold.births.values(), ...hold.died.values()].filter(birth => birth.opener === session && birth.keep)
     const left = deadline - Date.now()
     if (pending.length === 0 || left <= 0) return
-    let bound: ReturnType<typeof setTimeout> | undefined
-    const lapse = new Promise<void>(resolve => {
-      bound = startTimeout(resolve, left)
-    })
-    await Promise.race([Promise.all(pending.map(birth => birth.settled)), lapse])
-    if (bound !== undefined) stopTimeout(bound)
+    await withDeadline(Promise.all(pending.map(birth => birth.settled)), left, () => undefined)
   }
 }
 

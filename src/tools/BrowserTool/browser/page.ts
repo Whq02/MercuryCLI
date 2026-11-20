@@ -20,6 +20,7 @@ import {
 import { heldDevice } from '../../../services/browser/browserEmulation.js'
 import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../../services/browser/browserWords.js'
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { sleep } from '../../../utils/sleep.js'
 import { EXTRACT_CAP, type Input } from './schema.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
@@ -35,7 +36,7 @@ export function preview(text: string, cap = 40): string {
 }
 
 async function tabLine(live: LiveSession): Promise<string> {
-  const title = live.crashed ? '' : await Promise.race([live.page.title().catch(passedOverAs('')), bounded(1000).then(() => '')])
+  const title = live.crashed ? '' : await withDeadline(live.page.title().catch(passedOverAs('')), 1000, () => '', { unref: true })
   const vp = live.page.viewport()
   const device = heldDevice(live.page)?.device
   const facts = [`page ${live.serial}`, `viewport ${vp?.width}x${vp?.height}`, device ? `device ${device}` : '', live.persist ? 'persist' : 'idle lease', live.crashed ? 'crashed' : ''].filter(Boolean)

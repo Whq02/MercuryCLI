@@ -21,7 +21,7 @@ import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatDispatchModelId } from '../openaicompat/compatChatCallModel.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { sleep } from '../../../utils/sleep.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 
 function bearerFromAuthHeaders(headers: Record<string, string>): string | undefined {
@@ -218,7 +218,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
   let attemptStartedAt = Date.now()
   const attempts: Array<'same' | 'plain'> = []
   const lastWire = (): { said: string | undefined; seen: number | undefined; elapsedMs: number } => ({ said: wireSaid, seen: status, elapsedMs: Date.now() - attemptStartedAt })
-  await rosterReadBounded(false, GEMINI_PLAN_ROSTER_WAIT_MS)
+  await rosterReadBounded(false, GEMINI_PLAN_ROSTER_WAIT_MS, params.signal)
   for (let attempt = 0; attempt < 3; attempt++) {
     status = undefined
     wireSaid = undefined
@@ -256,7 +256,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       } else if (item.type === 'assistant' && item.isApiErrorMessage && status === 404) {
         if (attempt === 0) {
           const before = wireOf(model)
-          await rosterReadBounded(true, GEMINI_PLAN_ROSTER_REREAD_MS)
+          await rosterReadBounded(true, GEMINI_PLAN_ROSTER_REREAD_MS, params.signal)
           if (wireOf(model) !== before) {
             rerun = true
             break
@@ -276,9 +276,9 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
 const GEMINI_PLAN_ROSTER_WAIT_MS = 2_000
 const GEMINI_PLAN_ROSTER_REREAD_MS = 5_000
 
-async function rosterReadBounded(force: boolean, waitMs: number): Promise<void> {
+async function rosterReadBounded(force: boolean, waitMs: number, signal?: AbortSignal): Promise<void> {
   const read = refreshGeminiCatalogue('plan', force ? { force: true } : undefined).then(() => undefined, passedOverAs(undefined))
-  await Promise.race([read, sleep(waitMs, undefined, { unref: true })])
+  await withDeadline(read, waitMs, () => undefined, { signal, onAbort: () => undefined, unref: true })
 }
 
 export async function* geminiCallModel(params: CallModelParams): CallModelStream {

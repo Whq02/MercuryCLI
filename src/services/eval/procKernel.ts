@@ -14,6 +14,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree, strikeProcessGroupNow } from '../../utils/processGroup.js'
 import { withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { childGetsOwnProcessGroup, killSignalForChild } from '../../utils/platform/processes.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export type KernelTransport = 'fd' | 'loopback'
@@ -119,7 +120,7 @@ export class ProcKernel {
       cwd: spec.cwd,
       env: spec.env,
       stdio: this.protocol === null ? ['pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32',
+      detached: childGetsOwnProcessGroup(),
     })
     this.child.stdout?.setEncoding('utf8')
     this.child.stderr?.setEncoding('utf8')
@@ -309,12 +310,12 @@ export class ProcKernel {
         if (this.currentCellId !== null) this.send({ t: 'interrupt', id: this.currentCellId, token: this.token })
         return
       }
-      if (process.platform === 'win32') {
+      const sigint = killSignalForChild('SIGINT')
+      if (sigint === undefined) {
         this.kill()
         return
       }
       const pid = this.child.pid
-      const sigint: NodeJS.Signals = 'SIGINT'
       process.kill(pid, sigint)
     } catch (error) {
       if ((error as NodeJS.ErrnoException | null)?.code === 'ESRCH') {

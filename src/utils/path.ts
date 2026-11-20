@@ -4,8 +4,9 @@ import { dirname, isAbsolute, join, normalize, relative, resolve } from 'node:pa
 import { getCwd } from './cwd.js'
 import { getFsImplementation } from './fsOperations.js'
 import { getPlatform } from './platform.js'
+import { rememberedPlatform } from './platform/host.js'
+import { msysDrivePathToNative, normalizeLocalDevicePath } from './platform/paths.js'
 import { uncPathRisk } from './permissions/uncPath.js'
-import { posixPathToWindowsPath } from './windowsPaths.js'
 import { passedOver } from './passedOver.js'
 
 export { sanitizePath } from './sessionStoragePortable.js'
@@ -18,8 +19,6 @@ function defaultBaseDir(): string {
     return process.cwd()
   }
 }
-
-const POSIX_DRIVE_PREFIX = /^\/[a-zA-Z]\//
 
 export const NUL_PATH_MESSAGE = 'Path contains null bytes'
 export const CONTROL_PATH_MESSAGE = 'Path contains control characters'
@@ -47,25 +46,13 @@ export function expandPath(path: string, baseDir: string = defaultBaseDir()): st
   const trimmed = path.trim()
   if (trimmed === '~') return homedir().normalize('NFC')
   if (trimmed.startsWith('~/')) return join(homedir(), trimmed.slice(2)).normalize('NFC')
-  let candidate = trimmed
-  if (getPlatform() === 'windows' && POSIX_DRIVE_PREFIX.test(candidate)) {
-    try {
-      candidate = posixPathToWindowsPath(candidate) as string
-    } catch {
-      candidate = trimmed
-    }
-  }
+  const candidate = msysDrivePathToNative(trimmed, false, rememberedPlatform())
   if (isAbsolute(candidate)) return normalize(candidate).normalize('NFC')
   return resolve(baseDir, candidate).normalize('NFC')
 }
 
-const LOCAL_DEVICE_DRIVE = /^[\\/]{2}[?.][\\/]([A-Za-z]):(?:[\\/](.*))?$/
-const LOCAL_HOST_DRIVE = /^[\\/]{2}(?:localhost|127\.0\.0\.1|\[?::1\]?)[\\/]([A-Za-z])\$(?:[\\/](.*))?$/i
-
 export function localPath(path: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
-  if (platform !== 'windows') return /^\/{2,}/.test(path) ? path.replace(/^\/+/, '/') : path
-  const drive = LOCAL_DEVICE_DRIVE.exec(path) ?? LOCAL_HOST_DRIVE.exec(path)
-  return drive === null ? path : `${drive[1]!.toUpperCase()}:\\${(drive[2] ?? '').replace(/\//g, '\\')}`
+  return normalizeLocalDevicePath(path, platform)
 }
 
 export function toRelativePath(absolutePath: string): string {

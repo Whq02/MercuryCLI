@@ -4,6 +4,15 @@ import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../services/providers/credenti
 import { isEnvTruthy } from './envUtils.js'
 import { AGENT_CLI_SESSION_ENV_VARS, AGENT_CLI_TOKEN_FD_ENV_VARS } from './knownAgentClis.js'
 import { hostEnv } from './hostEnv.js'
+import {
+  envVarKey,
+  extraToolShellDefaults,
+  headlessGitDefaults,
+  isPlatformAskpassVar,
+  loginPathOverride,
+  mergeLoginPath,
+  toolShellEnvKey,
+} from './platform/spawn.js'
 
 
 export const ALWAYS_STRIP_TOKEN_VARS: readonly string[] = [
@@ -84,44 +93,16 @@ export const TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
   GH_PROMPT_DISABLED: '1',
 }
 
-const WINDOWS_TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
-  PYTHONIOENCODING: 'utf-8',
-  PYTHONUTF8: '1',
-  LANG: 'C.UTF-8',
-  LC_ALL: 'C.UTF-8',
-  GCM_INTERACTIVE: 'never',
-}
-
-const GIT_FOR_WINDOWS_ASKPASS_DISPLAY = 'needs-to-be-defined'
-const GIT_FOR_WINDOWS_ASKPASS = /(?:^|[/\\])(?:git-askpass(?:\.exe)?|git-gui--askpass)$/i
-
-function unquoteAskpass(value: string): string {
-  const trimmed = value.trim()
-  if (trimmed.length >= 2 && ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'")))) {
-    return trimmed.slice(1, -1).trim()
-  }
-  return trimmed
-}
-
-function isGitForWindowsAskpass(key: string, value: string | undefined, platform: string): boolean {
-  if (platform !== 'win32' || value === undefined) return false
-  const upper = key.toUpperCase()
-  if (upper === 'DISPLAY') return value === GIT_FOR_WINDOWS_ASKPASS_DISPLAY
-  return (upper === 'SSH_ASKPASS' || upper === 'GIT_ASKPASS') && GIT_FOR_WINDOWS_ASKPASS.test(unquoteAskpass(value))
-}
-
-const toolShellKey = (key: string, platform: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
-
 export function toolShellEnv(
   env: NodeJS.ProcessEnv,
   overrides: NodeJS.ProcessEnv = {},
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
-  const keyOf = (key: string): string => toolShellKey(key, platform)
+  const keyOf = (key: string): string => toolShellEnvKey(key, platform)
   const child: NodeJS.ProcessEnv = {}
   const names = new Map<string, string>()
   for (const [key, value] of Object.entries(env)) {
-    if (value === undefined || isGitForWindowsAskpass(key, value, platform)) continue
+    if (value === undefined || isPlatformAskpassVar(key, value, platform)) continue
     const previous = names.get(keyOf(key))
     if (previous !== undefined && previous !== key) delete child[previous]
     child[key] = value
@@ -133,42 +114,32 @@ export function toolShellEnv(
     child[key] = value
     names.set(keyOf(key), key)
   }
-  const defaults = platform === 'win32' ? { ...TOOL_SHELL_DEFAULTS, ...WINDOWS_TOOL_SHELL_DEFAULTS } : TOOL_SHELL_DEFAULTS
+  const defaults = { ...TOOL_SHELL_DEFAULTS, ...extraToolShellDefaults(platform) }
   for (const [key, value] of Object.entries(defaults)) {
     if (!names.has(keyOf(key))) child[key] = value
   }
   return child
 }
 
-const WINDOWS_HEADLESS_GIT_DEFAULTS: Readonly<Record<string, string>> = {
-  GIT_ASKPASS: '',
-  SSH_ASKPASS: '',
-  GCM_INTERACTIVE: 'never',
-}
-
 function windowsHeadlessGitDefaultsOwed(env: NodeJS.ProcessEnv, platform: string): string[] {
-  if (platform !== 'win32' || !getIsNonInteractiveSession()) return []
+  const extraKeys = Object.keys(headlessGitDefaults(platform))
+  if (extraKeys.length === 0 || !getIsNonInteractiveSession()) return []
   const entries = Object.entries(env)
-  const promptSetting = entries.reduce<string | undefined>((found, [key, value]) => (nameKey(key, platform) === 'GIT_TERMINAL_PROMPT' ? value : found), undefined)
+  const promptSetting = entries.reduce<string | undefined>((found, [key, value]) => (envVarKey(key, platform) === 'GIT_TERMINAL_PROMPT' ? value : found), undefined)
   if (promptSetting === '1') return []
-  const present = new Set(entries.filter(([key, value]) => value !== undefined && !isGitForWindowsAskpass(key, value, platform)).map(([key]) => nameKey(key, platform)))
-  return Object.keys(WINDOWS_HEADLESS_GIT_DEFAULTS).filter(name => !present.has(nameKey(name, platform)))
+  const present = new Set(entries.filter(([key, value]) => value !== undefined && !isPlatformAskpassVar(key, value, platform)).map(([key]) => envVarKey(key, platform)))
+  return extraKeys.filter(name => !present.has(envVarKey(name, platform)))
 }
 
 export function headlessChildDefaultsOwed(env: NodeJS.ProcessEnv, platform: string = process.platform): string[] {
   if (!getIsNonInteractiveSession()) return []
-  const present = new Set(Object.keys(env).map(name => nameKey(name, platform)))
-  return Object.keys(HEADLESS_CHILD_DEFAULTS).filter(name => !present.has(nameKey(name, platform)))
+  const present = new Set(Object.keys(env).map(name => envVarKey(name, platform)))
+  return Object.keys(HEADLESS_CHILD_DEFAULTS).filter(name => !present.has(envVarKey(name, platform)))
 }
-
-function nameKey(name: string, platform: string = process.platform): string {
-  return platform === 'win32' ? name.toUpperCase() : name
-}
-
 function deleteNames(env: NodeJS.ProcessEnv, names: readonly string[], platform: string = process.platform): void {
-  const doomed = new Set(names.map(name => nameKey(name, platform)))
+  const doomed = new Set(names.map(name => envVarKey(name, platform)))
   for (const key of Object.keys(env)) {
-    if (doomed.has(nameKey(key, platform))) delete env[key]
+    if (doomed.has(envVarKey(key, platform))) delete env[key]
   }
 }
 
@@ -178,9 +149,9 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean; pla
   const scrubForCI = isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_ENV_SCRUB'))
   const isolateCredentials = options.stripProviderCredentials === true || isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION'))
   const hasTokenVar = ALWAYS_STRIP_TOKEN_VARS.some(name => env[name] !== undefined)
-  const hasOtelVar = Object.keys(env).some(key => nameKey(key, platform).startsWith('OTEL_'))
-  const hasBrowserSecret = Object.keys(env).some(key => nameKey(key, platform).startsWith(BROWSER_SECRET_PREFIX))
-  const hasWindowsAskpass = platform === 'win32' && Object.entries(env).some(([key, value]) => isGitForWindowsAskpass(key, value, platform))
+  const hasOtelVar = Object.keys(env).some(key => envVarKey(key, platform).startsWith('OTEL_'))
+  const hasBrowserSecret = Object.keys(env).some(key => envVarKey(key, platform).startsWith(BROWSER_SECRET_PREFIX))
+  const hasWindowsAskpass = Object.entries(env).some(([key, value]) => isPlatformAskpassVar(key, value, platform))
   const owedDefaults = headlessChildDefaultsOwed(env, platform)
   const owedWindowsGit = windowsHeadlessGitDefaultsOwed(env, platform)
   if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret && !hasWindowsAskpass && owedDefaults.length === 0 && owedWindowsGit.length === 0) {
@@ -191,9 +162,9 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean; pla
   for (const name of owedDefaults) clone[name] = HEADLESS_CHILD_DEFAULTS[name]
   scrub(clone, scrubForCI, isolateCredentials, platform)
   if (owedWindowsGit.length > 0 || hasWindowsAskpass) {
-    const present = new Set(Object.keys(clone).map(key => nameKey(key, platform)))
-    for (const [name, value] of Object.entries(WINDOWS_HEADLESS_GIT_DEFAULTS)) {
-      if (!present.has(nameKey(name, platform))) clone[name] = value
+    const present = new Set(Object.keys(clone).map(key => envVarKey(key, platform)))
+    for (const [name, value] of Object.entries(headlessGitDefaults(platform))) {
+      if (!present.has(envVarKey(name, platform))) clone[name] = value
     }
   }
   return clone
@@ -202,8 +173,8 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean; pla
 function scrub(clone: NodeJS.ProcessEnv, scrubForCI: boolean, isolateCredentials: boolean, platform: string = process.platform): void {
   deleteNames(clone, ALWAYS_STRIP_TOKEN_VARS, platform)
   for (const [key, value] of Object.entries(clone)) {
-    const folded = nameKey(key, platform)
-    if (folded.startsWith('OTEL_') || folded.startsWith(BROWSER_SECRET_PREFIX) || isGitForWindowsAskpass(key, value, platform)) delete clone[key]
+    const folded = envVarKey(key, platform)
+    if (folded.startsWith('OTEL_') || folded.startsWith(BROWSER_SECRET_PREFIX) || isPlatformAskpassVar(key, value, platform)) delete clone[key]
   }
   if (isolateCredentials) {
     deleteNames(clone, ALL_PROVIDER_CREDENTIAL_ENV_VARS, platform)
@@ -225,19 +196,8 @@ export function loginExportsCarried(exported: NodeJS.ProcessEnv): NodeJS.Process
   return carried
 }
 
-const SYSTEM_PROGRAM_FOLDERS: ReadonlySet<string> = new Set(['/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin'])
-
 export function pathWithLoginEntries(own: string, carried: NodeJS.ProcessEnv | undefined, platform: string = process.platform): string {
-  const exported = Object.entries(carried ?? {}).find(([name]) => toolShellKey(name, platform) === 'PATH')?.[1] ?? ''
-  const held = new Set(own.split(':'))
-  const login = [...new Set(exported.split(':'))].filter(entry => entry !== '')
-  const added = login.filter(entry => !held.has(entry))
-  if (added.length === 0) return own
-  if (platform === 'win32') return [...(own === '' ? [] : [own]), ...added].join(':')
-  const ofTheLogin = new Set(login)
-  const front = [...held].filter(entry => entry !== '' && !(ofTheLogin.has(entry) && SYSTEM_PROGRAM_FOLDERS.has(entry)))
-  const kept = new Set(front)
-  return [...front, ...login.filter(entry => !kept.has(entry))].join(':')
+  return mergeLoginPath(own, carried, platform)
 }
 
 export function withLoginExports(
@@ -247,13 +207,13 @@ export function withLoginExports(
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
   if (carried === undefined) return env
-  const held = new Set([...Object.keys(env), ...scrubbed].map(key => toolShellKey(key, platform)))
+  const held = new Set([...Object.keys(env), ...scrubbed].map(key => toolShellEnvKey(key, platform)))
   const gained: NodeJS.ProcessEnv = {}
   for (const [name, value] of Object.entries(carried)) {
-    if (isGitForWindowsAskpass(name, value, platform)) continue
-    if (toolShellKey(name, platform) !== 'PATH' && !held.has(toolShellKey(name, platform))) gained[name] = value
+    if (isPlatformAskpassVar(name, value, platform)) continue
+    if (toolShellEnvKey(name, platform) !== 'PATH' && !held.has(toolShellEnvKey(name, platform))) gained[name] = value
   }
-  const path = platform === 'win32' ? undefined : pathWithLoginEntries(env.PATH ?? '', carried, platform)
+  const path = loginPathOverride(env.PATH ?? '', carried, platform)
   if (path !== undefined && path !== (env.PATH ?? '')) gained.PATH = path
   return Object.keys(gained).length === 0 ? env : { ...env, ...gained }
 }

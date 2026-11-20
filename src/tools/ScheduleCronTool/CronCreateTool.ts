@@ -20,7 +20,7 @@ import { buildCronCreateDescription, buildCronCreatePrompt, CRON_CREATE_TOOL_NAM
 import { renderCreateResultMessage, renderCreateToolUseMessage } from './UI.js'
 import { createLocalTime, resolveCreateTime } from './createTime.js'
 import { createResultText, scheduleQueued, scheduleRefusal, scheduleUnconfirmed, scheduleWarnings } from './createAnswer.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -66,23 +66,23 @@ async function askSchedule(edit: ScheduleOpRequestV1, signal: AbortSignal | unde
   const controller = new AbortController()
   const seam = Number(flagEnv('MERCURY_SCHEDULE_ANSWER_DEADLINE_MS'))
   const ms = Number.isFinite(seam) && seam > 0 ? seam : CRON_CREATE_ANSWER_DEADLINE_MS
-  let timer: ReturnType<typeof setTimeout> | undefined
-  let abort: (() => void) | undefined
-  const interrupted = new Promise<never>((_resolve, reject) => {
-    abort = () => { reject(signal?.reason ?? new Error('Aborted')); controller.abort(signal?.reason) }
-    signal?.addEventListener('abort', abort, { once: true })
-    timer = startTimeout(() => {
+  return withDeadline(
+    scheduleEditDoor()!(edit, controller.signal),
+    ms,
+    () => {
       const error = new PeerDeadline('schedule/edit', 0, ms)
-      reject(error)
       controller.abort(error)
-    }, ms)
-  })
-  try {
-    return await Promise.race([scheduleEditDoor()!(edit, controller.signal), interrupted])
-  } finally {
-    if (timer !== undefined) stopTimeout(timer)
-    if (abort !== undefined) signal?.removeEventListener('abort', abort)
-  }
+      throw error
+    },
+    {
+      signal,
+      onAbort: () => {
+        const reason = signal?.reason ?? new Error('Aborted')
+        controller.abort(signal?.reason)
+        throw reason
+      },
+    },
+  )
 }
 
 export const CronCreateTool = buildTool({

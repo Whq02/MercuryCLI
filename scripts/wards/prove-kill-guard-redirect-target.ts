@@ -124,7 +124,8 @@ section('D. a check the guard could not finish does not refuse the command: a pa
   const plist = join(project, 'other.agent.plist')
   writeFileSync(plist, '<plist><dict><key>Program</key><string>/usr/bin/true</string></dict></plist>')
   chmodSync(plist, 0o000)
-  const unreadable = await reason(`launchctl unload ${plist}`)
+  const plistArg = process.platform === 'win32' ? plist.replaceAll('\\', '/') : plist
+  const unreadable = await reason(`launchctl unload ${plistArg}`)
   chmodSync(plist, 0o644)
   check('launchctl unload of a property list that is there and cannot be read is not refused', process.getuid?.() === 0 || unreadable === null, unreadable ?? '')
   const named = await reason('launchctl bootout gui/501/com.example.mercury-daemon')

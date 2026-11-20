@@ -21,7 +21,23 @@ const STANDS: readonly Stand[] = [
 
 import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
-import { foldPathCase, hostOrWin32PathModule, pathModuleFor, samePathCase, splitPathFromRoot, stripExtendedLengthPrefixForPlatform, toPosixSeparators } from '../../src/utils/platform/paths.js'
+import {
+  foldCaseInsensitivePath,
+  foldHostCaseInsensitivePath,
+  foldPathCase,
+  hostOrWin32PathModule,
+  hostPathSpellings,
+  msysDrivePathToNative,
+  nativeCwdFromRecordedShell,
+  nativePathToShell,
+  normalizeLocalDevicePath,
+  pathModuleFor,
+  samePathCase,
+  shellPathToNative,
+  splitPathFromRoot,
+  stripExtendedLengthPrefixForPlatform,
+  toPosixSeparators,
+} from '../../src/utils/platform/paths.js'
 
 const PATHS: Row[] = [
   {
@@ -108,13 +124,12 @@ const PATHS: Row[] = [
     answers: () => {
       const inputs = ['C:\\a\\b', 'C:/a/b', 'c:\\', '\\\\server\\share\\d', '/a/b', '/', 'rel/path', '']
       return {
-        default: inputs.map(p => splitPathFromRoot(p)),
-        win32: inputs.map(p => splitPathFromRoot(p, 'win32')),
-        darwin: inputs.map(p => splitPathFromRoot(p, 'darwin')),
-        linux: inputs.map(p => splitPathFromRoot(p, 'linux')),
+        defaultMatchesHost: inputs.every(p => JSON.stringify(splitPathFromRoot(p)) === JSON.stringify(splitPathFromRoot(p, hostPath))),
+        win32: inputs.map(p => splitPathFromRoot(p, pathWin32)),
+        posix: inputs.map(p => splitPathFromRoot(p, pathPosix)),
       }
     },
-    recorded: {"win32":{"default":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"darwin":{"default":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"linux":{"default":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"win32 by process.platform alone":{"default":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"win32 by getPlatform() alone":{"default":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"darwin":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}],"linux":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]}},
+    recorded: {"win32":{"defaultMatchesHost":true,"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"posix":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"darwin":{"defaultMatchesHost":true,"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"posix":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"linux":{"defaultMatchesHost":true,"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"posix":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"win32 by process.platform alone":{"defaultMatchesHost":true,"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"posix":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]},"win32 by getPlatform() alone":{"defaultMatchesHost":true,"win32":[{"root":"C:\\","segments":["a","b"],"sep":"\\"},{"root":"C:/","segments":["a","b"],"sep":"\\"},{"root":"c:\\","segments":[],"sep":"\\"},{"root":"\\\\server\\share\\","segments":["d"],"sep":"\\"},{"root":"/","segments":["a","b"],"sep":"\\"},{"root":"/","segments":[],"sep":"\\"},{"root":"\\","segments":["rel","path"],"sep":"\\"},{"root":"\\","segments":[],"sep":"\\"}],"posix":[{"root":"/","segments":["C:\\a\\b"],"sep":"/"},{"root":"/","segments":["C:","a","b"],"sep":"/"},{"root":"/","segments":["c:\\"],"sep":"/"},{"root":"/","segments":["\\\\server\\share\\d"],"sep":"/"},{"root":"/","segments":["a","b"],"sep":"/"},{"root":"/","segments":[],"sep":"/"},{"root":"/","segments":["rel","path"],"sep":"/"},{"root":"/","segments":[],"sep":"/"}]}},
   },
   {
     name: 'paths.hostOrWin32PathModule',
@@ -127,20 +142,125 @@ const PATHS: Row[] = [
     }),
     recorded: {"win32":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"darwin":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"linux":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"win32 by process.platform alone":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"},"win32 by getPlatform() alone":{"defaultMatchesExpected":true,"win32IsWin32":true,"darwinIsHost":true,"linuxIsHost":true,"win32Resolve":"C:\\Users\\Alice"}},
   },
+  {
+    name: 'paths.foldCaseInsensitivePath',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\File.TS', '/Users/Alice/File.TS', '/home/alice/File.TS']
+      return {
+        default: inputs.map(p => foldCaseInsensitivePath(p)),
+        win32: inputs.map(p => foldCaseInsensitivePath(p, 'win32')),
+        darwin: inputs.map(p => foldCaseInsensitivePath(p, 'darwin')),
+        linux: inputs.map(p => foldCaseInsensitivePath(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"darwin":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"linux":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by process.platform alone":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"win32":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"darwin":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]}},
+  },
+  {
+    name: 'paths.foldHostCaseInsensitivePath',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\File.TS', '/Users/Alice/File.TS', '/home/alice/File.TS']
+      return {
+        default: inputs.map(p => foldHostCaseInsensitivePath(p)),
+        windows: inputs.map(p => foldHostCaseInsensitivePath(p, 'windows')),
+        macos: inputs.map(p => foldHostCaseInsensitivePath(p, 'macos')),
+        wsl: inputs.map(p => foldHostCaseInsensitivePath(p, 'wsl')),
+        linux: inputs.map(p => foldHostCaseInsensitivePath(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"darwin":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"linux":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]},"win32 by getPlatform() alone":{"default":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"windows":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"macos":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"wsl":["","c:\\users\\alice\\file.ts","/users/alice/file.ts","/home/alice/file.ts"],"linux":["","C:\\Users\\Alice\\File.TS","/Users/Alice/File.TS","/home/alice/File.TS"]}},
+  },
+  {
+    name: 'paths.shellPathToNative',
+    answers: () => {
+      const inputs = ['', '/c/Users/Alice', '/cygdrive/d/work/a.ts', '//server/share/dir', '/c', '/tmp/a']
+      return {
+        default: inputs.map(p => shellPathToNative(p)),
+        windows: inputs.map(p => shellPathToNative(p, 'windows')),
+        macos: inputs.map(p => shellPathToNative(p, 'macos')),
+        linux: inputs.map(p => shellPathToNative(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"darwin":{"default":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"linux":{"default":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"win32 by process.platform alone":{"default":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"windows":["","C:\\Users\\Alice","D:\\work\\a.ts","\\\\server\\share\\dir","C:\\","\\tmp\\a"],"macos":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"],"linux":["","/c/Users/Alice","/cygdrive/d/work/a.ts","//server/share/dir","/c","/tmp/a"]}},
+  },
+  {
+    name: 'paths.nativePathToShell',
+    answers: () => {
+      const inputs = ['', 'C:\\Users\\Alice\\a.ts', 'D:/work/dir', '\\\\server\\share\\file', '/tmp/a']
+      return {
+        default: inputs.map(p => nativePathToShell(p)),
+        windows: inputs.map(p => nativePathToShell(p, 'windows')),
+        macos: inputs.map(p => nativePathToShell(p, 'macos')),
+        linux: inputs.map(p => nativePathToShell(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"darwin":{"default":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"linux":{"default":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"win32 by process.platform alone":{"default":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]},"win32 by getPlatform() alone":{"default":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"windows":["","/c/Users/Alice/a.ts","/d/work/dir","//server/share/file","/tmp/a"],"macos":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"],"linux":["","C:\\Users\\Alice\\a.ts","D:/work/dir","\\\\server\\share\\file","/tmp/a"]}},
+  },
+  {
+    name: 'paths.msysDrivePathToNative',
+    answers: () => {
+      const inputs = ['', '/c/Users/Alice', '/c', '/tmp/a', 'C:\\Users\\Alice']
+      return {
+        defaultStrict: inputs.map(p => msysDrivePathToNative(p, false)),
+        defaultBare: inputs.map(p => msysDrivePathToNative(p, true)),
+        win32Strict: inputs.map(p => msysDrivePathToNative(p, false, 'win32')),
+        win32Bare: inputs.map(p => msysDrivePathToNative(p, true, 'win32')),
+        linuxBare: inputs.map(p => msysDrivePathToNative(p, true, 'linux')),
+      }
+    },
+    recorded: {"win32":{"defaultStrict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"darwin":{"defaultStrict":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"linux":{"defaultStrict":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"win32 by process.platform alone":{"defaultStrict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]},"win32 by getPlatform() alone":{"defaultStrict":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"defaultBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Strict":["","C:\\Users\\Alice","/c","/tmp/a","C:\\Users\\Alice"],"win32Bare":["","C:\\Users\\Alice","C:\\","/tmp/a","C:\\Users\\Alice"],"linuxBare":["","/c/Users/Alice","/c","/tmp/a","C:\\Users\\Alice"]}},
+  },
+  {
+    name: 'paths.hostPathSpellings',
+    answers: () => {
+      const inputs = ['C:\\Users\\Alice', '/Users/Alice', '']
+      return {
+        default: inputs.map(p => hostPathSpellings(p)),
+        win32: inputs.map(p => hostPathSpellings(p, 'win32')),
+        darwin: inputs.map(p => hostPathSpellings(p, 'darwin')),
+        linux: inputs.map(p => hostPathSpellings(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"darwin":{"default":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"linux":{"default":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"win32 by process.platform alone":{"default":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]},"win32 by getPlatform() alone":{"default":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"win32":[["C:\\Users\\Alice","/c/Users/Alice"],["/Users/Alice","/Users/Alice"],["",""]],"darwin":[["C:\\Users\\Alice"],["/Users/Alice"],[""]],"linux":[["C:\\Users\\Alice"],["/Users/Alice"],[""]]}},
+  },
+  {
+    name: 'paths.nativeCwdFromRecordedShell',
+    answers: () => {
+      const inputs = ['', '  /tmp/work \n', '/c/Users/Alice\n', '/c/Users/Alice\nC:\\Users\\Alice\n', '/usr/bin\n']
+      return {
+        defaultTrim: inputs.map(r => nativeCwdFromRecordedShell(r, true)),
+        defaultNoTrim: inputs.map(r => nativeCwdFromRecordedShell(r, false)),
+        windows: inputs.map(r => nativeCwdFromRecordedShell(r, true, 'windows')),
+        linuxNoTrim: inputs.map(r => nativeCwdFromRecordedShell(r, false, 'linux')),
+      }
+    },
+    recorded: {"win32":{"defaultTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"defaultNoTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"darwin":{"defaultTrim":[{"path":""},{"path":"/tmp/work"},{"path":"/c/Users/Alice"},{"path":"/c/Users/Alice\nC:\\Users\\Alice"},{"path":"/usr/bin"}],"defaultNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"linux":{"defaultTrim":[{"path":""},{"path":"/tmp/work"},{"path":"/c/Users/Alice"},{"path":"/c/Users/Alice\nC:\\Users\\Alice"},{"path":"/usr/bin"}],"defaultNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"win32 by process.platform alone":{"defaultTrim":[{"path":""},{"path":"/tmp/work"},{"path":"/c/Users/Alice"},{"path":"/c/Users/Alice\nC:\\Users\\Alice"},{"path":"/usr/bin"}],"defaultNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]},"win32 by getPlatform() alone":{"defaultTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"defaultNoTrim":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"windows":[{"refused":"the shell recorded no directory (the command may have died before writing it)"},{"refused":"/tmp/work is an MSYS virtual root the converter cannot place (it would become the drive-relative \\tmp\\work); the shell's own Win32 spelling (pwd -W) was not recorded"},{"path":"C:\\Users\\Alice"},{"path":"C:\\Users\\Alice"},{"refused":"/usr/bin is an MSYS virtual root the converter cannot place (it would become the drive-relative \\usr\\bin); the shell's own Win32 spelling (pwd -W) was not recorded"}],"linuxNoTrim":[{"path":""},{"path":"  /tmp/work \n"},{"path":"/c/Users/Alice\n"},{"path":"/c/Users/Alice\nC:\\Users\\Alice\n"},{"path":"/usr/bin\n"}]}},
+  },
+  {
+    name: 'paths.normalizeLocalDevicePath',
+    answers: () => {
+      const inputs = ['', '\\\\?\\c:\\Users\\Alice', '\\\\.\\D:/work', '\\\\localhost\\c$\\Users', '//127.0.0.1/d$/a/b', '///tmp/a', '/tmp/a']
+      return {
+        default: inputs.map(p => normalizeLocalDevicePath(p)),
+        windows: inputs.map(p => normalizeLocalDevicePath(p, 'windows')),
+        macos: inputs.map(p => normalizeLocalDevicePath(p, 'macos')),
+        linux: inputs.map(p => normalizeLocalDevicePath(p, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"darwin":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"linux":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"win32 by process.platform alone":{"default":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]},"win32 by getPlatform() alone":{"default":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"windows":["","C:\\Users\\Alice","D:\\work","C:\\Users","D:\\a\\b","///tmp/a","/tmp/a"],"macos":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"],"linux":["","\\\\?\\c:\\Users\\Alice","\\\\.\\D:/work","\\\\localhost\\c$\\Users","/127.0.0.1/d$/a/b","/tmp/a","/tmp/a"]}},
+  },
 ]
 
 import { chmodSync as p02ChmodSync, mkdirSync as p02MkdirSync, mkdtempSync as p02MkdtempSync, rmSync as p02RmSync, writeFileSync as p02WriteFileSync } from 'node:fs'
 import { tmpdir as p02Tmpdir } from 'node:os'
 import * as p02Path from 'node:path'
 import {
-  debugpyPythonCommands,
   envPathDirs,
-  evalPythonCommands,
   executableName,
   executableSuffixes,
   hostPathDelimiter,
   isExecutableFile,
   isExecutablePath,
+  missingSpawnCommandError,
   pathDelimiter,
   pathExtensions,
   resolveProgramInPath,
@@ -237,26 +357,54 @@ const PROGRAMS: Row[] = [
     recorded: {"win32":{"names":["llama-server.exe","bun.exe","rg.exe","godot.exe","godot4.exe"],"nodeRel":"node.exe"},"darwin":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"},"linux":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"},"win32 by process.platform alone":{"names":["llama-server.exe","bun.exe","rg.exe","godot.exe","godot4.exe"],"nodeRel":"node.exe"},"win32 by getPlatform() alone":{"names":["llama-server","bun","rg","godot","godot4"],"nodeRel":"bin/node"}},
   },
   {
-    name: 'programs: venvPythonPath, evalPythonCommands and debugpyPythonCommands',
-    answers: () => ({
-      venv: venvPythonPath('/proj/.venv').replaceAll('\\', '/'),
-      evalCmds: evalPythonCommands(),
-      debugpyCmds: debugpyPythonCommands(),
-    }),
-    recorded: {"win32":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"darwin":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python","/usr/bin/python3"]},"linux":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]},"win32 by process.platform alone":{"venv":"/proj/.venv/Scripts/python.exe","evalCmds":["python3","python","py"],"debugpyCmds":["python3","python","py"]},"win32 by getPlatform() alone":{"venv":"/proj/.venv/bin/python","evalCmds":["python3"],"debugpyCmds":["python3","python"]}},
+    name: 'programs: venvPythonPath',
+    answers: () => venvPythonPath('/proj/.venv').replaceAll('\\', '/'),
+    recorded: {"win32":"/proj/.venv/Scripts/python.exe","darwin":"/proj/.venv/bin/python","linux":"/proj/.venv/bin/python","win32 by process.platform alone":"/proj/.venv/Scripts/python.exe","win32 by getPlatform() alone":"/proj/.venv/bin/python"},
+  },
+  {
+    name: 'programs: missingSpawnCommandError',
+    answers: () =>
+      withProgramFixture(dir => {
+        const codeOf = (err: NodeJS.ErrnoException | null): string | null => err?.code ?? null
+        const env: NodeJS.ProcessEnv = { Path: dir, PATHEXT: '.EXE;.CMD;.CUSTOM' }
+        return {
+          missingBare: codeOf(missingSpawnCommandError('definitely-absent-279', env, dir)),
+          missingExplicit: codeOf(missingSpawnCommandError(p02Path.join(dir, 'nope'), env, dir)),
+          empty: codeOf(missingSpawnCommandError('', env, dir)),
+          foundExe: codeOf(missingSpawnCommandError('run-x', env, dir)),
+          foundShim: codeOf(missingSpawnCommandError('shim', env, dir)),
+          foundExplicit: codeOf(missingSpawnCommandError(p02Path.join(dir, 'run-x.exe'), env, dir)),
+        }
+      }),
+    recorded: {"win32":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"darwin":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"linux":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by process.platform alone":{"missingBare":"ENOENT","missingExplicit":"ENOENT","empty":"ENOENT","foundExe":null,"foundShim":null,"foundExplicit":null},"win32 by getPlatform() alone":{"missingBare":null,"missingExplicit":null,"empty":null,"foundExe":null,"foundShim":null,"foundExplicit":null}},
   },
 ]
 
 import {
+  commandByteBudget,
   commandShellArgv,
   commandShellOption,
+  decodeShellScriptBytes,
+  editorInvocationOf,
+  editorShellCommandLine,
+  envVarKey,
   executableNeedsVerbatimArgs,
+  extraToolShellDefaults,
+  guiEditorSpawnSpec,
+  headlessGitDefaults,
   hostScriptDialect,
   hostShellHint,
   isBatchShim,
+  isPlatformAskpassVar,
+  loginPathOverride,
+  mergeLoginPath,
+  parseEditorCommandLine,
+  promptEditorSpawnSpec,
   shellBinarySpec,
   shellCommandSpec,
   shimShellOption,
+  terminalEditorSpawnSpec,
+  toolShellEnvKey,
 } from '../../src/utils/platform/spawn.js'
 const SPAWN: Row[] = [
   {
@@ -330,13 +478,134 @@ const SPAWN: Row[] = [
     answers: () => hostScriptDialect(),
     recorded: {"win32":"powershell","darwin":"posix-sh","linux":"posix-sh","win32 by process.platform alone":"powershell","win32 by getPlatform() alone":"posix-sh"},
   },
+  {
+    name: 'spawn.parseEditorCommandLine',
+    answers: () => [
+      parseEditorCommandLine('"C:\\Program Files\\Code\\code.exe" --wait', { platform: process.platform, path: '' }),
+      parseEditorCommandLine("vim -u 'NONE'", { platform: process.platform, path: '' }),
+      parseEditorCommandLine('nano', { platform: process.platform, path: '' }),
+    ],
+    recorded: {"win32":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","'NONE'"]},{"executable":"nano","args":[]}],"darwin":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}],"linux":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}],"win32 by process.platform alone":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","'NONE'"]},{"executable":"nano","args":[]}],"win32 by getPlatform() alone":[{"executable":"C:\\Program Files\\Code\\code.exe","args":["--wait"]},{"executable":"vim","args":["-u","NONE"]},{"executable":"nano","args":[]}]},
+  },
+  {
+    name: 'spawn.editorInvocationOf',
+    answers: () => [
+      editorInvocationOf('C:\\Program Files\\ed.exe', 'C:\\Program Files\\ed.exe', { executable: 'C:\\Program Files\\ed.exe', args: ['--wait'] }),
+      editorInvocationOf('code', 'code -w', { executable: 'code', args: [] }),
+    ],
+    recorded: {"win32":[{"executablePath":"C:\\Program Files\\ed.exe","args":["--wait"]},{"executablePath":"code","args":["-w"]}],"darwin":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}],"linux":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}],"win32 by process.platform alone":[{"executablePath":"C:\\Program Files\\ed.exe","args":["--wait"]},{"executablePath":"code","args":["-w"]}],"win32 by getPlatform() alone":[{"executablePath":"C:Program","args":["Filesed.exe"]},{"executablePath":"code","args":["-w"]}]},
+  },
+  {
+    name: 'spawn.editorShellCommandLine',
+    answers: () => [
+      editorShellCommandLine('/usr/bin/vim', ['-n'], "/tmp/a'b.txt"),
+      editorShellCommandLine('C:\\bin\\code.cmd', ['-w'], 'C:\\Users\\100%\\a.txt'),
+    ],
+    recorded: {"win32":["\"/usr/bin/vim\" \"-n\" \"%MERCURY_EDITOR_FILE%\"","\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\""],"darwin":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"],"linux":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"],"win32 by process.platform alone":["\"/usr/bin/vim\" \"-n\" \"%MERCURY_EDITOR_FILE%\"","\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\""],"win32 by getPlatform() alone":["\"/usr/bin/vim\" \"-n\" '/tmp/a'\\''b.txt'","\"C:\\bin\\code.cmd\" \"-w\" 'C:\\Users\\100%\\a.txt'"]},
+  },
+  {
+    name: 'spawn.promptEditorSpawnSpec',
+    answers: () => [
+      promptEditorSpawnSpec('C:\\bin\\code.cmd', ['-w'], 'C:\\tmp\\p.txt', 'C:\\Windows\\System32\\cmd.exe'),
+      promptEditorSpawnSpec('C:\\bin\\code.cmd', ['-w'], 'C:\\tmp\\p.txt', 'C:\\Program Files\\PowerShell\\7\\pwsh.exe'),
+      promptEditorSpawnSpec('/usr/bin/vim', [], "/tmp/a'b.txt", undefined),
+    ],
+    recorded: {"win32":[{"shell":false,"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/v:off","/s","/c","\"\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"C:\\Program Files\\PowerShell\\7\\pwsh.exe","args":["-NoLogo","-NoProfile","-Command","& 'C:\\bin\\code.cmd' '-w' $env:MERCURY_EDITOR_FILE"],"windowsVerbatimArguments":false,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"cmd.exe","args":["/d","/v:off","/s","/c","\"\"/usr/bin/vim\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"/tmp/a'b.txt"}}],"darwin":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}],"linux":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}],"win32 by process.platform alone":[{"shell":false,"file":"C:\\Windows\\System32\\cmd.exe","args":["/d","/v:off","/s","/c","\"\"C:\\bin\\code.cmd\" \"-w\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"C:\\Program Files\\PowerShell\\7\\pwsh.exe","args":["-NoLogo","-NoProfile","-Command","& 'C:\\bin\\code.cmd' '-w' $env:MERCURY_EDITOR_FILE"],"windowsVerbatimArguments":false,"extraEnv":{"MERCURY_EDITOR_FILE":"C:\\tmp\\p.txt"}},{"shell":false,"file":"cmd.exe","args":["/d","/v:off","/s","/c","\"\"/usr/bin/vim\" \"%MERCURY_EDITOR_FILE%\"\""],"windowsVerbatimArguments":true,"extraEnv":{"MERCURY_EDITOR_FILE":"/tmp/a'b.txt"}}],"win32 by getPlatform() alone":[{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"C:\\bin\\code.cmd\" \"-w\" 'C:\\tmp\\p.txt'"},{"shell":true,"commandLine":"\"/usr/bin/vim\" '/tmp/a'\\''b.txt'"}]},
+  },
+  {
+    name: 'spawn.guiEditorSpawnSpec',
+    answers: () => [
+      guiEditorSpawnSpec('C:\\Program Files\\Code\\code.exe', 'C:\\Program Files\\Code\\code.exe', [], ['-g', 'f.ts:10'], true),
+      guiEditorSpawnSpec('code --reuse-window', 'code', ['--reuse-window'], ['-g', 'f.ts:10'], false),
+    ],
+    recorded: {"win32":[{"shell":true,"command":"\"C:\\Program Files\\Code\\code.exe\" \"-g\" \"f.ts:10\""},{"shell":true,"command":"\"code\" \"--reuse-window\" \"-g\" \"f.ts:10\""}],"darwin":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}],"linux":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}],"win32 by process.platform alone":[{"shell":true,"command":"\"C:\\Program Files\\Code\\code.exe\" \"-g\" \"f.ts:10\""},{"shell":true,"command":"\"code\" \"--reuse-window\" \"-g\" \"f.ts:10\""}],"win32 by getPlatform() alone":[{"shell":false,"file":"C:\\Program Files\\Code\\code.exe","args":["-g","f.ts:10"]},{"shell":false,"file":"code","args":["--reuse-window","-g","f.ts:10"]}]},
+  },
+  {
+    name: 'spawn.terminalEditorSpawnSpec',
+    answers: () => [
+      terminalEditorSpawnSpec('vim -n', 'vim', ['-n'], ['+42'], '/tmp/a b.ts'),
+      terminalEditorSpawnSpec('nano', 'nano', [], [], 'C:\\tmp\\a b.ts'),
+    ],
+    recorded: {"win32":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"darwin":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"linux":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"win32 by process.platform alone":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"win32 by getPlatform() alone":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}]},
+  },
+  {
+    name: 'spawn.isPlatformAskpassVar',
+    answers: () => [
+      isPlatformAskpassVar('DISPLAY', 'needs-to-be-defined'),
+      isPlatformAskpassVar('display', 'needs-to-be-defined'),
+      isPlatformAskpassVar('DISPLAY', ':0'),
+      isPlatformAskpassVar('SSH_ASKPASS', 'C:\\Program Files\\Git\\mingw64\\bin\\git-askpass.exe'),
+      isPlatformAskpassVar('git_askpass', '"/usr/libexec/git-core/git-gui--askpass"'),
+      isPlatformAskpassVar('SSH_ASKPASS', '/usr/bin/my-askpass'),
+      isPlatformAskpassVar('SSH_ASKPASS', undefined),
+    ],
+    recorded: {"win32":[true,true,false,true,true,false,false],"darwin":[false,false,false,false,false,false,false],"linux":[false,false,false,false,false,false,false],"win32 by process.platform alone":[true,true,false,true,true,false,false],"win32 by getPlatform() alone":[false,false,false,false,false,false,false]},
+  },
+  {
+    name: 'spawn.envVarKey',
+    answers: () => [envVarKey('Path'), envVarKey('PATH'), envVarKey('npm_config_yes')],
+    recorded: {"win32":["PATH","PATH","NPM_CONFIG_YES"],"darwin":["Path","PATH","npm_config_yes"],"linux":["Path","PATH","npm_config_yes"],"win32 by process.platform alone":["PATH","PATH","NPM_CONFIG_YES"],"win32 by getPlatform() alone":["Path","PATH","npm_config_yes"]},
+  },
+  {
+    name: 'spawn.toolShellEnvKey',
+    answers: () => [toolShellEnvKey('Path'), toolShellEnvKey('npm_config_yes'), toolShellEnvKey('PNPM_CONFIG_FOO'), toolShellEnvKey('myVar')],
+    recorded: {"win32":["PATH","NPM_CONFIG_YES","PNPM_CONFIG_FOO","MYVAR"],"darwin":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"],"linux":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"],"win32 by process.platform alone":["PATH","NPM_CONFIG_YES","PNPM_CONFIG_FOO","MYVAR"],"win32 by getPlatform() alone":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"]},
+  },
+  {
+    name: 'spawn.extraToolShellDefaults',
+    answers: () => extraToolShellDefaults(),
+    recorded: {"win32":{"PYTHONIOENCODING":"utf-8","PYTHONUTF8":"1","LANG":"C.UTF-8","LC_ALL":"C.UTF-8","GCM_INTERACTIVE":"never"},"darwin":{},"linux":{},"win32 by process.platform alone":{"PYTHONIOENCODING":"utf-8","PYTHONUTF8":"1","LANG":"C.UTF-8","LC_ALL":"C.UTF-8","GCM_INTERACTIVE":"never"},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.headlessGitDefaults',
+    answers: () => headlessGitDefaults(),
+    recorded: {"win32":{"GIT_ASKPASS":"","SSH_ASKPASS":"","GCM_INTERACTIVE":"never"},"darwin":{},"linux":{},"win32 by process.platform alone":{"GIT_ASKPASS":"","SSH_ASKPASS":"","GCM_INTERACTIVE":"never"},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.mergeLoginPath',
+    answers: () => [
+      mergeLoginPath('/usr/bin:/bin', { PATH: '/opt/homebrew/bin:/usr/bin' }),
+      mergeLoginPath('/custom:/usr/bin', { Path: '/extra:/usr/bin' }),
+      mergeLoginPath('', { PATH: '/a:/b' }),
+    ],
+    recorded: {"win32":["/usr/bin:/bin:/opt/homebrew/bin","/custom:/usr/bin:/extra","/a:/b"],"darwin":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"],"linux":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"],"win32 by process.platform alone":["/usr/bin:/bin:/opt/homebrew/bin","/custom:/usr/bin:/extra","/a:/b"],"win32 by getPlatform() alone":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"]},
+  },
+  {
+    name: 'spawn.loginPathOverride',
+    answers: () => loginPathOverride('/usr/bin', { PATH: '/opt/homebrew/bin:/usr/bin' }),
+    recorded: {"win32":"undefined","darwin":"/opt/homebrew/bin:/usr/bin","linux":"/opt/homebrew/bin:/usr/bin","win32 by process.platform alone":"undefined","win32 by getPlatform() alone":"/opt/homebrew/bin:/usr/bin"},
+  },
+  {
+    name: 'spawn.commandByteBudget',
+    answers: () => commandByteBudget(6400, 4500),
+    recorded: {"win32":6400,"darwin":4500,"linux":4500,"win32 by process.platform alone":6400,"win32 by getPlatform() alone":4500},
+  },
+  {
+    name: 'spawn.decodeShellScriptBytes',
+    answers: () => [
+      decodeShellScriptBytes(Buffer.from('export A=1\r\nexport B=2\r\n', 'utf8')),
+      decodeShellScriptBytes(Buffer.from('\uFEFFexport C=3\r\n', 'utf8')),
+      decodeShellScriptBytes(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('export D=4\r\n', 'utf16le')])),
+    ],
+    recorded: {"win32":["export A=1\nexport B=2","export C=3","export D=4"],"darwin":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"],"linux":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"],"win32 by process.platform alone":["export A=1\nexport B=2","export C=3","export D=4"],"win32 by getPlatform() alone":["export A=1\r\nexport B=2","export C=3","\ufffd\ufffde\u0000x\u0000p\u0000o\u0000r\u0000t\u0000 \u0000D\u0000=\u00004\u0000\r\u0000\n\u0000"]},
+  },
 ]
 
 import {
+  availableMemoryReader,
+  canReraiseOwnSignal,
   childGetsOwnProcessGroup,
+  isOwnKillExitCode,
+  killSignalForChild,
+  msysSignalExitCode,
+  posixExitSignalsCount,
   processInstantStartForm,
+  processListCommand,
   processStartFormFor,
   processStartProbeKind,
+  processTreeEndMethod,
+  supportsGracefulSigterm,
+  wasEndedByProcessTreeKill,
 } from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
   {
@@ -363,6 +632,84 @@ const PROCESSES: Row[] = [
     name: 'processStartProbeKind',
     answers: stand => [processStartProbeKind(), processStartProbeKind(stand.node)],
     recorded: {"win32":["win32-cim","win32-cim"],"darwin":["posix-ps","posix-ps"],"linux":["linux-proc","linux-proc"],"win32 by process.platform alone":["win32-cim","win32-cim"],"win32 by getPlatform() alone":["linux-proc","linux-proc"]},
+  },
+  {
+    name: 'availableMemoryReader',
+    answers: stand => [availableMemoryReader(), availableMemoryReader(stand.node)],
+    recorded: {"win32":["counter","counter"],"darwin":["vm_stat","vm_stat"],"linux":["meminfo","meminfo"],"win32 by process.platform alone":["counter","counter"],"win32 by getPlatform() alone":["meminfo","meminfo"]},
+  },
+  {
+    name: 'processListCommand',
+    answers: stand => [processListCommand(), processListCommand(stand.node)],
+    recorded: {"win32":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"darwin":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"linux":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}],"win32 by process.platform alone":[{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000},{"file":"powershell.exe","args":["-NoProfile","-NonInteractive","-Command","Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],"timeoutMs":8000}],"win32 by getPlatform() alone":[{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000},{"file":"ps","args":["-axo","pid=,command="],"timeoutMs":3000}]},
+  },
+  {
+    name: 'posixExitSignalsCount',
+    answers: stand => [posixExitSignalsCount(), posixExitSignalsCount(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'isOwnKillExitCode',
+    answers: stand => [
+      isOwnKillExitCode(true, 1),
+      isOwnKillExitCode(true, 137),
+      isOwnKillExitCode(true, 0),
+      isOwnKillExitCode(false, 1),
+      isOwnKillExitCode(true, 1, stand.node),
+    ],
+    recorded: {"win32":[true,true,false,false,true],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,false,false,true],"win32 by getPlatform() alone":[false,false,false,false,false]},
+  },
+  {
+    name: 'wasEndedByProcessTreeKill',
+    answers: stand => [
+      wasEndedByProcessTreeKill('SIGTERM', 0, null),
+      wasEndedByProcessTreeKill(null, 1, 1),
+      wasEndedByProcessTreeKill(null, 0, 1),
+      wasEndedByProcessTreeKill(null, 1, 0),
+      wasEndedByProcessTreeKill(null, 2, 1, stand.node),
+    ],
+    recorded: {"win32":[true,true,false,false,true],"darwin":[true,false,false,false,false],"linux":[true,false,false,false,false],"win32 by process.platform alone":[true,true,false,false,true],"win32 by getPlatform() alone":[true,false,false,false,false]},
+  },
+  {
+    name: 'msysSignalExitCode',
+    answers: stand => [
+      msysSignalExitCode(9 * 256, true),
+      msysSignalExitCode(9 * 256, false),
+      msysSignalExitCode(1, true),
+      msysSignalExitCode(65 * 256, true),
+      msysSignalExitCode(15 * 256, true, stand.node),
+    ],
+    recorded: {"win32":[137,2304,1,16640,143],"darwin":[2304,2304,1,16640,3840],"linux":[2304,2304,1,16640,3840],"win32 by process.platform alone":[137,2304,1,16640,143],"win32 by getPlatform() alone":[2304,2304,1,16640,3840]},
+  },
+  {
+    name: 'canReraiseOwnSignal',
+    answers: stand => [canReraiseOwnSignal(), canReraiseOwnSignal(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'killSignalForChild',
+    answers: stand => [
+      killSignalForChild('SIGKILL'),
+      killSignalForChild('SIGTERM'),
+      killSignalForChild('SIGINT'),
+      killSignalForChild('SIGKILL', stand.node),
+    ],
+    recorded: {"win32":["undefined","undefined","undefined","undefined"],"darwin":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"linux":["SIGKILL","SIGTERM","SIGINT","SIGKILL"],"win32 by process.platform alone":["undefined","undefined","undefined","undefined"],"win32 by getPlatform() alone":["SIGKILL","SIGTERM","SIGINT","SIGKILL"]},
+  },
+  {
+    name: 'supportsGracefulSigterm',
+    answers: stand => [supportsGracefulSigterm(), supportsGracefulSigterm(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
+  {
+    name: 'processTreeEndMethod',
+    answers: stand => [processTreeEndMethod(), processTreeEndMethod(stand.node)],
+    recorded: {"win32":["win32-taskkill","win32-taskkill"],"darwin":["posix-group","posix-group"],"linux":["posix-group","posix-group"],"win32 by process.platform alone":["win32-taskkill","win32-taskkill"],"win32 by getPlatform() alone":["posix-group","posix-group"]},
+  },
+  {
+    name: 'ripgrep platformDir equal arms',
+    answers: () => ['x64', 'arm64'].map(arch => `${arch}-${process.platform}`),
+    recorded: {"win32":["x64-win32","arm64-win32"],"darwin":["x64-darwin","arm64-darwin"],"linux":["x64-linux","arm64-linux"],"win32 by process.platform alone":["x64-win32","arm64-win32"],"win32 by getPlatform() alone":["x64-linux","arm64-linux"]},
   },
 ]
 

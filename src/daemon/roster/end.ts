@@ -3,6 +3,7 @@ import { killProcessGroup } from '../../utils/processGroup.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { RosterOptions, WorkerHandle } from './types.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { supportsGracefulSigterm } from '../../utils/platform/processes.js'
 
 export const RUNNER_ASK_BOUND_MS = 5_000
 
@@ -13,7 +14,7 @@ export function decideRunnerEnd(facts: {
   waitingOnAgents: number
   inputOpen: boolean
 }): 'ask' | 'kill' {
-  return facts.platform === 'win32' && facts.signal === 'SIGTERM' && !facts.turnActive && facts.waitingOnAgents === 0 && facts.inputOpen ? 'ask' : 'kill'
+  return !supportsGracefulSigterm(facts.platform) && facts.signal === 'SIGTERM' && !facts.turnActive && facts.waitingOnAgents === 0 && facts.inputOpen ? 'ask' : 'kill'
 }
 
 export class EndPart {
