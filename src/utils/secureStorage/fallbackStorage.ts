@@ -16,8 +16,10 @@ export function createFallbackStorage(primary: SecureStorage, secondary: SecureS
       return (await secondary.readAsync()) ?? {}
     },
 
-    update(data: SecureStorageData): { success: boolean; warning?: string } {
+    update(data: SecureStorageData): { success: boolean; warning?: string; code?: string } {
       const previouslyHeld = primary.read()
+      const unread = previouslyHeld === null ? (secondary.unread?.() ?? null) : null
+      if (unread !== null) return { success: false, ...unread }
       const primaryResult = primary.update(data)
       if (primaryResult.success) {
         if (previouslyHeld === null) {

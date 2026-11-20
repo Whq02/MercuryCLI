@@ -129,7 +129,7 @@ async function readEntryAsync(serverKey: string): Promise<StoredOAuthEntry | und
   return (data?.mcpOAuth as Record<string, StoredOAuthEntry> | undefined)?.[serverKey]
 }
 
-function writeEntry(serverKey: string, entry: StoredOAuthEntry | undefined): { success: boolean; code?: string } {
+function writeEntry(serverKey: string, entry: StoredOAuthEntry | undefined): { success: boolean; warning?: string; code?: string } {
   const storage = getSecureStorage()
   const data = storage.read() ?? {}
   const map = { ...((data.mcpOAuth as Record<string, StoredOAuthEntry> | undefined) ?? {}) }
@@ -737,7 +737,8 @@ export async function performMCPOAuthFlow(
       logForDebugging(`mcp auth [${serverName}]: ignoring unparseable cached resource metadata URL`)
     }
   }
-  writeEntry(serverKey, undefined)
+  const cleared = writeEntry(serverKey, undefined)
+  if (!cleared.success && cleared.warning !== undefined) throw Object.assign(new Error(cleared.warning), { code: cleared.code })
 
   const configuredPort = config.oauth?.callbackPort
   const port = configuredPort ?? (await findAvailablePort())

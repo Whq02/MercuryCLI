@@ -160,6 +160,8 @@ export const plainTextStorage: SecureStorage = {
     }
   },
 
+  unread: credentialStoreUnread,
+
   prepare(data: SecureStorageData): PreparedWrite {
     const path = credentialsPath()
     const temporary = durableTempName(path)
