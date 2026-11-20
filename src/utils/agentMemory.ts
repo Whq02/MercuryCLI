@@ -9,7 +9,7 @@ import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAM
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
 
-export const MEMORY_GRANT_TOOL_NAMES: readonly string[] = [RETAIN_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, CORRECT_TOOL_NAME]
+const MEMORY_GRANT_TOOL_NAMES: readonly string[] = [RETAIN_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, CORRECT_TOOL_NAME]
 
 export function withMemoryVerbs(tools: string[] | undefined, memory: AgentMemoryScope | undefined): string[] | undefined {
   if (!memory || !isMnemeEnabled() || tools === undefined) return tools
