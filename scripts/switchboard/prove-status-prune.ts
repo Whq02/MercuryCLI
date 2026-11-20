@@ -20,7 +20,7 @@ enableConfigs()
 const { getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { transcriptCensus } = await import('../../src/utils/sessionStorage/logs.ts')
 const { cleanupOldSessionFiles, recordingsUnderSweep, retentionWindowDays } = await import('../../src/utils/cleanup.ts')
-const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/utils/sessionStorage/transcriptPruneDoor.ts')
+const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
 
 const NOW = Date.now()
 const DAY = 24 * 60 * 60 * 1000
