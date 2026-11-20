@@ -411,7 +411,7 @@
     "withoutNullToolMetadata",
     "wrapFetchWithTimeout"
    ],
-   "src/services/mcp/types.ts": [
+   "src/utils/mcp/types.ts": [
     "ConfigScopeSchema",
     "McpJsonConfigSchema",
     "McpServerConfigSchema",
