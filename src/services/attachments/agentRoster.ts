@@ -7,7 +7,7 @@ import { workRowRuns } from '../engine-connector/workCounts.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { TASK_ID_TAG } from '../../constants/xml.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
-import { projectWorkRoster } from '../../utils/task/workRoster.js'
+import { projectWorkRoster } from '../engine-connector/workRoster.js'
 import type { AgentRosterAttachment, AgentRosterRow } from '../../utils/attachments/types.js'
 
 type AgentRosterInput = {

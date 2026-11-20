@@ -1,11 +1,11 @@
-import { roughTokenCountEstimationForMessages } from '../services/roughTokenEstimation.js'
-import type { AssistantMessage, Message } from '../types/message.js'
-import type { ApiUsage } from '../types/wire.js'
-import { getTokenCountFromUsage } from './tokenUsage.js'
-import { SYNTHETIC_MESSAGES, SYNTHETIC_MODEL } from './messages/factories.js'
+import { roughTokenCountEstimationForMessages } from '../roughTokenEstimation.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
+import type { ApiUsage } from '../../types/wire.js'
+import { getTokenCountFromUsage } from '../../utils/tokenUsage.js'
+import { SYNTHETIC_MESSAGES, SYNTHETIC_MODEL } from '../../utils/messages/factories.js'
 
 function usageFamilyOf(model: string): string | null {
-  const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+  const { declaredRouteOf } = require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
   return declaredRouteOf(model)
 }
 

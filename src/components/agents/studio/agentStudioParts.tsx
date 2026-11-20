@@ -9,7 +9,7 @@ import {
 } from '../../../services/agents/overrides.js'
 import type { AppState } from '../../../state/AppStateStore.js'
 import type { Tools } from '../../../Tool.js'
-import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../../../types/agent.js'
 import { editFileInEditor } from '../../../utils/promptEditor.js'
 import { AMBER, CRIMSON, FAINT, IVORY, TEAL } from '../../mercuryPalette.js'
 import {

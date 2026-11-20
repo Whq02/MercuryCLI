@@ -67,7 +67,7 @@ const { HANDOFF_ASK_BUDGET_MS } = await import('../../src/mneme/handoffAsk.ts')
 const { OUTCOME_SENTENCES } = await import('../../src/rows/vocabulary.ts')
 const { MAIN_THREAD_AGENT, nudgeWords } = await import('../../src/services/notices/idleNudge.ts')
 const { statusListeners } = await import('../../src/services/anthropicLimits.ts')
-const { EMPTY_USAGE } = await import('../../src/services/api/emptyUsage.ts')
+const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
 
 type Ports = Parameters<typeof driver.printDriverPorts>[0]
 type Scene = { ports: Ports; live: Ports['live']; messages: unknown[]; rows: Array<Record<string, unknown>>; out: Array<Record<string, unknown>>; advisorRoad: unknown; rateLimitListener: () => void }

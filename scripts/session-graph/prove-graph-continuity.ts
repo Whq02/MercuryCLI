@@ -20,7 +20,7 @@ const projection = await import('../../src/services/crew/projection.ts')
 const identity = await import('../../src/services/crew/identity.ts')
 const conversations = await import('../../src/services/crew/conversations.ts')
 const activity = await import('../../src/services/crew/activity.ts')
-const reviewStore = await import('../../src/utils/artifacts/reviewStore.ts')
+const reviewStore = await import('../../src/services/artifacts/reviewStore.ts')
 
 const dir = join(scratch, 'crew-store')
 

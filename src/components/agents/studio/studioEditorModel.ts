@@ -26,7 +26,7 @@ import type { Tools } from '../../../Tool.js'
 import type {
   AgentDefinition,
   CustomAgentDefinition,
-} from '../../../tools/AgentTool/loadAgentsDir.js'
+} from '../../../types/agent.js'
 import type { EffortValue } from '../../../utils/effort.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'

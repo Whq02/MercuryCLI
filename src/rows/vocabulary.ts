@@ -3,7 +3,7 @@ import { lazySchema } from '../utils/lazySchema.js'
 import { ASSISTANT_MESSAGE_ERRORS, type AssistantMessageError } from '../types/message.js'
 import type { Continue, Terminal } from '../query/transitions.js'
 import type { TurnCutKind } from '../utils/messages/turnCut.js'
-import type { NonNullableUsage } from '../services/api/emptyUsage.js'
+import type { NonNullableUsage } from '../utils/api/emptyUsage.js'
 import { formatLimit } from '../utils/deadline.js'
 
 export const ROWS_SCHEMA = 1

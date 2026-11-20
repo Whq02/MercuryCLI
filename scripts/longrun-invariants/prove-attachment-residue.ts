@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 
 await import('../../src/tasks.js')
 const { getCriticalSystemReminderAttachment } = await import(
-  '../../src/utils/attachments/sessionContext.js'
+  '../../src/services/attachments/sessionContext.js'
 )
 const { persistToolResult, buildLargeToolResultMessage, PREVIEW_SIZE_CHARS } = await import(
   '../../src/utils/toolResultStorage.js'

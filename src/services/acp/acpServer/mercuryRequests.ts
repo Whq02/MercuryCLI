@@ -2,7 +2,7 @@ import type { AgentApp } from '@agentclientprotocol/sdk'
 import {
   listReviewArtifactHeadsSource,
   readReviewArtifactState,
-} from '../../../utils/artifacts/reviewStore.js'
+} from '../../artifacts/reviewStore.js'
 import { healthOf, valueOr } from '../../../substrate/sourceState.js'
 import { getRunSnapshot } from '../../run/runCoordinator.js'
 import { loadRunSidecar, runRevision } from '../../run/runSidecar.js'

@@ -5,7 +5,7 @@
 # gate-watch: src/tools/AgentTool/foregroundExecution*
 # gate-watch: scripts/lib/* src/cli/headless/hostAskLiveness.ts
 # gate-watch: src/services/compact/compact.ts
-# gate-watch: src/services/mcp/types.ts
+# gate-watch: src/utils/mcp/types.ts
 # gate-watch: src/utils/*
 # gate-watch: src/utils/permissions/ruleReason.ts
 # gate-watch: src/entrypoints/shellParentGuard.ts
@@ -19,7 +19,7 @@
 # gate-watch: src/tools/ServiceTool/ServiceTool.ts
 # gate-watch: src/services/providers/local/toolCallMarkup.ts src/services/providers/local/ollamaChatTransport.ts src/services/providers/emptyReply.ts src/services/api/errors.ts src/run-core/turn-machine.ts
 # gate-watch: src/utils/sessionStorage/**
-# gate-watch: src/utils/attachments/orchestrator.ts
+# gate-watch: src/services/attachments/orchestrator.ts
 # gate-watch: src/services/api/reconnectLadder.ts
 # gate-watch: src/run-core/turn/**
 # gate-watch: src/cli/headless/*

@@ -1,7 +1,7 @@
 import type { ListToolsResult, Tool as McpSdkTool } from '../../../utils/mcp/sdk.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { logMCPDebug } from '../../../utils/log.js'
-import type { ConnectedMCPServer } from '../types.js'
+import type { ConnectedMCPServer } from '../../../utils/mcp/types.js'
 import { connectTimeoutMs } from './limits.js'
 
 const TOOLS_MAX_PAGES = 50

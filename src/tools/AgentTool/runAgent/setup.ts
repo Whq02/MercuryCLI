@@ -6,7 +6,7 @@ import { claimDiagnosticsRoot } from '../../../services/lsp/LSPDiagnosticRegistr
 import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import type { AgentId } from '../../../types/ids.js'
 import type { Tool, ToolUseContext, Tools } from '../../../Tool.js'
-import type { MCPServerConnection } from '../../../services/mcp/types.js'
+import type { MCPServerConnection } from '../../../utils/mcp/types.js'
 import { subagentDefaultEffort } from '../../../utils/agentDefaults.js'
 import { createFileStateCacheWithSizeLimit } from '../../../utils/fileStateCache.js'
 import { logForDebugging } from '../../../utils/debug.js'

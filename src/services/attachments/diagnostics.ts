@@ -1,21 +1,21 @@
-import { checkForLSPDiagnostics, foldDriveCase, settleWritesAwaitingReport, subscribePublishedReports, writesAwaitingReport } from '../../services/lsp/LSPDiagnosticRegistry.js'
-import type { LSPServerManager } from '../../services/lsp/LSPServerManager.js'
-import { ownerFromToolUseContext } from '../run/resolveOwner.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import { checkForLSPDiagnostics, foldDriveCase, settleWritesAwaitingReport, subscribePublishedReports, writesAwaitingReport } from '../lsp/LSPDiagnosticRegistry.js'
+import type { LSPServerManager } from '../lsp/LSPServerManager.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
-import { logForDebugging } from '../debug.js'
-import { toError } from '../errors.js'
-import { logError } from '../log.js'
-import type { Attachment } from './types.js'
-import { passedOver } from '../passedOver.js'
-import { startTimeout, stopTimeout } from '../timers.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { toError } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
+import type { Attachment } from '../../utils/attachments/types.js'
+import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const RESYNC_REPORT_WAIT_MS = 1_500
 
 async function managerIfAny(): Promise<LSPServerManager | undefined> {
   try {
-    const lsp = await import('../../services/lsp/manager.js')
+    const lsp = await import('../lsp/manager.js')
     return lsp.getLspServerManager()
   } catch (error) {
     passedOver(error)

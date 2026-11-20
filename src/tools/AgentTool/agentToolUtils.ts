@@ -1,7 +1,7 @@
 
 import { z } from 'zod'
 import { evalNestedToolIds } from '../../services/eval/bridgeProgress.js'
-import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
+import { expandLspFamily, lspFamilyMatches } from '../../utils/lsp/toolFamily.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,
@@ -87,7 +87,7 @@ import { permissionRuleValueFromString } from '../../utils/permissions/permissio
 import type { CanUseToolFn } from '../../Tool.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
 import { STRUCTURED_TAG } from '../../constants/xml.js'
-import type { AgentDefinition } from './loadAgentsDir.js'
+import type { AgentDefinition } from '../../types/agent.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 

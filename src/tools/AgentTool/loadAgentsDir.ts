@@ -8,9 +8,6 @@ import {
   loadAgentOverrides,
   type AgentOverrideProvenance,
 } from '../../services/agents/overrides.js'
-import type { InstructionProfile } from '../../utils/instructions/contracts.js'
-import type { McpServerConfig } from '../../services/mcp/types.js'
-import type { ToolUseContext } from '../../Tool.js'
 import { logError } from '../../utils/log.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -18,7 +15,6 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import {
   EFFORT_LEVELS,
   type EffortLevel,
-  type EffortValue,
 } from '../../utils/effort.js'
 import {
   clearMarkdownFileCache,
@@ -30,92 +26,20 @@ import { readHooksMap } from '../../schemas/hooks.js'
 import type { HooksSettings } from '../../utils/settings/types.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 import { getBuiltInAgents } from './builtInAgents.js'
-import { setAgentColor, type AgentColorName } from './agentColorManager.js'
+import { setAgentColor } from './agentColorManager.js'
 import {
   loadAgentMemoryPrompt,
   withMemoryVerbs,
   type AgentMemoryScope,
 } from '../../utils/agentMemory.js'
-
-
-export type AgentMcpServerSpec = string | Record<string, McpServerConfig>
-
-export type AgentSource =
-  | 'built-in'
-  | 'extension'
-  | 'userSettings'
-  | 'projectSettings'
-  | 'localSettings'
-  | 'policySettings'
-  | 'flagSettings'
-
-type BaseAgentDefinition = {
-  agentType: string
-  whenToUse: string
-  tools?: string[]
-  disallowedTools?: string[]
-  skills?: string[]
-  mcpServers?: AgentMcpServerSpec[]
-  hooks?: HooksSettings
-  color?: AgentColorName
-  model?: string
-  effort?: EffortValue
-  instructionProfile?: InstructionProfile
-  permissionMode?: PermissionMode
-  maxTurns?: number
-  filename?: string
-  baseDir?: string
-  standingRule?: string
-  requiredMcpServers?: string[]
-  background?: boolean
-  initialPrompt?: string
-  memory?: AgentMemoryScope
-  isolation?: 'worktree' | 'remote'
-  omitProjectInstructions?: boolean
-  fixedOutputContract?: boolean
-  operatorOverride?: AgentOverrideProvenance
-  disabled?: boolean
-}
-
-export type BuiltInAgentDefinition = BaseAgentDefinition & {
-  source: 'built-in'
-  baseDir: string
-  callback?: () => void | Promise<void>
-  getSystemPrompt: (params: {
-    toolUseContext: Pick<ToolUseContext, 'options'>
-  }) => string
-}
-
-export type CustomAgentDefinition = BaseAgentDefinition & {
-  source: Exclude<AgentSource, 'built-in' | 'extension'>
-  getSystemPrompt: () => string
-  filePath?: string
-  revision?: string
-}
-
-export type ExtensionAgentDefinition = BaseAgentDefinition & {
-  source: 'extension'
-  extensionName?: string
-  getSystemPrompt: () => string
-}
-
-export type AgentDefinition =
-  | BuiltInAgentDefinition
-  | CustomAgentDefinition
-  | ExtensionAgentDefinition
-
-export type AgentDefinitionsResult = {
-  activeAgents: AgentDefinition[]
-  allAgents: AgentDefinition[]
-  failedFiles?: { path: string; error: string }[]
-  allowedAgentTypes?: string[]
-}
-
-export function isBuiltInAgent(
-  def: AgentDefinition,
-): def is BuiltInAgentDefinition {
-  return def.source === 'built-in'
-}
+import {
+  isBuiltInAgent,
+  type AgentDefinition,
+  type AgentDefinitionsResult,
+  type AgentMcpServerSpec,
+  type AgentSource,
+  type CustomAgentDefinition,
+} from '../../types/agent.js'
 
 
 const PRECEDENCE_DESCENDING: readonly AgentSource[] = [

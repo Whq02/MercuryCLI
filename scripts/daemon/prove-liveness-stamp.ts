@@ -187,8 +187,8 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
   const seam = await import('../../src/services/crewBoard/seam.ts')
   const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-  const { getSwarmAttachments } = await import('../../src/utils/attachments/queuedCommands.ts')
-  const { createAttachmentMessage } = await import('../../src/utils/attachments.ts')
+  const { getSwarmAttachments } = await import('../../src/services/attachments/queuedCommands.ts')
+  const { createAttachmentMessage } = await import('../../src/services/attachments.ts')
   const STREAM_SPOKE_AT = 4_242
   const relayed: Array<{ frame: unknown; unpresented: number }> = []
   const unpresented = { beforeTheStreamSpoke: -1, afterItSpoke: -1 }

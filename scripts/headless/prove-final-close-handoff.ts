@@ -82,7 +82,7 @@ try {
     },
   }))
   const tracker = await import('../../src/cost-tracker.ts')
-  const { EMPTY_USAGE } = await import('../../src/services/api/emptyUsage.ts')
+  const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
   const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
   const realFork = { ...(await import('../../src/services/agents/forkedAgent.ts')) }
   let notes = 0

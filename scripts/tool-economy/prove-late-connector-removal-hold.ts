@@ -22,10 +22,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
 const { getDeferredToolsDelta } = await import('../../src/utils/toolSearch.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 const { z } = await import('zod/v4')
 
 const model = 'claude-fable-5-1'

@@ -177,7 +177,7 @@ try {
 
     const artifactsFail = runGraphFault(`
       mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
-      mock.module(${JSON.stringify(join(HERE, '../../src/utils/artifacts/reviewStore.ts'))}, () => ({
+      mock.module(${JSON.stringify(join(HERE, '../../src/services/artifacts/reviewStore.ts'))}, () => ({
         listReviewArtifactHeadsSource: () => ({ state: 'unavailable', reason: 'injected artifacts EACCES', retryable: true }),
       }))
     `)

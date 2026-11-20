@@ -1,6 +1,6 @@
-import type { NonNullableUsage } from '../api/emptyUsage.js'
+import type { NonNullableUsage } from '../../utils/api/emptyUsage.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { EMPTY_USAGE } from '../api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 import { roughTokenCountEstimation } from '../tokenEstimation.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'

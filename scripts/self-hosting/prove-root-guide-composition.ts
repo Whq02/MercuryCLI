@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/config/globalConfig.ts src/context.ts src/services/instructions/** src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts src/Tool.ts
+// gate-watch: src/utils/config/globalConfig.ts src/context.ts src/services/instructions/** src/services/attachments/nestedMemory.ts src/utils/fileStateCache.ts src/Tool.ts
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -27,7 +27,7 @@ enableConfigs()
 const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/Tool.ts'))})
 const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getMaxMemoryCharacterCount, getLargeMemoryFiles } = await import(${JSON.stringify(join(repo, 'src/services/instructions/engine.ts'))})
 const { getUserContext, isInstructionDiscoveryDisabled } = await import(${JSON.stringify(join(repo, 'src/context.ts'))})
-const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/utils/attachments/nestedMemory.ts'))})
+const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/services/attachments/nestedMemory.ts'))})
 const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/utils/fileStateCache.ts'))})
 const files = await getInstructionFiles()
 const composed = composeInstructionPrompt(files)

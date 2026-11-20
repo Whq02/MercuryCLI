@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/utils.ts src/services/mcp/config.ts src/services/mcp/types.ts docs/TRUST.md docs/AUTOMATION.md
+// gate-watch: src/services/mcp/utils.ts src/services/mcp/config.ts src/utils/mcp/types.ts docs/TRUST.md docs/AUTOMATION.md
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'

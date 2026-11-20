@@ -1,7 +1,7 @@
 import type {
   AgentDefinition,
   AgentDefinitionsResult,
-} from '../../../tools/AgentTool/loadAgentsDir.js'
+} from '../../../types/agent.js'
 import {
   type AgentEstateEntry,
   resolveAgentEstate,

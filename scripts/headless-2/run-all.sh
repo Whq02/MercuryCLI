@@ -5,7 +5,7 @@
 # gate-watch: src/tools/AgentTool/foregroundExecution*
 # gate-watch: scripts/lib/* src/cli/headless/hostAskLiveness.ts
 # gate-watch: src/services/compact/compact.ts
-# gate-watch: src/services/mcp/types.ts
+# gate-watch: src/utils/mcp/types.ts
 # gate-watch: src/utils/*
 # gate-watch: src/services/processUserInput/processUserInput.ts
 # gate-watch: src/setup.ts src/cli/runArgs.ts src/state/onChangeAppState.ts

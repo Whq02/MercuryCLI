@@ -14,7 +14,7 @@ import { MercuryMcpAuthProvider, wrapFetchWithStepUpDetection } from '../auth.js
 import { mcpStdioCommandRefusal } from '../stdioCommandSafety.js'
 import { LazyStdioClientTransport } from '../lazyStdio.js'
 import { getMcpServerHeaders } from '../headersHelper.js'
-import type { ScopedMcpServerConfig } from '../types.js'
+import type { ScopedMcpServerConfig } from '../../../utils/mcp/types.js'
 import { getLoggingSafeMcpBaseUrl } from '../utils.js'
 import { connectTimeoutMs, mcpStdioMaxMessageBytes } from './limits.js'
 import { type FetchLike, wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './fetch.js'

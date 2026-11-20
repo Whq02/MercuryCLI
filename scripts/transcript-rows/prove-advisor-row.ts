@@ -37,7 +37,7 @@ const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normal
 const { buildMessageLookups } = await import(join(ROOT, 'src/utils/messages/lookups.ts'))
 const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
 const { entryToRecord, recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
-const { createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
 const state = await import(join(ROOT, 'src/bootstrap/state.ts'))
 const { shouldShowUserMessage } = await import(join(ROOT, 'src/utils/messages/systemMessages.ts'))
 const { queuedCommandHistoryEntry } = await import(join(ROOT, 'src/history.ts'))
@@ -209,7 +209,7 @@ section("§3 the note beside the operator's prompt: a note that lands inside the
 section("§4 the note between turns: the drain's attachment paints one visible advisor row, the model reads it framed as advice from a second model, and it never enters the queue, the history or the command parser (red on the base: a queued prompt)")
 {
   const note = { text: NOTE, origin: advisorOrigin() }
-  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/services/attachments/queuedCommands.ts'))
   const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/utils/messages/apiView.ts'))
   queue.resetCommandQueue()
   const { saveAdvisorSwitch } = await import(join(ROOT, 'src/utils/sessionStorage.ts'))

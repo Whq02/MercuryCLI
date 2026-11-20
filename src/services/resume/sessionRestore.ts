@@ -2,7 +2,7 @@ import { getEngineModelOverride, getSessionId, setEngineModelOverride, setMainTh
 import { restoreCostStateForSession } from '../../cost-tracker.js'
 import type { AppState } from '../../state/AppStateStore.js'
 
-import type { AgentDefinition, AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition, AgentDefinitionsResult } from '../../types/agent.js'
 import type { PersistedWorktreeSession } from '../../types/logs.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'

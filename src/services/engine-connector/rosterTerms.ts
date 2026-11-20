@@ -1,5 +1,5 @@
 import type { Command } from '../../commands.js'
-import type { MCPServerConnection } from '../mcp/types.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import type { McpRosterEntryV1, SkillsRosterEntryV1 } from './types.js'
 
 export function skillsRosterOf(commands: readonly Command[], offNames: readonly string[] = []): SkillsRosterEntryV1[] {

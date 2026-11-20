@@ -225,7 +225,7 @@ section('(4) engine laws — flag gate + stable reference')
   const b = getWorkbenchSnapshot()
   check('getter returns a stable reference between refreshes', a === b)
 
-  const { createReviewArtifact } = await import('../../src/utils/artifacts/reviewStore.js')
+  const { createReviewArtifact } = await import('../../src/services/artifacts/reviewStore.js')
   createReviewArtifact({
     kind: 'plan', title: 'here', producer: { sessionId: 's' },
     workspace: { roots: [process.cwd()] }, body: { kind: 'plan', markdown: 'x\n' },

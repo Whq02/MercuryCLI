@@ -1,5 +1,5 @@
 import type { AssistantMessage, Message } from '../types/message.js'
-import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
+import { EMPTY_USAGE } from '../utils/api/emptyUsage.js'
 import { updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { refusalAnsweredBy } from '../services/providers/toolCallGate.js'
 import { itemRowsOf, refusedCallRowsOf, stepRow, toolResultRowsOf, type RowDraft, type RowScope } from './project.js'

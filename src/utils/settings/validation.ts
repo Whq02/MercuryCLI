@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-import type { ConfigScope } from '../../services/mcp/types.js'
+import type { ConfigScope } from '../mcp/types.js'
 import { validatePermissionRule } from './permissionValidation.js'
 import { generateSettingsJSONSchema } from './schemaOutput.js'
 import type { SettingsJson } from './types.js'

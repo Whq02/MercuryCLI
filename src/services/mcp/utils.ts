@@ -14,7 +14,7 @@ import type {
   ScopedMcpServerConfig,
   ServerResource,
   Transport,
-} from './types.js'
+} from '../../utils/mcp/types.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
 import { passedOver } from '../../utils/passedOver.js'
 

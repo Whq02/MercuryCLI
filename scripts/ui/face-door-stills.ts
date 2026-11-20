@@ -32,7 +32,7 @@ import {
 } from '../../src/components/BootResumeScreen.js'
 import { projectSessionPickerRows, type SessionScope } from '../../src/components/mercury-ui/screens/sessionPickerModel.js'
 import type { SessionListing } from '../../src/types/logs.js'
-import { buildPruneOffer, type PruneReceipt } from '../../src/utils/sessionStorage/transcriptPruneDoor.js'
+import { buildPruneOffer, type PruneReceipt } from '../../src/services/switchboard/transcriptPruneDoor.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-doors')
 

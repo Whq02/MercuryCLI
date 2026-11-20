@@ -1,7 +1,7 @@
 import type { ToolUseBlockParam } from '../../types/wire.js'
 import type { HookEvent } from '../hooks/contract.js'
 import type { AssistantMessage, AttachmentMessage, Message, NormalizedMessage, NormalizedUserMessage, ProgressMessage } from '../../types/message.js'
-import type { HookAttachment } from '../attachments.js'
+import type { HookAttachment } from '../attachments/types.js'
 import { isContinuableStreamFaultMessage, isStreamFaultRecoveryNudgeText } from '../../services/api/errors.js'
 import { contentBlocksOf } from './normalize.js'
 import { accumulateOpenToolUses, freshOpenToolUses } from './openToolUses.js'

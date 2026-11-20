@@ -184,7 +184,7 @@ const { runAgent } = await import(join(ROOT, 'src/tools/AgentTool/runAgent.ts'))
 const { getAgentTranscriptPath, getTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
 const { flushSessionStorage, recordTranscript } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
 const { recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
-const { getAttachments, createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const { getAttachments, createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
 const storage = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
 type AnyMsg = Record<string, unknown> & { type?: string }
 advisor.setAdvisorClockForTests(() => clock.now)
@@ -644,7 +644,7 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   const bareAgent = makeCtx('agent-no-kind')
   const bareDenied = await AskAdvisorTool.call({ question: QUESTION }, bareAgent as never) as { data: { status: string; text: string } }
   check('an agent context with no kind word is a crewmate to the advisor: refused the same way', bareDenied.data.status === 'refused' && wire.length === before && bareDenied.data.text.includes(advisor.ADVISOR_CREWMATE_REFUSAL), j(bareDenied))
-  const { getAdvisorNoteAttachments, isMainChatAdvisorDrain } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  const { getAdvisorNoteAttachments, isMainChatAdvisorDrain } = await import(join(ROOT, 'src/services/attachments/queuedCommands.ts'))
   const note = { text: 'a note queued before the toggle', origin: { kind: 'advisor', model: ADVISOR_MODEL, minutes: 1, at: new Date().toISOString() } }
   for (const kind of ['crewmate'] as const) {
     ctx.agentKind = kind

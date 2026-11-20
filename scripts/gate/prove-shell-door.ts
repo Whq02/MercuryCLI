@@ -60,6 +60,7 @@ const IMPORTERS = [
   'src/services/cockpit/helmLanesModel.ts',
   'src/services/dap/dapTerminal.ts',
   'src/services/engine-connector/shellRunning.ts',
+  'src/services/engine-connector/workRoster.ts',
   'src/services/health/healthReport.ts',
   'src/services/health/readiness.ts',
   'src/services/mcp/stdioCommandSafety.ts',
@@ -99,7 +100,6 @@ const IMPORTERS = [
   'src/utils/permissions/shellRuleMatching.ts',
   'src/utils/spawnPlan.ts',
   'src/utils/task/TaskOutput.ts',
-  'src/utils/task/workRoster.ts',
   'src/utils/toolErrors.ts',
   'src/utils/wards/wardsShellRead.ts',
 ]
