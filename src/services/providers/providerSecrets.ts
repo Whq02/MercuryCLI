@@ -194,15 +194,8 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   try {
     durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   } catch (error) {
-    const code = error instanceof DurablePublishError ? error.fsCode : getErrnoCode(error)
-    throw Object.assign(
-      new Error(
-        `Could not write the provider secrets store at ${path}${code ? ` (${code})` : ''}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      ),
-      code ? { code } : {},
-    )
+    logError(error)
+    throw credentialFileUnwritten(null, path, error)
   }
   try {
     chmodSync(path, 0o600)

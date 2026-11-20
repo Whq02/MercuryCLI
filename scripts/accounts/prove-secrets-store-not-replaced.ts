@@ -149,6 +149,32 @@ else {
   check('mercury auth logout deepseek names the store it could not read on the error stream, exits 1, and the store stands with its key', said.err.startsWith(`Could not sign out: The provider secrets store at ${String(r.secretsFile)} exists but could not be read (EACCES); nothing was written.`) && said.out === '' && said.exit === 1 && r.same === true, `${JSON.stringify(said)} · store ${r.same === true ? 'kept' : 'changed'}`)
 }
 
+console.log('the secrets store — there and it takes no write: every sign-out road says so with the file as the subject and the code alone in brackets')
+{
+  const r = runIn(`
+    const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+    const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
+    const STORE = ${JSON.stringify(JSON.stringify({ ...FULL_SECRETS, deepseekApiKey: 'fixture-deepseek-key' }, null, 2) + '\n')}
+    fs.writeFileSync(secretsFile, STORE, { mode: 0o600 })
+    process.env.MERCURY_FAULT_INJECT = 'rename@.provider-secrets.json:eperm'
+    const said = { out: '', err: '', exit: null }
+    await cli.providerAuthLogout('deepseek', { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
+    out.said = said
+    out.slot = removal.executeSlotRemoval({ id: 'deepseek:api-key', family: 'deepseek', kind: 'api-key', signedIn: true, removal: { route: 'deepseek-stored-key' } })
+    out.every = removal.signOutEveryEngineCredential()
+    delete process.env.MERCURY_FAULT_INJECT
+    out.same = raw(secretsFile) === STORE
+    out.residue = fs.readdirSync(dir).filter(n => n.includes('.tmp'))
+  `)
+  const words = `Could not sign out: ${String(r.secretsFile)} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
+  const said = r.said as { out: string; err: string; exit: number | null }
+  const slot = r.slot as { note?: string; mutated?: boolean; refused?: boolean }
+  check('mercury auth logout deepseek says the file could not be written on the error stream and exits 1', said.err === `${words}\n` && said.out === '' && said.exit === 1, JSON.stringify(said))
+  check('the /accounts slot answers the same words and changes nothing', slot.note === words && slot.mutated === false && slot.refused === true, JSON.stringify(slot))
+  check('the sign-out of every provider says it once, in the same words', JSON.stringify(r.every) === JSON.stringify([words]), JSON.stringify(r.every))
+  check('the store stands with its keys and no temporary file is left beside it', r.same === true && (r.residue as string[]).length === 0, `store ${r.same === true ? 'kept' : 'changed'} · ${JSON.stringify(r.residue)}`)
+}
+
 console.log('the auth file beside it (publishAuthScopedJson, the Meta auth file) — there and unreadable: not replaced')
 if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
 else {
