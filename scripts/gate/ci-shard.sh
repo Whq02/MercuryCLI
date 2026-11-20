@@ -232,8 +232,8 @@ stuck_note() {
   grep -a -m1 -E 'UNFIRED-SENDS|UNDELIVERED-SENDS|first stuck:' "$1" 2>/dev/null | tr '\t' ' ' | cut -c1-240
 }
 second_look_plan() {
-  LC_ALL=C sed -n 's/^.*── \([^[:space:]][^[:space:]]*\)[[:space:]][[:space:]]*\([0-9][0-9]*\)s rc=\([0-9][0-9]*\)[[:space:]]*$/\3 \2 \1/p' "$1" 2>/dev/null | LC_ALL=C awk '
-    { seen[$3] = 1; took[$3] += $2; if ($1 != 0) red[$3] = 1 }
+  LC_ALL=C sed -n 's/^.*── \(.*[^[:space:]]\)[[:space:]][[:space:]]*\([0-9][0-9]*\)s rc=\([0-9][0-9]*\)[[:space:]]*$/\3 \2 \1/p' "$1" 2>/dev/null | LC_ALL=C awk '
+    { p = $0; sub(/^[0-9]+ [0-9]+ /, "", p); seen[p] = 1; took[p] += $2; if ($1 != 0) red[p] = 1 }
     END {
       for (p in seen) { if (p in red) { reds++; secs += took[p] } else greens++ }
       if (reds == 0 || greens == 0) exit

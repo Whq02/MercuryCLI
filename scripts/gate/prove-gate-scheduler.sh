@@ -274,7 +274,7 @@ sys.exit(0 if ok and inside and pok else 1)
 PY
 
 rm -rf "$work/suites"
-mk_suite hopeless '# gate-class: pty' "echo run >>'$work/hopeless.count'; echo genuinely-broken >&2; echo '[FAIL] the leg'; echo '── scripts/hopeless/prove-h.ts  2s'; exit 5"
+mk_suite hopeless '# gate-class: pty' "echo run >>'$work/hopeless.count'; echo genuinely-broken >&2; echo '[FAIL] the leg'; echo '── scripts/hopeless/prove-h.ts  2s'; echo '── scripts/hopeless/prove-pair.ts (second)  1s rc=5'; exit 5"
 mk_suite steady '# gate-class: pure' 'sleep 3; exit 0'
 out4=$(gate "$work/verdict4.json"); rc4=$?
 runs4=$(wc -l <"$work/hopeless.count" 2>/dev/null | tr -d ' ')
@@ -306,8 +306,8 @@ sok = (len(solo) == 1 and solo[0]['kind'] == 'retry-solo' and solo[0]['lane'] ==
 print(f"  ✓ solo law: the after-drain re-run started at +{solo[0]['startS']}s ≥ pool end {pool_end}s, alone" if sok
       else f"  ✗ solo law: {solo} pool_end={pool_end} retries={t['retries']}")
 prov = t['topProvers']
-pok = len(prov) == 1 and prov[0] == {'suite': 'hopeless', 'attempt': 1, 'prover': 'prove-h.ts', 'secs': 2}
-print("  ✓ prover attribution: the repo-relative path form `── scripts/hopeless/prove-h.ts  2s` is recorded as hopeless/prove-h.ts" if pok
+pok = len(prov) == 2 and prov[0] == {'suite': 'hopeless', 'attempt': 1, 'prover': 'prove-h.ts', 'secs': 2} and prov[1] == {'suite': 'hopeless', 'attempt': 1, 'prover': 'prove-pair.ts (second)', 'secs': 1, 'exitCode': 5}
+print("  ✓ prover attribution: the repo-relative path form `── scripts/hopeless/prove-h.ts  2s` is recorded as hopeless/prove-h.ts, and one of a file's two rows keeps what tells them apart" if pok
       else f"  ✗ prover attribution (path form) wrong: {prov}")
 sys.exit(0 if ok and sok and pok else 1)
 PY

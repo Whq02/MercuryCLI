@@ -44,7 +44,7 @@ def class_of(runner):
     return "undeclared"
 
 
-MEMBER = re.compile(r"── (\S+)\s+\d+s rc=(\d+)\s*$")
+MEMBER = re.compile(r"^.*── (\S.*?)\s+\d+s rc=(\d+)\s*$")
 
 
 def red_members(log):

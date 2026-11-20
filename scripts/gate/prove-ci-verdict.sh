@@ -125,6 +125,14 @@ grep -q "  - alpha: first attempt after 0 suite(s) in the shard's home, red: scr
   && echo "  [PASS] the summary names the second run's member beside the first's" \
   || { echo "  [FAIL] red-twice summary"; grep -n 'alpha' "$work/twice/out.txt" | sed 's/^/      /'; fail=1; }
 
+mk_estate "$work/told" alpha:pure
+mkdir -p "$work/told/results/s0/retry"
+row alpha pure 1 30 1 25 > "$work/told/results/s0/results.tsv"
+printf '── scripts/alpha/prove-wire.ts (first)  1s rc=0\n── scripts/alpha/prove-wire.ts (second)  1s rc=1\n' > "$work/told/results/s0/alpha.out"
+printf '── scripts/alpha/prove-wire.ts (second)  1s rc=1\n' > "$work/told/results/s0/retry/alpha.out"
+run_case told "$work"; check "a suite red twice in one of a file's two rows is red (exit 1)" "$?" 1
+json_has "a red test that is one of two rows of its file is named with what tells the rows apart" "$work/told/ci-verdict.json" "v['flakes'][0]['pooledMembers']==['scripts/alpha/prove-wire.ts (second)'] and v['flakes'][0]['soloMembers']==['scripts/alpha/prove-wire.ts (second)']"
+
 echo "── the split ──"
 
 mk_estate "$work/rel" alpha:pure beta:cpu gamma:pty xi:exclusive
