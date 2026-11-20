@@ -5,6 +5,7 @@ import { lazySchema } from '../../../utils/lazySchema.js'
 import { semanticBoolean } from '../../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../../utils/semanticNumber.js'
 import type { Message } from '../../../types/message.js'
+import type { NotebookCellSource } from '../../../types/notebook.js'
 import { MAX_LINES_TO_READ, MAX_PDF_PAGES_PER_REQUEST } from '../prompt.js'
 
 export const MAX_RANGES_PER_READ = 32
@@ -55,10 +56,10 @@ const anchoredSchemaFactory = () =>
 
 type WidestReadSchema = ReturnType<typeof anchoredSchemaFactory>
 
-export const inputSchema = lazySchema((): WidestReadSchema =>
+export const inputSchema = lazySchema((): z.ZodType<Input> =>
   lineAnchorsEnabled()
     ? anchoredSchemaFactory()
-    : (z.strictObject(stockFields()) as unknown as WidestReadSchema),
+    : z.strictObject(stockFields()),
 )
 
 export function selectedPages(pages: string | undefined): string | undefined {
@@ -67,7 +68,7 @@ export function selectedPages(pages: string | undefined): string | undefined {
 
 export function selectedCrop(crop: readonly number[] | undefined): CropBox | undefined {
   if (crop === undefined || (crop.length === 4 && crop.every(value => value === 0))) return undefined
-  return crop as unknown as CropBox
+  return crop as CropBox
 }
 
 export type Input = z.infer<WidestReadSchema>
@@ -100,7 +101,7 @@ export type Output =
         caption?: string
       }
     }
-  | { type: 'notebook'; file: { filePath: string; cells: unknown[] } }
+  | { type: 'notebook'; file: { filePath: string; cells: NotebookCellSource[] } }
   | { type: 'pdf'; file: { filePath: string; base64: string; originalSize: number } }
   | {
       type: 'parts'

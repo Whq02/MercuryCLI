@@ -196,7 +196,7 @@ export function createActivityDescriptionResolver(
     const tool = findToolByName(tools, toolName)
     if (!tool) return null
     try {
-      return tool.getActivityDescription?.(input as never) ?? null
+      return tool.getActivityDescription?.(input) ?? null
     } catch {
       return null
     }
