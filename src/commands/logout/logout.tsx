@@ -38,8 +38,13 @@ export async function performLogout({
     logError(error)
   }
 
-  await removeApiKey()
   const storesLeft: string[] = []
+  try {
+    await removeApiKey()
+  } catch (error) {
+    logError(error)
+    storesLeft.push(`Could not sign out: ${error instanceof Error ? error.message : String(error)}`)
+  }
   for (const where of deleteCredentialStores()) storesLeft.push(`Could not sign out: ${credentialStoreLeftWords(where)}`)
   clearScopeIdentitySnapshot(getMercuryHome())
   forgetScopeIdentity()
