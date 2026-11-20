@@ -318,6 +318,42 @@ async function runSessionEnvironment(): Promise<void> {
   invalidateSessionEnvCache()
 }
 
+async function runClearedSessions(): Promise<void> {
+  console.log('\nclearedSessions — unreadable or corrupt map is never overwritten by markSessionCleared')
+  if (!POSIX_MODES) return
+  const { markSessionCleared, unmarkSessionCleared, resetClearedSessionsMemo } = await import(
+    '../../src/utils/sessionStorage/clearedSessions.ts'
+  )
+  const filePath = join(HOME, 'cleared-sessions.json')
+  const original = JSON.stringify({ 'kept-session-1': 1700000000000 }, null, 2) + '\n'
+  writeFileSync(filePath, original, { mode: 0o600 })
+  chmodSync(filePath, 0o200)
+  try {
+    resetClearedSessionsMemo()
+    markSessionCleared('new-session-2')
+    unmarkSessionCleared('kept-session-1')
+  } finally {
+    chmodSync(filePath, 0o600)
+  }
+  check(
+    'markSessionCleared preserves unreadable cleared-sessions.json byte for byte',
+    readFileSync(filePath, 'utf8') === original,
+    readFileSync(filePath, 'utf8'),
+  )
+
+  const corrupt = '{"kept-session-1": broken'
+  writeFileSync(filePath, corrupt, { mode: 0o600 })
+  resetClearedSessionsMemo()
+  markSessionCleared('new-session-3')
+  check(
+    'markSessionCleared preserves corrupt cleared-sessions.json byte for byte',
+    readFileSync(filePath, 'utf8') === corrupt,
+    readFileSync(filePath, 'utf8'),
+  )
+  rmSync(filePath, { force: true })
+  resetClearedSessionsMemo()
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
@@ -328,6 +364,7 @@ try {
   await runSavedPromptsStore()
   await runScratchLeases()
   await runSessionEnvironment()
+  await runClearedSessions()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

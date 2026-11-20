@@ -13,17 +13,29 @@ function cachePath(): string {
 
 type ClearedMap = Record<string, number>
 
+function readMapStrict(): ClearedMap {
+  const p = cachePath()
+  let raw: string
+  try {
+    raw = readFileSync(p, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return {}
+    throw error
+  }
+  const parsed = JSON.parse(raw) as unknown
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`the cleared sessions map ${p} is not a JSON object`)
+  }
+  const out: ClearedMap = {}
+  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = v
+  }
+  return out
+}
+
 function readMap(): ClearedMap {
   try {
-    const p = cachePath()
-    if (!existsSync(p)) return {}
-    const parsed = JSON.parse(readFileSync(p, 'utf8')) as unknown
-    if (!parsed || typeof parsed !== 'object') return {}
-    const out: ClearedMap = {}
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === 'number' && Number.isFinite(v)) out[k] = v
-    }
-    return out
+    return readMapStrict()
   } catch (error) {
     if (!isENOENT(error)) logError(new Error(`the cleared sessions map ${cachePath()} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
     return {}
@@ -36,9 +48,8 @@ const MEMO_MS = 5_000
 export function markSessionCleared(sessionId: string | null | undefined): void {
   if (!sessionId) return
   try {
-    const map = readMap()
+    const map = readMapStrict()
     map[sessionId] = Date.now()
-    const entries = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, CACHE_MAX)
     mkdirSync(getMercuryHome(), { recursive: true })
     writeFileSync(cachePath(), JSON.stringify(Object.fromEntries(entries), null, 2) + '\n')
     memo = null
@@ -50,9 +61,8 @@ export function markSessionCleared(sessionId: string | null | undefined): void {
 export function unmarkSessionCleared(sessionId: string | null | undefined): void {
   if (!sessionId) return
   try {
-    const map = readMap()
+    const map = readMapStrict()
     if (!(sessionId in map)) return
-    delete map[sessionId]
     writeFileSync(cachePath(), JSON.stringify(map, null, 2) + '\n')
     memo = null
   } catch (error) {
