@@ -28,15 +28,16 @@ export const serviceAdapter: ResourceAdapter = {
     if (ref.id === '') {
       const listed = reconcileAllStrict(getOriginalCwd())
       if (!listed.ok) return { state: 'unavailable', note: listed.error }
-      const records = listed.records
+      const { records, unreadable } = listed
       return {
         state: 'ok',
         resource: {
           ref: 'mercury://service',
           kind: 'service',
           title: 'project services',
-          summary: `${records.length} service(s) · ${records.filter(r => ['ready', 'running', 'starting'].includes(r.state)).length} live`,
+          summary: `${records.length} service(s) · ${records.filter(r => ['ready', 'running', 'starting'].includes(r.state)).length} live${unreadable.length > 0 ? ` · ${unreadable.length} not read` : ''}`,
           mutable: true,
+          ...(unreadable.length > 0 ? { text: unreadable.map(u => `not read: ${u.name} (${u.error})`).join('\n') } : {}),
           children: records.map(r => ({
             ref: formatRef('service', r.spec.name),
             title: r.spec.name,

@@ -149,17 +149,33 @@ async function w08_2_serviceListAndStatusReportReadErrors(): Promise<void> {
   const svcDir = mgr.servicesDir(dir)
   try {
     mkdirSync(svcDir, { recursive: true })
+    writeFileSync(join(svcDir, 'good.json'), JSON.stringify({
+      schema: 1,
+      spec: { name: 'good', command: 'true', args: [], cwd: dir, project: dir, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' },
+      state: 'stopped',
+      pid: null,
+      startToken: null,
+      ownerSessionId: 's1',
+      logFile: join(svcDir, 'good.log'),
+      logStartByte: 0,
+      restartCount: 0,
+      explicitStop: true,
+      startedAt: 1,
+      stoppedAt: 2,
+      lastExitCode: 0,
+      readiness: [],
+      updatedAt: 2,
+    }))
     writeFileSync(join(svcDir, 'broken.json'), JSON.stringify({ schema: 2 }))
     const ctx = { options: {} } as never
     const desc = await ServiceTool.call({ op: 'describe', name: 'broken' } as never, ctx)
     check('w08-2: Service describe reports invalid service record instead of unknown', desc.data.state === 'failed' && desc.data.result.includes('invalid service record at'), JSON.stringify(desc.data))
-    const listBad = await ServiceTool.call({ op: 'list' } as never, ctx)
-    check('w08-2: Service list reports invalid service record instead of empty', listBad.data.state === 'failed' && listBad.data.result.includes('invalid service record at'), JSON.stringify(listBad.data))
+    const listMixed = await ServiceTool.call({ op: 'list' } as never, ctx)
+    check('w08-2: Service list keeps good service and names unreadable record', listMixed.data.state !== 'failed' && listMixed.data.result.includes('good — stopped') && listMixed.data.result.includes('not read: broken (invalid service record at'), JSON.stringify(listMixed.data))
     const resItem = await serviceAdapter.resolve({ canonical: 'mercury://service/broken', kind: 'service', id: 'broken', selectors: {} } as never, {} as never)
     check('w08-2: resource adapter reports unavailable for corrupt service record', resItem.state === 'unavailable' && (resItem.note ?? '').includes('invalid service record at'), JSON.stringify(resItem))
     const resList = await serviceAdapter.resolve({ canonical: 'mercury://service', kind: 'service', id: '', selectors: {} } as never, {} as never)
-    check('w08-2: resource adapter list reports unavailable for corrupt service record', resList.state === 'unavailable' && (resList.note ?? '').includes('invalid service record at'), JSON.stringify(resList))
-
+    check('w08-2: resource adapter list keeps good service and names unreadable record', resList.state === 'ok' && resList.resource.children?.some((c: { title: string }) => c.title === 'good') === true && (resList.resource.text ?? '').includes('not read: broken (invalid service record at'), JSON.stringify(resList))
     chmodSync(svcDir, 0o000)
     try {
       const listLocked = await ServiceTool.call({ op: 'list' } as never, ctx)
