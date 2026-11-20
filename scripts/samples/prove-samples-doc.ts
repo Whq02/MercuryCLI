@@ -58,7 +58,7 @@ try {
 const { normalizeSampleDoc, renderSampleDoc, sanitizeSvg, diffTones } = renderer
 const bridge = await import('../../src/services/samples/bridge.ts')
 const { handleSampleCall, keepSample, specOf, SAMPLE_DOC_REFUSAL } = bridge
-const { SAMPLE_HTML_CAP_BYTES } = await import('../../src/services/samples/contracts.ts')
+const { SAMPLE_HTML_CAP_BYTES } = await import('../../src/utils/samples/contracts.ts')
 const store = await import('../../src/services/samples/store.ts')
 const listener = await import('../../src/services/samples/listener.ts')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')

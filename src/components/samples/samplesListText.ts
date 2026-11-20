@@ -1,6 +1,6 @@
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { SampleRowV1 } from '../../services/engine-connector/types.js'
-import { sampleStateWord } from '../../services/samples/contracts.js'
+import { sampleStateWord } from '../../utils/samples/contracts.js'
 import { formatRelativeTimeAgo } from '../../utils/format.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 
