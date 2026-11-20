@@ -122,7 +122,7 @@ export function createOrAppendSample(input: CreateOrAppendSampleInput): { record
   return { record, version: 1 }
 }
 
-export function listSamples(sessionId: string): SampleRecordV1[] {
+export function listSamplesStrict(sessionId: string): SampleRecordV1[] {
   const root = samplesRoot(sessionId)
   let names: string[]
   try {
@@ -140,6 +140,15 @@ export function listSamples(sessionId: string): SampleRecordV1[] {
   }
   out.sort(newestFirst)
   return out
+}
+
+export function listSamples(sessionId: string): SampleRecordV1[] {
+  try {
+    return listSamplesStrict(sessionId)
+  } catch (error) {
+    passedOver(error)
+    return []
+  }
 }
 
 export function getSample(sessionId: string, id: string): SampleRecordV1 | null {

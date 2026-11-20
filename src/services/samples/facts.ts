@@ -1,7 +1,7 @@
 import type { SampleRowV1 } from '../engine-connector/types.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { samplesEnabled } from './contracts.js'
-import { listSamples, sampleChangeRevision, sampleUrl, writeFallbackPage } from './store.js'
+import { listSamplesStrict, sampleChangeRevision, sampleUrl, writeFallbackPage } from './store.js'
 
 let cached: { sessionId: string; revision: number; rows: SampleRowV1[] } | null = null
 
@@ -9,9 +9,9 @@ export async function sampleRowsOf(sessionId: string): Promise<SampleRowV1[]> {
   if (!samplesEnabled()) return []
   const revision = sampleChangeRevision()
   if (cached !== null && cached.sessionId === sessionId && cached.revision === revision) return cached.rows
-  let records: ReturnType<typeof listSamples>
+  let records: ReturnType<typeof listSamplesStrict>
   try {
-    records = listSamples(sessionId)
+    records = listSamplesStrict(sessionId)
   } catch (error) {
     passedOver(error)
     return cached !== null && cached.sessionId === sessionId ? cached.rows : []

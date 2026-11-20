@@ -595,7 +595,7 @@ try {
   }
 
   {
-    const { setActiveMission, clearActiveMission } = await import('../../src/guards/mission.ts')
+    const { setActiveMission, clearActiveMission, missionCardView } = await import('../../src/guards/mission.ts')
     const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
     const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
     const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -638,11 +638,13 @@ try {
       )
 
       const cleared = clearActiveMission(sid)
+      const viewAfterClear = missionCardView(sid)
       check(
-        'w04-6 clearActiveMission appends save-failure sentence when mission card cannot be written',
+        'w04-6 clearActiveMission appends save-failure sentence and updates in-session cardMemo to cleared',
         Boolean(cleared?.includes(`the mission could not be saved to ${expectedPath} (`)) &&
-          Boolean(cleared?.includes('), so it will not survive this session')),
-        String(cleared),
+          Boolean(cleared?.includes('), so it will not survive this session')) &&
+          viewAfterClear?.state === 'cleared',
+        JSON.stringify({ cleared, viewAfterClear }),
       )
     } finally {
       rmSync(missionsBlocker, { force: true })
@@ -651,33 +653,40 @@ try {
 
   {
     const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
-    const { createOrAppendSample, listSamples, samplesRoot, setSampleListenerAddress } = await import('../../src/services/samples/store.ts')
+    const { createOrAppendSample, listSamples, listSamplesStrict, samplesRoot, setSampleListenerAddress } = await import('../../src/services/samples/store.ts')
     const { sampleRowsOf } = await import('../../src/services/samples/facts.ts')
     const prevSamples = process.env.MERCURY_SAMPLES
     process.env.MERCURY_SAMPLES = '1'
     try {
-      const absent = listSamples('w04-absent-samples')
-      check('w04-7 listSamples returns [] for ENOENT', absent.length === 0, JSON.stringify(absent))
+      const absent = listSamplesStrict('w04-absent-samples')
+      check('w04-7 listSamplesStrict returns [] for ENOENT', absent.length === 0, JSON.stringify(absent))
 
       const sid = 'w04-samples-session'
       createOrAppendSample({ sessionId: sid, name: 'card', title: 'Keep Me', html: '<p>hi</p>' })
       const firstRows = await sampleRowsOf(sid)
       if (POSIX_MODES) {
         const root = samplesRoot(sid)
-        chmodSync(root, 0o000)
+        chmodSync(root, 0o300)
         setSampleListenerAddress(null)
         try {
-          let threw = false
+          let strictThrew = false
           try {
-            listSamples(sid)
+            listSamplesStrict(sid)
           } catch {
-            threw = true
+            strictThrew = true
           }
+          const nonStrict = listSamples(sid)
+          const created = createOrAppendSample({ sessionId: sid, name: 'second', title: 'Still Created', html: '<p>2</p>' })
           const secondRows = await sampleRowsOf(sid)
           check(
-            'w04-7 listSamples throws on non-ENOENT and sampleRowsOf keeps last published rows',
-            threw && firstRows.length === 1 && secondRows.length === 1 && secondRows[0]?.title === 'Keep Me',
-            JSON.stringify({ threw, firstRows, secondRows }),
+            'w04-7 listSamplesStrict throws on non-ENOENT, sampleRowsOf keeps last published rows, and createOrAppendSample still succeeds',
+            strictThrew &&
+              nonStrict.length === 0 &&
+              created.record.title === 'Still Created' &&
+              firstRows.length === 1 &&
+              secondRows.length === 1 &&
+              secondRows[0]?.title === 'Keep Me',
+            JSON.stringify({ strictThrew, nonStrictLen: nonStrict.length, createdTitle: created.record.title, firstRows, secondRows }),
           )
         } finally {
           chmodSync(root, 0o700)

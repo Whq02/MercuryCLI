@@ -125,7 +125,7 @@ function readCard(sessionId: string): MissionCard | null {
 
 function writeCard(card: MissionCard): ReturnType<typeof writeMissionCard> {
   const result = writeMissionCard(card)
-  if (result.ok) cardMemo.set(card.sessionId, card)
+  cardMemo.set(card.sessionId, card)
   return result
 }
 
