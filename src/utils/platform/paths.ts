@@ -30,12 +30,11 @@ export function toPosixSeparators(filePath: string, platform: NodeJS.Platform = 
 
 export function splitPathFromRoot(
   filePath: string,
-  platform: NodeJS.Platform = process.platform,
+  grammar: typeof hostPath = hostPath,
 ): { root: string; segments: string[]; sep: string } {
-  const mod = pathModuleFor(platform)
-  const parsedRoot = mod.parse(filePath).root
-  const root = parsedRoot || mod.sep
+  const parsedRoot = grammar.parse(filePath).root
+  const root = parsedRoot || grammar.sep
   const rest = filePath.slice(parsedRoot.length)
-  const segments = (platform === 'win32' ? rest.split(/[\\/]+/) : rest.split(mod.sep)).filter(Boolean)
-  return { root, segments, sep: mod.sep }
+  const segments = (grammar.sep === '\\' ? rest.split(/[\\/]+/) : rest.split(grammar.sep)).filter(Boolean)
+  return { root, segments, sep: grammar.sep }
 }
