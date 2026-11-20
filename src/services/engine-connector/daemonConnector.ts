@@ -139,6 +139,7 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): Dispatched
 export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './projectionFeed.js'
 const RPC_TIMEOUT_MS = 15_000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
+const TURN_END_SETTLE_MS = 4000
 export { SEAT_VERB_SETTLE_MS } from './daemon/dials.js'
 export const CARRIER_GONE_WORDS = 'the background daemon ended — the next prompt starts a new one'
 
@@ -505,6 +506,7 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
     this.asksFeed.start()
     this.tailFeed.start()
     this.progressFeed.start()
+    this.factsFeed.recheckSoon()
     void this.rpc({ op: 'sessionControl', action: 'session-facts', sessionId: this.record.sessionId, by: 'operator' }).catch(passedOver)
     seatVerb('focus', this.record.sessionId)
     return this.tick()
@@ -541,6 +543,7 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
     if (this.turnInFlight === inFlight) return
     this.turnInFlight = inFlight
     this.transcriptPart.armTranscriptTimer()
+    if (!inFlight) this.factsFeed.settle(TURN_END_SETTLE_MS)
     this.factsFeed.rearm()
     this.asksFeed.rearm()
     this.tailFeed.rearm()
