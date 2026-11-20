@@ -3,7 +3,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { mkdtempSync, statSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -35,6 +35,58 @@ check('the directory is private (0700)', (statSync(join(written.path, '..')).mod
 check('a second write keeps the same key', keyFile.writeTensorFoldKeyFile({ path: written.path }).key === written.key)
 check('the file reads back', keyFile.readTensorFoldKeyFile(written.path)?.key === written.key)
 check('the paste words name no flag', !/--/.test(keyFile.TENSORFOLD_KEY_PASTE_WORDS), keyFile.TENSORFOLD_KEY_PASTE_WORDS)
+const realPlatform = process.platform
+const platformDesc = Object.getOwnPropertyDescriptor(process, 'platform')
+const winPath = join(HOME, 'local-setup', 'tensorfold', 'win32-api-key')
+const winWritten = keyFile.writeTensorFoldKeyFile({ path: winPath })
+chmodSync(winPath, 0o666)
+const winDamaged = join(HOME, 'local-setup', 'tensorfold', 'win32-damaged-key')
+const damagedText = '# mercury[inference]: commented\n'
+writeFileSync(winDamaged, damagedText, { mode: 0o600 })
+chmodSync(winDamaged, 0o666)
+const winUnreadable = join(HOME, 'local-setup', 'tensorfold', 'win32-unreadable-key')
+const posixNonRoot = realPlatform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+if (posixNonRoot) {
+  writeFileSync(winUnreadable, `${winWritten.line}\n`, { mode: 0o600 })
+  chmodSync(winUnreadable, 0o266)
+}
+let winReadKey: string | undefined
+let winKeptKey: string | undefined
+let winDamagedKey: string | undefined
+let winDamagedCopies: string[] = []
+let winUnreadableThrew: string | undefined
+let winUnreadableSame = false
+try {
+  Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+  winReadKey = keyFile.readTensorFoldKeyFile(winPath)?.key
+  chmodSync(winPath, 0o666)
+  winKeptKey = keyFile.writeTensorFoldKeyFile({ path: winPath }).key
+  winDamagedKey = keyFile.writeTensorFoldKeyFile({ path: winDamaged }).key
+  winDamagedCopies = readdirSync(HOME).filter(name => name.startsWith('.tensorfold-key.corrupt.')).map(name => join(HOME, name))
+  if (posixNonRoot) {
+    try {
+      keyFile.writeTensorFoldKeyFile({ path: winUnreadable })
+    } catch (error) {
+      winUnreadableThrew = error instanceof Error ? error.message : String(error)
+    }
+  }
+} finally {
+  if (platformDesc) Object.defineProperty(process, 'platform', platformDesc)
+  if (posixNonRoot) {
+    chmodSync(winUnreadable, 0o600)
+    winUnreadableSame = readFileSync(winUnreadable, 'utf8') === `${winWritten.line}\n`
+  }
+}
+check('on win32 a mode-0666 key file reads back', winReadKey === winWritten.key, String(winReadKey))
+check('on win32 a second write keeps the same key despite mode 0666', winKeptKey === winWritten.key, `${winKeptKey} vs ${winWritten.key}`)
+check('on win32 a key file holding no key is kept aside before minting a new key', winDamagedKey !== undefined && /^[0-9a-f]{48}$/.test(winDamagedKey) && winDamagedCopies.length === 1 && readFileSync(winDamagedCopies[0]!, 'utf8') === damagedText, JSON.stringify(winDamagedCopies))
+if (posixNonRoot) {
+  check('on win32 an unreadable key file with group/other bits set refuses instead of minting over', winUnreadableThrew !== undefined && winUnreadableThrew.includes('exists but could not be read') && winUnreadableSame, winUnreadableThrew ?? 'overwrote unreadable key file')
+}
+if (realPlatform !== 'win32') {
+  chmodSync(winPath, 0o666)
+  check('on POSIX a mode-0666 key file is still treated as open to other users', keyFile.readTensorFoldKeyFile(winPath) === undefined)
+}
 
 section('§2 the pairing server: one-time code, three attempts, the key crosses once')
 const NAME = `Mercury proof ${randomBytes(3).toString('hex')}`
