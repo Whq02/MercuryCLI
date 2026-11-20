@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { inspectSessionArgs, readSessionOption } from '../../src/cli/sessionArgs.ts'
+import { inspectSessionArgs, readSessionOption } from '../../src/utils/sessionArgs.ts'
 
 const unknownInputs = [
   ['--debug', '-to-stderr'], ['--d', '2e'], ['-d', '2e'], ['--debug', '-file'], ['--ba', 're'],
