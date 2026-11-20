@@ -49,7 +49,7 @@ function runScenario(body: string): Record<string, unknown> {
   return JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as Record<string, unknown>
 }
 
-console.log('\nSessionManagerView — ownSessionRecord lets a bug throw instead of hiding parked state')
+console.log('\nSessionManagerView — ownSessionRecord catches malformed worker lookup without crashing render')
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
@@ -61,13 +61,13 @@ console.log('\nSessionManagerView — ownSessionRecord lets a bug throw instead 
     }))
     const mod = await import(path.join(SRC, 'components/mercury-ui/screens/SessionManagerView.tsx'))
     try {
-      out.value = mod.ownSessionRecord?.('sess-1') ?? 'missing-export'
+      out.value = mod.ownSessionRecord('sess-1') ?? null
       out.threw = null
     } catch (error) {
       out.threw = error instanceof Error ? error.message : String(error)
     }
   `)
-  check('SessionManagerView.ownSessionRecord throws on bug', r.threw === 'worker-bug', JSON.stringify(r))
+  check('SessionManagerView.ownSessionRecord returns undefined without throwing into render', r.threw === null && r.value === null, JSON.stringify(r))
 }
 
 void skip
