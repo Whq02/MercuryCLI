@@ -410,5 +410,34 @@ console.log('\nchatLauncher.tsx — rejecting boot recovery or resume fold relea
   check('chatLauncher: rejecting recovery and fold release both timers in finally, log both errors, and still open chat', r.out.started === 2 && r.out.stopped === 2 && logged.includes('recovery boom') && logged.includes('fold boom') && r.out.rendered === true, JSON.stringify(r.out))
 }
 
+console.log('\nprintTurn.ts — failed elicitation registration does not mark server registered or drop async rejection')
+{
+  const r = runSubprocess(`
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const logged = []
+    const logMod = await import(path.join(SRC, 'utils/log.js'))
+    mock.module(path.join(SRC, 'utils/log.js'), () => ({
+      ...logMod,
+      logError: err => { logged.push(String(err instanceof Error ? err.message : err)) },
+    }))
+    const { registerPerTurnHandlers } = await import(path.join(SRC, 'cli/headless/printTurn.ts'))
+    const registered = new Set()
+    let unhandled = 0
+    process.on('unhandledRejection', () => { unhandled++ })
+    const ports = {
+      elicitationRegistered: registered,
+      registerElicitationHandlersForClient: async () => { throw new Error('handler attach failed') },
+    }
+    registerPerTurnHandlers([{ type: 'connected', name: 'srv-a' }], ports)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    out.registeredAfterFailure = registered.has('srv-a')
+    out.logged = logged
+    out.unhandled = unhandled
+  `)
+  const logged = r.out.logged as string[]
+  check('printTurn: failed elicitation registration leaves server unregistered, logs error, and has zero unhandled rejections', r.out.registeredAfterFailure === false && logged.includes('handler attach failed') && r.out.unhandled === 0, JSON.stringify(r.out))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
