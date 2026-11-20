@@ -17,7 +17,7 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import { type ModelName, renderModelChip } from '../utils/model/model.js'
 import { useDisplayedSessionModel, useFocusedContextFill } from '../hooks/useDisplayedSessionModel.js'
-import { publishContextUsage } from '../utils/cockpit/contextUsageLive.js'
+import { publishContextUsage } from '../services/cockpit/contextUsageLive.js'
 import { LAYOUT_BREAKPOINTS, useLayoutTier } from '../hooks/useLayoutTier.js'
 import { cachedAttentionView, subscribeAttentionView } from '../services/attention/viewModel.js'
 import { bucketItems } from '../services/attention/contracts.js'

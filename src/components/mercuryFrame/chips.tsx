@@ -6,7 +6,7 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import { activeSourceUsage, usageViewIsStale } from '../../services/providers/providerUsage.js'
 import { usageAgeTail } from '../../services/providers/usageFreshness.js'
 import { healthCertSnapshot } from '../../services/health/healthCertSnapshot.js'
-import { formatCountdown } from '../../utils/cockpit/quota.js'
+import { formatCountdown } from '../../services/cockpit/quota.js'
 import { contextPercentLabel } from '../../utils/contextFill.js'
 import { Sep, UsageMeter, type useNowTick } from '../mercury-ui/components.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'

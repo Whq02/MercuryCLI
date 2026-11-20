@@ -38,7 +38,7 @@ enableConfigs()
 const limits = await import('../../src/services/anthropicLimits.ts')
 const usage = await import('../../src/services/providers/providerUsage.ts')
 const { fetchUtilization } = await import('../../src/services/api/usage.ts')
-const { buildVitalsModel } = await import('../../src/utils/cockpit/helmVitalsModel.ts')
+const { buildVitalsModel } = await import('../../src/services/cockpit/helmVitalsModel.ts')
 const { healthCertSnapshot } = await import('../../src/services/health/healthCertSnapshot.ts')
 const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
 

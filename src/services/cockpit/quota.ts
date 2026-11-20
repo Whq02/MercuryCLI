@@ -1,6 +1,6 @@
 
-import { getRawUtilization } from '../../services/anthropicLimits.js'
-import type { UsageFeed } from '../../services/providers/usageFreshness.js'
+import { getRawUtilization } from '../anthropicLimits.js'
+import type { UsageFeed } from '../providers/usageFreshness.js'
 import type { SnapshotState } from '../../components/mercury-ui/theme.js'
 
 export type QuotaWindow = {

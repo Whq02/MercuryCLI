@@ -1,7 +1,7 @@
 import type { MercuryDaemonStatus } from '../../daemon/status.js'
 import { getMaxTurnMs } from '../../daemon/longLivedRespawn.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
+import { thisMercuryCommand } from '../privateChannel/installPath.js'
 
 type DaemonBadge = 'off' | 'live' | 'unavailable'
 

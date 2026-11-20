@@ -14,7 +14,7 @@ delete process.env['MERCURY_DAEMON_DIR']
 const t = checker()
 const cd = await import('../../src/utils/cockpit/critterData.js')
 const idle = await import('../../src/utils/cockpit/critterIdle.js')
-const sleep = await import('../../src/utils/cockpit/critterSleep.js')
+const sleep = await import('../../src/services/cockpit/critterSleep.js')
 
 const quiet = {
   turnLive: false,
@@ -412,7 +412,7 @@ t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
   }
 
   {
-    const roster = await import('../../src/utils/cockpit/daemonRosterSnapshot.js')
+    const roster = await import('../../src/services/cockpit/daemonRosterSnapshot.js')
     const aged = (): number => Date.now() - sleep.SLEEP_AFTER_MS * 3
 
     roster.primeDaemonCrewLivenessForProofs({ engaged: true, workersActive: true })

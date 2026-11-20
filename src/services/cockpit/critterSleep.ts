@@ -3,14 +3,14 @@ import { getSessionId, onSessionSwitch } from '../../bootstrap/state.js'
 import {
   listExecutions,
   subscribeExecutionEvents,
-} from '../../services/primitives/executionPlane.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+} from '../primitives/executionPlane.js'
+import { processMainOwner } from '../run/resolveOwner.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { critterFrameKey, swayPhaseAt, type SwayAnchor } from './critterIdle.js'
+import { critterFrameKey, swayPhaseAt, type SwayAnchor } from '../../utils/cockpit/critterIdle.js'
 import { daemonCrewLivenessSync } from './daemonRosterSnapshot.js'
-import { subscribeTurnSignals, turnSignals, type TurnSignals } from './turnSignals.js'
-import { subscribeUiClock } from './uiClock.js'
-import { passedOver } from '../passedOver.js'
+import { subscribeTurnSignals, turnSignals, type TurnSignals } from '../../utils/cockpit/turnSignals.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const SLEEP_AFTER_MS = 45_000
 

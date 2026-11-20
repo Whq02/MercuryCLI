@@ -242,7 +242,7 @@ export async function gatherCurrentWork(opts?: {
 
   let contextPct: number | null = null
   try {
-    const { getLiveContextUsage } = await import('../../utils/cockpit/contextUsageLive.js')
+    const { getLiveContextUsage } = await import('../cockpit/contextUsageLive.js')
     const ctx = getLiveContextUsage()
     contextPct = ctx.usedPct != null ? Math.round(ctx.usedPct) : null
   } catch {

@@ -15,13 +15,13 @@ import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critte
 import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { pathTailLabel } from '../utils/pathLabel.js'
-import { gitSnapshot, type GitData, type Snapshot } from '../utils/cockpit/index.js'
+import { gitSnapshot, type GitData, type Snapshot } from '../services/cockpit/index.js'
 import { contextPercentLabel } from '../utils/contextFill.js'
 import {
   getLiveContextUsage,
   getLiveContextUsageVersion,
   subscribeLiveContextUsage,
-} from '../utils/cockpit/contextUsageLive.js'
+} from '../services/cockpit/contextUsageLive.js'
 import { countOperatorTurns } from '../utils/messages/operatorTurns.js'
 import {
   getFocusedSessionConnector,

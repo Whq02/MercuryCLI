@@ -1,6 +1,6 @@
-import { getMaxExposedRisk, isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
-import { listCapabilityKills } from '../permissions/capabilityGate.js'
-import { withState, type Snapshot } from './types.js'
+import { getMaxExposedRisk, isMcpPolicyActive, describeMcpPolicy } from '../mcp/toolPolicy.js'
+import { listCapabilityKills } from '../../utils/permissions/capabilityGate.js'
+import { withState, type Snapshot } from '../../utils/cockpit/types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export type PermissionsData = {

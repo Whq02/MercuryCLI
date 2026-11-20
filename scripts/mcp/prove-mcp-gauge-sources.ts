@@ -21,7 +21,7 @@ writeFileSync(join(PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: {
 const { setCwd } = await import('../../src/utils/Shell.js')
 const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
 const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/utils/config/trust.js')
-const { mcpGauge } = await import('../../src/utils/cockpit/mcpGauge.js')
+const { mcpGauge } = await import('../../src/services/cockpit/mcpGauge.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 setCwd(PROJ)

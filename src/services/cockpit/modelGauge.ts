@@ -1,15 +1,15 @@
 
-import { catalogueEpoch, subscribeCatalogueEpoch } from '../../services/providers/catalogueEpoch.js'
+import { catalogueEpoch, subscribeCatalogueEpoch } from '../providers/catalogueEpoch.js'
 import {
   resolveProviderUsability,
   type ProviderId,
   type ProviderUsability,
-} from '../../services/providers/providerUsability.js'
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import type { ContextResolution } from '../model/capabilities.js'
-import { resolveDisplayedContextWindow } from '../contextFill.js'
-import { renderModelName, type ModelName } from '../model/model.js'
-import { withState, type Snapshot } from './types.js'
+} from '../providers/providerUsability.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import type { ContextResolution } from '../../utils/model/capabilities.js'
+import { resolveDisplayedContextWindow } from '../../utils/contextFill.js'
+import { renderModelName, type ModelName } from '../../utils/model/model.js'
+import { withState, type Snapshot } from '../../utils/cockpit/types.js'
 
 export type ModelData = {
   name: string

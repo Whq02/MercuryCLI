@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { daemonControlRpc, daemonStatePath } from '../../daemon/controlSocket.js'
 import { MERCURY_DAEMON_PROTO } from '../../daemon/protocol.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
-import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
-import { type Snapshot } from './types.js'
-import { passedOver } from '../passedOver.js'
+import { thisMercuryCommand } from '../privateChannel/installPath.js'
+import { type Snapshot } from '../../utils/cockpit/types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function versionNoteFor(rec: { proto?: unknown }): string {
   if (typeof rec.proto !== 'number') return ' · pre-handshake build — /daemon restart when ready'

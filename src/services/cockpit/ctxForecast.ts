@@ -1,8 +1,8 @@
 
-import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { registerOwnerScopedStore } from '../../services/run/ownerLifecycle.js'
-import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+import type { OwnerKey } from '../run/ownerKey.js'
+import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { processMainOwner } from '../run/resolveOwner.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 export function ctxForecastEnabled(): boolean {

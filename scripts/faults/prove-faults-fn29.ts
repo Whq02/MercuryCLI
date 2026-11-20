@@ -141,7 +141,7 @@ console.log('3. src/utils/cockpit/daemonSnapshot.ts — EPERM on pid probe reads
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { daemonStatePath } = await import(SRC + '/daemon/controlSocket.ts')
-    const { daemonSnapshot } = await import(SRC + '/utils/cockpit/daemonSnapshot.ts')
+    const { daemonSnapshot } = await import(SRC + '/services/cockpit/daemonSnapshot.ts')
     const recPath = daemonStatePath()
     fs.mkdirSync(path.dirname(recPath), { recursive: true })
     fs.writeFileSync(recPath, JSON.stringify({
@@ -270,7 +270,7 @@ console.log('6. src/utils/cockpit/mcpGauge.ts — policy or project MCP read fai
     }))
     const { enableConfigs } = await import(SRC + '/utils/config/globalConfig.ts')
     enableConfigs()
-    const { mcpGauge } = await import(SRC + '/utils/cockpit/mcpGauge.ts')
+    const { mcpGauge } = await import(SRC + '/services/cockpit/mcpGauge.ts')
     out.snap = mcpGauge()
   `)
   const snapPolicy = rPolicy.snap as { state?: string; reason?: string; data?: { mcpPolicyHint?: string } } | undefined
@@ -296,7 +296,7 @@ console.log('6. src/utils/cockpit/mcpGauge.ts — policy or project MCP read fai
     resetTrustDialogAcceptedCacheForTesting()
     fs.mkdirSync(path.join(PROJECT, '.mercury'), { recursive: true })
     fs.writeFileSync(path.join(PROJECT, '.mercury', 'mcp.json'), '{ broken json')
-    const { mcpGauge } = await import(SRC + '/utils/cockpit/mcpGauge.ts')
+    const { mcpGauge } = await import(SRC + '/services/cockpit/mcpGauge.ts')
     out.corrupt = mcpGauge()
   `)
   const snapCorrupt = rProj.corrupt as { state?: string; reason?: string } | undefined
@@ -432,7 +432,7 @@ console.log('10. src/utils/cockpit/daemonSnapshot.ts — unexpected failure read
       ...realCtrl,
       daemonStatePath: () => { throw new Error('state path broke') },
     }))
-    const { daemonSnapshot } = await import(SRC + '/utils/cockpit/daemonSnapshot.ts')
+    const { daemonSnapshot } = await import(SRC + '/services/cockpit/daemonSnapshot.ts')
     out.snap = daemonSnapshot()
   `)
   const snap = r.snap as { state?: string; reason?: string } | undefined
@@ -452,7 +452,7 @@ console.log('11. src/utils/cockpit/fleetGauge.ts — worker or execution listing
       ...realConcourse,
       listConcourseWorkers: () => { throw new Error('workers read failed') },
     }))
-    const { fleetGauge } = await import(SRC + '/utils/cockpit/fleetGauge.ts')
+    const { fleetGauge } = await import(SRC + '/services/cockpit/fleetGauge.ts')
     out.snap = await fleetGauge()
   `)
   const snapC = rConcourse.snap as { state?: string; reason?: string } | undefined
@@ -469,7 +469,7 @@ console.log('11. src/utils/cockpit/fleetGauge.ts — worker or execution listing
       ...realExec,
       listExecutions: () => { throw new Error('executions registry failed') },
     }))
-    const { fleetGauge } = await import(SRC + '/utils/cockpit/fleetGauge.ts')
+    const { fleetGauge } = await import(SRC + '/services/cockpit/fleetGauge.ts')
     out.snap = await fleetGauge()
   `)
   const snapE = rExec.snap as { state?: string; reason?: string } | undefined
