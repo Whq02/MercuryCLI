@@ -21,6 +21,8 @@ import { findPythonTestFiles } from './pythonProject.js'
 import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { pathExtensionsForName } from '../../utils/platform/programs.js'
+import { isBatchShim } from '../../utils/platform/spawn.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
 
@@ -55,17 +57,7 @@ export function resolveRunnerBinary(
   const explicit = path.isAbsolute(bin) || bin.includes('/') || bin.includes('\\')
   const paths = explicit ? [path.dirname(bin)] : (env.PATH ?? '').split(path.delimiter)
   const name = explicit ? path.basename(bin) : bin
-  const extensions = (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
-  const hasExtension = extensions.some(ext => name.toLowerCase().endsWith(ext.toLowerCase()))
-  const exts: string[] = platform === 'win32' && !hasExtension ? [] : ['']
-  if (platform === 'win32' && !hasExtension) {
-    for (const raw of (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';')) {
-      if (raw.length === 0) continue
-      const lower = raw.toLowerCase()
-      if (!exts.includes(lower)) exts.push(lower)
-      if (!exts.includes(raw)) exts.push(raw)
-    }
-  }
+  const exts = pathExtensionsForName(name, env, platform)
   for (const p of paths) {
     if (!p) continue
     for (const ext of exts) {
@@ -745,7 +737,7 @@ export async function runRunnerProfile(
     selectionLabel = opts.selectionLabel ?? `nodes:${opts.selection}`
   }
 
-  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(argv[0]!) && (profile.runner === 'vitest' || profile.runner === 'jest')) {
+  if (isBatchShim(argv[0]!) && (profile.runner === 'vitest' || profile.runner === 'jest')) {
     const entry = path.join(profile.root, 'node_modules', profile.runner, profile.runner === 'vitest' ? 'vitest.mjs' : 'bin/jest.js')
     if (!existsSync(entry)) {
       return { state: 'unavailable', reason: `${profile.runner}'s JavaScript entry is missing: ${entry}`, remedy: 'install the project dependencies with the declared package manager' }

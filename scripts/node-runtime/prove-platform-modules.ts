@@ -257,6 +257,7 @@ import {
   envPathDirs,
   executableName,
   executableSuffixes,
+  hasRequiredProgramExtension,
   hostOsFamily,
   hostPathDelimiter,
   isExecutableFile,
@@ -266,6 +267,8 @@ import {
   packPlatformFor,
   pathDelimiter,
   pathExtensions,
+  pathExtensionsForName,
+  pathLookupExtensions,
   resolveProgramInPath,
   spawnableCommandSpellings,
   vendoredNodeRelativePath,
@@ -394,6 +397,18 @@ const PROGRAMS: Row[] = [
       normOsExplicit: [normalizedOsPlatform('freebsd'), normalizedOsPlatform('win32'), normalizedOsPlatform('darwin')],
     }),
     recorded: {"win32":{"pack":["win-arm64","win-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["win-arm64","win-x64"],"hostOs":"windows","hostOsExplicit":["linux","windows","darwin"],"normOs":"win32","normOsExplicit":["linux","win32","darwin"]},"darwin":{"pack":["darwin-arm64","darwin-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["darwin-arm64","darwin-x64"],"hostOs":"darwin","hostOsExplicit":["linux","windows","darwin"],"normOs":"darwin","normOsExplicit":["linux","win32","darwin"]},"linux":{"pack":["linux-arm64","linux-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["linux-arm64","linux-x64"],"hostOs":"linux","hostOsExplicit":["linux","windows","darwin"],"normOs":"linux","normOsExplicit":["linux","win32","darwin"]},"win32 by process.platform alone":{"pack":["win-arm64","win-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["win-arm64","win-x64"],"hostOs":"windows","hostOsExplicit":["linux","windows","darwin"],"normOs":"win32","normOsExplicit":["linux","win32","darwin"]},"win32 by getPlatform() alone":{"pack":["linux-arm64","linux-x64",null],"packExplicit":[null,"win-arm64"],"vendorTag":["linux-arm64","linux-x64"],"hostOs":"linux","hostOsExplicit":["linux","windows","darwin"],"normOs":"linux","normOsExplicit":["linux","win32","darwin"]}},
+  },
+  {
+    name: 'programs: pathExtensionsForName, pathLookupExtensions and hasRequiredProgramExtension',
+    answers: () => ({
+      bareDefault: pathExtensionsForName('vitest', {}),
+      withExt: pathExtensionsForName('vitest.CMD', {}),
+      customPathext: pathExtensionsForName('jest', { PATHEXT: '.EXE;.cmd;;.BAT' }),
+      lookupDefault: pathLookupExtensions({}),
+      lookupCustom: pathLookupExtensions({ PATHEXT: '.EXE;;.CMD' }),
+      hasExt: ['/usr/bin/ls', 'C:\\bin\\ls.exe', 'C:\\bin\\ls'].map(p => hasRequiredProgramExtension(p)),
+    }),
+    recorded: {"win32":{"bareDefault":[".com",".COM",".exe",".EXE",".bat",".BAT",".cmd",".CMD"],"withExt":[""],"customPathext":[".exe",".EXE",".cmd",".bat",".BAT"],"lookupDefault":[".EXE",".CMD",".BAT",".COM",""],"lookupCustom":[".EXE",".CMD",""],"hasExt":[false,true,false]},"darwin":{"bareDefault":[""],"withExt":[""],"customPathext":[""],"lookupDefault":[""],"lookupCustom":[""],"hasExt":[true,true,true]},"linux":{"bareDefault":[""],"withExt":[""],"customPathext":[""],"lookupDefault":[""],"lookupCustom":[""],"hasExt":[true,true,true]},"win32 by process.platform alone":{"bareDefault":[".com",".COM",".exe",".EXE",".bat",".BAT",".cmd",".CMD"],"withExt":[""],"customPathext":[".exe",".EXE",".cmd",".bat",".BAT"],"lookupDefault":[".EXE",".CMD",".BAT",".COM",""],"lookupCustom":[".EXE",".CMD",""],"hasExt":[false,true,false]},"win32 by getPlatform() alone":{"bareDefault":[""],"withExt":[""],"customPathext":[""],"lookupDefault":[""],"lookupCustom":[""],"hasExt":[true,true,true]}},
   },
 ]
 

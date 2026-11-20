@@ -7,6 +7,8 @@ import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPL
 import { withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { killSignalForChild } from '../../utils/platform/processes.js'
+import { executableSuffixes } from '../../utils/platform/programs.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
@@ -44,7 +46,7 @@ export type CaptureBackendResolution =
 
 export function findOnPath(name: string, env: NodeJS.ProcessEnv = hostEnv()): string | null {
   const dirs = (env.PATH ?? '').split(delimiter).filter(d => d !== '')
-  const suffixes = process.platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : ['']
+  const suffixes = executableSuffixes(['.exe', '.cmd', '.bat', ''])
   for (const dir of dirs) {
     for (const suffix of suffixes) {
       const candidate = join(dir, name + suffix)
@@ -282,7 +284,8 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
     } catch (error) {
       passedOver(error)
     }
-    if (process.platform !== 'win32') child.kill('SIGINT')
+    const sig = killSignalForChild('SIGINT')
+    if (sig !== undefined) child.kill(sig)
     await withDeadline(exited, 3_000, () => {})
     if (child.exitCode === null) child.kill('SIGKILL')
     await exited
