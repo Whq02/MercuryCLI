@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { doorUnits } from '../lib/doorUnits.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const TREES = ['src/components', 'src/screens', 'src/commands']
@@ -243,8 +244,45 @@ console.log('============================================================')
 check('semantic paging follows the decoded variable, not a fixed variable-name list', ['nav', 'navigation', 'pageAction'].every(name => hasBinding(`const ${name} = decodeNavKey(input, key, { pageKeys: true }); if (${name} === 'pageNext') scroll();`, 'paging', 'fixture.tsx')))
 check('a decoded navigation value without a paging arm does not bind paging', !hasBinding("const nav = decodeNavKey(input, key); if (nav === 'moveNext') move();", 'paging', 'fixture.tsx'))
 check('a paging comparison on another value cannot borrow the decoder binding', !hasBinding("const nav = decodeNavKey(input, key); if (other === 'pageNext') scroll();", 'paging', 'fixture.tsx'))
-const consoleOAuth = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
-check('ConsoleOAuthFlow binds plain s on its menu to the sign-in-later callback', consoleOAuth.includes("if (input === 's' && !key.ctrl && !key.meta && !key.shift) {\n        event.stopImmediatePropagation()\n        startFamily(SIGN_IN_LATER_ROW.value)") && consoleOAuth.includes('{ isActive: menuUp && onSkip !== undefined }') && /if \(value === SIGN_IN_LATER_ROW\.value\) \{[^}]*onSkip\?\.\(\)/.test(consoleOAuth))
+{
+  const scratchHome = pinScratchHome('keydead-console-oauth')
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  const React = await import('react')
+  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { ConsoleOAuthFlow } = await import('../../src/components/ConsoleOAuthFlow.js')
+  let skipped = 0
+  let done = 0
+  const mounted = await mountOffscreen(
+    React.createElement(
+      AppStateProvider as never,
+      {},
+      React.createElement(ConsoleOAuthFlow as never, {
+        onDone: () => {
+          done++
+        },
+        onSkip: () => {
+          skipped++
+        },
+      }),
+    ),
+    120,
+    40,
+  )
+  try {
+    const rendered = await waitFor(() => mounted.screen().includes('Sign in'), 4000)
+    mounted.push('S')
+    await settle(100)
+    mounted.push('\x13')
+    await settle(100)
+    const ignoredModified = skipped === 0
+    mounted.push('s')
+    const fired = await waitFor(() => skipped === 1, 2000)
+    check('ConsoleOAuthFlow binds plain s on its menu to the sign-in-later callback', rendered && ignoredModified && fired && skipped === 1 && done === 0, `rendered=${rendered} ignoredModified=${ignoredModified} skipped=${skipped} done=${done}`)
+  } finally {
+    mounted.unmount()
+    await releaseScratchHome(scratchHome)
+  }
+}
 check('a ConsoleOAuthFlow onSkip callback binds the advertised s through the child', hasBinding('<ConsoleOAuthFlow onDone={() => done()} onSkip={advance} />', 'letter:s', 'fixture.tsx'))
 check('a ConsoleOAuthFlow without onSkip cannot claim the skip key', !hasBinding('<ConsoleOAuthFlow onDone={done} />', 'letter:s', 'fixture.tsx'))
 check('another component cannot lend its onSkip callback to ConsoleOAuthFlow', !hasBinding('<ConsoleOAuthFlow onDone={done} /><Other onSkip={advance} />', 'letter:s', 'fixture.tsx'))
