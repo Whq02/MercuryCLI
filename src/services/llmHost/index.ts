@@ -58,17 +58,26 @@ export function linkLlmHostPod(name: string, hostPodId: string): void {
   writeEndpoint(name, { ...settings, hostPodId }, existing)
 }
 
-export function removeLlmHostProvider(name: string): void {
+export function tensorFoldUnregisterFailedNote(error: string): string {
+  return 'it is still listed in the TensorFold hosts (' + error + ') — remove it there'
+}
+
+export async function removeLlmHostProvider(name: string): Promise<{ tensorFoldUnregisterError?: string }> {
   const existing = configuredCompatEndpoints().find(endpoint => endpoint.name === name)
-  if (!existing) return
+  if (!existing) return {}
   writeStoredCompatApiKey(null, name)
   writeEndpoint(name, undefined, existing)
   if (existing.hostPodId) {
     const podId = existing.hostPodId
-    void unregisterTensorFoldPod(podId).catch(error =>
-      logError(new Error(`the TensorFold pod ${podId} of the removed provider ${name} could not be unregistered, so its host record and key stay behind: ${error instanceof SyntaxError ? 'a hosts file is not valid JSON' : errorMessage(error)}`)),
-    )
+    try {
+      await unregisterTensorFoldPod(podId)
+    } catch (error) {
+      const detail = error instanceof SyntaxError ? 'a hosts file is not valid JSON' : errorMessage(error)
+      logError(new Error(`the TensorFold pod ${podId} of the removed provider ${name} could not be unregistered, so its host record and key stay behind: ${detail}`))
+      return { tensorFoldUnregisterError: detail }
+    }
   }
+  return {}
 }
 
 function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefined, existing?: CompatEndpoint): void {

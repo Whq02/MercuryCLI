@@ -169,9 +169,9 @@ export async function removeHostEndpoint(name: string): Promise<string> {
   if (!endpoint) return 'This endpoint is no longer registered.'
   if (!cachedCompatCatalogue(endpoint)?.error) return 'This server is answering or has not been checked. Remove it in /llmhost → A server that’s already running → Remove.'
   try {
-    const { removeLlmHostProvider } = await import('../llmHost/index.js')
-    removeLlmHostProvider(name)
-    return 'Removed custom endpoint ' + name + ' · nothing else changed'
+    const { removeLlmHostProvider, tensorFoldUnregisterFailedNote } = await import('../llmHost/index.js')
+    const removed = await removeLlmHostProvider(name)
+    return 'Removed custom endpoint ' + name + (removed.tensorFoldUnregisterError ? ' · ' + tensorFoldUnregisterFailedNote(removed.tensorFoldUnregisterError) : ' · nothing else changed')
   } catch (error) {
     return 'Could not remove custom endpoint ' + name + ' · ' + String(error)
   }
