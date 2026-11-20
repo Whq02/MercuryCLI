@@ -122,10 +122,11 @@ type LooseMessage = {
   messages?: LooseMessage[]
   results?: LooseMessage[]
   toolUseResult?: unknown
+  turnId?: string
 }
 
-function chatRowOf(m: LooseMessage): SystemCrewChatMessage | null {
-  return m.type === 'system' && m.subtype === 'crew_chat' ? (m as unknown as SystemCrewChatMessage) : null
+function chatRowOf(m: LooseMessage): Pick<SystemCrewChatMessage, 'turnId'> | null {
+  return m.type === 'system' && m.subtype === 'crew_chat' ? m : null
 }
 
 export function promptTokensOf(usage: unknown): number | undefined {
