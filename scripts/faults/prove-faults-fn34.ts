@@ -240,5 +240,42 @@ function runScenario(body: string): Record<string, unknown> {
     check('mdm-unreadable-file-blocks-hkcu', Object.keys(file).length === 0 && control?.display?.theme === 'dark', JSON.stringify(r))
   }
 }
+{
+  if (POSIX_MODES) {
+    const r = runScenario(`
+      const { mock } = await import('bun:test')
+      const managedRoot = path.join(HOME, 'managed2')
+      const dropInDir = path.join(managedRoot, 'managed-settings.d')
+      fs.mkdirSync(dropInDir, { recursive: true })
+      const managedPathMod = path.join(SRC, 'utils/settings/managedPath.ts')
+      const realManaged = await import(managedPathMod)
+      mock.module(managedPathMod, () => ({
+        ...realManaged,
+        getManagedFilePath: () => managedRoot,
+        getManagedSettingsDropInDir: () => dropInDir,
+      }))
+      const settingsMod = await import(path.join(SRC, 'utils/settings/settings.ts'))
+      const cacheMod = await import(path.join(SRC, 'utils/settings/settingsCache.ts'))
+      fs.chmodSync(dropInDir, 0o000)
+      try {
+        cacheMod.resetSettingsCache()
+        out.loaded = settingsMod.loadManagedFileSettings()
+        out.presence = settingsMod.getManagedFileSettingsPresence()
+      } finally {
+        fs.chmodSync(dropInDir, 0o700)
+        fs.rmSync(dropInDir, { recursive: true, force: true })
+      }
+      cacheMod.resetSettingsCache()
+      out.absentLoaded = settingsMod.loadManagedFileSettings()
+      out.absentPresence = settingsMod.getManagedFileSettingsPresence()
+    `)
+    const loaded = r.loaded as { errors: Array<{ message?: string }> }
+    const presence = r.presence as { hasDropIns: boolean }
+    const absentLoaded = r.absentLoaded as { errors: unknown[] }
+    const absentPresence = r.absentPresence as { hasDropIns: boolean }
+    check('settings-unreadable-dropin-reported', loaded.errors.some(e => e.message?.includes('settings file unreadable')) && absentLoaded.errors.length === 0, JSON.stringify(r))
+    check('settings-unreadable-dropin-presence', presence.hasDropIns === true && absentPresence.hasDropIns === false, JSON.stringify(r))
+  }
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
