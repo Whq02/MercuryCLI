@@ -1188,6 +1188,7 @@ const FILES: Row[] = [
 ]
 
 import {
+  consoleSizeNeedsPolling,
   isLegacyWindowsConsole,
   isModernWindowsTerminalHost,
   isWindowsTerminalHost,
@@ -1236,6 +1237,11 @@ const TERMINAL: Row[] = [
       isWindowsTerminalHost({ WT_SESSION: '' }),
     ],
     recorded: {"win32":[true,true,true],"darwin":[false,true,false],"linux":[false,true,false],"win32 by process.platform alone":[true,true,true],"win32 by getPlatform() alone":[false,true,false]},
+  },
+  {
+    name: 'terminal.consoleSizeNeedsPolling',
+    answers: () => consoleSizeNeedsPolling(),
+    recorded: {"win32":true,"darwin":false,"linux":false,"win32 by process.platform alone":true,"win32 by getPlatform() alone":false},
   },
 ]
 
