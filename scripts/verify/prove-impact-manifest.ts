@@ -314,13 +314,13 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
     lister: [SOURCED, 'scripts/lister/prove-lister.ts', 'src/keys/one.ts', 'src/keys/two.ts'],
     named: ['docs/page.md', SOURCED, 'scripts/named/prove-named.ts', 'src/keys/one.ts'],
     pyrun: ['docs/page.md', 'scripts/lib/child.ts', SOURCED, 'scripts/pyrun/prove-py.py', 'src/gamma/g.ts'],
-    template: [SOURCED, 'scripts/template/prove-template.ts', 'src/alpha/a.ts'],
-    'template-drives': [SOURCED, 'scripts/template-drives/members.txt', 'scripts/template/prove-drive.ts', 'src/beta/b.ts'],
+    template: [SOURCED, 'scripts/template/prove-template.ts', 'src/alpha/a.ts', 'src/beta/b.ts'],
+    'template-drives': [SOURCED, 'scripts/template-drives/members.txt', 'scripts/template/prove-drive.ts', 'src/alpha/a.ts', 'src/beta/b.ts'],
     walked: [SOURCED, 'scripts/walked/prove-walked.ts', 'src/keys/one.ts', 'src/keys/two.ts'],
   }
   const listOf = (map: Record<string, string[]>): string => Object.keys(map).sort().map(suite => `${suite}: ${map[suite]!.join(' ')}`).join(' · ')
   check(
-    "the computed list of a suite holds what its proofs touch: an import on a template, a path handed to a helper, a child script and what it imports, a name read as text, a walked folder, what the runner sources, a twin's member in its parent's folder, the two entry files for a proof that runs the bundle through scripts/lib/builtProduct.ts, for a Python member the script it starts through subprocess with what that script imports, and every file of a folder handed to a helper that lists it and opens what it lists",
+    "the computed list of a suite holds what its proofs touch: an import on a template, a path handed to a helper, a child script and what it imports, a name read as text, a walked folder, what the runner sources, a twin's member in its parent's folder, for twins whose lists read one folder the source files either one's proofs touch, the two entry files for a proof that runs the bundle through scripts/lib/builtProduct.ts, for a Python member the script it starts through subprocess with what that script imports, and every file of a folder handed to a helper that lists it and opens what it lists",
     listOf(computed) === listOf(want),
     `seen ${listOf(computed)} · want ${listOf(want)}`,
   )
@@ -343,6 +343,8 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
     ['walked', SOURCED],
     ['template-drives', 'scripts/template/prove-drive.ts'],
     ['template-drives', 'src/beta/b.ts'],
+    ['template', 'src/beta/b.ts'],
+    ['template-drives', 'src/alpha/a.ts'],
     ['built', 'src/main.tsx'],
     ['built', 'src/cli/run.ts'],
     ['pyrun', 'scripts/lib/child.ts'],
