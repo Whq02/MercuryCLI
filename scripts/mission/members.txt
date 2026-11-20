@@ -1,0 +1,3 @@
+prove-goal-end-state.ts
+prove-mission-continuity.ts
+prove-mission-hook.ts
