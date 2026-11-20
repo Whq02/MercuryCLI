@@ -1,20 +1,23 @@
 export type SearchTier = 'native' | 'keyed' | 'keyless'
 
-export type SearchBackendId =
-  | 'anthropic-native'
-  | 'openai-native'
-  | 'brave'
-  | 'tavily'
-  | 'duckduckgo'
-  | 'duckduckgo-lite'
-  | 'stackexchange'
-  | 'npm'
-  | 'pypi'
-  | 'crates'
-  | 'github'
-  | 'hackernews'
-  | 'wikipedia'
-  | 'searxng'
+export const SEARCH_BACKEND_IDS = [
+  'anthropic-native',
+  'openai-native',
+  'brave',
+  'tavily',
+  'duckduckgo',
+  'duckduckgo-lite',
+  'stackexchange',
+  'npm',
+  'pypi',
+  'crates',
+  'github',
+  'hackernews',
+  'wikipedia',
+  'searxng',
+] as const
+
+export type SearchBackendId = (typeof SEARCH_BACKEND_IDS)[number]
 
 const SEARCH_BACKEND_LABELS: Record<SearchBackendId, string> = {
   'anthropic-native': 'Anthropic web search',

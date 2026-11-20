@@ -2,7 +2,8 @@ import * as React from 'react'
 import stripAnsi from 'strip-ansi'
 
 import { Messages } from '../components/Messages.tsx'
-import { KeybindingProvider } from '../keybindings/KeybindingContext.tsx'
+import { KeybindingProvider, type HandlerRegistry } from '../keybindings/KeybindingContext.tsx'
+import type { KeybindingContextName, ParsedKeystroke } from '../keybindings/types.js'
 import { loadKeybindingsSync } from '../keybindings/loadUserBindings.js'
 import { AppStateProvider } from '../state/AppState.tsx'
 import type { Tools } from '../Tool.js'
@@ -18,18 +19,18 @@ type ExportOptions = {
 }
 
 function MinimalKeybindingProvider({ children }: { children: React.ReactNode }): React.ReactNode {
-  const pendingChordRef = React.useRef(null)
-  const handlerRegistryRef = React.useRef(new Map())
+  const pendingChordRef = React.useRef<ParsedKeystroke[] | null>(null)
+  const handlerRegistryRef = React.useRef<HandlerRegistry>(new Map())
   return (
     <KeybindingProvider
       bindings={loadKeybindingsSync()}
-      pendingChordRef={pendingChordRef as never}
-      pendingChord={null as never}
+      pendingChordRef={pendingChordRef}
+      pendingChord={null}
       setPendingChord={() => {}}
-      activeContexts={new Set() as never}
+      activeContexts={new Set<KeybindingContextName>()}
       registerActiveContext={() => {}}
       unregisterActiveContext={() => {}}
-      handlerRegistryRef={handlerRegistryRef as never}
+      handlerRegistryRef={handlerRegistryRef}
     >
       {children}
     </KeybindingProvider>
@@ -95,7 +96,7 @@ export async function streamRenderedMessages(
 
 export async function renderMessagesToPlainText(
   messages: Message[],
-  tools: Tools = [] as unknown as Tools,
+  tools: Tools = [],
   columns?: number,
 ): Promise<string> {
   const parts: string[] = []
