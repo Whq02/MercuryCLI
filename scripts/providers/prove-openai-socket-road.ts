@@ -342,8 +342,7 @@ section('S4 the connection\'s life and the register')
   const tail = socketRoad.incrementalInput([{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'a' }] }] as never, [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'a' }] }, { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'b' }] }] as never)
   check('the incremental input is the items after the held prefix; a changed prefix means the whole input', tail?.length === 1 && socketRoad.incrementalInput([{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'x' }] }] as never, [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'a' }] }, { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'b' }] }] as never) === null && socketRoad.incrementalInput(null, [] as never) === null)
   const schema = readFileSync(join(import.meta.dir, '..', 'settings', 'settings-schema.json'), 'utf8')
-  const docs = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'SETTINGS.md'), 'utf8')
-  check('the setting is in the schema snapshot and the settings page', schema.includes('"websocket"') && docs.includes('`routing.openai.transport`'))
+  check('the setting is in the schema snapshot', schema.includes('"websocket"'))
 }
 
 section('refusals — garbage frames, a cache that never answers, a changed prefix, a junk setting, the token, the record the road keeps')

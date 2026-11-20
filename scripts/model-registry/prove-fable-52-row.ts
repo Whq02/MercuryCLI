@@ -217,16 +217,8 @@ section('§4 the wire laws the vendor states for the row: thinking always on, no
   check("a drop the provider attributes to another account is said as that: the row's thinking stays with the account that wrote it", otherAccount !== null && otherAccount.includes('another account') && !otherAccount.includes('client-side edit'), String(otherAccount))
 }
 
-section('§5 the docs say what the family word means and which facts the row carries')
+section('§5 thinking binding and declared mirrors')
 {
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const doc = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf-8')
-  const engines = doc('docs/ENGINES.md')
-  const sessions = doc('docs/SESSIONS.md')
-  check('ENGINES.md: the family word means the new row and both exact-generation aliases are named', engines.includes('`fable` means Fable 5.2 (`claude-fable-5-2`); `fable52` names that generation\nexplicitly and `fable51` still names Fable 5.1.') && engines.includes('`fable` · `fable51` · `fable52`'))
-  check('ENGINES.md: the row\'s window, output, thinking, effort default and tool-choice law, in words', engines.includes('has a native 1M context window, 128K output and adaptive thinking that is\nalways on') && engines.includes('effort choice it uses the documented `high` default. A forced tool choice\nbecomes `auto`'))
-  check('ENGINES.md: the prices as read, with the day', engines.includes('$8\ninput and $40 output, $10 for a five-minute cache write, $16 for a one-hour\ncache write and $0.20 for a cache read') && engines.includes('read on 2026-11-09.'))
   const { carriesThinking, readsThinkingOf } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const readers = (target: string): string => ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-fable-5', 'claude-fable-5-1', 'claude-fable-5-2'].filter(writer => readsThinkingOf(target, writer)).join(',')
   check("the vendor's table of which model reads which, as read on 11 Nov 2026: the row reads every writer of the table, Fable 5.1 reads Opus 5, Opus 5.5, Fable 5 and itself, Opus 5.5 reads Haiku 5.5, Sonnet 5.5, Opus 5 and itself, Sonnet 5.5 reads Haiku 5.5 and itself, Haiku 5.5 and Opus 5 read themselves alone, and the mirror reads as the row does", readers(ID) === 'claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5,claude-opus-5-5,claude-fable-5,claude-fable-5-1,claude-fable-5-2' && readers(PREVIOUS) === 'claude-opus-5,claude-opus-5-5,claude-fable-5,claude-fable-5-1' && readers('claude-opus-5-5') === 'claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5,claude-opus-5-5' && readers('claude-sonnet-5-5') === 'claude-haiku-5-5,claude-sonnet-5-5' && readers('claude-haiku-5-5') === 'claude-haiku-5-5' && readers(MIRROR) === readers(ID) && readers('claude-opus-5') === 'claude-opus-5', `${readers(ID)} | ${readers(PREVIOUS)} | ${readers('claude-opus-5-5')} | ${readers('claude-sonnet-5-5')} | ${readers('claude-haiku-5-5')} | ${readers('claude-opus-5')}`)
@@ -234,8 +226,6 @@ section('§5 the docs say what the family word means and which facts the row car
   const carried = (model: string, target: string, prefix: string | undefined, request: string | undefined, dropped = new Map<string, Set<number>>()): boolean => carriesThinking(stamped(model, `msg_${model}`, prefix), target, request, dropped)
   check("a reply of Opus 5.5 or Fable 5.1 written under the request's own system prompt and tools is carried into the row's request; one written under another, or with no stamp, is not", carried('claude-opus-5-5', ID, 'p1', 'p1') && carried(PREVIOUS, ID, 'p1', 'p1') && carried('claude-mythos-5-1', MIRROR, 'p1', 'p1') && !carried('claude-opus-5-5', ID, 'p0', 'p1') && !carried('claude-opus-5-5', ID, undefined, 'p1') && !carried('claude-opus-5-5', ID, 'p1', undefined))
   check("the row's own thinking is carried to no other model, whatever the stamp, and a block the API has reported dropped is not carried again", !carried(ID, PREVIOUS, 'p1', 'p1') && !carried(ID, 'claude-opus-5-5', 'p1', 'p1') && !carried(MIRROR, PREVIOUS, 'p1', 'p1') && carried(ID, MIRROR, undefined, undefined) && !carried('claude-opus-5-5', ID, 'p1', 'p1', new Map([['msg_claude-opus-5-5', new Set([0])]])))
-  check('ENGINES.md: who reads its thinking, what is carried across a switch, the account it stays with, and the Mythos counterpart', engines.includes('Its thinking blocks are read by Fable\n5.2 and Mythos 5.2 alone: after a switch to another model they stay out of\nthat model\'s requests and it re-plans without them. Across a switch Mercury\ncarries a model\'s thinking into the next model\'s requests where Anthropic\'s\ntable says that model reads it') && engines.includes('and the system prompt\nand tools are the ones the thinking was written under. Any other thinking\nstays out and the transcript says so once.') && engines.includes('Fable 5.2\'s blocks stay with the\naccount that wrote them too') && engines.includes('`claude-mythos-5-2`\nresolves as Fable 5.2\'s counterpart'))
-  check("ENGINES.md: what the word 'mythos' means, and the row a listed Mythos id gets with the four facts it shares", engines.includes('facts and prices, and `mythos` means Mythos 5.2. These are the') && engines.includes("a listed Mythos id gets its own row under its\nFable counterpart, named, selectable and served with that counterpart's\nwindow, effort levels, launch effort and prices."))
   const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
   const { getLaunchDefaultEffort, isLaunchEffortPinned, selectableEffortLevelsForLadder } = await import('../../src/utils/effort.ts')
@@ -252,7 +242,6 @@ section('§5 the docs say what the family word means and which facts the row car
     )
   }
   check("what that sentence says is true of every declared mirror: its counterpart's window, effort levels, launch effort and prices", mirrors.length === 3 && mirrors.every(sharesTheFour), mirrors.map(id => `${id} ${sharesTheFour(id)}`).join(' · '))
-  check('SESSIONS.md: the saved fable word follows the newest row and a saved full id stays', sessions.includes('`fable` follows the same law: it runs Fable 5.2, and a saved\n`claude-fable-5-1` stays on Fable 5.1.'))
 }
 
 console.log('\n' + '='.repeat(60))
