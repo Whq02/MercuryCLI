@@ -205,5 +205,25 @@ console.log('6 · qwenLogin: malformed DASHSCOPE_BASE_URL refuses sign-in withou
     check('malformed DASHSCOPE_BASE_URL refuses login with no network calls and nothing stored', !out.ok && !out.stored && fetched === 0 && out.receipt.includes('DASHSCOPE_BASE_URL is not a valid http(s) URL') && out.receipt.includes('fix or unset DASHSCOPE_BASE_URL, then retry.'), JSON.stringify({ out, fetched }))
   })
 }
+
+console.log('7 · qwenCatalogue: malformed DASHSCOPE_BASE_URL refuses catalogue probe and surfaces the sentence')
+{
+  const { __resetQwenCatalogueForTest, qwenCatalogueSourceWords, refreshQwenCatalogue } = await import('../../src/services/providers/qwen/qwenCatalogue.js')
+  __resetQwenCatalogueForTest()
+  let fetched = 0
+  const env: NodeJS.ProcessEnv = { DASHSCOPE_API_KEY: 'sk-fixture-qwen', DASHSCOPE_BASE_URL: 'https://user:pass@example.invalid/v1' }
+  const snapshot = await refreshQwenCatalogue({
+    force: true,
+    env,
+    fetchImpl: (async () => {
+      fetched++
+      return new Response('{"data":[]}', { status: 200 })
+    }) as unknown as typeof fetch,
+  })
+  const words = qwenCatalogueSourceWords(env) ?? ''
+  check('malformed DASHSCOPE_BASE_URL makes no catalogue request and surfaces the sentence in qwenCatalogueSourceWords', fetched === 0 && snapshot?.models.length === 0 && words.includes('DASHSCOPE_BASE_URL must be an http(s) URL without credentials, query or fragment') && words.includes('fix or unset DASHSCOPE_BASE_URL, then retry.'), JSON.stringify({ fetched, words, lastError: snapshot?.lastError }))
+  __resetQwenCatalogueForTest()
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
