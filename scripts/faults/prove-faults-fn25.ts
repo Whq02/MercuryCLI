@@ -358,6 +358,21 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   }
 }
 
+{
+  const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
+  const missingShot = join(scratch, 'missing-browser-shot.png')
+  const block = BrowserTool.mapToolResultToToolResultBlockParam(
+    { op: 'screenshot', result: `screenshot: ${missingShot}`, outcome: 'succeeded', imagePath: missingShot },
+    'tu-browser-shot',
+  )
+  const text = typeof block.content === 'string' ? block.content : ''
+  check(
+    'BrowserTool: mapToolResultToToolResultBlockParam reports image-not-inlined note when screenshot read fails',
+    text.includes('(image not inlined') && /ENOENT|no such file/i.test(text),
+    text,
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
