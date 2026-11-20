@@ -1,5 +1,4 @@
 
-import { randomUUID } from 'crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { AttachmentMessage, Message } from 'src/types/message.js'
 import type { QueuedCommand } from 'src/types/textInputTypes.js'
@@ -60,6 +59,8 @@ import { firstTurnUserContext } from '../api.js'
 import { getSystemContext, getUserContext } from '../../context.js'
 import { getToolManualAttachments } from './toolManuals.js'
 import { samplesRoadAttachment } from './samplesRoad.js'
+import { createAttachmentMessage } from './attachmentMessage.js'
+export { createAttachmentMessage } from './attachmentMessage.js'
 
 export async function getAttachments(
   input: string | null,
@@ -415,25 +416,4 @@ export async function* getAttachmentMessages(
   for (const attachment of attachments) {
     yield createAttachmentMessage(attachment)
   }
-}
-
-export function createAttachmentMessage(
-  attachment: Attachment,
-): AttachmentMessage {
-  return {
-    attachment: withDeliveryClock(attachment),
-    type: 'attachment',
-    uuid: randomUUID(),
-    timestamp: sentClockOf(attachment) ?? new Date().toISOString(),
-  }
-}
-
-function sentClockOf(attachment: Attachment): string | null {
-  if (attachment.type !== 'queued_command' || attachment.sentAt === undefined) return null
-  return Number.isFinite(Date.parse(attachment.sentAt)) ? attachment.sentAt : null
-}
-
-function withDeliveryClock(attachment: Attachment): Attachment {
-  if (attachment.type !== 'queued_command' || sentClockOf(attachment) === null) return attachment
-  return { ...attachment, deliveredAt: new Date().toISOString() }
 }
