@@ -166,10 +166,8 @@ export function interfaceChecks(): CheckSpec[] {
         const packRemedy = process.platform === 'win32' ? 'Build the pack: bun run scripts/vendor/build-brush.ts, then rebuild — a release archive carries it.' : 'Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.'
         const { settleShellRecord, shellRecordNow } = await SHELL_READS.shellRecord()
         if (!wanted) {
-          const { sleep } = await import('../../../utils/sleep.js')
-          const waited = new AbortController()
-          await Promise.race([settleShellRecord(), sleep(15_000, waited.signal)])
-          waited.abort()
+          const { withDeadline } = await import('../../../utils/deadline.js')
+          await withDeadline(settleShellRecord(), 15_000, () => undefined)
         }
         const record = shellRecordNow()
         const serving = record === null ? 'no shell' : record.origin === 'shipped' ? 'the shipped bash' : record.origin === 'engine' ? 'the bundled engine' : process.platform === 'win32' ? 'an installed bash' : "the system's bash"

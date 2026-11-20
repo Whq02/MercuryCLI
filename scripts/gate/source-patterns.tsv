@@ -49,10 +49,7 @@ Promise.race	src/boot/launchGraph.ts	1	events 1
 Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
 Promise.race	src/cli/headless/runnerAsks.ts	1	events 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
-Promise.race	src/services/context/contextWindowWarmup.ts	1	deadline 1
 Promise.race	src/services/eval/procKernel.ts	1	events 1
-Promise.race	src/services/health/healthReport.ts	1	deadline 1
-Promise.race	src/services/health/sections/interface.ts	1	deadline 1
 Promise.race	src/services/host/door.ts	1	events 1
 Promise.race	src/services/lsp/LSPClient.ts	1	events 1
 Promise.race	src/services/oauth/index.ts	1	events 1
@@ -70,7 +67,7 @@ Promise.race	src/services/providers/together/togetherCallModel.ts	1	events 1
 Promise.race	src/services/providers/xai/xaiCallModel.ts	1	events 1
 Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
-Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
+Promise.race	src/tools/BashTool/BashTool.tsx	2	events 2
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	1	events 1
 Promise.race	src/utils/generators.ts	1	events 1

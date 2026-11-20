@@ -1,7 +1,7 @@
 
 import { declaredRouteOf } from '../providers/routeLaw.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 const SOURCE_WAIT_MS = 3_000
 const LOCAL_WINDOW_WAIT_MS = 10_000
@@ -9,19 +9,6 @@ const LOCAL_WINDOW_WAIT_MS = 10_000
 interface ContextWindowSourceWait {
   timeoutMs?: number
   estTokens?: number
-}
-
-async function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T | undefined> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<undefined>(resolve => {
-    timer = startTimeout(() => resolve(undefined), timeoutMs)
-    timer.unref?.()
-  })
-  try {
-    return await Promise.race([work, timeout])
-  } finally {
-    if (timer !== undefined) stopTimeout(timer)
-  }
 }
 
 export async function contextWindowSourceReady(model: string): Promise<boolean> {
@@ -85,16 +72,16 @@ async function awaitLocalWindow(model: string, estTokens: number, timeoutMs: num
   const { decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowHeldUnread, localWindowSettingOf } = await import('../providers/local/localWindow.js')
   let record = localRecordFor(model)
   if (record === undefined) {
-    await withTimeout(refreshLocalDiscovery(), timeoutMs)
+    await withDeadline(refreshLocalDiscovery(), timeoutMs, () => undefined, { unref: true })
     record = localRecordFor(model)
   }
   if (record === undefined) {
-    await withTimeout(refreshLocalDiscovery({ force: true }), timeoutMs)
+    await withDeadline(refreshLocalDiscovery({ force: true }), timeoutMs, () => undefined, { unref: true })
     record = localRecordFor(model)
   }
   if (record === undefined) return false
   if (record.factsUnread === true && heldLocalWindow(record) === undefined) {
-    await withTimeout(refreshLocalDiscovery({ force: true, timeoutMs }), timeoutMs)
+    await withDeadline(refreshLocalDiscovery({ force: true, timeoutMs }), timeoutMs, () => undefined, { unref: true })
     record = localRecordFor(model) ?? record
   }
   const application = localWindowApplication(record)
@@ -102,7 +89,7 @@ async function awaitLocalWindow(model: string, estTokens: number, timeoutMs: num
     const setting = localWindowSettingOf(record)
     const hold = heldLocalWindow(record)
     if (hold === undefined || hold.setting !== setting || localWindowHeldUnread(hold, record)) {
-      const truth = await withTimeout(ensureLocalWindowTruth(record, setting), timeoutMs)
+      const truth = await withDeadline(ensureLocalWindowTruth(record, setting), timeoutMs, () => undefined, { unref: true })
       if (truth === undefined) return false
       decideLocalWindow(record, estTokens, setting, truth)
     }
@@ -119,31 +106,31 @@ export async function awaitContextWindowSource(model: string, wait: ContextWindo
         const { resolveOpenrouterAccount } = await import('../providers/openrouter/openrouterAccounts.js')
         const { refreshOpenrouterCatalogue } = await import('../providers/openrouter/openrouterCatalogue.js')
         const account = resolveOpenrouterAccount()
-        if (account) await withTimeout(refreshOpenrouterCatalogue(account.keySource), timeoutMs)
+        if (account) await withDeadline(refreshOpenrouterCatalogue(account.keySource), timeoutMs, () => undefined, { unref: true })
         return true
       }
       case 'gemini': {
         const { resolveGeminiAccount } = await import('../providers/gemini/geminiAccounts.js')
         const { refreshGeminiCatalogue } = await import('../providers/gemini/geminiCatalogue.js')
         const account = resolveGeminiAccount()
-        if (account) await withTimeout(refreshGeminiCatalogue(account.kind), timeoutMs)
+        if (account) await withDeadline(refreshGeminiCatalogue(account.kind), timeoutMs, () => undefined, { unref: true })
         return true
       }
       case 'huggingface': {
         const { refreshHuggingfaceCatalogue } = await import('../providers/huggingface/huggingfaceCatalogue.js')
-        await withTimeout(refreshHuggingfaceCatalogue(), timeoutMs)
+        await withDeadline(refreshHuggingfaceCatalogue(), timeoutMs, () => undefined, { unref: true })
         return true
       }
       case 'nous': {
         const { refreshNousCatalogue } = await import('../providers/nous/nousCatalogue.js')
-        await withTimeout(refreshNousCatalogue(), timeoutMs)
+        await withDeadline(refreshNousCatalogue(), timeoutMs, () => undefined, { unref: true })
         return true
       }
       case 'openai': {
         const { resolveOpenaiAccount } = await import('../providers/openai/openaiAccounts.js')
         const { refreshOpenaiCatalogue } = await import('../providers/openai/openaiCatalogue.js')
         const account = resolveOpenaiAccount()
-        if (account) await withTimeout(refreshOpenaiCatalogue(account.kind), timeoutMs)
+        if (account) await withDeadline(refreshOpenaiCatalogue(account.kind), timeoutMs, () => undefined, { unref: true })
         return true
       }
       case 'local':
