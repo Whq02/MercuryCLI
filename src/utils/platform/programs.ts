@@ -89,3 +89,33 @@ export function pathExtensions(env: NodeJS.ProcessEnv = hostEnv(), platform: str
 export function executableSuffixes(win32Suffixes: readonly string[], platform: string = process.platform): readonly string[] {
   return platform === 'win32' ? win32Suffixes : ['']
 }
+
+export function pathDelimiter(platform: string = process.platform): ';' | ':' {
+  return platform === 'win32' ? ';' : ':'
+}
+
+export function envPathDirs(env: NodeJS.ProcessEnv = hostEnv(), platform: string = process.platform): string[] {
+  return (env.PATH ?? env.Path ?? '').split(pathDelimiter(platform)).filter(dir => dir !== '')
+}
+
+export function executableName(name: string, platform: string = process.platform): string {
+  return platform === 'win32' ? `${name}.exe` : name
+}
+
+export function vendoredNodeRelativePath(platform: string = process.platform): string {
+  return platform === 'win32' ? 'node.exe' : 'bin/node'
+}
+
+export function venvPythonPath(venvDir: string, platform: string = process.platform): string {
+  return platform === 'win32' ? path.join(venvDir, 'Scripts', 'python.exe') : path.join(venvDir, 'bin', 'python')
+}
+
+export function evalPythonCommands(platform: string = process.platform): string[] {
+  return platform === 'win32' ? ['python3', 'python', 'py'] : ['python3']
+}
+
+export function debugpyPythonCommands(platform: string = process.platform): string[] {
+  if (platform === 'win32') return ['python3', 'python', 'py']
+  if (platform === 'darwin') return ['python3', 'python', '/usr/bin/python3']
+  return ['python3', 'python']
+}
