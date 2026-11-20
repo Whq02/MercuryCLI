@@ -31,15 +31,15 @@ export function resolveWatchRoot(p: string): string {
 let watchesLeftToProcessEnd = false
 
 export function leaveFileWatchesToProcessEnd(): void {
-  if (watchesLeftToProcessEnd || process.platform !== 'darwin') return
+  if (watchesLeftToProcessEnd || process.platform !== 'darwin' || process.versions.bun !== undefined) return
   watchesLeftToProcessEnd = true
   const probe = watch(process.execPath, { persistent: false })
   const everyWatcher = Object.getPrototypeOf(probe) as FSWatcher
-  probe.close()
   everyWatcher.close = function (this: FSWatcher): void {
     this.removeAllListeners('change')
     this.unref()
   }
+  probe.close()
 }
 
 export function watchDirectory(
