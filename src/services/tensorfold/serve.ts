@@ -139,7 +139,7 @@ function readServedRecordStrict(io: RoleIo = {}): TensorFoldServedRecord | null 
   if (typeof raw === 'object' && typeof (raw as TensorFoldServedRecord).repo === 'string' && typeof (raw as TensorFoldServedRecord).port === 'number' && typeof (raw as TensorFoldServedRecord).project === 'string') {
     return raw as TensorFoldServedRecord
   }
-  throw new SyntaxError(`served record at ${recordFile(io)} is not a valid TensorFold record`)
+  throw new SyntaxError('it is not a TensorFold record')
 }
 
 export function readServedRecord(io: RoleIo = {}): TensorFoldServedRecord | null {
@@ -333,7 +333,12 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     const refused = app === undefined ? undefined : refuseSecondCopy(app)
     if (refused !== undefined) throw new TensorFoldStartError(refused, null)
   }
-  const existing = servedTensorFoldRecordStrict(scoped)
+  let existing: ReturnType<typeof servedTensorFoldRecordStrict>
+  try {
+    existing = servedTensorFoldRecordStrict(scoped)
+  } catch (error) {
+    throw new TensorFoldStartError(`the record of what is already serving could not be read (${errorMessage(error)}) · nothing was started — delete ${recordFile(scoped)} if nothing is serving, then serve again`, null)
+  }
   const live = existing !== null && LIVE_STATES.includes(existing.service.state) ? existing : null
   if (live !== null && role === 'helper') {
     const { project: _project, busy: _busy, sharedAs: _sharedAs, service: liveService, ...served } = live
@@ -432,7 +437,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
 }
 
 export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 'servedFile' | 'helperFile' | 'forgetPort' | 'forgetHost'> = {}): Promise<void> {
-  const record = readServedRecordStrict(io)
+  const record = readServedRecord(io)
   if (record === null) return
   if (record.name !== name && record.repo !== name) return
   if (roleOf(io) === 'session') endAnnouncement()

@@ -149,7 +149,7 @@ async function run(): Promise<void> {
     } catch (err) {
       stopCorruptErr = err
     }
-    check('tensorfold-serve-stop-corrupt-record-throws', stopCorruptErr !== null, 'stopTensorFold returned silently on corrupt served.json')
+    check('tensorfold-serve-stop-corrupt-record-answers-as-before', stopCorruptErr === null, `err=${String(stopCorruptErr)}`)
 
     let startCorruptErr: unknown = null
     try {
@@ -167,7 +167,11 @@ async function run(): Promise<void> {
     }
     check(
       'tensorfold-serve-start-corrupt-record-refuses',
-      startCorruptErr instanceof SyntaxError && readFileSync(corruptFile, 'utf8') === '{"repo": "broken',
+      startCorruptErr instanceof tfServe.TensorFoldStartError &&
+        startCorruptErr.message.includes('could not be read') &&
+        startCorruptErr.message.includes('nothing was started') &&
+        startCorruptErr.message.includes(corruptFile) &&
+        readFileSync(corruptFile, 'utf8') === '{"repo": "broken',
       `err=${String(startCorruptErr)}`,
     )
 
@@ -182,9 +186,9 @@ async function run(): Promise<void> {
         stopLockedErr = err
       }
       chmodSync(lockedFile, 0o600)
-      check('tensorfold-serve-stop-eacces-record-throws', stopLockedErr !== null, 'stopTensorFold returned silently on unreadable served.json')
+      check('tensorfold-serve-stop-eacces-record-answers-as-before', stopLockedErr === null, `err=${String(stopLockedErr)}`)
     } else {
-      skip('tensorfold-serve-stop-eacces-record-throws', 'needs POSIX non-root')
+      skip('tensorfold-serve-stop-eacces-record-answers-as-before', 'needs POSIX non-root')
     }
 
     const nullFile = join(servedDir, 'null-served.json')
