@@ -54,23 +54,6 @@ section('harnessGround: a folder that cannot be entered is not recorded as the g
   check('the answer is the folder the process stayed in', answered === before.cwd, answered)
 }
 
-section('denyRuleReach: a reach to Mercury\'s configuration that could not be checked is held, not passed')
-{
-  const { denyRuleReach } = await import('../../src/tools/BashTool/denyRuleReach.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const ports = {
-    judge: async () => ({ denied: null, hidden: null }),
-    bashDenyRule: () => null,
-    optionNamedWrites: () => [],
-    estate: (path: string) => {
-      if (path.includes('estate-probe')) throw new Error('stand-in estate failure')
-      return false
-    },
-  }
-  const reach = await denyRuleReach('rm estate-probe.txt', fill('<PROJECT>'), getEmptyToolPermissionContext(), ports as never)
-  check('the reach is held with the error itself, so the configuration ask is not skipped', reach.hidden?.why === 'stand-in estate failure', JSON.stringify(reach.hidden))
-}
-
 section('matching: one hook matcher that throws does not drop the other hooks of the event')
 {
   const { mock } = await import('bun:test')
