@@ -285,7 +285,7 @@ src/utils/fileReadCache.ts :: fileReadCache :: keyed-by-truth
 src/utils/forkedAgent.ts :: lastCacheSafeParams :: keyed-by-truth
 src/utils/fullscreen.ts :: controlModeCache :: static-for-process
 src/utils/git.ts :: getIsGit :: invalidator=applyHarnessGround
-src/utils/git.ts :: gitExe :: static-for-process
+src/utils/git/gitExe.ts :: gitExe :: static-for-process
 src/utils/git.ts :: lastSnapshot :: subscription-fed
 src/utils/git/gitFilesystem.ts :: cacheEntries :: invalidator=regroundGitWatch
 src/utils/git/gitFilesystem.ts :: gitDirCache :: keyed-by-truth

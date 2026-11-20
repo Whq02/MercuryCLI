@@ -1,8 +1,8 @@
 import { execFile, execFileSync } from 'node:child_process'
 import { existsSync, realpathSync, statSync } from 'node:fs'
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { gitExe } from '../git.js'
 import { subprocessEnv } from '../subprocessEnv.js'
+import { gitExe } from './gitExe.js'
 
 const GIT_SPAWN_CONFIG = ['--no-pager', '-c', 'core.quotepath=false', '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat'] as const
 const GIT_DIFF_CONFIG = ['--no-ext-diff', '--no-textconv'] as const
