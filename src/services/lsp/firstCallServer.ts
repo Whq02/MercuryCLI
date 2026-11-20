@@ -2,8 +2,9 @@ import { readdirSync, type Dirent } from 'node:fs'
 import { extname, join } from 'node:path'
 import type { LSPServerInstance } from './LSPServerInstance.js'
 import type { LSPServerManager } from './LSPServerManager.js'
+import { currentLspAbortSignal } from './lspAbort.js'
+import { withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 export const LSP_FIRST_CALL_START_WAIT_MS = 10_000
 const MAIN_LANGUAGE_WALK_DEPTH = 3
@@ -57,18 +58,16 @@ export function workspaceSymbolServer(manager: LSPServerManager, query: string, 
 
 export async function startedWithin(server: LSPServerInstance, ms: number): Promise<boolean> {
   if (server.state === 'running') return true
+  const signal = currentLspAbortSignal()
+  if (signal?.aborted) return false
   if (server.state === 'stopping') await server.stop()
+  if (signal?.aborted) return false
   const start = server.start()
   start.catch(passedOver)
-  let timer: ReturnType<typeof setTimeout> | undefined
-  try {
-    return await Promise.race([
-      start.then(() => true),
-      new Promise<boolean>(resolve => {
-        timer = startTimeout(() => resolve(false), ms)
-      }),
-    ])
-  } finally {
-    if (timer !== undefined) stopTimeout(timer)
-  }
+  return withDeadline(
+    start.then(() => true),
+    ms,
+    () => false,
+    { signal, onAbort: () => false },
+  )
 }
