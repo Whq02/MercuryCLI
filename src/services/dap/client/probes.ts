@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process'
-import { accessSync, constants, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../../utils/execFileNoThrow.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { executableSuffixes, isExecutablePath } from '../../../utils/platform/programs.js'
 
 export const GDB_DAP_MIN_MAJOR = 14
 
@@ -20,20 +21,11 @@ const GDB_PROBE_TTL_MS = 30_000
 
 export function findOnPathLocal(name: string): string | undefined {
   const dirs = (hostEnv().PATH ?? '').split(path.delimiter).filter(Boolean)
-  const suffixes = process.platform === 'win32' ? ['.exe', ''] : ['']
+  const suffixes = executableSuffixes(['.exe', ''])
   for (const dir of dirs) {
     for (const suffix of suffixes) {
       const candidate = path.join(dir, name + suffix)
-      try {
-        if (process.platform === 'win32') {
-          if (existsSync(candidate)) return candidate
-        } else {
-          accessSync(candidate, constants.X_OK)
-          return candidate
-        }
-      } catch (error) {
-        passedOver(error)
-      }
+      if (isExecutablePath(candidate)) return candidate
     }
   }
   return undefined

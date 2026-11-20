@@ -1,7 +1,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { languageServerEnv } from '../../utils/subprocessEnv.js'
-import { accessSync, constants, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -10,6 +10,7 @@ import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { executableSuffixes, isExecutablePath } from '../../utils/platform/programs.js'
 
 export const MERCURY_CLANGD_SERVER_NAME = 'mercury-clangd'
 
@@ -42,20 +43,13 @@ export function mercuryLspCppEnabled(): boolean {
 }
 
 function isExecutable(p: string): boolean {
-  try {
-    if (process.platform === 'win32') return existsSync(p)
-    accessSync(p, constants.X_OK)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return isExecutablePath(p)
 }
 
 function findOnPath(names: string[]): string | undefined {
   const pathEnv = hostEnv().PATH ?? ''
   const dirs = pathEnv.split(path.delimiter).filter(Boolean)
-  const suffixes = process.platform === 'win32' ? ['.exe', ''] : ['']
+  const suffixes = executableSuffixes(['.exe', ''])
   for (const name of names) {
     for (const dir of dirs) {
       for (const suffix of suffixes) {
