@@ -1,63 +1,8 @@
 import { posix } from 'node:path'
 import { peelWrappers, shellCommandText } from '../bash/ast.js'
 import { misreadWordList, parseCommandRaw, type Node } from '../bash/parser.js'
-
-export const UNREAD_PART = '\uFFFC'
-
-type ShellDialect = 'posix' | 'powershell'
-type Stage = { pipeline: number; stage: number }
-
-type ReadRedirect = { op: string; target: string }
-
-export type ReadCommand = {
-  argv: string[]
-  env: Array<{ name: string; value: string }>
-  redirects: ReadRedirect[]
-  text: string
-  line: number
-  cwd: string | undefined
-  background: boolean
-  stages: readonly Stage[]
-  input: string | undefined
-  inner: number[][]
-  inputInner: number[]
-  body: string | undefined
-  dialect: ShellDialect
-  around: string | undefined
-  gates?: ReadonlyArray<readonly [number, number]> | undefined
-  maybes?: readonly number[] | undefined
-  substituted?: boolean | undefined
-  called?: 'name' | 'block' | undefined
-  handed?: string | undefined
-}
-
-export type Layer = {
-  argv: string[]
-  program: string
-  wrappers: string[]
-  env: Array<{ name: string; value: string }>
-  opaque: string | undefined
-  findRoots: string[] | undefined
-}
-
-export type ShellRead = {
-  commands: ReadCommand[]
-  pipelineSizes: number[]
-  exported: Map<string, string[]>
-  homes: readonly string[]
-  unread: { why: string; text: string } | undefined
-}
-
-export type ReadWorld = {
-  cwd: string | undefined
-  home: string | undefined
-  homesRoot: string
-  ownNames: readonly string[]
-  user?: string
-  uid?: string
-  windows?: boolean
-  folderOf?: (word: string) => string | undefined
-}
+import { UNREAD_PART, type Layer, type ReadCommand, type ReadRedirect, type ReadWorld, type ShellDialect, type ShellRead, type Stage } from '../permissions/decision/commandAnalysis/reading.js'
+export { UNREAD_PART, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from '../permissions/decision/commandAnalysis/reading.js'
 
 const POSIX_SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish', 'mksh', 'yash', 'csh', 'tcsh'])
 const POWERSHELLS = new Set(['pwsh', 'powershell'])

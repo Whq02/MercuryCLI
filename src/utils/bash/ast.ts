@@ -2,28 +2,11 @@ import { SHELL_KEYWORDS } from './bashParser.js'
 import { misreadWordList, PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, wordListFault, type Node, type WordListFault } from './parser.js'
 import { preCheckReason } from './ast/preCheck.js'
 import { peelWrappers } from './ast/wrappers.js'
+import type { ParseForSecurityResult, Redirect, SimpleCommand } from '../permissions/decision/commandAnalysis/reading.js'
 export { peelWrappers } from './ast/wrappers.js'
-
-export type Redirect = {
-  op: '>' | '>>' | '<' | '<<' | '>&' | '>|' | '<&' | '&>' | '&>>' | '<<<'
-  target: string
-  fd?: number
-}
-
-export type SimpleCommand = {
-  argv: string[]
-  envVars: { name: string; value: string }[]
-  redirects: Redirect[]
-  text: string
-  globOperand?: true
-}
+export type { ParseForSecurityResult, Redirect, SimpleCommand } from '../permissions/decision/commandAnalysis/reading.js'
 
 export const WILDCARD_REASON = 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'
-
-export type ParseForSecurityResult =
-  | { kind: 'simple'; commands: SimpleCommand[] }
-  | { kind: 'too-complex'; reason: string; nodeType?: string }
-  | { kind: 'parse-unavailable' }
 
 type SemanticCheckResult = { ok: true } | { ok: false; reason: string }
 const preparedSimpleCommands = new Map<string, WeakRef<SimpleCommand>>()
