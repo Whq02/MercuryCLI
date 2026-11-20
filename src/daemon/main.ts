@@ -7,6 +7,7 @@ import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
+import { sendPassedOverToDebugLog } from '../utils/passedOverSink.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
@@ -228,6 +229,7 @@ async function daemonRun(args: string[]): Promise<void> {
       `Ctrl-C to stop)`,
   )
   logForDebugging(`[daemon] starting — dir=${dir}, lockIdentity=${lockIdentity}`)
+  sendPassedOverToDebugLog()
 
   const MAX_INFLIGHT = (() => {
     const n = parseInt(flagEnv('MERCURY_DAEMON_MAX_INFLIGHT') ?? '', 10)

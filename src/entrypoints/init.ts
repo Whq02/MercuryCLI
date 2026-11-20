@@ -22,6 +22,7 @@ import { populateOAuthAccountInfoIfNeeded } from '../services/oauth/client.js'
 import { shutdownLspServerManager } from '../services/lsp/manager.js'
 import { ConfigParseError, ConfigReadError } from '../utils/errors.js'
 import { logForDebugging } from '../utils/debug.js'
+import { sendPassedOverToDebugLog } from '../utils/passedOverSink.js'
 import { isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { armScratchpadSweep } from '../utils/scratchpad.js'
@@ -49,6 +50,7 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
       logForDebugging(`init: trusted env application skipped: ${String(error)}`)
     }
     profileCheckpoint('init_safe_env_applied')
+    sendPassedOverToDebugLog()
 
     applyExtraCACertsFromConfig()
     profileCheckpoint('init_ca_certs_applied')
