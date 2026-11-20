@@ -1,4 +1,4 @@
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import type { HostBox } from './boxes.js'
 import { boxAbsolutePath, boxJoin, psQuote, runBoxScript, shQuote } from './boxExecution.js'
 import { fitsBox, boxFitWords, type BoxRecipe } from './boxRecipes.js'
@@ -87,35 +87,41 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
     step('installing the ' + recipe.engine + ' service')
     await installBoxService(box, boxEngineScript(box, recipe, executable, destination, port, options.bank), runner, signal)
     if (!options.bank && recipe.engine === 'ollama') {
-      const deadline = Date.now() + (options.timeoutMs ?? 120_000)
-      for (;;) { try { await boxHttp(box, port, '/api/tags', runner, signal); break } catch (error) { if (Date.now() >= deadline) throw error; await sleep(options.pauseMs ?? 1000, signal, { throwOnAbort: true }) } }
+      let lastError: unknown
+      await pollUntil(
+        async () => { try { await boxHttp(box, port, '/api/tags', runner, signal); return true } catch (error) { lastError = error } },
+        options.pauseMs ?? 1000,
+        options.timeoutMs ?? 120_000,
+        () => { throw lastError },
+        { signal },
+      )
       step('pulling ' + recipe.model + ' with Ollama (' + recipe.downloadGb + ' GB)')
       const script = box.os === 'windows' ? '$env:OLLAMA_HOST=' + psQuote('127.0.0.1:' + port) + '; & ' + psQuote(executable) + ' pull ' + psQuote(recipe.model) + '; if ($LASTEXITCODE -ne 0) { throw "Ollama pull failed" }' : 'OLLAMA_HOST=' + shQuote('127.0.0.1:' + port) + ' ' + shQuote(executable) + ' pull ' + shQuote(recipe.model)
       await runBoxScript(box, script, runner, signal, 12 * 3600_000)
       await installBoxService(box, boxEngineScript(box, recipe, executable, destination, port), runner, signal)
     }
-    const deadline = Date.now() + (options.timeoutMs ?? 30 * 60_000)
-    step('waiting for the engine to load ' + recipe.model + ' (up to ' + Math.max(1, Math.round((options.timeoutMs ?? 30 * 60_000) / 60_000)) + ' min) · mercury host logs ' + box.name + ' shows the engine output')
+    const readyBudgetMs = options.timeoutMs ?? 30 * 60_000
+    step('waiting for the engine to load ' + recipe.model + ' (up to ' + Math.max(1, Math.round(readyBudgetMs / 60_000)) + ' min) · mercury host logs ' + box.name + ' shows the engine output')
     let last = ''
-    for (;;) {
-      signal.throwIfAborted()
-      let served: number | undefined
-      try {
-        if (!await boxServiceRunning(box, runner, signal)) throw new Error('The service is not running.')
-        const list = await boxHttp(box, port, '/v1/models', runner, signal) as { data?: { id: string }[] }
-        if (!list.data?.some(model => model.id === recipe.model)) throw new Error('The service has not loaded the selected model.')
-        const facts = await boxHttp(box, port, recipe.engine === 'ollama' ? '/api/ps' : '/props', runner, signal) as { models?: { name: string; model: string; context_length: number }[]; default_generation_settings?: { n_ctx: number } }
-        const context = recipe.engine === 'ollama' ? facts.models?.find(row => row.name === recipe.model || row.model === recipe.model)?.context_length : facts.default_generation_settings?.n_ctx
-        if (!context || !Number.isSafeInteger(context) || context <= 0) throw new Error('The engine has not stated the served per-slot context.')
-        served = context
-      } catch (error) { last = String(error) }
-      if (served !== undefined) {
-        if (recipe.contextPerSlot && served !== recipe.contextPerSlot) throw new Error('The served context differs from the requested ' + recipe.contextPerSlot + ' tokens: ' + served)
-        record.contextPerSlot = served; record.state = 'running'; writeBoxService(record); return record
-      }
-      if (Date.now() >= deadline) throw new Error('Engine not ready: ' + last)
-      await sleep(options.pauseMs ?? 1000, signal, { throwOnAbort: true })
-    }
+    const served = await pollUntil(
+      async () => {
+        try {
+          if (!await boxServiceRunning(box, runner, signal)) throw new Error('The service is not running.')
+          const list = await boxHttp(box, port, '/v1/models', runner, signal) as { data?: { id: string }[] }
+          if (!list.data?.some(model => model.id === recipe.model)) throw new Error('The service has not loaded the selected model.')
+          const facts = await boxHttp(box, port, recipe.engine === 'ollama' ? '/api/ps' : '/props', runner, signal) as { models?: { name: string; model: string; context_length: number }[]; default_generation_settings?: { n_ctx: number } }
+          const context = recipe.engine === 'ollama' ? facts.models?.find(row => row.name === recipe.model || row.model === recipe.model)?.context_length : facts.default_generation_settings?.n_ctx
+          if (!context || !Number.isSafeInteger(context) || context <= 0) throw new Error('The engine has not stated the served per-slot context.')
+          return context
+        } catch (error) { last = String(error); return undefined }
+      },
+      options.pauseMs ?? 1000,
+      readyBudgetMs,
+      () => { throw new Error('Engine not ready: ' + last) },
+      { signal },
+    )
+    if (recipe.contextPerSlot && served !== recipe.contextPerSlot) throw new Error('The served context differs from the requested ' + recipe.contextPerSlot + ' tokens: ' + served)
+    record.contextPerSlot = served; record.state = 'running'; writeBoxService(record); return record
   } catch (error) {
     const stopped = installed && !signal.aborted && await controlBoxService(box, 'stop', runner, signal).then(() => true, passedOverAs(false))
     record.state = 'failed'; record.error = String(error); writeBoxService(record)
@@ -152,15 +158,18 @@ export async function restartBoxEngine(box: HostBox, runner: HostRunner = hostRu
   const record = readBoxService(box.name)
   if (!record || record.state === 'uninstalled') throw new Error('Choose a recipe and install the service first.')
   await controlBoxService(box, 'start', runner, signal)
-  const deadline = Date.now() + 30 * 60_000
-  for (;;) {
-    try {
-      const list = await boxHttp(box, record.port, '/v1/models', runner, signal) as { data?: { id: string }[] }
-      if (await boxServiceRunning(box, runner, signal) && list.data?.some(model => model.id === record.model)) { record.state = 'running'; record.error = undefined; writeBoxService(record); return record }
-    } catch { signal.throwIfAborted() }
-    if (Date.now() > deadline) throw new Error('The restarted engine has not loaded its model; mercury host logs ' + box.name)
-    await sleep(1000, signal, { throwOnAbort: true })
-  }
+  return pollUntil(
+    async () => {
+      try {
+        const list = await boxHttp(box, record.port, '/v1/models', runner, signal) as { data?: { id: string }[] }
+        if (await boxServiceRunning(box, runner, signal) && list.data?.some(model => model.id === record.model)) { record.state = 'running'; record.error = undefined; writeBoxService(record); return record }
+      } catch { signal.throwIfAborted() }
+    },
+    1000,
+    30 * 60_000,
+    () => { throw new Error('The restarted engine has not loaded its model; mercury host logs ' + box.name) },
+    { signal },
+  )
 }
 export async function boxEngineLogs(box: HostBox, runner: HostRunner = hostRunner, signal: AbortSignal = new AbortController().signal): Promise<string> {
   const log = boxServiceFiles(box).log

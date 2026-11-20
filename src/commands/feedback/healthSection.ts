@@ -10,7 +10,7 @@ import {
 } from '../../utils/healthCertCore.js'
 import { lastCertPath, runHealthReport } from '../../services/health/healthReport.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 const HEALTH_DEADLINE_MS = 20_000
 export const FRESH_CERT_MS = 10 * 60_000
@@ -68,25 +68,28 @@ function reasonText(reason: unknown): string {
 export async function runHealthBounded(deadlineMs: number, signal?: AbortSignal): Promise<string> {
   if (signal?.aborted) return `health: not run — ${reasonText(signal.reason)}`
   const controller = new AbortController()
-  const onOuter = (): void => controller.abort(signal?.reason ?? new Error('the report was cancelled'))
-  signal?.addEventListener('abort', onOuter, { once: true })
-  const timer = startTimeout(
-    () => controller.abort(new Error(`the fast health run passed its ${deadlineMs} ms deadline`)),
-    deadlineMs,
-  )
   try {
-    const cert = await Promise.race([
+    const cert = await withDeadline(
       runHealthReport({ depth: 'fast', signal: controller.signal }),
-      new Promise<never>((_, reject) => {
-        controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true })
-      }),
-    ])
+      deadlineMs,
+      () => {
+        const reason = new Error(`the fast health run passed its ${deadlineMs} ms deadline`)
+        controller.abort(reason)
+        throw reason
+      },
+      {
+        signal,
+        onAbort: () => {
+          const reason = signal?.reason ?? new Error('the report was cancelled')
+          controller.abort(reason)
+          throw reason
+        },
+      },
+    )
     return renderCertSection(cert)
   } catch (error) {
     return `health: not run — ${reasonText(error)}`
   } finally {
-    stopTimeout(timer)
-    signal?.removeEventListener('abort', onOuter)
     if (!controller.signal.aborted) controller.abort(new Error('health section settled'))
   }
 }
