@@ -218,10 +218,11 @@ function subPackageWords(lane: Extract<TestLane, { lane: 'sub-packages' }>, anch
 }
 
 function runnerMissingWords(lane: Extract<TestLane, { lane: 'runner-missing' }>, anchor: Anchor): string {
-  const { profiles } = discoverRunnerProfiles(anchor.from)
+  const { profiles, manifestError } = discoverRunnerProfiles(anchor.from)
+  const note = manifestError !== undefined ? ` — ${manifestError}` : ''
   const here = profiles.length ? ` — discovered: ${profiles.map(p => `${p.runner}/${p.kind}`).join(', ')}` : ''
   const below = lane.below !== undefined ? ` — one level down: ${subPackageList(lane.below)}` : ''
-  return `no ${lane.runner} test profile in ${projectNoun(anchor)}'s manifests${here}${below}`
+  return `no ${lane.runner} test profile in ${projectNoun(anchor)}'s manifests${note}${here}${below}`
 }
 
 function ambiguousWords(lane: Extract<TestLane, { lane: 'ambiguous' }>, anchor: Anchor): string {
@@ -285,7 +286,7 @@ async function runRunnerOp(
     const rel = relative(resolve(anchor.from), resolve(profile.root))
     const below = rel !== '' && !rel.startsWith('..') && !isAbsolute(rel) ? `${rel.split(sep).join('/')}/` : null
     const where = anchor.outside ? resolve(profile.root) : below
-    const { profiles } = discoverRunnerProfiles(below === null ? anchor.from : profile.root)
+    const { profiles, manifestError } = discoverRunnerProfiles(below === null ? anchor.from : profile.root)
     const lines = profiles.map(p =>
       `${p.id} [${p.runner}/${p.kind}] ${p.title}` +
       (p.availability.state === 'ok' ? '' : ` — UNAVAILABLE: ${p.availability.reason} (remedy: ${p.availability.remedy})`) +
@@ -293,8 +294,8 @@ async function runRunnerOp(
     )
     return {
       result: lines.length
-        ? `runner profiles (${where === null ? 'manifest-driven' : below !== null && !anchor.outside ? `one level down, in ${where}` : `in ${where}`}):\n${lines.join('\n')}`
-        : `no runner profiles discovered from ${projectNoun(anchor)}'s manifests`,
+        ? `runner profiles (${where === null ? 'manifest-driven' : below !== null && !anchor.outside ? `one level down, in ${where}` : `in ${where}`}):\n${lines.join('\n')}${manifestError !== undefined ? `\n${manifestError}` : ''}`
+        : manifestError ?? `no runner profiles discovered from ${projectNoun(anchor)}'s manifests`,
       outcome: 'no-change',
     }
   }
@@ -352,11 +353,11 @@ async function runOp(
   const signal = context.abortController?.signal
   const anchor = anchorOf(input)
   if (input.profile && input.op === 'run') {
-    const { profiles } = discoverRunnerProfiles(anchor.from)
+    const { profiles, manifestError } = discoverRunnerProfiles(anchor.from)
     const found = profiles.find(p => p.id === input.profile)
     if (!found) {
       return {
-        result: `no runner profile '${input.profile}' in the current discovery${profiles.length ? ` — discovered: ${profiles.map(p => `${p.id} [${p.runner}/${p.kind}]`).join(', ')}` : ''}`,
+        result: `no runner profile '${input.profile}' in the current discovery${manifestError !== undefined ? ` — ${manifestError}` : ''}${profiles.length ? ` — discovered: ${profiles.map(p => `${p.id} [${p.runner}/${p.kind}]`).join(', ')}` : ''}`,
         outcome: 'failed',
       }
     }
@@ -369,6 +370,9 @@ async function runOp(
     return runRunnerOp(input, anchor, found, signal, onProgress)
   }
   const lane = resolveTestLane(anchor.from, input.framework)
+  if (lane.lane === 'manifest-error' && (input.op === 'discover' || input.op === 'run')) {
+    return { result: lane.error, outcome: 'failed' }
+  }
   if (lane.lane === 'ambiguous' && (input.op === 'discover' || input.op === 'run')) {
     return { result: ambiguousWords(lane, anchor), outcome: 'no-change' }
   }
@@ -486,6 +490,9 @@ async function runOp(
     case 'debug': {
       if (!input.node) return { result: 'debug needs node (the test id to debug)', outcome: 'failed' }
       const debugLane = resolveTestLane(anchor.from, input.framework)
+      if (debugLane.lane === 'manifest-error') {
+        return { result: debugLane.error, outcome: 'failed' }
+      }
       if (debugLane.lane === 'ambiguous') {
         return { result: ambiguousWords(debugLane, anchor), outcome: 'no-change' }
       }

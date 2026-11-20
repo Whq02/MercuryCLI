@@ -108,7 +108,7 @@ export function codingLoopFastChecks(): CheckSpec[] {
         const { discoverRunnerProfiles } = await import('../../../services/ide/projectRunners.js')
         const { repoHostEnabled } = await import('../../../services/repoHost/repoHost.js')
         const { openTransactionIdFor } = await import('../../../services/ide/ideTransaction.js')
-        const { profiles } = discoverRunnerProfiles()
+        const { profiles, manifestError } = discoverRunnerProfiles()
         const byRunner = new Map<string, { ok: number; total: number }>()
         for (const p of profiles) {
           const e = byRunner.get(p.runner) ?? { ok: 0, total: 0 }
@@ -117,8 +117,8 @@ export function codingLoopFastChecks(): CheckSpec[] {
           byRunner.set(p.runner, e)
         }
         const runnersLine = profiles.length
-          ? [...byRunner].map(([r, c]) => `${r} ${c.ok}/${c.total}`).join(' · ')
-          : 'no runner manifests in this project'
+          ? [...byRunner].map(([r, c]) => `${r} ${c.ok}/${c.total}`).join(' · ') + (manifestError !== undefined ? ` · ${manifestError}` : '')
+          : manifestError ?? 'no runner manifests in this project'
         const ghOnPath = whichSync('gh') !== null
         const repoLine = repoHostEnabled()
           ? `repo host: ${ghOnPath ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`
@@ -156,7 +156,7 @@ export function codingLoopFastChecks(): CheckSpec[] {
         }
         const txId = openTransactionIdFor()
         return {
-          status: 'ok' as const,
+          status: manifestError !== undefined ? ('warn' as const) : ('ok' as const),
           evidence: `runners: ${runnersLine}`,
           detail: `${repoLine}\n${engineLine}\nopen coding transaction: ${txId ?? '—'}`,
         }

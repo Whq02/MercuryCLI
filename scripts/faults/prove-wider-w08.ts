@@ -176,9 +176,40 @@ async function w08_2_serviceListAndStatusReportReadErrors(): Promise<void> {
   }
 }
 
+async function w08_3_corruptPackageJsonReportedInTestAndHealth(): Promise<void> {
+  const dir = mkdtempSync(join(tmpdir(), 'prove-w08-3-'))
+  writeFileSync(join(dir, 'package.json'), '{not valid json')
+  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
+  const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+  const runners = await import(join(SRC, 'services/ide/projectRunners.ts'))
+  const { TestTool } = await import(join(SRC, 'tools/TestTool/TestTool.ts'))
+  const { codingLoopFastChecks } = await import(join(SRC, 'utils/health/sections/coding-loop-fast.ts'))
+  const prev = getCwd()
+  setCwd(dir)
+  try {
+    const discovered = runners.discoverRunnerProfiles(dir)
+    check('w08-3: discoverRunnerProfiles does not throw and records manifestError for corrupt package.json', discovered.profiles.length === 0 && typeof discovered.manifestError === 'string' && discovered.manifestError.includes('package.json could not be read') && discovered.manifestError.includes('fix it or declare a lockfile'), JSON.stringify(discovered))
+
+    const ctx = { abortController: new AbortController(), options: {} } as never
+    const disc = await TestTool.call({ op: 'discover' } as never, ctx)
+    check('w08-3: Test discover reports package.json could not be read instead of falling through', disc.data.result.includes('package.json could not be read') && disc.data.result.includes('fix it or declare a lockfile'), JSON.stringify(disc.data))
+
+    const missing = await TestTool.call({ op: 'discover', framework: 'vitest' } as never, ctx)
+    check('w08-3: Test discover with explicit framework mentions unreadable package.json', missing.data.result.includes('package.json could not be read'), JSON.stringify(missing.data))
+
+    const spec = codingLoopFastChecks().find((c: { id: string }) => c.id === 'anvil-workbench-fast')
+    const health = await spec.run()
+    check('w08-3: coding-loop-fast health row reports unreadable package.json instead of no runner manifests', health.evidence.includes('package.json could not be read') && health.evidence.includes('fix it or declare a lockfile'), JSON.stringify(health))
+  } finally {
+    setCwd(prev)
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
+  w08_3_corruptPackageJsonReportedInTestAndHealth,
 ]
 for (const row of rows) {
   try {
