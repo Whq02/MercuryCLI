@@ -113,3 +113,4 @@ export { printedBy, scriptSentToProgram, stdinProgram } from './commandAnalysis/
 export { failShellReadingForTesting, readShellCommands } from './commandAnalysis/total.js'
 export { wordsAsWritten } from './commandAnalysis/written.js'
 export { commandSpans, preparedCommandSpans, type CommandSpan } from './commandAnalysis/commandSpans.js'
+export { commandViews } from './commandAnalysis/commandViews.js'
