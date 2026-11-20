@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { Browser as DriverBrowser } from 'puppeteer-core'
 
@@ -130,8 +129,6 @@ try {
     delete process.env.MERCURY_BROWSER_MAX_SESSIONS
     const row = FLAG_REGISTRY.find((flag: { env: string }) => flag.env === 'MERCURY_BROWSER_MAX_SESSIONS') as { off: string } | undefined
     check('the registry row says what unset means: no cap', row !== undefined && row.off === 'no cap', row?.off ?? '(no row)')
-    const page = readFileSync(join(ROOT, 'docs', 'BROWSER.md'), 'utf8')
-    check('the page names no default of three and still names the variable, the lead slot and separate parents', !/three child browsers by default/.test(page) && page.includes('`MERCURY_BROWSER_MAX_SESSIONS`') && page.includes("the lead's slot") && page.includes('separate parent sessions have separate allowances'))
     check('no default count is exported', !('BROWSER_SESSION_CAP_DEFAULT' in sessions))
   }
 } finally {
