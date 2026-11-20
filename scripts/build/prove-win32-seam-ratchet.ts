@@ -46,7 +46,9 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/services/browser/session/owners.ts', 1, 'the temp tree of a browser is ended by taskkill on Windows only'],
   ['src/services/browser/session/stealth.ts', 1, 'the navigator platform of the browser follows the host'],
   ['src/services/dap/client/probes.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/services/dap/debugpyResolver.ts', 1, 'the Python commands the debugger tries are its own on each platform'],
   ['src/services/desktop/nativeDriver.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/services/eval/interpreters.ts', 1, 'the Python commands the kernel tries are its own on each platform'],
   ['src/services/eval/procKernel.ts', 1, 'the Python kernel speaks over loopback on Windows only'],
   ['src/services/host/bank.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/host/ssh.ts', 1, 'the OS of a box decides its inspection script'],
@@ -163,9 +165,11 @@ for (const gone of baselineFiles) {
 
 const grew: string[] = []
 const row8: string[] = []
+const classedSingle = new Map(SINGLE.map(([file, checks]) => [file, checks]))
 let shrank = 0
 for (const [key, n] of Object.entries(current)) {
-  const base = baseline[key] ?? baseline[`${cameFrom.get(fileOf(key)) ?? ''} :: ${tellOf(key)}`] ?? 0
+  const held = baseline[key] ?? baseline[`${cameFrom.get(fileOf(key)) ?? ''} :: ${tellOf(key)}`] ?? 0
+  const base = tellOf(key) === PLATFORM_CHECK ? Math.max(held, classedSingle.get(fileOf(key)) ?? 0) : held
   if (n > base && heldTells.has(tellOf(key))) (tellOf(key) === PLATFORM_CHECK && ROW_8.test(fileOf(key)) ? row8 : grew).push(`${key}  ${base} → ${n}`)
   else if (n < base) shrank++
 }
