@@ -3,7 +3,6 @@
  "note": "contract journey 8 (baseline defect) — \"Chat about this\" ENDS the interview via onReject(prose); the wire body of request 2 records the flattened feedback shape",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-30T09:44:40.091Z",
  "screens": [
   {
    "atMs": 13500,

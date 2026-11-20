@@ -455,11 +455,14 @@ export function createStudioEditorMachine(
 }
 
 function studioEditorState({ deps, mode, base }: StudioEditorPorts): StudioEditorState {
+  let baseReadError: string | undefined
   const doc: AgentDocument = (() => {
     if (base) {
       try {
         return decodeAgentDocument(deps.readFile(base.identity.filePath), base.identity.filePath)
-      } catch {
+      } catch (error) {
+        logError(error)
+        baseReadError = errorMessage(error)
         return freshStudioDocument()
       }
     }
@@ -471,6 +474,12 @@ function studioEditorState({ deps, mode, base }: StudioEditorPorts): StudioEdito
       ? d.draft.baseIdentity?.filePath === base.identity.filePath
       : d.draft.baseIdentity === undefined,
   )
+  const note: StudioNote | null =
+    baseReadError !== undefined
+      ? { text: `Could not read existing agent file — check permissions before saving (${baseReadError}).`, tone: AMBER }
+      : draftList.error !== undefined
+        ? { text: `saved drafts could not be read (${draftList.error})`, tone: AMBER }
+        : null
   return {
     doc,
     baseDocument: doc,
@@ -480,7 +489,7 @@ function studioEditorState({ deps, mode, base }: StudioEditorPorts): StudioEdito
       mode === 'create'
         ? { kind: 'guided', step: 'destination', history: [] }
         : { kind: 'advanced', cursor: 0, editing: null },
-    note: draftList.error !== undefined ? { text: `saved drafts could not be read (${draftList.error})`, tone: AMBER } : null,
+    note,
     busy: false,
     conflict: null,
     textBuffer: '',

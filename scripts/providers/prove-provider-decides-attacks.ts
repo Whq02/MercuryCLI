@@ -177,6 +177,7 @@ const definition = { agentType: 'provider-attacks-fixture', whenToUse: 'provider
 const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.1'
+process.env.MERCURY_MAX_RETRIES = '3'
 const task = (id: string) => state.tasks[id] as { status?: string; paused?: { why: string; words: string; resumesAtMs?: number } } | undefined
 const launch = async (agentId: string, prompt: string): Promise<void> => {
   const registered = registerAsyncAgent({ agentId, description: 'provider refusal fixture', prompt, selectedAgent: definition, setAppState: setState as never })
@@ -201,7 +202,7 @@ try {
   await launch(paced, 'Continue the kept work.')
   const episodeOne = wire.length
   const gaps = wire.slice(1).map((entry, index) => entry.at - wire[index]!.at)
-  check('the first episode honours the two-second ask between every request and ends on the ladder, bounded', episodeOne >= 2 && episodeOne <= 8 && gaps.every(gap => gap >= 1_900), { requests: episodeOne, gaps })
+  check('the first episode honours the two-second ask between every request and ends after the MERCURY_MAX_RETRIES=3 retries, bounded', episodeOne >= 2 && episodeOne <= 8 && gaps.every(gap => gap >= 1_900), { requests: episodeOne, gaps })
   check('the spent episode pauses the agent on the provider\'s own words and its two-second ask', task(paced)?.status === 'failed' && task(paced)?.paused?.why === 'usage limit' && task(paced)?.paused?.words.includes('Please retry after 2 seconds.') === true && (task(paced)?.paused?.resumesAtMs ?? 0) > Date.now() - 1_000 && (task(paced)?.paused?.resumesAtMs ?? Infinity) <= Date.now() + 2_500, task(paced))
   check('the pause row says when it retries by itself and that r retries now', task(paced)?.paused !== undefined && pauseStatusWords(task(paced)!.paused as never, Date.now()).includes('retries by itself at') && pauseStatusWords(task(paced)!.paused as never, Date.now()).includes('r retries now'), task(paced)?.paused)
   check('one automatic retry is armed after the first episode', automaticResumePending(paced) === true)
@@ -237,7 +238,7 @@ try {
   check('no automatic retry is armed without a clock', automaticResumePending(bareAgent) === false)
   const bareEpisode = wire.length
   const bareGaps = wire.slice(1).map((entry, index) => entry.at - wire[index]!.at)
-  check('the bare episode is the road\'s one paced retry at most, never a burst', bareEpisode >= 1 && bareEpisode <= 2 && bareGaps.every(gap => gap >= 300), { requests: bareEpisode, bareGaps })
+  check('the bare episode is retried on the growing backoff (half a second, then double each time), MERCURY_MAX_RETRIES=3 times at most, never a burst', bareEpisode >= 1 && bareEpisode <= 4 && bareGaps.every((gap, index) => gap >= 500 * 2 ** index), { requests: bareEpisode, bareGaps })
   await sleep(4_000)
   check('four seconds on, the provider saw no further request', wire.length === bareEpisode, { requests: wire.length, bareEpisode })
   console.log(`measured: ${JSON.stringify({ bareEpisode, bareGapsMs: bareGaps })}`)

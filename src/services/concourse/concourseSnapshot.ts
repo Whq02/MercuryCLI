@@ -1091,8 +1091,8 @@ export async function buildConcourseSnapshot(
     undefined,
     (error, source) => sectionNotices.push(
       source === 'older'
-        ? `Older chats could not be read (${errorMessage(error)}) — check transcript folder permissions.`
-        : `Parked sessions could not be read (${errorMessage(error)}) — refresh or check transcript folder permissions.`,
+        ? `Older chats could not be read — check transcript folder permissions (${errorMessage(error)}).`
+        : `Parked sessions could not be read — refresh or check transcript folder permissions (${errorMessage(error)}).`,
     ),
   )
   const parkedRows = [...parkedRecordRows, ...parkedTranscriptRows]

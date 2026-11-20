@@ -53,7 +53,7 @@ if (manifest) {
   const REQUIRED: Array<keyof (typeof manifest.entries)[number]> = [
     'id', 'sourceSha', 'buildDigest', 'scenario', 'cols', 'rows', 'theme',
     'colorMode', 'motion', 'mouse', 'stateFixture', 'terminalProfile',
-    'gridPath', 'gridDigest', 'styleDigest', 'masks', 'generatedAt',
+    'gridPath', 'gridDigest', 'styleDigest', 'masks',
   ]
   let shapeBad = 0
   let pathBad = 0

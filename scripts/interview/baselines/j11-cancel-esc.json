@@ -3,7 +3,6 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-30T09:45:35.787Z",
  "screens": [
   {
    "atMs": 12500,
