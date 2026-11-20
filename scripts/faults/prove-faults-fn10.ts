@@ -278,6 +278,43 @@ try {
       session.killSync()
     }
   }
+
+  console.log('9. src/services/dap/client/adapters.ts')
+  {
+    const { spawnSync } = await import('node:child_process')
+    const emptyBin = join(SCRATCH, 'dap-empty-bin')
+    mkdirSync(emptyBin, { recursive: true })
+    const script = `
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      process.env.PATH = ${JSON.stringify(emptyBin)}
+      process.env.MERCURY_DEBUGPY_VENDOR_DIR = ${JSON.stringify(join(SCRATCH, 'no-debugpy'))}
+      process.env.MERCURY_PYTHON_VENDOR_DIR = ${JSON.stringify(join(SCRATCH, 'no-python'))}
+      process.env.MERCURY_JS_DEBUG_DAP = ${JSON.stringify(join(SCRATCH, 'no-js-debug.js'))}
+      process.env.MERCURY_DAP_ADAPTERS_FILE = ${JSON.stringify(join(SCRATCH, 'no-adapters.json'))}
+      process.env.MERCURY_DAP_ADAPTERS = '{broken'
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const adapters = await import(${JSON.stringify(join(HERE, '../../src/services/dap/client/adapters.ts'))})
+      const reachable = adapters.reachableDapAdapterKeys()
+      const withheld = adapters.debugToolWithholding()
+      delete process.env.MERCURY_DAP_ADAPTERS
+      const cleanWithheld = adapters.debugToolWithholding()
+      process.stdout.write('\\n' + JSON.stringify({ reachable, withheld, cleanWithheld }))
+    `
+    const res = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' })
+    const out = res.status === 0 ? JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') : { error: res.stderr.slice(-400) }
+    const why = out.withheld?.withheld ? String(out.withheld.why) : ''
+    const cleanWhy = out.cleanWithheld?.withheld ? String(out.cleanWithheld.why) : ''
+    check(
+      'adapters.debugToolWithholding reports invalid MERCURY_DAP_ADAPTERS JSON without throwing',
+      Array.isArray(out.reachable) &&
+        why.includes('MERCURY_DAP_ADAPTERS is not valid JSON (') &&
+        why.includes('so the adapters it names are not used — fix or unset it') &&
+        !cleanWhy.includes('MERCURY_DAP_ADAPTERS is not valid JSON'),
+      JSON.stringify(out),
+    )
+  }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
