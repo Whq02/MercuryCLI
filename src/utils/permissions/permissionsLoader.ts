@@ -40,13 +40,11 @@ export function shouldShowAlwaysAllowOptions(): boolean {
   return !shouldAllowManagedPermissionRulesOnly()
 }
 
-function getPermissionRulesForSource(source: PermissionRuleSource): PermissionRule[] {
-  const settings = getSettingsForSource(source as never) as
-    | { guardrails?: { allow?: string[]; deny?: string[]; ask?: string[]; reasons?: unknown } }
-    | undefined
+function getPermissionRulesForSource(source: SettingSource): PermissionRule[] {
+  const settings = getSettingsForSource(source)
   const guardrails = settings?.guardrails
   if (!guardrails) return []
-  const held = isCheckoutSourceHeldForTrust(source as SettingSource)
+  const held = isCheckoutSourceHeldForTrust(source)
   const reasons = held ? {} : normaliseRuleReasons(guardrails.reasons)
   const rules: PermissionRule[] = []
   for (const behavior of BEHAVIORS) {
@@ -62,10 +60,10 @@ function getPermissionRulesForSource(source: PermissionRuleSource): PermissionRu
 
 export function loadAllPermissionRulesFromDisk(): PermissionRule[] {
   const managedOnly = shouldAllowManagedPermissionRulesOnly()
-  const sources = managedOnly
-    ? (['policySettings'] as PermissionRuleSource[])
+  const sources: SettingSource[] = managedOnly
+    ? ['policySettings']
     : getLaunchSettingSources()
-  return sources.flatMap((source: PermissionRuleSource) => getPermissionRulesForSource(source))
+  return sources.flatMap(source => getPermissionRulesForSource(source))
 }
 
 export type PermissionRuleFromEditableSettings = PermissionRule & { source: EditableSettingSource }

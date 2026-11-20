@@ -8,7 +8,8 @@ import { getAnthropicClient } from '../services/api/client.js'
 import { isClientContractRefusalError } from '../services/api/clientContractGate.js'
 import { healClientContractRefusal, noteClientContractHeal } from '../services/api/clientContractLearned.js'
 import { getAPIMetadata } from '../services/providers/anthropic/requestParams.js'
-import type { JsonOutputFormat, MessageParam, TextBlockParam } from '../types/wire.js'
+import type { AnthropicMessageParams, AnthropicOutputConfig } from '../services/providers/anthropic/anthropicWire.js'
+import type { ApiToolUnion, JsonOutputFormat, MessageParam, TextBlockParam } from '../types/wire.js'
 import { computeFingerprint } from './fingerprint.js'
 import {
   foldToolChoiceForModel,
@@ -26,7 +27,7 @@ type SideQueryOptions = {
   system?: string | TextBlockParam[]
   messages: MessageParam[]
   tools?: unknown[]
-  tool_choice?: unknown
+  tool_choice?: AnthropicMessageParams['tool_choice']
   output_format?: JsonOutputFormat
   max_tokens?: number
   maxRetries?: number
@@ -96,12 +97,12 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
 
   const thinking = sideQueryThinkingParam(opts.model, opts.thinking, maxTokens)
   const toolChoice = opts.tool_choice
-    ? foldToolChoiceForModel(opts.model, opts.tool_choice as { type: string })
+    ? foldToolChoiceForModel(opts.model, opts.tool_choice)
     : undefined
 
   const includeTemperature = opts.temperature !== undefined && modelSupportsTemperature(opts.model)
 
-  const request: Record<string, unknown> = {
+  const request: AnthropicMessageParams & { stream?: false } = {
     model: normalizeModelStringForAPI(opts.model),
     max_tokens: maxTokens,
     messages: opts.messages,
@@ -109,16 +110,23 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
     metadata: getAPIMetadata(),
     ...(includeTemperature ? { temperature: opts.temperature } : {}),
     ...(thinking ? { thinking } : {}),
-    ...(opts.tools ? { tools: opts.tools } : {}),
+    ...(opts.tools ? { tools: opts.tools as ApiToolUnion[] } : {}),
     ...(toolChoice ? { tool_choice: toolChoice } : {}),
     ...(opts.stop_sequences ? { stop_sequences: opts.stop_sequences } : {}),
-    ...(opts.output_format || opts.effort ? { output_config: { ...(opts.output_format ? { format: opts.output_format } : {}), ...(opts.effort ? { effort: opts.effort } : {}) } } : {}),
+    ...(opts.output_format || opts.effort
+      ? {
+          output_config: {
+            ...(opts.output_format ? { format: opts.output_format } : {}),
+            ...(opts.effort ? { effort: opts.effort as AnthropicOutputConfig['effort'] } : {}),
+          },
+        }
+      : {}),
     ...(betas.length > 0 ? { betas } : {}),
   }
 
   const send = (system: TextBlockParam[]) =>
     client.beta.messages.create(
-      { ...request, system } as unknown as Parameters<typeof client.beta.messages.create>[0],
+      { ...request, system },
       opts.signal ? { signal: opts.signal } : undefined,
     )
   let response: Awaited<ReturnType<typeof send>>
@@ -140,5 +148,5 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
     }
   }
   setLastApiCompletionTimestamp(Date.now())
-  return response as unknown as ApiMessage
+  return response
 }
