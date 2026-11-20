@@ -9,7 +9,7 @@ import { errorMessage, getErrnoCode, isENOENT } from '../utils/errors.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
-import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
+import { decideTransition, type ConcourseSessionState } from '../utils/concourseLifecycle.js'
 import {
   canonicalWorkspaceId,
   operatorTookSessionBack,
