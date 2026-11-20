@@ -22,7 +22,11 @@ interface DeliveryNeeds {
   assertSeat(): void
   rpc(req: Record<string, unknown>): Promise<Record<string, unknown>>
   chainRpc(req: Record<string, unknown>): Promise<Record<string, unknown>>
-  imageBlocks(pastes: Record<number, PastedContent>): ContentBlockParam[]
+  imageBlocks(pastes: Record<number, PastedContent>): Array<
+    | ContentBlockParam
+    | { type: 'image'; source: { type: 'mercury-stored-image'; path: string; media_type: string; sha256: string; imageId: number } }
+    | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+  >
   lostLine(words: string): string
   recallTakenLine: string
   recallUnknownLine: string
@@ -60,7 +64,7 @@ export class DeliveryPart {
     const provisionalId =
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
     const meta = opts.metaFrom !== undefined
-    const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded, ...(meta ? { isMeta: true } : {}) }) as unknown as Message
+    const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded, ...(meta ? { isMeta: true } : {}) })
     this.needs.echo(provisionalId, this.needs.factsBusy() ? ({ ...echo, queued: true } as Message) : echo)
     this.needs.paint()
     const answering = meta ? null : await this.needs.openQuestion()
