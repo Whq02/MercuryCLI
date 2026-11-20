@@ -20,6 +20,7 @@ import { homedir, release, type as osType } from 'node:os'
 import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { escapeRegExp } from '../utils/stringUtils.js'
+import { toPosixSeparators } from '../utils/platform/paths.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { utilityCallFor } from '../utils/model/utilityModel.js'
 import { routedCallModelSettled } from '../services/providers/callModelRouter.js'
@@ -80,7 +81,7 @@ export function redactSensitiveInfo(text: string): string {
   )
   const home = homedir()
   if (home.length > 1) {
-    const spellings = new Set([home, ...(process.platform === 'win32' ? [home.replace(/\\/g, '/')] : [])])
+    const spellings = new Set([home, toPosixSeparators(home)])
     for (const spelling of spellings) {
       result = result.replace(new RegExp(`${escapeRegExp(spelling)}(?=$|[\\\\/\\s"'\`:;,)\\]>])`, 'g'), '~')
     }
