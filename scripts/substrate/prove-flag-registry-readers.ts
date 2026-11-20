@@ -23,7 +23,7 @@ const SPELLINGS = [
   `${M}\\\\?\\.[cm]?[jt]sx?(?![A-Za-z0-9_])`,
   `${SEP}${M}(?![A-Za-z0-9_])`,
   `${S}${SEP}flags(?![A-Za-z0-9_])`,
-  `${S}${SEP}(?:[*?$\\[{]|flag[a-z]*[*?\\[{])`,
+  `(?<!scripts[\\\\/])${S}${SEP}(?:[*?$\\[{]|flag[a-z]*[*?\\[{])`,
 ].join('|')
 const FOLDER = `(?<![A-Za-z0-9_])src${SEP}${S}(?:${SEP})?(?=$|[\\s'"\`),;:|&<>\\]])`
 const IN_A_LITERAL = new RegExp(`${SPELLINGS}|${FOLDER}`, 'gi')
@@ -558,6 +558,7 @@ section('§0 the reading on a planted estate: every reader the net reaches is na
     { file: 'scripts/a/hole-glob.ts', lines: ["const found = [...new Bun.Glob('src/@S@/flag*.ts').scanSync({ cwd: ROOT }), ...new Bun.Glob('src/@S@/flag*/**/*').scanSync({ cwd: ROOT })]"], named: [1] },
     { file: 'scripts/a/hole-exec.ts', lines: ["const out = execFileSync('grep', ['-rc', 'MERCURY_', 'src/@S@'], { cwd: ROOT, encoding: 'utf8' })"], named: [1] },
     { file: 'scripts/a/hole-shell.sh', lines: ['set -u', 'name=@M@', 'grep -c MERCURY_ "src/@S@/$name.ts"', 'cat src/@S@/flagR*.ts', "find src/@S@ -name 'flag*' -type f"], named: [2, 3, 4, 5] },
+    { file: 'scripts/a/suite-runner.sh', lines: ['fail=0', `drive_members @S@ 'scripts/@S@/$name' "$here/members.txt" || fail=1`], named: [] },
     { file: 'scripts/a/hole-import-text.ts', lines: ["import text from '../../src/@S@/@M@.ts' with { type: 'text' }", "const late = await import('../../src/@S@/@M@.ts', { with: { type: 'text' } })"], named: [1, 2] },
     { file: 'scripts/a/hole-rows-folder.ts', lines: ["const @S@Dir = join(ROOT, 'src', '@S@')", "const rows = join(@S@Dir, 'flags')", "const core = join(ROOT, 'src', '@S@', 'flags/core.ts')"], named: [1, 2, 3] },
     { file: 'scripts/a/hole-path-test.ts', lines: ["const registry = files.filter(f => f.includes('/@M@') || /@S@[\\\\/]flags[\\\\/]/.test(f))"], named: [1] },
