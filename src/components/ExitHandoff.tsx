@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef } from 'react'
 import { useLoad } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import { exitNoteCharsKept, exitNoteDue, HANDOFF_EXIT_NOTICE, leaveNoteBeforeExit, type ExitNoteOutcome } from '../mneme/exitHandoff.js'
@@ -31,11 +31,9 @@ export async function leaveNoteAtExit(signal: AbortSignal): Promise<ExitNoteRece
 export function ExitHandoff({ onSettled }: { onSettled: (receipt: ExitNoteReceipt) => void }): React.ReactNode {
   const controller = useRef(new AbortController())
   const settled = useRef(false)
-  const [detail, setDetail] = useState<string | null>(null)
   const settle = (receipt: ExitNoteReceipt): void => {
     if (settled.current) return
     settled.current = true
-    if (receipt.detail !== undefined && receipt.detail !== '') setDetail(receipt.detail)
     onSettled(receipt)
   }
   useLoad(() => {
@@ -48,9 +46,8 @@ export function ExitHandoff({ onSettled }: { onSettled: (receipt: ExitNoteReceip
     }
   })
   return (
-    <Box flexDirection="column">
+    <Box>
       <Text color={FAINT}>{HANDOFF_EXIT_NOTICE}</Text>
-      {detail !== null && <Text color={FAINT}>{detail}</Text>}
     </Box>
   )
 }
