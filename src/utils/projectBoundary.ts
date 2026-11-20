@@ -2,7 +2,7 @@ import { readdirSync, realpathSync, type Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, resolve } from 'node:path'
 import { isENOENT } from './errors.js'
-import { findGitRoot } from './git.js'
+import { findGitRoot } from './git/gitRoot.js'
 
 export const PROJECT_ENTRY_CEILING = 20_000
 

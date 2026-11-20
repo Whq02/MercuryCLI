@@ -5,8 +5,8 @@ import { join, resolve } from 'node:path'
 import { waitForScrollIdle } from '../../bootstrap/state.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { getCwd } from '../cwd.js'
-import { findGitRoot } from '../git.js'
 import { parseGitConfigValue } from './gitConfigParser.js'
+import { findGitRoot } from './gitRoot.js'
 
 
 
