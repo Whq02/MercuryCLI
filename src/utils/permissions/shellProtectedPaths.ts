@@ -4,13 +4,13 @@ import { runtimeProcessRefusal, runtimeWritePath } from './runtimeProtection.js'
 import { credentialStorePath, mercurySecretPath } from './shellProtectedPaths/paths.js'
 import { inlineScriptReads, inlineScriptWrites, normalizeInlineScript } from './shellProtectedPaths/inlineScripts.js'
 import { couldNameSecret, mercuryHomes, spellingsOf } from './shellProtectedPaths/homes.js'
-import { credentialWriteAfterMove, credentialWriteInBlocks, credentialWriteWalked } from './shellProtectedPaths/credentialWrite.js'
+import { readCredentialWrite } from './shellProtectedPaths/credentialWrite.js'
 import { readSecretReach } from './shellProtectedPaths/secretReach.js'
 import { killOfNamedPid, readSelfProtection } from './shellProtectedPaths/selfProtection.js'
 export { inlineScriptWriteTargets } from './shellProtectedPaths/inlineScripts.js'
 
 export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  return (await credentialWriteWalked(command, powershell, cwd)) ?? (await credentialWriteAfterMove(command, powershell, cwd)) ?? credentialWriteInBlocks(command, powershell, cwd)
+  return readCredentialWrite(command, powershell, cwd)
 }
 
 export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {

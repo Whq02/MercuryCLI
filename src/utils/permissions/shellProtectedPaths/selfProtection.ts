@@ -5,7 +5,7 @@ import { namesMercuryProcess, runtimeProcessRefusal, runtimeWritePath } from '..
 import { protectedPathForms } from './paths.js'
 import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, runtimeOperands, spelledTargetWord, spelledUserArgv, unreadWords, verb, writtenLayerArgv } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
-import { walkShellCommands } from './walk.js'
+import { walkPowerShellCommands } from './walk.js'
 import { mercuryHomes, readForFloors } from './homes.js'
 import { foldersAfter } from './folders.js'
 import { GIT_OPTION_VALUED, sharesEarlierStage } from './listings.js'
@@ -107,7 +107,7 @@ function withinMercuryRecords(word: string, cwd: string, homes: readonly string[
 }
 
 async function namedPowerShellSelfProtection(command: string, cwd: string): Promise<string | null> {
-  return walkShellCommands(command, true, async ({ argv, commands, operandEnds, cwd: here, text, powershell: ps }) => {
+  return walkPowerShellCommands(command, async ({ argv, commands, operandEnds, cwd: here, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
         const hit = runtimeWritePath(call[2]!, here, true)

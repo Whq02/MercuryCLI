@@ -3,7 +3,7 @@ import { type ReadCommand, UNREAD_PART, layersOf, wordKnown } from '../decision/
 import { mercurySecretPath } from './paths.js'
 import { UNREAD_ADVICE, flaggedReadOperands, readOperands, unreadWords, verb } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptReads } from './inlineScripts.js'
-import { expandShellConstants, walkShellCommands } from './walk.js'
+import { expandShellConstants, walkPowerShellCommands } from './walk.js'
 import { GLOB_PART, SECRET_NAME_SAMPLES, UPLOADERS, couldNameSecret, globNamesStore, holdsMercuryHome, mercuryHomes, namesMercuryHome, readForFloors, secretNameBehindUnread, secretsHeld, spellingsOf, underOtherHomes } from './homes.js'
 import { foldersAfter, foldersRead } from './folders.js'
 import { FILE_READERS, FIND_NON_READERS, POWERSHELL_LISTERS, callsUnreadName, filesSentOrPrinted, findMaxDepth, findNamesASecret, findstrFolderFiles, gitGrepRoots, joinedUnderStanding, keychainItemRead, namesNoSecret, powershellListing, readsHandedFiles, readsWholeTree, receivesListing, ripgrepReachesHidden, searcherOf, searchesNamesAsText, searchesTextOfListing, sharesEarlierStage, stagesApart, standingSpelled, storeBelowDepth, treeReadRoots } from './listings.js'
@@ -21,7 +21,7 @@ async function namedPowerShellSecretPath(command: string, cwd: string): Promise<
       if (token.length < text.length && /["']/.test(token)) pending.push(token)
     }
   }
-  return walkShellCommands(command, true, ({ argv, cwd: here, text, powershell: ps }) => {
+  return walkPowerShellCommands(command, ({ argv, cwd: here, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.File\]::(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenRead)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
         const hit = mercurySecretPath(call[2]!, here)
