@@ -81,7 +81,7 @@ export async function shutdownOwnedDaemonGracefully(
     opts?.rpc ??
     (async (req, o) => {
       const { daemonControlRpc } = await import('./controlSocket.js')
-      return daemonControlRpc(req as never, o)
+      return daemonControlRpc(req, o)
     })
   try {
     const reply = (await rpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: Math.min(waitMs, 2000) })) as { ok?: unknown; op?: unknown } | null | undefined
@@ -213,7 +213,7 @@ function pokeDaemonSignIns(opts?: {
     opts?.rpc ??
     (async (req, o) => {
       const { daemonControlRpc } = await import('./controlSocket.js')
-      return daemonControlRpc(req as never, o)
+      return daemonControlRpc(req, o)
     })
   return rpc({ op: 'signIns', refresh: true }, { timeoutMs: 3000 }).then(
     () => undefined,
