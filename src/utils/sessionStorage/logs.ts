@@ -9,7 +9,6 @@ import {
   getSessionId,
   getSessionProjectDir,
 } from '../../bootstrap/state.js'
-import { builtInCommandNames } from '../../commands.js'
 import {
   type AgentId,
   asAgentId,
@@ -54,6 +53,7 @@ import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'
 import { readSessionLabelFacts, sessionFiles, sessionPromptFromWindow, type IndexedSession } from './sessionIndex.js'
 import { transcriptRows } from './rowGraph.js'
 import type { SessionMetaFields } from './sessionMeta.js'
+import { isBuiltInCommandName } from './builtInCommands.js'
 
 export async function loadTranscriptFromFile(
   filePath: string,
@@ -868,11 +868,11 @@ async function readLiteMetadata(
   fileSize: number,
   buf: Buffer,
 ): Promise<LiteMetadata> {
-  return readSessionLabelFacts(filePath, fileSize, buf, name => builtInCommandNames().has(name))
+  return readSessionLabelFacts(filePath, fileSize, buf, isBuiltInCommandName)
 }
 
 export function extractFirstPromptFromChunk(chunk: string): string {
-  return sessionPromptFromWindow(chunk, name => builtInCommandNames().has(name))
+  return sessionPromptFromWindow(chunk, isBuiltInCommandName)
 }
 
 function liteLogOption(file: IndexedSession, projectPath?: string): SessionListing {

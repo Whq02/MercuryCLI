@@ -108,6 +108,7 @@ export type {
 } from './types/command.js'
 export { getCommandName } from './types/command.js'
 export { commandOffInPlainWorld, isCommandEnabled } from './commands/enablement.js'
+import { tellSessionStorageTheBuiltInCommands } from './utils/sessionStorage/builtInCommands.js'
 
 const require = createRequire(import.meta.url)
 
@@ -234,6 +235,7 @@ export const builtInCommandNames = memoize((): Set<string> => {
   }
   return names
 })
+tellSessionStorageTheBuiltInCommands(builtInCommandNames)
 
 export function meetsAvailabilityRequirement(cmd: Command): boolean {
   if (!cmd.availability || cmd.availability.length === 0) {

@@ -46,6 +46,7 @@ export { editorContextOf, editorContextResource } from './acpServer/editorContex
 export { replayUpdatesOf } from './acpServer/replay.js'
 export { acpPromptToComposerDocument, composerDocumentBlocks } from './acpServer/prompt.js'
 export { attentionWire, attentionWireFromSnapshot } from './acpServer/attention.js'
+import '../../commands.js'
 
 export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   const server = makeAcpServerState(opts)
