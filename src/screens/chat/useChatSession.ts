@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useLoad, usePublish, useTimer } from '../../hooks/effects.js';
 import type { CompactWorkControls } from '../../components/tasks/CompactWorkSummary.js';
 import { currentSurfaceRoute, settleAbsentChat } from '../../context/surfaceRoute.js';
 import { rekeyCommandQueueToSession } from '../../input-core/command-queue.js';
@@ -65,7 +66,7 @@ export function useChatSession({
     [messages, warmthVersion, focusedSessionId],
   );
   const entryLoadingLine = entryLoadingLineOf(enteringWarmth(), messages.length === 0, focusedSessionId);
-  useEffect(() => {
+  usePublish(() => {
     const warmth = enteringWarmth();
     if (warmth === null) return;
     const focusedId = focusedConnector.sessionId();
@@ -79,7 +80,7 @@ export function useChatSession({
   const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
 
   const rekeyedSessionRef = useRef(focusedSessionId);
-  useEffect(() => {
+  useLoad(() => {
     compactWork.set('composer');
     unseen.onRepin();
     repinToBottom();
@@ -95,7 +96,7 @@ export function useChatSession({
   const slotHasSession = useSyncExternalStore(subscribeFocusedSessionConnector, hasFocusedSession, hasFocusedSession);
   const armedMessageRef = useRef(armedMessage);
   armedMessageRef.current = armedMessage;
-  useEffect(() => {
+  useTimer(() => {
     if (slotHasSession || landing || chatSurfaceCovered || localJsx || armedMessage !== null) return;
     if (!isFullscreenEnvEnabled()) return;
     const settle = setTimeout(() => {
