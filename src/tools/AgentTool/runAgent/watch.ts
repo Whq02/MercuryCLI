@@ -186,7 +186,7 @@ export function sdkStatusOf(run: AgentRun, { onQueryProgress, accountant, touchT
     const atMs = (status as { streamActivity?: unknown }).streamActivity
     if (typeof atMs !== 'number') return
     run.watchdog.touch()
-    onQueryProgress?.({ type: 'stream_activity', atMs } as never)
+    onQueryProgress?.({ type: 'stream_activity', atMs })
     return
   }
   if ('wait' in status) {
@@ -200,7 +200,7 @@ export function sdkStatusOf(run: AgentRun, { onQueryProgress, accountant, touchT
       }
       return
     }
-    onQueryProgress?.({ type: 'request_wait', wait } as never)
+    onQueryProgress?.({ type: 'request_wait', wait })
   }
   }
 }
