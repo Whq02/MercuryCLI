@@ -116,7 +116,6 @@ function freshProcessState(): void {
   delete process.env.ZAI_KEY_PLAN
   delete process.env.ZAI_API_KEY
 }
-const codingSeamFile = readFileSync(join(ROOT, 'src/services/providers/zai/zaiClient.ts'), 'utf8').includes('MERCURY_ZAI_CODING_API_BASE')
 
 try {
   section('§1 the dispatch record of a plan-less key: ZAI_KEY_PLAN, else learned, never assumed silently')
@@ -133,7 +132,7 @@ try {
   writeStoredZaiApiKey(STORED_KEY, 'coding')
   const stored = accounts.resolveZaiDispatch({ ZAI_KEY_PLAN: 'general' })
   check('a stored key keeps the plan it was proven under; ZAI_KEY_PLAN describes a plan-less key only', stored?.source === 'stored' && stored.plan === 'coding' && (stored as { planSource?: string }).planSource === 'stored', j(stored))
-  check('the coding seam pins the Coding Plan base alone; without it the one seam still pins both plans', zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4' }, 'coding') === 'http://127.0.0.1:1/v4' && zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4', MERCURY_ZAI_CODING_API_BASE: 'http://127.0.0.1:1/coding' }, 'coding') === 'http://127.0.0.1:1/coding' && zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4', MERCURY_ZAI_CODING_API_BASE: 'http://127.0.0.1:1/coding' }, 'general') === 'http://127.0.0.1:1/v4' && zaiApiBase({}, 'coding') === 'https://api.z.ai/api/coding/paas/v4', `coding seam in zaiClient: ${codingSeamFile}`)
+  check('the coding seam pins the Coding Plan base alone; without it the one seam still pins both plans', zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4' }, 'coding') === 'http://127.0.0.1:1/v4' && zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4', MERCURY_ZAI_CODING_API_BASE: 'http://127.0.0.1:1/coding' }, 'coding') === 'http://127.0.0.1:1/coding' && zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4', MERCURY_ZAI_CODING_API_BASE: 'http://127.0.0.1:1/coding' }, 'general') === 'http://127.0.0.1:1/v4' && zaiApiBase({}, 'coding') === 'https://api.z.ai/api/coding/paas/v4', j({ coding: zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4', MERCURY_ZAI_CODING_API_BASE: 'http://127.0.0.1:1/coding' }, 'coding'), general: zaiApiBase({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1/v4', MERCURY_ZAI_CODING_API_BASE: 'http://127.0.0.1:1/coding' }, 'general') }))
 
   section('§2 the catalogue learns the plan of an env key from the models list: the general base first, then the Coding Plan base')
   freshProcessState()
