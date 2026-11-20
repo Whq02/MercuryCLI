@@ -6,7 +6,6 @@ import {
   PARSE_ABORTED,
   pinnedCommandAnalysis,
   preparedSecurityParse,
-  type Node,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 
 export type CommandIdentityCheckers = {
@@ -44,7 +43,7 @@ export async function checkCommandOperatorPermissions<I extends { command: strin
   input: I,
   permissionFn: SegmentPermissionFn<I>,
   checkers: CommandIdentityCheckers,
-  astRoot: Node | undefined | typeof PARSE_ABORTED,
+  astRoot: unknown,
 ): Promise<PermissionResult> {
   const parsed =
     astRoot !== undefined && astRoot !== PARSE_ABORTED

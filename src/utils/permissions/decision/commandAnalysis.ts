@@ -2,6 +2,8 @@ import { parseCommandRaw } from '../../bash/parser.js'
 import { checkSemantics, nodeTypeId, parseForSecurityFromAst, parseForSecurity, preparedSecurityParse, type ParseForSecurityResult, type SimpleCommand } from '../../bash/ast.js'
 import { extractOutputRedirections, splitCommand } from '../../bash/commands.js'
 import { tryParseShellCommand } from '../../bash/shellQuote.js'
+import { readShellCommands } from './commandAnalysis/total.js'
+import type { CommandReading, ReadWorld, ShellDialect } from './commandAnalysis/reading.js'
 import {
   classifyCommandName,
   deriveSecurityFlags,
@@ -69,6 +71,14 @@ export {
   type ParsedPowerShellCommand,
 } from '../../powershell/parser.js'
 
+export { UNREAD_PART, type CommandReading, type Layer, type ReadCommand, type ReadWorld, type ShellDialect, type ShellRead } from './commandAnalysis/reading.js'
+
+export async function readCommand(text: string, dialect: ShellDialect, world: ReadWorld): Promise<CommandReading> {
+  const read = await readShellCommands(text, dialect, world)
+  const exact: ParseForSecurityResult = dialect === 'posix' ? await parseForSecurity(text) : { kind: 'parse-unavailable' }
+  return { ...read, text, dialect, exact }
+}
+
 export const SHELL_C_MAX_DEPTH = 4
 
 export function extractShellCScript(command: SimpleCommand): string | null {
@@ -96,3 +106,9 @@ export function shellCCommands(commands: SimpleCommand[], depth = 0): SimpleComm
     return inner.kind === 'simple' ? [command, ...shellCCommands(inner.commands, depth + 1)] : [command]
   })
 }
+export { stateStatements } from './commandAnalysis/stateStatements.js'
+export { retainPreparedCommand } from './commandAnalysis/sequence.js'
+export { absolutePath, layersOf, moveOf, programOf, wordKnown } from './commandAnalysis/layers.js'
+export { printedBy, scriptSentToProgram, stdinProgram } from './commandAnalysis/scripts.js'
+export { failShellReadingForTesting, readShellCommands } from './commandAnalysis/total.js'
+export { wordsAsWritten } from './commandAnalysis/written.js'
