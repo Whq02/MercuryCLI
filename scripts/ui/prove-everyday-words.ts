@@ -2,7 +2,6 @@
 import React from 'react'
 import assert from 'node:assert/strict'
 import { mock } from 'bun:test'
-import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -93,7 +92,6 @@ const ext = { id: 'filmcraft@mercury', name: 'filmcraft', version: '0.1.0', desc
 const delivered = join(home, 'filmcraft')
 cpSync(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
 cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
-if (sourceRef) writeFileSync(join(delivered, 'shared/bootstrap.mjs'), execFileSync('git', ['-C', root, 'show', `${sourceRef}:src/extensions/bundled/shared/bootstrap.mjs`], { encoding: 'utf8' }))
 const { adapter } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { planInstall, hostPlatform } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 const { bootstrapTools } = await import(pathToFileURL(join(delivered, 'shared/bootstrap.mjs')).href)
