@@ -28,6 +28,20 @@ export function resolveWatchRoot(p: string): string {
   }
 }
 
+let watchesLeftToProcessEnd = false
+
+export function leaveFileWatchesToProcessEnd(): void {
+  if (watchesLeftToProcessEnd || process.platform !== 'darwin') return
+  watchesLeftToProcessEnd = true
+  const probe = watch(process.execPath, { persistent: false })
+  const everyWatcher = Object.getPrototypeOf(probe) as FSWatcher
+  probe.close()
+  everyWatcher.close = function (this: FSWatcher): void {
+    this.removeAllListeners('change')
+    this.unref()
+  }
+}
+
 export function watchDirectory(
   root: string,
   options: WatchOptionsWithStringEncoding,
