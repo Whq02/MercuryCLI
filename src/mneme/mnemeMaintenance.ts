@@ -1,5 +1,5 @@
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { isENOENT } from '../utils/errors.js'
@@ -141,29 +141,40 @@ function receiptPath(dir: string): string {
   return join(dir, 'maintenance.jsonl')
 }
 
-export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10): MnemeMaintenanceReceipt[] {
+function readMaintenanceReceiptsStrict(dir: string, n: number): MnemeMaintenanceReceipt[] {
   const p = receiptPath(dir)
-  if (!existsSync(p)) return []
-  const out: MnemeMaintenanceReceipt[] = []
+  let raw: string
   try {
-    for (const line of readFileSync(p, 'utf8').split('\n')) {
-      if (!line.trim()) continue
-      try {
-        out.push(JSON.parse(line) as MnemeMaintenanceReceipt)
-      } catch (error) {
-        passedOver(error)
-      }
-    }
+    raw = readFileSync(p, 'utf8')
   } catch (e) {
-    if (!isENOENT(e)) logForDebugging(`mneme maintenance receipts unreadable at ${p}: ${String(e)}`)
-    return []
+    if (isENOENT(e)) return []
+    throw e
+  }
+  const out: MnemeMaintenanceReceipt[] = []
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    try {
+      out.push(JSON.parse(line) as MnemeMaintenanceReceipt)
+    } catch (error) {
+      passedOver(error)
+    }
   }
   return out.slice(Math.max(0, out.length - n))
 }
 
+export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10): MnemeMaintenanceReceipt[] {
+  try {
+    return readMaintenanceReceiptsStrict(dir, n)
+  } catch (e) {
+    logForDebugging(`mneme maintenance receipts unreadable at ${receiptPath(dir)}: ${String(e)}`)
+    passedOver(e)
+    return []
+  }
+}
+
 function appendReceipt(dir: string, row: MnemeMaintenanceReceipt): void {
   try {
-    const rows = readMaintenanceReceipts(dir, RECEIPT_RING - 1)
+    const rows = readMaintenanceReceiptsStrict(dir, RECEIPT_RING - 1)
     rows.push(row)
     publishLibraryFile(receiptPath(dir), rows.map(r => JSON.stringify(r)).join('\n') + '\n')
   } catch (e) {

@@ -274,11 +274,19 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
         try {
           await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armed ? { rearmed: true, pastedContents: line.pastedContents ?? {}, armedMode: line.bashMode ? 'bash' : 'prompt' } : undefined);
         } catch (error) {
-          logForDebugging(`a line armed for the landing was not submitted: ${String(error)}`);
+          const detail = error instanceof Error ? error.message : String(error);
+          logForDebugging(`a line armed for the landing was not submitted: ${detail}`);
+          addNotification({
+            key: 'armed-submit-failed',
+            text: `Could not send the queued message (${detail}) — type it again.`,
+            priority: 'high',
+            color: 'error' as const,
+            timeoutMs: RECEIPT_TIMEOUT_MS,
+          });
         }
       }
       armedHandedBackRef.current = null;
     })();
-  }, [armedMessage, landing, setAppState]);
+  }, [armedMessage, landing, setAppState, addNotification]);
   return { onSubmit, onCancel, landing, armedMessage };
 }
