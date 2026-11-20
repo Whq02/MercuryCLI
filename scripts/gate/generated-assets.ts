@@ -82,6 +82,10 @@ if (flag('--census')) {
 if (flag('--verify-map')) {
   const tracked = new Set(git('ls-files'))
   let bad = 0
+  for (const skipped of 'skipped' in map ? (map.skipped as string[]) : []) {
+    bad++
+    console.error(skipped)
+  }
   for (const row of map.rows) {
     for (const asset of row.assets) {
       const isGlob = /[*?{]/.test(asset)

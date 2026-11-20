@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,18 +33,29 @@ export function buildCheckedRows(text) {
     .map(([assets, generator, check]) => ({ assets, generator, check }))
 }
 
-export function staleBuildAssets(root = REPOSITORY_ROOT) {
+function runBuildCheck(root, row) {
+  const [, script, ...flags] = row.check.split(/\s+/)
+  if (!existsSync(resolve(root, script))) return Promise.resolve({ row, error: new Error(`${script} is not in this tree`) })
+  return new Promise(done => {
+    const child = spawn(process.execPath, [resolve(root, script), ...flags], { cwd: root })
+    let output = ''
+    child.stdout.on('data', chunk => { output += chunk })
+    child.stderr.on('data', chunk => { output += chunk })
+    child.on('error', error => done({ row, error }))
+    child.on('close', (status, signal) => done({ row, status, signal, output }))
+  })
+}
+
+export async function staleBuildAssets(root = REPOSITORY_ROOT) {
   const path = resolve(root, GENERATED_ASSETS_MAP)
   if (!existsSync(path)) return []
   const stale = []
-  for (const row of buildCheckedRows(readFileSync(path, 'utf8'))) {
-    const [, script, ...flags] = row.check.split(/\s+/)
-    const run = spawnSync(process.execPath, [resolve(root, script), ...flags], { cwd: root, encoding: 'utf8' })
+  for (const run of await Promise.all(buildCheckedRows(readFileSync(path, 'utf8')).map(row => runBuildCheck(root, row)))) {
     if (run.error !== undefined || run.status === null) {
-      console.error(`generated-assets: ${row.check} did not run (${run.error?.message ?? `ended by ${run.signal}`}), so the build goes on without it`)
+      console.error(`generated-assets: ${run.row.check} did not run (${run.error?.message ?? `ended by ${run.signal}`}), so the build goes on without it`)
       continue
     }
-    if (run.status !== 0) stale.push({ ...row, output: `${run.stdout}${run.stderr}`.trim() })
+    if (run.status !== 0) stale.push({ ...run.row, output: run.output.trim() })
   }
   return stale
 }

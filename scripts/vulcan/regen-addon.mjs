@@ -13,6 +13,7 @@ const ROW = {
   generator: 'node scripts/vulcan/regen-addon.mjs',
   check: 'node scripts/vulcan/regen-addon.mjs --check',
   sources: 'assets/vulcan/addon/**',
+  build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 

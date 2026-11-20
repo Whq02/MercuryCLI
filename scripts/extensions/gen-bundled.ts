@@ -10,6 +10,7 @@ const ROW = {
   generator: 'bun scripts/extensions/gen-bundled.ts',
   check: 'bun scripts/extensions/gen-bundled.ts --check',
   sources: 'src/extensions/bundled/*/mercury-extension.json src/extensions/bundled/*/server/** src/extensions/bundled/shared/**',
+  build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 const root = resolve(import.meta.dir, '../../src/extensions/bundled')

@@ -14,6 +14,7 @@ const ROW = {
   generator: 'node scripts/blender-bridge/regen-bridge.mjs',
   check: 'node scripts/blender-bridge/regen-bridge.mjs --check',
   sources: 'assets/blender/bridge/** assets/blender/headless/**',
+  build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
