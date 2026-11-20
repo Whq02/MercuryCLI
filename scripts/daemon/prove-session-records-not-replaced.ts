@@ -297,6 +297,25 @@ try {
     check('a file cut short that could not be kept aside meanwhile: the rebuilt file carries the session, under the pid of the runner that lives', pidOn(cut.file) === process.pid && asides(cut.file).length === 1, `on disk now: ${sessionsOn(cut.file).join(', ') || 'no session'} · pid ${pidOn(cut.file)}`)
   }
 
+  console.log('the session records — a session brought back while they take no write: the runner started for it is ended, and the answer says why')
+  if (process.platform !== 'darwin' || !POSIX_MODES) skip('the rename that fails', 'a file that takes no rename is made here with the immutable flag of macOS')
+  else {
+    const gone = spawnSync(process.execPath, ['-e', '']).pid ?? 0
+    const { dir, file } = fresh()
+    const rested = { ...record(1), workspaceId: workspace, pid: gone } as Rec
+    workers.updateConcourseWorkers(all => void (all['concourse-w1'] = rested), dir)
+    const transcript = workers.concourseTranscriptPath(rested)
+    mkdirSync(dirname(transcript), { recursive: true })
+    writeFileSync(transcript, '')
+    started.length = 0
+    ended.length = 0
+    spawnSync('/usr/bin/chflags', ['uchg', file])
+    const revived = attempt(() => workers.reviveConcourseWorker(rested.sessionId, 'operator', roster as never, {}, dir))
+    spawnSync('/usr/bin/chflags', ['nouchg', file])
+    const answer = revived.answered as { outcome?: string; reason?: string; detail?: string } | undefined
+    check('the revive is refused with the reason, to its caller, and the runner it started is ended', revived.threw === undefined && answer?.outcome === 'refused' && answer.reason === 'respawn-failed' && (answer.detail ?? '').includes(file) && started.join() === 'concourse-w1' && ended.join() === 'concourse-w1', { revived, started, ended })
+  }
+
   console.log('the session records — the daemon boots while they cannot be read, says so at the boot, and its reconcile waits')
   if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
   else {

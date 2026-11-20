@@ -133,29 +133,34 @@ export async function reactivateConcourseSession(
       console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes back session ${rec.sessionId} (${rec.runnerId} reactivated in place)`)
       const short = claimed.short
       const fields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartInstantAsync(claimed.pid))
-      updateConcourseWorkers(workers => {
-        const current = workers[rec.runnerId]
-        if (!current || current.endedAt !== undefined) return
-        if (short !== rec.runnerId) delete workers[rec.runnerId]
-        const next: ConcourseWorkerRecordV1 = { ...current, runnerId: short, modelKey: args.modelKey, effort, lastLiveAt: Date.now() }
-        if (args.keyless === true) next.keyless = true
-        else delete next.keyless
-        if (claimed.pid !== undefined) {
-          next.pid = claimed.pid
-          if (fields.procStart !== undefined) next.procStart = fields.procStart
-          else delete next.procStart
-        } else {
-          delete next.pid
-          delete next.procStart
-        }
-        if (isolationDrift) next.isolation = claimIsolation
-        clearReactivatedFields(next)
-        if (args.atRest === true) stampTakenBackAtRest(next)
-        Object.assign(next, buildTreeFields())
-        restampSessionKit(next, kit, kitSource, args.by)
-        stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
-        workers[short] = next
-      }, deps.dir)
+      try {
+        updateConcourseWorkers(workers => {
+          const current = workers[rec.runnerId]
+          if (!current || current.endedAt !== undefined) return
+          if (short !== rec.runnerId) delete workers[rec.runnerId]
+          const next: ConcourseWorkerRecordV1 = { ...current, runnerId: short, modelKey: args.modelKey, effort, lastLiveAt: Date.now() }
+          if (args.keyless === true) next.keyless = true
+          else delete next.keyless
+          if (claimed.pid !== undefined) {
+            next.pid = claimed.pid
+            if (fields.procStart !== undefined) next.procStart = fields.procStart
+            else delete next.procStart
+          } else {
+            delete next.pid
+            delete next.procStart
+          }
+          if (isolationDrift) next.isolation = claimIsolation
+          clearReactivatedFields(next)
+          if (args.atRest === true) stampTakenBackAtRest(next)
+          Object.assign(next, buildTreeFields())
+          restampSessionKit(next, kit, kitSource, args.by)
+          stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
+          workers[short] = next
+        }, deps.dir)
+      } catch (error) {
+        roster.kill?.(short)
+        return { ok: false, code: 'not-ready', error: `no session was started: ${error instanceof Error ? error.message : String(error)}` }
+      }
       deps.onSpawned?.(short, claimed.spec, claimed.pid)
       if (deps.ensureWarm !== undefined) {
         const rewarm = setTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
