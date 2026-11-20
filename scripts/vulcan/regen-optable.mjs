@@ -14,6 +14,7 @@ const ROW = {
   generator: 'node scripts/vulcan/regen-optable.mjs',
   check: 'node scripts/vulcan/regen-optable.mjs --check',
   sources: relative(repo, srcPath),
+  build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 

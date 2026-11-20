@@ -24,7 +24,7 @@ if (CROSS) console.log(`CROSS BUILD: shipping for ${SHIP_KEY} (${SHIP_RELEASE}) 
 
 {
   const { staleBuildAssets } = await import('./scripts/lib/generated-assets-map.mjs');
-  const stale = staleBuildAssets(ROOT);
+  const stale = await staleBuildAssets(ROOT);
   for (const row of stale) {
     if (row.output) console.error(row.output);
     console.error(`BUILD FAILED: ${row.assets} is not current: a file it is made from changed. Run: ${row.generator}`);
