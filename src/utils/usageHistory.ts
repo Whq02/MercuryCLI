@@ -81,7 +81,11 @@ function readStore(): HistoryStore {
     }
     const observations = stored.observations.filter(row => row && typeof row.hour === 'string' && Number.isFinite(Date.parse(row.hour)) && typeof row.provider === 'string' && typeof row.account === 'string' && typeof row.window === 'string' && Number.isFinite(row.observedAtMs))
     return boundUsageHistory({ revision: REVISION, files, observations })
-  } catch { return emptyStore() }
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || error instanceof SyntaxError) return emptyStore()
+    throw error
+  }
 }
 
 export function boundUsageHistory(store: HistoryStore): HistoryStore {
@@ -232,7 +236,13 @@ export async function readUsageHistory(opts: { days?: number; project?: string; 
   const since = opts.days === undefined ? -Infinity : Date.parse(new Date(now).toISOString().slice(0, 10)) - (opts.days - 1) * 24 * HOUR_MS
   const warnings: string[] = []
   const root = join(getMercuryHome(), 'projects')
-  const cached = readStore()
+  let cached: HistoryStore
+  try {
+    cached = readStore()
+  } catch {
+    cached = emptyStore()
+    warnings.push(`Could not read ${storePath()}.`)
+  }
   const files: Record<string, CachedFile> = {}
   const rows: UsageHour[] = []
   let filesRead = 0
