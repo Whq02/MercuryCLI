@@ -25,7 +25,7 @@ function walk(dir: string): void {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name)
     if (statSync(full).isDirectory()) {
-      if (full.endsWith(`src${'/'}ink`)) continue
+      if (full.endsWith(join('src', 'ink'))) continue
       walk(full)
       continue
     }
