@@ -1,5 +1,4 @@
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { failWorkingDispatchesForRunner } from '../concourseDispatch.js'
 import { settleConcourseWorker, completeRequestedPark, retireRequestedPark } from '../concourseWorkers.js'
@@ -7,7 +6,6 @@ import { holdWorkerAsk } from '../permissionAsks.js'
 import { TaskRoster } from '../roster.js'
 import { onSeatIdle, onSeatApplied, answerSeatScheduleEdit, onSeatRow, onSeatSpawned, publishSeatFacts, requestSessionFacts } from '../sessionSeat.js'
 import type { DaemonRunState } from './state.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 export function makeDaemonRoster(state: DaemonRunState): TaskRoster {
   const { dir, breaker, maxInflight: MAX_INFLIGHT } = state
@@ -47,7 +45,7 @@ export function makeDaemonRoster(state: DaemonRunState): TaskRoster {
         try {
           settleConcourseWorker(short)
         } catch (error) {
-          passedOver(error)
+          console.error(`[daemon] ${short}: its session record was not settled after the degrade, so it reads working until the next daemon boot: ${errorMessage(error)}`)
         }
         try {
           failWorkingDispatchesForRunner(short, reason)
@@ -66,7 +64,7 @@ export function makeDaemonRoster(state: DaemonRunState): TaskRoster {
             .then(parked => {
               if (parked) console.error(parkedWords)
             })
-            .catch(e => logForDebugging(`[daemon] ${short}: the requested park's retirement threw (ignored): ${e}`))
+            .catch(e => console.error(`[daemon] ${short}: the requested park was not completed: ${errorMessage(e)}`))
         }
         onSeatIdle(short, state.roster)
       }

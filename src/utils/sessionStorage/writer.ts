@@ -22,7 +22,8 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import { registerExitCliffSeam } from '../exitCliffDrain.js'
 import { isEnvTruthy } from '../envUtils.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
-import { errorMessage } from '../errors.js'
+import { logForDebugging } from '../debug.js'
+import { errorMessage, getErrnoCode } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { LITE_READ_BUF_SIZE } from '../sessionStoragePortable.js'
@@ -45,7 +46,7 @@ import { FilesPart } from './writer/files.js'
 import { QueuePart } from './writer/queue.js'
 import { RemovePart } from './writer/remove.js'
 import { SettlePart } from './writer/settle.js'
-import { describeTranscriptStoreFailure } from './writer/storeHealth.js'
+import { describeTranscriptStoreFailure, setStoreHealth } from './writer/storeHealth.js'
 import { passedOver } from '../passedOver.js'
 export { describeTranscriptStoreFailure, subscribeTranscriptStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 
@@ -71,12 +72,26 @@ export function registerAgentTranscriptDestination(
   agentTranscriptDestinations.set(agentId, filePath)
 }
 
+const reportedAgentReadFailures = new Set<string>()
+
 const getAgentFileMessages = memoize(
   async (filePath: string): Promise<Set<string>> => {
     let raw: string
     try {
       raw = await readFile(filePath, 'utf8')
-    } catch {
+    } catch (error) {
+      const code = getErrnoCode(error)
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        logForDebugging(`agent transcript read failed for ${filePath} (${code ?? 'unknown'})`, { level: 'error' })
+        getAgentFileMessages.cache.delete(filePath)
+        if (!reportedAgentReadFailures.has(filePath)) {
+          reportedAgentReadFailures.add(filePath)
+          setStoreHealth({
+            failing: true,
+            sentence: `Agent transcript at ${filePath} could not be read (${errorMessage(error)}), so entries may be duplicated — restore read permission on the file.`,
+          })
+        }
+      }
       return new Set()
     }
     const set = new Set<string>()
@@ -134,6 +149,7 @@ export function resetProjectFlushStateForTesting(): void {
 
 export function resetProjectForTesting(): void {
   resetTranscriptFormatCacheForTesting()
+  reportedAgentReadFailures.clear()
   project = null
 }
 

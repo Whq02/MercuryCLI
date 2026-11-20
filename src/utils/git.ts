@@ -24,6 +24,7 @@ import { subprocessEnv } from './subprocessEnv.js'
 import { gitArgsAsync } from './git/spawnArgs.js'
 import { findGitRoot, makeCachedFinder, type CachedFinder } from './git/gitRoot.js'
 import { gitExe } from './git/gitExe.js'
+import { isENOENT } from './errors.js'
 import { passedOver } from './passedOver.js'
 import { startTimeout, stopTimeout } from './timers.js'
 
@@ -483,38 +484,33 @@ function sameState(a: GitRepoState, b: GitRepoState): boolean {
 }
 
 export async function getGitState(options?: { untrackedFiles?: 'all' | 'normal'; fresh?: boolean }): Promise<GitRepoState | null> {
-  try {
-    const fresh = options?.fresh === true
-    const mode: UntrackedMode = options?.untrackedFiles ?? (fresh ? 'all' : 'normal')
-    const [commitHash, branchName, remoteUrl, worktreeCount, upstream, isClean] = await Promise.all([
-      getHead(),
-      getBranch(),
-      getRemoteUrl(),
-      getWorktreeCount(),
-      readFact('upstream', { fresh }),
-      readFact('clean', { fresh, mode }),
-    ])
-    if (!commitHash && (!branchName || branchName === 'HEAD')) {
-      lastSnapshot = null
-      return null
-    }
-    const next: GitRepoState = {
-      commitHash,
-      branchName,
-      remoteUrl,
-      isHeadOnRemote: upstream.hasUpstream,
-      isClean,
-      worktreeCount,
-      unpushedCount: upstream.unpushed,
-    }
-    if (lastSnapshot && sameState(lastSnapshot, next)) return lastSnapshot
-    lastSnapshot = Object.freeze(next)
-    snapshotVersion++
-    return lastSnapshot
-  } catch (error) {
-    passedOver(error)
+  const fresh = options?.fresh === true
+  const mode: UntrackedMode = options?.untrackedFiles ?? (fresh ? 'all' : 'normal')
+  const [commitHash, branchName, remoteUrl, worktreeCount, upstream, isClean] = await Promise.all([
+    getHead(),
+    getBranch(),
+    getRemoteUrl(),
+    getWorktreeCount(),
+    readFact('upstream', { fresh }),
+    readFact('clean', { fresh, mode }),
+  ])
+  if (!commitHash && (!branchName || branchName === 'HEAD')) {
+    lastSnapshot = null
     return null
   }
+  const next: GitRepoState = {
+    commitHash,
+    branchName,
+    remoteUrl,
+    isHeadOnRemote: upstream.hasUpstream,
+    isClean,
+    worktreeCount,
+    unpushedCount: upstream.unpushed,
+  }
+  if (lastSnapshot && sameState(lastSnapshot, next)) return lastSnapshot
+  lastSnapshot = Object.freeze(next)
+  snapshotVersion++
+  return lastSnapshot
 }
 
 export async function getGitWorktreeLanes(): Promise<LanesFact> {
@@ -742,6 +738,7 @@ function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClas
     try {
       contents = readFileSync(entryPath, 'utf8')
     } catch (error) {
+      if (!isENOENT(error)) logForDebugging(`[git] ${entryPath} could not be read (${error instanceof Error ? error.message : String(error)}), so the git gate passes over it`, { level: 'warn' })
       passedOver(error)
       return 'none'
     }

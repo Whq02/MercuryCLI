@@ -1,9 +1,9 @@
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../../../../history.js'
-import { existsSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../../envUtils.js'
+import { isENOENT } from '../../../errors.js'
 import type { CheckSpec } from '../../../healthReport.js'
-import { passedOver } from '../../../passedOver.js'
 
 export function historyCheck(): CheckSpec {
   return {
@@ -13,7 +13,7 @@ export function historyCheck(): CheckSpec {
       const h = getHistoryFlushHealth()
       const storePath = join(getMercuryHome(), 'history.jsonl')
       try {
-        if (existsSync(storePath) && statSync(storePath).isDirectory()) {
+        if (statSync(storePath).isDirectory()) {
           return {
             status: 'warn',
             evidence: 'history.jsonl is a DIRECTORY — no append can land; the per-process counters cannot see this from a one-shot run',
@@ -21,7 +21,7 @@ export function historyCheck(): CheckSpec {
           }
         }
       } catch (error) {
-        passedOver(error)
+        if (!isENOENT(error)) throw error
       }
       if (h.streak >= 3) {
         return {
@@ -30,28 +30,18 @@ export function historyCheck(): CheckSpec {
           fix: 'Prompts are safe in memory this session. Check permissions or antivirus holds on <config-home>/history.jsonl.',
         }
       }
-      const historyPath = join(getMercuryHome(), 'history.jsonl')
-      try {
-        if (existsSync(historyPath) && statSync(historyPath).isDirectory()) {
-          return {
-            status: 'fail',
-            evidence: 'history.jsonl is a DIRECTORY — every append fails',
-            fix: 'Remove the directory at <config-home>/history.jsonl; the next prompt recreates the file.',
-          }
-        }
-      } catch (error) { passedOver(error) }
       const lockDir = join(getMercuryHome(), 'history.jsonl.lock')
-      if (existsSync(lockDir)) {
-        let ageMs: number | null = null
-        try {
-          ageMs = Date.now() - statSync(lockDir).mtimeMs
-        } catch (error) { passedOver(error) }
-        if (ageMs !== null && ageMs > 30_000) {
-          return {
-            status: 'warn',
-            evidence: `history.jsonl.lock is ${Math.round(ageMs / 1000)}s old — it should have self-cleared by now`,
-            fix: 'If it persists with no other Mercury process running, delete the lock dir.',
-          }
+      let ageMs: number | null = null
+      try {
+        ageMs = Date.now() - statSync(lockDir).mtimeMs
+      } catch (error) {
+        if (!isENOENT(error)) throw error
+      }
+      if (ageMs !== null && ageMs > 30_000) {
+        return {
+          status: 'warn',
+          evidence: `history.jsonl.lock is ${Math.round(ageMs / 1000)}s old — it should have self-cleared by now`,
+          fix: 'If it persists with no other Mercury process running, delete the lock dir.',
         }
       }
       return {

@@ -232,7 +232,8 @@ async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, 
   try {
     patternText = await readFile(join(repoRoot, '.worktreeinclude'), 'utf8')
   } catch (error) {
-    passedOver(error)
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`.worktreeinclude could not be read (${String(error)}), so the files it lists were not copied into ${worktreePath}`, { level: 'warn' })
     return []
   }
   const patterns = patternText
@@ -517,7 +518,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
           continue
         }
         const held = under?.(sourceRoot)
-        const behind = held === undefined ? undefined : async (path: string): Promise<boolean> => held(path) || (await realpath(path).then(real => real !== path && held(real), passedOverAs(false)))
+        const behind = held === undefined ? undefined : async (path: string): Promise<boolean> => held(path) || (await realpath(path).then(real => real !== path && held(real), passedOverAs(true)))
         if (behind !== undefined && (await behind(source))) {
           logForDebugging(`worktree copy skipped (it stays behind, and this account may not link it): ${relPath}`, { level: 'warn' })
           continue
@@ -557,7 +558,12 @@ async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRo
   let existing = ''
   try {
     existing = await readFile(excludePath, 'utf8')
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT') {
+      logForDebugging(`worktree exclude read failed: ${String(error)}`, { level: 'warn' })
+      return
+    }
     existing = ''
   }
   const present = new Set(existing.split(/\r?\n/))
@@ -581,8 +587,7 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
     if (code !== 'ENOENT' && !(preserveExisting && code === 'EEXIST')) {
-      if (preserveExisting) throw new Error('The worktree local settings could not be copied: ' + String(error))
-      logForDebugging(`local settings propagation failed: ${String(error)}`, { level: 'warn' })
+      throw new Error('The worktree local settings could not be copied: ' + String(error))
     }
   }
 }
@@ -788,6 +793,7 @@ export async function keepWorktree(): Promise<void> {
     )
   } catch (error) {
     logForDebugging(`keepWorktree failed: ${String(error)}`)
+    throw error
   }
 }
 
@@ -1012,16 +1018,35 @@ function isEphemeralSlug(slug: string): boolean {
 const EPHEMERAL_RETENTION_FLOOR_MS = 7 * 24 * 60 * 60 * 1000
 
 async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
-  const adminDir = await resolveWorktreeAdminDir(worktreePath)
-  if (adminDir === null) return true
+  let adminDir: string | null
+  try {
+    adminDir = await resolveWorktreeAdminDir(worktreePath, { throwOnReadError: true })
+  } catch (error) {
+    logForDebugging(`worktree janitor could not read .git in ${worktreePath}: ${String(error)}`, { level: 'warn' })
+    return false
+  }
+  if (adminDir === null) {
+    try {
+      if ((await lstat(join(worktreePath, '.git'))).isDirectory()) return false
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        logForDebugging(`worktree janitor could not stat .git in ${worktreePath}: ${String(error)}`, { level: 'warn' })
+        return false
+      }
+    }
+    return true
+  }
   try {
     const returnLeg = (await readFile(join(adminDir, 'gitdir'), 'utf8')).trim()
     const canonicalReturn = await realpath(returnLeg)
     const canonicalOwn = await realpath(join(worktreePath, '.git'))
     return canonicalReturn !== canonicalOwn
   } catch (error) {
-    passedOver(error)
-    return true
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return true
+    logForDebugging(`worktree janitor could not verify ownership of ${worktreePath}: ${String(error)}`, { level: 'warn' })
+    return false
   }
 }
 

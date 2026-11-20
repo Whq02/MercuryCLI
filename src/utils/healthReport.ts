@@ -166,8 +166,21 @@ export function homeRepositoryRemovalWords(dir: string, platform: NodeJS.Platfor
 
 const QUIT_FIRST_WORDS = 'quit every Mercury window and its background process (sign out and back in on Windows if unsure)'
 
-async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }> {
+function errorBrief(error: unknown): string {
+  return (error instanceof Error && error.message ? error.message : String(error)).slice(0, 120)
+}
+
+function isAbsenceCode(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
+async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number; unread: string[] }> {
   const runners: string[] = []
+  const unread: string[] = []
+  const noteUnread = (entry: string): void => {
+    if (!unread.includes(entry)) unread.push(entry)
+  }
   try {
     const { readSessionWorkers } = await import('../daemon/concourseWorkers.js')
     for (const rec of Object.values(readSessionWorkers())) {
@@ -176,7 +189,8 @@ async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; inde
       try {
         ws = realpathSync(rec.workspaceId)
       } catch (error) {
-        passedOver(error)
+        if (isAbsenceCode(error)) passedOver(error)
+        else noteUnread(`live sessions: ${errorBrief(error)}`)
         continue
       }
       if (ws !== repo && !ws.startsWith(repo + sep)) continue
@@ -185,29 +199,35 @@ async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; inde
       runners.push(`${rec.runnerId}${warm ? ' (warm)' : ''} pid ${rec.pid}`)
     }
   } catch (error) {
-    passedOver(error)
+    noteUnread(`live sessions: ${errorBrief(error)}`)
   }
   let indexLockAgeS: number | null = null
   try {
     indexLockAgeS = Math.max(0, Math.round((Date.now() - statSync(join(repo, '.git', 'index.lock')).mtimeMs) / 1000))
-  } catch {
+  } catch (error) {
     indexLockAgeS = null
+    if (!isAbsenceCode(error)) noteUnread(`.git/index.lock: ${errorBrief(error)}`)
   }
   let objectsInFlight = 0
   try {
     objectsInFlight = readdirSync(join(repo, '.git', 'objects')).filter(n => /^tmp_obj_|^tmpobj/i.test(n)).length
-  } catch {
+  } catch (error) {
     objectsInFlight = 0
+    if (!isAbsenceCode(error)) noteUnread(`.git/objects: ${errorBrief(error)}`)
   }
-  return { runners, indexLockAgeS, objectsInFlight }
+  return { runners, indexLockAgeS, objectsInFlight, unread }
 }
 
-function holdersWords(h: { runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }): string {
+function holdersWords(h: { runners: string[]; indexLockAgeS: number | null; objectsInFlight: number; unread: string[] }): string {
   const parts: string[] = []
   if (h.runners.length > 0) parts.push(`${h.runners.length} live session${h.runners.length === 1 ? '' : 's'} rooted here (${h.runners.join(', ')})`)
   if (h.indexLockAgeS !== null) parts.push(`a git writer holds .git/index.lock (${h.indexLockAgeS} s old)`)
   if (h.objectsInFlight > 0) parts.push(`${h.objectsInFlight} object${h.objectsInFlight === 1 ? '' : 's'} being written under .git/objects`)
-  return parts.length === 0 ? 'no Mercury process holds it now' : `held by Mercury now: ${parts.join(' · ')}`
+  if (h.unread.length === 0) return parts.length === 0 ? 'no Mercury process holds it now' : `held by Mercury now: ${parts.join(' · ')}`
+  const missing = h.unread.join('; ')
+  return parts.length === 0
+    ? `could not check whether Mercury holds it now (${missing})`
+    : `held by Mercury now: ${parts.join(' · ')}; could not check remaining holders (${missing})`
 }
 
 export async function projectEstateCheck(): Promise<CheckResult> {
@@ -217,14 +237,16 @@ export async function projectEstateCheck(): Promise<CheckResult> {
     return { status: 'ok', evidence: `${MERCURY_PROJECT_DIR} holds shared configuration only — every machine-local store lives under the config home`, probe: 'functional' }
   }
   let tracked: string[] = []
+  let gitCheckError: string | null = null
   try {
     const { execFile } = await import('node:child_process')
     const { promisify } = await import('node:util')
     const { stdout } = await promisify(execFile)('git', ['ls-files', '-z', '--', ...leftovers], { cwd: root, timeout: 5_000, maxBuffer: 4 * 1024 * 1024 })
     const files = stdout.split('\0').filter(f => f !== '')
     tracked = leftovers.filter(dir => files.some(f => f === dir || f.startsWith(`${dir}/`)))
-  } catch {
+  } catch (error) {
     tracked = []
+    if (findGitRoot(root) !== null) gitCheckError = errorBrief(error)
   }
   const named = leftovers.map(dir => `${dir}${tracked.includes(dir) ? ' (tracked by git)' : ''}`).join(' · ')
   return {
@@ -235,7 +257,9 @@ export async function projectEstateCheck(): Promise<CheckResult> {
     fix:
       tracked.length > 0
         ? `to stop committing them: git rm -r --cached ${tracked.map(dir => JSON.stringify(dir)).join(' ')} — then delete the folder copies when you are done with them`
-        : 'delete the folder copies when you are done with them (they are not tracked by git)',
+        : gitCheckError !== null
+          ? `delete the folder copies when you are done with them (could not check whether git tracks them (${gitCheckError}) — check with git ls-files before deleting)`
+          : 'delete the folder copies when you are done with them (they are not tracked by git)',
     probe: 'functional',
   }
 }
@@ -246,7 +270,9 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
   let names: string[] = []
   try {
     names = readdirSync(home)
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
     names = []
   }
   for (const name of names) {
@@ -257,8 +283,12 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
     try {
       return statSync(join(dir, '.git')).isDirectory()
     } catch (error) {
-      passedOver(error)
-      return false
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        passedOver(error)
+        return false
+      }
+      throw error
     }
   })
   if (repositories.length === 0) {
@@ -436,14 +466,9 @@ export const SHELL_READS = Object.freeze({
 
 
 export function unresolvedDefaultRow(): string | null {
-  try {
-    if (getUserSpecifiedModelSetting() !== null) return null
-    const decision = computedDefault()
-    return decision.source === 'keyless' && decision.considered.length > 0 ? decision.row : null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  if (getUserSpecifiedModelSetting() !== null) return null
+  const decision = computedDefault()
+  return decision.source === 'keyless' && decision.considered.length > 0 ? decision.row : null
 }
 
 export async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
@@ -453,8 +478,7 @@ export async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
     labels = await import('../services/providers/local/tensorfoldHealth.js')
     rows = await labels.readTensorFoldHealth()
   } catch (error) {
-    passedOver(error)
-    return []
+    return [{ id: 'tensorfold', label: 'TensorFold', run: () => { throw error } }]
   }
   const specs: CheckSpec[] = []
   const { tensorfold, support, helper } = rows
@@ -566,7 +590,7 @@ export function modelRefusalsCheck(): CheckSpec {
 
 export async function skillsRefusedEvidence(cwd: string): Promise<{ status: 'ok' | 'warn'; evidence: string; fix?: string }> {
   const skills = require('../skills/loadSkillsDir.js') as typeof import('../skills/loadSkillsDir.js')
-  await skills.getSkillDirCommands(cwd).catch((error) => { passedOver(error); return [] })
+  await skills.getSkillDirCommands(cwd)
   const refusals = skills.getSkillLoadRefusals()
   if (refusals.length === 0) return { status: 'ok', evidence: 'every skill file on disk loaded' }
   const rows = refusals.map(refusal => `${relativeToCwd(cwd, refusal.path)} (${refusal.source}): ${refusal.error}`)

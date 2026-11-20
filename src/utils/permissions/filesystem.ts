@@ -314,7 +314,7 @@ export function isSettingsFilePath(filePath: string): boolean {
       const path = getSettingsFilePathForSource(source)
       if (path && normalizeCaseForComparison(expandPath(path)) === folded) return true
     } catch (error) {
-      passedOver(error)
+      passedOver(new Error(`the settings file of ${source} could not be told (${error instanceof Error ? error.message : String(error)}), so the path is not counted as that settings file`, { cause: error }))
     }
   }
   return false

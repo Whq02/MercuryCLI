@@ -95,8 +95,9 @@ export function draftPasteHashes(): Set<string> {
   let files: string[]
   try {
     files = readdirSync(dir)
-  } catch {
-    return hashes
+  } catch (error) {
+    if (isENOENT(error)) return hashes
+    throw error
   }
   for (const file of files) {
     if (!file.endsWith('.json')) continue

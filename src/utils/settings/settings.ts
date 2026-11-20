@@ -314,6 +314,11 @@ export function loadManagedFileSettings(): { settings: SettingsJson | null; erro
   } catch (error) {
     if (!isENOENT(error) && (error as { code?: string }).code !== 'ENOTDIR') {
       logError(error)
+      errors.push({
+        file: getManagedSettingsDropInDir(),
+        path: '',
+        message: `settings file unreadable: ${error instanceof Error ? error.message : String(error)}`,
+      })
     }
   }
   return { settings: merged, errors }
@@ -328,7 +333,10 @@ export function getManagedFileSettingsPresence(): { hasBase: boolean; hasDropIns
       entry =>
         (entry.isFile() || entry.isSymbolicLink()) && entry.name.endsWith('.json') && !entry.name.startsWith('.'),
     )
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error) && (error as { code?: string }).code !== 'ENOTDIR') {
+      logForDebugging(`managed settings drop-in dir unreadable: ${errorMessage(error)}`, { level: 'error' })
+    }
     hasDropIns = false
   }
   return { hasBase, hasDropIns }

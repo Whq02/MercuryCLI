@@ -9,7 +9,8 @@ import { getGlobalMercuryFile } from '../../../env.js'
 import { getMacOsKeychainStorageServiceName } from '../../../secureStorage/macOsKeychainHelpers.js'
 import { healthFixEnabled } from '../../../healthFix.js'
 import type { CheckSpec } from '../../../healthReport.js'
-import { passedOver, passedOverAs } from '../../../passedOver.js'
+import { isENOENT } from '../../../errors.js'
+import { passedOver } from '../../../passedOver.js'
 
 export function configHomeCheck(): CheckSpec {
   return {
@@ -63,7 +64,8 @@ export function transcriptStoreCheck(): CheckSpec {
       let st: import('node:fs').Stats
       try {
         st = statSync(dir)
-      } catch {
+      } catch (error) {
+        if (!isENOENT(error)) throw error
         return { status: 'ok' as const, evidence: `${dir} not yet created — the first session creates it` }
       }
       if (!st.isDirectory()) {
@@ -82,18 +84,14 @@ export function transcriptStoreCheck(): CheckSpec {
           fix: 'Fix permissions on <config-home>/projects (check ownership and antivirus holds).',
         }
       }
-      let projectCount = 0
-      try {
-        projectCount = readdirSync(dir).length
-      } catch (error) {
-        passedOver(error)
-      }
+      const projectCount = readdirSync(dir).length
       const { getTranscriptPath } = await import('../../../sessionStorage/paths.js')
       const transcript = getTranscriptPath()
       let transcriptStat: import('node:fs').Stats | undefined
       try {
         transcriptStat = statSync(transcript)
-      } catch {
+      } catch (error) {
+        if (!isENOENT(error)) throw error
         return { status: 'ok' as const, evidence: `${dir} · ${projectCount} project dir(s), the folder is writable · this session has no transcript file yet` }
       }
       if (!transcriptStat.isFile()) {
@@ -205,10 +203,13 @@ export function isolationCheck(): CheckSpec {
                       let movedCount = 0
                       for (const artifact of fresh.foreign) {
                         const src = harnessArtifactPath(home, artifact.rel)
-                        const moved = await rename(src, join(archiveDest, artifact.rel.replace(/\//g, '_'))).then(
-                          () => true,
-                          passedOverAs(false),
-                        )
+                        let moved = false
+                        try {
+                          await rename(src, join(archiveDest, artifact.rel.replace(/\//g, '_')))
+                          moved = true
+                        } catch (error) {
+                          if (!isENOENT(error)) throw error
+                        }
                         if (moved) movedCount++
                       }
                       return movedCount > 0

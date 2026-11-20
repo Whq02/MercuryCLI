@@ -8,6 +8,7 @@ import { expandPastedTextRefs, formatPastedTextRef, getPastedTextRefNumLines } f
 import type { PastedContent } from './config/schema.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
+import { errorMessage } from './errors.js'
 import { classifyGuiEditor, editorDisplayName, editorRefusalLine, resolveExternalEditor, shownEditorValue, type EditorVariable } from './editor.js'
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
@@ -58,8 +59,8 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
 
   try {
     statSync(filePath)
-  } catch {
-    return { content: null }
+  } catch (error) {
+    return { content: null, error: errorMessage(error) }
   }
 
   const guiEditorName = classifyGuiEditor(editor)
@@ -121,8 +122,8 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
       }
       simulateConsoleFaultAfterHandback()
     }
-  } catch {
-    return { content: null }
+  } catch (error) {
+    return { content: null, error: errorMessage(error) }
   }
 }
 

@@ -43,22 +43,28 @@ function writeNeedsAuth(serverName: string): Promise<void> {
 
 export function clearMcpAuthCache(): void {
   needsAuthReadMemo = null
-  void rm(needsAuthCachePath(), { force: true }).catch(passedOver)
+  void rm(needsAuthCachePath(), { force: true }).catch(error => {
+    passedOver(error)
+    needsAuthReadMemo = Promise.resolve({})
+  })
 }
 
 export function forgetMcpNeedsAuth(serverName: string): Promise<void> {
+  let unwritten: Record<string, { timestamp: number }> | null = null
   needsAuthWriteChain = needsAuthWriteChain
     .then(async () => {
       const cache = await readNeedsAuthCache()
       if (!(serverName in cache)) return
       delete cache[serverName]
+      unwritten = cache
       const path = needsAuthCachePath()
       await mkdir(dirname(path), { recursive: true })
       await writeFile(path, JSON.stringify(cache, null, 2))
+      unwritten = null
     })
     .catch(passedOverAs(undefined))
     .finally(() => {
-      needsAuthReadMemo = null
+      needsAuthReadMemo = unwritten === null ? null : Promise.resolve(unwritten)
     })
   return needsAuthWriteChain
 }

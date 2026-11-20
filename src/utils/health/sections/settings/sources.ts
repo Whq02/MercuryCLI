@@ -1,7 +1,8 @@
 import { FLAG_REGISTRY, flagEnv } from '../../../../substrate/flagRegistry.js'
 import { realEnvPin } from '../../../../substrate/startupMenu.js'
 import { getCwd } from '../../../cwd.js'
-import { listCapabilityKills } from '../../../permissions/capabilityGate.js'
+import { errorMessage } from '../../../errors.js'
+import { getAgentCapParseRejects, listCapabilityKills } from '../../../permissions/capabilityGate.js'
 import { getSettingsWithAllErrors } from '../../../settings/allErrors.js'
 import { getEnabledSettingSources } from '../../../settings/constants.js'
 import { getSettingsForSource } from '../../../settings/settings.js'
@@ -44,7 +45,7 @@ export function settingsCheck(): CheckSpec {
         if (lock === true) lockLine = ' · managed extension-only lock: ALL surfaces'
         else if (Array.isArray(lock) && lock.length > 0) lockLine = ` · managed extension-only lock: ${lock.join(', ')}`
       } catch (error) {
-        passedOver(error)
+        lockLine = ` · managed extension-only lock unreadable (${errorMessage(error)})`
       }
       if (errors.length === 0) {
         return {
@@ -176,13 +177,7 @@ export function killsCheck(): CheckSpec {
           }
         }
       }
-      let capRejects: string[] = []
-      try {
-        const { getAgentCapParseRejects } = await import('../../../permissions/capabilityGate.js')
-        capRejects = getAgentCapParseRejects()
-      } catch {
-        capRejects = []
-      }
+      const capRejects = getAgentCapParseRejects()
       const capClause =
         capRejects.length > 0
           ? ` · agent-cap posture: ${capRejects.length} unreadable part(s) FAIL CLOSED at max-risk=low (${capRejects.slice(0, 3).map(t => JSON.stringify(t)).join(', ')}${capRejects.length > 3 ? '…' : ''})`

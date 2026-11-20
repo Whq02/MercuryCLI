@@ -14,12 +14,7 @@ export function modelCheck(): CheckSpec {
     label: 'Model pins',
     run: () => {
       const session = getEngineModel()
-      let pin: string | undefined
-      try {
-        pin = getSettingsWithAllErrors().settings.engine?.model
-      } catch {
-        pin = undefined
-      }
+      const pin = getSettingsWithAllErrors().settings.engine?.model
       if (!isChooseAModel(session) && recognizeModelId(session).kind === 'unrecognised') {
         return {
           status: 'warn',

@@ -1,4 +1,5 @@
 import type { Tool, ToolPermissionContext } from '../../Tool.js'
+import { logForDebugging } from '../debug.js'
 import { flowAskFor, flowAskSentence, type FlowAsk } from './flowLaw.js'
 import type { PermissionAskDecision, PermissionDecision, PermissionDecisionReason } from './PermissionResult.js'
 
@@ -45,7 +46,8 @@ export async function decideUnderFlow(tool: Tool, input: Record<string, unknown>
   let ask: FlowAsk | null = null
   try {
     ask = await flowAskFor(tool, input, rules)
-  } catch {
+  } catch (error) {
+    logForDebugging(`flow: the ${tool.name} call could not be checked (${error instanceof Error ? error.message : String(error)}), so it goes on unasked`, { level: 'warn' })
     ask = null
   }
   if (ask !== null) {

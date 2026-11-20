@@ -246,6 +246,15 @@ export async function readControlKey(): Promise<string | null> {
   }
 }
 
+export async function readLiveControlKey(): Promise<string | null> {
+  try {
+    return (await readFile(controlKeyPath(), 'utf8')).trim() || null
+  } catch (error) {
+    if (getErrnoCode(error) === 'ENOENT') return null
+    throw error
+  }
+}
+
 let controlKeyMemo: string | null = null
 export function clearControlKeyMemo(): void {
   controlKeyMemo = null

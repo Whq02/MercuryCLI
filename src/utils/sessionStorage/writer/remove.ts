@@ -12,6 +12,7 @@ import {
 import { recordToEntry } from '../../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../../fabric/record.js'
 import { logForDebugging } from '../../debug.js'
+import { getErrnoCode } from '../../errors.js'
 import { formatFileSize } from '../../format.js'
 import { LITE_READ_BUF_SIZE } from '../../sessionStoragePortable.js'
 import { jsonParse } from '../../slowOperations.js'
@@ -107,7 +108,9 @@ export class RemovePart {
             encoding: 'utf8',
           })
         } catch (error) {
-          passedOver(error)
+          const code = getErrnoCode(error)
+          if (code === 'ENOENT' || code === 'ENOTDIR') return
+          throw error
         }
       }),
     )
