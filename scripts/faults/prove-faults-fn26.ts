@@ -76,6 +76,57 @@ try {
     const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { threw: string | null; bootStaged: unknown }) : { threw: `exit ${res.status}: ${res.stderr.slice(-200)}`, bootStaged: 'err' }
     check('journal-session-id-throw: rejects with session-id-boom and stages nothing under boot', out.threw === 'session-id-boom' && out.bootStaged === null, JSON.stringify(out))
   }
+
+  console.log('\n3. FileReadTool/read/pdfLane.ts: page failure rejects and cleans up outputDir')
+  {
+    const pdfDir = join(scratch, 'pdf-pages')
+    mkdirSync(pdfDir, { recursive: true })
+    writeFileSync(join(pdfDir, 'page-1.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]))
+    const childSrc = `
+      import { mock } from 'bun:test'
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const pdfTextPath = ${JSON.stringify(join(SRC, 'utils/pdfText.ts'))}
+      const pdfPath = ${JSON.stringify(join(SRC, 'utils/pdf.ts'))}
+      const resizerPath = ${JSON.stringify(join(SRC, 'utils/imageResizer.ts'))}
+      const capsPath = ${JSON.stringify(join(SRC, 'utils/model/capabilities.ts'))}
+      const realPdf = await import(pdfPath)
+      const realResizer = await import(resizerPath)
+      const realCaps = await import(capsPath)
+      let removedDir = null
+      mock.module(pdfTextPath, () => ({
+        extractPdfText: async () => ({ pageCount: 1, pages: [{ pageNumber: 1, hasTextLayer: false, hasImages: true, text: '' }] }),
+        renderPdfText: () => '',
+      }))
+      mock.module(pdfPath, () => ({
+        ...realPdf,
+        extractPDFPages: async () => ({ success: true, data: { type: 'parts', file: { filePath: '/tmp/a.pdf', originalSize: 10, count: 1, outputDir: ${JSON.stringify(pdfDir)} } } }),
+        removePDFPages: async (dir: string) => { removedDir = dir },
+      }))
+      mock.module(resizerPath, () => ({
+        ...realResizer,
+        maybeResizeAndDownsampleImageBuffer: async () => { throw new Error('page-resize-boom') },
+      }))
+      mock.module(capsPath, () => ({
+        ...realCaps,
+        resolveModelCapabilities: () => ({ media: { images: true, pdf: true } }),
+      }))
+      const { readPdfLane } = await import(${JSON.stringify(join(SRC, 'tools/FileReadTool/read/pdfLane.ts'))})
+      let threw = null
+      let returned = null
+      try {
+        returned = await readPdfLane('/tmp/a.pdf', '/tmp/a.pdf', { file_path: '/tmp/a.pdf', pages: '1' }, { abortController: new AbortController(), options: { engineModel: 'test' } } as never, { maxTokens: 10000, maxSizeBytes: 1000000 }, false, () => ({ maxTokens: 10000, maxSizeBytes: 1000000 }))
+      } catch (err) {
+        threw = err instanceof Error ? err.message : String(err)
+      }
+      process.stdout.write('\\n' + JSON.stringify({ threw, removedDir, hasReturn: returned !== null }))
+    `
+    const res = spawnSync(BUN, ['-e', childSrc], {
+      encoding: 'utf8',
+      env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' },
+    })
+    const out = res.status === 0 ? (JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { threw: string | null; removedDir: string | null; hasReturn: boolean }) : { threw: `exit ${res.status}: ${res.stderr.slice(-200)}`, removedDir: null, hasReturn: true }
+    check('pdf-lane-page-throw: rejects with page-resize-boom and cleans up outputDir', out.threw === 'page-resize-boom' && out.removedDir === pdfDir && !out.hasReturn, JSON.stringify(out))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
