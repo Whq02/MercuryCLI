@@ -100,6 +100,7 @@ export function engineTreeLiveness(projectRoot: string, candidate: string, now: 
   }
   if (unreadable) return { alive: true, why: 'unreadable' }
   if (newest === null) return { alive: false, why: 'absent' }
+  const ageMs = Math.max(0, now - newest)
   return ageMs <= engineOrphanGraceMs() ? { alive: true, why: 'grace', ageMs } : { alive: false, why: 'grace-over', ageMs }
 }
 
