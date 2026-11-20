@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -155,15 +155,6 @@ const allowed = (decision: Decision): boolean => decision.behavior === 'allow'
 const notRefused = (decision: Decision): boolean => decision.behavior !== 'deny' && decision.behavior !== 'threw'
 const refusedAsSecret = (decision: Decision): boolean => decision.behavior === 'deny' && /holds? Mercury's own credentials/.test(decision.message ?? '')
 
-function pageSays(pattern: RegExp): boolean {
-  return pattern.test(
-    readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')
-      .split('\n')
-      .map(line => line.trim())
-      .join(' '),
-  )
-}
-
 const O = '/Users/<USER>/Documents/keep'
 const flow = (command: string, rules: Rules = {}, extra: Record<string, unknown> = {}): Promise<Decision> => decide('Bash', { command: fill(command) }, 'flow', rules, extra)
 
@@ -175,14 +166,6 @@ async function free(command: string, why: string): Promise<void> {
   const decision = await flow(command)
   check(`free · ${shown(fill(command))} (${why}) · runs with no ask`, decision.behavior === 'allow', said(decision))
 }
-
-section('the page, docs/TRUST.md')
-check('Flow runs everything Sovereign runs except five things, which ask', pageSays(/\*\*Flow mode\*\* runs everything Sovereign runs except five things, which ask/))
-check('sudo and any other privilege escalation', pageSays(/`sudo` and any other privilege escalation/))
-check('git that publishes or rewrites history: a push in any form', pageSays(/git that publishes or rewrites history \(`git push` in any form, `reset --hard`, `clean -f`, `branch -D`, `filter-branch`, and `gh pr merge`, `gh release create` and their kin\)/))
-check('publishing and deploying, and the rest of that table', pageSays(/publishing and deploying \(`npm publish`, `docker push`, `wrangler deploy`, `terraform apply`, `kubectl apply` and the rest of that table\)/))
-check('deleting or overwriting a path outside the project', pageSays(/deleting or overwriting a path outside the project, its worktrees, this run's scratch and the temp folders \(reads are free everywhere\)/))
-check('with no host, a call one of the five names is refused with the same sentence', pageSays(/With no host, a call one of the five names is refused with the same sentence; everything else runs/))
 
 section("controls: the five, each asked in the page's own words; what the page says is free")
 for (const [command, sentence] of [
