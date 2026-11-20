@@ -134,10 +134,13 @@ export async function decide(tool: string, input: Record<string, unknown>, mode:
   }
 }
 
-const NAMED: Array<[string, string]> = [[OWN_HOME, '<home>'], [CONFIG_HOME, '<config>'], [PROJECT, '<project>']]
+const bashPath = (path: string): string => (process.platform === 'win32' ? path.replaceAll('\\', '/') : path)
+const NAMED: Array<[string, string]> = [[OWN_HOME, '<home>'], [bashPath(OWN_HOME), '<home>'], [CONFIG_HOME, '<config>'], [bashPath(CONFIG_HOME), '<config>'], [PROJECT, '<project>'], [bashPath(PROJECT), '<project>']]
 const named = (text: string): string => NAMED.reduce((out, [path, word]) => out.replaceAll(path, word), text)
 export const fill = (text: string): string =>
   text.replaceAll('<HOME>', OWN_HOME).replaceAll('<USER>', FAKE_USER).replaceAll('<CONFIG>', CONFIG_HOME).replaceAll('<PROJECT>', PROJECT).replaceAll('<DAEMON_PID>', String(DAEMON_PID)).replaceAll('<OWN_PID>', String(process.pid))
+export const fillBash = (text: string): string =>
+  text.replaceAll('<HOME>', bashPath(OWN_HOME)).replaceAll('<USER>', FAKE_USER).replaceAll('<CONFIG>', bashPath(CONFIG_HOME)).replaceAll('<PROJECT>', bashPath(PROJECT)).replaceAll('<DAEMON_PID>', String(DAEMON_PID)).replaceAll('<OWN_PID>', String(process.pid))
 export const shown = (text: string): string => JSON.stringify(named(text).replaceAll(String(DAEMON_PID), '<daemon pid>'))
 export const said = (decision: Decision): string => `${decision.behavior}${decision.message ? `: ${named(decision.message.replaceAll('\n', ' ')).slice(0, 160)}` : ''}`
 

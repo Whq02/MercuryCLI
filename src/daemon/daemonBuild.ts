@@ -2,6 +2,7 @@ import { existsSync, openSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { nixInstallRoot } from '../services/privateChannel/installProvenance.js'
 import { passedOver } from '../utils/passedOver.js'
+import { vendoredNodeRelativePath } from '../utils/platform/programs.js'
 
 let selfScriptMemo: { argv: string; real: string; invoked: string } | null = null
 
@@ -38,7 +39,7 @@ function selfBuildDir(): string {
 
 export function vendoredNodeBeside(buildDir: string, platform: NodeJS.Platform = process.platform): string | null {
   if (buildDir === '') return null
-  const candidate = platform === 'win32' ? join(buildDir, 'vendor', 'node', 'node.exe') : join(buildDir, 'vendor', 'node', 'bin', 'node')
+  const candidate = join(buildDir, 'vendor', 'node', vendoredNodeRelativePath(platform))
   try {
     return existsSync(candidate) ? nixInstallRoot(join(buildDir, 'mercury.mjs'), platform === 'win32') === null ? realpathSync(candidate) : candidate : null
   } catch (error) {

@@ -51,7 +51,7 @@ export function readFolder(root: string, dir: string): TreeEntry[] {
     logError(error)
     return [
       {
-        name: `folder could not be read (${error instanceof Error ? error.message : String(error)}) — check permissions`,
+        name: `folder could not be read — check permissions (${error instanceof Error ? error.message : String(error)})`,
         path: childPath(dir, UNREADABLE_ROW_SENTINEL),
         dir: false,
       },

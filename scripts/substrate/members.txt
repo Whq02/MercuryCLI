@@ -57,3 +57,5 @@ prove-friction-stopwatch.ts
 prove-headless-one-shot-roster.ts
 prove-flag-door-environment.ts
 prove-lean-is-the-sessions-stamp.ts
+prove-deadline-door.ts
+prove-deadlines-d06.ts

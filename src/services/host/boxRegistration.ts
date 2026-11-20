@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:net'
 import { arch, homedir, totalmem } from 'node:os'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { registerManagedLlmHost } from '../llmHost/index.js'
 import type { HostBox } from './boxes.js'
 import { psQuote, shQuote } from './boxExecution.js'
@@ -27,12 +27,15 @@ export async function registerBoxServer(box: HostBox, runner: HostRunner = hostR
     await installBoxService(local, boxTunnelScript(box, record, local), runner, signal)
   }
   const baseUrl = 'http://127.0.0.1:' + (box.target ? record.localPort : record.port) + '/v1'
-  const deadline = Date.now() + 20_000
-  for (;;) {
-    try { const response = await fetch(baseUrl + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error' }); await response.body?.cancel(); if (response.ok) break } catch { signal.throwIfAborted() }
-    if (Date.now() >= deadline) throw new Error('The private tunnel did not answer; mercury host logs ' + box.name)
-    await sleep(100, signal, { throwOnAbort: true })
-  }
+  await pollUntil(
+    async () => {
+      try { const response = await fetch(baseUrl + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error' }); await response.body?.cancel(); if (response.ok) return true } catch { signal.throwIfAborted() }
+    },
+    100,
+    20_000,
+    () => { throw new Error('The private tunnel did not answer; mercury host logs ' + box.name) },
+    { signal },
+  )
   const model = await registerManagedLlmHost('box-' + box.name, baseUrl, record.engine, record.model, record.baseUrl, signal)
   record.baseUrl = baseUrl; writeBoxService(record)
   return model

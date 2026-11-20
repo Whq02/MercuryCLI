@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from '../utils/editorExtensionPackage.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { passedOver } from '../utils/passedOver.js'
+import { shimShellOption } from '../utils/platform/spawn.js'
 
 const EDITOR_CLIS = ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'] as const
 
@@ -71,7 +72,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
         encoding: 'utf8',
         timeout: 20_000,
         env: subprocessEnv(),
-        ...(process.platform === 'win32' ? { shell: true } : {}),
+        ...shimShellOption(),
       })
       const line = list.split('\n').find(l => l.toLowerCase().startsWith(MERCURY_IDE_EXTENSION_ID))
       out(`editor CLI: ${cli}`)
@@ -101,7 +102,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
         stdio: 'inherit',
         timeout: 120_000,
         env: subprocessEnv(),
-        ...(process.platform === 'win32' ? { shell: true } : {}),
+        ...shimShellOption(),
       })
       out(`installed ${MERCURY_IDE_EXTENSION_ID} from ${vsix} via ${cli} — reload the editor window to activate it`)
       return 0
@@ -121,7 +122,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
       stdio: 'inherit',
       timeout: 60_000,
       env: subprocessEnv(),
-      ...(process.platform === 'win32' ? { shell: true } : {}),
+      ...shimShellOption(),
     })
     out(`uninstalled ${MERCURY_IDE_EXTENSION_ID} via ${cli}`)
     return 0

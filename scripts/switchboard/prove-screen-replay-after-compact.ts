@@ -538,7 +538,7 @@ const mkBuild = (name: string, tree: string, buildTime: string): string => {
   manifest.buildTime = buildTime
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2))
   if (STANDALONE) {
-    const nodeAt = join(dir, 'vendor', 'node', 'bin', 'node')
+    const nodeAt = join(dir, 'vendor', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
     try {
       linkSync(PACK_NODE, nodeAt)
     } catch {
@@ -551,8 +551,13 @@ mkBuild('X', TREE_X, '2026-01-01T00:00:00.000Z')
 mkBuild('Y', TREE_Y, '2026-02-01T00:00:00.000Z')
 const pointAt = (name: string, target: string): void => {
   const tmp = join(runtime, `.${name}.new`)
-  rmSync(tmp, { force: true })
-  symlinkSync(join('builds', target), tmp)
+  rmSync(tmp, { recursive: true, force: true })
+  if (process.platform === 'win32') {
+    symlinkSync(join(builds, target), tmp, 'junction')
+    rmSync(join(runtime, name), { recursive: true, force: true })
+  } else {
+    symlinkSync(join('builds', target), tmp)
+  }
   renameSync(tmp, join(runtime, name))
 }
 const pointBoth = (target: string): void => {

@@ -1,4 +1,5 @@
 import { passedOver } from './passedOver.js'
+import { abortedError, sleep } from './sleep.js'
 import { startTimeout, stopTimeout } from './timers.js'
 
 export class DeadlineExceededError extends Error {
@@ -42,6 +43,7 @@ export interface InactivityDeadline {
   touch(): void
   cancel(): void
   readonly expiry: Promise<never>
+  within<T>(work: PromiseLike<T>): Promise<T>
   readonly signal: AbortSignal
   readonly fired: boolean
   readonly progressCount: number
@@ -66,12 +68,14 @@ export function armInactivityDeadline(opts: InactivityDeadlineOptions): Inactivi
     rejectExpiry = reject
   })
   expiry.catch(passedOver)
+  const within = <T>(work: PromiseLike<T>): Promise<T> => Promise.race([work, expiry])
 
   if (!armed) {
     return {
       touch: () => {},
       cancel: () => {},
       expiry,
+      within,
       signal: controller.signal,
       fired: false,
       progressCount: 0,
@@ -127,6 +131,7 @@ export function armInactivityDeadline(opts: InactivityDeadlineOptions): Inactivi
       }
     },
     expiry,
+    within,
     signal: controller.signal,
     get fired() {
       return fired
@@ -150,9 +155,54 @@ export async function withInactivityDeadline<T>(
     },
   })
   try {
-    return await Promise.race([work(deadline), deadline.expiry])
+    return await deadline.within(work(deadline))
   } finally {
     deadline.cancel()
+  }
+}
+
+type WaitEnds<A> = { signal?: AbortSignal; onAbort?: () => A; unref?: boolean }
+
+export function withDeadline<T, F = never, A = never>(work: PromiseLike<T>, limitMs: number, atLimit: () => F, opts: WaitEnds<A> = {}): Promise<T | NoInfer<F> | NoInfer<A>> {
+  const { signal } = opts
+  return new Promise<T | F | A>((resolve, reject) => {
+    let open = true
+    const end = (outcome: () => T | F | A): void => {
+      if (!open) return
+      open = false
+      stopTimeout(timer)
+      signal?.removeEventListener('abort', aborted)
+      try {
+        resolve(outcome())
+      } catch (error) {
+        reject(error)
+      }
+    }
+    const aborted = (): void => end(opts.onAbort ?? (() => { throw abortedError(signal) }))
+    const timer = Number.isFinite(limitMs) ? startTimeout(() => end(atLimit), limitMs) : undefined
+    if (opts.unref) timer?.unref?.()
+    work.then(
+      value => end(() => value),
+      error => end(() => { throw error }),
+    )
+    if (signal?.aborted) aborted()
+    else signal?.addEventListener('abort', aborted, { once: true })
+  })
+}
+
+export async function pollUntil<T, F = never, A = never>(look: () => T | undefined | PromiseLike<T | undefined>, everyMs: number, limitMs: number, atLimit: () => F, opts: WaitEnds<A> = {}): Promise<T | NoInfer<F> | NoInfer<A>> {
+  const { signal } = opts
+  const until = Date.now() + limitMs
+  for (;;) {
+    if (signal?.aborted) {
+      if (opts.onAbort) return opts.onAbort()
+      throw abortedError(signal)
+    }
+    const seen = await look()
+    if (seen !== undefined) return seen
+    const left = until - Date.now()
+    if (left <= 0) return atLimit()
+    await sleep(Math.min(everyMs, left), signal, { unref: opts.unref })
   }
 }
 

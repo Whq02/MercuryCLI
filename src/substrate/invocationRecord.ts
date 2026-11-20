@@ -5,8 +5,9 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { errorMessage } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { hostShellHint, type HostShellHint } from '../utils/platform/spawn.js'
 
-type ShellHint = 'powershell' | 'cmd' | 'posix-sh' | 'unknown'
+type ShellHint = HostShellHint
 
 interface InvocationCapabilityRecordV1 {
   schema: 1
@@ -30,13 +31,7 @@ interface InvocationFileV1 {
 const MAX_ROWS = 10
 
 export function classifyShellHint(env: NodeJS.ProcessEnv = hostEnv(), platform: NodeJS.Platform = process.platform): ShellHint {
-  if (platform === 'win32') {
-    if (typeof env.PSModulePath === 'string' && env.PSModulePath.length > 0) return 'powershell'
-    if (typeof env.ComSpec === 'string') return 'cmd'
-    return 'unknown'
-  }
-  if (typeof env.SHELL === 'string' && env.SHELL.length > 0) return 'posix-sh'
-  return 'unknown'
+  return hostShellHint(env, platform)
 }
 
 function captureInvocationRecord(): InvocationCapabilityRecordV1 {
