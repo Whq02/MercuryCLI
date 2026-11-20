@@ -8,9 +8,9 @@
 # gate-watch: src/tools/FileReadTool/** src/utils/pdf* vendor/pdfjs.lock.json scripts/vendor/pdfjs.ts scripts/vendor/fetch-pdfjs.ts build.ts package.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-here="$(cd "$(dirname "$0")" && pwd)"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/document-read"
 fail=0
-for proof in "$here"/prove-*.ts; do
-  bun "$proof" || fail=1
-done
+drive_members document-read 'scripts/document-read/$name' "$here/members.txt" || fail=1
 exit "$fail"

@@ -6,10 +6,9 @@
 # gate-watch: scripts/engine-connector/prove-crew-token-rows.ts scripts/critters/prove-critter-sleep.ts scripts/visual-contract/baseline-capture.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-. "$(dirname "$0")/../lib/proof-runner.sh"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 cd "$(dirname "$0")/../.." || exit 1
-BUN="${BUN:-bun}"
+here="scripts/engine-pass"
 fail=0
-run_proof scripts/engine-pass/prove-judge-teeth.ts "$BUN" scripts/engine-pass/prove-judge-teeth.ts || fail=1
-run_proof scripts/engine-pass/prove-engine-contract.ts "$BUN" scripts/engine-pass/prove-engine-contract.ts || fail=1
+drive_members engine-pass 'scripts/engine-pass/$name' "$here/members.txt" || fail=1
 exit "$fail"

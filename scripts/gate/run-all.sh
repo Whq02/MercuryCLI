@@ -26,67 +26,15 @@
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 . "$(dirname "$0")/../lib/proof-runner.sh"
 here="$(cd "$(dirname "$0")" && pwd)"
+cd "$(dirname "$0")/../.." || exit 1
 fail=0
 echo "############################################################"
 echo "# Gate machinery"
 echo "############################################################"
-run_proof "$here/prove-gate-runner.sh" bash "$here/prove-gate-runner.sh" || fail=1
-run_proof "$here/prove-suite-stall.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-stall.ts" || fail=1
-run_proof "$here/prove-proof-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-scratch.ts" || fail=1
-run_proof "$here/prove-proof-guard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-guard.ts" || fail=1
-run_proof "$here/prove-node-preload-path.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-preload-path.ts" || fail=1
-run_proof "$here/prove-remove-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-remove-scratch.ts" || fail=1
-run_proof "$here/prove-built-product.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-built-product.ts" || fail=1
-run_proof "$here/prove-suite-env-guard.sh" bash "$here/prove-suite-env-guard.sh" || fail=1
-run_proof "$here/prove-suite-home-guard.sh" bash "$here/prove-suite-home-guard.sh" || fail=1
-run_proof "$here/prove-screen-slot-claims.sh" bash "$here/prove-screen-slot-claims.sh" || fail=1
-run_proof "$here/prove-run-root-socket-bound.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-run-root-socket-bound.ts" || fail=1
-run_proof "$here/prove-process-ledger-reader.sh" bash "$here/prove-process-ledger-reader.sh" || fail=1
-run_proof "$here/prove-proof-machine-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-machine-census.ts" || fail=1
-run_proof "$here/prove-capture-preflight.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capture-preflight.ts" || fail=1
-run_proof "$here/prove-proof-exit-marks.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-exit-marks.ts" || fail=1
-run_proof "$here/prove-ci-shard-ceiling.sh" bash "$here/prove-ci-shard-ceiling.sh" || fail=1
-run_proof "$here/prove-suite-grants.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-grants.ts" || fail=1
-run_proof "$here/prove-drive-ceilings-measured.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drive-ceilings-measured.ts" || fail=1
-run_proof "$here/prove-gate-scheduler.sh" bash "$here/prove-gate-scheduler.sh" || fail=1
-run_proof "$here/prove-keep-going.sh" bash "$here/prove-keep-going.sh" || fail=1
-run_proof "$here/prove-dead-letter-orphan.sh" bash "$here/prove-dead-letter-orphan.sh" || fail=1
-run_proof "$here/prove-shard-stop-ends-suite.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-stop-ends-suite.ts" || fail=1
-run_proof "$here/prove-dist-cache.sh" bash "$here/prove-dist-cache.sh" || fail=1
-run_proof "$here/prove-dist-readonly.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-readonly.ts" || fail=1
-run_proof "$here/prove-dist-build-inputs.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-build-inputs.ts" || fail=1
-run_proof "$here/prove-node-resolver.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-resolver.ts" || fail=1
-run_proof "$here/prove-bundle-ready.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-bundle-ready.ts" || fail=1
-run_proof "$here/prove-ci-verdict.sh" bash "$here/prove-ci-verdict.sh" || fail=1
-run_proof "$here/prove-gate-ledger.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-ledger.ts" || fail=1
-run_proof "$here/prove-suite-class-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-class-census.ts" || fail=1
-run_proof "$here/prove-drives-plan.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drives-plan.ts" || fail=1
-run_proof "$here/prove-observed-walk.py" /usr/bin/python3 "$here/prove-observed-walk.py" || fail=1
-run_proof "$here/prove-local-drives.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-local-drives.ts" || fail=1
-run_proof "$here/prove-box-shape.py" /usr/bin/python3 "$here/prove-box-shape.py" || fail=1
-run_proof "$here/prove-suite-budget-scale.py" /usr/bin/python3 "$here/prove-suite-budget-scale.py" || fail=1
-run_proof "$here/prove-hermetic-shard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hermetic-shard.ts" || fail=1
-run_proof "$here/prove-skip-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-skip-census.ts" || fail=1
-run_proof "$here/prove-comment-anchor-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-comment-anchor-census.ts" || fail=1
-run_proof "$here/prove-drive-wait-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drive-wait-census.ts" || fail=1
-run_proof "$here/prove-harness-sends.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-harness-sends.ts" || fail=1
-run_proof "$here/prove-proof-readings-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-readings-census.ts" || fail=1
-run_proof "$here/prove-proof-account-home.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-account-home.ts" || fail=1
-run_proof "$here/prove-proof-home-discipline.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-home-discipline.ts" || fail=1
-run_proof "$here/prove-process-group-teardown.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-process-group-teardown.ts" || fail=1
-run_proof "$here/prove-capture-directory-isolation.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capture-directory-isolation.ts" || fail=1
-run_proof "$here/prove-gate-watch-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-watch-census.ts" || fail=1
-run_proof "$here/prove-vocabulary-seal.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-vocabulary-seal.ts" || fail=1
-run_proof "$here/prove-seal-in-gate.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-seal-in-gate.ts" || fail=1
-run_proof "$here/../typecheck/prove-warm-replay.sh" bash "$here/../typecheck/prove-warm-replay.sh" || fail=1
-run_proof "$here/prove-shard-compile-cache-removed.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-compile-cache-removed.ts" || fail=1
-run_proof "$here/prove-shard-temp-spelling.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-temp-spelling.ts" || fail=1
-run_proof "$here/prove-shell-door.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shell-door.ts" || fail=1
-run_proof "$here/prove-outside-the-import-cycle.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-outside-the-import-cycle.ts" || fail=1
-run_proof "$here/../substrate/prove-flag-registry-readers.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-readers.ts" || fail=1
-run_proof "$here/../substrate/prove-flag-registry-split.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-split.ts" || fail=1
+drive_members gate 'scripts/gate/$name' "$here/members.txt" || fail=1
 run_proof "$here/prove-source-text-reads.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-source-text-reads.ts" || true
 run_proof "$here/prove-source-patterns.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-source-patterns.ts" || true
 run_proof "$here/prove-unit-size.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-unit-size.ts" || true
