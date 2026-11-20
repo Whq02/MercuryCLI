@@ -16,7 +16,7 @@ type WsSocketLike = {
 type BunWebSocketOptions = {
   protocols?: string[]
   headers?: Record<string, string>
-  tls?: tls.ConnectionOptions
+  tls?: tls.SecureContextOptions
   proxy?: string
 }
 
@@ -38,7 +38,7 @@ export async function createWsTransport(url: string, headers: Record<string, str
     const proxyAgent = getWebSocketProxyAgent(url)
     const nodeOptions = { headers, ...(tlsOptions ?? {}), ...(proxyAgent ? { agent: proxyAgent } : {}) }
     const { default: NodeWebSocket } = await import('ws')
-    socket = new NodeWebSocket(url, ['mcp'], nodeOptions as never)
+    socket = new NodeWebSocket(url, ['mcp'], nodeOptions)
   }
   const listen = (event: WsEvent, handler: (payload: unknown) => void): void => {
     if (typeof socket.on === 'function') socket.on(event, handler)
