@@ -168,4 +168,63 @@ else {
   )
 }
 
+console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark returns error and emits warning receipt')
+{
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const cleared = await import(path.join(SRC, 'utils/sessionStorage/clearedSessions.ts'))
+    const receipts = await import(path.join(SRC, 'utils/model/seatReceipts.ts'))
+    const focused = await import(path.join(SRC, 'services/engine-connector/focusedConnector.ts'))
+    const { noSessionConnector } = await import(path.join(SRC, 'services/engine-connector/noSessionConnector.ts'))
+
+    const file = path.join(HOME, 'cleared-sessions.json')
+    out.okMark = cleared.markSessionCleared('sess-ok-1')
+    out.okUnmark = cleared.unmarkSessionCleared('sess-ok-1')
+
+    fs.writeFileSync(file, '{corrupt json')
+    out.badMark = cleared.markSessionCleared('sess-bad-1')
+    out.badUnmark = cleared.unmarkSessionCleared('sess-bad-1')
+
+    const seen = []
+    const unsub = receipts.subscribeSeatReceipts(r => seen.push(r))
+    const bornPath = path.join(SRC, 'services/switchboard/bornSession.ts')
+    mock.module(bornPath, () => ({ bornSession: async () => ({ ok: true }) }))
+    const resting = noSessionConnector()
+    focused.setFocusedSessionConnector(new Proxy(resting, {
+      get(target, prop, receiver) {
+        if (prop === 'sessionId') return () => 'sess-clear-fail-1'
+        if (prop === 'turnActive') return () => false
+        if (prop === 'workspace') return () => ({ cwd: PROJECT, originalCwd: PROJECT })
+        if (prop === 'modelFacts') return () => ({ effective: null })
+        const v = Reflect.get(target, prop, receiver)
+        return typeof v === 'function' ? v.bind(target) : v
+      },
+    }))
+    try {
+      const hop = await import(path.join(SRC, 'services/switchboard/hopIntoSession.ts'))
+      out.clearOutcome = await hop.clearFocusedSession()
+      out.receipts = seen
+    } finally {
+      unsub()
+      focused.releaseFocusedSessionConnector()
+    }
+  `)
+  const okMark = r.out.okMark as { ok?: boolean } | undefined
+  const okUnmark = r.out.okUnmark as { ok?: boolean } | undefined
+  const badMark = r.out.badMark as { ok?: boolean; error?: string } | undefined
+  const badUnmark = r.out.badUnmark as { ok?: boolean; error?: string } | undefined
+  const seen = (r.out.receipts as Array<{ text?: string; level?: string }> | undefined) ?? []
+  check('w07-3 markSessionCleared returns { ok: true } on success', okMark?.ok === true, JSON.stringify(okMark))
+  check('w07-3 unmarkSessionCleared returns { ok: true } on success', okUnmark?.ok === true, JSON.stringify(okUnmark))
+  check('w07-3 markSessionCleared returns { ok: false, error } on corrupt map', badMark?.ok === false && typeof badMark.error === 'string' && badMark.error.length > 0, JSON.stringify(badMark))
+  check('w07-3 unmarkSessionCleared returns { ok: false, error } on corrupt map', badUnmark?.ok === false && typeof badUnmark.error === 'string' && badUnmark.error.length > 0, JSON.stringify(badUnmark))
+  check(
+    'w07-3 clearFocusedSession emits warning receipt when cleared mark fails to save',
+    seen.some(item => item.level === 'warning' && typeof item.text === 'string' && item.text.includes('the cleared mark could not be saved (') && item.text.includes('), so this session may show in the list again')),
+    JSON.stringify(seen),
+  )
+}
+
 process.exit(failures === 0 ? 0 : 1)
