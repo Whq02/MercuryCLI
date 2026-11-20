@@ -1,5 +1,6 @@
 import { ReadStream } from 'node:tty'
-import { useContext, useEffect, useLayoutEffect, useRef } from 'react'
+import { useContext, useRef } from 'react'
+import { useLayoutSubscription, usePublish, useSubscription } from '../../hooks/effects.js'
 import { useStdin } from '../../ink.js'
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import { type InputEvent, markInputConsumedThroughCurrentSeq } from '../../ink/events/input-event.js'
@@ -10,7 +11,7 @@ import type { ToolUseConfirm } from './PermissionRequest.js'
 export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm): void {
   const setAppState = useSetAppState()
   const loggedToolUseId = useRef<string | null>(null)
-  useEffect(() => {
+  usePublish(() => {
     if (loggedToolUseId.current === toolUseConfirm.toolUseID) return
     loggedToolUseId.current = toolUseConfirm.toolUseID
     setAppState(prev => ({
@@ -28,7 +29,7 @@ export function useKeysHeldUntilFirstPaint(): void {
   const { stdin, internal_eventEmitter } = useStdin()
   const painted = useRef(false)
 
-  useLayoutEffect(() => {
+  useLayoutSubscription(() => {
     if (!ink) return undefined
     painted.current = false
     const typedAheadRead = (): void => {
@@ -43,7 +44,7 @@ export function useKeysHeldUntilFirstPaint(): void {
     return stop
   }, [ink, stdin])
 
-  useEffect(() => {
+  useSubscription(() => {
     if (!ink) return undefined
     const hold = (event: InputEvent): void => {
       if (painted.current) return

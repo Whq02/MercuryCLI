@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { useTimer } from './effects.js'
 import {
   startAgentWatch,
   subscribeAgentsChanged,
@@ -50,7 +51,7 @@ export function useAgentsChange(cwd: string | undefined): void {
     }
   }, [cwd, setAppState])
 
-  useEffect(() => {
+  useTimer(() => {
     if (!cwd) return
     const arm = setTimeout(() => {
       void startAgentWatch(cwd).catch(error => logError(toError(error)))

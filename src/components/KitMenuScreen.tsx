@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { basename } from 'node:path';
 import { useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { leaveCurrentSurface } from '../context/surfaceRoute.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
+import { useLoad } from '../hooks/effects.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { enumerateKitCatalogueFresh } from '../services/kitMenu/kitCatalogue.js';
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js';
@@ -207,7 +208,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   const [workspaceDir] = useState(() => givenWorkspace ?? process.cwd());
 
   const [catalogue, setCatalogue] = useState<KitCatalogue>(() => given ?? LOADING_KIT_CATALOGUE);
-  useEffect(() => {
+  useLoad(() => {
     if (given !== undefined) {
       setCatalogue(given);
       return;
@@ -294,7 +295,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   });
 
   const [liveCount, setLiveCount] = useState<number | null>(null);
-  useEffect(() => {
+  useLoad(() => {
     let cancelled = false;
     void import('../daemon/concourseWorkers.js')
       .then(sup => {

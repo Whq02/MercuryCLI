@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import React, { useMemo, useState, useSyncExternalStore } from 'react'
+import { useLoad } from '../../hooks/effects.js'
 import { homedir } from 'node:os'
 import { Box, Text, useInput } from '../../ink.js'
 import wrapText from '../../ink/wrap-text.js'
@@ -113,7 +114,7 @@ export interface LocalServerConfigState {
 export function useLocalServerConfig(version: number): LocalServerConfigState {
   const stamp = useSyncExternalStore(subscribeLocalServerTruth, localServerTruthStamp, localServerTruthStamp)
   const probingOff = localServerProbingOff()
-  useEffect(() => {
+  useLoad(() => {
     void refreshLocalServerTruth().catch(() => undefined)
   }, [])
   const truth = cachedLocalServerTruth()

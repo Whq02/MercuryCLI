@@ -2,11 +2,10 @@
 import React, {
   createContext,
   useContext,
-  useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from 'react'
+import { useLayoutClaim, usePublish } from '../../hooks/effects.js'
 import { setMonochromeTheme } from '../../ink/colorize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
@@ -77,14 +76,14 @@ export function ThemeProvider({
   const ownsColorDepth = useContext(ThemeContext) === DEFAULT_CONTEXT
   if (ownsColorDepth) setMonochromeTheme(isMonochromeTheme(resolvedTheme))
 
-  useLayoutEffect(() => {
+  useLayoutClaim(() => {
     if (!ownsColorDepth) return
     return () => {
       setMonochromeTheme(false)
     }
   }, [ownsColorDepth])
 
-  useEffect(() => {
+  usePublish(() => {
     syncOasisBgToTheme(resolvedTheme)
   }, [resolvedTheme])
 

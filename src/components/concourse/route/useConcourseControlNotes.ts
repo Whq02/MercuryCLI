@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useClaim } from '../../../hooks/effects.js';
 import type { ControlNoteState } from '../contracts.js';
 import { CONTROL_NOTE_REFUSED_MS, CONTROL_NOTE_SETTLED_MS, controlNoteOf } from '../contracts.js';
 
@@ -7,7 +8,7 @@ export function useConcourseControlNotes() {
   const noteSeqRef = useRef(0)
   const noteIdentityRef = useRef<Record<string, number>>({})
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  useEffect(
+  useClaim(
     () => () => {
       for (const t of Object.values(noteTimersRef.current)) clearTimeout(t)
       noteTimersRef.current = {}

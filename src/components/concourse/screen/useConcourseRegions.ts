@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useDerivedState } from '../../../hooks/effects.js'
 import type { ConcourseRegion } from '../ConcourseLayout.js'
 import { collapseSplitForFrame, splitAvailableAt } from '../splitView.js'
 import type { Draft, Frame, Geometry, Panes, ScreenProps, Selection } from './state.js'
@@ -10,16 +11,16 @@ export function useConcourseRegions({ snapshot, reducedStage, compact, geo, olde
     if (splitActive) ring.push('chat')
     return ring
   }, [snapshot.needsYou.length, reducedStage, splitActive, compact])
-  useEffect(() => {
+  useDerivedState(() => {
     if (region === 'rail' && snapshot.needsYou.length === 0) setRegion('list')
   }, [region, snapshot.needsYou.length])
-  useEffect(() => {
+  useDerivedState(() => {
     if (compact && region !== 'list' && region !== 'live') setRegion('list')
   }, [compact, region])
-  useEffect(() => {
+  useDerivedState(() => {
     if (!splitActive && region === 'chat') setRegion(reducedStage ? 'list' : 'live')
   }, [region, splitActive, reducedStage])
-  useEffect(() => {
+  useDerivedState(() => {
     if (reducedStage) return
     const c = collapseSplitForFrame(termCols, termRows)
     if (c.collapsed) setNote({ tone: 'warning', text: c.line })
@@ -27,7 +28,7 @@ export function useConcourseRegions({ snapshot, reducedStage, compact, geo, olde
       setNote(prev => (prev !== null && prev.text.startsWith('split collapsed') ? null : prev))
     }
   }, [termCols, termRows, reducedStage])
-  useEffect(() => {
+  useDerivedState(() => {
     if (olderList !== null && geo.peekRows < 2) {
       setOlderList(null)
       setNote({ tone: 'muted', text: 'older chats folded — no room at this height' })
