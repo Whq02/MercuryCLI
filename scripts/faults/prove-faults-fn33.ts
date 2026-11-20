@@ -155,12 +155,52 @@ async function runPromptEditor(): Promise<void> {
   }
 }
 
+async function runProofHomeGuard(): Promise<void> {
+  console.log('\nproofHomeGuard — unreadable parent dir refuses instead of failing open')
+  if (!POSIX_MODES) return
+  const { accountStoreHome, refuseProofWriteIntoAccountStore } = await import('../../src/utils/proofHomeGuard.ts')
+  const lockedDir = join(SCRATCH, 'locked-proof-home')
+  mkdirSync(lockedDir, { recursive: true })
+  const linkPath = join(lockedDir, 'to-account')
+  symlinkSync(accountStoreHome(), linkPath, 'dir')
+  chmodSync(lockedDir, 0o000)
+  const prevProof = process.env.MERCURY_PROOF
+  process.env.MERCURY_PROOF = '1'
+  let threwCode: string | null = null
+  try {
+    refuseProofWriteIntoAccountStore(linkPath, 'proof test store')
+  } catch (error) {
+    threwCode = (error as NodeJS.ErrnoException | null)?.code ?? 'THREW'
+  } finally {
+    chmodSync(lockedDir, 0o700)
+    if (prevProof === undefined) delete process.env.MERCURY_PROOF
+    else process.env.MERCURY_PROOF = prevProof
+  }
+  check(
+    'refuseProofWriteIntoAccountStore throws EACCES on unreadable symlink parent instead of allowing',
+    threwCode === 'EACCES',
+    String(threwCode),
+  )
+  let okSafe = true
+  try {
+    process.env.MERCURY_PROOF = '1'
+    refuseProofWriteIntoAccountStore(join(SCRATCH, 'fresh-nonexistent-home'), 'proof test store')
+  } catch {
+    okSafe = false
+  } finally {
+    if (prevProof === undefined) delete process.env.MERCURY_PROOF
+    else process.env.MERCURY_PROOF = prevProof
+  }
+  check('refuseProofWriteIntoAccountStore still allows nonexistent scratch home', okSafe)
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
   await runProjectBoundary()
   await runPromptDraft()
   await runPromptEditor()
+  await runProofHomeGuard()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
