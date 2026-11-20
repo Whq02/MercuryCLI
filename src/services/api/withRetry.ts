@@ -507,6 +507,7 @@ export function openTurnRetries<F extends RetryFault>(road: TurnRetryRoad): Turn
   let busy: { ladder: BusyRetryLadder; fault: F } | undefined
   let reconnect: ReconnectLadder | undefined
   let emptyEnd = false
+  let rateLimited = false
 
   async function* afterFault(fault: F, facts: FaultFacts): AsyncGenerator<SystemAPIErrorMessage, RetryVerdict> {
     const askedMs = fault.retryAfterMs
@@ -547,7 +548,8 @@ export function openTurnRetries<F extends RetryFault>(road: TurnRetryRoad): Turn
       return again
     }
     if (fault.status !== undefined) reconnect = undefined
-    if (ladders && facts.reissue !== true && takesBusyLadder(fault, facts.typed) && !providerWaitIsWindow(askedMs)) {
+    const waits = ladders && facts.reissue !== true && !providerWaitIsWindow(askedMs)
+    if (waits && takesBusyLadder(fault)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault }
       const step = nextBusyRetry(ladder, askedMs, Date.now())
@@ -561,6 +563,16 @@ export function openTurnRetries<F extends RetryFault>(road: TurnRetryRoad): Turn
         return (await paused(step.waitMs, signal)) ? again : cancelled
       }
       logForDebugging(`${log} busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
+    } else if (waits && fault.retryable && facts.typed === 'rate_limit') {
+      const maxRetries = getDefaultMaxRetries()
+      if (!(attempt <= maxRetries)) return { kind: 'spent' }
+      rateLimited = true
+      const delayMs = getRetryDelay(attempt, askedMs === undefined ? null : String(askedMs / 1000))
+      logForDebugging(`${log} rate limit (${wireDetail}) — retry ${attempt} of ${maxRetries} after ${retrySeconds(delayMs)}`)
+      const notice = createSystemAPIErrorMessage(faultNoticeError(fault), delayMs, attempt, maxRetries)
+      yield notice
+      road.onWait?.(retryNoticeWait(notice))
+      return (await paused(delayMs, signal)) ? again : cancelled
     }
     emptyEnd = busy === undefined && ladders && facts.reissue !== true && isEmptyStreamFault(fault)
     if (emptyEnd) {
@@ -594,7 +606,7 @@ export function openTurnRetries<F extends RetryFault>(road: TurnRetryRoad): Turn
     get emptyEnd() {
       return emptyEnd
     },
-    next: () => ++attempt <= road.maxAttempts || busy !== undefined,
+    next: () => ++attempt <= road.maxAttempts || busy !== undefined || rateLimited,
     uncounted: () => {
       attempt--
     },
