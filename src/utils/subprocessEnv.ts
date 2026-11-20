@@ -88,6 +88,17 @@ const WINDOWS_TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
   PYTHONUTF8: '1',
   LANG: 'C.UTF-8',
   LC_ALL: 'C.UTF-8',
+  GCM_INTERACTIVE: 'never',
+}
+
+const GIT_FOR_WINDOWS_ASKPASS_DISPLAY = 'needs-to-be-defined'
+const GIT_FOR_WINDOWS_ASKPASS = /(?:^|[/\\])(?:git-askpass(?:\.exe)?|git-gui--askpass)$/i
+
+function isGitForWindowsAskpass(key: string, value: string | undefined, platform: string): boolean {
+  if (platform !== 'win32' || value === undefined) return false
+  const upper = key.toUpperCase()
+  if (upper === 'DISPLAY') return value === GIT_FOR_WINDOWS_ASKPASS_DISPLAY
+  return (upper === 'SSH_ASKPASS' || upper === 'GIT_ASKPASS') && GIT_FOR_WINDOWS_ASKPASS.test(value)
 }
 
 const toolShellKey = (key: string, platform: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
@@ -101,7 +112,7 @@ export function toolShellEnv(
   const child: NodeJS.ProcessEnv = {}
   const names = new Map<string, string>()
   for (const [key, value] of Object.entries(env)) {
-    if (value === undefined) continue
+    if (value === undefined || isGitForWindowsAskpass(key, value, platform)) continue
     const previous = names.get(keyOf(key))
     if (previous !== undefined && previous !== key) delete child[previous]
     child[key] = value
@@ -196,8 +207,6 @@ export function pathWithLoginEntries(own: string, carried: NodeJS.ProcessEnv | u
   return [...front, ...login.filter(entry => !kept.has(entry))].join(':')
 }
 
-const GIT_FOR_WINDOWS_ASKPASS_DISPLAY = 'needs-to-be-defined'
-
 export function withLoginExports(
   env: NodeJS.ProcessEnv,
   carried: NodeJS.ProcessEnv | undefined,
@@ -208,7 +217,7 @@ export function withLoginExports(
   const held = new Set([...Object.keys(env), ...scrubbed].map(key => toolShellKey(key, platform)))
   const gained: NodeJS.ProcessEnv = {}
   for (const [name, value] of Object.entries(carried)) {
-    if (platform === 'win32' && toolShellKey(name, platform) === 'DISPLAY' && value === GIT_FOR_WINDOWS_ASKPASS_DISPLAY) continue
+    if (isGitForWindowsAskpass(name, value, platform)) continue
     if (toolShellKey(name, platform) !== 'PATH' && !held.has(toolShellKey(name, platform))) gained[name] = value
   }
   const path = platform === 'win32' ? undefined : pathWithLoginEntries(env.PATH ?? '', carried, platform)

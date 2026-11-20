@@ -31,7 +31,8 @@ const state = await import('../../src/bootstrap/state.ts')
 const owner = await import('../../src/utils/subprocessEnv.ts') as {
   TOOL_SHELL_DEFAULTS?: Readonly<Record<string, string>>
   toolShellEnv?: (env: NodeJS.ProcessEnv, overrides?: NodeJS.ProcessEnv, platform?: string) => NodeJS.ProcessEnv
-  subprocessEnv: () => NodeJS.ProcessEnv
+  withLoginExports?: (env: NodeJS.ProcessEnv, carried: NodeJS.ProcessEnv | undefined, scrubbed: readonly string[], platform?: string) => NodeJS.ProcessEnv
+  subprocessEnv: (options?: { stripProviderCredentials?: boolean; platform?: string }) => NodeJS.ProcessEnv
 }
 const defaults = owner.TOOL_SHELL_DEFAULTS ?? {}
 const compose = owner.toolShellEnv ?? ((env: NodeJS.ProcessEnv, overrides: NodeJS.ProcessEnv = {}) => ({ ...env, ...overrides }))
@@ -106,6 +107,38 @@ try {
   check('Windows: differently cased user keys are not shadowed', folded.pager === '' && folded.PAGER === undefined && folded.git_editor === 'custom editor' && folded.GIT_EDITOR === undefined && folded.pythonutf8 === '0' && folded.PYTHONUTF8 === undefined)
   const layered = compose({ PAGER: 'parent' }, { pager: 'settings' }, 'win32')
   check('Windows: an explicit override replaces the same key without a case twin', layered.pager === 'settings' && layered.PAGER === undefined)
+  for (const platform of ['darwin', 'linux', 'win32']) {
+    const child = compose({ PATH: 'staged-path' }, {}, platform)
+    check(`${platform}: GCM_INTERACTIVE defaults to never on Windows only`, platform === 'win32' ? child.GCM_INTERACTIVE === 'never' : child.GCM_INTERACTIVE === undefined, String(child.GCM_INTERACTIVE))
+    const gitBash = compose({ SSH_ASKPASS: '/mingw64/bin/git-askpass.exe', DISPLAY: 'needs-to-be-defined' }, {}, platform)
+    check(
+      `${platform}: Git for Windows desktop askpass is cleared on Windows only`,
+      platform === 'win32'
+        ? gitBash.SSH_ASKPASS === '' && gitBash.GIT_ASKPASS === '' && gitBash.DISPLAY === undefined && gitBash.GCM_INTERACTIVE === 'never'
+        : gitBash.SSH_ASKPASS === '/mingw64/bin/git-askpass.exe' && gitBash.DISPLAY === 'needs-to-be-defined',
+      JSON.stringify({ SSH_ASKPASS: gitBash.SSH_ASKPASS, GIT_ASKPASS: gitBash.GIT_ASKPASS, DISPLAY: gitBash.DISPLAY, GCM_INTERACTIVE: gitBash.GCM_INTERACTIVE }),
+    )
+  }
+  const winAskpassVariants = compose(
+    { ssh_askpass: 'C:\\Program Files\\Git\\mingw64\\bin\\git-askpass.exe', GIT_ASKPASS: '/mingw64/libexec/git-core/git-gui--askpass', DISPLAY: ':0', gcm_interactive: 'always' },
+    {},
+    'win32',
+  )
+  check(
+    'Windows: Git for Windows askpass variants yield to empty defaults while real DISPLAY and operator GCM_INTERACTIVE survive',
+    winAskpassVariants.SSH_ASKPASS === '' && winAskpassVariants.ssh_askpass === undefined && winAskpassVariants.GIT_ASKPASS === '' && winAskpassVariants.DISPLAY === ':0' && winAskpassVariants.gcm_interactive === 'always' && winAskpassVariants.GCM_INTERACTIVE === undefined,
+    JSON.stringify(winAskpassVariants),
+  )
+  const explicitOverride = compose(
+    { SSH_ASKPASS: '/mingw64/bin/git-askpass.exe' },
+    { SSH_ASKPASS: '/mingw64/bin/git-askpass.exe' },
+    'win32',
+  )
+  check('Windows: an explicit override of SSH_ASKPASS still wins', explicitOverride.SSH_ASKPASS === '/mingw64/bin/git-askpass.exe', String(explicitOverride.SSH_ASKPASS))
+  if (owner.withLoginExports) {
+    const loginMerged = owner.withLoginExports({ PATH: 'staged-path' }, { SSH_ASKPASS: '/mingw64/bin/git-askpass.exe', DISPLAY: 'needs-to-be-defined', EXTRA: 'kept' }, [], 'win32')
+    check('Windows: login exports never re-introduce Git for Windows askpass or placeholder DISPLAY', loginMerged.SSH_ASKPASS === undefined && loginMerged.DISPLAY === undefined && loginMerged.EXTRA === 'kept', JSON.stringify(loginMerged))
+  }
 
   state.setOriginalCwd(scratch)
   mkdirSync(join(scratch, '.mercury'), { recursive: true })
