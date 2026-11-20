@@ -157,5 +157,47 @@ console.log('\nfakeDesktopDriver.readFakeActLog — non-ENOENT read error throws
   check('readFakeActLog still returns [] on ENOENT', Array.isArray(r.onAbsent) && r.onAbsent.length === 0, JSON.stringify(r))
 }
 
+console.log('\nnativeDriver.keyboardIdleMs — addon throw propagates instead of answering null')
+{
+  const r = runScenario(`
+    const { voicePackPlatform } = await import(path.join(SRC, 'services/voice/voicePack.ts'))
+    const pack = await import(path.join(SRC, 'services/desktop/pack.ts'))
+    const packDir = path.join(SCRATCH, 'desktop-pack')
+    fs.mkdirSync(packDir, { recursive: true })
+    const stubLines = pack.DESKTOP_ADDON_EXPORTS.map(fn => '  ' + fn + ': () => ({}),').join('\\n')
+    const addonSrc = 'let mode = "throw";\\nmodule.exports = {\\n' + stubLines + '\\n  setMode(m) { mode = m },\\n  keyboardIdleMs() { if (mode === "throw") throw new Error("addon idle read failed"); return mode === "num" ? 42 : null },\\n};\\n'
+    const addonFile = path.join(packDir, 'stub-addon.cjs')
+    fs.writeFileSync(addonFile, addonSrc)
+    const hex = 'a'.repeat(64)
+    fs.writeFileSync(path.join(packDir, pack.DESKTOP_PACK_MANIFEST_FILE), JSON.stringify({
+      name: pack.DESKTOP_PACK_NAME,
+      version: '0.0.0-test',
+      platform: voicePackPlatform(),
+      addon: 'stub-addon.cjs',
+      addonSha256: hex,
+      sourceTreeDigest: hex,
+      cargo: 'test',
+      crates: [],
+      fileCount: 1,
+      treeDigest: hex,
+    }))
+    process.env.MERCURY_DESKTOP_PACK_DIR = packDir
+    const native = await import(path.join(SRC, 'services/desktop/nativeDriver.ts'))
+    const loaded = native.resolveNativeDesktopDriver()
+    out.state = loaded.state
+    if (loaded.state === 'ok') {
+      try {
+        out.threwValue = await loaded.driver.keyboardIdleMs()
+      } catch (e) {
+        out.threwMsg = e instanceof Error ? e.message : String(e)
+      }
+      loaded.driver.addon.setMode('num')
+      out.numValue = await loaded.driver.keyboardIdleMs()
+    }
+  `)
+  check('nativeDriver.keyboardIdleMs rejects when addon throws', r.state === 'ok' && r.threwMsg === 'addon idle read failed' && r.threwValue === undefined, JSON.stringify(r))
+  check('nativeDriver.keyboardIdleMs still returns finite idle ms on success', r.numValue === 42, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
