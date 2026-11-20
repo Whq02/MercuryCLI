@@ -86,7 +86,7 @@ export function registerPerTurnHandlers(clients: MCPServerConnection[], ports: R
       passedOver(error)
     }
     try {
-      void registerElicitationHandlersForClient(client, client.name).catch(failed)
+      void Promise.resolve(registerElicitationHandlersForClient(client, client.name)).catch(failed)
     } catch (error) {
       failed(error)
     }
