@@ -434,8 +434,8 @@ async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
   writeFileSync(join(lockedDir, 'hidden.ts'), 'export const hidden = 2\n')
   symlinkSync(join(dir, 'nonexistent-target.ts'), brokenLink)
   chmodSync(lockedDir, 0o000)
-  const { resolveAstScope } = await import(join(SRC, 'utils/astPatterns/scope.ts'))
-  const { renderSearchTrailer } = await import(join(SRC, 'utils/astPatterns/render.ts'))
+  const { resolveAstScope } = await import(join(SRC, 'services/structure/astPatterns/scope.ts'))
+  const { renderSearchTrailer } = await import(join(SRC, 'services/structure/astPatterns/render.ts'))
   try {
     const scope = resolveAstScope({ cwd: dir })
     check('w08-7: resolveAstScope counts unreadable folder and dangling stat entry', !('refused' in scope) && scope.skippedUnreadable?.count === 2 && typeof scope.skippedUnreadable.firstPath === 'string' && typeof scope.skippedUnreadable.firstError === 'string', JSON.stringify(scope))

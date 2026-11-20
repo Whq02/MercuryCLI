@@ -25,7 +25,7 @@ if (!process.argv.includes('--child')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
   const { AstSearchTool } = await import('../../src/tools/AstSearchTool/AstSearchTool.ts')
-  const { digestOf, rewritePlanToken } = await import('../../src/utils/astPatterns.ts')
+  const { digestOf, rewritePlanToken } = await import('../../src/services/structure/astPatterns.ts')
   const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
   const { _setBeforeRenameHookForProofs } = await import('../../src/services/changeTransaction/changeSetCommit.ts')
   const { getToolUseSummary, renderToolUseMessage } = await import('../../src/tools/AstEditTool/UI.tsx')

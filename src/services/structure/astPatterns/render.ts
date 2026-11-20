@@ -1,4 +1,4 @@
-import { clipWithEllipsis } from '../stringUtils.js'
+import { clipWithEllipsis } from '../../../utils/stringUtils.js'
 import { AST_BOUNDS, GRAMMAR_PACK_REMEDY } from './languages.js'
 import { type AstScope, describeSkipped } from './scope.js'
 import type { AstMatch, AstSearchResult } from './search.js'
