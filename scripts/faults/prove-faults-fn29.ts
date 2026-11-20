@@ -85,8 +85,55 @@ console.log('1. src/utils/capability/manifest.ts — throwing isEnabled reads un
   )
 }
 
-void skip
-void POSIX_MODES
+console.log('2. src/utils/cleanup.ts — recordingsUnderSweep rethrows non-ENOENT errors')
+if (!POSIX_MODES) skip('cleanup: recordingsUnderSweep non-ENOENT errors', 'needs POSIX non-root chmod')
+else {
+  const r = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { recordingsUnderSweep } = await import(SRC + '/utils/cleanup.ts')
+    const { getProjectsDir } = await import(SRC + '/utils/sessionStorage.ts')
+    const root = getProjectsDir()
+    out.absent = await recordingsUnderSweep()
+    const projA = path.join(root, 'proj-a')
+    fs.mkdirSync(projA, { recursive: true })
+    fs.writeFileSync(path.join(projA, 'a.cast'), 'hello')
+    out.readable = await recordingsUnderSweep()
+    fs.chmodSync(projA, 0o000)
+    try {
+      out.unreadableSub = await recordingsUnderSweep()
+    } catch (e) {
+      out.subErr = e.code ?? String(e)
+    } finally {
+      fs.chmodSync(projA, 0o700)
+    }
+    fs.chmodSync(root, 0o000)
+    try {
+      out.unreadableRoot = await recordingsUnderSweep()
+    } catch (e) {
+      out.rootErr = e.code ?? String(e)
+    } finally {
+      fs.chmodSync(root, 0o700)
+    }
+  `)
+  check(
+    'cleanup: recordingsUnderSweep rejects on unreadable project subdir',
+    r.subErr === 'EACCES',
+    `subErr=${String(r.subErr)} result=${JSON.stringify(r.unreadableSub)}`,
+  )
+  check(
+    'cleanup: recordingsUnderSweep rejects on unreadable projects root',
+    r.rootErr === 'EACCES',
+    `rootErr=${String(r.rootErr)} result=${JSON.stringify(r.unreadableRoot)}`,
+  )
+  const absent = r.absent as { count: number; bytes: number } | undefined
+  const readable = r.readable as { count: number; bytes: number } | undefined
+  check(
+    'cleanup: recordingsUnderSweep control absent=0 and readable=1',
+    absent?.count === 0 && absent?.bytes === 0 && readable?.count === 1 && readable?.bytes === 5,
+    `${JSON.stringify(absent)} | ${JSON.stringify(readable)}`,
+  )
+}
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
