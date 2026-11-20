@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url'
 const ROOT = join(import.meta.dir, '..', '..')
 const distAt = process.argv.indexOf('--dist')
 const DIST = distAt !== -1 ? process.argv[distAt + 1]! : join(ROOT, 'dist', 'mercury.mjs')
-const { GRAMMAR_REGISTRY } = await import('../../src/services/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY } = await import('../../src/utils/structure/grammarRegistry.ts')
 const { LANGUAGE_FIXTURES } = await import('../ast-tools/lib/fixtures.ts')
 
 let failures = 0
@@ -147,7 +147,7 @@ const corpusSample = (name: string): string | undefined => {
   const first = Object.values(CORPUS[name] ?? {})[0]
   return first ? `${first.join('\n')}\n` : undefined
 }
-const tieringUrl = pathToFileURL(join(ROOT, 'src', 'services', 'structure', 'wasmTiering.ts')).href
+const tieringUrl = pathToFileURL(join(ROOT, 'src', 'utils', 'structure', 'wasmTiering.ts')).href
 if (NODE) {
   mkdirSync(engineDir)
   for (const f of ['tree-sitter.js', 'tree-sitter.wasm']) copyFileSync(join(vscodeWasm, f), join(engineDir, f))

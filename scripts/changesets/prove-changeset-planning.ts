@@ -12,9 +12,10 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { planChangeSet, sha256Hex } = await import(
+const { planChangeSet } = await import(
   '../../src/services/changeTransaction/changeSetPlan.ts'
 )
+const { sha256Hex } = await import('../../src/utils/hash.ts')
 const { CHANGESET_BOUNDS } = await import(
   '../../src/services/changeTransaction/changeSetContracts.ts'
 )

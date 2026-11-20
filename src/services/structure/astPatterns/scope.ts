@@ -1,5 +1,5 @@
 import { statSync } from 'node:fs'
-import { patternLanguageForFile, type PolyglotLanguage } from '../grammarFacility.js'
+import { patternLanguageForFile, type PolyglotLanguage } from '../../../utils/structure/grammarFacility.js'
 import { discoverPolyglotFiles } from '../polyglotQuery.js'
 import * as path from 'node:path'
 import { astLanguageNames, isCarried, uncarriedRefusal, resolveAstLanguage } from './languages.js'

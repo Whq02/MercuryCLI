@@ -26,9 +26,10 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { mintFileAnchor } = await import(
   '../../src/services/changeTransaction/snapshotAnchor.ts'
 )
-const { sha256Hex, plannedDiskBytes } = await import(
+const { plannedDiskBytes } = await import(
   '../../src/services/changeTransaction/changeSetPlan.ts'
 )
+const { sha256Hex } = await import('../../src/utils/hash.ts')
 const { runTextChangeSetCommit, commitPlanDigest } = await import(
   '../../src/services/changeTransaction/changeSetCommit.ts'
 )

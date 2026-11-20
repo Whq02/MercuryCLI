@@ -22,7 +22,7 @@ guard.unref?.()
 const { runTextChangeSetCommit, recoverChangeSetJournal, commitPlanDigest } = await import(
   '../../src/services/changeTransaction/changeSetCommit.ts'
 )
-const { sha256Hex } = await import('../../src/services/changeTransaction/changeSetPlan.ts')
+const { sha256Hex } = await import('../../src/utils/hash.ts')
 const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
 
 const bun = process.env.BUN ?? `${process.env.HOME}/.bun/bin/bun`

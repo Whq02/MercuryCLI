@@ -21,7 +21,7 @@ if (!existsSync(join(DIST, 'mercury.mjs')) || !existsSync(join(DIST, 'manifest.j
   process.exit(1)
 }
 
-const { IMAGE_PACK_PATH, imagePackPlatform, imagePackPackages } = await import('../../src/tools/FileReadTool/imageProcessor.ts')
+const { IMAGE_PACK_PATH, imagePackPlatform, imagePackPackages } = await import('../../src/utils/imageProcessor/imageProcessor.ts')
 const platform = imagePackPlatform()
 const manifest = JSON.parse(readFileSync(join(DIST, 'manifest.json'), 'utf8')) as {
   degraded?: string[]

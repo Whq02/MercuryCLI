@@ -28,7 +28,7 @@ import {
   type SampleTerminalPartV1,
   type SampleVerdictPartV1,
   type SampleVerdictStatus,
-} from './contracts.js'
+} from '../../utils/samples/contracts.js'
 import { DOC_BRAND_MARK, DOC_SCRIPT, DOC_STYLE } from './docTheme.js'
 
 type Raw = Record<string, unknown>

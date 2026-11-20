@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { unityBridgeEnabled, unityBridgePort } from '../../utils/unity/bridgeGates.js'
-import { UNITY_BRIDGE_DEFAULT_PORT } from './bridgeProtocol.js'
+import { UNITY_BRIDGE_DEFAULT_PORT } from '../../utils/unity/bridgeProtocol.js'
 import { UNITY_BRIDGE_DIGEST, UNITY_BRIDGE_FILES } from './bridgeFiles.generated.js'
 import { getUnityBridgeClient, probeUnityBridgeReachable, unityBridgeHint } from './bridgeClient.js'
 import { ensureUnityBridgeToken, readUnityBridgeToken, unityBridgeTokenPath } from './bridgeToken.js'

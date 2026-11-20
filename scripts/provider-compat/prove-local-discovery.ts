@@ -324,7 +324,7 @@ section('8 · identity collision across servers (the namespace law)')
 
 section('9 · the cockpit gauge on a local main (the model line is the served truth)')
 {
-  const g = await import('../../src/utils/cockpit/modelGauge.ts')
+  const g = await import('../../src/services/cockpit/modelGauge.ts')
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })

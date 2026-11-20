@@ -8,7 +8,7 @@ import {
   noteCtxTurnBoundary,
   recordCtxSample,
   resetCtxForecastForTest,
-} from '../../src/utils/cockpit/ctxForecast.js'
+} from '../../src/services/cockpit/ctxForecast.js'
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = '') => {

@@ -15,6 +15,7 @@ import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { sleep } from '../../../utils/sleep.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -456,11 +457,19 @@ export async function currentSubscriptionTokens(opts?: {
       locked = acquireRefreshLock(now())
       if (!locked) {
         const deadline = now() + REFRESH_WAIT_TOTAL_MS
-        while (now() < deadline) {
-          await sleep(REFRESH_WAIT_STEP_MS, undefined, { unref: true })
-          const latest = readAuthFile()?.tokens
-          if (adoptable(latest)) return latest
-        }
+        const adopted = await pollUntil<OpenaiStoredTokens | null, null>(
+          () => {
+            const latest = readAuthFile()?.tokens
+            if (adoptable(latest)) return latest
+            if (now() >= deadline) return null
+            return undefined
+          },
+          REFRESH_WAIT_STEP_MS,
+          REFRESH_WAIT_TOTAL_MS,
+          () => null,
+          { unref: true },
+        )
+        if (adopted) return adopted
       }
       const latest = readAuthFile()?.tokens
       if (adoptable(latest)) return latest

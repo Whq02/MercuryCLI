@@ -3,7 +3,7 @@ import { mnemeEnabled, mnemeLibraryDir } from '../../mneme/mnemeGates.js'
 import { MESH_PAGE_NAME, MESH_PAGE_TITLE, memoryMesh, meshSummary, renderMemoryMeshPage } from '../../mneme/mnemeMeshPage.js'
 import type { LedgerEntry } from '../../mneme/types.js'
 import { keepSample } from '../../services/samples/bridge.js'
-import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleItem } from '../../services/samples/contracts.js'
+import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleItem } from '../../utils/samples/contracts.js'
 import { openSampleUrl } from '../../services/samples/open.js'
 
 export const MEMORY_PAGE_OFF_SENTENCE =

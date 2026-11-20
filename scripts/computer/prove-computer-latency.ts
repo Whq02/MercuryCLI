@@ -8,7 +8,7 @@ import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 const { forgetDesktopOwner } = await import('../../src/services/desktop/desktopSession.ts')
-const { getImageProcessor } = await import('../../src/tools/FileReadTool/imageProcessor.ts')
+const { getImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessor.ts')
 const sharp = await getImageProcessor()
 const scratch = scratchDir('latency')
 const scene = join(scratch, 'scene.json')

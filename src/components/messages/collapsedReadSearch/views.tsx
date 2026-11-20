@@ -16,7 +16,7 @@ import { RunningShellBackgroundHint } from '../AssistantToolUseMessage.js'
 import { ToolRowLead, toolRowStateOf } from '../ToolRowLead.js'
 import { TranscriptNameplate } from '../TranscriptNameplate.js'
 import { OutputLine } from '../../shell/OutputLine.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 
 export type Fragment = { verb: string; rest: React.ReactNode; family: ToolFamily }
 

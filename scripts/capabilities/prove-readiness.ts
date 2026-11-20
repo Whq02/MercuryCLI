@@ -26,7 +26,7 @@ interface Rec {
 const PROBE = `
 const c = await import('./src/utils/config.ts')
 c.enableConfigs()
-const store = await import('./src/utils/cockpit/mcpGauge.ts')
+const store = await import('./src/services/cockpit/mcpGauge.ts')
 const pub = process.env.PROBE_PUBLISH
 if (pub === 'failed') {
   store.publishMcpConnections([{ name: 'probe-server', type: 'failed', config: { type: 'stdio', command: 'true', args: [], env: {}, scope: 'global' }, error: 'spawn definitely-missing ENOENT' }])

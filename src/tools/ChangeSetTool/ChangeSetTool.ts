@@ -36,8 +36,8 @@ import {
   formatChangeSetRefusal,
   planChangeSet,
   plannedDiskBytes,
-  sha256Hex,
 } from '../../services/changeTransaction/changeSetPlan.js'
+import { sha256Hex } from '../../utils/hash.js'
 import {
   runTextChangeSetCommit,
   type CommitOutcome,

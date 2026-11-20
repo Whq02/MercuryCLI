@@ -11,7 +11,7 @@ import {
 import { getEngineModel } from '../../utils/model/model.js'
 import { buildProviderSnapshot, type ProviderSnapshot } from './modelRegistry.js'
 import type { ProviderFamilyId } from './providerAdapter.js'
-import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
+import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../cockpit/quota.js'
 import {
   anthropicWindowClosedUntil,
   anthropicWindowFact,

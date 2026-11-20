@@ -55,9 +55,9 @@ import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { getAssistantMessageContentLength } from '../../utils/tokens.js'
-import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { BackgroundHint } from '../BashTool/UI.js'
-import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { noteOverloadDeath, overloadDeathNotifies, overloadNoticeWords } from '../../tasks/LocalAgentTask/agentOverload.js'
 import {
   deriveAgentTerminalOutcome,

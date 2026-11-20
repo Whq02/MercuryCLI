@@ -42,7 +42,7 @@ const wedgedDetail = (o: Bounded<unknown>): string =>
 const { runTextChangeSetCommit, commitPlanDigest } = await import(
   '../../src/services/changeTransaction/changeSetCommit.ts'
 )
-const { sha256Hex } = await import('../../src/services/changeTransaction/changeSetPlan.ts')
+const { sha256Hex } = await import('../../src/utils/hash.ts')
 
 section('§1 the commit core refuses a repeated target by name — never a wedge')
 {

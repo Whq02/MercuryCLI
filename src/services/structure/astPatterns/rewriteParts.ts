@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { structuredPatch } from 'diff'
 import type { BoundedDiffHunk } from '../../changeTransaction/diffBudget.js'
-import type { ParseErrorRegion, TSNode } from '../grammarFacility.js'
+import type { ParseErrorRegion, TSNode } from '../../../utils/structure/grammarFacility.js'
 import { COMMENT_TYPES, findExactSpanNode, metavarOf, significantChildren } from '../pattern.js'
 import type { Edit } from '../transform.js'
 import { AST_BOUNDS } from './languages.js'

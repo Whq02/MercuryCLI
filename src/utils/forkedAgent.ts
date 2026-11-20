@@ -25,6 +25,7 @@ import { createUserMessage, extractTextContent, getLastAssistantMessage } from '
 import { parseToolListFromCLI } from './permissions/permissionSetup.js'
 import { recordSidechainTranscript, writtenChainTail } from './sessionStorage.js'
 import { settledSidechainMessages } from './sessionStorage/settledSidechainMessages.js'
+import { closeAgentTranscript } from './sessionStorage/writer.js'
 import type { SystemPrompt } from './systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from './toolResultStorage.js'
 import { createAgentId } from './uuid.js'
@@ -345,6 +346,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
   } finally {
     context.readFileState.clear()
     messages.length = 0
+    if (agentId !== undefined) closeAgentTranscript(agentId)
   }
   const usage = settleForkUsageFold(fold)
   const durationMs = Date.now() - startedAt

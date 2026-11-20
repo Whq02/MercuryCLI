@@ -1,4 +1,4 @@
-import { SAMPLE_VERSIONS_POLL_MS, sampleStateWord, type SampleShellInput, type SampleState } from './contracts.js'
+import { SAMPLE_VERSIONS_POLL_MS, sampleStateWord, type SampleShellInput, type SampleState } from '../../utils/samples/contracts.js'
 
 export function renderSampleShell(input: SampleShellInput): string {
   const { record, token } = input

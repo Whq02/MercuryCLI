@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/localServer/localWindowFit.ts src/utils/contextFill.ts src/utils/cockpit/modelGauge.ts
+// gate-watch: src/services/localServer/localWindowFit.ts src/utils/contextFill.ts src/services/cockpit/modelGauge.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,7 +42,7 @@ const { localCallModel } = await import('../../src/services/providers/local/loca
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const { contextFillView } = await import('../../src/utils/contextFill.ts')
 const { writeLocalWindowSetting } = await import('../../src/services/providers/local/localWindow.ts')
-const { modelGauge } = await import('../../src/utils/cockpit/modelGauge.ts')
+const { modelGauge } = await import('../../src/services/cockpit/modelGauge.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const tally = makeTally('prove-local-trained-window')
 const geometry = kvGeometryOf(info)!

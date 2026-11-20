@@ -9,8 +9,8 @@ import {
   resolveBuildId,
 } from '@puppeteer/browsers'
 import { browserCacheDir, dirSizeBytes, listManagedBrowsers, type ManagedBrowser } from './browserResolver.js'
+import { withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout } from '../../utils/timers.js'
 
 function requirePlatform(): NonNullable<ReturnType<typeof detectBrowserPlatform>> {
   const p = detectBrowserPlatform()
@@ -18,18 +18,7 @@ function requirePlatform(): NonNullable<ReturnType<typeof detectBrowserPlatform>
   return p
 }
 
-function withDeadline<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) => {
-      const t = startTimeout(
-        () => reject(new Error(`${what} exceeded its ${ms}ms deadline (offline, or a filtered network?)`)),
-        ms,
-      )
-      ;(t as { unref?: () => void }).unref?.()
-    }),
-  ])
-}
+const STABLE_BUILD_DEADLINE_MS = 12_000
 
 interface InstallPlan {
   buildId: string
@@ -69,8 +58,11 @@ export async function planBrowserInstall(pinnedBuildId?: string): Promise<Instal
     pinnedBuildId ??
     (await withDeadline(
       resolveBuildId(Browser.CHROME, requirePlatform(), 'stable'),
-      12_000,
-      'resolving the current stable Chrome-for-Testing build',
+      STABLE_BUILD_DEADLINE_MS,
+      () => {
+        throw new Error(`resolving the current stable Chrome-for-Testing build exceeded its ${STABLE_BUILD_DEADLINE_MS}ms deadline (offline, or a filtered network?)`)
+      },
+      { unref: true },
     ))
   const pinned = pinnedBuildId !== undefined
   const downloadBytes = pinned ? null : await probeDownloadBytes(buildId)

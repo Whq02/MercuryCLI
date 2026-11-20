@@ -28,7 +28,7 @@ if (process.env.WIF_RENDER_CHILD) {
     '../../src/components/Spinner/SpinnerAnimationRow.js'
   )
   const { publishContextUsage } = await import(
-    '../../src/utils/cockpit/contextUsageLive.js'
+    '../../src/services/cockpit/contextUsageLive.js'
   )
   publishContextUsage(63, 200_000)
 
@@ -70,7 +70,7 @@ if (process.env.WIF_RENDER_CHILD) {
     '../../src/components/Spinner/SpinnerAnimationRow.js'
   )
   const { publishContextUsage } = await import(
-    '../../src/utils/cockpit/contextUsageLive.js'
+    '../../src/services/cockpit/contextUsageLive.js'
   )
   publishContextUsage(50, 200_000)
   const cols = Number(process.env.WIF_COLS || '120')

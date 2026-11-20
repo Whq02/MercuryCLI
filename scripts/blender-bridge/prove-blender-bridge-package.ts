@@ -17,7 +17,7 @@ import {
   BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES,
   BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES,
   blenderBridgeVerbNames,
-} from '../../src/services/blender/bridgeProtocol.js'
+} from '../../src/utils/blender/bridgeProtocol.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

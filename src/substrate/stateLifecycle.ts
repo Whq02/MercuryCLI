@@ -445,7 +445,7 @@ async function collectBashAuditLedger(budget: LifecycleBudget): Promise<Lifecycl
 
 async function collectIdleScratchpads(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
   const receipt = emptyReceipt('session-scratchpads')
-  const { readScratchpadCensus, forgetStaleOwnerRecords, scratchpadFootprint, SCRATCHPAD_WALK_ENTRIES } = await import('../utils/scratchpadRetention.js')
+  const { readScratchpadCensus, forgetStaleOwnerRecords, scratchpadFootprint, SCRATCHPAD_WALK_ENTRIES } = await import('../daemon/scratchpadRetention.js')
   const { forgetSweptScratchpad, isSessionScratchpad } = await import('../utils/scratchpad.js')
   const { retentionCutoffMs } = await import('../utils/cleanup.js')
   const { getMercuryTempDir } = await import('../utils/permissions/filesystem.js')
@@ -707,7 +707,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'session-scratchpads',
     lane: 'semantic-state',
-    owner: 'src/utils/scratchpad.ts · src/utils/scratchpadRetention.ts',
+    owner: 'src/utils/scratchpad.ts · src/daemon/scratchpadRetention.ts',
     root: '<temp root>/<project>/<session>/scratchpad/ · <temp root>/scratchpad-owners/<digest>.json',
     kind: 'temp',
     liveReference:

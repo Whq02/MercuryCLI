@@ -19,9 +19,9 @@ import {
   sessionTraceSnapshot,
   subscribeLiveContextUsage,
   type SnapshotState,
-} from '../utils/cockpit/index.js'
+} from '../services/cockpit/index.js'
 import { conversationIdHere, getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
-import { formatCountdown } from '../utils/cockpit/quota.js'
+import { formatCountdown } from '../services/cockpit/quota.js'
 import { isLocalModelId } from '../services/providers/local/localCatalogue.js'
 import { localWindowRuleWords } from '../services/providers/local/localWindow.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'

@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { windowsBashRoad, windowsShellRoadActive } from './windowsShellRoad.js'

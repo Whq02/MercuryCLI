@@ -20,7 +20,7 @@ import { isPathInside } from '../../utils/pathPrefix.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Input, Output } from './FileReadTool.js'
 import { resultResolvedNames } from './read/results.js'
-import { FILE_READ_TOOL_NAME } from './prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 

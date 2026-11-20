@@ -5,8 +5,8 @@ import {
   type ImageLimits,
 } from '../constants/apiLimits.js'
 import { classifyModelRoute } from '../services/providers/idSpaces.js'
-import { getImageProcessor, imageProcessorState, type SharpFunction } from '../tools/FileReadTool/imageProcessor.js'
-import { imageDimensionsFromHeader } from '../tools/FileReadTool/imageProcessorJs.js'
+import { getImageProcessor, imageProcessorState, type SharpFunction } from './imageProcessor/imageProcessor.js'
+import { imageDimensionsFromHeader } from './imageProcessor/imageProcessorJs.js'
 import type { Base64ImageSource, ImageBlockParam } from '../types/wire.js'
 import { logForDebugging } from './debug.js'
 import { formatFileSize } from './format.js'

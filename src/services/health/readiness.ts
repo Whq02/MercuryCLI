@@ -29,8 +29,8 @@ import { serverCatalogueRecords } from '../lsp/serverCatalogue.js'
 import { unityLaneReadinessRecords } from '../lsp/unityLane.js'
 import { unityBridgeReadinessRecords } from '../ide/unityBridgeSession.js'
 import { blenderBridgeReadinessRecords } from '../ide/blenderBridgeSession.js'
-import { blenderLaneReadinessRecords } from '../ide/blenderProject.js'
-import { mercuryUnityEnabled } from '../ide/unityProject.js'
+import { blenderLaneReadinessRecords } from '../../utils/blender/blenderProject.js'
+import { mercuryUnityEnabled } from '../../utils/unity/unityProject.js'
 import {
   resolveUnityDebugAdapter,
   UNITY_ADAPTER_ARM_HINT,
@@ -46,7 +46,7 @@ import { shellRowNow } from '../../utils/shell/shellRecord.js'
 import { describeWindowsShellRoad } from '../../utils/shell/windowsShellRoad.js'
 import { extensionReadinessRows } from '../../extensions/boot.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
-import { mcpGauge } from '../../utils/cockpit/mcpGauge.js'
+import { mcpGauge } from '../cockpit/mcpGauge.js'
 import { whichSync } from '../../utils/which.js'
 import { withheldTools } from '../../utils/withheldTools.js'
 

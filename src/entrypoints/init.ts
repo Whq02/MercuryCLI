@@ -1,6 +1,6 @@
 import { memoize } from 'lodash-es'
 import { isSessionRunArgv, readSessionOptionValues } from '../utils/sessionArgs.js'
-import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../constants/tools/bash.js'
 import { enableConfigs } from '../utils/config.js'
 import { findMostRecentBackup } from '../utils/config/globalConfig.js'
 import { applyExtraCACertsFromConfig } from '../utils/caCertsConfig.js'

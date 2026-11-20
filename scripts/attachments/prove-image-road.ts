@@ -14,8 +14,8 @@ if (JS_ROAD) process.env.MERCURY_IMAGE_PROCESSOR = 'javascript'
 
 const limitsMod = await import('../../src/constants/apiLimits.ts')
 const resizer = await import('../../src/utils/imageResizer.ts')
-const processor = await import('../../src/tools/FileReadTool/imageProcessor.ts')
-const jsRoad = await import('../../src/tools/FileReadTool/imageProcessorJs.ts')
+const processor = await import('../../src/utils/imageProcessor/imageProcessor.ts')
+const jsRoad = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0

@@ -5,6 +5,7 @@ import { getProjectsDir } from '../../utils/sessionStorage/paths.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { sleep } from '../../utils/sleep.js'
 import { voiceCheckoutRoot } from '../voice/voicePack.js'
 import { computerAccessWords } from './computerAccess.js'
@@ -473,15 +474,11 @@ class NativeDesktopDriver implements DesktopDriver {
     if (!app.pid || !Number.isInteger(app.pid)) return fail({ kind: 'input', note: `${app.name} has no process id` })
     const answer = await this.queryDesktop<null>('activateApplication', [app.pid, app.identity], signal, true)
     if (!answer.ok) return answer
-    const deadline = Date.now() + 1500
-    while (!signal.aborted) {
+    return pollUntil(async () => {
       const front = await this.frontmostApplication()
-      if (signal.aborted) return desktopAbortedAnswer()
-      if (front.ok && front.value.identity === app.identity && front.value.pid === app.pid) return front
-      if (Date.now() >= deadline) break
-      await sleep(50, signal)
-    }
-    return signal.aborted ? desktopAbortedAnswer() : fail({ kind: 'display', note: `${app.name} did not come to the front` })
+      if (signal.aborted) return desktopAbortedAnswer<DesktopApplication>()
+      return front.ok && front.value.identity === app.identity && front.value.pid === app.pid ? front : undefined
+    }, 50, 1500, () => fail<DesktopApplication>({ kind: 'display', note: `${app.name} did not come to the front` }), { signal, onAbort: () => desktopAbortedAnswer<DesktopApplication>() })
   }
 
   accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {

@@ -11,6 +11,7 @@ import { registerOwnerScopedStore } from '../../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../run/ownerScopedStore.js'
 import { endTransfers, newTransferBook, sweepIncoming, type Transfer } from '../browserTransfers.js'
 import { MAIN_TAB, ENDED_TABS_KEPT, type Wiring, type Hold, type Session, type CheckedTarget, type CheckedAct, type OwnerBrowserState, BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, BROWSER_IDLE_MS, EXITED, IDLE_ENDED, SELF_CLOSED } from './shapes.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { sleepSync, startTimeout, stopTimeout } from '../../../utils/timers.js'
 
@@ -154,16 +155,11 @@ export async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> 
     await endChild(browser)
     return 'gone'
   }
-  let bound: ReturnType<typeof setTimeout> | undefined
-  const lapse = (ms: number): Promise<'lapsed'> =>
-    new Promise(resolve => {
-      bound = startTimeout(() => resolve('lapsed'), ms)
-    })
   try {
     const quit = browser.close().then(() => 'closed' as const)
-    let won = await Promise.race([quit, lapse(BROWSER_CLOSE_BOUND_MS)])
+    let won: 'closed' | 'lapsed' = await withDeadline(quit, BROWSER_CLOSE_BOUND_MS, () => 'lapsed' as const)
     const quitting = won === 'lapsed' && browser.connected === false
-    if (quitting) won = await Promise.race([quit, lapse(BROWSER_FINISH_BOUND_MS - BROWSER_CLOSE_BOUND_MS)])
+    if (quitting) won = await withDeadline(quit, BROWSER_FINISH_BOUND_MS - BROWSER_CLOSE_BOUND_MS, () => 'lapsed' as const)
     if (won === 'lapsed') {
       await endChild(browser)
       return quitting ? 'unfinished' : 'killed'
@@ -173,22 +169,12 @@ export async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> 
   } catch {
     await endChild(browser)
     return 'killed'
-  } finally {
-    if (bound !== undefined) stopTimeout(bound)
   }
 }
 
 export async function closePage(page: Page): Promise<void> {
   if (typeof page.close !== 'function') return
-  let bound: ReturnType<typeof setTimeout> | undefined
-  const lapse = new Promise<void>(resolve => {
-    bound = startTimeout(resolve, BROWSER_CLOSE_BOUND_MS)
-  })
-  try {
-    await Promise.race([page.close().catch(passedOverAs(undefined)), lapse])
-  } finally {
-    if (bound !== undefined) stopTimeout(bound)
-  }
+  await withDeadline(page.close().catch(passedOverAs(undefined)), BROWSER_CLOSE_BOUND_MS, () => undefined)
 }
 
 export type LaunchDriver = (options: LaunchOptions) => Promise<DriverBrowser>

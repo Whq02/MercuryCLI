@@ -55,7 +55,7 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CONCOURSE_WORKER
 
 const scratchpad = await import('../../src/utils/scratchpad.ts')
-const retention = await import('../../src/utils/scratchpadRetention.ts')
+const retention = await import('../../src/daemon/scratchpadRetention.ts')
 const { getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
 const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
 const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { selectOperatorMessages } = await import('../../src/services/compact/operatorMessages.js')
+const { selectOperatorMessages } = await import('../../src/utils/compact/operatorMessages.js')
 const text = 'Keep this operator obligation verbatim.\r\n目標 😀 '.repeat(3000)
 const messages = [{ type: 'user', uuid: 'operator-1', message: { role: 'user', content: text } }] as never
 const selected = selectOperatorMessages(messages)

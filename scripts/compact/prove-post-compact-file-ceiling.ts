@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/compact.ts src/utils/attachments/fileAttachments.ts src/tools/FileReadTool/prompt.ts src/services/tokenEstimation.ts
+// gate-watch: src/services/compact/compact.ts src/utils/attachments/fileAttachments.ts src/constants/tools/fileRead.ts src/services/tokenEstimation.ts
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

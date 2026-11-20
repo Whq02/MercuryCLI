@@ -3,7 +3,7 @@ import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../consta
 import { Box, Text } from '../../ink.js'
 import { extractTag } from '../../utils/messages.js'
 import { earlierReleasesCount } from '../../utils/releaseNotes.js'
-import { ctrlOToExpand } from '../CtrlOToExpand.js'
+import { ctrlOToExpand } from '../../utils/ctrlOToExpand.js'
 import { Markdown } from '../Markdown.js'
 import { MessageResponse } from '../MessageResponse.js'
 

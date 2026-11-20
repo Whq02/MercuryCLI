@@ -9,7 +9,7 @@ const registry = await import(join(ROOT, 'src/services/lsp/LSPDiagnosticRegistry
 const manager = await import(join(ROOT, 'src/services/lsp/manager.ts'))
 const road = await import(join(ROOT, 'src/utils/attachments/diagnostics.ts'))
 const { processOwnerForLane } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
-const { BASH_TOOL_NAME } = await import(join(ROOT, 'src/tools/BashTool/toolName.ts'))
+const { BASH_TOOL_NAME } = await import(join(ROOT, 'src/constants/tools/bash.ts'))
 type Diagnostic = { message: string; severity: 'Error' | 'Warning'; range: { start: { line: number; character: number }; end: { line: number; character: number } }; source: string; code: string }
 type Row = { type: string; files: Array<{ uri: string; diagnostics: Diagnostic[] }> }
 

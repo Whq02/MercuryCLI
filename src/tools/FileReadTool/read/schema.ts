@@ -6,7 +6,7 @@ import { semanticBoolean } from '../../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../../utils/semanticNumber.js'
 import type { Message } from '../../../types/message.js'
 import type { NotebookCellSource } from '../../../types/notebook.js'
-import { MAX_LINES_TO_READ, MAX_PDF_PAGES_PER_REQUEST } from '../prompt.js'
+import { MAX_LINES_TO_READ, MAX_PDF_PAGES_PER_REQUEST } from '../../../constants/tools/fileRead.js'
 
 export const MAX_RANGES_PER_READ = 32
 

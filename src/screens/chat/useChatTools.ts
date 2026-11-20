@@ -7,7 +7,7 @@ import { useMergedCommands } from '../../hooks/useMergedCommands.js';
 import { useMergedTools } from '../../hooks/useMergedTools.js';
 import { useAppState } from '../../state/AppState.js';
 import type { Tool } from '../../Tool.js';
-import { publishMcpConnections } from '../../utils/cockpit/mcpGauge.js';
+import { publishMcpConnections } from '../../services/cockpit/mcpGauge.js';
 
 export function useChatTools({ initialCommands, initialTools }: { initialCommands: Command[]; initialTools: Tool[] }) {
   const mcpState = useAppState(state => state.mcp);

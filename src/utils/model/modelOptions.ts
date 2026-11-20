@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { META_SIGN_IN_ROADS } from '../../components/loginFamilyRows.js'
+import { META_SIGN_IN_ROADS } from './loginWords.js'
 import { getInitialSettings } from '../settings/settings.js'
 import {
   evaluateGptCandidate,
