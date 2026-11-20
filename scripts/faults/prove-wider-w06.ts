@@ -151,5 +151,90 @@ console.log('\nw06-1: VerbsPart.leave and ExitHandoff — failed abort interrupt
   check('ExitHandoff forwards receipt.detail and renders it on screen', forwarded?.detail === expected && settled?.detail === expected && lines.some(l => l.includes('the handoff could not be interrupted (ECONNREFUSED)')), JSON.stringify({ forwarded, settled, lines }))
 }
 
+console.log('\nw06-2: daemonConnector.sendWords and sessionSend — unreadable open questions add a one-time note on SendReceiptV1')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const oblPath = path.join(SRC, 'services/crew/obligations.ts')
+    const realObl = await import(oblPath)
+    let failRead = true
+    mock.module(oblPath, () => ({
+      ...realObl,
+      openObligations: async () => {
+        if (failRead) throw new Error('EACCES: obligations unreadable')
+        return []
+      },
+    }))
+    const ensurePath = path.join(SRC, 'services/switchboard/ensureDaemon.ts')
+    const realEnsure = await import(ensurePath)
+    mock.module(ensurePath, () => ({
+      ...realEnsure,
+      ensureOwnedDaemon: async () => true,
+    }))
+    const { DaemonSessionConnector } = await import(path.join(SRC, 'services/engine-connector/daemonConnector.ts'))
+    const rpcCalls = []
+    const connector = new DaemonSessionConnector(
+      {
+        sessionId: 'sess-conn-w06-2',
+        runnerId: 'runner-1',
+        title: 't',
+        projectLabel: 'p',
+        workspaceId: SCRATCH,
+        home: HOME,
+      },
+      {
+        rpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+        armTranscriptWatcher: () => {},
+        armTranscriptTimer: () => {},
+      },
+    )
+    out.first = await connector.sendWords('first reply')
+    out.second = await connector.sendWords('second reply')
+    failRead = false
+    out.recovered = await connector.sendWords('third reply')
+    out.rpcCount = rpcCalls.length
+
+    const { sendToSession } = await import(path.join(SRC, 'screens/chat/submit/sessionSend.ts'))
+    const notices = []
+    const makeDeps = () => ({
+      addNotification: (n) => notices.push(n),
+      repinToBottom: () => {},
+      setSubmitCount: () => {},
+      isLoadingRef: { current: false },
+      getFocusedSeatLive: () => ({ phase: 'idle' }),
+      setInputValue: () => {},
+      setInputMode: () => {},
+      setPastedContents: () => {},
+      armedHandedBackRef: { current: null },
+      setHistoryIndex: () => {},
+      onBeforeSubmit: () => {},
+    })
+    const makeLine = (receipt) => ({
+      input: 'hi',
+      helpers: { setCursorOffset: () => {}, clearBuffer: () => {}, resetHistory: () => {} },
+      options: undefined,
+      submittedAt: new Date().toISOString(),
+      text: 'hi',
+      focusedNow: { sendWords: async () => receipt },
+      seatMode: 'prompt',
+      seatPastes: {},
+      seatCommand: undefined,
+      seat: 'session',
+    })
+    await sendToSession(makeDeps(), makeLine(out.first))
+    const noticesAfterNoted = notices.length
+    await sendToSession(makeDeps(), makeLine(out.second))
+    out.notices = notices
+    out.noticesAfterNoted = noticesAfterNoted
+  `)
+  const first = r.first as { state?: string; note?: string } | undefined
+  const second = r.second as { state?: string; note?: string } | undefined
+  const recovered = r.recovered as { state?: string; note?: string } | undefined
+  const notices = (r.notices as Array<{ text?: string }> | undefined) ?? []
+  const expected = 'open questions could not be read (EACCES: obligations unreadable), so this went out as an ordinary message; answer the question from its card if it still shows.'
+  check('DaemonSessionConnector.sendWords attaches the note once when openObligations fails and still sends', first?.state === 'accepted' && first?.note === expected && second?.state === 'accepted' && second?.note === undefined && recovered?.state === 'accepted' && recovered?.note === undefined && r.rpcCount === 3, JSON.stringify({ first, second, recovered, rpcCount: r.rpcCount }))
+  check('sessionSend surfaces SendReceiptV1.note via addNotification once and stays quiet without a note', r.noticesAfterNoted === 1 && notices.length === 1 && notices[0]?.text === expected, JSON.stringify({ noticesAfterNoted: r.noticesAfterNoted, notices }))
+}
+
 console.log(failures === 0 ? `\nGREEN (${checks} checks)` : `\nRED (${failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)
