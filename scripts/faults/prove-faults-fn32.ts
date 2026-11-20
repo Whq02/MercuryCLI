@@ -91,5 +91,27 @@ function skip(label: string, why: string): void {
   }
 }
 
+{
+  const { gateVerdictPath } = await import('../../src/utils/healthReport.ts')
+  const { _resetBootPreflightForTesting, runAndRecordPreflight } = await import('../../src/utils/healthPreflight.ts')
+  const prevState = process.env.MERCURY_HEALTH_STATE_DIR
+  const stateDir = join(SCRATCH, 'hp-state')
+  mkdirSync(stateDir, { recursive: true })
+  process.env.MERCURY_HEALTH_STATE_DIR = stateDir
+  try {
+    const verdictFile = gateVerdictPath()
+    mkdirSync(join(verdictFile, '..'), { recursive: true })
+    writeFileSync(verdictFile, '{broken json')
+    _resetBootPreflightForTesting()
+    const summary = await runAndRecordPreflight()
+    const gate = summary.degraded.find(d => d.id === 'gate')
+    check('healthPreflight: corrupt gate verdict yields unknown instead of no-verdict info', gate?.status === 'unknown', JSON.stringify(summary.degraded))
+  } finally {
+    _resetBootPreflightForTesting()
+    if (prevState === undefined) delete process.env.MERCURY_HEALTH_STATE_DIR
+    else process.env.MERCURY_HEALTH_STATE_DIR = prevState
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
