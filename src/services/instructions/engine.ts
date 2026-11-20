@@ -37,7 +37,7 @@ import type {
   InstructionProfile,
   InstructionProfileResolution,
   InstructionSourceEntry,
-} from './contracts.js'
+} from '../../utils/instructions/contracts.js'
 import {
   clearExcludeResolutionMemo,
   type ExternalImports,

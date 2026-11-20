@@ -21,8 +21,8 @@ import {
 import {
   blenderBridgeVerb,
   blenderBridgeVerbNames,
-} from '../../services/blender/bridgeProtocol.js'
-import { locateBlender } from '../../services/ide/blenderProject.js'
+} from '../../utils/blender/bridgeProtocol.js'
+import { locateBlender } from '../../utils/blender/blenderProject.js'
 import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'
 import { BLENDER_TOOL_NAME, getBlenderToolDescription } from './prompt.js'
 import { SHOWN_AT_MOST, SHOW_SHAPE_RULE, parseShowList, readShown, showTargets, stampShown, type ShowEntry, type ShownPart } from './show.js'

@@ -43,7 +43,7 @@ const UNDECLARED = 'claude-fable-5-7'
 
 section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, never the Fable 5.1 estimate")
 {
-  const { calculateUSDCost, getModelPricingString, resolveModelPricing, ANTHROPIC_PRICE_OBSERVED_AT } = await import('../../src/utils/modelCost.ts')
+  const { calculateUSDCost, getModelPricingString, resolveModelPricing, ANTHROPIC_PRICE_OBSERVED_AT } = await import('../../src/services/usage/modelCost.ts')
   const pricing = resolveModelPricing(ID)
   check('the cost tier is recorded: $8 in, $40 out, $10 5m write, $0.20 cache read (0.025x; platform.claude.com/docs/en/about-claude/pricing read 2026-11-09)', pricing.basis === 'recorded' && pricing.costs.inputTokens === 8 && pricing.costs.outputTokens === 40 && pricing.costs.promptCacheWriteTokens === 10 && pricing.costs.promptCacheReadTokens === 0.2, JSON.stringify(pricing))
   check("the price string reads '$8/$40 per Mtok'", getModelPricingString(ID) === '$8/$40 per Mtok', String(getModelPricingString(ID)))
@@ -173,7 +173,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
 section('§4 the wire laws the vendor states for the row: thinking always on, no forced tool choice, the disabled road omits the parameter, foreign thinking leaves the wire both ways')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
+  const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
   const { describeInputTransformations, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
@@ -226,7 +226,7 @@ section('§5 thinking binding and declared mirrors')
   const carried = (model: string, target: string, prefix: string | undefined, request: string | undefined, dropped = new Map<string, Set<number>>()): boolean => carriesThinking(stamped(model, `msg_${model}`, prefix), target, request, dropped)
   check("a reply of Opus 5.5 or Fable 5.1 written under the request's own system prompt and tools is carried into the row's request; one written under another, or with no stamp, is not", carried('claude-opus-5-5', ID, 'p1', 'p1') && carried(PREVIOUS, ID, 'p1', 'p1') && carried('claude-mythos-5-1', MIRROR, 'p1', 'p1') && !carried('claude-opus-5-5', ID, 'p0', 'p1') && !carried('claude-opus-5-5', ID, undefined, 'p1') && !carried('claude-opus-5-5', ID, 'p1', undefined))
   check("the row's own thinking is carried to no other model, whatever the stamp, and a block the API has reported dropped is not carried again", !carried(ID, PREVIOUS, 'p1', 'p1') && !carried(ID, 'claude-opus-5-5', 'p1', 'p1') && !carried(MIRROR, PREVIOUS, 'p1', 'p1') && carried(ID, MIRROR, undefined, undefined) && !carried('claude-opus-5-5', ID, 'p1', 'p1', new Map([['msg_claude-opus-5-5', new Set([0])]])))
-  const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+  const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
   const { getLaunchDefaultEffort, isLaunchEffortPinned, selectableEffortLevelsForLadder } = await import('../../src/utils/effort.ts')
   const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/utils/model/configs.ts')

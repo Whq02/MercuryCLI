@@ -126,7 +126,7 @@ t.section('§3 — a source that read once degrades to STALE, not to nothing')
   bootstrap.setOriginalCwd(workspace)
   bootstrap.setCwdState(workspace)
 
-  const store = await import('../../src/utils/artifacts/reviewStore.ts')
+  const store = await import('../../src/services/artifacts/reviewStore.ts')
   const projection = await import('../../src/services/workbench/projection.ts')
   const artifactsRoot = guardWrite(ROOT, store.reviewArtifactsRoot())
 

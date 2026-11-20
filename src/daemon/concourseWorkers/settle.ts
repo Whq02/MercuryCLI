@@ -1,6 +1,6 @@
 import { logForDebugging } from '../../utils/debug.js'
-import { isProcessAlive } from '../ownerWatch.js'
-import { decideTransition, type ConcourseSessionState } from '../concourseLifecycle.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
+import { decideTransition, type ConcourseSessionState } from '../../utils/concourseLifecycle.js'
 import { reapWorkerWorktree } from '../concourseWorktrees.js'
 import { retireSeatProjections } from '../../services/engine-connector/seatProjections.js'
 import { sweepScratchpadDir, scratchpadDirFor } from '../../utils/scratchpad.js'

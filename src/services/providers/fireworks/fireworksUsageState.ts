@@ -1,4 +1,4 @@
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import { fireworksChatCompletionsUrl, resolveFireworksApiKey } from './fireworksAccounts.js'
 import type { ActiveSourceUsage, ProviderSessionSpend, UsageFigureView } from '../providerUsage.js'

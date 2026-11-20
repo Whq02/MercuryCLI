@@ -55,7 +55,7 @@ process.env.MERCURY_OPENROUTER_AUTH_BASE = 'https://fixture.invalid/auth'
 process.env.MERCURY_DEEPSEEK_API_BASE = 'https://fixture.invalid/deepseek'
 process.env.MERCURY_MOONSHOT_API_BASE = 'https://fixture.invalid/moonshot/v1'
 
-const { credentialFingerprint } = await import('../../src/services/providers/credentialIdentity.ts')
+const { credentialFingerprint } = await import('../../src/utils/accounts/credentialIdentity.ts')
 
 function countingFetch(body: unknown, calls: { n: number; auth: string[] }): typeof fetch {
   return (async (_url: RequestInfo | URL, init?: RequestInit) => {

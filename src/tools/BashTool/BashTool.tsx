@@ -2,16 +2,16 @@ import { z } from 'zod/v4'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
 import { loginFilesLineOnce, settleShellRecord } from '../../utils/shell/shellRecord.js'
 import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
-import { BASH_TOOL_NAME } from './toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { isRunInputClosed } from '../../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../SleepTool/prompt.js'
-import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
+import { TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
 import { exec, resolveShellCwd, settleLoginFiles, signalsCountIn, terminalShellInvocation } from '../../utils/Shell.js'
 import { captureVerificationStart } from '../../utils/verification/verificationState.js'
-import { processOwnerForLane } from '../../services/run/resolveOwner.js'
+import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import type { ExecResult, ShellCommand } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
@@ -27,10 +27,10 @@ import { registerShellRun } from './backgroundRequest.js'
 import { ShellError, errorMessage } from '../../utils/errors.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
 import { formatDuration } from '../../utils/format.js'
-import { recordBashAudit } from '../../utils/spawnLedger.js'
+import { recordBashAudit } from '../../daemon/spawnLedger.js'
 import { trackGitOperations } from '../../tools/shared/gitOperationTracking.js'
 import { sessionEnvNoticeForResult } from '../../tools/shared/sessionEnvNotice.js'
-import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../services/changeTransaction/fileHistory.js'
 import {
   detectFileEncoding,
   detectLineEndings,
@@ -59,7 +59,7 @@ import {
   redactedCopy,
   sayWhatTheShellOwes,
   truncateForSummary,
-} from './utils.js'
+} from '../../utils/shell/utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
 import { windowedError } from '../../utils/toolErrors.js'
@@ -89,7 +89,7 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { shellWebContentNotice } from './webContent.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 import { mapResultToBlock } from './resultBlock.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 
 
@@ -465,20 +465,18 @@ async function* runBash(
     )
   }
 
-  let quietTimerHandle: ReturnType<typeof setTimeout> | undefined
-  const quietTimer = new Promise<'timer'>(resolve => {
-    quietTimerHandle = startTimeout(() => resolve('timer'), QUIET_WINDOW_MS)
-    if (typeof quietTimerHandle === 'object' && 'unref' in quietTimerHandle) quietTimerHandle.unref()
-  })
-  const settledEarly = await Promise.race([completed, quietTimer, backgroundAsk])
+  const settledEarly = await withDeadline(
+    Promise.race([completed, backgroundAsk]),
+    QUIET_WINDOW_MS,
+    () => 'timer' as const,
+    { unref: true },
+  )
   if (settledEarly === 'done') {
-    if (quietTimerHandle !== undefined) stopTimeout(quietTimerHandle)
     const result = await shellCommand.result
     shellCommand.cleanup()
     return await postProcess(result, postNeeds)
   }
   if (settledEarly === 'background') {
-    if (quietTimerHandle !== undefined) stopTimeout(quietTimerHandle)
     backgroundAskHandled = true
     await startBackgrounding()
     if (backgroundId === undefined) {

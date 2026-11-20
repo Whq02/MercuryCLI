@@ -124,7 +124,7 @@ try {
       check('debug shim builds', !('state' in shim), JSON.stringify(shim).slice(0, 160))
       if (!('state' in shim)) {
         const dap = await import('../../src/services/dap/dapClient.js')
-        const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+        const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
         const owner = makeOwnerKey({ workspace: proj, sessionId: 'pytests-proof', lane: 'main' })
         const testFile = path.join(proj, 'tests', 'test_calc.py')
         const session = await dap.createDapSession({
@@ -173,7 +173,7 @@ try {
   section('(7) resources + honesty')
   {
     const { resolveResource } = await import('../../src/services/resources/registry.js')
-    const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+    const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
     const owner = makeOwnerKey({ workspace: proj, sessionId: 'pytests-res', lane: 'main' })
     const latest = await resolveResource('mercury://test/latest', { owner, cwd: proj })
     check('mercury://test/latest resolves', latest.state === 'ok', latest.state !== 'ok' ? latest.note : '')

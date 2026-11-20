@@ -114,10 +114,10 @@ try {
   const { refreshQwenCatalogue, __resetQwenCatalogueForTest, qwenCatalogueRows, qwenCatalogueSourceWords, getCachedQwenCatalogue, probeQwenEndpoints } = await import('../../src/services/providers/qwen/qwenCatalogue.ts')
   const { buildQwenExtras } = await import('../../src/services/providers/qwen/qwenCallModel.ts')
   const { storeQwenApiKeyLogin } = await import('../../src/services/providers/qwen/qwenLogin.ts')
-  const { QWEN_DISPLAY_PINS } = await import('../../src/services/providers/qwen/qwenPins.ts')
+  const { QWEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/qwenPins.ts')
   const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
   const { keyLaneListState, keyLanePins, keyLaneProviderRows, QWEN_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
   const pickerWords = (): string[] => keyLaneProviderRows().filter(row => row.group === QWEN_MODEL_GROUP).map(row => row.descriptionForModel ?? '')
   const { readStoredQwenApiKey, readStoredQwenKeyBase } = await import('../../src/services/providers/providerSecrets.ts')
@@ -127,14 +127,14 @@ try {
   const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
   const { bareFamilyWordOf } = await import('../../src/utils/model/bareFamilyWords.ts')
   const { getContextWindowForModel, getModelMaxOutputTokens, modelSupportsThinking } = await import('../../src/utils/model/capabilities.ts')
-  const { getModelCosts, modelPricingBasis } = await import('../../src/utils/modelCost.ts')
+  const { getModelCosts, modelPricingBasis } = await import('../../src/services/usage/modelCost.ts')
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
   const { writeFileSync, mkdirSync } = await import('node:fs')
   const { join } = await import('node:path')
   const { resolveQwenAccount } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
   const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-  const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
   const stateFacts = (models: unknown): void => { mkdirSync(proofHome, { recursive: true }); writeFileSync(join(proofHome, 'settings.json'), JSON.stringify({ models })); resetSettingsCache() }
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'qwen3.8-max', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
@@ -182,7 +182,7 @@ try {
   check("the operator's dial rides in Qwen's vocabulary and never below it: low → low, medium → medium, high → xhigh (Qwen has no high rung)", lowBody.reasoning_effort === 'low' && mediumBody.reasoning_effort === 'medium' && highBody.reasoning_effort === 'xhigh')
   check('the picker offers the qwen3.8 rows their own three rungs with the word map the wire uses, and the other rows no dial', JSON.stringify(effortVocabularyFor('qwen3.8-max')) === JSON.stringify({ kind: 'provider', source: 'qwen', vocabulary: ['low', 'medium', 'xhigh'], defaultEffort: 'xhigh', thinkingGated: true, steps: { none: 'low', minimal: 'low', high: 'xhigh', max: 'xhigh' } }) && effortVocabularyFor('qwen3.7-plus').kind === 'none' && effortVocabularyFor('qwen3-coder-flash').kind === 'none')
   const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
-  const { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort } = await import('../../src/services/providers/qwen/qwenTemplate.ts')
+  const { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort } = await import('../../src/utils/model/pins/qwenTemplate.ts')
   const told: Array<{ asked: string; label: string | undefined; sent: unknown }> = []
   for (const asked of ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']) {
     await run(params('qwen3.8-max', asked))
@@ -238,7 +238,7 @@ try {
   check('/usage says plainly that no endpoint states usage or balance to an API key, naming the console and the credential checked', meter.sourceKind === 'api-key' && meter.windows.length === 0 && meter.credits?.state === 'unreported' && (meter.absence ?? '').includes('no usage, balance or quota endpoint') && (meter.absence ?? '').includes('the key was the one credential checked') && (meter.absence ?? '').includes('International (Singapore)'))
 
   section('Qwen 4: a live qwen4 id takes Qwen\'s thinking switch, preserved thinking and effort dial; an id that only begins with the same letters does not')
-  const { qwenThinkingDial, qwenPreservesThinking, qwenEffortVocabulary } = await import('../../src/services/providers/qwen/qwenPins.ts')
+  const { qwenThinkingDial, qwenPreservesThinking, qwenEffortVocabulary } = await import('../../src/utils/model/pins/qwenPins.ts')
   const QWEN4_IDS = ['qwen4-max', 'qwen4-plus', 'qwen4-flash', 'qwen4-omni-flash', 'qwen4-27b', 'qwen4.5-max', 'qwen4-max-2026-11-20', 'Qwen4-Max']
   const QWEN4_DECOYS = ['qwen40', 'qwen45-turbo', 'qwen4max', 'qwen4', 'qwen4-turbo', 'qwen4-tts-flash']
   check('the three controls on every Qwen 4 id of a known tier, dated and versioned spellings included (red on the base: none · false · no dial)', QWEN4_IDS.every(id => qwenThinkingDial(id) === 'hybrid' && qwenPreservesThinking(id) && JSON.stringify(qwenEffortVocabulary(id)) === '["low","medium","xhigh"]'))

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { crc32, deflateRawSync } from 'node:zlib'
 
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { recordNoChangeOutcome, serializeIntentDigest } from '../../services/changeTransaction/repetitionPolicy.js'
 import { checkAnchor, mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
@@ -19,9 +19,9 @@ import { expandPath } from '../../utils/path.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { modifiedSinceReadMessage, otherLiveSessionsClause, unreadExistingWriteMessage, UNREAD_EXISTING_FILE_NOTE } from '../FileEditTool/otherSession.js'
 import { buildEditedLines } from '../FileEditTool/editResult.js'
-import { findActualString, getPatchForEdit, locateActualString, type ActualMatchOutcome } from '../FileEditTool/utils.js'
+import { findActualString, getPatchForEdit, locateActualString, type ActualMatchOutcome } from '../../utils/fileEditUtils.js'
 import type { FileEditInput, FileEditOutput } from '../FileEditTool/types.js'
-import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import {
   extractZipEntryBuffer,
   findEocdOffset,

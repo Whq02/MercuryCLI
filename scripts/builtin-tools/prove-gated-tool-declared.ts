@@ -24,7 +24,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const gates = await import('../../src/utils/blender/bridgeGates.js')
-const { buildToolCensus, CAPABILITY_UNITS } = await import('../../src/utils/capability/census.ts')
+const { buildToolCensus, CAPABILITY_UNITS } = await import('../../src/services/capability/census.ts')
 const { validateToolCapability } = await import('../../src/utils/capability/contract.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 

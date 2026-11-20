@@ -1,4 +1,4 @@
-import { Client, StdioClientTransport, ProtocolErrorCode } from '../sdk.js'
+import { Client, StdioClientTransport, ProtocolErrorCode } from '../../../utils/mcp/sdk.js'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { getOriginalCwd } from '../../../bootstrap/state.js'

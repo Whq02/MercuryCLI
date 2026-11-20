@@ -6,7 +6,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { projectPythonDebugAdapter } from '../../ide/pythonProject.js'
-import { mercuryUnityEnabled } from '../../ide/unityProject.js'
+import { mercuryUnityEnabled } from '../../../utils/unity/unityProject.js'
 import {
   findGodotProjectRoot,
   godotBridgeCommand,

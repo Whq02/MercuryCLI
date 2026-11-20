@@ -5,7 +5,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { readDaemonState } from '../../daemon/controlSocket.js'
-import { isProcessAlive } from '../../daemon/ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import {
   CHECKSUM_MANIFEST_NAME,
   formatPrivateVersion,

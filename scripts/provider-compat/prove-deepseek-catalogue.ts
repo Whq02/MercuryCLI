@@ -42,14 +42,14 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }
 
-const pins = await import('../../src/services/providers/deepseek/deepseekPins.ts')
+const pins = await import('../../src/utils/model/pins/deepseekPins.ts')
 const { DEEPSEEK_DISPLAY_PINS, deepseekDisplayPin, deepseekDisplayName } = pins
 const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts').catch(() => null)
 const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
 const { DEEPSEEK_STATIC_CATALOGUE, describeDeepseekProvider, listDeepseekModels } = router
 const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
-const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')

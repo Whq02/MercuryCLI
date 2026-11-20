@@ -6,7 +6,7 @@ import type { EffortValue } from '../../utils/effort.js'
 import { parseEffortValue } from '../../utils/effort.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { findGitRoot } from '../../utils/git.js'
-import { projectLocalPath } from '../projectLocal/paths.js'
+import { projectLocalPath } from '../../utils/projectLocal/paths.js'
 
 const AGENT_OVERRIDES_BASENAME = 'agent-overrides.json'
 

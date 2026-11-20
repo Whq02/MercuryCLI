@@ -10,9 +10,9 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const policy = await import('../../src/services/compact/autoCompact.ts')
-const { contextFillView } = await import('../../src/utils/contextFill.ts')
+const { contextFillView } = await import('../../src/services/context/contextFill.ts')
 const { contextLeftOutput } = await import('../../src/tools/ContextLeftTool/ContextLeftTool.ts')
-const forecast = await import('../../src/utils/cockpit/ctxForecast.ts')
+const forecast = await import('../../src/services/cockpit/ctxForecast.ts')
 const { foldAvailability, overflowRefusalText } = await import('../../src/services/compact/overflowRecovery.ts')
 let failures = 0
 let checks = 0
@@ -58,7 +58,7 @@ for (const road of ['config', 'auto-env', 'master-env'] as const) {
   else delete process.env[road === 'auto-env' ? 'MERCURY_AUTO_COMPACT' : 'MERCURY_COMPACT']
 }
 check('failure breaker still stops emergency recovery', !foldAvailability({ tracking: { compacted: false, turnCounter: 0, turnId: 't', consecutiveFailures: 3 }, hasHistory: true }).available)
-const { memoryChecks } = await import('../../src/utils/health/sections/memory.ts')
+const { memoryChecks } = await import('../../src/services/health/sections/memory.ts')
 const contextRow = memoryChecks().find(row => row.id === 'context')
 const contextSays = await contextRow?.run()
 check('/health context row uses the same switch explanation even without a sample', contextRow?.label === 'Context & resume' && contextSays?.evidence.startsWith('no context sample published yet this session') === true && contextSays.evidence.includes(policy.compactionSettingsText()), contextSays?.evidence)

@@ -34,7 +34,7 @@ try {
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
   const { createUserMessage } = await import('../../src/utils/messages.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { getModelCosts, calculateUSDCost } = await import('../../src/utils/modelCost.ts')
+  const { getModelCosts, calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
   const { getModelUsage } = await import('../../src/bootstrap/state.ts')
   const rates = (model: string, total: number) => {
     const value = getModelCosts(model, { promptTokens: total })

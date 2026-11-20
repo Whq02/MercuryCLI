@@ -44,7 +44,7 @@ try {
     writeFileSync(fixture, `import { writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 const { ensureBrowserSession } = await import(${JSON.stringify(join(root, 'src/services/browser/browserSession.ts'))})
-const { processOwnerForLane } = await import(${JSON.stringify(join(root, 'src/services/run/resolveOwner.ts'))})
+const { processOwnerForLane } = await import(${JSON.stringify(join(root, 'src/utils/run/resolveOwner.ts'))})
 const s = await ensureBrowserSession(processOwnerForLane(null))
 if ('state' in s) throw new Error(s.note)
 const child = s.browser.process()!

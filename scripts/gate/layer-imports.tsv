@@ -1,996 +1,209 @@
-src/utils/accounts/sessionAccount.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/accounts/sessionAccount.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/accounts/sessionSignIn.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/accounts/sessionSignIn.ts	src/services/wallet/wallet.ts	load	open
-src/utils/accounts/signInFreshness.ts	src/services/oauth/client.ts	load	open
-src/utils/accounts/signInFreshness.ts	src/services/providers/openai/openaiAccounts.ts	load	open
-src/utils/accounts/signInLedger.ts	src/services/providers/providerSecrets.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/cerebras/cerebrasAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/cohere/cohereAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/credentialIdentity.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/credentialWall.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/deepseek/deepseekAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/fireworks/fireworksAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/gemini/geminiAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/groq/groqAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/huggingface/huggingfaceAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/local/localAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/melious/meliousAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/meta/metaAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/minimax/minimaxAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/mistral/mistralAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/moonshot/moonshotAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/nous/nousAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/openai/openaiAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/openaicompat/compatAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/openrouter/openrouterAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/orcarouter/orcarouterAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/qwen/qwenAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/together/togetherAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/xai/xaiAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/zai/zaiAccounts.ts	load	open
-src/utils/accounts/signInRefusal.ts	src/services/providers/zen/zenAccounts.ts	load	open
-src/utils/analyzeContext.ts	src/services/compact/autoCompact.ts	load	open
-src/utils/analyzeContext.ts	src/services/compact/microCompact.ts	load	open
-src/utils/analyzeContext.ts	src/services/instructions/engine.ts	load	open
-src/utils/analyzeContext.ts	src/services/mcp/types.ts	type	open
-src/utils/analyzeContext.ts	src/services/providers/anthropic/cacheAndUsage.ts	load	open
-src/utils/analyzeContext.ts	src/services/providers/anthropic/requestParams.ts	load	open
-src/utils/analyzeContext.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/analyzeContext.ts	src/services/tokenEstimation.ts	load	open
-src/utils/analyzeContext.ts	src/tools/AgentTool/loadAgentsDir.ts	load	open
-src/utils/analyzeContext.ts	src/tools/SkillTool/SkillTool.ts	load	open
-src/utils/analyzeContext.ts	src/tools/SkillTool/prompt.ts	load	open
-src/utils/analyzeContext.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/api.ts	src/services/providers/deferralWire.ts	load	open
-src/utils/api.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/api.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/api.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/api.ts	src/tools/FileEditTool/constants.ts	load	open
-src/utils/api.ts	src/tools/FileEditTool/editForm.ts	load	open
-src/utils/api.ts	src/tools/FileEditTool/utils.ts	load	open
-src/utils/api.ts	src/tools/FileWriteTool/prompt.ts	load	open
-src/utils/artifacts/reviewContracts.ts	src/services/crew/identity.ts	type	open
-src/utils/artifacts/reviewStore.ts	src/services/crew/activity.ts	load	open
-src/utils/artifacts/reviewStore.ts	src/services/crew/conversations.ts	load	open
-src/utils/artifacts/reviewStore.ts	src/services/crew/identity.ts	load	open
-src/utils/aseprite/gates.ts	src/services/aseprite/asepriteApp.ts	load	open
-src/utils/astPatterns.ts	src/services/changeTransaction/diffBudget.ts	load	open
-src/utils/astPatterns.ts	src/services/structure/grammarFacility.ts	load	open
-src/utils/astPatterns.ts	src/services/structure/pattern.ts	load	open
-src/utils/astPatterns.ts	src/services/structure/transform.ts	load	open
-src/utils/astPatterns/batchRewrite.ts	src/services/changeTransaction/diffBudget.ts	load	open
-src/utils/astPatterns/batchRewrite.ts	src/services/structure/grammarFacility.ts	load	open
-src/utils/astPatterns/batchRewrite.ts	src/services/structure/pattern.ts	load	open
-src/utils/astPatterns/batchRewrite.ts	src/services/structure/polyglotQuery.ts	load	open
-src/utils/astPatterns/batchRewrite.ts	src/services/structure/transform.ts	load	open
-src/utils/astPatterns/languages.ts	src/services/structure/grammarFacility.ts	load	open
-src/utils/astPatterns/rewriteParts.ts	src/services/changeTransaction/diffBudget.ts	type	open
-src/utils/astPatterns/rewriteParts.ts	src/services/structure/grammarFacility.ts	type	open
-src/utils/astPatterns/rewriteParts.ts	src/services/structure/pattern.ts	load	open
-src/utils/astPatterns/rewriteParts.ts	src/services/structure/transform.ts	type	open
-src/utils/astPatterns/scope.ts	src/services/structure/grammarFacility.ts	load	open
-src/utils/astPatterns/scope.ts	src/services/structure/polyglotQuery.ts	load	open
-src/utils/astPatterns/search.ts	src/services/structure/grammarFacility.ts	load	open
-src/utils/astPatterns/search.ts	src/services/structure/pattern.ts	load	open
-src/utils/astPatterns/search.ts	src/services/structure/polyglotQuery.ts	load	open
-src/utils/astPatterns/singleRewrite.ts	src/services/structure/grammarFacility.ts	type	open
-src/utils/astPatterns/singleRewrite.ts	src/services/structure/pattern.ts	type	open
-src/utils/astPatterns/singleRewrite.ts	src/services/structure/polyglotQuery.ts	load	open
-src/utils/attachments/agentRoster.ts	src/services/engine-connector/crewFacts.ts	load	open
-src/utils/attachments/agentRoster.ts	src/services/engine-connector/types.ts	type	open
-src/utils/attachments/agentRoster.ts	src/services/engine-connector/workCounts.ts	load	open
-src/utils/attachments/capsuleState.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/primitives/owner.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/projectIntel/capsule.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/projectIntel/contracts.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/projectIntel/pins.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/projectIntel/snapshot.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/attachments/deltas.ts	src/services/mcp/types.ts	type	open
-src/utils/attachments/deltas.ts	src/services/mcp/utils.ts	load	open
-src/utils/attachments/deltas.ts	src/services/providers/deferralWire.ts	load	open
-src/utils/attachments/deltas.ts	src/services/providers/toolEconomy.ts	load	open
-src/utils/attachments/deltas.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/attachments/deltas.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/attachments/diagnostics.ts	src/services/lsp/LSPDiagnosticRegistry.ts	load	open
-src/utils/attachments/diagnostics.ts	src/services/lsp/LSPServerManager.ts	type	open
-src/utils/attachments/diagnostics.ts	src/services/lsp/manager.ts	load	open
-src/utils/attachments/diagnostics.ts	src/services/run/ownerKey.ts	type	open
-src/utils/attachments/diagnostics.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/attachments/diagnostics.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/services/remoteFiles/target.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/tools/FileEditTool/utils.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/tools/FileReadTool/FileReadTool.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/tools/FileReadTool/limits.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/tools/FileReadTool/prompt.ts	load	open
-src/utils/attachments/fileAttachments.ts	src/tools/FileReadTool/readTarget.ts	load	open
-src/utils/attachments/mentionResolvers.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/attachments/nestedMemory.ts	src/services/instructions/contracts.ts	type	open
-src/utils/attachments/nestedMemory.ts	src/services/instructions/engine.ts	load	open
-src/utils/attachments/orchestrator.ts	src/services/remoteFiles/notice.ts	load	open
-src/utils/attachments/orchestrator.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/advisor/advisorRoads.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/advisor/advisorSettings.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/agentResults/summaryRoom.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/crewBoard/seam.ts	load	open
-src/utils/attachments/reminders.ts	src/daemon/concourseWorkers.ts	load	open
-src/utils/attachments/reminders.ts	src/tools/ContractTool/prompt.ts	load	open
-src/utils/attachments/reminders.ts	src/tools/TaskCreateTool/constants.ts	load	open
-src/utils/attachments/reminders.ts	src/tools/TaskUpdateTool/constants.ts	load	open
-src/utils/attachments/samplesRoad.ts	src/services/samples/contracts.ts	load	open
-src/utils/attachments/sessionContext.ts	src/services/providers/limitWarning.ts	load	open
-src/utils/attachments/skillListing.ts	src/tools/SkillTool/constants.ts	load	open
-src/utils/attachments/skillListing.ts	src/tools/SkillTool/prompt.ts	load	open
-src/utils/attachments/toolSchemaDelta.ts	src/services/providers/toolEconomy.ts	load	open
-src/utils/attachments/toolSchemaDelta.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/attachments/toolSchemaDelta.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/attachments/types.ts	src/services/diagnosticTracking.ts	type	open
-src/utils/attachments/types.ts	src/services/instructions/contracts.ts	type	open
-src/utils/attachments/types.ts	src/services/mcp/sdk.ts	type	open
-src/utils/attachments/types.ts	src/tools/FileReadTool/FileReadTool.ts	type	open
-src/utils/auth.ts	src/services/oauth/getOauthProfile.ts	load	open
-src/utils/auth.ts	src/services/oauth/refresh.ts	load	open
-src/utils/auth.ts	src/services/oauth/types.ts	type	open
-src/utils/auth.ts	src/services/providers/modelRegistry.ts	load	open
-src/utils/auth.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/auth.ts	src/services/wallet/wallet.ts	load	open
-src/utils/backgroundHousekeeping.ts	src/services/MagicDocs/magicDocs.ts	load	open
-src/utils/bash/parser.ts	src/services/structure/grammarFacility.ts	load	row 8
+src/utils/accounts/signInLedger.ts	src/services/providers/providerSecrets.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/cerebras/cerebrasAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/cohere/cohereAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/credentialWall.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/deepseek/deepseekAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/fireworks/fireworksAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/gemini/geminiAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/groq/groqAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/huggingface/huggingfaceAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/local/localAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/melious/meliousAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/meta/metaAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/minimax/minimaxAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/mistral/mistralAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/moonshot/moonshotAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/nous/nousAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/openai/openaiAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/openaicompat/compatAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/openrouter/openrouterAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/orcarouter/orcarouterAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/qwen/qwenAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/together/togetherAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/xai/xaiAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/zai/zaiAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/accounts/signInRefusal.ts	src/services/providers/zen/zenAccounts.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/api.ts	src/services/providers/deferralWire.ts	load	request-shape helpers read provider route and deferral law for messages/apiPlan.ts and apiView.ts
+src/utils/api.ts	src/services/providers/routeLaw.ts	load	request-shape helpers read provider route and deferral law for messages/apiPlan.ts and apiView.ts
+src/utils/artifacts/reviewContracts.ts	src/services/crew/identity.ts	type	a type only: CrewActorRef of src/services/crew/identity.ts
+src/utils/attachments/types.ts	src/tools/FileReadTool/FileReadTool.ts	type	a type only: FileReadTool's output in the attachment union
+src/utils/auth.ts	src/services/oauth/getOauthProfile.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/auth.ts	src/services/oauth/refresh.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/auth.ts	src/services/providers/modelRegistry.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/auth.ts	src/services/providers/providerUsage.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/auth.ts	src/services/wallet/wallet.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
+src/utils/backgroundHousekeeping.ts	src/services/MagicDocs/magicDocs.ts	load	its move up rewrites src/services/health/healthReport.ts, which row 11 holds
 src/utils/bash/shellCompletion.ts	src/components/PromptInput/PromptInputFooterSuggestions.tsx	type	row 8
-src/utils/blender/bridgeGates.ts	src/services/blender/bridgeProtocol.ts	load	open
-src/utils/blender/bridgeGates.ts	src/services/ide/blenderProject.ts	load	open
-src/utils/bootCardFacts.ts	src/services/projectLocal/paths.ts	load	open
-src/utils/boxLock.ts	src/services/switchboard/capacityCheck.ts	load	open
-src/utils/capability/census.ts	src/services/crewBoard/seam.ts	load	open
-src/utils/capability/census.ts	src/tools/AsepriteTool/AsepriteTool.ts	load	open
-src/utils/capability/census.ts	src/tools/AskAdvisorTool/AskAdvisorTool.ts	load	open
-src/utils/capability/census.ts	src/tools/ComputerTool/ComputerTool.ts	load	open
-src/utils/capability/census.ts	src/tools/DebugTool/DebugTool.ts	load	open
-src/utils/capability/census.ts	src/tools/GlobTool/GlobTool.ts	load	open
-src/utils/capability/census.ts	src/tools/GodotTool/GodotTool.ts	load	open
-src/utils/capability/census.ts	src/tools/GrepTool/GrepTool.ts	load	open
-src/utils/capability/census.ts	src/tools/JevEvalTool/JevEvalTool.ts	load	open
-src/utils/capability/census.ts	src/tools/JournalTool/JournalTool.ts	load	open
-src/utils/capability/census.ts	src/tools/MemoryTools/MemoryTools.ts	load	open
-src/utils/capability/census.ts	src/tools/PowerShellTool/PowerShellTool.tsx	load	open
-src/utils/capability/census.ts	src/tools/TaskCreateTool/TaskCreateTool.ts	load	open
-src/utils/capability/census.ts	src/tools/TaskGetTool/TaskGetTool.ts	load	open
-src/utils/capability/census.ts	src/tools/TaskListTool/TaskListTool.ts	load	open
-src/utils/capability/census.ts	src/tools/TaskUpdateTool/TaskUpdateTool.ts	load	open
-src/utils/capability/census.ts	src/tools/ToolSearchTool/ToolSearchTool.ts	load	open
-src/utils/capability/census.ts	src/tools/VideoTool/VideoTool.tsx	load	open
-src/utils/capability/manifest.ts	src/services/mcp/toolPolicy.ts	load	open
-src/utils/cockpit/agentStateSnapshot.ts	src/services/agentNeedsYou.ts	load	open
-src/utils/cockpit/contextUsageLive.ts	src/services/run/ownerKey.ts	type	open
-src/utils/cockpit/contextUsageLive.ts	src/services/run/ownerLifecycle.ts	load	open
-src/utils/cockpit/contextUsageLive.ts	src/services/run/ownerScopedStore.ts	load	open
-src/utils/cockpit/contextUsageLive.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	open
-src/utils/cockpit/critterSleep.ts	src/services/primitives/executionPlane.ts	load	open
-src/utils/cockpit/critterSleep.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/cockpit/ctxForecast.ts	src/services/run/ownerKey.ts	type	open
-src/utils/cockpit/ctxForecast.ts	src/services/run/ownerLifecycle.ts	load	open
-src/utils/cockpit/ctxForecast.ts	src/services/run/ownerScopedStore.ts	load	open
-src/utils/cockpit/ctxForecast.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/cockpit/daemonRosterSnapshot.ts	src/daemon/controlSocket.ts	load	open
-src/utils/cockpit/daemonRosterSnapshot.ts	src/daemon/protocol.ts	type	open
-src/utils/cockpit/daemonRows.ts	src/daemon/longLivedRespawn.ts	load	open
-src/utils/cockpit/daemonRows.ts	src/daemon/status.ts	type	open
-src/utils/cockpit/daemonRows.ts	src/services/privateChannel/installPath.ts	load	open
-src/utils/cockpit/daemonSnapshot.ts	src/daemon/controlSocket.ts	load	open
-src/utils/cockpit/daemonSnapshot.ts	src/daemon/protocol.ts	load	open
-src/utils/cockpit/daemonSnapshot.ts	src/services/privateChannel/installPath.ts	load	open
-src/utils/cockpit/daemonSnapshot.ts	src/tools/ScheduleCronTool/prompt.ts	load	open
-src/utils/cockpit/fleetGauge.ts	src/daemon/concourseWorkers.ts	load	open
-src/utils/cockpit/fleetGauge.ts	src/services/primitives/executionPlane.ts	load	open
-src/utils/cockpit/fleetGauge.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/cockpit/harnessMap.ts	src/services/aseprite/asepriteApp.ts	load	open
-src/utils/cockpit/harnessMap.ts	src/services/dap/dapClient.ts	load	open
-src/utils/cockpit/harnessMap.ts	src/services/ide/blenderProject.ts	load	open
-src/utils/cockpit/harnessMap.ts	src/services/ide/unityProject.ts	load	open
-src/utils/cockpit/harnessMap.ts	src/services/lsp/godotLane.ts	load	open
-src/utils/cockpit/helmLanesModel.ts	src/components/mercury-ui/RailPanel.tsx	load	open
-src/utils/cockpit/helmLanesModel.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/cockpit/helmLanesModel.ts	src/services/engine-connector/types.ts	type	open
-src/utils/cockpit/helmLanesModel.ts	src/services/engine-connector/workCounts.ts	load	open
-src/utils/cockpit/helmLanesModel.ts	src/services/run/runKernel.ts	load	open
-src/utils/cockpit/helmLanesModel/sections.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/cockpit/helmLanesModel/sections.ts	src/daemon/saturn.ts	load	open
-src/utils/cockpit/helmLanesModel/sections.ts	src/services/engine-connector/crewFacts.ts	load	open
-src/utils/cockpit/helmLanesModel/sections.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/cockpit/helmLanesModel/sections.ts	src/services/providers/usageFreshness.ts	load	open
-src/utils/cockpit/helmLanesModel/types.ts	src/daemon/saturn.ts	type	open
-src/utils/cockpit/helmLanesModel/types.ts	src/services/engine-connector/crewFacts.ts	type	open
-src/utils/cockpit/helmLanesModel/types.ts	src/services/engine-connector/types.ts	type	open
-src/utils/cockpit/helmLanesModel/types.ts	src/services/providers/providerUsage.ts	type	open
-src/utils/cockpit/helmLanesModel/types.ts	src/services/run/runKernel.ts	type	open
-src/utils/cockpit/helmVitalsModel.ts	src/components/mercury-ui/RailPanel.tsx	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/components/mercury-ui/theme.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/compact/autoCompact.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/engine-connector/crewFacts.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/engine-connector/types.ts	type	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/providers/accountSlots.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/providers/local/localWindow.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/providers/providerIdentityLine.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/cockpit/helmVitalsModel.ts	src/services/providers/usageFreshness.ts	load	open
-src/utils/cockpit/mcpGauge.ts	src/services/mcp/config.ts	load	open
-src/utils/cockpit/mcpGauge.ts	src/services/mcp/toolPolicy.ts	load	open
-src/utils/cockpit/mcpGauge.ts	src/services/mcp/types.ts	type	open
-src/utils/cockpit/modelGauge.ts	src/services/providers/catalogueEpoch.ts	load	open
-src/utils/cockpit/modelGauge.ts	src/services/providers/providerUsability.ts	load	open
-src/utils/cockpit/modelGauge.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	open
-src/utils/cockpit/permissionsSnapshot.ts	src/services/mcp/toolPolicy.ts	load	open
-src/utils/cockpit/quota.ts	src/components/mercury-ui/theme.ts	type	open
-src/utils/cockpit/quota.ts	src/services/anthropicLimits.ts	load	open
-src/utils/cockpit/quota.ts	src/services/providers/usageFreshness.ts	type	open
-src/utils/cockpit/runtimePosture.ts	src/services/mcp/toolPolicy.ts	load	open
+src/utils/capability/manifest.ts	src/services/mcp/toolPolicy.ts	load	prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness
+src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/utils/cockpit/harnessMap.ts	src/services/dap/dapClient.ts	load	prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness
+src/utils/cockpit/harnessMap.ts	src/services/lsp/godotLane.ts	load	prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness
+src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/utils/cockpit/runtimePosture.ts	src/services/mcp/toolPolicy.ts	load	prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness
 src/utils/cockpit/runtimePosture.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
-src/utils/cockpit/substrateSnapshot.ts	src/services/agentStateHeuristic.ts	load	open
-src/utils/cockpit/substrateSnapshot.ts	src/services/mcp/mercuryServer.ts	load	open
-src/utils/cockpit/substrateSnapshot.ts	src/services/mcp/toolPolicy.ts	load	open
-src/utils/cockpit/substrateSnapshot.ts	src/services/privateChannel/installPath.ts	load	open
-src/utils/cockpit/substrateSnapshot.ts	src/tools/ScheduleCronTool/prompt.ts	load	open
-src/utils/cockpit/types.ts	src/components/mercury-ui/theme.ts	type	open
-src/utils/cockpit/wrapPlain.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/BashTool/commentLabel.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/FileEditTool/constants.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/FileWriteTool/prompt.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/TaskCreateTool/constants.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/TaskGetTool/constants.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/TaskListTool/constants.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/TaskUpdateTool/constants.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/collapseReadSearch.ts	src/tools/shared/gitOperationTracking.ts	load	open
-src/utils/config/schema.ts	src/services/mcp/types.ts	type	open
-src/utils/config/schema.ts	src/services/oauth/types.ts	type	open
-src/utils/config/schema.ts	src/services/video/types.ts	type	open
-src/utils/contextFill.ts	src/services/compact/autoCompactWindow.ts	load	open
-src/utils/contextFill.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/contextSuggestions.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/contextSuggestions.ts	src/tools/FileReadTool/prompt.ts	load	open
-src/utils/contextSuggestions.ts	src/tools/GrepTool/prompt.ts	load	open
-src/utils/contextSuggestions.ts	src/tools/WebFetchTool/prompt.ts	load	open
-src/utils/conversationRecovery.ts	src/services/changeTransaction/seenLines.ts	load	open
-src/utils/conversationRecovery.ts	src/services/desktop/screenshotRetention.ts	load	open
-src/utils/conversationRecovery.ts	src/services/engine-connector/midTurnText.ts	load	open
-src/utils/conversationRecovery.ts	src/services/providers/anthropic/boundPrefixRecord.ts	load	open
-src/utils/conversationRecovery.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/conversationRecovery.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/crew/agentLaunchPlan.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/crew/agentLaunchPlan.ts	src/tools/AgentTool/constants.ts	load	open
-src/utils/crew/agentLaunchPlan.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/crew/agentTranscriptReader.ts	src/services/api/errorPrefix.ts	load	open
-src/utils/crew/channelCommand.ts	src/services/crewBoard/seam.ts	load	open
-src/utils/crew/channelCommand.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/crew/channelCommand.ts	src/services/engine-connector/types.ts	type	open
-src/utils/crew/engineDispatch.ts	src/services/providers/catalogueOnDemand.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/cerebras/cerebrasAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/cerebras/cerebrasPins.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/cohere/cohereAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/deepseek/deepseekAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/disabledProviders.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/fireworks/fireworksAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/fireworks/fireworksPins.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/gemini/geminiAccounts.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/gemini/geminiCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/groq/groqAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/groq/groqPins.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/huggingface/huggingfaceAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/huggingface/huggingfacePins.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/local/localAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/local/localDiscovery.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/melious/meliousAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/melious/meliousCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/meta/metaAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/minimax/minimaxAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/mistral/mistralAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/modelRegistry.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/moonshot/kimiPins.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/nous/nousAccounts.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/nous/nousCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/openai/openaiAccounts.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/openai/openaiAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/openai/openaiCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/openaicompat/compatAccounts.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/openrouter/openrouterAccounts.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/orcarouter/orcarouterAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/providerDiscovery.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/qwen/qwenAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/together/togetherAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/together/togetherPins.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/xai/xaiAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/zai/zaiAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/zen/zenAdapter.ts	load	open
-src/utils/crew/engineDispatch.ts	src/services/providers/zen/zenPins.ts	load	open
-src/utils/documentText.ts	src/tools/FileReadTool/readRichFormats.ts	load	open
-src/utils/effort.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/effort.ts	src/services/providers/zai/glmPins.ts	load	open
-src/utils/errors.ts	src/services/api/sdkErrors.ts	load	open
-src/utils/exportRenderer.tsx	src/components/Messages.tsx	load	open
-src/utils/file.ts	src/services/remoteFiles/target.ts	load	open
-src/utils/fileHistory.ts	src/services/changeTransaction/changeSetCommit.ts	load	open
-src/utils/fileHistory.ts	src/services/changeTransaction/changeSetPlan.ts	load	open
-src/utils/fileStateCache.ts	src/services/remoteFiles/target.ts	load	open
-src/utils/forkedAgent.ts	src/services/api/emptyUsage.ts	load	open
-src/utils/forkedAgent.ts	src/services/api/logging.ts	type	open
-src/utils/forkedAgent.ts	src/services/providers/anthropic/cacheAndUsage.ts	load	open
-src/utils/forkedAgent.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/forkedAgent.ts	src/tools/AgentTool/agentPermissionPosture.ts	load	open
-src/utils/forkedAgent.ts	src/tools/AgentTool/built-in/mercuryCrewAgent.ts	load	open
-src/utils/forkedAgent.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/git.ts	src/services/gitGraph/contracts.ts	type	open
-src/utils/git.ts	src/services/gitGraph/observe.ts	load	open
-src/utils/gitRules.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/groupToolUses.ts	src/tools/AgentTool/constants.ts	load	open
-src/utils/haltAll.ts	src/daemon/controlSocket.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/components/mercury-ui/toolCardGrammar.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/primitives/execution.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/primitives/executionCensus.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/primitives/executionPlane.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/primitives/index.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/primitives/runtimeKernel.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/primitives/transactionPlane.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/resources/registry.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/run/ownerLifecycle.ts	load	open
-src/utils/health/sections/architecture-fast.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/health/sections/auth.ts	src/services/providers/anthropicRefusal.ts	load	open
-src/utils/health/sections/auth.ts	src/services/providers/credentialWall.ts	load	open
-src/utils/health/sections/auth.ts	src/services/providers/modelRegistry.ts	load	open
-src/utils/health/sections/auth.ts	src/services/providers/providerDiscovery.ts	load	open
-src/utils/health/sections/auth.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/health/sections/auth.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/health/sections/auth.ts	src/services/providers/typedModelIds.ts	load	open
-src/utils/health/sections/auth.ts	src/services/search/searchDoor.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/changeTransaction/contracts.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/dap/dapClient.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/ide/ideTransaction.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/ide/projectRunners.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/ide/pythonProject.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/ide/pythonTests.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/lsp/clangdLane.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/lsp/godotLane.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/lsp/pyrightLane.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/lsp/ruffLane.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/projectServices/contracts.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/projectServices/serviceManager.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/repoHost/repoHost.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/resources/contracts.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/resources/registry.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/run/effectObserver.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/structure/contracts.ts	load	open
-src/utils/health/sections/coding-loop-fast.ts	src/services/structure/grammarFacility.ts	load	open
-src/utils/health/sections/crew/appends.ts	src/services/providers/anthropic/requestParams.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/capacity/composeCeilings.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/capacity/seatWords.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/crewBoard/seam.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/projectLocal/paths.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/switchboard/backgroundLaunch.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/switchboard/capacityCheck.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/switchboard/spawnSwitches.ts	load	open
-src/utils/health/sections/crew/crewmates.ts	src/services/visual/imageDisplay.ts	load	open
-src/utils/health/sections/crew/daemon.ts	src/daemon/controlSocket.ts	load	open
-src/utils/health/sections/crew/daemon.ts	src/daemon/handshake.ts	load	open
-src/utils/health/sections/crew/daemon.ts	src/daemon/processSweep.ts	load	open
-src/utils/health/sections/crew/daemon.ts	src/daemon/processSweepRun.ts	load	open
-src/utils/health/sections/crew/daemon.ts	src/daemon/protocol.ts	type	open
-src/utils/health/sections/crew/daemon.ts	src/daemon/reconcileRecords.ts	load	open
-src/utils/health/sections/crew/daemon.ts	src/daemon/signInView.ts	load	open
-src/utils/health/sections/crew/home.ts	src/daemon/controlSocket.ts	load	open
-src/utils/health/sections/durability.ts	src/services/changeTransaction/changeSetContracts.ts	load	open
-src/utils/health/sections/durability.ts	src/services/interview/store.ts	load	open
-src/utils/health/sections/git.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/health/sections/identity.ts	src/daemon/handshake.ts	load	open
-src/utils/health/sections/identity.ts	src/services/mcp/renderTuiTool.ts	load	open
-src/utils/health/sections/identity.ts	src/services/privateChannel/artifactVerify.ts	load	open
-src/utils/health/sections/identity.ts	src/services/privateChannel/installLayout.ts	load	open
-src/utils/health/sections/identity.ts	src/services/privateChannel/installPath.ts	load	open
-src/utils/health/sections/identity.ts	src/services/privateChannel/installProvenance.ts	load	open
-src/utils/health/sections/identity.ts	src/services/privateChannel/vendoredRuntime.ts	load	open
-src/utils/health/sections/interface.ts	src/components/mercury-ui/sessionAccent.ts	load	open
-src/utils/health/sections/interface.ts	src/services/desktop/nativeDriver.ts	load	open
-src/utils/health/sections/interface.ts	src/services/samples/contracts.ts	load	open
-src/utils/health/sections/interface.ts	src/services/voice/voiceSession.ts	load	open
-src/utils/health/sections/interface.ts	src/tools/FileReadTool/imageProcessor.ts	load	open
-src/utils/health/sections/memory.ts	src/services/compact/autoCompact.ts	load	open
-src/utils/health/sections/memory.ts	src/services/compact/verbatimTail.ts	load	open
-src/utils/health/sections/memory.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/health/sections/memory.ts	src/services/providers/anthropic/thinkingBinding.ts	load	open
-src/utils/health/sections/memory.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/health/sections/profile.ts	src/tools/AgentTool/builtInAgents.ts	load	open
-src/utils/health/sections/proofs.ts	src/services/mcp/renderTuiTool.ts	load	open
-src/utils/health/sections/runtime.ts	src/services/changeTransaction/editOutcomeLedger.ts	load	open
-src/utils/health/sections/runtime.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/health/sections/runtime.ts	src/services/engine-connector/seatLive.ts	load	open
-src/utils/health/sections/runtime.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/health/sections/runtime/host.ts	src/daemon/concourseWorkers.ts	load	open
-src/utils/health/sections/runtime/host.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/health/sections/runtime/host.ts	src/services/privateChannel/updateService.ts	load	open
-src/utils/health/sections/runtime/host.ts	src/services/privateChannel/vendoredRuntime.ts	load	open
-src/utils/health/sections/runtime/lsp.ts	src/services/lsp/builtinServers.ts	load	open
-src/utils/health/sections/runtime/lsp.ts	src/services/lsp/clangdLane.ts	load	open
-src/utils/health/sections/runtime/lsp.ts	src/services/lsp/godotLane.ts	load	open
-src/utils/health/sections/runtime/lsp.ts	src/services/lsp/manager.ts	load	open
-src/utils/health/sections/runtime/lsp.ts	src/services/lsp/mercuryLsp.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/eval/contracts.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/eval/interpreters.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/lsp/godotLane.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/mcp/auth.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/mcp/protocolRevision.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/mcp/toolPolicy.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/media/settings.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/vulcan/addonInstaller.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/vulcan/editorPresence.ts	load	open
-src/utils/health/sections/runtime/services.ts	src/services/vulcan/engine/service.ts	load	open
-src/utils/health/sections/settings/model.ts	src/services/providers/disabledProviders.ts	load	open
-src/utils/health/sections/settings/model.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/health/sections/settings/model.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/health/sections/settings/prompt.ts	src/services/instructions/engine.ts	load	open
-src/utils/health/sections/settings/prompt.ts	src/services/instructions/listing.ts	load	open
-src/utils/health/sections/tool-capability-fast.ts	src/services/dap/dapClient.ts	load	open
-src/utils/health/sections/tool-capability-fast.ts	src/services/eval/interpreters.ts	load	open
-src/utils/health/sections/tool-capability-fast.ts	src/tools/ToolSearchTool/ToolSearchTool.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/agentResults/normalize.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/changeTransaction/contracts.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/changeTransaction/receipts.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/changeTransaction/snapshotAnchor.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/dap/dapClient.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/dap/probeAdapter.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/gitGraph/contracts.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/gitGraph/observe.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/gitGraph/plan.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/ide/pythonProject.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/journeys/contracts.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/journeys/runner.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/lsp/LSPDiagnosticRegistry.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/lsp/LSPServerInstance.ts	type	open
-src/utils/healthDeepProbes.ts	src/services/lsp/LSPServerManager.ts	type	open
-src/utils/healthDeepProbes.ts	src/services/lsp/manager.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/lsp/workspaceEditApply.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/primitives/executionPlane.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/primitives/index.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/primitives/transactionPlane.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/projectServices/contracts.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/projectServices/serviceManager.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/resources/registry.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/contextEpochs.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/effectObserver.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/ownerKey.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/ownerLifecycle.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/requestContextPlan.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/runCoordinator.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/runKernel.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/run/runSidecar.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/structure/contracts.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/structure/query.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/structure/transform.ts	load	open
-src/utils/healthDeepProbes.ts	src/services/structure/tsFacility.ts	load	open
-src/utils/healthDeepProbes.ts	src/tools/LSPTool/mercuryOps.ts	load	open
-src/utils/healthReport.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/healthReport.ts	src/daemon/concourseWorkers.ts	load	open
-src/utils/healthReport.ts	src/daemon/concourseWorktrees.ts	load	open
-src/utils/healthReport.ts	src/services/api/clientContractLearned.ts	load	open
-src/utils/healthReport.ts	src/services/browser/browserResolver.ts	load	open
-src/utils/healthReport.ts	src/services/projectLocal/paths.ts	load	open
-src/utils/healthReport.ts	src/services/providers/anthropic/modelRefusal.ts	load	open
-src/utils/healthReport.ts	src/services/providers/local/tensorfoldHealth.ts	load	open
-src/utils/hooks/contract.ts	src/daemon/concourseLifecycle.ts	load	open
-src/utils/hooks/crewmateRunner.ts	src/services/providers/catalogueOnDemand.ts	load	open
-src/utils/hooks/crewmateRunner.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/hooks/crewmateRunner.ts	src/tools/SyntheticOutputTool/SyntheticOutputTool.ts	load	open
-src/utils/hooks/crewmateRunner.ts	src/tools/SyntheticOutputTool/constants.ts	load	open
-src/utils/hooks/matching.ts	src/services/lsp/toolFamily.ts	load	open
-src/utils/hooks/matching.ts	src/tools/AgentTool/constants.ts	load	open
-src/utils/hooks/matching.ts	src/tools/WebFetchTool/WebFetchTool.ts	load	open
-src/utils/hooks/questionRunner.ts	src/services/providers/callModelRouter.ts	load	open
-src/utils/hooks/questionRunner.ts	src/services/providers/catalogueOnDemand.ts	load	open
-src/utils/hooks/questionRunner.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/imagePaste.ts	src/tools/FileReadTool/imageProcessor.ts	load	open
-src/utils/imageResizer.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/imageResizer.ts	src/tools/FileReadTool/imageProcessor.ts	load	open
-src/utils/imageResizer.ts	src/tools/FileReadTool/imageProcessorJs.ts	load	open
-src/utils/logoV2Utils.ts	src/services/providers/callModelRouter.ts	load	open
-src/utils/logoV2Utils.ts	src/services/providers/openai/openaiAccounts.ts	load	open
-src/utils/markdown.ts	src/components/design-system/color.ts	load	open
-src/utils/mcp/dateTimeParser.ts	src/services/providers/anthropic/streamCore.ts	load	open
-src/utils/mcp/elicitationValidation.ts	src/services/mcp/sdk.ts	type	open
-src/utils/mcpInstructionsDelta.ts	src/services/mcp/types.ts	type	open
-src/utils/mcpOutputStorage.ts	src/services/mcp/client.ts	type	open
-src/utils/mcpValidation.ts	src/services/tokenEstimation.ts	load	open
-src/utils/memoryFileDetection.ts	src/tools/AgentTool/agentMemory.ts	load	open
-src/utils/memoryFileDetection.ts	src/tools/MemoryTools/prompt.ts	load	open
-src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	open
-src/utils/messageContextFill.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/messageContextFill.ts	src/services/roughTokenEstimation.ts	load	open
-src/utils/messages/apiFilters.ts	src/services/providers/anthropic/deadThinkingPlaceholder.ts	load	open
-src/utils/messages/apiPlan.ts	src/services/api/errors.ts	load	open
-src/utils/messages/apiPlan.ts	src/services/api/mediaRefusal.ts	load	open
-src/utils/messages/apiViewRows.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/messages/attachmentText.ts	src/services/compact/operatorMessages.ts	load	open
-src/utils/messages/attachmentText.ts	src/services/diagnosticTracking.ts	load	open
-src/utils/messages/attachmentText.ts	src/services/instructions/attachedText.ts	load	open
-src/utils/messages/attachmentText.ts	src/services/providers/limitWarning.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/BashTool/resultBlock.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/ContractTool/prompt.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/FileReadTool/FileReadTool.ts	type	open
-src/utils/messages/attachmentText.ts	src/tools/FileReadTool/prompt.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/FileReadTool/read/resultBlock.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/ResumeAgentTool/constants.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/SendMessageTool/constants.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/TaskCreateTool/constants.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/TaskStopTool/prompt.ts	load	open
-src/utils/messages/attachmentText.ts	src/tools/TaskUpdateTool/constants.ts	load	open
-src/utils/messages/lookups.ts	src/services/api/errors.ts	load	open
-src/utils/messages/streaming.ts	src/components/Spinner.tsx	type	open
-src/utils/messages/systemMessages.ts	src/services/api/emptyUsage.ts	type	open
-src/utils/messages/systemMessages.ts	src/services/api/sdkErrors.ts	type	open
-src/utils/messages/systemMessages.ts	src/services/api/transportEvidence.ts	load	open
-src/utils/model/agent.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/catalogueGate.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/cohere/cohereCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/cohere/coherePins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/deepseek/deepseekPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/disabledProviders.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/idSpaces.ts	type	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/meta/metaCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/meta/metaPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/minimax/minimaxCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/minimax/minimaxPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/mistral/mistralCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/mistral/mistralPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/moonshot/kimiPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/qwen/qwenCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/qwen/qwenPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/xai/xaiCatalogue.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/xai/xaiPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/zai/glmPins.ts	load	open
-src/utils/model/bareFamilyWords.ts	src/services/providers/zai/zaiCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/cerebras/cerebrasCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/cerebras/cerebrasPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/cohere/cohereCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/cohere/coherePins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/deepseek/deepseekPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/fireworks/fireworksCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/fireworks/fireworksPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/gemini/geminiCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/groq/groqCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/groq/groqPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/huggingface/huggingfacePins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/local/localCallModel.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/local/localWindow.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/melious/meliousCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/meta/metaPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/minimax/minimaxPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/mistral/mistralCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/mistral/mistralPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/moonshot/kimiPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/nous/nousCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/openai/openaiCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/openaicompat/compatCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/openaicompat/compatEffort.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/openaicompat/compatWire.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/qwen/qwenCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/qwen/qwenPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/qwen/qwenTemplate.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/together/togetherCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/together/togetherPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/xai/xaiCatalogue.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/xai/xaiPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/zai/glmPins.ts	load	open
-src/utils/model/capabilities.ts	src/services/providers/zen/zenPins.ts	load	open
-src/utils/model/computedDefault.ts	src/services/providers/catalogueEpoch.ts	load	open
-src/utils/model/computedDefault.ts	src/services/providers/catalogueGate.ts	load	open
-src/utils/model/computedDefault.ts	src/services/providers/catalogueOnDemand.ts	load	open
-src/utils/model/computedDefault.ts	src/services/providers/gemini/geminiCatalogue.ts	load	open
-src/utils/model/computedDefault.ts	src/services/providers/modelRegistry.ts	load	open
-src/utils/model/computedDefault.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/model/computedDefault.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/gemini/geminiAccounts.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/gemini/geminiCatalogue.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/huggingface/huggingfaceAccounts.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/local/localDiscovery.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/local/localWindow.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/nous/nousAccounts.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/nous/nousCatalogue.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/openai/openaiAccounts.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/openai/openaiCatalogue.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/openrouter/openrouterAccounts.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	open
-src/utils/model/contextWindowWarmup.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/deprecation.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/model/model.ts	src/services/providers/cerebras/cerebrasPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/cohere/coherePins.ts	load	open
-src/utils/model/model.ts	src/services/providers/deepseek/deepseekPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/fireworks/fireworksPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/groq/groqPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/model.ts	src/services/providers/meta/metaPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/minimax/minimaxPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/mistral/mistralPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	open
-src/utils/model/model.ts	src/services/providers/qwen/qwenPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/model.ts	src/services/providers/together/togetherPins.ts	load	open
-src/utils/model/model.ts	src/services/providers/xai/xaiPins.ts	load	open
-src/utils/model/modelAllowlist.ts	src/services/providers/disabledProviders.ts	load	open
-src/utils/model/modelAllowlist.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/modelFamilies.ts	src/services/providers/disabledProviders.ts	load	open
-src/utils/model/modelFamilies.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/modelNames.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/modelOptions.ts	src/components/loginFamilyRows.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/anthropic/anthropicCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/anthropic/modelRefusal.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/catalogueGate.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/cerebras/cerebrasAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/cerebras/cerebrasCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/cerebras/cerebrasPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/cohere/cohereAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/cohere/cohereCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/cohere/coherePins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/deepseek/deepseekAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/deepseek/deepseekPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/disabledProviders.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/fireworks/fireworksAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/fireworks/fireworksCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/fireworks/fireworksPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/gemini/geminiCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/groq/groqAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/groq/groqCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/groq/groqPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/melious/meliousAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/melious/meliousCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/meta/metaAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/meta/metaCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/meta/metaPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/minimax/minimaxAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/minimax/minimaxCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/minimax/minimaxPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/mistral/mistralAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/mistral/mistralCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/mistral/mistralPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/moonshot/kimiPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/moonshot/moonshotAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/nous/nousCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/openai/openaiCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/openaicompat/compatAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/openaicompat/compatCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/orcarouter/orcarouterAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/providerDiscovery.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/qwen/qwenAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/qwen/qwenCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/qwen/qwenPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/together/togetherAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/together/togetherCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/together/togetherPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/xai/xaiAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/xai/xaiCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/xai/xaiPins.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/zai/zaiCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/zen/zenAccounts.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/zen/zenCatalogue.ts	load	open
-src/utils/model/modelOptions.ts	src/services/providers/zen/zenPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/cerebras/cerebrasPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/cohere/coherePins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/deepseek/deepseekPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/fireworks/fireworksPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/gemini/geminiPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/groq/groqPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/huggingface/huggingfacePins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/melious/meliousCatalogue.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/meta/metaPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/minimax/minimaxPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/mistral/mistralPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/moonshot/kimiPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/qwen/qwenPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/together/togetherPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/xai/xaiPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/zai/glmPins.ts	load	open
-src/utils/model/modelOverrides.ts	src/services/providers/zen/zenPins.ts	load	open
-src/utils/model/modelTransition.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/cohere/cohereCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/huggingface/huggingfacePins.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/meta/metaCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/minimax/minimaxCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/mistral/mistralCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/nous/nousCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/openai/openaiAccounts.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/openai/openaiCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/qwen/qwenCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/routeLaw.ts	type	open
-src/utils/model/providerFrontier.ts	src/services/providers/xai/xaiCatalogue.ts	load	open
-src/utils/model/providerFrontier.ts	src/services/providers/zai/zaiCatalogue.ts	load	open
-src/utils/model/slotSwitchReceipt.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/model/slotSwitchReceipt.ts	src/services/providers/slotSwitch.ts	type	open
-src/utils/model/subModelSlots.ts	src/components/loginFamilyRows.ts	load	open
-src/utils/model/subModelSlots.ts	src/services/providers/catalogueGate.ts	load	open
-src/utils/model/subModelSlots.ts	src/services/providers/modelRegistry.ts	load	open
-src/utils/model/subModelSlots.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/model/subModelSlots.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/utilityModel.ts	src/services/providers/local/tensorfoldHelper.ts	load	open
-src/utils/model/utilityModel.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/model/utilityModel.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/validateModel.ts	src/services/api/sdkErrors.ts	load	open
-src/utils/model/validateModel.ts	src/services/providers/anthropic/index.ts	load	open
-src/utils/model/validateModel.ts	src/services/providers/callModelRouter.ts	load	open
-src/utils/model/validateModel.ts	src/services/providers/catalogueOnDemand.ts	load	open
-src/utils/model/validateModel.ts	src/services/providers/disabledProviders.ts	load	open
-src/utils/model/validateModel.ts	src/services/providers/homeLaneAdmission.ts	load	open
-src/utils/model/validateModel.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/model/validateModel.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/catalogueAdmission.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/huggingface/huggingfaceAccounts.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/local/localDiscovery.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/moonshot/moonshotAccounts.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/nous/nousAccounts.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/nous/nousCatalogue.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/openai/openaiAccounts.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/openai/openaiCatalogue.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/openrouter/openrouterAccounts.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/openrouter/openrouterCallModel.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	open
-src/utils/model/validateModel/catalogues.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/model/validateModel/credentials.ts	src/services/providers/deepseek/deepseekAccounts.ts	load	open
-src/utils/model/validateModel/credentials.ts	src/services/providers/gemini/geminiAccounts.ts	load	open
-src/utils/model/validateModel/credentials.ts	src/services/providers/openaicompat/compatAccounts.ts	load	open
-src/utils/model/validateModel/credentials.ts	src/services/providers/orcarouter/orcarouterAccounts.ts	load	open
-src/utils/model/validateModel/credentials.ts	src/services/providers/providerDiscovery.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/catalogueOnDemand.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/cerebras/cerebrasAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/cerebras/cerebrasCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/cerebras/cerebrasPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/cohere/cohereAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/cohere/cohereCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/cohere/coherePins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/fireworks/fireworksAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/fireworks/fireworksCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/fireworks/fireworksPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/groq/groqAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/groq/groqCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/groq/groqPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/melious/meliousAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/melious/meliousCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/meta/metaAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/meta/metaCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/meta/metaPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/minimax/minimaxAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/minimax/minimaxCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/minimax/minimaxPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/mistral/mistralAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/mistral/mistralCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/mistral/mistralPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/qwen/qwenAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/qwen/qwenCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/qwen/qwenPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/together/togetherAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/together/togetherCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/together/togetherPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/xai/xaiAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/xai/xaiCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/xai/xaiPins.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/zen/zenAccounts.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/zen/zenCatalogue.ts	load	open
-src/utils/model/validateModel/onDemandCatalogues.ts	src/services/providers/zen/zenPins.ts	load	open
-src/utils/modelCost.ts	src/services/api/emptyUsage.ts	load	open
-src/utils/modelCost.ts	src/services/providers/cerebras/cerebrasPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/cohere/coherePins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/deepseek/deepseekPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/fireworks/fireworksPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/gemini/geminiPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/groq/groqPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/huggingface/huggingfacePins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/idSpaces.ts	type	open
-src/utils/modelCost.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/modelCost.ts	src/services/providers/melious/meliousCatalogue.ts	load	open
-src/utils/modelCost.ts	src/services/providers/meta/metaPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/minimax/minimaxPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/mistral/mistralPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/moonshot/kimiPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/nous/nousCatalogue.ts	load	open
-src/utils/modelCost.ts	src/services/providers/openai/gptPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	open
-src/utils/modelCost.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	open
-src/utils/modelCost.ts	src/services/providers/qwen/qwenPricing.ts	load	open
-src/utils/modelCost.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/modelCost.ts	src/services/providers/together/togetherPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/xai/xaiCatalogue.ts	load	open
-src/utils/modelCost.ts	src/services/providers/zai/glmPins.ts	load	open
-src/utils/modelCost.ts	src/services/providers/zen/zenPins.ts	load	open
-src/utils/normalizeToolSchema.ts	src/services/providers/idSpaces.ts	type	open
-src/utils/notebook.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/notebook.ts	src/tools/BashTool/utils.ts	load	open
-src/utils/ocr.ts	src/services/desktop/pack.ts	load	open
-src/utils/permissions/PermissionMode.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/permissions/capabilityGate.ts	src/services/lsp/toolFamily.ts	load	open
-src/utils/permissions/commandContent.ts	src/tools/BashTool/destructiveCommandWarning.ts	load	open
-src/utils/permissions/decision/engine.ts	src/services/api/sdkErrors.ts	load	row 8
+src/utils/git.ts	src/services/gitGraph/contracts.ts	type	the git utility hands status observation to src/services/gitGraph
+src/utils/git.ts	src/services/gitGraph/observe.ts	load	the git utility hands status observation to src/services/gitGraph
+src/utils/hooks/crewmateRunner.ts	src/services/providers/catalogueOnDemand.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
+src/utils/hooks/crewmateRunner.ts	src/services/providers/routeLaw.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
+src/utils/hooks/crewmateRunner.ts	src/tools/SyntheticOutputTool/SyntheticOutputTool.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
+src/utils/hooks/questionRunner.ts	src/services/providers/callModelRouter.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
+src/utils/hooks/questionRunner.ts	src/services/providers/catalogueOnDemand.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
+src/utils/hooks/questionRunner.ts	src/services/providers/routeLaw.ts	load	hook runners call models and tools for src/utils/hooks/fire.ts, which row 8 imports
+src/utils/imageResizer.ts	src/services/providers/idSpaces.ts	load	low-level utils checking provider route, env spelling or usage type without owning a service
+src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/utils/messages/apiPlan.ts	src/services/api/errors.ts	load	the message normalizer formats API error, instruction and tool-result blocks
+src/utils/messages/attachmentText.ts	src/services/instructions/attachedText.ts	load	the message normalizer formats API error, instruction and tool-result blocks
+src/utils/messages/attachmentText.ts	src/services/providers/limitWarning.ts	load	the message normalizer formats API error, instruction and tool-result blocks
+src/utils/messages/attachmentText.ts	src/tools/BashTool/resultBlock.ts	load	the message normalizer formats API error, instruction and tool-result blocks
+src/utils/messages/attachmentText.ts	src/tools/FileReadTool/FileReadTool.ts	type	the message normalizer formats API error, instruction and tool-result blocks
+src/utils/messages/attachmentText.ts	src/tools/FileReadTool/read/resultBlock.ts	load	the message normalizer formats API error, instruction and tool-result blocks
+src/utils/messages/lookups.ts	src/services/api/errors.ts	load	the message normalizer formats API error, instruction and tool-result blocks
+src/utils/model/agent.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/catalogueGate.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/cohere/cohereCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/disabledProviders.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/idSpaces.ts	type	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/meta/metaCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/minimax/minimaxCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/mistral/mistralCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/qwen/qwenCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/xai/xaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/bareFamilyWords.ts	src/services/providers/zai/zaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/cerebras/cerebrasCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/cohere/cohereCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/fireworks/fireworksCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/gemini/geminiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/groq/groqCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/local/localCallModel.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/local/localCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/local/localWindow.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/melious/meliousCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/mistral/mistralCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/nous/nousCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/openai/openaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/openaicompat/compatCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/openaicompat/compatEffort.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/openaicompat/compatWire.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/qwen/qwenCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/together/togetherCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/capabilities.ts	src/services/providers/xai/xaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/computedDefault.ts	src/services/providers/catalogueEpoch.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/computedDefault.ts	src/services/providers/catalogueGate.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/computedDefault.ts	src/services/providers/catalogueOnDemand.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/computedDefault.ts	src/services/providers/gemini/geminiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/computedDefault.ts	src/services/providers/modelRegistry.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/computedDefault.ts	src/services/providers/providerUsage.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/computedDefault.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/model.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/model.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/model.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelAllowlist.ts	src/services/providers/disabledProviders.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelAllowlist.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelFamilies.ts	src/services/providers/disabledProviders.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelFamilies.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelNames.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/anthropic/anthropicCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/anthropic/modelRefusal.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/catalogueGate.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/cerebras/cerebrasAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/cerebras/cerebrasCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/cohere/cohereAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/cohere/cohereCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/deepseek/deepseekAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/disabledProviders.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/fireworks/fireworksAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/fireworks/fireworksCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/gemini/geminiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/groq/groqAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/groq/groqCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/local/localCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/melious/meliousAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/melious/meliousCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/meta/metaAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/meta/metaCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/minimax/minimaxAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/minimax/minimaxCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/mistral/mistralAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/mistral/mistralCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/moonshot/moonshotAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/nous/nousCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/openai/openaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/openaicompat/compatAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/openaicompat/compatCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/openrouter/openrouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/orcarouter/orcarouterAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/providerDiscovery.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/providerUsage.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/qwen/qwenAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/qwen/qwenCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/together/togetherAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/together/togetherCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/xai/xaiAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/xai/xaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/zai/zaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/zen/zenAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOptions.ts	src/services/providers/zen/zenCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOverrides.ts	src/services/providers/melious/meliousCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOverrides.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelOverrides.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/modelTransition.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/cohere/cohereCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/deepseek/deepseekCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/huggingface/huggingfaceCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/meta/metaCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/minimax/minimaxCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/mistral/mistralCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/moonshot/moonshotCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/nous/nousCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/openai/openaiAccounts.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/openai/openaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/qwen/qwenCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/routeLaw.ts	type	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/xai/xaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/providerFrontier.ts	src/services/providers/zai/zaiCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/subModelSlots.ts	src/services/providers/catalogueGate.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/subModelSlots.ts	src/services/providers/modelRegistry.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/subModelSlots.ts	src/services/providers/providerUsage.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/subModelSlots.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
+src/utils/model/utilityModel.ts	src/services/providers/local/tensorfoldHelper.ts	load	the utility-model picker reads route law and the local helper id for the hook runners
+src/utils/model/utilityModel.ts	src/services/providers/routeLaw.ts	load	the utility-model picker reads route law and the local helper id for the hook runners
+src/utils/normalizeToolSchema.ts	src/services/providers/idSpaces.ts	type	low-level utils checking provider route, env spelling or usage type without owning a service
+src/utils/ocr.ts	src/services/desktop/pack.ts	load	its move up rewrites src/services/health/healthReport.ts, which row 11 holds
 src/utils/permissions/decision/engine.ts	src/services/instructions/engine.ts	load	row 8
-src/utils/permissions/decision/rules.ts	src/services/lsp/toolFamily.ts	load	row 8
-src/utils/permissions/decision/rules.ts	src/services/mcp/mcpStringUtils.ts	load	row 8
-src/utils/permissions/decision/rules.ts	src/tools/BashTool/toolName.ts	load	row 8
 src/utils/permissions/decision/rules.ts	src/tools/MonitorTool/constants.ts	load	row 8
-src/utils/permissions/filesystem.ts	src/services/remoteFiles/target.ts	load	open
-src/utils/permissions/filesystem.ts	src/services/remoteFiles/thisMachine.ts	load	open
-src/utils/permissions/filesystem.ts	src/tools/AgentTool/agentMemory.ts	load	open
-src/utils/permissions/filesystem.ts	src/tools/ApolloReviewTool/constants.ts	load	open
+src/utils/permissions/filesystem.ts	src/services/remoteFiles/thisMachine.ts	load	remoteFiles/thisMachine.ts goes down once row 11 releases this file, its importer
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
-src/utils/permissions/flowLaw.ts	src/tools/BashTool/destructiveCommandWarning.ts	load	row 8
-src/utils/permissions/flowLaw.ts	src/tools/BashTool/toolName.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/DebugTool/prompt.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/MonitorTool/constants.ts	load	row 8
-src/utils/permissions/flowLaw.ts	src/tools/PowerShellTool/toolName.ts	load	row 8
-src/utils/permissions/permissionSetup.ts	src/services/lsp/toolFamily.ts	load	open
-src/utils/permissions/permissionSetup.ts	src/tools/AgentTool/constants.ts	load	open
-src/utils/permissions/permissionSetup.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/permissions/permissionSetup.ts	src/tools/PowerShellTool/toolName.ts	load	open
-src/utils/permissions/ruleReason.ts	src/services/mcp/mcpStringUtils.ts	load	open
-src/utils/permissions/ruleReason.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/permissions/runtimeProtection.ts	src/daemon/controlSocket.ts	load	open
-src/utils/permissions/runtimeProtection.ts	src/daemon/ownerWatch.ts	load	open
-src/utils/permissions/shellRuleMatching.ts	src/tools/BashTool/destructiveCommandWarning.ts	load	open
-src/utils/pidAlive.ts	src/daemon/ownerWatch.ts	load	open
-src/utils/processUserInput/processBashCommand.tsx	src/components/BashModeProgress.tsx	load	open
-src/utils/processUserInput/processBashCommand.tsx	src/tools/BashTool/BashTool.tsx	load	open
-src/utils/processUserInput/processBashCommand.tsx	src/tools/PowerShellTool/PowerShellTool.tsx	load	open
-src/utils/processUserInput/processSlashCommand.tsx	src/commands/samples/index.ts	load	open
-src/utils/processUserInput/processSlashCommand.tsx	src/services/compact/microCompact.ts	load	open
-src/utils/profile/appearanceSnapshot.ts	src/components/mercury-ui/sessionAccent.ts	load	open
-src/utils/promptShellExecution.ts	src/tools/BashTool/BashTool.tsx	load	open
-src/utils/promptShellExecution.ts	src/tools/PowerShellTool/PowerShellTool.tsx	load	open
-src/utils/queryContext.ts	src/services/mcp/types.ts	type	open
-src/utils/queryContext.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/queryHelpers.ts	src/tools/FileEditTool/constants.ts	load	open
-src/utils/queryHelpers.ts	src/tools/FileReadTool/prompt.ts	load	open
-src/utils/queryHelpers.ts	src/tools/FileWriteTool/prompt.ts	load	open
-src/utils/readiness.ts	src/services/browser/browserResolver.ts	load	open
-src/utils/readiness.ts	src/services/dap/dapClient.ts	load	open
-src/utils/readiness.ts	src/services/dap/unityAdapter.ts	load	open
-src/utils/readiness.ts	src/services/desktop/computerAccess.ts	load	open
-src/utils/readiness.ts	src/services/desktop/desktopClaim.ts	load	open
-src/utils/readiness.ts	src/services/desktop/desktopSession.ts	load	open
-src/utils/readiness.ts	src/services/desktop/nativeDriver.ts	load	open
-src/utils/readiness.ts	src/services/desktop/resolveDriver.ts	load	open
-src/utils/readiness.ts	src/services/ide/blenderBridgeSession.ts	load	open
-src/utils/readiness.ts	src/services/ide/blenderProject.ts	load	open
-src/utils/readiness.ts	src/services/ide/ideTransaction.ts	load	open
-src/utils/readiness.ts	src/services/ide/pythonProject.ts	load	open
-src/utils/readiness.ts	src/services/ide/pythonTests.ts	load	open
-src/utils/readiness.ts	src/services/ide/unityBridgeSession.ts	load	open
-src/utils/readiness.ts	src/services/ide/unityProject.ts	load	open
-src/utils/readiness.ts	src/services/lsp/LSPServerInstance.ts	type	open
-src/utils/readiness.ts	src/services/lsp/clangdLane.ts	load	open
-src/utils/readiness.ts	src/services/lsp/manager.ts	load	open
-src/utils/readiness.ts	src/services/lsp/mercuryLsp.ts	load	open
-src/utils/readiness.ts	src/services/lsp/pyrightLane.ts	load	open
-src/utils/readiness.ts	src/services/lsp/ruffLane.ts	load	open
-src/utils/readiness.ts	src/services/lsp/serverCatalogue.ts	load	open
-src/utils/readiness.ts	src/services/lsp/unityLane.ts	load	open
-src/utils/readiness.ts	src/services/mcp/auth.ts	load	open
-src/utils/readiness.ts	src/services/mcp/config.ts	load	open
-src/utils/readiness.ts	src/services/mcp/types.ts	type	open
-src/utils/readiness.ts	src/services/providers/primaryBackend.ts	load	open
-src/utils/redactSecrets.ts	src/services/providers/credentialEnvSpellings.ts	load	open
-src/utils/scratchpad.ts	src/daemon/ownerWatch.ts	load	open
-src/utils/scratchpadRetention.ts	src/daemon/concourseWorkers.ts	load	open
-src/utils/scratchpadRetention.ts	src/daemon/ownerWatch.ts	load	open
-src/utils/scratchpadRetention.ts	src/daemon/processSweep.ts	load	open
-src/utils/secureStorage/otherBuilds.ts	src/daemon/controlSocket.ts	load	open
-src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweep.ts	load	open
-src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweepRun.ts	load	open
-src/utils/secureStorage/types.ts	src/services/oauth/types.ts	type	open
-src/utils/sessionFlip.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/sessionRestore.ts	src/services/mission/missionCard.ts	load	open
-src/utils/sessionRestore.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/sessionStorage/chain.ts	src/services/desktop/screenshotRetention.ts	load	open
-src/utils/sessionStorage/sessionIndex.ts	src/daemon/isolationNote.ts	load	open
-src/utils/sessionStorage/transcriptPruneDoor.ts	src/services/providers/anthropic/prefixRecordStore.ts	load	open
-src/utils/sessionStorage/transcriptPruneDoor.ts	src/services/switchboard/sessionReceipts.ts	load	open
-src/utils/sessionStoragePortable.ts	src/daemon/isolationNote.ts	load	open
-src/utils/sessionTitle.ts	src/services/providers/anthropic/streamCore.ts	load	open
-src/utils/settings/allErrors.ts	src/services/mcp/config.ts	load	open
-src/utils/settings/settings.ts	src/services/projectLocal/paths.ts	load	open
-src/utils/settings/types.ts	src/services/video/types.ts	load	open
-src/utils/settings/validation.ts	src/services/mcp/types.ts	type	open
-src/utils/shell/readOnlyCommandValidation.ts	src/tools/BashTool/sedValidation.ts	load	open
-src/utils/shell/shellToolUtils.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/shell/shellToolUtils.ts	src/tools/PowerShellTool/toolName.ts	load	open
-src/utils/sideQuery.ts	src/services/api/client.ts	load	open
-src/utils/sideQuery.ts	src/services/api/clientContractGate.ts	load	open
-src/utils/sideQuery.ts	src/services/api/clientContractLearned.ts	load	open
-src/utils/sideQuery.ts	src/services/providers/anthropic/anthropicWire.ts	type	open
-src/utils/sideQuery.ts	src/services/providers/anthropic/requestParams.ts	load	open
-src/utils/spawnLedger.ts	src/daemon/controlSocket.ts	load	open
-src/utils/spawnLedger.ts	src/daemon/daemonHome.ts	load	open
-src/utils/spawnLedger.ts	src/daemon/workerParentWatch.ts	load	open
-src/utils/spendSpelling.ts	src/services/providers/providerUsage.ts	type	open
-src/utils/status.tsx	src/services/providers/accountSlots.ts	load	open
-src/utils/status.tsx	src/services/providers/providerUsability.ts	load	open
-src/utils/status.tsx	src/services/providers/providerUsage.ts	load	open
-src/utils/status.tsx	src/services/wallet/wallet.ts	load	open
-src/utils/statusNoticeDefinitions.tsx	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/statusNoticeDefinitions.tsx	src/services/instructions/contracts.ts	type	open
-src/utils/statusNoticeDefinitions.tsx	src/services/instructions/engine.ts	load	open
-src/utils/statusNoticeDefinitions.tsx	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/statusNoticeHelpers.ts	src/services/tokenEstimation.ts	load	open
-src/utils/statusNoticeHelpers.ts	src/tools/AgentTool/loadAgentsDir.ts	load	open
-src/utils/subprocessEnv.ts	src/services/providers/credentialEnvSpellings.ts	load	open
-src/utils/suggestions/slackChannelSuggestions.ts	src/services/mcp/types.ts	type	open
-src/utils/systemPrompt.ts	src/tools/AgentTool/loadAgentsDir.ts	load	open
-src/utils/task/executionProjection.ts	src/services/primitives/execution.ts	type	open
-src/utils/task/executionProjection.ts	src/services/primitives/externalProjection.ts	load	open
-src/utils/task/executionProjection.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/task/workRoster.ts	src/services/engine-connector/types.ts	type	open
-src/utils/task/workRoster.ts	src/services/notices/unreadLedger.ts	load	open
-src/utils/terminal.ts	src/components/CtrlOToExpand.tsx	load	open
-src/utils/terminalHandback.ts	src/services/voice/voicePack.ts	load	open
-src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	open
-src/utils/theme.ts	src/components/mercuryPalette.ts	load	open
-src/utils/tokens.ts	src/services/run/requestGauge.ts	load	open
-src/utils/toolPool.ts	src/services/mcp/utils.ts	load	open
-src/utils/toolResultSummary.ts	src/components/mercury-ui/glyphs.ts	load	open
-src/utils/toolResultSummary.ts	src/tools/FileReadTool/FileReadTool.ts	load	open
-src/utils/toolSearch.ts	src/services/providers/deferralWire.ts	load	open
-src/utils/toolSearch.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/toolSearch.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/treeify.ts	src/components/design-system/color.ts	load	open
-src/utils/unity/bridgeGates.ts	src/services/ide/unityProject.ts	load	open
-src/utils/unity/bridgeGates.ts	src/services/unity/bridgeProtocol.ts	load	open
-src/utils/verification/verificationState.ts	src/services/projectLocal/paths.ts	load	open
-src/utils/verification/verificationState.ts	src/services/run/ownerKey.ts	type	open
-src/utils/verification/verificationState.ts	src/services/run/ownerLifecycle.ts	load	open
-src/utils/verification/verificationState.ts	src/services/run/ownerScopedStore.ts	load	open
-src/utils/verification/verificationState.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/vulcan/vulcanGates.ts	src/services/lsp/godotLane.ts	load	open
-src/utils/vulcan/vulcanGates.ts	src/services/vulcan/portabilityHealth.ts	load	open
-src/utils/withheldTools.ts	src/services/dap/dapClient.ts	load	open
-src/utils/withheldTools.ts	src/services/desktop/resolveDriver.ts	load	open
-src/utils/withheldTools.ts	src/services/video/registry.ts	load	open
-src/utils/worktree.ts	src/services/instructions/engine.ts	load	open
-src/utils/worktree.ts	src/services/projectLocal/paths.ts	load	open
+src/utils/permissions/runtimeProtection.ts	src/daemon/controlSocket.ts	load	self-protection reads the live daemon pid and script; row 8's floors call it
+src/utils/profile/appearanceSnapshot.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
+src/utils/redactSecrets.ts	src/services/providers/credentialEnvSpellings.ts	load	low-level utils checking provider route, env spelling or usage type without owning a service
+src/utils/secureStorage/otherBuilds.ts	src/daemon/controlSocket.ts	load	the credential store checks live processes of other Mercury builds before sealing
+src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweep.ts	load	the credential store checks live processes of other Mercury builds before sealing
+src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweepRun.ts	load	the credential store checks live processes of other Mercury builds before sealing
+src/utils/sessionStorage/chain.ts	src/services/desktop/screenshotRetention.ts	load	the transcript chain strips and restores desktop screenshots through screenshotRetention
+src/utils/settings/allErrors.ts	src/services/mcp/config.ts	load	the settings error list collects MCP config load errors
+src/utils/spendSpelling.ts	src/services/providers/providerUsage.ts	type	low-level utils checking provider route, env spelling or usage type without owning a service
+src/utils/subprocessEnv.ts	src/services/providers/credentialEnvSpellings.ts	load	low-level utils checking provider route, env spelling or usage type without owning a service
+src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
+src/utils/theme.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/utils/toolResultSummary.ts	src/tools/FileReadTool/FileReadTool.ts	load	reads resolved display names from FileReadTool's stateful results WeakMap
+src/utils/toolSearch.ts	src/services/providers/deferralWire.ts	load	formats deferred-tool lines and reads ToolSearch deferral predicates
+src/utils/toolSearch.ts	src/tools/ToolSearchTool/prompt.ts	load	formats deferred-tool lines and reads ToolSearch deferral predicates
+src/utils/vulcan/vulcanGates.ts	src/services/lsp/godotLane.ts	load	prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness
+src/utils/vulcan/vulcanGates.ts	src/services/vulcan/portabilityHealth.ts	load	prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness
+src/utils/worktree.ts	src/services/instructions/engine.ts	load	worktree setup refreshes instruction discovery for the new worktree

@@ -2,7 +2,7 @@ import type { SessionKitV1 } from '../../daemon/sessionKit.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { isMcpServerDisabled } from './config.js'
 import { sessionKitOf } from './sessionKitPin.js'
-import type { ScopedMcpServerConfig } from './types.js'
+import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 
 const MERCURY_ORGAN_NAME = 'mercury'
 

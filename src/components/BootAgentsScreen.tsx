@@ -5,7 +5,7 @@ import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useSetAppStateMaybe } from '../state/AppState.js';
-import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js';
+import type { AgentDefinition, AgentDefinitionsResult } from '../types/agent.js';
 import { AgentStoreError, listAgentTrash, restoreAgentFromTrash, type AgentTrashEntry } from '../services/agents/store.js';
 import { isFileBacked, type StudioRow } from './agents/studio/studioData.js';
 import type { FieldId } from './agents/studio/studioEditorModel.js';

@@ -96,7 +96,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 
 section('P1 the projector: the runner\'s task store → wire rows')
 {
-  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
   const t0 = 1_000_000_000_000
   const store = {
     ag1: {

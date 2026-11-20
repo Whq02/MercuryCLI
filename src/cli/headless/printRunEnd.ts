@@ -7,7 +7,7 @@ import { type OutcomeRow, OUTCOME_SENTENCES, exitCodeOf } from '../../rows/vocab
 import { isBrokenPipeError } from '../structuredIO.js'
 import { getSessionId, getTotalAPIDuration } from '../../bootstrap/state.js'
 import { randomUUID } from 'node:crypto'
-import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 import { ndjsonSafeStringify } from '../ndjsonSafeStringify.js'
 import { caretEscape } from '../../utils/caretEscape.js'
 import { logHeadlessProfilerTurn } from '../../utils/headlessProfiler.js'

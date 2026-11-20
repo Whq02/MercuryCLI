@@ -383,7 +383,7 @@ section('(5b) load honesty — a nonexistent session is refused')
 section('(5c) _mercury/artifacts is PROJECT-scoped (same truth as the TUI)')
 {
   process.env.MERCURY_REVIEW_ARTIFACTS_DIR = join(configHome, 'review-artifacts')
-  const { createReviewArtifact } = await import('../../src/utils/artifacts/reviewStore.ts')
+  const { createReviewArtifact } = await import('../../src/services/artifacts/reviewStore.ts')
   const foreignRoot = join(configHome, 'elsewhere-project')
   mkdirSync(foreignRoot, { recursive: true })
   const here = createReviewArtifact({
@@ -465,7 +465,7 @@ section('(5e) TRUE cross-process parity — TUI-side durable writes, the ACP pro
 {
   const { saveRunSidecar, runRevision } = await import('../../src/services/run/runSidecar.js')
   const { emptyRunSnapshot } = await import('../../src/services/run/runKernel.js')
-  const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
+  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
   const owner = makeOwnerKey({
     workspace: process.cwd(),
     sessionId: `keel-parity-${Date.now().toString(36)}`,

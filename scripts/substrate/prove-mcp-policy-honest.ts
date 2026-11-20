@@ -36,8 +36,8 @@ check('getMaxExposedRisk() still returns the BARE fallback unchanged (string fie
 section('panels color/warn off the boolean, NOT the displayed === \'high\' string')
 {
   ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
-  const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+  const { publishMcpConnections } = await import('../../src/services/cockpit/mcpGauge.ts')
   const mcpRow = runtimeChecks().find(row => row.id === 'mcp')
   publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])
   const permissive = withEnv(undefined, () => mcpRow?.run()) as { status: string; evidence: string; fix?: string } | undefined

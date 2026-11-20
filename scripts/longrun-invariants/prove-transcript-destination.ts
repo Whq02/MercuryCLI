@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 
 await import('../../src/tasks.js')
 const { resolveAgentTranscriptFile, agentTranscriptFile } = await import(
-  '../../src/utils/crew/agentTranscriptReader.js'
+  '../../src/services/crew/agentTranscriptReader.js'
 )
 const { recordSidechainTranscript, registerAgentTranscriptDestination, getProject } =
   await import('../../src/utils/sessionStorage/writer.js')

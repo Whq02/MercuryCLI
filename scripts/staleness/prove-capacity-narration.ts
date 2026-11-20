@@ -15,7 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const globalConfig = await import('../../src/utils/config/globalConfig.js')
 globalConfig.enableConfigs()
-const cap = await import('../../src/services/switchboard/capacityCheck.js')
+const cap = await import('../../src/utils/switchboard/capacityCheck.js')
 const { saveGlobalConfig } = await import('../../src/utils/config.js')
 
 {
@@ -50,7 +50,7 @@ const { saveGlobalConfig } = await import('../../src/utils/config.js')
 
 
 {
-  const cap = await import('../../src/services/switchboard/capacityCheck.ts')
+  const cap = await import('../../src/utils/switchboard/capacityCheck.ts')
   const probe = await cap.probeCapacity()
   check(
     'the probe answers a real number on this platform (fail-soft, never NaN)',

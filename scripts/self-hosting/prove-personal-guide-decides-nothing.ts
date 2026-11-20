@@ -18,7 +18,7 @@ const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/co
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/Tool.ts'))})
 const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/services/instructions/engine.ts'))})
-const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/utils/attachments/nestedMemory.ts'))})
+const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/services/attachments/nestedMemory.ts'))})
 const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/utils/fileStateCache.ts'))})
 const { getSteps } = await import(${JSON.stringify(join(repo, 'src/projectOnboardingState.ts'))})
 const { composedGuideFilesAt } = await import(${JSON.stringify(join(repo, 'src/services/instructions/adapters/index.ts'))})

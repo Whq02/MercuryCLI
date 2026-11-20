@@ -7,7 +7,7 @@ import type { PromptInputHelpers } from '../../../types/promptInputHelpers.js';
 import type { PromptInputMode } from '../../../types/textInputTypes.js';
 import type { PastedContent } from '../../../utils/config/schema.js';
 import { createUserMessage } from '../../../utils/messages.js';
-import { resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../../../utils/processUserInput/processSlashCommand.js';
+import { resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../../../services/processUserInput/processSlashCommand.js';
 import type { useChatSubmit } from '../useChatSubmit.js';
 
 export const INERT_PROMPT_HELPERS: PromptInputHelpers = {

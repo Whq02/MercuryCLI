@@ -137,8 +137,8 @@ try {
     const dbg = (await LaunchTool.call({ op: 'debug', profile: wins!.id, file: path.join(proj, 'hello.py'), lines: [3] } as never, ctx)) as { data: { result: string } }
     check('B3 op:"debug" stops at the breakpoint with the same environment', dbg.data.result.includes('stopped — reason breakpoint'), dbg.data.result.split('\n')[0])
     const dap = await import('../../src/services/dap/dapClient.js')
-    const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
-    const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
+    const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
+    const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
     const owner = ownerFromToolUseContext(ctx)
     const session = dap.getDapSession(owner, 'main')
     const stopped = session?.treeStopped() ?? null
@@ -217,8 +217,8 @@ try {
     const dbg = (await LaunchTool.call({ op: 'debug', profile: mod.id, file: path.join(proj, 'hello_mod.py'), lines: [3] } as never, ctx)) as { data: { result: string } }
     check('D5 op:"debug" stops at a breakpoint inside the module', dbg.data.result.includes('stopped — reason breakpoint'), dbg.data.result.split('\n')[0])
     const dap = await import('../../src/services/dap/dapClient.js')
-    const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
-    const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
+    const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
+    const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
     await disposeOwner(ownerFromToolUseContext(ctx))
     check('D6 the sessions are reaped', dap._dapSessionCountForTesting() === 0)
   } else {

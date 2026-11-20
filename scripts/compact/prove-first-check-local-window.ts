@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/autoCompact.ts src/utils/model/contextWindowWarmup.ts src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/run-core/turn-machine.ts
+// gate-watch: src/services/compact/autoCompact.ts src/services/context/contextWindowWarmup.ts src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/run-core/turn-machine.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -112,7 +112,7 @@ const { localRecordFor } = await import('../../src/services/providers/local/loca
 const w = await import('../../src/services/providers/local/localWindow.ts')
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const autoCompact = await import('../../src/services/compact/autoCompact.ts')
-const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')

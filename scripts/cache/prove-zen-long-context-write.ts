@@ -11,7 +11,7 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENCODE_API_KEY', 'OPENAI_API_KEY']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { resolveModelPricing, calculateUSDCost } = await import('../../src/utils/modelCost.js')
+const { resolveModelPricing, calculateUSDCost } = await import('../../src/services/usage/modelCost.js')
 
 const page = 'https://opencode.ai/docs/zen/'
 const written: Array<{ id: string; short: [number, number, number, number]; long: [number, number, number, number] }> = [

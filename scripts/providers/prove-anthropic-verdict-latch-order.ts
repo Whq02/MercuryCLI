@@ -31,8 +31,8 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
 const limits = await import('../../src/services/anthropicLimits.ts')
-const { quotaWindows } = await import('../../src/utils/cockpit/quota.ts')
-const { APIError } = await import('../../src/services/api/sdkErrors.js')
+const { quotaWindows } = await import('../../src/services/cockpit/quota.ts')
+const { APIError } = await import('../../src/utils/api/sdkErrors.js')
 
 auth.clearOAuthTokenCache()
 writeFileSync(

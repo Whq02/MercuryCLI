@@ -49,7 +49,7 @@ async function main(): Promise<void> {
   const { getDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'services/dap/dapClient.ts'))
   const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
   const { getDebugToolDescription } = await import(join(SRC, 'tools/DebugTool/prompt.ts'))
-  const { processMainOwner } = await import(join(SRC, 'services/run/resolveOwner.ts'))
+  const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
   const owner = processMainOwner()
   const call = async (input: Record<string, unknown>): Promise<Call> =>
     (await DebugTool.call(input as never, { owner } as never)) as Call

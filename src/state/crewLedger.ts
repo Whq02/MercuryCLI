@@ -1,7 +1,7 @@
 import { crewAgentsOf, crewSettled, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
 import type { WorkRosterV1 } from '../services/engine-connector/types.js'
 import type { TaskState } from '../tasks/types.js'
-import { projectWorkRoster } from '../utils/task/workRoster.js'
+import { projectWorkRoster } from '../services/engine-connector/workRoster.js'
 import type { AppState } from './AppStateStore.js'
 
 export type CrewLedgerRow = { facts: CrewAgentFacts; hosted: boolean; listed: boolean; cleared: boolean; stamp: string }

@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import { getEmptyToolPermissionContext } from '../../src/Tool.js'
-import type { CustomAgentDefinition } from '../../src/tools/AgentTool/loadAgentsDir.js'
+import type { CustomAgentDefinition } from '../../src/types/agent.js'
 import { anthropicProviderAdapter } from '../../src/services/providers/anthropic/anthropicAdapter.js'
 import { openaiProviderAdapter } from '../../src/services/providers/openai/openaiAdapter.js'
 import { zaiProviderAdapter } from '../../src/services/providers/zai/zaiAdapter.js'
 import {
   buildAgentLaunchPlan,
   type AgentLaunchPlanInput,
-} from '../../src/utils/crew/agentLaunchPlan.js'
+} from '../../src/services/crew/agentLaunchPlan.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

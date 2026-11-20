@@ -12,7 +12,7 @@ const {
   runAsyncAgentLifecycle,
   PROMOTED_NARRATION_NOTE,
 } = await import('../../src/tools/AgentTool/agentToolUtils.js')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.js')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.js')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.js')
 const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { createAssistantMessage, createAssistantAPIErrorMessage } = await import(

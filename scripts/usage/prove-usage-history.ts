@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/usageHistory.ts src/cli/handlers/usageHistory.ts src/main.tsx src/cost-tracker.ts src/utils/modelCost.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/providerUsage.ts
+// gate-watch: src/services/usage/usageHistory.ts src/cli/handlers/usageHistory.ts src/main.tsx src/cost-tracker.ts src/services/usage/modelCost.ts src/utils/model/pins/deepseekPins.ts src/services/providers/providerUsage.ts
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { spawnCaptureSync } from '../lib/spawnCapture.ts'
@@ -109,7 +109,7 @@ try {
   assert.match(collisions, /beta\/project-x/)
   assert.ok(!collisions.includes('workspace'))
   console.log('PASS short project labels and shortest distinguishing parents')
-  const { readUsageHistory, recordUsageObservations, boundUsageHistory, USAGE_HISTORY_MAX_ROWS, USAGE_OBSERVATION_MAX_ROWS, USAGE_HISTORY_MAX_FILES } = await import('../../src/utils/usageHistory.ts')
+  const { readUsageHistory, recordUsageObservations, boundUsageHistory, USAGE_HISTORY_MAX_ROWS, USAGE_OBSERVATION_MAX_ROWS, USAGE_HISTORY_MAX_FILES } = await import('../../src/services/usage/usageHistory.ts')
   globalThis.fetch = (() => { throw new Error('network forbidden') }) as typeof fetch
   const { transcriptReaderCensus } = await import('../../src/utils/sessionStorage/transcriptReader.ts')
   const today = await readUsageHistory({ days: 1, now: Date.parse('2026-10-23T20:00:00Z') })
@@ -117,7 +117,7 @@ try {
   const bytesBefore = transcriptReaderCensus.bytesRead
   await readUsageHistory()
   assert.equal(transcriptReaderCensus.bytesRead, bytesBefore, 'unchanged transcripts are not re-read')
-  const { calculateUSDCost, resolveModelPricing } = await import('../../src/utils/modelCost.ts')
+  const { calculateUSDCost, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const price = (at: string, model = 'deepseek-flash') => calculateUSDCost(model, { ...usage, request_started_at_ms: Date.parse(at) })
   for (const at of ['2026-10-23T01:00:00Z', '2026-10-23T03:59:59Z', '2026-10-23T06:00:00Z', '2026-10-23T09:59:59Z']) assert.ok(Math.abs(price(at) - 1.506) < 1e-9, at)
   for (const at of ['2026-10-23T00:59:59Z', '2026-10-23T04:00:00Z', '2026-10-23T05:59:59Z', '2026-10-23T10:00:00Z', '2026-10-24T02:00:00Z', '2026-10-01T02:00:00Z', '2026-02-23T02:00:00Z']) assert.ok(Math.abs(price(at) - 0.753) < 1e-9, at)

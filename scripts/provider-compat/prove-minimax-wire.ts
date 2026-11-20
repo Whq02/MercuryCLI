@@ -88,7 +88,7 @@ const { fetchMinimaxPlanUsage, refreshMinimaxPlanUsage, minimaxObservedPlanUsage
 const { minimaxPlanWindowViews, usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
 const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
@@ -250,7 +250,7 @@ try {
   check('an id the account does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage) && words(absent).includes('minimax-fixture-absent'))
   modelList = []; await refreshMinimaxCatalogue({ force: true })
   const emptyPins = minimaxCatalogueRows()
-  const { minimaxDisplayPin } = await import('../../src/services/providers/minimax/minimaxPins.ts')
+  const { minimaxDisplayPin } = await import('../../src/utils/model/pins/minimaxPins.ts')
   check('an empty live list falls to the pins labelled as pins with each row\'s own date, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 7 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'MiniMax-M3')
   before = captures.length
   modelList = MINIMAX_FIXTURE_MODELS

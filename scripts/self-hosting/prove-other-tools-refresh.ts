@@ -22,7 +22,7 @@ const { getInstructionFiles, getInstructionCompositionState, resetInstructionFil
 const { setSessionInstructionProfile } = await import(join(repo, 'src/services/instructions/profile.ts'))
 const { getInstructionListing, listingRowWords } = await import(join(repo, 'src/services/instructions/listing.ts'))
 const { getUserContext } = await import(join(repo, 'src/context.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/utils/attachments/nestedMemory.ts'))
+const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/services/attachments/nestedMemory.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/utils/fileStateCache.ts'))
 const cwd = process.cwd()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }

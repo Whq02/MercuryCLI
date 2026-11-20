@@ -30,7 +30,7 @@ process.env.ANTHROPIC_BASE_URL = fixture.base
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const until = async (predicate: () => boolean | Promise<boolean>, ms = 30_000): Promise<boolean> => {
   const deadline = Date.now() + ms

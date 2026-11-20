@@ -30,7 +30,7 @@ console.log('============================================================')
 section('§2 the words on the wire, in the owner\'s shape')
 {
   ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const engine = await import('../../src/utils/crew/engineDispatch.ts')
+  const engine = await import('../../src/services/crew/engineDispatch.ts')
   const discovery = await import('../../src/services/providers/providerDiscovery.ts')
   const road = (word: string): Promise<string> => engine.resolveEngineDispatch(word).then(r => `resolved ${r?.model ?? 'null'}`, e => (e instanceof Error ? e.message : String(e)))
   const unrecognised = engine.unrecognisedModelWordRefusal('frobnicator-9000') ?? ''

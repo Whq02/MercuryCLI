@@ -21,7 +21,7 @@ console.log('============================================================')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'unity-profiles-home-'))
 const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.js')
 const { UNITY_LICENSE_DISCLAIMER, unityTestResultsPath } = await import(
-  '../../src/services/ide/unityProject.js'
+  '../../src/utils/unity/unityProject.js'
 )
 const { unityHeadlessRefusal } = await import('../../src/tools/LaunchTool/LaunchTool.js')
 

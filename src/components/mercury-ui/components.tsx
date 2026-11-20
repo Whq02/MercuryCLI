@@ -14,7 +14,7 @@ import { Crab, Wordmark } from './assets.js'
 import { rampSegments } from './focalRamp.js'
 import { useGreetingShimmer } from './useGreetingShimmer.js'
 import { useSessionAccent } from './sessionAccent.js'
-import { GLYPH, SPARK, displayWidth, padTo, truncateToWidth } from './glyphs.js'
+import { GLYPH, SPARK, displayWidth, padTo, truncateToWidth } from '../../utils/glyphs.js'
 import { InteractiveRow } from './InteractiveRow.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useLayoutChrome } from '../../context/layoutChromeContext.js'
@@ -26,7 +26,8 @@ import { useCursorFollow } from './useCursorFollow.js'
 import { PopupScrollViewport, popupListMotion, usePopupScrollWindow } from '../CustomSelect/popup-list.js'
 import { topOverlayOwnsPageKeys } from '../../context/overlayStack.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
-import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
+import { gaugeColorOf, stateStyleOf } from './theme.js'
+import type { SnapshotState } from '../../utils/cockpit/types.js'
 
 
 export const CockpitEmbeddedContext = React.createContext(false)

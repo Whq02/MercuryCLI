@@ -4,7 +4,7 @@ import {
   isReviewArtifactId,
   readReviewArtifactState,
   reviewArtifactJournalExists,
-} from '../../../utils/artifacts/reviewStore.js'
+} from '../../artifacts/reviewStore.js'
 import type {
   ReviewArtifactState,
   ReviewArtifactVersion,

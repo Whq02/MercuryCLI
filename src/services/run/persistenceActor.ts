@@ -4,7 +4,7 @@ import {
   serialGenerationLane,
   type LaneSettlement,
 } from '../../substrate/serialGeneration.js'
-import type { OwnerKey } from './ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { currentWriterEpoch, writerEpoch } from './writerEpoch.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 

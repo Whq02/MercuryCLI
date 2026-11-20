@@ -34,10 +34,10 @@ const fakeManager = {
 mock.module(managerPath, () => ({ ...realManagerModule, getLspServerManager: () => fakeManager }))
 
 const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner, processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
-const { MAIN_LANE, makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { processMainOwner, processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const { MAIN_LANE, makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/FileEditTool/constants.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 

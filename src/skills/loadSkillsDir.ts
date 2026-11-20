@@ -23,7 +23,7 @@ import {
   parseSlashCommandToolsFromFrontmatter,
 } from '../utils/markdownConfigLoader.js'
 import { parseArgumentNames, substituteArguments } from '../utils/argumentSubstitution.js'
-import { executeShellCommandsInPrompt } from '../utils/promptShellExecution.js'
+import { executeShellCommandsInPrompt } from '../services/tools/promptShellExecution.js'
 import {
   PROJECT_CONFIG_DIR_NAMES,
   projectConfigCandidatePaths,

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { EMBED_ADDON_FILE, embedPackDirFor } from '../../src/mneme/embedPack.js'
 import { EMBED_MODELS, EMBED_MODELS_VENDOR_PATH } from '../../src/mneme/embedModels.js'
-import { voicePackPlatform } from '../../src/services/voice/voicePack.js'
+import { voicePackPlatform } from '../../src/utils/voice/voicePack.js'
 import { STUDY_FIXTURE_PATH, loadStudyCorpus, type StudyCorpus, type StudySimEntry } from './bench-semantic-recall.js'
 
 const ROOT = resolve(import.meta.dir, '..', '..')

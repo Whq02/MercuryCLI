@@ -11,7 +11,7 @@ delete process.env.MERCURY_HOME
 const { setAgentWatchTimingForTests } = await import('../../src/services/agents/watch.js')
 const { clearAgentDefinitionsCache } = await import('../../src/tools/AgentTool/loadAgentsDir.js')
 const { armRunnerAgentFreshness } = await import('../../src/cli/agentFreshness.js')
-type AgentDefinition = import('../../src/tools/AgentTool/loadAgentsDir.js').AgentDefinition
+type AgentDefinition = import('../../src/types/agent.js').AgentDefinition
 
 let failures = 0
 function check(name: string, cond: boolean, detail?: string): void {

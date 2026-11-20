@@ -4,7 +4,7 @@ import type { PermissionMode, PermissionUpdate } from '../../types/permissions.j
 import type { ModelSetting } from '../../utils/model/model.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config/schema.js'
-import type { MCPServerConnection } from '../mcp/types.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
@@ -12,7 +12,7 @@ import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { BoardPostRequestV1, McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { JevStatusKind } from '../jev/jevContract.js'
-import type { ContextFillView } from '../../utils/contextFill.js'
+import type { ContextFillView } from '../context/contextFill.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
 

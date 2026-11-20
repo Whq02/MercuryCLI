@@ -24,7 +24,7 @@ import type { PastedContent } from '../../utils/config/schema.js';
 import { logForDebugging } from '../../utils/debug.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../../utils/fileStateCache.js';
 import { createCommandInputMessage, createUserMessage, getUserMessageText } from '../../utils/messages.js';
-import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js';
+import { formatCommandLoadingMetadata } from '../../services/processUserInput/processSlashCommand.js';
 import { submitTrace } from '../../utils/submitTrace.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './limits.js';
 import type { PaintsRows, ResumableLog } from './sessionShapes.js';

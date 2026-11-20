@@ -8,8 +8,8 @@ import {
 } from '../../tools/ScheduleCronTool/prompt.js'
 import { SCHEDULE_WAKEUP_TOOL_NAME } from '../../tools/ScheduleWakeupTool/prompt.js'
 import { MONITOR_TOOL_NAME } from '../../tools/MonitorTool/constants.js'
-import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
-import { SKILL_TOOL_NAME } from '../../tools/SkillTool/constants.js'
+import { TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
+import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
 import {
   AUTONOMOUS_LOOP_DYNAMIC_SENTINEL,
   AUTONOMOUS_LOOP_SENTINEL,

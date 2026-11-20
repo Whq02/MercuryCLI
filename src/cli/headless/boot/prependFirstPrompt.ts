@@ -1,4 +1,4 @@
-import { takeFirstPrompt } from '../../../utils/sessionStart.js'
+import { takeFirstPrompt } from '../../../services/sessionStart.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<never> {

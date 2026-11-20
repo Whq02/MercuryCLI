@@ -31,7 +31,7 @@ try {
   enableConfigs()
   const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
-  const { getAttachments, createAttachmentMessage } = await import(`${root}/src/utils/attachments/orchestrator.ts`)
+  const { getAttachments, createAttachmentMessage } = await import(`${root}/src/services/attachments/orchestrator.ts`)
   const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
   const { createUserMessage, createAssistantMessage } = await import(`${root}/src/utils/messages.ts`)
   const { getUserContext } = await import(`${root}/src/context.ts`)
@@ -43,7 +43,7 @@ try {
   const { ToolSearchTool } = await import(`${root}/src/tools/ToolSearchTool/ToolSearchTool.ts`)
   const { WebFetchTool } = await import(`${root}/src/tools/WebFetchTool/WebFetchTool.ts`)
   const { planToolPayload, clearToolRosterLatches } = await import(`${root}/src/services/providers/toolEconomy.ts`)
-  const { processOwnerForLane } = await import(`${root}/src/services/run/resolveOwner.ts`)
+  const { processOwnerForLane } = await import(`${root}/src/utils/run/resolveOwner.ts`)
   const deferred = (rows: any[]) => rows.filter(row => row.type === 'deferred_tools_delta')
   const roster = (attachments: any[]) => attachments.filter(row => !row.capsuleReceipt).map(row => ({ kind: row.type, bytes: Buffer.byteLength(normalizeAttachmentForAPI(row).flatMap((message: any) => {
     const content = message.message.content

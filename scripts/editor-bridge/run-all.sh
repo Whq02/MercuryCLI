@@ -8,7 +8,7 @@
 # gate-watch: src/services/mcp/client.ts src/services/run/*
 # gate-watch: src/utils/*
 # gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts
-# gate-watch: src/utils/attachments/mentionResolvers.ts src/utils/attachments/types.ts
+# gate-watch: src/services/attachments/mentionResolvers.ts src/utils/attachments/types.ts
 # gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: src/rows/* src/runner/wire/* src/tools/AskUserQuestionTool/**
 # gate-watch: scripts/lib/ptyRecorder.ts

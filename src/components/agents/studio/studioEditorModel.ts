@@ -26,12 +26,12 @@ import type { Tools } from '../../../Tool.js'
 import type {
   AgentDefinition,
   CustomAgentDefinition,
-} from '../../../tools/AgentTool/loadAgentsDir.js'
+} from '../../../types/agent.js'
 import type { EffortValue } from '../../../utils/effort.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
 import { AMBER, CRIMSON, SECOND, TEAL } from '../../mercuryPalette.js'
-import { truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../../utils/glyphs.js'
 import type { generateAgent } from '../generateAgent.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 

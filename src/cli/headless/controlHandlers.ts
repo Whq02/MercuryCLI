@@ -10,7 +10,7 @@ import { findLastCompactBoundaryIndex } from 'src/utils/messages/systemMessages.
 import { flushSessionStorage, recordTranscript } from 'src/utils/sessionStorage.js'
 import { type AppState } from 'src/state/AppStateStore.js'
 import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
-import { fileCheckpointSource, fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/utils/fileHistory.js'
+import { fileCheckpointSource, fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/services/changeTransaction/fileHistory.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
 import { isSovereignDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
 

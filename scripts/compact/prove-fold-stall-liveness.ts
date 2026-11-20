@@ -193,7 +193,7 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
 
 const MODEL = 'gpt-5.6-sol'
 let uuidSeq = 0

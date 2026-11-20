@@ -160,7 +160,7 @@ console.log('\nfakeDesktopDriver.readFakeActLog — non-ENOENT read error throws
 console.log('\nnativeDriver.keyboardIdleMs — an addon that throws answers null as before, so no act is held on it')
 {
   const r = runScenario(`
-    const { voicePackPlatform } = await import(path.join(SRC, 'services/voice/voicePack.ts'))
+    const { voicePackPlatform } = await import(path.join(SRC, 'utils/voice/voicePack.ts'))
     const pack = await import(path.join(SRC, 'services/desktop/pack.ts'))
     const packDir = path.join(SCRATCH, 'desktop-pack')
     fs.mkdirSync(packDir, { recursive: true })

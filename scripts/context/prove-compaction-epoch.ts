@@ -13,7 +13,7 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/services/run/ownerKey.js')
+  const ok = await import('../../src/utils/run/ownerKey.js')
 
   section('1. post-compact cleanup is owner/scope-explicit')
   {
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
 
   section('4. the deterministic run capsule')
   {
-    const ok2 = await import('../../src/services/run/ownerKey.js')
+    const ok2 = await import('../../src/utils/run/ownerKey.js')
     const coordinator = await import('../../src/services/run/runCoordinator.js')
     const capsuleMod = await import('../../src/services/run/runContinuationCapsule.js')
     const owner = ok2.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'cap', lane: 'main' })

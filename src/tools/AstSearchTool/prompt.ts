@@ -1,4 +1,4 @@
-import { AST_BOUNDS, astLanguageNames } from '../../utils/astPatterns.js'
+import { AST_BOUNDS, astLanguageNames } from '../../services/structure/astPatterns.js'
 
 export const AST_SEARCH_TOOL_NAME = 'AstSearch'
 

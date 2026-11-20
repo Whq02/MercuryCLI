@@ -9,7 +9,7 @@ import { buildXaiExtras } from '../openaicompat/compatWire.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { xaiChatCompletionsUrl, xaiGrokProxyChatHeaders, resolveXaiCredential, resolveXaiAccount } from './xaiAccounts.js'
 import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
-import { isXaiChatModelId } from './xaiPins.js'
+import { isXaiChatModelId } from '../../../utils/model/pins/xaiPins.js'
 import { refreshXaiTokens } from './xaiOauth.js'
 import { xaiResponsesTransport } from './xaiResponsesTransport.js'
 

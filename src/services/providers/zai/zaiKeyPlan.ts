@@ -1,4 +1,4 @@
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 const ZAI_KEY_PLAN_ENV = 'ZAI_KEY_PLAN'

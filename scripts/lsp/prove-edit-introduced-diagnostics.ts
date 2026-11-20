@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 
 import * as registry from '../../src/services/lsp/LSPDiagnosticRegistry.js'
-import { DiagnosticTrackingService, type Diagnostic, type DiagnosticFile } from '../../src/services/diagnosticTracking.js'
+import { DiagnosticTrackingService, type Diagnostic, type DiagnosticFile } from '../../src/utils/diagnosticTracking.js'
 
 const SERVER = 'mercury-ts'
 const FILE = '/x/proj/src/app.ts'

@@ -15,14 +15,14 @@ import {
   WarningBanner,
   type KVRow,
 } from '../components.js'
-import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from '../../../utils/glyphs.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { CursorCell } from '../LiveGlyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
 import { getMercuryDaemonStatus, type MercuryDaemonStatus } from '../../../daemon/status.js'
-import { daemonSnapshot } from '../../../utils/cockpit/daemonSnapshot.js'
-import { deriveDaemonRows } from '../../../utils/cockpit/daemonRows.js'
+import { daemonSnapshot } from '../../../services/cockpit/daemonSnapshot.js'
+import { deriveDaemonRows } from '../../../services/cockpit/daemonRows.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
 
 

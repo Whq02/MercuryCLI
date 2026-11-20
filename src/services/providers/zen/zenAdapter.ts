@@ -1,6 +1,6 @@
 import { zenCatalogueRows } from './zenCatalogue.js'
 import { resolveZenAccount } from './zenAccounts.js'
-import { zenDisplayPin, zenQualifiedId } from './zenPins.js'
+import { zenDisplayPin, zenQualifiedId } from '../../../utils/model/pins/zenPins.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 

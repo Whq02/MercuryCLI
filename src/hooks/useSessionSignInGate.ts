@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { NotLoggedInGate } from '../services/wallet/wallet.js'
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'
-import { sessionSignInGate } from '../utils/accounts/sessionSignIn.js'
+import { sessionSignInGate } from '../services/accounts/sessionSignIn.js'
 import { passedOver } from '../utils/passedOver.js'
 import { useCatalogueEpoch } from './useCatalogueEpoch.js'
 

@@ -5,7 +5,7 @@ import { basename, dirname, join, normalize, relative, resolve } from 'node:path
 import { safeParseJSONC } from '../../utils/json.js'
 import { loadTs, resolveStructureTypescript } from '../structure/tsFacility.js'
 import { getProjectSnapshot } from './snapshot.js'
-import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
+import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from '../../utils/projectIntel/contracts.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
 import { passedOver } from '../../utils/passedOver.js'
 

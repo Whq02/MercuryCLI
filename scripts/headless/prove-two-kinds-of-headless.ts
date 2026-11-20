@@ -106,7 +106,7 @@ await guarded(async () => {
     wireDoor.startsWith('- Session: oculus') && printDoor.line.startsWith('- Session: non-interactive') && printDoor.status === 'blocked' && bareBoot.startsWith('- Session: non-interactive'),
     JSON.stringify({ wireDoor: wireDoor.slice(0, 60), printDoor: { line: printDoor.line.slice(0, 60), status: printDoor.status }, bareBoot: bareBoot.slice(0, 60) }),
   )
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const kindRow = await runtimeChecks().find(row => row.id === 'session-kind')?.run()
   check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", kindRow?.status === 'info' && kindRow.evidence.startsWith('no session is focused here') && kindRow.evidence.includes('oculus: a screen belongs to it') && kindRow.evidence.includes('headless: unattended'), kindRow?.evidence)
   const focus = await import('../../src/services/engine-connector/focusedConnector.ts')

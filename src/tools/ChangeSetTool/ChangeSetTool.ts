@@ -36,8 +36,8 @@ import {
   formatChangeSetRefusal,
   planChangeSet,
   plannedDiskBytes,
-  sha256Hex,
 } from '../../services/changeTransaction/changeSetPlan.js'
+import { sha256Hex } from '../../utils/hash.js'
 import {
   runTextChangeSetCommit,
   type CommitOutcome,
@@ -56,7 +56,7 @@ import {
 } from '../../services/changeTransaction/repetitionPolicy.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -70,7 +70,7 @@ import { getFileModificationTime } from '../../utils/file.js'
 import {
   fileHistoryEnabled,
   fileHistoryTrackEdit,
-} from '../../utils/fileHistory.js'
+} from '../../services/changeTransaction/fileHistory.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'

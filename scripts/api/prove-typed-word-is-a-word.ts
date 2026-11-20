@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/attachments/modeLifecycles.ts src/utils/attachments/orchestrator.ts
+// gate-watch: src/utils/attachments/modeLifecycles.ts src/services/attachments/orchestrator.ts
 // gate-watch: src/utils/messages/attachmentText.ts src/utils/thinking.ts src/utils/effort.ts
 // gate-watch: src/run-core/attachment-drain.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }

@@ -1,4 +1,4 @@
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { hostMachineName } from '../../commands/llmhost/words.js'
 import { forgetTensorFoldHost, rememberTensorFoldHost } from '../providers/local/tensorfoldHosts.js'
 import { TENSORFOLD_NOT_BUILT, type TensorFoldHost } from '../tensorfold/contracts.js'
@@ -145,8 +145,20 @@ export async function stopTensorFoldPod(id: string, options: { client?: HostVend
   try {
     await stopHostSetup(id)
     pod = await api.stop(id)
-    const deadline = Date.now() + (options.timeoutMs ?? 10_000)
-    while (pod.status !== 'EXITED' && Date.now() < deadline) { await sleep(options.pauseMs ?? 2000, signal, { throwOnAbort: true }); pod = await api.get(id, signal) }
+    if (pod.status !== 'EXITED') {
+      let first = true
+      pod = await pollUntil(
+        async () => {
+          if (first) { first = false; return undefined }
+          pod = await api.get(id, signal)
+          return pod.status === 'EXITED' ? pod : undefined
+        },
+        options.pauseMs ?? 2000,
+        options.timeoutMs ?? 10_000,
+        () => pod,
+        { signal },
+      )
+    }
   } catch (error) {
     return { ok: false, words: TENSORFOLD_HOST_WORDS.stopFailed(machine, error instanceof Error ? error.message : String(error)) }
   }

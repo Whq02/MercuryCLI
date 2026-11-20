@@ -24,7 +24,7 @@ const { buildUnityBridgeIdeSession, unityBridgeReadinessRecords, UNITY_LANES_ARM
   await import('../../src/services/ide/unityBridgeSession.js')
 const { resetUnityBridgeClientForTest, getUnityBridgeClient } = await import('../../src/services/unity/bridgeClient.js')
 const installer = await import('../../src/services/unity/bridgeInstaller.js')
-const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.js')
+const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.js')
 const { startFakeUnityBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'unity-bridge-session-'))

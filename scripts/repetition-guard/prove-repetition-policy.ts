@@ -28,7 +28,7 @@ const {
   noteSuccessfulMutation,
   _resetRepetitionPolicyForTesting,
 } = await import('../../src/services/changeTransaction/repetitionPolicy.ts')
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
 const { verificationSummary, _resetVerificationStateForTesting } = await import(
   '../../src/utils/verification/verificationState.ts'
 )

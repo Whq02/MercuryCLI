@@ -1,5 +1,5 @@
 import { type DapSession, knownAdapterKeys, listDapSessions } from '../../../services/dap/dapClient.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import type { Input, InputWith, OpResult } from './schema.js'
 
 export async function threadsOp(r: { root: DapSession; target: DapSession }): Promise<OpResult> {

@@ -4,7 +4,7 @@
 # gate-watch: src/services/providers/openaicompat/**
 # gate-watch: src/services/providers/openrouter/** src/utils/settings/**
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**
-# gate-watch: src/services/providers/zai/glmPins* src/services/providers/**
+# gate-watch: src/utils/model/pins/glmPins* src/services/providers/**
 # gate-watch: src/types/message.ts src/components/CompatConnect.tsx
 # gate-watch: src/services/providers/gemini/** src/services/providers/xai/** src/services/providers/meta/**
 # gate-watch: src/services/providers/mistral/**
@@ -17,7 +17,7 @@
 # gate-watch: src/services/api/outputFit.ts
 # gate-watch: src/services/providers/cacheFieldRetry.ts
 # gate-watch: src/services/engine-connector/seatLive.ts
-# gate-watch: src/utils/healthReport.ts
+# gate-watch: src/services/health/healthReport.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 try {
-  const { processAgentMentions, processMcpResourceAttachments, processAtMentionedFiles } = await import(`${root}/src/utils/attachments/mentionResolvers.ts`)
+  const { processAgentMentions, processMcpResourceAttachments, processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
   assert.deepEqual(processAgentMentions('@agent-code @agent-missing @agent-review', [{ agentType: 'code' }, { agentType: 'review' }] as never), [{ type: 'agent_mention', agentType: 'code' }, { type: 'agent_mention', agentType: 'review' }])
   assert.deepEqual(await processAtMentionedFiles('plain words', {} as never), [])
   assert.deepEqual(await processMcpResourceAttachments('plain words', {} as never), [])

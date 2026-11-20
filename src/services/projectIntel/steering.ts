@@ -1,5 +1,5 @@
 
-import { projectIntelEnabled } from './contracts.js'
+import { projectIntelEnabled } from '../../utils/projectIntel/contracts.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 function refsOn(): boolean {

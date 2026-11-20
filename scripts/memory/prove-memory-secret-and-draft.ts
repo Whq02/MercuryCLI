@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/mneme/mnemeSecretGuard.ts src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/prompt.ts src/utils/detectSecrets.ts
+// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/mneme/mnemeSecretGuard.ts src/tools/MemoryTools/MemoryTools.ts src/constants/tools/memory.ts src/utils/detectSecrets.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,7 +23,7 @@ const { appendObservation, pendingRows, currentBufferPath } = await import('../.
 const { correctFact } = await import('../../src/mneme/mnemeCorrect.js')
 const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.js')
 const { RetainTool, CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
-const { CORRECT_PROMPT, RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.js')
+const { CORRECT_PROMPT, RETAIN_PROMPT } = await import('../../src/constants/tools/memory.js')
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 
 const dir = mnemeLibraryDir()

@@ -1,8 +1,8 @@
 
 import { randomBytes } from 'node:crypto'
-import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import type { OwnerKey } from '../run/ownerKey.js'
-import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { subscribeChangeReceipts } from '../changeTransaction/receipts.js'
 import type { ChangeReceipt } from '../changeTransaction/contracts.js'
 import {

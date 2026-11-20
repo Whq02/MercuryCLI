@@ -4,7 +4,7 @@ import {
   discoverSpriteFiles,
   locateAseprite,
   mercuryAsepriteEnabled,
-} from '../../services/aseprite/asepriteApp.js'
+} from './asepriteApp.js'
 import { getCwd } from '../cwd.js'
 
 function asepriteEnabled(): boolean {

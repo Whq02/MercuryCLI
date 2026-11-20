@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
 
 import type { Message } from '../types/message.js'
-import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
+import { FILE_EDIT_TOOL_NAME } from '../constants/tools/fileEdit.js'
 import { REPEATED_RESULT_TAG } from '../constants/toolLimits.js'
-import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../tools/FileReadTool/prompt.js'
-import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
+import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../constants/tools/fileRead.js'
+import { FILE_WRITE_TOOL_NAME } from '../constants/tools/fileWrite.js'
 import { createFileStateCacheWithSizeLimit, type FileStateCache } from './fileStateCache.js'
 import { getFileModificationTime, stripLineNumberPrefix } from './file.js'
 import { isENOENT } from './errors.js'

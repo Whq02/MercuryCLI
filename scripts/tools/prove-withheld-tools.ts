@@ -26,8 +26,8 @@ process.env.MERCURY_COMPUTER_USE = '1'
 process.env.MERCURY_DESKTOP_PACK_DIR = join(emptyPacks, 'desktop')
 
 const { getAllBaseTools } = await import('../../src/tools.ts')
-const { withheldTools, withheldToolsLine } = await import('../../src/utils/withheldTools.ts')
-const { collectReadiness } = await import('../../src/utils/readiness.ts')
+const { withheldTools, withheldToolsLine } = await import('../../src/services/tools/withheldTools.ts')
+const { collectReadiness } = await import('../../src/services/health/readiness.ts')
 const dap = await import('../../src/services/dap/dapClient.ts')
 const godot = await import('../../src/services/vulcan/portabilityHealth.ts')
 dap._resetLldbDapForTesting()
@@ -88,12 +88,12 @@ check('MERCURY_DAP=0 is off, not withheld: the census does not name the Debug to
 delete process.env.MERCURY_DAP
 
 section('§5 the wiring: the catalog seats the two tools through their owners')
-const { toolCapabilityFastChecks } = await import('../../src/utils/health/sections/tool-capability-fast.ts')
+const { toolCapabilityFastChecks } = await import('../../src/services/health/sections/tool-capability-fast.ts')
 const withheldRow = toolCapabilityFastChecks().find(row => row.id === 'tools-withheld')
 check("/health's TOOL CAPABILITY section carries the Tools withheld row", withheldRow?.label === 'Tools withheld')
 {
   const withheldSays = await withheldRow?.run()
-  const withheldOwner = await import('../../src/utils/withheldTools.ts')
+  const withheldOwner = await import('../../src/services/tools/withheldTools.ts')
   const settledList = withheldOwner.withheldTools()
   check("/health's row waits for the toolchain probes before it reads the census", withheldSays?.evidence === withheldOwner.withheldToolsLine(settledList) && (settledList.length === 0 ? withheldSays.status === 'ok' : withheldSays.status === 'info' && withheldSays.detail === settledList.map(w => `${w.tool} — needs ${w.dependency}: ${w.why}`).join('\n')), withheldSays?.evidence)
   const slowGdb = join(emptyBin, 'gdb')

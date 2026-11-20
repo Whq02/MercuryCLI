@@ -1,7 +1,7 @@
 
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
-import { GLYPH } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../utils/glyphs.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { FilePathLink } from '../../components/FilePathLink.js'
 import { MessageResponse } from '../../components/MessageResponse.js'

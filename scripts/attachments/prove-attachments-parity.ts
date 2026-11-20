@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import * as A from '../../src/utils/attachments.ts'
+import * as A from '../../src/services/attachments.ts'
 import { recordOrVerify, snap } from '../lib/goldenReplay.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))

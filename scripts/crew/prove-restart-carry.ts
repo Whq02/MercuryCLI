@@ -158,7 +158,7 @@ section("J1 the journal carries the line's identity: uuid, mode and the send clo
 
 section('J2 a notification drained into an attachment is stamped with its completion clock and carries the delivery clock beside it')
 {
-  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
   const before = Date.now()
   const noticeRow = createAttachmentMessage({ type: 'queued_command', prompt: '<task-notification>done</task-notification>', commandMode: 'task-notification', sentAt: '2026-01-01T00:05:00.000Z' } as never)
   const wordsRow = createAttachmentMessage({ type: 'queued_command', prompt: 'typed words', commandMode: 'prompt', sentAt: '2026-01-01T00:05:00.000Z' } as never)

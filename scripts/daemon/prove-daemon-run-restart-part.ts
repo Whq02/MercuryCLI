@@ -35,7 +35,7 @@ const said: string[] = []
 
 const handover = await import('../../src/daemon/handover.ts')
 const daemonBuild = await import('../../src/daemon/daemonBuild.ts')
-const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const ownerWatch = await import('../../src/utils/ownerWatch.ts')
 const auth = await import('../../src/utils/auth.ts')
 const childProcess = await import('node:child_process')
 const { currentVersion } = await import('../../src/daemon/controlSocket.ts')
@@ -43,7 +43,7 @@ const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
 const { STORED_TOKEN_SCRUB_VARS } = await import('../../src/utils/subprocessEnv.ts')
 mock.module('../../src/daemon/handover.ts', () => ({ ...handover, deployedRuntime: () => script.deployed }))
 mock.module('../../src/daemon/daemonBuild.ts', () => ({ ...daemonBuild, selfScriptPath: () => script.own, resolveScriptPath: (path: string | undefined) => path ?? '', nodeForBuild: (dir: string) => `${dir}/node` }))
-mock.module('../../src/daemon/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive(pid) }))
+mock.module('../../src/utils/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive(pid) }))
 mock.module('../../src/utils/auth.ts', () => ({ ...auth, hasStoredOAuthToken: () => script.stored }))
 mock.module('node:child_process', () => ({
   ...childProcess,

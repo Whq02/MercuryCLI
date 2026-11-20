@@ -60,7 +60,7 @@ const discovery = await import(join(repo, 'src/services/instructions/discovery.t
 const writer = await import(join(repo, 'src/services/instructions/projectInstructionWriter.ts'))
 const listing = await import(join(repo, 'src/services/instructions/listing.ts'))
 const { getUserContext } = await import(join(repo, 'src/context.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/utils/attachments/nestedMemory.ts'))
+const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/services/attachments/nestedMemory.ts'))
 const orient = await import(join(repo, 'src/commands/orient/orient.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 

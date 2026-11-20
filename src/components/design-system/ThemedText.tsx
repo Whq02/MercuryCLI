@@ -4,7 +4,7 @@ import Text from '../../ink/components/Text.js'
 import type { Color, Styles } from '../../ink/styles.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
-import { resolveThemeColor } from './color.js'
+import { resolveThemeColor } from '../../utils/color.js'
 import { useTheme } from './ThemeProvider.js'
 
 export const TextHoverColorContext = createContext<string | undefined>(

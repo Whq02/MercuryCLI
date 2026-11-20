@@ -2,12 +2,12 @@ import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer
 import type {
   AssistantMessage,
 } from '../../../../types/message.js'
-import { EMPTY_USAGE } from '../../../api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../../../utils/api/emptyUsage.js'
 import {
   checkResponseForCacheBreak,
 } from '../../../api/promptCacheBreakDetection.js'
 import { addToTotalSessionCost } from '../../../../cost-tracker.js'
-import { calculateUSDCost } from '../../../../utils/modelCost.js'
+import { calculateUSDCost } from '../../../usage/modelCost.js'
 import { estimateFaultedRequestUsage } from '../../faultUsageEstimate.js'
 import type {
   OpenaiCompletedToolCall,

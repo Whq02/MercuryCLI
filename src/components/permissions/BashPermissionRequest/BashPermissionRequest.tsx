@@ -8,12 +8,12 @@ import { Select } from '../../CustomSelect/select.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import { resolveThemeName } from '../resolveThemeName.js'
 import { BashTool } from '../../../tools/BashTool/BashTool.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import {
   getFirstWordPrefix,
   getSimpleCommandPrefix,
 } from '../../../tools/BashTool/bashPermissions.js'
-import { getDestructiveCommandWarning } from '../../../tools/BashTool/destructiveCommandWarning.js'
+import { getDestructiveCommandWarning } from '../../../utils/shell/destructiveCommandWarning.js'
 import { parseSedEditCommand } from '../../../tools/BashTool/sedEditParser.js'
 import { getCompoundCommandPrefixesStatic } from '../../../utils/bash/prefix.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'

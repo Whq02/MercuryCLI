@@ -69,7 +69,7 @@ try {
   const { storeFireworksApiKeyLogin } = await import(new URL('../../src/services/providers/fireworks/fireworksLogin.ts', import.meta.url).href)
   const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
   const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
   const { readStoredFireworksApiKey } = await import('../../src/services/providers/providerSecrets.ts')
   const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
@@ -151,7 +151,7 @@ try {
   check('a refused login never overwrites the stored key', !refusedLogin.stored && refusedLogin.receipt.includes('HTTP 401') && readStoredFireworksApiKey() === 'proof-key-fireworks-login-fixture-not-a-real-key')
   listStatus = 200; modelList = []; await refreshFireworksCatalogue({ force: true })
   const emptyBefore = captures.length
-  const { fireworksDisplayPin, FIREWORKS_OBSERVED_AT } = await import('../../src/services/providers/fireworks/fireworksPins.ts')
+  const { fireworksDisplayPin, FIREWORKS_OBSERVED_AT } = await import('../../src/utils/model/pins/fireworksPins.ts')
   check('an empty live list falls to the 14 dated pins (docs.fireworks.ai pricing, read 2026-10-25) labelled as pins with each row\'s own date, admits a pinned id under the note, and refuses an unpinned id', fireworksCatalogueRows().source.kind === 'pins' && fireworksCatalogueRows().rows.length === 14 && fireworksCatalogueRows().rows.every((row: any) => !row.listedLive && row.observedAt === (fireworksDisplayPin(row.id)?.observedAt ?? FIREWORKS_OBSERVED_AT)) && keyLaneListState('fireworks').kind === 'pin' && (fireworksCatalogueSourceWords() ?? '').includes('pinned list — ') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1 && (await run(params('fireworks/missing-fixture'))).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1)
   const beforeUnreachable = captures.length
   modelList = fixtures; __resetFireworksCatalogueForTest(); const base = process.env.MERCURY_FIREWORKS_API_BASE

@@ -26,7 +26,7 @@ try {
   assert.equal(windows.name, 'Windows OCR')
   console.log('PASS Windows/Linux OCR resolution and missing-engine hints; real Windows/Linux OCR not run')
   if (process.platform === 'darwin') {
-    const { getImageProcessor } = await import('../../src/tools/FileReadTool/imageProcessor.ts')
+    const { getImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessor.ts')
     const sharp = await getImageProcessor()
     const svg = Buffer.from('<svg width="1200" height="240"><rect width="1200" height="240" fill="white"/><text x="40" y="120" font-size="64" font-family="Helvetica" fill="black">MERCURY RESEARCH 42</text></svg>')
     const png = await sharp(svg).png().toBuffer()

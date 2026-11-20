@@ -1,7 +1,7 @@
 
 import { z } from 'zod'
 import { evalNestedToolIds } from '../../services/eval/bridgeProgress.js'
-import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
+import { expandLspFamily, lspFamilyMatches } from '../../utils/lsp/toolFamily.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,
@@ -53,7 +53,7 @@ import { getCwdState } from '../../bootstrap/state.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import { agentPauseRecordPath, clearAgentPauseRecord, writeAgentPauseRecord } from '../../tasks/LocalAgentTask/pauseCarry.js'
-import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../utils/crew/crewAccountChange.js'
+import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../services/crew/crewAccountChange.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
   nextOverloadProbeDelayMs,
@@ -68,9 +68,9 @@ import {
 import { createUserMessage } from '../../utils/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
-import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
-import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
+import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
+import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
+import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../NotebookEditTool/constants.js'
 import { JEV_TOOL_NAME } from '../../services/jev/jevContract.js'
 import { readJevSettings } from '../../services/jev/jevSetting.js'
@@ -85,9 +85,9 @@ import { emitTaskProgress as emitSdkTaskProgress } from '../../utils/task/sdkPro
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import type { CanUseToolFn } from '../../Tool.js'
-import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
+import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../../constants/tools/agent.js'
 import { STRUCTURED_TAG } from '../../constants/xml.js'
-import type { AgentDefinition } from './loadAgentsDir.js'
+import type { AgentDefinition } from '../../types/agent.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 

@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { META_SIGN_IN_ROADS } from '../../components/loginFamilyRows.js'
+import { META_SIGN_IN_ROADS } from './loginWords.js'
 import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../config.js'
 import {

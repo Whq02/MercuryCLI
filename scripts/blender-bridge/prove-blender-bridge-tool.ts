@@ -34,7 +34,7 @@ const { getBlenderToolDescription } = await import('../../src/tools/BlenderTool/
 const {
   BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE,
   BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE,
-} = await import('../../src/services/blender/bridgeProtocol.js')
+} = await import('../../src/utils/blender/bridgeProtocol.js')
 const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
 const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
 const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.js')
@@ -156,7 +156,7 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
     harness ?? '',
   )
   const { validateToolCapability } = await import('../../src/utils/capability/contract.js')
-  const { blenderBridgeVerbNames } = await import('../../src/services/blender/bridgeProtocol.js')
+  const { blenderBridgeVerbNames } = await import('../../src/utils/blender/bridgeProtocol.js')
   const cap = BlenderTool.capability
   const expectedOps = [
     ...blenderBridgeVerbNames(),

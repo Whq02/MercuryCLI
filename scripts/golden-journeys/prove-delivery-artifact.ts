@@ -21,14 +21,14 @@ git('add', '-A')
 git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'fixture baseline')
 process.chdir(WORKDIR)
 
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { acceptUserRequest, getRunSnapshot, noteRunEvent } = await import(
   '../../src/services/run/runCoordinator.ts'
 )
 const { mintDeliveryArtifact, _resetDeliveryLatchForTesting, headlessMintAllowed } = await import(
   '../../src/guards/runStopAdapter.ts'
 )
-const { listReviewArtifactHeads } = await import('../../src/utils/artifacts/reviewStore.ts')
+const { listReviewArtifactHeads } = await import('../../src/services/artifacts/reviewStore.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(true)
 

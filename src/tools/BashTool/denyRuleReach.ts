@@ -18,7 +18,7 @@ import { refusalWithReason, ruleSentence, ruleWords, withRuleReason } from '../.
 import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { LISTED_WORDS } from '../../utils/shell/readOnlyCommandValidation.js'
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
-import { BASH_TOOL_NAME } from './toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { gitLeavingOut, gitNamesPrinted, gitPatchQuestion, gitVariableSet } from './gitPrintedNames.js'
 import { COMMAND_OPERATION_TYPE, PATH_EXTRACTORS, type PathCommand } from './pathValidation.js'
 import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors.js'

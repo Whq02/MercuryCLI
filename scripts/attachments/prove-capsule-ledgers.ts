@@ -27,7 +27,7 @@ try {
   setSessionTrustAccepted(true)
   const listing = await import(`${root}/src/utils/attachments/skillListing.ts`)
   const { getEngineModel } = await import(`${root}/src/utils/model/model.ts`)
-  const { SKILL_TOOL_NAME } = await import(`${root}/src/tools/SkillTool/constants.ts`)
+  const { SKILL_TOOL_NAME } = await import(`${root}/src/constants/tools/skill.ts`)
   const context = {
     options: { tools: [{ name: SKILL_TOOL_NAME }], engineModel: getEngineModel() },
     getAppState: () => ({ mcp: { commands: [] } }),

@@ -9,6 +9,7 @@ import type { ProcessSweepEntry, ProcessSweepObservation, ProcessSweepTable } fr
 import { processSweepWindowsHost } from './processSweepWindowsHost.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { withDeadline } from '../utils/deadline.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 const rawRowSchema = z.object({
@@ -97,21 +98,16 @@ function openHost() {
     async ask(request: Record<string, unknown>, timeoutMs = 30_000): Promise<Record<string, unknown>> {
       if (state.failure !== null) throw state.failure
       child.stdin.write(Buffer.from(JSON.stringify(request), 'utf8').toString('base64') + '\n')
-      let timer: ReturnType<typeof setTimeout> | undefined
-      try {
-        const line = await Promise.race([
-          lines.next(),
-          new Promise<never>((_, reject) => { timer = startTimeout(() => { endTree(); reject(new Error('The Windows process reader did not answer within its budget and was ended')) }, timeoutMs) }),
-        ])
-        if (line.done) throw new Error(String(state.failure ?? (stderr || 'The Windows process reader closed without a response')))
-        const value: unknown = JSON.parse(line.value)
-        if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Malformed Windows process response')
-        const response = value as Record<string, unknown>
-        if (typeof response.error === 'string') throw new Error(response.error)
-        return response
-      } finally {
-        stopTimeout(timer)
-      }
+      const line = await withDeadline(lines.next(), timeoutMs, () => {
+        endTree()
+        throw new Error('The Windows process reader did not answer within its budget and was ended')
+      })
+      if (line.done) throw new Error(String(state.failure ?? (stderr || 'The Windows process reader closed without a response')))
+      const value: unknown = JSON.parse(line.value)
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Malformed Windows process response')
+      const response = value as Record<string, unknown>
+      if (typeof response.error === 'string') throw new Error(response.error)
+      return response
     },
     async close(): Promise<void> {
       child.stdin.end()

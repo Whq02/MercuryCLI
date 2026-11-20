@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 
 import { SHARED_INSTRUCTION_FILE } from './adapters/agentsMd.js'
-import type { InstructionSourceEntry } from './contracts.js'
+import type { InstructionSourceEntry } from '../../utils/instructions/contracts.js'
 import { NATIVE_INSTRUCTION_FILE_NAMES } from './nativeSource.js'
 import {
   getInstructionFiles,

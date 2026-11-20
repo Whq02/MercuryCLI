@@ -1,5 +1,5 @@
 
-import type { AgentSource } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { AgentSource } from '../../types/agent.js'
 import { getSettingSourceDisplayNameCapitalized } from '../../utils/settings/constants.js'
 
 export function getAgentSourceDisplayName(

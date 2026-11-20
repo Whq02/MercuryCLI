@@ -190,7 +190,7 @@ function setIdentity(leg: Leg): void {
 await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
 await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
 await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('src/utils/cockpit/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
 let focusedModel = MODEL
 const connector = {
   modelFacts: () => ({ main: focusedModel, effective: focusedModel }),
@@ -297,7 +297,7 @@ const usage = await import(join(ROOT, 'src/services/providers/providerUsage.ts')
 const identityLine = await import(join(ROOT, 'src/services/providers/providerIdentityLine.ts'))
 const slots = await import(join(ROOT, 'src/services/providers/accountSlots.ts'))
 const words = await import(join(ROOT, 'src/services/wallet/identityWords.ts'))
-const status = await import(join(ROOT, 'src/utils/status.tsx'))
+const status = await import(join(ROOT, 'src/components/status.tsx'))
 
 const POPUP_TITLES = ['Anthropic usage', 'OpenAI usage', 'Z.AI usage', 'OpenRouter usage', 'Gemini usage', 'Moonshot usage', 'DeepSeek usage', 'xAI usage', 'Meta usage', 'Custom endpoint usage', 'Hugging Face usage', 'Local models usage']
 async function paintPopup(): Promise<string[]> {
@@ -514,7 +514,7 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
   check('hidden: the window refusal names the signed-in account, no address', hiddenWords.includes('reached for the signed-in account') && !hiddenWords.includes('@'), hiddenWords)
   limits.__setAnthropicOwnerResolverForTest(null)
   limits.resetLimitsForCredentialSwitch()
-  const { APIError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
   const errors = await import(join(ROOT, 'src/services/api/errors.ts'))
   const RECORD = 'record@example.com'
   config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, oauthAccount: { accountUuid: 'uuid-record-fixture', emailAddress: RECORD, organizationUuid: 'org-record-fixture' } }))

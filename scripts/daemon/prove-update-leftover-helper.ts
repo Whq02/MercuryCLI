@@ -18,7 +18,7 @@ Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE:
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { predecessorSockPath } = await import('../../src/daemon/handover.ts')
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
 const { lockHeldByLivePidSync } = await import('../../src/daemon/planeRecords.ts')
 const { SESSIONLESS_EXIT_BEAT_MS } = await import('../../src/daemon/sessionlessExit.ts')
 

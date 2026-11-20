@@ -1,5 +1,5 @@
 import { HOST_RECIPES } from '../../host/recipes.js'
-import { isRankedWireEffort } from '../openai/gptPins.js'
+import { isRankedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import { currentHostRecipes } from '../../host/recipesFile.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { compatModelEndpoint } from './compatAccounts.js'

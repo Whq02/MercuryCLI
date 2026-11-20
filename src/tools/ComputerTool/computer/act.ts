@@ -1,4 +1,5 @@
 import { basename } from 'node:path'
+import { pollUntil } from '../../../utils/deadline.js'
 import { sleep } from '../../../utils/sleep.js'
 import type {
   DesktopAnswer,
@@ -144,13 +145,19 @@ async function dialogOpen(driver: DesktopDriver, signal: AbortSignal): Promise<b
 
 async function awaitDialog(driver: DesktopDriver, signal: AbortSignal, open: boolean, deadline: number): Promise<'met' | 'unmet' | 'unread'> {
   let read = false
-  for (;;) {
-    const state = await dialogOpen(driver, signal)
-    read ||= state !== null
-    if (state === open) return 'met'
-    if (signal.aborted || Date.now() >= deadline) return read ? 'unmet' : 'unread'
-    await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
-  }
+  return pollUntil<'met' | 'unmet' | 'unread', 'unmet' | 'unread', 'unmet' | 'unread'>(
+    async () => {
+      const state = await dialogOpen(driver, signal)
+      read ||= state !== null
+      if (state === open) return 'met'
+      if (signal.aborted) return read ? 'unmet' : 'unread'
+      return undefined
+    },
+    100,
+    Math.max(0, deadline - Date.now()),
+    () => (read ? 'unmet' : 'unread'),
+    { signal, onAbort: () => (read ? 'unmet' : 'unread') },
+  )
 }
 
 async function performFile(driver: DesktopDriver, input: Input, plan: ActPlan, signal: AbortSignal): Promise<ActWords> {

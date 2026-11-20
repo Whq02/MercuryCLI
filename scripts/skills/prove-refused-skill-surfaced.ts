@@ -20,7 +20,7 @@ const { setSessionTrustAccepted } = await import(join(SRC, 'bootstrap/state.ts')
 setSessionTrustAccepted(true)
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()
-const health = await import(join(SRC, 'utils/healthReport.ts'))
+const health = await import(join(SRC, 'services/health/healthReport.ts'))
 const evidence = health.skillsRefusedEvidence as ((cwd: string) => Promise<{ status: string; evidence: string; fix?: string }>) | undefined
 check('the refused-skills evidence is exported', typeof evidence === 'function')
 
@@ -60,8 +60,8 @@ console.log('L2 a clean project is ok')
 
 console.log('L3 the row is in the certificate (the list, read here)')
 {
-  const { HEALTH_SECTIONS } = await import(join(SRC, 'utils/health/sections.ts'))
-  const { toolCapabilityFastChecks } = await import(join(SRC, 'utils/health/sections/tool-capability-fast.ts'))
+  const { HEALTH_SECTIONS } = await import(join(SRC, 'services/health/sections.ts'))
+  const { toolCapabilityFastChecks } = await import(join(SRC, 'services/health/sections/tool-capability-fast.ts'))
   const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
   const entry = (HEALTH_SECTIONS as Array<{ id: string; title: string; checks: unknown }>).find(listed => listed.id === 'tool-capability-fast')
   const rows = toolCapabilityFastChecks() as Array<{ id: string; label: string; run: () => Promise<unknown> }>

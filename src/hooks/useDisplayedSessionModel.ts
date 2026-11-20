@@ -8,7 +8,7 @@ import {
 import { renderModelChip } from '../utils/model/model.js'
 import { geminiPlanRideWords } from '../services/providers/gemini/geminiCatalogue.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
-import { contextFillView, type ContextFillView } from '../utils/contextFill.js'
+import { contextFillView, type ContextFillView } from '../services/context/contextFill.js'
 import type { Message } from '../types/message.js'
 
 

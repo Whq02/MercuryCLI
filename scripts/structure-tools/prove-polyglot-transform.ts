@@ -6,8 +6,8 @@ import { armEnvironment, check, drive, enterRoot, finish, makeContext, REPO } fr
 const env = armEnvironment()
 const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
 const { AstSearchTool } = await import('../../src/tools/AstSearchTool/AstSearchTool.ts')
-const { resolveAstScope, isAstRefusal, searchAstPattern } = await import('../../src/utils/astPatterns.ts')
-const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/services/structure/grammarFacility.ts')
+const { resolveAstScope, isAstRefusal, searchAstPattern } = await import('../../src/services/structure/astPatterns.ts')
+const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/utils/structure/grammarFacility.ts')
 const root = mkdtempSync(join(tmpdir(), 'ast-transform-'))
 try {
   await enterRoot(root)

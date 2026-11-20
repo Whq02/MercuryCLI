@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { getSessionId } from '../../bootstrap/state.js'
-import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
+import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 import { createRowStamper, outcomeRow } from '../../rows/project.js'
 import type { ErrorClass, OutcomeRow, OutcomeStatus } from '../../rows/vocabulary.js'
 

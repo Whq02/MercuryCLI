@@ -1,4 +1,4 @@
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import { logForDebugging } from '../utils/debug.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'

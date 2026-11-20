@@ -1,5 +1,5 @@
 import { collapseAndSlice } from '../../utils/stringUtils.js'
-import type { SampleMarksV1, SamplePinV1, SampleRecordV1, SampleVerdict } from './contracts.js'
+import type { SampleMarksV1, SamplePinV1, SampleRecordV1, SampleVerdict } from '../../utils/samples/contracts.js'
 
 const MAX_PINS = 200
 const MAX_TARGET_CHARS = 160

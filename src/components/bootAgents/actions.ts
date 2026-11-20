@@ -1,4 +1,4 @@
-import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js';
+import type { AgentDefinition } from '../../types/agent.js';
 import type { AgentSpecFields } from '../../services/agents/contracts.js';
 import { setAgentDisabled, setAgentOverride } from '../../services/agents/overrides.js';
 import { AgentStoreError, deleteAgentToTrash } from '../../services/agents/store.js';

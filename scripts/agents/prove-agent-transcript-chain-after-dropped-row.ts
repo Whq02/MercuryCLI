@@ -15,7 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const runAgent = (await import('../../src/tools/AgentTool/runAgent.ts')) as Record<string, unknown>
 const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
 const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
 type Message = import('../../src/types/message.ts').Message

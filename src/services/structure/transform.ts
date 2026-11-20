@@ -7,7 +7,7 @@ import { runVerbatimTextCommit } from '../changeTransaction/changeSetCommit.js'
 import { buildDiffHunks } from '../changeTransaction/diffBudget.js'
 import { mintFileAnchor } from '../changeTransaction/snapshotAnchor.js'
 import { recordCanonicalEvidence } from '../primitives/evidencePlane.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { errorMessage } from '../../utils/errors.js'
 import type {
   StructureFileEdit,

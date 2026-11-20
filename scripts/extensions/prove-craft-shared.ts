@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { zipSync, strToU8 } from 'fflate'
 import { z } from 'zod'
-import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
+import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: 'craft-proof' }

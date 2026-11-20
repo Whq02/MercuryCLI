@@ -24,7 +24,7 @@ import {
   operatorPruneTranscripts,
   type PruneOffer,
   type PruneReceipt,
-} from '../utils/sessionStorage/transcriptPruneDoor.js';
+} from '../services/switchboard/transcriptPruneDoor.js';
 import { sessionIdOfListing } from '../utils/sessionStorage.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';

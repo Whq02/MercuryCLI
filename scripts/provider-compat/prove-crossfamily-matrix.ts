@@ -592,7 +592,7 @@ section('§D the receipt law — only the OpenAI family mints qualification rece
 
 section('§A the dispatch boundary — the engine grammar is TOTAL over the routing law')
 {
-  const engine = await import('../../src/utils/crew/engineDispatch.ts')
+  const engine = await import('../../src/services/crew/engineDispatch.ts')
   const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/routeLaw.ts')
   const { getAgentModel } = await import('../../src/utils/model/agent.ts')
 

@@ -1,6 +1,6 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { Message } from '../../../types/message.js'
-import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
+import { createAttachmentMessage } from '../../attachments/orchestrator.js'
 import { fireHooks, type HookFireResult } from '../../../utils/hooks/fire.js'
 import { boundHookContext } from '../../../utils/hooks/contextBound.js'
 import { hookRowsOfResult } from '../../../utils/hooks/rows.js'

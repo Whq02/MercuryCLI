@@ -118,7 +118,7 @@ const { deriveAgentTerminalOutcome } = await import('../../src/tools/AgentTool/a
 const leaf = await import('../../src/tools/AgentTool/refusalRetry.ts').catch(() => null)
 const refusalRetryRowOf: (last: Message | undefined, retried: ReadonlySet<string>, model: string) => { refusalClass: string; row: Message & { isMeta?: boolean } } | null = leaf === null ? () => null : leaf.refusalRetryRowOf
 const imageRefusalRetryLine: (model: string, detail: string | undefined) => string = leaf === null ? () => '' : leaf.imageRefusalRetryLine
-const { mediaRefusalOf } = await import('../../src/services/api/mediaRefusal.ts')
+const { mediaRefusalOf } = await import('../../src/utils/api/mediaRefusal.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')

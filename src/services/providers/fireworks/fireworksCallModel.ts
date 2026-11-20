@@ -7,11 +7,11 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import { streamCompatChat } from '../openaicompat/compatChatClient.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
-import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { nearestSupportedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { fireworksChatCompletionsUrl, resolveFireworksApiKey } from './fireworksAccounts.js'
 import { getCachedFireworksCatalogue, fireworksListedModel, fireworksOutputMaxFor } from './fireworksCatalogue.js'
-import { fireworksDisplayPin, fireworksEffortVocabulary, fireworksWireId, isFireworksModelId, isFireworksTextModelId } from './fireworksPins.js'
+import { fireworksDisplayPin, fireworksEffortVocabulary, fireworksWireId, isFireworksModelId, isFireworksTextModelId } from '../../../utils/model/pins/fireworksPins.js'
 import { fireworksRecordHeaders } from './fireworksUsageState.js'
 
 export function buildFireworksExtras(args: LaneExtrasArgs): Record<string, unknown> {

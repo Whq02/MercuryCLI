@@ -6,7 +6,7 @@ import {
   subscribeExtendedKeysSupport,
 } from '../../ink/session/capabilities.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import type { MCPServerConnection } from '../../services/mcp/types.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import type { Message } from '../../types/message.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'

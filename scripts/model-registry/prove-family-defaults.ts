@@ -44,7 +44,7 @@ const { ALL_MODEL_CONFIGS, familyDefaultsModel, familyHeadOf, parseFirstPartyGen
 const model = await import('../../src/utils/model/model.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const effort = await import('../../src/utils/effort.ts')
-const cost = await import('../../src/utils/modelCost.ts')
+const cost = await import('../../src/services/usage/modelCost.ts')
 const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
 const { focusedOptionSupports1m } = await import('../../src/utils/model/modelOptions.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')

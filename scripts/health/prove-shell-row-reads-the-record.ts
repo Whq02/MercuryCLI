@@ -43,9 +43,9 @@ const BOTH = `
   ;(globalThis).MACRO = { VERSION: '1.0.0' }
   const config = await import('${source('src/utils/config.ts')}')
   config.enableConfigs()
-  const { runtimeChecks } = await import('${source('src/utils/health/sections/runtime.ts')}')
+  const { runtimeChecks } = await import('${source('src/services/health/sections/runtime.ts')}')
   const row = await runtimeChecks().find(spec => spec.id === 'shell')?.run()
-  const readiness = await import('${source('src/utils/readiness.ts')}')
+  const readiness = await import('${source('src/services/health/readiness.ts')}')
   console.log('BOTH ' + JSON.stringify({ row, ready: readiness.collectReadiness({ includeEnv: false }).records.find(found => found.id === 'tool:shell') }))
   process.exit(0)
 `
@@ -81,7 +81,7 @@ const NOT_CARRIED = 'nothing the bash login files define is carried: '
 try {
   section('(1) the row, asked in this process')
   {
-    const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+    const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
     const record = await import('../../src/utils/shell/shellRecord.ts')
     const row = (await runtimeChecks().find(spec => spec.id === 'shell')?.run()) as Row | undefined
     const served = await record.shellRecord()

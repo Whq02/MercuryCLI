@@ -76,7 +76,7 @@ async function main(executable: string): Promise<void> {
   const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
   const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
   const { liveEngines, spawnEngine, sweepEngineOrphans } = await import('../../src/services/vulcan/engine/spawn.js')
-  const { decodePng } = await import('../../src/tools/FileReadTool/imageProcessorJs.js')
+  const { decodePng } = await import('../../src/utils/imageProcessor/imageProcessorJs.js')
   const fixtureSource = join(import.meta.dir, 'fixtures', 'engine-service', 'tests', 'display_fixture.gd')
   copyFileSync(fixtureSource, join(project, 'tests', 'display_fixture.gd'))
   assert.ok(!/func\s+mercury_media_capture\s*\(/.test(readFileSync(fixtureSource, 'utf8')), 'Native fixture must not supply an Image capture hook')

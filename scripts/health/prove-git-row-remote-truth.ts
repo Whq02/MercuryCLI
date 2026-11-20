@@ -28,7 +28,7 @@ git(origin, 'commit', '-q', '-m', 'first')
 
 const { setCwd } = await import('../../src/utils/Shell.js')
 const { regroundGitWatch } = await import('../../src/utils/git/gitFilesystem.js')
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const gitRow = async (dir: string): Promise<string> => {
   setCwd(dir)
   process.chdir(dir)

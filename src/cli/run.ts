@@ -10,7 +10,7 @@ import { createRunnerPorts, createRunnerState, type HeadlessOptions } from './he
 import { BOOT_STEPS, runBootSteps } from './headless/boot/bootList.js'
 import { hydrateResumedRun } from './headless/resumeHydration.js'
 import type { AppState } from '../state/AppStateStore.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import type { AgentDefinition } from '../types/agent.js'
 import { type Tool } from '../Tool.js'
 
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'

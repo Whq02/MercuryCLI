@@ -19,7 +19,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const fsOps = await import('../../src/utils/fsOperations.js')
 const { getManagedFilePath } = await import('../../src/utils/settings/managedPath.js')
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 
 const policyPath = join(getManagedFilePath(), 'managed-settings.json')
 const real = fsOps.getFsImplementation()

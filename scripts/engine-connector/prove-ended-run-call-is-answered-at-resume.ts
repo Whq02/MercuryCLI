@@ -19,7 +19,7 @@ const React = (await import('react')).default
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-await import('../../src/daemon/ownerWatch.ts')
+await import('../../src/utils/ownerWatch.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
 const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')

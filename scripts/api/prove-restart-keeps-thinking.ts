@@ -67,7 +67,7 @@ const { restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = await import
 const { resetPrefixLedger } = await import('../../src/services/providers/anthropic/prefixLedger.ts')
 const { resetThinkingDropStates } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
 const { clearSystemPromptSectionState } = await import('../../src/bootstrap/state.ts')
-const { getToolSchemaDeltaAttachment, TOOL_SCHEMA_DELTA_HEAD } = await import('../../src/utils/attachments/toolSchemaDelta.ts')
+const { getToolSchemaDeltaAttachment, TOOL_SCHEMA_DELTA_HEAD } = await import('../../src/services/attachments/toolSchemaDelta.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 

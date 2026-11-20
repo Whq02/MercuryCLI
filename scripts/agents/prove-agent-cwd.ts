@@ -33,7 +33,7 @@ const trust = await import('../../src/utils/config/trust.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const agentTool = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { cleanupStaleAgentWorktrees, createAgentWorktree, readWorktreeDelta } = await import('../../src/utils/worktree.ts')
-const { crewWorktreeLeftoverOf } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
+const { crewWorktreeLeftoverOf } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const { computeEnvInfo } = await import('../../src/constants/prompts.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 

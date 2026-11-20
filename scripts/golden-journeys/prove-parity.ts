@@ -22,7 +22,7 @@ seedWorld()
 const sid = SIDS.J3
 seedSubstantialState(sid)
 process.chdir(FIXTURE_CWD)
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const { reconcileOnResume, getRunSnapshot } = await import(
   '../../src/services/run/runCoordinator.ts'
 )
@@ -104,7 +104,7 @@ check('identity is the durable run', work.identity.runId === kernel?.runId && wo
 
 {
   const { acceptUserRequest } = await import('../../src/services/run/runCoordinator.ts')
-  const { makeOwnerKey: mk } = await import('../../src/services/run/ownerKey.ts')
+  const { makeOwnerKey: mk } = await import('../../src/utils/run/ownerKey.ts')
   const raceOwner = mk({ workspace: FIXTURE_CWD, sessionId: SIDS.J4, lane: 'main' })
   seedSubstantialState(SIDS.J4)
   const racePromise = reconcileOnResume(raceOwner, FIXTURE_CWD)
@@ -134,7 +134,7 @@ check('identity is the durable run', work.identity.runId === kernel?.runId && wo
       },
     ]),
   )
-  const { makeOwnerKey: mk } = await import('../../src/services/run/ownerKey.ts')
+  const { makeOwnerKey: mk } = await import('../../src/utils/run/ownerKey.ts')
   const blockedOwner = mk({ workspace: FIXTURE_CWD, sessionId: blockedSid, lane: 'main' })
   const recB = await reconcileOnResume(blockedOwner, FIXTURE_CWD)
   check('3c: a blocked run reconciles (not terminal)', recB.state === 'reconciled')

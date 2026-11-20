@@ -14,7 +14,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 }
 
 const P = await import('../../src/services/primitives/index.ts')
-const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
 
 const owner = P.makeOwnerKey({ workspace: '/axiom', sessionId: 'plane', lane: P.MAIN_LANE })
 const events: P.OrderedExecutionEvent[] = []

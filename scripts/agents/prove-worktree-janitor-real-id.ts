@@ -23,7 +23,7 @@ const config = await import('../../src/utils/config/globalConfig.ts')
 const { generateTaskId } = await import('../../src/Task.ts')
 const { toAgentId } = await import('../../src/types/ids.ts')
 const worktree = await import('../../src/utils/worktree.ts')
-const reminder = await import('../../src/utils/crew/crewWorktreeReminder.ts')
+const reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 
 const DAY = 86_400_000

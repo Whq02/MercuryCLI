@@ -1,7 +1,7 @@
 import type { Message } from '../../../types/message.js'
 import type { CompatChatRequest, CompatMessage } from '../openaicompat/compatChatClient.js'
 import { requestTurnOf } from '../../../rows/request.js'
-import { geminiRequestPin } from './geminiPins.js'
+import { geminiRequestPin } from '../../../utils/model/pins/geminiPins.js'
 import { pdfBlockData } from '../pdfBlock.js'
 
 export type GeminiPart = {

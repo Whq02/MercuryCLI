@@ -1,6 +1,6 @@
 import { roughTokenCountEstimationForMessages } from '../../src/services/tokenEstimation.ts'
 import { requestGaugeDigest } from '../../src/services/run/requestGauge.ts'
-import { tokenCountWithEstimation } from '../../src/utils/tokens.ts'
+import { tokenCountWithEstimation } from '../../src/services/context/tokens.ts'
 import { createUserMessage } from '../../src/utils/messages.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 

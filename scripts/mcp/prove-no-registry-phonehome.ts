@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { getProcessStartToken } from '../../src/daemon/ownerWatch.ts'
+import { getProcessStartToken } from '../../src/utils/ownerWatch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist', 'mercury.mjs')

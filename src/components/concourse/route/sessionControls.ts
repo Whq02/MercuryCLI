@@ -53,7 +53,7 @@ export function stopSession({ noteControl, stopAwaitingStampRef, refresh }: Rout
       const daemonUp = await ensureOwnedDaemon()
       if (!daemonUp) {
         const workers = await import('../../../daemon/concourseWorkers.js')
-        const { isProcessAlive } = await import('../../../daemon/ownerWatch.js')
+        const { isProcessAlive } = await import('../../../utils/ownerWatch.js')
         const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
         const runnerAlive = rec?.pid !== undefined && isProcessAlive(rec.pid)
         if (rec !== undefined && !runnerAlive) {
@@ -199,7 +199,7 @@ export function removeSession({ noteControl, refresh, snapshotRef }: RouteContro
           { timeoutMs: 15_000 },
         )) as typeof reply
       } else {
-        const { isProcessAlive } = await import('../../../daemon/ownerWatch.js')
+        const { isProcessAlive } = await import('../../../utils/ownerWatch.js')
         const runnerAlive = rec.pid !== undefined && isProcessAlive(rec.pid)
         reply = runnerAlive
           ? { ok: false, error: `the daemon that hosts sessions is not reachable and the runner is alive — ${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` }

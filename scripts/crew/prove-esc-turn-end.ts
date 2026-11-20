@@ -17,11 +17,11 @@ const { createElement } = await import('react')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const { Text } = await import('../../src/ink.js')
-const { getQueuedCommandAttachments } = await import('../../src/utils/attachments/queuedCommands.js')
+const { getQueuedCommandAttachments } = await import('../../src/services/attachments/queuedCommands.js')
 await import('../../src/tasks.js')
 const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { getRunningTasks } = await import('../../src/utils/task/framework.js')
-const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
+const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.js')
 const { resetCommandQueue } = await import('../../src/input-core/command-queue.js')
 
 let failures = 0

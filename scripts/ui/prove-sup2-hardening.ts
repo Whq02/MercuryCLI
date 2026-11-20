@@ -113,7 +113,7 @@ console.log('§14 boot settings — no sync git inside a render')
 
 console.log('§15 prune door — the resume snapshot rides its transcript out')
 {
-  const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/utils/sessionStorage/transcriptPruneDoor.ts')
+  const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
   const { snapshotPathFor } = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
   const dir = mkdtempSync(join(tmpdir(), 'sup2-prune-'))
   try {

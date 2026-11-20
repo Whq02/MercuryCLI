@@ -56,7 +56,7 @@ import {
 import {
   createAttachmentMessage,
   getAgentPendingMessageAttachments,
-} from '../../utils/attachments.js'
+} from '../../services/attachments.js'
 import { getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
 import { ledgerMark, ledgerSpentSince } from '../../utils/ledgerMark.js'
@@ -64,7 +64,7 @@ import { handleStopHooks } from '../../query/stopHooks.js'
 import { announcesNextStep } from '../../services/run/completionEvaluator.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import { requestWaitLine } from '../../services/providers/streamIdleBudget.js'
-import { createCacheSafeParams } from '../../utils/forkedAgent.js'
+import { createCacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../../mneme/handoffAsk.js'
 import { finishMemorySignal } from '../../mneme/mnemeSignal.js'
 import { emptyReplyEndedLine, emptyReplyKindOf, emptyReplyNoteOf, emptyReplyNoticeLine } from '../../services/providers/emptyReply.js'
@@ -892,7 +892,7 @@ export async function* replyStands(run: RunCtx, iter: IterationState): AsyncGene
   const { toolUseContext, messagesForQuery, assistantMessages } = iter
   await finishMemorySignal(assistantText(assistantMessages))
   if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
-    let closeUsage: import('../../services/api/emptyUsage.js').NonNullableUsage | undefined
+    let closeUsage: import('../../utils/api/emptyUsage.js').NonNullableUsage | undefined
     const beforeNote = ledgerMark()
     const note = await askForHandoff({
       cacheSafeParams: createCacheSafeParams({

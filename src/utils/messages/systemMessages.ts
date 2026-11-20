@@ -1,9 +1,9 @@
 import type { UUID } from 'crypto'
 import type * as Rows from '../../types/message.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
-import type { APIError } from '../../services/api/sdkErrors.js'
+import type { APIError } from '../api/sdkErrors.js'
 import type { ModelTransitionReceipt } from '../model/modelTransition.js'
-import { deepestErrorDetail, recentTransportFailure } from '../../services/api/transportEvidence.js'
+import { deepestErrorDetail, recentTransportFailure } from '../api/transportEvidence.js'
 import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { logForDebugging } from '../debug.js'
 import { formatTokens } from '../format.js'
@@ -176,7 +176,7 @@ export function createSystemMessage(content: string, level: Rows.SystemMessageLe
   return systemRow('informational', { level, toolUseID, content, ...(preventContinuation ? { preventContinuation } : {}) })
 }
 
-export function createCloseUsageMessage(input: { closeState: Rows.SystemCloseUsageMessage['closeState']; noteChars?: number; usage?: import('../../services/api/emptyUsage.js').NonNullableUsage; spent?: import('../ledgerMark.js').LedgerMark }): Rows.SystemCloseUsageMessage {
+export function createCloseUsageMessage(input: { closeState: Rows.SystemCloseUsageMessage['closeState']; noteChars?: number; usage?: import('../api/emptyUsage.js').NonNullableUsage; spent?: import('../ledgerMark.js').LedgerMark }): Rows.SystemCloseUsageMessage {
   return systemRow('close_usage', { closeState: input.closeState, ...(input.noteChars !== undefined ? { noteChars: input.noteChars } : {}), ...(input.usage !== undefined ? { usage: input.usage } : {}), ...(input.spent !== undefined ? { spent: input.spent } : {}) })
 }
 

@@ -2,7 +2,7 @@ import React from 'react';
 import type { StatsStore } from './context/stats.js';
 import type { Root } from './ink.js';
 import type { Props as ChatProps } from './screens/Chat.js';
-import type { ScopedMcpServerConfig } from './services/mcp/types.js';
+import type { ScopedMcpServerConfig } from './utils/mcp/types.js';
 import type { AppState } from './state/AppStateStore.js';
 import type { FpsMetrics } from './utils/fpsTracker.js';
 import { logError } from './utils/log.js';
@@ -38,7 +38,7 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
   }
   try {
     const { foldResumedRunForBoot } = await import('./services/run/runCoordinator.js');
-    const { processMainOwner } = await import('./services/run/resolveOwner.js');
+    const { processMainOwner } = await import('./utils/run/resolveOwner.js');
     const { getCwd } = await import('./utils/cwd.js');
     await withDeadline(foldResumedRunForBoot(processMainOwner(), getCwd()), BOOT_RECOVERY_BUDGET_MS, () => null);
   } catch (error) {

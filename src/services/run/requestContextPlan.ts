@@ -13,7 +13,7 @@ import { stripThinkingInPreservedTail } from '../../utils/messages/apiFilters.js
 import { projectRewoundWindows } from '../compact/checkpointRewind.js'
 import { collectPreservedReadPaths } from '../compact/compact.js'
 import { dropSeenLines, rebuildSeenLinesFromTranscript } from '../changeTransaction/seenLines.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { PROTECTED_TOOL_NAMES } from '../compact/pruneProtections.js'
 import {
   applyToolResultBudget,
@@ -38,9 +38,9 @@ import {
   runSelectionStage,
   type SelectionBudget,
 } from './contextSelection.js'
-import type { OwnerKey } from './ownerKey.js'
-import { registerOwnerScopedStore } from './ownerLifecycle.js'
-import { OwnerScopedStore } from './ownerScopedStore.js'
+import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { fitCompletionResults } from '../agentResults/summaryRoom.js'
 
 interface RequestContextPlanInput {

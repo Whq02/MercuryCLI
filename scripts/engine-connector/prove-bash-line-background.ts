@@ -117,7 +117,7 @@ const shellFacts = shell as { foregroundShellInRoster?: (rows: ReadonlyArray<{ k
 const foregroundShellInRoster = (rows: ReadonlyArray<{ kind: string; status: string; foreground?: true }>): boolean =>
   typeof shellFacts.foregroundShellInRoster === 'function' ? shellFacts.foregroundShellInRoster(rows) : false
 const { BASH_BACKGROUND_TASK_TAG, BASH_INPUT_TAG } = await import('../../src/constants/xml.ts')
-const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
 type WorkRow = { id: string; kind: string; name: string; status: string; command?: string; toolUseId?: string; foreground?: true; description?: string; outputFile?: string }
 type Facts = { busy?: boolean; work?: WorkRow[] }
 

@@ -1,6 +1,6 @@
 import type { SampleRowV1 } from '../engine-connector/types.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { samplesEnabled } from './contracts.js'
+import { samplesEnabled } from '../../utils/samples/contracts.js'
 import { listSamplesStrict, sampleChangeRevision, sampleUrl, writeFallbackPage } from './store.js'
 
 let cached: { sessionId: string; revision: number; rows: SampleRowV1[] } | null = null

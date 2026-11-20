@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { join } from 'node:path'
 
 const root = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const schemas = await import(join(root, 'services/mcp/types.ts'))
+const schemas = await import(join(root, 'utils/mcp/types.ts'))
 assert.deepEqual(schemas.ConfigScopeSchema().options, ['local', 'user', 'project', 'dynamic', 'enterprise', 'claudeai', 'managed'])
 assert.deepEqual(schemas.TransportSchema().options, ['stdio', 'sse', 'http', 'ws'])
 assert.equal(schemas.McpServerConfigSchema(), schemas.McpServerConfigSchema())

@@ -12,7 +12,7 @@ process.env.NODE_ENV = 'test'
 
 const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
 const ops = await import('../../src/services/remoteFiles/ops.ts')
-const { parseRemotePath, remoteGeneration } = await import('../../src/services/remoteFiles/target.ts')
+const { parseRemotePath, remoteGeneration } = await import('../../src/utils/remoteFiles/target.ts')
 const { readFileInRange, FileTooLargeError } = await import('../../src/utils/readFileInRange.ts')
 const { fileGeneration } = await import('../../src/services/changeTransaction/seenLines.ts')
 

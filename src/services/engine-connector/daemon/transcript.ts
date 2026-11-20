@@ -1,7 +1,7 @@
 import { statSync, watch, type FSWatcher } from 'node:fs'
 import { basename, dirname } from 'node:path'
 import type { Message } from '../../../types/message.js'
-import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../../utils/conversationRecovery.js'
+import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../resume/conversationRecovery.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { TranscriptChainCursor } from '../../../utils/sessionStorage/transcriptReader.js'
 import { resolveWatchRoot } from '../../../utils/watchRoot.js'

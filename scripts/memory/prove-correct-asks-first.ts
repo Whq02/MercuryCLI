@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/tools/MemoryTools/prompt.ts docs/MNEME.md docs/MEMORY-FINDINGS.md
+// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/constants/tools/memory.ts docs/MNEME.md docs/MEMORY-FINDINGS.md
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,7 +20,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${title}`)
 
 const { RetainTool, CorrectTool, RecallTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { CORRECT_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { CORRECT_PROMPT } = await import('../../src/constants/tools/memory.ts')
 const pinIntent = (await import('../../src/mneme/memoryPinIntent.ts')) as Record<string, unknown>
 const correctAskRefusal = (pinIntent.correctAskRefusal ?? (() => 'absent on this base')) as (messages: unknown[], agentId?: string) => string | null
 const CREWMATE_CORRECT_REFUSAL = (pinIntent.CREWMATE_CORRECT_REFUSAL ?? 'absent on this base') as string

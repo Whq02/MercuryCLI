@@ -9,7 +9,7 @@ import { checker, scratchRoot, guardWrite } from './harness.ts'
 const ROOT = scratchRoot('sourcetruth')
 const t = checker()
 
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const sidecar = await import('../../src/services/run/runSidecar.ts')
 const currentWork = await import('../../src/services/workbench/currentWork.ts')
 

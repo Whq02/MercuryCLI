@@ -27,7 +27,7 @@ const { resolveBrowser } = await import('../../src/services/browser/browserResol
 }
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 const { activeSession, disposeBrowserOwner } = await import('../../src/services/browser/browserSession.ts')
-const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId: 'frames', lane: 'main' })
 const context = { owner, abortController: new AbortController() } as never
 let failures = 0

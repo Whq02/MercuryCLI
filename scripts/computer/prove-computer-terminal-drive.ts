@@ -93,7 +93,7 @@ try {
   if (resolved.state !== 'ok') throw new Error(resolved.note)
   const driver = resolved.driver
   const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-  const { imageDimensionsFromHeader } = await import('../../src/tools/FileReadTool/imageProcessorJs.ts')
+  const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
   const context = toolContext()
   let serial = 0
   const owned = async () => {

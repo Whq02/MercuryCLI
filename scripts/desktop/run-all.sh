@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/services/desktop/** native/desktop/** build.ts scripts/release/package.mjs
-# gate-watch: src/utils/health/sections/interface.ts
+# gate-watch: src/services/health/sections/interface.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

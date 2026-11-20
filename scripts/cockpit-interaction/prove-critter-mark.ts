@@ -13,7 +13,7 @@ import {
   isPoolCritterKey,
 } from '../../src/utils/cockpit/critterData.ts'
 import { CRAB_GLYPHS } from '../../src/components/mercury-ui/assets.tsx'
-import { displayWidth } from '../../src/components/mercury-ui/glyphs.ts'
+import { displayWidth } from '../../src/utils/glyphs.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const t = checker()

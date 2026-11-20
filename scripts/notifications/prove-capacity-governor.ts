@@ -71,7 +71,7 @@ t.section('§3b — a stopped waiter leaves the queue')
   gov.setGovernorCeilings({ modelLanes: 1, delegationLanes: 1 })
   const held = await gov.acquireModelPermit({ lane: 'background-session', callId: 'k.c1', holder: 'agent-a' })
   const stop = new AbortController()
-  const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.js')
   let deadOutcome = 'pending'
   gov.acquireModelPermit({ lane: 'background-session', callId: 'k.c2', holder: 'agent-b', signal: stop.signal }).then(
     () => { deadOutcome = 'admitted' },

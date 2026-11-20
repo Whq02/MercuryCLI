@@ -74,7 +74,7 @@ try {
   enableConfigs()
   const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
   setEngineModelOverride('claude-sonnet-4-6')
-  const { generatePermissionExplanation } = await import('../../src/utils/permissions/permissionExplainer.js')
+  const { generatePermissionExplanation } = await import('../../src/services/permissions/permissionExplainer.js')
 
   const expected = {
     explanation: 'Removes the local build output directory recursively.',

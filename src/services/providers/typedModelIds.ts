@@ -186,7 +186,7 @@ function anthropicFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function openaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./openai/gptPins.js') as typeof import('./openai/gptPins.js')).GPT_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/gptPins.js') as typeof import('../../utils/model/pins/gptPins.js')).GPT_DISPLAY_PINS.map(pin => pin.id)
   return guarded('openai', name, typed, () => {
     const { resolveOpenaiAccount } = require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
     const { getCachedOpenaiCatalogue } = require('./openai/openaiCatalogue.js') as typeof import('./openai/openaiCatalogue.js')
@@ -197,7 +197,7 @@ function openaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function geminiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./gemini/geminiPins.js') as typeof import('./gemini/geminiPins.js')).GEMINI_PRICE_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/geminiPins.js') as typeof import('../../utils/model/pins/geminiPins.js')).GEMINI_PRICE_PINS.map(pin => pin.id)
   return guarded('gemini', name, typed, () => {
     const { resolveGeminiAccount } = require('./gemini/geminiAccounts.js') as typeof import('./gemini/geminiAccounts.js')
     const { getCachedGeminiCatalogue } = require('./gemini/geminiCatalogue.js') as typeof import('./gemini/geminiCatalogue.js')
@@ -209,7 +209,7 @@ function geminiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function metaFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./meta/metaPins.js') as typeof import('./meta/metaPins.js')).META_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/metaPins.js') as typeof import('../../utils/model/pins/metaPins.js')).META_DISPLAY_PINS.map(pin => pin.id)
   return guarded('meta', name, typed, () => {
     const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
     const { getCachedMetaCatalogue } = require('./meta/metaCatalogue.js') as typeof import('./meta/metaCatalogue.js')
@@ -219,7 +219,7 @@ function metaFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function mistralFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./mistral/mistralPins.js') as typeof import('./mistral/mistralPins.js')).MISTRAL_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/mistralPins.js') as typeof import('../../utils/model/pins/mistralPins.js')).MISTRAL_DISPLAY_PINS.map(pin => pin.id)
   return guarded('mistral', name, typed, () => {
     const { resolveMistralAccount } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
     const { getCachedMistralCatalogue } = require('./mistral/mistralCatalogue.js') as typeof import('./mistral/mistralCatalogue.js')
@@ -229,7 +229,7 @@ function mistralFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function deepseekFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const pins = (): typeof import('./deepseek/deepseekPins.js') => require('./deepseek/deepseekPins.js') as typeof import('./deepseek/deepseekPins.js')
+  const pins = (): typeof import('../../utils/model/pins/deepseekPins.js') => require('../../utils/model/pins/deepseekPins.js') as typeof import('../../utils/model/pins/deepseekPins.js')
   const typed = (): string[] => pins().DEEPSEEK_DISPLAY_PINS.map(pin => pin.id)
   return guarded('deepseek', name, typed, () => {
     const { resolveDeepseekAccount } = require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
@@ -242,7 +242,7 @@ function deepseekFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function xaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./xai/xaiPins.js') as typeof import('./xai/xaiPins.js')).XAI_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/xaiPins.js') as typeof import('../../utils/model/pins/xaiPins.js')).XAI_DISPLAY_PINS.map(pin => pin.id)
   return guarded('xai', name, typed, () => {
     const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
     const { getCachedXaiCatalogue } = require('./xai/xaiCatalogue.js') as typeof import('./xai/xaiCatalogue.js')
@@ -253,7 +253,7 @@ function xaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 
 function huggingfaceFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   const typed = (): string[] =>
-    (require('./huggingface/huggingfacePins.js') as typeof import('./huggingface/huggingfacePins.js')).HUGGINGFACE_DISPLAY_PINS.map(pin => pin.id)
+    (require('../../utils/model/pins/huggingfacePins.js') as typeof import('../../utils/model/pins/huggingfacePins.js')).HUGGINGFACE_DISPLAY_PINS.map(pin => pin.id)
   return guarded('huggingface', name, typed, () => {
     const { resolveHuggingfaceAccount } = require('./huggingface/huggingfaceAccounts.js') as typeof import('./huggingface/huggingfaceAccounts.js')
     const { getCachedHuggingfaceCatalogue } = require('./huggingface/huggingfaceCatalogue.js') as typeof import('./huggingface/huggingfaceCatalogue.js')
@@ -264,7 +264,7 @@ function huggingfaceFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function zaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => [...(require('./zai/glmPins.js') as typeof import('./zai/glmPins.js')).GLM_STATIC_FLOOR_IDS]
+  const typed = (): string[] => [...(require('../../utils/model/pins/glmPins.js') as typeof import('../../utils/model/pins/glmPins.js')).GLM_STATIC_FLOOR_IDS]
   return guarded('zai', name, typed, () => {
     const { resolveZaiDispatch } = require('./providerDiscovery.js') as typeof import('./providerDiscovery.js')
     const { getCachedZaiCatalogue } = require('./zai/zaiCatalogue.js') as typeof import('./zai/zaiCatalogue.js')
@@ -281,7 +281,7 @@ function zaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function moonshotFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./moonshot/kimiPins.js') as typeof import('./moonshot/kimiPins.js')).KIMI_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/kimiPins.js') as typeof import('../../utils/model/pins/kimiPins.js')).KIMI_DISPLAY_PINS.map(pin => pin.id)
   return guarded('moonshot', name, typed, () => {
     const { resolveMoonshotAccount } = require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')
     const { getCachedMoonshotCatalogue } = require('./moonshot/moonshotCatalogue.js') as typeof import('./moonshot/moonshotCatalogue.js')
@@ -303,7 +303,7 @@ function nousFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function zenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./zen/zenPins.js') as typeof import('./zen/zenPins.js')).ZEN_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/zenPins.js') as typeof import('../../utils/model/pins/zenPins.js')).ZEN_DISPLAY_PINS.map(pin => pin.id)
   return guarded('zen', name, typed, () => {
     const { resolveZenAccount } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
     const { getCachedZenCatalogue } = require('./zen/zenCatalogue.js') as typeof import('./zen/zenCatalogue.js')
@@ -313,7 +313,7 @@ function zenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function minimaxFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./minimax/minimaxPins.js') as typeof import('./minimax/minimaxPins.js')).MINIMAX_DISPLAY_PINS.map(pin => pin.wireId)
+  const typed = (): string[] => (require('../../utils/model/pins/minimaxPins.js') as typeof import('../../utils/model/pins/minimaxPins.js')).MINIMAX_DISPLAY_PINS.map(pin => pin.wireId)
   return guarded('minimax', name, typed, () => {
     const { resolveMinimaxAccount } = require('./minimax/minimaxAccounts.js') as typeof import('./minimax/minimaxAccounts.js')
     const { getCachedMinimaxCatalogue } = require('./minimax/minimaxCatalogue.js') as typeof import('./minimax/minimaxCatalogue.js')
@@ -323,7 +323,7 @@ function minimaxFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function togetherFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./together/togetherPins.js') as typeof import('./together/togetherPins.js')).TOGETHER_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/togetherPins.js') as typeof import('../../utils/model/pins/togetherPins.js')).TOGETHER_DISPLAY_PINS.map(pin => pin.id)
   return guarded('together', name, typed, () => {
     const { resolveTogetherAccount } = require('./together/togetherAccounts.js') as typeof import('./together/togetherAccounts.js')
     const { getCachedTogetherCatalogue } = require('./together/togetherCatalogue.js') as typeof import('./together/togetherCatalogue.js')
@@ -333,7 +333,7 @@ function togetherFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function cohereFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./cohere/coherePins.js') as typeof import('./cohere/coherePins.js')).COHERE_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/coherePins.js') as typeof import('../../utils/model/pins/coherePins.js')).COHERE_DISPLAY_PINS.map(pin => pin.id)
   return guarded('cohere', name, typed, () => {
     const { resolveCohereAccount } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
     const { getCachedCohereCatalogue } = require('./cohere/cohereCatalogue.js') as typeof import('./cohere/cohereCatalogue.js')
@@ -343,7 +343,7 @@ function cohereFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function groqFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./groq/groqPins.js') as typeof import('./groq/groqPins.js')).GROQ_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/groqPins.js') as typeof import('../../utils/model/pins/groqPins.js')).GROQ_DISPLAY_PINS.map(pin => pin.id)
   return guarded('groq', name, typed, () => {
     const { resolveGroqAccount } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
     const { getCachedGroqCatalogue } = require('./groq/groqCatalogue.js') as typeof import('./groq/groqCatalogue.js')
@@ -370,7 +370,7 @@ function orcarouterFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./cerebras/cerebrasPins.js') as typeof import('./cerebras/cerebrasPins.js')).CEREBRAS_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/cerebrasPins.js') as typeof import('../../utils/model/pins/cerebrasPins.js')).CEREBRAS_DISPLAY_PINS.map(pin => pin.id)
   return guarded('cerebras', name, typed, () => {
     const { resolveCerebrasAccount } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
     const { getCachedCerebrasCatalogue } = require('./cerebras/cerebrasCatalogue.js') as typeof import('./cerebras/cerebrasCatalogue.js')
@@ -379,7 +379,7 @@ function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 function fireworksFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./fireworks/fireworksPins.js') as typeof import('./fireworks/fireworksPins.js')).FIREWORKS_DISPLAY_PINS.map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/fireworksPins.js') as typeof import('../../utils/model/pins/fireworksPins.js')).FIREWORKS_DISPLAY_PINS.map(pin => pin.id)
   return guarded('fireworks', name, typed, () => {
     const { resolveFireworksAccount } = require('./fireworks/fireworksAccounts.js') as typeof import('./fireworks/fireworksAccounts.js')
     const { getCachedFireworksCatalogue } = require('./fireworks/fireworksCatalogue.js') as typeof import('./fireworks/fireworksCatalogue.js')
@@ -388,7 +388,7 @@ function fireworksFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 function qwenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./qwen/qwenPins.js') as typeof import('./qwen/qwenPins.js')).qwenPinsFor('pay-as-you-go').map(pin => pin.id)
+  const typed = (): string[] => (require('../../utils/model/pins/qwenPins.js') as typeof import('../../utils/model/pins/qwenPins.js')).qwenPinsFor('pay-as-you-go').map(pin => pin.id)
   return guarded('qwen', name, typed, () => {
     const { resolveQwenAccount } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
     const { getCachedQwenCatalogue } = require('./qwen/qwenCatalogue.js') as typeof import('./qwen/qwenCatalogue.js')

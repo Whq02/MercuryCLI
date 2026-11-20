@@ -53,7 +53,7 @@ process.env.MERCURY_DAP_ADAPTERS_FILE = adaptersFile
 const { resolveAdapter, knownAdapterKeys, adapterKeyForExtension, createDapSession, removeDapSession, _dapSessionCountForTesting } =
   await import('../../src/services/dap/dapClient.ts')
 const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const owner = processMainOwner()
 
 function freePort(): Promise<number> {

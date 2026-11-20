@@ -43,7 +43,7 @@ async function runPidAlive(): Promise<void> {
 
 async function runLocalJsxCommandError(): Promise<void> {
   console.log('\nprocessSlashCommand — local-jsx load failure reports stderr and commandError')
-  const { processSlashCommand } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+  const { processSlashCommand } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
   const brokenCommand = {
     type: 'local-jsx' as const,
     name: 'broken-jsx-proof',
@@ -363,7 +363,7 @@ async function runClearedSessions(): Promise<void> {
 
 async function runSessionFlip(): Promise<void> {
   console.log('\nsessionFlip — failure returns a note carrying the error instead of silent false')
-  const { flipToSession } = await import('../../src/utils/sessionFlip.ts')
+  const { flipToSession } = await import('../../src/services/engine-connector/sessionFlip.ts')
   const projectsDir = join(HOME, 'projects')
   const projDir = join(projectsDir, 'flip-proof-proj')
   mkdirSync(projDir, { recursive: true })

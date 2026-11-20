@@ -187,7 +187,7 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
   )
   const { normalizeModelStringForAPI } = await import('../../src/utils/model/model.js')
   const { parseGptModelId, hasGptServedWindowSuffix, withGptServedWindowSuffix, stripGptServedWindowSuffix } =
-    await import('../../src/services/providers/openai/gptPins.js')
+    await import('../../src/utils/model/pins/gptPins.js')
   check(
     'the annotation NEVER reaches the wire (normalizeModelStringForAPI strips it)',
     normalizeModelStringForAPI('gpt-5.4[served]') === 'gpt-5.4' &&

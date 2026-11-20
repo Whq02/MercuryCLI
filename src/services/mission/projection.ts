@@ -1,7 +1,7 @@
 
 import { createHash } from 'node:crypto'
 import type { RunSnapshot } from '../run/runKernel.js'
-import type { SnapshotRead } from '../projectIntel/contracts.js'
+import type { SnapshotRead } from '../../utils/projectIntel/contracts.js'
 import type { MemoryRef } from '../../mneme/memoryRefs.js'
 import {
   MISSION_EXECUTION_CAP,
@@ -99,7 +99,7 @@ export async function gatherMissionView(): Promise<MissionView | null> {
   let runLifecycle: string | null = null
   try {
     const { getRunSnapshot } = await import('../run/runCoordinator.js')
-    const { processMainOwner } = await import('../run/resolveOwner.js')
+    const { processMainOwner } = await import('../../utils/run/resolveOwner.js')
     const snap: RunSnapshot | null = getRunSnapshot(processMainOwner())
     runObjective = snap?.objective ?? null
     runLifecycle = snap?.lifecycle ?? null
@@ -126,8 +126,8 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let executions: MissionExecutionRef[] = []
   try {
-    const { listExecutions } = await import('../primitives/executionPlane.js')
-    const { processMainOwner } = await import('../run/resolveOwner.js')
+    const { listExecutions } = await import('../../utils/primitives/executionPlane.js')
+    const { processMainOwner } = await import('../../utils/run/resolveOwner.js')
     executions = listExecutions(processMainOwner(), { liveOnly: true, limit: MISSION_EXECUTION_CAP }).map(
       record => ({ kind: record.spec.kind, id: record.spec.id, state: record.state }),
     )
@@ -155,7 +155,7 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let card: MissionCardView | null = null
   try {
-    const { readMissionCard } = await import('./missionCard.js')
+    const { readMissionCard } = await import('../../utils/mission/missionCard.js')
     const { getSessionId } = await import('../../bootstrap/state.js')
     const record = readMissionCard(getSessionId())
     card = record

@@ -4,7 +4,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { STORE_LOCK_OPTIONS } from '../../substrate/fileStore.js'
 import { lockSync } from '../../utils/lockfile.js'
 import { publishTransientInDaemonHome, daemonHomeStands } from '../daemonHome.js'
-import { isProcessAlive } from '../ownerWatch.js'
+import { isProcessAlive } from '../../utils/ownerWatch.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { sleepSync } from '../../utils/timers.js'
 

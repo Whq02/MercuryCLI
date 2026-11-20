@@ -15,8 +15,8 @@ const { ENVELOPE_DOCTRINE } = await import('../../src/services/agentResults/cont
 const { attachAgentEnvelope, envelopeFor } = await import(
   '../../src/services/agentResults/ingest.ts'
 )
-const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
-const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
+const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
 const { recordEvidence, verificationSummary, _resetVerificationStateForTesting } = await import(
   '../../src/utils/verification/verificationState.ts'
 )

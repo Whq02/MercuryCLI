@@ -11,7 +11,7 @@ delete process.env.MERCURY_CONTEXT_SELECTION
 
 const sel = await import('../../src/services/run/contextSelection.js')
 const planMod = await import('../../src/services/run/requestContextPlan.js')
-const ok = await import('../../src/services/run/ownerKey.js')
+const ok = await import('../../src/utils/run/ownerKey.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

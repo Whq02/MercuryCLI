@@ -36,7 +36,7 @@ try {
   const { toolToAPISchema } = await import('../../src/utils/api.ts')
   const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
   const { getToolManualAttachments } = await import('../../src/utils/attachments/toolManuals.ts')
-  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
   const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')

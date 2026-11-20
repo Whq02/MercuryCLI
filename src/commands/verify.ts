@@ -1,5 +1,5 @@
 import type { Command } from '../commands.js'
-import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } from '../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } from '../constants/tools/agent.js'
 
 export const VERIFIER_BRIEF = `You are verifying someone else's work for Mercury. Your job is to try to BREAK the implementation you are handed, not to confirm it. An implementation that survives you has earned its pass; one you wave through has learned nothing.
 

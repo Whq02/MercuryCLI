@@ -7,7 +7,7 @@ import { FOLD_ROW_HEAD, foldBarCells, foldRowVisible, foldRowWords, isFoldLandin
 import { formatTokens } from '../utils/format.js'
 import { MessageResponse } from './MessageResponse.js'
 import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH } from '../utils/glyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useNowTick } from './mercury-ui/components.js'
 

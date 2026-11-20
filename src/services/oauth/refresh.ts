@@ -17,7 +17,7 @@ import type {
   OAuthTokens,
   RateLimitTier,
   SubscriptionType,
-} from './types.js'
+} from '../../utils/oauth/types.js'
 import { logError } from '../../utils/log.js'
 import { passedOver } from '../../utils/passedOver.js'
 

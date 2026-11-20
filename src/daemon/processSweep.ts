@@ -1,5 +1,5 @@
 import { inspectSessionArgs as inspectRunArgs } from '../utils/sessionArgs.js'
-import { isProcessStartInstant } from './ownerWatch.js'
+import { isProcessStartInstant } from '../utils/ownerWatch.js'
 
 export type ProcessSweepClass = 'running' | 'stale' | 'cannot-end' | 'not-ours'
 export type ProcessSweepRead = boolean | null

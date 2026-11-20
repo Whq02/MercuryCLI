@@ -5,7 +5,7 @@ import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import type { Out } from './BashTool.js'
-import { buildImageToolResult } from './utils.js'
+import { buildImageToolResult } from '../../utils/shell/utils.js'
 
 export function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam {
   if (output.structuredContent) {

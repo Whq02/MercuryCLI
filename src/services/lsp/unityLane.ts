@@ -5,7 +5,7 @@ import { whichSync } from '../../utils/which.js'
 import {
   findUnityProjectRoot,
   mercuryUnityEnabled,
-} from '../ide/unityProject.js'
+} from '../../utils/unity/unityProject.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
 

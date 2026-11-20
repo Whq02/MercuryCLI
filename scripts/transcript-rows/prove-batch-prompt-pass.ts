@@ -31,7 +31,7 @@ try {
   const { setOriginalCwd, setCwdState, getSessionId } = await import('../../src/bootstrap/state.ts')
   setOriginalCwd(cwd)
   setCwdState(cwd)
-  const { processUserInput } = await import('../../src/utils/processUserInput/processUserInput.ts')
+  const { processUserInput } = await import('../../src/services/processUserInput/processUserInput.ts')
   const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands.ts')
   const { planApiConversation } = await import('../../src/utils/messages/apiPlan.ts')
   const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
@@ -133,7 +133,7 @@ try {
   check('the batch preserves the meta flag and permission mode on every prompt', users(metaBatch.messages).length === 3 && users(metaBatch.messages).every(row => row.isMeta === true && row.permissionMode === 'default'))
 
   const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/utils/messages.ts')
-  const { createAttachmentMessage } = await import('../../src/utils/attachments.ts')
+  const { createAttachmentMessage } = await import('../../src/services/attachments.ts')
   const { cleanForTranscript } = await import('../../src/utils/sessionStorage/chain.ts')
   const foldAttachment = createAttachmentMessage({ type: 'hook', outcome: 'context', event: 'compaction.after', name: 'fold-probe', words: 'FOLD-ATTACHMENT-SENTINEL' })
   table.push({

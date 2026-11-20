@@ -14,11 +14,11 @@ import {
   hasConversationTurn,
   loadConversationForResume,
   type TurnInterruptionState,
-} from 'src/utils/conversationRecovery.js'
+} from 'src/services/resume/conversationRecovery.js'
 import { gracefulShutdownSync } from 'src/utils/gracefulShutdown.js'
 import { logError } from 'src/utils/log.js'
-import { restoreSessionStateFromLog } from 'src/utils/sessionRestore.js'
-import { runSessionStartHooks } from 'src/utils/sessionStart.js'
+import { restoreSessionStateFromLog } from 'src/services/resume/sessionRestore.js'
+import { runSessionStartHooks } from 'src/services/sessionStart.js'
 import { consumeSessionHomePin } from 'src/utils/sessionStorage/sessionHomePin.js'
 import {
   carrySessionBriefs,

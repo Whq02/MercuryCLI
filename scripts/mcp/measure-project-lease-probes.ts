@@ -20,7 +20,7 @@ const { setOriginalCwd, switchSession } = await import('../../src/bootstrap/stat
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000061' as never, root)
 const { procStartToken } = await import('../../src/utils/genericProcessUtils.ts')
-const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
 const leases = await import('../../src/services/vulcan/engine/leases.ts')
 const holders = 40
 const children: childProcess.ChildProcess[] = []

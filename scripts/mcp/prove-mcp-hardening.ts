@@ -19,7 +19,7 @@ import {
   getEnumValues,
   isMultiSelectEnumSchema,
   getMultiSelectValues,
-} from '../../src/utils/mcp/elicitationValidation.js'
+} from '../../src/services/mcp/elicitationValidation.js'
 import type { AppState } from '../../src/state/AppState.js'
 
 let failures = 0
@@ -194,8 +194,8 @@ section('(5) health `mcp` currency — auth summary + protocol-rev seam')
     auth !== null && auth.tokens === 0 && auth.expired === 0 && auth.expiringSoon === 0,
   )
   ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
-  const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+  const { publishMcpConnections } = await import('../../src/services/cockpit/mcpGauge.ts')
   const { describeMcpProtocolCurrency } = await import('../../src/services/mcp/protocolRevision.ts')
   publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])
   const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()

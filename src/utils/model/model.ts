@@ -13,11 +13,11 @@ import {
   isChooseAModel,
 } from './computedDefault.js'
 import { context1mNeedsUnsentHeader, has1mContext } from './capabilities.js'
-import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
-import { isMistralModelId } from '../../services/providers/mistral/mistralPins.js'
+import { gptDisplayName } from './pins/gptPins.js'
+import { isMistralModelId } from './pins/mistralPins.js'
 import { getModelStrings } from './modelStrings.js'
 import { recognizeModelId } from '../../services/providers/idSpaces.js'
-import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/deepseekPins.js'
+import { deepseekRetiredAliasTarget } from './pins/deepseekPins.js'
 import { resolveBareFamilyWord } from './bareFamilyWords.js'
 import { firstPartyString, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, normalizeModelStringForAPI } from './modelNames.js'
 import { tellHowAModelSettingResolves } from './settingResolution.js'
@@ -231,31 +231,31 @@ export function getPublicModelDisplayName(model: string): string | null {
     }
   }
   if (/^grok-/i.test(bare)) {
-    const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+    const { xaiDisplayPin } = require('./pins/xaiPins.js') as typeof import('./pins/xaiPins.js')
     return xaiDisplayPin(bare)?.displayName ?? null
   }
   if (/^muse-/i.test(bare)) {
-    const { metaDisplayPin } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
+    const { metaDisplayPin } = require('./pins/metaPins.js') as typeof import('./pins/metaPins.js')
     return metaDisplayPin(bare)?.displayName ?? null
   }
   if (isMistralModelId(bare)) {
-    const { mistralDisplayPin } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+    const { mistralDisplayPin } = require('./pins/mistralPins.js') as typeof import('./pins/mistralPins.js')
     return mistralDisplayPin(bare)?.displayName ?? null
   }
   if (/^minimax-/i.test(bare)) {
-    const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+    const { minimaxDisplayPin } = require('./pins/minimaxPins.js') as typeof import('./pins/minimaxPins.js')
     return minimaxDisplayPin(bare)?.displayName ?? null
   }
   if (/^(?:command-|north-|c4ai-aya-)/i.test(bare)) {
-    const { cohereDisplayPin } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+    const { cohereDisplayPin } = require('./pins/coherePins.js') as typeof import('./pins/coherePins.js')
     return cohereDisplayPin(bare)?.displayName ?? null
   }
   if (/^(?:qwen|qwq|qvq)(?:[0-9.]|-)/i.test(bare)) {
-    const { qwenDisplayPin } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+    const { qwenDisplayPin } = require('./pins/qwenPins.js') as typeof import('./pins/qwenPins.js')
     return qwenDisplayPin(bare)?.displayName ?? null
   }
   if (/^together\//i.test(bare)) {
-    const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
+    const { togetherDisplayPin } = require('./pins/togetherPins.js') as typeof import('./pins/togetherPins.js')
     return togetherDisplayPin(bare)?.displayName ?? null
   }
   if (/^orcarouter\//i.test(bare)) {
@@ -263,15 +263,15 @@ export function getPublicModelDisplayName(model: string): string | null {
     return orcarouterListedModel(bare)?.displayName ?? null
   }
   if (/^groq\//i.test(bare)) {
-    const { groqDisplayPin } = require('../../services/providers/groq/groqPins.js') as typeof import('../../services/providers/groq/groqPins.js')
+    const { groqDisplayPin } = require('./pins/groqPins.js') as typeof import('./pins/groqPins.js')
     return groqDisplayPin(bare)?.displayName ?? null
   }
   if (/^cerebras\//i.test(bare)) {
-    const { cerebrasDisplayPin } = require('../../services/providers/cerebras/cerebrasPins.js') as typeof import('../../services/providers/cerebras/cerebrasPins.js')
+    const { cerebrasDisplayPin } = require('./pins/cerebrasPins.js') as typeof import('./pins/cerebrasPins.js')
     return cerebrasDisplayPin(bare)?.displayName ?? null
   }
   if (/^fireworks\//i.test(bare)) {
-    const { fireworksDisplayPin } = require('../../services/providers/fireworks/fireworksPins.js') as typeof import('../../services/providers/fireworks/fireworksPins.js')
+    const { fireworksDisplayPin } = require('./pins/fireworksPins.js') as typeof import('./pins/fireworksPins.js')
     return fireworksDisplayPin(bare)?.displayName ?? null
   }
   const gpt = gptDisplayName(bare)
