@@ -1,6 +1,4 @@
-import { getPlatform, type Platform } from '../platform.js'
-
-export type DirectOrCmdSpec = {
+type DirectOrCmdSpec = {
   file: string
   args: string[]
   windowsVerbatimArguments: boolean
@@ -56,46 +54,4 @@ export function hostShellHint(
   }
   if (typeof env.SHELL === 'string' && env.SHELL.length > 0) return 'posix-sh'
   return 'unknown'
-}
-
-export function hookPathForShell(
-  path: string,
-  shell: 'bash' | 'powershell',
-  toPosix: (path: string) => string,
-  platform: Platform = getPlatform(),
-): string {
-  return platform === 'windows' && shell !== 'powershell' ? toPosix(path) : path
-}
-
-export function hookCommandForShell(
-  command: string,
-  shell: 'bash' | 'powershell',
-  prefix: string | undefined,
-  adapt: {
-    windowsSh: (command: string) => string
-    posixStartLine: (command: string) => string
-    formatPrefix: (prefix: string, command: string) => string
-  },
-  platform: Platform = getPlatform(),
-): string {
-  if (shell === 'powershell') return command
-  const adapted = platform === 'windows' ? adapt.windowsSh(command) : command
-  if (!prefix) return adapted
-  return adapt.formatPrefix(prefix, platform === 'windows' ? adapted : adapt.posixStartLine(adapted))
-}
-
-export async function hookBashSpawnSpec(
-  command: string,
-  env: NodeJS.ProcessEnv,
-  windows: {
-    shell: (command: string) => Promise<string | boolean>
-    env: (env: NodeJS.ProcessEnv) => NodeJS.ProcessEnv
-  },
-  platform: Platform = getPlatform(),
-): Promise<{ shell: string | boolean; env: NodeJS.ProcessEnv }> {
-  if (platform === 'windows') {
-    const shell = await windows.shell(command)
-    return { shell, env: windows.env(env) }
-  }
-  return { shell: true, env }
 }

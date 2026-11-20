@@ -27,9 +27,6 @@ const PROGRAMS: Row[] = [
 
 import {
   commandShellOption,
-  hookBashSpawnSpec,
-  hookCommandForShell,
-  hookPathForShell,
   hostShellHint,
   shellBinarySpec,
   shellCommandSpec,
@@ -68,37 +65,6 @@ const SPAWN: Row[] = [
       hostShellHint({ PSModulePath: '', ComSpec: 'C:\\cmd.exe', SHELL: '' }),
     ],
     recorded: {"win32":["powershell","cmd","unknown","unknown","cmd"],"darwin":["posix-sh","unknown","posix-sh","unknown","unknown"],"linux":["posix-sh","unknown","posix-sh","unknown","unknown"],"win32 by process.platform alone":["powershell","cmd","unknown","unknown","cmd"],"win32 by getPlatform() alone":["posix-sh","unknown","posix-sh","unknown","unknown"]},
-  },
-  {
-    name: 'spawn.hookPathForShell',
-    answers: () => [
-      hookPathForShell('C:\\Users\\a\\repo', 'bash', p => p.replace(/\\/g, '/')),
-      hookPathForShell('C:\\Users\\a\\repo', 'powershell', p => p.replace(/\\/g, '/')),
-      hookPathForShell('/tmp/repo', 'bash', p => p.replace(/\\/g, '/')),
-    ],
-    recorded: {"win32":["C:/Users/a/repo","C:\\Users\\a\\repo","/tmp/repo"],"darwin":["C:\\Users\\a\\repo","C:\\Users\\a\\repo","/tmp/repo"],"linux":["C:\\Users\\a\\repo","C:\\Users\\a\\repo","/tmp/repo"],"win32 by process.platform alone":["C:\\Users\\a\\repo","C:\\Users\\a\\repo","/tmp/repo"],"win32 by getPlatform() alone":["C:/Users/a/repo","C:\\Users\\a\\repo","/tmp/repo"]},
-  },
-  {
-    name: 'spawn.hookCommandForShell',
-    answers: () => {
-      const adapt = {
-        windowsSh: (c: string) => `bash ${c}`,
-        posixStartLine: (c: string) => `/bin/sh -c ${c}`,
-        formatPrefix: (p: string, c: string) => `${p} -- ${c}`,
-      }
-      return [
-        hookCommandForShell('hook.sh', 'bash', undefined, adapt),
-        hookCommandForShell('hook.sh', 'bash', 'env -i', adapt),
-        hookCommandForShell('Write-Host hi', 'powershell', 'env -i', adapt),
-      ]
-    },
-    recorded: {"win32":["bash hook.sh","env -i -- bash hook.sh","Write-Host hi"],"darwin":["hook.sh","env -i -- /bin/sh -c hook.sh","Write-Host hi"],"linux":["hook.sh","env -i -- /bin/sh -c hook.sh","Write-Host hi"],"win32 by process.platform alone":["hook.sh","env -i -- /bin/sh -c hook.sh","Write-Host hi"],"win32 by getPlatform() alone":["bash hook.sh","env -i -- bash hook.sh","Write-Host hi"]},
-  },
-  {
-    name: 'spawn.hookBashSpawnSpec',
-    answers: async () =>
-      hookBashSpawnSpec('echo hi', { A: '1' }, { shell: async c => `C:\\Git\\bash.exe#${c}`, env: e => ({ ...e, WIN: '1' }) }),
-    recorded: {"win32":{"shell":"C:\\Git\\bash.exe#echo hi","env":{"A":"1","WIN":"1"}},"darwin":{"shell":true,"env":{"A":"1"}},"linux":{"shell":true,"env":{"A":"1"}},"win32 by process.platform alone":{"shell":true,"env":{"A":"1"}},"win32 by getPlatform() alone":{"shell":"C:\\Git\\bash.exe#echo hi","env":{"A":"1","WIN":"1"}}},
   },
 ]
 
