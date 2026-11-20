@@ -282,6 +282,22 @@ async function proveStartupMenu(): Promise<void> {
   })
 }
 
+async function proveStateLifecycle(): Promise<void> {
+  const sl = await import('../../src/substrate/stateLifecycle.js')
+  await withScratchHome(async home => {
+    const buildDir = join(home, 'runtime', 'builds', 'broken-build')
+    mkdirSync(buildDir, { recursive: true })
+    writeFileSync(join(buildDir, 'manifest.json'), '{not-valid-json')
+    let threw = false
+    try {
+      await sl.installedBuildFacts(home)
+    } catch {
+      threw = true
+    }
+    check('stateLifecycle: corrupt build manifest throws instead of dropping versions from keep set', threw)
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
@@ -290,6 +306,7 @@ async function main(): Promise<void> {
   await proveRecoveryOrchestrator()
   await proveSplashHandover()
   await proveStartupMenu()
+  await proveStateLifecycle()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }
