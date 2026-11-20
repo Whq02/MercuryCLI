@@ -78,6 +78,22 @@ export function preferredHomeEnv(env: NodeJS.ProcessEnv, platform: Platform = ge
   return (platform === 'windows' ? env.USERPROFILE || env.HOME : env.HOME || env.USERPROFILE) || ''
 }
 
+function joinPosixLexical(cwd: string, operand: string): string {
+  const combined = `${cwd}/${operand}`
+  const segments: string[] = []
+  for (const segment of combined.split(pathPosix.sep)) {
+    if (segment === '' || segment === '.') continue
+    if (segment === '..') segments.pop()
+    else segments.push(segment)
+  }
+  return '/' + segments.join('/')
+}
+
+export function resolveLexicalOperandPath(cwd: string, operand: string, platform: Platform = getPlatform()): string {
+  if (operand.startsWith('/') || (platform === 'windows' && /^[a-z]:[/\\]/i.test(operand))) return operand
+  return platform === 'windows' ? pathWin32.resolve(cwd, operand) : joinPosixLexical(cwd, operand)
+}
+
 export function splitPathFromRoot(
   filePath: string,
   grammar: typeof hostPath = hostPath,

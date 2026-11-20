@@ -39,6 +39,7 @@ import {
   pathSeparatorRegex,
   picomatchPathOptions,
   preferredHomeEnv,
+  resolveLexicalOperandPath,
   samePathCase,
   shellPathToNative,
   splitPathFromRoot,
@@ -360,6 +361,25 @@ const PATHS: Row[] = [
       }
     },
     recorded: {"win32":{"default":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"darwin":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"linux":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"win32 by process.platform alone":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"win32 by getPlatform() alone":{"default":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]}},
+  },
+  {
+    name: 'paths.resolveLexicalOperandPath',
+    answers: () => {
+      const pairs: ReadonlyArray<[string, string]> = [
+        ['/Users/alice/proj', '../other'],
+        ['/Users/alice/proj', '/etc/hosts'],
+        ['C:\\Users\\Alice\\proj', '..\\other'],
+        ['C:\\Users\\Alice\\proj', 'D:\\work\\a'],
+        ['C:\\Users\\Alice\\proj', '/tmp'],
+      ]
+      return {
+        default: pairs.map(([cwd, op]) => resolveLexicalOperandPath(cwd, op)),
+        windows: pairs.map(([cwd, op]) => resolveLexicalOperandPath(cwd, op, 'windows')),
+        macos: pairs.map(([cwd, op]) => resolveLexicalOperandPath(cwd, op, 'macos')),
+        linux: pairs.map(([cwd, op]) => resolveLexicalOperandPath(cwd, op, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"darwin":{"default":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"linux":{"default":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"win32 by process.platform alone":{"default":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]},"win32 by getPlatform() alone":{"default":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"windows":["\\Users\\alice\\other","/etc/hosts","C:\\Users\\Alice\\other","D:\\work\\a","/tmp"],"macos":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"],"linux":["/Users/alice/other","/etc/hosts","/C:\\Users\\Alice\\proj/..\\other","/C:\\Users\\Alice\\proj/D:\\work\\a","/tmp"]}},
   },
 ]
 
