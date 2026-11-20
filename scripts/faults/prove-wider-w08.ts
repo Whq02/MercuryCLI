@@ -386,7 +386,7 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
 }
 
 async function w08_8_contextUnserializableToolAndMessageBlockNoted(): Promise<void> {
-  const { analyzeContextUsage } = await import(join(SRC, 'utils/analyzeContext.ts'))
+  const { analyzeContextUsage } = await import(join(SRC, 'services/context/analyzeContext.ts'))
   const { ContextVisualization } = await import(join(SRC, 'components/ContextVisualization.tsx'))
   const { renderToString } = await import(join(SRC, 'utils/staticRender.tsx'))
   let schemaReads = 0

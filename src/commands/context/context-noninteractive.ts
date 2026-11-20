@@ -15,7 +15,7 @@ import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import {
   analyzeContextUsage,
   type ContextData,
-} from '../../utils/analyzeContext.js'
+} from '../../services/context/analyzeContext.js'
 import { getSourceDisplayName } from '../../utils/settings/constants.js'
 import { formatTokens } from '../../utils/format.js'
 
