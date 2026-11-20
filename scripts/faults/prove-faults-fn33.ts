@@ -41,8 +41,34 @@ async function runPidAlive(): Promise<void> {
   }
 }
 
+async function runLocalJsxCommandError(): Promise<void> {
+  console.log('\nprocessSlashCommand — local-jsx load failure reports stderr and commandError')
+  const { processSlashCommand } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
+  const brokenCommand = {
+    type: 'local-jsx' as const,
+    name: 'broken-jsx-proof',
+    description: 'broken',
+    isEnabled: () => true,
+    load: async () => {
+      throw new Error('boom-jsx-load')
+    },
+  }
+  const fakeContext = {
+    options: { commands: [brokenCommand] },
+  } as unknown as Parameters<typeof processSlashCommand>[4]
+  const res = await processSlashCommand('/broken-jsx-proof', [], [], [], fakeContext, () => {})
+  check(
+    'local-jsx failure returns commandError and stderr message',
+    typeof res.commandError === 'string' &&
+      res.commandError.includes('boom-jsx-load') &&
+      res.messages.length >= 2,
+    JSON.stringify({ commandError: res.commandError, messageCount: res.messages.length }),
+  )
+}
+
 try {
   await runPidAlive()
+  await runLocalJsxCommandError()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
