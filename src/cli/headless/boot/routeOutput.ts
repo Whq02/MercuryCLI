@@ -11,8 +11,8 @@ function run(ports: RunnerPorts): BootMade<'writeLine' | 'routeOutbound'> {
     if (peer === null) return io.write(message)
     if (io.stdoutPipeBroken) return Promise.resolve(null)
     if (isRowLine(message)) {
-      const row = io.rows.stamp(message as never)
-      peer.notify('row', row as never)
+      const row = io.rows.stamp(message)
+      peer.notify('row', row)
       return peer.flush().then(() => row)
     }
     if (message.method === 'elicitation/complete') {
@@ -24,7 +24,7 @@ function run(ports: RunnerPorts): BootMade<'writeLine' | 'routeOutbound'> {
     foldLanded(message)
     if (options.outputFormat === 'rows') {
       const written = writeLine(message)
-      if (isOutcome(message as never)) {
+      if (isOutcome(message)) {
         live.lastOutcomeWritten = written.then(line => {
           if (line !== null) live.lastOutcome = line as OutcomeRow
         })
@@ -32,7 +32,7 @@ function run(ports: RunnerPorts): BootMade<'writeLine' | 'routeOutbound'> {
       void written.catch(error => logError(error))
       return
     }
-    if (isOutcome(message as never)) live.lastOutcome = io.rows.stamp(message as never) as OutcomeRow
+    if (isOutcome(message)) live.lastOutcome = io.rows.stamp(message)
   }
   return { writeLine, routeOutbound }
 }
