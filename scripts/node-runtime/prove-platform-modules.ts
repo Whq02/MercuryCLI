@@ -457,7 +457,7 @@ const PATHS: Row[] = [
   },
 ]
 
-import { chmodSync as p02ChmodSync, mkdirSync as p02MkdirSync, mkdtempSync as p02MkdtempSync, rmSync as p02RmSync, writeFileSync as p02WriteFileSync } from 'node:fs'
+import { chmodSync as p02ChmodSync, lstatSync as p02LstatSync, mkdirSync as p02MkdirSync, mkdtempSync as p02MkdtempSync, readdirSync as p02ReaddirSync, rmSync as p02RmSync, statSync as p02StatSync, symlinkSync as p02SymlinkSync, writeFileSync as p02WriteFileSync } from 'node:fs'
 import { tmpdir as p02Tmpdir } from 'node:os'
 import * as p02Path from 'node:path'
 import {
@@ -500,6 +500,42 @@ function withProgramFixture<T>(run: (dir: string) => T): T {
   } finally {
     p02RmSync(dir, { recursive: true, force: true })
   }
+}
+
+const p02HostPlatform = process.platform
+
+function findWindowsAppAlias(): { dir: string; file: string; bare: string } | null {
+  if (p02HostPlatform !== 'win32') return null
+  const localAppData = process.env.LOCALAPPDATA ?? ''
+  if (localAppData === '') return null
+  const dir = p02Path.join(localAppData, 'Microsoft', 'WindowsApps')
+  let entries: string[]
+  try {
+    entries = p02ReaddirSync(dir)
+  } catch {
+    return null
+  }
+  for (const entry of entries) {
+    if (!entry.toLowerCase().endsWith('.exe')) continue
+    const file = p02Path.join(dir, entry)
+    try {
+      p02StatSync(file)
+      continue
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+    }
+    try {
+      p02LstatSync(file)
+      return { dir, file, bare: entry.slice(0, -4) }
+    } catch {
+    }
+  }
+  return null
+}
+
+const p02Win32AppAlias = findWindowsAppAlias()
+if (p02HostPlatform === 'win32' && p02Win32AppAlias === null) {
+  console.log('  not read on Windows: no App Execution Alias here')
 }
 
 const PROGRAMS: Row[] = [
@@ -617,6 +653,64 @@ const PROGRAMS: Row[] = [
     }),
     recorded: {"win32":{"bareDefault":[".com",".COM",".exe",".EXE",".bat",".BAT",".cmd",".CMD"],"withExt":[""],"customPathext":[".exe",".EXE",".cmd",".bat",".BAT"],"lookupDefault":[".EXE",".CMD",".BAT",".COM",""],"lookupCustom":[".EXE",".CMD",""],"hasExt":[false,true,false]},"darwin":{"bareDefault":[""],"withExt":[""],"customPathext":[""],"lookupDefault":[""],"lookupCustom":[""],"hasExt":[true,true,true]},"linux":{"bareDefault":[""],"withExt":[""],"customPathext":[""],"lookupDefault":[""],"lookupCustom":[""],"hasExt":[true,true,true]},"win32 by process.platform alone":{"bareDefault":[".com",".COM",".exe",".EXE",".bat",".BAT",".cmd",".CMD"],"withExt":[""],"customPathext":[".exe",".EXE",".cmd",".bat",".BAT"],"lookupDefault":[".EXE",".CMD",".BAT",".COM",""],"lookupCustom":[".EXE",".CMD",""],"hasExt":[false,true,false]},"win32 by getPlatform() alone":{"bareDefault":[""],"withExt":[""],"customPathext":[""],"lookupDefault":[""],"lookupCustom":[""],"hasExt":[true,true,true]}},
   },
+  ...(p02HostPlatform === 'win32' && p02Win32AppAlias === null
+    ? []
+    : [
+        {
+          name: 'programs: app execution alias (EACCES statSync, lstatSync succeeds)',
+          answers: () => {
+            if (p02HostPlatform === 'win32' && p02Win32AppAlias !== null) {
+              const dir = p02MkdtempSync(p02Path.join(p02Tmpdir(), 'mercury-p02-alias-'))
+              try {
+                const absent = p02Path.join(dir, 'dangling-alias-306.exe')
+                return {
+                  aliasExec: isExecutableFile(p02Win32AppAlias.file),
+                  danglingExec: isExecutableFile(absent),
+                  aliasResolved: resolveProgramInPath(p02Win32AppAlias.bare, p02Win32AppAlias.dir) !== null,
+                  danglingResolved: resolveProgramInPath('dangling-alias-306', dir) !== null,
+                  aliasMissing: missingSpawnCommandError(p02Win32AppAlias.bare, { Path: p02Win32AppAlias.dir }, dir)?.code ?? null,
+                  danglingMissing: missingSpawnCommandError('dangling-alias-306', { Path: dir }, dir)?.code ?? null,
+                }
+              } finally {
+                p02RmSync(dir, { recursive: true, force: true })
+              }
+            }
+            const dir = p02MkdtempSync(p02Path.join(p02Tmpdir(), 'mercury-p02-alias-'))
+            const locked = p02Path.join(dir, 'locked')
+            try {
+              p02MkdirSync(locked)
+              const target = p02Path.join(locked, 'target.exe')
+              p02WriteFileSync(target, 'mz')
+              p02ChmodSync(locked, 0o000)
+              const aliasLink = p02Path.join(dir, 'alias.exe')
+              p02SymlinkSync(target, aliasLink)
+              const danglingLink = p02Path.join(dir, 'dangling.exe')
+              p02SymlinkSync(p02Path.join(dir, 'no-such-target.exe'), danglingLink)
+              return {
+                aliasExec: isExecutableFile(aliasLink),
+                danglingExec: isExecutableFile(danglingLink),
+                aliasResolved: resolveProgramInPath('alias', dir) !== null,
+                danglingResolved: resolveProgramInPath('dangling', dir) !== null,
+                aliasMissing: missingSpawnCommandError('alias', { Path: dir }, dir)?.code ?? null,
+                danglingMissing: missingSpawnCommandError('dangling', { Path: dir }, dir)?.code ?? null,
+              }
+            } finally {
+              try {
+                p02ChmodSync(locked, 0o755)
+              } catch {
+              }
+              p02RmSync(dir, { recursive: true, force: true })
+            }
+          },
+          recorded: {
+            win32: { aliasExec: true, danglingExec: false, aliasResolved: true, danglingResolved: false, aliasMissing: null, danglingMissing: 'ENOENT' },
+            darwin: { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: null },
+            linux: { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: null },
+            'win32 by process.platform alone': { aliasExec: true, danglingExec: false, aliasResolved: true, danglingResolved: false, aliasMissing: null, danglingMissing: 'ENOENT' },
+            'win32 by getPlatform() alone': { aliasExec: false, danglingExec: false, aliasResolved: false, danglingResolved: false, aliasMissing: null, danglingMissing: null },
+          },
+        },
+      ]),
 ]
 
 import {
