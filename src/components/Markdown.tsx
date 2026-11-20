@@ -1,9 +1,10 @@
 
 import stripAnsi from 'strip-ansi'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { Token, Tokens } from 'marked'
 import { marked } from 'marked'
 import { Box, Text } from '../ink.js'
+import { useLoad } from '../hooks/effects.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useAppState } from '../state/AppState.js'
@@ -45,7 +46,7 @@ function lexCached(stripped: string): Token[] {
 
 function useCliHighlight(disabled: boolean): CliHighlight | null {
   const [highlight, setHighlight] = useState<CliHighlight | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     if (disabled) return
     let live = true
     void getCliHighlightPromise().then(api => {
