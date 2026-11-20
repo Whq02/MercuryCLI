@@ -211,12 +211,55 @@ async function proveRecoveryOrchestrator(): Promise<void> {
   })
 }
 
+async function proveSplashHandover(): Promise<void> {
+  const sh = await import('../../src/substrate/splashHandover.js')
+  const bn = await import('../../src/substrate/bootNotes.js')
+  await withScratchHome(home => {
+    bn._resetBootNotesForTesting()
+    const origChdir = process.chdir
+    const targetDir = join(home, 'chosen-project')
+    mkdirSync(targetDir, { recursive: true })
+    const receiptPath = join(home, 'splash-action.json')
+    writeFileSync(receiptPath, JSON.stringify({ version: 1, ts: Date.now(), action: 'project', dir: targetDir }))
+    process.env.MERCURY_SPLASH_HANDOFF = '1'
+    process.chdir = (() => {
+      throw Object.assign(new Error('permission denied'), { code: 'EACCES' })
+    }) as typeof process.chdir
+    try {
+      sh.consumeSplashHandover()
+    } finally {
+      process.chdir = origChdir
+      delete process.env.MERCURY_SPLASH_HANDOFF
+    }
+    const notes = bn.bootNotes()
+    check('splashHandover: chdir failure records warn boot note naming dir and error', notes.some(n => n.kind === 'warn' && n.text.includes(targetDir) && n.text.includes('permission denied')), JSON.stringify(notes))
+
+    if (POSIX_MODES) {
+      bn._resetBootNotesForTesting()
+      const payload = JSON.stringify({ version: 1, ts: Date.now(), action: 'project', dir: targetDir })
+      writeFileSync(receiptPath, payload, { mode: 0o600 })
+      chmodSync(receiptPath, 0o200)
+      process.env.MERCURY_SPLASH_HANDOFF = '1'
+      try {
+        sh.consumeSplashHandover()
+      } finally {
+        delete process.env.MERCURY_SPLASH_HANDOFF
+        chmodSync(receiptPath, 0o600)
+      }
+      const notes2 = bn.bootNotes()
+      check('splashHandover: unreadable receipt records warn boot note', notes2.some(n => n.kind === 'warn' && n.text.includes('Could not read your startup choice')), JSON.stringify(notes2))
+      check('splashHandover: unreadable receipt is not deleted', readFileSync(receiptPath, 'utf8') === payload)
+    }
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
   await provePidLock()
   await proveStoreRecovery()
   await proveRecoveryOrchestrator()
+  await proveSplashHandover()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }

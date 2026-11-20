@@ -5,6 +5,7 @@ import { deleteFlagEnv, flagEnv } from './flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { consumeCommandDispatch, requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
 import { passedOver } from '../utils/passedOver.js'
+import { addBootNote } from './bootNotes.js'
 
 const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
 
@@ -181,8 +182,14 @@ export function consumeSplashHandover(): void {
   const receiptPath = join(home, 'splash-action.json')
   try {
     raw = readFileSync(receiptPath, 'utf8')
-  } catch {
-    raw = null
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      raw = null
+    } else {
+      const msg = error instanceof Error ? error.message : String(error)
+      addBootNote('warn', `Could not read your startup choice (${msg}); started with the default view.`)
+      return
+    }
   }
   const ownLaunchId = flagEnv('MERCURY_LAUNCH_ID') || null
   const decision = decideSplashReceipt(raw, Date.now(), dir => {
@@ -207,7 +214,8 @@ export function consumeSplashHandover(): void {
     try {
       process.chdir(decision.apply.chdir)
     } catch (error) {
-      passedOver(error)
+      const msg = error instanceof Error ? error.message : String(error)
+      addBootNote('warn', `Could not open ${decision.apply.chdir} (${msg}); started in ${process.cwd()}.`)
     }
   }
   if (decision.apply.spliceArg) {
