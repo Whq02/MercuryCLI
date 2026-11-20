@@ -126,7 +126,7 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
 {
   const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
   const { setSubModel, resolveSubModel } = await import('../../src/utils/model/subModelSlots.ts')
-  const { resolveAdvisorModel } = await import('../../src/services/advisor/advisorSettings.ts')
+  const { resolveAdvisorModel } = await import('../../src/utils/advisor/advisorSettings.ts')
   const { validateModel } = await import('../../src/services/providers/validateModel.ts')
   const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/homeLaneAdmission.ts')
   const { canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
