@@ -67,6 +67,30 @@ section('§1 THE PREDICATE')
   check('headless + trust ⇒ false', untrustedWorkspaceHeadless() === false)
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
+  {
+    const { chmodSync } = await import('node:fs')
+    const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+    const { getGlobalMercuryFile } = await import('../../src/utils/env.js')
+    const trustRead = (await import('../../src/utils/config/trust.js')).checkHasTrustDialogAccepted
+    enableConfigs()
+    const configFile = getGlobalMercuryFile()
+    writeFileSync(configFile, '{}')
+    chmodSync(configFile, 0o000)
+    delete process.env.NODE_ENV
+    let read = 'answered'
+    let predicate = 'threw'
+    try {
+      try { trustRead() } catch { read = 'threw' }
+      try { predicate = String(untrustedWorkspaceHeadless()) } catch (error) { predicate = `threw ${String(error)}` }
+    } finally {
+      process.env.NODE_ENV = 'test'
+      chmodSync(configFile, 0o644)
+      rmSync(configFile, { force: true })
+      resetTrustDialogAcceptedCacheForTesting()
+    }
+    check('the rig holds: with the config file unreadable (EACCES) the trust read throws', process.getuid?.() === 0 || read === 'threw', read)
+    check('headless + a trust record that cannot be read ⇒ false: the run goes on with the checkout as on 1.0.11, a check that could not finish holds nothing back', process.getuid?.() === 0 || predicate === 'false', predicate)
+  }
 }
 
 section('§2 THE HOOKS SNAPSHOT UNDER THE GATE')
