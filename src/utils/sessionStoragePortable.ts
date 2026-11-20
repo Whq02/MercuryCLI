@@ -6,7 +6,9 @@ import { getMercuryHome } from './envUtils.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { djb2Hash } from './hash.js'
 import { sliceHeadAtGrapheme } from './intl.js'
-import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore, type StoreSpellingRules } from './projectStoreIdentity.js'
+import { errorMessage } from './errors.js'
+import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore, type ProjectStoreReadFailure, type StoreSpellingRules } from './projectStoreIdentity.js'
+import { setStoreHealth, transcriptStoreHealth } from './sessionStorage/writer/storeHealth.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
 import { passedOver } from './passedOver.js'
 
@@ -317,6 +319,8 @@ export function foldProjectConfigHomeTail(dir: string): string {
 
 const storeSpellingRules: StoreSpellingRules = { fold: foldProjectConfigHomeTail, slugMatches: projectSlugMatches }
 
+const reportedStoreReadFailures = new Set<string>()
+
 export function getProjectDir(projectDir: string): string {
   const projects = getProjectsDir()
   const spelled = `${projects}\0${projectDir}`
@@ -329,8 +333,22 @@ export function getProjectDir(projectDir: string): string {
     if (identity.exists) projectDirMemo.set(spelled, byCanonical)
     return byCanonical
   }
-  const resolved = resolveProjectStore(projects, identity, projectSlug(identity.canonical), storeSpellingRules)
-  if (identity.exists) {
+  let readFailure: ProjectStoreReadFailure | null = null
+  const resolved = resolveProjectStore(projects, identity, projectSlug(identity.canonical), storeSpellingRules, failure => {
+    readFailure = failure
+  })
+  if (readFailure !== null) {
+    const failure: ProjectStoreReadFailure = readFailure
+    if (!reportedStoreReadFailures.has(failure.path)) {
+      reportedStoreReadFailures.add(failure.path)
+      if (!transcriptStoreHealth().failing) {
+        setStoreHealth({
+          failing: true,
+          sentence: `${failure.path} could not be read (${errorMessage(failure.error)}), so this project's earlier sessions may not be listed — restore read permission on it.`,
+        })
+      }
+    }
+  } else if (identity.exists) {
     projectDirMemo.set(spelled, resolved)
     projectDirMemo.set(canonicalKey, resolved)
   }

@@ -227,4 +227,109 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
   )
 }
 
+console.log('\nw07-2 · projectStoreIdentity + sessionStoragePortable — unreadable store/root/head notifies transcript store health')
+if (!POSIX_MODES) skip('w07-2 projectStoreIdentity unreadable', 'chmod 0000 needs non-root POSIX')
+else {
+  const r1 = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const p1 = path.join(PROJECT, 'fresh-proj')
+    fs.mkdirSync(p1, { recursive: true })
+    out.freshDir = portable.getProjectDir(p1)
+    out.freshHealth = health.transcriptStoreHealth()
+
+    const projectsDir = portable.getProjectsDir()
+    fs.mkdirSync(projectsDir, { recursive: true })
+    const p2 = path.join(PROJECT, 'root-blocked-proj')
+    fs.mkdirSync(p2, { recursive: true })
+    fs.chmodSync(projectsDir, 0o000)
+    try {
+      out.projectsDir = projectsDir
+      out.rootBlockedDir = portable.getProjectDir(p2)
+      out.rootBlockedHealth = health.transcriptStoreHealth()
+    } finally {
+      fs.chmodSync(projectsDir, 0o700)
+    }
+  `)
+  const freshHealth = r1.out.freshHealth as { failing?: boolean; sentence?: string | null }
+  const rootHealth = r1.out.rootBlockedHealth as { failing?: boolean; sentence?: string | null }
+  const projectsDir = String(r1.out.projectsDir ?? '')
+  check('w07-2 absent projects root (ENOENT) does not trigger store health notice', freshHealth?.failing === false, JSON.stringify(freshHealth))
+  check(
+    'w07-2 unreadable projects root keeps answer and sets transcript-store notice',
+    typeof r1.out.rootBlockedDir === 'string' &&
+      rootHealth?.failing === true &&
+      typeof rootHealth.sentence === 'string' &&
+      rootHealth.sentence.includes(`${projectsDir} could not be read (`) &&
+      rootHealth.sentence.includes("), so this project's earlier sessions may not be listed — restore read permission on it."),
+    JSON.stringify(rootHealth),
+  )
+
+  const r2 = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const projectsDir = portable.getProjectsDir()
+    const olderStore = path.join(projectsDir, '-old-spelling-12345678')
+    fs.mkdirSync(olderStore, { recursive: true })
+    const p = path.join(PROJECT, 'store-blocked-proj')
+    fs.mkdirSync(p, { recursive: true })
+    fs.chmodSync(olderStore, 0o000)
+    try {
+      out.olderStore = olderStore
+      out.dir = portable.getProjectDir(p)
+      out.health = health.transcriptStoreHealth()
+    } finally {
+      fs.chmodSync(olderStore, 0o700)
+    }
+  `)
+  const storeHealth = r2.out.health as { failing?: boolean; sentence?: string | null }
+  const olderStore = String(r2.out.olderStore ?? '')
+  check(
+    'w07-2 unreadable older store folder keeps answer and sets transcript-store notice',
+    typeof r2.out.dir === 'string' &&
+      storeHealth?.failing === true &&
+      typeof storeHealth.sentence === 'string' &&
+      storeHealth.sentence.includes(`${olderStore} could not be read (`) &&
+      storeHealth.sentence.includes("), so this project's earlier sessions may not be listed — restore read permission on it."),
+    JSON.stringify(storeHealth),
+  )
+
+  const r3 = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const portable = await import(path.join(SRC, 'utils/sessionStoragePortable.ts'))
+    const health = await import(path.join(SRC, 'utils/sessionStorage/writer/storeHealth.ts'))
+    const projectsDir = portable.getProjectsDir()
+    const olderStore = path.join(projectsDir, '-old-head-12345678')
+    fs.mkdirSync(olderStore, { recursive: true })
+    const transcript = path.join(olderStore, '11111111-1111-4111-8111-111111111111.jsonl')
+    fs.writeFileSync(transcript, '{"cwd":"/somewhere"}\\n')
+    const p = path.join(PROJECT, 'head-blocked-proj')
+    fs.mkdirSync(p, { recursive: true })
+    fs.chmodSync(transcript, 0o000)
+    try {
+      out.transcript = transcript
+      out.dir = portable.getProjectDir(p)
+      out.health = health.transcriptStoreHealth()
+    } finally {
+      fs.chmodSync(transcript, 0o600)
+    }
+  `)
+  const headHealth = r3.out.health as { failing?: boolean; sentence?: string | null }
+  const transcript = String(r3.out.transcript ?? '')
+  check(
+    'w07-2 unreadable transcript head keeps answer and sets transcript-store notice',
+    typeof r3.out.dir === 'string' &&
+      headHealth?.failing === true &&
+      typeof headHealth.sentence === 'string' &&
+      headHealth.sentence.includes(`${transcript} could not be read (`) &&
+      headHealth.sentence.includes("), so this project's earlier sessions may not be listed — restore read permission on it."),
+    JSON.stringify(headHealth),
+  )
+}
+
 process.exit(failures === 0 ? 0 : 1)

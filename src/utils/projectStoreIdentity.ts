@@ -1,9 +1,19 @@
 import { closeSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { directoryIdentity, directoryIdentityKey } from './directoryIdentity.js'
+import { getErrnoCode } from './errors.js'
 import { passedOver } from './passedOver.js'
 
 type StoreDirectoryIdentity = ReturnType<typeof directoryIdentity>
+
+export type ProjectStoreReadFailure = { path: string; error: unknown }
+
+type ReadFailureSink = (path: string, error: unknown) => void
+
+function isAbsenceError(error: unknown): boolean {
+  const code = getErrnoCode(error)
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
 
 export type StoreSpellingRules = {
   fold: (dir: string) => string
@@ -41,12 +51,13 @@ function isDirectory(path: string): boolean {
   }
 }
 
-function readHead(file: string, bytes: number): string | null {
+function readHead(file: string, bytes: number, onFailure?: ReadFailureSink): string | null {
   let fd: number
   try {
     fd = openSync(file, 'r')
   } catch (error) {
     passedOver(error)
+    if (!isAbsenceError(error)) onFailure?.(file, error)
     return null
   }
   try {
@@ -55,6 +66,7 @@ function readHead(file: string, bytes: number): string | null {
     return buffer.subarray(0, read).toString('utf8')
   } catch (error) {
     passedOver(error)
+    onFailure?.(file, error)
     return null
   } finally {
     closeSync(fd)
@@ -78,12 +90,13 @@ function cardDir(store: string): string | null {
   }
 }
 
-function newestTranscriptCwd(store: string): string | null {
+function newestTranscriptCwd(store: string, onFailure?: ReadFailureSink): string | null {
   let names: string[]
   try {
     names = readdirSync(store)
   } catch (error) {
     passedOver(error)
+    if (!isAbsenceError(error)) onFailure?.(store, error)
     return null
   }
   let newest: { file: string; mtime: number } | null = null
@@ -95,10 +108,11 @@ function newestTranscriptCwd(store: string): string | null {
       if (facts.size > 0 && (newest === null || facts.mtimeMs > newest.mtime)) newest = { file, mtime: facts.mtimeMs }
     } catch (error) {
       passedOver(error)
+      if (!isAbsenceError(error)) onFailure?.(file, error)
     }
   }
   if (newest === null) return null
-  const head = readHead(newest.file, CWD_HEAD_BYTES)
+  const head = readHead(newest.file, CWD_HEAD_BYTES, onFailure)
   const match = head === null ? null : CWD_FIELD.exec(head)
   if (match === null) return null
   try {
@@ -142,23 +156,24 @@ function keyedBySpelling(name: string, spelling: string, rules: StoreSpellingRul
   }
 }
 
-function storeOwnsIdentity(store: string, name: string, identity: StoreDirectoryIdentity, rules: StoreSpellingRules): boolean {
+function storeOwnsIdentity(store: string, name: string, identity: StoreDirectoryIdentity, rules: StoreSpellingRules, onFailure?: ReadFailureSink): boolean {
   const recorded = cardDir(store)
   if (recorded !== null) return projectDirectoryIdentity(recorded.normalize('NFC'), rules.fold).key === identity.key
   const claims = (spelling: string): boolean =>
     keyedBySpelling(name, spelling, rules) && projectDirectoryIdentity(spelling.normalize('NFC'), rules.fold).key === identity.key
   const variant = caseVariantSpelling(name, identity.canonical, rules)
   if (variant !== null && claims(variant)) return true
-  const cwd = newestTranscriptCwd(store)
+  const cwd = newestTranscriptCwd(store, onFailure)
   return cwd !== null && claims(cwd)
 }
 
-function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, candidate: string, rules: StoreSpellingRules): string | null {
+function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, candidate: string, rules: StoreSpellingRules, onFailure?: ReadFailureSink): string | null {
   let names: string[]
   try {
     names = readdirSync(projects)
   } catch (error) {
     passedOver(error)
+    if (!isAbsenceError(error)) onFailure?.(projects, error)
     return null
   }
   let chosen: { name: string; mtime: number } | null = null
@@ -170,16 +185,30 @@ function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, 
       facts = statSync(store)
     } catch (error) {
       passedOver(error)
+      if (!isAbsenceError(error)) onFailure?.(store, error)
       continue
     }
-    if (!facts.isDirectory() || !storeOwnsIdentity(store, name, identity, rules)) continue
+    if (!facts.isDirectory() || !storeOwnsIdentity(store, name, identity, rules, onFailure)) continue
     if (chosen === null || facts.mtimeMs > chosen.mtime || (facts.mtimeMs === chosen.mtime && name < chosen.name)) chosen = { name, mtime: facts.mtimeMs }
   }
   return chosen === null ? null : join(projects, chosen.name)
 }
 
-export function resolveProjectStore(projects: string, identity: StoreDirectoryIdentity, candidate: string, rules: StoreSpellingRules): string {
+export function resolveProjectStore(
+  projects: string,
+  identity: StoreDirectoryIdentity,
+  candidate: string,
+  rules: StoreSpellingRules,
+  onReadFailure?: (failure: ProjectStoreReadFailure) => void,
+): string {
   const own = join(projects, candidate)
   if (!identity.exists || isDirectory(own)) return own
-  return olderSpellingStore(projects, identity, candidate, rules) ?? own
+  let firstFailure: ProjectStoreReadFailure | null = null
+  const noteFailure: ReadFailureSink = (path, error) => {
+    if (firstFailure === null) firstFailure = { path, error }
+  }
+  const older = olderSpellingStore(projects, identity, candidate, rules, noteFailure)
+  if (older !== null) return older
+  if (firstFailure !== null) onReadFailure?.(firstFailure)
+  return own
 }
