@@ -304,7 +304,8 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
   if (machine.platform === 'darwin' || io.app !== undefined) {
     const app = await (io.app ?? detectTensorFoldApp)().catch((error: unknown) => {
-      throw new TensorFoldStartError(`whether the TensorFold app is already serving on this Mac could not be read (${errorMessage(error)}) · nothing was started — quit the app if it is open, then serve again`, null)
+      logError(new Error(`whether the TensorFold app is already serving on this Mac could not be read (${errorMessage(error)}), so the start goes on`))
+      return undefined
     })
     const refused = app === undefined ? undefined : refuseSecondCopy(app)
     if (refused !== undefined) throw new TensorFoldStartError(refused, null)
