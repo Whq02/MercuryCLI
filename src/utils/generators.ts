@@ -21,11 +21,11 @@ export async function* all<A>(
   const live = new Set<Tracked<A>>()
 
   const track = (generator: AsyncGenerator<A, void, unknown>): Tracked<A> => {
+    const promise: Tracked<A>['promise'] = generator.next().then(result => ({ tracked, result }))
     const tracked: Tracked<A> = {
       generator,
-      promise: null as never,
+      promise,
     }
-    tracked.promise = generator.next().then(result => ({ tracked, result }))
     return tracked
   }
 

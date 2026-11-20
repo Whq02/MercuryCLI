@@ -2,6 +2,7 @@
 import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
+import type { UUID } from 'node:crypto'
 import { relative } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { buildTool, type ChangeIntentProjection, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
@@ -142,6 +143,8 @@ const baseShape = () => ({
     .describe('apply/status/discard: plan id (cs-…) from preview'),
 })
 
+const baseSchemaFactory = () => z.strictObject(baseShape())
+
 const widestSchemaFactory = () =>
   z.strictObject({
     ...baseShape(),
@@ -152,13 +155,13 @@ const widestSchemaFactory = () =>
   })
 
 type WidestSchema = ReturnType<typeof widestSchemaFactory>
+type SchemaType = z.ZodType<z.infer<WidestSchema>>
 
-const inputSchema = lazySchema((): WidestSchema => {
-  if (!anchorPatchEnabled()) return z.strictObject(baseShape()) as unknown as WidestSchema
+const inputSchema = lazySchema((): SchemaType => {
+  if (!anchorPatchEnabled()) return baseSchemaFactory()
   return widestSchemaFactory()
 })
 
-type SchemaType = WidestSchema
 export type Input = z.infer<SchemaType>
 export type Output = {
   op: Input['op']
@@ -173,7 +176,7 @@ export type Output = {
 const pathShim = {
   name: CHANGESET_TOOL_NAME,
   getPath: (i: { file_path: string }) => i.file_path,
-} as unknown as Parameters<typeof checkWritePermissionForTool>[0]
+}
 
 function displayPath(abs: string): string {
   const rel = relative(getCwd(), abs)
@@ -469,7 +472,7 @@ async function runPreview(input: Input, context: ToolUseContext): Promise<OpResu
 async function runApply(
   input: Input,
   context: ToolUseContext,
-  parentMessageUuid: string,
+  parentMessageUuid: UUID,
 ): Promise<OpResult> {
   const owner = ownerFromToolUseContext(context)
   const permCtx = context.getAppState().toolPermissionContext
@@ -563,7 +566,7 @@ async function runApply(
       await fileHistoryTrackEdit(
         context.updateFileHistoryState,
         t.canonicalPath,
-        parentMessageUuid as never,
+        parentMessageUuid,
       )
     }
   }

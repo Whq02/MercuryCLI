@@ -72,7 +72,7 @@ export async function safelyReadInstructionFileAsync(
   }
 }
 
-async function passedOver(filePath: string, resolved: { isSymlink: boolean; isCanonical: boolean }): Promise<boolean> {
+async function leftOutByRule(filePath: string, resolved: { isSymlink: boolean; isCanonical: boolean }): Promise<boolean> {
   if (resolved.isCanonical && !resolved.isSymlink) return false
   try {
     return !(await getFsImplementation().stat(filePath)).isFile()
@@ -206,7 +206,7 @@ export async function processInstructionFile(
   if (isSymlink) {
     processedPaths.add(normalizePathForComparison(resolvedPath))
   }
-  if (await passedOver(filePath, resolved)) {
+  if (await leftOutByRule(filePath, resolved)) {
     return []
   }
 
@@ -404,7 +404,7 @@ export async function processRuleFile(
   if (isSymlink) {
     processedPaths.add(normalizePathForComparison(resolvedPath))
   }
-  if (await passedOver(filePath, resolved)) {
+  if (await leftOutByRule(filePath, resolved)) {
     return []
   }
   let rawContent: string
@@ -436,13 +436,13 @@ export async function processRuleFile(
 }
 
 const RULES_DIR_LISTING_TTL_MS = 5000
-const rulesDirListingCaches = new WeakMap<object, LRUCache<string, { entries: import('fs').Dirent[] | null }>>()
+const rulesDirListingCaches = new WeakMap<FsOperations, LRUCache<string, { entries: import('fs').Dirent[] | null }>>()
 
 async function cachedRulesDirListing(fsImpl: FsOperations, dir: string): Promise<import('fs').Dirent[] | null> {
-  let cache = rulesDirListingCaches.get(fsImpl as unknown as object)
+  let cache = rulesDirListingCaches.get(fsImpl)
   if (cache === undefined) {
     cache = new LRUCache({ max: 500, ttl: RULES_DIR_LISTING_TTL_MS })
-    rulesDirListingCaches.set(fsImpl as unknown as object, cache)
+    rulesDirListingCaches.set(fsImpl, cache)
   }
   const held = cache.get(dir)
   if (held !== undefined) return held.entries
@@ -460,13 +460,13 @@ async function cachedRulesDirListing(fsImpl: FsOperations, dir: string): Promise
   }
 }
 
-const ruleFileCaches = new WeakMap<object, LRUCache<string, { file: boolean }>>()
+const ruleFileCaches = new WeakMap<FsOperations, LRUCache<string, { file: boolean }>>()
 
 async function standsAsRuleFile(fsImpl: FsOperations, source: string): Promise<boolean> {
-  let cache = ruleFileCaches.get(fsImpl as unknown as object)
+  let cache = ruleFileCaches.get(fsImpl)
   if (cache === undefined) {
     cache = new LRUCache({ max: 500, ttl: RULES_DIR_LISTING_TTL_MS })
-    ruleFileCaches.set(fsImpl as unknown as object, cache)
+    ruleFileCaches.set(fsImpl, cache)
   }
   const held = cache.get(source)
   if (held !== undefined) return held.file

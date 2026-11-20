@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { getCSSLanguageService, getLESSLanguageService, getSCSSLanguageService } from 'vscode-css-languageservice/lib/esm/cssLanguageService.js'
 import { getLanguageService as getHtmlLanguageService } from 'vscode-html-languageservice/lib/esm/htmlLanguageService.js'
 import { getLanguageService as getJsonLanguageService } from 'vscode-json-languageservice/lib/esm/jsonLanguageService.js'
-import { TextDocument } from 'vscode-languageserver-textdocument'
+import { TextDocument, type Position, type Range } from 'vscode-languageserver-textdocument'
 import {
   RPC_INTERNAL_ERROR,
   RPC_METHOD_NOT_FOUND,
@@ -63,7 +63,7 @@ async function schemaRequest(uri: string): Promise<string> {
 interface YamlServiceShape {
   configure(settings: unknown): void
   doValidation(doc: TextDocument, isKubernetes: boolean): Promise<unknown[]>
-  doHover(doc: TextDocument, position: unknown): Promise<unknown>
+  doHover(doc: TextDocument, position: Position): Promise<unknown>
   doFormat?(doc: TextDocument, options: Record<string, unknown>): unknown[]
   findDocumentSymbols2?(doc: TextDocument, context?: unknown): unknown[]
 }
@@ -193,7 +193,7 @@ export async function runWebLspSidecar(
 
     async function formatEdits(
       doc: TextDocument,
-      range: unknown | undefined,
+      range: Range | undefined,
       options: { tabSize: number; insertSpaces: boolean },
     ): Promise<unknown[]> {
       const lang = languageIdOf(doc.uri)
@@ -203,25 +203,25 @@ export async function runWebLspSidecar(
       }
       switch (lang) {
         case 'html':
-          return htmlService.format(doc, (range ?? fullRange) as never, {
+          return htmlService.format(doc, range ?? fullRange, {
             tabSize: options.tabSize,
             insertSpaces: options.insertSpaces,
             wrapLineLength: 120,
             endWithNewline: doc.getText().endsWith('\n'),
-          } as never)
+          })
         case 'css':
         case 'scss':
         case 'less':
-          return cssServiceFor(lang).format(doc, (range ?? fullRange) as never, {
+          return cssServiceFor(lang).format(doc, range ?? fullRange, {
             tabSize: options.tabSize,
             insertSpaces: options.insertSpaces,
-          } as never)
+          })
         case 'json':
         case 'jsonc':
-          return jsonService.format(doc, (range ?? fullRange) as never, {
+          return jsonService.format(doc, range ?? fullRange, {
             tabSize: options.tabSize,
             insertSpaces: options.insertSpaces,
-          } as never)
+          })
         case 'yaml': {
           if (typeof yamlService.doFormat !== 'function') {
             throw Object.assign(new Error('the bundled yaml service exposes no formatter'), {
@@ -377,21 +377,21 @@ type WebServices = {
 }
 
 function hoverRequest(params: unknown, { requireDoc, languageIdOf, htmlService, cssServiceFor, jsonService, yamlService }: WebServices): unknown {
-  const p = params as { textDocument: { uri: string }; position: unknown }
+  const p = params as { textDocument: { uri: string }; position: Position }
   const doc = requireDoc(p.textDocument.uri)
   const lang = languageIdOf(doc.uri)
   switch (lang) {
     case 'html':
-      return htmlService.doHover(doc, p.position as never, htmlService.parseHTMLDocument(doc))
+      return htmlService.doHover(doc, p.position, htmlService.parseHTMLDocument(doc))
     case 'css':
     case 'scss':
     case 'less': {
       const service = cssServiceFor(lang)
-      return service.doHover(doc, p.position as never, service.parseStylesheet(doc))
+      return service.doHover(doc, p.position, service.parseStylesheet(doc))
     }
     case 'json':
     case 'jsonc':
-      return jsonService.doHover(doc, p.position as never, jsonService.parseJSONDocument(doc))
+      return jsonService.doHover(doc, p.position, jsonService.parseJSONDocument(doc))
     case 'yaml':
       return yamlService.doHover(doc, p.position)
   }
@@ -400,12 +400,12 @@ function hoverRequest(params: unknown, { requireDoc, languageIdOf, htmlService, 
 function rangeFormattingRequest(
   params: unknown,
   requireDoc: (uri: string) => TextDocument,
-  formatEdits: (doc: TextDocument, range: unknown | undefined, options: { tabSize: number; insertSpaces: boolean }) => Promise<unknown[]>,
+  formatEdits: (doc: TextDocument, range: Range | undefined, options: { tabSize: number; insertSpaces: boolean }) => Promise<unknown[]>,
   formatOptionsOf: (params: { options?: { tabSize?: number; insertSpaces?: boolean } }) => { tabSize: number; insertSpaces: boolean },
 ): unknown {
   const p = params as {
     textDocument: { uri: string }
-    range: unknown
+    range: Range
     options?: { tabSize?: number; insertSpaces?: boolean }
   }
   const doc = requireDoc(p.textDocument.uri)
