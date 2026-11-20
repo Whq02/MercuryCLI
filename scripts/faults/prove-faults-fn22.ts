@@ -2,7 +2,8 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -13,7 +14,7 @@ function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)
 }
 
-const HERE = import.meta.dir
+const HERE = dirname(fileURLToPath(import.meta.url))
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
@@ -89,6 +90,51 @@ console.log('\n1. unity/bridgeInstaller.ts — readProjectBridgePort throws on c
     const unreadable = r.unreadable as Attempt
     check('bridgeInstaller-readProjectBridgePort: unreadable settings throws EACCES', !unreadable.ok && unreadable.code === 'EACCES', JSON.stringify(unreadable))
   }
+}
+
+console.log('\n2. voice/capture.ts + voice/voiceSession.ts — failed cancelCapture stays retryable and does not throw out of cancelVoiceCapture')
+{
+  const r = runSubprocess(`
+    const { mock } = await import('bun:test')
+    const realPack = await import(path.join(SRC, 'services/voice/voicePack.ts'))
+    let cancelCalls = 0
+    const addon = {
+      packVersion: () => '1.0.0',
+      listInputDevices: () => ['mic'],
+      defaultInputDevice: () => 'mic',
+      startCapture: () => 42,
+      captureErrors: () => ({ transient: 0, lastTransient: null, fatal: null }),
+      stopCapture: () => Buffer.alloc(0),
+      cancelCapture: () => {
+        cancelCalls++
+        if (cancelCalls === 1) throw new Error('coreaudio stop busy')
+      },
+      lastCaptureErrors: () => null,
+      ttyForegroundGroup: () => ({}),
+      ownProcessGroup: () => ({}),
+      reclaimTerminal: () => ({ reclaimed: false }),
+    }
+    const manifest = {
+      name: 'mercury-voice', version: '1.0.0', platform: 'test', addon: 'a.node',
+      addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), cargo: '1', crates: [], fileCount: 1, treeDigest: '0'.repeat(64),
+    }
+    mock.module(path.join(SRC, 'services/voice/voicePack.ts'), () => ({
+      ...realPack,
+      resolveVoicePackDir: () => ({ state: 'ok', dir: PROJECT, addonPath: path.join(PROJECT, 'a.node'), manifest, source: 'override' }),
+      loadVoiceAddon: () => ({ state: 'ok', addon, dir: PROJECT, manifest, source: 'override' }),
+    }))
+    const capture = await import(path.join(SRC, 'services/voice/capture.ts'))
+    const h = await capture.startCapture({ backend: { state: 'ok', kind: 'vendored', detail: 'stub', pinned: true } })
+    out.firstCancel = await attempt(() => h.cancel())
+    out.settledAfterFail = h.settled
+    out.secondCancel = await attempt(() => h.cancel())
+    out.settledAfterRetry = h.settled
+    out.cancelCalls = cancelCalls
+  `)
+  const firstCancel = r.firstCancel as Attempt
+  const secondCancel = r.secondCancel as Attempt
+  check('capture-cancelCapture-retry: first cancel throws when addon cancelCapture throws and leaves handle unsettled', !firstCancel.ok && firstCancel.message?.includes('coreaudio stop busy') === true && r.settledAfterFail === false, JSON.stringify(r))
+  check('capture-cancelCapture-retry: retry calls addon cancelCapture again and settles handle', secondCancel.ok && r.settledAfterRetry === true && r.cancelCalls === 2, JSON.stringify(r))
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
