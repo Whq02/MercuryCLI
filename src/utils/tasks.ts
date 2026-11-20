@@ -51,12 +51,7 @@ export async function listSessionMission(): Promise<Task[]> {
   const own = getTaskListId()
   const seen = new Set<string>()
   const rows: Task[] = []
-  let tasks: Task[] = []
-  try {
-    tasks = await listTasks(own)
-  } catch {
-    tasks = []
-  }
+  const tasks = await listTasks(own)
   for (const task of tasks) {
     if (seen.has(task.id)) continue
     seen.add(task.id)
