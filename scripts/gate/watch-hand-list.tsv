@@ -12,7 +12,7 @@ ast-tools	4
 attachments	6
 attention	11
 attention-drives	6
-bash	22
+bash	20
 bash-drives	5
 behaviour-laws	1
 bench	2
@@ -26,12 +26,12 @@ cache	4
 changesets	8
 changesets-drives	25
 cockpit-interaction	49
-cockpit-interaction-drives	37
+cockpit-interaction-drives	36
 command-catalogue	12
 command-catalogue-drives	30
 commit-gate	3
 compact	23
-compositor	9
+compositor	8
 compositor-drives	32
 computer	5
 computer-drives	23
@@ -49,7 +49,7 @@ daemon-3	35
 daemon-4	36
 daemon-drives	12
 dap	3
-decisions	8
+decisions	6
 default-model	2
 default-provider	5
 default-provider-drives	10
@@ -58,7 +58,7 @@ dev-context	1
 distribution	5
 distribution-drives	13
 docs	11
-document	8
+document	7
 document-read	23
 edit-tools	20
 editor-bridge	28
@@ -73,7 +73,7 @@ eval	7
 exit-handle	2
 extensions	12
 formal-models	4
-gate	60
+gate	20
 golden-journeys	12
 golden-journeys-drives	12
 harness-compare	2
@@ -83,7 +83,7 @@ health	6
 health-drives	6
 hooks	27
 host	24
-host-2	78
+host-2	76
 host-drives	93
 ide	13
 ide-drives	51
@@ -170,7 +170,7 @@ run-continuity-drives	8
 run-recovery	10
 samples	10
 samples-drives	8
-scroll	11
+scroll	10
 scroll-drives	12
 sdk	7
 search	8

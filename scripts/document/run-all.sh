@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-env: MERCURY_BROWSER_CACHE_DIR
 # gate-watch: src/tools/DocumentTool/** vendor/pdfjs.lock.json
-# gate-watch: src/skills/bundled/research* src/skills/bundled/index.ts bun.lock
+# gate-watch: src/skills/bundled/index.ts bun.lock
 # gate-watch: src/utils/permissions/filesystem.ts
 # gate-watch: vendor/document-licences/** build.ts
 set -uo pipefail

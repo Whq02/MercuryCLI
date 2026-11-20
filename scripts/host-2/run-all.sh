@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/host/**
-# gate-watch: src/utils/envUtils.ts src/services/providers/huggingface/huggingfaceAccounts.ts
+# gate-watch: src/services/providers/huggingface/huggingfaceAccounts.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/runnerHost.ts src/input-core/command-queue.ts src/utils/messages/noticeRows.ts
 # gate-watch: src/services/host/** src/commands/llmhost/** src/services/llmHost/** src/components/LlmHostDialog.tsx
 # gate-watch: src/services/providers/openaicompat/** docs/LLM-HOST.md
@@ -19,7 +19,7 @@
 # gate-watch: src/utils/settings/modelFacts.ts scripts/host/prove-host-tune.ts
 # gate-watch: scripts/host/prove-hf-recipes.ts scripts/host/prove-host-search-drive.ts src/services/host/hfRecipes.ts src/components/mercury-ui/menuFold.tsx
 # gate-watch: scripts/host/prove-host-wheel-drive.ts src/components/ScrollKeybindingHandler.tsx src/context/overlayContext.tsx src/context/overlayStack.ts src/ink/**
-# gate-watch: scripts/host/measure-recipe.ts scripts/host/prove-measure-recipe.ts scripts/host/prove-frontier-roster.ts src/services/providers/zai/zaiCodec.ts src/utils/envUtils.ts
+# gate-watch: scripts/host/measure-recipe.ts scripts/host/prove-measure-recipe.ts scripts/host/prove-frontier-roster.ts src/services/providers/zai/zaiCodec.ts
 # gate-watch: scripts/lib/hermetic.ts vendor/** vendor/node.lock.json
 # gate-watch: .github/workflows/engine-image.yml assets/host/llamacpp-engine.json scripts/lib/generated-assets-map.mjs
 # gate-watch: scripts/host/prove-tensorfold-recipe-script.ts scripts/host/prove-tensorfold-pod-road.ts scripts/host/prove-tensorfold-rent-drive.ts src/services/host/tensorfoldRelease.ts src/services/host/tensorfoldPod.ts scripts/host/fixtures/tensorfold-1.2.9-linux-x86_64.tar.gz.sha256 scripts/host/fixtures/tensorfold-1.2.9-linux-aarch64.tar.gz.sha256 src/services/tensorfold/contracts.ts src/services/providers/local/tensorfoldHosts.ts

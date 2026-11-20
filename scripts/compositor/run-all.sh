@@ -6,7 +6,7 @@
 # gate-watch: src/ink/termio/*
 # gate-watch: src/keybindings/*
 # gate-watch: src/utils/cockpit/*
-# gate-watch: src/components/HelpV2/HelpV2.tsx src/components/PromptInput/PromptInput.tsx src/ink/session/delivery.ts
+# gate-watch: src/components/HelpV2/HelpV2.tsx src/components/PromptInput/PromptInput.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
