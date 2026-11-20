@@ -1,4 +1,4 @@
-import { credentialStoreUnread, credentialsPath, getSecureStorage, keychainReachable, removeSecureStorageField } from '../../../utils/secureStorage/index.js'
+import { credentialStoreUnread, credentialsPath, getSecureStorage, removeSecureStorageField } from '../../../utils/secureStorage/index.js'
 import { logError } from '../../../utils/log.js'
 import { saveGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
@@ -25,7 +25,7 @@ export interface AnthropicSlotSignOutIo {
 export function credentialStoreLeftWords(where: 'keychain' | 'file'): string {
   return where === 'keychain'
     ? 'The keychain entry of Mercury could not be removed; the sign-ins it holds are still stored here. Unlock the keychain, then try again.'
-    : `The credential store at ${credentialsPath()} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
+    : `${credentialsPath()} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
 }
 
 function refuseUnreadClaudeStore(): void {
@@ -56,8 +56,8 @@ export function signOutAnthropicSlot(
   }
   if (removal !== undefined && !removal.success) {
     throw removal.kept === 0
-      ? Object.assign(new Error(credentialStoreLeftWords(keychainReachable() ? 'keychain' : 'file')), { code: removal.code ?? 'EUNKNOWN' })
-      : credentialFileUnwritten('The credential store', credentialsPath(), { code: removal.code })
+      ? Object.assign(new Error((removal.left ?? []).map(credentialStoreLeftWords).join(' ')), { code: 'EUNKNOWN' })
+      : credentialFileUnwritten(null, credentialsPath(), { code: removal.code })
   }
   try {
     saveGlobalConfig(current => ({ ...current, oauthAccount: undefined }))

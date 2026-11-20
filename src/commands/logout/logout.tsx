@@ -14,7 +14,7 @@ import { credentialStoreLeftWords, deriveFamilySlotGroups, familiesRefusedIn, si
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { keychainReachable, macOsKeychainStorage, plainTextStorage } from '../../utils/secureStorage/index.js'
+import { deleteCredentialStores } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
 import { startTimeout } from '../../utils/timers.js'
@@ -40,8 +40,7 @@ export async function performLogout({
 
   await removeApiKey()
   const storesLeft: string[] = []
-  if (keychainReachable() && !macOsKeychainStorage.delete()) storesLeft.push(`Could not sign out: ${credentialStoreLeftWords('keychain')}`)
-  if (!plainTextStorage.delete()) storesLeft.push(`Could not sign out: ${credentialStoreLeftWords('file')}`)
+  for (const where of deleteCredentialStores()) storesLeft.push(`Could not sign out: ${credentialStoreLeftWords(where)}`)
   clearScopeIdentitySnapshot(getMercuryHome())
   forgetScopeIdentity()
 
