@@ -47,7 +47,6 @@ src/utils/attachments/agentRoster.ts	src/services/engine-connector/workCounts.ts
 src/utils/attachments/capsuleState.ts	src/services/run/resolveOwner.ts	load	open
 src/utils/attachments/contextCapsule.ts	src/services/primitives/owner.ts	load	open
 src/utils/attachments/contextCapsule.ts	src/services/projectIntel/capsule.ts	load	open
-src/utils/attachments/contextCapsule.ts	src/services/projectIntel/contracts.ts	load	open
 src/utils/attachments/contextCapsule.ts	src/services/projectIntel/pins.ts	load	open
 src/utils/attachments/contextCapsule.ts	src/services/projectIntel/snapshot.ts	load	open
 src/utils/attachments/contextCapsule.ts	src/services/run/resolveOwner.ts	load	open
@@ -72,7 +71,6 @@ src/utils/attachments/mentionResolvers.ts	src/tools/AgentTool/loadAgentsDir.ts	t
 src/utils/attachments/nestedMemory.ts	src/services/instructions/engine.ts	load	open
 src/utils/attachments/orchestrator.ts	src/services/run/resolveOwner.ts	load	open
 src/utils/attachments/queuedCommands.ts	src/services/advisor/advisorRoads.ts	load	open
-src/utils/attachments/queuedCommands.ts	src/services/advisor/advisorSettings.ts	load	open
 src/utils/attachments/queuedCommands.ts	src/services/agentResults/summaryRoom.ts	load	open
 src/utils/attachments/queuedCommands.ts	src/services/crewBoard/seam.ts	load	open
 src/utils/attachments/reminders.ts	src/daemon/concourseWorkers.ts	load	open
@@ -121,7 +119,7 @@ src/utils/cockpit/contextUsageLive.ts	src/services/run/ownerKey.ts	type	open
 src/utils/cockpit/contextUsageLive.ts	src/services/run/ownerLifecycle.ts	load	open
 src/utils/cockpit/contextUsageLive.ts	src/services/run/ownerScopedStore.ts	load	open
 src/utils/cockpit/contextUsageLive.ts	src/services/run/resolveOwner.ts	load	open
-src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	open
+src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/critterSleep.ts	src/services/primitives/executionPlane.ts	load	open
 src/utils/cockpit/critterSleep.ts	src/services/run/resolveOwner.ts	load	open
 src/utils/cockpit/ctxForecast.ts	src/services/run/ownerKey.ts	type	open
@@ -178,7 +176,7 @@ src/utils/cockpit/mcpGauge.ts	src/services/mcp/types.ts	type	open
 src/utils/cockpit/modelGauge.ts	src/services/providers/catalogueEpoch.ts	load	open
 src/utils/cockpit/modelGauge.ts	src/services/providers/providerUsability.ts	load	open
 src/utils/cockpit/modelGauge.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	open
+src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/permissionsSnapshot.ts	src/services/mcp/toolPolicy.ts	load	open
 src/utils/cockpit/quota.ts	src/components/mercury-ui/theme.ts	type	open
 src/utils/cockpit/quota.ts	src/services/anthropicLimits.ts	load	open
@@ -195,12 +193,6 @@ src/utils/cockpit/wrapPlain.ts	src/components/mercury-ui/glyphs.ts	load	open
 src/utils/config/schema.ts	src/services/mcp/types.ts	type	open
 src/utils/contextFill.ts	src/services/compact/autoCompactWindow.ts	load	open
 src/utils/contextFill.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/conversationRecovery.ts	src/services/changeTransaction/seenLines.ts	load	open
-src/utils/conversationRecovery.ts	src/services/desktop/screenshotRetention.ts	load	open
-src/utils/conversationRecovery.ts	src/services/engine-connector/midTurnText.ts	load	open
-src/utils/conversationRecovery.ts	src/services/providers/anthropic/boundPrefixRecord.ts	load	open
-src/utils/conversationRecovery.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/conversationRecovery.ts	src/services/run/resolveOwner.ts	load	open
 src/utils/crew/agentLaunchPlan.ts	src/services/providers/routeLaw.ts	load	open
 src/utils/crew/agentLaunchPlan.ts	src/tools/AgentTool/constants.ts	load	open
 src/utils/crew/agentLaunchPlan.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
@@ -337,7 +329,7 @@ src/utils/health/sections/identity.ts	src/services/privateChannel/installLayout.
 src/utils/health/sections/identity.ts	src/services/privateChannel/installPath.ts	load	open
 src/utils/health/sections/identity.ts	src/services/privateChannel/installProvenance.ts	load	open
 src/utils/health/sections/identity.ts	src/services/privateChannel/vendoredRuntime.ts	load	open
-src/utils/health/sections/interface.ts	src/components/mercury-ui/sessionAccent.ts	load	open
+src/utils/health/sections/interface.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
 src/utils/health/sections/interface.ts	src/services/desktop/nativeDriver.ts	load	open
 src/utils/health/sections/interface.ts	src/services/samples/contracts.ts	load	open
 src/utils/health/sections/interface.ts	src/services/voice/voiceSession.ts	load	open
@@ -446,7 +438,7 @@ src/utils/mcpInstructionsDelta.ts	src/services/mcp/types.ts	type	open
 src/utils/mcpOutputStorage.ts	src/services/mcp/client.ts	type	open
 src/utils/mcpValidation.ts	src/services/tokenEstimation.ts	load	open
 src/utils/memoryFileDetection.ts	src/tools/AgentTool/agentMemory.ts	load	open
-src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	open
+src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/messageContextFill.ts	src/services/providers/routeLaw.ts	load	open
 src/utils/messageContextFill.ts	src/services/roughTokenEstimation.ts	load	open
 src/utils/messages/apiFilters.ts	src/services/providers/anthropic/deadThinkingPlaceholder.ts	load	open
@@ -694,11 +686,9 @@ src/utils/modelCost.ts	src/services/providers/zai/glmPins.ts	load	open
 src/utils/modelCost.ts	src/services/providers/zen/zenPins.ts	load	open
 src/utils/normalizeToolSchema.ts	src/services/providers/idSpaces.ts	type	open
 src/utils/notebook.ts	src/tools/BashTool/toolName.ts	load	open
-src/utils/notebook.ts	src/tools/BashTool/utils.ts	load	open
 src/utils/ocr.ts	src/services/desktop/pack.ts	load	open
 src/utils/permissions/PermissionMode.ts	src/components/mercury-ui/glyphs.ts	load	open
 src/utils/permissions/capabilityGate.ts	src/services/lsp/toolFamily.ts	load	open
-src/utils/permissions/commandContent.ts	src/tools/BashTool/destructiveCommandWarning.ts	load	open
 src/utils/permissions/decision/engine.ts	src/services/api/sdkErrors.ts	load	row 8
 src/utils/permissions/decision/engine.ts	src/services/instructions/engine.ts	load	row 8
 src/utils/permissions/decision/rules.ts	src/services/lsp/toolFamily.ts	load	row 8
@@ -708,7 +698,6 @@ src/utils/permissions/decision/rules.ts	src/tools/MonitorTool/constants.ts	load	
 src/utils/permissions/filesystem.ts	src/services/remoteFiles/thisMachine.ts	load	open
 src/utils/permissions/filesystem.ts	src/tools/AgentTool/agentMemory.ts	load	open
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
-src/utils/permissions/flowLaw.ts	src/tools/BashTool/destructiveCommandWarning.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/toolName.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/DebugTool/prompt.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/MonitorTool/constants.ts	load	row 8
@@ -719,14 +708,13 @@ src/utils/permissions/ruleReason.ts	src/services/mcp/mcpStringUtils.ts	load	open
 src/utils/permissions/ruleReason.ts	src/tools/BashTool/toolName.ts	load	open
 src/utils/permissions/runtimeProtection.ts	src/daemon/controlSocket.ts	load	open
 src/utils/permissions/runtimeProtection.ts	src/daemon/ownerWatch.ts	load	open
-src/utils/permissions/shellRuleMatching.ts	src/tools/BashTool/destructiveCommandWarning.ts	load	open
 src/utils/pidAlive.ts	src/daemon/ownerWatch.ts	load	open
 src/utils/processUserInput/processBashCommand.tsx	src/components/BashModeProgress.tsx	load	open
 src/utils/processUserInput/processBashCommand.tsx	src/tools/BashTool/BashTool.tsx	load	open
 src/utils/processUserInput/processBashCommand.tsx	src/tools/PowerShellTool/PowerShellTool.tsx	load	open
 src/utils/processUserInput/processSlashCommand.tsx	src/commands/samples/index.ts	load	open
 src/utils/processUserInput/processSlashCommand.tsx	src/services/compact/microCompact.ts	load	open
-src/utils/profile/appearanceSnapshot.ts	src/components/mercury-ui/sessionAccent.ts	load	open
+src/utils/profile/appearanceSnapshot.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
 src/utils/promptShellExecution.ts	src/tools/BashTool/BashTool.tsx	load	open
 src/utils/promptShellExecution.ts	src/tools/PowerShellTool/PowerShellTool.tsx	load	open
 src/utils/queryContext.ts	src/services/mcp/types.ts	type	open
@@ -777,16 +765,12 @@ src/utils/sessionTitle.ts	src/services/providers/anthropic/streamCore.ts	load	op
 src/utils/settings/allErrors.ts	src/services/mcp/config.ts	load	open
 src/utils/settings/settings.ts	src/services/projectLocal/paths.ts	load	open
 src/utils/settings/validation.ts	src/services/mcp/types.ts	type	open
-src/utils/shell/readOnlyCommandValidation.ts	src/tools/BashTool/sedValidation.ts	load	open
 src/utils/shell/shellToolUtils.ts	src/tools/BashTool/toolName.ts	load	open
 src/utils/sideQuery.ts	src/services/api/client.ts	load	open
 src/utils/sideQuery.ts	src/services/api/clientContractGate.ts	load	open
 src/utils/sideQuery.ts	src/services/api/clientContractLearned.ts	load	open
 src/utils/sideQuery.ts	src/services/providers/anthropic/anthropicWire.ts	type	open
 src/utils/sideQuery.ts	src/services/providers/anthropic/requestParams.ts	load	open
-src/utils/spawnLedger.ts	src/daemon/controlSocket.ts	load	open
-src/utils/spawnLedger.ts	src/daemon/daemonHome.ts	load	open
-src/utils/spawnLedger.ts	src/daemon/workerParentWatch.ts	load	open
 src/utils/spendSpelling.ts	src/services/providers/providerUsage.ts	type	open
 src/utils/status.tsx	src/services/providers/accountSlots.ts	load	open
 src/utils/status.tsx	src/services/providers/providerUsability.ts	load	open
@@ -807,8 +791,8 @@ src/utils/task/workRoster.ts	src/services/engine-connector/types.ts	type	open
 src/utils/task/workRoster.ts	src/services/notices/unreadLedger.ts	load	open
 src/utils/terminal.ts	src/components/CtrlOToExpand.tsx	load	open
 src/utils/terminalHandback.ts	src/services/voice/voicePack.ts	load	open
-src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	open
-src/utils/theme.ts	src/components/mercuryPalette.ts	load	open
+src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
+src/utils/theme.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/tokens.ts	src/services/run/requestGauge.ts	load	open
 src/utils/toolPool.ts	src/services/mcp/utils.ts	load	open
 src/utils/toolResultSummary.ts	src/components/mercury-ui/glyphs.ts	load	open
