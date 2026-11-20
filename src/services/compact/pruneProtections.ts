@@ -1,6 +1,6 @@
 
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
-import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/constants.js'
+import { TOOL_SEARCH_TOOL_NAME } from '../../constants/tools/toolSearch.js'
 
 export const PROTECTED_TOOL_NAMES: ReadonlySet<string> = new Set([
   'Skill',
