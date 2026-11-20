@@ -5,6 +5,7 @@ import ignore from 'ignore'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { getCwd, getStartingCwd } from '../cwd.js'
+import { logForDebugging } from '../debug.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
 import { expandRuleBraces } from './ruleBraces.js'
 import { getMercuryHome } from '../envUtils.js'
@@ -603,7 +604,8 @@ export function rootForPattern(
   pattern: string,
   source: PermissionRule['source'],
   platform: ReturnType<typeof getPlatform> = getPlatform(),
-): { root: string | null; relative: string } {
+  behavior?: 'allow' | 'deny' | 'ask',
+): { root: string | null | undefined; relative: string } {
   const remote = remoteRulePattern(pattern)
   if (remote !== null) return { root: REMOTE_RULE_ROOT, relative: remote }
   if (platform === 'windows') {
@@ -625,7 +627,7 @@ export function rootForPattern(
     return { root: normalizeNfc(getHomeDir()), relative: pattern.slice(1) }
   }
   if (pattern.startsWith('/')) {
-    return { root: rootForSource(source) ?? null, relative: pattern }
+    return { root: rootForSource(source, behavior), relative: pattern }
   }
   if (pattern.startsWith('./')) {
     return { root: null, relative: pattern.slice(2) }
@@ -633,7 +635,9 @@ export function rootForPattern(
   return { root: null, relative: pattern }
 }
 
-function rootForSource(source: PermissionRule['source']): string | undefined {
+const rememberedSourceRoots = new Map<PermissionRule['source'], string>()
+
+function rootForSource(source: PermissionRule['source'], behavior?: 'allow' | 'deny' | 'ask'): string | null | undefined {
   switch (source) {
     case 'cliArg':
     case 'command':
@@ -644,9 +648,21 @@ function rootForSource(source: PermissionRule['source']): string | undefined {
     default:
       try {
         const path = getSettingsFilePathForSource(source)
-        return path ? getDirectoryForPath(path) : undefined
+        if (!path) return null
+        const dir = getDirectoryForPath(path)
+        rememberedSourceRoots.set(source, dir)
+        return dir
       } catch (error) {
         passedOver(error)
+        const remembered = rememberedSourceRoots.get(source)
+        if (remembered !== undefined) {
+          logForDebugging(`permission root for ${source} failed (${error instanceof Error ? error.message : String(error)}); using remembered root ${remembered}`, { level: 'warn' })
+          return remembered
+        }
+        if (behavior === 'deny') {
+          logForDebugging(`permission root for ${source} failed (${error instanceof Error ? error.message : String(error)}); rooting deny rule at original cwd`, { level: 'warn' })
+          return expandPath(getOriginalCwd())
+        }
         return undefined
       }
   }
@@ -688,8 +704,8 @@ function absoluteUnderRoot(root: string, literal: string): string {
   return `${base}${literal.startsWith('/') ? '' : '/'}${literal}`
 }
 
-function resolvedPatternForms(pattern: string, source: PermissionRule['source']): string[] {
-  const { root, relative } = rootForPattern(pattern, source)
+function resolvedPatternForms(pattern: string, source: PermissionRule['source'], behavior?: 'allow' | 'deny' | 'ask'): string[] {
+  const { root, relative } = rootForPattern(pattern, source, undefined, behavior)
   if (root === REMOTE_RULE_ROOT) return remoteRuleEndpointForms(pattern)
   if (root === null || root === undefined) return []
   const wildcardAt = relative.search(GLOB_SEGMENT)
@@ -724,8 +740,8 @@ export function ruleMatcherFor(
   type Group = { matcher: ReturnType<typeof ignore>; entries: Array<{ matcher: ReturnType<typeof ignore>; rule: PermissionRule }> }
   const groups = new Map<string | null, Group>()
   for (const [pattern, rule] of rules) {
-    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source)]) {
-      const { root, relative } = rootForPattern(form, rule.source)
+    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source, behavior)]) {
+      const { root, relative } = rootForPattern(form, rule.source, undefined, behavior)
       if (root === undefined) continue
       const stripped = relative.endsWith('/**') ? relative.slice(0, -3) : relative
       const group = groups.get(root) ?? { matcher: ignore(), entries: [] }
@@ -771,7 +787,7 @@ export function pathMatchesRulePattern(path: string, pattern: string, source: Pe
     })
   }
   const { root, relative: rel } = rootForPattern(pattern, source)
-  if (root === REMOTE_RULE_ROOT) return false
+  if (root === undefined || root === REMOTE_RULE_ROOT) return false
   const expanded = expandPath(path)
   const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
   const relative = relativePath(root === null ? getCwd() : root, candidatePath)
@@ -877,8 +893,8 @@ export function getFileReadIgnorePatterns(context: ToolPermissionContext): Map<s
   const rules = rulesForToolFamilyAndBehavior(context, fileReadRuleToolNames(), 'deny')
   const byRoot = new Map<string | null, string[]>()
   for (const [pattern, rule] of rules) {
-    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source)]) {
-      const { root, relative } = rootForPattern(form, rule.source)
+    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source, 'deny')]) {
+      const { root, relative } = rootForPattern(form, rule.source, undefined, 'deny')
       if (root === undefined || root === REMOTE_RULE_ROOT) continue
       const list = byRoot.get(root) ?? []
       if (!list.includes(relative)) list.push(relative)
@@ -1102,7 +1118,8 @@ function exactCredentialStoreGrant(path: string, credential: string, context: To
   return matchingRulesForInput(path, context, 'edit', 'allow').find(rule => {
     const content = rule.ruleValue.ruleContent ?? ''
     if (content === '' || /[*?[\]{}]/.test(content) || rule.source === 'projectSettings') return false
-    const { root, relative } = rootForPattern(content, rule.source)
+    const { root, relative } = rootForPattern(content, rule.source, undefined, 'allow')
+    if (root === undefined) return false
     const target = content.startsWith('~/') ? content : (root ?? getCwd()) + '/' + relative.replace(/^\/+/, '')
     return protectedPathForms(target).includes(credential)
   })
