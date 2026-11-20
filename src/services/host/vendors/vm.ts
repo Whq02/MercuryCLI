@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import type { HostOffer, HostPod } from './vendor.js'
 import { isOpenSshKey, keyMaterial, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
@@ -20,17 +20,19 @@ export class VmPlacements<T> {
   }
 }
 export async function verifyVmAbsent(label: string, id: string, list: (signal?: AbortSignal) => Promise<HostPod[]>, timing: VendorTiming, readOnly?: HostReadOnly, storageGone?: (signal?: AbortSignal) => Promise<boolean>): Promise<void> {
-  const deadline = Date.now() + (timing.readyTimeoutMs ?? 120000)
   let last = ''
-  for (;;) {
-    try {
-      const absent = !(await (readOnly ? readOnly('instance listing', list) : list())).some(row => row.id === id)
-      if (absent && (!storageGone || await (readOnly ? readOnly('storage listing', storageGone) : storageGone()))) return
-    } catch (error) {
-      if (readOnly) throw new HostTerminationUnconfirmed(label, error)
-      last = ' ' + (error instanceof Error ? error.message : String(error))
-    }
-    if (Date.now() >= deadline) throw new Error(label + ' termination is not verified; the instance or its storage may still bill. Check the console.' + last)
-    await sleep(timing.pollMs ?? 2000)
-  }
+  await pollUntil(
+    async () => {
+      try {
+        const absent = !(await (readOnly ? readOnly('instance listing', list) : list())).some(row => row.id === id)
+        if (absent && (!storageGone || await (readOnly ? readOnly('storage listing', storageGone) : storageGone()))) return true
+      } catch (error) {
+        if (readOnly) throw new HostTerminationUnconfirmed(label, error)
+        last = ' ' + (error instanceof Error ? error.message : String(error))
+      }
+    },
+    timing.pollMs ?? 2000,
+    timing.readyTimeoutMs ?? 120000,
+    () => { throw new Error(label + ' termination is not verified; the instance or its storage may still bill. Check the console.' + last) },
+  )
 }

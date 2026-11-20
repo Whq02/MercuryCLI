@@ -39,7 +39,7 @@ import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { errorMessage } from '../../utils/errors.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { safeParseJSONC } from '../../utils/json.js'
-import { sleep } from '../../utils/sleep.js'
+import { withDeadline } from '../../utils/deadline.js'
 
 type ProbeOutcome =
   | 'connected'
@@ -136,9 +136,7 @@ export async function mcpServeHandler(options: {
 const MCP_REVOKE_WAIT_MS = 10_000
 
 async function revocationAnswered(name: string, revoked: Promise<void>): Promise<void> {
-  const waited = new AbortController()
-  const late = await Promise.race([revoked.then(() => false), sleep(MCP_REVOKE_WAIT_MS, waited.signal).then(() => true)])
-  waited.abort()
+  const late = await withDeadline(revoked.then(() => false), MCP_REVOKE_WAIT_MS, () => true)
   if (late) console.error(`The authorization server of ${name} did not answer within ${MCP_REVOKE_WAIT_MS / 1000} s, so its tokens may stay valid there until they expire; the local copies are cleared.`)
 }
 

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { defineStore, StoreLockLostError } from '../../substrate/fileStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { registerExitCliffSeam, type ExitCliffSeam } from '../../utils/exitCliffDrain.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
@@ -450,12 +451,17 @@ function beginRead(home: string): () => void {
 async function awaitPeerAnswer(home: string, claim: ClientContractRead, signal?: AbortSignal): Promise<ClientContractRead> {
   let last = claim
   if (last.answer !== undefined || Date.now() - claim.atMs >= PEER_WAIT_MS) return last
-  for (let polls = 0; polls < PEER_WAIT_MS / PEER_POLL_MS && last.answer === undefined && signal?.aborted !== true; polls++) {
-    await sleep(PEER_POLL_MS, signal)
-    const read = (await storedRecord(home)).lastRead
-    if (read !== undefined && read.atMs >= claim.atMs) last = read
-  }
-  return last
+  return pollUntil(
+    async () => {
+      const read = (await storedRecord(home)).lastRead
+      if (read !== undefined && read.atMs >= claim.atMs) last = read
+      return last.answer !== undefined ? last : undefined
+    },
+    PEER_POLL_MS,
+    PEER_WAIT_MS,
+    () => last,
+    { signal, onAbort: () => last },
+  )
 }
 
 async function adoptKnown(home: string, sent: ClientContractPresented): Promise<string | null> {
