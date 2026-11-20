@@ -1,7 +1,6 @@
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { join } from 'node:path'
 import type { Message } from '../../types/message.js'
-import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import type { PastedContent } from '../../utils/config/schema.js'
 import { storedImageRefBlock } from '../../utils/imageStore.js'

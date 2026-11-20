@@ -33,7 +33,6 @@ import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
   checkResponseForCacheBreak,
   recordPromptState,
-  type NeutralToolSchema,
 } from '../../api/promptCacheBreakDetection.js'
 import type { Options } from '../anthropic/streamCore.js'
 import {

@@ -19,7 +19,7 @@ const getFocusedFold = (): FoldStatusV1 | null => {
   return hasSeatLive(connector) && connector.fold !== undefined ? connector.fold() : null
 }
 
-export type FoldLandingRowFacts = { type?: string; subtype?: string; timestamp?: string; content?: unknown }
+type FoldLandingRowFacts = { type?: string; subtype?: string; timestamp?: string; content?: unknown }
 
 export function FoldStatusRow({ rows, conversationId }: { rows: readonly FoldLandingRowFacts[]; conversationId: string }): React.ReactNode {
   const live = useSyncExternalStore(subscribeFocusedFold, getFocusedFold, getFocusedFold)

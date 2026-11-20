@@ -21,7 +21,7 @@ import { passedOver } from '../../utils/passedOver.js'
 const CACHE_TTL_1HOUR_MS = 60 * 60 * 1000
 const CACHE_TTL_5MIN_MS = 5 * 60 * 1000
 
-export type NeutralSystemBlock = {
+type NeutralSystemBlock = {
   text: string
   cache_control?: unknown
 }
