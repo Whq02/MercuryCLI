@@ -128,8 +128,8 @@ export function discoverPolyglotFiles(
     try {
       const resolved = realpathSync(root)
       rootLinked = process.platform === 'win32' ? resolved.toLowerCase() !== root.toLowerCase() : resolved !== root
-    } catch (error) {
-      passedOver(error)
+    } catch {
+      rootLinked = true
     }
   }
 
