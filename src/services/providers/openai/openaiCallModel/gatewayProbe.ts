@@ -12,7 +12,7 @@ import type {
 const OPENAI_GATEWAY_PROBE_TIMEOUT_MS = 15_000
 
 export async function sendOpenaiGatewayProbe(
-  body: Record<string, unknown>,
+  body: OpenaiResponsesRequest | Record<string, unknown>,
   auth: OpenaiRequestAuth,
   outer: AbortSignal,
 ): Promise<GatewayProbeAnswer> {
