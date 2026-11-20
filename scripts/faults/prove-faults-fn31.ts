@@ -372,5 +372,37 @@ console.log('\nhaltAll.ts — thrown daemonControlRpc error is reported as the r
   )
 }
 
+console.log('\ndurability.ts — EPERM from process.kill(pid, 0) counts journal writer as alive')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    mock.module(SRC + '/substrate/operationJournal.js', () => ({
+      listJournalOperations: async () => [{ state: 'applying', writerPid: 424242 }],
+    }))
+    const origKill = process.kill
+    process.kill = ((pid, sig) => {
+      if (pid === 424242 && sig === 0) {
+        const err = new Error('operation not permitted')
+        err.code = 'EPERM'
+        throw err
+      }
+      return origKill(pid, sig)
+    })
+    try {
+      const { durabilityChecks } = await import(SRC + '/utils/health/sections/durability.ts')
+      const spec = durabilityChecks().find(c => c.id === 'durable-journals')
+      out.row = await spec.run()
+    } finally {
+      process.kill = origKill
+    }
+  `)
+  const row = r.row as { status?: string; evidence?: string } | undefined
+  check(
+    'durability:eperm-writer-counts-as-in-flight',
+    row?.status === 'ok' && Boolean(row.evidence?.includes('1 in flight')) && Boolean(row.evidence?.includes('0 interrupted')),
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
