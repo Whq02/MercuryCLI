@@ -663,6 +663,7 @@ const PROGRAMS: Row[] = [
     : [
         {
           name: 'programs: app execution alias (EACCES statSync, lstatSync succeeds)',
+          hostArm: 'node' as const,
           answers: () => {
             if (p02HostPlatform === 'win32' && p02Win32AppAlias !== null) {
               const dir = p02MkdtempSync(p02Path.join(p02Tmpdir(), 'mercury-p02-alias-'))
@@ -1627,12 +1628,20 @@ import { desktopOpenPathCommand, desktopOpenUrlCommand } from '../../src/utils/p
 const DESKTOP: Row[] = [
   {
     name: 'desktop: desktopOpenPathCommand and desktopOpenUrlCommand',
-    answers: () => ({
-      openPath: desktopOpenPathCommand('/tmp/report.pdf'),
-      openUrlDefault: desktopOpenUrlCommand('https://example.com', undefined),
-      openUrlEmpty: desktopOpenUrlCommand('https://example.com', ''),
-      openUrlCustom: desktopOpenUrlCommand('https://example.com', 'firefox'),
-    }),
+    answers: () => {
+      const prevBrowser = process.env.BROWSER
+      delete process.env.BROWSER
+      try {
+        return {
+          openPath: desktopOpenPathCommand('/tmp/report.pdf'),
+          openUrlDefault: desktopOpenUrlCommand('https://example.com', undefined),
+          openUrlEmpty: desktopOpenUrlCommand('https://example.com', ''),
+          openUrlCustom: desktopOpenUrlCommand('https://example.com', 'firefox'),
+        }
+      } finally {
+        if (prevBrowser !== undefined) process.env.BROWSER = prevBrowser
+      }
+    },
     recorded: {"win32":{"openPath":{"file":"explorer","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlEmpty":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"darwin":{"openPath":{"file":"open","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"open","args":["https://example.com"]},"openUrlEmpty":{"file":"open","args":["https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"linux":{"openPath":{"file":"xdg-open","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"xdg-open","args":["https://example.com"]},"openUrlEmpty":{"file":"xdg-open","args":["https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"win32 by process.platform alone":{"openPath":{"file":"explorer","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlEmpty":{"file":"rundll32","args":["url,OpenURL","https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}},"win32 by getPlatform() alone":{"openPath":{"file":"xdg-open","args":["/tmp/report.pdf"]},"openUrlDefault":{"file":"xdg-open","args":["https://example.com"]},"openUrlEmpty":{"file":"xdg-open","args":["https://example.com"]},"openUrlCustom":{"file":"firefox","args":["https://example.com"]}}},
   },
 ]
