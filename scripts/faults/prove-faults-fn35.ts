@@ -249,10 +249,40 @@ async function runWorktreeRows(): Promise<void> {
   }
 }
 
+async function runWorktreeCloneRows(): Promise<void> {
+  if (!POSIX_MODES) return
+  const { cloneIntoWorktree } = await import('../../src/utils/worktreeClone.ts')
+  const checkout = join(SCRATCH, 'clone-checkout')
+  const wt = join(SCRATCH, 'clone-wt')
+  const lockedParent = join(checkout, 'locked')
+  const hiddenSource = join(lockedParent, 'deps')
+  mkdirSync(hiddenSource, { recursive: true })
+  mkdirSync(wt, { recursive: true })
+  chmodSync(lockedParent, 0o000)
+  try {
+    const outcomes = await cloneIntoWorktree(
+      [
+        { source: hiddenSource, target: join(wt, 'deps') },
+        { source: join(checkout, 'does-not-exist'), target: join(wt, 'absent') },
+      ],
+      checkout,
+      wt,
+    )
+    check(
+      'worktreeClone: unreadable source answers failed instead of missing while absent answers missing',
+      outcomes[0] === 'failed' && outcomes[1] === 'missing',
+      JSON.stringify(outcomes),
+    )
+  } finally {
+    chmodSync(lockedParent, 0o700)
+  }
+}
+
 try {
   await runUsageHistoryRows()
   await runBaselineRows()
   await runWorktreeRows()
+  await runWorktreeCloneRows()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
