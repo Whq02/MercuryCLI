@@ -193,5 +193,30 @@ console.log('\ntensorfoldState — failed served/discovery/presence reads reject
   check('tensorfoldState-presence-throws: tensorFoldPresenceCached throws when installed or hosts fails', r.installedThrow === 'installed-boom' && r.hostsThrow === 'hosts-boom', JSON.stringify({ installedThrow: r.installedThrow, hostsThrow: r.hostsThrow }))
 }
 
+console.log('\ntensorfoldUsage — failed served or hosts read answers undefined instead of absent')
+{
+  const r = runScenario(`
+    const path = await import('node:path')
+    const usage = await import(path.join(SRC, 'services/providers/local/tensorfoldUsage.ts'))
+    const empty = () => ({ probedAtMs: 1, targetCount: 0, servers: [] })
+    out.servedFailed = (() => {
+      try {
+        return { value: usage.tensorFoldServing('local/tensorfold/qwen3.5-2b', { snapshot: empty, served: () => { throw new Error('served-boom') }, hosts: () => [], turns: () => [] }) ?? null }
+      } catch (e) {
+        return { threw: String(e?.message ?? e) }
+      }
+    })()
+    out.hostsFailed = (() => {
+      try {
+        return { value: usage.tensorFoldServing('local/tensorfold/qwen3.5-2b', { snapshot: empty, served: () => [], hosts: () => { throw new Error('hosts-boom') }, turns: () => [] }) ?? null }
+      } catch (e) {
+        return { threw: String(e?.message ?? e) }
+      }
+    })()
+  `)
+  check('tensorfoldUsage-served-failed-undefined: throwing served read returns undefined instead of absent', JSON.stringify(r.servedFailed) === JSON.stringify({ value: null }), JSON.stringify(r.servedFailed))
+  check('tensorfoldUsage-hosts-failed-undefined: throwing hosts read returns undefined instead of absent', JSON.stringify(r.hostsFailed) === JSON.stringify({ value: null }), JSON.stringify(r.hostsFailed))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
