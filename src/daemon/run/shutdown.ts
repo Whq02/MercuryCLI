@@ -233,9 +233,19 @@ function failedAt(step: WayOutStep, e: unknown): never {
   throw e
 }
 
+function leaveWatchesToProcessEnd(): void {
+  try {
+    const watches = require('../../utils/watchRoot.js') as typeof import('../../utils/watchRoot.js')
+    watches.leaveFileWatchesToProcessEnd()
+  } catch (e) {
+    logForDebugging(`[daemon] the file watches were not left to the process end: ${e}`)
+  }
+}
+
 export function shutdownDaemon(state: DaemonRunState, needs: ShutdownNeeds, signal: string): void {
   if (state.shuttingDown) return
   state.shuttingDown = true
+  leaveWatchesToProcessEnd()
   for (const step of WAY_OUT_AT_ONCE) {
     try {
       void step.run(state, needs, signal)
