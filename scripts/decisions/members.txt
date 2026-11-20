@@ -1,0 +1,6 @@
+prove-command-analysis.ts
+prove-decision-matrix.ts
+prove-decision-trace.ts
+prove-decision-wrapper.ts
+prove-walk-corpus-parity.ts
+prove-zsh-is-not-opened.ts
