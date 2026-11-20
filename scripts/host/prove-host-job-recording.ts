@@ -37,9 +37,19 @@ let beforePatch: ((id: string, patch: Partial<HostRecord>) => void) | undefined
 
 const CONFIG_HOME = process.env.MERCURY_CONFIG_DIR!
 const secretsShown: ReadonlyArray<readonly [string, string]> = [[HF_KEY_AFTER, '<the Hugging Face key after a new sign-in>'], [hf.key, '<the Hugging Face key>'], [rp.key, '<the Runpod key>']]
+const regexOf = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function pathMasked(text: string, path: string, shown: string): string {
+  if (process.platform !== 'win32') return text.split(path).join(shown).split(path.replace(/^\/private/, '')).join(shown)
+  let out = text
+  for (const [form, sep] of [[JSON.stringify(path).slice(1, -1), '\\\\'], [path, '\\'], [path.replaceAll('\\', '/'), '/']] as const) {
+    const separator = `(?:${regexOf(sep)}|/)`
+    out = out.replace(new RegExp(`${regexOf(form)}((?:${separator}[^\\s"'\\\\/]+)*)`, 'g'), (_, under: string) => shown + under.replace(new RegExp(separator, 'g'), '/'))
+  }
+  return out
+}
 function mask(text: string): string {
-  let out = text.split(f.home).join('<home>').split(f.home.replace(/^\/private/, '')).join('<home>')
-  out = out.split(CONFIG_HOME).join('<config home>').split(CONFIG_HOME.replace(/^\/private/, '')).join('<config home>')
+  let out = pathMasked(text, f.home, '<home>')
+  out = pathMasked(out, CONFIG_HOME, '<config home>')
   for (const [secret, shown] of secretsShown) out = out.split(secret).join(shown)
   return out
     .replace(/mercury-[0-9a-f-]{12}/g, 'mercury-<id>')
