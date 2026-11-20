@@ -523,22 +523,43 @@ console.log('\nMercuryFileOpen — failed file listing returns failure sentence 
   check('control: succeeding loadFiles returns results with null error', ok?.error === null && ok?.results?.length === 1, JSON.stringify(ok ?? r))
 }
 
-console.log('\nMercuryFilesMenu — unreadable folder returns a warning row instead of looking empty')
+console.log('\nMercuryFilesMenu — unreadable folder returns a warning row with advice visible at panel width')
 {
   const r = runCase(`
     const mod = await import(${JSON.stringify(join(SRC, 'components/MercuryFilesMenu.tsx'))})
+    const React = await import('react')
+    const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'components/design-system/ThemeProvider.tsx'))})
+    const { mountOffscreen, settle } = await import(${JSON.stringify(join(HERE, '../lib/settingsPopupHarness.ts'))})
     const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
     out.posix = posix
     if (typeof mod.readFolder !== 'function') {
       out.missing = true
     } else {
-      const locked = path.join(PROJECT, 'locked')
+      const locked = path.join(PROJECT, 'some-long-project-folder', 'nested-subpath', 'locked')
       fs.mkdirSync(locked, { recursive: true })
       fs.writeFileSync(path.join(locked, 'secret.txt'), 'hi\\n')
       if (posix) fs.chmodSync(locked, 0o000)
       try {
-        out.locked = mod.readFolder(PROJECT, 'locked')
+        out.locked = mod.readFolder(PROJECT, path.join('some-long-project-folder', 'nested-subpath', 'locked'))
         out.absent = mod.readFolder(PROJECT, 'does-not-exist')
+        const m = await mountOffscreen(
+          React.createElement(
+            ThemeProvider,
+            {},
+            React.createElement(mod.MercuryFilesMenu, {
+              root: locked,
+              width: mod.FILES_MENU_WIDTH,
+              rowBudget: 8,
+              onClose: () => {},
+              onPick: () => {},
+            }),
+          ),
+          mod.FILES_MENU_WIDTH + 4,
+          20,
+        )
+        await settle(80)
+        out.painted = m.screen()
+        m.unmount()
       } finally {
         if (posix) fs.chmodSync(locked, 0o700)
       }
@@ -546,7 +567,9 @@ console.log('\nMercuryFilesMenu — unreadable folder returns a warning row inst
   `)
   if (r.posix === true) {
     const locked = Array.isArray(r.locked) ? (r.locked as Array<{ name?: string; path?: string }>) : []
-    check('unreadable folder produces warning entry instead of empty array', locked.length === 1 && typeof locked[0]?.name === 'string' && locked[0].name.includes('folder could not be read (') && locked[0].name.includes('— check permissions'), JSON.stringify(locked))
+    const painted = String(r.painted ?? '')
+    check('unreadable folder produces warning entry with advice before error', locked.length === 1 && typeof locked[0]?.name === 'string' && locked[0].name.startsWith('folder could not be read — check permissions (') && locked[0].name.endsWith(')'), JSON.stringify(locked))
+    check('unreadable folder advice is visible on screen at FILES_MENU_WIDTH', painted.includes('folder could not be read — check permissions'), painted.slice(0, 400))
     check('control: absent folder (ENOENT) still returns empty array', Array.isArray(r.absent) && (r.absent as unknown[]).length === 0, JSON.stringify(r.absent))
   }
 }
