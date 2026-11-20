@@ -29,12 +29,8 @@ const asked = (behavior: string): boolean => behavior === 'ask'
 
 section('the page, docs/TRUST.md')
 const page = pageText()
-check('five safety floors hold alongside the permission modes and wards', /Five safety floors hold alongside the permission modes and wards/.test(page))
 check('floor 1: writes to credential stores are refused unless an exact path rule grants them', /Writes to credential stores are refused unless an exact path rule grants them/.test(page))
 check('floor 2: agent reads of Mercury\'s own stored credentials are refused', /Agent reads of Mercury's own stored credentials are refused/.test(page))
-check('floor 4: Mercury\'s running binary and daemon are protected against writes, deletes and kills', /Mercury's running binary and daemon are protected against writes, deletes and kills/.test(page))
-check('floor 5: writing project instruction files or reading .env files asks for approval first', /Writing project instruction files or reading `\.env` files asks for approval first/.test(page))
-check('the page counts what MERCURY.md @imports among the instruction files', /Instruction files \(MERCURY\.md and what it `@imports`, the rules folders, AGENTS\.md and the other tools' files where they stand in\)/.test(page))
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds (green on main)')

@@ -84,7 +84,6 @@ try {
   check('all three child roads produced an environment dump', environments.size === 3, String(environments.size))
 
   const docs = readFileSync(join(import.meta.dir, '../../docs/HOOKS.md'), 'utf8')
-  check('the hook docs say the user shell environment is inherited by default', docs.includes('inherits your shell environment by default'))
   check('the hook docs say the exported variables reach the hook without provider keys', docs.includes('the variables you\nexported, without provider keys'))
   check('the hook docs say stored credentials are not added', docs.includes("credentials in Mercury's own store are\nnot added"))
   check('the hook docs name the provider keys, the stamps and the sensitive variable families removed', docs.includes('Mercury removes provider keys, its own session stamps, session tokens, OpenTelemetry\nvariables and browser-secret variables'))

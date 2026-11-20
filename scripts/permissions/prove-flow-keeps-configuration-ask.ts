@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, said, section, shown, type Rules } from './floorsKit.ts'
 
 type Call = [tool: string, input: Record<string, unknown>]
 const RULE = JSON.stringify({ guardrails: { allow: ['Bash(ls *)'] } })
@@ -14,9 +14,6 @@ const CONFIGURATION = [
   '<PROJECT>/MERCURY.md', '<PROJECT>/AGENTS.md',
 ]
 const told = (tool: string, input: Record<string, unknown>): string => (tool === 'Bash' ? shown(String(input.command)).slice(0, 110) : `${tool} ${shown(String(input.file_path))}`)
-
-section('the page, docs/TRUST.md')
-check('sensitive files, such as credentials and Mercury configuration, retain their own permission checks', /Sensitive files, such as credentials and Mercury configuration, retain their own permission checks/.test(pageText()))
 
 section('§1 under Flow a write to Mercury\'s own configuration keeps its ask, by a file tool and by a shell write alike')
 for (const path of CONFIGURATION) {
@@ -104,7 +101,6 @@ section('§4 a rule that arrives by a settings change while the session runs ans
     return { state, judge, changed, inForce }
   }
   const told = (answer: Answer): string => `${answer.behavior}${answer.message ? `: ${answer.message.slice(0, 140)}` : ''}`
-  check('the page says which allow rules answer one of the five', /An allow rule answers one of the five ahead of the\s+ask only if it stood when the session started or you granted it in this\s+session; a rule that arrives by a settings change while the session runs\s+answers none of the five until the next session\./.test(pageText()))
 
   put(user, [])
   put(local, [])

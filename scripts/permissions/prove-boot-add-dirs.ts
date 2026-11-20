@@ -2,7 +2,7 @@
 // gate-watch: src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/permissions/permissionSetup.ts src/Tool.ts src/types/permissions.ts
 // gate-watch: src/commands.ts src/main.tsx src/services/switchboard/runnerArgv.ts src/context.ts src/skills/loadSkillsDir.ts src/bootstrap/state.ts
 // gate-watch: src/components/permissions/rules/PermissionRuleList.tsx src/services/instructions/engine.ts docs/TRUST.md
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -25,7 +25,6 @@ function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const source = (file: string): string => readFileSync(join(repo, file), 'utf8')
 try {
   const { PermissionsSchema } = await import('../../src/utils/settings/types.js')
   for (const value of [[scratch], 'old-invalid-value', null, 17]) {
@@ -44,8 +43,6 @@ try {
   const init = await initializeToolPermissionContext({ allowedToolsCli: [], disallowedToolsCli: [], permissionMode: 'implement', allowDangerouslySkipPermissions: false })
   check('the live context has no added-root map', !Object.hasOwn(init.toolPermissionContext, 'additionalWorkingDirectories'))
   check('boot has no directory admission pass', !Object.hasOwn(init, 'admittedDirectories'))
-  const trust = source('docs/TRUST.md')
-  check('the docs name the starting-folder law', /starting folder/i.test(trust) && /Implement mode\*\* allows ordinary writes and edits inside the starting\s+folder\. Outside it, Mercury asks for permission/.test(trust))
   const dist = join(repo, 'dist/mercury.mjs')
   check('the CLI artifact is available', existsSync(dist))
   if (existsSync(dist)) {

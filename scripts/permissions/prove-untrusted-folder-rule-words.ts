@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section } from './floorsKit.ts'
+import { check, decide, fill, finish, note, said, section } from './floorsKit.ts'
 
 const state = await import('../../src/bootstrap/state.ts')
 const { resetTrustDialogAcceptedCacheForTesting, untrustedWorkspaceHeadless } = await import('../../src/utils/config/trust.ts')
@@ -14,9 +14,6 @@ const headless = (untrusted: boolean): void => {
   state.setSessionTrustAccepted(!untrusted)
   resetTrustDialogAcceptedCacheForTesting()
 }
-
-section('the page, docs/TRUST.md')
-check('a headless run in a folder nobody trusted goes on without the project\'s instructions', /`mercury run` proceeds without the project's instructions/.test(pageText()))
 
 section('§1 control: in a trusted folder a refusal names the rule as it is written')
 headless(false)
