@@ -403,6 +403,77 @@ async function main(): Promise<void> {
       check('keychain corrupt JSON refuses instead of missing', out.kcBadJsonRes?.state === 'refused' && out.kcBadJsonRes.note.includes('not valid JSON'), JSON.stringify(out.kcBadJsonRes))
     }
   })
+
+  await runRow('browserTransfers: fails closed when destination lstat fails with non-ENOENT error', () => {
+    const script = `
+      import { mock } from 'bun:test'
+      import * as realFs from 'node:fs'
+      import { tmpdir } from 'node:os'
+      import { join } from 'node:path'
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+      process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const home = realFs.mkdtempSync(join(tmpdir(), 'fn08-transfers-'))
+      realFs.mkdirSync(join(home, 'incoming'), { recursive: true })
+      let scenario = 'first'
+      let lstatCount = 0
+      const realLstat = realFs.promises.lstat.bind(realFs.promises)
+      const realRename = realFs.promises.rename.bind(realFs.promises)
+      mock.module('node:fs', () => ({
+        ...realFs,
+        promises: {
+          ...realFs.promises,
+          lstat: async p => {
+            if (String(p).endsWith('report.txt')) {
+              lstatCount++
+              if (scenario === 'first' || (scenario === 'second' && lstatCount === 2)) {
+                throw Object.assign(new Error('EACCES: cannot stat destination'), { code: 'EACCES' })
+              }
+            }
+            return realLstat(p)
+          },
+          rename: async (from, to) => {
+            if (scenario === 'second' && String(to).endsWith('report.txt') && !String(from).includes('.part-')) {
+              throw Object.assign(new Error('EXDEV: cross-device link'), { code: 'EXDEV' })
+            }
+            return realRename(from, to)
+          },
+        },
+      }))
+      try {
+        const tr = await import(${JSON.stringify(join(SRC, 'services/browser/browserTransfers.ts'))})
+        const book = tr.newTransferBook()
+
+        realFs.writeFileSync(join(home, 'incoming', 'g1'), 'payload-1')
+        const t1 = tr.beginTransfer(book, { guid: 'g1', tab: 't1', url: 'https://a.example', name: 'report.txt', type: 'text/plain', home })
+        tr.moveTransfer(book, 'g1', { state: 'completed', receivedBytes: 9, totalBytes: 9 })
+        await t1.done
+
+        scenario = 'second'
+        lstatCount = 0
+        realFs.writeFileSync(join(home, 'incoming', 'g2'), 'payload-2')
+        const t2 = tr.beginTransfer(book, { guid: 'g2', tab: 't1', url: 'https://a.example', name: 'report.txt', type: 'text/plain', home })
+        tr.moveTransfer(book, 'g2', { state: 'completed', receivedBytes: 9, totalBytes: 9 })
+        await t2.done
+
+        process.stdout.write('\\n' + JSON.stringify({
+          t1State: t1.state,
+          t1Failure: t1.failure,
+          t2State: t2.state,
+          t2Failure: t2.failure,
+        }))
+      } finally {
+        realFs.rmSync(home, { recursive: true, force: true })
+      }
+    `
+    const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
+    check('isolated browserTransfers check exited 0', res.status === 0, res.stderr.slice(-400))
+    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { t1State?: string; t1Failure?: string | null; t2State?: string; t2Failure?: string | null }
+    check('direct move fails closed on non-ENOENT lstat error', out.t1State === 'failed' && String(out.t1Failure).includes('cannot stat destination'), JSON.stringify(out))
+    check('EXDEV fallback move fails closed on non-ENOENT lstat error', out.t2State === 'failed' && String(out.t2Failure).includes('cannot stat destination'), JSON.stringify(out))
+  })
 }
 
 try {
