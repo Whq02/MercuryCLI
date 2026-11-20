@@ -641,10 +641,60 @@ function shownWords(text: string, argv: readonly string[]): readonly string[] {
   return words.length === argv.length && !words[0]?.includes('\\') ? words : argv
 }
 
-function redirectShown(simple: ReadCommand): string {
+function splitRedirects(tail: string): string[] {
+  const parts: string[] = []
+  let current = ''
+  let quote = ''
+  for (let i = 0; i < tail.length; i++) {
+    const ch = tail[i]!
+    if (quote !== '') {
+      if (ch === quote) quote = ''
+      current += ch
+      continue
+    }
+    if (ch === '\\' && i + 1 < tail.length) {
+      current += ch + tail[++i]
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      current += ch
+      continue
+    }
+    const op = /^(?:&>>?|>>?|>\||<<-?|<<<|<&?|>&)/.exec(tail.slice(i))
+    if (op !== null) {
+      if (/^\s*\d*$/.test(current)) current += op[0]
+      else {
+        const fd = /\s(\d+)$/.exec(current)
+        if (fd !== null) {
+          parts.push(current.slice(0, fd.index).trim())
+          current = fd[1]! + op[0]
+        } else {
+          parts.push(current.trim())
+          current = op[0]
+        }
+      }
+      i += op[0].length - 1
+      continue
+    }
+    current += ch
+  }
+  if (current.trim() !== '') parts.push(current.trim())
+  return parts
+}
+
+function redirectShown(simple: ReadCommand, commands: readonly ReadCommand[], op: string, target: string): string {
   const around = simple.around ?? simple.text
   const at = simple.text === '' ? -1 : around.lastIndexOf(simple.text)
-  return at > 0 ? around.slice(at) : around
+  if (at < 0) return around
+  const tail = around.slice(at + simple.text.length)
+  if (tail.trim() === '') return around
+  const parts = splitRedirects(tail)
+  const matching = parts.find(part => part.startsWith(op) && part.slice(op.length).trimStart().startsWith(target))
+  if (matching !== undefined && matching.slice(op.length).trimStart().slice(target.length).trim() !== '') return around
+  const lastInner = simple.inner.flat().at(-1)
+  const head = lastInner === undefined ? simple.text : (commands[lastInner]?.text ?? simple.text)
+  return `${head} ${parts.join(' ')}`
 }
 
 async function scanReading(command: string, cwd: string | null, scan: Scan, parent?: Scan): Promise<void> {
@@ -671,8 +721,7 @@ async function scanReading(command: string, cwd: string | null, scan: Scan, pare
     scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
     scan.aliases = here.aliases ?? scan.aliases
     if (scan.asks.length > 0) break
-    const shown = cut(read.unread === undefined ? redirectShown(simple) : around, 60)
-    for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, shown)
+    for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(read.unread === undefined ? redirectShown(simple, read.commands, redirect.op, redirect.target) : around, 60))
     scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
     for (const layer of layersOf(simple.argv)) {
       if (scan.asks.length > 0) break
