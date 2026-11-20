@@ -176,5 +176,30 @@ if (!POSIX_MODES) {
   check('file-adapter-enoent-still-absent', missing?.state === 'absent', JSON.stringify(missing))
 }
 
+console.log('\nresources/adapters/health.ts — corrupt gate/cert files throw instead of claiming none written')
+{
+  const r = runSub(`
+    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
+    const { gateVerdictPath, lastCertPath } = await import(path.join(SRC, 'utils/healthReport.ts'))
+    const ctx = { owner: processMainOwner(), cwd: PROJECT }
+    out.gateAbsent = await resolveResource('mercury://health/gate', ctx)
+    out.certAbsent = await resolveResource('mercury://health/cert', ctx)
+    fs.mkdirSync(path.dirname(gateVerdictPath()), { recursive: true })
+    fs.writeFileSync(gateVerdictPath(), '{broken', { mode: 0o600 })
+    fs.mkdirSync(path.dirname(lastCertPath()), { recursive: true })
+    fs.writeFileSync(lastCertPath(), '{broken', { mode: 0o600 })
+    out.gateCorrupt = await resolveResource('mercury://health/gate', ctx)
+    out.certCorrupt = await resolveResource('mercury://health/cert', ctx)
+  `)
+  const gateAbsent = r.gateAbsent as { state?: string }
+  const certAbsent = r.certAbsent as { state?: string }
+  const gateCorrupt = r.gateCorrupt as { state?: string; note?: string }
+  const certCorrupt = r.certCorrupt as { state?: string; note?: string }
+  check('health-adapter-absent-ok', gateAbsent?.state === 'absent' && certAbsent?.state === 'absent', JSON.stringify({ gateAbsent, certAbsent }))
+  check('health-adapter-gate-corrupt-unavailable', gateCorrupt?.state === 'unavailable', JSON.stringify(gateCorrupt))
+  check('health-adapter-cert-corrupt-unavailable', certCorrupt?.state === 'unavailable', JSON.stringify(certCorrupt))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
