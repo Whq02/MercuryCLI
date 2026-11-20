@@ -1,5 +1,6 @@
 
 declare const MERCURY_DOC_PAGES_PACKED: string | undefined;
+declare const MERCURY_CHANGELOG_PACKED: string | undefined;
 
 declare const MACRO: {
   readonly VERSION: string;
