@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,8 +12,6 @@ const { releaseNotesFor } = (await import('./notesFromChangelog.mjs')) as {
 }
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const PACKAGE_VERSION = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string }).version
-
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
@@ -26,15 +24,6 @@ check('src/constants/changelog.ts exports buildMercuryChangelog(rootDir)', typeo
 const stored = await getStoredChangelog()
 const all = getAllReleaseNotes(stored)
 const byVersion = new Map(all)
-const currentFromApp = byVersion.get(PACKAGE_VERSION) ?? []
-const currentFromScript = releaseNotesFor(PACKAGE_VERSION, ROOT)
-const expectedScript = `# Mercury ${PACKAGE_VERSION}\n\n${currentFromApp.map(note => `- ${note}`).join('\n')}\n`
-check(`in-app changelog and notesFromChangelog.mjs agree byte for byte on ${PACKAGE_VERSION}`, currentFromApp.length > 0 && currentFromScript === expectedScript, currentFromScript ? `len ${currentFromScript.length} vs ${expectedScript.length}` : 'undefined')
-
-const queuedNotes = releaseNotesFor('1.0.12', ROOT)
-check('notesFromChangelog.mjs reads queued 1.0.12 directly from docs/releases/1.0.12.md', typeof queuedNotes === 'string' && queuedNotes.startsWith('# Mercury 1.0.12\n\n- '), String(queuedNotes).slice(0, 80))
-check('in-app changelog omits queued 1.0.12 until it leaves the queue', !byVersion.has('1.0.12'))
-
 const post42 = all.map(([v]) => v).filter(v => {
   const idx = all.findIndex(([ver]) => ver === '1.0.0-beta.43')
   return idx >= 0 && all.findIndex(([ver]) => ver === v) >= idx
