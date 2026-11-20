@@ -391,7 +391,7 @@ console.log('\nhaltAll.ts — thrown daemonControlRpc error is reported as the r
       ...real,
       daemonControlRpc: async () => { throw new Error('control key unreadable') },
     }))
-    const { haltAll } = await import(SRC + '/utils/haltAll.ts')
+    const { haltAll } = await import(SRC + '/daemon/haltAll.ts')
     out.result = await haltAll({ getAppState: () => ({ tasks: {} }), setAppState: () => {} })
   `)
   const daemon = (r.result as { daemon?: { ok?: boolean; reason?: string } } | undefined)?.daemon
