@@ -54,7 +54,7 @@ import {
   refreshOAuthToken,
   shouldUseClaudeAIAuth,
   storeOAuthAccountInfo as storeAccount,
-} from '../services/oauth/client.js'
+} from '../services/oauth/refresh.js'
 import { getOauthProfileFromOauthToken } from '../services/oauth/getOauthProfile.js'
 import type { OAuthTokens, SubscriptionType, RateLimitTier } from '../services/oauth/types.js'
 import { binaryName } from './config.js'
