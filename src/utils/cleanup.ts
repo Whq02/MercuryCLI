@@ -284,8 +284,9 @@ export async function recordingsUnderSweep(): Promise<{ count: number; bytes: nu
   let projectEntries: Awaited<ReturnType<typeof fs.readdir>>
   try {
     projectEntries = await fs.readdir(projectsRoot)
-  } catch {
-    return { count, bytes }
+  } catch (error) {
+    if (isENOENT(error)) return { count, bytes }
+    throw error
   }
   for (const projectEntry of projectEntries) {
     if (!projectEntry.isDirectory()) continue
@@ -294,8 +295,8 @@ export async function recordingsUnderSweep(): Promise<{ count: number; bytes: nu
     try {
       entries = await fs.readdir(projectDir)
     } catch (error) {
-      passedOver(error)
-      continue
+      if (isENOENT(error)) continue
+      throw error
     }
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith('.cast')) continue
@@ -304,7 +305,7 @@ export async function recordingsUnderSweep(): Promise<{ count: number; bytes: nu
         count++
         bytes += stats.size
       } catch (error) {
-        passedOver(error)
+        if (!isENOENT(error)) throw error
       }
     }
   }

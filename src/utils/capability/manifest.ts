@@ -7,6 +7,7 @@ import {
 import type { Tool } from '../../Tool.js'
 import { declaredCapability } from './contract.js'
 import { passedOver } from '../passedOver.js'
+import { logForDebugging } from '../debug.js'
 
 export type CapabilityRisk = McpRisk
 
@@ -217,8 +218,8 @@ function probeToolEnabled(tool: Tool): boolean {
   try {
     return fn.call(tool) !== false
   } catch (error) {
-    passedOver(error)
-    return true
+    logForDebugging(`probeToolEnabled failed for ${tool.name}: ${error}`, { level: 'error' })
+    return false
   }
 }
 

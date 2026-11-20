@@ -18,6 +18,9 @@ function pidAlive(pid: number): boolean {
     process.kill(pid, 0)
     return true
   } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'EPERM') return true
+    if (code === 'ESRCH') return false
     passedOver(error)
     return false
   }
@@ -44,12 +47,15 @@ function kickPing(key: string): void {
 
 export function daemonSnapshot(): Snapshot {
   try {
+    const statePath = daemonStatePath()
     let rec: { pid?: unknown; version?: unknown; startedAt?: unknown; proto?: unknown } | null = null
     try {
-      const parsed = JSON.parse(readFileSync(daemonStatePath(), 'utf8'))
+      const parsed = JSON.parse(readFileSync(statePath, 'utf8'))
       if (parsed && typeof parsed === 'object') rec = parsed
-    } catch {
-      rec = null
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException | null)?.code
+      if (code === 'ENOENT' || code === 'ENOTDIR' || error instanceof SyntaxError) rec = null
+      else throw error
     }
 
     if (rec && typeof rec.pid === 'number') {
@@ -97,7 +103,8 @@ export function daemonSnapshot(): Snapshot {
         : `opt-in: run \`${thisMercuryCommand()} daemon\``,
       source: 'daemon',
     }
-  } catch {
-    return { state: 'off', reason: `opt-in: run \`${thisMercuryCommand()} daemon\``, source: 'daemon' }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    return { state: 'unavailable', reason: `daemon state unreadable (${detail})`, source: 'daemon' }
   }
 }

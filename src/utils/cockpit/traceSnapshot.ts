@@ -7,6 +7,7 @@ import {
 } from '../observability/invocationTrace.js'
 import { withState, type Snapshot } from './types.js'
 import { passedOver } from '../passedOver.js'
+import { isENOENT } from '../errors.js'
 
 export type CompactionAgg = {
   total: number
@@ -208,11 +209,14 @@ export async function traceSnapshot(): Promise<Snapshot<{ data: TraceData }>> {
         compaction,
       },
     }
-  } catch {
-    return withState(
-      enabled ? 'unavailable' : 'off',
-      empty,
-      enabled ? 'no trace file yet' : 'enable with MERCURY_TRACE=1 or MERCURY_SUBSTRATE=1',
-    )
+  } catch (error) {
+    if (!enabled) {
+      return withState('off', empty, 'enable with MERCURY_TRACE=1 or MERCURY_SUBSTRATE=1')
+    }
+    if (isENOENT(error)) {
+      return withState('unavailable', empty, 'no trace file yet')
+    }
+    const detail = error instanceof Error ? error.message : String(error)
+    return withState('unavailable', empty, `trace file unreadable (${detail})`, getInvocationTracePath())
   }
 }

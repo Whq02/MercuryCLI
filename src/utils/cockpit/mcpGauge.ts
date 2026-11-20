@@ -161,32 +161,27 @@ function countRows(servers: McpServerRow[]): McpCounts {
 const SOURCE = 'config.mcpServers ⊕ this process'
 
 export function mcpGauge(): Snapshot<{ data: McpData }> {
-  let maxRisk = 'high'
-  let mcpPolicyActive = false
-  let mcpPolicyHint = 'high · permissive'
-  try {
-    maxRisk = getMaxExposedRisk()
-    mcpPolicyActive = isMcpPolicyActive()
-    mcpPolicyHint = describeMcpPolicy()
-  } catch (error) {
-    passedOver(error)
-  }
   const runtime = mcpConnectionsSnapshot()
   const runtimeStampedAt = runtime?.stampedAt ?? null
   const byName = new Map<string, MCPServerConnection>()
   for (const c of runtime?.connections ?? []) byName.set(c.name, c)
 
+  let maxRisk = ''
+  let mcpPolicyActive = false
+  let mcpPolicyHint = 'unavailable'
   let names: string[]
   try {
+    maxRisk = getMaxExposedRisk()
+    mcpPolicyActive = isMcpPolicyActive()
+    mcpPolicyHint = describeMcpPolicy()
     const g = getGlobalConfig()
     const p = getCurrentProjectConfig()
     let projectNames: string[] = []
-    try {
-      if (!untrustedWorkspaceHeadless()) {
-        projectNames = Object.keys(getProjectMcpConfigsFromCwd().servers)
-      }
-    } catch (error) {
-      passedOver(error)
+    if (!untrustedWorkspaceHeadless()) {
+      const projectMcp = getProjectMcpConfigsFromCwd()
+      const fatal = projectMcp.errors.find(e => e.severity === 'fatal')
+      if (fatal) throw new Error(fatal.message)
+      projectNames = Object.keys(projectMcp.servers)
     }
     names = Array.from(
       new Set([...Object.keys(g?.mcpServers ?? {}), ...Object.keys(p?.mcpServers ?? {}), ...projectNames]),
