@@ -92,7 +92,7 @@ try {
   check('an all-hidden title refuses without changing the record', daemon.setConcourseSessionTitle('title-probe', '\u202e\u200b', 'fixture', 'operator', dir).outcome === 'refused' && daemon.readSessionWorkers(dir).probe?.title === 'Fix auth flow')
   const streamCore = await import('../../src/services/providers/anthropic/streamCore.ts')
   mock.module('../../src/services/providers/anthropic/streamCore.ts', () => ({ ...streamCore, queryUtility: async () => ({ message: { content: [{ type: 'text', text: JSON.stringify({ title: dirty }) }] } }) }))
-  const { generateSessionTitle } = await import('../../src/utils/sessionTitle.ts')
+  const { generateSessionTitle } = await import('../../src/services/concourse/sessionTitle.ts')
   check('the generated title is sanitized before callers see it', await generateSessionTitle('fixture conversation', new AbortController().signal) === 'Fix auth flow')
 } finally {
   rmSync(home, { recursive: true, force: true })
