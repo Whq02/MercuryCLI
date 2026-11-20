@@ -1,5 +1,5 @@
 import { posix } from 'node:path'
-import { peelWrappers } from '../../../bash/ast.js'
+import { peelWrappers } from './wrappers.js'
 import { UNREAD_PART, type Layer, type ReadCommand, type ReadWorld } from './reading.js'
 
 const PRODUCT_WRAPPERS = new Set(['nohup', 'timeout', 'nice', 'env', 'stdbuf'])
