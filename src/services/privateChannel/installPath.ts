@@ -218,12 +218,7 @@ const refusal = (roots: LayoutRoots, io: Pick<PathEntryIo, 'env' | 'home'>, reas
 export function zshStartupDir(io: Pick<PathEntryIo, 'env' | 'home' | 'zshDotDir'>): string {
   const fromEnv = io.env.ZDOTDIR ?? ''
   if (fromEnv.startsWith('/')) return fromEnv
-  let asked: string | null = null
-  try {
-    asked = io.zshDotDir()
-  } catch (error) {
-    passedOver(error)
-  }
+  const asked = io.zshDotDir()
   return asked !== null && asked.startsWith('/') ? asked : io.home
 }
 
@@ -542,12 +537,7 @@ export function realPathEntryIo(opts: { powershell?: () => string | null } = {})
     zshDotDir() {
       const zsh = whichSync('zsh')
       if (zsh === null) return null
-      try {
-        return execFileSync(zsh, ['-c', 'printf %s "${ZDOTDIR-}"'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5_000, env: subprocessEnv() }).trim() || null
-      } catch (error) {
-        passedOver(error)
-        return null
-      }
+      return execFileSync(zsh, ['-c', 'printf %s "${ZDOTDIR-}"'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5_000, env: subprocessEnv() }).trim() || null
     },
     readUserPath: () => (storeFile ? readUserPathFile(storeFile) : readUserPathRegistry(opts.powershell)),
     writeUserPath: (expected, value, kind) =>

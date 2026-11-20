@@ -2,7 +2,8 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -10,7 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const HERE = import.meta.dir
+const HERE = dirname(fileURLToPath(import.meta.url))
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
@@ -101,6 +102,62 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   check(
     'unparsable or empty MERCURY_GH_CMD returns error naming MERCURY_GH_CMD and never runs plain gh',
     badJson?.state === 'error' && (badJson.stderr ?? '').includes('MERCURY_GH_CMD') && emptyArray?.state === 'error' && (emptyArray.stderr ?? '').includes('MERCURY_GH_CMD') && r.plainRan === false,
+    JSON.stringify(r),
+  )
+}
+
+{
+  console.log('\ninstallPath.ts — failing zshDotDir probe refuses instead of writing ~/.zshrc')
+  const r = runSub(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const installPath = await import(path.join(SRC, 'services/privateChannel/installPath.ts'))
+    const roots = {
+      versionsDir: path.join(WORK, 'versions'),
+      binDir: path.join(WORK, 'bin'),
+      shimPath: path.join(WORK, 'bin', 'mercury'),
+      isWindows: false,
+    }
+    const appended = []
+    const io = {
+      env: { SHELL: '/bin/zsh', PATH: '/usr/bin:/bin' },
+      home: WORK,
+      readFile: () => null,
+      appendFile: (p, t) => appended.push({ p, t }),
+      writeFile: () => {},
+      removeFile: () => {},
+      resolveCommand: () => null,
+      zshDotDir: () => { throw new Error('zsh probe failed') },
+      readUserPath: () => ({ state: 'absent' }),
+      writeUserPath: () => {},
+    }
+    out.ensure = installPath.ensureBinDirOnPath(roots, io)
+    out.appended = appended.length
+
+    const fakeBin = path.join(WORK, 'fake-zsh-bin')
+    fs.mkdirSync(fakeBin, { recursive: true })
+    const fakeZsh = path.join(fakeBin, 'zsh')
+    fs.writeFileSync(fakeZsh, '#!/bin/sh\\nexit 2\\n')
+    fs.chmodSync(fakeZsh, 0o755)
+    process.env.PATH = fakeBin
+    const realIo = installPath.realPathEntryIo()
+    let realThrew = null
+    try {
+      realIo.zshDotDir()
+    } catch (e) {
+      realThrew = e instanceof Error ? e.message : String(e)
+    }
+    out.realThrew = realThrew
+  `)
+  const ensure = r.ensure as { state?: string; reason?: string }
+  check(
+    'ensureBinDirOnPath refuses and writes nothing when zshDotDir throws',
+    ensure?.state === 'refused' && (ensure.reason ?? '').includes('zsh probe failed') && r.appended === 0,
+    JSON.stringify(r),
+  )
+  check(
+    'realPathEntryIo().zshDotDir throws when zsh exits non-zero',
+    typeof r.realThrew === 'string' && r.realThrew.length > 0,
     JSON.stringify(r),
   )
 }
