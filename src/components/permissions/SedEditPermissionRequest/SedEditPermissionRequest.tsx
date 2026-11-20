@@ -52,13 +52,16 @@ export function SedEditPermissionRequest({
     () => (loaded === null ? '' : applySedSubstitution(oldContent, sedEditInfo)),
     [loaded, oldContent, sedEditInfo],
   )
-  const isNoOp = loaded !== null && oldContent === newContent
+  const isNoOp = loaded !== null && newContent !== null && oldContent === newContent
 
   const parseInput = useCallback(
-    (input: unknown): ToolInput => ({
-      ...(input as ToolInput),
-      _simulatedSedEdit: { filePath: sedEditInfo.filePath, newContent, beforeBytes: loaded?.beforeBytes },
-    }),
+    (input: unknown): ToolInput =>
+      newContent === null
+        ? (input as ToolInput)
+        : {
+            ...(input as ToolInput),
+            _simulatedSedEdit: { filePath: sedEditInfo.filePath, newContent, beforeBytes: loaded?.beforeBytes },
+          },
     [sedEditInfo.filePath, newContent, loaded],
   )
 
@@ -75,7 +78,11 @@ export function SedEditPermissionRequest({
         </Text>
       }
       content={
-        loaded === null ? null : isNoOp ? (
+        loaded === null ? null : newContent === null ? (
+          <Text dimColor>
+            {`${sedEditInfo.filePath}: this sed pattern could not be previewed — approving runs sed directly`}
+          </Text>
+        ) : isNoOp ? (
           <Text dimColor>
             {loaded.exists
               ? 'The pattern did not match any content'
