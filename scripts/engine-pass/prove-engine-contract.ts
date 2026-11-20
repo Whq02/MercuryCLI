@@ -132,7 +132,7 @@ try {
     }
     const stillExported = exportedNames(ROOT, [...new Set(removed.map(item => item.path))].filter(file => existsSync(join(ROOT, file))))
     for (const { path, line } of removed) {
-      const declared = /^-export\s+(?:default\s+)?(?:declare\s+)?(?:async\s+)?(?:const\s+enum|type|interface|const|let|function|class|enum)\s+([A-Za-z_$][\w$]*)/.exec(line)?.[1]
+      const declared = (/^-export\s+(?:default\s+)?(?:declare\s+)?(?:async\s+)?(?:const\s+enum|type|interface|const|let|function|class|enum)\s+([A-Za-z_$][\w$]*)/.exec(line) ?? /^-export\s*=\s*([A-Za-z_$][\w$]*)\s*;?\s*$/.exec(line))?.[1]
       assert.ok(declared, `an exported declaration was removed in a shape the record cannot name: ${line}`)
       const exportName = /^-export\s+default\b/.test(line) ? 'default' : declared
       if (stillExported.get(path)?.has(exportName)) {
