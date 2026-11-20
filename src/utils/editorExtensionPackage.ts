@@ -41,8 +41,12 @@ export function installedEditorExtensions(home: string = homedir()): InstalledEd
     try {
       names = readdirSync(extensionsDir)
     } catch (error) {
-      passedOver(error)
-      continue
+      const code = (error as NodeJS.ErrnoException | null)?.code
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        passedOver(error)
+        continue
+      }
+      throw error
     }
     const matches = names.filter(n => n.toLowerCase().startsWith(prefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     const newest = matches[matches.length - 1]
