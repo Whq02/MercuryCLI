@@ -275,5 +275,45 @@ console.log('\nresources/adapters/artifact.ts — computeWorkingTreeDigest throw
   check('artifact-adapter-digest-throw-unavailable', res?.state === 'unavailable' && String(res?.note).includes('digest boom'), JSON.stringify(res))
 }
 
+console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propagate to registry unavailable')
+{
+  const r1 = runSub(`
+    const { mock } = await import('bun:test')
+    const resolveOwnerPath = path.join(SRC, 'services/run/resolveOwner.ts')
+    const realOwner = await import(resolveOwnerPath)
+    const owner = realOwner.processMainOwner()
+    mock.module(resolveOwnerPath, () => ({ ...realOwner, processMainOwner: () => { throw new Error('owner boom') } }))
+    const { listResourceKind } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    out.res = await listResourceKind('execution', { owner, cwd: PROJECT })
+  `)
+  const res1 = r1.res as { state?: string; note?: string }
+  check('execution-adapter-owner-bug-propagates', res1?.state === 'unavailable' && String(res1?.note).includes('owner boom'), JSON.stringify(res1))
+
+  const r2 = runSub(`
+    const { mock } = await import('bun:test')
+    const dapPath = path.join(SRC, 'services/dap/dapClient.ts')
+    const realDap = await import(dapPath)
+    mock.module(dapPath, () => ({ ...realDap, getDapSession: () => { throw new Error('dap boom') } }))
+    const { registerExecution } = await import(path.join(SRC, 'services/primitives/executionPlane.ts'))
+    const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
+    const { processMainOwner } = await import(path.join(SRC, 'services/run/resolveOwner.ts'))
+    const owner = processMainOwner()
+    registerExecution({
+      owner,
+      id: 'dap-test-1',
+      kind: 'debug-adapter',
+      label: 'dap',
+      lifecycle: 'owner',
+      cwd: PROJECT,
+      startedBy: 'test',
+      metadata: { alias: 'a1' },
+      initialState: 'running',
+    })
+    out.res = await resolveResource('mercury://execution/dap-test-1', { owner, cwd: PROJECT })
+  `)
+  const res2 = r2.res as { state?: string; note?: string }
+  check('execution-adapter-dap-children-bug-propagates', res2?.state === 'unavailable' && String(res2?.note).includes('dap boom'), JSON.stringify(res2))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

@@ -18,18 +18,13 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from '../contracts.js'
-import { passedOver } from '../../../utils/passedOver.js'
 
 function candidateOwners(ctx: ResourceContext): OwnerKey[] {
   const owners: OwnerKey[] = [ctx.owner]
   const project = projectOwner(path.resolve(ctx.cwd))
   if (!owners.includes(project)) owners.push(project)
-  try {
-    const main = processMainOwner()
-    if (!owners.includes(main)) owners.push(main)
-  } catch (error) {
-    passedOver(error)
-  }
+  const main = processMainOwner()
+  if (!owners.includes(main)) owners.push(main)
   return owners
 }
 
@@ -69,29 +64,24 @@ async function debugAdapterChildren(record: ExecutionRecord): Promise<ResourceCh
   if (record.spec.kind !== 'debug-adapter' || isTerminalExecutionState(record.state)) return []
   const alias = record.spec.metadata?.alias
   if (typeof alias !== 'string') return []
-  try {
-    const { getDapSession } = await import('../../dap/dapClient.js')
-    const root = getDapSession(record.spec.owner, alias)
-    if (!root) return []
-    return root
-      .treeSessions()
-      .filter(s => s !== root)
-      .slice(0, 16)
-      .map(child => ({
-        ref: formatRef('execution', record.spec.id),
-        title: `child session '${child.label}'`,
-        summary: child.lastStopped
-          ? `stopped — ${child.lastStopped.reason}`
-          : child.terminated
-            ? 'terminated'
-            : child.alive
-              ? 'running'
-              : 'gone',
-      }))
-  } catch (error) {
-    passedOver(error)
-    return []
-  }
+  const { getDapSession } = await import('../../dap/dapClient.js')
+  const root = getDapSession(record.spec.owner, alias)
+  if (!root) return []
+  return root
+    .treeSessions()
+    .filter(s => s !== root)
+    .slice(0, 16)
+    .map(child => ({
+      ref: formatRef('execution', record.spec.id),
+      title: `child session '${child.label}'`,
+      summary: child.lastStopped
+        ? `stopped — ${child.lastStopped.reason}`
+        : child.terminated
+          ? 'terminated'
+          : child.alive
+            ? 'running'
+            : 'gone',
+    }))
 }
 
 export const executionAdapter: ResourceAdapter = {
