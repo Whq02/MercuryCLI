@@ -48,6 +48,11 @@ function isHostName(name: string): boolean {
   }
 }
 
+function isAbsentPathError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
 function includedFiles(pattern: string, base: string): string[] {
   const home = pattern === '~' || pattern.startsWith('~/') || pattern.startsWith('~\\') ? join(homedir(), pattern.slice(1)) : pattern
   const whole = isAbsolute(home) ? home : join(base, home)
@@ -66,8 +71,11 @@ function includedFiles(pattern: string, base: string): string[] {
       try {
         names = readdirSync(folder)
       } catch (error) {
-        passedOver(error)
-        continue
+        if (isAbsentPathError(error)) {
+          passedOver(error)
+          continue
+        }
+        throw error
       }
       for (const name of names.sort()) if (matches(name)) next.push(join(folder, name))
     }
@@ -88,8 +96,11 @@ export function remoteHostNames(mayRead: (file: string) => boolean): string[] {
       if (!statSync(file).isFile()) return
       text = readFileSync(file, 'utf8')
     } catch (error) {
-      passedOver(error)
-      return
+      if (isAbsentPathError(error)) {
+        passedOver(error)
+        return
+      }
+      throw error
     }
     for (const line of text.split(/\r?\n/)) {
       const row = /^\s*([A-Za-z]+)(?:\s*=\s*|\s+)(.*)$/.exec(line)
