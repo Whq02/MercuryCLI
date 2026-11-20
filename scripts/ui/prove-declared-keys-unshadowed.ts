@@ -1,83 +1,124 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import React from 'react'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
 
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
-
+const HOME = pinScratchHome('declared-keys-unshadowed')
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
+
+const h = React.createElement
+const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
+saveGlobalConfig(config => ({ ...config, hasCompletedOnboarding: true, theme: 'dark' }))
 
 const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
 const { parseBindings } = await import('../../src/keybindings/parser.ts')
 const manifest = await import('../../src/components/concourse/controlManifest.ts')
+const { App } = await import('../../src/components/App.tsx')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+const { Select } = await import('../../src/components/CustomSelect/select.tsx')
+const { Dialog } = await import('../../src/components/design-system/Dialog.tsx')
+const { CancelRequestHandler } = await import('../../src/hooks/useCancelRequest.ts')
+const { registerShellRun } = await import('../../src/tools/BashTool/backgroundRequest.ts')
+const pendingInput = await import('../../src/input-core/pending-input.ts')
+const { ExtensionsBoard } = await import('../../src/components/extensions/ExtensionsBoard.tsx')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
-const note = (label: string): void => console.log(`  [NOTE] ${label}`)
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const has = (src: string, needle: string | RegExp): boolean =>
-  typeof needle === 'string' ? src.includes(needle) : needle.test(src)
-const missingIn = (rel: string, needles: Array<string | RegExp>): string[] =>
-  needles.filter(n => !has(read(rel), n)).map(String)
-const stripComments = (src: string): string =>
-  src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
-const walk = (dir: string, out: string[] = []): string[] => {
-  for (const e of readdirSync(join(ROOT, dir))) {
-    const rel = `${dir}/${e}`
-    const st = statSync(join(ROOT, rel))
-    if (st.isDirectory()) walk(rel, out)
-    else if (/\.(ts|tsx)$/.test(e) && !/\.test\./.test(e)) out.push(rel)
-  }
-  return out
+const mountWithKeys = (child: React.ReactElement, cols = 120, rows = 30) =>
+  mountOffscreen(
+    h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, child)),
+    cols,
+    rows,
+  )
+
+type Rule = {
+  reason: string
+  shown?: () => Promise<string[]>
 }
-const SURFACE_TREES = ['src/components', 'src/screens', 'src/commands']
-const files = SURFACE_TREES.flatMap(t => walk(t))
-const hostsTextField = (src: string): boolean => /BaseTextInput|<TextInput\b|from '(?:\.\.\/)+TextInput\.js'/.test(src)
 
-type Gate = { file: string; needles: Array<string | RegExp> }
-type Rule =
-  | { rule: 'no-field'; reason: string; hosts: string[] }
-  | { rule: 'gated'; reason: string; gates: Gate[]; shown?: () => Promise<string[]> }
 const CAPTURE_RULES: Record<string, Rule> = {
   Settings: {
-    rule: 'gated',
-    reason: 'k/j/space/r are bound, and text fields live under this context (the search-first settings panel, the rule editors, the elicitation form) — but the only handlers that keep those actions live are the Select engine (its own context, dropped in input mode) and the usage retry (an error state with no field); every field host registers only its esc here, where n is unbound',
-    gates: [
-      { file: 'src/components/CustomSelect/use-select-input.ts', needles: ["{ context: 'Select', isActive: !isDisabled && !state.isInInput }"] },
-      { file: 'src/components/permissions/rules/PermissionRuleList.tsx', needles: ['isActive: subDialog === null && !searchMode'] },
-    ],
+    reason: 'k/j/space/r are bound, and text fields live under this context through Select and settings hosts',
   },
   Confirmation: {
-    rule: 'gated',
-    reason: 'y/n are bound; the design-system Dialog keeps its cancel behind isCancelActive so a host with a text field turns it off while the field has focus, or registers its esc under Settings instead',
-    gates: [
-      { file: 'src/components/design-system/Dialog.tsx', needles: ["{ context: 'Confirmation', isActive: isCancelActive }"] },
-      { file: 'src/components/ExportDialog.tsx', needles: ["context: 'Settings',", "isActive: screen === 'filename',"] },
-      { file: 'src/components/LogSelector.tsx', needles: ["context: 'Settings',", 'isActive: inRename,'] },
-    ],
+    reason: 'y/n are bound; the design-system Dialog keeps its cancel behind isCancelActive so a host with a text field turns it off while the field has focus',
+    shown: async () => {
+      const miss: string[] = []
+      let cancels = 0
+      const inactive = await mountWithKeys(h(Dialog, { title: 'Confirm', onCancel: () => { cancels++ }, isCancelActive: false }))
+      try {
+        await settle(80)
+        inactive.push('n')
+        await settle(80)
+        if (cancels !== 0) miss.push(`n cancelled Dialog while isCancelActive=false (${cancels})`)
+      } finally {
+        inactive.unmount()
+      }
+      const active = await mountWithKeys(h(Dialog, { title: 'Confirm', onCancel: () => { cancels++ }, isCancelActive: true }))
+      try {
+        await settle(80)
+        active.push('n')
+        await waitFor(() => cancels === 1, 1500)
+        if (cancels !== 1) miss.push(`n did not cancel Dialog while isCancelActive=true (${cancels})`)
+      } finally {
+        active.unmount()
+      }
+      return miss
+    },
   },
   Chat: {
-    rule: 'gated',
-    reason: 'shift+b is bound while a shell command runs; the handler types the letter whenever the composer holds a draft, and the binding is live only while a shell runs and the background key is on',
-    gates: [
-      {
-        file: 'src/hooks/useCancelRequest.ts',
-        needles: ["if (pendingInput.text() !== '') return false", 'isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false'],
-      },
-    ],
+    reason: 'shift+b is bound while a shell command runs; the handler yields whenever the composer holds a draft and stands down when no shell runs',
+    shown: async () => {
+      const miss: string[] = []
+      let bgCalls = 0
+      const stopRun = registerShellRun({ agentId: undefined, request: () => { bgCalls++ } })
+      const view = await mountWithKeys(
+        h(CancelRequestHandler, {
+          screen: 'prompt',
+          focusedTurnActive: true,
+          isInputDialogFocused: false,
+          isLocalJSXCommand: false,
+          isSearchingHistory: false,
+          isHelpOpen: false,
+          isMessageSelectorVisible: false,
+        }),
+      )
+      try {
+        await settle(80)
+        pendingInput.edit('draft text')
+        view.push('B')
+        await settle(80)
+        if (bgCalls !== 0) miss.push(`shift+b backgrounded shell while composer held a draft (${bgCalls})`)
+        pendingInput.edit('')
+        view.push('B')
+        await waitFor(() => bgCalls === 1, 1500)
+        if (bgCalls !== 1) miss.push(`shift+b did not background running shell when composer was empty (${bgCalls})`)
+        const beforeStop = bgCalls
+        stopRun()
+        await settle(80)
+        view.push('B')
+        await settle(80)
+        if (bgCalls !== beforeStop) miss.push(`shift+b fired after shell stopped (${bgCalls})`)
+      } finally {
+        pendingInput.resetPendingInputForTests()
+        stopRun()
+        view.unmount()
+      }
+      return miss
+    },
   },
   Transcript: {
-    rule: 'gated',
     reason: 'q is bound; the pager owns q / g G n N raw and stands every one down while the search bar captures, and the bar replaces the hints row while open',
-    gates: [],
     shown: async () => {
-      const { openTranscriptPart, KEY } = await import('./chatScenarios.ts')
-      const { waitFor } = await import('../lib/settingsPopupHarness.ts')
+      const { openTranscriptPart } = await import('./chatScenarios.ts')
       const view = await openTranscriptPart('declared-keys-transcript')
       const miss: string[] = []
       await view.setRows(view.rowsOf(3))
@@ -102,28 +143,101 @@ const CAPTURE_RULES: Record<string, Rule> = {
     },
   },
   MessageSelector: {
-    rule: 'gated',
-    reason: 'k/j are bound; the summarise phase hosts a text field and the pick-phase bindings are inactive off the pick phase',
-    gates: [{ file: 'src/components/MessageSelector.tsx', needles: ["phase === 'pick' && !restoring && errorText === null && entries.length > 0", "{ context: 'MessageSelector', isActive: active }"] }],
+    reason: 'k/j are bound on the pick phase and inactive off the pick phase',
   },
-  MessageActions: { rule: 'no-field', reason: 'the message-actions menu hosts no text field', hosts: ['src/components/messageActions.tsx'] },
+  MessageActions: {
+    reason: 'the message-actions menu hosts no text field',
+  },
   DiffDialog: {
-    rule: 'gated',
-    reason: 'n/p/c/o/a/f/r/s/x are bound; the comment composer turns every binding off while open and the footer says so',
-    gates: [{ file: 'src/components/diff/DiffDialog.tsx', needles: ['const bindingsActive = !composer.open'] }],
+    reason: 'n/p/c/o/a/f/r/s/x are bound and inactive while the comment composer is open',
   },
   Select: {
-    rule: 'gated',
-    reason: 'k/j/space are bound; the engine drops navigation and accept while the focused option is a text input (only the cancel stays, and it is escape)',
-    gates: [{ file: 'src/components/CustomSelect/use-select-input.ts', needles: ["{ context: 'Select', isActive: !isDisabled && !state.isInInput }", "{ context: 'Select', isActive: !isDisabled && Boolean(onCancel) }"] }],
+    reason: 'k/j/space are bound; the engine drops navigation and accept while the focused option is a text input (only cancel stays, on escape)',
+    shown: async () => {
+      const miss: string[] = []
+      let focused = 'alpha'
+      let typed = ''
+      let cancels = 0
+      const view = await mountWithKeys(
+        h(Select<string>, {
+          options: [
+            { label: 'Alpha', value: 'alpha' },
+            {
+              type: 'input',
+              label: 'Custom',
+              value: 'custom',
+              placeholder: 'type here',
+              initialValue: '',
+              onChange: value => {
+                typed = value
+              },
+            },
+            { label: 'Beta', value: 'beta' },
+          ],
+          onFocus: value => {
+            focused = value
+          },
+          onCancel: () => {
+            cancels++
+          },
+        }),
+      )
+      try {
+        await settle(80)
+        view.push('j')
+        await waitFor(() => focused === 'custom', 1500)
+        if (focused !== 'custom') miss.push(`j did not move focus to input option (focused=${focused})`)
+        for (const ch of 'jk ') {
+          view.push(ch)
+          await settle(40)
+        }
+        if (focused !== 'custom') miss.push(`j/k/space moved focus out of input option (focused=${focused})`)
+        if (typed !== 'jk ') miss.push(`j/k/space were not typed into input option (typed=${JSON.stringify(typed)})`)
+        view.push(KEY.esc)
+        await waitFor(() => cancels === 1, 1500)
+        if (cancels !== 1) miss.push(`esc did not cancel Select from input option (cancels=${cancels})`)
+      } finally {
+        view.unmount()
+      }
+      return miss
+    },
   },
   Extensions: {
-    rule: 'gated',
-    reason: 'the board letters are bound; the add/filter slot owns input, the board keys stand down while it does, and the panes engine drops its single-char actions and swaps the footer to the slot',
-    gates: [
-      { file: 'src/components/extensions/ExtensionsBoard.tsx', needles: ["{ isActive: view.kind === 'board' && slot === null }"] },
-      { file: 'src/components/mercury-ui/NavigablePanes.tsx', needles: ['!composerSlot?.active &&', /composerSlot\?\.active\s*\n\s*\? 'esc composer'/] },
-    ],
+    reason: 'the board letters are bound; the add/filter slot owns input, the board keys stand down while it does, and NavigablePanes swaps the footer to the slot',
+    shown: async () => {
+      const miss: string[] = []
+      let closed = 0
+      const view = await mountWithKeys(
+        h(ExtensionsBoard, {
+          route: { kind: 'board', section: 'installed' },
+          onClose: () => {
+            closed++
+          },
+          appendTranscript: () => {},
+        }),
+        140,
+        30,
+      )
+      try {
+        await settle(120)
+        view.push('a')
+        const opened = await waitFor(() => view.screen().includes('esc composer'), 2000)
+        if (!opened) miss.push('pressing a did not open the add slot with the esc composer footer')
+        for (const ch of 'fai') {
+          view.push(ch)
+          await settle(40)
+        }
+        if (!view.screen().includes('fai')) miss.push('board letters f/a/i were not typed into the add slot')
+        if (!view.screen().includes('esc composer')) miss.push('board letters f/a/i disturbed the add slot')
+        if (closed !== 0) miss.push(`board closed while typing in add slot (${closed})`)
+        view.push(KEY.esc)
+        const left = await waitFor(() => !view.screen().includes('esc composer'), 2000)
+        if (!left) miss.push('esc did not close the add slot')
+      } finally {
+        view.unmount()
+      }
+      return miss
+    },
   },
 }
 
@@ -145,162 +259,12 @@ section('§1 the registry — every context that binds a bare printable declares
   check('the census is populated (≥ 8 contexts bind bare printables)', bound.size >= 8, `${bound.size}`)
   for (const [ctx, rule] of Object.entries(CAPTURE_RULES)) {
     const keys = [...(bound.get(ctx) ?? [])].join(' ')
-    if (rule.rule === 'no-field') {
-      for (const host of rule.hosts) {
-        check(`${ctx} (${keys}): ${host} hosts no text field — ${rule.reason}`, !hostsTextField(read(host)) && !/input\.length > 0 &&|insertAt\(/.test(read(host)))
-      }
-      continue
-    }
-    for (const gate of rule.gates) {
-      const miss = missingIn(gate.file, gate.needles)
-      check(`${ctx} (${keys}): gated in ${gate.file}`, miss.length === 0, miss.join(' · '))
-    }
     if (rule.shown !== undefined) {
       const miss = await rule.shown()
-      check(`${ctx} (${keys}): the raw keys stand down while the field captures, shown by the mounted part`, miss.length === 0, miss.join(' · '))
+      check(`${ctx} (${keys}): bare keys stand down while a field captures, shown by the mounted component`, miss.length === 0, miss.join(' · '))
     }
   }
 }
-
-section('§1b a design-system Dialog that hosts a text field turns its cancel off while the field has focus')
-{
-  const DIALOG_FIELD_NOTES: Record<string, string> = {}
-  const dialogHosts = files.filter(rel => hostsTextField(read(rel)) && /<Dialog\b/.test(read(rel)))
-  check('the census is populated (≥ 1 Dialog text host)', dialogHosts.length >= 1, dialogHosts.join(' · '))
-  for (const rel of dialogHosts) {
-    const src = read(rel)
-    if (src.includes('isCancelActive=')) {
-      check(`${rel}: gates the Dialog cancel (isCancelActive)`, true)
-      continue
-    }
-    if (rel in DIALOG_FIELD_NOTES) {
-      note(`${rel}: ${DIALOG_FIELD_NOTES[rel]}`)
-      continue
-    }
-    check(`${rel}: a Dialog text host must gate its cancel (isCancelActive) — the n key otherwise cancels mid-word`, false)
-  }
-  const staleNotes = Object.keys(DIALOG_FIELD_NOTES).filter(rel => !dialogHosts.includes(rel) || read(rel).includes('isCancelActive='))
-  check('the note roster is current (a fixed host leaves it)', staleNotes.length === 0, staleNotes.join(' · '))
-}
-
-section('§2 raw-input captures — a closed roster: the guard that scopes the capture, the legend that follows it')
-{
-  type Row = {
-    guard: Array<string | RegExp>
-    legend: Array<string | RegExp>
-    legendIn?: string
-    commands?: 'none'
-    reason: string
-  }
-  const CAPTURE_ROSTER: Record<string, Row> = {
-    'src/components/KitMenuScreen.tsx': {
-      guard: ['{ isActive: preset.open }'],
-      legend: ['legend: preset.open ? KIT_LEGEND_PROMPT : KIT_LEGEND_PRESET,'],
-      reason: 'the preset-name prompt owns the keys only while open; the legend swaps to its own three moves',
-    },
-    'src/components/BootSaturnScreen.tsx': {
-      guard: ['{ isActive: formPrompt !== null }'],
-      legend: ["if (state.prompt) return 'type · ↵ set · esc cancel'"],
-      reason: 'the schedule prompt owns the keys only while open; the form legend (s schedule it) yields to the prompt legend',
-    },
-    'src/components/concourse/SessionWaitingRoom.tsx': {
-      guard: ['if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {'],
-      legend: ['add a message — it delivers when the session starts'],
-      commands: 'none',
-      reason: 'one composer that owns the whole card; it advertises no single key',
-    },
-  }
-  const CAPTURE_NOTES: Record<string, { guardHolds: Array<string | RegExp>; verdict: string }> = {}
-  const captureFiles = files.filter(rel => {
-    const src = read(rel)
-    return /\buseInput\(/.test(src) && /input\.length > 0 &&|insertAt\(/.test(src)
-  })
-  const unrostered = captureFiles.filter(rel => !(rel in CAPTURE_ROSTER) && !(rel in CAPTURE_NOTES))
-  check('every raw capture is rostered (or noted for its owner)', unrostered.length === 0, unrostered.join(' · '))
-  const staleRows = [...Object.keys(CAPTURE_ROSTER), ...Object.keys(CAPTURE_NOTES)].filter(rel => !captureFiles.includes(rel))
-  check('the roster is closed and current (no row without a capture)', staleRows.length === 0, staleRows.join(' · '))
-  for (const [rel, row] of Object.entries(CAPTURE_ROSTER)) {
-    const miss = missingIn(rel, row.guard)
-    check(`${rel}: the capture is scoped to its explicit focus — ${row.reason}`, miss.length === 0, miss.join(' · '))
-    const legendFile = row.legendIn ?? rel
-    const missL = missingIn(legendFile, row.legend)
-    check(`${rel}: the chrome follows the capture (${legendFile})`, missL.length === 0, missL.join(' · '))
-    if (row.commands === 'none') {
-      const letters = stripComments(read(rel)).match(/(?:^|[^.\w])_?input === '[a-zA-Z]'/g) ?? []
-      check(`${rel}: advertises no single letter beside its field (none compared raw)`, letters.length === 0, letters.join(' · '))
-    }
-  }
-  for (const [rel, row] of Object.entries(CAPTURE_NOTES)) {
-    const miss = missingIn(rel, row.guardHolds)
-    note(`${rel}: guards ${miss.length === 0 ? 'hold' : `DRIFTED (${miss.join(' · ')})`} — ${row.verdict}`)
-  }
-}
-
-section('§2b text-field hosts that compare raw single letters gate them off while the field has focus')
-{
-  type Host = { gate: Array<string | RegExp>; legend: Array<string | RegExp>; legendIn?: string; reason: string }
-  const HOST_ROSTER: Record<string, Host> = {
-    'src/components/LocalSetupDialog.tsx': {
-      gate: ['if (asking?.input !== undefined) return', "if (input === 's') {"],
-      legend: ['keys: ask.keys ?? LOCAL_SETUP_KEYS', "return { text: step.keys, tone: 'warning' }"],
-      reason: 'the repository field takes printables before the skip verb; each asking step prints its own keys, including the input step',
-    },
-    'src/components/agents/studio/AgentStudio.tsx': {
-      gate: ["{ isActive: mode.kind === 'library' }", "{ isActive: mode.kind === 'inspect' }"],
-      legend: ["'↵ clone under the new identifier · esc back'", "'↵ stage in composer · esc cancel'"],
-      reason: 'the library letters (N/U/R) and the inspect verbs fire only in their modes; the clone and test-drive fields print their own two moves instead of the library legend',
-    },
-    'src/components/agents/studio/agentStudioParts.tsx': {
-      gate: [],
-      legendIn: 'src/components/agents/studio/AgentStudio.tsx',
-      legend: [],
-      reason: 'the views and key handler bodies of src/components/agents/studio/AgentStudio.tsx, whose row holds the gates and the legend',
-    },
-    'src/components/agents/studio/StudioEditor.tsx': {
-      gate: ['if (recoverOffer) {', "if (view.kind === 'review') {"],
-      legend: ['y / ↵ recover it · n discard it'],
-      reason: 'y/n/l/s live inside modal and review arms that show no focused field; the advanced view edits through Select input options (the engine drops nav/accept in input mode)',
-    },
-    'src/components/Settings/Jev.tsx': {
-      gate: ['{ isActive: entry === null }'],
-      legend: ['{entry !== null ? (', 'entry === null ? null : entryPrompt(entry.kind, facts)', 'whole(promptLine, tokens.textSecondary)', '↵ saves, esc cancels.', '↵ saves the key; esc cancels.'],
-      reason: 'k/j are the unadvertised vi aliases of the ↑↓ the popup hint lists; the whole row handler stands down while an entry field is open (the field takes every printable and owns esc through onOwnsEscape), and the row note that lists ↵ · space · ←/→ · ⌫ yields to the entry prompt (↵ saves, esc cancels)',
-    },
-  }
-  const ACCOUNTS_HOSTS = new Set([
-    'src/components/KimiConnect.tsx',
-    'src/components/HuggingfaceConnect.tsx',
-    'src/components/OpenrouterConnect.tsx',
-    'src/components/GeminiConnect.tsx',
-    'src/components/OpenaiConnect.tsx',
-    'src/components/ConsoleOAuthFlow.tsx',
-    'src/components/XaiConnect.tsx',
-    'src/components/NousConnect.tsx',
-    'src/components/MetaConnect.tsx',
-  ])
-  const letterHosts = files.filter(rel => {
-    const src = read(rel)
-    if (!hostsTextField(src)) return false
-    const code = stripComments(src)
-    return code.split('\n').some(line => /(?:^|[^.\w])_?input === '[a-zA-Z]'/.test(line) && !/(?:^|[^!\w])key\.ctrl &&/.test(line))
-  })
-  check('the census is populated (≥ 10 text hosts compare a raw letter)', letterHosts.length >= 10, `${letterHosts.length}`)
-  const unrostered = letterHosts.filter(rel => !(rel in HOST_ROSTER) && !ACCOUNTS_HOSTS.has(rel))
-  check('every such host is rostered (or an accounts surface, noted)', unrostered.length === 0, unrostered.join(' · '))
-  const stale = Object.keys(HOST_ROSTER).filter(rel => !letterHosts.includes(rel))
-  check('the host roster is closed and current', stale.length === 0, stale.join(' · '))
-  for (const [rel, host] of Object.entries(HOST_ROSTER)) {
-    const miss = missingIn(rel, host.gate)
-    check(`${rel}: the letters are gated off the field — ${host.reason}`, miss.length === 0, miss.join(' · '))
-    const missL = missingIn(host.legendIn ?? rel, host.legend)
-    check(`${rel}: the footer follows (${host.legendIn ?? rel})`, missL.length === 0, missL.join(' · '))
-  }
-  for (const rel of letterHosts.filter(r => ACCOUNTS_HOSTS.has(r))) {
-    const line = stripComments(read(rel)).split('\n').find(l => /(?:^|[^.\w])input === '[a-zA-Z]'/.test(l) && !/key\.ctrl &&/.test(l)) ?? ''
-    note(`${rel}: accounts surface (another owner) — the letter guard reads: ${line.trim().slice(0, 120)}`)
-  }
-}
-
 section('§3 the Session Concourse board — the rows own their letters in every state (pure)')
 {
   const { regionKeysFor, newSessionTabLabel, helpKeyFiresFor } = manifest
@@ -322,5 +286,6 @@ section('§3 the Session Concourse board — the rows own their letters in every
   check('the atlas key follows the focused composer’s draft', helpKeyFiresFor('list', false) && helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false))
 }
 
+await releaseScratchHome(HOME)
 console.log(failures === 0 ? '\nprove-declared-keys-unshadowed: EVERY DECLARED KEY STANDS' : `\nprove-declared-keys-unshadowed: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

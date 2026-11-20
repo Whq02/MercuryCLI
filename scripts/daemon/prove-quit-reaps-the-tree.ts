@@ -21,7 +21,6 @@ function section(t: string): void {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const read = (...p: string[]): string => readFileSync(join(ROOT, ...p), 'utf8')
 const owned = (await import('../../src/daemon/ownedDaemon.ts')) as Record<string, unknown>
 const decideDaemonReap = owned.decideDaemonReap as
   | ((facts: { platform: NodeJS.Platform; gracefulAsked: boolean; stillAlive: boolean }) => string)
@@ -188,7 +187,7 @@ section('§5 a worker whose daemon died exits through the cleanup registry')
 section('§7 DRIVEN — the front’s own reaper in a process of its own, with a daemon that answers the ask, one that is not there, one that takes the call and never answers, and one that refuses')
 {
   const { controlSockPath } = (await import('../../src/daemon/controlSocket.ts')) as { controlSockPath: () => string }
-  const cap = Number(/const CLEANUP_TIMEOUT_MS = (\d+)/.exec(read('src', 'utils', 'gracefulShutdown.ts'))?.[1] ?? '2000')
+  const cap = 2000
   const worlds = mkdtempSync(join(tmpdir(), 'prove-quit-front-'))
   const frontFile = join(worlds, 'front.mjs')
   writeFileSync(

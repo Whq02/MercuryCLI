@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { join } from 'node:path'
-import { ENGINE_ENV, ROOT, engineLaneState, resolveEngineUnderTest } from './shell-engine-parity.ts'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
+import { ENGINE_ENV, ROOT, findVendoredBrush } from './shell-engine-parity.ts'
 
 plugin({
   name: 'stub-color-diff-napi',
@@ -24,12 +24,12 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const engine = resolveEngineUnderTest()
-const lane = engineLaneState()
+const laneState = getFlagSpec(ENGINE_ENV) !== undefined && findVendoredBrush(ROOT) !== null ? 'wired' : 'unwired'
+const engine = process.env[ENGINE_ENV] === 'brush' && laneState === 'wired' ? 'brush' : 'system'
 console.log('============================================================')
 console.log(' Bash permission rules — engine parity')
 console.log('============================================================')
-console.log(`  engine under test: ${engine} (pin ${ENGINE_ENV}=${process.env[ENGINE_ENV] ?? 'unset'}; lane ${lane.state})`)
+console.log(`  engine under test: ${engine} (pin ${ENGINE_ENV}=${process.env[ENGINE_ENV] ?? 'unset'}; lane ${laneState})`)
 
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.ts')
