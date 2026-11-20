@@ -451,5 +451,163 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   check('mcpValidation: mcpContentNeedsTruncation fails closed using local estimate when API count throws', rMcp.needs === true, JSON.stringify(rMcp))
 }
 
+{
+  const rWs = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const fakeHome = path.join(process.env.MERCURY_CONFIG_DIR, 'hr-ws-home')
+    fs.mkdirSync(path.join(fakeHome, '.git', 'objects'), { recursive: true })
+    process.env.HOME = fakeHome
+    process.env.USERPROFILE = fakeHome
+    const blockedWs = path.join(fakeHome, 'blocked-ws')
+    mock.module(${JSON.stringify(join(SRC, 'daemon/concourseWorkers.ts'))}, () => ({
+      readSessionWorkers: () => ({ r1: { runnerId: 'r1', workspaceId: blockedWs, pid: process.pid } }),
+    }))
+    const realRealpathSync = fs.realpathSync
+    mock.module('node:fs', () => ({
+      ...fs,
+      realpathSync: (p, ...rest) => {
+        if (p === blockedWs) throw Object.assign(new Error('permission denied on ws'), { code: 'EACCES' })
+        return realRealpathSync(p, ...rest)
+      },
+    }))
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    out.res = await homeRepositoryCheck()
+  `)
+  const evWs = String((rWs.res as { evidence?: string })?.evidence ?? '')
+  check(
+    'healthReport: homeRepositoryCheck reports unreadable live session workspace instead of no Mercury process holds it',
+    evWs.includes('could not check whether Mercury holds it now') && evWs.includes('permission denied on ws') && !evWs.includes('no Mercury process holds it now'),
+    evWs,
+  )
+
+  const rWorkers = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const fakeHome = path.join(process.env.MERCURY_CONFIG_DIR, 'hr-workers-home')
+    fs.mkdirSync(path.join(fakeHome, '.git', 'objects'), { recursive: true })
+    process.env.HOME = fakeHome
+    process.env.USERPROFILE = fakeHome
+    mock.module(${JSON.stringify(join(SRC, 'daemon/concourseWorkers.ts'))}, () => ({
+      readSessionWorkers: () => { throw new Error('workers file corrupt') },
+    }))
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    out.res = await homeRepositoryCheck()
+  `)
+  const evWorkers = String((rWorkers.res as { evidence?: string })?.evidence ?? '')
+  check(
+    'healthReport: homeRepositoryCheck reports readSessionWorkers failure instead of no Mercury process holds it',
+    evWorkers.includes('could not check whether Mercury holds it now') && evWorkers.includes('workers file corrupt') && !evWorkers.includes('no Mercury process holds it now'),
+    evWorkers,
+  )
+
+  const rLock = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const fakeHome = path.join(process.env.MERCURY_CONFIG_DIR, 'hr-lock-home')
+    fs.mkdirSync(path.join(fakeHome, '.git', 'objects'), { recursive: true })
+    process.env.HOME = fakeHome
+    process.env.USERPROFILE = fakeHome
+    const lockPath = path.join(fakeHome, '.git', 'index.lock')
+    const realStatSync = fs.statSync
+    mock.module('node:fs', () => ({
+      ...fs,
+      statSync: (p, ...rest) => {
+        if (p === lockPath) throw Object.assign(new Error('lock stat denied'), { code: 'EACCES' })
+        return realStatSync(p, ...rest)
+      },
+    }))
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    out.res = await homeRepositoryCheck()
+  `)
+  const evLock = String((rLock.res as { evidence?: string })?.evidence ?? '')
+  check(
+    'healthReport: homeRepositoryCheck reports unreadable .git/index.lock instead of no Mercury process holds it',
+    evLock.includes('could not check whether Mercury holds it now') && evLock.includes('lock stat denied') && !evLock.includes('no Mercury process holds it now'),
+    evLock,
+  )
+
+  const rObj = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const fakeHome = path.join(process.env.MERCURY_CONFIG_DIR, 'hr-obj-home')
+    const objectsDir = path.join(fakeHome, '.git', 'objects')
+    fs.mkdirSync(objectsDir, { recursive: true })
+    process.env.HOME = fakeHome
+    process.env.USERPROFILE = fakeHome
+    const realReaddirSync = fs.readdirSync
+    mock.module('node:fs', () => ({
+      ...fs,
+      readdirSync: (p, ...rest) => {
+        if (p === objectsDir) throw Object.assign(new Error('objects dir denied'), { code: 'EACCES' })
+        return realReaddirSync(p, ...rest)
+      },
+    }))
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    out.res = await homeRepositoryCheck()
+  `)
+  const evObj = String((rObj.res as { evidence?: string })?.evidence ?? '')
+  check(
+    'healthReport: homeRepositoryCheck reports unreadable .git/objects instead of no Mercury process holds it',
+    evObj.includes('could not check whether Mercury holds it now') && evObj.includes('objects dir denied') && !evObj.includes('no Mercury process holds it now'),
+    evObj,
+  )
+
+  const rEstate = runIsolated(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const cp = await import('node:child_process')
+    const { mock } = await import('bun:test')
+    const repo = path.join(process.env.MERCURY_CONFIG_DIR, 'hr-estate-repo')
+    fs.mkdirSync(path.join(repo, '.git'), { recursive: true })
+    fs.mkdirSync(path.join(repo, '.mercury', 'health'), { recursive: true })
+    fs.writeFileSync(path.join(repo, '.mercury', 'health', 'last-cert.json'), '{}')
+    process.env.MERCURY_HEALTH_STATE_DIR = repo
+    const realExecFile = cp.execFile
+    mock.module('node:child_process', () => ({
+      ...cp,
+      execFile: (cmd, args, opts, cb) => {
+        if (cmd === 'git' && Array.isArray(args) && args[0] === 'ls-files') {
+          const done = typeof opts === 'function' ? opts : cb
+          done(new Error('git ls-files timed out'), '', '')
+          return {}
+        }
+        return realExecFile(cmd, args, opts, cb)
+      },
+    }))
+    const { projectEstateCheck } = await import(${JSON.stringify(join(SRC, 'utils/healthReport.ts'))})
+    out.res = await projectEstateCheck()
+  `)
+  const fixEstate = String((rEstate.res as { fix?: string })?.fix ?? '')
+  check(
+    'healthReport: projectEstateCheck reports git ls-files failure instead of claiming folders are not tracked by git',
+    fixEstate.includes('could not check whether git tracks them') && fixEstate.includes('git ls-files timed out') && !fixEstate.includes('they are not tracked by git'),
+    fixEstate,
+  )
+}
+
+{
+  const rLogo = runIsolated(`
+    const { mock } = await import('bun:test')
+    const router = await import(${JSON.stringify(join(SRC, 'services/providers/callModelRouter.ts'))})
+    mock.module(${JSON.stringify(join(SRC, 'services/providers/callModelRouter.ts'))}, () => ({
+      ...router,
+      declaredRouteOf: () => { throw new Error('route lookup failed') },
+    }))
+    const { getLogoDisplayData } = await import(${JSON.stringify(join(SRC, 'utils/logoV2Utils.ts'))})
+    out.data = getLogoDisplayData()
+  `)
+  const billing = String((rLogo.data as { billingType?: string })?.billingType ?? '')
+  check(
+    'logoV2Utils: getLogoDisplayData reports billing could not be read when route lookup throws instead of API usage billing',
+    billing === 'billing could not be read (route lookup failed)',
+    billing,
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

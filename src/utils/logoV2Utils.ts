@@ -79,10 +79,11 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'fireworks') return 'Fireworks API billing'
       if (route === 'qwen') return 'QwenCloud or Model Studio pay-as-you-go or plan billing'
       if (route === null) return 'unrecognised model · no billed lane'
+      return isClaudeAISubscriber() ? getSubscriptionName() : 'API usage billing'
     } catch (error) {
-      passedOver(error)
+      const detail = (error instanceof Error && error.message ? error.message : String(error)).slice(0, 120)
+      return `billing could not be read (${detail})`
     }
-    return isClaudeAISubscriber() ? getSubscriptionName() : 'API usage billing'
   })()
   const agentName = getInitialSettings().engine?.agent
   return { version, cwd, billingType, ...(agentName ? { agentName } : {}) }
