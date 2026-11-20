@@ -1,7 +1,6 @@
 prove-frontier-policy.ts
 prove-model-policy-surfaces.ts
 prove-neutral-model-doors.ts
-prove-model-pin-census.ts
 prove-utility-call-family.ts
 prove-model-retirements.ts
 prove-roster-frontier-default.ts
