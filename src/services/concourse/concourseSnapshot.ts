@@ -36,6 +36,7 @@ import { concourseRecordState, type ConcourseWorkerRecordV1 } from '../../daemon
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
 import { withoutMissionMetSentinel } from '../mission/sentinel.js'
 import type { ObligationV1 } from '../crew/obligations.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const PARKING_NOW_LEAD = 'parking — '
@@ -572,12 +573,12 @@ export async function readConcourseSeedOverrides(dir?: string): Promise<Concours
 }
 
 export async function resolveHarnessGround(dir?: string): Promise<string> {
-  try {
-    const seeds = await readConcourseSeedOverrides(dir)
-    if (typeof seeds.projectDir === 'string' && seeds.projectDir.length > 0) return seeds.projectDir
-  } catch (error) {
-    passedOver(error)
+  const res = await draftStore(dir).readResult()
+  if (res.state === 'recoverable') {
+    throw new Error(res.reason)
   }
+  const seeds = bootScopedSeedOverrides(res.value.seedOverrides ?? {})
+  if (typeof seeds.projectDir === 'string' && seeds.projectDir.length > 0) return seeds.projectDir
   return getCwd()
 }
 
@@ -800,7 +801,10 @@ export function olderChatsCensus(
       }
     }
     return { total, entries }
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
+      logForDebugging(`[concourse] olderChatsCensus failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
+    }
     return { total: 0, entries: [] }
   }
 }
@@ -851,6 +855,7 @@ export function parkedBoardRows(
     })
     if (census.total > 0) rows.push(olderChatsRow(projectDir, projectLabel, census.total))
   } catch (error) {
+    logForDebugging(`[concourse] parkedBoardRows failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     passedOver(error)
   }
   return rows
@@ -967,6 +972,7 @@ export async function buildConcourseSnapshot(
       })
     allRows.push(...heldRows)
   } catch (error) {
+    logForDebugging(`[concourse] queued dispatches read failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     passedOver(error)
   }
 
@@ -992,6 +998,7 @@ export async function buildConcourseSnapshot(
       if (!allRows.some(x => x.sessionId === r.sessionId)) allRows.push(r)
     }
   } catch (error) {
+    logForDebugging(`[concourse] collision evidence read failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     passedOver(error)
   }
 
