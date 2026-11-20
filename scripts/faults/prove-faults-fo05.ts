@@ -33,7 +33,21 @@ async function capPolicyThatThrowsRefuses(): Promise<void> {
   }
 }
 
-const rows: Array<() => Promise<void>> = [capPolicyThatThrowsRefuses]
+async function flowCheckThatThrowsAsks(): Promise<void> {
+  const m = await import(join(SRC, 'utils/permissions/flowPolicy.ts'))
+  const tool = {
+    name: 'FixtureWrite',
+    isReadOnly: () => false,
+    getPath: () => {
+      throw new Error('fixture: path unreadable')
+    },
+  }
+  const engineDecision = { behavior: 'ask', message: 'fixture engine ask' }
+  const verdict = await m.decideUnderFlow(tool, { file_path: '/elsewhere/x' }, engineDecision, { mode: 'flow' })
+  check('flow-throw-asks: a flow check that throws asks instead of allowing', verdict.stage !== 'flowAllow' && verdict.decision.behavior === 'ask', `got ${verdict.stage}/${verdict.decision.behavior}`)
+}
+
+const rows: Array<() => Promise<void>> = [capPolicyThatThrowsRefuses, flowCheckThatThrowsAsks]
 for (const row of rows) {
   try {
     await row()
