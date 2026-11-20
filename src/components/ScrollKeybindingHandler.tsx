@@ -1,5 +1,6 @@
 
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useRef } from 'react'
+import { useClaim, useSubscription } from '../hooks/effects.js'
 import { WHEEL_ROWS_PER_NOTCH } from './mercury-ui/composerFloor.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { InkInstanceContext } from '../ink/components/InkInstanceContext.js'
@@ -249,12 +250,12 @@ export function ScrollKeybindingHandler({
   modalUp?: boolean
 }): React.ReactNode {
   const ink = React.useContext(InkInstanceContext)
-  useEffect(() => ink?.registerTranscriptScrollTarget(() => {
+  useClaim(() => ink?.registerTranscriptScrollTarget(() => {
     if (!isActive || isModal || modalUp || topOverlay() !== null || settingsPopupRequest() || isCrewViewOpen() || getHelmFocus() !== 'prompt') return false
     const handle = scrollRef.current
     return handle !== null && handle.getScrollHeight() > handle.getViewportHeight()
   }), [ink, isActive, isModal, modalUp, scrollRef])
-  useEffect(() => ink?.registerArrowKeyOwner(isMessageCursorActive), [ink])
+  useClaim(() => ink?.registerArrowKeyOwner(isMessageCursorActive), [ink])
   const selection = useSelection()
   const { addNotification } = useNotifications()
   const wheelState = useRef<WheelAccelState | null>(null)
@@ -284,7 +285,7 @@ export function ScrollKeybindingHandler({
   )
 
   const copySettleWatchRef = React.useRef<(() => void) | null>(null)
-  React.useEffect(() => () => copySettleWatchRef.current?.(), [])
+  useClaim(() => () => copySettleWatchRef.current?.(), [])
   const raiseCopyToast = useCallback(
     (text: string) => {
       void text
@@ -450,7 +451,7 @@ export function ScrollKeybindingHandler({
 
   const autoscrollDirRef = useRef<-1 | 0 | 1>(0)
   const autoscrollTicksRef = useRef(0)
-  useEffect(() => {
+  useSubscription(() => {
     if (!isActive) return
     const stopTick = subscribeUiClock(AUTOSCROLL_TICK_MS, () => {
       const handle = activeHandle()
