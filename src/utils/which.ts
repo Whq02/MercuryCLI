@@ -1,7 +1,7 @@
-import { accessSync, constants, statSync } from 'node:fs'
-import * as path from 'node:path'
-import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { pickWin32ExecutableLine, resolveProgramInPath, spawnableCommandSpellings } from './platform/programs.js'
+
+export { pickWin32ExecutableLine }
 
 
 type BunWhich = { which?: (command: string, options?: { PATH?: string }) => string | null }
@@ -19,22 +19,8 @@ function normalize(result: string | null): string | null {
   return trimmed === '' ? null : trimmed
 }
 
-const WIN32_SPAWNABLE_EXTENSIONS = ['.exe', '.com', '.cmd', '.bat'] as const
-
 export function spawnableSpellings(command: string, platform: string = process.platform): string[] {
-  if (platform !== 'win32') return [command]
-  return [...WIN32_SPAWNABLE_EXTENSIONS.map(ext => `${command}${ext}`), command]
-}
-
-function isSpawnableSpelling(line: string): boolean {
-  const lower = line.toLowerCase()
-  return WIN32_SPAWNABLE_EXTENSIONS.some(ext => lower.endsWith(ext))
-}
-
-export function pickWin32ExecutableLine(lines: readonly string[]): string | null {
-  const listed = lines.map(line => line.trim()).filter(line => line !== '')
-  const spawnable = listed.find(isSpawnableSpelling)
-  return spawnable ?? listed[0] ?? null
+  return spawnableCommandSpellings(command, platform)
 }
 
 export interface LookupWorld {
@@ -46,54 +32,8 @@ export function hostLookupWorld(): LookupWorld {
   return { platform: process.platform, path: hostEnv().PATH ?? '' }
 }
 
-function searchDirs(world: LookupWorld): string[] {
-  const entries = world.path.split(world.platform === 'win32' ? ';' : ':')
-  if (world.platform === 'win32') {
-    return entries.map(entry => entry.startsWith('"') && entry.endsWith('"') ? entry.slice(1, -1) : entry).filter(entry => entry !== '')
-  }
-  return entries.map(entry => (entry === '' ? '.' : entry))
-}
-
-function isExecutableFile(candidate: string, platform: string): boolean {
-  try {
-    if (platform !== 'win32') accessSync(candidate, constants.X_OK)
-    return statSync(candidate).isFile()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
-function hasDirectoryPart(command: string, platform: string): boolean {
-  return command.includes('/') || (platform === 'win32' && command.includes('\\'))
-}
-
 export function resolveExecutable(command: string, world: LookupWorld = hostLookupWorld()): string | null {
-  if (command === '') return null
-  const spellings = spawnableSpellings(command, world.platform)
-  if (hasDirectoryPart(command, world.platform)) {
-    for (const spelling of spellings) {
-      const candidate = path.resolve(spelling)
-      if (isExecutableFile(candidate, world.platform)) return candidate
-    }
-    return null
-  }
-  if (world.platform === 'win32') {
-    const listed: string[] = []
-    for (const dir of searchDirs(world)) {
-      for (const spelling of spellings) {
-        const candidate = path.resolve(dir, spelling)
-        if (isExecutableFile(candidate, world.platform)) listed.push(candidate)
-      }
-      if (listed.some(isSpawnableSpelling)) break
-    }
-    return pickWin32ExecutableLine(listed)
-  }
-  for (const dir of searchDirs(world)) {
-    const candidate = path.resolve(dir, command)
-    if (isExecutableFile(candidate, world.platform)) return candidate
-  }
-  return null
+  return resolveProgramInPath(command, world.path, world.platform)
 }
 
 const foundExecutables = new Map<string, string>()

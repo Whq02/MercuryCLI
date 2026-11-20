@@ -1,4 +1,5 @@
 import { windowsBatchTail } from './shell/windowsBatchLine.js'
+import { isBatchShim } from './platform/spawn.js'
 import { hostLookupWorld, resolveExecutable, type LookupWorld } from './which.js'
 import { hostEnv } from './hostEnv.js'
 
@@ -14,7 +15,6 @@ export function hostSpawnWorld(): SpawnWorld {
   return { ...hostLookupWorld(), comSpec: hostEnv().ComSpec }
 }
 
-const BATCH_SHIM = /\.(cmd|bat)$/i
 const LINE_BREAK = /[\r\n\0]/
 
 function cmdCannotCarry(word: string): boolean {
@@ -26,7 +26,7 @@ export function spawnPlanOf(argv: readonly string[], world: SpawnWorld = hostSpa
   if (tool === undefined || tool === '') return { refused: 'no program named' }
   const resolved = resolveExecutable(tool, world)
   if (resolved === null) return { refused: `${tool} is not on PATH`, missing: tool }
-  if (world.platform !== 'win32' || !BATCH_SHIM.test(resolved)) {
+  if (!isBatchShim(resolved, world.platform)) {
     return { file: resolved, args, windowsVerbatimArguments: false }
   }
   const words = [resolved, ...args]

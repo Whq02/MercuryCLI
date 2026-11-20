@@ -102,8 +102,9 @@ type Group = { id: string; title: string; expect: 'refused' | 'clear'; platform?
 
 const only = process.argv.slice(2).filter(word => !word.startsWith('-'))
 const quiet = process.argv.includes('--failures-only')
-const fill = (text: string): string => text.replaceAll('<HOME>', OWN_HOME).replaceAll('<USER>', FAKE_USER).replaceAll('<PROJECT>', PROJECT)
-const shown = (text: string): string => JSON.stringify(text.replaceAll(OWN_HOME, '<home>').replaceAll(PROJECT, '<project>'))
+const bashPath = (path: string): string => (process.platform === 'win32' ? path.replaceAll('\\', '/') : path)
+const fill = (text: string): string => text.replaceAll('<HOME>', bashPath(OWN_HOME)).replaceAll('<USER>', FAKE_USER).replaceAll('<PROJECT>', bashPath(PROJECT))
+const shown = (text: string): string => JSON.stringify(text.replaceAll(OWN_HOME, '<home>').replaceAll(bashPath(OWN_HOME), '<home>').replaceAll(PROJECT, '<project>').replaceAll(bashPath(PROJECT), '<project>'))
 const nestDouble = (depth: number, inner: string): string => {
   let script = inner
   for (let i = 0; i < depth; i++) script = `bash -c ${JSON.stringify(script)}`
@@ -627,7 +628,7 @@ if (only.length === 0 || only.includes('READ')) {
     { c: 'echo `reboot`', ward: 'no-system-halt', l: 'a substitution in an argument runs' },
     { c: "trap 'reboot' EXIT", ward: 'no-system-halt', l: 'a trap is a script' },
     { c: 'cd /etc && rm -rf ./*', ward: 'no-root-recursive-delete', l: 'the folder a cd left travels with the delete' },
-    { c: `cd ${PROJECT} && rm -rf *`, ward: null, l: 'the content of the starting folder' },
+    { c: `cd ${bashPath(PROJECT)} && rm -rf *`, ward: null, l: 'the content of the starting folder' },
     { c: 'S=echo; S=sudo; $S true', ward: 'no-sudo', l: 'a variable assigned twice is read under both values' },
   ]
   for (const edge of edges) {
