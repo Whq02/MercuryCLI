@@ -206,6 +206,25 @@ try {
       globalThis.fetch = realFetch
     }
   }
+  {
+    const realFetch = globalThis.fetch
+    let staleAttempts = 0
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      staleAttempts++
+      if (staleAttempts === 1) {
+        throw Object.assign(new TypeError('fetch failed'), {
+          cause: Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+        })
+      }
+      return realFetch(input, init)
+    }) as unknown as typeof fetch
+    try {
+      const s = await leg([counted(63)], () => countMessagesTokensWithAPI(messages, []))
+      check('stale keep-alive socket (ECONNRESET) IS retried and returns the count from the second answer', s.result === 63 && staleAttempts === 2 && s.hits.length === 1 && s.lines.some(line => line.includes('waiting')), { result: s.result, attempts: staleAttempts, hits: s.hits.length, lines: s.lines })
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  }
 
   console.log('\nthe create probe on the same wire')
   {
