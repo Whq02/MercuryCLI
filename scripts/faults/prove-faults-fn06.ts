@@ -59,9 +59,9 @@ if (!POSIX_MODES) {
   skip('keybindings-async-project-unreadable', 'needs non-root POSIX chmod')
 } else {
   const r = runCase(`
-    const { enableConfigs } = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
-    const { setPathTrusted } = await import(path.join(SRC, 'utils/config/trust.ts'))
-    const kb = await import(path.join(SRC, 'keybindings/loadUserBindings.ts'))
+    const { enableConfigs } = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
+    const { setPathTrusted } = await import(${JSON.stringify(join(SRC, 'utils/config/trust.ts'))})
+    const kb = await import(${JSON.stringify(join(SRC, 'keybindings/loadUserBindings.ts'))})
     enableConfigs()
     setPathTrusted(project)
     out.absentSync = kb.loadKeybindingsSyncWithWarnings().warnings
@@ -106,8 +106,8 @@ if (!POSIX_MODES) {
   skip('strike-pending-unreadable-dir', 'needs non-root POSIX chmod')
 } else {
   const r = runCase(`
-    const buf = await import(path.join(SRC, 'mneme/mnemeBuffer.ts'))
-    const cor = await import(path.join(SRC, 'mneme/mnemeCorrect.ts'))
+    const buf = await import(${JSON.stringify(join(SRC, 'mneme/mnemeBuffer.ts'))})
+    const cor = await import(${JSON.stringify(join(SRC, 'mneme/mnemeCorrect.ts'))})
     const dir = path.join(home, 'mneme-strike-test')
     fs.mkdirSync(dir, { recursive: true })
     buf.appendObservation({ text: 'a pending fact', source: 'test' }, dir)
@@ -132,7 +132,7 @@ if (!POSIX_MODES) {
   skip('front-page-unreadable-throws', 'needs non-root POSIX chmod')
 } else {
   const r = runCase(`
-    const fp = await import(path.join(SRC, 'mneme/mnemeFrontPage.ts'))
+    const fp = await import(${JSON.stringify(join(SRC, 'mneme/mnemeFrontPage.ts'))})
     const dir = path.join(home, 'mneme-front-page-test')
     fs.mkdirSync(dir, { recursive: true })
     out.absent = fp.readFrontPage(dir)
@@ -157,7 +157,7 @@ if (!POSIX_MODES) {
 console.log('\nsrc/mneme/mnemeHandover.ts')
 {
   const r = runCase(`
-    const ho = await import(path.join(SRC, 'mneme/mnemeHandover.ts'))
+    const ho = await import(${JSON.stringify(join(SRC, 'mneme/mnemeHandover.ts'))})
     const memDir = path.join(home, 'ho-eloop')
     fs.mkdirSync(memDir, { recursive: true })
     fs.symlinkSync(path.join(memDir, 'b.md'), path.join(memDir, 'a.md'))
@@ -177,7 +177,7 @@ if (!POSIX_MODES) {
   skip('handover-receipt-write-failure-throws', 'needs non-root POSIX chmod')
 } else {
   const r = runCase(`
-    const ho = await import(path.join(SRC, 'mneme/mnemeHandover.ts'))
+    const ho = await import(${JSON.stringify(join(SRC, 'mneme/mnemeHandover.ts'))})
     const dir1 = path.join(home, 'ho-unreadable-dir')
     fs.mkdirSync(dir1, { recursive: true })
     fs.writeFileSync(path.join(dir1, 'note.md'), 'remember this')
@@ -238,8 +238,8 @@ if (!POSIX_MODES) {
   skip('ledger-open-entry-unwritable-throws', 'needs non-root POSIX chmod')
 } else {
   const r = runCase(`
-    const ledger = await import(path.join(SRC, 'mneme/ledger.ts'))
-    const paths = await import(path.join(SRC, 'mneme/paths.ts'))
+    const ledger = await import(${JSON.stringify(join(SRC, 'mneme/ledger.ts'))})
+    const paths = await import(${JSON.stringify(join(SRC, 'mneme/paths.ts'))})
     const key = 'proj-reconcile-test'
     const lineFile = paths.lineagePath(key)
     fs.mkdirSync(path.dirname(lineFile), { recursive: true })
@@ -301,8 +301,8 @@ if (!POSIX_MODES) {
   skip('consolidate-unreadable-dir-reports-error', 'needs non-root POSIX chmod')
 } else {
   const r = runCase(`
-    const buf = await import(path.join(SRC, 'mneme/mnemeBuffer.ts'))
-    const con = await import(path.join(SRC, 'mneme/mnemeConsolidate.ts'))
+    const buf = await import(${JSON.stringify(join(SRC, 'mneme/mnemeBuffer.ts'))})
+    const con = await import(${JSON.stringify(join(SRC, 'mneme/mnemeConsolidate.ts'))})
     const dir1 = path.join(home, 'con-claim-ro')
     fs.mkdirSync(dir1, { recursive: true })
     buf.appendObservation({ text: 'fact to claim', source: 'test' }, dir1)
@@ -345,8 +345,8 @@ if (!POSIX_MODES) {
         throw err
       },
     }))
-    const buf = await import(path.join(SRC, 'mneme/mnemeBuffer.ts'))
-    const con = await import(path.join(SRC, 'mneme/mnemeConsolidate.ts'))
+    const buf = await import(${JSON.stringify(join(SRC, 'mneme/mnemeBuffer.ts'))})
+    const con = await import(${JSON.stringify(join(SRC, 'mneme/mnemeConsolidate.ts'))})
     const dir = path.join(home, 'con-rename-ebusy')
     fs.mkdirSync(dir, { recursive: true })
     buf.appendObservation({ text: 'fact to rename', source: 'test' }, dir)
@@ -375,13 +375,12 @@ console.log('\nsrc/main/runLaunch.ts')
         out.available = ctx.isBypassPermissionsModeAvailable
       },
     }))
-    const { setFlagEnv } = await import(path.join(SRC, 'substrate/flagRegistry.ts'))
-    setFlagEnv('MERCURY_BARE', '1')
+    process.env.MERCURY_BARE = '1'
     const stderrLines = []
     const realStderrWrite = process.stderr.write.bind(process.stderr)
     process.stderr.write = (chunk) => { stderrLines.push(String(chunk)); return true }
-    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
-    const { runLaunch } = await import(path.join(SRC, 'main/runLaunch.ts'))
+    const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(SRC, 'Tool.ts'))})
+    const { runLaunch } = await import(${JSON.stringify(join(SRC, 'main/runLaunch.ts'))})
     await runLaunch({
       opts: { continue: true, onlyMcp: true },
       commands: [],
@@ -447,10 +446,10 @@ console.log('\nsrc/main/interactiveLaunch.ts')
       armBackgroundDiscovery: () => {},
       registerBackgroundNode: () => {},
     }))
-    const { setIsInteractive } = await import(path.join(SRC, 'bootstrap/state.ts'))
+    const { setIsInteractive } = await import(${JSON.stringify(join(SRC, 'bootstrap/state.ts'))})
     setIsInteractive(true)
-    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
-    const { interactiveLaunch } = await import(path.join(SRC, 'main/interactiveLaunch.ts'))
+    const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(SRC, 'Tool.ts'))})
+    const { interactiveLaunch } = await import(${JSON.stringify(join(SRC, 'main/interactiveLaunch.ts'))})
     const uuid = '11111111-1111-4111-8111-111111111111'
     await interactiveLaunch({
       opts: { resume: uuid },
@@ -490,7 +489,7 @@ console.log('\nsrc/main/sessionChoices.ts')
         throw new Error('CLI_REFUSED')
       },
     }))
-    const { agentsWithCliDefs } = await import(path.join(SRC, 'main/sessionChoices.ts'))
+    const { agentsWithCliDefs } = await import(${JSON.stringify(join(SRC, 'main/sessionChoices.ts'))})
     try {
       out.returned = agentsWithCliDefs({ agentDefs: '{not json' }, { activeAgents: [], allAgents: [] })
     } catch (e) {

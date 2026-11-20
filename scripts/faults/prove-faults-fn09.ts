@@ -61,8 +61,8 @@ if (!POSIX_MODES) {
   skip('changeSetPlan-unreadable-paths', 'needs non-root POSIX chmod')
 } else {
   const r = runSub(`
-    const { planChangeSet } = await import(path.join(SRC, 'services/changeTransaction/changeSetPlan.ts'))
-    const { mintFileAnchor } = await import(path.join(SRC, 'services/changeTransaction/snapshotAnchor.ts'))
+    const { planChangeSet } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/changeSetPlan.ts'))})
+    const { mintFileAnchor } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/snapshotAnchor.ts'))})
     const srcFile = path.join(PROJECT, 'src.txt')
     fs.writeFileSync(srcFile, 'hello\\n')
     const anchor = mintFileAnchor('hello\\n')
@@ -116,8 +116,8 @@ if (!POSIX_MODES) {
   skip('changeSetCommit-unreadable-target', 'needs non-root POSIX chmod')
 } else {
   const r = runSub(`
-    const { runTextChangeSetCommit, recoverChangeSetJournal, TEXT_CHANGE_SET_KIND } = await import(path.join(SRC, 'services/changeTransaction/changeSetCommit.ts'))
-    const { sha256Hex } = await import(path.join(SRC, 'services/changeTransaction/changeSetPlan.ts'))
+    const { runTextChangeSetCommit, recoverChangeSetJournal, TEXT_CHANGE_SET_KIND } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/changeSetCommit.ts'))})
+    const { sha256Hex } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/changeSetPlan.ts'))})
     const journalDir = path.join(PROJECT, 'journal')
     const bundleRoot = path.join(PROJECT, 'bundles')
 
@@ -154,7 +154,7 @@ if (!POSIX_MODES) {
     const delBundleRoot = path.join(PROJECT, 'del-bundles')
     fs.mkdirSync(delJournalDir, { recursive: true })
     fs.mkdirSync(delBundleRoot, { recursive: true })
-    const { journalOperationPath } = await import(path.join(SRC, 'substrate/operationJournal.ts'))
+    const { journalOperationPath } = await import(${JSON.stringify(join(SRC, 'substrate/operationJournal.ts'))})
     const opId = 'delete-unreadable'
     fs.writeFileSync(journalOperationPath(delJournalDir, opId), JSON.stringify({
       schema: 1,
@@ -201,7 +201,7 @@ if (!POSIX_MODES) {
   skip('concourseSnapshot-resolveHarnessGround', 'needs non-root POSIX chmod')
 } else {
   const r = runSub(`
-    const snapMod = await import(path.join(SRC, 'services/concourse/concourseSnapshot.ts'))
+    const snapMod = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
     const draftDir = path.join(PROJECT, 'drafts')
     fs.mkdirSync(draftDir, { recursive: true })
     out.absentGround = await snapMod.resolveHarnessGround(draftDir)
