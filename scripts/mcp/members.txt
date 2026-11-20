@@ -64,6 +64,7 @@ prove-sdk-doorway.ts
 prove-serve-call-contract.ts
 prove-server-filter-identity.ts
 prove-stderr-tail-redaction.ts
+prove-stdio-command-not-found.ts
 prove-stdio-command-vetting.ts
 prove-stdio-message-limit.ts
 prove-structured-content-blocks.ts

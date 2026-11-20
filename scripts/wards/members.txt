@@ -22,6 +22,7 @@ prove-other-user-delete.ts
 prove-pipeline-home-delete.ts
 prove-served-tool-is-judged.ts
 prove-service-input-is-read.ts
+prove-target-root-on-windows.ts
 prove-ui-wards-project-scope.ts
 prove-ward-regex-cache.ts
 prove-wards-model-free.ts

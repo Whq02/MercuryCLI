@@ -8,7 +8,7 @@ import { dispatchSeedInputs, readConcourseSeedOverrides, writeConcourseDraft } f
 import type { ConcourseSnapshotV1, ControlNoteState } from '../contracts.js';
 import { concourseWaitCopy } from '../contracts.js';
 import { thisMercuryCommand } from '../../../services/privateChannel/installPath.js';
-import { sleep } from '../../../utils/sleep.js';
+import { pollUntil } from '../../../utils/deadline.js';
 import { startTimeout } from '../../../utils/timers.js';
 
 export function useConcourseDraftDispatch({
@@ -186,13 +186,21 @@ export function useConcourseDraftDispatch({
           })
           return
         }
-        for (let i = 0; i < 40; i++) {
-          const probe = (await daemonControlRpc({ op: 'concourseList' }, { timeoutMs: 500 })) as { code?: string }
-          if (probe.code !== 'ENOCONN') {
-            submitDraft(offer.draft)
-            return
-          }
-          await sleep(250)
+        let tries = 0
+        const ready = await pollUntil(
+          async () => {
+            const probe = (await daemonControlRpc({ op: 'concourseList' }, { timeoutMs: 500 })) as { code?: string }
+            if (probe.code !== 'ENOCONN') return true
+            tries += 1
+            return tries >= 40 ? false : undefined
+          },
+          250,
+          Infinity,
+          () => false,
+        )
+        if (ready) {
+          submitDraft(offer.draft)
+          return
         }
         noteControl('strip:composer', {
           state: 'failed',

@@ -24,6 +24,8 @@ import { readdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { localIpcDoorKind } from '../utils/platform/files.js'
+import { foldPathCase, toPosixSeparators } from '../utils/platform/paths.js'
 
 export interface MercuryDaemonStatus {
   daemon: { pid: number; version: string; uptimeSec: number; dir: string; buildTree?: string | null; script?: string } | null
@@ -156,7 +158,7 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
 type HelperRow = { pid: number; live: number | null }
 
 export function helperPidSocketsOnDisk(): number[] {
-  if (process.platform === 'win32') return []
+  if (localIpcDoorKind() === 'named-pipe') return []
   const plane = controlSockPath()
   let names: string[]
   try {
@@ -243,7 +245,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   }
 
   lines.push(
-    `  ${process.platform === 'win32' ? 'control pipe:' : 'control.sock:'} ${
+    `  ${localIpcDoorKind() === 'named-pipe' ? 'control pipe:' : 'control.sock:'} ${
       status.controlReachable
         ? `reachable (${status.controlSock})`
         : `unreachable (${status.controlError ?? 'unknown'}) at ${status.controlSock}`
@@ -274,8 +276,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   }
   if (status.warmRunners !== null && status.warmRunners > 0) {
     const boundDir = status.daemon?.dir
-    const fold = (p: string): string =>
-      process.platform === 'win32' ? p.replace(/\\/g, '/').toLowerCase() : p
+    const fold = (p: string): string => foldPathCase(toPosixSeparators(p))
     const isHere = boundDir !== undefined && fold(boundDir) === fold(process.cwd())
     const plural = status.warmRunners === 1 ? '' : 's'
     lines.push(

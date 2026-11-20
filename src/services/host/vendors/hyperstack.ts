@@ -1,5 +1,5 @@
 import { isIP } from 'node:net'
-import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
@@ -155,26 +155,38 @@ export class HyperstackClient implements HostVendor {
   async stop(_id: string): Promise<HostPod> { throw new Error('Hyperstack shutdown keeps compute billing. Use terminate to delete the instance and its local data.') }
   async terminate(id: string, readOnly?: HostReadOnly): Promise<void> {
     if (!/^[1-9]\d*$/.test(id)) throw new Error('Hyperstack requires a numeric VM ID.')
-    const deadline = Date.now() + (this.timing.readyTimeoutMs ?? 120000)
-    for (;;) {
-      try { await this.api.request('/core/virtual-machines/' + id, z.object({ status: z.literal(true) }), 'DELETE'); break } catch (error) {
-        if (error instanceof HostVendorHttpError && error.status === 404) break
-        if (!(error instanceof HostVendorHttpError && error.status === 400) || Date.now() >= deadline) throw error
-        const pod = await (readOnly ? readOnly('instance', signal => this.get(id, signal)) : this.get(id))
-        if (!['CREATING', 'BUILD', 'BUILDING', 'RUNNING'].includes(pod.status) || !/currently being created/.test(error.message)) throw error
-        await sleep(this.timing.pollMs ?? 2000)
-      }
-    }
+    const limitMs = this.timing.readyTimeoutMs ?? 120000
+    const deadline = Date.now() + limitMs
+    let lastError: unknown
+    await pollUntil(
+      async () => {
+        try { await this.api.request('/core/virtual-machines/' + id, z.object({ status: z.literal(true) }), 'DELETE'); return true } catch (error) {
+          if (error instanceof HostVendorHttpError && error.status === 404) return true
+          if (!(error instanceof HostVendorHttpError && error.status === 400) || Date.now() >= deadline) throw error
+          const pod = await (readOnly ? readOnly('instance', signal => this.get(id, signal)) : this.get(id))
+          if (!['CREATING', 'BUILD', 'BUILDING', 'RUNNING'].includes(pod.status) || !/currently being created/.test(error.message)) throw error
+          lastError = error
+        }
+      },
+      this.timing.pollMs ?? 2000,
+      limitMs,
+      () => { throw lastError },
+    )
     await verifyVmAbsent(this.label, id, signal => this.pods(signal), this.timing, readOnly)
   }
   async logs(id: string, signal?: AbortSignal): Promise<string> {
     if (!/^[1-9]\d*$/.test(id)) throw new Error('Hyperstack requires a numeric VM ID.')
     const bounded = AbortSignal.any([AbortSignal.timeout(this.timing.requestTimeoutMs ?? 10000), ...(signal ? [signal] : [])])
     const request = await this.api.request('/core/virtual-machines/' + id + '/logs', z.object({ request_id: idSchema }), 'POST', { length: 12 }, bounded)
-    for (;;) {
-      const result = await this.api.request('/core/virtual-machines/' + id + '/logs?request_id=' + request.request_id, z.object({ logs: z.string().nullable() }), 'GET', undefined, bounded)
-      if (result.logs !== null) return this.api.redact(result.logs).split('\n').slice(-12).join('\n')
-      await sleep(this.timing.pollMs ?? 1000, bounded, { throwOnAbort: true })
-    }
+    return pollUntil(
+      async () => {
+        const result = await this.api.request('/core/virtual-machines/' + id + '/logs?request_id=' + request.request_id, z.object({ logs: z.string().nullable() }), 'GET', undefined, bounded)
+        if (result.logs !== null) return this.api.redact(result.logs).split('\n').slice(-12).join('\n')
+      },
+      this.timing.pollMs ?? 1000,
+      Infinity,
+      () => { throw bounded.reason ?? new Error('Hyperstack logs timed out') },
+      { signal: bounded },
+    )
   }
 }

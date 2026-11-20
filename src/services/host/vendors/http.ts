@@ -1,4 +1,5 @@
 import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import type { z } from 'zod/v4'
 import type { HostPod } from './vendor.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
@@ -134,12 +135,17 @@ export class VendorApi {
     }
   }
   async readBack(id: string, read: () => Promise<HostPod>): Promise<HostPod> {
-    for (let attempt = 1; ; attempt++) {
-      try { return await read() } catch {
-        if (attempt >= 3) throw this.created(id, 'reading it back failed')
-        await sleep(this.timing.pollMs ?? 2500)
-      }
-    }
+    let attempt = 0
+    return pollUntil(
+      async () => {
+        try { return await read() } catch {
+          if (++attempt >= 3) throw this.created(id, 'reading it back failed')
+        }
+      },
+      this.timing.pollMs ?? 2500,
+      Infinity,
+      () => { throw this.created(id, 'reading it back failed') },
+    )
   }
   async request<T>(path: string, schema: z.ZodType<T>, method = 'GET', body?: unknown, signal?: AbortSignal, paid = false): Promise<T> {
     const timeoutMs = this.timing.requestTimeoutMs ?? 30000
