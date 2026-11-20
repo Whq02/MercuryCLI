@@ -17,6 +17,7 @@ members_cat() {
 
 drive_member_run() {
   local suite="$1" f="$2" name="$3" skip="${4:-}" rest="${5:-}" form="${6:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
+  [ -x "$bun" ] || bun="$(command -v bun 2>/dev/null || printf '%s' "$bun")"
   local root="$PWD" i var
   local -a words=()
   read -r -a words <<<"$rest"
@@ -57,6 +58,10 @@ drive_members() {
     fi
     names+=("$name"); files+=("$f"); rests+=("$rest")
   done < "$members"
+  if [ -z "$only" ] && [ "${#names[@]}" -eq 0 ] && [ "$failed" -eq 0 ]; then
+    printf '❌ %s: %s names no test — an empty list is a red, never a vacuous green\n' "$suite" "$members"
+    return 1
+  fi
   if [ -n "$only" ]; then
     if [ "${#names[@]}" -eq 0 ] && [ "$failed" -eq 0 ]; then
       printf '❌ %s: MERCURY_SUITE_MEMBER names %s, which is no member in %s — one member runs alone only by the name its list holds\n' "$suite" "$only" "$members"
