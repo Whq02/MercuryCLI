@@ -39,7 +39,7 @@ export function rowOf(value: unknown): LooseRow | null {
 export const isRowType = (type: string): type is RowType => ROW_TYPE_SET.has(type)
 export const isInputRowType = (type: string): boolean => INPUT_TYPE_SET.has(type)
 
-export const isOutcome = (row: { type?: string } | null | undefined): row is OutcomeRow & LooseRow => row?.type === 'outcome'
+export const isOutcome = (row: LooseRow | { type?: string; method?: unknown } | null | undefined): row is OutcomeRow & LooseRow => row?.type === 'outcome'
 export const isSessionRow = (row: LooseRow | null | undefined): boolean => row?.type === 'session'
 export const turnOpened = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'started'
 export const turnWaiting = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'waiting'

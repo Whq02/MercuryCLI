@@ -276,6 +276,7 @@ export type DaemonRequest =
       targetSessionId?: string
       isolation?: 'exclusive' | 'worktree-isolated' | 'read-only'
       model?: string
+      effort?: string
       title?: string
       agentName?: string
       seatsMax?: 1 | 2
