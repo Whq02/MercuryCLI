@@ -401,4 +401,105 @@ console.log('\nw07-4 · json.ts parseJSONL + fabric/transcriptDecode.ts — skip
   )
 }
 
+console.log('\nw07-5 · promptDraft — autosave refuses unreadable draft/scoped files; failed delete retries at next send')
+{
+  const rIo = runSubprocess(`
+    const fs = await import('node:fs')
+    const fsp = await import('node:fs/promises')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const s1 = '11111111-1111-4111-8111-111111111101'
+    const s2 = '11111111-1111-4111-8111-111111111102'
+    const s3 = '11111111-1111-4111-8111-111111111103'
+    let failPaths = new Set()
+    const realReadFile = fsp.readFile
+    mock.module('node:fs/promises', () => ({
+      ...fsp,
+      readFile: async (p, ...rest) => {
+        if (failPaths.has(String(p))) {
+          const err = new Error('EIO: i/o error, read')
+          err.code = 'EIO'
+          throw err
+        }
+        return realReadFile(p, ...rest)
+      },
+    }))
+    mock.module('fs/promises', () => ({
+      ...fsp,
+      readFile: async (p, ...rest) => {
+        if (failPaths.has(String(p))) {
+          const err = new Error('EIO: i/o error, read')
+          err.code = 'EIO'
+          throw err
+        }
+        return realReadFile(p, ...rest)
+      },
+    }))
+    const drafts = await import(path.join(SRC, 'utils/promptDraft.ts'))
+    drafts.saveDraftDebounced(s1, { text: 'important draft 1', cursorOffset: 5, mode: 'prompt', pastedContents: {} })
+    await drafts.flushDraftSaves()
+    await drafts.saveScopedDoc(s1, { v: 1, scope: 'main', body: 'scoped body 1', items: [] })
+    await drafts.flushScopedDocSaves()
+
+    const draftsDir = path.join(HOME, 'drafts')
+    const draftFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('.json') && !f.endsWith('-scoped.json')))
+    const scopedFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('-scoped.json')))
+    const beforeDraft = fs.readFileSync(draftFile, 'utf8')
+    const beforeScoped = fs.readFileSync(scopedFile, 'utf8')
+
+    failPaths = new Set([draftFile, scopedFile])
+    drafts.saveDraftDebounced(s3, { text: 'overwrite attempt', cursorOffset: 2, mode: 'prompt', pastedContents: {} })
+    await drafts.flushDraftSaves()
+    await drafts.saveScopedDoc(s2, { v: 1, scope: 'main', body: 'scoped overwrite', items: [] })
+    await drafts.flushScopedDocSaves()
+    failPaths = new Set()
+
+    out.draftPreserved = fs.readFileSync(draftFile, 'utf8') === beforeDraft
+    out.scopedPreserved = fs.readFileSync(scopedFile, 'utf8') === beforeScoped
+  `)
+  check('w07-5 autosave does not overwrite a draft file that fails I/O read (EIO)', rIo.out.draftPreserved === true, JSON.stringify(rIo.out.draftPreserved))
+  check('w07-5 autosave does not overwrite a scoped-doc file that fails I/O read (EIO)', rIo.out.scopedPreserved === true, JSON.stringify(rIo.out.scopedPreserved))
+
+  if (!POSIX_MODES) skip('w07-5 failed deleteDraft retry', 'chmod 0000 needs non-root POSIX')
+  else {
+    const rRetry = runSubprocess(`
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const drafts = await import(path.join(SRC, 'utils/promptDraft.ts'))
+      const pendingInput = await import(path.join(SRC, 'input-core/pending-input.ts'))
+      const s1 = '11111111-1111-4111-8111-111111111101'
+      const s2 = '11111111-1111-4111-8111-111111111102'
+
+      drafts.saveDraftDebounced(s1, { text: 'sent draft 1', cursorOffset: 4, mode: 'prompt', pastedContents: {} })
+      await drafts.flushDraftSaves()
+      drafts.saveDraftDebounced(s2, { text: 'sent draft 2', cursorOffset: 4, mode: 'prompt', pastedContents: {} })
+      await drafts.flushDraftSaves()
+
+      const draftsDir = path.join(HOME, 'drafts')
+      const draftFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('.json') && !f.endsWith('-scoped.json')))
+      fs.chmodSync(draftFile, 0o000)
+      try {
+        drafts.deleteDraft(s1)
+        await drafts.flushDraftSaves()
+        await new Promise(r => setTimeout(r, 80))
+      } finally {
+        fs.chmodSync(draftFile, 0o600)
+      }
+      out.s1StayedAfterFailedDelete = drafts.readDraftSync(s1)?.text ?? null
+
+      pendingInput.initSession(s2, '')
+      pendingInput.clearForSubmit('sent s2')
+      await drafts.flushDraftSaves()
+      await new Promise(r => setTimeout(r, 80))
+      out.s1AfterNextSend = drafts.readDraftSync(s1)
+      out.s2AfterNextSend = drafts.readDraftSync(s2)
+    `)
+    check(
+      'w07-5 failed deleteDraft for s1 is retried at next send (clearForSubmit on s2)',
+      rRetry.out.s1StayedAfterFailedDelete === 'sent draft 1' && rRetry.out.s1AfterNextSend === null && rRetry.out.s2AfterNextSend === null,
+      JSON.stringify(rRetry.out),
+    )
+  }
+}
+
 process.exit(failures === 0 ? 0 : 1)
