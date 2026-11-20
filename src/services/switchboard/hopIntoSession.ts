@@ -7,7 +7,7 @@ import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWo
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { validateUuid } from '../../utils/sessionStoragePortable.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil, withDeadline } from '../../utils/deadline.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { errorMessage, getErrnoCode } from '../../utils/errors.js'
 
@@ -81,7 +81,7 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
     ...(rec.worktreePath !== undefined ? { worktreePath: rec.worktreePath } : {}),
   }, workers.sessionOwnedByLiveWorker(sessionId) !== null)
   void hop.catch(() => settleLandingWords())
-  await Promise.race([hop, sleep(opts?.firstPaintMs ?? 250)])
+  await withDeadline(hop, opts?.firstPaintMs ?? 250, () => undefined)
   void withLanding(hop.then(() => undefined)).catch(passedOver)
   void import('./ensureDaemon.js')
     .then(m => m.ensureOwnedDaemon())
@@ -245,9 +245,21 @@ async function admitResumedSession(
       }
       const parkedStill = (): boolean => Object.values(workers.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined && r.parkedAt !== undefined)
       let reply = await admit()
-      for (const leavesBy = Date.now() + workers.RETIREMENT_EXIT_WAIT_MS; reply.liveHop === true && parkedStill() && Date.now() < leavesBy; ) {
-        await sleep(100)
-        if (workers.sessionOwnedByLiveWorker(sessionId) === null) reply = await admit()
+      if (reply.liveHop === true && parkedStill()) {
+        let waited = false
+        reply = await pollUntil(
+          async () => {
+            if (!waited) {
+              waited = true
+              return undefined
+            }
+            if (workers.sessionOwnedByLiveWorker(sessionId) === null) reply = await admit()
+            return reply.liveHop === true && parkedStill() ? undefined : reply
+          },
+          100,
+          workers.RETIREMENT_EXIT_WAIT_MS,
+          () => reply,
+        )
       }
       if (reply.ok !== true) return typeof reply.error === 'string' && reply.error !== '' ? reply.error : 'the daemon refused the resume'
       won = launchWonOf(launch, saved, {
@@ -284,7 +296,7 @@ async function admitResumedSession(
   connector.awaitAdmission(refusal)
   const admitted = refusal.then(r => r === null)
   const pointed = seat.focusDaemonSession(connector.record)
-  await Promise.race([pointed, sleep(opts?.firstPaintMs ?? 250)])
+  await withDeadline(pointed, opts?.firstPaintMs ?? 250, () => undefined)
   void withLanding(pointed.then(() => undefined)).catch(passedOver)
   void Promise.all([refusal, pointed.catch(passedOverAs(undefined))]).then(([refused]) => {
     if (refused === null && note !== undefined) void paintAdmissionNote(sessionId, note)
@@ -413,6 +425,31 @@ async function paintReactivationScheduleWarn(sessionId: string): Promise<void> {
   }
 }
 
+export async function waitForConnectorRecords(
+  connector: { records(): readonly unknown[]; subscribeRecords(listener: () => void): () => void },
+  limitMs = 3_000,
+): Promise<boolean> {
+  if (connector.records().length > 0) return true
+  let unsubscribe: (() => void) | undefined
+  const arrived = new Promise<boolean>(resolve => {
+    unsubscribe = connector.subscribeRecords(() => {
+      if (connector.records().length > 0) {
+        unsubscribe?.()
+        resolve(true)
+      }
+    })
+    if (connector.records().length > 0) {
+      unsubscribe()
+      resolve(true)
+    }
+  })
+  try {
+    return await withDeadline(arrived, limitMs, () => false)
+  } finally {
+    unsubscribe?.()
+  }
+}
+
 async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV1 | null>): Promise<void> {
   try {
     const { isAwaySummaryEnabled, buildAwayRecap } = await import('../../utils/cockpit/awaySummary.js')
@@ -420,10 +457,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
     const seat = await import('../engine-connector/daemonConnector.js')
     const connector = seat.getDaemonSessionConnector(sessionId)
     if (connector === undefined) return
-    const t0 = Date.now()
-    while (Date.now() - t0 < 3000 && connector.records().length === 0) {
-      await sleep(100)
-    }
+    await waitForConnectorRecords(connector, 3_000)
     const records = [...connector.records()]
     if (records.length === 0) return
     let gitDelta: { files: number; added: number; removed: number } | null = null
