@@ -29,9 +29,9 @@ import {
 import { rememberSessionWarmth } from '../../services/concourse/sessionWarmth.js'
 import { readSessionReceipts, type SessionReceiptEntry } from '../../services/switchboard/sessionReceipts.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
 import { sessionMirrorView } from './sessionMirror/sessionMirrorView.js'
-import { passedOver } from '../../utils/passedOver.js'
-
 
 const RECEIPT_ENTRIES_SHOWN = 4
 
@@ -51,20 +51,41 @@ function planReceiptSection(
   return { shown, deepFirst, olderLine }
 }
 
+export function readMirrorReceipts(
+  workspaceId: string,
+  sessionId: string,
+  readReceipts: typeof readSessionReceipts = readSessionReceipts,
+): { entries: SessionReceiptEntry[]; error: string | null } {
+  try {
+    return { entries: readReceipts(getProjectDir(workspaceId), sessionId).slice().reverse(), error: null }
+  } catch (error) {
+    logForDebugging(`[concourse] session receipts unreadable (${sessionId}): ${error}`)
+    return { entries: [], error: errorMessage(error) }
+  }
+}
+
+export function mirrorStatusNote(
+  note: ControlNoteState | undefined,
+  transcriptError: string | null,
+  receiptsError: string | null,
+): ControlNoteState | undefined {
+  if (note !== undefined) return note
+  if (transcriptError !== null) {
+    return { state: 'failed', reason: `Could not read transcript (${transcriptError}) — check permissions.` }
+  }
+  if (receiptsError !== null) {
+    return { state: 'failed', reason: `Could not read receipts (${receiptsError}) — check permissions.` }
+  }
+  return undefined
+}
+
 function useSessionReceiptsNewestFirst(
   sessionId: string,
   workspaceId: string,
   state: string | undefined,
   foldLength: number,
-): SessionReceiptEntry[] {
-  return useMemo(() => {
-    try {
-      return readSessionReceipts(getProjectDir(workspaceId), sessionId).slice().reverse()
-    } catch (error) {
-      passedOver(error)
-      return []
-    }
-  }, [sessionId, workspaceId, state, foldLength])
+): { entries: SessionReceiptEntry[]; error: string | null } {
+  return useMemo(() => readMirrorReceipts(workspaceId, sessionId), [sessionId, workspaceId, state, foldLength])
 }
 
 function receiptRowText(e: SessionReceiptEntry): string {
@@ -149,7 +170,7 @@ export function SessionMirror({
     }
   }, [changePending, bucket, sessionId, workspaceId])
 
-  const { fold } = useWorkerTranscriptFold(body.sessionId, body.workspaceId)
+  const { fold, readError: transcriptError } = useWorkerTranscriptFold(body.sessionId, body.workspaceId)
   usePublish(() => {
     if (fold !== null && fold.messages.length > 0) rememberSessionWarmth(body.sessionId, fold.messages, fold.shed)
   }, [fold, body.sessionId])
@@ -221,7 +242,7 @@ export function SessionMirror({
     { isActive: focused || pointerOver },
   )
 
-  const receiptsNewestFirst = useSessionReceiptsNewestFirst(
+  const { entries: receiptsNewestFirst, error: receiptsError } = useSessionReceiptsNewestFirst(
     body.sessionId,
     body.workspaceId,
     state,
@@ -234,8 +255,8 @@ export function SessionMirror({
   )
 
   const hintVisible = onEnter !== undefined
-  const noteView = note !== undefined ? controlNoteOf(note) : undefined
-  const noteText =
+  const effectiveNote = mirrorStatusNote(note, transcriptError, receiptsError)
+  const noteView = effectiveNote !== undefined ? controlNoteOf(effectiveNote) : undefined
     noteView === undefined
       ? null
       : noteView.state === 'refused' || noteView.state === 'failed'

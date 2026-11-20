@@ -464,5 +464,63 @@ console.log('\nworkerTranscriptFold.ts:147 — unreadable worker transcript surf
   }
 }
 
+console.log('\nSessionMirror.tsx:63 — unreadable receipts and transcript errors surface mirror failure notes')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/concourse/SessionMirror.tsx'))})
+    if (typeof mod.readMirrorReceipts !== 'function' || typeof mod.mirrorStatusNote !== 'function') {
+      out.missing = true
+    } else {
+      const { getProjectDir } = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/paths.ts'))})
+      const dir = getProjectDir(process.cwd())
+      fs.mkdirSync(dir, { recursive: true })
+      const receiptsPath = path.join(dir, 'sess-eacces.receipts.jsonl')
+      fs.writeFileSync(receiptsPath, '{"at":"2026-01-01T00:00:00Z","by":"operator","kind":"contract-close","summary":"done"}\\n', { mode: 0o600 })
+      const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+      if (posix) {
+        fs.chmodSync(receiptsPath, 0o200)
+        out.eaccesReceipts = mod.readMirrorReceipts(process.cwd(), 'sess-eacces')
+        fs.chmodSync(receiptsPath, 0o600)
+      } else {
+        out.eaccesReceipts = mod.readMirrorReceipts(process.cwd(), 'sess-eacces', () => {
+          throw new Error('EACCES: permission denied')
+        })
+      }
+      out.absentReceipts = mod.readMirrorReceipts(process.cwd(), 'sess-absent')
+      out.receiptsNote = mod.mirrorStatusNote(undefined, null, out.eaccesReceipts.error)
+      out.transcriptNote = mod.mirrorStatusNote(undefined, 'EACCES: permission denied', null)
+      out.cleanNote = mod.mirrorStatusNote(undefined, null, null)
+    }
+  `)
+  const eaccesReceipts = res.eaccesReceipts as { entries: unknown[]; error: string | null } | undefined
+  const absentReceipts = res.absentReceipts as { entries: unknown[]; error: string | null } | undefined
+  const receiptsNote = res.receiptsNote as { state?: string; reason?: string } | undefined
+  const transcriptNote = res.transcriptNote as { state?: string; reason?: string } | undefined
+  check(
+    'session-mirror-unreadable-receipts-note',
+    res.missing !== true &&
+      eaccesReceipts?.entries.length === 0 &&
+      typeof eaccesReceipts.error === 'string' &&
+      receiptsNote?.state === 'failed' &&
+      receiptsNote.reason === `Could not read receipts (${eaccesReceipts.error}) — check permissions.`,
+    JSON.stringify(res),
+  )
+  check(
+    'session-mirror-unreadable-transcript-note',
+    res.missing !== true &&
+      transcriptNote?.state === 'failed' &&
+      transcriptNote.reason === 'Could not read transcript (EACCES: permission denied) — check permissions.',
+    JSON.stringify(res),
+  )
+  check(
+    'session-mirror-absent-receipts-control',
+    res.missing !== true &&
+      absentReceipts?.entries.length === 0 &&
+      absentReceipts.error === null &&
+      res.cleanNote === undefined,
+    JSON.stringify(res),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
