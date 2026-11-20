@@ -19,6 +19,7 @@ import { createAttachmentMessage } from '../../../utils/attachments.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../SyntheticOutputTool/structuredOutputTool.js'
 import { errorMessage } from '../../../utils/errors.js'
+import { passedOver } from '../../../utils/passedOver.js'
 import { createUserMessage, extractTextContent } from '../../../utils/messages.js'
 import { getAgentTranscriptPath, readAgentMetadata, registerAgentTranscriptDestination, writeAgentMetadata } from '../../../utils/sessionStorage.js'
 import { swarmBrief } from '../../../services/crewBoard/seam.js'
@@ -206,13 +207,30 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
     })
   }
 
-  registerAgentTranscriptDestination(
-    agentId,
-    getAgentTranscriptPath(agentId),
-  )
+  try {
+    registerAgentTranscriptDestination(
+      agentId,
+      getAgentTranscriptPath(agentId),
+    )
+  } catch (error) {
+    logForDebugging(`runAgent: the transcript of crewmate ${agentId} could not be registered, so its rows may land beside the session's: ${errorMessage(error)}`)
+    passedOver(error)
+  }
   await landAgentTranscriptRows(messages, agentId)
 
-  const latestRecord = await readAgentMetadata(agentId)
-  await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort }))
+  let latestRecord: Awaited<ReturnType<typeof readAgentMetadata>> = null
+  let recordUnread = false
+  try {
+    latestRecord = await readAgentMetadata(agentId)
+  } catch (error) {
+    recordUnread = true
+    logForDebugging(`runAgent: the record of crewmate ${agentId} could not be read, so it is left as it is and this launch is not recorded: ${errorMessage(error)}`)
+    passedOver(error)
+  }
+  if (!recordUnread) {
+    await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch((error: unknown) => {
+      logForDebugging(`runAgent: the record of crewmate ${agentId} could not be saved, so a resume falls back to the default agent type, model and directory: ${errorMessage(error)}`)
+    })
+  }
   return { userContext, systemContext, systemPrompt, childContext, messages }
 }

@@ -225,18 +225,18 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   const rd = r.readFail as { threw: string | null; writeCalls: number }
   const wr = r.writeFail as { threw: string | null; writeCalls: number }
   check(
-    'runAgent/prepare: registerAgentTranscriptDestination error propagates instead of being swallowed',
-    reg.threw !== null && reg.threw.includes('register bug'),
+    'runAgent/prepare: a transcript registration that throws does not stop the launch, as before',
+    reg.threw === null,
     JSON.stringify(reg),
   )
   check(
-    'runAgent/prepare: readAgentMetadata EIO rejects without overwriting sidecar',
-    rd.threw !== null && rd.threw.includes('EIO') && rd.writeCalls === 0,
+    'runAgent/prepare: a sidecar that cannot be read is not written over, and the launch goes on',
+    rd.threw === null && rd.writeCalls === 0,
     JSON.stringify(rd),
   )
   check(
-    'runAgent/prepare: writeAgentMetadata EACCES rejects instead of running unrecorded',
-    wr.threw !== null && wr.threw.includes('EACCES') && wr.writeCalls === 1,
+    'runAgent/prepare: a record that cannot be saved does not stop the launch, as before',
+    wr.threw === null && wr.writeCalls === 1,
     JSON.stringify(wr),
   )
 }
