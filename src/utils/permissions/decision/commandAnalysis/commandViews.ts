@@ -2,6 +2,7 @@ import type { Node } from '../../../bash/parser.js'
 import { parseForSecurityFromAst } from './exact.js'
 
 type Word = string | null
+type Stand = { cwds: readonly string[]; left: readonly string[] }
 type Scope = { cwds: string[]; left: string[]; cwdKnown: boolean; entered?: { folders: string[]; from: string[] } }
 type Fed<F> = F | { said: string[] } | null | undefined
 type View<F> = { argv: Word[]; redirects: Array<{ op: string; target: Word }>; feed: Fed<F>; cwds: string[]; left: string[]; cwdKnown: boolean; text: string }
@@ -40,6 +41,12 @@ function literalOf(node: Node): Word {
     default:
       return null
   }
+}
+
+export function placedPath(path: string, stand: Stand): { path: string; folders: readonly string[] } {
+  const form = /^~([+-])(?=\/|$)/.exec(path)
+  if (form === null || (form[1] === '-' && stand.left.length === 0)) return { path, folders: stand.cwds }
+  return { path: `.${path.slice(2)}`, folders: form[1] === '+' ? stand.cwds : stand.left }
 }
 
 export function commandViews<F>(rootNode: unknown, cwd: string, handedDown: (name: string, words: string[]) => F, enter: (folder: string, target: string) => string) {
@@ -124,7 +131,8 @@ export function commandViews<F>(rootNode: unknown, cwd: string, handedDown: (nam
           const target = argv[1]
           if (argv.length !== 2 || target === null || target === undefined || target === '-' || target.startsWith('-')) scope.cwdKnown = false
           else {
-            const entered = [...new Set(scope.cwds.map(folder => enter(folder, target)))]
+            const place = placedPath(target, scope)
+            const entered = [...new Set(place.folders.map(folder => enter(folder, place.path)))]
             const next = [...new Set([...scope.cwds, ...entered])]
             if (next.length > MAX_FOLDERS) scope.cwdKnown = false
             else {

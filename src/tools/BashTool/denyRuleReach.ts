@@ -9,6 +9,7 @@ import {
   parseForSecurity,
   PARSE_ABORTED,
   pinnedCommandAnalysis,
+  placedPath,
   shellCommandText,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import { getDenyRules } from '../../utils/permissions/decision/rules.js'
@@ -64,12 +65,6 @@ const MAX_GLOB_MATCHES = 512
 
 function hasGlob(word: string): boolean {
   return /[*?[]/.test(word)
-}
-
-function placed(path: string, stand: Stand): { path: string; folders: readonly string[] } {
-  const form = /^~([+-])(?=\/|$)/.exec(path)
-  if (form === null || (form[1] === '-' && stand.left.length === 0)) return { path, folders: stand.cwds }
-  return { path: `.${path.slice(2)}`, folders: form[1] === '+' ? stand.cwds : stand.left }
 }
 
 const MATCHES_NOTHING = /^(?!)$/
@@ -542,7 +537,7 @@ function denialsOf(reach: Reach) {
     return estate !== undefined && wanted.includes('edit') && estate(resolve(folder, expandTilde(path))) ? ESTATE_RULE : null
   }
   const pathFound = (written: string, stand: Stand, wanted: readonly FileKind[]): { rule: PermissionRule; path: string } | 'unread' | Unreadable | null => {
-    const { path, folders } = placed(written, stand)
+    const { path, folders } = placedPath(written, stand)
     let unreadable: Unreadable | null = null
     for (const folder of folders) {
       if (!hasGlob(path)) {
@@ -570,7 +565,7 @@ function denialsOf(reach: Reach) {
     const budget = scanCeiling()
     let visited = 0
     let unreadable: Unreadable | null = null
-    const places = roots.map(root => placed(root, stand))
+    const places = roots.map(root => placedPath(root, stand))
     const queue = [...new Set([...stand.cwds, ...stand.left])].flatMap(folder => places.flatMap(place => (place.folders.includes(folder) ? [resolve(folder, expandTilde(place.path))] : [])))
     const named = estate !== undefined && wanted.includes('edit') ? queue.find(root => estate(root)) : undefined
     if (named !== undefined) return { rule: ESTATE_RULE, path: named }
