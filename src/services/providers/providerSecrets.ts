@@ -155,20 +155,28 @@ export function credentialFileRestorer(path: string): () => void {
   }
 }
 
+function secretsStoreUnread(path: string, probe: { code: string; message: string }): Error {
+  return Object.assign(
+    new Error(
+      `The provider secrets store at ${path} exists but could not be read (${probe.code}); nothing was written. ${probe.message}`,
+    ),
+    { code: probe.code },
+  )
+}
+
+export function refuseUnreadSecretsStore(): void {
+  const path = secretsPath()
+  const probe = probeCredentialJson(path)
+  if (probe.state === 'unreadable') throw secretsStoreUnread(path, probe)
+}
+
 function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   const dir = getAuthConfigHomeDir()
   refuseProofWriteIntoAccountStore(dir, 'the provider secrets store')
   mkdirSync(dir, { recursive: true })
   const path = secretsPath()
   const probe = probeCredentialJson(path)
-  if (probe.state === 'unreadable') {
-    throw Object.assign(
-      new Error(
-        `The provider secrets store at ${path} exists but could not be read (${probe.code}); nothing was written. ${probe.message}`,
-      ),
-      { code: probe.code },
-    )
-  }
+  if (probe.state === 'unreadable') throw secretsStoreUnread(path, probe)
   if (probe.state === 'unusable') keepCredentialFileAside('The provider secrets store', 'provider-secrets', path, probe.why)
   const existing: ProviderSecretsFile = probe.state === 'ok' ? (probe.file as ProviderSecretsFile) : { version: PROVIDER_SECRETS_VERSION }
   const next: ProviderSecretsFile = { ...existing, version: PROVIDER_SECRETS_VERSION }

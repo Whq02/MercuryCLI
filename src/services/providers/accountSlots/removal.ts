@@ -8,7 +8,7 @@ import { resetUserCache } from '../../../utils/user.js'
 import { revokeOAuthToken } from '../../oauth/client.js'
 import type { AccountSlot, SlotRemovalOwners, AccountSlotKind } from './shapes.js'
 import { disconnectOpenaiSubscription, resolveOpenaiApiKey } from '../openai/openaiAccounts.js'
-import { writeStoredOpenaiApiKey, writeStoredZaiApiKey, writeStoredOpenrouterApiKey, writeStoredGeminiApiKey, writeStoredMoonshotApiKey, writeStoredMetaApiKey, writeStoredZenApiKey, writeStoredMinimaxApiKey, writeStoredTogetherApiKey, writeStoredCohereApiKey, writeStoredGroqApiKey, writeStoredMeliousApiKey, writeStoredOrcarouterApiKey, writeStoredCerebrasApiKey, writeStoredFireworksApiKey, writeStoredQwenApiKey, writeStoredDeepseekApiKey, writeStoredXaiApiKey, writeStoredXaiManagementApiKey, writeStoredNousApiKey, writeStoredCompatApiKey, writeStoredHuggingfaceApiKey, writeStoredLocalApiKey, writeStoredMistralApiKey, writeStoredMistralAdminApiKey, clearEveryStoredCompatKey, probeCredentialJson, takeCredentialKeptAside } from '../providerSecrets.js'
+import { writeStoredOpenaiApiKey, writeStoredZaiApiKey, writeStoredOpenrouterApiKey, writeStoredGeminiApiKey, writeStoredMoonshotApiKey, writeStoredMetaApiKey, writeStoredZenApiKey, writeStoredMinimaxApiKey, writeStoredTogetherApiKey, writeStoredCohereApiKey, writeStoredGroqApiKey, writeStoredMeliousApiKey, writeStoredOrcarouterApiKey, writeStoredCerebrasApiKey, writeStoredFireworksApiKey, writeStoredQwenApiKey, writeStoredDeepseekApiKey, writeStoredXaiApiKey, writeStoredXaiManagementApiKey, writeStoredNousApiKey, writeStoredCompatApiKey, writeStoredHuggingfaceApiKey, writeStoredLocalApiKey, writeStoredMistralApiKey, writeStoredMistralAdminApiKey, clearEveryStoredCompatKey, probeCredentialJson, refuseUnreadSecretsStore, takeCredentialKeptAside } from '../providerSecrets.js'
 import { disconnectOpenrouterOauthKey } from '../openrouter/openrouterAccounts.js'
 import { disconnectGeminiOauth, disconnectGeminiPlan, geminiAuthPathForDisplay } from '../gemini/geminiAccounts.js'
 import { disconnectMoonshotOauth, moonshotAuthPathForDisplay } from '../moonshot/moonshotAccounts.js'
@@ -94,20 +94,24 @@ const ACCOUNT_FILE_SIGN_OUTS: Readonly<Record<string, { path: () => string; sign
 }
 
 export function signOutAccountFileNoSlotReads(family: string): { refused: string } | { keptAside: string } | null {
-  const file = Object.hasOwn(ACCOUNT_FILE_SIGN_OUTS, family) ? ACCOUNT_FILE_SIGN_OUTS[family] : undefined
-  if (file === undefined) return null
-  const state = probeCredentialJson(file.path()).state
-  if (state === 'absent' || state === 'ok') return null
-  for (const signOut of file.signOuts) {
+  const refused: string[] = []
+  const attempt = (signOut: () => void): boolean => {
     try {
       signOut()
+      return true
     } catch (error) {
       const note = signOutRefusalOf(error)
       if (note === null) throw error
-      return { refused: note }
+      refused.push(note)
+      return false
     }
   }
-  const keptAside = takeCredentialKeptAside(file.path())
+  if (family !== 'anthropic') attempt(refuseUnreadSecretsStore)
+  const file = Object.hasOwn(ACCOUNT_FILE_SIGN_OUTS, family) ? ACCOUNT_FILE_SIGN_OUTS[family] : undefined
+  const state = file === undefined ? 'absent' : probeCredentialJson(file.path()).state
+  if (file !== undefined && state !== 'absent' && state !== 'ok') file.signOuts.every(attempt)
+  if (refused.length > 0) return { refused: refused.join(' ') }
+  const keptAside = file === undefined ? undefined : takeCredentialKeptAside(file.path())
   return keptAside === undefined ? null : { keptAside }
 }
 

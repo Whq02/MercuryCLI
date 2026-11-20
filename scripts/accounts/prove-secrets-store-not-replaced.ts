@@ -131,6 +131,24 @@ else {
   check('the refusal says why nothing was written and what to do, and carries the code', threw?.message === words && threw.code === 'EACCES', `said: ${threw?.message ?? '(nothing)'} — wanted: ${words}`)
 }
 
+console.log('the secrets store — there and unreadable: the sign-out of one provider says so in the store\'s own sentence and exits 1')
+if (!POSIX_MODES) skip('the unreadable store', 'a mode-0200 file needs a POSIX process that is not root')
+else {
+  const r = runIn(`
+    const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+    const STORE = ${JSON.stringify(JSON.stringify({ ...FULL_SECRETS, deepseekApiKey: 'fixture-deepseek-key' }, null, 2) + '\n')}
+    fs.writeFileSync(secretsFile, STORE, { mode: 0o600 })
+    fs.chmodSync(secretsFile, 0o200)
+    const said = { out: '', err: '', exit: null }
+    await cli.providerAuthLogout('deepseek', { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
+    fs.chmodSync(secretsFile, 0o600)
+    out.said = said
+    out.same = raw(secretsFile) === STORE
+  `)
+  const said = r.said as { out: string; err: string; exit: number | null }
+  check('mercury auth logout deepseek names the store it could not read on the error stream, exits 1, and the store stands with its key', said.err.startsWith(`Could not sign out: The provider secrets store at ${String(r.secretsFile)} exists but could not be read (EACCES); nothing was written.`) && said.out === '' && said.exit === 1 && r.same === true, `${JSON.stringify(said)} · store ${r.same === true ? 'kept' : 'changed'}`)
+}
+
 console.log('the auth file beside it (publishAuthScopedJson, the Meta auth file) — there and unreadable: not replaced')
 if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
 else {
