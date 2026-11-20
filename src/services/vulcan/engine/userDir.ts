@@ -1,11 +1,10 @@
 import * as path from 'node:path'
+import { normalizedOsPlatform } from '../../../utils/platform/programs.js'
 
 type EngineUserPlatform = 'win32' | 'darwin' | 'linux'
 
 function engineUserPlatform(platform: NodeJS.Platform = process.platform): EngineUserPlatform {
-  if (platform === 'win32') return 'win32'
-  if (platform === 'darwin') return 'darwin'
-  return 'linux'
+  return normalizedOsPlatform(platform)
 }
 
 export function engineUserEnv(dir: string, platform: NodeJS.Platform = process.platform): Record<string, string> {

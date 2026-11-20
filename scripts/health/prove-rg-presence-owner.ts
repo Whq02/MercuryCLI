@@ -41,7 +41,9 @@ check('this tree resolves a real engine (present)', before.present === true, `${
 }
 
 console.log('\n§2 the row reads a PROBED answer: a present ripgrep that fails its probe says so')
-{
+if (process.platform === 'win32') {
+  console.log('  [SKIP] not read on Windows: ripgrep spawn probe uses a POSIX #!/bin/sh stand-in')
+} else {
   const fakeBin = mkdtempSync(join(tmpdir(), 'rg-fake-bin-'))
   writeFileSync(join(fakeBin, 'rg'), '#!/bin/sh\nexit 1\n', { mode: 0o755 })
   const home = mkdtempSync(join(tmpdir(), 'rg-probe-home-'))

@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
+import { fakeCommand } from '../dap/fakeCommand.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const CACHE = join(ROOT, 'dist', 'vendor', 'pyright')
@@ -106,9 +107,7 @@ section('(4) ruff probe honesty + version floor (PATH-controlled shims)')
 {
   const shims = mkdtempSync(join(tmpdir(), 'ruff-shims-'))
   const mkShim = (version: string): void => {
-    const p = join(shims, 'ruff')
-    writeFileSync(p, `#!/bin/sh\necho "ruff ${version}"\n`)
-    chmodSync(p, 0o755)
+    fakeCommand(shims, 'ruff', `ruff ${version}\n`, shims)
   }
   const savedPath = process.env.PATH
   try {
@@ -142,12 +141,10 @@ section('(4) ruff probe honesty + version floor (PATH-controlled shims)')
 section('(5) the deliberate .py multi-provider merge order')
 {
   const shims = mkdtempSync(join(tmpdir(), 'ruff-order-'))
-  const p = join(shims, 'ruff')
-  writeFileSync(p, '#!/bin/sh\necho "ruff 0.8.1"\n')
-  chmodSync(p, 0o755)
+  fakeCommand(shims, 'ruff', 'ruff 0.8.1\n', shims)
   const savedPath = process.env.PATH
   try {
-    process.env.PATH = `${shims}:${savedPath}`
+    process.env.PATH = `${shims}${delimiter}${savedPath}`
     process.env.MERCURY_PYRIGHT_VENDOR_DIR = CACHE
     pyright._resetPyrightProbeCacheForTesting()
     ruff._resetRuffProbeCacheForTesting()

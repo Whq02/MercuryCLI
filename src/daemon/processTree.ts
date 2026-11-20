@@ -5,6 +5,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { getProcessStartInstantAsync } from './ownerWatch.js'
 import { parseProcessStartToken } from './processSweep.js'
 import { passedOver } from '../utils/passedOver.js'
+import { processStartProbeKind } from '../utils/platform/processes.js'
 
 type ProcessTreeRow = { pid: number; ppid: number; pgid: number; birth?: string; bornSecond?: number }
 
@@ -104,8 +105,9 @@ export function processTreeMembers(rows: readonly ProcessTreeRow[], rootPid: num
 
 export function readProcessTreeUnder(rootPid: number): Promise<ProcessTreeMember[] | null> {
   if (rootPid <= 1 || rootPid === process.pid) return Promise.resolve(null)
-  if (process.platform === 'win32') return Promise.resolve(process.ppid === rootPid ? null : [])
-  if (process.platform === 'linux') {
+  const probe = processStartProbeKind()
+  if (probe === 'win32-cim') return Promise.resolve(process.ppid === rootPid ? null : [])
+  if (probe === 'linux-proc') {
     const table = readLinuxProcessTree()
     return Promise.resolve(table === null ? null : processTreeMembers(table.rows, rootPid, table.notedSecond))
   }
@@ -121,7 +123,7 @@ export function readProcessTreeUnder(rootPid: number): Promise<ProcessTreeMember
 }
 
 export function readProcessBirth(pid: number): Promise<string | null> {
-  if (process.platform !== 'linux') return getProcessStartInstantAsync(pid)
+  if (processStartProbeKind() !== 'linux-proc') return getProcessStartInstantAsync(pid)
   try {
     return Promise.resolve(parseLinuxProcessStat(readFileSync(`/proc/${pid}/stat`, 'utf8'))?.birth ?? null)
   } catch (error) {

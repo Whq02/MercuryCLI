@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { passedOver } from './passedOver.js'
+import { ancestorPidsCommand, processStartProbeKind } from './platform/processes.js'
 
 
 export function isProcessRunning(pid: number): boolean {
@@ -15,7 +16,7 @@ export function isProcessRunning(pid: number): boolean {
 }
 
 export function procStartToken(pid: number): string | undefined {
-  if (process.platform !== 'linux') return undefined
+  if (processStartProbeKind() !== 'linux-proc') return undefined
   try {
     const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
     const closeParen = stat.lastIndexOf(')')
@@ -36,20 +37,11 @@ export function currentProcStart(): string | undefined {
 const ANCESTOR_TIMEOUT_MS = 3000
 
 export async function getAncestorPidsAsync(pid: number, maxDepth: number = 10): Promise<number[]> {
-  let result
-  if (process.platform === 'win32') {
-    const script = `$p=${pid};$out=@();for($i=0;$i -lt ${maxDepth};$i++){$proc=Get-CimInstance Win32_Process -Filter "ProcessId=$p" -ErrorAction SilentlyContinue;if(-not $proc){break};$pp=$proc.ParentProcessId;if(-not $pp -or $pp -eq 0){break};$out+=$pp;$p=$pp};$out -join ','`
-    result = await execFileNoThrow('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-      timeout: ANCESTOR_TIMEOUT_MS,
-      preserveOutputOnError: false,
-    })
-  } else {
-    const script = `p=${pid}; i=0; while [ $i -lt ${maxDepth} ]; do pp=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' '); if [ -z "$pp" ] || [ "$pp" = "0" ] || [ "$pp" = "1" ]; then break; fi; echo "$pp"; p=$pp; i=$((i+1)); done`
-    result = await execFileNoThrow('sh', ['-c', script], {
-      timeout: ANCESTOR_TIMEOUT_MS,
-      preserveOutputOnError: false,
-    })
-  }
+  const cmd = ancestorPidsCommand(pid, maxDepth)
+  const result = await execFileNoThrow(cmd.file, cmd.args, {
+    timeout: ANCESTOR_TIMEOUT_MS,
+    preserveOutputOnError: false,
+  })
   if (result.code !== 0 || result.stdout.trim() === '') return []
   return result.stdout
     .split(/[\n,]/)
