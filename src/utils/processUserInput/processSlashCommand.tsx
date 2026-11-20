@@ -674,7 +674,11 @@ async function runLocalJsxCommand(
           isLocalJSXCommand: false,
           clearLocalJSX: true,
         })
-        finish({ messages: [], shouldQuery: false })
+        finish({
+          messages: [echoed, createCommandInputMessage(stderrWrapped(String(error)))],
+          shouldQuery: false,
+          commandError: String(error),
+        })
       }
     })()
   })
