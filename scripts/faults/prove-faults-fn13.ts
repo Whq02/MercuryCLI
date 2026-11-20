@@ -162,6 +162,173 @@ try {
     )
     removeHostRecord(podId)
   }
+
+  {
+    const { locateBlender, blenderLaneReadinessRecords } = await import('../../src/services/ide/blenderProject.ts')
+    const prevBin = process.env.MERCURY_BLENDER_BIN
+    const prevEnabled = process.env.MERCURY_BLENDER
+    try {
+      process.env.MERCURY_BLENDER = '1'
+      const missingPin = join(scratch, 'no-such-blender')
+      process.env.MERCURY_BLENDER_BIN = missingPin
+      const missingCensus = locateBlender({ skipPathProbe: true, platform: 'darwin', appBundles: [] })
+      check(
+        'locateBlender still reports does not exist for an absent MERCURY_BLENDER_BIN',
+        missingCensus.blender === undefined &&
+          missingCensus.pinError === `MERCURY_BLENDER_BIN is set to ${missingPin}, which does not exist`,
+        missingCensus.pinError ?? '(none)',
+      )
+
+      if (POSIX_MODES) {
+        const lockedDir = join(scratch, 'locked-blender-dir')
+        mkdirSync(lockedDir, { recursive: true, mode: 0o700 })
+        const lockedPin = join(lockedDir, 'blender')
+        writeFileSync(lockedPin, '#!/bin/sh\n', { mode: 0o700 })
+        chmodSync(lockedDir, 0o000)
+        try {
+          process.env.MERCURY_BLENDER_BIN = lockedPin
+          const census = locateBlender({ skipPathProbe: true, platform: 'darwin', appBundles: [] })
+          const rows = blenderLaneReadinessRecords()
+          check(
+            'locateBlender reports access error instead of does not exist when MERCURY_BLENDER_BIN cannot be accessed',
+            census.blender === undefined &&
+              Boolean(census.pinError?.includes(`MERCURY_BLENDER_BIN is set to ${lockedPin}, which could not be accessed (`)) &&
+              Boolean(census.pinError?.includes('EACCES')) &&
+              Boolean(census.pinError?.includes('check its permissions or unset MERCURY_BLENDER_BIN')) &&
+              !census.pinError?.includes('does not exist') &&
+              rows[0]?.detail === census.pinError,
+            JSON.stringify({ pinError: census.pinError, healthDetail: rows[0]?.detail }),
+          )
+        } finally {
+          chmodSync(lockedDir, 0o700)
+        }
+      }
+    } finally {
+      if (prevBin === undefined) delete process.env.MERCURY_BLENDER_BIN
+      else process.env.MERCURY_BLENDER_BIN = prevBin
+      if (prevEnabled === undefined) delete process.env.MERCURY_BLENDER
+      else process.env.MERCURY_BLENDER = prevEnabled
+    }
+  }
+
+  {
+    const workerMod = await import('../../src/services/host/worker.ts') as {
+      restoreRentingSessionOutcome?: (record: { sessionId?: string; sessionModel?: string; sessionModelBefore?: string }) => Promise<{ state: string; detail?: string }>
+    }
+    const daemonDir = join(home, 'daemon')
+    mkdirSync(daemonDir, { recursive: true, mode: 0o700 })
+    const workersFile = join(daemonDir, 'concourse-workers.json')
+    const hostedModel = 'compat/pod-tf-1/qwen'
+    const priorModel = 'compat/local/base'
+    const sessionId = '11111111-1111-4111-8111-111111111111'
+
+    writeFileSync(workersFile, '{corrupt json', { mode: 0o600 })
+    const unreadOutcome = workerMod.restoreRentingSessionOutcome
+      ? await workerMod.restoreRentingSessionOutcome({ sessionId, sessionModel: hostedModel, sessionModelBefore: priorModel })
+      : { state: 'missing' }
+    check(
+      'restoreRentingSessionOutcome reports failed when session list cannot be read',
+      unreadOutcome.state === 'failed' && Boolean(unreadOutcome.detail),
+      JSON.stringify(unreadOutcome),
+    )
+
+    writeFileSync(
+      workersFile,
+      JSON.stringify({
+        version: 1,
+        workers: {
+          'runner-1': {
+            schema: 1,
+            runnerId: 'runner-1',
+            sessionId,
+            workspaceId: scratch,
+            isolation: 'shared',
+            modelKey: hostedModel,
+            spawnedAt: Date.now() - 1000,
+            lastLiveAt: Date.now(),
+            pid: process.pid,
+          },
+        },
+      }) + '\n',
+      { mode: 0o600 },
+    )
+    const rpcOutcome = workerMod.restoreRentingSessionOutcome
+      ? await workerMod.restoreRentingSessionOutcome({ sessionId, sessionModel: hostedModel, sessionModelBefore: priorModel })
+      : { state: 'missing' }
+    check(
+      'restoreRentingSessionOutcome reports failed with error detail when model switch RPC fails',
+      rpcOutcome.state === 'failed' && Boolean(rpcOutcome.detail),
+      JSON.stringify(rpcOutcome),
+    )
+
+    const movedOutcome = workerMod.restoreRentingSessionOutcome
+      ? await workerMod.restoreRentingSessionOutcome({ sessionId, sessionModel: 'compat/other/model', sessionModelBefore: priorModel })
+      : { state: 'missing' }
+    check(
+      'restoreRentingSessionOutcome reports skipped when session moved to another model',
+      movedOutcome.state === 'skipped',
+      JSON.stringify(movedOutcome),
+    )
+
+    const { terminateTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
+    const { writeHostRecord } = await import('../../src/services/host/store.ts')
+    const { HostVendorHttpError } = await import('../../src/services/host/vendors/http.ts')
+    const goneClient = {
+      vendor: 'runpod',
+      label: 'Runpod',
+      keyHelp: '',
+      capabilities: { stop: true, dataCenters: true, persistentDisk: 'volume' },
+      rateLimitPolicy: () => undefined,
+      shapes: () => [],
+      offers: async () => [],
+      watchOffer: async () => undefined,
+      pods: async () => [],
+      get: async () => { throw new HostVendorHttpError('Runpod GET /pods returned HTTP 404', 404) },
+      create: async () => { throw new Error('unused') },
+      stop: async () => { throw new Error('unused') },
+      terminate: async () => {},
+      logs: async () => '',
+    } as never
+
+    const podFailId = 'tf-restore-fail-1'
+    writeHostRecord({
+      id: podFailId,
+      vendor: 'runpod',
+      name: 'tf-restore-fail',
+      recipe: 'tensorfold-qwen',
+      price: 2.0,
+      startedAt: new Date(Date.now() - 60_000).toISOString(),
+      status: 'RUNNING',
+      sessionId,
+      sessionModel: hostedModel,
+      sessionModelBefore: priorModel,
+    })
+    const terminatedWithFailure = await terminateTensorFoldPod(podFailId, { client: goneClient })
+    check(
+      'terminateTensorFoldPod reports failed session restore in its terminated words',
+      terminatedWithFailure.ok &&
+        terminatedWithFailure.words.includes('this session stays on a model that is gone (') &&
+        terminatedWithFailure.words.includes(') — run /model ' + priorModel),
+      terminatedWithFailure.words,
+    )
+
+    const podSkipId = 'tf-restore-skip-1'
+    writeHostRecord({
+      id: podSkipId,
+      vendor: 'runpod',
+      name: 'tf-restore-skip',
+      recipe: 'tensorfold-qwen',
+      price: 2.0,
+      startedAt: new Date(Date.now() - 60_000).toISOString(),
+      status: 'RUNNING',
+    })
+    const terminatedClean = await terminateTensorFoldPod(podSkipId, { client: goneClient })
+    check(
+      'terminateTensorFoldPod adds no restore warning when no session restore was needed',
+      terminatedClean.ok && !terminatedClean.words.includes('stays on a model'),
+      terminatedClean.words,
+    )
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
