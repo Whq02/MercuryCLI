@@ -147,7 +147,7 @@ const secrets = await import('../../src/services/providers/providerSecrets.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+const { validateModel } = await import('../../src/services/providers/validateModel.ts')
 
 async function runChat(model = 'muse-spark-1.3'): Promise<AssistantMessage[]> {
   const params: CompatCallModelParams = {

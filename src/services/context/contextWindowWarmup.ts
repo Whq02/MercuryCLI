@@ -1,7 +1,7 @@
 
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import { passedOver } from '../passedOver.js'
-import { startTimeout, stopTimeout } from '../timers.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import { passedOver } from '../../utils/passedOver.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const SOURCE_WAIT_MS = 3_000
 const LOCAL_WINDOW_WAIT_MS = 10_000
@@ -27,34 +27,34 @@ async function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T | 
 export async function contextWindowSourceReady(model: string): Promise<boolean> {
   switch (declaredRouteOf(model)) {
     case 'openrouter': {
-      const { resolveOpenrouterAccount } = await import('../../services/providers/openrouter/openrouterAccounts.js')
-      const { getCachedOpenrouterCatalogue } = await import('../../services/providers/openrouter/openrouterCatalogue.js')
+      const { resolveOpenrouterAccount } = await import('../providers/openrouter/openrouterAccounts.js')
+      const { getCachedOpenrouterCatalogue } = await import('../providers/openrouter/openrouterCatalogue.js')
       const account = resolveOpenrouterAccount()
       if (!account) return true
       return (getCachedOpenrouterCatalogue(account.keySource)?.models.length ?? 0) > 0
     }
     case 'gemini': {
-      const { resolveGeminiAccount } = await import('../../services/providers/gemini/geminiAccounts.js')
-      const { getCachedGeminiCatalogue } = await import('../../services/providers/gemini/geminiCatalogue.js')
+      const { resolveGeminiAccount } = await import('../providers/gemini/geminiAccounts.js')
+      const { getCachedGeminiCatalogue } = await import('../providers/gemini/geminiCatalogue.js')
       const account = resolveGeminiAccount()
       if (!account) return true
       return (getCachedGeminiCatalogue(account.kind)?.models.length ?? 0) > 0
     }
     case 'huggingface': {
-      const { resolveHuggingfaceApiKey } = await import('../../services/providers/huggingface/huggingfaceAccounts.js')
-      const { getCachedHuggingfaceCatalogue } = await import('../../services/providers/huggingface/huggingfaceCatalogue.js')
+      const { resolveHuggingfaceApiKey } = await import('../providers/huggingface/huggingfaceAccounts.js')
+      const { getCachedHuggingfaceCatalogue } = await import('../providers/huggingface/huggingfaceCatalogue.js')
       if (!resolveHuggingfaceApiKey()) return true
       return (getCachedHuggingfaceCatalogue()?.models.length ?? 0) > 0
     }
     case 'nous': {
-      const { resolveNousApiKey } = await import('../../services/providers/nous/nousAccounts.js')
-      const { getCachedNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+      const { resolveNousApiKey } = await import('../providers/nous/nousAccounts.js')
+      const { getCachedNousCatalogue } = await import('../providers/nous/nousCatalogue.js')
       if (!resolveNousApiKey()) return true
       return (getCachedNousCatalogue()?.models.length ?? 0) > 0
     }
     case 'openai': {
-      const { resolveOpenaiAccount } = await import('../../services/providers/openai/openaiAccounts.js')
-      const { getCachedOpenaiCatalogue } = await import('../../services/providers/openai/openaiCatalogue.js')
+      const { resolveOpenaiAccount } = await import('../providers/openai/openaiAccounts.js')
+      const { getCachedOpenaiCatalogue } = await import('../providers/openai/openaiCatalogue.js')
       const account = resolveOpenaiAccount()
       if (!account) return true
       return (getCachedOpenaiCatalogue(account.kind)?.models.length ?? 0) > 0
@@ -67,8 +67,8 @@ export async function contextWindowSourceReady(model: string): Promise<boolean> 
 }
 
 async function localWindowKnown(model: string): Promise<boolean> {
-  const { localRecordFor } = await import('../../services/providers/local/localCatalogue.js')
-  const { heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowHeldUnread, localWindowSettingOf } = await import('../../services/providers/local/localWindow.js')
+  const { localRecordFor } = await import('../providers/local/localCatalogue.js')
+  const { heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowHeldUnread, localWindowSettingOf } = await import('../providers/local/localWindow.js')
   const record = localRecordFor(model)
   if (record === undefined) return false
   const application = localWindowApplication(record)
@@ -80,9 +80,9 @@ async function localWindowKnown(model: string): Promise<boolean> {
 }
 
 async function awaitLocalWindow(model: string, estTokens: number, timeoutMs: number): Promise<boolean> {
-  const { localRecordFor } = await import('../../services/providers/local/localCatalogue.js')
-  const { refreshLocalDiscovery } = await import('../../services/providers/local/localDiscovery.js')
-  const { decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowHeldUnread, localWindowSettingOf } = await import('../../services/providers/local/localWindow.js')
+  const { localRecordFor } = await import('../providers/local/localCatalogue.js')
+  const { refreshLocalDiscovery } = await import('../providers/local/localDiscovery.js')
+  const { decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowHeldUnread, localWindowSettingOf } = await import('../providers/local/localWindow.js')
   let record = localRecordFor(model)
   if (record === undefined) {
     await withTimeout(refreshLocalDiscovery(), timeoutMs)
@@ -116,32 +116,32 @@ export async function awaitContextWindowSource(model: string, wait: ContextWindo
     if (await contextWindowSourceReady(model)) return true
     switch (declaredRouteOf(model)) {
       case 'openrouter': {
-        const { resolveOpenrouterAccount } = await import('../../services/providers/openrouter/openrouterAccounts.js')
-        const { refreshOpenrouterCatalogue } = await import('../../services/providers/openrouter/openrouterCatalogue.js')
+        const { resolveOpenrouterAccount } = await import('../providers/openrouter/openrouterAccounts.js')
+        const { refreshOpenrouterCatalogue } = await import('../providers/openrouter/openrouterCatalogue.js')
         const account = resolveOpenrouterAccount()
         if (account) await withTimeout(refreshOpenrouterCatalogue(account.keySource), timeoutMs)
         return true
       }
       case 'gemini': {
-        const { resolveGeminiAccount } = await import('../../services/providers/gemini/geminiAccounts.js')
-        const { refreshGeminiCatalogue } = await import('../../services/providers/gemini/geminiCatalogue.js')
+        const { resolveGeminiAccount } = await import('../providers/gemini/geminiAccounts.js')
+        const { refreshGeminiCatalogue } = await import('../providers/gemini/geminiCatalogue.js')
         const account = resolveGeminiAccount()
         if (account) await withTimeout(refreshGeminiCatalogue(account.kind), timeoutMs)
         return true
       }
       case 'huggingface': {
-        const { refreshHuggingfaceCatalogue } = await import('../../services/providers/huggingface/huggingfaceCatalogue.js')
+        const { refreshHuggingfaceCatalogue } = await import('../providers/huggingface/huggingfaceCatalogue.js')
         await withTimeout(refreshHuggingfaceCatalogue(), timeoutMs)
         return true
       }
       case 'nous': {
-        const { refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+        const { refreshNousCatalogue } = await import('../providers/nous/nousCatalogue.js')
         await withTimeout(refreshNousCatalogue(), timeoutMs)
         return true
       }
       case 'openai': {
-        const { resolveOpenaiAccount } = await import('../../services/providers/openai/openaiAccounts.js')
-        const { refreshOpenaiCatalogue } = await import('../../services/providers/openai/openaiCatalogue.js')
+        const { resolveOpenaiAccount } = await import('../providers/openai/openaiAccounts.js')
+        const { refreshOpenaiCatalogue } = await import('../providers/openai/openaiCatalogue.js')
         const account = resolveOpenaiAccount()
         if (account) await withTimeout(refreshOpenaiCatalogue(account.kind), timeoutMs)
         return true
@@ -159,7 +159,7 @@ export async function awaitContextWindowSource(model: string, wait: ContextWindo
 
 export async function warmContextWindowSources(): Promise<void> {
   try {
-    const { refreshLocalDiscovery } = await import('../../services/providers/local/localDiscovery.js')
+    const { refreshLocalDiscovery } = await import('../providers/local/localDiscovery.js')
     await refreshLocalDiscovery()
   } catch (error) {
     passedOver(error)

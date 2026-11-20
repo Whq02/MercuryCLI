@@ -1,50 +1,50 @@
-import { flagEnv } from '../substrate/flagRegistry.js'
-import { getSystemPrompt } from '../constants/prompts.js'
-import { getAttributionHeader } from '../constants/system.js'
-import { getSystemContext } from '../context.js'
-import { buildTurnSystemBlocks } from '../services/providers/anthropic/cacheAndUsage.js'
-import { getPromptCachingEnabled } from '../services/providers/anthropic/requestParams.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
+import { getSystemPrompt } from '../../constants/prompts.js'
+import { getAttributionHeader } from '../../constants/system.js'
+import { getSystemContext } from '../../context.js'
+import { buildTurnSystemBlocks } from '../providers/anthropic/cacheAndUsage.js'
+import { getPromptCachingEnabled } from '../providers/anthropic/requestParams.js'
 import {
   countMessagesTokensWithAPI,
   countTokensViaHaikuFallback,
   roughTokenCountEstimation,
-} from '../services/tokenEstimation.js'
+} from '../tokenEstimation.js'
 import {
   getAutoCompactThreshold,
   isAutoCompactEnabled,
   MANUAL_COMPACT_BUFFER_TOKENS,
-} from '../services/compact/autoCompact.js'
-import { microcompactMessages } from '../services/compact/microCompact.js'
-import type { MCPServerConnection } from '../services/mcp/types.js'
-import { getSdkBetas } from '../bootstrap/state.js'
+} from '../compact/autoCompact.js'
+import { microcompactMessages } from '../compact/microCompact.js'
+import type { MCPServerConnection } from '../mcp/types.js'
+import { getSdkBetas } from '../../bootstrap/state.js'
 import {
   filterInjectedInstructionFiles,
   getInstructionFiles,
-} from '../services/instructions/engine.js'
-import type { Tool, Tools, ToolPermissionContext, ToolUseContext } from '../Tool.js'
-import { findToolByName, toolMatchesName } from '../Tool.js'
-import { isBuiltInAgent, type AgentDefinition, type AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
-import { SkillTool } from '../tools/SkillTool/SkillTool.js'
-import { getSkillToolInfo, getLimitedSkillToolCommands } from '../tools/SkillTool/prompt.js'
-import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
-import type { Message } from '../types/message.js'
-import type { ApiToolUnion, TextBlockParam } from '../types/wire.js'
-import { appendSystemContext, toolToAPISchema } from './api.js'
-import { getContextWindowForModel } from './context.js'
-import { awaitContextWindowSource } from './model/contextWindowWarmup.js'
-import { getCwd } from './cwd.js'
-import { logForDebugging } from './debug.js'
-import { isEnvTruthy } from './envUtils.js'
-import { computeFingerprintFromMessages } from './fingerprint.js'
-import { logError } from './log.js'
-import { normalizeMessagesForAPI } from './messages.js'
-import { asSystemPrompt } from './systemPromptType.js'
-import { contextFill, getCurrentUsage } from './tokens.js'
-import { declaredRouteOf } from '../services/providers/routeLaw.js'
-import { getEngineModel } from './model/model.js'
-import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
-import { isToolSearchEnabled, tellHowToolDefinitionsAreCounted } from './toolSearch.js'
-import { passedOver } from './passedOver.js'
+} from '../instructions/engine.js'
+import type { Tool, Tools, ToolPermissionContext, ToolUseContext } from '../../Tool.js'
+import { findToolByName, toolMatchesName } from '../../Tool.js'
+import { isBuiltInAgent, type AgentDefinition, type AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
+import { SkillTool } from '../../tools/SkillTool/SkillTool.js'
+import { getSkillToolInfo, getLimitedSkillToolCommands } from '../../tools/SkillTool/prompt.js'
+import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
+import type { Message } from '../../types/message.js'
+import type { ApiToolUnion, TextBlockParam } from '../../types/wire.js'
+import { appendSystemContext, toolToAPISchema } from '../../utils/api.js'
+import { getContextWindowForModel } from '../../utils/context.js'
+import { awaitContextWindowSource } from './contextWindowWarmup.js'
+import { getCwd } from '../../utils/cwd.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
+import { computeFingerprintFromMessages } from '../../utils/fingerprint.js'
+import { logError } from '../../utils/log.js'
+import { normalizeMessagesForAPI } from '../../utils/messages.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import { contextFill, getCurrentUsage } from '../../utils/tokens.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import { getEngineModel } from '../../utils/model/model.js'
+import { estimateSkillFrontmatterTokens } from '../../skills/loadSkillsDir.js'
+import { isToolSearchEnabled, tellHowToolDefinitionsAreCounted } from '../../utils/toolSearch.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export const TOOL_TOKEN_COUNT_OVERHEAD = 500
@@ -363,7 +363,7 @@ async function countSystemPrompt(
     runtimeModel,
     options?.mcpClients as MCPServerConnection[] | undefined,
   )
-  const { buildEffectiveSystemPrompt } = await import('./systemPrompt.js')
+  const { buildEffectiveSystemPrompt } = await import('../../utils/systemPrompt.js')
   const effective = buildEffectiveSystemPrompt({
     mainThreadAgentDefinition: mainThreadAgentDefinition as AgentDefinition,
     toolUseContext: toolUseContext ?? ({ options: {} } as Pick<ToolUseContext, 'options'>),
@@ -775,7 +775,7 @@ export async function analyzeContextUsage(
         }
       })
       const frontmatterTotal = skillFrontmatter.reduce((total, skill) => total + skill.tokens, 0)
-      const { formatCommandsWithinBudgetDetailed } = await import('../tools/SkillTool/prompt.js')
+      const { formatCommandsWithinBudgetDetailed } = await import('../../tools/SkillTool/prompt.js')
       const listingTruncation = formatCommandsWithinBudgetDetailed(commands, contextWindow).truncation
       skillsBlock = {
         totalSkills: skillFrontmatter.length,

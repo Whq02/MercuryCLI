@@ -1,13 +1,13 @@
 import type { ValidateModelResult } from './result.js'
-import { hostEnv } from '../../hostEnv.js'
+import { hostEnv } from '../../../utils/hostEnv.js'
 
 export async function validateXaiModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveXaiAccount } = await import('../../../services/providers/xai/xaiAccounts.js')
+  const { resolveXaiAccount } = await import('../xai/xaiAccounts.js')
   if (!resolveXaiAccount()) return { valid: false, error: 'xAI is unavailable — no API key (/logins xai, or set XAI_API_KEY).' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('xai')
-  const { getCachedXaiCatalogue } = await import('../../../services/providers/xai/xaiCatalogue.js')
-  const { isXaiChatModelId } = await import('../../../services/providers/xai/xaiPins.js')
+  const { getCachedXaiCatalogue } = await import('../xai/xaiCatalogue.js')
+  const { isXaiChatModelId } = await import('../xai/xaiPins.js')
   const snapshot = getCachedXaiCatalogue()
   const id = trimmed.toLowerCase()
   if (id === 'grok') return snapshot?.models.length ? { valid: true, skipCache: true } : { valid: false, error: "xAI's live list has not served a chat model for 'grok' yet — /model refreshes it." }
@@ -18,13 +18,13 @@ export async function validateXaiModel(trimmed: string): Promise<ValidateModelRe
 }
 
 export async function validateMetaModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveMetaAccount } = await import('../../../services/providers/meta/metaAccounts.js')
+  const { resolveMetaAccount } = await import('../meta/metaAccounts.js')
   const account = resolveMetaAccount()
   if (!account) return { valid: false, error: 'Meta is unavailable — no API key (/logins meta, or set MODEL_API_KEY).' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('meta')
-  const { getCachedMetaCatalogue, newestMetaModel } = await import('../../../services/providers/meta/metaCatalogue.js')
-  const { isMetaChatModelId } = await import('../../../services/providers/meta/metaPins.js')
+  const { getCachedMetaCatalogue, newestMetaModel } = await import('../meta/metaCatalogue.js')
+  const { isMetaChatModelId } = await import('../meta/metaPins.js')
   const snapshot = getCachedMetaCatalogue()
   const id = trimmed.toLowerCase()
   if (snapshot?.lastError?.includes('refused the credential')) {
@@ -42,12 +42,12 @@ export async function validateMetaModel(trimmed: string): Promise<ValidateModelR
 }
 
 export async function validateMistralModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveMistralAccount } = await import('../../../services/providers/mistral/mistralAccounts.js')
+  const { resolveMistralAccount } = await import('../mistral/mistralAccounts.js')
   if (!resolveMistralAccount()) return { valid: false, error: 'Mistral is unavailable — no API key (/logins mistral, or set MISTRAL_API_KEY).' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('mistral')
-  const { getCachedMistralCatalogue, mistralListedModel, newestMistralModel } = await import('../../../services/providers/mistral/mistralCatalogue.js')
-  const { isMistralChatModelId } = await import('../../../services/providers/mistral/mistralPins.js')
+  const { getCachedMistralCatalogue, mistralListedModel, newestMistralModel } = await import('../mistral/mistralCatalogue.js')
+  const { isMistralChatModelId } = await import('../mistral/mistralPins.js')
   const snapshot = getCachedMistralCatalogue()
   const id = trimmed.toLowerCase()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins mistral replaces the key.` }
@@ -58,14 +58,14 @@ export async function validateMistralModel(trimmed: string): Promise<ValidateMod
 }
 
 export async function validateZenModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveZenAccount } = await import('../../../services/providers/zen/zenAccounts.js')
+  const { resolveZenAccount } = await import('../zen/zenAccounts.js')
   if (!resolveZenAccount()) return { valid: false, error: 'OpenCode Zen is unavailable — no API key (/logins zen, or set OPENCODE_API_KEY).' }
-  const { zenWireId } = await import('../../../services/providers/zen/zenPins.js')
+  const { zenWireId } = await import('../zen/zenPins.js')
   const wire = zenWireId(trimmed)
   if (wire === '') return { valid: false, error: `'${trimmed}' names no model inside the zen/ namespace — /model lists the live Zen rows.` }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('zen')
-  const { getCachedZenCatalogue, cachedLiveIds } = await import('../../../services/providers/zen/zenCatalogue.js')
+  const { getCachedZenCatalogue, cachedLiveIds } = await import('../zen/zenCatalogue.js')
   const snapshot = getCachedZenCatalogue()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins zen replaces the key.` }
   if (snapshot?.fetchedAtMs && !cachedLiveIds().has(wire.toLowerCase())) return { valid: false, error: `Model "${trimmed}" is not listed by the OpenCode Zen catalogue.` }
@@ -73,12 +73,12 @@ export async function validateZenModel(trimmed: string): Promise<ValidateModelRe
 }
 
 export async function validateMinimaxModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveMinimaxAccount } = await import('../../../services/providers/minimax/minimaxAccounts.js')
+  const { resolveMinimaxAccount } = await import('../minimax/minimaxAccounts.js')
   if (!resolveMinimaxAccount()) return { valid: false, error: 'MiniMax is unavailable — no API key (/logins minimax, or set MINIMAX_API_KEY).' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('minimax')
-  const { getCachedMinimaxCatalogue, minimaxListedModel, newestMinimaxModel } = await import('../../../services/providers/minimax/minimaxCatalogue.js')
-  const { isMinimaxTextModelId, minimaxDisplayPin } = await import('../../../services/providers/minimax/minimaxPins.js')
+  const { getCachedMinimaxCatalogue, minimaxListedModel, newestMinimaxModel } = await import('../minimax/minimaxCatalogue.js')
+  const { isMinimaxTextModelId, minimaxDisplayPin } = await import('../minimax/minimaxPins.js')
   const snapshot = getCachedMinimaxCatalogue()
   const id = trimmed.toLowerCase()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins minimax replaces the key.` }
@@ -90,13 +90,13 @@ export async function validateMinimaxModel(trimmed: string): Promise<ValidateMod
 }
 
 export async function validateQwenModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveQwenAccount } = await import('../../../services/providers/qwen/qwenAccounts.js')
+  const { resolveQwenAccount } = await import('../qwen/qwenAccounts.js')
   const qwenAccount = resolveQwenAccount()
   if (!qwenAccount) return { valid: false, error: 'Qwen is unavailable — no QwenCloud or Model Studio API key (/logins qwen, or set DASHSCOPE_API_KEY).' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('qwen')
-  const { getCachedQwenCatalogue, qwenListedModel, newestQwenModel, qwenPinScope } = await import('../../../services/providers/qwen/qwenCatalogue.js')
-  const { isQwenTextModelId, qwenDisplayPin } = await import('../../../services/providers/qwen/qwenPins.js')
+  const { getCachedQwenCatalogue, qwenListedModel, newestQwenModel, qwenPinScope } = await import('../qwen/qwenCatalogue.js')
+  const { isQwenTextModelId, qwenDisplayPin } = await import('../qwen/qwenPins.js')
   const snapshot = getCachedQwenCatalogue()
   const id = trimmed.toLowerCase()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins qwen re-binds the key.` }
@@ -109,14 +109,14 @@ export async function validateQwenModel(trimmed: string): Promise<ValidateModelR
 }
 
 export async function validateTogetherModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveTogetherAccount } = await import('../../../services/providers/together/togetherAccounts.js')
+  const { resolveTogetherAccount } = await import('../together/togetherAccounts.js')
   if (!resolveTogetherAccount()) return { valid: false, error: 'Together AI is unavailable — no API key (/logins together, or set TOGETHER_API_KEY).' }
-  const { togetherDisplayPin, togetherWireId } = await import('../../../services/providers/together/togetherPins.js')
+  const { togetherDisplayPin, togetherWireId } = await import('../together/togetherPins.js')
   const wire = togetherWireId(trimmed)
   if (wire === '') return { valid: false, error: `'${trimmed}' names no model inside the together/ namespace — /model lists the live Together AI rows.` }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('together')
-  const { getCachedTogetherCatalogue, cachedLiveIds } = await import('../../../services/providers/together/togetherCatalogue.js')
+  const { getCachedTogetherCatalogue, cachedLiveIds } = await import('../together/togetherCatalogue.js')
   const snapshot = getCachedTogetherCatalogue()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins together replaces the key.` }
   if (snapshot?.models.length && !cachedLiveIds().has(wire.toLowerCase())) return { valid: false, error: `Model "${trimmed}" is not listed by the Together AI chat catalogue.` }
@@ -125,12 +125,12 @@ export async function validateTogetherModel(trimmed: string): Promise<ValidateMo
 }
 
 export async function validateCohereModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveCohereAccount } = await import('../../../services/providers/cohere/cohereAccounts.js')
+  const { resolveCohereAccount } = await import('../cohere/cohereAccounts.js')
   if (!resolveCohereAccount()) return { valid: false, error: 'Cohere is unavailable — no API key (/logins cohere, or set COHERE_API_KEY).' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('cohere')
-  const { getCachedCohereCatalogue, cohereListedModel, newestCohereModel } = await import('../../../services/providers/cohere/cohereCatalogue.js')
-  const { cohereDisplayPin, isCohereChatModelId } = await import('../../../services/providers/cohere/coherePins.js')
+  const { getCachedCohereCatalogue, cohereListedModel, newestCohereModel } = await import('../cohere/cohereCatalogue.js')
+  const { cohereDisplayPin, isCohereChatModelId } = await import('../cohere/coherePins.js')
   const snapshot = getCachedCohereCatalogue()
   const id = trimmed.toLowerCase()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins cohere replaces the key.` }
@@ -142,14 +142,14 @@ export async function validateCohereModel(trimmed: string): Promise<ValidateMode
 }
 
 export async function validateGroqModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveGroqAccount } = await import('../../../services/providers/groq/groqAccounts.js')
+  const { resolveGroqAccount } = await import('../groq/groqAccounts.js')
   if (!resolveGroqAccount()) return { valid: false, error: 'Groq is unavailable — no API key (/logins groq, or set GROQ_API_KEY).' }
-  const { groqWireId, isGroqTextModelId, groqDisplayPin } = await import('../../../services/providers/groq/groqPins.js')
+  const { groqWireId, isGroqTextModelId, groqDisplayPin } = await import('../groq/groqPins.js')
   const wire = groqWireId(trimmed)
   if (!isGroqTextModelId(wire)) return { valid: false, error: 'Groq requires a text model qualified as groq/<id>.' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('groq')
-  const { getCachedGroqCatalogue, groqListedModel } = await import('../../../services/providers/groq/groqCatalogue.js')
+  const { getCachedGroqCatalogue, groqListedModel } = await import('../groq/groqCatalogue.js')
   const snapshot = getCachedGroqCatalogue()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins groq replaces the key.' }
   if (snapshot?.models.length ? !groqListedModel(snapshot, wire) : !groqDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Groq text catalogue.' }
@@ -157,11 +157,11 @@ export async function validateGroqModel(trimmed: string): Promise<ValidateModelR
 }
 
 export async function validateMeliousModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveMeliousAccount } = await import('../../../services/providers/melious/meliousAccounts.js')
+  const { resolveMeliousAccount } = await import('../melious/meliousAccounts.js')
   if (!resolveMeliousAccount()) return { valid: false, error: 'Melious is unavailable — no API key (/logins melious, or set MELIOUS_API_KEY).' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('melious')
-  const { getCachedMeliousCatalogue, meliousListedModel } = await import('../../../services/providers/melious/meliousCatalogue.js')
+  const { getCachedMeliousCatalogue, meliousListedModel } = await import('../melious/meliousCatalogue.js')
   const snapshot = getCachedMeliousCatalogue()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins melious replaces the key.' }
   if (snapshot && snapshot.fetchedAtMs > 0 && !snapshot.lastError && !meliousListedModel(trimmed)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Melious AI chat catalogue.' }
@@ -169,14 +169,14 @@ export async function validateMeliousModel(trimmed: string): Promise<ValidateMod
 }
 
 export async function validateCerebrasModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveCerebrasAccount } = await import('../../../services/providers/cerebras/cerebrasAccounts.js')
+  const { resolveCerebrasAccount } = await import('../cerebras/cerebrasAccounts.js')
   if (!resolveCerebrasAccount()) return { valid: false, error: 'Cerebras is unavailable — no API key (/logins cerebras, or set CEREBRAS_API_KEY).' }
-  const { cerebrasWireId, isCerebrasTextModelId, cerebrasDisplayPin } = await import('../../../services/providers/cerebras/cerebrasPins.js')
+  const { cerebrasWireId, isCerebrasTextModelId, cerebrasDisplayPin } = await import('../cerebras/cerebrasPins.js')
   const wire = cerebrasWireId(trimmed)
   if (!isCerebrasTextModelId(wire)) return { valid: false, error: 'Cerebras requires a text model qualified as cerebras/<id>.' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('cerebras')
-  const { getCachedCerebrasCatalogue, cerebrasListedModel } = await import('../../../services/providers/cerebras/cerebrasCatalogue.js')
+  const { getCachedCerebrasCatalogue, cerebrasListedModel } = await import('../cerebras/cerebrasCatalogue.js')
   const snapshot = getCachedCerebrasCatalogue()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins cerebras replaces the key.' }
   if (snapshot?.models.length ? !cerebrasListedModel(snapshot, wire) : !cerebrasDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Cerebras text catalogue.' }
@@ -184,14 +184,14 @@ export async function validateCerebrasModel(trimmed: string): Promise<ValidateMo
 }
 
 export async function validateFireworksModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveFireworksAccount } = await import('../../../services/providers/fireworks/fireworksAccounts.js')
+  const { resolveFireworksAccount } = await import('../fireworks/fireworksAccounts.js')
   if (!resolveFireworksAccount()) return { valid: false, error: 'Fireworks is unavailable — no API key (/logins fireworks, or set FIREWORKS_API_KEY).' }
-  const { fireworksWireId, isFireworksTextModelId, fireworksDisplayPin } = await import('../../../services/providers/fireworks/fireworksPins.js')
+  const { fireworksWireId, isFireworksTextModelId, fireworksDisplayPin } = await import('../fireworks/fireworksPins.js')
   const wire = fireworksWireId(trimmed)
   if (!isFireworksTextModelId(wire)) return { valid: false, error: 'Fireworks requires a text model qualified as fireworks/<id>.' }
-  const { readCatalogueIfPending } = await import('../../../services/providers/catalogueOnDemand.js')
+  const { readCatalogueIfPending } = await import('../catalogueOnDemand.js')
   await readCatalogueIfPending('fireworks')
-  const { getCachedFireworksCatalogue, fireworksListedModel } = await import('../../../services/providers/fireworks/fireworksCatalogue.js')
+  const { getCachedFireworksCatalogue, fireworksListedModel } = await import('../fireworks/fireworksCatalogue.js')
   const snapshot = getCachedFireworksCatalogue()
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins fireworks replaces the key.' }
   if (snapshot?.models.length ? !fireworksListedModel(snapshot, wire) : !fireworksDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Fireworks text catalogue.' }

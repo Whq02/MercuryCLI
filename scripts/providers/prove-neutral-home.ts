@@ -217,7 +217,7 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
 
   seedHome(HOME_MODEL)
   process.env.ANTHROPIC_AUTH_TOKEN = 'fixture-gateway-token'
-  const { validateModel } = await import('../../src/utils/model/validateModel.js')
+  const { validateModel } = await import('../../src/services/providers/validateModel.js')
   const probed = await hitsDuring(() => validateModel('foo-bar-9'))
   check('on a gateway base URL the typing door probes the endpoint (one request at the spy)', probed.hits === 1, JSON.stringify(probed))
   check('…and the gateway\'s answer validates the id (the endpoint owns it)', typeof probed.result === 'object' && probed.result !== null && (probed.result as { valid: boolean }).valid === true, JSON.stringify(probed.result))
