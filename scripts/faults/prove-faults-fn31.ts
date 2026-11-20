@@ -561,5 +561,25 @@ console.log('\nsettings/model.ts — modelCheck propagates getSettingsWithAllErr
   check('settings/model:getSettingsWithAllErrors-throw-propagates', r.err === 'settings read boom', JSON.stringify(r))
 }
 
+console.log('\nsettings/prompt.ts — hiddenCharactersCheck propagates skill scan failure instead of reporting ok')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const realSkills = await import(SRC + '/skills/loadSkillsDir.ts')
+    mock.module(SRC + '/skills/loadSkillsDir.js', () => ({
+      ...realSkills,
+      getSkillDirCommands: async () => { throw new Error('skills scan boom') },
+    }))
+    const { hiddenCharactersCheck } = await import(SRC + '/utils/health/sections/settings/prompt.ts')
+    try {
+      out.row = await hiddenCharactersCheck().run()
+      out.err = null
+    } catch (e) {
+      out.err = e?.message ?? String(e)
+    }
+  `)
+  check('settings/prompt:skill-scan-throw-propagates', r.err === 'skills scan boom', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
