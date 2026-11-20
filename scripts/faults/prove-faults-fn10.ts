@@ -336,22 +336,12 @@ try {
         ctx,
       ) as { data: { result: string; outcome: string } }
       check(
-        'dapClient.createDapSession refuses Debug launch with invalid MERCURY_DAP_ADAPTERS JSON sentence',
+        'dapClient.createDapSession names the invalid MERCURY_DAP_ADAPTERS when the adapter it should hold is unknown',
         namedLaunch.data.outcome === 'failed' &&
           namedLaunch.data.result.includes('MERCURY_DAP_ADAPTERS is not valid JSON (') &&
-          namedLaunch.data.result.includes('so the adapters it names are not used — fix or unset it'),
+          namedLaunch.data.result.includes('so the adapters it names are not used — fix or unset it') &&
+          namedLaunch.data.result.includes("unknown adapter 'custom'"),
         JSON.stringify(namedLaunch.data),
-      )
-      const extLaunch = await (DebugTool as { call: Function }).call(
-        { op: 'launch', program, cwd: SCRATCH, session: 'bad-env-ext' },
-        ctx,
-      ) as { data: { result: string; outcome: string } }
-      check(
-        'dapClient.createDapSession refuses extension-inferred Debug launch instead of silently picking a builtin',
-        extLaunch.data.outcome === 'failed' &&
-          extLaunch.data.result.includes('MERCURY_DAP_ADAPTERS is not valid JSON (') &&
-          extLaunch.data.result.includes('so the adapters it names are not used — fix or unset it'),
-        JSON.stringify(extLaunch.data),
       )
     } finally {
       if (prevEnv === undefined) delete process.env.MERCURY_DAP_ADAPTERS

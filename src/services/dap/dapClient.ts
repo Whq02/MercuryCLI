@@ -448,15 +448,13 @@ export async function createDapSession(options: {
   terminalRunner?: DapTerminalRunner
 }): Promise<DapSession> {
   throwIfDapAborted(options.signal)
-  if (!options.specOverride) {
-    const envError = envAdapterTableError()
-    if (envError !== null) throw new Error(envError)
-  }
   const resolved = options.specOverride ?? resolveAdapter(options.adapterKey)
   if (!resolved) {
     const dormant = dormantBuiltinAdapterHints()
+    const envError = envAdapterTableError()
     throw new Error(
-      `unknown adapter '${options.adapterKey}' — known: ${knownAdapterKeys().join(', ')}` +
+      (envError !== null ? `${envError} — ` : '') +
+        `unknown adapter '${options.adapterKey}' — known: ${knownAdapterKeys().join(', ')}` +
         (dormant.length > 0
           ? `; dormant builtin lanes (install to arm): ${dormant.map(d => `${d.key} — ${d.hint}`).join(' · ')}`
           : '') +
