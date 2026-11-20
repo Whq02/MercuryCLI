@@ -54,10 +54,7 @@ export const fileAdapter: ResourceAdapter = {
       }
     }
     if (!info) {
-      if (firstError !== undefined) {
-        const message = firstError.error instanceof Error ? firstError.error.message : String(firstError.error)
-        return { state: 'busy', note: `cannot read ${firstError.path}: ${message}` }
-      }
+      if (firstError !== undefined) throw firstError.error
       return {
         state: 'absent',
         note: `no such file or directory: ${candidates.join(' · ')}`,
