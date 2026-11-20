@@ -235,12 +235,14 @@ const PROCESSES: Row[] = [
   },
 ]
 
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  isDirAbsentOnRmdirError,
   isOwnedPrivateEntry,
   isPrivateFileMode,
+  pathEntryKindSync,
   posixFileModesApply,
   readExposedFileModeSync,
 } from '../../src/utils/platform/files.js'
@@ -333,6 +335,56 @@ const FILES: Row[] = [
       linux: [true, false, false, true, false],
       'win32 by process.platform alone': [true, true, true, true, false],
       'win32 by getPlatform() alone': [true, false, false, true, false],
+    },
+  },
+  {
+    name: 'files · pathEntryKindSync',
+    answers: () => {
+      const dir = mkdtempSync(join(tmpdir(), 'mercury-plat-kind-'))
+      try {
+        const sub = join(dir, 'sub')
+        const file = join(dir, 'file')
+        mkdirSync(sub)
+        writeFileSync(file, 'x')
+        return [
+          pathEntryKindSync(join(dir, 'missing')),
+          pathEntryKindSync(sub),
+          pathEntryKindSync(file),
+        ]
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+    recorded: {
+      win32: ['absent', 'directory', 'other'],
+      darwin: ['absent', 'directory', 'other'],
+      linux: ['absent', 'directory', 'other'],
+      'win32 by process.platform alone': ['absent', 'directory', 'other'],
+      'win32 by getPlatform() alone': ['absent', 'directory', 'other'],
+    },
+  },
+  {
+    name: 'files · isDirAbsentOnRmdirError',
+    answers: () => {
+      const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      const enotdir = Object.assign(new Error('ENOTDIR'), { code: 'ENOTDIR' })
+      const eacces = Object.assign(new Error('EACCES'), { code: 'EACCES' })
+      return [
+        isDirAbsentOnRmdirError(enoent, 'directory'),
+        isDirAbsentOnRmdirError(enoent, 'other'),
+        isDirAbsentOnRmdirError(enoent, 'absent'),
+        isDirAbsentOnRmdirError(enotdir, 'other'),
+        isDirAbsentOnRmdirError(eacces, 'directory'),
+        isDirAbsentOnRmdirError(enoent, 'other', 'win32'),
+        isDirAbsentOnRmdirError(enoent, 'other', 'linux'),
+      ]
+    },
+    recorded: {
+      win32: [true, false, true, false, false, false, true],
+      darwin: [true, true, true, false, false, false, true],
+      linux: [true, true, true, false, false, false, true],
+      'win32 by process.platform alone': [true, false, true, false, false, false, true],
+      'win32 by getPlatform() alone': [true, true, true, false, false, false, true],
     },
   },
 ]

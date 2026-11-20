@@ -1,4 +1,25 @@
-import { statSync, type Stats } from 'node:fs'
+import { lstatSync, statSync, type Stats } from 'node:fs'
+
+type PathEntryKind = 'absent' | 'directory' | 'other'
+
+export function pathEntryKindSync(target: string): PathEntryKind {
+  try {
+    return lstatSync(target).isDirectory() ? 'directory' : 'other'
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent'
+    throw error
+  }
+}
+
+export function isDirAbsentOnRmdirError(
+  error: unknown,
+  priorKind: PathEntryKind,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') return false
+  if (platform === 'win32') return priorKind !== 'other'
+  return true
+}
 
 export function posixFileModesApply(platform: NodeJS.Platform = process.platform): boolean {
   return platform !== 'win32'

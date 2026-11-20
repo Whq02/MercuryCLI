@@ -18,6 +18,7 @@ import {
 } from './saturn.js'
 import { sleepSyncMs as sleepSync } from '../utils/file.js'
 import { passedOver } from '../utils/passedOver.js'
+import { isDirAbsentOnRmdirError, pathEntryKindSync } from '../utils/platform/files.js'
 
 export interface SaturnBoxFileV1 {
   version: 1
@@ -125,11 +126,14 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
       }
       if (stale || Date.now() >= deadline) {
         logForDebugging(`[saturn] box lock broken ${stale ? '(stale holder)' : '(bounded wait exhausted)'} — proceeding`)
-        try {
-          rmdirSync(lock)
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-          passedOver(error)
+        const kind = pathEntryKindSync(lock)
+        if (kind !== 'absent') {
+          try {
+            rmdirSync(lock)
+          } catch (error) {
+            if (!isDirAbsentOnRmdirError(error, kind)) throw error
+            passedOver(error)
+          }
         }
         continue
       }
