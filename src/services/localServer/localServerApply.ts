@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { FIT_REMEDY, LOCAL_SERVER_KNOBS, chosenKnobs, fitVerdict, memoryFactsOf, settingsAsEnv, type FitVerdict, type LocalServerSettings } from './localServerKnobs.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
@@ -268,6 +268,7 @@ export function planLocalServerApply(truth: LocalServerTruth, settings: LocalSer
 
 export interface LocalServerApplyIo {
   readText?: (path: string) => string | undefined
+  pathExists?: (path: string) => boolean
   writeText?: (path: string, text: string) => void
   copyFile?: (from: string, to: string) => void
   run?: (file: string, args: string[]) => Promise<string | undefined>
@@ -285,8 +286,8 @@ function defaultReadText(path: string): string | undefined {
   try {
     return readFileSync(path, 'utf8')
   } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return undefined
-    throw error
+    passedOver(error)
+    return undefined
   }
 }
 
@@ -341,6 +342,7 @@ export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmat
   if (plan.kind === 'by-hand') return { outcome: 'refused', reason: `Mercury cannot write this launch form: ${plan.note}` }
   const io = {
     readText: seam.readText ?? defaultReadText,
+    pathExists: seam.pathExists ?? ((path: string) => existsSync(path)),
     writeText: seam.writeText ?? defaultWriteText,
     copyFile: seam.copyFile ?? ((from: string, to: string) => copyFileSync(from, to)),
     run: seam.run ?? resolveLocalServerIo({}).run,
@@ -352,13 +354,8 @@ export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmat
   if (plan.kind === 'restart' && plan.form === 'app') return { outcome: 'applied', ...(await restartApp(io, plan.root ?? 'http://127.0.0.1:11434', plan.restart.words)) }
   let backupPath: string | undefined
   if (plan.kind === 'write') {
-    let onDisk: string | undefined
-    try {
-      onDisk = io.readText(plan.path)
-    } catch (error) {
-      return { outcome: 'failed', reason: `writing ${plan.path} failed: ${error instanceof Error ? error.message : String(error)}` }
-    }
-    if (onDisk !== plan.before && !(onDisk === undefined && plan.before === '')) return { outcome: 'stale', reason: `${plan.path} changed since the plan was made; review it again` }
+    const onDisk = io.readText(plan.path)
+    if (onDisk !== plan.before && !(onDisk === undefined && plan.before === '' && !io.pathExists(plan.path))) return { outcome: 'stale', reason: `${plan.path} changed since the plan was made; review it again` }
     try {
       if (onDisk !== undefined) {
         io.copyFile(plan.path, plan.backupPath)

@@ -244,8 +244,9 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
           machine: { platform: 'linux' as const, totalMemoryBytes: 64 * 1024 ** 3, usableMemoryBytes: 32 * 1024 ** 3, usableSource: 'test' },
           readAtMs: Date.now(),
         }
+        const seamPlan = planLocalServerApply(truth, { parallelSlots: 2 }, { platform: 'linux', readText: () => undefined, pathExists: () => true })
         const plan = planLocalServerApply(truth, { parallelSlots: 2 }, { platform: 'linux' })
-        check('localServerApply: unreadable systemd override plans by-hand instead of empty write', plan.kind === 'by-hand', JSON.stringify(plan))
+        check('localServerApply: unreadable systemd override plans by-hand instead of empty write', seamPlan.kind === 'by-hand' && plan.kind === 'by-hand', JSON.stringify({ seamPlan: seamPlan.kind, plan: plan.kind }))
         const fakeWritePlan = {
           kind: 'write' as const,
           form: 'systemd' as const,
@@ -262,8 +263,8 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
         chmodSync(override, 0o600)
         const after = readFileSync(override, 'utf8')
         check(
-          'localServerApply: applyLocalServerPlan refuses unreadable override without overwriting',
-          outcome.outcome === 'failed' && after === original,
+          'localServerApply: applyLocalServerPlan returns stale on unreadable override without overwriting',
+          outcome.outcome === 'stale' && after === original,
           `outcome=${JSON.stringify(outcome)} same=${after === original}`,
         )
       } finally {
