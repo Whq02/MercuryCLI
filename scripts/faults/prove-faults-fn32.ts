@@ -256,5 +256,55 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   }
 }
 
+{
+  const rReaddir = runIsolated(`
+    const fs = await import('node:fs')
+    const fsp = await import('node:fs/promises')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const cacheDir = path.join(process.env.MERCURY_CONFIG_DIR, 'image-cache', 'other-session-readdir')
+    fs.mkdirSync(cacheDir, { recursive: true })
+    const old = new Date(Date.now() - 86400_000 * 10)
+    fs.utimesSync(cacheDir, old, old)
+    const realReaddir = fsp.readdir
+    mock.module('node:fs/promises', () => ({
+      ...fsp,
+      readdir: async (p, ...rest) => {
+        if (p === cacheDir) throw Object.assign(new Error('EACCES'), { code: 'EACCES' })
+        return realReaddir(p, ...rest)
+      },
+    }))
+    const { cleanupOldImageCaches } = await import(${JSON.stringify(join(SRC, 'utils/imageStore.ts'))})
+    await cleanupOldImageCaches(new Date(Date.now() - 86400_000))
+    out.stillExists = fs.existsSync(cacheDir)
+  `)
+  check('imageStore: cleanupOldImageCaches keeps cache dir when readdir fails in newestMtime', rReaddir.stillExists === true, JSON.stringify(rReaddir))
+
+  const rStat = runIsolated(`
+    const fs = await import('node:fs')
+    const fsp = await import('node:fs/promises')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const cacheDir = path.join(process.env.MERCURY_CONFIG_DIR, 'image-cache', 'other-session-stat')
+    const child = path.join(cacheDir, '1.png')
+    fs.mkdirSync(cacheDir, { recursive: true })
+    fs.writeFileSync(child, 'abc')
+    const old = new Date(Date.now() - 86400_000 * 10)
+    fs.utimesSync(cacheDir, old, old)
+    const realStat = fsp.stat
+    mock.module('node:fs/promises', () => ({
+      ...fsp,
+      stat: async (p, ...rest) => {
+        if (p === child) throw Object.assign(new Error('EIO'), { code: 'EIO' })
+        return realStat(p, ...rest)
+      },
+    }))
+    const { cleanupOldImageCaches } = await import(${JSON.stringify(join(SRC, 'utils/imageStore.ts'))})
+    await cleanupOldImageCaches(new Date(Date.now() - 86400_000))
+    out.stillExists = fs.existsSync(cacheDir)
+  `)
+  check('imageStore: cleanupOldImageCaches keeps cache dir when child stat fails in newestMtime', rStat.stillExists === true, JSON.stringify(rStat))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
