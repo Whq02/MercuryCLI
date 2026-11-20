@@ -74,7 +74,7 @@ export function stopSession({ noteControl, stopAwaitingStampRef, refresh }: Rout
       }
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'concourseControl', action: 'stop', sessionId, by: 'operator' } as never,
+        { op: 'concourseControl', action: 'stop', sessionId, by: 'operator' },
         { timeoutMs: 15_000 },
       )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
       const acknowledged = reply.ok === true && reply.outcome === 'applied' && /^stopped /.test(reply.detail ?? '')
@@ -107,7 +107,7 @@ export function archiveSession({ noteControl, refresh, snapshotRef }: RouteContr
       }
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'sessionControl', action: 'park', sessionId, by: 'operator' } as never,
+        { op: 'sessionControl', action: 'park', sessionId, by: 'operator' },
         { timeoutMs: 15_000 },
       )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
       const parkApplied = reply.ok === true && reply.outcome !== 'refused'
@@ -144,7 +144,7 @@ export function removeSession({ noteControl, refresh, snapshotRef }: RouteContro
         try {
           const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
           const reply = (await daemonControlRpc(
-            { op: 'concourseWithdraw', clientMessageId } as never,
+            { op: 'concourseWithdraw', clientMessageId },
             { timeoutMs: 10_000 },
           )) as { ok?: boolean; withdrawn?: boolean }
           if (reply.ok !== true) throw new Error('withdraw rpc refused')
@@ -195,7 +195,7 @@ export function removeSession({ noteControl, refresh, snapshotRef }: RouteContro
       if (daemonUp) {
         const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
         reply = (await daemonControlRpc(
-          { op: 'sessionRelease', runnerId: rec.runnerId } as never,
+          { op: 'sessionRelease', runnerId: rec.runnerId },
           { timeoutMs: 15_000 },
         )) as typeof reply
       } else {
@@ -239,7 +239,7 @@ export function renameSession({ noteControl, refresh }: RouteControls, sessionId
     try {
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'concourseControl', action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator' } as never,
+        { op: 'concourseControl', action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator' },
         { timeoutMs: 10_000 },
       )) as { ok?: boolean; outcome?: string; detail?: string }
       noteControl(

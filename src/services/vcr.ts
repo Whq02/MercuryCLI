@@ -6,7 +6,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ApiStreamEvent as BetaRawMessageStreamEvent } from '../types/wire.js'
 
 import { addToTotalSessionCost } from '../cost-tracker.js'
-import type { AssistantMessage, Message } from '../types/message.js'
+import type { AssistantMessage, Message, StreamEvent } from '../types/message.js'
 import { getCwd } from '../utils/cwd.js'
 import { env } from '../utils/env.js'
 import { getMercuryHome } from '../utils/envUtils.js'
@@ -15,7 +15,7 @@ import { calculateUSDCost } from '../utils/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
 
 
-type VcrMessage = AssistantMessage | BetaRawMessageStreamEvent | Message
+type VcrMessage = AssistantMessage | BetaRawMessageStreamEvent | Message | StreamEvent
 
 function isTestEnvironment(): boolean {
   return process.env.NODE_ENV === 'test'
@@ -179,7 +179,7 @@ function fixtureNameFor(messages: Message[]): string {
 
 const REQUEST_ID_PLACEHOLDER = '[REQUEST_ID]'
 
-function mapOutputMessage(message: VcrMessage, map: (text: string) => string, uuid: string): VcrMessage {
+function mapOutputMessage<T extends VcrMessage>(message: T, map: (text: string) => string, uuid: string): T {
   const record = message as LooseBlock
   if (record.type !== 'assistant') return message
   const inner = record.message as LooseBlock | undefined
@@ -205,22 +205,21 @@ function mapOutputMessage(message: VcrMessage, map: (text: string) => string, uu
     requestId: REQUEST_ID_PLACEHOLDER,
     uuid,
     message: inner ? { ...inner, content: mappedContent } : inner,
-  } as VcrMessage
+  } as T
 }
 
 function addReplayedCost(message: VcrMessage): void {
-  const record = message as LooseBlock
-  if (record.type !== 'assistant') return
-  const inner = record.message as { model?: string; usage?: Record<string, number> } | undefined
+  if (message.type !== 'assistant') return
+  const inner = message.message
   if (!inner?.usage || !inner.model) return
   try {
-    const cost = calculateUSDCost(inner.model, inner.usage as never)
-    if (cost > 0) addToTotalSessionCost(cost, inner.usage as never, inner.model)
+    const cost = calculateUSDCost(inner.model, inner.usage)
+    if (cost > 0) addToTotalSessionCost(cost, inner.usage, inner.model)
   } catch {
   }
 }
 
-export async function withVCR<T>(
+export async function withVCR<T extends VcrMessage>(
   messages: Message[],
   produce: () => Promise<T[]>,
 ): Promise<T[]> {
@@ -229,14 +228,14 @@ export async function withVCR<T>(
   const path = fixturePath(name)
   try {
     const raw = readFileSync(path, 'utf8')
-    const stored = jsonParse(raw) as { input: unknown; output: VcrMessage[] }
+    const stored = jsonParse(raw) as { input: unknown; output: T[] }
     const hydrated = stored.output.map(message =>
       mapOutputMessage(message, hydrateString, randomUUID()),
     )
     for (const message of hydrated) {
       addReplayedCost(message)
     }
-    return hydrated as unknown as T[]
+    return hydrated
   } catch (err) {
     if ((err as { code?: string }).code !== 'ENOENT') throw err
   }
@@ -247,7 +246,7 @@ export async function withVCR<T>(
   }
   const live = await produce()
   if (!recordsFixtures()) return live
-  const dehydrated = (live as unknown as VcrMessage[]).map((message, index) =>
+  const dehydrated = live.map((message, index) =>
     mapOutputMessage(message, dehydrateString, `00000000-0000-0000-0000-${String(index).padStart(12, '0')}`),
   )
   mkdirSync(dirname(path), { recursive: true })
@@ -255,7 +254,7 @@ export async function withVCR<T>(
   return live
 }
 
-export async function* withStreamingVCR<T>(
+export async function* withStreamingVCR<T extends VcrMessage>(
   messages: Message[],
   produce: () => AsyncGenerator<T>,
 ): AsyncGenerator<T> {

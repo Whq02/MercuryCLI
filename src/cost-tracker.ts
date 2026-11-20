@@ -26,6 +26,7 @@ import {
 import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './bootstrap/state.js'
 import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
+import type { ApiUsage } from './types/wire.js'
 import { usageCount } from './services/api/emptyUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
@@ -65,7 +66,7 @@ export type LedgerCostBasis = { basis: 'wire-stated' }
 
 export function addToTotalSessionCost(
   cost: number,
-  usage: NonNullableUsage,
+  usage: NonNullableUsage | ApiUsage,
   model: string,
   pricing?: LedgerCostBasis,
 ): number {
