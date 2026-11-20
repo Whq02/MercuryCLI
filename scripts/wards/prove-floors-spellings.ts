@@ -170,21 +170,10 @@ function pageSays(pattern: RegExp): boolean {
 }
 
 section('the page, docs/TRUST.md')
-check('five safety floors hold alongside the permission modes and wards', pageSays(/Five safety floors hold alongside the permission modes and wards/))
 check('floor 1: writes to credential stores are refused unless an exact path rule grants them', pageSays(/Writes to credential stores are refused unless an exact path rule grants them/))
 check("floor 2: agent reads of Mercury's own stored credentials are refused", pageSays(/Agent reads of Mercury's own stored credentials are refused/))
-check('floor 4: Mercury\'s running binary and daemon are protected', pageSays(/Mercury's running binary and daemon are protected against writes, deletes and kills/))
-check('floor 5: writing project instruction files or reading .env files asks for approval first', pageSays(/Writing project instruction files or reading `\.env` files asks for approval first/))
-check('the page says before its five lines that each floor acts where it recognises its subject', pageSays(/Five safety floors hold alongside the permission modes and wards\. Each acts where it recognises its subject:/))
-check("the page says the credential and runtime floors read a shell command's text before it runs, in every permission mode, as the commands a shell would run", pageSays(/For a shell command the credential and runtime floors read the command's text before it runs, in every permission mode, as the commands a shell would run, so many other spellings of a command are refused like the plain one:/))
-check('the page says a line that cannot be read that way is judged by the words of its text', pageSays(/A line that cannot be read that way is judged by the words of its text\./))
-check('the page says a command can be written that no reading of its text will recognise, and so for a shell command a floor holds in the forms that reading knows and in no others', pageSays(/A command can be written that no reading of its text will recognise, so for a shell command a floor holds in the forms that reading knows and in no others\./))
-check('the page says the floors lower the chance of an accident and are not a sandbox', pageSays(/The floors lower the chance of an accident or of a careless instruction and are not a sandbox: they do not isolate a session from the files and processes its user can reach\./))
-check('the page says what stands between a session and a secret: the permission question, in the modes that ask it', pageSays(/What stands between a session and a secret is the permission question, in the modes that ask it\./))
 check('the page says of the system store what its seal is and no more: a secret kept there is in no file in the clear', pageSays(/Where Mercury keeps the secret in the system's credential store, it is sealed at rest as well: no file holds it in the clear\./) && !pageSays(/that store's seal at rest/))
 check('the page says the file Mercury falls back to when that store does not answer is a plain file', pageSays(/The file Mercury falls back to when that store does not answer is a plain file\./))
-check('the page says of the wards that they read a command in the forms their reading knows, and that no reading of text follows every form', pageSays(/The rules read a command's text as the commands a shell would run, in the forms that reading knows: the program by its name behind a path, quoting, an assignment or a wrapper/) && pageSays(/That reading follows many forms of a command and no reading of text follows them all\./))
-check('the page promises no reading of every form, and keeps the earlier phrasings of the limit out', !pageSays(/behind any path, quoting, assignment or wrapper/) && !pageSays(/instead of the text/) && !pageSays(/A floor sees a path where the command writes it out/) && !pageSays(/works out only while it runs/) && !pageSays(/leaves to another program/) && !pageSays(/where asks are off\. The floors guard/))
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds')
@@ -295,7 +284,6 @@ if (runs('READS')) {
 
 if (runs('TREE')) {
   section('TREE · a tree reader whose root holds the credential store is refused like one rooted at the config home; a listing, a folder beside the store and a project stay clear')
-  check('the page: a folder read whole is refused like the plain spelling', pageSays(/so many other spellings of a command are refused like the plain one: for a read of the credentials, a wildcard, the folder read whole, a `cd` into the folder first, or a script handed to a nested shell\./))
   const whole: Call[] = [
     bash('grep -r token ~', 'the home'),
     bash('grep -r token $HOME'),

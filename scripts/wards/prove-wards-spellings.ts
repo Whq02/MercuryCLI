@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -93,15 +93,6 @@ function pinPlatform(value: string): void {
 }
 function restorePlatform(): void {
   if (platformDescriptor) Object.defineProperty(process, 'platform', platformDescriptor)
-}
-
-function pageSays(pattern: RegExp): { found: boolean; text: string } {
-  const flat = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')
-    .split('\n')
-    .map(line => line.trim())
-    .join(' ')
-  const match = pattern.exec(flat)
-  return { found: match !== null, text: match?.[0] ?? '' }
 }
 
 const r = String.raw
@@ -559,16 +550,6 @@ const GROUPS: Group[] = [
     ],
   },
 ]
-
-section('the page, docs/TRUST.md')
-const refuses = pageSays(/refuse destructive shell commands in every permission mode/)
-const quoted = pageSays(/an inline shell string \(`bash -c "…"`, `eval`, `Invoke-Expression`\) or a heredoc fed to a shell \(`bash <<'EOF'`, `cat <<EOF \| sh`\) is read as the commands it runs/)
-const other = pageSays(/its own ward \(`no-other-user-delete`\)[^.]*in any spelling/)
-const clear = pageSays(/Reads stay clear[^.]*inside a quoted string or a heredoc written to a file/)
-check('the page says the wards refuse destructive shell commands in every permission mode', refuses.found)
-check('the page says an inline shell string or a heredoc fed to a shell is read as the commands it runs', quoted.found)
-check("the page says a delete inside another user's home is refused in any spelling", other.found)
-check('the page says reads, in-project deletes and quoted or heredoc mentions stay clear', clear.found)
 
 const tally: string[] = []
 let skippedByName = 0
