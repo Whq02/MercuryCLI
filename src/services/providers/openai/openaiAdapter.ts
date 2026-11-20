@@ -92,7 +92,7 @@ export function describeOpenaiProvider(): ProviderDescription {
   }
 }
 
-export function openaiStatus(): ProviderStatus {
+function openaiStatus(): ProviderStatus {
   if (!activeAccount()) return { available: false, reason: 'no-account:openai' }
   return { available: true }
 }
@@ -131,7 +131,7 @@ export function resolveOpenaiModel(
   }
 }
 
-export function buildOpenaiLaunchPatch(ref: ProviderModelRef): { model: string; effort: string } {
+function buildOpenaiLaunchPatch(ref: ProviderModelRef): { model: string; effort: string } {
   return { model: ref.model, effort: ref.effort }
 }
 
