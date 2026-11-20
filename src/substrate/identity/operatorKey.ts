@@ -23,6 +23,7 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
+import { posixFileModesApply } from '../../utils/platform/files.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { sleepSync } from '../../utils/timers.js'
 
@@ -106,7 +107,7 @@ function parseKeyFile(path: string, raw: string): OperatorKey {
 }
 
 function guardKeyFileMode(path: string): void {
-  if (process.platform === 'win32') return
+  if (!posixFileModesApply()) return
   let stats: Stats
   try {
     stats = statSync(path)
