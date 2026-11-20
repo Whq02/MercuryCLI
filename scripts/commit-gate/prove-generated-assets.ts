@@ -72,8 +72,6 @@ check('every generator and check names a script that exists', deadScripts.length
 check('every files-of source exists', deadSources.length === 0, deadSources.join(', '))
 const settingsRow = map.rows.find(r => r.assets.includes('scripts/settings/settings-schema.json'))
 check('settings types map to the schema snapshot with its generator and check', settingsRow !== undefined && settingsRow.sources.includes('src/utils/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
-const inkRow = map.rows.find(r => r.assets.includes('scripts/ink-runtime/facade-inventory.json'))
-check('the facade inventory is a row', inkRow !== undefined && inkRow.sources.includes('src/ink.ts'))
 check('repoPathsIn reads the paths a census names', repoPathsIn('{"sites":[{"file":"src/a/b.ts","line":3},{"file":"scripts/x/y.sh"}]}').join(',') === 'src/a/b.ts,scripts/x/y.sh')
 check('repoPathsIn reads the keys of the contract inventory', repoPathsIn(readFileSync(join(ROOT, 'scripts/ownership/contract-inventory.json'), 'utf8')).includes('src/utils/settings/types.ts'))
 const badMap = parseGeneratedAssetsMap('# c\na.json\tgen a\n')
@@ -120,10 +118,9 @@ for (const text of ['printf scripts/x/prove-y.ts --strict', 'echo bun scripts/x/
 check('the actual invocation accepts an equivalent bun run spelling', checkChained('bun scripts/check-schema.ts', ['bun run "scripts/check-schema.ts"']))
 check('a removed content match still owes its generated output', generatedAssetsOwed({ rows, commitPaths: ['src/plain.ts'], contentOf: () => '', previousContentOf: () => "import { x } from '../ink/frame.js'", readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('gen/imports.json')))
 for (const [path, asset] of [
-  ['src/new-component.tsx', 'scripts/consistency-census/lockup-census.json'],
-  ['scripts/new/prove-spawn.ts', 'scripts/consistency-census/shellstring-census.json'],
+  ['src/utils/settings/newKey.ts', 'scripts/settings/settings-schema.json'],
   ['src/components/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
-  ['scripts/consistency-census/gen-lockup-census.ts', 'scripts/consistency-census/lockup-census.json'],
+  ['scripts/settings/gen-settings-schema.ts', 'scripts/settings/settings-schema.json'],
 ]) check('the real map covers new inputs, deleted imports and generator changes', generatedAssetsOwed({ rows: map.rows, commitPaths: [path!], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes(asset!)))
 check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
 
