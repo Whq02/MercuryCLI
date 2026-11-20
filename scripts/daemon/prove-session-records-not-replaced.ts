@@ -186,6 +186,7 @@ try {
   enableConfigs()
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
   const started: string[] = []
+  const ended: string[] = []
   const roster = {
     has: () => ({ present: false, alive: false, ready: false }),
     list: () => started.map(short => ({ short })),
@@ -194,7 +195,7 @@ try {
       return { ok: true, pid: process.pid }
     },
     control: () => true,
-    kill: () => true,
+    kill: (short: string) => (ended.push(short), true),
   }
   const workspace = realpathSync(mkdtempSync(join(home, 'workspace-')))
   type Admitted = { ok: boolean; code?: string; error?: string } | { threw: string }
@@ -229,6 +230,35 @@ try {
     unlinkSync(file)
     const again = await admitIn(dir, '7d0e3d7e-2a4c-4a0f-9c1b-000000000003')
     check('control: with no file the admission lands and nothing more is kept aside', 'ok' in again && again.ok === true && sessionsOn(file).length === 1 && asides(file).length === 1, again)
+  }
+
+  console.log('the session records — while they cannot be written no runner is started, and a runner whose record could not be written is ended')
+  if (process.platform !== 'darwin' || !POSIX_MODES) skip('the rename that fails', 'a file that takes no rename is made here with the immutable flag of macOS')
+  else {
+    const unwritten = (file: string): string => `no session was started: the session records at ${file} were not updated: the file could not be used (it is not valid JSON) and could not be kept aside (EPERM); nothing was written`
+    const held = fresh()
+    started.length = 0
+    writeFileSync(held.file, 'torn records {')
+    spawnSync('/usr/bin/chflags', ['uchg', held.file])
+    const first = await admitIn(held.dir, '7d0e3d7e-2a4c-4a0f-9c1b-000000000004')
+    const second = await admitIn(held.dir, '7d0e3d7e-2a4c-4a0f-9c1b-000000000005')
+    spawnSync('/usr/bin/chflags', ['nouchg', held.file])
+    check('two admissions are refused before anything is started, each with the reason', [first, second].every(answer => 'ok' in answer && answer.ok === false && answer.code === 'not-ready' && answer.error === unwritten(held.file)) && started.length === 0, { first, second, started: `${started.length} runner(s) started with no record to hold them` })
+    const whole = fresh()
+    started.length = 0
+    ended.length = 0
+    workers.updateConcourseWorkers(all => void (all['concourse-w9'] = record(9)), whole.dir)
+    spawnSync('/usr/bin/chflags', ['uchg', whole.file])
+    const third = await admitIn(whole.dir, '7d0e3d7e-2a4c-4a0f-9c1b-000000000006')
+    const afterThird = [started.length, ended.join()]
+    const fourth = await admitIn(whole.dir, '7d0e3d7e-2a4c-4a0f-9c1b-000000000007')
+    const afterFourth = [started.length, ended.join()]
+    spawnSync('/usr/bin/chflags', ['nouchg', whole.file])
+    const fifth = await admitIn(whole.dir, '7d0e3d7e-2a4c-4a0f-9c1b-000000000008')
+    const unrecorded = (answer: Admitted): boolean => 'ok' in answer && answer.ok === false && answer.code === 'not-ready' && (answer.error ?? '').startsWith('no session was started: ') && (answer.error ?? '').includes(whole.file)
+    check('a file that reads and takes no write: the runner whose record could not be written is ended, and the admission says no session was started', unrecorded(third) && JSON.stringify(afterThird) === JSON.stringify([1, started[0]]), { third, afterThird })
+    check('…and the next admission is refused before anything is started', unrecorded(fourth) && JSON.stringify(afterFourth) === JSON.stringify(afterThird), { fourth, afterFourth })
+    check('once the file takes a write again a session starts, beside the one that was on record', 'ok' in fifth && fifth.ok === true && started.length === 2 && ended.length === 1 && sessionsOn(whole.file).length === 2, { fifth, started, ended, ids: sessionsOn(whole.file) })
   }
 
   console.log('the session records — the daemon boots while they cannot be read, says so at the boot, and its reconcile waits')

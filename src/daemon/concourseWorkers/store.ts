@@ -175,6 +175,21 @@ export function unreadSessionRecordsRefusal(dir?: string): Error | null {
   return fresh.kind === 'unavailable' ? sessionRecordsRefusal(path, fresh.why) : null
 }
 
+const sessionRecordsUnwritten = new Set<string>()
+
+export function unwrittenSessionRecordsRefusal(dir?: string): Error | null {
+  const path = concourseWorkersPath(dir)
+  const fresh = readMutableSessionWorkersFromDisk(path)
+  if (fresh.kind === 'unavailable') return sessionRecordsRefusal(path, fresh.why)
+  if (fresh.kind !== 'unusable' && !sessionRecordsUnwritten.has(path)) return null
+  try {
+    updateConcourseWorkers(() => {}, dir)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
 function keepUnusedSessionRecordsAside(path: string, why: string): Record<string, ConcourseWorkerRecordV1> {
   const { keepDamagedFileAsideSync } = require('../../substrate/storeRecovery.js') as typeof import('../../substrate/storeRecovery.js')
   let aside: string
@@ -210,6 +225,7 @@ export function updateConcourseWorkers(
     mutate(sessionRecordsInFlight.workers)
     return sessionRecordsInFlight.workers
   }
+  sessionRecordsUnwritten.add(path)
   const workers = withDaemonStoreLock('the session records', path, dir, ({ assertStillHeld }) => {
     const fresh = readMutableSessionWorkersFromDisk(path)
     if (fresh.kind === 'unavailable') throw sessionRecordsRefusal(path, fresh.why)
@@ -226,6 +242,7 @@ export function updateConcourseWorkers(
     publishConcourseWorkers(next, dir)
     return next
   })
+  sessionRecordsUnwritten.delete(path)
   observeSessionStates(workers)
   return workers
 }

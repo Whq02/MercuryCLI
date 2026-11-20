@@ -97,37 +97,42 @@ export function coldSpecOf({ req, records, workspaceId, sessionId, runnerId, wor
 }
 
 export function coldSeatAnswer({ req, deps, workspaceId, effectiveIsolation, modelKey, modelDisplayName, keyless, kit, preset, retainedNote, liveWorkers, runnerId, sessionId, workspaceKind, worktreePath, worktreeBranch, snapshot, effort, runnerArgv, spec, reg, pidFields }: AdmitSeat & ReturnType<typeof coldSpecOf> & { liveWorkers: ConcourseWorkerRecordV1[]; runnerId: string; sessionId: string; workspaceKind: ReturnType<typeof workspaceKindOf>; worktreePath: string | undefined; worktreeBranch: string | undefined; reg: ReturnType<WorkerRosterPort['registerLongLived']>; pidFields: ReturnType<typeof pidFieldsOf> }): ConcourseAdmitResult {
-  updateConcourseWorkers(workers => {
-    workers[runnerId!] = {
-      schema: 1,
-      runnerId: runnerId!,
-      sessionId,
-      workspaceId,
-      isolation: effectiveIsolation,
-      modelKey,
-      effort,
-      ...(keyless ? { keyless: true } : {}),
-      ...(typeof req.agentName === 'string' && req.agentName.trim().length > 0
-        ? { agentName: req.agentName.trim().slice(0, 24) }
-        : {}),
-      ...(req.seatsMax === 1 || req.seatsMax === 2 ? { seatsMax: req.seatsMax } : {}),
-      spawnedAt: Date.now(),
-      lastLiveAt: Date.now(),
-      ...pidFields,
-      ...buildTreeFields(),
-      settingsSnapshot: snapshot,
-      workspaceKind,
-      ...(worktreePath !== undefined ? { worktreePath } : {}),
-      ...(worktreeBranch !== undefined ? { branchName: worktreeBranch } : {}),
-      ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
-      ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
-      ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
-      ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
-      ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
-      ...spawnPostureOf(spec),
-      ...kitStampOf(kit),
-    }
-  }, deps.dir)
+  try {
+    updateConcourseWorkers(workers => {
+      workers[runnerId!] = {
+        schema: 1,
+        runnerId: runnerId!,
+        sessionId,
+        workspaceId,
+        isolation: effectiveIsolation,
+        modelKey,
+        effort,
+        ...(keyless ? { keyless: true } : {}),
+        ...(typeof req.agentName === 'string' && req.agentName.trim().length > 0
+          ? { agentName: req.agentName.trim().slice(0, 24) }
+          : {}),
+        ...(req.seatsMax === 1 || req.seatsMax === 2 ? { seatsMax: req.seatsMax } : {}),
+        spawnedAt: Date.now(),
+        lastLiveAt: Date.now(),
+        ...pidFields,
+        ...buildTreeFields(),
+        settingsSnapshot: snapshot,
+        workspaceKind,
+        ...(worktreePath !== undefined ? { worktreePath } : {}),
+        ...(worktreeBranch !== undefined ? { branchName: worktreeBranch } : {}),
+        ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
+        ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
+        ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+        ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
+        ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
+        ...spawnPostureOf(spec),
+        ...kitStampOf(kit),
+      }
+    }, deps.dir)
+  } catch (error) {
+    deps.roster()?.kill?.(runnerId)
+    return { ok: false, code: 'not-ready', error: `no session was started: ${error instanceof Error ? error.message : String(error)}` }
+  }
   if (req.resumeSessionId !== undefined) {
     noteRecordlessResumeKit({ workspaceId, sessionId }, kit, req.kit !== undefined ? 'carried' : 'derived', 'daemon:admit')
   }

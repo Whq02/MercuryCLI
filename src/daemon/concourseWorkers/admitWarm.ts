@@ -8,35 +8,40 @@ import { type pidFieldsOf, buildTreeFields } from './marks.js'
 import type { AdmitSeat, ConcourseAdmitDeps, ConcourseAdmitResult } from './admit.js'
 
 export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kind, modelKey, modelDisplayName, kit, preset, retainedNote, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed }: AdmitSeat & { runnerId: string; claimSessionId: string; claimEffort: string; claimPosture: ReturnType<typeof seatInitialPermissionMode>; snapshot: ReturnType<typeof resolveEffectiveSettingsSnapshot>; pidFields: ReturnType<typeof pidFieldsOf>; claimed: Extract<Awaited<ReturnType<NonNullable<ConcourseAdmitDeps['claimWarm']>>>, { claimed: true }> }): ConcourseAdmitResult {
-  updateConcourseWorkers(workers => {
-    workers[runnerId] = {
-      schema: 1,
-      runnerId,
-      sessionId: claimSessionId,
-      workspaceId,
-      isolation: effectiveIsolation,
-      modelKey,
-      effort: claimEffort,
-      ...(typeof req.agentName === 'string' && req.agentName.trim().length > 0
-        ? { agentName: req.agentName.trim().slice(0, 24) }
-        : {}),
-      ...(req.seatsMax === 1 || req.seatsMax === 2 ? { seatsMax: req.seatsMax } : {}),
-      spawnedAt: Date.now(),
-      lastLiveAt: Date.now(),
-      ...pidFields,
-      ...buildTreeFields(),
-      settingsSnapshot: snapshot,
-      workspaceKind: workspaceKindOf(workspaceId),
-      ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
-      ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
-      ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
-      ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
-      ...kitStampOf(kit),
-      permissionMode: claimPosture,
-      ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
-      kind,
-    }
-  }, deps.dir)
+  try {
+    updateConcourseWorkers(workers => {
+      workers[runnerId] = {
+        schema: 1,
+        runnerId,
+        sessionId: claimSessionId,
+        workspaceId,
+        isolation: effectiveIsolation,
+        modelKey,
+        effort: claimEffort,
+        ...(typeof req.agentName === 'string' && req.agentName.trim().length > 0
+          ? { agentName: req.agentName.trim().slice(0, 24) }
+          : {}),
+        ...(req.seatsMax === 1 || req.seatsMax === 2 ? { seatsMax: req.seatsMax } : {}),
+        spawnedAt: Date.now(),
+        lastLiveAt: Date.now(),
+        ...pidFields,
+        ...buildTreeFields(),
+        settingsSnapshot: snapshot,
+        workspaceKind: workspaceKindOf(workspaceId),
+        ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
+        ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+        ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
+        ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
+        ...kitStampOf(kit),
+        permissionMode: claimPosture,
+        ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
+        kind,
+      }
+    }, deps.dir)
+  } catch (error) {
+    deps.roster()?.kill?.(runnerId)
+    return { ok: false, code: 'not-ready', error: `no session was started: ${error instanceof Error ? error.message : String(error)}` }
+  }
   deps.onSpawned?.(runnerId, claimed.spec, claimed.pid)
   if (deps.ensureWarm !== undefined) {
     const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
