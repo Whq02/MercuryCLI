@@ -5,10 +5,13 @@ import { setTimeout as delay } from 'node:timers/promises'
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_WINDOWS_SHELL_ROAD = 'no-bash'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { runEngineCommand, resolveShellEngine, resetEngineSessionForTest } = await import('../../src/utils/shell/engineSession.ts')
+const { exec } = await import('../../src/utils/Shell.ts')
+const { mapResultToBlock } = await import('../../src/tools/BashTool/resultBlock.ts')
 const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
 const { generateTaskId } = await import('../../src/Task.ts')
 const engine = resolveShellEngine('brush')
@@ -65,6 +68,15 @@ try {
   outputs.push(overflowed.taskOutput)
   const overflowResult = await overflowed.result
   check('an overflowed engine command keeps its spilled artifact on disk', overflowed.taskOutput.isOverflowed && overflowResult.stdout.includes(overflowed.taskOutput.path) && existsSync(overflowed.taskOutput.path))
+  const bg = await exec("sleep 0.3; printf 'bg-engine:%s\\n' \"$BRUSH_VERSION\"", controller.signal, 'bash', { timeout: 10000, cwd: process.cwd(), shouldAutoBackground: true, backgroundIntent: true })
+  outputs.push(bg.taskOutput)
+  const bgAccepted = bg.background(bg.taskOutput.taskId)
+  const bgBlock = mapResultToBlock({ stdout: '', stderr: '', interrupted: false, backgroundTaskId: bg.taskOutput.taskId }, 'toolu_bg_engine')
+  const bgNoticeText = typeof bgBlock.content === 'string' ? bgBlock.content : ''
+  const bgNamedPath = /Output: (.+?)\.(?: |$)/.exec(bgNoticeText)?.[1] ?? ''
+  const bgResult = await bg.result
+  const bgBody = bgNamedPath !== '' && existsSync(bgNamedPath) ? readFileSync(bgNamedPath, 'utf8') : ''
+  check('a background command on the engine road keeps the output file its result names after exit', bgAccepted && bgResult.code === 0 && bgResult.backgroundTaskId === bg.taskOutput.taskId && bgNamedPath === bg.taskOutput.path && bgBody === `bg-engine:${engine.version}\n`)
   const small = new TaskOutput(generateTaskId('local_bash'), null, false)
   outputs.push(small)
   small.writeStdout('before\n'); small.mirrorToDisk(); small.mirrorToDisk(); small.writeStdout('after\n'); small.writeStderr('warning\n')
