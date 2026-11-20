@@ -57,7 +57,7 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
     mock.module('node:os', () => ({ ...realOs, homedir: () => { throw new Error('homedir unavailable') } }))
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const paths = await import(path.join(SRC, 'services/projectLocal/paths.ts'))
+    const paths = await import(path.join(SRC, 'utils/projectLocal/paths.ts'))
     const target = path.join(WORK, 'maybe-home')
     fs.mkdirSync(target, { recursive: true })
     let threw = null

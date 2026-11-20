@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, projectConfigDirs } from '../../utils/projectConfig.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, projectConfigDirs } from '../projectConfig.js'
+import { passedOver } from '../passedOver.js'
 
-export { projectLocalPath } from '../../utils/projectConfig.js'
+export { projectLocalPath } from '../projectConfig.js'
 
 export function projectLocalDir(root: string): string {
   return join(root, MERCURY_PROJECT_DIR)

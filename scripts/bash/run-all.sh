@@ -4,7 +4,7 @@
 # gate-watch: src/tasks/LocalShellTask/*
 # gate-watch: src/tools/TaskStopTool/*
 # gate-watch: src/utils/hooks/background.ts src/tools/MonitorTool/*
-# gate-watch: src/services/projectLocal/paths.ts
+# gate-watch: src/utils/projectLocal/paths.ts
 # gate-watch: src/utils/shell/shellProvider*
 # gate-watch: src/utils/*
 # gate-watch: src/utils/hooks/fire.ts
