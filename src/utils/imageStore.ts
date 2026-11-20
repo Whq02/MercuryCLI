@@ -239,18 +239,19 @@ export async function cleanupOldImageCaches(cutoff: Date): Promise<void> {
 }
 
 async function newestMtime(dir: string): Promise<number> {
-  const own = (await stat(dir)).mtimeMs
-  let newest = own
-  try {
-    for (const name of await readdir(dir)) {
-      try {
-        newest = Math.max(newest, (await stat(join(dir, name))).mtimeMs)
-      } catch (error) {
+  const info = await stat(dir)
+  let newest = info.mtimeMs
+  if (!info.isDirectory()) return newest
+  for (const name of await readdir(dir)) {
+    try {
+      newest = Math.max(newest, (await stat(join(dir, name))).mtimeMs)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         passedOver(error)
+        continue
       }
+      throw error
     }
-  } catch (error) {
-    passedOver(error)
   }
   return newest
 }
