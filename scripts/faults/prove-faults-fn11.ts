@@ -326,5 +326,52 @@ console.log('\nrunnerCache.ensureCached — failed rename throws when target fil
   check('ensureCached removes temp file and succeeds when a peer already populated target', Array.isArray(r.leftoverTmps) && r.leftoverTmps.length === 0 && r.raceExists === true, JSON.stringify(r))
 }
 
+console.log('\ndelivery.DeliveryPart — openQuestion failure refuses send with honest sentence instead of throwing or dispatching')
+{
+  const r = runScenario(`
+    const { DeliveryPart } = await import(path.join(SRC, 'services/engine-connector/daemon/delivery.ts'))
+    const echoed = new Map()
+    const rpcCalls = []
+    let wakes = 0
+    const delivery = new DeliveryPart({
+      sessionId: () => 'sess-deliv',
+      factsBusy: () => false,
+      compacting: () => false,
+      paint: () => {},
+      wakeLive: () => { wakes++ },
+      openQuestion: async () => { throw new Error('EACCES: cannot read store') },
+      admissionPending: () => null,
+      sendDelivered: () => {},
+      assertSeat: () => {},
+      rpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+      chainRpc: async (req) => { rpcCalls.push(req); return { ok: true } },
+      imageBlocks: () => [],
+      lostLine: () => 'lost',
+      recallTakenLine: 'taken',
+      recallUnknownLine: 'unknown',
+      echo: (id, row) => echoed.set(id, row),
+      rekeyEcho: () => {},
+      enlist: () => {},
+      drop: (id) => echoed.delete(id),
+      withdrawn: () => {},
+      dress: () => {},
+      sendOf: () => undefined,
+      markWithdrawing: () => {},
+      retireUnknown: () => {},
+    })
+    try {
+      out.receipt = await delivery.sendWords('yes proceed')
+    } catch (e) {
+      out.threw = e instanceof Error ? e.message : String(e)
+    }
+    out.echoLeft = echoed.size
+    out.rpcCount = rpcCalls.length
+    out.wakes = wakes
+  `)
+  const receipt = r.receipt as { state?: string; detail?: string } | undefined
+  check('DeliveryPart.sendWords refuses with honest sentence when openQuestion throws', r.threw === undefined && receipt?.state === 'refused' && receipt?.detail === 'the message was not sent because open questions could not be checked (EACCES: cannot read store) — ↵ again retries', JSON.stringify(r))
+  check('DeliveryPart drops provisional echo and sends no RPC on openQuestion failure', r.echoLeft === 0 && r.rpcCount === 0, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
