@@ -15,9 +15,9 @@ import { mapMessagesToZai } from '../zai/zaiCodec.js'
 import { fetchTensorFold, type LocalModelRecord } from './localDiscovery.js'
 import { onTensorFoldStopping } from './tensorfoldStopping.js'
 import { tensorFoldTurnReadings } from './tensorfoldUsage.js'
-import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { passedOver } from '../../../utils/passedOver.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export const NEXT_TURN_SETTLE_MS = 750
 export const NEXT_TURN_STAGE_SECONDS = 5
@@ -263,16 +263,22 @@ function watchTheCut(offer: Offer): () => void {
 }
 
 async function engineIdle(offer: Offer, signal: AbortSignal): Promise<boolean | undefined> {
-  for (let look = 0; look < 2; look++) {
-    if (look > 0) {
-      await sleep(state.io.lookMs ?? NEXT_TURN_LOOK_MS, signal, { unref: true })
-    }
-    if (signal.aborted) return false
-    const load = await engineLoad(offer, signal)
-    if (load === undefined) return undefined
-    if (load.connections === 0) return true
-  }
-  return false
+  let looks = 0
+  const seen = await pollUntil<'idle' | 'unknown' | 'busy', 'busy', 'busy'>(
+    async () => {
+      looks += 1
+      const load = await engineLoad(offer, signal)
+      if (signal.aborted) return 'busy'
+      if (load === undefined) return 'unknown'
+      if (load.connections === 0) return 'idle'
+      return looks >= 2 ? 'busy' : undefined
+    },
+    state.io.lookMs ?? NEXT_TURN_LOOK_MS,
+    Infinity,
+    () => 'busy',
+    { signal, onAbort: () => 'busy', unref: true },
+  )
+  return seen === 'unknown' ? undefined : seen === 'idle'
 }
 
 async function readAhead(offer: Offer, rows: readonly CompatWireMessage[], signal: AbortSignal): Promise<{ read: number; seconds?: number; fault?: string; refused: boolean; crowded: boolean }> {
@@ -299,24 +305,33 @@ async function readAhead(offer: Offer, rows: readonly CompatWireMessage[], signa
   let fault: string | undefined
   let refused = false
   let crowded = false
-  let looking = false
-  const watch = startInterval(() => {
-    if (looking || own.signal.aborted) return
-    looking = true
-    void engineLoad(offer, own.signal).then(load => {
-      looking = false
-      if (own.signal.aborted) return
+  const watchStop = new AbortController()
+  const stopWatch = (): void => watchStop.abort()
+  own.signal.addEventListener('abort', stopWatch, { once: true })
+  let watched = false
+  void pollUntil(
+    async () => {
+      if (!watched) {
+        watched = true
+        return undefined
+      }
+      const load = await engineLoad(offer, watchStop.signal)
+      if (own.signal.aborted || watchStop.signal.aborted) return true
       if (load === undefined) {
         fault = 'the engine does not show its load'
         own.abort()
-        return
+        return true
       }
-      if (load.connections <= 1 && load.waiting === 0) return
+      if (load.connections <= 1 && load.waiting === 0) return undefined
       crowded = true
       own.abort()
-    })
-  }, state.io.lookMs ?? NEXT_TURN_LOOK_MS)
-  watch.unref?.()
+      return true
+    },
+    state.io.lookMs ?? NEXT_TURN_LOOK_MS,
+    Infinity,
+    () => undefined,
+    { signal: watchStop.signal, onAbort: () => undefined, unref: true },
+  ).catch(passedOver)
   try {
     for await (const event of streamCompatChat(options) as AsyncIterable<CompatStreamEvent>) {
       if (event.type === 'usage') read = Math.max(0, event.usage.inputTokens - (event.usage.cachedInputTokens ?? 0))
@@ -329,7 +344,8 @@ async function readAhead(offer: Offer, rows: readonly CompatWireMessage[], signa
   } catch (error) {
     if (!own.signal.aborted) throw error
   } finally {
-    stopInterval(watch)
+    watchStop.abort()
+    own.signal.removeEventListener('abort', stopWatch)
     signal.removeEventListener('abort', forward)
   }
   return { read, ...(seconds !== undefined ? { seconds } : {}), ...(fault !== undefined ? { fault } : {}), refused, crowded }

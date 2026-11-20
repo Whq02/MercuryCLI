@@ -4,9 +4,9 @@ import { VideoProviderRefusal } from './minimax.js'
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { spawnFfmpeg } from '../../utils/ffmpeg.js'
-import { sleep } from '../../utils/sleep.js'
+import { pollUntil } from '../../utils/deadline.js'
 import { createVideoProvider, videoProviderSelection } from './registry.js'
-import type { VideoInput, VideoJob, VideoOutput, VideoRole, VideoStatus } from './types.js'
+import type { VideoInput, VideoJob, VideoOutput, VideoRole } from './types.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const MEDIA: Record<string, { type: 'image' | 'video' | 'audio'; mime: string; max: number }> = {
@@ -142,12 +142,25 @@ export async function generateVideo(input: VideoInput, project: string, parentSi
     signal.throwIfAborted()
     const provider = createVideoProvider(plan.selection)
     submitting = true
-    jobId = await provider.create(plan.job, signal)
-    let task: VideoStatus
-    do {
-      await sleep(provider.pollIntervalMs, signal, { throwOnAbort: true })
-      task = await provider.status(jobId, signal)
-    } while (task.state === 'queued' || task.state === 'running')
+    const createdJobId = await provider.create(plan.job, signal)
+    jobId = createdJobId
+    let first = true
+    const task = await pollUntil(
+      async () => {
+        if (first) {
+          first = false
+          return undefined
+        }
+        const status = await provider.status(createdJobId, signal)
+        return status.state === 'queued' || status.state === 'running' ? undefined : status
+      },
+      provider.pollIntervalMs,
+      Infinity,
+      () => {
+        throw new Error('Video deadline reached')
+      },
+      { signal },
+    )
     remoteTerminal = true
     if (task.state !== 'succeeded') return { outcome: 'failed', result: task.error ?? `MiniMax video task ${task.state}.`, jobId }
     const bytes = await provider.fetch(jobId, signal)

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { isIP } from 'node:net'
-import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
@@ -154,16 +154,18 @@ export class LambdaClient implements HostVendor {
   async terminate(id: string, readOnly?: HostReadOnly): Promise<void> {
     if (!idSchema.safeParse(id).success) throw new Error('Lambda requires a valid instance ID.')
     await this.api.request('/instance-operations/terminate', z.object({ data: z.object({ terminated_instances: z.array(z.object({ id: idSchema })) }) }), 'POST', { instance_ids: [id] })
-    const deadline = Date.now() + (this.timing.readyTimeoutMs ?? 120000)
     let last = ''
-    for (;;) {
-      try {
-        const pod = (await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods())).find(row => row.id === id)
-        if (!pod || pod.status === 'TERMINATED') return
-      } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
-      if (Date.now() >= deadline) throw new Error('Lambda termination is not verified; check the instance list in the console.' + last)
-      await sleep(this.timing.pollMs ?? 1000)
-    }
+    await pollUntil(
+      async () => {
+        try {
+          const pod = (await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods())).find(row => row.id === id)
+          if (!pod || pod.status === 'TERMINATED') return true
+        } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
+      },
+      this.timing.pollMs ?? 1000,
+      this.timing.readyTimeoutMs ?? 120000,
+      () => { throw new Error('Lambda termination is not verified; check the instance list in the console.' + last) },
+    )
   }
   async logs(_id: string): Promise<string> { return 'Lambda exposes no instance log-read API; connect by SSH to read /var/log/cloud-init-output.log and /workspace/mercury-host, or open the instance in its console.' }
 }
