@@ -55,3 +55,35 @@ export function hostShellHint(
   if (typeof env.SHELL === 'string' && env.SHELL.length > 0) return 'posix-sh'
   return 'unknown'
 }
+
+const BATCH_SHIM = /\.(cmd|bat)$/i
+const CMD_EXECUTABLE = /(?:^|[\\/])cmd(?:\.exe)?$/i
+
+export function isBatchShim(file: string, platform: string = process.platform): boolean {
+  return platform === 'win32' && BATCH_SHIM.test(file)
+}
+
+export function shimShellOption(
+  platform: NodeJS.Platform = process.platform,
+): { shell: true } | Record<string, never> {
+  return platform === 'win32' ? { shell: true } : {}
+}
+
+export function commandShellArgv(command: string, platform: NodeJS.Platform = process.platform): string[] {
+  return platform === 'win32' ? ['cmd.exe', '/d', '/s', '/c', command] : ['/bin/sh', '-c', command]
+}
+
+export function executableNeedsVerbatimArgs(file: string, platform: NodeJS.Platform = process.platform): boolean {
+  return platform === 'win32' && CMD_EXECUTABLE.test(file)
+}
+
+export function childIpcTransport(
+  runtime: 'py' | 'js',
+  platform: NodeJS.Platform = process.platform,
+): 'loopback' | 'fd' {
+  return runtime === 'py' && platform === 'win32' ? 'loopback' : 'fd'
+}
+
+export function hostScriptDialect(platform: NodeJS.Platform = process.platform): 'powershell' | 'posix-sh' {
+  return platform === 'win32' ? 'powershell' : 'posix-sh'
+}
