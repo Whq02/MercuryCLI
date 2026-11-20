@@ -798,11 +798,7 @@ export async function flowShellAsk(command: string, cwd: string, shell: 'bash' |
   if (shell === 'powershell') await scanTokens(command, scan)
   else await scanScript(command, scan)
   if (shell !== 'powershell' && scan.asks.length === 0) {
-    try {
-      await scanReading(command, cwd, { ...scan, cwd, asks: scan.asks })
-    } catch (error) {
-      passedOver(error)
-    }
+    await scanReading(command, cwd, { ...scan, cwd, asks: scan.asks })
   }
   return scan.asks[0] ?? null
 }
@@ -841,12 +837,7 @@ export async function flowAskFor<Input extends Record<string, unknown> = Record<
   const started = await startedCommandOf(tool, input)
   if (started !== undefined) return flowShellAsk(started, resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined), 'bash', rules)
   if (typeof tool.getPath !== 'function') return null
-  try {
-    if (tool.isReadOnly?.(input) === true) return null
-    const path = tool.getPath(input)
-    return typeof path === 'string' && path !== '' ? flowPathAsk(path, rules) : null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  if (tool.isReadOnly?.(input) === true) return null
+  const path = tool.getPath(input)
+  return typeof path === 'string' && path !== '' ? flowPathAsk(path, rules) : null
 }

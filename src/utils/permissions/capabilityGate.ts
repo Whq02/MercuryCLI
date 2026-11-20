@@ -56,12 +56,7 @@ export function restoreCapability(
 }
 
 function currentAgentTypeSafe(): string | undefined {
-  try {
-    return getMainThreadAgentType()
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
+  return getMainThreadAgentType()
 }
 
 export function isCapabilityKilled(
@@ -243,7 +238,7 @@ function agentPolicyDenies(
     return false
   } catch (error) {
     passedOver(error)
-    return false
+    return true
   }
 }
 
@@ -334,6 +329,7 @@ function seedFromEnv(): void {
     }
   } catch (error) {
     passedOver(error)
+    killCapability(ALL_AGENTS, ALL_TOOLS)
   }
 }
 

@@ -737,11 +737,7 @@ function cachedGeneratedPaths(rule: WardRule): Array<{ re: RegExp; row: Generate
   if (rows === undefined) {
     rows = []
     for (const row of rule.generatedPaths ?? []) {
-      try {
-        rows.push({ re: new RegExp(row.pattern), row })
-      } catch (error) {
-        passedOver(error); continue
-      }
+      rows.push({ re: new RegExp(row.pattern), row })
     }
     compiledGeneratedPaths.set(rule, rows)
   }
@@ -751,11 +747,7 @@ function cachedGeneratedPaths(rule: WardRule): Array<{ re: RegExp; row: Generate
 function cachedLeadingMarker(rule: WardRule): RegExp | null {
   let re = compiledLeadingMarkers.get(rule)
   if (re === undefined) {
-    try {
-      re = rule.leadingMarker === undefined ? null : new RegExp(rule.leadingMarker, 'i')
-    } catch {
-      re = null
-    }
+    re = rule.leadingMarker === undefined ? null : new RegExp(rule.leadingMarker, 'i')
     compiledLeadingMarkers.set(rule, re)
   }
   return re
@@ -781,11 +773,7 @@ function cachedPathRegex(
 ): RegExp | null {
   let re = map.get(rule)
   if (re === undefined) {
-    try {
-      re = new RegExp(source)
-    } catch {
-      re = null
-    }
+    re = new RegExp(source)
     map.set(rule, re)
   }
   return re
@@ -796,9 +784,7 @@ function compile(rule: WardRule): RegExp[] {
   if (cached !== undefined) return cached
   const out: RegExp[] = []
   for (const src of rule.patterns) {
-    try {
-      out.push(new RegExp(src, rule.flags ?? 'u'))
-    } catch (error) { passedOver(error) }
+    out.push(new RegExp(src, rule.flags ?? 'u'))
   }
   compiledPatterns.set(rule, out)
   return out
@@ -1189,7 +1175,7 @@ function lineResolvesInsideProject(
     try {
       resolved = resolvePath(expanded)
     } catch (error) {
-      passedOver(error); continue
+      passedOver(error); return false
     }
     const root = resolved.root?.replace(/\\/g, '/')
     if (root === undefined || root === '') continue
@@ -1219,7 +1205,7 @@ function lineResolvesInsideFolder(
     try {
       resolved = resolvePath(expanded)
     } catch (error) {
-      passedOver(error); continue
+      passedOver(error); return false
     }
     resolvedAny = true
     if (!slashed(resolved.path).startsWith(base)) return false
