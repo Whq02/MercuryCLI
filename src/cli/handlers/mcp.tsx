@@ -25,6 +25,7 @@ import {
   clearServerTokensFromLocalStorage,
   getMcpClientConfig,
   readClientSecret,
+  refuseUnreadTokenStore,
   saveMcpClientSecret,
   revokeServerTokens,
 } from '../../services/mcp/auth.js'
@@ -150,6 +151,7 @@ export async function mcpRemoveHandler(
     const cleanSecureStorage = (config: McpServerConfig | null): Promise<void> | null => {
       if (!config) return null
       if (config.type === 'sse' || config.type === 'http') {
+        refuseUnreadTokenStore(name, config)
         const revoked = revokeServerTokens(name, config)
         clearServerTokensFromLocalStorage(name, config)
         clearMcpClientConfig(name, config)

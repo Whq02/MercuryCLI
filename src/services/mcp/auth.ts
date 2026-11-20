@@ -147,8 +147,8 @@ function refuseUnwrittenClear(serverName: string, written: { success: boolean; c
   )
 }
 
-function refuseUnreadStore(): void {
-  if (getSecureStorage().read() !== null) return
+export function refuseUnreadTokenStore(serverName: string, serverConfig: McpServerConfig): void {
+  if (readEntry(getServerKey(serverName, serverConfig)) !== undefined) return
   const unread = credentialStoreUnread()
   if (unread !== null) throw Object.assign(new Error(unread.warning), { code: unread.code })
 }
@@ -1078,7 +1078,6 @@ export async function revokeServerTokens(
 }
 
 export function clearServerTokensFromLocalStorage(serverName: string, serverConfig: McpServerConfig): void {
-  refuseUnreadStore()
   const serverKey = getServerKey(serverName, serverConfig)
   if (readEntry(serverKey) !== undefined) refuseUnwrittenClear(serverName, writeEntry(serverKey, undefined))
 }
@@ -1139,7 +1138,6 @@ export function saveMcpClientSecret(serverName: string, serverConfig: McpServerC
 }
 
 export function clearMcpClientConfig(serverName: string, serverConfig: McpServerConfig): void {
-  refuseUnreadStore()
   const storage = getSecureStorage()
   const data = storage.read() ?? {}
   const map = { ...((data.mcpOAuthClientConfig as Record<string, unknown> | undefined) ?? {}) }
