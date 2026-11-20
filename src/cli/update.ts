@@ -23,6 +23,7 @@ import {
   type Progress,
 } from 'src/services/privateChannel/updateService.js'
 import { describeChannelRoad } from 'src/services/privateChannel/channelTransport.js'
+import { consumeSkippedGhCmdNotice } from 'src/services/privateChannel/ghRelease.js'
 import { updateReinstallCommand } from 'src/services/privateChannel/updateRemedy.js'
 import { formatBootResidueWarning, readBootAttemptResidue } from 'src/substrate/bootBeacon.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
@@ -236,6 +237,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
 
   if (options.status) {
     const status = await channelStatus(roots)
+    const ghWarning = consumeSkippedGhCmdNotice()
+    if (ghWarning && !options.json) console.error(ghWarning)
     const pointerDamaged = status.installedPointer === 'unreadable'
     if (options.json) {
       return pointerDamaged
@@ -294,6 +297,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
 
   if (options.check) {
     const check = await checkForUpdate(roots, progress)
+    const ghWarning = consumeSkippedGhCmdNotice()
+    if (ghWarning && !options.json) console.error(ghWarning)
     if (options.json) {
       const ok = check.state === 'update-available' || check.state === 'current' || check.state === 'no-releases'
       return ok
@@ -339,6 +344,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     return cliError(`update refused: ${sourceCheckoutReason}\n  ${sourceCheckoutRemedy}\nthe active installation was not changed`)
   }
   const result = await performUpdate(roots, progress, { allowUnsigned: options.allowUnsigned })
+  const ghWarning = consumeSkippedGhCmdNotice()
+  if (ghWarning && !options.json) console.error(ghWarning)
   const installCurrent = result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')
   if (installCurrent) {
     reconcileManagedShims(roots)
