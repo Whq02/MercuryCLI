@@ -20,7 +20,7 @@ import type { Message } from '../../types/message.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { AgentId } from '../../types/ids.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isENOENT } from '../../utils/errors.js'
+import { getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { saturnQueueStamp, screenCommandQueueStamp } from '../../utils/messages/noticeRows.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
@@ -29,7 +29,6 @@ import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
-import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type RestartCarryPorts = {
   reason: RunnerRestartReason
@@ -50,20 +49,21 @@ function transcriptTailLines(path: string): string[] {
     const read = readTranscriptBytesAfter(path, { offset: Math.max(0, size - MAX_TRANSCRIPT_READ_BYTES), carry: '' })
     return [...read.text.split('\n'), read.cursor.carry]
   } catch (error) {
-    if (!isENOENT(error)) logError(error)
-    return []
+    if (isENOENT(error)) return []
+    throw error
   }
 }
 
 async function agentFolderStands(agentId: string): Promise<boolean> {
-  const meta = await readAgentMetadata(agentId as AgentId).catch(passedOverAs(null))
+  const meta = await readAgentMetadata(agentId as AgentId)
   const folder = meta?.worktreePath ?? meta?.cwd
   if (folder === undefined) return true
   try {
     return statSync(folder).isDirectory()
   } catch (error) {
-    passedOver(error)
-    return false
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false
+    throw error
   }
 }
 
