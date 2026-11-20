@@ -77,11 +77,7 @@ export async function readAgentPauseRecord(agentId: string): Promise<AgentPauseR
     if (code === 'ENOENT' || code === 'ENOTDIR') return null
     throw failure
   }
-  const decoded = decodeAgentPauseRecord(JSON.parse(bytes))
-  if (decoded === null) {
-    throw new Error(`Invalid pause record at ${agentPauseRecordPath(agentId)}`)
-  }
-  return decoded
+  return decodeAgentPauseRecord(JSON.parse(bytes))
 }
 
 async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record: AgentPauseRecordV1 }>> {
