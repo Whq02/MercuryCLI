@@ -49,11 +49,13 @@ function armDeferredExitFlush(): void {
   if (deferredExitFlushArmed) return
   deferredExitFlushArmed = true
   process.once('exit', () => {
-    if (lastGlobalConfigSaveFailed) return
+    const alreadyReported = lastGlobalConfigSaveFailed
     try {
       if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)
     } catch (error) {
-      process.stderr.write(`\nThe settings changed in this session could not be saved to ${getGlobalMercuryFile()} (${errorMessage(error)}); they are lost — set them again next time.\n`)
+      if (!alreadyReported) {
+        process.stderr.write(`\nThe settings changed in this session could not be saved to ${getGlobalMercuryFile()} (${errorMessage(error)}); they are lost — set them again next time.\n`)
+      }
     }
   })
 }

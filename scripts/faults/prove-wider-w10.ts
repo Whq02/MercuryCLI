@@ -605,35 +605,90 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
   check('w10-13(R5): user settings switch says one plain held-file sentence with no rename/temp internals', r5.ok === false && r5.reason === expectR5, JSON.stringify(r5))
   check('w10-13(R7): project-local settings switch says one plain held-file sentence with no rename/temp internals', r7.ok === false && r7.reason === expectR7, JSON.stringify(r7))
 
-  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w10-r10-')))
-  const userHome = join(scratch, 'userhome')
-  const home = join(scratch, 'home')
-  const project = join(scratch, 'project')
-  mkdirSync(userHome, { recursive: true })
-  mkdirSync(home, { recursive: true })
-  mkdirSync(project, { recursive: true })
-  const r10Src = `
-    process.env.HOME = ${JSON.stringify(userHome)}
-    process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
-    process.env.MERCURY_CREDENTIAL_STORE = 'file'
-    process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-    delete process.env.NODE_ENV
-    delete process.env.MERCURY_HOME
-    globalThis.MACRO = { VERSION: '1.0.12' }
-    process.chdir(${JSON.stringify(project)})
+  const runR10Child = (body: string): { status: number | null; stderr: string; mercuryJson: string | null } => {
+    const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w10-r10-')))
+    const userHome = join(scratch, 'userhome')
+    const home = join(scratch, 'home')
+    const project = join(scratch, 'project')
+    mkdirSync(userHome, { recursive: true })
+    mkdirSync(home, { recursive: true })
+    mkdirSync(project, { recursive: true })
+    const script = `
+      process.env.HOME = ${JSON.stringify(userHome)}
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
+      process.env.MERCURY_CREDENTIAL_STORE = 'file'
+      process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+      delete process.env.NODE_ENV
+      delete process.env.MERCURY_HOME
+      globalThis.MACRO = { VERSION: '1.0.12' }
+      process.chdir(${JSON.stringify(project)})
+      const HOME = ${JSON.stringify(home)}
+      const SRC = ${JSON.stringify(SRC)}
+      ${body}
+    `
+    try {
+      const res = spawnSync(BUN, ['-e', script], {
+        encoding: 'utf8',
+        env: { ...process.env, HOME: userHome, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file' },
+        timeout: 30_000,
+      })
+      const cfgPath = join(home, '.mercury.json')
+      let mercuryJson: string | null = null
+      try {
+        mercuryJson = require('node:fs').readFileSync(cfgPath, 'utf8')
+      } catch {}
+      return { status: res.status, stderr: res.stderr, mercuryJson }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
+  }
+
+  const r10a = runR10Child(`
     const { mock } = await import('bun:test')
-    const realFile = await import(${JSON.stringify(SRC)} + '/utils/file.ts')
+    const realFile = await import(SRC + '/utils/file.ts')
+    const origWrite = realFile.writeFileAndFlushAtomically
     const AtomicWriteRefusal = realFile.AtomicWriteRefusal
-    mock.module(${JSON.stringify(SRC)} + '/utils/file.js', () => ({
+    let held = true
+    mock.module(SRC + '/utils/file.js', () => ({
+      ...realFile,
+      writeFileAndFlushAtomically: (targetPath, content, opts) => {
+        if (held) throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
+        return origWrite(targetPath, content, opts)
+      },
+    }))
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    saveGlobalConfigDeferred(c => ({ ...c, numStartups: 42 }))
+    const { addMcpConfig } = await import(SRC + '/services/mcp/config.ts')
+    try {
+      await addMcpConfig('heldu1', { type: 'stdio', command: 'node', args: ['-v'] }, 'user')
+    } catch (e) {
+      process.stderr.write((e instanceof Error ? e.message : String(e)) + '\\n')
+    }
+    held = false
+    process.exit(1)
+  `)
+  const parsedA = r10a.mercuryJson ? (JSON.parse(r10a.mercuryJson) as { numStartups?: number }) : null
+  check(
+    'w10-13(R10a): after a refused save, once the file is free again, exit flush writes pending deferred changes',
+    r10a.status === 1 && parsedA?.numStartups === 42,
+    `rc=${r10a.status} file=${String(r10a.mercuryJson)} stderr=${r10a.stderr}`,
+  )
+
+  const r10b = runR10Child(`
+    const { mock } = await import('bun:test')
+    const realFile = await import(SRC + '/utils/file.ts')
+    const AtomicWriteRefusal = realFile.AtomicWriteRefusal
+    mock.module(SRC + '/utils/file.js', () => ({
       ...realFile,
       writeFileAndFlushAtomically: (targetPath) => {
         throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
       },
     }))
-    const { enableConfigs, saveGlobalConfigDeferred } = await import(${JSON.stringify(SRC)} + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: (c.numStartups ?? 0) + 1 }))
-    const { addMcpConfig } = await import(${JSON.stringify(SRC)} + '/services/mcp/config.ts')
+    const { addMcpConfig } = await import(SRC + '/services/mcp/config.ts')
     try {
       await addMcpConfig('heldu1', { type: 'stdio', command: 'node', args: ['-v'] }, 'user')
       process.exit(0)
@@ -641,23 +696,37 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
       process.stderr.write((e instanceof Error ? e.message : String(e)) + '\\n')
       process.exit(1)
     }
-  `
-  try {
-    const res = spawnSync(BUN, ['-e', r10Src], {
-      encoding: 'utf8',
-      env: { ...process.env, HOME: userHome, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file' },
-      timeout: 30_000,
-    })
-    const errLines = res.stderr.split('\n').map(l => l.trim()).filter(Boolean)
-    const expectR10 = `Could not add MCP server heldu1: ${join(home, '.mercury.json')} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
-    check(
-      'w10-13(R10): user mcp add exits 1 and prints one plain held-file sentence once (no second exit-flush refusal)',
-      res.status === 1 && errLines.length === 1 && errLines[0] === expectR10,
-      `rc=${res.status} lines=${JSON.stringify(errLines)}`,
-    )
-  } finally {
-    rmSync(scratch, { recursive: true, force: true })
-  }
+  `)
+  const errLinesB = r10b.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  check(
+    'w10-13(R10b): file still held at exit after refusal was said prints the refusal once and not twice',
+    r10b.status === 1 &&
+      errLinesB.length === 1 &&
+      /^Could not add MCP server heldu1: .+[/\\]\.mercury\.json could not be written \(EPERM\); nothing was written\. Close what holds the file, then try again\.$/.test(errLinesB[0] ?? ''),
+    `rc=${r10b.status} lines=${JSON.stringify(errLinesB)}`,
+  )
+
+  const r10c = runR10Child(`
+    const { mock } = await import('bun:test')
+    const realFile = await import(SRC + '/utils/file.ts')
+    const AtomicWriteRefusal = realFile.AtomicWriteRefusal
+    mock.module(SRC + '/utils/file.js', () => ({
+      ...realFile,
+      writeFileAndFlushAtomically: (targetPath) => {
+        throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
+      },
+    }))
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    enableConfigs()
+    saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
+    process.exit(0)
+  `)
+  const errLinesC = r10c.stderr.split('\n').map(l => l.trim()).filter(Boolean)
+  check(
+    'w10-13(R10c): with no prior refusal, a failing exit flush still prints its existing sentence',
+    errLinesC.some(l => l.includes('The settings changed in this session could not be saved to ') && l.includes('they are lost — set them again next time.')),
+    `rc=${r10c.status} lines=${JSON.stringify(errLinesC)}`,
+  )
 }
 
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
