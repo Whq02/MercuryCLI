@@ -79,5 +79,54 @@ section('§2 THE DEFECT PIN, live: two publishes, one mtime, two changes')
 }
 
 
+section('§3 the settle window ends on a clock nothing can step, and a stop takes its timer with it')
+{
+  type Settling = { start(): void; stop(): void; settle(windowMs: number): void; heartbeatMs(): number }
+  const Feed = ProjectionFeed as unknown as new (dir: string, path: string, onChange: () => void, idleFloorMs: () => number) => Settling
+  const dir = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'projection-settle-'))
+  const pause = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+  const feed = new Feed(dir, join(dir, 'facts.json'), () => {}, () => 10_000)
+  feed.start()
+  check('an idle feed that has its watcher beats at its idle floor', feed.heartbeatMs() === 10_000, String(feed.heartbeatMs()))
+  feed.settle(300)
+  check('a settle window brings the 400 ms heartbeat', feed.heartbeatMs() === 400, String(feed.heartbeatMs()))
+  const wallClock = Date.now
+  Date.now = () => wallClock() - 3_600_000
+  await pause(700)
+  Date.now = wallClock
+  check('a wall clock stepped back an hour inside the window still falls back to the idle floor', feed.heartbeatMs() === 10_000, String(feed.heartbeatMs()))
+  feed.settle(200)
+  feed.settle(600)
+  await pause(350)
+  check('control: of two windows the later end holds the heartbeat', feed.heartbeatMs() === 400, String(feed.heartbeatMs()))
+  await pause(500)
+  check('control: …and the floor comes back when it has passed', feed.heartbeatMs() === 10_000, String(feed.heartbeatMs()))
+  const alive = new Set<unknown>()
+  const realSet = globalThis.setTimeout
+  const realClear = globalThis.clearTimeout
+  globalThis.setTimeout = ((...args: Parameters<typeof setTimeout>) => {
+    const handle = realSet(...args)
+    alive.add(handle)
+    return handle
+  }) as typeof setTimeout
+  globalThis.clearTimeout = ((handle?: Parameters<typeof clearTimeout>[0]) => {
+    alive.delete(handle)
+    realClear(handle)
+  }) as typeof clearTimeout
+  let made = 0
+  try {
+    feed.settle(5_000)
+    made = alive.size
+    feed.stop()
+  } finally {
+    globalThis.setTimeout = realSet
+    globalThis.clearTimeout = realClear
+  }
+  check('the rig holds: the settle made a timeout of its own', made >= 1, String(made))
+  check('a stop inside the window leaves no timeout of the feed behind', alive.size === 0, String(alive.size))
+  for (const handle of alive) realClear(handle as Parameters<typeof clearTimeout>[0])
+  rmSync(dir, { recursive: true, force: true })
+}
+
 console.log(failures === 0 ? '\nprove-projection-change-key: ALL LAWS HOLD' : `\nprove-projection-change-key: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
