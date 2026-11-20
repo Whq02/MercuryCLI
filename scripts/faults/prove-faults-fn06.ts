@@ -402,14 +402,15 @@ console.log('\nsrc/main/runLaunch.ts')
       includePartialMessages: false,
       door: 'rows',
     })
+    await new Promise(resolve => setTimeout(resolve, 20))
     process.stderr.write = realStderrWrite
     out.stderr = stderrLines.join('')
   `)
   check(
-    'runlaunch-killswitch-throw-disables-sovereign',
-    r.mode === 'default' &&
-      r.available === false &&
-      String(r.stderr ?? '').includes("bypass permissions was turned off: your organization's security policy could not be checked (killswitch policy check failed)"),
+    'runlaunch-killswitch-throw-stays-on-and-says-so',
+    r.mode === 'sovereign' &&
+      r.available === true &&
+      String(r.stderr ?? '').includes("bypass permissions stays on: your organization's security policy could not be checked (killswitch policy check failed)"),
     JSON.stringify(r),
   )
 }

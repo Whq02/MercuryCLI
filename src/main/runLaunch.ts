@@ -29,7 +29,6 @@ import { isBareMode } from '../utils/envUtils.js'
 import { runSessionStartHooks } from '../utils/sessionStart.js'
 import type { HookResultMessage } from '../types/message.js'
 import { modeBypassesPermissions, type PermissionMode } from '../utils/permissions/PermissionMode.js'
-import { createSovereignDisabledContext } from '../utils/permissions/permissionSetup.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getSessionProjectDir } from '../bootstrap/state.js'
@@ -209,7 +208,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
   )
 
   if (modeBypassesPermissions(args.permissionMode) || args.allowDangerousSkip || store.getState().toolPermissionContext.isBypassPermissionsModeAvailable === true) {
-    await import('../utils/permissions/bypassPermissionsKillswitch.js')
+    void import('../utils/permissions/bypassPermissionsKillswitch.js')
       .then(m =>
         m.checkAndDisableSovereignIfNeeded(
           store.getState().toolPermissionContext,
@@ -218,11 +217,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
       )
       .catch(error => {
         logError(error)
-        store.setState(prev => ({
-          ...prev,
-          toolPermissionContext: createSovereignDisabledContext(prev.toolPermissionContext),
-        }))
-        writeErr(`bypass permissions was turned off: your organization's security policy could not be checked (${error instanceof Error ? error.message : String(error)})`)
+        writeErr(`bypass permissions stays on: your organization's security policy could not be checked (${error instanceof Error ? error.message : String(error)})`)
       })
   }
 
