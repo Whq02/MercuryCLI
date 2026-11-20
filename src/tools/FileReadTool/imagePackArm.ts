@@ -56,7 +56,7 @@ export function armImagePack(packPlatform: string = imagePackPlatform()): ImageP
     recordOwnEnvWrite('NODE_PATH', process.env.NODE_PATH)
     process.env.NODE_PATH = current === '' ? modules : `${modules}${delimiter}${current}`
   }
-  const init = (Module as unknown as { _initPaths?: () => void })._initPaths
+  const init = (Module as typeof Module & { _initPaths?: () => void })._initPaths
   if (typeof init === 'function') init.call(Module)
   armedDir = packDir
   return { armed: true, packDir }

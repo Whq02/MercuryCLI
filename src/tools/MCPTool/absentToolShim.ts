@@ -8,14 +8,14 @@ const shims = new Map<string, Tool>()
 function absentToolShim(name: string): Tool {
   const cached = shims.get(name)
   if (cached) return cached
-  const shim = {
-    ...(MCPTool as unknown as Tool),
+  const shim: Tool = {
+    ...MCPTool,
     name,
     userFacingName: () => displayToolName(name),
     async call(): Promise<never> {
       throw new Error(`the tool "${displayToolName(name)}" is no longer available in this session`)
     },
-  } as unknown as Tool
+  }
   shims.set(name, shim)
   return shim
 }

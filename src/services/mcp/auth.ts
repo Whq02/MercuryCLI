@@ -258,7 +258,7 @@ async function discoverMetadata(serverUrl: string, config: RemoteServerConfig, f
   const configured = config.oauth?.authServerMetadataUrl
   if (configured) return fetchConfiguredMetadata(configured, fetchFn)
   try {
-    const info = await discoverOAuthServerInfo(serverUrl, { fetchFn: fetchFn as never })
+    const info = await discoverOAuthServerInfo(serverUrl, { fetchFn })
     if (info.authorizationServerMetadata) return info.authorizationServerMetadata
   } catch (err) {
     logForDebugging(`mcp auth: RFC 9728/8414 discovery failed for ${serverUrl}: ${String(err)}`)
@@ -266,7 +266,7 @@ async function discoverMetadata(serverUrl: string, config: RemoteServerConfig, f
   const url = new URL(serverUrl)
   if (url.pathname && url.pathname !== '/') {
     try {
-      return await discoverAuthorizationServerMetadata(serverUrl, { fetchFn: fetchFn as never })
+      return await discoverAuthorizationServerMetadata(serverUrl, { fetchFn })
     } catch (err) {
       logForDebugging(`mcp auth: path-aware fallback discovery failed for ${serverUrl}: ${String(err)}`)
     }
@@ -545,7 +545,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     const authServerUrl = entry?.discoveryState?.authorizationServerUrl
     if (authServerUrl) {
       try {
-        const rediscovered = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: this.fetchFn as never })
+        const rediscovered = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: this.fetchFn })
         if (rediscovered) return rediscovered
       } catch (err) {
         logForDebugging(`mcp auth [${this.serverName}]: re-discovery from persisted URL failed: ${String(err)}`)
@@ -633,7 +633,7 @@ async function refreshAuthorizationOf(this: MercuryMcpAuthProvider, refreshToken
           clientInformation,
           refreshToken: tokenToUse,
           resource: new URL(this.serverUrl()),
-          fetchFn: this.fetchFn as never,
+          fetchFn: this.fetchFn,
         })
         if (!tokens) {
           emitRefreshEvent('no_tokens_returned')
@@ -908,7 +908,7 @@ export async function performMCPOAuthFlow(
           serverUrl,
           ...(stepUpScope ? { scope: stepUpScope } : {}),
           ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
-          fetchFn: provider.fetchFn as never,
+          fetchFn: provider.fetchFn,
         })
         if (outcome !== 'REDIRECT') logForDebugging(`mcp auth [${serverName}]: unexpected pre-code auth outcome ${outcome}`)
       } catch (err) {
@@ -934,7 +934,7 @@ export async function performMCPOAuthFlow(
       ...(granted.iss === undefined ? {} : { iss: granted.iss }),
       ...(stepUpScope ? { scope: stepUpScope } : {}),
       ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
-      fetchFn: provider.fetchFn as never,
+      fetchFn: provider.fetchFn,
     })
     if (outcome !== 'AUTHORIZED') throw new Error(`Unexpected OAuth outcome: ${outcome}`)
     const saved = readEntry(serverKey)
@@ -1014,7 +1014,7 @@ export async function revokeServerTokens(
   if (entry && (entry.accessToken || entry.refreshToken)) {
     try {
       const authServerUrl = entry.discoveryState?.authorizationServerUrl ?? (serverConfig as RemoteServerConfig).url ?? ''
-      const discovered = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: fetchFn as never }).then(
+      const discovered = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn }).then(
         metadata => ({ metadata, lookupError: undefined as unknown }),
         (lookupError: unknown) => ({ metadata: undefined, lookupError }),
       )

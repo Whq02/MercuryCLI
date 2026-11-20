@@ -1,6 +1,6 @@
 
 import type { AgentId } from './ids.js'
-import type { AssistantMessage, NormalizedUserMessage } from './message.js'
+import type { AssistantMessage, NormalizedAssistantMessage, NormalizedUserMessage } from './message.js'
 
 
 export type BashProgress = {
@@ -45,7 +45,7 @@ export type AgentToolProgress = {
 
 export type SkillToolProgress = {
   type: 'skill_progress'
-  message: AssistantMessage | NormalizedUserMessage
+  message: NormalizedAssistantMessage | NormalizedUserMessage
   prompt: string
   agentId: AgentId
 }

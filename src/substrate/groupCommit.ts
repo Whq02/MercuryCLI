@@ -68,7 +68,7 @@ export function groupCommitLane<T, C = void>(opts: GroupCommitOptions<T, C>): Gr
     submit: <R>(fn: (current: T) => Promise<{ next: T; result: R }>): Promise<R> =>
       new Promise<R>((resolve, reject) => {
         queue.push({
-          apply: fn as unknown as Entry<T>['apply'],
+          apply: fn,
           resolve: resolve as (value: unknown) => void,
           reject,
         })

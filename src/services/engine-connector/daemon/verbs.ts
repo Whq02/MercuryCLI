@@ -53,15 +53,14 @@ export class VerbsPart {
       if (outcome !== 'applied' && outcome !== 'refused' && outcome !== 'noop') {
         return { outcome: 'refused', mode: req.mode, refusal: 'restore-failed', detail: `unexpected outcome ${String(outcome)}` }
       }
-      const r = reply as unknown as RewindReceiptV1
       const receipt: RewindReceiptV1 = {
         outcome,
         mode: req.mode,
-        ...(r.refusal !== undefined ? { refusal: r.refusal } : {}),
-        ...(typeof r.detail === 'string' && r.detail !== '' ? { detail: r.detail } : {}),
-        ...(r.dryRun === true ? { dryRun: true } : {}),
-        ...(r.code !== undefined ? { code: r.code } : {}),
-        ...(r.conversation !== undefined ? { conversation: r.conversation } : {}),
+        ...(reply.refusal !== undefined ? { refusal: reply.refusal as RewindReceiptV1['refusal'] } : {}),
+        ...(typeof reply.detail === 'string' && reply.detail !== '' ? { detail: reply.detail } : {}),
+        ...(reply.dryRun === true ? { dryRun: true } : {}),
+        ...(reply.code !== undefined ? { code: reply.code as RewindReceiptV1['code'] } : {}),
+        ...(reply.conversation !== undefined ? { conversation: reply.conversation as RewindReceiptV1['conversation'] } : {}),
       }
       if (receipt.outcome === 'applied' && receipt.conversation !== undefined && receipt.dryRun !== true) void this.needs.tick()
       return receipt
@@ -161,7 +160,7 @@ export class VerbsPart {
       await this.needs.verbChain()
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'sessionControl', action: 'leave', sessionId: this.needs.record().sessionId, by: 'operator' } as never,
+        { op: 'sessionControl', action: 'leave', sessionId: this.needs.record().sessionId, by: 'operator' },
         { timeoutMs: LEAVE_RPC_TIMEOUT_MS },
       )) as Record<string, unknown>
       if (reply.ok !== true) return { note: 'none', detail: String(reply.error ?? 'the daemon refused the verb') }
