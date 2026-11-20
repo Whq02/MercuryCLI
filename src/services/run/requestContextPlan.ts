@@ -171,13 +171,15 @@ function invalidateRemovedReads(input: RequestContextPlanInput, before: Message[
   rebuildSeenLinesFromTranscript(input.owner, view, removed)
 }
 
-const lastAppliedPlans = new OwnerScopedStore<{ plan: RequestContextPlan | null }>({
+type AppliedPlan = Omit<RequestContextPlan, 'messages'>
+
+const lastAppliedPlans = new OwnerScopedStore<{ plan: AppliedPlan | null }>({
   name: 'request-plans',
   create: () => ({ plan: null }),
 })
 registerOwnerScopedStore(lastAppliedPlans)
 
-export function getLastAppliedPlan(owner: OwnerKey): RequestContextPlan | null {
+export function getLastAppliedPlan(owner: OwnerKey): AppliedPlan | null {
   return lastAppliedPlans.peek(owner)?.plan ?? null
 }
 
@@ -339,7 +341,8 @@ export async function buildRequestContextPlan(
     } : {}),
   }
   if (mode === 'apply') {
-    lastAppliedPlans.get(input.owner).plan = plan
+    const { messages: _sent, ...applied } = plan
+    lastAppliedPlans.get(input.owner).plan = applied
     recordAppliedPlan(input.owner, digest)
   }
   return plan
