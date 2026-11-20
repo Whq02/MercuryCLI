@@ -11,15 +11,29 @@ import type { AttachedInstruction } from '../../services/instructions/attachedTe
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import { openPath } from '../../utils/browser.js'
 import { getMemoryPath } from '../../utils/config.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { toTildePath } from '../../utils/path.js'
 import { getMnemeHome, isMnemeEnabled } from '../../mneme/paths.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { Select } from '../CustomSelect/select.js'
+import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { getRelativeMemoryPath } from './MemoryUpdateNotification.js'
 import { memoryFileListLayout } from './memoryCentreLayout.js'
-import { passedOver } from '../../utils/passedOver.js'
 
-
+export function openMemoryFolder(
+  dir: string,
+  ops: { mkdirSync: typeof mkdirSync; openPath: typeof openPath } = { mkdirSync, openPath },
+): string | null {
+  try {
+    ops.mkdirSync(dir, { recursive: true })
+  } catch (error) {
+    logError(error)
+    return `Could not open the memory folder at ${toTildePath(dir)} (${errorMessage(error)}) — check folder permissions.`
+  }
+  void ops.openPath(dir)
+  return null
+}
 let lastSelectedPath: string | null = null
 
 type Row = {
@@ -61,10 +75,11 @@ export function MemoryFileSelector({
   const listing = use(getInstructionListing())
 
   useExitOnCtrlCDWithKeybindings()
+  const tokens = useMercuryTokens()
 
   const [mnemeOn, setMnemeOn] = useState(() => isMnemeEnabled())
   const [firstVisible, setFirstVisible] = useState(0)
-
+  const [openError, setOpenError] = useState<string | null>(null)
   const toggles: Array<{
     id: 'memory'
     flip: () => void
@@ -175,7 +190,7 @@ export function MemoryFileSelector({
     return result
   }, [files, listing, mnemeOn, held, attached])
 
-  const layout = memoryFileListLayout(rows, width, Math.max(1, rowBudget - 2), firstVisible)
+  const layout = memoryFileListLayout(rows, width, Math.max(1, rowBudget - 2 - (openError !== null ? 1 : 0)), firstVisible)
   const preselect =
     lastSelectedPath !== null &&
     rows.some(row => row.value === lastSelectedPath)
@@ -185,15 +200,10 @@ export function MemoryFileSelector({
   const activate = (value: string) => {
     lastSelectedPath = value
     if (value.startsWith('::open:')) {
-      const dir = getMnemeHome()
-      try {
-        mkdirSync(dir, { recursive: true })
-      } catch (error) {
-        passedOver(error)
-      }
-      void openPath(dir)
+      setOpenError(openMemoryFolder(getMnemeHome()))
       return
     }
+    setOpenError(null)
     onSelect(value)
   }
 
@@ -217,6 +227,11 @@ export function MemoryFileSelector({
         onCancel={onCancel}
         onUpFromFirstItem={() => setFocusedToggle(toggles.length - 1)}
       />
+      {openError !== null ? (
+        <Text color={tokens.failureText} wrap="wrap">
+          {openError}
+        </Text>
+      ) : null}
     </Box>
   )
 }

@@ -572,5 +572,54 @@ console.log('\nextensions/bindings.ts:48 — corrupt or unreadable keybindings.j
   )
 }
 
+console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skips openPath and returns failure sentence')
+{
+  const res = runScenario(`
+    const mod = await import(${JSON.stringify(join(SRC, 'components/memory/MemoryFileSelector.tsx'))})
+    const { toTildePath } = await import(${JSON.stringify(join(SRC, 'utils/path.ts'))})
+    if (typeof mod.openMemoryFolder !== 'function') {
+      out.missing = true
+    } else {
+      const blocker = path.join(process.cwd(), 'not-a-dir')
+      fs.writeFileSync(blocker, 'file', 'utf8')
+      const badDir = path.join(blocker, 'memory')
+      let openedBad = false
+      out.badNote = mod.openMemoryFolder(badDir, {
+        mkdirSync: fs.mkdirSync,
+        openPath: async () => { openedBad = true; return true },
+      })
+      out.openedBad = openedBad
+      out.badDisplay = toTildePath(badDir)
+
+      const goodDir = path.join(process.cwd(), 'ok-memory')
+      let openedGood = null
+      out.goodNote = mod.openMemoryFolder(goodDir, {
+        mkdirSync: fs.mkdirSync,
+        openPath: async p => { openedGood = p; return true },
+      })
+      out.openedGood = openedGood
+      out.goodExists = fs.existsSync(goodDir)
+      out.goodDir = goodDir
+    }
+  `)
+  check(
+    'memory-selector-mkdir-fail-sentence',
+    res.missing !== true &&
+      res.openedBad === false &&
+      typeof res.badNote === 'string' &&
+      res.badNote.startsWith(`Could not open the memory folder at ${String(res.badDisplay)} (`) &&
+      res.badNote.endsWith(') — check folder permissions.'),
+    JSON.stringify(res),
+  )
+  check(
+    'memory-selector-mkdir-ok-control',
+    res.missing !== true &&
+      res.goodNote === null &&
+      res.goodExists === true &&
+      res.openedGood === res.goodDir,
+    JSON.stringify(res),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
