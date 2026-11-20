@@ -15,7 +15,7 @@ const { searchHost, fetchPrDiffFiles, fetchPrDiffPage, fetchRun, _resetRepoHostC
   '../../src/services/repoHost/repoHost.ts'
 )
 const { watchRun, cancelRunWatch, _resetRunWatchesForTesting } = await import('../../src/services/repoHost/runWatch.ts')
-const { getExecution } = await import('../../src/services/primitives/executionPlane.ts')
+const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
 const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
 
 let failures = 0

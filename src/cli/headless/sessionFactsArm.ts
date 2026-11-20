@@ -1,5 +1,5 @@
 import type { FileCheckpointsFact, ResultOf } from '../../runner/wire/methods.js'
-import { fileHistoryEnabled, fileCheckpointSource } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, fileCheckpointSource } from '../../services/changeTransaction/fileHistory.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { sleep } from '../../utils/sleep.js'
 import { anthropicWindowFact, anthropicObservedUsage } from '../../services/anthropicLimits.js'

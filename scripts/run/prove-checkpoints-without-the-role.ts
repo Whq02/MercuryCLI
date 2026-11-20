@@ -30,7 +30,7 @@ section('§1 the switch is its own fact: the role no longer gates a hosted run, 
   const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { setIsInteractive, getIsNonInteractiveSession } = await import('../../src/bootstrap/state.ts')
-  const fh = await import('../../src/utils/fileHistory.ts')
+  const fh = await import('../../src/services/changeTransaction/fileHistory.ts')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   setIsInteractive(false)
   check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession())

@@ -126,7 +126,7 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let executions: MissionExecutionRef[] = []
   try {
-    const { listExecutions } = await import('../primitives/executionPlane.js')
+    const { listExecutions } = await import('../../utils/primitives/executionPlane.js')
     const { processMainOwner } = await import('../../utils/run/resolveOwner.js')
     executions = listExecutions(processMainOwner(), { liveOnly: true, limit: MISSION_EXECUTION_CAP }).map(
       record => ({ kind: record.spec.kind, id: record.spec.id, state: record.state }),

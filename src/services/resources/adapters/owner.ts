@@ -1,7 +1,7 @@
 
 import { describeOwner, ownerEquals } from '../../../utils/primitives/owner.js'
 import { isOwnerKey, type OwnerKey } from '../../../utils/run/ownerKey.js'
-import { listExecutions } from '../../primitives/executionPlane.js'
+import { listExecutions } from '../../../utils/primitives/executionPlane.js'
 import { receiptCursor } from '../../changeTransaction/receipts.js'
 import { verificationSummary } from '../../../utils/verification/verificationState.js'
 import {

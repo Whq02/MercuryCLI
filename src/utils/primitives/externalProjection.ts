@@ -3,8 +3,8 @@ import {
   isTerminalExecutionState,
   type ExecutionSpec,
   type ExecutionState,
-} from '../../utils/primitives/execution.js'
-import { canTransitionExecution, legalExecutionTransitions } from '../../utils/primitives/execution.js'
+} from './execution.js'
+import { canTransitionExecution, legalExecutionTransitions } from './execution.js'
 import {
   getExecution,
   registerExecution,
@@ -12,8 +12,8 @@ import {
   transitionExecution,
   type TransitionOptions,
 } from './executionPlane.js'
-import type { OwnerKey } from '../../utils/run/ownerKey.js'
-import { passedOver } from '../../utils/passedOver.js'
+import type { OwnerKey } from '../run/ownerKey.js'
+import { passedOver } from '../passedOver.js'
 
 interface ExternalProjectionSpec {
   id: string

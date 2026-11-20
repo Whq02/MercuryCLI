@@ -259,7 +259,7 @@ console.log('entering a provider key has one home: /logins')
   const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   const { loadTranscriptFile, transcriptLoadDegradation, _resetTranscriptLoadDegradationForTesting } = await import('../../src/utils/sessionStorage/loading.ts')
-  const { restoreSessionStateFromLog } = await import('../../src/utils/sessionRestore.ts')
+  const { restoreSessionStateFromLog } = await import('../../src/services/resume/sessionRestore.ts')
   const sessionFile = join(proofHome, 'retired-posture-session.jsonl')
   let ord = 0
   const ctx = {

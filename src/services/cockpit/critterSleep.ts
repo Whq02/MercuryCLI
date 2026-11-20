@@ -3,7 +3,7 @@ import { getSessionId, onSessionSwitch } from '../../bootstrap/state.js'
 import {
   listExecutions,
   subscribeExecutionEvents,
-} from '../primitives/executionPlane.js'
+} from '../../utils/primitives/executionPlane.js'
 import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { critterFrameKey, swayPhaseAt, type SwayAnchor } from '../../utils/cockpit/critterIdle.js'

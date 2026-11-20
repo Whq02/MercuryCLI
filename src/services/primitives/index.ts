@@ -1,7 +1,7 @@
 
 export * from '../../utils/primitives/owner.js'
 export * from '../../utils/primitives/execution.js'
-export * from './executionPlane.js'
+export * from '../../utils/primitives/executionPlane.js'
 export * from './transaction.js'
 export * from './transactionPlane.js'
 export * from './evidence.js'

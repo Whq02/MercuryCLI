@@ -217,7 +217,7 @@ try {
       const bootstrap = await import(${JSON.stringify(join(HERE, '../../src/bootstrap/state.ts'))})
       bootstrap.setIsInteractive(true)
       bootstrap.setOriginalCwd(${JSON.stringify(fhCwd)})
-      const fh = await import(${JSON.stringify(join(HERE, '../../src/utils/fileHistory.ts'))})
+      const fh = await import(${JSON.stringify(join(HERE, '../../src/services/changeTransaction/fileHistory.ts'))})
       const target = join(${JSON.stringify(fhCwd)}, 'secret.txt')
       fsSync.writeFileSync(target, 'after\\n', { mode: 0o600 })
       const backupName = 'aaaaaaaaaaaaaaaa@v1'

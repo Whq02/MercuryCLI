@@ -6,7 +6,7 @@ import {
   registerExecutionDomain,
   settleExecution,
   transitionExecution,
-} from '../primitives/executionPlane.js'
+} from '../../utils/primitives/executionPlane.js'
 import { recordCanonicalEvidence } from '../primitives/evidencePlane.js'
 import { isTerminalExecutionState, type ExecutionState } from '../../utils/primitives/execution.js'
 import { projectOwner } from '../../utils/primitives/owner.js'
