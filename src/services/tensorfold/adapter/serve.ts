@@ -12,6 +12,8 @@ import { ADAPTER_CHILD_PREFIX, ADAPTER_SERVED_BY, ADAPTER_SPEAKER, ADAPTER_VERSI
 import { readLlamaServerVersion, resolveLlamaServer, type LlamaServerVersion } from './llama.js'
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from './models.js'
 import { sleep } from '../../../utils/sleep.js'
+import { logForDebugging } from '../../../utils/debug.js'
+import { isENOENT } from '../../../utils/errors.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
@@ -312,8 +314,8 @@ export function readChildPidFile(port: number): { pid: number; token: string } |
     const pid = Number(first.trim())
     return Number.isInteger(pid) && pid > 0 ? { pid, token: rest.join('\n').trim() } : undefined
   } catch (error) {
-    passedOver(error)
-    return undefined
+    if (isENOENT(error)) return undefined
+    throw error
   }
 }
 
@@ -335,14 +337,9 @@ export async function reapStaleChild(port: number, platform: NodeJS.Platform, sa
 }
 
 export async function rememberChild(port: number, pid: number, startToken: (pid: number) => Promise<string | null> = getProcessStartTokenAsync): Promise<void> {
-  try {
-    const token = (await startToken(pid)) ?? ''
-    mkdirSync(join(tmpdir(), 'mercury-tensorfold-adapter'), { recursive: true })
-    writeFileSync(adapterChildPidFile(port), `${pid}\n${token}\n`)
-  } catch (error) {
-    passedOver(error)
-    void 0
-  }
+  const token = (await startToken(pid)) ?? ''
+  mkdirSync(join(tmpdir(), 'mercury-tensorfold-adapter'), { recursive: true })
+  writeFileSync(adapterChildPidFile(port), `${pid}\n${token}\n`)
 }
 
 type FrontState = 'loading' | 'ready' | 'draining'
@@ -501,7 +498,11 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
   await reapStaleChild(args.port, platform, say)
   const launch = io.spawnImpl ?? spawn
   child = launch(llamaBinary, llamaServerArgs(model, name, args.window, innerPort, args.promptCacheGib), { env: childEnv(env), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
-  if (child.pid !== undefined) void rememberChild(args.port, child.pid)
+  if (child.pid !== undefined) {
+    void rememberChild(args.port, child.pid).catch(error => {
+      logForDebugging(`tensorfold-adapter: could not record llama-server pid on port ${args.port}: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
+    })
+  }
   const take = (chunk: Buffer | string): void => {
     for (const line of String(chunk).split(/\r?\n/)) {
       const trimmed = line.trim()

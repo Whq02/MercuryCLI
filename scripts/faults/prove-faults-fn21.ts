@@ -96,6 +96,46 @@ async function run(): Promise<void> {
       skip('structure-query-unreadable-file-reported', 'needs POSIX non-root')
     }
   }
+
+  const adapterServe = await import('../../src/services/tensorfold/adapter/serve.ts')
+  const adapterIdentity = await import('../../src/services/tensorfold/adapter/identity.ts')
+  {
+    const port = 59123
+    const pidPath = adapterIdentity.adapterChildPidFile(port)
+    await adapterServe.rememberChild(port, 999999, async () => 'TOK1')
+    if (POSIX_NON_ROOT) {
+      chmodSync(pidPath, 0o000)
+      let reapErr: unknown = null
+      try {
+        await adapterServe.reapStaleChild(port, 'darwin', () => undefined)
+      } catch (err) {
+        reapErr = err
+      }
+      chmodSync(pidPath, 0o600)
+      let kept = false
+      try {
+        kept = readFileSync(pidPath, 'utf8').includes('999999')
+      } catch {
+        kept = false
+      }
+      rmSync(pidPath, { force: true })
+      check('adapter-serve-unreadable-pidfile-not-deleted', reapErr !== null && kept, `err=${String(reapErr)} kept=${String(kept)}`)
+    } else {
+      rmSync(pidPath, { force: true })
+      skip('adapter-serve-unreadable-pidfile-not-deleted', 'needs POSIX non-root')
+    }
+    check('adapter-serve-absent-pidfile-control', adapterServe.readChildPidFile(59124) === undefined)
+
+    let rememberErr: unknown = null
+    try {
+      await adapterServe.rememberChild(59125, 12345, async () => {
+        throw new Error('token-probe-failed')
+      })
+    } catch (err) {
+      rememberErr = err
+    }
+    check('adapter-serve-rememberChild-rejects-on-failure', rememberErr !== null, 'swallowed startToken failure silently')
+  }
 }
 
 try {
