@@ -312,6 +312,39 @@ try {
       JSON.stringify(r),
     )
   }
+
+  {
+    const r = runIsolated(`
+      const { ToolSearchTool } = await import(SRC + '/tools/ToolSearchTool/ToolSearchTool.ts')
+      const makeTool = (name, hint, isEnabled) => ({
+        name,
+        shouldDefer: true,
+        searchHint: hint,
+        isEnabled,
+        description: async () => hint,
+        prompt: async () => hint,
+        inputSchema: {},
+        call: async () => ({ data: {} }),
+      })
+      const tools = [
+        makeTool('alpha_broken', 'alpha widget tool', () => { throw new Error('enable-check-failed') }),
+        makeTool('beta_healthy', 'alpha helper', () => true),
+      ]
+      const ctx = {
+        messages: [],
+        options: { tools, engineModel: 'claude-opus-4-8' },
+        getAppState: () => ({ toolPermissionContext: { mode: 'default' }, mcp: { clients: [] } }),
+      }
+      const res = await ToolSearchTool.call({ query: 'alpha', max_results: 2 }, ctx)
+      out.matches = res.data.matches
+    `)
+    const matches = (r.matches as string[] | undefined) ?? []
+    check(
+      'tool-search-probe-enabled-fails-closed: a tool whose isEnabled throws is treated as disabled and ranks after enabled tools',
+      matches[0] === 'beta_healthy',
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
