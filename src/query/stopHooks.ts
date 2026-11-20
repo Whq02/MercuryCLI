@@ -15,7 +15,7 @@ import { settleWriterDiagnosticsAtTurnEnd } from '../utils/attachments/diagnosti
 import { logForDebugging } from '../utils/debug.js'
 import { isBareMode } from '../utils/envUtils.js'
 import { errorMessage } from '../utils/errors.js'
-import { createCacheSafeParams, saveCacheSafeParams } from '../utils/forkedAgent.js'
+import { createCacheSafeParams, saveCacheSafeParams } from '../services/agents/forkedAgent.js'
 import { prepareHooks } from '../utils/hooks/fire.js'
 import { hookProgressMessage, hookRowsOfResult } from '../utils/hooks/rows.js'
 import { extractTextContent, getLastAssistantMessage } from '../utils/messages.js'

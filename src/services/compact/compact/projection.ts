@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { Message, UserMessage } from '../../../types/message.js'
 import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
-import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../agents/forkedAgent.js'
 import { createCompactBoundaryMessage, createUserMessage } from '../../../utils/messages.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
 import { tokenCountWithEstimation } from '../../../utils/tokens.js'

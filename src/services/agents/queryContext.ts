@@ -1,24 +1,24 @@
-import { getSystemContext, getUserContext } from '../context.js'
-import { getSystemPrompt } from '../constants/prompts.js'
-import { query } from '../query.js'
-import type { Command } from '../commands.js'
-import type { MCPServerConnection } from '../services/mcp/types.js'
-import type { AppState } from '../state/AppStateStore.js'
-import type { Tools, ToolUseContext } from '../Tool.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import type { Message } from '../types/message.js'
-import type { InternalPermissionMode } from '../types/permissions.js'
+import { getSystemContext, getUserContext } from '../../context.js'
+import { getSystemPrompt } from '../../constants/prompts.js'
+import { query } from '../../query.js'
+import type { Command } from '../../commands.js'
+import type { MCPServerConnection } from '../mcp/types.js'
+import type { AppState } from '../../state/AppStateStore.js'
+import type { Tools, ToolUseContext } from '../../Tool.js'
+import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { Message } from '../../types/message.js'
+import type { InternalPermissionMode } from '../../types/permissions.js'
 import type { CacheSafeParams } from './forkedAgent.js'
-import type { FileStateCache } from './fileStateCache.js'
-import { createAbortController } from './abortController.js'
-import { getEngineModel } from './model/model.js'
-import { asSystemPrompt } from './systemPromptType.js'
-import { shouldEnableThinkingByDefault, type ThinkingConfig } from './thinking.js'
+import type { FileStateCache } from '../../utils/fileStateCache.js'
+import { createAbortController } from '../../utils/abortController.js'
+import { getEngineModel } from '../../utils/model/model.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import { shouldEnableThinkingByDefault, type ThinkingConfig } from '../../utils/thinking.js'
 
 type PromptInputs = {
   tools: Tools; engineModel: string; mcpClients: MCPServerConnection[]
   customSystemPrompt?: string; permissionMode?: InternalPermissionMode
-  memoryTask?: import('../mneme/entryKnapsack.js').StartTask
+  memoryTask?: import('../../mneme/entryKnapsack.js').StartTask
 }
 type PromptParts = {
   defaultSystemPrompt: string[]; userContext: Record<string, string>; systemContext: Record<string, string>

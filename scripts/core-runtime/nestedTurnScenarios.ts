@@ -224,7 +224,7 @@ const { flushSessionStorage } = await import('../../src/utils/sessionStorage.ts'
 const { hookAnswerSchema } = await import('../../src/utils/hooks/contract.ts')
 const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/constants/tools/syntheticOutput.ts')
 const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { runForkedAgent } = await import('../../src/utils/forkedAgent.ts')
+const { runForkedAgent } = await import('../../src/services/agents/forkedAgent.ts')
 const { runCrewmateHook } = await import('../../src/utils/hooks/crewmateRunner.ts')
 
 const MODEL = 'claude-opus-4-8'

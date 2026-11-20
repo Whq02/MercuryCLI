@@ -13,7 +13,7 @@ try {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { askForHandoff } = await import('../../src/mneme/handoffAsk.ts')
-  const { createSubagentContext } = await import('../../src/utils/forkedAgent.ts')
+  const { createSubagentContext } = await import('../../src/services/agents/forkedAgent.ts')
   const { resolveHookPermissionDecision } = await import('../../src/services/tools/toolHooks.ts')
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')

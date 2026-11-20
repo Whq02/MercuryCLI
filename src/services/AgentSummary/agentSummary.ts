@@ -3,7 +3,7 @@ import { updateAgentSummary } from '../../tasks/LocalAgentTask/LocalAgentTask.js
 import { filterIncompleteToolCalls } from '../../tools/AgentTool/runAgent.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createUserMessage } from '../../utils/messages.js'
-import { runForkedAgent, type ForkedAgentParams } from '../../utils/forkedAgent.js'
+import { runForkedAgent, type ForkedAgentParams } from '../agents/forkedAgent.js'
 import { loadSubagentTranscripts } from '../../utils/sessionStorage.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
