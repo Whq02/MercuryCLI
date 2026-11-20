@@ -5,15 +5,11 @@
 # gate-watch: src/ink/stringWidth.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/wallet"
 fail=0
-__t=$SECONDS; __rc=0
-"${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wallet.ts" || { __rc=$?; fail=1; }
-prover_mark "$here/prove-wallet.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0
-"${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wallet-identity.ts" || { __rc=$?; fail=1; }
-prover_mark "$here/prove-wallet-identity.ts" "$__t" "$__rc"
+drive_members wallet 'scripts/wallet/$name' "$here/members.txt" || fail=1
 if [ "$fail" = "0" ]; then echo "✅ WALLET SUITE GREEN"; else echo "❌ WALLET SUITE RED"; fi
 exit "$fail"
