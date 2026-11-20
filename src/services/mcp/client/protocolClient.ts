@@ -1,10 +1,10 @@
 import { Client, StdioClientTransport, ProtocolErrorCode } from '../sdk.js'
-import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { getOriginalCwd } from '../../../bootstrap/state.js'
 import { flagEnabled } from '../../../substrate/flagRegistry.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { logMCPDebug } from '../../../utils/log.js'
+import { platformTempRoots } from '../../../utils/platform/files.js'
 import { RESPONSE_STREAM_ENDED } from './errors.js'
 import { connectTimeoutMs } from './limits.js'
 import { startTimeout } from '../../../utils/timers.js'
@@ -140,11 +140,7 @@ export function installRootsHandler(client: Client): void {
     }
     if (flagEnabled('MERCURY_MCP_ROOTS_WIDE')) {
       add(getCwd())
-      add(tmpdir())
-      if (process.platform !== 'win32') {
-        add('/tmp')
-        add('/private/tmp')
-      }
+      for (const root of platformTempRoots(true)) add(root)
     }
     return { roots: roots.map(uri => ({ uri })) }
   })

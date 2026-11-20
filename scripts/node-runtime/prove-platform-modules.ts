@@ -714,12 +714,15 @@ const PROCESSES: Row[] = [
 ]
 
 import { chmodSync, constants as fsConstants, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { rememberedPlatform } from '../../src/utils/platform/host.js'
 import {
   appendNoFollowFlags,
+  boundedProjectTempName,
+  defaultMercuryTempBase,
   dirFsyncErrorIsFatal,
+  envUserHomeDir,
   exclusiveCreateNoFollowFlags,
   heldFileRetryDelayMs,
   isDirAbsentOnRmdirError,
@@ -727,11 +730,17 @@ import {
   isPrivateFileMode,
   isTransientHeldFileCode,
   localIpcDoorKind,
+  mercuryTempDirName,
+  mountedVolumeRoots,
   pathEntryKindSync,
+  platformTempRoots,
   posixFileModesApply,
   readExposedFileModeSync,
   symlinkDeniedByPrivilege,
   symlinksMayRequirePrivilege,
+  userConfigRoot,
+  userHomeDir,
+  xdgAndRoamingConfigRoots,
 } from '../../src/utils/platform/files.js'
 
 const FILES: Row[] = [
@@ -1030,6 +1039,103 @@ const FILES: Row[] = [
       linux: ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
       'win32 by process.platform alone': ['named-pipe', 'named-pipe', 'unix-socket', 'unix-socket'],
       'win32 by getPlatform() alone': ['unix-socket', 'named-pipe', 'unix-socket', 'unix-socket'],
+    },
+  },
+  {
+    name: 'files · userHomeDir and envUserHomeDir',
+    answers: () => {
+      const norm = (s: string): string => (s === homedir() ? '<homedir>' : s)
+      const both = { HOME: ' /posix/home ', USERPROFILE: 'C:\\Users\\win' }
+      const empty = { HOME: '   ', USERPROFILE: '' }
+      return [
+        norm(userHomeDir(both)),
+        norm(userHomeDir(empty)),
+        norm(userHomeDir(both, 'win32')),
+        norm(userHomeDir(both, 'linux')),
+        norm(envUserHomeDir(both)),
+        norm(envUserHomeDir(empty)),
+        norm(envUserHomeDir(both, 'win32')),
+        norm(envUserHomeDir(both, 'linux')),
+      ]
+    },
+    recorded: {
+      win32: ['<homedir>', '<homedir>', '<homedir>', '/posix/home', 'C:\\Users\\win', '<homedir>', 'C:\\Users\\win', ' /posix/home '],
+      darwin: ['/posix/home', '<homedir>', '<homedir>', '/posix/home', ' /posix/home ', '   ', 'C:\\Users\\win', ' /posix/home '],
+      linux: ['/posix/home', '<homedir>', '<homedir>', '/posix/home', ' /posix/home ', '   ', 'C:\\Users\\win', ' /posix/home '],
+      'win32 by process.platform alone': ['<homedir>', '<homedir>', '<homedir>', '/posix/home', 'C:\\Users\\win', '<homedir>', 'C:\\Users\\win', ' /posix/home '],
+      'win32 by getPlatform() alone': ['/posix/home', '<homedir>', '<homedir>', '/posix/home', ' /posix/home ', '   ', 'C:\\Users\\win', ' /posix/home '],
+    },
+  },
+  {
+    name: 'files · mountedVolumeRoots',
+    answers: () => [
+      mountedVolumeRoots(),
+      mountedVolumeRoots('win32'),
+      mountedVolumeRoots('darwin'),
+      mountedVolumeRoots('linux'),
+    ],
+    recorded: {
+      win32: [[], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      darwin: [['/Volumes', '/mnt'], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      linux: [['/Volumes', '/mnt'], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      'win32 by process.platform alone': [[], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+      'win32 by getPlatform() alone': [['/Volumes', '/mnt'], [], ['/Volumes', '/mnt'], ['/Volumes', '/mnt']],
+    },
+  },
+  {
+    name: 'files · userConfigRoot and xdgAndRoamingConfigRoots',
+    answers: () => {
+      const norm = (s: string): string => s.replace(/\\/g, '/')
+      const withBoth = { XDG_CONFIG_HOME: '/xdg', APPDATA: 'C:\\AppData' }
+      const withAppData = { APPDATA: 'C:\\AppData' }
+      return [
+        norm(userConfigRoot('H')),
+        norm(userConfigRoot('H', 'win32')),
+        norm(userConfigRoot('H', 'darwin')),
+        norm(userConfigRoot('H', 'linux')),
+        xdgAndRoamingConfigRoots(withBoth, 'H').map(norm),
+        xdgAndRoamingConfigRoots(withAppData, 'H').map(norm),
+        xdgAndRoamingConfigRoots({}, 'H').map(norm),
+      ]
+    },
+    recorded: {
+      win32: ['H/AppData/Roaming', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg', 'C:/AppData'], ['H/.config', 'C:/AppData'], ['H/.config']],
+      darwin: ['H/Library/Application Support', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg'], ['H/.config'], ['H/.config']],
+      linux: ['H/.config', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg'], ['H/.config'], ['H/.config']],
+      'win32 by process.platform alone': ['H/AppData/Roaming', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg', 'C:/AppData'], ['H/.config', 'C:/AppData'], ['H/.config']],
+      'win32 by getPlatform() alone': ['H/.config', 'H/AppData/Roaming', 'H/Library/Application Support', 'H/.config', ['/xdg'], ['H/.config'], ['H/.config']],
+    },
+  },
+  {
+    name: 'files · platformTempRoots, mercuryTempDirName, defaultMercuryTempBase, boundedProjectTempName',
+    answers: () => {
+      const normTmp = (s: string): string => (s === tmpdir() ? '<tmpdir>' : s)
+      const uid = typeof process.getuid === 'function' ? process.getuid() : 0
+      const normDir = (s: string): string => (s === `mercury-${uid}` ? 'mercury-<uid>' : s)
+      const longName = 'a'.repeat(60)
+      return [
+        platformTempRoots().map(normTmp),
+        platformTempRoots(true).map(normTmp),
+        platformTempRoots(true, 'win32').map(normTmp),
+        platformTempRoots(false, 'linux').map(normTmp),
+        normDir(mercuryTempDirName()),
+        normDir(mercuryTempDirName('windows')),
+        normDir(mercuryTempDirName('linux')),
+        normTmp(defaultMercuryTempBase()),
+        normTmp(defaultMercuryTempBase('windows')),
+        normTmp(defaultMercuryTempBase('macos')),
+        boundedProjectTempName('short', 'deadbeef'),
+        boundedProjectTempName(longName, 'deadbeef'),
+        boundedProjectTempName(longName, 'deadbeef', 48, 'windows'),
+        boundedProjectTempName(longName, 'deadbeef', 48, 'linux'),
+      ]
+    },
+    recorded: {
+      win32: [['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury', 'mercury', 'mercury-<uid>', '<tmpdir>', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      darwin: [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      linux: [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      'win32 by process.platform alone': [['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury-<uid>', 'mercury', 'mercury-<uid>', '/tmp', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      'win32 by getPlatform() alone': [['<tmpdir>', '/tmp'], ['<tmpdir>', '/tmp', '/private/tmp'], ['<tmpdir>'], ['<tmpdir>', '/tmp'], 'mercury', 'mercury', 'mercury-<uid>', '<tmpdir>', '<tmpdir>', '/tmp', 'short', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-deadbeef', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
     },
   },
 ]

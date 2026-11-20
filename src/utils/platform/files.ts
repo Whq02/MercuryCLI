@@ -1,4 +1,7 @@
 import { constants as fsConstants, lstatSync, statSync, type Stats } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { hostEnv } from '../hostEnv.js'
 import { getPlatform, type Platform } from '../platform.js'
 
 type PathEntryKind = 'absent' | 'directory' | 'other'
@@ -123,4 +126,72 @@ export function localIpcDoorKind(
   platform: NodeJS.Platform = process.platform,
 ): 'named-pipe' | 'unix-socket' {
   return platform === 'win32' ? 'named-pipe' : 'unix-socket'
+}
+
+export function userHomeDir(
+  env: NodeJS.ProcessEnv = hostEnv(),
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return platform === 'win32' ? homedir() : env.HOME?.trim() || homedir()
+}
+
+export function envUserHomeDir(
+  env: NodeJS.ProcessEnv = hostEnv(),
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const named = platform === 'win32' ? env.USERPROFILE : env.HOME
+  return named !== undefined && named !== '' ? named : homedir()
+}
+
+export function mountedVolumeRoots(
+  platform: NodeJS.Platform = process.platform,
+): readonly string[] {
+  return platform === 'win32' ? [] : ['/Volumes', '/mnt']
+}
+
+export function userConfigRoot(
+  home: string = homedir(),
+  platform: NodeJS.Platform = process.platform,
+): string {
+  if (platform === 'win32') return join(home, 'AppData', 'Roaming')
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support')
+  return join(home, '.config')
+}
+
+export function xdgAndRoamingConfigRoots(
+  env: NodeJS.ProcessEnv = hostEnv(),
+  home: string = homedir(),
+  platform: NodeJS.Platform = process.platform,
+): string[] {
+  const roots = [env.XDG_CONFIG_HOME || join(home, '.config')]
+  if (platform === 'win32' && env.APPDATA) roots.push(env.APPDATA)
+  return roots
+}
+
+export function platformTempRoots(
+  includePrivateTmp: boolean = false,
+  platform: NodeJS.Platform = process.platform,
+): string[] {
+  if (platform === 'win32') return [tmpdir()]
+  return includePrivateTmp ? [tmpdir(), '/tmp', '/private/tmp'] : [tmpdir(), '/tmp']
+}
+
+export function mercuryTempDirName(platform: Platform = getPlatform()): string {
+  if (platform === 'windows') return 'mercury'
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 0
+  return `mercury-${uid}`
+}
+
+export function defaultMercuryTempBase(platform: Platform = getPlatform()): string {
+  return platform === 'windows' ? tmpdir() : '/tmp'
+}
+
+export function boundedProjectTempName(
+  sanitized: string,
+  shortHash: string,
+  bound: number = 48,
+  platform: Platform = getPlatform(),
+): string {
+  if (platform !== 'windows' || sanitized.length <= bound) return sanitized
+  return `${sanitized.slice(9 - bound)}-${shortHash}`
 }
