@@ -164,7 +164,7 @@ async function judgedBy(tree: string, indexes: readonly number[], scratch: strin
     if (root.length !== ROOT_LENGTH) throw new Error(`${SELF}: the scratch folder ${scratch} is too long a path for a world of ${ROOT_LENGTH} characters; set TMPDIR to a shorter folder`)
     writeFileSync(join(root, 'lines.json'), JSON.stringify(indexes.filter((_at, order) => order % count === slice)))
     const child = Bun.spawn([process.execPath, join(import.meta.dir, 'prove-readers-recording.ts'), '--tree', tree, ...(DISAGREE === undefined ? [] : ['--disagree', DISAGREE])], {
-      env: { ...env, HOME: home, USERPROFILE: home, USER: FAKE_USER, LOGNAME: FAKE_USER, READERS_RECORDING_ROOT: root, MERCURY_CONFIG_DIR: config, MERCURY_TMPDIR: join(config, 'tmp'), MERCURY_DAEMON_DIR: join(config, 'daemon'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
+      env: { ...env, HOME: home, USERPROFILE: home, USER: FAKE_USER, LOGNAME: FAKE_USER, BUN_RUNTIME_TRANSPILER_CACHE_PATH: join(scratch, 'transpiled'), READERS_RECORDING_ROOT: root, MERCURY_CONFIG_DIR: config, MERCURY_TMPDIR: join(config, 'tmp'), MERCURY_DAEMON_DIR: join(config, 'daemon'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
       stdio: ['ignore', 'inherit', 'inherit'],
     })
     return { root, exited: child.exited }
@@ -316,7 +316,7 @@ for (const folder of ['.git', 'sub', 'build', 'secrets/deep', 'docs', '.mercury'
 for (const file of ['x', 'notes.txt', 'a.txt', 'b.txt', 'list', 'AGENTS.md', 'docs/plain.md', 'sub/notes.txt']) put(PROJECT, file, `${file}\n`)
 for (const file of ['hidden.key', 'sub/hidden.key', 'secrets/k.txt', 'secrets/deep/inner.txt', '.mercury/settings.local.json', '.env', '.env.local', 'node_modules/.bin/tsc']) put(PROJECT, file, 'K\n')
 put(PROJECT, 'MERCURY.md', '# instructions\n')
-for (const folder of ['.gnupg', '.kube', '.docker', '.config/gh', 'Library/Keychains', 'Documents']) mkdirSync(join(HOME, folder), { recursive: true })
+for (const folder of ['.gnupg', '.kube', '.docker', '.config/gh', 'Library/Keychains', 'Library/Caches', 'Documents']) mkdirSync(join(HOME, folder), { recursive: true })
 for (const file of ['.ssh/authorized_keys', '.ssh/id_ed25519', '.aws/credentials', '.netrc', '.npmrc', '.git-credentials', 'vault/k.txt']) put(HOME, file, 'STAND-IN\n')
 for (const file of ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'browser-secrets.json']) put(CONFIG, file, '{"secret":"STAND-IN"}\n')
 put(CONFIG, 'runtime/current/mercury.mjs', 'export {}\n')
