@@ -221,5 +221,34 @@ else {
   check('addonInstaller-mutateProjectGodot: unreadable project.godot throws EACCES, preserves bytes, and leaves no temp file', !mutateUnreadable.ok && mutateUnreadable.code === 'EACCES' && typeof r.contentAfter === 'string' && r.contentAfter.includes('config/name="KeepMe"') && Array.isArray(r.tmps) && r.tmps.length === 0, JSON.stringify(r))
 }
 
+console.log('\n5. vulcan/engine/compileGate.ts — unreadable project.godot throws in projectAutoloads and unreadable script fails runEngineCheck')
+if (!POSIX_MODES) skip('compileGate', 'needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const m = await import(path.join(SRC, 'services/vulcan/engine/compileGate.ts'))
+    out.absentAutoloads = await attempt(() => m.projectAutoloads(path.join(PROJECT, 'missing')))
+    const godotFile = path.join(PROJECT, 'project.godot')
+    fs.writeFileSync(godotFile, '[autoload]\\nEvents="*res://events.gd"\\n', { mode: 0o600 })
+    fs.chmodSync(godotFile, 0o200)
+    out.unreadableAutoloads = await attempt(() => m.projectAutoloads(PROJECT))
+    fs.chmodSync(godotFile, 0o600)
+    const fakeBin = path.join(HOME, 'fake-godot.sh')
+    fs.writeFileSync(fakeBin, '#!/bin/sh\\nexit 0\\n', { mode: 0o755 })
+    const scriptFile = path.join(PROJECT, 'suite.gd')
+    fs.writeFileSync(scriptFile, 'extends SceneTree\\nfunc _initialize():\\n\\tEvents.go()\\n', { mode: 0o600 })
+    fs.chmodSync(scriptFile, 0o200)
+    const res = await m.runEngineCheck(PROJECT, { files: ['suite.gd'], shaders: false }, { executable: fakeBin })
+    fs.chmodSync(scriptFile, 0o600)
+    out.checkOk = res.ok
+    out.checkFailures = res.failures
+  `)
+  const absentAutoloads = r.absentAutoloads as Attempt
+  const unreadableAutoloads = r.unreadableAutoloads as Attempt
+  const checkFailures = r.checkFailures as Array<{ file?: string; spawnError?: string | null }>
+  check('compileGate-projectAutoloads: absent project.godot returns empty list', absentAutoloads.ok && Array.isArray(absentAutoloads.value) && absentAutoloads.value.length === 0, JSON.stringify(absentAutoloads))
+  check('compileGate-projectAutoloads: unreadable project.godot throws EACCES', !unreadableAutoloads.ok && unreadableAutoloads.code === 'EACCES', JSON.stringify(unreadableAutoloads))
+  check('compileGate-scriptModeHead: unreadable script records a failure and makes ok false', r.checkOk === false && checkFailures.some(f => f.file === 'res://suite.gd' && typeof f.spawnError === 'string' && f.spawnError.includes('EACCES')), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
