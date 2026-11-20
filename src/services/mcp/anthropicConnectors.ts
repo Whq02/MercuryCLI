@@ -83,10 +83,15 @@ export const fetchAnthropicConnectorsIfEligible = memoize(
       return configs
     } catch (err) {
       logForDebugging(`claudeai MCP: connector fetch failed: ${String(err)}`)
+      forgetConnectorFetch()
       return {}
     }
   },
 )
+
+function forgetConnectorFetch(): void {
+  fetchAnthropicConnectorsIfEligible.cache?.clear?.()
+}
 
 export function clearAnthropicConnectorsCache(): void {
   fetchAnthropicConnectorsIfEligible.cache?.clear?.()
