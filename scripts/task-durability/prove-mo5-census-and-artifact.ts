@@ -41,7 +41,7 @@ console.log('── mo5 census ratchet + artifact survival')
   else process.env.MERCURY_CONFIG_DIR = homeBefore
   forget()
   ok(
-    isolation?.status === 'warn' && blocked?.ok === false && /no foreign records matched/.test(blocked.note ?? '') && moved?.ok === true && /archived 1 foreign record\(s\)/.test(moved.note ?? '') && fsH.statSync(joinH(dest, 'daemon_daemon.log')).isFile() && !fsH.existsSync(joinH(home, 'daemon', 'daemon.log')),
+    isolation?.status === 'warn' && blocked?.ok === false && /^archive failed: (?!Error:)/.test(blocked.note ?? '') && (blocked.note ?? '').includes(joinH(home, 'daemon', 'daemon.log')) && moved?.ok === true && /archived 1 foreign record\(s\)/.test(moved.note ?? '') && fsH.statSync(joinH(dest, 'daemon_daemon.log')).isFile() && !fsH.existsSync(joinH(home, 'daemon', 'daemon.log')),
     `§2 the health isolation remedy counts a record only when its move landed (run here: blocked ${JSON.stringify(blocked)} · moved ${JSON.stringify(moved)})`,
   )
 }
