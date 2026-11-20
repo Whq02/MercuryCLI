@@ -205,6 +205,30 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
   }
 }
 
+{
+  const { readUnityTestResults } = await import('../../src/services/ide/unityTests.ts')
+  const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.ts')
+  const dir = makeTempDir('fn14-unity-')
+  try {
+    const absent = readUnityTestResults(dir, 'EditMode')
+    check('unityTests: absent results file returns absent', absent.state === 'absent', JSON.stringify(absent))
+    if (POSIX_MODES) {
+      const file = unityTestResultsPath(dir, 'EditMode')
+      mkdirSync(join(file, '..'), { recursive: true })
+      writeFileSync(file, '<test-run result="Passed"></test-run>')
+      chmodSync(file, 0o200)
+      try {
+        const res = readUnityTestResults(dir, 'EditMode')
+        check('unityTests: unreadable results file returns rejected instead of absent', res.state === 'rejected' && /could not be read/i.test(res.reason), JSON.stringify(res))
+      } finally {
+        chmodSync(file, 0o600)
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
