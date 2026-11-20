@@ -5,13 +5,13 @@ import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
-export type FacadeExport = {
+type FacadeExport = {
   name: string
   kind: 'value' | 'type'
   from: string
 }
 
-export function scanFacade(root = ROOT): { exports: FacadeExport[]; extraStatements: string[] } {
+function scanFacade(root = ROOT): { exports: FacadeExport[]; extraStatements: string[] } {
   const facadePath = join(root, 'src', 'ink.ts')
   const source = ts.createSourceFile(
     'ink.ts',
