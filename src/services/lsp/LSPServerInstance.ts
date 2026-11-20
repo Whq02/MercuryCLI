@@ -15,11 +15,12 @@ import { processMainOwner } from '../run/resolveOwner.js'
 import { lspLedgerNow } from './failureLedger.js'
 import { missingRustAnalyzerComponent, startFailureCause } from './failureWords.js'
 import type { LSPClient, LSPStopResult } from './LSPClient.js'
-import { currentLspCall } from './lspAbort.js'
+import { currentLspAbortSignal, currentLspCall } from './lspAbort.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { LspServerState, ScopedLspServerConfig } from './types.js'
 import type { LspServerRecord } from './LSPServerInstance/record.js'
 import { sendNotificationOf, sendRequestOf } from './LSPServerInstance/requests.js'
+import { withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
@@ -225,20 +226,10 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       spawned = true
       const initialize = lsp.initialize(buildInitializeParams(config))
       if (config.startupTimeout !== undefined) {
-        let timer: NodeJS.Timeout | null = null
-        try {
-          await Promise.race([
-            initialize,
-            new Promise<never>((_, reject) => {
-              timer = startTimeout(
-                () => reject(new Error(`LSP server ${name} did not initialize within ${config.startupTimeout}ms`)),
-                config.startupTimeout,
-              )
-            }),
-          ])
-        } finally {
-          if (timer !== null) stopTimeout(timer)
-        }
+        const timeout = config.startupTimeout
+        await withDeadline(initialize, timeout, () => {
+          throw new Error(`LSP server ${name} did not initialize within ${timeout}ms`)
+        })
       } else {
         await initialize
       }
@@ -276,10 +267,29 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     return Math.max(0, server.lastInitFailureAt + window - lspLedgerNow())
   }
 
+  function abortedStart(): Error {
+    const error = new Error(`LSP server ${name} start was interrupted before it finished.`)
+    error.name = 'AbortError'
+    return error
+  }
+
+  function waitStart(flight: Promise<void>): Promise<void> {
+    const signal = currentLspAbortSignal()
+    if (signal === undefined) return flight
+    flight.catch(passedOver)
+    return withDeadline(flight, Number.POSITIVE_INFINITY, () => undefined, {
+      signal,
+      onAbort: () => {
+        throw abortedStart()
+      },
+    })
+  }
+
   async function start(): Promise<void> {
     if (server.state === 'running') return
+    if (currentLspAbortSignal()?.aborted) throw abortedStart()
     if (server.state === 'starting' && server.inFlightStart !== null) {
-      return server.inFlightStart
+      return waitStart(server.inFlightStart)
     }
     if (server.lastError && missingRustAnalyzerComponent(server.lastError.message) && server.missingComponentCall !== undefined && server.missingComponentCall === currentLspCall()) throw server.lastError
     const backoffMs = initBackoffRemainingMs()
@@ -307,7 +317,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     server.inFlightStart = runStart().finally(() => {
       server.inFlightStart = null
     })
-    return server.inFlightStart
+    return waitStart(server.inFlightStart)
   }
 
   async function stop(): Promise<LSPStopResult | undefined> {
