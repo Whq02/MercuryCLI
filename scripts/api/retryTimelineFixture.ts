@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
-export type Reply = { label: string; status: number; headers: Record<string, string>; body: string; drop?: true }
-export type Scripted = Reply | ((request: Record<string, unknown>) => Reply)
+type Reply = { label: string; status: number; headers: Record<string, string>; body: string; drop?: true }
+type Scripted = Reply | ((request: Record<string, unknown>) => Reply)
 
 export const frames = (rows: unknown[], done = false): string => rows.map(row => `data: ${JSON.stringify(row)}\n\n`).join('') + (done ? 'data: [DONE]\n\n' : '')
 export const streamed = (label: string, body: string): Reply => ({ label, status: 200, headers: { 'content-type': 'text/event-stream' }, body })
@@ -13,8 +13,8 @@ export const collected = (label: string, body: unknown): Reply => ({ label, stat
 export const refused = (label: string, status: number, body: unknown, headers: Record<string, string> = {}): Reply => ({ label, status, headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) })
 export const dropped = (label: string, body: string): Reply => ({ label, status: 200, headers: { 'content-type': 'text/event-stream' }, body, drop: true })
 
-export type CallArgs = { signal: AbortSignal; onWait: (wait: unknown) => void; agentId?: string }
-export type Call = (args: CallArgs) => AsyncGenerator<unknown>
+type CallArgs = { signal: AbortSignal; onWait: (wait: unknown) => void; agentId?: string }
+type Call = (args: CallArgs) => AsyncGenerator<unknown>
 type Wait = { kind?: string; attempt?: number; of?: number; delayMs?: number; held?: unknown } | null
 type Item = { type?: string; subtype?: string; retryInMs?: number; retryAttempt?: number; maxRetries?: number; isApiErrorMessage?: boolean; error?: unknown; message?: { content?: Array<{ type: string; text?: string }>; usage?: { input_tokens?: number; output_tokens?: number } } }
 
@@ -155,7 +155,7 @@ function said(item: Item): string {
   return `said   ${item.type ?? 'item'}${item.subtype !== undefined ? `/${item.subtype}` : ''}`
 }
 
-export async function play(title: string, script: Scripted[], call: Call, opts: { agent?: true; cancel?: true; env?: Record<string, string> } = {}): Promise<string[]> {
+async function play(title: string, script: Scripted[], call: Call, opts: { agent?: true; cancel?: true; env?: Record<string, string> } = {}): Promise<string[]> {
   const rows: string[] = []
   const kept = new Map<string, string | undefined>()
   for (const [name, value] of Object.entries(opts.env ?? {})) {

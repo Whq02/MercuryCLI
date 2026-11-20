@@ -107,5 +107,6 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-retry-timeli
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-retry-timeline-openai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-retry-timeline-openai.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-retry-timeline-openaicompat.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-retry-timeline-openaicompat.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-retry-timeline-zai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-retry-timeline-zai.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-retry-door.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-retry-door.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi

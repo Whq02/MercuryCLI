@@ -23,13 +23,15 @@ import { disableKeepAlive } from '../../utils/proxy.js'
 import { sleep } from '../../utils/sleep.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { isMockRateLimitError } from '../rateLimitMocking.js'
-import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, type BusyRetryLadder, type HeldBusyRetryWait } from '../providers/busyRetry.js'
+import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder, type HeldBusyRetryWait } from '../providers/busyRetry.js'
+import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../providers/emptyStreamRetry.js'
+import { requestWaitLine, retryNoticeWait, retryReasonWords, streamReconnectWait, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { isClientContractRefusalError } from './clientContractGate.js'
 import { cacheDiagnosticsRefusal, isCacheDiagnosticsRefusal, refuseCacheDiagnostics } from '../providers/anthropic/cacheDiagnostics.js'
 import { healClientContractRefusal, noteClientContractHeal, type ClientContractHeal } from './clientContractLearned.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
-import { isSdkConnectionError as isConnectionErrorLike, NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, ReconnectBudgetSpentError, type ReconnectLadder } from './reconnectLadder.js'
-import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
+import { isSdkConnectionError as isConnectionErrorLike, NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, ReconnectBudgetSpentError, streamReconnectCause, type OutageCause, type ReconnectLadder } from './reconnectLadder.js'
+import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow, retrySeconds } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
 import { jitterRetryDelay } from './retryJitter.js'
 import { APIError, APIUserAbortError } from './sdkErrors.js'
@@ -267,7 +269,7 @@ export async function* withRetry<T>(
         if (step.waitMs <= 0) {
           throw new CannotRetryError(new ReconnectBudgetSpentError(ladder, now, error), retryContext)
         }
-        await sleep(step.waitMs, options.signal)
+        await paused(step.waitMs, options.signal)
         attempt--
         continue
       }
@@ -363,7 +365,7 @@ export async function* withRetry<T>(
         )
         if (!step.quiet) yield notice
         else options.onHeldWait?.(heldBusyRetryWait(step, notice))
-        await sleep(step.waitMs, options.signal)
+        await paused(step.waitMs, options.signal)
         continue
       }
 
@@ -406,7 +408,7 @@ export async function* withRetry<T>(
         attempt,
         maxRetries,
       )
-      await sleep(delayMs, options.signal)
+      await paused(delayMs, options.signal)
     }
   }
 
@@ -420,4 +422,181 @@ export async function* withRetry<T>(
       ),
     retryContext,
   )
+}
+
+function paused(waitMs: number, signal: AbortSignal | undefined): Promise<boolean> {
+  return sleep(waitMs, signal).then(() => signal?.aborted !== true)
+}
+
+export type RetryFault = {
+  kind: string
+  code: string
+  message: string
+  retryable: boolean
+  status?: number
+  retryAfterMs?: number
+  outage?: OutageCause
+  inStream?: true
+  silentMs?: number
+}
+
+export type RetryVerdict =
+  | { kind: 'again' | 'cancelled' | 'spent' | 'stream-reconnect-spent' }
+  | { kind: 'outage-spent'; line: string }
+
+type TurnRetryRoad = {
+  signal: AbortSignal
+  maxAttempts: number
+  backoffMs: (attempt: number) => number
+  provider: string
+  log: string
+  agent: boolean
+  singleShot: boolean
+  streamReconnect?: boolean
+  onWait?: (wait: RequestWaitV1 | null) => void
+}
+
+type FaultFacts = {
+  typed: string
+  retryEligible: boolean
+  invisibleOnly?: boolean
+  reissue?: boolean
+}
+
+export type TurnRetries<F extends RetryFault> = {
+  readonly attempt: number
+  readonly left: boolean
+  readonly busy: { ladder: BusyRetryLadder; fault: F } | undefined
+  readonly emptyEnd: boolean
+  next(): boolean
+  uncounted(): void
+  afterFault(fault: F, facts: FaultFacts): AsyncGenerator<SystemAPIErrorMessage, RetryVerdict>
+}
+
+function faultNoticeError(fault: RetryFault): Error {
+  const askedMs = fault.retryAfterMs
+  return Object.assign(new Error(fault.message), {
+    ...(fault.status !== undefined ? { status: fault.status } : {}),
+    ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+  })
+}
+
+async function* retryEmptyStream(
+  counter: { emptyStreamEnds: number },
+  road: { provider: string; detail: string; cause?: unknown; log: string; signal: AbortSignal; onWait?: (wait: RequestWaitV1 | null) => void; whilePaused?: () => void },
+): AsyncGenerator<SystemAPIErrorMessage, 'again' | 'cancelled' | 'spent'> {
+  counter.emptyStreamEnds++
+  if (counter.emptyStreamEnds >= EMPTY_STREAM_TRIES) return 'spent'
+  road.whilePaused?.()
+  const waitMs = emptyStreamRetryWaitMs()
+  const notice = emptyStreamRetryNotice({ provider: road.provider, detail: road.detail, ...(road.cause !== undefined ? { cause: road.cause } : {}), attempt: counter.emptyStreamEnds + 1, waitMs })
+  logForDebugging(`${road.log}${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${counter.emptyStreamEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
+  yield notice
+  road.onWait?.(retryNoticeWait(notice))
+  return (await paused(waitMs, road.signal)) ? 'again' : 'cancelled'
+}
+
+export function openTurnRetries<F extends RetryFault>(road: TurnRetryRoad): TurnRetries<F> {
+  const { signal, log } = road
+  const startedAtMs = Date.now()
+  const counter = { emptyStreamEnds: 0 }
+  const again: RetryVerdict = { kind: 'again' }
+  const cancelled: RetryVerdict = { kind: 'cancelled' }
+  let attempt = 0
+  let busy: { ladder: BusyRetryLadder; fault: F } | undefined
+  let reconnect: ReconnectLadder | undefined
+  let emptyEnd = false
+
+  async function* afterFault(fault: F, facts: FaultFacts): AsyncGenerator<SystemAPIErrorMessage, RetryVerdict> {
+    const askedMs = fault.retryAfterMs
+    const wireDetail = fault.message ? `${fault.code}: ${fault.message}` : fault.code
+    const eligible = facts.retryEligible && !road.singleShot
+    const ladders = eligible && facts.invisibleOnly !== true
+    const streamCut = road.streamReconnect === true && ladders ? streamReconnectCause(fault) : null
+    if (streamCut !== null) {
+      const now = Date.now()
+      const ladder = reconnect ?? openReconnectLadder(now, streamCut)
+      reconnect = ladder
+      const step = nextReconnect(ladder, streamCut, now)
+      if (step.waitMs <= 0) return { kind: 'stream-reconnect-spent' }
+      const wait = streamReconnectWait(step.reconnect, step.of, step.waitMs, fault.silentMs)
+      const notice = createSystemAPIErrorMessage(Object.assign(new Error(requestWaitLine(wait)), { streamWait: wait }), step.waitMs, step.reconnect, step.of)
+      road.onWait?.(wait)
+      yield notice
+      if (!(await paused(step.waitMs, signal))) {
+        road.onWait?.(null)
+        return cancelled
+      }
+      attempt--
+      return again
+    }
+    const outage = ladders ? fault.outage : undefined
+    if (outage !== undefined) {
+      const now = Date.now()
+      const ladder = reconnect ?? openReconnectLadder(now, outage)
+      reconnect = ladder
+      const step = nextReconnect(ladder, outage, now)
+      const notice = createSystemAPIErrorMessage(new NetworkOutageError(step, Object.assign(new Error(fault.message), { code: outage.code })), step.waitMs, step.reconnect, step.of)
+      logForDebugging(`${log} network outage (${wireDetail}) — ${notice.error.message}`)
+      yield notice
+      road.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
+      if (step.waitMs <= 0) return { kind: 'outage-spent', line: new ReconnectBudgetSpentError(ladder, now, undefined).message }
+      if (!(await paused(step.waitMs, signal))) return cancelled
+      attempt--
+      return again
+    }
+    if (fault.status !== undefined) reconnect = undefined
+    if (ladders && facts.reissue !== true && takesBusyLadder(fault, facts.typed) && !providerWaitIsWindow(askedMs)) {
+      const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
+      busy = { ladder, fault }
+      const step = nextBusyRetry(ladder, askedMs, Date.now())
+      if (step !== null) {
+        logForDebugging(`${log} busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
+        const notice = createSystemAPIErrorMessage(faultNoticeError(fault), step.waitMs, step.attempt, step.of)
+        if (!step.quiet) {
+          yield notice
+          road.onWait?.(retryNoticeWait(notice))
+        } else if (road.agent) road.onWait?.(heldBusyRetryWait(step, notice))
+        return (await paused(step.waitMs, signal)) ? again : cancelled
+      }
+      logForDebugging(`${log} busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
+    }
+    emptyEnd = busy === undefined && ladders && facts.reissue !== true && isEmptyStreamFault(fault)
+    if (emptyEnd) {
+      const empty = yield* retryEmptyStream(counter, { provider: road.provider, detail: fault.code, log: `${log} `, signal, ...(road.onWait !== undefined ? { onWait: road.onWait } : {}) })
+      if (empty === 'cancelled') return cancelled
+      if (empty === 'again') {
+        attempt--
+        return again
+      }
+      logForDebugging(`${log} ${emptyStreamSpentWords(road.provider, Date.now() - startedAtMs)} (${wireDetail})`, { level: 'error' })
+    }
+    const retryable = !emptyEnd && !providerWaitIsWindow(askedMs) && (facts.reissue === true || (busy === undefined && eligible && fault.retryable && attempt < road.maxAttempts))
+    if (!retryable) return { kind: 'spent' }
+    const delayMs = Math.max(road.backoffMs(attempt), askedMs ?? 0)
+    const notice = createSystemAPIErrorMessage(faultNoticeError(fault), delayMs, attempt, road.maxAttempts - 1)
+    yield notice
+    road.onWait?.(retryNoticeWait(notice))
+    return (await paused(delayMs, signal)) ? again : cancelled
+  }
+
+  return {
+    get attempt() {
+      return attempt
+    },
+    get left() {
+      return attempt < road.maxAttempts
+    },
+    get busy() {
+      return busy
+    },
+    get emptyEnd() {
+      return emptyEnd
+    },
+    next: () => ++attempt <= road.maxAttempts || busy !== undefined,
+    uncounted: () => {
+      attempt--
+    },
+    afterFault,
+  }
 }

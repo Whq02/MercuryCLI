@@ -6,14 +6,12 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
-import { retryNoticeWait, retryReasonWords, requestWaitLine, streamReconnectSpentLine, streamReconnectWait } from '../streamIdleBudget.js'
-import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { streamReconnectSpentLine } from '../streamIdleBudget.js'
+import { retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { markUnknownModel } from '../../api/backupEngines.js'
-import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, streamReconnectCause, type ReconnectLadder } from '../../api/reconnectLadder.js'
-import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
-import { sleep } from '../../../utils/sleep.js'
-import { busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
-import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
+import { openTurnRetries } from '../../api/withRetry.js'
+import { busyRefusalFact, takesBusyLadder } from '../busyRetry.js'
+import { emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { replayKimiHistory } from './kimiReplay.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
@@ -81,11 +79,19 @@ export async function* compatChatCallModel(
   let recovery: 'retried' | 'no-new-credential' | undefined
   const turnStartedAtMs = Date.now()
   let attemptStartedAtMs = turnStartedAtMs
-  let busy: { ladder: BusyRetryLadder; fault: CompatFault } | undefined
-  let reconnect: ReconnectLadder | undefined
-  let emptyEnds = 0
-  for (let attempt = 1; attempt <= COMPAT_MAX_ATTEMPTS || busy !== undefined; attempt++) {
-    if (attempt > 1) {
+  const retries = openTurnRetries<CompatFault>({
+    signal,
+    maxAttempts: COMPAT_MAX_ATTEMPTS,
+    backoffMs: attempt => COMPAT_RETRY_BACKOFF_MS * attempt,
+    provider: profile.providerLabel,
+    log: `[compat:${profile.lane}]`,
+    agent: options.agentId !== undefined,
+    singleShot: options.querySource === 'overload_probe',
+    streamReconnect: true,
+    ...(options.onWait !== undefined ? { onWait: options.onWait } : {}),
+  })
+  while (retries.next()) {
+    if (retries.attempt > 1) {
       if (profile.lane === 'openrouter' || profile.lane === 'huggingface' || profile.lane === 'gemini') {
         const { refreshProviderUsage } = await import('../providerUsage.js')
         await refreshProviderUsage(profile.lane, { force: true, reason: 'operator' })
@@ -119,7 +125,7 @@ export async function* compatChatCallModel(
       servedByTensorFold,
       ...(deferral !== undefined ? { deferral } : {}),
       ...(leadingNotes.length ? { leadingNotes } : {}),
-      ...(busy !== undefined ? { busy } : {}),
+      ...(retries.busy !== undefined ? { busy: retries.busy } : {}),
     })
     if (outcome.kind === 'done') {
       observeSignInResponse(signInRequest, 200)
@@ -145,7 +151,7 @@ export async function* compatChatCallModel(
       outcome.retryEligible &&
       recovery === undefined &&
       profile.recoverCredential &&
-      attempt < COMPAT_MAX_ATTEMPTS
+      retries.left
     ) {
       const fresh = await profile.recoverCredential().catch(passedOverAs(undefined))
       if (signal.aborted) return
@@ -156,112 +162,22 @@ export async function* compatChatCallModel(
       }
       if (fresh !== null) recovery = 'no-new-credential'
     }
-    const askedMs = outcome.fault.retryAfterMs
-    const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
-    const singleShot = options.querySource === 'overload_probe'
-    const streamCut = outcome.retryEligible && !outcome.invisibleOnly && !singleShot ? streamReconnectCause(outcome.fault) : null
-    if (streamCut !== null) {
-      const now = Date.now()
-      const ladder = reconnect ?? openReconnectLadder(now, streamCut)
-      reconnect = ladder
-      const step = nextReconnect(ladder, streamCut, now)
-      if (step.waitMs <= 0) {
-        try {
-          const { logAPIDuration } = await import('../../api/logging.js')
-          logAPIDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
-        } catch (error) { passedOver(error) }
-        yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${streamReconnectSpentLine(profile.providerLabel, outcome.fault.silentMs)}`, typed, 'stream-reconnect-spent'))
-        return
-      }
-      const wait = streamReconnectWait(step.reconnect, step.of, step.waitMs, outcome.fault.silentMs)
-      const notice = createSystemAPIErrorMessage(Object.assign(new Error(requestWaitLine(wait)), { streamWait: wait }), step.waitMs, step.reconnect, step.of)
-      options.onWait?.(wait)
-      yield notice
-      await sleep(step.waitMs, signal)
-      if (signal.aborted) { options.onWait?.(null); return }
-      attempt--
-      continue
+    const verdict = yield* retries.afterFault(outcome.fault, { typed, retryEligible: outcome.retryEligible, invisibleOnly: outcome.invisibleOnly === true })
+    if (verdict.kind === 'again') continue
+    if (verdict.kind === 'cancelled') return
+    if (verdict.kind === 'stream-reconnect-spent') {
+      try {
+        const { logAPIDuration } = await import('../../api/logging.js')
+        logAPIDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
+      } catch (error) { passedOver(error) }
+      yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${streamReconnectSpentLine(profile.providerLabel, outcome.fault.silentMs)}`, typed, 'stream-reconnect-spent'))
+      return
     }
-    const outage = outcome.retryEligible && !outcome.invisibleOnly && !singleShot ? outcome.fault.outage : undefined
-    if (outage !== undefined) {
-      const now = Date.now()
-      const ladder = reconnect ?? openReconnectLadder(now, outage)
-      reconnect = ladder
-      const step = nextReconnect(ladder, outage, now)
-      const notice = createSystemAPIErrorMessage(new NetworkOutageError(step, Object.assign(new Error(outcome.fault.message), { code: outage.code })), step.waitMs, step.reconnect, step.of)
-      logForDebugging(`[compat:${profile.lane}] network outage (${wireDetail}) — ${notice.error.message}`)
-      yield notice
-      options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
-      if (step.waitMs <= 0) {
-        yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code))
-        return
-      }
-      await sleep(step.waitMs, signal)
-      if (signal.aborted) return
-      attempt--
-      continue
+    if (verdict.kind === 'outage-spent') {
+      yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${verdict.line}`, typed, outcome.fault.code))
+      return
     }
-    if (outcome.fault.status !== undefined) reconnect = undefined
-    if (outcome.retryEligible && !outcome.invisibleOnly && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
-      const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
-      busy = { ladder, fault: outcome.fault }
-      const step = nextBusyRetry(ladder, askedMs, Date.now())
-      if (step !== null) {
-        logForDebugging(`[compat:${profile.lane}] busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
-        const notice = createSystemAPIErrorMessage(
-          Object.assign(new Error(outcome.fault.message), {
-            ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-            ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-          }),
-          step.waitMs,
-          step.attempt,
-          step.of,
-        )
-        if (!step.quiet) {
-          yield notice
-          options.onWait?.(retryNoticeWait(notice))
-        } else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
-        await sleep(step.waitMs, signal)
-        if (signal.aborted) return
-        continue
-      }
-      logForDebugging(`[compat:${profile.lane}] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
-    }
-    const emptyEnd = busy === undefined && !singleShot && !outcome.invisibleOnly && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
-    if (emptyEnd) {
-      emptyEnds++
-      if (emptyEnds < EMPTY_STREAM_TRIES) {
-        const waitMs = emptyStreamRetryWaitMs()
-        const notice = emptyStreamRetryNotice({ provider: profile.providerLabel, detail: outcome.fault.code, attempt: emptyEnds + 1, waitMs })
-        logForDebugging(`[compat:${profile.lane}] ${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${emptyEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
-        yield notice
-        options.onWait?.(retryNoticeWait(notice))
-        await sleep(waitMs, signal)
-        if (signal.aborted) return
-        attempt--
-        continue
-      }
-      logForDebugging(`[compat:${profile.lane}] ${emptyStreamSpentWords(profile.providerLabel, Date.now() - turnStartedAtMs)} (${wireDetail})`, { level: 'error' })
-    }
-    const retryable =
-      !emptyEnd && busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
-    if (retryable) {
-      const delayMs = Math.max(COMPAT_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
-      const notice = createSystemAPIErrorMessage(
-        Object.assign(new Error(outcome.fault.message), {
-          ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-          ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-        }),
-        delayMs,
-        attempt,
-        COMPAT_MAX_ATTEMPTS - 1,
-      )
-      yield notice
-      options.onWait?.(retryNoticeWait(notice))
-      await sleep(delayMs, signal)
-      if (signal.aborted) return
-      continue
-    }
+    const { busy, emptyEnd } = retries
     const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)
     if (wall !== undefined && !originRefusal) {
       const wireSaid = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
