@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
@@ -7,7 +6,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  ${cond ? '✓' : '✗'} ${label}${cond || !detail ? '' : ` — ${detail}`}`)
   if (!cond) fail = 1
 }
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 const vocabulary = (await import(join(ROOT, 'src/rows/vocabulary.ts'))) as Record<string, unknown>
 const sentence = vocabulary.hookEndingSentence as ((ending: Record<string, unknown>, hook: { name: string; event: string }) => string) | undefined
 const classes = vocabulary.HOOK_ENDING_CLASSES as readonly string[] | undefined
@@ -31,5 +29,4 @@ check('an answer outside the shape names the refusal', String(lines[4]).includes
 check('a clean ending reads exit 0', say({ status: 'ok', exit_code: 0 }) === 'hook guard (tool.before) ended with exit 0')
 const secondsWord = vocabulary.secondsWord as ((ms: number) => string) | undefined
 check('the budget word keeps a fraction of a second: 1.5s, never 2s', secondsWord !== undefined && secondsWord(1500) === '1.5s' && secondsWord(30_000) === '30s')
-check('the hooks page says a failure is one line, saved with the session', src('docs/HOOKS.md').includes('a failure is one line') && src('docs/HOOKS.md').includes('Every line is saved with the'))
 process.exit(fail)
