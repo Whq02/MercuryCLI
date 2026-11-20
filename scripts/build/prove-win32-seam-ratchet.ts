@@ -42,6 +42,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/services/blender/addonHome.ts', 1, 'the install places of another vendor on each platform'],
   ['src/services/browser/browserResolver.ts', 2, 'the install places of another vendor on each platform'],
   ['src/services/browser/session/launch.ts', 1, 'the identity of the browser follows the host'],
+  ['src/services/browser/session/owners.ts', 1, 'the temp tree of a browser is ended by taskkill on Windows only'],
   ['src/services/browser/session/stealth.ts', 1, 'the navigator platform of the browser follows the host'],
   ['src/services/dap/client/probes.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/desktop/nativeDriver.ts', 1, 'the sentence names the command or the place of this platform'],
@@ -55,7 +56,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/services/mcp/auth.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/mcp/config.ts', 1, 'the npx warning is for Windows, where npx is a batch shim'],
   ['src/services/mcp/oauthPort.ts', 1, 'the callback port range Windows leaves free differs'],
-  ['src/services/privateChannel/installLayout.ts', 1, 'the script policies of PowerShell are read on Windows only'],
+  ['src/services/privateChannel/installLayout.ts', 2, 'the script policies of PowerShell are read, and a binary in use is removed after exit, on Windows only'],
   ['src/services/privateChannel/nixInstallRoot.ts', 1, 'a Nix install exists outside Windows only'],
   ['src/services/privateChannel/updateRemedy.ts', 2, 'the sentence names the command or the place of this platform'],
   ['src/services/providers/local/tensorfoldSupport.ts', 1, 'the sentence names the command or the place of this platform'],
@@ -91,6 +92,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/utils/shell/windowsBatchInvocation.ts', 1, 'a batch file is planned through cmd on Windows only'],
   ['src/utils/shell/windowsShellRoad.ts', 1, 'the Windows bash road exists on Windows only'],
   ['src/utils/shutdownRestoration.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/utils/watchRoot.ts', 3, 'a watched root is resolved natively and guarded against its own removal on Windows only'],
   ['src/utils/worktree.ts', 1, 'the tmux worktree road does not exist on Windows'],
 ]
 

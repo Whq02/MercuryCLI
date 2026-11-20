@@ -124,7 +124,6 @@
  "src/services/resources/adapters/structure.ts :: split-slash": 2,
  "src/services/resources/adapters/transcript.ts :: split-slash": 1,
  "src/services/resources/adapters/workbench.ts :: split-slash": 1,
- "src/services/switchboard/capacityCheck.ts :: platform-check": 3,
  "src/services/tensorfold/adapter/llama.ts :: platform-check": 2,
  "src/services/tensorfold/adapter/serve.ts :: platform-check": 3,
  "src/services/tensorfold/engine.ts :: platform-check": 1,
