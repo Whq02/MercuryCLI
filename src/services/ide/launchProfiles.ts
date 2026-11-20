@@ -24,6 +24,9 @@ import {
 import { latestRun, probePytest } from './pythonTests.js'
 import { hasPythonTestFiles } from './projectRunners.js'
 import { resolvePreLaunchTask, type PreLaunchTask } from './launchTasks.js'
+import { expandVsCodeVar, stripJsonc } from './vscodeText.js'
+
+export { expandVsCodeVar, stripJsonc } from './vscodeText.js'
 
 export function launchProfilesEnabled(): boolean {
   return flagEnabled('MERCURY_LAUNCH')
@@ -92,60 +95,6 @@ function profileId(source: string, kind: string, payload: unknown): string {
 }
 
 
-export function stripJsonc(text: string): string {
-  let out = ''
-  let inString = false
-  let inLine = false
-  let inBlock = false
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i]!
-    const next = text[i + 1]
-    if (inLine) {
-      if (ch === '\n') {
-        inLine = false
-        out += ch
-      }
-      continue
-    }
-    if (inBlock) {
-      if (ch === '*' && next === '/') {
-        inBlock = false
-        i++
-      }
-      continue
-    }
-    if (inString) {
-      out += ch
-      if (ch === '\\') {
-        if (next !== undefined) {
-          out += next
-          i++
-        }
-      } else if (ch === '"') {
-        inString = false
-      }
-      continue
-    }
-    if (ch === '"') {
-      inString = true
-      out += ch
-      continue
-    }
-    if (ch === '/' && next === '/') {
-      inLine = true
-      i++
-      continue
-    }
-    if (ch === '/' && next === '*') {
-      inBlock = true
-      i++
-      continue
-    }
-    out += ch
-  }
-  return out.replace(/,(\s*[}\]])/g, '$1')
-}
-
 interface VsCodeConfig {
   name?: string
   type?: string
@@ -165,11 +114,6 @@ interface VsCodeConfig {
   host?: unknown
   address?: unknown
   [key: string]: unknown
-}
-
-export function expandVsCodeVar(value: string, root: string, env: NodeJS.ProcessEnv = process.env): string | null {
-  const expanded = value.replaceAll('${workspaceFolder}', root).replace(/\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}/g, (_m, name: string) => env[name] ?? '')
-  return expanded.includes('${') ? null : expanded
 }
 
 export function parseEnvFile(text: string): Record<string, string> {

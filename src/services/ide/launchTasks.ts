@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { expandVsCodeVar, stripJsonc } from './launchProfiles.js'
 import { detectPackageManager } from './projectRunners.js'
+import { expandVsCodeVar, stripJsonc } from './vscodeText.js'
 
 export type PreLaunchTask =
   | { label: string; type: 'shell' | 'process' | 'npm'; argv: string[]; cwd: string; env?: Record<string, string>; matcherIgnored?: true }
