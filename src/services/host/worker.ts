@@ -60,7 +60,7 @@ export async function switchRentingSession(record: Pick<HostRecord, 'sessionId'>
   try {
     if (!(await rentingSessionRow(record))) return false
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model } as never, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string }
+    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model }, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string }
     return reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'queued')
   } catch {
     return false

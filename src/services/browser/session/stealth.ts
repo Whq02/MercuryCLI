@@ -76,7 +76,8 @@ function pageStealthInit(langs: string[]): void {
   }
   if (Object.prototype.hasOwnProperty.call(navigator, 'webdriver')) {
     try {
-      delete (navigator as unknown as Record<string, unknown>).webdriver
+      const nav: Omit<Navigator, 'webdriver'> & { webdriver?: boolean } = navigator
+      delete nav.webdriver
     } catch {}
   }
   const nativeLanguages = Object.getOwnPropertyDescriptor(navProto, 'languages')?.get
@@ -102,7 +103,7 @@ function pageStealthInit(langs: string[]): void {
     enumerable: true,
     configurable: true,
   })
-  const w = window as unknown as Record<string, unknown>
+  const w: Window & { chrome?: unknown } = window
   if (!('chrome' in w) || typeof w.chrome !== 'object' || w.chrome === null) {
     Object.defineProperty(w, 'chrome', {
       value: {},

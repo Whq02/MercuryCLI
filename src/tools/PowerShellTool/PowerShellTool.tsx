@@ -215,7 +215,7 @@ async function* runPowerShell(
       return
     }
     const handle = await spawnShellTask(
-      { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId: agentId as never },
+      { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId },
       { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: setTaskState },
     )
     if (handle.accepted === false) return
@@ -226,12 +226,12 @@ async function* runPowerShell(
 
   shellCommand.onTimeout?.(backgroundFn => {
     timeoutAutoBackgroundedAfterMs = effectiveTimeout
-    void startBackgrounding(backgroundFn as unknown as (id: string) => void)
+    void startBackgrounding(backgroundFn)
   })
 
   if (input.run_in_background && !BACKGROUND_TASKS_DISABLED) {
     const handle = await spawnShellTask(
-      { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId: agentId as never },
+      { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId },
       { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: setTaskState },
     )
     if (handle.accepted === false) {

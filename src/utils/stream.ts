@@ -7,7 +7,7 @@ type ParkedReader<T> = {
 const COMPACT_AT = 1024
 
 export class Stream<T> implements AsyncIterableIterator<T> {
-  private queue: T[] = []
+  private queue: (T | undefined)[] = []
   private head = 0
   private isDone = false
   private recordedError: unknown = undefined
@@ -27,7 +27,7 @@ export class Stream<T> implements AsyncIterableIterator<T> {
   async next(): Promise<IteratorResult<T, undefined>> {
     if (this.head < this.queue.length) {
       const value = this.queue[this.head] as T
-      this.queue[this.head] = undefined as unknown as T
+      this.queue[this.head] = undefined
       this.head++
       if (this.head === this.queue.length) {
         this.queue = []
