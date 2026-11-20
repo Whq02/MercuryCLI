@@ -39,7 +39,7 @@ writeFileSync(OK, "import { appendFileSync } from 'node:fs'\nappendFileSync(proc
 const executions = (): number => (existsSync(COUNT) ? readFileSync(COUNT, 'utf8').length : 0)
 const helperLine = (script: string): string => `"${process.execPath}" "${script}"`
 
-const sdkEntry = join(SRC, 'services/api/sdkErrors.ts')
+const sdkEntry = join(SRC, 'utils/api/sdkErrors.ts')
 
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()

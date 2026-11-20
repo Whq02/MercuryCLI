@@ -7,7 +7,7 @@ import type { CallModelParams } from '../../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../../api/errors.js'
 import { type OverflowSignal } from '../../../api/overflowSignal.js'
 import type { Options } from '../../anthropic/streamCore.js'
-import { type MediaRefusal } from '../../../api/mediaRefusal.js'
+import { type MediaRefusal } from '../../../../utils/api/mediaRefusal.js'
 import {
   type OpenaiRequestAuth,
 } from '../openaiAccounts.js'

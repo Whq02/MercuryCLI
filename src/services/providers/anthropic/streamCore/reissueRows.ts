@@ -1,4 +1,4 @@
-import { APIError } from '../../../api/sdkErrors.js'
+import { APIError } from '../../../../utils/api/sdkErrors.js'
 import type { ApiMessage as BetaMessage } from '../../../../types/wire.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'

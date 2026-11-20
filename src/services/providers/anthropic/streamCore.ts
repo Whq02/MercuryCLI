@@ -5,7 +5,7 @@ import {
   APIConnectionError,
   APIError,
   APIUserAbortError,
-} from '../../api/sdkErrors.js'
+} from '../../../utils/api/sdkErrors.js'
 import type { ContentBlock as BetaContentBlock, ApiStreamEvent as BetaRawMessageStreamEvent } from '../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams } from '../../../types/anthropicWire.js'
 import type { AnthropicStream } from './anthropicStream.js'

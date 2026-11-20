@@ -1,7 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { extractConnectionErrorDetails } from './errorUtils.js'
 import { outageSpentLine, outageWaitWords, type OutageWaitFacts } from './recoveryBudget.js'
-import { APIConnectionError, APIConnectionTimeoutError } from './sdkErrors.js'
+import { APIConnectionError, APIConnectionTimeoutError } from '../../utils/api/sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, recentTransportFailure } from './transportEvidence.js'
 
 export const RECONNECT_FIRST_WAIT_MS = 5_000

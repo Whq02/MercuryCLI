@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '../api/sdkErrors.js'
+import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '../../utils/api/sdkErrors.js'
 
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { queryModelWithoutStreaming } from './anthropic/index.js'

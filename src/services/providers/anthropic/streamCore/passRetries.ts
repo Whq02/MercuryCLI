@@ -1,4 +1,4 @@
-import { APIConnectionTimeoutError } from '../../../api/sdkErrors.js'
+import { APIConnectionTimeoutError } from '../../../../utils/api/sdkErrors.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams } from '../../../../types/anthropicWire.js'
 import { randomUUID } from 'crypto'
 import { logForDebugging } from 'src/utils/debug.js'

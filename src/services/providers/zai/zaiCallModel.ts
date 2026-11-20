@@ -61,7 +61,7 @@ import {
 } from '../../../prompt/behaviourContract.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
-import type { MediaRefusal } from '../../api/mediaRefusal.js'
+import type { MediaRefusal } from '../../../utils/api/mediaRefusal.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'

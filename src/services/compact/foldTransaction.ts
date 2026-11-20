@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../Tool.js'
 import { cloneFileStateCache, createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
 import { cloneContentReplacementState } from '../../utils/toolResultStorage.js'
-import { APIUserAbortError } from '../api/sdkErrors.js'
+import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 
 function cloneReadFileState(source: ToolUseContext['readFileState']): ToolUseContext['readFileState'] {
   if (typeof source.dump === 'function') return cloneFileStateCache(source)

@@ -86,7 +86,7 @@ console.log('§1 — the pure classifier: two walls in every wire spelling; the 
 
 console.log('§2 — the first-party door: the SDK presenter paints the line, never the envelope')
 {
-  const { APIError } = await import('../../src/services/api/sdkErrors.js')
+  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
   const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
   const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
   setIsInteractive(true)

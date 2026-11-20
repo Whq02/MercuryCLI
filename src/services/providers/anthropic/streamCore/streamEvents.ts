@@ -1,7 +1,7 @@
 import {
   APIConnectionTimeoutError,
   APIUserAbortError,
-} from '../../../api/sdkErrors.js'
+} from '../../../../utils/api/sdkErrors.js'
 import type {
   ContentBlock as BetaContentBlock,
   ApiStreamEvent as BetaRawMessageStreamEvent,

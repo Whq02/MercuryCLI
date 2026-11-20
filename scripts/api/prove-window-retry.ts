@@ -16,7 +16,7 @@ delete process.env.NODE_ENV
 const budget = await import('../../src/services/api/recoveryBudget.js')
 const retry = await import('../../src/services/api/withRetry.js')
 const errors = await import('../../src/services/api/errors.js')
-const { APIError } = await import('../../src/services/api/sdkErrors.js')
+const { APIError } = await import('../../src/utils/api/sdkErrors.js')
 const auth = await import('../../src/utils/auth.js')
 const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
 

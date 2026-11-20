@@ -1,7 +1,7 @@
 import { OAUTH_BETA_HEADER } from '../../../constants/oauth.js'
 import type { ApiMessage } from '../../../types/wire.js'
 import { sleep } from '../../../utils/sleep.js'
-import { APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortError } from '../../api/sdkErrors.js'
+import { APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortError } from '../../../utils/api/sdkErrors.js'
 import { AnthropicStream } from './anthropicStream.js'
 import type { AnthropicMessageParams } from '../../../types/anthropicWire.js'
 import { passedOver } from '../../../utils/passedOver.js'

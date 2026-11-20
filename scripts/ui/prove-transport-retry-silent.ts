@@ -9,7 +9,7 @@ delete process.env.MERCURY_HOME
 const { createSystemAPIErrorMessage } = await import('../../src/utils/messages/systemMessages.ts')
 const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
 const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errorPrefix.ts')
-const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/services/api/sdkErrors.ts')
+const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/utils/api/sdkErrors.ts')
 const { NetworkOutageError, ReconnectBudgetSpentError, nextReconnect, openReconnectLadder } = await import('../../src/services/api/reconnectLadder.ts')
 const { transportCutWords } = await import('../../src/services/api/transportEvidence.ts')
 const { firstByteTimeoutLine, retryNoticeWait, requestWaitLine } = await import('../../src/services/providers/streamIdleBudget.ts')
