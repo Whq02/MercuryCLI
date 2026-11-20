@@ -189,7 +189,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
     }
     const toolUseId = `evalb_${randomUUID()}`
     const block = { type: 'tool_use' as const, id: toolUseId, name, input }
-    const assistant = createAssistantMessage({ content: [block as never], isVirtual: true })
+    const assistant = createAssistantMessage({ content: [block], isVirtual: true })
     deps.onNested?.(assistant)
     const carriesScreenshot = deps.onScreenshot !== undefined && toolMatchesName({ name: COMPUTER_TOOL_NAME }, name)
     let result: { text: string; isError: boolean } | null = null
@@ -219,7 +219,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
         } as typeof tool),
       },
     }
-    for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), callContext)) {
+    for await (const update of runToolUse(block, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), callContext)) {
       const message = (update as { message?: Message }).message
       if (!message || message.type !== 'user') continue
       const extracted = extractToolResult(message as UserMessage, toolUseId, carriesScreenshot ? SCREENSHOT_NOTE : IMAGE_NOTE)
@@ -330,8 +330,8 @@ export async function oneShotCompletion(args: CompletionCall & {
   const stream = routedCallModel({
     messages,
     systemPrompt: asSystemPrompt(args.system ? [args.system] : []),
-    thinkingConfig: (args.thinkingConfig ?? { type: 'disabled' }) as never,
-    tools: [] as never,
+    thinkingConfig: args.thinkingConfig ?? { type: 'disabled' },
+    tools: [],
     signal: args.signal,
     options: {
       model: args.model,
@@ -347,7 +347,7 @@ export async function oneShotCompletion(args: CompletionCall & {
         const { getEmptyToolPermissionContext } = await import('../../Tool.js')
         return getEmptyToolPermissionContext()
       },
-    } as never,
+    },
   })
   let final: string | null = null
   let apiError: string | null = null

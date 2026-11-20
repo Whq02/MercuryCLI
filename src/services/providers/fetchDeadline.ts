@@ -33,7 +33,7 @@ export async function fetchWithProviderDeadline(
     const credential = headers.get('authorization')?.replace(/^Bearer /i, '') ?? headers.get('x-api-key') ?? headers.get('x-goog-api-key') ?? new URL(url).searchParams.get('key')
     const catalogue = /(?:^|\/)models(?:\/|$)|:fetchAvailableModels$/.test(new URL(url).pathname)
     const observation = credential && catalogue ? captureSignInRequest(provider, credential) : undefined
-    const response = await fetchImpl(url as never, { ...init, signal } as never)
+    const response = await fetchImpl(url, { ...init, signal })
     observeSignInResponse(observation, response.status)
     return response
   } catch (error) {

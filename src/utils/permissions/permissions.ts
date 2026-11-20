@@ -50,10 +50,10 @@ export function applyPermissionRulesToPermissionContext(context: ToolPermissionC
 }
 
 function withoutRulesSetAsideFrom(context: ToolPermissionContext, sources: readonly PermissionRuleSource[]): ToolPermissionContext {
-  const aside = (context as unknown as { strippedDangerousRules?: Record<string, string[]> }).strippedDangerousRules
+  const aside = context.strippedDangerousRules
   if (aside === undefined || !sources.some(source => aside[source] !== undefined)) return context
   const kept = Object.fromEntries(Object.entries(aside).filter(([source]) => !(sources as readonly string[]).includes(source)))
-  return { ...context, strippedDangerousRules: kept } as unknown as ToolPermissionContext
+  return { ...context, strippedDangerousRules: kept }
 }
 
 export function syncPermissionRulesFromDisk(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {

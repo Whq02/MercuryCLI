@@ -179,7 +179,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
     }
     return rows
   }
-  const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
+  const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}) => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
   let timeLimitTimer: ReturnType<typeof setTimeout> | null = null
   const clearTimeLimit = (): void => {
     if (timeLimitTimer !== null) {

@@ -1,35 +1,48 @@
+import type * as tls from 'node:tls'
 import type { Transport, JSONRPCMessage } from '../sdk.js'
 import { getWebSocketTLSOptions } from '../../../utils/mtls.js'
 import { getWebSocketProxyAgent, getWebSocketProxyUrl } from '../../../utils/proxy.js'
+
+type WsEvent = 'open' | 'error' | 'close' | 'message'
 
 type WsSocketLike = {
   send(data: string): void
   close(): void
   readyState?: number
-  addEventListener?(event: string, handler: (event: never) => void): void
-  on?(event: string, handler: (...args: never[]) => void): void
+  addEventListener?(event: WsEvent, handler: (event: unknown) => void): void
+  on?(event: WsEvent, handler: (payload: unknown) => void): void
 }
+
+type BunWebSocketOptions = {
+  protocols?: string[]
+  headers?: Record<string, string>
+  tls?: tls.ConnectionOptions
+  proxy?: string
+}
+
+type BunWebSocketConstructor = new (url: string | URL, options?: string | string[] | BunWebSocketOptions) => WebSocket
 
 export async function createWsTransport(url: string, headers: Record<string, string>): Promise<Transport> {
   const tlsOptions = getWebSocketTLSOptions()
   let socket: WsSocketLike
   if (typeof Bun !== 'undefined') {
     const proxyUrl = getWebSocketProxyUrl(url)
-    socket = new WebSocket(url, {
+    const BunWebSocket = WebSocket as BunWebSocketConstructor
+    socket = new BunWebSocket(url, {
       protocols: ['mcp'],
       headers,
       ...(tlsOptions ? { tls: tlsOptions } : {}),
       ...(proxyUrl ? { proxy: proxyUrl } : {}),
-    } as never) as unknown as WsSocketLike
+    })
   } else {
     const proxyAgent = getWebSocketProxyAgent(url)
     const nodeOptions = { headers, ...(tlsOptions ?? {}), ...(proxyAgent ? { agent: proxyAgent } : {}) }
     const { default: NodeWebSocket } = await import('ws')
-    socket = new NodeWebSocket(url, ['mcp'], nodeOptions as never) as unknown as WsSocketLike
+    socket = new NodeWebSocket(url, ['mcp'], nodeOptions as never)
   }
-  const listen = (event: string, handler: (payload: unknown) => void): void => {
-    if (typeof socket.on === 'function') socket.on(event, handler as never)
-    else socket.addEventListener?.(event, handler as never)
+  const listen = (event: WsEvent, handler: (payload: unknown) => void): void => {
+    if (typeof socket.on === 'function') socket.on(event, handler)
+    else socket.addEventListener?.(event, handler)
   }
   const wsTransport: Transport & { onmessage?: (message: JSONRPCMessage) => void } = {
     start: () =>

@@ -5,7 +5,7 @@ import { metadataSafeAddresses } from '../../tools/WebFetchTool/privateHost.js'
 async function destination(target: URL): Promise<{ host: string; lookup: LookupFunction }> {
   const addresses = await metadataSafeAddresses(target.href)
   return { host: target.hostname.replace(/^\[|\]$/g, ''), lookup: (_hostname, options, callback) => {
-    if (options.all) callback(null, addresses as never)
+    if (options.all) callback(null, addresses)
     else callback(null, addresses[0]!.address, addresses[0]!.family)
   } }
 }
