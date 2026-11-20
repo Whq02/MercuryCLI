@@ -45,8 +45,10 @@ function readMap(): ClearedMap {
 let memo: { at: number; ids: Set<string> } | null = null
 const MEMO_MS = 5_000
 
-export function markSessionCleared(sessionId: string | null | undefined): void {
-  if (!sessionId) return
+type ClearedMarkResult = { ok: true } | { ok: false; error: string }
+
+export function markSessionCleared(sessionId: string | null | undefined): ClearedMarkResult {
+  if (!sessionId) return { ok: true }
   try {
     const map = readMapStrict()
     map[sessionId] = Date.now()
@@ -54,21 +56,27 @@ export function markSessionCleared(sessionId: string | null | undefined): void {
     mkdirSync(getMercuryHome(), { recursive: true })
     writeFileSync(cachePath(), JSON.stringify(Object.fromEntries(entries), null, 2) + '\n')
     memo = null
+    return { ok: true }
   } catch (error) {
-    logError(new Error(`the cleared mark of session ${sessionId} could not be written to ${cachePath()}, so it stays listed: ${errorMessage(error)}`))
+    const detail = errorMessage(error)
+    logError(new Error(`the cleared mark of session ${sessionId} could not be written to ${cachePath()}, so it stays listed: ${detail}`))
+    return { ok: false, error: detail }
   }
 }
 
-export function unmarkSessionCleared(sessionId: string | null | undefined): void {
-  if (!sessionId) return
+export function unmarkSessionCleared(sessionId: string | null | undefined): ClearedMarkResult {
+  if (!sessionId) return { ok: true }
   try {
     const map = readMapStrict()
-    if (!(sessionId in map)) return
+    if (!(sessionId in map)) return { ok: true }
     delete map[sessionId]
     writeFileSync(cachePath(), JSON.stringify(map, null, 2) + '\n')
     memo = null
+    return { ok: true }
   } catch (error) {
-    logError(new Error(`the cleared mark of session ${sessionId} could not be removed from ${cachePath()}, so it stays hidden: ${errorMessage(error)}`))
+    const detail = errorMessage(error)
+    logError(new Error(`the cleared mark of session ${sessionId} could not be removed from ${cachePath()}, so it stays hidden: ${detail}`))
+    return { ok: false, error: detail }
   }
 }
 
