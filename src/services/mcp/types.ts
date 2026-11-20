@@ -58,7 +58,7 @@ export const McpJsonConfigSchema = once(() => z.object({ mcpServers: z.record(z.
 
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
 export type McpUnexpandedStrings = { command?: string; args?: string[]; url?: string; env?: Record<string, string> }
-export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string; unexpanded?: McpUnexpandedStrings; bundledBootstrap?: McpBootstrapManifest }
+export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string; unexpanded?: McpUnexpandedStrings; bundledBootstrap?: McpBootstrapManifest; inlineDispatchId?: string }
 
 type ServerIdentity = { name: string; config: ScopedMcpServerConfig }
 type ConnectionFacts = {
