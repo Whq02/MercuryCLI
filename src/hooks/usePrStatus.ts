@@ -1,5 +1,6 @@
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useTimer } from './effects.js'
 import { fetchPrStatus, type PrReviewState } from '../utils/ghPrStatus.js'
 import { getLastInteractionTime } from '../bootstrap/state.js'
 
@@ -30,7 +31,7 @@ export function usePrStatus(
   const lastSeenInteractionRef = useRef(getLastInteractionTime())
   const disabledForSessionRef = useRef(false)
 
-  useEffect(() => {
+  useTimer(() => {
     if (!enabled || disabledForSessionRef.current) return
     let cancelled = false
     let timer: NodeJS.Timeout | null = null

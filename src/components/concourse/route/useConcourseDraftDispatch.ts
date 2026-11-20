@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
+import { useLoad } from '../../../hooks/effects.js';
 import { basename } from 'node:path';
 import { logForDebugging } from '../../../utils/debug.js';
 import { getCwd } from '../../../utils/cwd.js';
@@ -24,7 +25,7 @@ export function useConcourseDraftDispatch({
   const seedWriteChain = useRef<Promise<unknown>>(Promise.resolve())
   const birthInFlightRef = useRef(false)
   const submitIdRef = useRef<{ key: string; id: string } | null>(null)
-  useEffect(() => {
+  useLoad(() => {
     void import('../../../services/concourse/concourseSnapshot.js').then(async s => {
       if (submitIdRef.current !== null) return
       const held = await s.readConcourseHeldDispatch()

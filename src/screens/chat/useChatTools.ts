@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { usePublish } from '../../hooks/effects.js';
 import type { Command } from '../../commands.js';
 import { useMcpConnectivityStatus } from '../../hooks/notifs/useMcpConnectivityStatus.js';
 import { useApiKeyVerification } from '../../hooks/useApiKeyVerification.js';
@@ -10,7 +11,7 @@ import { publishMcpConnections } from '../../utils/cockpit/mcpGauge.js';
 
 export function useChatTools({ initialCommands, initialTools }: { initialCommands: Command[]; initialTools: Tool[] }) {
   const mcpState = useAppState(state => state.mcp);
-  useEffect(() => {
+  usePublish(() => {
     publishMcpConnections(mcpState.clients);
   }, [mcpState.clients]);
   useMcpConnectivityStatus({ mcpClients: mcpState.clients });
