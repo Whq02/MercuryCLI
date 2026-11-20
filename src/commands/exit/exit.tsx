@@ -31,7 +31,8 @@ export function liveWorkAtExit(tasks: Record<string, TaskState> | undefined): Li
 function ExitWithNote({ liveWords, onDone }: { liveWords: string | null; onDone: LocalJSXCommandOnDone }): React.ReactNode {
   const [phase, setPhase] = React.useState<'confirm' | 'note'>(liveWords === null ? 'note' : 'confirm')
   const quit = (receipt?: ExitNoteReceipt): void => {
-    const farewell = receipt === undefined ? FAREWELL : exitFarewell(FAREWELL, receipt.note, receipt.noteChars)
+    const base = receipt === undefined ? FAREWELL : exitFarewell(FAREWELL, receipt.note, receipt.noteChars)
+    const farewell = receipt?.detail !== undefined && receipt.detail !== '' ? `${base}\n${receipt.detail}` : base
     onDone(farewell)
     void gracefulShutdown(0, 'quit', { finalMessage: farewellWithTesterDoor(farewell) })
   }
