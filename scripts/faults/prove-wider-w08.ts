@@ -579,7 +579,7 @@ async function w08_11_videoProviderSettingReadErrorWithheldWhy(): Promise<void> 
   const { enableConfigs, saveGlobalConfig } = await import(join(SRC, 'utils/config/globalConfig.ts'))
   const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
   const { videoToolEnabled } = await import(join(SRC, 'services/video/registry.ts'))
-  const { withheldTools } = await import(join(SRC, 'utils/withheldTools.ts'))
+  const { withheldTools } = await import(join(SRC, 'services/tools/withheldTools.ts'))
   enableConfigs()
   saveGlobalConfig((prev: Record<string, unknown>) => ({ ...prev, videoProvider: { bad: { kind: 'unknown-provider' } } }))
   resetSettingsCache()
@@ -636,7 +636,7 @@ async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
       process.env.MERCURY_JS_DEBUG_DAP = ${JSON.stringify(join(dir, 'no-js-debug.js'))}
       process.env.MERCURY_DAP_ADAPTERS_FILE = ${JSON.stringify(lockedFile)}
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'utils/withheldTools.ts'))})
+      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'services/tools/withheldTools.ts'))})
       const debug = withheldTools().find(w => w.tool === 'Debug')
       process.stdout.write('\\n' + JSON.stringify(debug ?? null))
     `], { encoding: 'utf8' })

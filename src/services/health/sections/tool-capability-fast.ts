@@ -53,7 +53,7 @@ export function toolCapabilityFastChecks(): CheckSpec[] {
       id: 'tools-withheld',
       label: 'Tools withheld',
       run: async () => {
-        const [{ withheldTools, withheldToolsLine }, { settleDapAdapterProbes }] = await Promise.all([import('../../../utils/withheldTools.js'), import('../../dap/dapClient.js')])
+        const [{ withheldTools, withheldToolsLine }, { settleDapAdapterProbes }] = await Promise.all([import('../../tools/withheldTools.js'), import('../../dap/dapClient.js')])
         await settleDapAdapterProbes()
         const list = withheldTools()
         if (list.length === 0) return { status: 'ok' as const, evidence: withheldToolsLine(list) }

@@ -48,7 +48,7 @@ import { extensionReadinessRows } from '../../extensions/boot.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { mcpGauge } from '../cockpit/mcpGauge.js'
 import { whichSync } from '../../utils/which.js'
-import { withheldTools } from '../../utils/withheldTools.js'
+import { withheldTools } from '../tools/withheldTools.js'
 
 function flagAsSet(env: string): string {
   return `${env}=${flagEnv(env)?.trim() || '0'}`
