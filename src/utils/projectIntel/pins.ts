@@ -1,5 +1,5 @@
 
-import { OwnerScopedStore, type OwnerKey } from '../../utils/primitives/owner.js'
+import { OwnerScopedStore, type OwnerKey } from '../primitives/owner.js'
 
 interface ContextMarks {
   pins: Set<string>

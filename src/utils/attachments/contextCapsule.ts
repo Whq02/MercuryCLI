@@ -155,7 +155,7 @@ export async function getContextCapsuleAttachment(
     const { describeOwner, MAIN_LANE, makeOwnerKey, parseOwnerKey } =
       require('../primitives/owner.js') as typeof import('../primitives/owner.js')
     const { getContextMarks } =
-      require('../../services/projectIntel/pins.js') as typeof import('../../services/projectIntel/pins.js')
+      require('../projectIntel/pins.js') as typeof import('../projectIntel/pins.js')
     const laneOwner = ownerFromToolUseContext(toolUseContext)
     const marksOwner =
       describeOwner(laneOwner).parent ??
