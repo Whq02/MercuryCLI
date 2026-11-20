@@ -20,7 +20,7 @@ import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
 import { runMercuryLspOp, type MercuryLspOpInput, type MercuryLspOpOutput } from './mercuryOps.js'
-import { readLocationSourceLines, boundWorkspaceSymbols, formatDocumentSymbolResult, formatFindReferencesResult, formatGoToDefinitionResult, formatHoverResult, formatIncomingCallsResult, formatOutgoingCallsResult, formatWorkspaceSymbolResult, uriToPath, type Locationish } from './formatters.js'
+import { readLocationSourceLines, boundWorkspaceSymbols, formatDocumentSymbolResult, formatFindReferencesResult, formatGoToDefinitionResult, formatHoverResult, formatIncomingCallsResult, formatOutgoingCallsResult, formatWorkspaceSymbolResult, uriToPath, type DocumentSymbol, type HoverResult, type IncomingCall, type Location, type Locationish, type OutgoingCall, type SymbolInformation } from './formatters.js'
 import { LSP_DESCRIPTIONS, LSP_SEARCH_HINTS, type LspToolName } from './prompt.js'
 import { LSP_INPUT_JSON_SCHEMAS, lspInputSchema, readArguments, readArgumentError, type LspInput } from './schemas.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage } from './UI.js'
@@ -239,10 +239,9 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
     const query = input.query!
     let startPath = filePath
     try {
-      type WorkspaceSymbolRow = { name: string; kind: number; location?: { uri: string; range: { start: { line: number; character: number } } }; containerName?: string }
-      let response: WorkspaceSymbolRow[] | undefined
+      let response: SymbolInformation[] | undefined
       if (filePath) {
-        response = await manager.sendRequest<WorkspaceSymbolRow[]>(expandPath(filePath), 'workspace/symbol', { query })
+        response = await manager.sendRequest<SymbolInformation[]>(expandPath(filePath), 'workspace/symbol', { query })
       } else {
         const chosen = workspaceSymbolServer(manager, query, cwd)
         if (!chosen) return fail('No language server is configured in this session; LspRead serverStatus lists what is available.')
@@ -254,17 +253,17 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
             return { data: { operation, result, filePath, resultCount: 0, fileCount: 0, outcome: 'indeterminate' }, effect: makeEffect(operation, 'indeterminate', result, startedAt) }
           }
         }
-        response = await chosen.server.sendRequest<WorkspaceSymbolRow[]>('workspace/symbol', { query })
+        response = await chosen.server.sendRequest<SymbolInformation[]>('workspace/symbol', { query })
       }
       if (!Array.isArray(response)) {
         const result = `No symbols found for "${query}" (the server returned no result).`
         return { data: { operation, result, filePath, resultCount: 0, fileCount: 0, outcome: 'no-change' }, effect: makeEffect(operation, 'no-change', result, startedAt) }
       }
       const filtered = await filterLocationsByGitignore(response, symbol => symbol.location?.uri)
-      const bounded = boundWorkspaceSymbols(filtered as never[], input.limit ?? WORKSPACE_SYMBOL_DEFAULT_LIMIT)
-      let result = formatWorkspaceSymbolResult(bounded.shown as never[], cwd)
+      const bounded = boundWorkspaceSymbols(filtered, input.limit ?? WORKSPACE_SYMBOL_DEFAULT_LIMIT)
+      let result = formatWorkspaceSymbolResult(bounded.shown, cwd)
       if (bounded.truncated) result += `\n\nShowing ${bounded.shown.length} of ${bounded.total} symbols. Raise \`limit\` (maximum ${WORKSPACE_SYMBOL_MAX_LIMIT}) or narrow \`query\` to see the rest.`
-      const counts = locationCounts(bounded.shown.map(symbol => ({ uri: (symbol as WorkspaceSymbolRow).location?.uri })))
+      const counts = locationCounts(bounded.shown.map(symbol => ({ uri: symbol.location?.uri })))
       return { data: { operation, result, filePath, ...counts }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
     } catch (err) {
       logError(err)
@@ -296,11 +295,11 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
         return { data: { operation, result, filePath, resultCount: 0, fileCount: 0, outcome: 'no-change' }, effect: makeEffect(operation, 'no-change', result, startedAt) }
       }
       const secondMethod = operation === 'incomingCalls' ? 'callHierarchy/incomingCalls' : 'callHierarchy/outgoingCalls'
-      const calls = await manager.sendRequest<unknown[]>(documentPath, secondMethod, { item: prepared[0] })
+      const calls = await manager.sendRequest<Array<IncomingCall & OutgoingCall>>(documentPath, secondMethod, { item: prepared[0] })
       if (calls === undefined) logError(new Error(`LSP ${operation}: undefined second response`))
-      const callList = (calls ?? []) as Array<{ from?: { uri?: string }; to?: { uri?: string }; fromRanges?: unknown[] }>
-      const result = operation === 'incomingCalls' ? formatIncomingCallsResult(callList as never[], cwd) : formatOutgoingCallsResult(callList as never[], cwd)
-      const sides = callList.map(call => operation === 'incomingCalls' ? call.from : call.to).filter((item): item is { uri?: string } => item !== undefined && item !== null)
+      const callList = calls ?? []
+      const result = operation === 'incomingCalls' ? formatIncomingCallsResult(callList, cwd) : formatOutgoingCallsResult(callList, cwd)
+      const sides = callList.map(call => operation === 'incomingCalls' ? call.from : call.to).filter((item): item is NonNullable<typeof item> => item !== undefined && item !== null)
       const uris = new Set(sides.flatMap(side => side.uri === undefined ? [] : [side.uri]))
       return { data: { operation, result, filePath, resultCount: sides.length, fileCount: uris.size, outcome: 'succeeded' }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
     }
@@ -319,20 +318,20 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
         break
       }
       case 'findReferences': {
-        const list = Array.isArray(finalResponse) ? finalResponse as Array<{ uri?: string }> : []
-        result = formatFindReferencesResult(list as never[], cwd, await readLocationSourceLines(list as never[], tool, context))
+        const list = Array.isArray(finalResponse) ? finalResponse as Location[] : []
+        result = formatFindReferencesResult(list, cwd, await readLocationSourceLines(list, tool, context))
         counts = locationCounts(list)
         break
       }
       case 'hover': {
-        result = formatHoverResult(finalResponse as never, cwd)
+        result = formatHoverResult(finalResponse as HoverResult | null, cwd)
         const has = finalResponse !== null && finalResponse !== undefined
         counts = { resultCount: has ? 1 : 0, fileCount: has ? 1 : 0 }
         break
       }
       case 'documentSymbol': {
-        const list = Array.isArray(finalResponse) ? finalResponse as unknown[] : []
-        result = formatDocumentSymbolResult(list as never[], cwd)
+        const list = Array.isArray(finalResponse) ? finalResponse as Array<DocumentSymbol | SymbolInformation> : []
+        result = formatDocumentSymbolResult(list, cwd)
         counts = documentSymbolCounts(list)
         break
       }
@@ -392,7 +391,7 @@ function makeLspTool(name: LspToolName): Tool {
   const tool: Tool = buildTool({
     name, isLsp: true, shouldDefer: true,
     straightQuoteInputs: STRAIGHT_QUOTES[name], maxResultSizeChars: 100_000,
-    inputSchema: lspInputSchema(name), inputJSONSchema: LSP_INPUT_JSON_SCHEMAS[name] as unknown as NonNullable<Tool['inputJSONSchema']>, outputSchema,
+    inputSchema: lspInputSchema(name), inputJSONSchema: LSP_INPUT_JSON_SCHEMAS[name], outputSchema,
     searchHint: LSP_SEARCH_HINTS[name],
     isEnabled: isLspToolMounted,
     isReadOnly: (input: LspInput) => !writes(input),

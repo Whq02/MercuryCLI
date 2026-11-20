@@ -9,6 +9,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { resolveWorkbenchSnapshot } from './projection.js'
 import { classifyReadFailure, wasObserved } from '../../substrate/sourceState.js'
 import type { WorkbenchSnapshot } from './contracts.js'
+import type { EffortValue } from '../../utils/effort.js'
 
 const CURRENT_WORK_SCHEMA = 2 as const
 
@@ -230,10 +231,10 @@ export async function gatherCurrentWork(opts?: {
     const { getEngineModel } = await import('../../utils/model/model.js')
     model = String(getEngineModel())
     const { getDisplayedEffortLabel } = await import('../../utils/effort.js')
-    const state = opts?.getAppState?.() as { effortValue?: unknown } | undefined
+    const state = opts?.getAppState?.() as { effortValue?: EffortValue } | undefined
     effortLabel = getDisplayedEffortLabel(
       model,
-      typeof state?.effortValue === 'string' ? (state.effortValue as never) : undefined,
+      typeof state?.effortValue === 'string' ? state.effortValue : undefined,
     )
   } catch {
     effortLabel = null

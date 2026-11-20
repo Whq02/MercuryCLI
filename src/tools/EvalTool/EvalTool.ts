@@ -150,7 +150,7 @@ ${languages}`
     const serveBridge = makeEvalBridgeServer({
       owner: ownerFromToolUseContext(context),
       context,
-      canUseTool: canUseTool as never,
+      canUseTool,
       cellAbort,
       onNested: message => {
         const now = performance.now()

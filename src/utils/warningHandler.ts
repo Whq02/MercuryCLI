@@ -36,7 +36,7 @@ function handleWarning(warning: Error): void {
     {
       logForDebugging(
         `${isInternal ? '[internal warning]' : '[warning]'} ${warning.name}: ${warning.message}`,
-        { level: 'warn' as never },
+        { level: 'warn' },
       )
     }
   } catch {

@@ -16,11 +16,7 @@ import { getPublicModelDisplayName } from '../../../../utils/model/model.js'
 import { anthropicLimitVerdict } from '../../../anthropicLimits.js'
 import { refreshProviderUsage } from '../../providerUsage.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../../api/client.js'
-import {
-  recordPromptState,
-  type NeutralSystemBlock,
-  type NeutralToolSchema,
-} from '../../../api/promptCacheBreakDetection.js'
+import { recordPromptState } from '../../../api/promptCacheBreakDetection.js'
 import { withRetry } from '../../../api/withRetry.js'
 import type { HeldBusyRetryWait } from '../../busyRetry.js'
 import {
@@ -67,8 +63,8 @@ export function streamPassRetries(call: CallState, pass: StreamPass, { messages,
       captureModelRequest(params)
 
       recordPromptState({
-        system: params.system as unknown as NeutralSystemBlock[],
-        toolSchemas: params.tools as unknown as NeutralToolSchema[],
+        system: params.system,
+        toolSchemas: params.tools,
         querySource: options.querySource,
         model: options.model,
         agentId: options.agentId,
@@ -112,7 +108,7 @@ export function streamPassRetries(call: CallState, pass: StreamPass, { messages,
               fetchOptions: streamActivityFetchOptions(() => {
                 pass.transportSawByte = true
                 pass.noteTransportActivity?.()
-              }) as never,
+              }),
               ...(call.clientRequestId && {
                 headers: { [CLIENT_REQUEST_ID_HEADER]: call.clientRequestId },
               }),
