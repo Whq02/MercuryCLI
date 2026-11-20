@@ -4,7 +4,7 @@ import { delimiter, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { type CaptureStreamErrors, loadVoiceAddon, resolveVoicePackDir, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
-import { sleep } from '../../utils/sleep.js'
+import { withDeadline } from '../../utils/deadline.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
@@ -283,8 +283,7 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
       passedOver(error)
     }
     if (process.platform !== 'win32') child.kill('SIGINT')
-    const grace = sleep(3_000)
-    await Promise.race([exited, grace])
+    await withDeadline(exited, 3_000, () => {})
     if (child.exitCode === null) child.kill('SIGKILL')
     await exited
   }
