@@ -15,7 +15,27 @@ console.log('============================================================')
 console.log(' the proof run root keeps the daemon socket within the bound')
 console.log('============================================================')
 
-const productBound = Number(/SUN_PATH_SAFE_MAX = (\d+)/.exec(readFileSync(join(root, 'src/daemon/controlSocket.ts'), 'utf8'))?.[1])
+async function measureSocketBound(): Promise<number> {
+  const prevDaemonDir = process.env.MERCURY_DAEMON_DIR
+  const { controlSockPath } = await import(join(root, 'src/daemon/controlSocket.ts'))
+  try {
+    let lo = 16
+    let hi = 256
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2)
+      const dir = '/' + 'a'.repeat(Math.max(1, mid - '/control.sock'.length - 1))
+      process.env.MERCURY_DAEMON_DIR = dir
+      if (controlSockPath('linux') === join(dir, 'control.sock')) lo = mid
+      else hi = mid - 1
+    }
+    return lo
+  } finally {
+    if (prevDaemonDir === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = prevDaemonDir
+  }
+}
+
+const productBound = await measureSocketBound()
 
 const socketPathUnder = (base: string): string => `${base}/mercury-proof-run.XXXXXX/config-home/daemon/control.sock`
 const fits = (base: string): boolean => Buffer.byteLength(socketPathUnder(base), 'utf8') <= productBound

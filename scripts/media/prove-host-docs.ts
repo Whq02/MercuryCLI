@@ -2,12 +2,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import catalogue from '../../src/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const media = readFileSync(resolve(root, 'docs/MEDIA.md'), 'utf8')
 const host = readFileSync(resolve(root, 'docs/LLM-HOST.md'), 'utf8')
-const catalogue = JSON.parse(readFileSync(resolve(root, 'src/extensions/bundled/mercury-media/server/catalog.json'), 'utf8'))
-const source = catalogue.runtime.platforms['linux-x64'].find((row: { variant: string }) => row.variant === 'cuda12').source
+const source = catalogue.runtime.platforms['linux-x64'].find((row: { variant: string }) => row.variant === 'cuda12')!.source
 assert.ok(media.includes('## Run on a rented GPU'))
 assert.ok(media.includes(source.revision))
 assert.ok(media.includes('`media.host`'))

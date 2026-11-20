@@ -1,14 +1,10 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mock } from 'bun:test'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 
 pinSourceRef()
-const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
-const ensurePath = join(root, 'src/services/switchboard/ensureDaemon.ts')
-const controlPath = join(root, 'src/daemon/controlSocket.ts')
-const escapePath = (p: string): string => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 type ProofHooks = {
   ensureDaemon: () => Promise<boolean>
@@ -18,34 +14,6 @@ const hooks: ProofHooks = {
   ensureDaemon: async () => true,
   controlRpc: async () => ({ ok: true, outcome: 'applied' }),
 }
-;(globalThis as Record<string, unknown>).__refusedAdmissionHooks = hooks
-
-;(Bun as unknown as { plugin: (p: { name: string; setup: (build: { onLoad: (opts: { filter: RegExp }, cb: () => { loader: string; contents: string }) => void }) => void }) => void }).plugin({
-  name: 'refused-admission-transport',
-  setup(build) {
-    build.onLoad({ filter: new RegExp(`^${escapePath(ensurePath)}$`) }, () => {
-      const real = readFileSync(ensurePath, 'utf8').replace(
-        /export async function ensureOwnedDaemon\((.*)\): Promise<boolean> \{/,
-        'async function _realEnsureOwnedDaemon($1): Promise<boolean> {',
-      )
-      return {
-        loader: 'ts',
-        contents: `${real}\nexport async function ensureOwnedDaemon(): Promise<boolean> { return ((globalThis as Record<string, unknown>).__refusedAdmissionHooks as { ensureDaemon: () => Promise<boolean> }).ensureDaemon() }\n`,
-      }
-    })
-    build.onLoad({ filter: new RegExp(`^${escapePath(controlPath)}$`) }, () => {
-      const real = readFileSync(controlPath, 'utf8').replace(
-        'export async function daemonControlRpc(',
-        'async function _realDaemonControlRpc(',
-      )
-      return {
-        loader: 'ts',
-        contents: `${real}\nexport async function daemonControlRpc(request: { op: string }): Promise<Record<string, unknown>> { return ((globalThis as Record<string, unknown>).__refusedAdmissionHooks as { controlRpc: (r: { op: string }) => Promise<Record<string, unknown>> }).controlRpc(request) }\n`,
-      }
-    })
-  },
-})
-
 const HOME = pinScratchHome('refused-admission-status')
 delete process.env.TYPESAFE_API_KEY
 delete process.env.MERCURY_HOME
@@ -82,6 +50,16 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
+const realEnsure = { ...(await import('../../src/services/switchboard/ensureDaemon.ts')) }
+mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({
+  ...realEnsure,
+  ensureOwnedDaemon: () => hooks.ensureDaemon(),
+}))
+const realControl = { ...(await import('../../src/daemon/controlSocket.ts')) }
+mock.module('../../src/daemon/controlSocket.ts', () => ({
+  ...realControl,
+  daemonControlRpc: (request: { op: string }) => hooks.controlRpc(request),
+}))
 const React = await import('react')
 const h = React.createElement
 const { App } = await import('../../src/components/App.tsx')

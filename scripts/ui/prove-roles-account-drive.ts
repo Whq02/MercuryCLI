@@ -63,9 +63,7 @@ try {
   const beforeSwitch = readAccount()
   const second = await login('b')
   const beforeReply = readAccount()
-  const interval = Number(/const CONFIG_FRESHNESS_POLL_MS = (\d+)/.exec(readFileSync(join(REPO, 'src/utils/config/globalConfig.ts'), 'utf8'))?.[1])
-  if (!interval) throw new Error('the config freshness cadence is not available')
-  await new Promise(resolve => setTimeout(resolve, interval * 2))
+  await new Promise(resolve => setTimeout(resolve, 2_000))
   held!.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ organization_name: 'A', organization_role: 'admin', workspace_role: 'admin' }))
   held = undefined
   const firstResult = await first

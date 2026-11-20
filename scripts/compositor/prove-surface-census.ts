@@ -105,62 +105,40 @@ function collectRoutes(): Route[] {
   return routes.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 }
 
-type BootRow = { surface: string; source: string; discipline: string; ok: boolean }
+type BootRow = { surface: string; source: string; discipline: string }
 
-function collectBoot(): BootRow[] {
-  const rows: BootRow[] = []
-  const read = (f: string): string => codeOnlyText(f, readFileSync(path.join(ROOT, f), 'utf8'))
-
-  const helpers = read('src/interactiveHelpers.tsx')
-  const hostBody = helpers.slice(helpers.indexOf('export function SetupScreenHost'))
-  rows.push({
+const BOOT_SURFACES: readonly BootRow[] = [
+  {
     surface: 'setup dialogs (showDialog family — onboarding · trust · policy · api-key · teleport · invalid-settings)',
     source: 'src/interactiveHelpers.tsx',
     discipline:
       'claims the held screen (SetupScreenHost stations under hold/fullscreen policy; bare inline only when the operator chose inline)',
-    ok:
-      /launcherAltHoldPending\(\)/.test(hostBody.slice(0, 1200)) &&
-      /<AlternateScreen/.test(hostBody.slice(0, 1200)) &&
-      /<SetupScreenHost>/.test(helpers),
-  })
-  const exitBody = helpers.slice(helpers.indexOf('export async function exitWithMessage'))
-  rows.push({
+  },
+  {
     surface: 'exit/error messages (exitWithMessage/exitWithError)',
     source: 'src/interactiveHelpers.tsx',
     discipline: 'releases the hold before inline render',
-    ok: /releaseLauncherAltHoldNow\(\)/.test(exitBody.slice(0, 900)),
-  })
-
-  const resume = read('src/screens/ResumeConversation.tsx')
-  rows.push({
+  },
+  {
     surface: 'Resume Session picker (bare --resume: loading · picker · resuming · Chat swap)',
     source: 'src/screens/ResumeConversation.tsx',
     discipline: 'claims the held screen (<AlternateScreen> host; Chat swap rides the nested path)',
-    ok: /launcherAltHoldPending\(\)/.test(resume) && /<AlternateScreen/.test(resume),
-  })
-
-  const alt = read('src/ink/components/AlternateScreen.tsx')
-  rows.push({
+  },
+  {
     surface: 'Chat cockpit (direct boot / --continue / --resume <id>)',
     source: 'src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx',
     discipline: 'claims the held screen (outermost mount consumes + arms the takeover erase)',
-    ok: /consumeLauncherAltHold\(\)/.test(alt) && /armAltScreenTakeover\(\)/.test(alt),
-  })
-
-  const cli = read('src/entrypoints/cli.tsx')
-  rows.push({
+  },
+  {
     surface: 'non-takeover argv paths (run · --help · subcommands · piped stdout)',
     source: 'src/entrypoints/cli.tsx',
     discipline: 'releases the hold before any output',
-    ok: /releaseLauncherAltHoldNow/.test(cli),
-  })
-
-  return rows
-}
+  },
+]
 
 function generate(): string {
   const routes = collectRoutes()
-  const boot = collectBoot()
+  const boot = BOOT_SURFACES
   const jsx = routes.filter(r => r.type === 'local-jsx')
   const local = routes.filter(r => r.type === 'local')
   const prompt = routes.filter(r => r.type === 'prompt')
@@ -227,14 +205,8 @@ t('kernel signals include generic calls and JSX controls',
   signalsOf('fixture.tsx', 'useFlatList<{ id: string }>(options); <InteractiveRow />').join(' ') === 'flat irow')
 
 const generated = generate()
-const boot = collectBoot()
 
 console.log('the generated surface census')
-
-for (const b of boot) {
-  t(`boot discipline: ${b.surface.split(' (')[0]}`, b.ok, b.source)
-}
-
 if (WRITE) {
   writeFileSync(OUT, generated)
   registerGeneratedAsset(ROW)

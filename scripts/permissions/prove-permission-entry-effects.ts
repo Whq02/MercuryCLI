@@ -1,7 +1,5 @@
 import { deepStrictEqual, equal, rejects, strictEqual } from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import ts from 'typescript'
+import { mock } from 'bun:test'
 import type { PermissionRule, PermissionUpdate } from '../../src/types/permissions.js'
 
 const events: unknown[] = []
@@ -16,37 +14,46 @@ const effect = (name: string, ...args: unknown[]): void => {
   events.push([name, ...args])
   if (failAt === name) throw new Error(name)
 }
-const ports: Record<string, unknown> = {
-  '../debug.js': { logForDebugging: (text: string) => effect('log', text) },
-  './decision/wrapper.js': {
-    decideToolPermissionWithModes: async (...args: unknown[]) => { effect('decision', ...args); return { decision, engineTrace, wrapper } },
+mock.module('../../src/utils/debug.js', () => ({
+  logForDebugging: (text: string) => effect('log', text),
+}))
+mock.module('../../src/utils/permissions/decision/wrapper.js', () => ({
+  decideToolPermissionWithModes: async (...args: unknown[]) => {
+    effect('decision', ...args)
+    return { decision, engineTrace, wrapper }
   },
-  './decision/engine.js': {
-    decideRuleBasedPermissions: async (...args: unknown[]) => { effect('ruleDecision', ...args); return { decision } },
+}))
+mock.module('../../src/utils/permissions/decision/engine.js', () => ({
+  decideRuleBasedPermissions: async (...args: unknown[]) => {
+    effect('ruleDecision', ...args)
+    return { decision }
   },
-  './decision/rules.js': {},
-  './decision/requestMessage.js': {},
-  './permissionsLoader.js': {
-    shouldAllowManagedPermissionRulesOnly: () => { effect('managed'); return managedOnly },
-    deletePermissionRuleFromSettings: (rule: unknown) => effect('disk', rule),
+}))
+mock.module('../../src/utils/permissions/permissionsLoader.js', () => ({
+  shouldAllowManagedPermissionRulesOnly: () => {
+    effect('managed')
+    return managedOnly
   },
-  './PermissionUpdate.js': {
-    applyPermissionUpdate: (...args: unknown[]) => { effect('one', ...args); return updated },
-    applyPermissionUpdates: (...args: unknown[]) => { effect('batch', ...args); return updated },
+  deletePermissionRuleFromSettings: (rule: unknown) => effect('disk', rule),
+  addPermissionRulesToSettings: () => {},
+}))
+mock.module('../../src/utils/permissions/PermissionUpdate.js', () => ({
+  applyPermissionUpdate: (...args: unknown[]) => {
+    effect('one', ...args)
+    return updated
   },
-  './lateAllowRules.js': {
-    noteAllowRulesOfSettingsChange: (...args: unknown[]) => effect('arrived', ...args),
+  applyPermissionUpdates: (...args: unknown[]) => {
+    effect('batch', ...args)
+    return updated
   },
-  '../hooks/toolPermission.js': { tellHooksHowAToolIsPermitted: () => {} },
-}
-const api = {} as typeof import('../../src/utils/permissions/permissions.js')
-const compiled = ts.transpileModule(readFileSync(resolve(import.meta.dir, '../../src/utils/permissions/permissions.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText
-new Function('require', 'exports', compiled)((name: string) => {
-  if (!(name in ports)) throw new Error(`Unexpected dependency ${name}`)
-  return ports[name]
-}, api)
+}))
+mock.module('../../src/utils/permissions/lateAllowRules.js', () => ({
+  noteAllowRulesOfSettingsChange: (...args: unknown[]) => effect('arrived', ...args),
+}))
+mock.module('../../src/utils/hooks/toolPermission.js', () => ({
+  tellHooksHowAToolIsPermitted: () => {},
+}))
+const api = await import('../../src/utils/permissions/permissions.js')
 
 const rule = (source: PermissionRule['source'], ruleBehavior: PermissionRule['ruleBehavior'], name: string): PermissionRule =>
   ({ source, ruleBehavior, ruleValue: { toolName: name, reason: `reason for ${name}` } })

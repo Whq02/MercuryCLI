@@ -157,7 +157,7 @@ function harness(wall: WatchWall) {
   check('the expiry notice says how to re-arm and names the persistent flag', notice.includes('calling Monitor again with the same command') && notice.includes('persistent: true'))
   const description = await MonitorTool.prompt()
   check('the model-facing description says how the watch ends, including the expiry notice and the persistent road, and names no other tool', description.includes('when its timeout passes with one expiry notice') && description.includes('with persistent, when it is stopped or the session ends') && !/\b(?:TaskStop|Bash)\b/.test(description))
-  check('the deadline bounds live in the timeout_ms field', String(MonitorTool.inputSchema.shape.timeout_ms.description).includes('Default 300000, min 1000, max 3600000'))
+  check('the deadline bounds live in the timeout_ms field', (MonitorTool.inputSchema.shape.timeout_ms.description ?? '').includes('Default 300000, min 1000, max 3600000'))
   check('the model-facing description says what happens to events behind a closed usage window', description.includes("usage window is closed are held and delivered together on your first turn after it reopens"))
   check('the model-facing description names the burst window and says an event is not a user reply', description.includes(`${BURST_WINDOW_MS}ms fold into one notification`) && description.includes('not a reply from the user'))
 }

@@ -1,7 +1,14 @@
 #!/usr/bin/env bun
+import '../lib/hermetic.ts'
+import { mock } from 'bun:test'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { z } from 'zod/v4'
 
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
+process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 
@@ -122,45 +129,209 @@ for (const allowance of ALLOWED) {
   )
 }
 
-section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
-{
-  const core = stripComments(readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8'))
-  const withModelStart = core.indexOf('export async function queryWithModel(')
-  const utilityStart = core.indexOf('export async function queryUtility(')
-  const utility = utilityStart >= 0 ? core.slice(utilityStart, withModelStart) : ''
-  check('queryUtility rides queryWithModel', utility.includes('return queryWithModel({'))
-  check("queryUtility's model and floor are the helper's (utilityCallFor), the floor pinned", utility.includes('utilityCallFor()') && utility.includes('effortPinned: true'))
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { utilityCallFor } = await import('../../src/utils/model/utilityModel.ts')
+type CallModelParams = import('../../src/services/providers/callModelContract.ts').CallModelParams
+type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+
+const streamCalls: CallModelParams[] = []
+const settledCalls: CallModelParams[] = []
+let nextReplyText = 'ok'
+
+function fakeAssistant(text: string): AssistantMessage {
+  return {
+    type: 'assistant',
+    uuid: '00000000-0000-4000-8000-000000000001' as never,
+    timestamp: '2026-01-01T00:00:00.000Z',
+    requestId: 'req-fixture',
+    message: {
+      id: 'msg-fixture',
+      type: 'message',
+      role: 'assistant',
+      model: 'fixture-model',
+      content: [{ type: 'text', text }],
+      stop_reason: 'end_turn',
+      stop_sequence: null,
+      usage: { input_tokens: 1, output_tokens: 1 },
+    },
+  } as unknown as AssistantMessage
 }
 
-section('§3 the rewritten sites import the router, never the transport')
+const realRouter = { ...(await import('../../src/services/providers/callModelRouter.ts')) }
+mock.module('../../src/services/providers/callModelRouter.ts', () => ({
+  ...realRouter,
+  routedCallModel: async function* (params: CallModelParams) {
+    streamCalls.push(params)
+    yield fakeAssistant(nextReplyText)
+  },
+  routedCallModelSettled: async (params: CallModelParams) => {
+    settledCalls.push(params)
+    return fakeAssistant(nextReplyText)
+  },
+}))
+const realCatalogueOnDemand = { ...(await import('../../src/services/providers/catalogueOnDemand.ts')) }
+mock.module('../../src/services/providers/catalogueOnDemand.ts', () => ({
+  ...realCatalogueOnDemand,
+  readCatalogueIfPending: async () => undefined,
+}))
+
+const { queryUtility } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const { nativeSearch } = await import('../../src/services/search/nativeSearch.ts')
+const { nativeSearchFamilyOf, resolveSearchDoorPlan } = await import('../../src/services/search/searchDoor.ts')
+const { runQuestionHook } = await import('../../src/utils/hooks/questionRunner.ts')
+const { generateAgent } = await import('../../src/components/agents/generateAgent.ts')
+
+const makeToolContext = (engineModel: string): never =>
+  ({
+    abortController: new AbortController(),
+    agentId: 'agent-fixture',
+    getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), effortValue: 'high' }),
+    options: {
+      engineModel,
+      thinkingConfig: { type: 'disabled' },
+      isNonInteractiveSession: true,
+      agentDefinitions: { activeAgents: [] },
+      appendSystemPrompt: undefined,
+    },
+  }) as never
+
+section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
 {
-  const read = (rel: string): string => stripComments(readFileSync(join(ROOT, rel), 'utf8'))
-  const compact = read('src/services/compact/compact.ts')
-  check('compact.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(compact))
+  streamCalls.length = 0
+  settledCalls.length = 0
+  nextReplyText = 'utility-answer'
+  const expected = utilityCallFor()
+  const reply = await queryUtility({
+    systemPrompt: asSystemPrompt(['Be brief.']),
+    userPrompt: 'ping',
+    signal: new AbortController().signal,
+    options: {
+      querySource: 'test_utility' as never,
+      agents: [],
+      isNonInteractiveSession: true,
+      hasAppendSystemPrompt: false,
+      mcpTools: [],
+    },
+  })
+  const call = streamCalls[0]
+  check(
+    'queryUtility rides queryWithModel through routedCallModel',
+    streamCalls.length === 1 && reply.message.content[0]?.type === 'text' && reply.message.content[0].text === 'utility-answer',
+    JSON.stringify({ calls: streamCalls.length, content: reply.message.content }),
+  )
+  check(
+    "queryUtility's model and floor are the helper's (utilityCallFor), the floor pinned",
+    call !== undefined &&
+      call.options.model === expected.model &&
+      call.options.effortValue === expected.effortValue &&
+      call.options.effortPinned === true &&
+      call.options.ridesSessionEffort === false &&
+      call.thinkingConfig.type === expected.thinkingConfig.type,
+    JSON.stringify({ got: call?.options, expected }),
+  )
+}
 
-  const nativeSearch = read('src/services/search/nativeSearch.ts')
-  check('nativeSearch.ts imports routedCallModel from the router', nativeSearch.includes("import { routedCallModel } from '../providers/callModelRouter.js'"))
-  check('nativeSearch.ts calls routedCallModel exactly once (the native search leg)', (nativeSearch.match(/routedCallModel\(\{/g) ?? []).length === 1)
-  check('nativeSearch.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(nativeSearch))
-  check('nativeSearch.ts reads no utility helper at all (the leg is the main model)', !/\butilityCallFor\b|\bqueryUtility\b/.test(nativeSearch))
-  const searchDoor = read('src/services/search/searchDoor.ts')
-  check('the search door opens the native door only for the main model\'s OWN family by the routing law', searchDoor.includes('declaredRouteOf(mainModel)') && searchDoor.includes('isNativeSearchFamily(route)'))
-  const webSearch = read('src/tools/WebSearchTool/WebSearchTool.ts')
-  check('WebSearchTool.ts hires no model and names no transport (the door owns the leg)', !/\brouted?CallModel\b|\bqueryModelWith(?:out)?Streaming\b|\butilityCallFor\b/.test(webSearch) && webSearch.includes('performWebSearch('))
-  const providerSearch = read('src/tools/WebSearchTool/ProviderSearchTool.ts')
-  check('ProviderSearchTool.ts reaches the wire only through the search owner (no transport, no direct router call)', !/\brouted?CallModel\b|\bqueryModelWith(?:out)?Streaming\b|\butilityCallFor\b/.test(providerSearch) && providerSearch.includes('nativeSearch('))
+section('§3 the rewritten sites reach the wire through the router')
+{
+  streamCalls.length = 0
+  settledCalls.length = 0
+  nextReplyText = 'search summary'
+  const searchOutcome = await nativeSearch('openai', { query: 'mercury router test' }, { context: makeToolContext('gpt-5.4') })
+  const searchCall = streamCalls[0]
+  check(
+    'nativeSearch calls routedCallModel once with the main model and nativeWebSearch options',
+    searchOutcome.ok &&
+      streamCalls.length === 1 &&
+      searchCall !== undefined &&
+      searchCall.options.model === 'gpt-5.4' &&
+      searchCall.options.querySource === 'web_search_tool' &&
+      searchCall.options.nativeWebSearch?.maxUses === 8,
+    JSON.stringify({ ok: searchOutcome.ok, calls: streamCalls.length, model: searchCall?.options.model, nativeWebSearch: searchCall?.options.nativeWebSearch }),
+  )
 
-  const hook = read('src/utils/hooks/questionRunner.ts')
-  check('questionRunner.ts imports routedCallModelSettled from the router', hook.includes("import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'"))
-  check('questionRunner.ts settles through routedCallModelSettled', (hook.match(/routedCallModelSettled\(\{/g) ?? []).length === 1)
-  check("questionRunner.ts defaults the question's model to the helper's (the seat, or a named model as itself) with a pinned floor", hook.includes("run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })") && hook.includes('effortPinned: true'))
-  check('questionRunner.ts picks no model itself: no family getter, and the one getEngineModel read only names the road whose list is read first', !/\bgetDefault(?:Haiku|Sonnet|Opus)Model\b/.test(hook) && (hook.match(/\bgetEngineModel\(\)/g) ?? []).length === 1 && hook.includes('declaredRouteOf(run.model ?? getEngineModel())'))
-  check('questionRunner.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(hook))
+  const anthropicPlan = resolveSearchDoorPlan({ mainModel: 'claude-sonnet-5', keylessAllowed: false })
+  const openaiPlan = resolveSearchDoorPlan({ mainModel: 'gpt-5.4', keylessAllowed: false })
+  const deepseekPlan = resolveSearchDoorPlan({ mainModel: 'deepseek-chat', keylessAllowed: false })
+  check(
+    "the search door opens the native door only for the main model's own family by the routing law",
+    nativeSearchFamilyOf('claude-sonnet-5') === 'anthropic' &&
+      nativeSearchFamilyOf('gpt-5.4') === 'openai' &&
+      nativeSearchFamilyOf('deepseek-chat') === undefined &&
+      nativeSearchFamilyOf('gemini-2.5-pro') === undefined &&
+      anthropicPlan.doors[0]?.kind === 'native' &&
+      anthropicPlan.doors[0].family === 'anthropic' &&
+      openaiPlan.doors[0]?.kind === 'native' &&
+      openaiPlan.doors[0].family === 'openai' &&
+      !deepseekPlan.doors.some(door => door.kind === 'native'),
+    JSON.stringify({ anthropic: anthropicPlan.doors, openai: openaiPlan.doors, deepseek: deepseekPlan.doors }),
+  )
 
-  const agent = read('src/components/agents/generateAgent.ts')
-  check('generateAgent.ts imports routedCallModelSettled from the router', agent.includes("import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'"))
-  check('generateAgent.ts settles through routedCallModelSettled', (agent.match(/routedCallModelSettled\(\{/g) ?? []).length === 1)
-  check('generateAgent.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(agent))
+  settledCalls.length = 0
+  nextReplyText = '{"allow":true}'
+  const expectedHookDefault = utilityCallFor()
+  const hookDefaultEnd = await runQuestionHook({
+    text: 'Allow this?',
+    name: 'test-hook',
+    event: 'PreToolUse',
+    payloadJson: '{}',
+    answerSchema: z.object({ allow: z.boolean() }),
+    timeoutMs: 5_000,
+    toolUseContext: makeToolContext('claude-sonnet-5'),
+  })
+  const hookDefaultCall = settledCalls[0]
+  check(
+    'questionRunner settles through routedCallModelSettled once and defaults to utilityCallFor() with a pinned floor',
+    hookDefaultEnd.kind === 'answered' &&
+      settledCalls.length === 1 &&
+      hookDefaultCall !== undefined &&
+      hookDefaultCall.options.model === expectedHookDefault.model &&
+      hookDefaultCall.options.effortValue === expectedHookDefault.effortValue &&
+      hookDefaultCall.options.effortPinned === true &&
+      hookDefaultCall.options.querySource === 'hook_prompt',
+    JSON.stringify({ end: hookDefaultEnd, calls: settledCalls.length, got: hookDefaultCall?.options, expected: expectedHookDefault }),
+  )
+
+  settledCalls.length = 0
+  nextReplyText = '{"allow":false}'
+  const expectedHookNamed = utilityCallFor('gpt-5.4', { named: true })
+  const hookNamedEnd = await runQuestionHook({
+    text: 'Allow this?',
+    name: 'test-hook-named',
+    event: 'PreToolUse',
+    payloadJson: '{}',
+    answerSchema: z.object({ allow: z.boolean() }),
+    model: 'gpt-5.4',
+    timeoutMs: 5_000,
+    toolUseContext: makeToolContext('claude-sonnet-5'),
+  })
+  const hookNamedCall = settledCalls[0]
+  check(
+    'questionRunner routes a named hook model via utilityCallFor(model, { named: true }) with a pinned floor',
+    hookNamedEnd.kind === 'answered' &&
+      settledCalls.length === 1 &&
+      hookNamedCall !== undefined &&
+      hookNamedCall.options.model === expectedHookNamed.model &&
+      hookNamedCall.options.effortValue === expectedHookNamed.effortValue &&
+      hookNamedCall.options.effortPinned === true,
+    JSON.stringify({ end: hookNamedEnd, calls: settledCalls.length, got: hookNamedCall?.options, expected: expectedHookNamed }),
+  )
+
+  settledCalls.length = 0
+  nextReplyText = JSON.stringify({ identifier: 'router-agent', whenToUse: 'when testing routing', systemPrompt: 'Test routing.' })
+  const draft = await generateAgent('design a router tester', 'gpt-5.4', ['existing-agent'], new AbortController().signal)
+  const agentCall = settledCalls[0]
+  check(
+    'generateAgent settles through routedCallModelSettled once with the requested model',
+    settledCalls.length === 1 &&
+      agentCall !== undefined &&
+      agentCall.options.model === 'gpt-5.4' &&
+      agentCall.options.querySource === 'agent_creation' &&
+      draft.identifier === 'router-agent',
+    JSON.stringify({ calls: settledCalls.length, model: agentCall?.options.model, draft }),
+  )
 }
 
 console.log('\n' + '='.repeat(60))

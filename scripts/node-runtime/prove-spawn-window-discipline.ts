@@ -19,6 +19,7 @@ interface Site {
   line: number
   callee: string
   value: string
+  bareGit: boolean
 }
 
 const ALLOWLIST: ReadonlyArray<{ path: string; callee: string; value: string; count: number; reason: string }> = [
@@ -195,7 +196,9 @@ for (const file of walkDir(join(ROOT, 'src'))) {
       }
       if (name) {
         const value = gradeOptions(node)
-        sites.push({ path: rel, line: lineOf(node), callee: name, value })
+        const firstArg = node.arguments[0]
+        const bareGit = firstArg !== undefined && ts.isStringLiteralLike(firstArg) && firstArg.text === 'git'
+        sites.push({ path: rel, line: lineOf(node), callee: name, value, bareGit })
         if (name === 'execa' && value !== 'true') execaCallGaps.push(`${rel}:${lineOf(node)} execa windowsHide=${value}`)
       }
     }
@@ -234,13 +237,8 @@ section('(3) the sighting anchors — both operator journeys ride hidden spawns'
   check('every concourseWorktrees spawn is hidden (git offer + the board beat run HERE)', consent.length > 0 && consent.every(s => s.value === 'true'))
   const verif = sites.filter(s => s.path === 'src/utils/verification/verificationState.ts')
   check('every verificationState git spawn is hidden (the per-beat worker road)', verif.length >= 4 && verif.every(s => s.value === 'true'), `found ${verif.length}`)
-  {
-    const { readFileSync } = await import('node:fs')
-    for (const rel of ['src/daemon/concourseWorktrees.ts', 'src/utils/verification/verificationState.ts'] as const) {
-      const src = readFileSync(rel, 'utf8')
-      check(`${rel}: git spawns take gitExe(), never the bare literal`, !/(?:spawn|spawnSync|execFile|execFileSync)\(\s*'git'/.test(src))
-    }
-  }
+  check('src/daemon/concourseWorktrees.ts: git spawns take gitExe(), never the bare literal', consent.every(s => !s.bareGit))
+  check('src/utils/verification/verificationState.ts: git spawns take gitExe(), never the bare literal', verif.every(s => !s.bareGit))
 }
 
 section('(4) execa containment — one spawn library, ridden only through named doors')

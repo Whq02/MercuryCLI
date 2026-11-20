@@ -10,6 +10,7 @@ import {
 import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
 import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
 import { buildProviderSnapshot, classOfModel } from '../../src/services/providers/modelRegistry.js'
+import { SKILL_FILES as BUNDLED_PROVIDER_APIS_FILES } from '../../src/skills/bundled/provider-apisContent.js'
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -105,9 +106,11 @@ section('8. prose surfaces — bundled skills + living docs track the owners')
     const tree = files(directory)
     const frozen = tree.flatMap(path => fixedRows(src(path)).map(row => `${path}: ${row}`))
     check(`${directory}: every skill file is free of fixed catalogue rows`, tree.length >= 6 && frozen.length === 0, frozen.join('\n'))
-    const modelsMd = src(`${directory}/references/models.md`)
-    check(`${directory}: model facts come from the live catalogue reader`, modelsMd.includes('src/services/providers/catalogueOnDemand.ts') && modelsMd.includes('current catalogue') && modelsMd.includes('no model inventory'))
   }
+  const externalModelsMd = src('mercury-skills/provider-apis/references/models.md')
+  check('mercury-skills/provider-apis: model facts come from the live catalogue reader', externalModelsMd.includes('src/services/providers/catalogueOnDemand.ts') && externalModelsMd.includes('current catalogue') && externalModelsMd.includes('no model inventory'))
+  const bundledModelsMd = BUNDLED_PROVIDER_APIS_FILES['references/models.md'] ?? ''
+  check('src/skills/bundled/provider-apis: model facts come from the live catalogue reader', bundledModelsMd.includes('src/services/providers/catalogueOnDemand.ts') && bundledModelsMd.includes('current catalogue') && bundledModelsMd.includes('no model inventory'))
   const sample = catalogue.find(model => model.id === getDefaultOpusModel())!
   check('the census rejects a planted model ID row', fixedRows(`| \`${sample.id}\` | fixture |`).length === 1)
   check('the census rejects a planted marketing-name row', fixedRows(`| ${sample.displayLabel} | fixture |`).length === 1)

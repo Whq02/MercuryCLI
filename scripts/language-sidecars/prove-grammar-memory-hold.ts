@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const distAt = process.argv.indexOf('--dist')
@@ -146,9 +147,8 @@ const corpusSample = (name: string): string | undefined => {
   const first = Object.values(CORPUS[name] ?? {})[0]
   return first ? `${first.join('\n')}\n` : undefined
 }
+const tieringUrl = pathToFileURL(join(ROOT, 'src', 'services', 'structure', 'wasmTiering.ts')).href
 if (NODE) {
-  const source = readFileSync(join(ROOT, 'src', 'services', 'structure', 'wasmTiering.ts'), 'utf8')
-  writeFileSync(join(scratch, 'tiering.mjs'), new Bun.Transpiler({ loader: 'ts' }).transformSync(source))
   mkdirSync(engineDir)
   for (const f of ['tree-sitter.js', 'tree-sitter.wasm']) copyFileSync(join(vscodeWasm, f), join(engineDir, f))
   writeFileSync(join(engineDir, 'package.json'), '{"type":"commonjs"}\n')
@@ -163,7 +163,7 @@ if (NODE) {
     join(scratch, 'sustained.mjs'),
     `import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { withOptimisingTierHeld } from './tiering.mjs'
+import { withOptimisingTierHeld } from ${JSON.stringify(tieringUrl)}
 const [dir, wasm, mode, warmWasm, rounds, sample] = process.argv.slice(2)
 const raw = createRequire(join(dir, 'tree-sitter.js'))(join(dir, 'tree-sitter.js'))
 const mod = raw && raw.Parser ? raw : raw.default
@@ -236,7 +236,7 @@ if (!NODE) {
     join(scratch, 'readback.mjs'),
     `import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { HELD_TIER_NODE_FLAGS, optimisingTierCanBeHeld, withOptimisingTierHeld } from './tiering.mjs'
+import { HELD_TIER_NODE_FLAGS, optimisingTierCanBeHeld, withOptimisingTierHeld } from ${JSON.stringify(tieringUrl)}
 const BYTES = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x73, 0x70, 0x69, 0x6e, 0x00, 0x00, 0x0a, 0x20, 0x01, 0x1e, 0x01, 0x02, 0x7f, 0x03, 0x40, 0x20, 0x02, 0x20, 0x01, 0x6a, 0x21, 0x02, 0x20, 0x01, 0x41, 0x01, 0x6a, 0x21, 0x01, 0x20, 0x01, 0x20, 0x00, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x02, 0x0b])
 const isTurbo = new Function('f', 'return %IsTurboFanFunction(f)')
 const pause = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
@@ -353,7 +353,7 @@ console.log(JSON.stringify(out))
     join(scratch, 'trees.mjs'),
     `import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { withOptimisingTierHeld } from './tiering.mjs'
+import { withOptimisingTierHeld } from ${JSON.stringify(tieringUrl)}
 const [dir, wasm, sample] = process.argv.slice(2)
 const raw = createRequire(join(dir, 'tree-sitter.js'))(join(dir, 'tree-sitter.js'))
 const mod = raw && raw.Parser ? raw : raw.default

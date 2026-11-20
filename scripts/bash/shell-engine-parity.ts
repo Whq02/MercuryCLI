@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 import { brushPackPlatform } from '../../src/utils/shell/brushPack.ts'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const ENGINES = ['system', 'brush'] as const
 export type Engine = (typeof ENGINES)[number]
@@ -101,7 +100,7 @@ export function findVendoredBrush(root: string = ROOT): string | null {
 }
 
 export function engineLaneState(root: string = ROOT): LaneState {
-  const registered = root === ROOT ? getFlagSpec(ENGINE_ENV) !== undefined : flagRegistryText(root).includes(`'${ENGINE_ENV}'`)
+  const registered = getFlagSpec(ENGINE_ENV) !== undefined
   if (!registered) {
     return {
       state: 'unwired',

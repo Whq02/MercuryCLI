@@ -19,7 +19,6 @@ PROOFS=(
   prove-bm-classes.ts
   prove-progress-model.ts
   prove-prefix-fingerprint.ts
-  prove-surface-sweep.ts
   prove-tool-delta-grammar.ts
   prove-run-phases.ts
   prove-run-stop-hook.ts

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { STEPS, estateOf, factsOf, srcOf, type Estate, type Facts, type Hit } from '../lib/sourceTextReads.ts'
+import { GENERATORS, NAMED_TOOLS, STEPS, estateOf, factsOf, srcOf, toolsOf, type Estate, type Facts, type Hit } from '../lib/sourceTextReads.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = 'scripts/gate/prove-source-text-reads.ts'
@@ -388,6 +388,59 @@ function plantedEstate(): void {
   check('an estate git lists nothing of is not read as an empty one: with no file listed the floor fails', floor({ scripts: [], src: srcOf([]), listed: true }, 0) !== '' && floor({ scripts: [SELF], src: srcOf([]), listed: false }, 1) !== '' && floor({ scripts: [SELF], src: srcOf([ONE]), listed: true }, 1) === '')
 }
 
+function plantedTools(): void {
+  const ONE = 'src/planted/one.ts'
+  const LONE = 'src/lone.ts'
+  const PACK = 'scripts/release/pack.mjs'
+  const MADE = 'scripts/a/prove-made.ts'
+  const BOTH = 'scripts/a/prove-both.ts'
+  const planted: Array<[string, string[]]> = [
+    [PACK, ["import { readFileSync } from 'node:fs'", "import { join, resolve } from 'node:path'", "const ROOT = resolve(import.meta.dirname, '..', '..')", 'export function made() {', "  return readFileSync(join(ROOT, 'src/lone.ts'), 'utf8')", '}']],
+    [MADE, ["import { made } from '../release/pack.mjs'", "console.log(made().includes('x'))"]],
+    [BOTH, ["import { readFileSync } from 'node:fs'", "import { join } from 'node:path'", "import { made } from '../release/pack.mjs'", "const ROOT = join(import.meta.dir, '..', '..')", "console.log(made().includes('x'), readFileSync(join(ROOT, 'src/planted/one.ts'), 'utf8').includes('y'))"]],
+  ]
+  const root = mkdtempSync(join(tmpdir(), 'source-text-tools-'))
+  for (const [file, lines] of planted) {
+    mkdirSync(dirname(join(root, file)), { recursive: true })
+    writeFileSync(join(root, file), lines.join('\n') + '\n')
+  }
+  const scripts = planted.map(([file]) => file)
+  const src = srcOf([ONE, LONE])
+  const followed = factsOf(root, { scripts, src, listed: true }).facts
+  const aside = factsOf(root, { scripts, src, listed: true, tools: toolsOf(scripts, '') }).facts
+  rmSync(root, { recursive: true, force: true })
+  const seen = (facts: Map<string, Facts>, file: string): string => {
+    const f = facts.get(file)
+    return f === undefined ? 'not read' : `[${[...f.pins.keys()].sort().join(' ')}] ${f.searches.length}`
+  }
+  const named = toolsOf(
+    ['scripts/gen/make.ts', 'scripts/gen/prove-made.ts', 'scripts/release/pack.mjs', 'scripts/release/prove-pack.ts', 'scripts/release/run-all.sh', 'scripts/b/other.ts', ...NAMED_TOOLS],
+    '# asset\tbun scripts/b/other.ts\na.json\tbun run build.ts && bun scripts/gen/make.ts\tbun scripts/gen/prove-made.ts\tsrc/**\nb.json\tbun scripts/gen/prove-made.ts --record\tbun scripts/gen/prove-made.ts\tsrc/**\nc.json\tbun scripts/gen/gone.ts\t\tsrc/**\n',
+  )
+  check(
+    `a tool is a script the generator column of ${GENERATORS} names, a file under scripts/release/ or one of the ${NAMED_TOOLS.length} the reader names, and never a file named prove-* or run-all.sh, a script only a comment or a check column names, or one git does not list`,
+    [...named].join(' ') === ['scripts/gen/make.ts', ...NAMED_TOOLS, 'scripts/release/pack.mjs'].sort().join(' '),
+    [...named].join(' '),
+  )
+  check(
+    'a tool is not read and what a script takes from it is not followed: a test that searches only what a tool returns opens nothing, a test that also reads a file itself keeps that file and its own search, and with no tool named the same estate charges all three scripts',
+    seen(aside, PACK) === 'not read' && seen(aside, MADE) === '[] 0' && seen(aside, BOTH) === `[${ONE}] 1` && seen(followed, PACK) === `[${LONE}] 0` && seen(followed, MADE) === `[${LONE}] 1` && seen(followed, BOTH) === `[${LONE} ${ONE}] 2`,
+    `set aside: ${[PACK, MADE, BOTH].map(f => seen(aside, f)).join(' · ')} — followed: ${[PACK, MADE, BOTH].map(f => seen(followed, f)).join(' · ')}`,
+  )
+}
+
+function setAside(estate: Estate, facts: Map<string, Facts>): void {
+  const before = rowsOf(factsOf(ROOT, { ...estate, tools: new Set() }).facts)
+  const after = rowsOf(facts)
+  const lines = [...before].filter(([script, row]) => after.get(script)?.pins !== row.pins || after.get(script)?.searches !== row.searches).sort(([a], [b]) => (a < b ? -1 : 1))
+  const less = (of: (row: Row) => number): number => lines.reduce((n, [script, row]) => n + of(row) - (after.has(script) ? of(after.get(script)!) : 0), 0)
+  console.log(`\n  set aside as tooling, and so in no count above: ${less(r => r.pins)} files opened and ${less(r => r.searches)} searches in ${lines.length} scripts (a tool reads src to do its work; a script that takes from a tool is charged only for what it opens itself):`)
+  for (const [script, row] of lines) {
+    const now = after.get(script)
+    console.log(`    ${estate.tools?.has(script) ? 'a tool      ' : 'takes from one'}  ${row.pins} files, ${row.searches} searches${now ? ` -> ${now.pins} files, ${now.searches} searches` : ''}\t${script}`)
+  }
+}
+
 function floor(estate: Estate, read: number): string {
   if (!estate.listed) return `git lists nothing here: run the proof inside the checkout, with no GIT_DIR, GIT_INDEX_FILE or GIT_WORK_TREE in its environment`
   if (!estate.scripts.includes(SELF)) return `git lists ${estate.scripts.length} files under scripts and not ${SELF}: the proof reads the files git lists, so a tree git lists nothing of proves nothing`
@@ -452,6 +505,7 @@ if (process.argv.includes('--risen')) {
 
 section('§0 the reader on a planted estate: what is a pin, what is a search, what is only a name, and how the table is kept')
 plantedEstate()
+plantedTools()
 
 section(`§1 the estate: the src files each script opens as text and its searches in what it read, against ${TABLE}`)
 const estate = estateOf(ROOT)
@@ -462,7 +516,7 @@ const count = (of: (f: Facts) => boolean): number => [...facts.values()].filter(
 const totals = { pins: sum(f => f.pins.size), searches: sum(f => (f.pins.size > 0 ? f.searches.length : 0)), namesOnly: sum(f => f.namesOnly.size) }
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
 const table = text === null ? null : tableOf(text)
-const REACH = `the fence reads scripts/ and counts files under src/: a test in another folder and source outside src/ are not read. Out of reach, with the scripts that do it today: a folder under src that is walked, globbed or searched by a tool, or the base of a name built at run time (${count(f => f.folder)} name one); a name under src assembled at run time (${count(f => f.fragment)} read one; --readers prints each for a file of the folder it reads in); a search in a shell or Python script, where every name counts as opened and every line that names a file as one search (${count(f => f.shell && f.pins.size > 0)}); a text import spelled in the text of a child program (${count(f => f.childText)}); a script whose helper calls outrun the ${STEPS} steps the reader follows them for (${count(f => f.spent)}); a list kept in a data file or a document (${aside} such files name a src file); and with no count a path that arrives from outside the file, a copy of the tree under a named folder, a search by another method than includes, indexOf, match, search, split, startsWith, endsWith, test and exec, and more needles handed to one call`
+const REACH = `the fence reads scripts/ and counts files under src/: a test in another folder and source outside src/ are not read. Out of reach, with the scripts that do it today: a folder under src that is walked, globbed or searched by a tool, or the base of a name built at run time (${count(f => f.folder)} name one); a name under src assembled at run time (${count(f => f.fragment)} read one; --readers prints each for a file of the folder it reads in); a search in a shell or Python script, where every name counts as opened and every line that names a file as one search (${count(f => f.shell && f.pins.size > 0)}); a text import spelled in the text of a child program (${count(f => f.childText)}); a script whose helper calls outrun the ${STEPS} steps the reader follows them for (${count(f => f.spent)}); a list kept in a data file or a document (${aside} such files name a src file); and with no count a path that arrives from outside the file, a copy of the tree under a named folder, a search by another method than includes, indexOf, match, search, split, startsWith, endsWith, test and exec, and more needles handed to one call; and not read at all, a tool (${estate.tools?.size ?? 0}: a script the generator column of ${GENERATORS} names, a file under scripts/release/, ${NAMED_TOOLS.join(' and ')}, never a file named prove-* or run-all.sh), whose reads of src are its work, so what a script takes from one is not followed (--report prints what that sets aside)`
 const REPAIR = `${INSTEAD}; a row is written only when it falls, leaves, holds other files or moves with its file (git mv, then bun ${SELF} --write)`
 console.log(`  ${estate.scripts.length} files under scripts · ${read} read (code by its syntax tree, shell and Python by the line; data files, documents and binary files aside) · ${estate.src.files.size} files under src · ${rows.size} scripts open a src file as text · ${totals.pins} files opened · ${totals.searches} searches · ${totals.namesOnly} names only`)
 const low = floor(estate, read)
@@ -483,7 +537,10 @@ if (process.argv.includes('--write')) {
   check(`no script opens more src files as text than its row allows, searches more often in what it read, or opens other files; a script with no row opens none (${table.size} rows · ${REACH})`, found.over.length === 0, `${found.over.length} found — ${REPAIR}:${told(found.over, facts)}`)
   if (found.slack > 0) console.log(`  rows above their script's count: ${found.slack} (the fold lowers them with bun ${SELF} --write)`)
 }
-if (process.argv.includes('--report')) report(facts)
+if (process.argv.includes('--report')) {
+  report(facts)
+  setAside(estate, facts)
+}
 if (process.argv.includes('--readers')) readersOf(facts, process.argv.slice(process.argv.indexOf('--readers') + 1).filter(arg => !arg.startsWith('--')))
 console.log(`\nprove-source-text-reads: ${failures === 0 ? 'green' : `${failures} failed`} · pins ${totals.pins} (src files opened as text) · searches ${totals.searches} · names only ${totals.namesOnly} · scripts with a row ${rows.size}`)
 process.exit(failures === 0 ? 0 : 1)

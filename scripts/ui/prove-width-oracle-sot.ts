@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { charWidth, displayWidth, truncateToWidth } from '../../src/components/mercury-ui/glyphs.ts'
+import { stringWidth } from '../../src/ink/stringWidth.ts'
+import { truncateToWidth as rigorousTruncateToWidth } from '../../src/utils/truncate.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
@@ -63,15 +66,24 @@ check(
   offenders.length ? `offenders:\n      - ${offenders.join('\n      - ')}` : 'clean',
 )
 
-const glyphs = readFileSync(join(ROOT, 'src/components/mercury-ui/glyphs.ts'), 'utf8')
+const widthSamples = ['', 'a', 'hello', '漢', '日本語テスト', 'e\u0301', '\u200b', '🚀', '👩‍💻', '⚠️', '\x1b[31mred\x1b[0m', '\x1b[1;32m✓ ok\x1b[0m']
+const widthDrift = widthSamples.filter(s => charWidth(s) !== stringWidth(s) || displayWidth(s) !== stringWidth(s))
 check(
-  'glyphs.ts charWidth/displayWidth delegate to stringWidth',
-  /function charWidth[\s\S]{0,80}stringWidth\(/.test(glyphs) &&
-    /function displayWidth[\s\S]{0,80}stringWidth\(/.test(glyphs),
+  'glyphs.ts charWidth/displayWidth agree with stringWidth',
+  widthDrift.length === 0,
+  widthDrift.map(s => JSON.stringify(s)).join(', '),
 )
+const truncDrift: string[] = []
+for (const s of widthSamples) {
+  if (truncateToWidth(s, 0) !== '' || truncateToWidth(s, -1) !== '') truncDrift.push(`${JSON.stringify(s)}@<=0`)
+  for (const max of [1, 2, 3, 5, 8, 20]) {
+    if (truncateToWidth(s, max) !== rigorousTruncateToWidth(s, max)) truncDrift.push(`${JSON.stringify(s)}@${max}`)
+  }
+}
 check(
-  'glyphs.ts truncateToWidth delegates to the rigorous truncator',
-  /function truncateToWidth[\s\S]{0,160}rigorousTruncateToWidth\(/.test(glyphs),
+  'glyphs.ts truncateToWidth agrees with the rigorous truncator',
+  truncDrift.length === 0,
+  truncDrift.join(', '),
 )
 
 console.log(failures === 0 ? '\nALL WIDTH-SOT PROOFS PASS' : `\n${failures} PROOF(S) FAILED`)

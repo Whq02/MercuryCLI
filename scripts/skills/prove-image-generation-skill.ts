@@ -245,8 +245,9 @@ try {
   const imageSchema = schemas.get('image_generate') ?? {}
   const image = compileJsonSchema(imageSchema)
   check('image schema compiles in Mercury', image.ok, image.ok ? '' : image.error)
-  const catalogue = JSON.parse(readFileSync(join(ROOT, 'src', 'extensions', 'bundled', 'mercury-media', 'server', 'catalog.json'), 'utf8')) as { models: Array<{ id: string; control?: { kind: string } }> }
-  const vocabulary = new Set([...toolNames, ...[...schemas.values()].flatMap(schema => pathsOf(schema)), ...[...schemas.values()].flatMap(enumsOf), ...catalogue.models.flatMap(row => [row.id, ...(row.control ? [row.control.kind] : [])])])
+  const modelsReply = await client.callTool({ name: 'media_models', arguments: {} })
+  const catalogue = (modelsReply.structuredContent as { models?: Array<{ model: string; control?: { kind: string } }> } | undefined)?.models ?? []
+  const vocabulary = new Set([...toolNames, ...[...schemas.values()].flatMap(schema => pathsOf(schema)), ...[...schemas.values()].flatMap(enumsOf), ...catalogue.flatMap(row => [row.model, ...(row.control ? [row.control.kind] : [])])])
   for (const path of [...vocabulary]) for (const part of path.replaceAll('[]', '').split('.')) vocabulary.add(part)
   check('media.host is a product setting, not a media tool argument', mediaGuide.includes('`media.host`') && !pathsOf(imageSchema).includes('media.host'))
   vocabulary.add('media.host'); vocabulary.add('null')
@@ -320,8 +321,8 @@ try {
   }
   check('schema-only calls left no weights or diffusion runtime in the scratch media root', !existsSync(join(scratch, 'media', 'models')) && !existsSync(join(scratch, 'media', 'runtime')))
   const sources = skillFiles.find(([rel]) => rel === 'references/sources.md')?.[1] ?? ''
-  const manifest = JSON.parse(readFileSync(join(ROOT, 'src/extensions/bundled/mercury-media/server/manifest.json'), 'utf8')) as { version: string }
-  check('source provenance records the inspected shipped version, not the old guide basis', sources.includes('CODE inspected 2026-11-13') && sources.includes(`media ${manifest.version}`))
+  const serverVersion = client.getServerVersion()?.version ?? ''
+  check('source provenance records the inspected shipped version, not the old guide basis', sources.includes('CODE inspected 2026-11-13') && serverVersion !== '' && sources.includes(`media ${serverVersion}`))
   check('tool guide delegates fields and enums to the live schema instead of copying inventories', !inventoryText.includes('## Input inventory') && !inventoryText.includes('Sampler enum:') && inventoryText.includes('live schema'))
   check('export guidance names shared sampling resolution and refusal instead of the obsolete workaround', pipelineText.includes('resolveSampling') && pipelineText.includes('custom sigma') && !pipelineText.includes('omitted CFG and sampler can fall back differently'))
 } catch (error) {

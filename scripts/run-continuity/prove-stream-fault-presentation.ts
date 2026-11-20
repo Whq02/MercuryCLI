@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -9,12 +8,10 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
 }
 const ROOT = new URL('../../', import.meta.url).pathname
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 console.log('recovered stream-fault presentation ──')
 
 {
-  const errors = src('src/services/api/errors.ts')
   const t = await import('../core-runtime/turnScenarios.ts')
   const owner = await import('../../src/services/api/errors.ts')
   type Row = Record<string, unknown>
@@ -33,7 +30,7 @@ console.log('recovered stream-fault presentation ──')
   const rowsOf = (rows: Row[]): string => rows.map(row => `${String(row.type)}${row.isMeta === true ? ' (meta)' : ''}${row.isApiErrorMessage === true ? ' (API error)' : ''}`).join(', ') || 'no row'
   check(
     'turn machine composes the nudge through the owner',
-    nudge?.type === 'user' && nudge.isMeta === true && JSON.stringify((nudge.message as Row).content) === JSON.stringify(owner.streamFaultRecoveryContent(PARTIAL)) && errors.includes('export function streamFaultRecoveryContent'),
+    nudge?.type === 'user' && nudge.isMeta === true && JSON.stringify((nudge.message as Row).content) === JSON.stringify(owner.streamFaultRecoveryContent(PARTIAL)),
     `${RULE} must close the continuation request with a meta user row whose content is streamFaultRecoveryContent(the settled reply's text); the request closes with ${JSON.stringify((nudge?.message as Row | undefined)?.content)}`,
   )
   check(

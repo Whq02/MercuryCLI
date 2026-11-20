@@ -27,6 +27,7 @@ const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools
 const lspManager = await import('../../src/services/lsp/manager.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
+const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 type Tool = import('../../src/Tool.ts').Tool
 
 let failures = 0
@@ -49,7 +50,7 @@ const universe = new Set<string>()
 for (const file of sources) {
   for (const match of readFileSync(file, 'utf8').matchAll(/export const [A-Z_]+_TOOL_NAME = '([A-Za-z_]+)'/g)) universe.add(match[1]!)
 }
-for (const match of readFileSync(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts'), 'utf8').matchAll(/^  name: '([A-Za-z_]+)',$/gm)) universe.add(match[1]!)
+universe.add(BrowserTool.name)
 universe.delete('Chat')
 const LSP_NAMES = ['LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest']
 const multiWord = [...universe].filter(name => /[a-z][A-Z]/.test(name))

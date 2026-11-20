@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
+import { defaultMercuryHome } from '../../src/utils/envUtils.ts'
+import { accountStoreHome, homeIsAccountStore, refuseProofWriteIntoAccountStore } from '../../src/utils/proofHomeGuard.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SCRIPTS = join(ROOT, 'scripts')
@@ -56,10 +58,30 @@ section('the product spells its config home once')
       })
   }
   check(
-    /homedir\(\), '\.mercury'/.test(code('src/utils/envUtils.ts')),
+    defaultMercuryHome() === join(homedir(), '.mercury'),
     'src/utils/envUtils.ts derives the default home from homedir() (the one resolver)',
   )
-  check(refusalBoundaries === 1 && code('src/utils/proofHomeGuard.ts').includes('if (proof === undefined || !homeIsAccountStore(home)) return'), 'the proof-write guard names exactly one account-home refusal boundary, not a configurable write destination')
+  let refusedCode = ''
+  try {
+    refuseProofWriteIntoAccountStore(accountStoreHome(), 'settings')
+  } catch (error) {
+    refusedCode = (error as NodeJS.ErrnoException).code ?? ''
+  }
+  let scratchAllowed = true
+  try {
+    refuseProofWriteIntoAccountStore(join(tmpdir(), 'proof-home-guard-check'), 'settings')
+  } catch {
+    scratchAllowed = false
+  }
+  check(
+    refusalBoundaries === 1 &&
+      accountStoreHome() === resolve(join(homedir(), '.mercury')) &&
+      homeIsAccountStore(accountStoreHome()) &&
+      !homeIsAccountStore(join(tmpdir(), 'proof-home-guard-check')) &&
+      refusedCode === 'EPROOFHOME' &&
+      scratchAllowed,
+    'the proof-write guard names exactly one account-home refusal boundary, not a configurable write destination',
+  )
   check(offenders.length === 0, 'no other product module joins the operator home with .mercury (settings, model choice and session facts ride getMercuryHome; the resolver, launcher text and exact proof-write refusal boundary are named)', offenders.join(', '))
 }
 

@@ -1,89 +1,99 @@
 import { deepStrictEqual, equal, rejects, strictEqual, throws } from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { posix, resolve, win32 } from 'node:path'
-import ts from 'typescript'
-import * as door from '../../src/substrate/flagRegistry.ts'
+import { mock } from 'bun:test'
 
-type Paths = typeof import('../../src/utils/sessionStorage/paths.js')
-const compiled = ts.transpileModule(readFileSync(resolve(import.meta.dir, '../../src/utils/sessionStorage/paths.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText
+const ROOT = resolve(import.meta.dir, '../..')
 const absent = Object.assign(new Error('absent'), { code: 'ENOENT' })
 const broken = Object.assign(new Error('broken'), { code: 'EIO' })
 
-function fixture(path: typeof posix) {
-  const events: unknown[][] = []
-  const files = new Map<string, string | Error>()
-  const directories = new Map<string, unknown[] | Error>()
-  const state = {
-    cwd: 'project/with dots', home: path.resolve('/proof-home'), session: 'session-one',
-    override: undefined as string | null | undefined,
-    statError: undefined as Error | undefined,
-    resolutionError: undefined as Error | undefined,
-    publishError: undefined as Error | undefined,
-  }
-  const project = (cwd: string) => path.join(state.home, 'projects', encodeURIComponent(cwd))
-  const real: Record<string, unknown> = { flagRegistry: door }
-  const ports: Record<string, unknown> = {
-    path,
-    'fs/promises': {
-      async readdir(dir: string, options?: unknown) {
-        events.push(['readdir', dir, options])
-        const contents = directories.get(dir) ?? absent
-        if (contents instanceof Error) throw contents
-        return contents
-      },
-      async readFile(file: string, encoding: string) {
-        events.push(['read', file, encoding])
-        const contents = files.get(file) ?? absent
-        if (contents instanceof Error) throw contents
-        return contents
-      },
-    },
-    '../../bootstrap/state.js': {
-      getOriginalCwd: () => { events.push(['cwd']); return state.cwd },
-      getSessionId: () => { events.push(['session']); return state.session },
-      getSessionProjectDir: () => { events.push(['override']); return state.override },
-    },
-    '../debug.js': { logForDebugging: (...args: unknown[]) => events.push(['warn', ...args]) },
-    '../envUtils.js': { getMercuryHome: () => state.home },
-    '../errors.js': { isFsInaccessible: (error: unknown) => error === absent },
-    '../fsOperations.js': {
-      getFsImplementation: () => ({ statSync(file: string) { events.push(['stat', file]); if (state.statError) throw state.statError; return {} } }),
-    },
-    '../../substrate/durablePublish.js': {
-      async durableAtomicPublish(file: string, text: string) {
-        events.push(['publish', file, text])
-        if (state.publishError) throw state.publishError
-      },
-    },
-    '../sessionStoragePortable.js': {
-      getProjectDir(cwd: string) {
-        events.push(['project', cwd])
-        if (state.resolutionError) throw state.resolutionError
-        return project(cwd)
-      },
-    },
-    '../../rows/storage.js': {
-      EPHEMERAL_STORAGE_PROGRESS: new Set(['bash_progress', 'powershell_progress', 'mcp_progress']),
-      storageRowPolicy: (type: string) => ['user', 'assistant', 'system', 'attachment'].includes(type) ? { fold: 'message' } : undefined,
-    },
-  }
-  const env: Record<string, string | undefined> = {}
-  const api = {} as Paths
-  new Function('require', 'exports', 'process', compiled)((name: string) => {
-    const key = name.replace(/^node:/, '')
-    const stem = key.slice(key.lastIndexOf('/') + 1).replace(/\.[cm]?js$/, '')
-    if (key in ports) return ports[key]
-    if (key.startsWith('.') && stem in real) return real[stem]
-    throw new Error(`Unexpected dependency ${name}`)
-  }, api, { env })
-  return { api, state, events, files, directories, project, env }
+let currentPath: typeof posix = posix
+const events: unknown[][] = []
+const files = new Map<string, string | Error>()
+const directories = new Map<string, unknown[] | Error>()
+const state = {
+  cwd: 'project/with dots',
+  home: posix.resolve('/proof-home'),
+  session: 'session-one',
+  override: undefined as string | null | undefined,
+  statError: undefined as Error | undefined,
+  resolutionError: undefined as Error | undefined,
+  publishError: undefined as Error | undefined,
 }
+const project = (cwd: string): string => currentPath.join(state.home, 'projects', encodeURIComponent(cwd))
+
+const realFs = await import('node:fs/promises')
+await mock.module('path', () => ({
+  ...posix,
+  dirname: (file: string) => currentPath.dirname(file),
+  join: (...parts: string[]) => currentPath.join(...parts),
+}))
+await mock.module('fs/promises', () => ({
+  ...realFs,
+  async readdir(dir: string, options?: unknown) {
+    events.push(['readdir', dir, options])
+    const contents = directories.get(dir) ?? absent
+    if (contents instanceof Error) throw contents
+    return contents
+  },
+  async readFile(file: string, encoding: string) {
+    events.push(['read', file, encoding])
+    const contents = files.get(file) ?? absent
+    if (contents instanceof Error) throw contents
+    return contents
+  },
+}))
+mock.module(resolve(ROOT, 'src/bootstrap/state.ts'), () => ({
+  getOriginalCwd: () => { events.push(['cwd']); return state.cwd },
+  getSessionId: () => { events.push(['session']); return state.session },
+  getSessionProjectDir: () => { events.push(['override']); return state.override },
+}))
+mock.module(resolve(ROOT, 'src/utils/debug.ts'), () => ({
+  logForDebugging: (...args: unknown[]) => events.push(['warn', ...args]),
+}))
+mock.module(resolve(ROOT, 'src/utils/envUtils.ts'), () => ({
+  getMercuryHome: () => state.home,
+}))
+mock.module(resolve(ROOT, 'src/utils/errors.ts'), () => ({
+  isFsInaccessible: (error: unknown) => error === absent,
+}))
+mock.module(resolve(ROOT, 'src/utils/fsOperations.ts'), () => ({
+  getFsImplementation: () => ({
+    statSync(file: string) {
+      events.push(['stat', file])
+      if (state.statError) throw state.statError
+      return {}
+    },
+  }),
+}))
+mock.module(resolve(ROOT, 'src/substrate/durablePublish.ts'), () => ({
+  async durableAtomicPublish(file: string, text: string) {
+    events.push(['publish', file, text])
+    if (state.publishError) throw state.publishError
+  },
+}))
+mock.module(resolve(ROOT, 'src/utils/sessionStoragePortable.ts'), () => ({
+  getProjectDir(cwd: string) {
+    events.push(['project', cwd])
+    if (state.resolutionError) throw state.resolutionError
+    return project(cwd)
+  },
+}))
+
+const api = await import('../../src/utils/sessionStorage/paths.ts')
 
 for (const path of [posix, win32]) {
-  const f = fixture(path)
-  const { api, state, events, files, directories, project, env } = f
+  currentPath = path
+  events.length = 0
+  files.clear()
+  directories.clear()
+  state.cwd = 'project/with dots'
+  state.home = path.resolve('/proof-home')
+  state.session = 'session-one'
+  state.override = undefined
+  state.statError = undefined
+  state.resolutionError = undefined
+  state.publishError = undefined
+
   const id = 'agent.one' as never
   equal(api.MAX_TRANSCRIPT_READ_BYTES, 50 * 1024 * 1024)
   equal(api.getProjectsDir(), path.join(state.home, 'projects'))
@@ -113,17 +123,27 @@ for (const path of [posix, win32]) {
   equal(api.getProjectDir('new-folder'), project('new-folder'))
   equal(api.getProjectDir('new-folder'), project('new-folder'))
   deepStrictEqual(events, [['project', 'new-folder'], ['project', 'new-folder']])
-  const held = process.env.MERCURY_ENTRYPOINT
-  for (const value of [undefined, '', 'test', 'production']) {
-    env.NODE_ENV = value
-    if (value === undefined) delete process.env.MERCURY_ENTRYPOINT
-    else process.env.MERCURY_ENTRYPOINT = value
-    equal(api.getNodeEnv(), value || 'development')
-    equal(api.getEntrypoint(), value)
-    equal(api.isCustomTitleEnabled(), true)
+  const heldEntrypoint = process.env.MERCURY_ENTRYPOINT
+  const heldNodeEnv = process.env.NODE_ENV
+  try {
+    for (const value of [undefined, '', 'test', 'production']) {
+      if (value === undefined) {
+        delete process.env.NODE_ENV
+        delete process.env.MERCURY_ENTRYPOINT
+      } else {
+        process.env.NODE_ENV = value
+        process.env.MERCURY_ENTRYPOINT = value
+      }
+      equal(api.getNodeEnv(), value || 'development')
+      equal(api.getEntrypoint(), value)
+      equal(api.isCustomTitleEnabled(), true)
+    }
+  } finally {
+    if (heldEntrypoint === undefined) delete process.env.MERCURY_ENTRYPOINT
+    else process.env.MERCURY_ENTRYPOINT = heldEntrypoint
+    if (heldNodeEnv === undefined) delete process.env.NODE_ENV
+    else process.env.NODE_ENV = heldNodeEnv
   }
-  if (held === undefined) delete process.env.MERCURY_ENTRYPOINT
-  else process.env.MERCURY_ENTRYPOINT = held
 
   state.override = undefined
   state.resolutionError = absent
