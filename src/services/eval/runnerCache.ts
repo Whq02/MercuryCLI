@@ -24,12 +24,14 @@ export function ensureCached(prefix: string, extension: string, source: string):
   writeFileSync(tmp, source, 'utf8')
   try {
     renameSync(tmp, path)
-  } catch {
+  } catch (error) {
     try {
       rmSync(tmp, { force: true })
-    } catch (error) {
-      passedOver(error)
+    } catch (rmError) {
+      passedOver(rmError)
     }
+    if (!existsSync(path)) throw error
+    passedOver(error)
   }
   return path
 }

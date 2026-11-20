@@ -297,5 +297,34 @@ console.log('\nprocKernel.interrupt — non-ESRCH kill failure throws instead of
   check('ProcKernel.interrupt still passes over ESRCH when process is already gone', r.esrchThrew === false, JSON.stringify(r))
 }
 
+console.log('\nrunnerCache.ensureCached — failed rename throws when target file is absent')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const realFs = await import('node:fs')
+    let raceWon = false
+    mock.module('node:fs', () => ({
+      ...realFs,
+      renameSync: (from, to) => {
+        if (raceWon) realFs.writeFileSync(to, 'from-peer', 'utf8')
+        throw Object.assign(new Error('rename blocked'), { code: 'EPERM' })
+      },
+    }))
+    const rc = await import(path.join(SRC, 'services/eval/runnerCache.ts'))
+    try {
+      out.missingPath = rc.ensureCached('test-missing', '.mjs', 'console.log(1)')
+    } catch (e) {
+      out.missingErr = { code: e.code ?? null, message: String(e.message ?? e) }
+    }
+    const evalDir = path.join(HOME, 'eval')
+    out.leftoverTmps = realFs.existsSync(evalDir) ? realFs.readdirSync(evalDir).filter(f => f.includes('.tmp-')) : []
+    raceWon = true
+    out.racePath = rc.ensureCached('test-race', '.mjs', 'console.log(2)')
+    out.raceExists = realFs.existsSync(out.racePath)
+  `)
+  check('ensureCached throws when renameSync fails and target does not exist', r.missingErr !== undefined && r.missingPath === undefined, JSON.stringify(r))
+  check('ensureCached removes temp file and succeeds when a peer already populated target', Array.isArray(r.leftoverTmps) && r.leftoverTmps.length === 0 && r.raceExists === true, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
