@@ -29,7 +29,7 @@ import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { lock } from '../../utils/lockfile.js'
-import { clearKeychainCache, credentialsPath, getSecureStorage } from '../../utils/secureStorage/index.js'
+import { clearKeychainCache, credentialsPath, credentialStoreUnread, getSecureStorage } from '../../utils/secureStorage/index.js'
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
@@ -145,6 +145,12 @@ function refuseUnwrittenClear(serverName: string, written: { success: boolean; c
     new Error(`The credential store at ${credentialsPath()} could not be written (${code}); the tokens of ${serverName} are still stored here. Close what holds the file, then run the command again.`),
     { code },
   )
+}
+
+function refuseUnreadStore(): void {
+  if (getSecureStorage().read() !== null) return
+  const unread = credentialStoreUnread()
+  if (unread !== null) throw Object.assign(new Error(unread.warning), { code: unread.code })
 }
 
 function newEntry(serverName: string, serverUrl: string): StoredOAuthEntry {
@@ -1072,6 +1078,7 @@ export async function revokeServerTokens(
 }
 
 export function clearServerTokensFromLocalStorage(serverName: string, serverConfig: McpServerConfig): void {
+  refuseUnreadStore()
   const serverKey = getServerKey(serverName, serverConfig)
   if (readEntry(serverKey) !== undefined) refuseUnwrittenClear(serverName, writeEntry(serverKey, undefined))
 }
@@ -1132,6 +1139,7 @@ export function saveMcpClientSecret(serverName: string, serverConfig: McpServerC
 }
 
 export function clearMcpClientConfig(serverName: string, serverConfig: McpServerConfig): void {
+  refuseUnreadStore()
   const storage = getSecureStorage()
   const data = storage.read() ?? {}
   const map = { ...((data.mcpOAuthClientConfig as Record<string, unknown> | undefined) ?? {}) }

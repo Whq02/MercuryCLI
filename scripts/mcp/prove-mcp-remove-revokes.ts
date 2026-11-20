@@ -167,6 +167,18 @@ try {
     check('the same command, once the store takes a write, removes the server, revokes both tokens and clears them', again.code === 0 && again.stdout.includes('Modified: the user config') && !again.configured && again.tokensLeft.length === 0 && revoked(asked, 'fixture-refresh-token', 'refresh_token') && revoked(asked, 'fixture-access-token', 'access_token'), `exit ${again.code} · ${again.stdout.trim()} · ${again.stderr.trim()} · left ${again.tokensLeft.join(', ')} · ${lines(asked)}`)
   }
 
+  console.log('mercury mcp remove probe --scope user — a credential store that is there and cannot be read: the store\'s own sentence, exit 1, nothing removed')
+  if (!POSIX_MODES) console.log('  [SKIP] the unreadable store — a mode-0200 file needs a POSIX process that is not root')
+  else {
+    const stand = await standIn('promptly')
+    const refused = await remove(stand, { scope: true, tokens: true, storeUnreadable: true })
+    const words = `The credential store at ${refused.store} exists but could not be read (EACCES); nothing was written.`
+    check('the verb ends 1 with the store\'s own sentence, removes nothing and leaves the tokens', refused.code === 1 && refused.stderr.split('\n').filter(line => line !== '').join('\n') === words && !refused.stdout.includes('Removed MCP server') && refused.configured && refused.tokensLeft.length === 1, `exit ${refused.code} · stdout: ${refused.stdout.trim() || '(empty)'} · stderr: ${refused.stderr.trim() || '(empty)'} · configured ${refused.configured} · left ${refused.tokensLeft.join(', ') || 'nothing'}`)
+    const again = await remove(stand, { scope: true, tokens: true, again: refused.world })
+    await stand.close()
+    check('the same command, once the store reads, removes the server and clears the tokens', again.code === 0 && !again.configured && again.tokensLeft.length === 0, `exit ${again.code} · ${again.stdout.trim()} · ${again.stderr.trim()} · left ${again.tokensLeft.join(', ')}`)
+  }
+
   console.log('mercury mcp remove probe --scope project — the project file takes no write once the tokens are cleared: they are revoked before the verb says why and exits 1')
   if (!POSIX_MODES) console.log('  [SKIP] the project file that takes no write — a folder that takes no new file needs a POSIX process that is not root')
   else {
