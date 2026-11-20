@@ -57,5 +57,28 @@ function threwOf(fn: () => unknown): Error | null {
   }
 }
 
+{
+  console.log('\nmnemeMaintenance-readMaintenanceReceipts-unreadable')
+  const { readMaintenanceReceipts, runDueMaintenance } = await import('../../src/mneme/mnemeMaintenance.ts')
+  const dir = makeScratch('maint-receipts')
+  try {
+    check('absent maintenance.jsonl returns empty list', readMaintenanceReceipts(dir).length === 0)
+    const p = join(dir, 'maintenance.jsonl')
+    const prior = JSON.stringify({ ts: '2026-01-01T00:00:00.000Z', trigger: 'operator', ran: true, reason: 'prior' }) + '\n'
+    writeFileSync(p, prior, { mode: 0o600 })
+    check('readable maintenance.jsonl returns prior receipt', readMaintenanceReceipts(dir).length === 1)
+    if (POSIX_MODES) {
+      chmodSync(p, 0o200)
+      const permErr = threwOf(() => readMaintenanceReceipts(dir))
+      await runDueMaintenance('operator', { dir, force: true })
+      chmodSync(p, 0o600)
+      check('unreadable maintenance.jsonl throws EACCES', permErr !== null && (permErr as NodeJS.ErrnoException).code === 'EACCES', String(permErr))
+      check('appendReceipt does not wipe unreadable maintenance.jsonl', readFileSync(p, 'utf8') === prior, readFileSync(p, 'utf8'))
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

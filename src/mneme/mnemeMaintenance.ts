@@ -1,5 +1,5 @@
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { isENOENT } from '../utils/errors.js'
@@ -143,20 +143,22 @@ function receiptPath(dir: string): string {
 
 export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10): MnemeMaintenanceReceipt[] {
   const p = receiptPath(dir)
-  if (!existsSync(p)) return []
-  const out: MnemeMaintenanceReceipt[] = []
+  let raw: string
   try {
-    for (const line of readFileSync(p, 'utf8').split('\n')) {
-      if (!line.trim()) continue
-      try {
-        out.push(JSON.parse(line) as MnemeMaintenanceReceipt)
-      } catch (error) {
-        passedOver(error)
-      }
-    }
+    raw = readFileSync(p, 'utf8')
   } catch (e) {
-    if (!isENOENT(e)) logForDebugging(`mneme maintenance receipts unreadable at ${p}: ${String(e)}`)
-    return []
+    if (isENOENT(e)) return []
+    logForDebugging(`mneme maintenance receipts unreadable at ${p}: ${String(e)}`)
+    throw e
+  }
+  const out: MnemeMaintenanceReceipt[] = []
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    try {
+      out.push(JSON.parse(line) as MnemeMaintenanceReceipt)
+    } catch (error) {
+      passedOver(error)
+    }
   }
   return out.slice(Math.max(0, out.length - n))
 }
