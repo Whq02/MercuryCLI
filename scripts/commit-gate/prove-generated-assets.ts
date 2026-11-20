@@ -3,7 +3,7 @@ import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
 import { chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join, relative } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
@@ -15,6 +15,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const WINDOWS = process.platform === 'win32'
+const notRead = (label: string, why: string): void => console.log(`  [SKIP] ${label} — not read on Windows: ${why}`)
+const samePath = (a: string | null, b: string): boolean => a !== null && relative(a, b) === ''
 
 const {
   GENERATED_ASSETS_MAP,
@@ -172,7 +175,7 @@ check('a short option cluster still recognizes all-files before its message', ge
 g('add', 'gen/schema.json')
 check('the asset staged beside its source settles it', generatedAssetsRefusal('git commit -F m', repo) === null)
 g('restore', '--staged', 'gen/schema.json')
-check('a `git -C <dir> commit` from another directory reads that repository', commitRepositoryRoot(`git -C "${repo}" commit -F m`, scratch) === repo && generatedAssetsRefusal(`git -C "${repo}" commit -F m`, scratch) !== null)
+check('a `git -C <dir> commit` from another directory reads that repository', samePath(commitRepositoryRoot(`git -C "${repo}" commit -F m`, scratch), repo) && generatedAssetsRefusal(`git -C "${repo}" commit -F m`, scratch) !== null)
 const bare = join(scratch, 'nomap')
 mkdirSync(bare)
 execFileSync('git', ['init', '-q'], { cwd: bare })
@@ -255,7 +258,7 @@ section('§4 a check the gate could not finish does not refuse the commit: git g
   c('commit', '-q', '-m', 'seed')
   writeFileSync(join(calm, 'notes.txt'), 'two\n')
   c('add', 'notes.txt')
-  const realGit = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+  const realGit = Bun.which('git') ?? 'git'
   const fake = join(scratch, 'fake-git')
   mkdirSync(fake)
   writeFileSync(join(fake, 'git'), `#!/bin/sh\nhere="$(dirname "$0")"\nif [ -s "$here/arm" ]; then\n  case " $* " in\n    *"$(cat "$here/arm")"*) if [ -e "$here/slow" ]; then exec sleep 6; fi; kill -KILL $$ ;;\n  esac\nfi\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
@@ -264,22 +267,26 @@ section('§4 a check the gate could not finish does not refuse the commit: git g
     writeFileSync(join(fake, 'arm'), arm)
     if (slow) writeFileSync(join(fake, 'slow'), '1')
     else rmSync(join(fake, 'slow'), { force: true })
-    process.env.PATH = `${fake}:${path}`
+    process.env.PATH = `${fake}${delimiter}${path}`
     try { return String(generatedAssetsRefusal('git commit -F m', calm)) } catch (error) { return `REFUSED: ${error instanceof Error ? error.message : String(error)}` } finally { process.env.PATH = path }
   }
   check('control: with git answering, a commit that touches no generated source owes nothing', verdict('') === 'null', verdict(''))
-  const slowRoot = verdict('rev-parse --show-toplevel', true)
-  check('git rev-parse --show-toplevel gives no answer within the 3 s limit: the commit goes on, as on 1.0.11', slowRoot === 'null', slowRoot)
-  const deadRoot = verdict('rev-parse --show-toplevel')
-  check('git rev-parse --show-toplevel ends without an exit status: the commit goes on', deadRoot === 'null', deadRoot)
-  const deadMap = verdict(` HEAD:${GENERATED_ASSETS_MAP} `)
-  check("git show HEAD:<the map> ends without an exit status: the commit goes on with the working tree's and the index's map", deadMap === 'null', deadMap)
-  const deadPrevious = verdict(' HEAD:notes.txt ')
-  check("git show HEAD:<a committed path> ends without an exit status: the commit goes on, the path's previous content unmatched", deadPrevious === 'null', deadPrevious)
-  chmodSync(join(calm, 'lists/a.txt'), 0o000)
-  const unreadable = verdict('')
-  chmodSync(join(calm, 'lists/a.txt'), 0o644)
-  check('a files-of: list that is there and cannot be read (EACCES): the commit goes on', process.getuid?.() === 0 || unreadable === 'null', unreadable)
+  const goesOn = (label: string, arm: string, slow = false): void => {
+    if (WINDOWS) return notRead(label, 'the row plants a shell-script git on PATH, which Windows does not start')
+    const answer = verdict(arm, slow)
+    check(label, answer === 'null', answer)
+  }
+  goesOn('git rev-parse --show-toplevel gives no answer within the 3 s limit: the commit goes on, as on 1.0.11', 'rev-parse --show-toplevel', true)
+  goesOn('git rev-parse --show-toplevel ends without an exit status: the commit goes on', 'rev-parse --show-toplevel')
+  goesOn("git show HEAD:<the map> ends without an exit status: the commit goes on with the working tree's and the index's map", ` HEAD:${GENERATED_ASSETS_MAP} `)
+  goesOn("git show HEAD:<a committed path> ends without an exit status: the commit goes on, the path's previous content unmatched", ' HEAD:notes.txt ')
+  if (WINDOWS) notRead('a files-of: list that is there and cannot be read (EACCES): the commit goes on', 'a POSIX mode does not make a file unreadable there')
+  else {
+    chmodSync(join(calm, 'lists/a.txt'), 0o000)
+    const unreadable = verdict('')
+    chmodSync(join(calm, 'lists/a.txt'), 0o644)
+    check('a files-of: list that is there and cannot be read (EACCES): the commit goes on', process.getuid?.() === 0 || unreadable === 'null', unreadable)
+  }
   writeFileSync(join(calm, 'notes.txt'), 'MARK_B\n')
   c('add', 'notes.txt')
   const owed = verdict('')
