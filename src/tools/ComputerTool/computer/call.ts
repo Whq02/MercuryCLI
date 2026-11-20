@@ -1,6 +1,7 @@
 import type { CanUseToolFn, ToolEffect, ToolUseContext } from '../../../Tool.js'
 import { isTerminalApplication, readTerminalText } from '../terminalText.js'
 import { WEB_CONTENT_NOTICE } from '../../BashTool/webContent.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { sleep } from '../../../utils/sleep.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
@@ -155,35 +156,40 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
           }
           const app = back?.front ?? turnFront.value
           const returned = back ? ` · ${back.returned}` : ''
-          const deadline = Date.now() + pause
           const waitingSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(pause))])
-          let matched = false
           let lastSize: number | null = null
           let lastTree: DesktopTree | null = null
-          while (!waitingSignal.aborted) {
-            const before = await driver.frontmostApplication()
-            if (!before.ok || !sameWindow(before.value, app)) {
-              run.result = 'wait refused: the front window changed while waiting — re-issue'
-              run.outcome = 'failed'
-              return finish()
-            }
-            if (waitingSignal.aborted) break
-            const tree = await driver.accessibilityTree(app, treeLimitsOf(input), waitingSignal)
-            if (waitingSignal.aborted) break
-            const after = await driver.frontmostApplication()
-            if (waitingSignal.aborted) break
-            if (!tree.ok || !after.ok || !sameWindow(after.value, app)) {
-              run.result = !tree.ok ? faultText('wait', tree.error) : 'wait refused: the front window changed while reading — re-issue'
-              run.outcome = 'failed'
-              return finish()
-            }
-            if (checked?.viaGrant !== true) approveApp(owner, { identity: app.identity, name: app.name })
-            lastTree = tree.value
-            lastSize = tree.value.elements.length
-            if (waitConditionPassed(input.until, after.value, tree.value)) { matched = true; break }
-            if (Date.now() >= deadline) break
-            await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
-          }
+          const waitOutcome = await pollUntil<'matched' | 'refused' | 'stopped', 'stopped', 'stopped'>(
+            async () => {
+              const before = await driver.frontmostApplication()
+              if (!before.ok || !sameWindow(before.value, app)) {
+                run.result = 'wait refused: the front window changed while waiting — re-issue'
+                run.outcome = 'failed'
+                return 'refused'
+              }
+              if (waitingSignal.aborted) return 'stopped'
+              const tree = await driver.accessibilityTree(app, treeLimitsOf(input), waitingSignal)
+              if (waitingSignal.aborted) return 'stopped'
+              const after = await driver.frontmostApplication()
+              if (waitingSignal.aborted) return 'stopped'
+              if (!tree.ok || !after.ok || !sameWindow(after.value, app)) {
+                run.result = !tree.ok ? faultText('wait', tree.error) : 'wait refused: the front window changed while reading — re-issue'
+                run.outcome = 'failed'
+                return 'refused'
+              }
+              if (checked?.viaGrant !== true) approveApp(owner, { identity: app.identity, name: app.name })
+              lastTree = tree.value
+              lastSize = tree.value.elements.length
+              if (waitConditionPassed(input.until!, after.value, tree.value)) return 'matched'
+              return undefined
+            },
+            100,
+            pause,
+            () => 'stopped',
+            { signal: waitingSignal, onAbort: () => 'stopped' },
+          )
+          if (waitOutcome === 'refused') return finish()
+          const matched = waitOutcome === 'matched'
           metAfterMs = Date.now() - waitStarted
           if (!matched) {
             run.result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${waitConditionWords(input.until)} · last tree: ${lastSize === null ? 'unavailable' : `${lastSize} elements`}${returned}${lastTree ? captchaLine(lastTree, app) : ''}`
