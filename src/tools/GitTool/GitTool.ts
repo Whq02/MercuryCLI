@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
+import { isENOENT } from '../../utils/errors.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { gitGraphEnabled, type GitPlanGroup } from '../../services/gitGraph/contracts.js'
@@ -735,7 +736,14 @@ export const GitTool = buildTool({
       let entry
       try {
         entry = await stat(folder)
-      } catch {
+      } catch (err) {
+        if (!isENOENT(err)) {
+          return {
+            result: false as const,
+            message: err instanceof Error ? err.message : String(err),
+            errorCode: 2,
+          }
+        }
         return {
           result: false as const,
           message: `cwd does not exist: ${input.cwd} (looked at ${folder}; the session folder is ${getCwd()})`,
