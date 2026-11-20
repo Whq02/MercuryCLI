@@ -3,6 +3,9 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep, win32 as pathWin32 } from 'node:path'
 import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { resolveLayoutRoots } from './installLayout.js'
+import { nixInstallRoot } from './nixInstallRoot.js'
+
+export { nixInstallRoot } from './nixInstallRoot.js'
 
 export type InstallProvenanceKind =
   | 'managed'
@@ -222,18 +225,6 @@ export function homebrewKegOf(invokedPath: string, env: NodeJS.ProcessEnv = proc
     if (below.length >= 2 && below[0]) return jn(formulaRoot, below[0])
   }
   return null
-}
-
-export function nixInstallRoot(invokedPath: string = process.argv[1] ?? '', isWindows = process.platform === 'win32'): string | null {
-  if (isWindows || !invokedPath.endsWith('/libexec/mercury/mercury.mjs')) return null
-  try {
-    const real = realpathSync(invokedPath)
-    if (!real.endsWith('/libexec/mercury/mercury.mjs')) return null
-    const root = dirname(dirname(dirname(real)))
-    return readFileSync(join(root, 'nix-support', 'mercury'), 'utf8') === 'libexec/mercury\n' ? root : null
-  } catch {
-    return null
-  }
 }
 
 export function npmPackageDirOf(invokedPath: string, isWindows = false): string | null {
