@@ -688,6 +688,45 @@ try {
       else process.env.MERCURY_SAMPLES = prevSamples
     }
   }
+
+  {
+    const { armLocalWake: armInputLocalWake } = await import('../../src/cli/headless/inputDoor.ts')
+    const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
+    const { armLocalWake: armBridgeWake, _resetScheduleBridgeForTesting } = await import('../../src/services/saturn/sessionScheduleBridge.ts')
+    const { getCommandQueue, remove } = await import('../../src/utils/messageQueueManager.ts')
+
+    _resetScheduleBridgeForTesting()
+    remove([...getCommandQueue()])
+    try {
+      const enqueuedRows: Array<{ type?: string; level?: string; text?: string }> = []
+      const live = createRunnerState()
+      const ports = {
+        live,
+        streamingInput: true,
+        driver: {
+          kick: () => { throw new Error('driver kick failed') },
+          isRunning: () => false,
+        },
+        enqueueRow: (row: { type?: string; level?: string; text?: string }) => { enqueuedRows.push(row) },
+        liveScope: () => ({ session_id: 'w04-wake-session' }),
+      } as unknown as Parameters<typeof armInputLocalWake>[0]
+
+      armInputLocalWake(ports)
+      const armed = armBridgeWake(1, 'wake prompt', { spelling: 'in 1s' })
+      await new Promise(resolve => setTimeout(resolve, 1200))
+      const notice = enqueuedRows.find(r => r.level === 'warning')
+      check(
+        'w04-8 throwing local wake sink surfaces warning notice to session instead of dropping wake silently',
+        armed.ok &&
+          notice !== undefined &&
+          notice.text === 'a scheduled wake could not be delivered (driver kick failed) — send it again',
+        JSON.stringify({ armed, enqueuedRows }),
+      )
+    } finally {
+      _resetScheduleBridgeForTesting()
+      remove([...getCommandQueue()])
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
