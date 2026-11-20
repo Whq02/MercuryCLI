@@ -5,11 +5,11 @@ import type { PermissionRule } from '../../types/permissions.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import {
   checkSemantics,
+  commandViews,
   parseForSecurity,
   PARSE_ABORTED,
   pinnedCommandAnalysis,
   shellCommandText,
-  type Node,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import { getDenyRules } from '../../utils/permissions/decision/rules.js'
 import { matchingRulesForInput } from '../../utils/permissions/filesystem.js'
@@ -40,14 +40,12 @@ const ESTATE_RULE: PermissionRule = { source: 'session', ruleBehavior: 'deny', r
 
 type FileKind = 'read' | 'edit'
 type Word = string | null
-type Scope = { cwds: string[]; cwdKnown: boolean; entered?: string[] }
 type Feed = { said: string[] } | { roots: string[]; names: RegExp[]; exact: boolean } | null | undefined
 type View = { argv: Word[]; redirects: Array<{ op: string; target: Word }>; feed: Feed; cwds: string[]; cwdKnown: boolean; text: string }
 
 const NOTHING: DenyRuleReach = { denied: null, hidden: null }
 const FILE_RULE_TOOLS: ReadonlySet<string> = new Set(['Read', 'Glob', 'NotebookRead', 'Edit', 'Write', 'NotebookEdit'])
 const READ_RULE_TOOLS: ReadonlySet<string> = new Set(['Read', 'Glob', 'NotebookRead'])
-const DYNAMIC_KINDS: ReadonlySet<string> = new Set(['simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'ansi_c_string', 'translated_string'])
 const OUTPUT_OPERATORS: ReadonlySet<string> = new Set(['>', '>>', '>|', '&>', '&>>'])
 const SHELLS: ReadonlySet<string> = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'mksh', 'ash'])
 const QUIET_COMMANDS: ReadonlySet<string> = new Set([
@@ -62,33 +60,6 @@ const GIT_WORD_VALUES: ReadonlySet<string> = new Set(['-m', '--message', '--auth
 const MAX_DERIVED = 96
 const MAX_DEPTH = 4
 const MAX_GLOB_MATCHES = 512
-const MAX_FOLDERS = 8
-
-function hasDynamic(node: Node): boolean {
-  return DYNAMIC_KINDS.has(node.type) || node.children.some(hasDynamic)
-}
-
-function literalOf(node: Node): Word {
-  if (hasDynamic(node)) return null
-  switch (node.type) {
-    case 'word':
-      return node.text.replace(/\\([\s\S])/g, '$1')
-    case 'number':
-      return node.text
-    case 'raw_string':
-      return node.text.slice(1, -1)
-    case 'string':
-      return node.text.slice(1, -1).replace(/\\(["\\$`])/g, '$1')
-    case 'concatenation': {
-      const parts = node.children.map(literalOf)
-      return parts.some(part => part === null) ? null : parts.join('')
-    }
-    case 'command_name':
-      return node.children[0] ? literalOf(node.children[0]) : node.text
-    default:
-      return null
-  }
-}
 
 function hasGlob(word: string): boolean {
   return /[*?[]/.test(word)
@@ -649,130 +620,17 @@ function denialsOf(reach: Reach) {
   return { hide, pathFound, pathDenial, treeDenial, refusal, kindOf, checkRedirect }
 }
 
-function viewsOf(root: Node, cwd: string) {
-  const views: View[] = []
-  let broken = false
-  const feedOf = (node: Node): Feed => {
-    if (node.type !== 'command') return null
-    const said = node.children.filter(child => child.type !== 'command_name' && child.type !== 'variable_assignment' && child.type !== 'file_redirect' && child.type !== 'herestring_redirect').map(literalOf)
-    const name = literalOf(node.children.find(child => child.type === 'command_name') ?? node)
-    if (name === null || said.some(word => word === null)) return null
-    const words = said as string[]
-    const base = posixPath.basename(name)
-    if (base === 'echo' || base === 'printf') {
-      const text = words.filter(word => base !== 'echo' || !/^-[neE]+$/.test(word)).join(' ')
-      return { said: [base === 'printf' ? text.replace(/\\n/g, '\n').replace(/\\t/g, '\t') : text] }
-    }
-    if (base === 'find') return { roots: PATH_EXTRACTORS.find(words), names: optionValuesOf(words, '', ['-name', '-iname']).map(segmentPattern), exact: true }
-    if (base === 'git') return { roots: ['.'], names: [], exact: false }
-    if (!(base in COMMAND_OPERATION_TYPE)) return null
-    const roots = PATH_EXTRACTORS[base as PathCommand](words)
-    return { roots: roots.length === 0 ? ['.'] : roots, names: [], exact: false }
+function feedOf(name: string, words: string[]): Feed {
+  const base = posixPath.basename(name)
+  if (base === 'echo' || base === 'printf') {
+    const text = words.filter(word => base !== 'echo' || !/^-[neE]+$/.test(word)).join(' ')
+    return { said: [base === 'printf' ? text.replace(/\\n/g, '\n').replace(/\\t/g, '\t') : text] }
   }
-  const walk = (node: Node, scope: Scope, feed: Feed): void => {
-    switch (node.type) {
-      case 'ERROR':
-        broken = true
-        for (const child of node.children) walk(child, scope, undefined)
-        return
-      case 'subshell':
-      case 'command_substitution':
-      case 'process_substitution': {
-        const inner: Scope = { cwds: [...scope.cwds], cwdKnown: scope.cwdKnown }
-        for (const child of node.children) {
-          if (child.type === 'file_redirect') redirect(child, inner)
-          else walk(child, inner, undefined)
-        }
-        return
-      }
-      case 'pipeline': {
-        let fed = feed
-        for (const child of node.children) {
-          if (child.type === '|' || child.type === '|&') continue
-          walk(child, scope, fed)
-          fed = feedOf(child)
-        }
-        return
-      }
-      case 'redirected_statement': {
-        const heredoc = node.children.find(child => child.type === 'heredoc_redirect')
-        const body = heredoc?.children.find(child => child.type === 'heredoc_body')
-        const text: Feed = body === undefined ? undefined : hasDynamic(body) ? null : { said: [body.text] }
-        const inner = node.children.find(child => child.type !== 'file_redirect' && child.type !== 'heredoc_redirect')
-        for (const child of node.children) {
-          if (child.type === 'file_redirect') redirect(child, scope)
-          else if (child.type === 'heredoc_redirect') {
-            const passes = inner?.type === 'command' && literalOf(inner.children.find(part => part.type === 'command_name') ?? inner) === 'cat' && inner.children.filter(part => part.type !== 'command_name').length === 0
-            for (const part of child.children) if (part.type === 'pipeline' || part.type === 'command' || part.type === 'list') walk(part, scope, passes ? text : null)
-          } else walk(child, scope, text === undefined ? feed : text)
-        }
-        return
-      }
-      case 'command': {
-        const argv: Word[] = []
-        const redirects: View['redirects'] = []
-        let fed = feed
-        for (const child of node.children) {
-          if (child.type === 'variable_assignment') {
-            for (const part of child.children) walk(part, scope, undefined)
-            continue
-          }
-          if (child.type === 'file_redirect') {
-            redirects.push(redirectOf(child))
-            continue
-          }
-          if (child.type === 'herestring_redirect') {
-            const said = child.children.filter(part => part.type !== '<<<').map(literalOf)
-            fed = said.some(part => part === null) ? null : { said: [(said as string[]).join(' ')] }
-            continue
-          }
-          argv.push(literalOf(child))
-          walk(child, scope, undefined)
-        }
-        if (argv.some(word => word === null)) {
-          const read = pinnedCommandAnalysis.parseForSecurityFromAst(node.text, node)
-          const own = read.kind === 'simple' ? read.commands.find(simple => simple.argv.length === argv.length && simple.argv[0] === argv[0]) : undefined
-          if (own !== undefined) own.argv.forEach((word, index) => { argv[index] = word.includes('__MERCURY_UNKNOWN') ? null : word })
-        }
-        views.push({ argv, redirects, feed: fed, cwds: [...scope.cwds], cwdKnown: scope.cwdKnown, text: node.text })
-        const name = argv[0]
-        delete scope.entered
-        if (name === 'cd' || name === 'pushd') {
-          const target = argv[1]
-          if (argv.length !== 2 || target === null || target === undefined || target === '-' || target.startsWith('-')) scope.cwdKnown = false
-          else {
-            const entered = [...new Set(scope.cwds.map(folder => resolve(folder, expandTilde(target))))]
-            const next = [...new Set([...scope.cwds, ...entered])]
-            if (next.length > MAX_FOLDERS) scope.cwdKnown = false
-            else {
-              scope.cwds = next
-              scope.entered = entered
-            }
-          }
-        } else if (name === 'popd') scope.cwdKnown = false
-        return
-      }
-      default:
-        for (const child of node.children) {
-          if (child.type === 'file_redirect') redirect(child, scope)
-          else if (child.type === '&&' && scope.entered !== undefined) {
-            scope.cwds = scope.entered
-            delete scope.entered
-          } else walk(child, scope, undefined)
-        }
-    }
-  }
-  const loose: Array<{ op: string; target: Word; cwds: string[]; cwdKnown: boolean }> = []
-  const redirectOf = (node: Node): { op: string; target: Word } => {
-    const op = node.children.find(child => /^[<>&|]+$/.test(child.type))?.type ?? ''
-    const target = node.children.filter(child => child.type !== 'file_descriptor' && !/^[<>&|]+$/.test(child.type))[0]
-    return { op, target: target === undefined ? null : literalOf(target) }
-  }
-  function redirect(node: Node, scope: Scope): void {
-    loose.push({ ...redirectOf(node), cwds: [...scope.cwds], cwdKnown: scope.cwdKnown })
-  }
-  walk(root, { cwds: [cwd], cwdKnown: true }, undefined)
-  return { views, loose, broken }
+  if (base === 'find') return { roots: PATH_EXTRACTORS.find(words), names: optionValuesOf(words, '', ['-name', '-iname']).map(segmentPattern), exact: true }
+  if (base === 'git') return { roots: ['.'], names: [], exact: false }
+  if (!(base in COMMAND_OPERATION_TYPE)) return null
+  const roots = PATH_EXTRACTORS[base as PathCommand](words)
+  return { roots: roots.length === 0 ? ['.'] : roots, names: [], exact: false }
 }
 
 function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts) {
@@ -939,7 +797,7 @@ async function reachOf(
     if (expanded !== null) return ports.judge(expanded, cwd, budget)
   }
 
-  const { views, loose, broken } = viewsOf(root, cwd)
+  const { views, loose, broken } = commandViews(root, cwd, feedOf, (folder, target) => resolve(folder, expandTilde(target)))
   if (broken) hide(anyRule, 'the shell parser could not read its syntax')
 
   const judged = new Set<string>()
