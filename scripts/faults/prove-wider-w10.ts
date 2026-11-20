@@ -146,5 +146,60 @@ console.log('\n§2 w10-2 — unparseable MERCURY_GH_CMD runs plain gh and prints
   check('w10-2: cli/update prints skipped MERCURY_GH_CMD sentence once', matches.length === 1, JSON.stringify(errs))
 }
 
+console.log('\n§3 w10-3 — zsh startup probe failure still writes ~/.zshrc and surfaces note in cli/installVerb')
+{
+  const r = runScenario(`
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { ensureBinDirOnPath, realPathEntryIo } = await import(SRC + '/services/privateChannel/installPath.ts')
+    const { describePathOutcome } = await import(SRC + '/cli/installVerb.ts')
+    const roots = {
+      versionsDir: join(HOME, 'versions'),
+      binDir: join(USER_HOME, '.local', 'bin'),
+      shimPath: join(USER_HOME, '.local', 'bin', 'mercury'),
+      isWindows: false,
+    }
+    const appended = []
+    const io = {
+      env: { SHELL: '/bin/zsh', PATH: '/usr/bin:/bin' },
+      home: USER_HOME,
+      readFile: () => null,
+      appendFile: (p, t) => appended.push({ p, t }),
+      writeFile: () => {},
+      removeFile: () => {},
+      resolveCommand: () => null,
+      zshDotDir: () => { throw new Error('zsh probe timed out') },
+      readUserPath: () => ({ state: 'absent' }),
+      writeUserPath: () => {},
+    }
+    const outcome = ensureBinDirOnPath(roots, io)
+    out.outcome = outcome
+    out.described = describePathOutcome(outcome, false, USER_HOME)
+    out.appendedCount = appended.length
+
+    const fakeBin = join(PROJECT, 'fake-zsh-bin')
+    mkdirSync(fakeBin, { recursive: true })
+    const fakeZsh = join(fakeBin, 'zsh')
+    writeFileSync(fakeZsh, '#!/bin/sh\\nexit 2\\n')
+    chmodSync(fakeZsh, 0o755)
+    process.env.PATH = fakeBin
+    process.env.SHELL = '/bin/zsh'
+    delete process.env.ZDOTDIR
+    const realOutcome = ensureBinDirOnPath(roots, realPathEntryIo())
+    out.realOutcome = realOutcome
+    out.realDescribed = describePathOutcome(realOutcome, false, USER_HOME)
+  `)
+  const expected = 'zsh could not be asked for its startup folder (zsh probe timed out), so the PATH line went to ~/.zshrc; move it if your zsh reads another folder.'
+  const outcome = r.outcome as { state?: string; note?: string } | undefined
+  const realOutcome = r.realOutcome as { state?: string; note?: string } | undefined
+  check('w10-3: ensureBinDirOnPath writes ~/.zshrc and sets note on thrown zshDotDir', outcome?.state === 'written' && outcome?.note === expected, JSON.stringify(outcome))
+  check('w10-3: describePathOutcome prints the note', String(r.described ?? '').includes(expected), String(r.described))
+  check(
+    'w10-3: realPathEntryIo carries note when zsh exits non-zero',
+    realOutcome?.state === 'written' && typeof realOutcome?.note === 'string' && realOutcome.note.includes('zsh could not be asked for its startup folder (') && String(r.realDescribed ?? '').includes('move it if your zsh reads another folder.'),
+    JSON.stringify({ realOutcome, realDescribed: r.realDescribed }),
+  )
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

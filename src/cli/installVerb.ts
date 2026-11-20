@@ -25,25 +25,36 @@ const failJson = (value: unknown): never => cliJsonError(jsonStringify(value, nu
 export function describePathOutcome(path: PathEntryOutcome, isWindows: boolean, home: string = homedir(), repeat = false): string {
   const targets = (list: string[]): string => list.map(t => describePathTarget(t, home)).join(' and ')
   const openNew = isWindows ? 'open a new terminal' : `open a new terminal, or run: ${path.line}`
+  let line: string
   switch (path.state) {
     case 'on-path':
-      return `PATH: ${path.dir} is already on your PATH`
+      line = `PATH: ${path.dir} is already on your PATH`
+      break
     case 'reachable':
-      return `PATH: unchanged — a \`mercury\` command already runs from ${path.resolved}`
+      line = `PATH: unchanged — a \`mercury\` command already runs from ${path.resolved}`
+      break
     case 'present': {
       const lists = isWindows ? 'your user PATH lists it' : `${targets(path.targets)} ${path.targets.length > 1 ? 'name' : 'names'} it`
-      if (repeat) return `PATH: ${path.dir} is already on your PATH — ${lists}`
-      return isWindows
-        ? `PATH: your user PATH already lists ${path.dir} — ${openNew}`
-        : `PATH: ${targets(path.targets)} already ${path.targets.length > 1 ? 'name' : 'names'} ${path.dir} — ${openNew}`
+      if (repeat) {
+        line = `PATH: ${path.dir} is already on your PATH — ${lists}`
+      } else {
+        line = isWindows
+          ? `PATH: your user PATH already lists ${path.dir} — ${openNew}`
+          : `PATH: ${targets(path.targets)} already ${path.targets.length > 1 ? 'name' : 'names'} ${path.dir} — ${openNew}`
+      }
+      break
     }
     case 'would-write':
-      return isWindows ? `PATH: would add ${path.dir} to your user PATH` : `PATH: would add ${path.dir} in ${targets(path.targets)}`
+      line = isWindows ? `PATH: would add ${path.dir} to your user PATH` : `PATH: would add ${path.dir} in ${targets(path.targets)}`
+      break
     case 'written':
-      return isWindows ? `PATH: added ${path.dir} to your user PATH — ${openNew}` : `PATH: added ${path.dir} in ${targets(path.targets)} — ${openNew}`
+      line = isWindows ? `PATH: added ${path.dir} to your user PATH — ${openNew}` : `PATH: added ${path.dir} in ${targets(path.targets)} — ${openNew}`
+      break
     case 'refused':
-      return `note: ${path.dir} is not on your PATH — ${path.reason}; add it yourself: ${path.line}`
+      line = `note: ${path.dir} is not on your PATH — ${path.reason}; add it yourself: ${path.line}`
+      break
   }
+  return 'note' in path && path.note ? `${line}\n${path.note}` : line
 }
 
 export function describePathRemoval(path: PathRemovalOutcome, isWindows: boolean, home: string = homedir()): string | null {
