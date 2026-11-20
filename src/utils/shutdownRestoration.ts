@@ -15,6 +15,7 @@ import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { restoreOriginalBackground } from './cockpit/warmBackground.js'
 import { passedOver } from './passedOver.js'
+import { terminalTitleTransport } from './platform/terminal.js'
 
 
 
@@ -76,7 +77,7 @@ export function cleanupTerminalModes(): void {
     }
     if (supportsTabStatus()) writeSync(1, wrapForMultiplexer(CLEAR_TAB_STATUS))
     if (open.has('terminal-title') && resolveTerminalExperience().terminalTitle.effective) {
-      if (process.platform === 'win32') process.title = ''
+      if (terminalTitleTransport() === 'process-title') process.title = ''
       else writeSync(1, CLEAR_TERMINAL_TITLE)
       noteModeSettledEverywhere('terminal-title')
     }

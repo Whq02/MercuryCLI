@@ -2,6 +2,7 @@ import { updateLastInteractionTime } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { startImmediate, startTimeout, stopImmediate, stopTimeout } from '../../utils/timers.js'
+import { terminalSupportsJobControl } from '../../utils/platform/terminal.js'
 import type { EventEmitter } from '../events/emitter.js'
 import { inputConsumedThroughSeq, InputEvent } from '../events/input-event.js'
 import { TerminalFocusEvent } from '../events/terminal-focus-event.js'
@@ -29,7 +30,6 @@ const PASTE_MODE_TIMEOUT_MS = 500
 const LONE_ESCAPE_GRACE_REARMS = 2
 const LONE_ESCAPE_MOUSE_WINDOW_MS = 500
 const FUNCTIONAL_NAMES = new Set<string>(nonAlphanumericKeys)
-const SUPPORTS_SUSPEND = process.platform !== 'win32'
 const WHEEL_ROWS_PER_NOTCH = 3
 const MOTION_BIT = 0x20
 
@@ -339,7 +339,7 @@ export class AppInputLoop {
       if (!getTerminalFocused()) setTerminalFocused(true)
 
       const item = atom
-      if (item.name === 'z' && item.ctrl && SUPPORTS_SUSPEND) {
+      if (item.name === 'z' && item.ctrl && terminalSupportsJobControl()) {
         this.host.onSuspend()
         continue
       }

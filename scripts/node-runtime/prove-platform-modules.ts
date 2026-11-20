@@ -1187,7 +1187,21 @@ const FILES: Row[] = [
   },
 ]
 
+import {
+  terminalSupportsJobControl,
+  terminalTitleTransport,
+} from '../../src/utils/platform/terminal.js'
 const TERMINAL: Row[] = [
+  {
+    name: 'terminal.terminalSupportsJobControl',
+    answers: () => terminalSupportsJobControl(),
+    recorded: {"win32":false,"darwin":true,"linux":true,"win32 by process.platform alone":false,"win32 by getPlatform() alone":true},
+  },
+  {
+    name: 'terminal.terminalTitleTransport',
+    answers: () => terminalTitleTransport(),
+    recorded: {"win32":"process-title","darwin":"osc","linux":"osc","win32 by process.platform alone":"process-title","win32 by getPlatform() alone":"osc"},
+  },
 ]
 
 const DESKTOP: Row[] = [
