@@ -391,5 +391,41 @@ console.log('\nConcourseRoute.tsx:181 — failed project ground switch notifies 
   )
 }
 
+console.log('\nobligationControls.ts:134 — failed claimObligation reports failure note to strip:composer')
+{
+  const res = runScenario(`
+    const { mock } = await import('bun:test')
+    const oblPath = ${JSON.stringify(join(SRC, 'services/crew/obligations.ts'))}
+    mock.module(oblPath, () => ({
+      resolveObligation: async () => ({ settled: true, status: 'withdrawn' }),
+      redirectObligation: async () => { throw new Error('EACCES: permission denied') },
+    }))
+    const { claimObligation } = await import(${JSON.stringify(join(SRC, 'components/concourse/route/obligationControls.ts'))})
+    const notes = []
+    let refreshed = 0
+    claimObligation(
+      {
+        noteControl: (control, state) => notes.push({ control, state }),
+        refresh: () => { refreshed += 1 },
+      },
+      'obl-1',
+    )
+    await new Promise(resolve => setTimeout(resolve, 60))
+    out.notes = notes
+    out.refreshed = refreshed
+  `)
+  const notes = res.notes as Array<{ control: string; state: { state?: string; reason?: string; next?: string } }>
+  check(
+    'obligation-claim-fail-reports-note',
+    notes.length === 1 &&
+      notes[0]?.control === 'strip:composer' &&
+      notes[0]?.state.state === 'failed' &&
+      notes[0]?.state.reason === 'the claim failed (EACCES: permission denied)' &&
+      notes[0]?.state.next === 'try claiming again' &&
+      res.refreshed === 1,
+    JSON.stringify(res),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
