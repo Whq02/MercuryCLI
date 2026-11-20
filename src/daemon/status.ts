@@ -4,6 +4,7 @@ import {
   controlConnectPath,
   currentVersion,
   daemonControlRpc,
+  daemonStatePath,
   readDaemonState,
 } from './controlSocket.js'
 interface FireOutcomeSummary {
@@ -20,11 +21,13 @@ import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { forwardFrame, predecessorSockPath, predecessorSockPidOf } from './handover.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { readdirSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export interface MercuryDaemonStatus {
   daemon: { pid: number; version: string; uptimeSec: number; dir: string; buildTree?: string | null; script?: string } | null
+  daemonRecordError?: string
   controlSock: string
   controlReachable: boolean
   controlError?: string
@@ -44,8 +47,38 @@ export interface MercuryDaemonStatus {
   helpers?: HelperRow[]
 }
 
+async function readDaemonRecordError(): Promise<string | undefined> {
+  const path = daemonStatePath()
+  let raw: string
+  try {
+    raw = await readFile(path, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    passedOver(error)
+    const detail = error instanceof Error ? error.message : String(error)
+    return `the daemon record at ${path} could not be read (${detail})`
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.pid === 'number' &&
+      typeof parsed.startedAt === 'number'
+    ) {
+      return undefined
+    }
+    return `the daemon record at ${path} could not be read (invalid daemon record)`
+  } catch (error) {
+    passedOver(error)
+    const detail = error instanceof Error ? error.message : String(error)
+    return `the daemon record at ${path} could not be read (${detail})`
+  }
+}
+
 export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
   const record = await readDaemonState().catch(passedOverAs(null))
+  const daemonRecordError = record === null ? await readDaemonRecordError() : undefined
   const ping = await daemonControlRpc({ op: 'ping' }, { timeoutMs: 1000 })
 
   const snapshot: MercuryDaemonStatus = {
@@ -59,6 +92,7 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
           ...(record.script !== undefined ? { script: record.script } : {}),
         }
       : null,
+    ...(daemonRecordError !== undefined ? { daemonRecordError } : {}),
     controlSock: sockPathOrPlaceholder(),
     controlReachable: ping.ok,
     controlError: ping.ok ? undefined : ping.error,
@@ -202,6 +236,8 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
     )
     lines.push(`  dir:          ${s.dir}`)
     if (s.buildTree !== undefined || s.script !== undefined) lines.push(`  build:        ${s.buildTree ?? 'unstamped'}${s.script !== undefined ? ` at ${s.script}` : ''}`)
+  } else if (status.daemonRecordError) {
+    lines.push(`  daemon:       ${status.daemonRecordError}`)
   } else {
     lines.push('  daemon:       not running')
   }
