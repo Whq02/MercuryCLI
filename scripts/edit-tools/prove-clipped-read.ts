@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync, mkdtempSync, writeFileSync, readFileSync, realpathSync, rmSync, utimesSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'clipped-read-'))
@@ -7,7 +8,9 @@ const realHome = realpathSync(home)
 process.env.MERCURY_CONFIG_DIR = join(home, 'config')
 process.env.MERCURY_CHANGESET_DIR = join(home, 'changesets')
 process.env.MERCURY_BARE = '1'
-process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
+const refusingProvider = createServer((request, response) => { request.resume().on('end', () => response.writeHead(404, { 'content-type': 'application/json' }).end('{"type":"error","error":{"type":"not_found_error","message":"not found"}}')) })
+await new Promise<void>(resolve => refusingProvider.listen(0, '127.0.0.1', () => resolve()))
+process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(refusingProvider.address() as { port: number }).port}`
 process.env.ANTHROPIC_API_KEY = 'fixture-token-count-key'
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }

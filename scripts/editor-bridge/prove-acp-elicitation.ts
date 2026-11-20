@@ -23,8 +23,14 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const bounded = <T,>(work: Promise<T>, ms: number): Promise<T | { stopReason: 'no-answer' }> =>
-  Promise.race([work, new Promise<{ stopReason: 'no-answer' }>(resolve => setTimeout(() => resolve({ stopReason: 'no-answer' }), ms))])
+const bounded = async <T,>(work: Promise<T>, ms: number): Promise<T | { stopReason: 'no-answer' }> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([work, new Promise<{ stopReason: 'no-answer' }>(resolve => { timer = setTimeout(() => resolve({ stopReason: 'no-answer' }), ms) })])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 const until = async (cond: () => boolean, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
