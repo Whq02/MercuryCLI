@@ -5,7 +5,7 @@ import { credentialStorePath, mercurySecretPath } from './shellProtectedPaths/pa
 import { inlineScriptReads, inlineScriptWrites, normalizeInlineScript } from './shellProtectedPaths/inlineScripts.js'
 import { couldNameSecret, mercuryHomes, spellingsOf } from './shellProtectedPaths/homes.js'
 import { credentialWriteAfterMove, credentialWriteInBlocks, credentialWriteWalked } from './shellProtectedPaths/credentialWrite.js'
-import { namedMercurySecretPath, readSecretReach } from './shellProtectedPaths/secretReach.js'
+import { readSecretReach } from './shellProtectedPaths/secretReach.js'
 import { killOfNamedPid, namedSelfProtectionReason, readSelfProtection } from './shellProtectedPaths/selfProtection.js'
 export { inlineScriptWriteTargets } from './shellProtectedPaths/inlineScripts.js'
 
@@ -14,8 +14,7 @@ export async function shellCredentialWritePath(command: string, powershell = fal
 }
 
 export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  const named = await namedMercurySecretPath(command, powershell, cwd)
-  const reached = named ?? (await readSecretReach(command, powershell, cwd))
+  const reached = await readSecretReach(command, powershell, cwd)
   return reached === null ? null : reached.replaceAll(UNREAD_PART, '$(…)')
 }
 

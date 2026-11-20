@@ -196,14 +196,19 @@ export function readOperands(argv: string[]): string[] {
       const operands = args.filter(arg => !arg.startsWith('-'))
       out.push(...(['cp', 'copy', 'copy-item', 'ci', 'cpi', 'mv', 'move', 'move-item', 'mi', 'rsync', 'install'].includes(name) ? operands.slice(0, -1) : operands))
       out.push(...args.filter(arg => /^--[a-z-]+=./.test(arg)).map(arg => arg.slice(arg.indexOf('=') + 1)))
-      const letters = READ_FILE_LETTERS[name]
-      if (letters !== undefined) out.push(...args.filter(arg => /^-[A-Za-z]./.test(arg) && letters.includes(arg[1]!)).map(arg => arg.slice(2)))
+      out.push(...flaggedReadOperands(name, args))
     }
   }
   return out
 }
 
 const READ_FILE_LETTERS: Record<string, string> = { xargs: 'a', grep: 'f', rg: 'f', diff: 'X', du: 'X', jq: 'fL', info: 'fd', man: 'lMC', date: 'rf', pyright: 'p', awk: 'f', sed: 'f' }
+
+export function flaggedReadOperands(program: string, args: readonly string[]): string[] {
+  const letters = READ_FILE_LETTERS[program]
+  if (letters === undefined) return []
+  return args.filter(arg => /^-[A-Za-z]./.test(arg) && letters.includes(arg[1]!)).map(arg => arg.slice(2))
+}
 
 export function runtimeOperands(argv: string[], powershell = false): Array<{ path: string; removesTree: boolean }> {
   const unwrapped = unwrapCommand(argv)
