@@ -17,6 +17,8 @@ import { logError } from '../../utils/log.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { wasEndedByProcessTreeKill } from '../../utils/platform/processes.js'
+import { isBatchShim } from '../../utils/platform/spawn.js'
 
 
 export type LSPStopResult = {
@@ -60,8 +62,7 @@ export function createLspMessageWriter(output: Writable): MessageWriter {
 }
 
 function spawnServer(command: string, args: string[], options?: { env?: NodeJS.ProcessEnv; cwd?: string }) {
-  const isWindowsBatchShim =
-    process.platform === 'win32' && /\.(cmd|bat)$/i.test(command.trim())
+  const isWindowsBatchShim = isBatchShim(command.trim())
   const proc = spawn(command, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: options?.env,
@@ -365,8 +366,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       const finalReceipt = receipt.survivors.length > 0 && proc.pid
         ? await endProcessTreeSurvivors(proc.pid, receipt.survivors, 'SIGKILL')
         : receipt
-      const killed = !alreadyExited && (proc.signalCode !== null ||
-        (process.platform === 'win32' && receipt.ended > 0 && proc.exitCode !== 0))
+      const killed = !alreadyExited && wasEndedByProcessTreeKill(proc.signalCode, receipt.ended, proc.exitCode)
       result = {
         outcome: killed ? 'killed' : 'exited',
         elapsedMs: Math.round(performance.now() - started),

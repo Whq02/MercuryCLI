@@ -15,6 +15,9 @@ import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { endProcessTree } from '../processGroup.js'
 import { getPlatform } from '../platform.js'
+import { rememberedPlatform } from '../platform/host.js'
+import { nativeCwdFromRecordedShell } from '../platform/paths.js'
+import { childGetsOwnProcessGroup } from '../platform/processes.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from '../subprocessEnv.js'
@@ -24,7 +27,6 @@ import { evictTaskOutput } from '../task/diskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { resolveBrushPackDir, type BrushPackResolution } from './brushPack.js'
-import { nativeCwdFromShellRecord } from '../windowsPaths.js'
 import { shellEngineArmWords, shellEngineRequest, type ShellEngineArm } from './shellEngineArm.js'
 import { windowsBashAbsent, withGitPrograms, withoutWhatTheEngineRefuses } from './windowsShellRoad.js'
 import { registerCleanup } from '../cleanupRegistry.js'
@@ -100,8 +102,7 @@ export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineRes
 }
 
 export function recordedCwdToNative(reported: string, platform: string = getPlatform()): string | null {
-  if (platform !== 'windows') return reported
-  const native = nativeCwdFromShellRecord(reported)
+  const native = nativeCwdFromRecordedShell(reported, false, platform)
   if ('refused' in native) {
     logForDebugging(`engine cwd record refused — the session directory stays put: ${native.refused}`)
     return null
@@ -130,7 +131,7 @@ export function createEngineCommandProvider(binaryPath: string): ShellProvider {
     type: 'bash',
     shellPath: binaryPath,
     origin: 'engine',
-    detached: getPlatform() !== 'windows',
+    detached: childGetsOwnProcessGroup(rememberedPlatform()),
     async buildExecCommand(command, options) {
       const record = join(tmpdir(), `mercury-cwd-${options.id}`)
       const target = quote([record])
@@ -307,7 +308,7 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
       cwd: cwdThatResolves(),
       env: withoutWhatTheEngineRefuses(withGitPrograms(withLoginExports(toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() }), loginExports(binaryPath), base.scrubbed))),
       stdio: ['pipe', 'pipe', 'pipe'],
-      detached: getPlatform() !== 'windows',
+      detached: childGetsOwnProcessGroup(rememberedPlatform()),
       windowsHide: true,
     }),
     nonce,
