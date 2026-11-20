@@ -76,6 +76,7 @@ export function agentsWithCliDefs(opts: RootOptions, agentInfo: Awaited<ReturnTy
       activeAgents = computeActiveAgents(allAgents)
     } catch (error) {
       logError(error)
+      failCli(`Invalid agent definitions (${error instanceof Error ? error.message : String(error)}).`)
     }
   }
   return { activeAgents, allAgents }

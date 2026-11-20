@@ -477,5 +477,31 @@ console.log('\nsrc/main/interactiveLaunch.ts')
     JSON.stringify(r),
   )
 }
+console.log('\nsrc/main/sessionChoices.ts')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    const cliPath = path.join(SRC, 'main/cli.ts')
+    const realCli = await import(cliPath)
+    mock.module(cliPath, () => ({
+      ...realCli,
+      failCli: (message) => {
+        out.refused = message
+        throw new Error('CLI_REFUSED')
+      },
+    }))
+    const { agentsWithCliDefs } = await import(path.join(SRC, 'main/sessionChoices.ts'))
+    try {
+      out.returned = agentsWithCliDefs({ agentDefs: '{not json' }, { activeAgents: [], allAgents: [] })
+    } catch (e) {
+      out.caught = e?.message ?? String(e)
+    }
+  `)
+  check(
+    'session-choices-invalid-agent-defs-refuses',
+    r.caught === 'CLI_REFUSED' && typeof r.refused === 'string' && r.refused.startsWith('Invalid agent definitions ('),
+    JSON.stringify(r),
+  )
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
