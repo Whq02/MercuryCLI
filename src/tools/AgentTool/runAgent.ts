@@ -64,7 +64,8 @@ import {
 } from '../../utils/settings/extensionOnlyPolicy.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
-import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
+import { buildSubagentMercurySectionsWithOutcome, subagentMemoryLoadNote } from '../../constants/subagentDoctrine.js'
+import { enqueueAgentReceiptRow } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
@@ -381,14 +382,22 @@ async function buildAgentSystemPrompt(
     )
     ownPrompt = ''
   }
-  const doctrine = buildSubagentMercurySections({
+  const doctrine = buildSubagentMercurySectionsWithOutcome({
     agentDefinition: definition,
     toolUseContext,
     toolNames: enabledToolNames,
     seat,
   })
+  if (doctrine.memoryLoadError !== undefined) {
+    enqueueAgentReceiptRow({
+      taskId: agentId,
+      description: definition.agentType,
+      status: 'running',
+      summary: subagentMemoryLoadNote(doctrine.memoryLoadError),
+    })
+  }
   return enhanceSystemPromptWithEnvDetails(
-    [...doctrine, ownPrompt],
+    [...doctrine.sections, ownPrompt],
     resolvedAgentModel,
     enabledToolNames,
     agentId,

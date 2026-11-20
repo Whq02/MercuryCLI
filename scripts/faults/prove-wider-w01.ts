@@ -53,6 +53,13 @@ const { configMemoryRows } = await import('../../src/components/Settings/config/
 const { memoryChecks } = await import('../../src/utils/health/sections/memory.ts')
 const { runHealthReport } = await import('../../src/utils/healthReport.ts')
 const { readThinkingDropLedger, thinkingDropLedgerPath } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+const { agentToolCall } = await import('../../src/tools/AgentTool/agent/call.ts')
+const { agentToolResultBlock } = await import('../../src/tools/AgentTool/agent/resultBlock.ts')
+const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { tellTheToolTable } = await import('../../src/tools/toolTable.ts')
+const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
 const { memoryLifecycleCheck } = await import('../../src/utils/health/sections/settings/prompt.ts')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
@@ -376,6 +383,99 @@ try {
     unlinkSync(ledgerPath)
     const afterRow = await runPreservedThinkingRow()
     check('removing thinking-drop ledger restores preserved-thinking health row to ok', afterRow.status === 'ok', JSON.stringify(afterRow))
+  }
+
+  section('§4 w01-4: crewmate launch notes when loadMemoryPrompt fails')
+  if (POSIX_MODES) {
+    process.env.ANTHROPIC_API_KEY = 'test-key-000'
+    tellTheToolTable({ getAllBaseTools: () => [], assembleToolPool: () => [] })
+    let appState: Record<string, unknown> = {
+      toolPermissionContext: getEmptyToolPermissionContext(),
+      mcp: { clients: [], tools: [] },
+      tasks: {},
+    }
+    const setAppState = (fn: (prev: Record<string, unknown>) => Record<string, unknown>): void => {
+      appState = fn(appState)
+    }
+    const makeContext = () => ({
+      options: {
+        engineModel: 'claude-sonnet-4-6',
+        tools: [],
+        mcpClients: [],
+        agentDefinitions: { activeAgents: [MERCURY_CREW_AGENT], allAgents: [MERCURY_CREW_AGENT] },
+      },
+      getAppState: () => appState,
+      setAppState,
+      setAppStateForTasks: setAppState,
+      abortController: new AbortController(),
+      readFileState: new Map(),
+      messages: [],
+      toolUseId: 'tu-w01-4',
+      startTurn: async function* () {},
+    })
+    const parentMsg = {
+      type: 'assistant',
+      uuid: '00000000-0000-0000-0000-000000000001',
+      message: { id: 'm1', role: 'assistant', content: [], model: 'claude-sonnet-4-6', stop_reason: null, stop_sequence: null, type: 'message', usage: { input_tokens: 0, output_tokens: 0 } },
+    }
+    chmodSync(dir, 0o300)
+    try {
+      const ctx = makeContext()
+      const answer = await agentToolCall(
+        { description: 'probe launch', prompt: 'say ok', run_in_background: true },
+        ctx as never,
+        (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
+        parentMsg as never,
+      )
+      ctx.abortController.abort()
+      const receipt = agentToolResultBlock(answer.data, 'tu-w01-4')
+      const receiptText = receipt.content.map(b => b.text).join('\n')
+      check('crewmate launch is not refused when loadMemoryPrompt fails', answer.data.status === 'async_launched', JSON.stringify(answer.data))
+      check(
+        'async launch receipt carries the pinned-rules memory load note',
+        receiptText.includes('this crewmate runs without your pinned rules: memory could not be loaded ('),
+        receiptText,
+      )
+
+      resetCommandQueue()
+      const runCtx = makeContext()
+      const gen = runAgent({
+        agentDefinition: MERCURY_CREW_AGENT,
+        promptMessages: [],
+        toolUseContext: runCtx as never,
+        canUseTool: (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
+        isAsync: false,
+        querySource: 'agent:default' as never,
+        availableTools: [],
+        description: 'probe runAgent',
+      })
+      for await (const _ of gen) {
+      }
+      const queued = getCommandQueueSnapshot().map(item => String(item.value)).join('\n')
+      check(
+        'runAgent enqueues receipt note when buildAgentSystemPrompt hits loadMemoryPrompt failure',
+        queued.includes('this crewmate runs without your pinned rules: memory could not be loaded ('),
+        queued,
+      )
+      resetCommandQueue()
+    } finally {
+      chmodSync(dir, 0o700)
+    }
+
+    const okCtx = makeContext()
+    const okAnswer = await agentToolCall(
+      { description: 'clean launch', prompt: 'say ok', run_in_background: true },
+      okCtx as never,
+      (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
+      parentMsg as never,
+    )
+    okCtx.abortController.abort()
+    const okText = agentToolResultBlock(okAnswer.data, 'tu-w01-4-ok').content.map(b => b.text).join('\n')
+    check(
+      'clean crewmate launch carries no memory-load failure note',
+      !okText.includes('this crewmate runs without your pinned rules'),
+      okText,
+    )
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

@@ -10,6 +10,7 @@ import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { changeTransactionEnabled } from '../services/changeTransaction/contracts.js'
 import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'
 import { MERCURY_SCOUT_AGENT } from '../tools/AgentTool/built-in/mercuryScoutAgent.js'
+import { errorMessage } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
 
 const FIXED_OUTPUT_AGENT_TYPES = new Set<string>(
@@ -31,12 +32,16 @@ export function agentFanoutCap(): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
-function safeMemoryPrompt(verbs: 'all' | 'read'): string | null {
+export function subagentMemoryLoadNote(error: string): string {
+  return `this crewmate runs without your pinned rules: memory could not be loaded (${error})`
+}
+
+function safeMemoryPrompt(verbs: 'all' | 'read'): { text: string | null; error?: string } {
   try {
-    return loadMemoryPrompt({ verbs, role: 'child' })
+    return { text: loadMemoryPrompt({ verbs, role: 'child' }) }
   } catch (error) {
     passedOver(error)
-    return null
+    return { text: null, error: errorMessage(error) }
   }
 }
 
@@ -46,12 +51,12 @@ function memoryVerbsFor(agentDefinition: Pick<AgentDefinition, 'agentType'>, too
   return 'all'
 }
 
-export function buildSubagentMercurySections(args: {
+export function buildSubagentMercurySectionsWithOutcome(args: {
   agentDefinition: Pick<AgentDefinition, 'agentType'>
   toolUseContext?: Pick<ToolUseContext, 'options'>
   toolNames?: ReadonlySet<string>
   seat?: MercuryAgentSeat
-}): string[] {
+}): { sections: string[]; memoryLoadError?: string } {
 
   const { agentDefinition, seat = 'a crewmate' } = args
 
@@ -70,12 +75,22 @@ export function buildSubagentMercurySections(args: {
 
   const memory = safeMemoryPrompt(memoryVerbsFor(agentDefinition, args.toolNames))
 
-  return [
+  const sections = [
     floor,
     operating,
     ...(posture ? [posture] : []),
     ...(vulcanDoctrine ? [vulcanDoctrine] : []),
     ...(envelopeDoctrine ? [envelopeDoctrine] : []),
-    ...(memory ? [memory] : []),
+    ...(memory.text ? [memory.text] : []),
   ]
+  return memory.error !== undefined ? { sections, memoryLoadError: memory.error } : { sections }
+}
+
+export function buildSubagentMercurySections(args: {
+  agentDefinition: Pick<AgentDefinition, 'agentType'>
+  toolUseContext?: Pick<ToolUseContext, 'options'>
+  toolNames?: ReadonlySet<string>
+  seat?: MercuryAgentSeat
+}): string[] {
+  return buildSubagentMercurySectionsWithOutcome(args).sections
 }
