@@ -421,6 +421,7 @@ function wardsPrograms(read: { threw?: string; unread?: { why: string }; command
 }
 
 const world = { cwd: PROJECT, home: HOME, homesRoot: dirname(HOME), ownNames: [FAKE_USER] }
+const readingOf = (read: { commands: unknown; pipelineSizes: unknown; exported: unknown; homes: unknown; unread: unknown }): unknown => ({ commands: read.commands, pipelineSizes: read.pipelineSizes, exported: read.exported, homes: read.homes, unread: read.unread })
 const seen: Record<string, Seen> = {}
 
 async function posixReadings(command: string, at: number): Promise<string[]> {
@@ -454,8 +455,8 @@ async function posixReadings(command: string, at: number): Promise<string[]> {
     serviceInput.noteServiceInput(service, 'run', command, true)
     return serviceInput.serviceInputAsSent(service, '', 'run')
   })
-  const read = await keep('readShellCommands:posix', () => wardsRead.readShellCommands(command, 'posix', world))
-  await keep('readShellCommands:powershell', () => wardsRead.readShellCommands(command, 'powershell', world))
+  const read = await keep('readShellCommands:posix', async () => readingOf(await wardsRead.readShellCommands(command, 'posix', world)))
+  await keep('readShellCommands:powershell', async () => readingOf(await wardsRead.readShellCommands(command, 'powershell', world)))
   const ward = (await keep('wards:Bash', () => warded(command, 'Bash'))) as { refused?: boolean; reason?: string }
   await keep('wards:PowerShell', () => warded(command, 'PowerShell'))
   await keep('floors:bash', async () => [await floors.shellSelfProtectionReason(command, false, PROJECT), await floors.shellMercurySecretPath(command, false, PROJECT), await floors.shellCredentialWritePath(command, false, PROJECT)])
