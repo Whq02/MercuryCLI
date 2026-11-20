@@ -4,7 +4,7 @@ import { parseReferences } from '../../history.js'
 import type { useHistorySearch } from '../../hooks/useHistorySearch.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
-import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
+import { findSlackChannelPositions } from '../../services/suggestions/slackChannelSuggestions.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 

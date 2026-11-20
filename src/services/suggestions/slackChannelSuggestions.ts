@@ -1,7 +1,7 @@
-import type { MCPServerConnection } from '../../services/mcp/types.js'
-import { logForDebugging } from '../debug.js'
-import { createSignal } from '../signal.js'
-import { passedOver } from '../passedOver.js'
+import type { MCPServerConnection } from '../mcp/types.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { createSignal } from '../../utils/signal.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const QUERY_LIMIT = 20
