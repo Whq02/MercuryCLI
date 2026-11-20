@@ -195,7 +195,7 @@ export async function sendUpload(
       const cancel = (): Promise<unknown> => call('function () { this.dispatchEvent(new Event("cancel", { bubbles: true })) }').catch(passedOverAs(undefined))
       const owning = s.page.frames().find(frame => (frame as { _id?: string })._id === chooser.frameId)
       const chooserOrigin = owning === undefined ? null : originOf(owning.url())
-      if (judgedOrigin !== null && chooserOrigin !== judgedOrigin) {
+      if (judgedOrigin === null || chooserOrigin !== judgedOrigin) {
         await cancel()
         return refused(`the file chooser that ${selector} opened belongs to a frame of ${chooserOrigin ?? 'another page'}, which this permission check did not judge`)
       }
