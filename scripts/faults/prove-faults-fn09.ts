@@ -196,5 +196,36 @@ if (!POSIX_MODES) {
   check('changeSetCommit-readOrNull-delete-recovery: journal recovery marks unreadable delete target unrecoverable instead of rolling forward', recovery.rolledForward.length === 0 && recovery.unrecoverable.includes('delete-unreadable'), JSON.stringify(recovery))
 }
 
+console.log('\nconcourseSnapshot — resolveHarnessGround rejects when the draft store cannot be read or parsed')
+if (!POSIX_MODES) {
+  skip('concourseSnapshot-resolveHarnessGround', 'needs non-root POSIX chmod')
+} else {
+  const r = runSub(`
+    const snapMod = await import(path.join(SRC, 'services/concourse/concourseSnapshot.ts'))
+    const draftDir = path.join(PROJECT, 'drafts')
+    fs.mkdirSync(draftDir, { recursive: true })
+    out.absentGround = await snapMod.resolveHarnessGround(draftDir)
+    const draftPath = path.join(draftDir, 'concourse-draft.json')
+    fs.writeFileSync(draftPath, '{not valid json', { mode: 0o600 })
+    try {
+      await snapMod.resolveHarnessGround(draftDir)
+      out.corruptGround = null
+    } catch (e) {
+      out.corruptGround = String(e?.message ?? e)
+    }
+    fs.writeFileSync(draftPath, JSON.stringify({ _v: 1, draft: '', updatedAtMs: 1, seedOverrides: { projectDir: '/other', projectDirAt: Date.now() } }), { mode: 0o600 })
+    fs.chmodSync(draftPath, 0o200)
+    try {
+      await snapMod.resolveHarnessGround(draftDir)
+      out.unreadableGround = null
+    } catch (e) {
+      out.unreadableGround = String(e?.message ?? e)
+    } finally {
+      fs.chmodSync(draftPath, 0o600)
+    }
+  `)
+  check('concourseSnapshot-resolveHarnessGround-corrupt-unreadable: absent returns cwd while corrupt or unreadable rejects', typeof r.absentGround === 'string' && r.corruptGround !== null && r.unreadableGround !== null, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
