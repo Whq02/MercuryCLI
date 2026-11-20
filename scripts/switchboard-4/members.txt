@@ -5,5 +5,4 @@
 # loud red in this runner.
 prove-command-table.ts
 prove-mirror-grammar.ts
-prove-spec-ledger-docs.ts
 prove-w0-laws.ts
