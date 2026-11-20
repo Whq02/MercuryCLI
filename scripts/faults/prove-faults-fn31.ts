@@ -726,5 +726,25 @@ else {
   check('crew/boot:unreadable-trace-reported', Boolean(row?.evidence?.includes('prior trace unreadable (')), JSON.stringify(r))
 }
 
+console.log('\ncrew/crewmates.ts — agentDefinitionsCheck reports unreadable agents dir instead of absent')
+if (!POSIX_MODES) skip('crew/crewmates:unreadable-agents-dir-reported', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const agentsDir = path.join(HOME, 'agents')
+    fs.mkdirSync(agentsDir, { recursive: true })
+    fs.chmodSync(agentsDir, 0o000)
+    const { agentDefinitionsCheck } = await import(SRC + '/utils/health/sections/crew/crewmates.ts')
+    try {
+      out.row = await agentDefinitionsCheck().run()
+    } finally {
+      fs.chmodSync(agentsDir, 0o700)
+    }
+  `)
+  const row = r.row as { evidence?: string } | undefined
+  check('crew/crewmates:unreadable-agents-dir-reported', Boolean(row?.evidence?.includes('user dir unreadable (')), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
