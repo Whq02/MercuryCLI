@@ -198,7 +198,7 @@ const cfg = {
   argv: [NODE, DIST],
   cwd: WORK,
   sends: [
-    { atTick: 150, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
+    { requireAwait: true, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
     { afterPrevTicks: 6, data: '', mark: 'opening' },
   ],
   readyText: [landed],

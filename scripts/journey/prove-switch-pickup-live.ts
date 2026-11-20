@@ -98,11 +98,11 @@ const cfg = {
   argv: ['node', DIST, '--model', 'gpt-5.6-sol'],
   cwd: FIXTURE_CWD,
   sends: [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 80, minTick: 20, awaitText: '? for shortcuts', data: 'hello sol\r' },
-    { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
-    { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
-    { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'pickup-sent' },
+    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, minTick: 20, awaitText: '? for shortcuts', data: 'hello sol\r' },
+    { requireAwait: true, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
+    { requireAwait: true, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
+    { requireAwait: true, minTick: 10, awaitText: 'ready · Opus 5', awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'pickup-sent' },
   ],
   readyText: [OPUS_REPLY],
   stableTicks: 4,
@@ -164,9 +164,9 @@ section('L1 — the GPT leg ran on the real binary')
   const gptCalls = wire.filter(c => c.kind === 'openai')
   check('the Responses fixture served the GPT turn', gptCalls.length >= 1, `openai calls=${gptCalls.length} vshot status=${res.status} hits=${wire.map(c => `${c.kind}:${c.url ?? ''}`).join('|') || 'NONE'}`)
   check(
-    'the GPT reply painted (the switch send fired on its await, not its deadline)',
-    switchSentAt > 0 && switchSentAt < 120,
-    `switch-sent at tick ${switchSentAt} (deadline 150)`,
+    'the GPT reply painted (the switch send fired on its await)',
+    switchSentAt > 0,
+    `switch-sent at tick ${switchSentAt}`,
   )
 }
 

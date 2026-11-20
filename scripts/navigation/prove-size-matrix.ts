@@ -67,10 +67,13 @@ console.log('\n== transient resize: 120×40 → 50×15 → 120×40 (one journey)
   const cfg = {
     ...scenario('resume-2turn', 120, 40),
     out: gridPath,
-    total: 42,
+    sends: [{ requireAwait: true, awaitText: '❯', minTick: 10, awaitSettleTicks: 5, data: '', mark: 'up' }],
+    readyText: ['❯'],
+    readySettleTicks: 10,
+    total: 150,
     resizes: [
-      { atTick: 22, cols: 50, rows: 15 },
-      { atTick: 32, cols: 120, rows: 40 },
+      { afterMark: 'up', afterMs: 1000, cols: 50, rows: 15 },
+      { afterPrevMs: 2000, cols: 120, rows: 40 },
     ],
   }
   const cfgPath = '/tmp/compass-transient-resize-cfg.json'

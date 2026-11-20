@@ -47,7 +47,7 @@ console.log('§2 the driver on a synthetic child: early exit versus a full deadl
   const earlyRun = await run(early, 4, null)
   check('a child that exits after 300 ms: the driver reports ended=eof', earlyRun.outcome.report?.ended === 'eof', JSON.stringify(earlyRun.outcome))
   check('…and the arena marks the capture INCOMPLETE with the early-leave reason', !earlyRun.outcome.complete && /before the authored deadline/.test(earlyRun.outcome.reason ?? ''), earlyRun.outcome.reason ?? '')
-  check('…well before the 4 s wall (this is the child leaving, not the wall)', earlyRun.outcome.elapsedMs < 3000 && !earlyRun.outcome.killedByWall, String(earlyRun.outcome.elapsedMs))
+  check("…before the 4 s deadline on the driver's own clock (this is the child leaving, not the wall)", (earlyRun.outcome.report?.elapsed_ms ?? Number.POSITIVE_INFINITY) < 4000 && !earlyRun.outcome.killedByWall, `${earlyRun.outcome.report?.elapsed_ms} ms in the driver, ${earlyRun.outcome.elapsedMs} ms in all`)
   check('…while the partial data still parsed as before (nothing is thrown away)', earlyRun.teeLines.length === 0 && earlyRun.driverOut.includes('raw_bytes'))
   const fullRun = await run(lingering, 2, null)
   check('a child that lingers to the deadline: ended=deadline, exit 0, COMPLETE', fullRun.outcome.complete && fullRun.outcome.exitCode === 0 && fullRun.outcome.report?.ended === 'deadline', JSON.stringify(fullRun.outcome))

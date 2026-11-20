@@ -108,7 +108,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       'stray-write': '\r',
     }
     const sends: Array<Record<string, unknown>> = [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'build me a tiny hello demo\r', mark: 'directive' },
       { requireAwait: true, minTick: 6, awaitText: POLL_ONE_FRAGMENT, awaitSettleTicks: 3, data: '\r', mark: 'poll1-answer' },
       { requireAwait: true, minTick: 6, awaitText: '❯ 1. Yes — begin the build', awaitSettleTicks: 4, data: cardSelect[branch], mark: 'card-answer' },

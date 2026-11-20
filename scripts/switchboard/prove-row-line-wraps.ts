@@ -123,6 +123,8 @@ function capture(cols: number, rows: number): Map<string, string[]> {
       { afterPrevTicks: 3, data: CTRL_X, awaitPattern: selects(TITLES.parked) },
       { data: '', awaitText: 'again arms', requireAwait: true, awaitSettleTicks: 3, mark: 'arms' },
     ],
+    readyText: ['again arms'],
+    readySettleTicks: 4,
     total: 170,
     cols,
     rows,

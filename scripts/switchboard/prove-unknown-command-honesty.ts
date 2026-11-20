@@ -79,15 +79,15 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'Spare.', whenModel: 'opus' },
 ])
 const N = '↑↓ choose'
-const after = (ms: number, payload: string): string => `after:${N}:${ms}:${payload}`
+const after = (needle: string, ms: number, payload: string): string => `after:${needle}:${ms}:${payload}`
 const sends = [
-  after(1200, '\r'),
-  after(3600, 'hello persisted turn'),
-  after(4200, '\r'),
-  after(7200, '/frobnicate'),
-  after(7900, '\r'),
+  after(N, 1200, '\r'),
+  after('Type a prompt', 600, 'hello persisted turn'),
+  after('~❯ hello persisted turn', 400, '\r'),
+  after('The fixture answers.', 800, '/frobnicate'),
+  after('~❯ /frobnicate', 500, '\r'),
 ]
-const WALL_S = driveWallSeconds(sends)
+const WALL_S = driveWallSeconds(sends, { bootMs: 10_700 })
 const drive = join(home, 'drive.jsonl')
 const nodeBin = nodeBinPath()
 const child = spawn(

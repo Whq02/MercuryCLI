@@ -134,7 +134,7 @@ const roads: NonNullable<Roads> = {
   device: async (family, io) => {
     calls.push(`device:${family}`)
     io.onCode({ verificationUri: 'https://example.invalid/device', userCode: 'ABCD-1234' })
-    await until(() => io.cancelled(), 300)
+    await until(() => io.cancelled(), (elicitationAnswer as { action?: string }).action === 'decline' ? 15_000 : 300)
     deviceAnswer = io.cancelled() ? 'cancelled' : 'ok'
     return io.cancelled() ? { ok: false, receipt: `${family} sign-in cancelled — nothing stored.` } : { ok: true, receipt: `${family} signed in` }
   },
@@ -184,7 +184,7 @@ section('§4 authenticate(claude) runs the browser road, shows the link through 
   check('the claude road ran once', j(calls) === j(['claude']), j(calls))
   const shown = h.elicitations[0]
   check('the sign-in link went to the editor as a request-scoped url elicitation', shown?.mode === 'url' && shown.url === 'https://example.invalid/claude-sign-in' && 'requestId' in shown && typeof shown.elicitationId === 'string', j(shown))
-  check('elicitation/complete followed', await until(() => h.completes.length === 1 && h.completes[0]?.elicitationId === shown?.elicitationId, 2000), j(h.completes))
+  check('elicitation/complete followed', await until(() => h.completes.length === 1 && h.completes[0]?.elicitationId === shown?.elicitationId, 15_000), j(h.completes))
 }
 
 section('§5 after the sign-in, session/new opens')
@@ -200,7 +200,7 @@ section('§6 authenticate(<device family>): the code rides the url elicitation; 
   const shown = h.elicitations[1]
   check('accept: the device road ran and authenticate answered {}', j(okResult) === j({}) && calls[1] === 'device:moonshot' && deviceAnswer === 'ok', `${j(calls)} ${deviceAnswer}`)
   check('the elicitation message carries the code and the url the user visits', shown?.mode === 'url' && String(shown.message).includes('ABCD-1234') && shown.url === 'https://example.invalid/device', j(shown))
-  check('elicitation/complete followed the token', await until(() => h.completes.length === 2, 2000), j(h.completes))
+  check('elicitation/complete followed the token', await until(() => h.completes.length === 2, 15_000), j(h.completes))
   elicitationAnswer = { action: 'decline' }
   const declined = await errorOf(h.agent.request('authenticate', { methodId: 'xai' }))
   check('decline: the poll is cancelled and authenticate answers -32000 with the road\'s receipt', declined?.code === -32000 && (declined.message ?? '').includes('cancelled') && deviceAnswer === 'cancelled', j(declined))

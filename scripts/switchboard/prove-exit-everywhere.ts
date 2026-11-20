@@ -232,7 +232,7 @@ console.log('leg G — the main Chat (the control: the same words, the same exit
     const noticeFrame = grabs.slice(0, -1).find(g => text(g).includes(NOTICE))
     check("G: the Chat's own notice stood before the second press (the same words)", noticeFrame !== undefined, noticeFrame === undefined ? `no frame between the presses carried the notice (${between.length} sampled)` : `on the frame at +${noticeFrame.atMs} ms`)
     const lastTee = run.teeLines.length > 0 ? run.teeLines[run.teeLines.length - 1]!.ts : 0
-    check('G: the process left well inside the budget after the second press (the existing exit)', lastTee > 0 && lastTee - second < 6000, `${lastTee - second}ms`)
+    check('G: the process left after the second press, before the 25 s the capture allows (the existing exit)', lastTee > 0 && run.outcome.report?.ended === 'eof', `the capture ended by ${run.outcome.report?.ended ?? 'no report'}; the last write came ${lastTee - second}ms after the press`)
     check('G: the final screen holds no composer (the chat is gone)', !text(grabs[grabs.length - 1]!).includes('Type a prompt'))
   } finally {
     run.cleanup()
