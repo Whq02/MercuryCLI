@@ -10,7 +10,7 @@ import { countCharInString, plural } from '../../utils/stringUtils.js'
 import { cutAroundSpillNotice } from '../../utils/toolErrors.js'
 import { clampClause } from '../../utils/waitCeiling.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
-import { createSystemMessage } from '../../utils/messages.js'
+import { createSystemMessage } from '../../utils/messages/systemMessages.js'
 import { shellWordOwed } from '../../utils/shell/shellRecord.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type {
