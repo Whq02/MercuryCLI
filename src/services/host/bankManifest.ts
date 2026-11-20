@@ -22,12 +22,14 @@ export function bytesMatchRecipe(bytes: number, weightsGb: number): boolean {
 function folderFiles(root: string): FolderFile[] {
   const rows: FolderFile[] = []
   const walk = (dir: string, prefix: string): void => {
-    let names: string[]
-    try { names = readdirSync(dir).sort() } catch (error) { passedOver(error); return }
+    const names = readdirSync(dir).sort()
     for (const name of names) {
       if (name === '.DS_Store' || !prefix && (name === '.cache' || bookkeeping.has(name))) continue
       let stat
-      try { stat = lstatSync(join(dir, name), { bigint: true }) } catch (error) { passedOver(error); continue }
+      try { stat = lstatSync(join(dir, name), { bigint: true }) } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
+      }
       if (stat.isDirectory()) walk(join(dir, name), prefix + name + '/')
       else if (stat.isFile()) rows.push({ path: prefix + name, size: Number(stat.size), mtimeNs: String(stat.mtimeNs) })
     }
@@ -98,13 +100,21 @@ function build(recipe: HostRecipe, path: string, sumsText: string, files: Folder
 }
 export function bankManifest(recipe: HostRecipe, path: string): BankManifest {
   let directory = false
-  try { directory = lstatSync(path).isDirectory() } catch (error) { passedOver(error) }
+  try { directory = lstatSync(path).isDirectory() } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') return { reason: 'the bank cannot be read: ' + (error instanceof Error ? error.message : String(error)) }
+  }
   if (!directory) return { reason: 'not banked · b banks the weights' }
   let sumsText: string
-  try { sumsText = readFileSync(join(path, 'SHA256SUMS'), 'utf8') } catch { return { reason: 'no SHA256SUMS in ' + path + ' · b banks the weights and seals one' } }
+  try { sumsText = readFileSync(join(path, 'SHA256SUMS'), 'utf8') } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { reason: 'no SHA256SUMS in ' + path + ' · b banks the weights and seals one' }
+    return { reason: 'SHA256SUMS in ' + path + ' cannot be read: ' + (error instanceof Error ? error.message : String(error)) }
+  }
   let sizesText = ''
   try { sizesText = readFileSync(join(path, 'SIZES.json'), 'utf8') } catch (error) { passedOver(error) }
-  const files = folderFiles(path)
+  let files: FolderFile[]
+  try { files = folderFiles(path) } catch (error) { return { reason: 'the bank cannot be read: ' + (error instanceof Error ? error.message : String(error)) } }
   const receipts = receiptRevisions(path, files.map(file => file.path))
   const key = path + '\n' + recipe.model + '\n' + (recipe.include ?? '')
   const fingerprint = createHash('sha256').update(JSON.stringify([sumsText, sizesText, receipts, files, recipe.weightsGb, recipe.source])).digest('hex')

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { hostMachineName } from '../../commands/llmhost/words.js'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { compatEndpointLastTurnAt } from '../providers/openaicompat/compatPrefixCache.js'
@@ -26,12 +27,21 @@ export function hostEndpointLastTurnAt(record: HostRecord): number | undefined {
   try {
     const endpoint = configuredCompatEndpoints().find(row => row.hostPodId === record.id || Boolean(record.provider) && row.name === record.provider)
     return endpoint ? compatEndpointLastTurnAt(endpoint) : undefined
-  } catch (error) { passedOver(error); return undefined }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
 }
 
 function mediaLastRequestAt(id: string): number | undefined {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(id)) return undefined
-  try { const { at } = JSON.parse(readFileSync(join(getMercuryHome(), 'host', 'media', id, 'activity.json'), 'utf8')) as { at?: unknown }; return finite(at) ? at : undefined } catch (error) { passedOver(error); return undefined }
+  try {
+    const { at } = JSON.parse(readFileSync(join(getMercuryHome(), 'host', 'media', id, 'activity.json'), 'utf8')) as { at?: unknown }
+    return finite(at) ? at : undefined
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
 }
 
 export function hostIdleSince(record: HostRecord, lastTurnAt: (record: HostRecord) => number | undefined = hostEndpointLastTurnAt): number | undefined {
@@ -39,7 +49,16 @@ export function hostIdleSince(record: HostRecord, lastTurnAt: (record: HostRecor
   if (record.status === 'EXITED' || record.status === 'TERMINATED') return undefined
   if (record.jobState === 'paused') return record.advancedAt ?? record.steps?.findLast(row => row.step.startsWith('paused'))?.at
   if (record.jobState !== 'ready') return undefined
-  const marks = [record.steps?.findLast(row => row.step === 'ready')?.at, record.advancedAt, lastTurnAt(record), mediaLastRequestAt(record.id)].filter(finite)
+  let lastTurn: number | undefined
+  let mediaAt: number | undefined
+  try {
+    lastTurn = lastTurnAt(record)
+    mediaAt = mediaLastRequestAt(record.id)
+  } catch (error) {
+    logForDebugging(`[host] idle mark for ${record.id} could not be read (${error instanceof Error ? error.message : String(error)}); leaving host running`, { level: 'warn' })
+    return undefined
+  }
+  const marks = [record.steps?.findLast(row => row.step === 'ready')?.at, record.advancedAt, lastTurn, mediaAt].filter(finite)
   return marks.length ? Math.max(...marks) : undefined
 }
 

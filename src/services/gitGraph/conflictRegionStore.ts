@@ -82,7 +82,11 @@ export function readConflictRegions(owner: OwnerKey, root: string, file: string)
     const bytes = readFileSync(absolute)
     text = bytes.toString('utf8')
     if (!Buffer.from(text).equals(bytes)) { files.delete(file); return [] }
-  } catch { files.delete(file); return [] }
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') { files.delete(file); return [] }
+    throw error
+  }
   const parsed = parseRegions(file, text)
   const remaining = [...(files.get(file) ?? [])].filter(old => {
     const previousCount = files.get(file)!.filter(r => r.raw === old.raw).length
