@@ -314,5 +314,35 @@ console.log('\nWorktreeExitDialog.tsx:43,48 — failed directory restore reports
   )
 }
 
+console.log('\nstudioEditorModel.ts:291 — buildReviewFacts reports unreadable existing agent file instead of fake full-add diff')
+{
+  const res = runScenario(`
+    const { decodeAgentDocument } = await import(${JSON.stringify(join(SRC, 'services/agents/codec.ts'))})
+    const { buildReviewFacts } = await import(${JSON.stringify(join(SRC, 'components/agents/studio/studioEditorModel.ts'))})
+    const raw = '---\\nname: scout\\ndescription: Checks code carefully\\n---\\nInspect files thoroughly.\\n'
+    const doc = decodeAgentDocument(raw, '/repo/.mercury/agents/scout.md')
+    const base = { identity: { filePath: '/repo/.mercury/agents/scout.md', revision: 'rev-1' }, agent: {} }
+    out.unread = buildReviewFacts(doc, base, () => {
+      throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+    })
+    out.readable = buildReviewFacts(doc, base, () => raw)
+  `)
+  const unread = res.unread as { changed: string[]; diffLines: string[] }
+  const readable = res.readable as { changed: string[]; diffLines: string[] }
+  check(
+    'studio-review-unreadable-base-sentence',
+    unread.diffLines.length === 1 &&
+      unread.diffLines[0] === 'Could not read existing agent file (EACCES: permission denied) — check permissions before saving.' &&
+      !unread.diffLines.some(l => l.startsWith('+')) &&
+      unread.changed.join(',') === '(existing file unreadable)',
+    JSON.stringify(unread),
+  )
+  check(
+    'studio-review-readable-base-control',
+    readable.changed.length === 0 && readable.diffLines.length === 0,
+    JSON.stringify(readable),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
