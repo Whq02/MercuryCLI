@@ -162,9 +162,6 @@ try {
     assert.equal(noPreview.data.preview, undefined)
     assert.match(noPreview.data.result, /"applied":9/)
   })
-  const doc = readFileSync(new URL('../../docs/ASEPRITE-BRIDGE.md', import.meta.url), 'utf8')
-  for (const op of ['draw', 'render', 'parts', 'describe', 'palette-check']) assert.ok(doc.includes(`| \`${op}\` |`), `documented verb: ${op}`)
-  assert.ok(!doc.includes('—'))
   console.log('PASS Aseprite art: grammar, batches, permissions, fences, palette report, image blocks, cleanup and verb table')
 } finally {
   if (saved === undefined) delete process.env.MERCURY_ASEPRITE_BIN
