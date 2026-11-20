@@ -324,6 +324,63 @@ if (POSIX_MODES) {
   check('history: historyPasteHashes rejects when history.jsonl is unreadable instead of answering empty', r.absentSize === 0 && r.unreadableThrew === true, JSON.stringify(r))
 }
 
+{
+  const r = runIsolated(`
+    const { mock } = await import('bun:test')
+    const { EventEmitter: NodeEventEmitter } = await import('node:events')
+    const { PassThrough } = await import('node:stream')
+    const { createElement } = await import('react')
+    process.env.NODE_ENV = 'test'
+    const authPath = ${JSON.stringify(join(SRC, 'utils/auth.ts'))}
+    const realAuth = await import(authPath)
+    mock.module(authPath, () => ({
+      ...realAuth,
+      invalidateOnDiskChange: () => { throw new Error('config unreadable') },
+    }))
+    const { useAuthWallHold } = await import(${JSON.stringify(join(SRC, 'hooks/useAuthWallHold.ts'))})
+    const { AppStoreContext, getDefaultAppState } = await import(${JSON.stringify(join(SRC, 'state/AppState.tsx'))})
+    const { createStore } = await import(${JSON.stringify(join(SRC, 'state/store.ts'))})
+    const { default: StdinContext } = await import(${JSON.stringify(join(SRC, 'ink/components/StdinContext.ts'))})
+    const { Box, EventEmitter, render, flushPendingSyncWork } = await import(${JSON.stringify(join(SRC, 'ink.ts'))})
+    const store = createStore(getDefaultAppState())
+    let handle = null
+    let composerText = ''
+    const messages = [
+      { type: 'user', uuid: 'u1', message: { role: 'user', content: 'hello world' } },
+      { type: 'assistant', uuid: 'e1', isApiErrorMessage: true, error: 'authentication_failed', message: { role: 'assistant', content: [] } },
+    ]
+    function Probe() {
+      handle = useAuthWallHold(messages, { text: () => composerText, restore: t => { composerText = t } }, () => 'claude-opus-4-6')
+      return null
+    }
+    const emitter = new EventEmitter()
+    const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
+    const stream = new PassThrough()
+    stream.resume()
+    const stdout = Object.assign(stream, { columns: 80, rows: 24 })
+    const stdinValue = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
+    const inst = await render(
+      createElement(AppStoreContext.Provider, { value: store },
+        createElement(StdinContext.Provider, { value: stdinValue },
+          createElement(Box, null, createElement(Probe)))),
+      { stdin, stdout, patchConsole: false, exitOnCtrlC: false },
+    )
+    for (let i = 0; i < 4; i++) { flushPendingSyncWork(); await new Promise(res => setTimeout(res, 10)) }
+    let resent = false
+    handle.afterDoor('logins', () => { resent = true })
+    for (let i = 0; i < 4; i++) { flushPendingSyncWork(); await new Promise(res => setTimeout(res, 10)) }
+    const n = store.getState().notifications
+    const all = [...(n.current ? [n.current] : []), ...n.queue]
+    out.resent = resent
+    out.texts = all.map(item => item.text).filter(Boolean)
+    inst.unmount()
+    inst.cleanup()
+    stream.destroy()
+  `)
+  const texts = (r.texts as string[]) ?? []
+  check('useAuthWallHold: notifies user when sign-in state refresh throws in afterDoor', r.resent === false && texts.some(t => t === 'Sign-in state could not be refreshed (config unreadable) — press Enter to send your prompt.'), JSON.stringify(r))
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

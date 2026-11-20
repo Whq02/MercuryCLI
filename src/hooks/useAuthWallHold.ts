@@ -1,11 +1,14 @@
 import { useMemo, useRef } from 'react'
 import { usePublish } from './effects.js'
+import { enqueueNotification } from '../context/notifications.js'
 import { credentialWallLineForModel } from '../services/providers/credentialWall.js'
+import { useSetAppStateMaybe } from '../state/AppState.js'
 import type { Message } from '../types/message.js'
 import { signInLedgerEpoch } from '../utils/accounts/signInLedger.js'
 import { invalidateOnDiskChange } from '../utils/auth.js'
+import { logForDebugging } from '../utils/debug.js'
+import { errorMessage } from '../utils/errors.js'
 import { promptBehindAuthWall, type AuthWallHold } from '../utils/messages/authWallHold.js'
-import { passedOver } from '../utils/passedOver.js'
 
 type HeldPrompt = AuthWallHold & { epoch: number; model: string }
 
@@ -49,6 +52,9 @@ export function useAuthWallHold(
   composerRef.current = composer
   const modelRef = useRef(model)
   modelRef.current = model
+  const setAppState = useSetAppStateMaybe()
+  const setAppStateRef = useRef(setAppState)
+  setAppStateRef.current = setAppState
 
   usePublish(() => {
     const hold = promptBehindAuthWall(messages)
@@ -67,7 +73,16 @@ export function useAuthWallHold(
         try {
           invalidateOnDiskChange()
         } catch (error) {
-          passedOver(error)
+          const detail = errorMessage(error)
+          logForDebugging(`auth-wall-hold: sign-in refresh failed: ${detail}`, { level: 'error' })
+          if (setAppStateRef.current !== null) {
+            enqueueNotification(setAppStateRef.current, {
+              key: 'auth-wall-hold',
+              text: `Sign-in state could not be refreshed (${detail}) — press Enter to send your prompt.`,
+              priority: 'high',
+              color: 'warning',
+            })
+          }
           return
         }
         const current = modelRef.current()
