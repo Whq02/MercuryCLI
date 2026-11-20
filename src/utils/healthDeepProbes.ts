@@ -742,7 +742,7 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
   )
   const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-svc-'))
   let running = false
-  let startedPid: number | undefined
+  let startedPid: number | null | undefined
   try {
     const started = await startService({
       sessionId: 'health-probe',
