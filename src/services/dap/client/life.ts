@@ -4,6 +4,7 @@ import type { DapSession } from '../dapClient.js'
 import { pythonSpawnEnv } from '../debugpyResolver.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../../utils/processGroup.js'
+import { childGetsOwnProcessGroup } from '../../../utils/platform/processes.js'
 import type { DapAdapterSpec, DapListenerTarget } from './shared.js'
 import type { TerminalPart } from './terminal.js'
 import type { WirePart } from './wire.js'
@@ -57,7 +58,7 @@ export class LifePart {
       windowsHide: true,
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32',
+      detached: childGetsOwnProcessGroup(),
       env: pythonSpawnEnv(),
     })
     child.stdin.on('error', err => logForDebugging(`dap: adapter stdin error: ${err.message}`))
