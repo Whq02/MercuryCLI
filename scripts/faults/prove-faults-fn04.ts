@@ -262,6 +262,30 @@ else {
   check('FileEditPermissionRequest.previewEditOutcome still previews append on absent file', absent?.kind === 'edits' && absent?.edits?.[0]?.old_string === '', JSON.stringify(absent))
 }
 
+console.log('\nSessionManagerView — failed session switch reports the error instead of silently staying put')
+{
+  const r = runScenario(`
+    const mod = await import(path.join(SRC, 'components/mercury-ui/screens/SessionManagerView.tsx'))
+    out.hasExport = typeof mod.runSessionSwitch === 'function'
+    if (out.hasExport) {
+      out.failed = await mod.runSessionSwitch(
+        async () => { throw new Error('ENOENT: transcript vanished') },
+        '00000000-0000-0000-0000-000000000001',
+        {} as never,
+      )
+      out.succeeded = await mod.runSessionSwitch(
+        async () => {},
+        '00000000-0000-0000-0000-000000000001',
+        {} as never,
+      )
+    }
+  `)
+  const failed = r.failed as { ok?: boolean; message?: string } | undefined
+  const succeeded = r.succeeded as { ok?: boolean } | undefined
+  check('SessionManagerView.runSessionSwitch returns the failure sentence when onResume rejects', r.hasExport === true && failed?.ok === false && failed?.message === 'Could not switch to that session (ENOENT: transcript vanished)', JSON.stringify(r))
+  check('SessionManagerView.runSessionSwitch still answers ok when onResume succeeds', succeeded?.ok === true, JSON.stringify(succeeded))
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
