@@ -20,7 +20,7 @@ import { isProcessAlive } from './ownerWatch.js'
 import { availableCores } from '../utils/availableCores.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage, getErrnoCode } from '../utils/errors.js'
-import { recordSpawnExit } from '../utils/spawnLedger.js'
+import { recordSpawnExit } from './spawnLedger.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import {
   MERCURY_DAEMON_PROTO,

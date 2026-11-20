@@ -1,7 +1,7 @@
 
 import { createHash } from 'node:crypto'
 import type { RunSnapshot } from '../run/runKernel.js'
-import type { SnapshotRead } from '../projectIntel/contracts.js'
+import type { SnapshotRead } from '../../utils/projectIntel/contracts.js'
 import type { MemoryRef } from '../../mneme/memoryRefs.js'
 import {
   MISSION_EXECUTION_CAP,

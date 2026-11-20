@@ -533,7 +533,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   await mainTurn('a line to materialize the file', messages)
   await recordTranscript(messages as never, undefined, messages as never)
   await flushSessionStorage()
-  const { loadConversationForResume } = await import(join(ROOT, 'src/utils/conversationRecovery.ts'))
+  const { loadConversationForResume } = await import(join(ROOT, 'src/services/resume/conversationRecovery.ts'))
   const { SNAPSHOT_SCHEMA } = await import(join(ROOT, 'src/utils/sessionStorage/resumeSnapshot.ts'))
   const transcriptPath = getTranscriptPath()
   const recordsOf = (): Raw[] => (existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as Raw) : [])

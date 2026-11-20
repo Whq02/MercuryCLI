@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts src/mneme/mnemeStemmer.ts src/mneme/memoryVerbs.ts src/mneme/mnemeHandover.ts
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/UI.tsx src/tools/MemoryTools/prompt.ts src/mneme/mnemeCorrect.ts
+// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/UI.tsx src/constants/tools/memory.ts src/mneme/mnemeCorrect.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,7 +42,7 @@ const { docFileName } = await import('../../src/mneme/mnemeTopicDocs.ts')
 const { USER_ASKED_RULE_ROAD } = await import('../../src/mneme/mnemeCorrect.ts')
 const { RetainTool, CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
 const { conflictLines } = await import('../../src/tools/MemoryTools/UI.tsx')
-const { RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
 const { setJevEnabled } = await import('../../src/services/jev/jevSetting.ts')
 const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
 const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')

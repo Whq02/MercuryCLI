@@ -22,7 +22,7 @@ import {
   resolveAstScope,
   searchAstPattern,
   type AstMatch,
-} from '../../utils/astPatterns.js'
+} from '../../services/structure/astPatterns.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE, findSimilarFile, suggestPathUnderCwd } from '../../utils/file.js'

@@ -9,7 +9,7 @@
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/mneme/ledger.ts src/mneme/paths.ts
 # gate-watch: scripts/tools/fixtures/read-formats/**
-# gate-watch: src/utils/health/sections/coding-loop-fast.ts
+# gate-watch: src/services/health/sections/coding-loop-fast.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

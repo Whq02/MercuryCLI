@@ -23,7 +23,7 @@
 # gate-watch: scripts/ui/fixtures/settings-popup-header/*
 # gate-watch: src/services/providers/nous/nousAccounts.ts
 # gate-watch: src/utils/git.ts
-# gate-watch: src/utils/health/sections/crew.ts
+# gate-watch: src/services/health/sections/crew.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

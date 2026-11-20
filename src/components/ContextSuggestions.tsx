@@ -3,7 +3,7 @@ import React from 'react'
 import { Box, Text } from '../ink.js'
 import { StatusIcon } from './design-system/StatusIcon.js'
 import type { StatusIconStatus } from './design-system/StatusIcon.js'
-import type { ContextSuggestion } from '../utils/contextSuggestions.js'
+import type { ContextSuggestion } from '../services/context/contextSuggestions.js'
 import { formatNumber } from '../utils/format.js'
 
 export function ContextSuggestions({

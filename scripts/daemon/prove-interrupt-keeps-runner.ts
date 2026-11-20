@@ -97,7 +97,7 @@ tally.section('§2 the roster on fixture children: a death from outside is a cra
     daemonLog.push(args.map(a => (typeof a === 'string' ? a : String(a))).join(' '))
   }) as typeof console.error
   const realChildren = await import('../../src/daemon/headlessRun.ts')
-  const { recordSpawn } = await import('../../src/utils/spawnLedger.ts')
+  const { recordSpawn } = await import('../../src/daemon/spawnLedger.ts')
   type FakeChild = EventEmitter & { pid: number; stdin: PassThrough; stdout: PassThrough; stderr: PassThrough; kill: () => boolean }
   const spawnAt = new Map<string, number[]>()
   const fakeChild = (): FakeChild =>

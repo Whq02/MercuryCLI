@@ -6,7 +6,7 @@ import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import { createSecretRedactor } from '../../utils/redactSecrets.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
-import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
+import { TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
 import { passedOver } from '../../utils/passedOver.js'
 

@@ -450,7 +450,7 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
     seedRecords(dir, { 'concourse-w1': { workerId: 'concourse-w1', sessionId: 's1', pid: process.pid } })
     seedDaemonRecord(dir, { pid: process.pid, version: '1.5.6', origin: 'transient', startedAt: Date.now() - 60_000, dir: '/tmp/p', controlSock: controlSockPath() })
     const old = await startOldDaemon({ version: '1.5.6', jobs: [{ short: 'concourse-w1', sessionId: 's1', prompt: '', source: 'user', state: 'ready', startedAt: 1, cliVersion: '1.5.6' }] })
-    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
     const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
     const seen = await hsMod.handshakeDaemon({ timeoutMs: 500 })
     await old.close()

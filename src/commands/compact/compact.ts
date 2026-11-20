@@ -18,7 +18,7 @@ import {
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { foldModelFor, getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
-import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
+import { awaitContextWindowSource } from '../../services/context/contextWindowWarmup.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'

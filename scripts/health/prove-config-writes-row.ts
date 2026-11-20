@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const globalConfig = await import('../../src/utils/config/globalConfig.js')
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const row = async (): Promise<{ status: string; evidence: string } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const r = cert.sections.flatMap(s => s.checks).find(c => c.id === 'config-writes')

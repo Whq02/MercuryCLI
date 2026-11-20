@@ -14,7 +14,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-const report = await import('../../src/utils/healthReport.js')
+const report = await import('../../src/services/health/healthReport.js')
 const flagsRow = async (): Promise<{ status: string; evidence: string }> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'flags')

@@ -1,5 +1,5 @@
 import { getSessionId } from '../bootstrap/state.js'
-import { POWERSHELL_TOOL_NAME } from '../tools/PowerShellTool/toolName.js'
+import { POWERSHELL_TOOL_NAME } from '../constants/tools/powershell.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode, isENOENT } from '../utils/errors.js'

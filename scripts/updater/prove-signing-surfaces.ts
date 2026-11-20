@@ -122,8 +122,8 @@ try {
   const unrecognizedRow = artifactSignatureCheck(asManaged(signedDir), 'fast', [])
   check('/health unrecognized-key row: warn + names the roster gap', unrecognizedRow.status === 'warn' && unrecognizedRow.evidence.includes('NOT in this build') && (unrecognizedRow.fix ?? '').includes('signingTrust'))
 
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
-  const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+  const { healthContext } = await import('../../src/services/health/healthReport.ts')
+  const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
   const { resolveInstallProvenance } = await import('../../src/services/privateChannel/installProvenance.ts')
   const identityRows = identityChecks(await healthContext())
   const fastRow = identityRows.find(row => row.id === 'artifact-signature')

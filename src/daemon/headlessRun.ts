@@ -12,7 +12,7 @@ import {
   recordSpawnExit,
   spawnedByStamp,
   SPAWNED_BY_ENV,
-} from '../utils/spawnLedger.js'
+} from './spawnLedger.js'
 import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
 import { selfScriptPath } from './daemonBuild.js'
 import type { Capabilities } from '../runner/wire/methods.js'

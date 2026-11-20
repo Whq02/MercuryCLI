@@ -4,7 +4,7 @@
 # gate-watch: src/services/structure/** src/tools/StructureTool/**
 # gate-watch: src/services/lsp/webSidecar/**
 # gate-watch: src/services/browser/** src/tools/BrowserTool/** src/commands/browser/**
-# gate-watch: src/utils/healthReport.ts
+# gate-watch: src/services/health/healthReport.ts
 # gate-watch: vendor/grammar-licences/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

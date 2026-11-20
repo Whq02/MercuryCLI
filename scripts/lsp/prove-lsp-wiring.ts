@@ -17,7 +17,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 {
   const globals = globalThis as Record<string, unknown>
   if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { probeBuiltinTsServer } = await import('../../src/services/lsp/builtinServers.ts')
   const lspRow = runtimeChecks().find(row => row.id === 'lsp')
   check("health list: check id 'lsp' present", lspRow?.label === 'IDE-hands (LspRead)')
@@ -70,7 +70,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 }
 
 {
-  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const clang = await import('../../src/services/lsp/clangdLane.ts')
   const { probeGodotLane } = await import('../../src/services/lsp/godotLane.ts')
   const lspFlag = process.env.MERCURY_LSP

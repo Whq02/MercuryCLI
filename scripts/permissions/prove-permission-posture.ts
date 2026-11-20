@@ -69,7 +69,7 @@ section('§2 THE NO-OP LAW')
 
 section('§3 WIRING')
 {
-  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const { saveCurrentProjectConfig } = await import('../../src/utils/config/projectConfig.ts')
   const postureRow = crewChecks().find(row => row.id === 'permission-posture')
   recordPermissionPosture({ bypassArmed: true, envArmed: true, flagArmed: true, dialogSuppressed: true })

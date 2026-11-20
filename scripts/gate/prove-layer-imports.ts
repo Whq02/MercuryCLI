@@ -18,6 +18,8 @@ const LAYERS: Rule = {
   from: ['src/utils/'],
   to: ['src/cli/', 'src/commands/', 'src/components/', 'src/daemon/', 'src/services/', 'src/tools/'],
   kept: [
+    ['src/components/mercury-ui/sessionAccent.ts', 'its path is the hex exemption of src/utils/wards/wards.ts'],
+    ['src/components/mercuryPalette.ts', 'src/guards/wardsGuard.ts knows a Mercury checkout by this path'],
     ['src/tools/BashTool/bashPermissions.ts', 'row 8'],
     ['src/tools/BashTool/denyRuleReach.ts', 'row 8'],
     ['src/utils/bash/', 'row 8'],

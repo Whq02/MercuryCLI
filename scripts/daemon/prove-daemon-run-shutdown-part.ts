@@ -54,7 +54,7 @@ const noting = <T extends object>(who: string, plantedCalls: T): T =>
 
 const STAND_INS = {
   '../../utils/debug.js': { logForDebugging: (line: string) => note(`debug: ${line}`) },
-  '../../utils/spawnLedger.js': { recordSpawnExit: (row: { kind: string; event: string; id: string; reason: string }) => note(`ledger ${row.kind} ${row.event} ${row.id} ${row.reason}`) },
+  '../spawnLedger.js': { recordSpawnExit: (row: { kind: string; event: string; id: string; reason: string }) => note(`ledger ${row.kind} ${row.event} ${row.id} ${row.reason}`) },
   '../../utils/processGroup.js': { treeEndsSettled: (boundMs: number) => neighbour(`the killed trees settled within ${boundMs} ms`) },
   '../controlSocket.js': {
     clearControlKey: () => neighbour('clear the control key'),
@@ -74,12 +74,12 @@ const STAND_INS = {
 
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
 const planeRecords = await import('../../src/daemon/planeRecords.ts')
-const spawnLedger = await import('../../src/utils/spawnLedger.ts')
+const spawnLedger = await import('../../src/daemon/spawnLedger.ts')
 const debug = await import('../../src/utils/debug.ts')
 const processGroup = await import('../../src/utils/processGroup.ts')
 mock.module('../../src/daemon/controlSocket.ts', () => ({ ...controlSocket, ...STAND_INS['../controlSocket.js'] }))
 mock.module('../../src/daemon/planeRecords.ts', () => ({ ...planeRecords, ...STAND_INS['../planeRecords.js'] }))
-mock.module('../../src/utils/spawnLedger.ts', () => ({ ...spawnLedger, ...STAND_INS['../../utils/spawnLedger.js'] }))
+mock.module('../../src/daemon/spawnLedger.ts', () => ({ ...spawnLedger, ...STAND_INS['../spawnLedger.js'] }))
 mock.module('../../src/utils/debug.ts', () => ({ ...debug, ...STAND_INS['../../utils/debug.js'] }))
 mock.module('../../src/utils/processGroup.ts', () => ({ ...processGroup, ...STAND_INS['../../utils/processGroup.js'] }))
 

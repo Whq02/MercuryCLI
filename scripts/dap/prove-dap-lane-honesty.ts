@@ -16,7 +16,7 @@ const ROOT = path.join(import.meta.dir, '..', '..')
 
 console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
 {
-  const probes = (await import('../../src/utils/healthDeepProbes.ts')) as {
+  const probes = (await import('../../src/services/health/healthDeepProbes.ts')) as {
     probeJsDebugBoot?: (signal?: AbortSignal) => Promise<{ status: string; evidence: string }>
   }
   check('the boot probe exists', typeof probes.probeJsDebugBoot === 'function')
@@ -40,8 +40,8 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
     )
     delete process.env.MERCURY_JS_DEBUG_DAP
   }
-  const { ideLoopChecks } = await import('../../src/utils/health/sections/ide-loop.ts')
-  const deepProbes = await import('../../src/utils/healthDeepProbes.ts')
+  const { ideLoopChecks } = await import('../../src/services/health/sections/ide-loop.ts')
+  const deepProbes = await import('../../src/services/health/healthDeepProbes.ts')
   const jsRow = ideLoopChecks().find(row => row.id === 'js-debugger')
   const jsSays = await jsRow?.run()
   const jsDirect = await deepProbes.probeJsDebugBoot()

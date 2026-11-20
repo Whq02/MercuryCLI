@@ -50,7 +50,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const readRows = (): Row[] => JSON.parse(readFileSync(STORE, 'utf8')).rows as Row[]
 const spineRow = async (): Promise<Check | undefined> => {
-  const { runHealthReport } = await import('../../src/utils/healthReport.js')
+  const { runHealthReport } = await import('../../src/services/health/healthReport.js')
   return (await runHealthReport({ depth: 'fast' })).sections.flatMap(section => section.checks).find(row => row.id === 'launch-spine')
 }
 const builtSpineRow = (): Check | undefined => {

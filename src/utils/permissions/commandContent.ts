@@ -1,4 +1,4 @@
-import { shellCommandSegments } from '../../tools/BashTool/destructiveCommandWarning.js'
+import { shellCommandSegments } from '../shell/destructiveCommandWarning.js'
 
 export function credentialUploadReason(command: string): string | null {
   for (const { words } of shellCommandSegments(command)) {

@@ -186,7 +186,7 @@ try {
 
   section('§4 the source: an older daemon reads warn with the restart words; the fail arm names sign-in/estate')
   {
-    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
     const ids = crewChecks().map(entry => entry.id)
     check('the row exists once, ahead of the scheduler-daemon row', ids.filter(id => id === 'daemon-sign-ins').length === 1 && ids.indexOf('daemon-sign-ins') + 1 === ids.indexOf('daemon'), ids.join(','))
     const fsH = await import('node:fs')

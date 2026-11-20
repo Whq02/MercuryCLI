@@ -471,7 +471,7 @@ section('§1 — an edit\'s parse note and a read\'s outline of an admitted lang
 
 const facility = await import('../../src/services/structure/grammarFacility.ts')
 const { languageForFile, patternLanguageForFile, loadGrammarEngine, parsePolyglot } = facility
-const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames, AST_BOUNDS } = await import('../../src/utils/astPatterns.ts')
+const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames, AST_BOUNDS } = await import('../../src/services/structure/astPatterns.ts')
 const { compileFor } = await import('../../src/services/structure/polyglotQuery.ts')
 const { encodePattern } = await import('../../src/services/structure/pattern.ts')
 

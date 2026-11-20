@@ -88,7 +88,7 @@ section('§4 the file is left as it was')
 check('the read never rewrites the file', readFileSync(file, 'utf8') === seeded)
 
 section('§5 /health names the ignored fields on one row, and a clean file reads ok')
-const report = await import('../../src/utils/healthReport.ts')
+const report = await import('../../src/services/health/healthReport.ts')
 const row = async (): Promise<{ status: string; evidence: string; fix?: string } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const r = cert.sections.flatMap(s => s.checks).find(c => c.id === 'config-fields')

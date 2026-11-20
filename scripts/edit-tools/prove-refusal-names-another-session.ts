@@ -15,7 +15,7 @@ delete process.env.NODE_ENV
 
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/FileEditTool/constants.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
 const other = (await import('../../src/tools/FileEditTool/otherSession.ts').catch(() => null)) as typeof import('../../src/tools/FileEditTool/otherSession.ts') | null
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getProjectRoot, getSessionId } = await import('../../src/bootstrap/state.ts')

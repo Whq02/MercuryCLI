@@ -7,7 +7,7 @@ const env = armEnvironment()
 const { compileFor } = await import(join(REPO, 'src/services/structure/polyglotQuery.ts'))
 const { encodePattern } = await import(join(REPO, 'src/services/structure/pattern.ts'))
 const { loadGrammarEngine, languageByName } = await import(join(REPO, 'src/services/structure/grammarFacility.ts'))
-const { resolveAstScope, searchAstPattern, isAstRefusal } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
 const root = mkdtempSync(join(tmpdir(), 'ast-examples-'))
 try {
   writeFileSync(join(root, 'orders.py'), 'def process_order(order):\n    return order\n\ndef process_order_v2(o) -> int:\n    return o\n')

@@ -112,7 +112,7 @@ try {
   await stub('../../src/services/engine-connector/focusedConnector.js', { getFocusedSessionConnector: () => connector, subscribeThroughFocused: () => () => () => {} })
   await stub('../../src/components/tasks/useFocusedWork.js', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), focusedSessionIdOrNull: () => null })
   await stub('../../src/state/vitalsBus.js', { useVitals: () => ({ trace: null }) })
-  await stub('../../src/utils/cockpit/healthCertSnapshot.js', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+  await stub('../../src/services/health/healthCertSnapshot.js', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let columns = 178
   let rows = 51
   await stub('../../src/hooks/useTerminalSize.js', { useTerminalSize: () => ({ columns, rows }) })

@@ -9,7 +9,7 @@ import { sliceHeadAtGrapheme } from './intl.js'
 import { errorMessage, getErrnoCode } from './errors.js'
 import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore, type ProjectStoreReadFailure, type StoreSpellingRules } from './projectStoreIdentity.js'
 import { setStoreHealth, transcriptStoreHealth } from './sessionStorage/writer/storeHealth.js'
-import { stripGroundNote } from '../daemon/isolationNote.js'
+import { stripGroundNote } from './isolationNote.js'
 import { passedOver } from './passedOver.js'
 
 

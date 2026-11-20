@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/model/modelNameMatcher.ts src/utils/model/modelNameRoad.ts src/utils/model/validateModel.ts
+// gate-watch: src/utils/model/modelNameMatcher.ts src/utils/model/modelNameRoad.ts src/services/providers/validateModel.ts
 // gate-watch: src/commands/model/mercuryModel.tsx src/main.tsx src/tools/AgentTool/AgentTool.tsx src/utils/model/modelPickerGroups.ts
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -169,7 +169,7 @@ const fixture = createServer((request, response) => {
 await new Promise<void>(resolve => fixture.listen(0, '127.0.0.1', () => resolve()))
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(fixture.address() as { port: number }).port}`
 {
-  const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
   const verdict = await validateModel('claude-banana-9')
   check('the probe reached the endpoint with the typed id', hits.length >= 1 && hits[0]!.endsWith('model=claude-banana-9'), JSON.stringify(hits))
   check('a 404 from the endpoint makes the id invalid, with the reason', verdict.valid === false && /Model not found/.test(verdict.error ?? ''), JSON.stringify(verdict))

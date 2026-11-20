@@ -76,7 +76,7 @@ const { promptBehindAuthWall } = await import('../../src/utils/messages/authWall
 const { decideResend } = await import('../../src/hooks/useAuthWallHold.ts')
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
 const { loginsGlance } = await import('../../src/components/BootLoginsScreen.tsx')
-const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
 
 const reread = (): void => {
   auth.clearOAuthTokenCache()
@@ -174,7 +174,7 @@ section('§5 the wiring: the chat restores the held words to an empty composer a
   writeFileSync(join(HOME, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-openai-access-0001', refreshToken: '' } }) + '\n', { mode: 0o600 })
   reread()
   const { credentialWallLine } = await import('../../src/services/providers/credentialWall.ts')
-  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const openaiRow = await (await authChecks()).find(row => row.id === 'auth-openai')?.run()
   check('/health probes the OpenAI subscription the same way and names an expired one (PROPOSED ROW WORDS)', openaiRow?.status === 'warn' && openaiRow.evidence === 'ChatGPT subscription — sign-in expired' && openaiRow.fix === credentialWallLine('openai', 'sign-in'), JSON.stringify(openaiRow))
 }

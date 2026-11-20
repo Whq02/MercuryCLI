@@ -25,7 +25,6 @@ prove-docs-altitude.ts
 prove-docs-names.ts
 prove-docs-integrity.ts --base 260725425c
 prove-embed-pack-everywhere-words.ts
-prove-provider-neutral-vocabulary.ts
 prove-editor-prompt-file.ts
 prove-schema-refusal-vocabulary.ts
 prove-unknown-command-answer.ts

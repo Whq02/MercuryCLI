@@ -199,7 +199,7 @@ async function w08_3_corruptPackageJsonReportedInTestAndHealth(): Promise<void> 
   const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
   const runners = await import(join(SRC, 'services/ide/projectRunners.ts'))
   const { TestTool } = await import(join(SRC, 'tools/TestTool/TestTool.ts'))
-  const { codingLoopFastChecks } = await import(join(SRC, 'utils/health/sections/coding-loop-fast.ts'))
+  const { codingLoopFastChecks } = await import(join(SRC, 'services/health/sections/coding-loop-fast.ts'))
   const prev = getCwd()
   setCwd(dir)
   try {
@@ -232,7 +232,7 @@ async function w08_4_invalidMercuryLspServersReportedOnce(): Promise<void> {
   process.env.MERCURY_LSP_SERVERS = '{bad json'
   const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
   const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
-  const { lspCheck } = await import(join(SRC, 'utils/health/sections/runtime/lsp.ts'))
+  const { lspCheck } = await import(join(SRC, 'services/health/sections/runtime/lsp.ts'))
   const { LspReadTool } = await import(join(SRC, 'tools/LSPTool/LSPTool.ts'))
   const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'services/lsp/manager.ts'))
   const prevCwd = getCwd()
@@ -386,7 +386,7 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
 }
 
 async function w08_8_contextUnserializableToolAndMessageBlockNoted(): Promise<void> {
-  const { analyzeContextUsage } = await import(join(SRC, 'utils/analyzeContext.ts'))
+  const { analyzeContextUsage } = await import(join(SRC, 'services/context/analyzeContext.ts'))
   const { ContextVisualization } = await import(join(SRC, 'components/ContextVisualization.tsx'))
   const { renderToString } = await import(join(SRC, 'utils/staticRender.tsx'))
   let schemaReads = 0
@@ -434,8 +434,8 @@ async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
   writeFileSync(join(lockedDir, 'hidden.ts'), 'export const hidden = 2\n')
   symlinkSync(join(dir, 'nonexistent-target.ts'), brokenLink)
   chmodSync(lockedDir, 0o000)
-  const { resolveAstScope } = await import(join(SRC, 'utils/astPatterns/scope.ts'))
-  const { renderSearchTrailer } = await import(join(SRC, 'utils/astPatterns/render.ts'))
+  const { resolveAstScope } = await import(join(SRC, 'services/structure/astPatterns/scope.ts'))
+  const { renderSearchTrailer } = await import(join(SRC, 'services/structure/astPatterns/render.ts'))
   try {
     const scope = resolveAstScope({ cwd: dir })
     check('w08-7: resolveAstScope counts unreadable folder and dangling stat entry', !('refused' in scope) && scope.skippedUnreadable?.count === 2 && typeof scope.skippedUnreadable.firstPath === 'string' && typeof scope.skippedUnreadable.firstError === 'string', JSON.stringify(scope))

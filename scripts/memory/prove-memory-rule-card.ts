@@ -3,7 +3,7 @@
 // gate-watch: src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
 // gate-watch: src/cli/headless/runnerAsks.ts src/daemon/permissionAsks.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatProjections.ts
 // gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/decision/wrapper.ts src/utils/permissions/permissions.ts
-// gate-watch: src/tools/MemoryTools/prompt.ts docs/MNEME.md
+// gate-watch: src/constants/tools/memory.ts docs/MNEME.md
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -348,10 +348,10 @@ section("§9 the cockpit's re-check after a mode change re-asks the card, never 
 
 section('§10 the words: the Correct and Retain descriptions, prompts and field say the road (the card; sovereign); the manual says it; no word still says the model is refused outright')
 {
-  const { CORRECT_DESCRIPTION, CORRECT_PROMPT, RETAIN_DESCRIPTION, RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+  const { CORRECT_DESCRIPTION, CORRECT_PROMPT, RETAIN_DESCRIPTION, RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
   const { z } = await import('zod/v4')
   const retainSchema = JSON.stringify(z.toJSONSchema(RetainTool.inputSchema as never))
-  const { RECALL_DESCRIPTION, REFLECT_DESCRIPTION } = await import('../../src/tools/MemoryTools/prompt.ts')
+  const { RECALL_DESCRIPTION, REFLECT_DESCRIPTION } = await import('../../src/constants/tools/memory.ts')
   check('the four description() lines that the memory-rule card and the Fallback card print are unchanged from .36 (each one line, so printed whole)', RETAIN_DESCRIPTION === 'Store durable facts into project memory; a rule the user asks Mercury to remember about how to work with them is pinned in their words and on the shelf at once (a project convention about the code goes to the instruction file instead). Replacing a rule the user asked for puts a yes/no card to them first (under sovereign, no card). Per-item outcomes — a failed store is reported, never swallowed.' && CORRECT_DESCRIPTION === 'Correct project memory: supersede a fact with a new truth, amend its wording (after reading the full record), or retract it with a reason. A consolidated fact keeps its history; a pending row is a draft and is struck or replaced. A rule the user asked Mercury to remember changes only on their yes to a card (under sovereign, no card).' && RECALL_DESCRIPTION === 'Search project memory for pointers — facts, pinned rulings, the sessions of this project and the handoffs they left — each an id, a one-line title and footnotes (which session, which ruling, superseded by what). Read one full record by id.' && REFLECT_DESCRIPTION === 'Synthesize an answer over recalled memory with citations to the records used. Costs one model call; falls back to raw recall when synthesis cannot be grounded.')
   check('the Correct description: a rule the user asked for changes only on their yes to a card; under sovereign no card', CORRECT_DESCRIPTION.includes('A rule the user asked Mercury to remember changes only on their yes to a card (under sovereign, no card).'), CORRECT_DESCRIPTION)
   check('the Retain description: replacing a rule the user asked for puts a yes/no card first; under sovereign no card', RETAIN_DESCRIPTION.includes('Replacing a rule the user asked for puts a yes/no card to them first (under sovereign, no card).'), RETAIN_DESCRIPTION)
