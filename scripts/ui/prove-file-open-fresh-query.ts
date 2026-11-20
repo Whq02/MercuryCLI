@@ -36,7 +36,7 @@ try {
   assert.deepEqual(picked, ['@latest.ts '])
   await press('c')
   requests[3]!.reject(new Error('fixture lookup failed'))
-  assert(await waitFor(() => board.screen().includes('no files'), 2000))
+  assert(await waitFor(() => board.screen().includes('could not list files (fixture lookup failed) — edit the filter or retry'), 2000))
   await press(KEY.enter)
   assert.equal(picked.length, 1, 'failed lookup cannot insert stale results')
   console.log('PASS file quick-open: pending query, out-of-order completion, fresh insertion, failed lookup')
