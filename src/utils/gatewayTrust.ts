@@ -121,10 +121,14 @@ export async function restoreGatewayAuth(): Promise<void> {
         return
       }
     } catch (err) {
+      tellUser(
+        `Cloud gateway ${host} could not be verified (${errorMessage(err)}) — run /logins to reconnect.\n`,
+      )
       logForDebugging(
-        `[gateway] TLS fingerprint probe failed on restore for ${host} (${errorMessage(err)}); proceeding without re-verify`,
+        `[gateway] TLS fingerprint probe failed on restore for ${host} (${errorMessage(err)}); refusing to activate without re-verify`,
         { level: 'warn' },
       )
+      return
     }
 
     activateEnterpriseGateway(gateway)

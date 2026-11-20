@@ -7,7 +7,6 @@ import { describeMcpProtocolCurrency } from '../../../../services/mcp/protocolRe
 import { extensionsHealthRow } from '../../../../extensions/boot.js'
 import { healthFixEnabled } from '../../../healthFix.js'
 import { flagAsSet, type CheckSpec } from '../../../healthReport.js'
-import { passedOver } from '../../../passedOver.js'
 
 export function evalKernelsCheck(): CheckSpec {
   return {
@@ -52,12 +51,7 @@ export function mcpCheck(): CheckSpec {
       const mcp = mcpGauge()
       const policyDesc = mcp.data.mcpPolicyHint
       const policyActive = mcp.data.mcpPolicyActive
-      let policyRejects: string[] = []
-      try {
-        policyRejects = getMcpPolicyRejects()
-      } catch (error) {
-        passedOver(error)
-      }
+      const policyRejects = getMcpPolicyRejects()
       const policyRejectFix =
         'MERCURY_MCP_MAX_RISK carries token(s) the parser cannot read (named in the evidence); the unread part keeps the permissive default. Grammar: low|medium|high, plus srv:low per server, comma-separated.'
       if (mcp.state === 'off') {

@@ -7,7 +7,8 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import { getCwd } from '../cwd.js'
 import { parseGitConfigValue } from './gitConfigParser.js'
 import { findGitRoot } from './gitRoot.js'
-import { passedOver, passedOverAs } from '../passedOver.js'
+import { getErrnoCode, isENOENT } from '../errors.js'
+import { passedOver } from '../passedOver.js'
 
 
 
@@ -98,7 +99,8 @@ async function resolveRefInDir(dir: string, ref: string): Promise<string | null>
   let looseContent: string | null = null
   try {
     looseContent = (await readFile(join(dir, ref), 'utf8')).trim()
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error) && getErrnoCode(error) !== 'ENOTDIR') throw error
     looseContent = null
   }
   if (looseContent !== null) {
@@ -122,8 +124,8 @@ async function resolveRefInDir(dir: string, ref: string): Promise<string | null>
     }
     return null
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error)) return null
+    throw error
   }
 }
 
@@ -146,8 +148,8 @@ async function readRawSymref(gitDir: string, refPath: string, branchPrefix: stri
     const name = target.slice(branchPrefix.length)
     return isSafeRefName(name) ? name : null
   } catch (error) {
-    passedOver(error)
-    return null
+    if (isENOENT(error) || getErrnoCode(error) === 'ENOTDIR') return null
+    throw error
   }
 }
 
@@ -310,11 +312,11 @@ async function ensureWatcherStarted(): Promise<void> {
     watchedCommonDir = await getCommonDir(gitDir)
     if (generation !== startGeneration) return
     const commonDir = watchedCommonDir ?? gitDir
-    watchPath(join(gitDir, 'HEAD'), () => void onHeadChange())
+    watchPath(join(gitDir, 'HEAD'), () => void onHeadChange().catch(passedOver))
     watchPath(join(commonDir, 'config'), () => {
       invalidateAllEntries()
       signalChange('config')
-      void reattachBranchWatch()
+      void reattachBranchWatch().catch(passedOver)
     })
     watchPath(join(gitDir, 'index'), () => signalChange('index'))
     watchPath(join(commonDir, 'packed-refs'), () => {
@@ -421,8 +423,14 @@ export async function readWorktreeHeadSha(worktreePath: string): Promise<string 
   }
 }
 
-const linkedWorktreeCount = (adminDir: string): Promise<number> =>
-  readdir(join(adminDir, 'worktrees')).then(entries => entries.length, passedOverAs(0))
+const linkedWorktreeCount = async (adminDir: string): Promise<number> => {
+  try {
+    return (await readdir(join(adminDir, 'worktrees'))).length
+  } catch (error) {
+    if (isENOENT(error)) return 0
+    throw error
+  }
+}
 
 export async function getWorktreeCountFromFs(): Promise<number> {
   const gitDir = await resolveGitDir()

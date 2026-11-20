@@ -35,7 +35,8 @@ import { sleep } from './sleep.js'
 import type { Message } from '../types/message.js'
 import type { LSPServerInstance } from '../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../services/lsp/LSPServerManager.js'
-import { passedOver, passedOverAs } from './passedOver.js'
+import { getErrnoCode } from './errors.js'
+import { passedOver } from './passedOver.js'
 import { sleepSync, startTimeout } from './timers.js'
 
 type CheckResult = Omit<HealthCheck, 'id' | 'label'>
@@ -741,6 +742,7 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
   )
   const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-svc-'))
   let running = false
+  let startedPid: number | null | undefined
   try {
     const started = await startService({
       sessionId: 'health-probe',
@@ -760,6 +762,7 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
     })
     if ('error' in started) return { status: 'fail', evidence: `start failed: ${started.error}` }
     running = true
+    startedPid = started.record.pid
     const wait = await waitForReady(dir, 'health-probe', 10_000)
     if (!wait.ready) {
       return { status: 'fail', evidence: `readiness never met: ${wait.statuses.filter(s => !s.met).map(s => s.detail).join('; ')}` }
@@ -774,7 +777,22 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
     if (!sawLog) return { status: 'fail', evidence: 'the cursored log read missed the boot line' }
     return { status: 'ok', evidence: 'start → log+stable readiness → cursored logs → explicit stop, all observed' }
   } finally {
-    if (running) await stopService(dir, 'health-probe').catch(passedOverAs(undefined))
+    if (running) {
+      let stoppedOk = false
+      try {
+        const stopped = await stopService(dir, 'health-probe')
+        stoppedOk = !('error' in stopped)
+      } catch (error) {
+        logForDebugging(`deep probe: stopService failed in probeServiceLifecycle cleanup: ${String(error)}`)
+      }
+      if (!stoppedOk && typeof startedPid === 'number' && startedPid > 1) {
+        try {
+          process.kill(startedPid, 'SIGKILL')
+        } catch (error) {
+          if (getErrnoCode(error) !== 'ESRCH') logForDebugging(`deep probe: fallback SIGKILL for pid ${startedPid} failed: ${String(error)}`)
+        }
+      }
+    }
     sweepProbeDir(dir)
   }
 }

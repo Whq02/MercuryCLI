@@ -1,3 +1,4 @@
+import { errorMessage, isENOENT } from '../../errors.js'
 import { whichSync } from '../../which.js'
 import { flagAsSet, type CheckSpec } from '../../healthReport.js'
 
@@ -130,18 +131,25 @@ export function codingLoopFastChecks(): CheckSpec[] {
         } else {
           const engine = resolveGrammarEngineDir()
           if (engine.state === 'ok') {
-            let present = 0
+            let present: number | null = 0
+            let readErr: string | null = null
             try {
               const { readdirSync } = await import('node:fs')
               const shipped = new Set(readdirSync(engine.dir))
               present = POLYGLOT_LANGUAGES.filter(lang => shipped.has(lang.wasm)).length
-            } catch {
-              present = 0
+            } catch (error) {
+              if (isENOENT(error)) present = 0
+              else {
+                present = null
+                readErr = errorMessage(error)
+              }
             }
             engineLine =
-              present === POLYGLOT_LANGUAGES.length
-                ? `polyglot patterns: tree-sitter (${engine.source}) · ${present} languages`
-                : `polyglot patterns: tree-sitter (${engine.source}) · ${present} of ${POLYGLOT_LANGUAGES.length} languages present (${POLYGLOT_LANGUAGES.length - present} missing from ${engine.dir})`
+              present === null
+                ? `polyglot patterns: tree-sitter (${engine.source}) · grammar dir unreadable (${readErr})`
+                : present === POLYGLOT_LANGUAGES.length
+                  ? `polyglot patterns: tree-sitter (${engine.source}) · ${present} languages`
+                  : `polyglot patterns: tree-sitter (${engine.source}) · ${present} of ${POLYGLOT_LANGUAGES.length} languages present (${POLYGLOT_LANGUAGES.length - present} missing from ${engine.dir})`
           } else {
             engineLine = `polyglot patterns: engine UNAVAILABLE (${engine.note.slice(0, 80)})`
           }

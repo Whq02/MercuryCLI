@@ -6,7 +6,6 @@ import { getSettingsWithAllErrors } from '../../../settings/allErrors.js'
 import { currentHiddenCharacterFindings, hiddenCharacterDetailLines, hiddenCharacterScanCounts } from '../../../text/hiddenCharacterFindings.js'
 import { summarizeHiddenCodePoints } from '../../../text/hiddenCodePoints.js'
 import { relativeToCwd, type CheckSpec } from '../../../healthReport.js'
-import { passedOver } from '../../../passedOver.js'
 
 export function instructionProfileCheck(): CheckSpec {
   return {
@@ -60,7 +59,7 @@ export function hiddenCharactersCheck(): CheckSpec {
     run: async () => {
       await getInstructionBundle()
       const skills = require('../../../../skills/loadSkillsDir.js') as typeof import('../../../../skills/loadSkillsDir.js')
-      await skills.getSkillDirCommands(getCwd()).catch((error) => { passedOver(error); return [] })
+      await skills.getSkillDirCommands(getCwd())
       getSettingsWithAllErrors()
       const counts = hiddenCharacterScanCounts()
       const scanned =
