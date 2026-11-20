@@ -1,7 +1,8 @@
 import type { ToolPermissionContext } from '../../Tool.js'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { getFsImplementation, safeResolvePath } from '../fsOperations.js'
-import { getPlatform } from '../platform.js'
+import { rememberedPlatform } from '../platform/host.js'
+import { expandTildeWithHome, pathSeparatorRegex, preferredHomeEnv, samePathCase } from '../platform/paths.js'
 import type { PermissionDecisionReason } from '../../types/permissions.js'
 import {
   checkEditableInternalPath,
@@ -33,7 +34,7 @@ function getGlobBaseDirectory(path: string): string {
   if (!GLOB_METACHARS.test(path)) return path
   const firstMeta = path.search(GLOB_METACHARS)
   const prefix = path.slice(0, firstMeta)
-  const seps = getPlatform() === 'windows' ? /[/\\]/g : /\//g
+  const seps = pathSeparatorRegex()
   let lastSep = -1
   let match: RegExpExecArray | null
   while ((match = seps.exec(prefix)) !== null) lastSep = match.index
@@ -44,10 +45,7 @@ function getGlobBaseDirectory(path: string): string {
 
 export function expandTilde(path: string): string {
   const home = hostEnv().HOME || hostEnv().USERPROFILE || ''
-  if (path === '~') return home
-  if (path.startsWith('~/')) return home + path.slice(1)
-  if (getPlatform() === 'windows' && path.startsWith('~\\')) return home + path.slice(1)
-  return path
+  return expandTildeWithHome(path, home)
 }
 
 export function isPathAllowed(
@@ -125,10 +123,9 @@ export function isDangerousRemovalPath(resolvedPath: string): boolean {
   const trimmed = collapsed.endsWith('/') && collapsed !== '/' ? collapsed.slice(0, -1) : collapsed
 
   if (/^[A-Za-z]:$/.test(trimmed) || /^[A-Za-z]:\/?$/.test(collapsed)) return true
-  const windows = getPlatform() === 'windows'
-  const homeRaw = windows ? hostEnv().USERPROFILE || hostEnv().HOME : hostEnv().HOME || hostEnv().USERPROFILE
-  const home = (homeRaw || '').replace(/[/\\]+/g, '/')
-  if (home && (windows ? trimmed.toLowerCase() === home.toLowerCase() : trimmed === home)) return true
+  const homeRaw = preferredHomeEnv(hostEnv())
+  const home = homeRaw.replace(/[/\\]+/g, '/')
+  if (home && samePathCase(trimmed, home, rememberedPlatform())) return true
   if (/^\/[^/]+$/.test(trimmed)) return true
   if (/^[A-Za-z]:\/[^/]+$/.test(trimmed)) return true
 

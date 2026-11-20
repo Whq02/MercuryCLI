@@ -23,6 +23,7 @@ import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
 import {
   ensureDriveRootSeparator,
+  expandTildeWithHome,
   foldCaseInsensitivePath,
   foldHostCaseInsensitivePath,
   foldPathCase,
@@ -35,7 +36,9 @@ import {
   normalizeLocalDevicePath,
   normalizedDriveRoot,
   pathModuleFor,
+  pathSeparatorRegex,
   picomatchPathOptions,
+  preferredHomeEnv,
   samePathCase,
   shellPathToNative,
   splitPathFromRoot,
@@ -314,6 +317,47 @@ const PATHS: Row[] = [
       }
     },
     recorded: {"win32":{"default":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"darwin":{"default":["","C:","d:","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"linux":{"default":["","C:","d:","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"win32 by process.platform alone":{"default":["","C:","d:","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]},"win32 by getPlatform() alone":{"default":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"windows":["","C:\\","d:\\","C:\\","C:/dir","/tmp"],"macos":["","C:","d:","C:\\","C:/dir","/tmp"],"linux":["","C:","d:","C:\\","C:/dir","/tmp"]}},
+  },
+  {
+    name: 'paths.pathSeparatorRegex',
+    answers: () => ({
+      default: pathSeparatorRegex(),
+      windows: pathSeparatorRegex('windows'),
+      macos: pathSeparatorRegex('macos'),
+      linux: pathSeparatorRegex('linux'),
+    }),
+    recorded: {"win32":{"default":"/[/\\\\]/g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"darwin":{"default":"/\\//g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"linux":{"default":"/\\//g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"win32 by process.platform alone":{"default":"/\\//g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"},"win32 by getPlatform() alone":{"default":"/[/\\\\]/g","windows":"/[/\\\\]/g","macos":"/\\//g","linux":"/\\//g"}},
+  },
+  {
+    name: 'paths.expandTildeWithHome',
+    answers: () => {
+      const inputs = ['', '~', '~/src', '~\\src', '~other/src', '/tmp']
+      return {
+        default: inputs.map(p => expandTildeWithHome(p, '/h')),
+        windows: inputs.map(p => expandTildeWithHome(p, 'C:\\Users\\Alice', 'windows')),
+        macos: inputs.map(p => expandTildeWithHome(p, '/Users/alice', 'macos')),
+        linux: inputs.map(p => expandTildeWithHome(p, '/home/alice', 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["","/h","/h/src","/h\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"darwin":{"default":["","/h","/h/src","~\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"linux":{"default":["","/h","/h/src","~\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"win32 by process.platform alone":{"default":["","/h","/h/src","~\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]},"win32 by getPlatform() alone":{"default":["","/h","/h/src","/h\\src","~other/src","/tmp"],"windows":["","C:\\Users\\Alice","C:\\Users\\Alice/src","C:\\Users\\Alice\\src","~other/src","/tmp"],"macos":["","/Users/alice","/Users/alice/src","~\\src","~other/src","/tmp"],"linux":["","/home/alice","/home/alice/src","~\\src","~other/src","/tmp"]}},
+  },
+  {
+    name: 'paths.preferredHomeEnv',
+    answers: () => {
+      const envs: NodeJS.ProcessEnv[] = [
+        { HOME: '/home/a', USERPROFILE: 'C:\\Users\\A' },
+        { HOME: '/home/a' },
+        { USERPROFILE: 'C:\\Users\\A' },
+        {},
+      ]
+      return {
+        default: envs.map(e => preferredHomeEnv(e)),
+        windows: envs.map(e => preferredHomeEnv(e, 'windows')),
+        macos: envs.map(e => preferredHomeEnv(e, 'macos')),
+        linux: envs.map(e => preferredHomeEnv(e, 'linux')),
+      }
+    },
+    recorded: {"win32":{"default":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"darwin":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"linux":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"win32 by process.platform alone":{"default":["/home/a","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]},"win32 by getPlatform() alone":{"default":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"windows":["C:\\Users\\A","/home/a","C:\\Users\\A",""],"macos":["/home/a","/home/a","C:\\Users\\A",""],"linux":["/home/a","/home/a","C:\\Users\\A",""]}},
   },
 ]
 

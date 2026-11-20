@@ -59,6 +59,21 @@ export function ensureDriveRootSeparator(baseDir: string, platform: Platform = g
   return platform === 'windows' && /^[A-Za-z]:$/.test(baseDir) ? `${baseDir}\\` : baseDir
 }
 
+export function pathSeparatorRegex(platform: Platform = getPlatform()): RegExp {
+  return platform === 'windows' ? /[/\\]/g : /\//g
+}
+
+export function expandTildeWithHome(filePath: string, home: string, platform: Platform = getPlatform()): string {
+  if (filePath === '~') return home
+  if (filePath.startsWith('~/')) return home + filePath.slice(1)
+  if (platform === 'windows' && filePath.startsWith('~\\')) return home + filePath.slice(1)
+  return filePath
+}
+
+export function preferredHomeEnv(env: NodeJS.ProcessEnv, platform: Platform = getPlatform()): string {
+  return (platform === 'windows' ? env.USERPROFILE || env.HOME : env.HOME || env.USERPROFILE) || ''
+}
+
 export function splitPathFromRoot(
   filePath: string,
   grammar: typeof hostPath = hostPath,
