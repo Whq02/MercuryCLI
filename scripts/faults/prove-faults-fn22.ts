@@ -345,5 +345,83 @@ else {
   check('liveness-non-job-id: non-job-id entry under trees skips run stamps cleanly', nonJobId.ok && (nonJobId.value as { alive?: boolean })?.alive === true, JSON.stringify(nonJobId))
 }
 
+console.log('\n9. vulcan/engine/service.ts — record/list reads throw on non-ENOENT, executable surfaces census error, and failed writes mark run failed')
+if (!POSIX_MODES) skip('service', 'needs non-root POSIX')
+else {
+  const r = runSubprocess(`
+    const m = await import(path.join(SRC, 'services/vulcan/engine/service.ts'))
+    const paths = await import(path.join(SRC, 'services/vulcan/engine/paths.ts'))
+    const svc = new m.EngineJobService(PROJECT, {
+      census: async () => { throw new Error('ps blocked') },
+    })
+    out.absentList = await attempt(() => m.listEngineRunIds(PROJECT))
+    out.absentResult = await attempt(() => svc.result('1000-aaaa'))
+    const runsDir = paths.engineRunsDir(PROJECT)
+    const runDir = paths.engineRunPath(PROJECT, '1000-aaaa')
+    const resultFile = paths.engineRunResultFile(runDir)
+    fs.mkdirSync(runDir, { recursive: true })
+    fs.writeFileSync(resultFile, '{broken json', { mode: 0o600 })
+    out.corruptResult = await attempt(() => svc.result('1000-aaaa'))
+    fs.writeFileSync(resultFile, '{}', { mode: 0o600 })
+    fs.chmodSync(resultFile, 0o200)
+    out.unreadableResult = await attempt(() => svc.result('1000-aaaa'))
+    fs.chmodSync(resultFile, 0o600)
+    fs.chmodSync(runsDir, 0o000)
+    out.unreadableList = await attempt(() => m.listEngineRunIds(PROJECT))
+    fs.chmodSync(runsDir, 0o700)
+    const oldPath = process.env.PATH
+    process.env.PATH = ''
+    delete process.env.MERCURY_GODOT_EXECUTABLE
+    out.exeNoGodot = await svc.executable()
+    process.env.PATH = oldPath
+    const roDir = path.join(PROJECT, 'ro-run')
+    fs.mkdirSync(roDir, { recursive: true })
+    const treeDir = path.join(PROJECT, 'tree')
+    fs.mkdirSync(treeDir, { recursive: true })
+    const fakeBin = path.join(HOME, 'fake-godot.sh')
+    fs.writeFileSync(fakeBin, '#!/bin/sh\\necho PASS_MARK\\nexit 0\\n', { mode: 0o755 })
+    const job = {
+      id: '2000-bbbb',
+      request: { suites: ['s'], tree: { ref: 'HEAD', files: [], working: false, label: 'HEAD' }, native: false, capture: false, priority: 'lane-gate', budgetMs: null, displayShared: false, keepTree: false, label: null, media: undefined },
+      state: 'running', seq: 0, queuedAt: new Date().toISOString(), startedAt: new Date().toISOString(), endedAt: null,
+      runDir: roDir, treePath: treeDir, worker: 0, currentSuite: null, record: null, error: null, cancelRequested: false, tree: null,
+    }
+    job.record = svc.baseRecord(job, fakeBin, ['s'])
+    job.record.allPass = true
+    fs.chmodSync(roDir, 0o500)
+    svc.writeRecord(job)
+    out.writeRecordAllPass = job.record.allPass
+    out.writeRecordError = job.record.error
+    const userDir = path.join(HOME, 'u')
+    fs.mkdirSync(userDir, { recursive: true })
+    const row = await svc.runOne(job, fakeBin, 's', () => ['--check-only'], 10_000, { kind: 'line', text: 'PASS_MARK' }, userDir, /FAIL:/)
+    fs.chmodSync(roDir, 0o700)
+    out.runOneOk = row.ok
+    out.runOneSpawnError = row.spawnError
+  `)
+  const absentList = r.absentList as Attempt
+  const absentResult = r.absentResult as Attempt
+  const corruptResult = r.corruptResult as Attempt
+  const unreadableResult = r.unreadableResult as Attempt
+  const unreadableList = r.unreadableList as Attempt
+  check('service-readEngineRecord: absent returns null; corrupt throws SyntaxError; unreadable throws EACCES', absentResult.ok && absentResult.value === null && !corruptResult.ok && corruptResult.name === 'SyntaxError' && !unreadableResult.ok && unreadableResult.code === 'EACCES', JSON.stringify({ absentResult, corruptResult, unreadableResult }))
+  check('service-listEngineRunIds: absent returns empty; unreadable runs dir throws EACCES', absentList.ok && Array.isArray(absentList.value) && absentList.value.length === 0 && !unreadableList.ok && unreadableList.code === 'EACCES', JSON.stringify({ absentList, unreadableList }))
+  check('service-writeRecord: unwritable runDir sets allPass false and records the write error', r.writeRecordAllPass === false && typeof r.writeRecordError === 'string' && r.writeRecordError.includes('could not be written'), JSON.stringify({ allPass: r.writeRecordAllPass, error: r.writeRecordError }))
+  check('service-runOne-logWrite: unwritable suite log sets row.ok false and records spawnError', r.runOneOk === false && typeof r.runOneSpawnError === 'string' && r.runOneSpawnError.includes('could not be written'), JSON.stringify({ ok: r.runOneOk, spawnError: r.runOneSpawnError }))
+  const rExe = runSubprocess(`
+    const { mock } = await import('bun:test')
+    const realHealth = await import(path.join(SRC, 'services/vulcan/portabilityHealth.ts'))
+    mock.module(path.join(SRC, 'services/vulcan/portabilityHealth.ts'), () => ({
+      ...realHealth,
+      resolveGodotExecutable: async () => ({ source: 'not-found', note: 'no godot executable on PATH, under 0 well-known root(s), or running', probed: [] }),
+    }))
+    const m = await import(path.join(SRC, 'services/vulcan/engine/service.ts'))
+    const svc = new m.EngineJobService(PROJECT, { census: async () => { throw new Error('ps blocked') } })
+    out.exeNoGodot = await svc.executable()
+  `)
+  const exeNoGodot = rExe.exeNoGodot as { resolved?: string; error?: string }
+  check('service-executable-census: failed census note appears when no Godot executable is found', typeof exeNoGodot.error === 'string' && exeNoGodot.error.includes('ps blocked'), JSON.stringify(exeNoGodot))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
