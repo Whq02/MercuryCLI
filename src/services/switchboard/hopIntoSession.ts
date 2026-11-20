@@ -9,6 +9,7 @@ import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { validateUuid } from '../../utils/sessionStoragePortable.js'
 import { sleep } from '../../utils/sleep.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { errorMessage, getErrnoCode } from '../../utils/errors.js'
 
 export function liveTitleDeriverFor(
   workers: {
@@ -123,6 +124,7 @@ async function workspaceOfTranscript(transcriptPath: string | undefined): Promis
       const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head)
       if (m) return JSON.parse(`"${m[1]}"`) as string
     } catch (error) {
+      if (getErrnoCode(error) !== 'ENOENT') throw error
       passedOver(error)
     }
   }
@@ -183,7 +185,13 @@ async function admitResumedSession(
   const workers = await import('../../daemon/concourseWorkers.js')
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
   const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
-  const workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
+  let workspaceDir: string
+  try {
+    workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
+  } catch (error) {
+    const reason = errorMessage(error)
+    return { ok: false, reason, admitted: Promise.resolve(false), refusal: Promise.resolve(reason) }
+  }
   const paths = await import('../../utils/sessionStorage/paths.js')
   const seat = await import('../engine-connector/daemonConnector.js')
   const { headBriefLabel } = await import('../concourse/concourseSnapshot.js')

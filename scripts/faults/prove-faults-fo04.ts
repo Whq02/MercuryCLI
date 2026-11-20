@@ -27,6 +27,21 @@ section('pathValidation: a grep --include glob the reader cannot translate keeps
   check('an include of .en[v-\\z], which grep matches to .env, asks first too', odd.behavior !== 'allow', said(odd))
 }
 
+section('hopIntoSession: a transcript that cannot be read is not resumed in the current folder')
+if (process.platform !== 'win32' && process.getuid?.() !== 0) {
+  const { chmodSync } = await import('node:fs')
+  const transcript = fill('<PROJECT>/unreadable-transcript.jsonl')
+  writeFileSync(transcript, `{"cwd":"${fill('<PROJECT>/elsewhere')}"}\n`)
+  chmodSync(transcript, 0o000)
+  const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
+  const outcome = await Promise.race([
+    focusResumedSession('6f1c2b4e-0d7a-4c3e-9b1a-2e5f8d9c0a11', transcript).then(o => ({ ok: o.ok, reason: o.ok ? '' : o.reason })),
+    new Promise<{ ok: boolean; reason: string }>(done => setTimeout(() => done({ ok: true, reason: 'went on past the unreadable transcript' }), 5000)),
+  ])
+  chmodSync(transcript, 0o644)
+  check('the resume answers not ok with the read error itself', !outcome.ok && /EACCES/.test(outcome.reason), outcome.reason)
+}
+
 section('matching: one hook matcher that throws does not drop the other hooks of the event')
 {
   const { mock } = await import('bun:test')
