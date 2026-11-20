@@ -227,5 +227,66 @@ else {
   check('git:unreadable-dotgit-file-fails-closed', r.verdict === 'gitdir-redirect-plantable', JSON.stringify(r))
 }
 
+console.log('\ngitDiff.ts — unreadable transient-state marker rejects instead of pretending no merge in progress')
+if (!POSIX_MODES) skip('gitDiff:unreadable-transient-marker-rejects', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { execFileSync } = await import('node:child_process')
+    const repo = path.join(PROJECT, 'diff-repo')
+    fs.mkdirSync(repo, { recursive: true })
+    const env = { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' }
+    execFileSync('git', ['init', '-q'], { cwd: repo, env })
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'one\\n')
+    execFileSync('git', ['add', 'a.txt'], { cwd: repo, env })
+    execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: repo, env })
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'two\\n')
+    const { fetchGitDiffFor, fetchGitDiffHunksFor } = await import(SRC + '/utils/gitDiff.ts')
+    out.cleanDiffOk = (await fetchGitDiffFor({ args: ['HEAD'], cwd: repo })) !== null
+    const gitDir = path.join(repo, '.git')
+    const block = path.join(gitDir, 'MERGE_HEAD')
+    fs.mkdirSync(block, { recursive: true })
+    const inner = path.join(gitDir, 'rebase-merge')
+    fs.mkdirSync(inner, { recursive: true })
+    fs.rmSync(block, { recursive: true, force: true })
+    fs.rmSync(inner, { recursive: true, force: true })
+    const lockedParent = path.join(PROJECT, 'locked-gitdir')
+    fs.mkdirSync(lockedParent, { recursive: true })
+    const fakeGitDir = path.join(lockedParent, 'inner')
+    fs.mkdirSync(fakeGitDir, { recursive: true })
+    fs.writeFileSync(path.join(fakeGitDir, 'MERGE_HEAD'), '0123456789abcdef0123456789abcdef01234567\\n')
+    const linkedRepo = path.join(PROJECT, 'linked-repo')
+    fs.mkdirSync(linkedRepo, { recursive: true })
+    fs.writeFileSync(path.join(linkedRepo, '.git'), 'gitdir: ' + fakeGitDir + '\\n')
+    const { mock } = await import('bun:test')
+    mock.module(SRC + '/utils/execFileNoThrow.js', () => ({
+      execFileNoThrow: async () => ({ stdout: '', stderr: '', code: 0 }),
+      execFileNoThrowWithCwd: async (_cmd, args) => {
+        if (args.includes('--git-dir')) return { stdout: fakeGitDir + '\\n', stderr: '', code: 0 }
+        return { stdout: '1\\t1\\ta.txt\\n', stderr: '', code: 0 }
+      },
+    }))
+    const diffMod = await import(SRC + '/utils/gitDiff.ts?locked')
+    fs.chmodSync(fakeGitDir, 0o000)
+    try {
+      await diffMod.fetchGitDiffFor({ args: ['HEAD'], cwd: linkedRepo })
+      out.diffErr = null
+    } catch (e) {
+      out.diffErr = e?.code ?? String(e)
+    }
+    try {
+      await diffMod.fetchGitDiffHunksFor({ args: ['HEAD'], cwd: linkedRepo })
+      out.hunksErr = null
+    } catch (e) {
+      out.hunksErr = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(fakeGitDir, 0o700)
+    }
+  `)
+  check('gitDiff:unreadable-marker-rejects-diff', r.cleanDiffOk === true && r.diffErr === 'EACCES', JSON.stringify(r))
+  check('gitDiff:unreadable-marker-rejects-hunks', r.hunksErr === 'EACCES', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

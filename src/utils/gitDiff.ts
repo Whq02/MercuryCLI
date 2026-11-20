@@ -4,7 +4,7 @@ import type { StructuredPatchHunk } from './diff.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getDefaultBranch, getIsGit, gitExe } from './git.js'
 import { resolveGitDir } from './git/gitFilesystem.js'
-import { passedOver } from './passedOver.js'
+import { getErrnoCode, isENOENT } from './errors.js'
 
 
 const GIT_TIMEOUT_MS = 5000
@@ -50,8 +50,8 @@ async function pathExistsAny(path: string): Promise<boolean> {
     await stat(path)
     return true
   } catch (error) {
-    passedOver(error)
-    return false
+    if (isENOENT(error) || getErrnoCode(error) === 'ENOTDIR') return false
+    throw error
   }
 }
 
@@ -219,17 +219,13 @@ export async function fetchGitDiffFor(spec: GitDiffSpec): Promise<GitDiffResult 
 }
 
 async function fetchHunksCore(spec: GitDiffSpec, checkRepository: boolean): Promise<Map<string, StructuredPatchHunk[]>> {
-  try {
-    if (checkRepository && !(await getIsGit())) return new Map()
-    if (spec.cwd ? await isTransientStateIn(spec.cwd) : await isTransientState()) return new Map()
-    const result = spec.cwd
-      ? await execFileNoThrowWithCwd(gitExe(), ['diff', ...spec.args], { cwd: spec.cwd, timeout: GIT_TIMEOUT_MS, preserveOutputOnError: false })
-      : await execFileNoThrow(gitExe(), ['diff', ...spec.args], { timeout: GIT_TIMEOUT_MS, preserveOutputOnError: false })
-    if (result.code !== 0) return new Map()
-    return parseGitDiff(result.stdout)
-  } catch {
-    return new Map()
-  }
+  if (checkRepository && !(await getIsGit())) return new Map()
+  if (spec.cwd ? await isTransientStateIn(spec.cwd) : await isTransientState()) return new Map()
+  const result = spec.cwd
+    ? await execFileNoThrowWithCwd(gitExe(), ['diff', ...spec.args], { cwd: spec.cwd, timeout: GIT_TIMEOUT_MS, preserveOutputOnError: false })
+    : await execFileNoThrow(gitExe(), ['diff', ...spec.args], { timeout: GIT_TIMEOUT_MS, preserveOutputOnError: false })
+  if (result.code !== 0) return new Map()
+  return parseGitDiff(result.stdout)
 }
 
 export async function fetchGitDiffHunks(): Promise<Map<string, StructuredPatchHunk[]>> {
