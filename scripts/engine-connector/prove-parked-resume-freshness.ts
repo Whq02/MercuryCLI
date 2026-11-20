@@ -180,10 +180,22 @@ try {
   await new Promise(resolve => setTimeout(resolve, 50))
   const readmitted = asked.find(request => request.op === 'sessionAdmit')
   check("a session whose runner's process stands under a daemon that does not answer is resumed through the admission with the launch's words, not dialled", sessionOwnedByLiveWorker(sid) !== null && readmitted?.model === 'claude-opus-5' && readmitted?.effort === 'max' && !asked.some(dialled), askedWords())
-  pingAnswers = true
   record({ modelKey: 'claude-opus-5', effort: 'max', parkedAt: undefined, parkedBy: undefined })
   answer({ ok: true, modelId: 'claude-opus-5', effort: 'max' })
   await orphaned.admitted
+  writeFileSync(factsFile, JSON.stringify({ ...seed, atMs: 1008, model: { effective: 'claude-opus-5', setting: 'claude-opus-5' }, effort: 'max', effortSent: 'max' }))
+  connector.readFacts()
+  releaseFocusedSessionConnector()
+  record({ modelKey: 'claude-opus-5', effort: 'max', parkedAt: undefined, parkedBy: undefined, pid: process.pid })
+  waitNextAdmission()
+  asked.length = 0
+  const held = await focusResumedSession(sid, transcript, { firstPaintMs: 10, model: 'claude-sonnet-5', effort: 'high' })
+  answer({ ok: true, liveHop: true, modelId: 'claude-opus-5', effort: 'max' })
+  await held.admitted
+  await new Promise(resolve => setTimeout(resolve, 50))
+  pingAnswers = true
+  const askedAt = (op: string, action?: string): number => asked.findIndex(request => request.op === op && (action === undefined || request.action === action))
+  check("an admission the daemon answers as a live hop is followed by the launch's dials, asked of the daemon that answered", askedAt('sessionAdmit') >= 0 && askedAt('sessionControl', 'set-model') > askedAt('sessionAdmit') && asked[askedAt('sessionControl', 'set-model')]?.model === 'claude-sonnet-5' && asked[askedAt('sessionControl', 'set-effort')]?.effort === 'high', askedWords())
 } finally {
   releaseFocusedSessionConnector()
 }

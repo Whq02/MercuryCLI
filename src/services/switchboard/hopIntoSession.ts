@@ -175,6 +175,7 @@ async function admitResumedSession(
   transcriptPath: string | undefined,
   opts: ResumeOptions | undefined,
   launch: LaunchWords,
+  admitsAgain = true,
 ): Promise<ResumeOutcome> {
   const workers = await import('../../daemon/concourseWorkers.js')
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
@@ -252,6 +253,7 @@ async function admitResumedSession(
         ...(settled.worktreePath !== undefined ? { worktreePath: settled.worktreePath } : {}),
       }, reply.liveHop === true)
       connector.assertSeat()
+      if (reply.liveHop === true && launchGiven) void applyLaunchWordOnHop(sessionId, launch, admitsAgain ? () => admitResumedSession(sessionId, transcriptPath, opts, launch, false) : null)
       return null
     } catch (error) {
       return error instanceof Error ? error.message : String(error)
@@ -484,7 +486,7 @@ function launchWonOf(
   return out.model === undefined && out.effort === undefined ? null : out
 }
 
-async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resumeWithLaunchWords: () => Promise<unknown>): Promise<void> {
+async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resumeWithLaunchWords: (() => Promise<unknown>) | null): Promise<void> {
   try {
     const seat = await import('../engine-connector/daemonConnector.js')
     const connector = seat.getDaemonSessionConnector(sessionId)
@@ -498,7 +500,7 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--model ${renderModelName(launch.model)} wins over the session's ${renderModelName(facts.effective)}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        daemonLeft = !(await heldLiveUnderDaemon(sessionId))
+        daemonLeft = resumeWithLaunchWords !== null && !(await heldLiveUnderDaemon(sessionId))
         if (!daemonLeft) parts.push(`--model ${renderModelName(launch.model)} was refused, the session keeps ${renderModelName(facts.effective)}: ${receipt.detail}`)
       }
     }
@@ -508,12 +510,12 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
       if (receipt.state === 'applied' || receipt.state === 'queued') {
         parts.push(`--effort ${launch.effort} wins over the session's ${sessionEffort ?? 'own effort'}${receipt.state === 'queued' ? ' when this turn settles' : ''}`)
       } else if (receipt.state === 'refused') {
-        daemonLeft = !(await heldLiveUnderDaemon(sessionId))
+        daemonLeft = resumeWithLaunchWords !== null && !(await heldLiveUnderDaemon(sessionId))
         if (!daemonLeft) parts.push(`--effort ${launch.effort} was refused, the session keeps ${sessionEffort ?? 'its own effort'}: ${receipt.detail}`)
       }
     }
     for (const part of parts) mintImmediateReceipt(part)
-    if (daemonLeft) await resumeWithLaunchWords()
+    if (daemonLeft && resumeWithLaunchWords !== null) await resumeWithLaunchWords()
   } catch {
   }
 }
