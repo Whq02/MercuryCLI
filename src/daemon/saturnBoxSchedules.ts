@@ -210,7 +210,12 @@ export function addBoxSchedule(
   if (!derived.ok) return { ok: false, reason: `schedule refused — ${derived.reason}` }
   const preflightAtWrite = deps.preflight ? deps.preflight(derived.account, saturnNextFireMs(sub.when, Date.now())) : undefined
   return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
+    let file: SaturnBoxFileV1
+    try {
+      file = readBoxSchedules(dir, true)
+    } catch (error) {
+      return { ok: false, reason: `schedule refused — ${error instanceof Error ? error.message : String(error)}` }
+    }
     if (file.schedules.length >= SATURN_SCHEDULE_CAP) {
       return { ok: false, reason: `schedule refused — the box already holds ${SATURN_SCHEDULE_CAP} schedules` }
     }
