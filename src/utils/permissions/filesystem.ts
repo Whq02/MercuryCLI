@@ -24,7 +24,14 @@ import { getSettingsFilePathForSource } from '../settings/settings.js'
 import { getEnabledSettingSources } from '../settings/constants.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
 import type { ToolPermissionContext } from '../../Tool.js'
-import type { PermissionAskDecision, PermissionDecision, PermissionResult } from './PermissionResult.js'
+import type {
+  PermissionAllowDecision,
+  PermissionAskDecision,
+  PermissionDecision,
+  PermissionDecisionReason,
+  PermissionDenyDecision,
+  PermissionResult,
+} from './PermissionResult.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from './PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
 import { uncPathRisk, uncPathMessage } from './uncPath.js'
@@ -301,7 +308,7 @@ export function isSettingsFilePath(filePath: string): boolean {
   }
   for (const source of getEnabledSettingSources()) {
     try {
-      const path = getSettingsFilePathForSource(source as never)
+      const path = getSettingsFilePathForSource(source)
       if (path && normalizeCaseForComparison(expandPath(path)) === folded) return true
     } catch {
     }
@@ -450,7 +457,7 @@ export function getSkillScope(filePath: string): { skillName: string; pattern: s
 }
 
 
-export function checkEditableInternalPath(absolutePath: string, _input: unknown): PermissionResult {
+export function checkEditableInternalPath(absolutePath: string, _input?: Record<string, unknown>): PermissionResult {
   const path = expandPath(absolutePath)
   const category = editableInternalCategory(path)
   if (category) {
@@ -458,12 +465,12 @@ export function checkEditableInternalPath(absolutePath: string, _input: unknown)
       behavior: 'allow',
       updatedInput: _input,
       decisionReason: { type: 'other', reason: category },
-    } as unknown as PermissionResult
+    }
   }
-  return { behavior: 'passthrough', message: '' } as unknown as PermissionResult
+  return { behavior: 'passthrough', message: '' }
 }
 
-export function checkReadableInternalPath(absolutePath: string, _input: unknown): PermissionResult {
+export function checkReadableInternalPath(absolutePath: string, _input?: Record<string, unknown>): PermissionResult {
   const path = expandPath(absolutePath)
   const category = readableInternalCategory(path)
   if (category) {
@@ -471,9 +478,9 @@ export function checkReadableInternalPath(absolutePath: string, _input: unknown)
       behavior: 'allow',
       updatedInput: _input,
       decisionReason: { type: 'other', reason: category },
-    } as unknown as PermissionResult
+    }
   }
-  return { behavior: 'passthrough', message: '' } as unknown as PermissionResult
+  return { behavior: 'passthrough', message: '' }
 }
 
 function isAgentMemory(path: string): boolean {
@@ -567,9 +574,9 @@ function rulesForToolAndBehavior(
 ): Map<string, PermissionRule> {
   const map = new Map<string, PermissionRule>()
   const key = behavior === 'allow' ? 'alwaysAllowRules' : behavior === 'deny' ? 'alwaysDenyRules' : 'alwaysAskRules'
-  const bySource = (context as unknown as Record<string, Record<string, string[]>>)[key] ?? {}
+  const bySource = context[key] ?? {}
   for (const [source, rules] of Object.entries(bySource)) {
-    for (const ruleString of rules) {
+    for (const ruleString of rules ?? []) {
       const parsed = permissionRuleValueFromString(ruleString)
       if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
       const rule = {
@@ -617,15 +624,21 @@ export function rootForPattern(
   return { root: null, relative: pattern }
 }
 
-const RUNTIME_SOURCES = new Set(['cliArg', 'command', 'session', 'toolsNarrowing', 'mcpServerPolicy'])
-
 function rootForSource(source: PermissionRule['source']): string | undefined {
-  if (RUNTIME_SOURCES.has(source)) return expandPath(getOriginalCwd())
-  try {
-    const path = getSettingsFilePathForSource(source as never)
-    return path ? getDirectoryForPath(path) : undefined
-  } catch {
-    return undefined
+  switch (source) {
+    case 'cliArg':
+    case 'command':
+    case 'session':
+    case 'toolsNarrowing':
+    case 'mcpServerPolicy':
+      return expandPath(getOriginalCwd())
+    default:
+      try {
+        const path = getSettingsFilePathForSource(source)
+        return path ? getDirectoryForPath(path) : undefined
+      } catch {
+        return undefined
+      }
   }
 }
 
@@ -896,14 +909,14 @@ export function readDenialFilter(context: ToolPermissionContext, root: string): 
 
 type ToolLike = { getPath?: (input: any) => string | undefined; name: string }
 
-function ask(message: string, reason: PermissionDecision['decisionReason']): PermissionDecision {
-  return { behavior: 'ask', message, decisionReason: reason } as unknown as PermissionDecision
+function ask(message: string, reason: PermissionDecisionReason): PermissionAskDecision {
+  return { behavior: 'ask', message, decisionReason: reason }
 }
-function deny(message: string, reason: PermissionDecision['decisionReason']): PermissionDecision {
-  return { behavior: 'deny', message, decisionReason: reason } as unknown as PermissionDecision
+function deny(message: string, reason: PermissionDecisionReason): PermissionDenyDecision {
+  return { behavior: 'deny', message, decisionReason: reason }
 }
-function allow(input: unknown, reason: PermissionDecision['decisionReason']): PermissionDecision {
-  return { behavior: 'allow', updatedInput: input, decisionReason: reason } as unknown as PermissionDecision
+function allow(input: Record<string, unknown> | undefined, reason: PermissionDecisionReason): PermissionAllowDecision {
+  return { behavior: 'allow', updatedInput: input, decisionReason: reason }
 }
 function ruleDecision(
   kind: 'deny' | 'ask',
@@ -913,7 +926,7 @@ function ruleDecision(
   matches: () => PermissionRule[],
 ): PermissionDecision {
   const said = withRuleReason(context, rule, matches)
-  const reason = { type: 'rule', rule: said } as never
+  const reason: PermissionDecisionReason = { type: 'rule', rule: said }
   const sentence = ruleSentence(subject, kind, said)
   return kind === 'deny' ? deny(refusalWithReason(sentence, said.ruleValue.reason), reason) : ask(sentence, reason)
 }
@@ -946,7 +959,7 @@ export function remoteFloorRefusal(
 
 function checkRemotePermission(
   path: string,
-  input: unknown,
+  input: Record<string, unknown> | undefined,
   context: ToolPermissionContext,
   toolType: 'edit' | 'read',
 ): PermissionDecision {
@@ -958,14 +971,14 @@ function checkRemotePermission(
   const narrowed = toolsNarrowingDenial(path, [path], context, toolType)
   if (narrowed) return narrowed
   if (toolType === 'edit' && context.mode === 'apollo') {
-    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' } as never)
+    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' })
   }
   const asked = matchingRuleForInput(path, context, toolType, 'ask')
   if (asked) return ruleDecision('ask', subject, context, asked, () => matchingRulesForInput(path, context, toolType, 'ask'))
   const allowed =
     matchingRuleForInput(path, context, 'edit', 'allow') ??
     (toolType === 'read' ? matchingRuleForInput(path, context, 'read', 'allow') : null)
-  if (allowed) return allow(input, { type: 'rule', rule: allowed } as never)
+  if (allowed) return allow(input, { type: 'rule', rule: allowed })
   return {
     behavior: 'ask',
     message: `Permission to ${toolType === 'read' ? 'read from' : 'write to'} ${path} has not been granted.`,
@@ -974,12 +987,12 @@ function checkRemotePermission(
       reason: remoteLocalForms(path) === null ? 'the path is on another machine' : 'the path is reached over ssh on this machine',
     },
     suggestions: generateSuggestions(path, toolType === 'read' ? 'read' : 'write', context),
-  } as unknown as PermissionDecision
+  }
 }
 
 function envFileAsk(subject: string): PermissionAskDecision {
   const reason = `${subject} needs approval: a .env file usually holds secrets (keys, tokens, passwords). Approve it here, or add a Read allow rule for the path to stop the question.`
-  return ask(reason, { type: 'safetyCheck', reason, operatorOnly: false }) as PermissionAskDecision
+  return ask(reason, { type: 'safetyCheck', reason, operatorOnly: false })
 }
 
 export function envFileReadAsk(
@@ -1017,7 +1030,7 @@ export function checkUncPathPermission(
 
 export function checkReadPermissionForTool(
   tool: ToolLike,
-  input: unknown,
+  input: Record<string, unknown> | undefined,
   context: ToolPermissionContext,
 ): PermissionDecision {
   const path = tool.getPath?.(input)
@@ -1061,18 +1074,18 @@ export function checkReadPermissionForTool(
   const writeDecision = checkWritePermissionForTool(tool, input, context, resolutionSet)
   if (writeDecision.behavior === 'allow') return writeDecision
   if (pathInAllowedWorkingPath(path, context, resolutionSet)) {
-    return allow(input, { type: 'mode', mode: 'default' } as never)
+    return allow(input, { type: 'mode', mode: 'default' })
   }
   const internal = checkReadableInternalPath(expandPath(path), input)
-  if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision
+  if (internal.behavior !== 'passthrough') return internal
   const allowRule = matchingRuleForInput(path, context, 'read', 'allow')
-  if (allowRule) return allow(input, { type: 'rule', rule: allowRule } as never)
+  if (allowRule) return allow(input, { type: 'rule', rule: allowRule })
   return {
     behavior: 'ask',
     message: `Permission to read from ${path} has not been granted.`,
     decisionReason: { type: 'workingDir', reason: 'the path is outside the starting folder' },
     suggestions: generateSuggestions(path, 'read', context, resolutionSet),
-  } as unknown as PermissionDecision
+  }
 }
 
 function exactCredentialStoreGrant(path: string, credential: string, context: ToolPermissionContext): PermissionRule | undefined {
@@ -1093,7 +1106,7 @@ export function credentialStoreWriteRefusal(written: string, cwd: string, contex
 
 export function checkWritePermissionForTool(
   tool: ToolLike,
-  input: unknown,
+  input: Record<string, unknown> | undefined,
   context: ToolPermissionContext,
   precomputedPathsToCheck?: readonly string[],
 ): PermissionDecision {
@@ -1142,11 +1155,11 @@ export function checkWritePermissionForTool(
     if (estateGrant) return estateGrant
     if (!isApolloPlanningDocument([path, runtimeInput, ...resolutionSet])) {
       const message = `Permission to write ${path} is required: this file steers every later session.`
-      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: context.mode === 'flow' }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: context.mode === 'flow' }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) }
     }
   }
   const internal = checkEditableInternalPath(expandPath(path), input)
-  if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision
+  if (internal.behavior !== 'passthrough') return internal
   const estate = sessionEstateAllow(path, context, input)
   if (estate) return estate
   if (
@@ -1157,11 +1170,11 @@ export function checkWritePermissionForTool(
     const inSpecDir = (candidate: string): boolean =>
       specForms.some(form => pathInWorkingPath(candidate, form))
     if (resolutionSet.length > 0 && resolutionSet.every(inSpecDir) && isApolloPlanningDocument([path, runtimeInput, ...resolutionSet])) {
-      return allow(input, { type: 'mode', mode: context.mode } as never)
+      return allow(input, { type: 'mode', mode: context.mode })
     }
   }
   if (context.mode === 'apollo') {
-    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' } as never)
+    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' })
   }
   const safety = checkPathSafetyForAutoEdit(path, resolutionSet, context)
   if (!safety.safe) {
@@ -1178,17 +1191,17 @@ export function checkWritePermissionForTool(
         operatorOnly: safety.operatorOnly,
       },
       suggestions,
-    } as unknown as PermissionDecision
+    }
   }
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
     if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
   }
   if (context.mode === 'implement' && pathInAllowedWorkingPath(path, context, resolutionSet)) {
-    return allow(input, { type: 'mode', mode: 'implement' } as never)
+    return allow(input, { type: 'mode', mode: 'implement' })
   }
   const allowRule = matchingRuleForInput(path, context, 'edit', 'allow')
-  if (allowRule) return allow(input, { type: 'rule', rule: allowRule } as never)
+  if (allowRule) return allow(input, { type: 'rule', rule: allowRule })
   const outsideWorkingDir = !pathInAllowedWorkingPath(path, context, resolutionSet)
   return {
     behavior: 'ask',
@@ -1197,16 +1210,16 @@ export function checkWritePermissionForTool(
     decisionReason: outsideWorkingDir
       ? { type: 'workingDir', reason: 'the path is outside the starting folder' }
       : undefined,
-  } as unknown as PermissionDecision
+  }
 }
 
 function readNarrowing(context: ToolPermissionContext, toolType: 'edit' | 'read'): { narrowed: ToolPermissionContext; rules: PermissionRule[] } | null {
-  const narrowed = {
-    ...(context as object),
+  const narrowed: ToolPermissionContext = {
+    ...context,
     alwaysAllowRules: {
-      toolsNarrowing: ((context as unknown as Record<string, Record<string, string[]>>).alwaysAllowRules ?? {}).toolsNarrowing ?? [],
+      toolsNarrowing: context.alwaysAllowRules?.toolsNarrowing ?? [],
     },
-  } as unknown as ToolPermissionContext
+  }
   const names = toolType === 'edit' ? fileEditRuleToolNames() : fileReadRuleToolNames()
   const rules = [...rulesForToolFamilyAndBehavior(narrowed, names, 'allow').values()]
   return rules.length === 0 ? null : { narrowed, rules }
@@ -1228,21 +1241,21 @@ function toolsNarrowingDenial(
 function sessionEstateAllow(
   path: string,
   context: ToolPermissionContext,
-  input: unknown,
+  input: Record<string, unknown> | undefined,
 ): PermissionDecision | null {
-  const narrowed = {
-    ...(context as object),
+  const narrowed: ToolPermissionContext = {
+    ...context,
     alwaysAllowRules: {
-      session: ((context as unknown as Record<string, Record<string, string[]>>).alwaysAllowRules ?? {}).session ?? [],
+      session: context.alwaysAllowRules?.session ?? [],
     },
-  } as unknown as ToolPermissionContext
+  }
   const rule = matchingRuleForInput(path, narrowed, 'edit', 'allow')
   if (!rule) return null
   const content = rule.ruleValue.ruleContent ?? ''
   if (!content.endsWith('/**')) return null
   if (content.includes('..')) return null
   if (!estatePrefixes().some(prefix => content.startsWith(prefix))) return null
-  return allow(input, { type: 'rule', rule } as never)
+  return allow(input, { type: 'rule', rule })
 }
 
 function estatePrefixes(): string[] {
@@ -1267,7 +1280,7 @@ function narrowedSkillGrant(pattern: string): PermissionUpdate {
     rules: [{ toolName: 'Edit', ruleContent: pattern }],
     behavior: 'allow',
     destination: 'session',
-  } as unknown as PermissionUpdate
+  }
 }
 
 
@@ -1279,12 +1292,12 @@ export function generateSuggestions(
 ): PermissionUpdate[] {
   const remote = remoteSessionRule(filePath)
   if (remote !== null) {
-    const grant = {
+    const grant: PermissionUpdate = {
       type: 'addRules',
       rules: [{ toolName: operationType === 'read' ? 'Read' : 'Edit', ruleContent: remote }],
       behavior: 'allow',
       destination: 'session',
-    } as PermissionUpdate
+    }
     return operationType === 'read' ? [grant] : [...modeSuggestion(context), grant]
   }
   if (isRemotePath(filePath)) return []
@@ -1317,7 +1330,7 @@ export function apolloWriteRefusal(path: string): string {
 
 function modeSuggestion(context: ToolPermissionContext): PermissionUpdate[] {
   if (context.mode === 'default') {
-    return [{ type: 'setMode', mode: 'implement', destination: 'session' } as unknown as PermissionUpdate]
+    return [{ type: 'setMode', mode: 'implement', destination: 'session' }]
   }
   return []
 }

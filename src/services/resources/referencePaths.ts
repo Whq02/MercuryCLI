@@ -72,7 +72,7 @@ export async function referenceReadPaths(raw: string, cwd: string): Promise<stri
   return [...paths]
 }
 
-function strictest(toolName: string, paths: readonly string[], input: unknown, permission: ToolPermissionContext): ReturnType<typeof checkReadPermissionForTool> | null {
+function strictest(toolName: string, paths: readonly string[], input: Record<string, unknown> | undefined, permission: ToolPermissionContext): ReturnType<typeof checkReadPermissionForTool> | null {
   const verdicts = paths.map(named => checkReadPermissionForTool({ name: toolName, getPath: () => named }, input, permission))
   return verdicts.find(verdict => verdict.behavior === 'deny') ?? verdicts.find(verdict => verdict.behavior === 'ask') ?? verdicts[0] ?? null
 }
@@ -80,7 +80,7 @@ function strictest(toolName: string, paths: readonly string[], input: unknown, p
 export async function referenceReadDecision(
   toolName: string,
   raw: string,
-  input: unknown,
+  input: Record<string, unknown> | undefined,
   permission: ToolPermissionContext,
   cwd: string,
 ): Promise<ReturnType<typeof checkReadPermissionForTool> | null> {
@@ -90,7 +90,7 @@ export async function referenceReadDecision(
 export async function repositoryReadDecision(
   toolName: string,
   named: string,
-  input: unknown,
+  input: Record<string, unknown> | undefined,
   permission: ToolPermissionContext,
   cwd: string,
 ): Promise<ReturnType<typeof checkReadPermissionForTool> | null> {

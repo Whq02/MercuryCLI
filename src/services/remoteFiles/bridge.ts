@@ -94,7 +94,7 @@ async function resolveNames(rules: ToolPermissionContext, authority: RemoteAutho
   await Promise.all([...named.values()].map(one => resolveRemoteAuthority(one, signal).catch(() => undefined)))
 }
 
-function judge(toolName: string, path: string, input: unknown, rules: ToolPermissionContext, toolType: ToolType): PermissionDecision {
+function judge(toolName: string, path: string, input: Record<string, unknown> | undefined, rules: ToolPermissionContext, toolType: ToolType): PermissionDecision {
   const tool = { name: toolName, getPath: () => path }
   return toolType === 'read' ? checkReadPermissionForTool(tool, input, rules) : checkWritePermissionForTool(tool, input, rules)
 }
@@ -124,7 +124,7 @@ export async function remoteValidation(
   return { result: true }
 }
 
-function hostListPermission(input: unknown, rules: ToolPermissionContext): PermissionDecision {
+function hostListPermission(input: Record<string, unknown> | undefined, rules: ToolPermissionContext): PermissionDecision {
   const decision = checkReadPermissionForTool({ name: 'Read', getPath: () => sshUserConfigPath() }, input, rules)
   if (decision.behavior !== 'ask' || decision.decisionReason?.type !== 'workingDir') return decision
   return { ...decision, decisionReason: { type: 'workingDir', reason: 'the host list is read from ~/.ssh/config' }, suggestions: [] }
@@ -134,7 +134,7 @@ export async function remotePermission(
   toolName: string,
   written: string,
   also: string | null,
-  input: unknown,
+  input: Record<string, unknown> | undefined,
   context: ToolUseContext,
   toolType: ToolType,
 ): Promise<PermissionDecision> {

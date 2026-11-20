@@ -115,7 +115,7 @@ export type ToolPermissionContext = {
   readonly ruleReasons?: ReadonlyRuleReasonsBySource
   readonly isBypassPermissionsModeAvailable: boolean
   readonly isFlowAvailable?: boolean
-  readonly strippedDangerousRules?: readonly string[]
+  readonly strippedDangerousRules?: ReadonlyRulesBySource
   readonly shouldAvoidPermissionPrompts?: boolean
   readonly awaitAutomatedChecksBeforeDialog?: boolean
 }
