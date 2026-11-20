@@ -49,12 +49,7 @@ import {
 } from './UI.js'
 
 function safeSession(): string {
-  try {
-    return String(getSessionId())
-  } catch (error) {
-    passedOver(error)
-    return 'boot'
-  }
+  return String(getSessionId())
 }
 
 function abortOf(context: Partial<ToolUseContext>): { signal?: AbortSignal } {
@@ -298,7 +293,6 @@ export interface ReflectOutput {
 }
 
 import { synthesisCitations } from '../../mneme/memoryCitations.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 export const ReflectTool = buildTool({
   name: REFLECT_TOOL_NAME,

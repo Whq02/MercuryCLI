@@ -143,6 +143,40 @@ try {
       JSON.stringify(r),
     )
   }
+
+  {
+    const r = runIsolated(`
+      const { mock } = await import('bun:test')
+      const stateMod = await import(SRC + '/bootstrap/state.ts')
+      mock.module(SRC + '/bootstrap/state.ts', () => ({
+        ...stateMod,
+        getSessionId: () => { throw new Error('broken-session-state') },
+      }))
+      mock.module(SRC + '/bootstrap/state.js', () => ({
+        ...stateMod,
+        getSessionId: () => { throw new Error('broken-session-state') },
+      }))
+      const { RetainTool } = await import(SRC + '/tools/MemoryTools/MemoryTools.ts')
+      const ctx = {
+        messages: [{ type: 'user', message: { role: 'user', content: 'please remember that the build uses bun' } }],
+        abortController: new AbortController(),
+        getAppState: () => ({ toolPermissionContext: { mode: 'default' } }),
+        setAppState: () => {},
+      }
+      try {
+        await RetainTool.call({ items: [{ content: 'fact about repo' }] }, ctx)
+        out.threw = false
+      } catch (e) {
+        out.threw = true
+        out.message = e instanceof Error ? e.message : String(e)
+      }
+    `)
+    check(
+      'memory-tools-session-id-throws: RetainTool propagates getSessionId error instead of filing under boot',
+      r.threw === true && String(r.message ?? '').includes('broken-session-state'),
+      JSON.stringify(r),
+    )
+  }
 } finally {
   rmSync(rootScratch, { recursive: true, force: true })
 }
