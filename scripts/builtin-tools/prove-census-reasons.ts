@@ -20,7 +20,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { buildToolCensus, censusGapLines, CENSUS_NO_REASON } = await import('../../src/utils/capability/census.ts')
+const { buildToolCensus, censusGapLines, CENSUS_NO_REASON } = await import('../../src/services/capability/census.ts')
 type Census = ReturnType<typeof buildToolCensus>
 
 console.log('── census reasons ──')
