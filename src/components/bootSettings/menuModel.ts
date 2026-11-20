@@ -25,7 +25,7 @@ export type ApplyState =
   | { phase: 'loading' }
   | { phase: 'ready'; workers: WorkerApplySummary[]; error?: string };
 
-export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, saved, seatFacts, wordGlow }: { apply: ApplyState; backgroundLaunchOn: ReturnType<typeof backgroundSessionsLaunchCrewmates>; changed: number; chatBoot: ReturnType<typeof stripFacts>['chatBoot']; concourseLive: boolean; dirTail: string; effectiveByEnv: Map<string, ReturnType<typeof resolveEffectiveSettingsSnapshot>['rows'][number]>; isBackgroundLaunchRow: (row: MenuRow) => boolean; isJevRow: (row: MenuRow) => boolean; isMotionRow: (row: MenuRow) => boolean; isSeatsRow: (row: MenuRow) => boolean; jevDetailLines: string[]; jevSettings: ReturnType<typeof readJevSettings>; lastReceipt: string | null; list: ReturnType<typeof useInteractiveList<MenuRow>>; liveCount: number | null; mainModel: ReturnType<typeof useEngineModel>; menuRows: readonly MenuRow[]; motionSetting: ReturnType<typeof readMotionSetting>; plainWorld: ReturnType<typeof chatOnlyBoot>; profile: ReturnType<typeof readBootDefaultsProfile>; saved: Record<string, string>; seatFacts: SeatCeilingFacts | null; wordGlow: ReturnType<typeof useGreetingShimmer> }) {
+export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, profileReadError, saved, seatFacts, wordGlow }: { apply: ApplyState; backgroundLaunchOn: ReturnType<typeof backgroundSessionsLaunchCrewmates>; changed: number; chatBoot: ReturnType<typeof stripFacts>['chatBoot']; concourseLive: boolean; dirTail: string; effectiveByEnv: Map<string, ReturnType<typeof resolveEffectiveSettingsSnapshot>['rows'][number]>; isBackgroundLaunchRow: (row: MenuRow) => boolean; isJevRow: (row: MenuRow) => boolean; isMotionRow: (row: MenuRow) => boolean; isSeatsRow: (row: MenuRow) => boolean; jevDetailLines: string[]; jevSettings: ReturnType<typeof readJevSettings>; lastReceipt: string | null; list: ReturnType<typeof useInteractiveList<MenuRow>>; liveCount: number | null; mainModel: ReturnType<typeof useEngineModel>; menuRows: readonly MenuRow[]; motionSetting: ReturnType<typeof readMotionSetting>; plainWorld: ReturnType<typeof chatOnlyBoot>; profile: ReturnType<typeof readBootDefaultsProfile>; profileReadError?: string | null; saved: Record<string, string>; seatFacts: SeatCeilingFacts | null; wordGlow: ReturnType<typeof useGreetingShimmer> }) {
   const entries = menuRows.map(row => {
     if (isSeatsRow(row)) {
       return {
@@ -99,14 +99,18 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
   ].filter(Boolean) as string[];
   const critterKey = getSessionCritterKey();
   const idleStatus =
-    (changed > 0 ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to new sessions` : 'changes reach new sessions') +
-    (liveCount !== null ? `  ·  ${liveCount} established session${liveCount === 1 ? '' : 's'} unchanged` : '');
+    profileReadError
+      ? `could not be read (${profileReadError})`
+      : (changed > 0 ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to new sessions` : 'changes reach new sessions') +
+        (liveCount !== null ? `  ·  ${liveCount} established session${liveCount === 1 ? '' : 's'} unchanged` : '');
   const statusRight = list.note ?? lastReceipt ?? idleStatus;
   return {
     entries,
     selIdx: list.selectedIndex,
     summary: {
-      profile: `r${profile?.revision ?? 0} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`,
+      profile: profileReadError
+        ? `could not be read (${profileReadError})`
+        : `r${profile?.revision ?? 0} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`,
       harness: harness.join(' · ') || 'none',
     },
     environment: {

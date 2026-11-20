@@ -655,14 +655,15 @@ export function readBootEnvChoices(
   } catch (err) {
     if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
       const why = err instanceof SyntaxError ? 'it is not valid JSON' : String(err)
-      logForDebugging(`[boot-env] the saved boot settings at ${path} could not be read (${why}); they are taken as none, so the next choice saved replaces them all`, { level: 'warn' })
+      logForDebugging(`[boot-env] the saved boot settings at ${path} could not be read (${why})`, { level: 'warn' })
     }
+    passedOver(err)
     return null
   }
 }
 
-function readBootEnvChoicesStrict(
-  path: string,
+export function readBootEnvChoicesStrict(
+  path: string = bootEnvPath(),
 ): { ok: true; env: Record<string, string> } | { ok: false; reason: string } {
   let raw: string
   try {
@@ -701,7 +702,7 @@ export function writeBootEnvChoice(
     }
   }
   const prior = readBootEnvChoicesStrict(path)
-  if (!prior.ok) return { ok: false, reason: prior.reason }
+  if (!prior.ok) return { ok: false, reason: `could not be read (${prior.reason})` }
   const saved = prior.env
   const env: Record<string, string> = {}
   for (const r of allSettingRows()) {
@@ -760,8 +761,8 @@ function parseBootDefaultsProfile(raw: string): { ok: true; profile: BootDefault
   }
 }
 
-function readBootDefaultsProfileStrict(
-  path: string,
+export function readBootDefaultsProfileStrict(
+  path: string = bootEnvPath(),
 ): { ok: true; profile: BootDefaultsProfileV1 | null } | { ok: false; reason: string } {
   let raw: string
   try {
@@ -813,7 +814,7 @@ export function saveBootDefaultsProfile(
     for (const sp of flagSpellings(row.env)) paired[sp] = value
   }
   const priorProfile = readBootDefaultsProfileStrict(path)
-  if (!priorProfile.ok) return { ok: false, reason: priorProfile.reason }
+  if (!priorProfile.ok) return { ok: false, reason: `could not be read (${priorProfile.reason})` }
   const previous = priorProfile.profile
   const revision = (previous?.revision ?? 0) + 1
   const digest = profileDigestOf(paired)

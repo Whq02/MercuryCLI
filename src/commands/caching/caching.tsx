@@ -7,8 +7,8 @@ import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.j
 import {
   COMMAND_SETTINGS_ROWS,
   menuRowChoices,
-  readBootDefaultsProfile,
-  readBootEnvChoices,
+  readBootDefaultsProfileStrict,
+  readBootEnvChoicesStrict,
   realEnvPin,
   writeBootEnvChoice,
   type MenuChoice,
@@ -26,10 +26,23 @@ const TTL_ROW = COMMAND_SETTINGS_ROWS.find(r => r.env === 'MERCURY_CACHE_TTL')!
 function readDialState(): {
   saved: string | null
   envPin: { spelling: string; value: string } | null
+  readError: string | null
 } {
-  const saved = readBootEnvChoices() ?? {}
+  const res = readBootEnvChoicesStrict()
+  if (!res.ok) {
+    return {
+      saved: null,
+      envPin: realEnvPin(TTL_ROW.env),
+      readError: `could not be read (${res.reason})`,
+    }
+  }
+  const saved = res.env
   const savedSpelling = flagSpellings(TTL_ROW.env).find(sp => saved[sp] !== undefined)
-  return { saved: savedSpelling !== undefined ? (saved[savedSpelling] ?? null) : null, envPin: realEnvPin(TTL_ROW.env) }
+  return {
+    saved: savedSpelling !== undefined ? (saved[savedSpelling] ?? null) : null,
+    envPin: realEnvPin(TTL_ROW.env),
+    readError: null,
+  }
 }
 
 interface FamilyCachingRow {
@@ -135,7 +148,9 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
     }
     setNote(null)
     setDial(readDialState())
-    setReceipt(readBootDefaultsProfile()?.receipt ?? null)
+    const prof = readBootDefaultsProfileStrict()
+    setReceipt(prof.ok ? (prof.profile?.receipt ?? null) : null)
+    if (!prof.ok) setNote(`could not be read (${prof.reason})`)
   }
 
   useInput((input, key) => {
@@ -204,9 +219,9 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
                   <Text color={t.success}>{receipt}</Text>
                 </Box>
               ) : null}
-              {row.dial && note !== null ? (
+              {row.dial && (note ?? dial.readError) !== null ? (
                 <Box paddingLeft={3}>
-                  <Text color={t.warning}>{note}</Text>
+                  <Text color={t.warning}>{note ?? dial.readError}</Text>
                 </Box>
               ) : null}
             </CursorRow>
