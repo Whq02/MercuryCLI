@@ -189,5 +189,58 @@ function runScenario(body: string): Record<string, unknown> {
   const hit = errors.find(e => e.mcpErrorMetadata?.scope === 'project' && e.message?.includes('EACCES'))
   check('all-errors-mcp-throw-reported', hit !== undefined, JSON.stringify(r))
 }
+{
+  if (POSIX_MODES) {
+    const r = runScenario(`
+      const { mock } = await import('bun:test')
+      const managedRoot = path.join(HOME, 'managed')
+      const dropInDir = path.join(managedRoot, 'managed-settings.d')
+      fs.mkdirSync(dropInDir, { recursive: true })
+      const managedPathMod = path.join(SRC, 'utils/settings/managedPath.ts')
+      const realManaged = await import(managedPathMod)
+      mock.module(managedPathMod, () => ({
+        ...realManaged,
+        getManagedFilePath: () => managedRoot,
+        getManagedSettingsDropInDir: () => dropInDir,
+      }))
+      const rawRead = await import(path.join(SRC, 'utils/settings/mdm/rawRead.ts'))
+      const mdm = await import(path.join(SRC, 'utils/settings/mdm/settings.ts'))
+      const hkcuStdout = '    Settings    REG_SZ    {"display":{"theme":"dark"}}\\r\\n'
+
+      fs.chmodSync(dropInDir, 0o000)
+      try {
+        mdm.clearMdmSettingsCache()
+        rawRead._setMdmRawReadForProofs({ plistStdouts: null, hklmStdout: null, hkcuStdout })
+        await mdm.ensureMdmSettingsLoaded()
+        out.unreadableDropIn = mdm.getHkcuSettings().settings
+      } finally {
+        fs.chmodSync(dropInDir, 0o700)
+      }
+
+      const baseFile = path.join(managedRoot, 'managed-settings.json')
+      fs.writeFileSync(baseFile, '{"display":{"theme":"light"}}', { mode: 0o600 })
+      fs.chmodSync(baseFile, 0o000)
+      try {
+        mdm.clearMdmSettingsCache()
+        rawRead._setMdmRawReadForProofs({ plistStdouts: null, hklmStdout: null, hkcuStdout })
+        await mdm.ensureMdmSettingsLoaded()
+        out.unreadableFile = mdm.getHkcuSettings().settings
+      } finally {
+        fs.chmodSync(baseFile, 0o600)
+        fs.unlinkSync(baseFile)
+      }
+
+      mdm.clearMdmSettingsCache()
+      rawRead._setMdmRawReadForProofs({ plistStdouts: null, hklmStdout: null, hkcuStdout })
+      await mdm.ensureMdmSettingsLoaded()
+      out.absentControl = mdm.getHkcuSettings().settings
+    `)
+    const dropIn = r.unreadableDropIn as Record<string, unknown>
+    const file = r.unreadableFile as Record<string, unknown>
+    const control = r.absentControl as { display?: { theme?: string } }
+    check('mdm-unreadable-dropin-blocks-hkcu', Object.keys(dropIn).length === 0 && control?.display?.theme === 'dark', JSON.stringify(r))
+    check('mdm-unreadable-file-blocks-hkcu', Object.keys(file).length === 0 && control?.display?.theme === 'dark', JSON.stringify(r))
+  }
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

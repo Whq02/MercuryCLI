@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { logForDebugging } from '../../debug.js'
 import { logForDiagnosticsNoPII } from '../../diagLogs.js'
+import { getErrnoCode } from '../../errors.js'
 import { safeParseJSON } from '../../json.js'
 import { getManagedFilePath, getManagedSettingsDropInDir } from '../managedPath.js'
 import type { SettingsJson } from '../types.js'
@@ -71,7 +72,11 @@ function managedFileSettingsExist(): boolean {
       }
     }
   } catch (error) {
-    passedOver(error)
+    const code = getErrnoCode(error)
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      logForDebugging(`managed settings drop-in dir unreadable (${code ?? 'unknown'}): blocking HKCU tier`)
+      return true
+    }
   }
   for (const candidate of candidates) {
     try {
@@ -80,7 +85,11 @@ function managedFileSettingsExist(): boolean {
         return true
       }
     } catch (error) {
-      passedOver(error)
+      const code = getErrnoCode(error)
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        logForDebugging(`managed settings file unreadable (${candidate}, ${code ?? 'unknown'}): blocking HKCU tier`)
+        return true
+      }
     }
   }
   return false
