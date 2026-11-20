@@ -1,7 +1,7 @@
 
 import React from 'react'
 import { Box, Text } from '../ink.js'
-import type { DiagnosticFile } from '../services/diagnosticTracking.js'
+import type { DiagnosticFile } from '../utils/diagnosticTracking.js'
 import { getCwd } from '../utils/cwd.js'
 import { relative } from 'path'
 import { plural } from '../utils/stringUtils.js'

@@ -1,5 +1,5 @@
 import figures from 'figures'
-import { GLYPH } from '../utils/glyphs.js'
+import { GLYPH } from './glyphs.js'
 
 export interface Diagnostic {
   message: string

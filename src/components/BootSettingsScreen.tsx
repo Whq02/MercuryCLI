@@ -9,7 +9,7 @@ import { getSessionId } from '../bootstrap/state.js';
 import { chatOnlyBoot, leaveCurrentSurface, enterConcourse, routeSurfaceRegistered, stripFacts } from '../context/surfaceRoute.js';
 import { STARTUP_MENU, bootEnvPath, evaluateExplicitApply, isLiveEnvRow, menuRowChoices, readBootDefaultsProfile, readBootDefaultsProfileStrict, bootAdmissionSnapshot, resolveEffectiveSettingsSnapshot, type BootDefaultsProfileV1, type ExplicitApplyReceipt, type MenuRow } from '../substrate/startupMenu.js';
 import { flagSpellings } from '../substrate/flagRegistry.js';
-import { SEATS_MENU_ROW, seatCeilingFactsAsync, type SeatCeilingFacts } from '../services/switchboard/capacityCheck.js';
+import { SEATS_MENU_ROW, seatCeilingFactsAsync, type SeatCeilingFacts } from '../utils/switchboard/capacityCheck.js';
 import { MOTION_MENU_ROW, readMotionSetting, type MotionSetting } from '../utils/cockpit/motionSetting.js';
 import { JEV_MENU_ROW, readJevSettings } from '../services/jev/jevSetting.js';
 import { BACKGROUND_LAUNCH_MENU_ROW, backgroundSessionsLaunchCrewmates } from '../services/switchboard/backgroundLaunch.js';

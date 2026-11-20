@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 import { menuRowChoices, STARTUP_MENU, type MenuRow } from '../../src/substrate/startupMenu.js'
-import { SEATS_MENU_ROW } from '../../src/services/switchboard/capacityCheck.js'
+import { SEATS_MENU_ROW } from '../../src/utils/switchboard/capacityCheck.js'
 import { __motionGovernorResetForTest, setMotionPosture } from '../../src/utils/cockpit/motionGovernor.js'
 import { MOTION_MENU_ROW, motionDetailLines, motionValueWords } from '../../src/utils/cockpit/motionSetting.js'
 

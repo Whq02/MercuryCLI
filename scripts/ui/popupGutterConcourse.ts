@@ -21,9 +21,9 @@ export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, s
   const { getCwd } = await import('../../src/utils/cwd.ts')
   const workers = await import('../../src/daemon/concourseWorkers.ts')
   mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...workers, effectiveSeatCeiling: () => 1 }))
-  const capacity = await import('../../src/services/switchboard/capacityCheck.ts')
+  const capacity = await import('../../src/utils/switchboard/capacityCheck.ts')
   let ask = false
-  mock.module('../../src/services/switchboard/capacityCheck.ts', () => ({ ...capacity, needsCapacityAsk: () => ask, effectiveSeatCeiling: () => 1 }))
+  mock.module('../../src/utils/switchboard/capacityCheck.ts', () => ({ ...capacity, needsCapacityAsk: () => ask, effectiveSeatCeiling: () => 1 }))
   const callbacks = new Proxy({}, { get: () => async () => undefined })
   type Snapshot = import('../../src/components/concourse/contracts.ts').ConcourseSnapshotV1
   const surfaces = [

@@ -107,7 +107,7 @@ export function seatsCheck(): CheckSpec {
     id: 'seats',
     label: 'Seats',
     run: async () => {
-      const { seatCeilingFacts, seatCeilingValueWords, seatCostWarning } = await import('../../../switchboard/capacityCheck.js')
+      const { seatCeilingFacts, seatCeilingValueWords, seatCostWarning } = await import('../../../../utils/switchboard/capacityCheck.js')
       const { liveCeilingFacts, composeGovernorCeilings, composeProvenance } = await import('../../../capacity/composeCeilings.js')
       const { seatNarrowingWords } = await import('../../../capacity/seatWords.js')
       const facts = seatCeilingFacts()

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 import { menuRowValueLabel, menuRowWarning, STARTUP_MENU, type MenuRow } from '../../src/substrate/startupMenu.js'
-import { SEATS_MENU_ROW } from '../../src/services/switchboard/capacityCheck.js'
+import { SEATS_MENU_ROW } from '../../src/utils/switchboard/capacityCheck.js'
 import { MOTION_MENU_ROW } from '../../src/utils/cockpit/motionSetting.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'sovereign-menu')

@@ -16,7 +16,7 @@ const t = checker()
 
 const globalConfig = await import('../../src/utils/config/globalConfig.js')
 globalConfig.enableConfigs()
-const cap = await import('../../src/services/switchboard/capacityCheck.js')
+const cap = await import('../../src/utils/switchboard/capacityCheck.js')
 const words = await import('../../src/services/capacity/seatWords.js')
 const crew = await import('../../src/services/engine-connector/crewFacts.js')
 const budget = await import('../../src/services/api/recoveryBudget.js')

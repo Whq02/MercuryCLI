@@ -74,9 +74,9 @@ mock.module('../../src/components/tasks/useCrewmateView.ts', () => ({
   ...viewed,
   useViewedCrewmate: () => ({ taskId: 'fixture-view', name: 'cedar', facts: { description: 'popup review' }, local: undefined, pinned: false, running: 0 }),
 }))
-const capacity = await import('../../src/services/switchboard/capacityCheck.ts')
-const seatFacts: import('../../src/services/switchboard/capacityCheck.ts').SeatCeilingFacts = { seats: 17, source: 'machine', sentence: '17 seats', lever: capacity.SEAT_DOORS, reading: 17, readingSentence: 'fixture reading: 17 seats', sample: null, consented: null }
-mock.module('../../src/services/switchboard/capacityCheck.ts', () => ({ ...capacity, seatCeilingFacts: () => seatFacts, seatCeilingFactsAsync: async () => seatFacts }))
+const capacity = await import('../../src/utils/switchboard/capacityCheck.ts')
+const seatFacts: import('../../src/utils/switchboard/capacityCheck.ts').SeatCeilingFacts = { seats: 17, source: 'machine', sentence: '17 seats', lever: capacity.SEAT_DOORS, reading: 17, readingSentence: 'fixture reading: 17 seats', sample: null, consented: null }
+mock.module('../../src/utils/switchboard/capacityCheck.ts', () => ({ ...capacity, seatCeilingFacts: () => seatFacts, seatCeilingFactsAsync: async () => seatFacts }))
 const { Box, Text, measureElement } = await import('../../src/ink.ts')
 const { App } = await import('../../src/components/App.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
