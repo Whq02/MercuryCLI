@@ -60,7 +60,6 @@ prove-project-leases.ts
 prove-project-mcp-file.ts
 prove-project-server-approval.ts
 prove-prototype-word-names.ts
-prove-sdk-doorway.ts
 prove-serve-call-contract.ts
 prove-server-filter-identity.ts
 prove-stderr-tail-redaction.ts
