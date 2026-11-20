@@ -48,8 +48,10 @@ for (const name of ['f1', 'f2', 'f3', 'f4', 'f5']) put(`big/${name}`, 'K\n')
 for (let at = 0; at < WIDE; at++) put(`wide/w${String(at).padStart(3, '0')}.txt`, '')
 mkdirSync(join(HOME, 'vault'), { recursive: true })
 writeFileSync(join(HOME, 'vault', 'k.txt'), 'K\n')
-symlinkSync(join(RUN, 'secrets', 'k.txt'), join(RUN, 'link-to-k'))
-symlinkSync(join(RUN, 'secrets'), join(RUN, 'link-to-dir'))
+if (process.platform !== 'win32') {
+  symlinkSync(join(RUN, 'secrets', 'k.txt'), join(RUN, 'link-to-k'))
+  symlinkSync(join(RUN, 'secrets'), join(RUN, 'link-to-dir'))
+}
 const TEMPLATE = join(ROOT, 'git-template')
 mkdirSync(TEMPLATE)
 const WHO = { GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' }
