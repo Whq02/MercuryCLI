@@ -1,7 +1,11 @@
+import { join } from 'node:path'
 import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
-import { resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
+import { huggingfaceAuthPathForDisplay, resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
+import { providerKeyCommandFailure } from '../providers/providerKeyCommand.js'
+import { probeCredentialJson } from '../providers/providerSecrets.js'
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
 import { hostRecipeSchema, hostWeightManifestSchema, hostWeightPathSchema, rememberSessionHostRecipe } from './recipesFile.js'
 import { checkGgufAgainstEngine, type GgufEngineCheck } from './ggufHeader.js'
@@ -72,8 +76,34 @@ const derived = new Map<string, DerivedHfRecipe>()
 export function huggingFaceHubBase(): string | undefined {
   return flagEnv('MERCURY_HOST_HF_API_BASE')?.trim() || undefined
 }
-export function huggingFaceToken(): string | undefined {
-  try { return resolveHuggingfaceApiKey()?.key } catch (error) { passedOver(error); return undefined }
+type HuggingFaceTokenRead =
+  | { state: 'ok'; token: string }
+  | { state: 'absent' }
+  | { state: 'unread'; error: string }
+
+export function huggingFaceTokenUnreadNote(error: string): string {
+  return 'the Hugging Face key could not be read (' + error + '), so this went out without it'
+}
+
+export function huggingFaceTokenRead(): HuggingFaceTokenRead {
+  try {
+    const resolved = resolveHuggingfaceApiKey()
+    if (resolved?.key) return { state: 'ok', token: resolved.key }
+    const authPath = huggingfaceAuthPathForDisplay()
+    const auth = probeCredentialJson(authPath)
+    if (auth.state === 'unreadable') return { state: 'unread', error: auth.message }
+    if (auth.state === 'unusable') return { state: 'unread', error: authPath + ' is ' + auth.why }
+    const cmdFailure = providerKeyCommandFailure('huggingface')
+    if (cmdFailure) return { state: 'unread', error: cmdFailure.message }
+    const secretsPath = join(getAuthConfigHomeDir(), '.provider-secrets.json')
+    const secrets = probeCredentialJson(secretsPath)
+    if (secrets.state === 'unreadable') return { state: 'unread', error: secrets.message }
+    if (secrets.state === 'unusable') return { state: 'unread', error: secretsPath + ' is ' + secrets.why }
+    return { state: 'absent' }
+  } catch (error) {
+    passedOver(error)
+    return { state: 'unread', error: error instanceof Error ? error.message : String(error) }
+  }
 }
 const darkInProof = (options: HfHubOptions): boolean => !options.base && isProofShapeRun()
 const timeoutSignal = (options: HfHubOptions): AbortSignal => {
