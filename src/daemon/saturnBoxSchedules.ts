@@ -127,13 +127,11 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
       if (stale || Date.now() >= deadline) {
         logForDebugging(`[saturn] box lock broken ${stale ? '(stale holder)' : '(bounded wait exhausted)'} — proceeding`)
         const kind = pathEntryKindSync(lock)
-        if (kind !== 'absent') {
-          try {
-            rmdirSync(lock)
-          } catch (error) {
-            if (!isDirAbsentOnRmdirError(error, kind)) throw error
-            passedOver(error)
-          }
+        try {
+          rmdirSync(lock)
+        } catch (error) {
+          if (!isDirAbsentOnRmdirError(error, kind)) throw error
+          passedOver(error)
         }
         continue
       }
