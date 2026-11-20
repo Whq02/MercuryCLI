@@ -22,6 +22,7 @@ import { AtomicWriteRefusal } from '../../utils/file.js'
 import { isSettingSourceAllowedAtLaunch } from '../../utils/settings/constants.js'
 import { isRestrictedToExtensionsOnly } from '../../utils/settings/extensionOnlyPolicy.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
+import { settingsFaultLine } from '../../utils/settings/validation.js'
 import { getExtensionMcpServers } from '../../extensions/load/servers.js'
 import { parseServerRuntimeName } from '../../extensions/manifest.js'
 import { fetchAnthropicConnectorsIfEligible } from './anthropicConnectors.js'
@@ -707,6 +708,9 @@ export type McpResolutionNotice = {
 } | {
   kind: 'document-bounded'
   message: string
+} | {
+  kind: 'config-fault'
+  message: string
 }
 
 function getExtensionProvidedMcpServers(): Record<string, ScopedMcpServerConfig> {
@@ -716,6 +720,19 @@ function getExtensionProvidedMcpServers(): Record<string, ScopedMcpServerConfig>
     logForDebugging(`MCP extension server loading failed: ${String(error)}`)
     return {}
   }
+}
+
+function configFaultNotices(...reads: ScopeRead[]): McpResolutionNotice[] {
+  return reads.flatMap(read =>
+    read.errors.map(error => ({
+      kind: 'config-fault' as const,
+      message: settingsFaultLine({
+        path: error.path,
+        message: error.message,
+        ...(error.severity === 'warning' ? { severity: 'warning' as const } : {}),
+      }),
+    })),
+  )
 }
 
 function documentBoundNotices(...reads: ScopeRead[]): McpResolutionNotice[] {
@@ -745,7 +762,7 @@ export async function getMercuryMcpConfigs(
   if (doesEnterpriseMcpConfigExist()) {
     const enterprise = getEnterpriseMcpConfigs()
     const { allowed } = filterMcpServersByPolicy(enterprise.servers)
-    return { servers: allowed, errors: documentBoundNotices(enterprise) }
+    return { servers: allowed, errors: [...configFaultNotices(enterprise), ...documentBoundNotices(enterprise)] }
   }
 
   const emptyRead: ScopeRead = { servers: {}, errors: [], notices: [] }
@@ -789,7 +806,10 @@ export async function getMercuryMcpConfigs(
   }
 
   const { allowed } = filterMcpServersByPolicy(merged)
-  return { servers: allowed, errors: [...documentBoundNotices(user, project, local), ...suppressionNotices(suppressed)] }
+  return {
+    servers: allowed,
+    errors: [...configFaultNotices(user, project, local), ...documentBoundNotices(user, project, local), ...suppressionNotices(suppressed)],
+  }
 }
 
 export async function getAllMcpConfigs(): Promise<{
