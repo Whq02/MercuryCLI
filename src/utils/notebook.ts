@@ -1,6 +1,6 @@
 
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
-import { formatOutput } from '../tools/BashTool/utils.js'
+import { formatOutput } from './shell/utils.js'
 import type {
   NotebookCell,
   NotebookCellOutput,

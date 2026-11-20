@@ -59,7 +59,7 @@ import {
   redactedCopy,
   sayWhatTheShellOwes,
   truncateForSummary,
-} from './utils.js'
+} from '../../utils/shell/utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
 import { windowedError } from '../../utils/toolErrors.js'
