@@ -33,6 +33,7 @@ interface Send {
   afterPrevTicks?: number
   data: string
   awaitText?: string
+  awaitPattern?: string
   requireAwait?: boolean
   minTick?: number
   awaitSettleTicks?: number
@@ -70,11 +71,11 @@ const env = {
     { data: '\t', afterPrevTicks: 2 },
     { data: '', awaitText: 'tab board · s full board', requireAwait: true, awaitSettleTicks: 2, mark: 'chat-focused' },
     { data: 's', afterPrevTicks: 2 },
-    { data: '', afterPrevTicks: 4, mark: 'split-off' },
+    { data: '', awaitText: 'SESSIONS', awaitPattern: '\\A(?![\\s\\S]*(?:tab chat pane|tab board · s full board))', requireAwait: true, awaitSettleTicks: 2, mark: 'split-off' },
   ]
   const out = join(OUT_DIR, 'split-view-140x40.json')
   const cfgPath = join(scratch, 'vshot-split.json')
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'SESSIONS', stableTicks: 3, cols: 140, rows: 40, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'SESSIONS', cols: 140, rows: 40, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
   if (res.status !== 0) {
     console.error(`✗ vshot (140×40) failed: ${(res.stderr ?? '').slice(-600)}`)
@@ -109,7 +110,7 @@ const env = {
   ]
   const out = join(OUT_DIR, 'split-view-100x30.json')
   const cfgPath = join(scratch, 'vshot-narrow.json')
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'split needs 121', stableTicks: 3, cols: 100, rows: 30, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'split needs 121', cols: 100, rows: 30, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
   if (res.status !== 0) {
     console.error(`✗ vshot (100×30) failed: ${(res.stderr ?? '').slice(-600)}`)

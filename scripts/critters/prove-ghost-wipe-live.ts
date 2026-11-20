@@ -38,11 +38,13 @@ const tee = join(SCRATCH, 'drive.tee')
 const cfg = {
   argv: ['node', BIN, '--resume', SID],
   sends: [
-    { atTick: CLICK_TICK - 2, data: '', mark: 'preclick' },
-    { atTick: CLICK_TICK, data: '\x1b[<0;30;4M' },
-    { atTick: CLICK_TICK + 1, data: '\x1b[<0;30;4m' },
+    { requireAwait: true, awaitText: '│❯', awaitPattern: '[▀▄█]', minTick: CLICK_TICK - 2, data: '', mark: 'preclick' },
+    { afterPrevTicks: 2, data: '\x1b[<0;30;4M' },
+    { afterPrevTicks: 1, data: '\x1b[<0;30;4m' },
   ],
-  total: 52,
+  readyText: '│❯',
+  readySettleTicks: 15,
+  total: 150,
   cols: COLS,
   rows: ROWS,
   out,

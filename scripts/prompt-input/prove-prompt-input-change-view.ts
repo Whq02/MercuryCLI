@@ -19,11 +19,13 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 type Grid = { grid: { c: string }[][] }
 const textOf = (g: Grid): string => g.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
 
-function capture(name: string, cols: number): string {
+const expand = [{ requireAwait: true, awaitText: '│❯', minTick: 5, awaitStableTicks: 5, data: String.fromCharCode(15) }]
+
+function capture(name: string, cols: number, readyText: string, sends: unknown[] = []): string {
   const cfg = scenario(name, cols, 40)
   const out = join(home, `${name}-${cols}.json`)
   const cfgPath = join(home, `${name}-${cols}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends: cfg.sends ?? [], total: cfg.total ?? 45, cols, rows: 40, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total: 200, readyText, stableTicks: 4, cols, rows: 40, out }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(200_000),
@@ -34,13 +36,13 @@ function capture(name: string, cols: number): string {
 }
 
 try {
-  const collapsed = capture('structure-card', 120)
+  const collapsed = capture('structure-card', 120, 'ctrl+o expands')
   t('collapsed: state word + counts on one line', collapsed.includes('replace proposed') && collapsed.includes('2 files') && collapsed.includes('2 matches'))
   t('collapsed: honest ± totals', collapsed.includes('+2/−2'))
   t('collapsed: expansion affordance named', collapsed.includes('ctrl+o expands'))
   t('collapsed: no diff body painted', !collapsed.includes('greetOperator(name)'))
 
-  const detail = capture('structure-card-detail', 120)
+  const detail = capture('structure-card-detail', 120, 'greetOperator(name)', expand)
   t('expanded: per-file railed diff card (greet.ts)', detail.includes('diff · greet.ts'))
   t('expanded: second file card (cli.ts)', detail.includes('diff · cli.ts'))
   t('expanded: hunk body with the replacement visible', detail.includes('greetOperator(name)'))
@@ -48,7 +50,7 @@ try {
   t('expanded: diagnostics line', detail.includes('diagnostics planned: 2 files'))
   t('expanded: resolvable record ref', detail.includes('mercury://structure/preview/sp-fixture01'))
 
-  const narrow = capture('structure-card-detail', 80)
+  const narrow = capture('structure-card-detail', 80, 'greetOperator(name)', expand)
   t('80-col: file header + hunk survive', narrow.includes('src/greet.ts') && narrow.includes('greetOperator(name)'))
   t('80-col: ref line survives', narrow.includes('mercury://structure/preview/sp-fixture01'))
 } finally {

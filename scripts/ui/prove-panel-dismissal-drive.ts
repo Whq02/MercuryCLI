@@ -32,6 +32,12 @@ const inkOfRow = (grid: Grid, needle: string): string | null => {
   return row === undefined ? null : row.map(cell => `${cell.c}${cell.fg}/${cell.bg}/${cell.bold ? 1 : 0}`).join(' ')
 }
 const click = (x: string | number, y: string | number): string => `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`
+const firstDifference = (a: string, b: string): string => {
+  const rows = a.split('\n')
+  const others = b.split('\n')
+  const at = rows.findIndex((row, i) => row !== others[i])
+  return at < 0 ? '' : `row ${at}: ${JSON.stringify(rows[at]!.trimEnd().slice(0, 100))} against ${JSON.stringify((others[at] ?? '').trimEnd().slice(0, 100))}`
+}
 const VSHOT_SLOT_WAIT_MS = 300_000
 let failures = 0
 const index: string[] = []
@@ -60,16 +66,16 @@ try {
       const config = join(world, 'capture-config.json')
       const title = panel === 'crewmates' ? 'Mercury — crew' : panel === 'model' ? MODEL_PICKER_TITLE : `Mercury — ${panel}`
       const needle = panel === 'crewmates' ? 'Crewmates' : title
-      const ready = { requireAwait: true, awaitText: 'ready ·', targetText: keyHintLabel('⇧← back'), awaitSettleTicks: 6 }
+      const ready = { requireAwait: true, awaitText: 'ready ·', awaitPattern: '(?:^|\\n) ?ready ·', targetText: keyHintLabel('⇧← back'), awaitSettleTicks: 6 }
       const panelReady = { requireAwait: true, awaitText: needle, awaitSettleTicks: 8 }
       writeFileSync(config, JSON.stringify({ argv: [node, dist], cwd, cols, rows, out, total: 400, stableTicks: 4, sends: [
-        { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' },
+        { requireAwait: true, awaitText: '↑↓ choose', minTick: 10, awaitSettleTicks: 6, data: '\r' },
         { ...ready, data: `/${panel}\r`, mark: 'chat' },
         { ...panelReady, targetText: title, targetDx: panel === 'model' ? -2 : -8, data: click('{X}', '{Y}'), mark: 'open' },
         panel === 'model'
           ? { afterPrevTicks: 6, targetText: title, targetDx: -11, data: '\x1b[<0;{X};{Y}M', mark: 'edge' }
           : { afterPrevTicks: 6, data: '\x1b[<0;1;1M', mark: 'edge' },
-        { afterPrevTicks: 4, data: '\x1b[<32;2;1M\x1b[<0;2;1m', mark: 'pressed' },
+        { requireAwait: true, awaitText: 'ready ·', awaitPattern: `\\A(?![\\s\\S]*${needle})(?=[\\s\\S]*\\n ?ready ·)`, awaitSettleTicks: 2, data: '\x1b[<32;2;1M\x1b[<0;2;1m', mark: 'pressed' },
         { afterPrevTicks: 6, data: '\x1b', mark: 'clicked' },
         { ...ready, data: `/${panel}\r`, mark: 'closed' },
         { ...panelReady, data: '\x1b', mark: 'reopened' },
@@ -112,11 +118,11 @@ try {
       else if (panel === 'crewmates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the lanes label row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
       check(`${tag}: clicking the frame edge does not close`, text(marks.edge!).includes(needle))
       check(`${tag}: the outside press closes the panel`, !text(marks.pressed!).includes(needle))
-      check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!))
+      check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!), firstDifference(text(marks.pressed!), text(marks.clicked!)))
       check(`${tag}: Escape still closes a freshly opened panel`, text(marks.reopened!).includes(needle) && !text(marks.escaped!).includes(needle))
       check(`${tag}: no text selection starts`, !marks.clicked!.some(row => row.some(cell => cell.rev)))
       check(`${tag}: the composer is empty after dismissal`, text(marks.clicked!).includes('Type a prompt') && !text(marks.clicked!).includes('❯ vitals'))
-      check(`${tag}: every chat cell matches the Escape close`, JSON.stringify(marks.clicked) === JSON.stringify(marks.escaped))
+      check(`${tag}: every chat cell matches the Escape close`, JSON.stringify(marks.clicked) === JSON.stringify(marks.escaped), firstDifference(text(marks.clicked!), text(marks.escaped!)) || 'the words are the same; a colour or weight differs')
     }
   }
 } finally {

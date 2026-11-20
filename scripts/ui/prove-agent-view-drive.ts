@@ -174,21 +174,21 @@ async function leg(cols: number, rows: number): Promise<void> {
   const { home, cwd } = seedWorld()
   const sends: Array<Record<string, unknown>> = [
     ...bootSends(LEAD_ASK_SLEEPER),
-    { data: '/crewmates', atTick: 999, awaitText: SEAT_NAME, requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'crew-in-rail' },
+    { data: '/crewmates', atTick: 999, awaitText: LEAD_ROW, awaitPattern: `\\A(?=[\\s\\S]*\\n│[^\\n│]*${LEAD_ROW})(?=[\\s\\S]*\\n│ +\\S ${SEAT_NAME} )`, requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'crew-in-rail' },
     { data: '\r', afterPrevTicks: 4 },
     { data: ESC, atTick: 999, awaitText: MAIN_CHAT_KEY, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'popup' },
-    { data: '/crewmates', atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'popup-closed' },
+    { data: '/crewmates', atTick: 999, awaitText: 'ype a prompt', awaitPattern: `\\A(?![\\s\\S]*${CREW_TITLE})`, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'popup-closed' },
     { data: '\r', afterPrevTicks: 4 },
     { data: 'm', atTick: 999, awaitText: MAIN_CHAT_KEY, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: TAB, atTick: 999, awaitText: 'message sleeper', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'main-chat' },
     { data: UP + UP + UP + UP, afterPrevTicks: 4 },
     { data: 'm', afterPrevTicks: 4 },
-    { data: FOCUS_IN, afterPrevTicks: 6, mark: 'handed-back' },
+    { data: FOCUS_IN, atTick: 999, awaitText: 'viewing sleeper ·', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'handed-back' },
     { data: ESC, atTick: 999, awaitText: 'you → sleeper', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'view' },
     { data: FOCUS_IN, atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'cut-row' },
     { data: TAB, afterPrevTicks: 4 },
     { data: '\r', afterPrevTicks: 5 },
-    { data: FOCUS_IN, afterPrevTicks: 8, mark: 'back' },
+    { data: FOCUS_IN, atTick: 999, awaitText: 'launching the sleeper', awaitPattern: `\\A(?![\\s\\S]*viewing sleeper ·)(?=[\\s\\S]*›[^\\n│]*${LEAD_ROW})`, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'back' },
   ]
   let cap: Capture | null = null
   try {

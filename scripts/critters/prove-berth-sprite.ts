@@ -29,7 +29,7 @@ function capture(tag: string): Grid {
   const cfg = scenario('resume-2turn', 120, 44)
   const out = `/tmp/berth-sprite-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/berth-sprite-${tag}-cfg-${process.pid}.json`
-  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, sends: [], total: 55, cols: 120, rows: 44, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, sends: [], total: 150, cols: 120, rows: 44, out, readyText: '│❯', stableTicks: 5 }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '..', 'ui', 'vshot.py'), cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(120_000),

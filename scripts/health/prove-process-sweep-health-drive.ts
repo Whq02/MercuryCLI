@@ -128,7 +128,7 @@ function healthJson(): { text: string; status: number | null } {
   return { text: res.stdout ?? '', status: res.status }
 }
 
-function capture(name: string, cols: number, rows: number, extraSends: Array<Record<string, unknown>>, total: number): string[] {
+function capture(name: string, cols: number, rows: number, extraSends: Array<Record<string, unknown>>, total: number, readyText: string | string[]): string[] {
   const driver = resolveCaptureDriver()
   if (driver.kind !== 'posix-pty') {
     console.log(`  [SKIP] capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -147,6 +147,8 @@ function capture(name: string, cols: number, rows: number, extraSends: Array<Rec
       { afterPrevTicks: 6, data: '\r' },
       ...extraSends,
     ],
+    readyText,
+    readySettleTicks: 5,
     total,
     out,
   }
@@ -206,8 +208,9 @@ try {
     const size = `${cols}x${termRows}`
     const target = await standInWindow()
     const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
-    const walk = rowIndex === 0 ? [] : [{ afterPrevTicks: 45, data: '\x1b[B' }, ...downs.slice(1)]
-    const before = capture(`row-${size}`, cols, termRows, [...walk, { afterPrevTicks: 3, data: '\r' }], 150 + rowIndex)
+    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, awaitText: '↑↓ move · ↵ unfold', awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
+    const onRow = { requireAwait: true, awaitText: 'Mercury processes', awaitPattern: '▸ ▲ Mercury processes', awaitSettleTicks: 3 }
+    const before = capture(`row-${size}`, cols, termRows, [...walk, { ...onRow, data: '\r' }], 150 + rowIndex, `pid ${target}`)
     check(`${size}: /health painted its certificate`, before.some(l => l.includes('Mercury · health')))
     check(`${size}: the Mercury processes row is on screen`, before.some(l => l.includes('Mercury processes')), before.find(l => l.includes('Mercury processes'))?.trim().slice(0, 120))
     check(`${size}: the row's trail lists the stale stand-in with pid, terminal and age`, before.some(l => l.includes(`pid ${target} · no terminal ·`)), before.find(l => l.includes(`pid ${target}`))?.trim().slice(0, 120))
@@ -218,16 +221,16 @@ try {
     }
     const confirm = capture(`confirm-${size}`, cols, termRows, [
       ...walk,
-      { afterPrevTicks: 3, data: 'f' },
-    ], 150 + rowIndex)
+      { ...onRow, data: 'f' },
+    ], 150 + rowIndex, ['End these', 'stale processes?'])
     check(`${size}: the action asks with the approved words before anything is ended`, confirm.some(l => l.includes('End these') && l.includes('stale processes?')), confirm.find(l => l.includes('End these'))?.trim().slice(0, 120))
     check(`${size}: the confirmation card shows the reviewed pid`, confirm.some(l => l.includes(`pid ${target}`)))
     check(`${size}: the stand-in is untouched while the card waits`, alive(target))
     const result = capture(`result-${size}`, cols, termRows, [
       ...walk,
-      { afterPrevTicks: 3, data: 'f' },
-      { afterPrevTicks: 5, data: '\r' },
-    ], 200 + rowIndex)
+      { ...onRow, data: 'f' },
+      { requireAwait: true, awaitText: 'End these', awaitSettleTicks: 3, data: '\r' },
+    ], 200 + rowIndex, 'Ended 1 stale processes')
     check(`${size}: the result names what was ended with the approved words`, result.some(l => /Ended 1 stale processes; 0 could not be ended/.test(l)), result.find(l => l.includes('Ended'))?.trim().slice(0, 120))
     check(`${size}: the reviewed stand-in was ended through /health's action`, !alive(target))
   }

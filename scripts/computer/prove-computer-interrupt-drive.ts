@@ -21,9 +21,9 @@ for (const size of SIZES) {
     ...OPENING('click and type'),
     { requireAwait: true, awaitText: CARD_NEEDLE, awaitStableTicks: 2, mark: 'card', data: '\r' },
     { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '\x1b' },
-    { requireAwait: true, awaitText: 'interrupted', awaitStableTicks: 3, mark: 'interrupted', data: 'z' },
-    { afterPrevTicks: 4, mark: 'typed', data: '' },
-  ], 240)
+    { requireAwait: true, awaitText: 'interrupted', awaitPattern: '\\A(?![\\s\\S]*hands off)', awaitStableTicks: 3, mark: 'interrupted', data: 'z' },
+    { requireAwait: true, awaitText: 'z', awaitPattern: '(?m)[❯›>]\\s?z(\\s|$)', mark: 'typed', data: '' },
+  ], 240, {}, 'interrupted')
   await endLeg(leg)
   check(`${size.cols}: the drive delivered every send`, res.status === 0, `vshot ${res.status} · ${res.endReason} · ${res.stderr.slice(-400)}`)
   const driving = res.marks.driving ?? []

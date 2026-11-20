@@ -23,7 +23,7 @@ const rowsOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').joi
 function capture(tag: string, sends: unknown[], total: number): string[] {
   const out = join(home, `${tag}.json`)
   const cfgPath = join(home, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total, cols: 120, rows: 40, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total, cols: 120, rows: 40, out, readyText: 'ed text', readySettleTicks: 25 }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(200_000),
@@ -36,8 +36,9 @@ function capture(tag: string, sends: unknown[], total: number): string[] {
 try {
   const big = 'the quick brown fox jumps over the lazy dog 0123456789 '.repeat(220)
   const rows = capture('trunc', [
-    { atTick: 40, data: big, minTick: 30 },
-  ], 75)
+    { requireAwait: true, awaitText: '│❯', minTick: 5, awaitStableTicks: 5, data: big },
+    { requireAwait: true, awaitText: 'ed text', awaitPattern: 'Pasted text|Truncated text', data: '' },
+  ], 150)
   const composer = rows.some(r => r.includes('Pasted text') || r.includes('Truncated text'))
   t('A: the paste chip painted', composer)
 

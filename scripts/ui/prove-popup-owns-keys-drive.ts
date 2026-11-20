@@ -214,6 +214,7 @@ async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.P
 const gated = (data: string, awaitText: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
 const after = (data: string, ticks: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, afterPrevTicks: ticks, ...extra })
 const awaitOr = (data: string, awaitText: string, deadlineTicks: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, awaitText, afterPrevTicks: deadlineTicks, minTick: 1, awaitSettleTicks: 3, awaitStableTicks: 2, ...extra })
+const closed = (title: string): Record<string, unknown> => gated('', '❯', { awaitPattern: `\\A(?![\\s\\S]*${title})`, awaitStableTicks: 2, mark: 'closed' })
 const boot = (): Array<Record<string, unknown>> => [
   gated('\r', 'New Session', { minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 }),
   gated('\x1b[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
@@ -240,7 +241,7 @@ async function jevLeg(name: string, cols: number, rows: number): Promise<void> {
     after(LEFT, 1),
     awaitOr('', JEV_ON_HEAD, 12, { mark: 'after-left' }),
     after(ESC, 1),
-    after('', 8, { mark: 'closed' }),
+    closed(JEV_TITLE),
   ]), driveEnv(home))
   const m = cap.marks
   const tag = `${name} ${cols}x${rows}`
@@ -274,9 +275,9 @@ async function configLeg(): Promise<void> {
     after(DOWN, 4),
     gated('', CONFIG_JEV_ROW, { awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'row' }),
     after(RIGHT, 1),
-    after('', 8, { mark: 'after-right' }),
+    gated('', CONFIG_TITLE, { awaitPattern: `${CONFIG_JEV_ROW}\\s+on · official`, awaitStableTicks: 2, mark: 'after-right' }),
     after('\r', 1),
-    after('', 8, { mark: 'closed' }),
+    closed(CONFIG_TITLE),
   ]), driveEnv(home))
   const m = cap.marks
   tally.section('config 178x51 · /config on its JEV row: → flips the one switch, the surfaces index stays shut, nothing beneath moves')
@@ -301,7 +302,7 @@ async function filesLeg(): Promise<void> {
     after(RIGHT, 1),
     after('', 6, { mark: 'after-right' }),
     after(ESC, 1),
-    after('', 8, { mark: 'closed' }),
+    closed(FILES_TITLE),
   ]), driveEnv(home))
   const m = cap.marks
   tally.section('files 178x51 · the files menu: ← and → stay inside the menu, the surfaces index stays shut, nothing beneath moves')

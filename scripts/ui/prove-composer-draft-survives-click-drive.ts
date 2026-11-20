@@ -187,7 +187,8 @@ function doorSends(door: Door): Send[] {
   const sends: Send[] = [retype(), after('', 5, { mark: `${door.name}:typed` }), ...door.open]
   sends.push(door.needle === null ? after('', 12, { mark: `${door.name}:open` }) : gated('', door.needle, { awaitSettleTicks: 6, mark: `${door.name}:open` }))
   if (door.close !== null) sends.push(door.close)
-  sends.push(after('', 12, { mark: `${door.name}:closed` }))
+  const closed = { mark: `${door.name}:closed` }
+  sends.push(door.needle === null || door.close === null ? after('', 12, closed) : gated('', '│❯', { awaitPattern: `\\A(?![\\s\\S]*${door.needle})`, awaitStableTicks: 3, ...closed }))
   return sends
 }
 

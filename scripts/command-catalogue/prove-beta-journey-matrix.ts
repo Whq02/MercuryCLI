@@ -136,8 +136,14 @@ function runLeg(leg: PtyLeg, withEsc: boolean): string | null {
     sends: [
       { atTick: 180, minTick: 5, awaitText: 'Type a prompt', requireAwait: true, data: leg.cmd },
       { afterPrevTicks: 6, data: '\r' },
-      ...(withEsc ? [{ afterPrevTicks: 24, data: '\x1b' }] : []),
+      ...(withEsc
+        ? [
+            { requireAwait: true, awaitText: leg.markers[0], awaitSettleTicks: 4, data: '\x1b' },
+            { requireAwait: true, awaitText: 'Type a prompt', awaitPattern: `\\A(?![\\s\\S]*${leg.markers[0]})`, data: '' },
+          ]
+        : []),
     ],
+    ...(withEsc ? {} : { readyText: leg.markers }),
     stableTicks: 4,
     total: withEsc ? 240 : 220,
     cols: 100,
