@@ -112,7 +112,9 @@ export function detectPackageManager(root: string): { bin: string } | { missing:
     const pm = pkg.packageManager?.split('@')[0]
     if (pm === 'bun' || pm === 'npm' || pm === 'pnpm' || pm === 'yarn') return { bin: pm }
   } catch (error) {
-    passedOver(error)
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      return { missing: `package.json could not be read or parsed (${error instanceof Error ? error.message : String(error)})` }
+    }
   }
   return { missing: 'no lockfile and no packageManager field — declare one; Mercury never guesses a package manager' }
 }
@@ -845,8 +847,11 @@ export async function runRunnerProfile(
   const outputLines = combined.split('\n')
   let outputArtifactRef: string | undefined
   if (outputLines.length > OUTPUT_TAIL_LINES) {
-    const unkept = (): void =>
-      logError(new Error(`the full output of test run ${id} (${outputLines.length} lines) could not be stored as an artifact, so the record keeps only its last ${OUTPUT_TAIL_LINES} lines`))
+    const unkept = (): void => {
+      const note = `the full output of test run ${id} (${outputLines.length} lines) could not be stored as an artifact, so the record keeps only its last ${OUTPUT_TAIL_LINES} lines`
+      verdictNotes.push(note)
+      logError(new Error(note))
+    }
     try {
       const { id: artifactId } = await storeArtifact({
         scope: 'test',
