@@ -76,13 +76,10 @@ export function attentionWire(view: {
   }
 }
 
-export function attentionWireFromSnapshot(snap: {
-  threads: unknown[]
-  reviewQueue?: unknown[]
-  refreshedAt: number
-  lanes?: unknown[]
-}): AttentionWire {
-  const facts = workbenchFactsOf(snap as never)
+export function attentionWireFromSnapshot(
+  snap: NonNullable<Parameters<typeof workbenchFactsOf>[0]>,
+): AttentionWire {
+  const facts = workbenchFactsOf(snap)
   const attention = foldAttention(emptyAttentionState(), facts.attention)
   const relations = foldRelations(emptyRelationState(), facts.relations)
   return attentionWire({

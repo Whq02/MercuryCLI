@@ -1,14 +1,13 @@
 import type {
   AssistantMessage,
-  AttachmentMessage,
-  SystemMessage,
-  UserMessage,
+  Message,
 } from '../types/message.js'
 
 
-export function tagMessagesWithToolUseID<
-  M extends UserMessage | AttachmentMessage | SystemMessage,
->(messages: M[], toolUseID?: string): M[] {
+export function tagMessagesWithToolUseID<M extends Message>(
+  messages: M[],
+  toolUseID?: string,
+): M[] {
   if (!toolUseID) return messages
   return messages.map(message =>
     message.type === 'user' ? { ...message, sourceToolUseID: toolUseID } : message,

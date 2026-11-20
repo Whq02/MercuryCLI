@@ -296,7 +296,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
 
   recordPromptState({
     system: [{ text: systemText }],
-    toolSchemas: apiTools as unknown as NeutralToolSchema[],
+    toolSchemas: apiTools,
     querySource: options.querySource,
     model: modelId,
     agentId: options.agentId,
@@ -910,8 +910,8 @@ function settleZaiUsage(
   }
   if (usageSeen) {
     addToTotalSessionCost(
-      calculateUSDCost(modelId, finalUsage as never),
-      finalUsage as never,
+      calculateUSDCost(modelId, finalUsage),
+      finalUsage,
       modelId,
     )
   }

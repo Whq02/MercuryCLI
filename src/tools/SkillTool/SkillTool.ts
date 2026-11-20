@@ -414,7 +414,7 @@ export const SkillTool = buildTool({
           } satisfies Output,
         }
       } finally {
-        clearInvokedSkillsForAgent(agentId as never)
+        clearInvokedSkillsForAgent(agentId)
       }
     }
 
@@ -449,7 +449,7 @@ export const SkillTool = buildTool({
           return body === null || !priorBodies.has(body)
         })
       : survivors
-    const newMessages = tagMessagesWithToolUseID(fresh as never[], parentToolUseId) as unknown as Message[]
+    const newMessages = tagMessagesWithToolUseID(fresh, parentToolUseId)
 
     const data: Output = {
       success: true,
