@@ -241,6 +241,18 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   chmodSync(hfPath, 0o200)
   const sameProvider = signOutByTheVerb()
   check('a stored token of the refused provider itself, signed out by the command, is not another provider', sameProvider.status === 1 && sameProvider.stderr.includes(words) && !sameProvider.stderr.includes(OTHERS) && secrets.readStoredHuggingfaceApiKey() === undefined, `exit ${sameProvider.status} · stderr ${JSON.stringify(sameProvider.stderr.slice(-500))}`)
+  if (process.platform !== 'darwin') console.log('  [SKIP] the credential store that cannot be removed — a file that takes no unlink is made here with the immutable flag of macOS')
+  else {
+    const store = (await import('../../src/utils/secureStorage/index.js')).credentialsPath()
+    const storeWords = `Could not sign out: The credential store at ${store} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
+    writeFileSync(store, JSON.stringify({ mcpOAuth: { fixture: { accessToken: 'fixture-mcp-token' } } }), { mode: 0o600 })
+    spawnSync('/usr/bin/chflags', ['uchg', store])
+    const left: unknown = await performLogout()
+    const byVerb = signOutByTheVerb()
+    spawnSync('/usr/bin/chflags', ['nouchg', store])
+    check('a credential store that cannot be removed is named by performLogout and by the terminal verb, which ends 1 and does not say Signed out; the store stands', JSON.stringify(left) === JSON.stringify([storeWords]) && byVerb.status === 1 && byVerb.stderr.includes(`${storeWords}\n`) && !byVerb.stdout.includes('Signed out') && existsSync(store), `answered ${JSON.stringify(left)} · exit ${byVerb.status} · stdout ${JSON.stringify(byVerb.stdout.slice(-200))} · stderr ${JSON.stringify(byVerb.stderr.slice(-500))}`)
+    rmSync(store, { force: true })
+  }
 }
 
 try {

@@ -14,7 +14,7 @@ import { deriveFamilySlotGroups, familiesRefusedIn, signOutEveryEngineCredential
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { getSecureStorage } from '../../utils/secureStorage/index.js'
+import { credentialsPath, keychainReachable, macOsKeychainStorage, plainTextStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
 
@@ -38,11 +38,17 @@ export async function performLogout({
   }
 
   await removeApiKey()
-  getSecureStorage().delete()
+  const storesLeft: string[] = []
+  if (keychainReachable() && !macOsKeychainStorage.delete()) {
+    storesLeft.push('Could not sign out: The keychain entry of Mercury could not be removed; the sign-ins it holds are still stored here. Unlock the keychain, then try again.')
+  }
+  if (!plainTextStorage.delete()) {
+    storesLeft.push(`Could not sign out: The credential store at ${credentialsPath()} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`)
+  }
   clearScopeIdentitySnapshot(getMercuryHome())
   forgetScopeIdentity()
 
-  const refused = signOutEveryEngineCredential()
+  const refused = [...signOutEveryEngineCredential(), ...storesLeft]
 
   try {
     const { resetLimitsForCredentialSwitch } = await import('../../services/anthropicLimits.js')
