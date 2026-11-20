@@ -5,13 +5,18 @@ import { dirname, join } from 'node:path'
 import { check, decide, fill, finish, note, said, section, shown, type Rules } from './floorsKit.ts'
 
 const PROJECT = fill('<PROJECT>')
-const REAL_GIT = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+const PROJECT_POSIX = process.platform === 'win32' ? PROJECT.replaceAll('\\', '/') : PROJECT
+const REAL_GIT = process.platform === 'win32'
+  ? execFileSync('where.exe', ['git'], { encoding: 'utf8' }).trim().split(/\r?\n/)[0]!
+  : execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
 const BIN = join(dirname(PROJECT), 'git-stand-in')
 const ASKED = join(BIN, 'asked.log')
 const SILENT = join(BIN, 'silent')
 mkdirSync(BIN, { recursive: true })
-writeFileSync(join(BIN, 'git'), `#!/bin/sh\nprintf '%s\\n' "$*" >> '${ASKED}'\nif [ -e '${SILENT}' ]; then kill -KILL $$; fi\nexec '${REAL_GIT}' "$@"\n`)
-chmodSync(join(BIN, 'git'), 0o755)
+if (process.platform !== 'win32') {
+  writeFileSync(join(BIN, 'git'), `#!/bin/sh\nprintf '%s\\n' "$*" >> '${ASKED}'\nif [ -e '${SILENT}' ]; then kill -KILL $$; fi\nexec '${REAL_GIT}' "$@"\n`)
+  chmodSync(join(BIN, 'git'), 0o755)
+}
 writeFileSync(ASKED, '')
 
 const git = (...args: string[]): string =>
@@ -51,7 +56,7 @@ put('README', 'staged\n', true)
 git('add', 'README')
 put('src/a.txt', 'unstaged\n', true)
 
-process.env.PATH = `${BIN}:${process.env.PATH ?? ''}`
+if (process.platform !== 'win32') process.env.PATH = `${BIN}:${process.env.PATH ?? ''}`
 const PATCH = `-${'p'}`
 const READ: Rules = { deny: ['Read(secrets/**)'] }
 const SECRET = join(PROJECT, 'secrets', 'k.txt')
@@ -60,7 +65,9 @@ const asked = (): number => readFileSync(ASKED, 'utf8').split('\n').filter(line 
 const bash = (command: string, mode: string, rules: Rules = READ) => decide('Bash', { command }, mode, rules)
 
 section('§0 the stand-in git is the one the product asks')
-{
+if (process.platform === 'win32') {
+  console.log('  [SKIP] not read on Windows: git stand-in shim requires a POSIX executable script (§0)')
+} else {
   const before = asked()
   const answer = await bash('git diff', 'default')
   check('a bare git diff under a Read deny rule asks git for the names it would print', asked() > before, `asked ${asked() - before} time(s); ${said(answer)}`)
@@ -157,7 +164,7 @@ for (const command of PRINTS_NONE) {
 }
 
 {
-  const anchored: Rules = { deny: [`Read(/${PROJECT}/secrets/**)`] }
+  const anchored: Rules = { deny: [`Read(/${PROJECT_POSIX}/secrets/**)`] }
   const wrong: string[] = []
   for (const command of ['cd sub && git diff --relative --no-relative HEAD~2', 'git -C sub diff --relative --no-relative HEAD~2']) {
     for (const mode of ['sovereign', 'flow', 'default'] as const) {
@@ -234,7 +241,7 @@ section('§3 the working tree and the index are read as they stand')
   {
     const below = await decide('Bash', { command: 'git status -vv', cwd: 'sub' }, 'sovereign', READ)
     check('with nothing staged, a call that names the folder below to run git status -vv in is refused by the rule', below.behavior === 'deny' && (below.message ?? '').includes(SECRET), said(below))
-    const anchored = await bash('cd sub && git status -vv', 'sovereign', { deny: [`Read(/${PROJECT}/secrets/**)`] })
+    const anchored = await bash('cd sub && git status -vv', 'sovereign', { deny: [`Read(/${PROJECT_POSIX}/secrets/**)`] })
     check('with nothing staged, under a rule that spells the folder by its full path, cd sub && git status -vv is refused under sovereign', anchored.behavior === 'deny' && (anchored.message ?? '').includes(SECRET), said(anchored))
   }
   git('add', 'README')
@@ -299,7 +306,9 @@ for (const [label, command, why] of UNREAD) {
   const bare = await bash(command, 'sovereign', {})
   check(`${label} · with no rule in force sovereign allows it as before`, bare.behavior === 'allow', said(bare))
 }
-{
+if (process.platform === 'win32') {
+  console.log('  [SKIP] not read on Windows: git stand-in shim requires a POSIX executable script (§4 silent git)')
+} else {
   writeFileSync(SILENT, '')
   const expected: Array<[string, string]> = [['default', 'ask'], ['implement', 'ask'], ['apollo', 'ask'], ['dontAsk', 'deny'], ['flow', 'deny'], ['sovereign', 'deny']]
   for (const command of ['git diff', 'git show HEAD']) {
@@ -322,7 +331,7 @@ for (const [label, rules] of [['no rule at all', {}], ['a Bash deny rule alone',
   for (const command of ['git diff', 'git show HEAD~1', 'git diff HEAD~2', `git stash show ${PATCH} 'stash@{1}'`]) {
     for (const mode of ['default', 'sovereign'] as const) answers.push((await bash(command, mode, rules)).behavior)
   }
-  check(`${label} · four patch readers in default and sovereign: git is not asked what they would print, and each runs`, asked() === before && answers.every(answer => answer === 'allow'), `asked ${asked() - before} time(s); ${answers.join(',')}`)
+  check(`${label} · four patch readers in default and sovereign: git is not asked what they would print, and each runs`, (process.platform === 'win32' || asked() === before) && answers.every(answer => answer === 'allow'), `asked ${asked() - before} time(s); ${answers.join(',')}`)
 }
 
 section('§6 Sovereign mode: a run or a refusal, never a card')
@@ -334,6 +343,10 @@ section('§6 Sovereign mode: a run or a refusal, never a card')
   }
   check(`sovereign · the ${PRINTS.length + PRINTS_NONE.length + UNREAD.length} commands above are each allowed or refused`, cards.length === 0, cards.join(' ‖ '))
 }
-check('the stand-in was asked through the product\'s own spawn: no helper of the repository is on any of its command lines', existsSync(ASKED) && readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line)).every(line => line.includes('core.fsmonitor=false') && line.includes('--no-ext-diff') && line.includes('--no-textconv')), readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line) && !line.includes('--no-textconv')).slice(0, 3).join(' ‖ '))
+if (process.platform === 'win32') {
+  console.log('  [SKIP] not read on Windows: git stand-in shim requires a POSIX executable script (asked log)')
+} else {
+  check('the stand-in was asked through the product\'s own spawn: no helper of the repository is on any of its command lines', existsSync(ASKED) && readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line)).every(line => line.includes('core.fsmonitor=false') && line.includes('--no-ext-diff') && line.includes('--no-textconv')), readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line) && !line.includes('--no-textconv')).slice(0, 3).join(' ‖ '))
+}
 note('nothing a model asked for is executed: command strings are handed to the decision function. The decision asks git, through a stand-in that records each question and hands it to the real git, for the names a command would print; the repository is this proof\'s own scratch folder')
 finish('prove-git-patch-readers-deny')
