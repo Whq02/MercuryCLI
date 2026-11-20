@@ -122,6 +122,7 @@ async function flushPending(): Promise<void> {
       try {
         await release()
       } catch (error) {
+        logForDebugging(`history lock release failed: ${String(error)}`, { level: 'error' })
         passedOver(error)
       }
     }
@@ -179,7 +180,10 @@ function toStoredPastes(
       continue
     }
     const contentHash = paste.contentHash ?? hashPastedText(paste.content)
-    void storePastedText(contentHash, paste.content).catch(passedOver)
+    void storePastedText(contentHash, paste.content).catch(error => {
+      logForDebugging(`history paste store failed: ${String(error)}`)
+      passedOver(error)
+    })
     stored[Number(key)] = { id: paste.id, type: 'text', contentHash }
   }
   return stored
@@ -441,12 +445,7 @@ export async function resolvePastedContents(
 
 export async function historyPasteHashes(): Promise<Set<string>> {
   const hashes = new Set<string>()
-  let corpus: HistoryCorpus
-  try {
-    corpus = await loadHistoryCorpus()
-  } catch {
-    return hashes
-  }
+  const corpus = await loadHistoryCorpus()
   for (const record of corpus) {
     for (const stored of Object.values(record.pastedContents ?? {})) {
       if (typeof stored.contentHash === 'string' && stored.contentHash !== '') hashes.add(stored.contentHash)

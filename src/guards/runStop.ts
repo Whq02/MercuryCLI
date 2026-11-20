@@ -1,3 +1,5 @@
+import { logForDebugging } from '../utils/debug.js'
+import { errorMessage } from '../utils/errors.js'
 import { engageTurnGuard, hasTurnGuard } from './guards.js'
 import { evaluateStopAttempt } from './runStopAdapter.js'
 
@@ -16,7 +18,8 @@ export function registerRunStopGuard(sessionId: string): string {
     judge: async ({ messages }, signal) => {
       try {
         await evaluateStopAttempt(messages, { maxBlocks: MAX_BLOCKS, wordingUnfinished: false, signal })
-      } catch {
+      } catch (error) {
+        logForDebugging(`[run-stop] evaluateStopAttempt failed: ${errorMessage(error)}`, { level: 'error' })
         return { hold: false }
       }
       return { hold: false }

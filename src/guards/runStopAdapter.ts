@@ -27,25 +27,6 @@ import {
   verificationSummary,
   workspaceVerifiable,
 } from '../utils/verification/verificationState.js'
-import { passedOver } from '../utils/passedOver.js'
-
-function safeIsInteractive(): boolean {
-  try {
-    return getIsInteractive()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
-function missionArmedForSession(): boolean {
-  try {
-    return getActiveMission() !== undefined
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
 
 export { turnBoundaryIndex }
 
@@ -150,8 +131,8 @@ export async function evaluateStopAttempt(
   }
 
   const contract = resolveInvocationContract({
-    interactive: safeIsInteractive(),
-    missionArmed: missionArmedForSession(),
+    interactive: getIsInteractive(),
+    missionArmed: getActiveMission() !== undefined,
   })
   const decision = evaluateStop({
     snapshot,
@@ -218,12 +199,7 @@ export async function evaluateStopAttempt(
 const deliveredRuns = new Set<string>()
 
 export function headlessMintAllowed(flag: string | undefined): boolean {
-  try {
-    if (getIsInteractive()) return true
-  } catch (error) {
-    passedOver(error)
-  }
-  return isEnvTruthy(flag)
+  return getIsInteractive() || isEnvTruthy(flag)
 }
 
 export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges: boolean): void {
@@ -242,12 +218,7 @@ export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges:
         '../utils/verification/verificationState.js'
       )
       const { getSessionId } = await import('../bootstrap/state.js')
-      let sessionId = 'unknown-session'
-      try {
-        sessionId = String(getSessionId())
-      } catch (error) {
-        passedOver(error)
-      }
+      const sessionId = String(getSessionId())
       let treeDigest: string | undefined
       try {
         treeDigest = (await computeWorkingTreeDigestAsync(getCwd())) ?? undefined
