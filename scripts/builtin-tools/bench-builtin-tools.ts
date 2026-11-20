@@ -15,6 +15,14 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 
+const ROW = {
+  assets: 'scripts/builtin-tools/fixtures/RESULTS.md scripts/builtin-tools/fixtures/results.json',
+  generator: 'bun scripts/builtin-tools/bench-builtin-tools.ts --write',
+  check: 'bun scripts/builtin-tools/prove-builtin-tools-benchmark.ts',
+  sources: 'scripts/builtin-tools/bench-builtin-tools.ts src/services/structure/query.ts src/services/structure/transform.ts src/services/structure/store.ts src/services/gitGraph/observe.ts src/services/gitGraph/plan.ts src/services/journeys/runner.ts src/services/primitives/executionPlane.ts src/services/primitives/transactionPlane.ts src/services/primitives/evidencePlane.ts src/services/resources/registry.ts src/services/resources/adapters/structure.ts src/services/resources/adapters/git.ts src/services/resources/adapters/journey.ts src/services/resources/adapters/evidence.ts src/services/run/resolveOwner.ts src/tools.ts src/tools/ToolSearchTool/ToolSearchTool.ts',
+}
+if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
+
 const repoRoot = resolve(import.meta.dir, '..', '..')
 const CONFIG_HOME = mkdtempSync(join(tmpdir(), 'builtin-tools-bench-home-'))
 const DAEMON_HOME = mkdtempSync(join(tmpdir(), 'builtin-tools-bench-daemon-'))
@@ -928,13 +936,6 @@ function renderResultsMd(tasks: TaskResult[], anchor: StableAnchor): string {
   return lines.join('\n')
 }
 
-const ROW = {
-  assets: 'scripts/builtin-tools/fixtures/RESULTS.md scripts/builtin-tools/fixtures/results.json',
-  generator: 'bun scripts/builtin-tools/bench-builtin-tools.ts --write',
-  check: null,
-  sources: 'scripts/builtin-tools/bench-builtin-tools.ts',
-}
-if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 if (import.meta.main) {
   const write = process.argv.includes('--write')
   const tasks = await runCorpus()
