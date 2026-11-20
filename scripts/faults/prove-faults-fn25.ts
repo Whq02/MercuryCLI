@@ -403,6 +403,21 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+  const missingShot = join(scratch, 'missing-computer-shot.png')
+  const block = ComputerTool.mapToolResultToToolResultBlockParam(
+    { action: 'screenshot', result: `screenshot: ${missingShot}`, outcome: 'succeeded', imagePath: missingShot },
+    'tu-computer-shot',
+  )
+  const text = typeof block.content === 'string' ? block.content : ''
+  check(
+    'ComputerTool: mapToolResultToToolResultBlockParam reports image-not-inlined note when screenshot read fails',
+    text.includes('(image not inlined') && /ENOENT|no such file/i.test(text),
+    text,
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
