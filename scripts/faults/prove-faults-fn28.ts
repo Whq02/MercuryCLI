@@ -130,6 +130,84 @@ function skip(label: string, why: string): void {
   }
 }
 
+{
+  console.log('\nartifacts/store: listArtifacts and getArtifact reject on non-ENOENT or corrupt meta')
+  const artifacts = await import('../../src/utils/artifacts/store.ts')
+  const stored = await artifacts.storeArtifact({ scope: 'fault-scope', name: 'sample', content: 'hello' })
+  check('artifacts-setup: stored artifact', stored.id !== null && stored.path !== null, JSON.stringify(stored))
+  if (stored.id !== null) {
+    const scopeDir = join(artifacts.getArtifactsRootDir(), 'fault-scope')
+    const metaPath = join(scopeDir, `${stored.id}.meta.json`)
+    if (!POSIX_MODES) skip('artifacts-unreadable', 'needs non-root POSIX')
+    else {
+      chmodSync(scopeDir, 0o000)
+      let listDirErr: NodeJS.ErrnoException | null = null
+      try {
+        await artifacts.listArtifacts('fault-scope')
+      } catch (err) {
+        listDirErr = err as NodeJS.ErrnoException
+      } finally {
+        chmodSync(scopeDir, 0o700)
+      }
+      check(
+        'artifacts-list-unreadable-dir: listArtifacts rejects with EACCES on unreadable scope dir',
+        listDirErr !== null && listDirErr.code === 'EACCES',
+        String(listDirErr),
+      )
+
+      chmodSync(metaPath, 0o200)
+      let getMetaErr: NodeJS.ErrnoException | null = null
+      try {
+        await artifacts.getArtifact('fault-scope', stored.id)
+      } catch (err) {
+        getMetaErr = err as NodeJS.ErrnoException
+      } finally {
+        chmodSync(metaPath, 0o600)
+      }
+      check(
+        'artifacts-get-unreadable-meta: getArtifact rejects with EACCES on unreadable meta file',
+        getMetaErr !== null && getMetaErr.code === 'EACCES',
+        String(getMetaErr),
+      )
+    }
+
+    writeFileSync(join(scopeDir, 'corrupt-id.meta.json'), '{not-json')
+    let listCorruptErr: unknown = null
+    try {
+      await artifacts.listArtifacts('fault-scope')
+    } catch (err) {
+      listCorruptErr = err
+    }
+    check(
+      'artifacts-list-corrupt-meta: listArtifacts rejects on corrupt meta JSON instead of dropping it',
+      listCorruptErr instanceof SyntaxError,
+      String(listCorruptErr),
+    )
+
+    let getCorruptErr: unknown = null
+    try {
+      await artifacts.getArtifact('fault-scope', 'corrupt-id')
+    } catch (err) {
+      getCorruptErr = err
+    }
+    check(
+      'artifacts-get-corrupt-meta: getArtifact rejects on corrupt meta JSON instead of returning null',
+      getCorruptErr instanceof SyntaxError,
+      String(getCorruptErr),
+    )
+    rmSync(join(scopeDir, 'corrupt-id.meta.json'), { force: true })
+
+    check(
+      'artifacts-list-absent-empty: absent scope still returns []',
+      (await artifacts.listArtifacts('no-such-scope')).length === 0,
+    )
+    check(
+      'artifacts-get-absent-null: absent artifact still returns null',
+      (await artifacts.getArtifact('fault-scope', 'no-such-id')) === null,
+    )
+  }
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
