@@ -92,6 +92,13 @@ function fakeEngine(name: string, connectAfterMs: number): string {
     '}',
     '',
   ].join('\n'))
+  if (process.platform === 'win32') {
+    const launcherSrc = join(scratch, `${name}-launcher.ts`)
+    const exe = join(scratch, `${name}.exe`)
+    writeFileSync(launcherSrc, `import { spawnSync } from 'node:child_process'\nconst r = spawnSync(${JSON.stringify(process.execPath)}, [${JSON.stringify(script)}, ...process.argv.slice(2)], { stdio: 'inherit', env: process.env })\nprocess.exit(r.status ?? 1)\n`)
+    execFileSync(process.execPath, ['build', '--compile', launcherSrc, '--outfile', exe], { windowsHide: true, timeout: 120_000 })
+    return exe
+  }
   const wrapper = join(scratch, `${name}.sh`)
   writeFileSync(wrapper, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} "$@"\n`)
   chmodSync(wrapper, 0o755)

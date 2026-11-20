@@ -33,7 +33,9 @@ console.log('§1 the outcome reader over synthetic driver endings')
 }
 
 console.log('§2 the driver on a synthetic child: early exit versus a full deadline')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: ptydrive.py PTY capture requires POSIX')
+} else {
   const scratch = mkdtempSync(join(tmpdir(), 'arena-outcome-'))
   const early = join(scratch, 'early.mjs')
   writeFileSync(early, "process.stdout.write('hello from the child\\n'); setTimeout(() => process.exit(3), 300)\n")
@@ -58,7 +60,9 @@ console.log('§2 the driver on a synthetic child: early exit versus a full deadl
 }
 
 console.log('§2b the pty master after the child leaves: an EIO read is the eof ending, any other read error stays read-error')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: /usr/bin/python3 PTY EIO fault injection requires POSIX')
+} else {
   const scratch = mkdtempSync(join(tmpdir(), 'arena-eio-'))
   const harness = join(scratch, 'read-fault.py')
   writeFileSync(
@@ -102,7 +106,9 @@ console.log('§2b the pty master after the child leaves: an EIO read is the eof 
 }
 
 console.log('§3 the real artifact: a deadline-bounded boot reads COMPLETE')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: ptydrive.py PTY capture requires POSIX')
+} else {
   if (!existsSync(DIST)) {
     console.log('  SKIP — dist/mercury.mjs missing (run `bun run build.ts`)')
   } else {
