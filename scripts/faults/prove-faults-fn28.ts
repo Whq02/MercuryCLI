@@ -246,6 +246,49 @@ function skip(label: string, why: string): void {
   }
 }
 
+{
+  console.log('\nfileAttachments: unreadMention reports non-ENOENT stat failure instead of dropping at-mention')
+  const { generateFileAttachment } = await import('../../src/utils/attachments/fileAttachments.ts')
+  const sealedDir = join(SCRATCH, 'sealed-dir')
+  mkdirSync(sealedDir, { recursive: true })
+  const sealedFile = join(sealedDir, 'secret.txt')
+  writeFileSync(sealedFile, 'top secret\n')
+  const ctx = {
+    getAppState: () => ({
+      toolPermissionContext: {
+        mode: 'default',
+        alwaysAllowRules: {},
+        alwaysDenyRules: {},
+        alwaysAskRules: {},
+        additionalWorkingDirectories: new Map(),
+      },
+    }),
+    options: {},
+    abortController: new AbortController(),
+    readFileState: new Map(),
+  }
+  if (!POSIX_MODES) skip('fileAttachments-unread-eacces', 'needs non-root POSIX')
+  else {
+    chmodSync(sealedDir, 0o000)
+    try {
+      const row = await generateFileAttachment(sealedFile, ctx as never, 'at-mention')
+      check(
+        'fileAttachments-unread-eacces: at-mention in unreadable dir returns dropped_image_file instead of null',
+        row !== null && row.type === 'dropped_image_file' && row.unread === 'refused' && row.reason.startsWith('Reading it failed:'),
+        JSON.stringify(row),
+      )
+    } finally {
+      chmodSync(sealedDir, 0o700)
+    }
+  }
+  const missingRow = await generateFileAttachment(join(SCRATCH, 'does-not-exist.txt'), ctx as never, 'at-mention')
+  check(
+    'fileAttachments-absent-null: nonexistent at-mention still returns null',
+    missingRow === null,
+    JSON.stringify(missingRow),
+  )
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
