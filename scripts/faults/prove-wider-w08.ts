@@ -343,12 +343,38 @@ async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void>
   }
 }
 
+async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
+  const plane = await import(join(SRC, 'services/primitives/executionPlane.ts'))
+  const runWatch = await import(join(SRC, 'services/repoHost/runWatch.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'services/primitives/owner.ts'))
+  const owner = makeOwnerKey('w08-6-owner')
+  const id = 'run-watch-9991'
+  plane.registerExecutionDomain('host-run-watch', {
+    requestStop() {
+      throw new Error('domain hook crashed')
+    },
+  })
+  plane.registerExecution({
+    version: 1,
+    id,
+    owner,
+    kind: 'host-run-watch',
+    label: 'watch run 9991',
+    lifecycle: 'session',
+  })
+  plane.transitionExecution(owner, id, 'starting')
+  plane.transitionExecution(owner, id, 'running')
+  const stopped = runWatch.cancelRunWatch(owner, '9991') as { state: string; stopHookError?: string; outcome?: { reason?: string } } | undefined
+  check('w08-6: requestStopExecution does not throw and surfaces stop hook failure in record outcome and stopHookError', stopped !== undefined && stopped.state === 'stopping' && typeof stopped.stopHookError === 'string' && stopped.stopHookError.includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running') && (stopped.outcome?.reason ?? '').includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running'), JSON.stringify(stopped))
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
   w08_3_corruptPackageJsonReportedInTestAndHealth,
   w08_4_invalidMercuryLspServersReportedOnce,
   w08_5_tsSidecarWorkspaceSymbolIncompleteReported,
+  w08_6_executionStopHookFailureSurfaced,
 ]
 for (const row of rows) {
   try {

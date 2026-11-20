@@ -152,7 +152,7 @@ export async function watchRun(owner: OwnerKey, root: string, runId: string): Pr
   return { state: 'watching', record, view: first.run }
 }
 
-export function cancelRunWatch(owner: OwnerKey, runId: string): ExecutionRecord | undefined {
+export function cancelRunWatch(owner: OwnerKey, runId: string): (ExecutionRecord & { stopHookError?: string }) | undefined {
   return requestStopExecution(owner, `run-watch-${runId}`)
 }
 
