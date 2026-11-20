@@ -14,7 +14,7 @@ delete process.env.MERCURY_SPAWN_LEDGER
 delete process.env.MERCURY_SPAWN_AUDIT
 delete process.env.MERCURY_SPAWNED_BY
 
-const led = await import('../../src/utils/spawnLedger.ts')
+const led = await import('../../src/daemon/spawnLedger.ts')
 
 console.log('— unit: ledger writes —')
 led.recordSpawn({ kind: 'headless', id: 'proof-1', cwd: home })

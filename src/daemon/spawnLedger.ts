@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
-import { passedOver } from './passedOver.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const SPAWNED_BY_ENV = 'MERCURY_SPAWNED_BY'
 
@@ -32,7 +32,7 @@ export interface SpawnLedgerEntry {
 }
 
 function forensicsDir(): string {
-  const { daemonDir } = require('../daemon/controlSocket.js') as typeof import('../daemon/controlSocket.js')
+  const { daemonDir } = require('./controlSocket.js') as typeof import('./controlSocket.js')
   return daemonDir()
 }
 
@@ -45,9 +45,9 @@ export function bashAuditPath(): string {
 }
 
 function appendTrail(path: string, row: unknown): void {
-  const { appendInDaemonHome, daemonHomeStands } = require('../daemon/daemonHome.js') as typeof import('../daemon/daemonHome.js')
+  const { appendInDaemonHome, daemonHomeStands } = require('./daemonHome.js') as typeof import('./daemonHome.js')
   if (!daemonHomeStands('the spawn ledger')) return
-  const { parseWorkerParentPid } = require('../daemon/workerParentWatch.js') as typeof import('../daemon/workerParentWatch.js')
+  const { parseWorkerParentPid } = require('./workerParentWatch.js') as typeof import('./workerParentWatch.js')
   appendInDaemonHome('the spawn ledger', path, JSON.stringify(row) + '\n', { parent: parseWorkerParentPid() === null ? 'create' : 'must-stand' })
 }
 
