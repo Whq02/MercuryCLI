@@ -1,9 +1,10 @@
 import { basename as nodePathBasename } from 'node:path';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js';
 import { splitWayOut, type useNotifications } from '../../context/notifications.js';
 import { useFpsMetrics } from '../../context/fpsMetrics.js';
 import { useCostSummary } from '../../costHook.js';
+import { useClaim, useLoad, useMount, usePublish, useSubscription, useTimer } from '../../hooks/effects.js';
 import { useDeprecationWarningNotification } from '../../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../../hooks/notifs/useRateLimitWarningNotification.js';
@@ -63,7 +64,7 @@ export function useChatBootLines({
   focusedConnector: EngineConnectorV1;
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
 }) {
-  useEffect(() => {
+  useSubscription(() => {
     const paintNoRunnerLine = (): void => {
       const focused = getFocusedSessionConnector() as {
         admissionRefusal?: () => string | null;
@@ -98,7 +99,7 @@ export function useChatBootLines({
   }, [focusedConnector, addNotification]);
 
   const lostLinePaintedAtRef = useRef(0);
-  useEffect(() => {
+  useSubscription(() => {
     if (!hasSeatLive(focusedConnector) || focusedConnector.lostLine === undefined) return undefined;
     const readLostLine = focusedConnector.lostLine.bind(focusedConnector);
     const paintLostLine = (): void => {
@@ -130,7 +131,7 @@ export function useChatBootStart({
   useExtensions({ enabled: true });
   useCostSummary(useFpsMetrics());
 
-  useEffect(() => {
+  useTimer(() => {
     recordBootInteractive();
     setTimeout(() => {
       void loadEnsureDaemon()
@@ -146,14 +147,14 @@ export function useChatBootStart({
     }, 0);
   }, []);
 
-  useEffect(() => {
+  useClaim(() => {
     const disarm = scheduleQuietUpdateNotice(text =>
       addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity }),
     );
     return disarm;
   }, []);
 
-  useEffect(() => {
+  useLoad(() => {
     const key = 'daemon-version';
     let alive = true;
     let unsubscribe = (): void => {};
@@ -175,7 +176,7 @@ export function useChatBootStart({
     };
   }, []);
 
-  useEffect(() => {
+  usePublish(() => {
     if (submitCount !== 1) return;
     try {
       startBackgroundHousekeeping();
@@ -204,7 +205,7 @@ export function useChatBootNotices({
   apiKeyVerification: ReturnType<typeof useApiKeyVerification>;
   engineModel: ReturnType<typeof useEngineModel>;
 }) {
-  useEffect(() => {
+  useSubscription(() => {
     const hosted = hasSeatLive(focusedConnector) && focusedConnector.transcriptStoreFailing !== undefined ? focusedConnector : null;
     const paint = (): void => {
       const health = transcriptStoreHealth();
@@ -229,7 +230,7 @@ export function useChatBootNotices({
     };
   }, [focusedConnector]);
 
-  useEffect(() => {
+  useSubscription(() => {
     const paintDegradation = (): void => {
       try {
         const focused = getFocusedSessionConnector() as PaintsRows;
@@ -255,7 +256,7 @@ export function useChatBootNotices({
     return subscribeTranscriptLoadDegradation(paintDegradation);
   }, [focusedConnector]);
 
-  useEffect(() => {
+  useLoad(() => {
     if (!mercuryBootPreflightEnabled()) return;
     void runAndRecordPreflight()
       .then(summary => {
@@ -271,7 +272,7 @@ export function useChatBootNotices({
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
+  useMount(() => {
     const notice = windowsShellRoadNotice();
     if (notice === null) return;
     addNotification({
@@ -280,9 +281,9 @@ export function useChatBootNotices({
       priority: 'high',
       timeoutMs: 60_000,
     });
-  }, []);
+  });
 
-  useEffect(() => {
+  useMount(() => {
     try {
       const unnoticed = unnoticedCrashReports();
       const newest = unnoticed[0];
@@ -329,9 +330,9 @@ export function useChatBootNotices({
       }
     } catch {
     }
-  }, []);
+  });
 
-  useEffect(() => {
+  usePublish(() => {
     if (focusedInputDialog === 'crash-resume' && !crashNoticeLatchedRef.current) {
       crashNoticeLatchedRef.current = true;
       try {
@@ -341,7 +342,7 @@ export function useChatBootNotices({
     }
   }, [focusedInputDialog]);
 
-  useEffect(() => {
+  useMount(() => {
     try {
       const notice = takeResumeFoldNotice();
       if (!notice) return;
@@ -363,13 +364,13 @@ export function useChatBootNotices({
       }
     } catch {
     }
-  }, []);
+  });
 
-  useEffect(() => {
+  useLoad(() => {
     void apiKeyVerification.reverify({ probe: false }).catch(() => {});
   }, []);
 
-  useEffect(() => {
+  useTimer(() => {
     const timer = setTimeout(() => {
       void loadProjectSnapshot()
         .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
@@ -392,7 +393,7 @@ export function useChatBootTips({
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
 }) {
   const worktreeTipShownRef = useRef(false);
-  useEffect(() => {
+  useMount(() => {
     if (worktreeTipShownRef.current) return;
     const worktree = getCurrentWorktreeSession();
     if (!worktree || typeof worktree.creationDurationMs !== 'number') return;
@@ -406,9 +407,9 @@ export function useChatBootTips({
       priority: 'low',
       timeoutMs: 20_000,
     });
-  }, []);
+  });
 
-  useEffect(() => {
+  useLoad(() => {
     if (!fullscreen) return;
     void maybeGetTmuxMouseHint().then(hint => {
       if (hint) addNotification({ key: 'tmux-mouse-hint', text: hint, priority: 'low', timeoutMs: RECEIPT_TIMEOUT_MS });

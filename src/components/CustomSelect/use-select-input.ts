@@ -1,5 +1,6 @@
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useClaim } from '../../hooks/effects.js'
 import type { InputEvent, Key } from '../../ink/events/input-event.js'
 import useInput from '../../ink/hooks/use-input.js'
 import {
@@ -87,7 +88,7 @@ export function useSelectInput<T>({
 
   const declineRow = 1 + state.options.findIndex(option => ['no', 'reject'].includes(String(optionValueOf(option))))
   const reporter = useRef({})
-  useEffect(
+  useClaim(
     () => (isDisabled ? undefined : reportConsentDeclineRow(reporter.current, declineRow > 0 ? declineRow : null)),
     [isDisabled, declineRow],
   )

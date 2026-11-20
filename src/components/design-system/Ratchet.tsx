@@ -1,9 +1,10 @@
 
-import React, { useLayoutEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Box } from '../../ink.js'
 import type { DOMElement } from '../../ink/dom.js'
 import measureElement from '../../ink/measure-element.js'
 import { useTerminalViewport } from '../../ink/hooks/use-terminal-viewport.js'
+import { useMeasure } from '../../hooks/effects.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 
 export function Ratchet({
@@ -20,7 +21,7 @@ export function Ratchet({
   const [tallest, setTallest] = useState(0)
   const [viewportRef, viewport] = useTerminalViewport()
 
-  useLayoutEffect(() => {
+  useMeasure(() => {
     const node = innerRef.current
     if (!node) return
     const { height } = measureElement(node)
