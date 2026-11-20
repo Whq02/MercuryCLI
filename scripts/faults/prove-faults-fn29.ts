@@ -421,5 +421,25 @@ else {
   )
 }
 
+console.log('10. src/utils/cockpit/daemonSnapshot.ts — unexpected failure reads daemon state unreadable')
+{
+  const r = runIsolated(`
+    const { mock } = await import('bun:test')
+    const realCtrl = await import(SRC + '/daemon/controlSocket.ts')
+    mock.module(SRC + '/daemon/controlSocket.js', () => ({
+      ...realCtrl,
+      daemonStatePath: () => { throw new Error('state path broke') },
+    }))
+    const { daemonSnapshot } = await import(SRC + '/utils/cockpit/daemonSnapshot.ts')
+    out.snap = daemonSnapshot()
+  `)
+  const snap = r.snap as { state?: string; reason?: string } | undefined
+  check(
+    'daemonSnapshot: unexpected error reads unavailable with daemon state unreadable',
+    snap?.state === 'unavailable' && snap.reason === 'daemon state unreadable (state path broke)',
+    JSON.stringify(snap),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
