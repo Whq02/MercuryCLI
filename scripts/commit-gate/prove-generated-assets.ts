@@ -379,6 +379,41 @@ for (const [file, generator] of [
   ['scripts/builtin-tools/fixtures/RESULTS.md', 'scripts/builtin-tools/bench-builtin-tools.ts'],
 ]) check(`${file} is a row of ${generator}`, (assetRowFor(file!, map.rows)?.generator ?? '').includes(generator!))
 
+section('§6 the build asks the generator of each file it ships')
+{
+  const { buildCheckedRows, staleBuildAssets } = await import('../lib/generated-assets-map.mjs')
+  const buildRows: Array<{ assets: string; generator: string; check: string }> = buildCheckedRows(mapText)
+  for (const bake of ['bun scripts/splash/bake-menu.mjs', 'bun scripts/splash/bake-ramp.mjs']) {
+    check(`the build checks the splash core through ${bake}`, buildRows.some(row => row.assets === 'assets/splash/splash-core.mjs' && row.generator === bake && row.check === `${bake} --check`))
+  }
+  check('every row the build checks is a row the gate reads, with the same check', buildRows.every(row => map.rows.some(gateRow => gateRow.generator === row.generator && gateRow.check === row.check)))
+  const carried = formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', check: 'bun scripts/check-a.mjs', sources: 'source.txt', build: true })
+  check('a generator that sets build writes the fifth column, and the gate reads the row as before', carried.endsWith('\tsource.txt\tbuild') && parseGeneratedAssetsMap(carried).rows[0]?.check === 'bun scripts/check-a.mjs' && buildCheckedRows(carried).length === 1)
+  let noCheck = ''
+  try {
+    formatGeneratedAssetRow({ assets: 'made.txt', generator: 'bun scripts/gen-a.mjs', sources: 'source.txt', build: true })
+  } catch (error) {
+    noCheck = String(error)
+  }
+  check('a row that asks for the build and names no check is refused', noCheck.includes('names no check'))
+  const buildScratch = realpathSync(mkdtempSync(join(tmpdir(), 'generated-build-')))
+  mkdirSync(join(buildScratch, 'scripts', 'gate'), { recursive: true })
+  writeFileSync(join(buildScratch, 'scripts/check-a.mjs'), "import { readFileSync } from 'node:fs'\nif (readFileSync('made.txt', 'utf8') !== readFileSync('source.txt', 'utf8')) {\n  console.error('made.txt trails source.txt')\n  process.exit(1)\n}\n")
+  writeFileSync(join(buildScratch, 'source.txt'), 'one\n')
+  writeFileSync(join(buildScratch, 'made.txt'), 'one\n')
+  check('a tree with no map has nothing for the build to check', staleBuildAssets(buildScratch).length === 0)
+  writeFileSync(join(buildScratch, GENERATED_ASSETS_MAP), `${carried}\nother.txt\tbun scripts/gen-b.mjs\tbun scripts/check-b.mjs\tsource.txt\n`)
+  check('a current file: the build has nothing to say, and a row without the column is not run', staleBuildAssets(buildScratch).length === 0)
+  writeFileSync(join(buildScratch, 'source.txt'), 'two\n')
+  const staleRows: Array<{ assets: string; generator: string; output: string }> = staleBuildAssets(buildScratch)
+  check('one feeding source changed: the row is stale at once, with the command to run and the words of its check', staleRows.length === 1 && staleRows[0]!.assets === 'made.txt' && staleRows[0]!.generator === 'bun scripts/gen-a.mjs' && staleRows[0]!.output.includes('made.txt trails source.txt'), JSON.stringify(staleRows))
+  writeFileSync(join(buildScratch, 'made.txt'), 'two\n')
+  check('the regenerated file settles it', staleBuildAssets(buildScratch).length === 0)
+  rmSync(buildScratch, { recursive: true, force: true })
+  const staleHere: Array<{ assets: string; generator: string }> = staleBuildAssets(ROOT)
+  check('every file the build checks is current on this tree', staleHere.length === 0, staleHere.map(row => `${row.assets}: run ${row.generator}`).join(' | '))
+}
+
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

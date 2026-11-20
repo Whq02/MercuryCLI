@@ -22,6 +22,16 @@ const SHIP_RELEASE = releaseTargetFor(SHIP.platform, SHIP.arch);
 const CROSS = SHIP_KEY !== HOST_KEY;
 if (CROSS) console.log(`CROSS BUILD: shipping for ${SHIP_KEY} (${SHIP_RELEASE}) on a ${HOST_KEY} host — every platform-bound pack is the target's`);
 
+{
+  const { staleBuildAssets } = await import('./scripts/lib/generated-assets-map.mjs');
+  const stale = staleBuildAssets(ROOT);
+  for (const row of stale) {
+    if (row.output) console.error(row.output);
+    console.error(`BUILD FAILED: ${row.assets} is not current: a file it is made from changed. Run: ${row.generator}`);
+  }
+  if (stale.length > 0) process.exit(1);
+}
+
 const resolveBuildTime = (): string => {
   if (process.env.MERCURY_BUILD_TIME) return process.env.MERCURY_BUILD_TIME;
   const epoch = Number(process.env.SOURCE_DATE_EPOCH);

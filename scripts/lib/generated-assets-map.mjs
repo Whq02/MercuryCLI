@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,7 +19,34 @@ export function formatGeneratedAssetRow(row) {
   if (generator === '') throw new Error(`the row for ${assets.join(' ')} names no generator`)
   if (sources.length === 0) throw new Error(`the row for ${assets.join(' ')} names no sources`)
   const check = row.check === null || row.check === undefined || String(row.check).trim() === '' ? '-' : String(row.check).trim()
-  return [assets.join(' '), generator, check, sources.join(' ')].join('\t')
+  if (row.build === true && check === '-') throw new Error(`the row for ${assets.join(' ')} asks the build to check it and names no check`)
+  return [assets.join(' '), generator, check, sources.join(' '), ...(row.build === true ? ['build'] : [])].join('\t')
+}
+
+export function buildCheckedRows(text) {
+  return text
+    .split('\n')
+    .map(line => line.replace(/\r$/, ''))
+    .filter(line => line.trim() !== '' && !line.trimStart().startsWith('#'))
+    .map(line => line.split('\t').map(column => column.trim()))
+    .filter(columns => columns[4] === 'build')
+    .map(([assets, generator, check]) => ({ assets, generator, check }))
+}
+
+export function staleBuildAssets(root = REPOSITORY_ROOT) {
+  const path = resolve(root, GENERATED_ASSETS_MAP)
+  if (!existsSync(path)) return []
+  const stale = []
+  for (const row of buildCheckedRows(readFileSync(path, 'utf8'))) {
+    const [, script, ...flags] = row.check.split(/\s+/)
+    const run = spawnSync(process.execPath, [resolve(root, script), ...flags], { cwd: root, encoding: 'utf8' })
+    if (run.error !== undefined || run.status === null) {
+      console.error(`generated-assets: ${row.check} did not run (${run.error?.message ?? `ended by ${run.signal}`}), so the build goes on without it`)
+      continue
+    }
+    if (run.status !== 0) stale.push({ ...row, output: `${run.stdout}${run.stderr}`.trim() })
+  }
+  return stale
 }
 
 function generatorOf(line) {
