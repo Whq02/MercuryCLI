@@ -55,7 +55,13 @@ function transcriptTailLines(path: string): string[] {
 }
 
 async function agentFolderStands(agentId: string): Promise<boolean> {
-  const meta = await readAgentMetadata(agentId as AgentId)
+  let meta: Awaited<ReturnType<typeof readAgentMetadata>> = null
+  try {
+    meta = await readAgentMetadata(agentId as AgentId)
+  } catch (error) {
+    logForDebugging(`[session-runner] restart carry: metadata read failed for agent ${agentId} — ${error instanceof Error ? error.message : String(error)}`)
+    return true
+  }
   const folder = meta?.worktreePath ?? meta?.cwd
   if (folder === undefined) return true
   try {
@@ -63,7 +69,8 @@ async function agentFolderStands(agentId: string): Promise<boolean> {
   } catch (error) {
     const code = getErrnoCode(error)
     if (code === 'ENOENT' || code === 'ENOTDIR') return false
-    throw error
+    logForDebugging(`[session-runner] restart carry: stat failed for agent ${agentId} folder ${folder} (${code ?? 'unknown'}) — ${error instanceof Error ? error.message : String(error)}`)
+    return true
   }
 }
 

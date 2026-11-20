@@ -108,14 +108,21 @@ else {
   check('sessionsVerb: unreadable project store rejects with EACCES instead of saying absent', store.threw?.code === 'EACCES' && store.errLines.length === 0, JSON.stringify(store))
 }
 
-console.log('\nrestartCarry.ts — unreadable transcript and unstatable agent folder reject instead of faking empty/gone')
+console.log('\nrestartCarry.ts — unreadable transcript rejects; unstatable agent folder is tried and next agent is still carried')
 if (!POSIX_MODES) skip('restartCarry unreadable paths', 'chmod 0200/0000 needs non-root POSIX')
 else {
   const r = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const state = await import(path.join(SRC, 'bootstrap/state.ts'))
+    const { mock } = await import('bun:test')
     const paths = await import(path.join(SRC, 'utils/sessionStorage/paths.ts'))
+    const relaunchedIds = []
+    mock.module(path.join(SRC, 'tools/AgentTool/resumeAgent.js'), () => ({
+      resumeAgentBackground: async ({ agentId }) => {
+        relaunchedIds.push(agentId)
+        if (agentId === 'a12345678') throw new Error('cannot open worktree')
+      },
+    }))
     const carry = await import(path.join(SRC, 'cli/headless/restartCarry.ts'))
     const absentPath = path.join(HOME, 'missing-transcript.jsonl')
     const basePorts = (transcriptPath, messages = []) => ({
@@ -124,7 +131,7 @@ else {
       getAppState: () => ({ tasks: {} }),
       setAppState: () => {},
       canUseTool: async () => ({ behavior: 'deny', message: 'no' }),
-      relaunchContext: async () => { throw new Error('should not relaunch') },
+      relaunchContext: async () => ({}),
       transcriptPath,
     })
     out.absentTranscript = await carry.carryRunnerAcrossRestart(basePorts(absentPath))
@@ -141,45 +148,64 @@ else {
     }
     const { AGENT_TOOL_NAME } = await import(path.join(SRC, 'tools/AgentTool/constants.ts'))
     const { BACKGROUND_LAUNCH_LINE } = await import(path.join(SRC, 'tasks/LocalAgentTask/launchReceipts.ts'))
-    const agentId = 'a12345678'
-    const launchMessages = [
+    const agent1 = 'a12345678'
+    const agent2 = 'b87654321'
+    const twoAgents = [
       {
         type: 'assistant',
         uuid: 'u-launch',
         timestamp: '2026-11-20T00:00:00.000Z',
-        message: { role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_1', name: AGENT_TOOL_NAME, input: { description: 'worker', prompt: 'go' } }] },
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'tool_use', id: 'toolu_1', name: AGENT_TOOL_NAME, input: { description: 'worker1', prompt: 'go1' } },
+            { type: 'tool_use', id: 'toolu_2', name: AGENT_TOOL_NAME, input: { description: 'worker2', prompt: 'go2' } },
+          ],
+        },
       },
       {
         type: 'user',
         uuid: 'u-receipt',
         timestamp: '2026-11-20T00:00:01.000Z',
-        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: BACKGROUND_LAUNCH_LINE + '\\nagentId: ' + agentId }] },
+        message: {
+          role: 'user',
+          content: [
+            { type: 'tool_result', tool_use_id: 'toolu_1', content: BACKGROUND_LAUNCH_LINE + '\\nagentId: ' + agent1 },
+            { type: 'tool_result', tool_use_id: 'toolu_2', content: BACKGROUND_LAUNCH_LINE + '\\nagentId: ' + agent2 },
+          ],
+        },
       },
     ]
     const parentDir = path.join(HOME, 'locked-parent')
     const childDir = path.join(parentDir, 'worktree')
+    const okDir = path.join(HOME, 'ok-worktree')
     fs.mkdirSync(childDir, { recursive: true })
-    await paths.writeAgentMetadata(agentId, { agentType: 'general', worktreePath: childDir })
+    fs.mkdirSync(okDir, { recursive: true })
+    await paths.writeAgentMetadata(agent1, { agentType: 'general', worktreePath: childDir })
+    await paths.writeAgentMetadata(agent2, { agentType: 'general', worktreePath: okDir })
     fs.chmodSync(parentDir, 0o000)
     try {
-      const res = await carry.carryRunnerAcrossRestart(basePorts(absentPath, launchMessages))
-      out.unstatableFolder = { threw: null, res }
+      const res = await carry.carryRunnerAcrossRestart(basePorts(absentPath, twoAgents))
+      out.unstatableFolder = { threw: null, res, relaunchedIds: [...relaunchedIds] }
     } catch (e) {
-      out.unstatableFolder = { threw: { code: e?.code ?? null, message: String(e?.message ?? e) }, res: null }
+      out.unstatableFolder = { threw: { code: e?.code ?? null, message: String(e?.message ?? e) }, res: null, relaunchedIds: [...relaunchedIds] }
     } finally {
       fs.chmodSync(parentDir, 0o700)
     }
-    await paths.writeAgentMetadata(agentId, { agentType: 'general', worktreePath: path.join(HOME, 'no-such-folder') })
-    out.absentFolder = await carry.carryRunnerAcrossRestart(basePorts(absentPath, launchMessages))
+    relaunchedIds.length = 0
+    await paths.writeAgentMetadata(agent1, { agentType: 'general', worktreePath: path.join(HOME, 'no-such-folder') })
+    out.absentFolder = await carry.carryRunnerAcrossRestart(basePorts(absentPath, twoAgents.map(m => ({ ...m }))))
+    out.absentFolderTried = [...relaunchedIds]
   `)
   const absentT = r.out.absentTranscript as { requeued: number; stopped: number }
   const unreadT = r.out.unreadableTranscript as { threw: { code: string | null } | null }
-  const unstatF = r.out.unstatableFolder as { threw: { code: string | null } | null; res: unknown }
+  const unstatF = r.out.unstatableFolder as { threw: unknown; res: { relaunched: number; stopped: number } | null; relaunchedIds: string[] }
   const absentF = r.out.absentFolder as { stopped: number; relaunched: number }
+  const absentFTried = r.out.absentFolderTried as string[]
   check('restartCarry: absent transcript still answers zero requeued', absentT.requeued === 0 && absentT.stopped === 0, JSON.stringify(absentT))
   check('restartCarry: unreadable transcript rejects with EACCES', unreadT.threw?.code === 'EACCES', JSON.stringify(unreadT))
-  check('restartCarry: unstatable agent folder rejects with EACCES instead of counting stopped', unstatF.threw?.code === 'EACCES', JSON.stringify(unstatF))
-  check('restartCarry: genuinely absent agent folder still counts stopped', absentF.stopped === 1 && absentF.relaunched === 0, JSON.stringify(absentF))
+  check('restartCarry: unstatable agent folder is tried for relaunch and the next agent is still carried', unstatF.threw === null && unstatF.relaunchedIds.includes('a12345678') && unstatF.relaunchedIds.includes('b87654321') && unstatF.res?.relaunched === 1 && unstatF.res?.stopped === 1, JSON.stringify(unstatF))
+  check('restartCarry: genuinely absent agent folder is skipped and counted stopped while sibling still relaunches', !absentFTried.includes('a12345678') && absentFTried.includes('b87654321') && absentF.stopped === 1 && absentF.relaunched === 1, JSON.stringify({ absentF, absentFTried }))
 }
 
 console.log('\nclaimSession.ts — loadConversationForResume error reports resume failure instead of no conversation found')
