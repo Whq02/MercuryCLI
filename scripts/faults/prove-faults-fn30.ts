@@ -129,7 +129,7 @@ try {
       fsOps.setOriginalFsImplementation()
       errorLogSink.resetErrorLogSinkForTest()
     }
-    check('errorLogSink non-ENOENT stat failure closes path instead of writing', appendCalls === 0, `appendCalls=${appendCalls}`)
+    check('errorLogSink: a stat that fails does not close the error log; the line is written, as before', appendCalls > 0, `appendCalls=${appendCalls}`)
   }
   {
     const fileMod = await import('../../src/utils/file.js')
