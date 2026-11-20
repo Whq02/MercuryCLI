@@ -171,8 +171,8 @@ function defaultListDir(path: string): string[] {
   try {
     return readdirSync(path)
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return []
+    throw error
   }
 }
 function defaultWritable(path: string): boolean {
@@ -489,7 +489,10 @@ async function readLaunchForm(io: Io, kind: LocalServerKind | undefined, serverP
     for (const name of candidates) {
       const path = join(agents, name)
       const text = io.readText(path)
-      if (text === undefined) continue
+      if (text === undefined) {
+        if (/ollama/i.test(name)) throw new Error(`${path} could not be read`)
+        continue
+      }
       const facts = parsePlist(text)
       if (!plistMentionsOllama(facts, text)) continue
       const isHomebrew = name === HOMEBREW_OLLAMA_PLIST
@@ -518,6 +521,9 @@ async function readLaunchForm(io: Io, kind: LocalServerKind | undefined, serverP
   if (io.platform === 'linux') {
     if (SYSTEMD_OLLAMA_UNITS.some(path => io.pathExists(path))) {
       const text = io.readText(SYSTEMD_OLLAMA_OVERRIDE)
+      if (text === undefined && io.pathExists(SYSTEMD_OLLAMA_OVERRIDE)) {
+        throw new Error(`${SYSTEMD_OLLAMA_OVERRIDE} could not be read`)
+      }
       return {
         kind: 'systemd',
         path: SYSTEMD_OLLAMA_OVERRIDE,

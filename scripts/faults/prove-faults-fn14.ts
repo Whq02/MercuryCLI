@@ -275,6 +275,57 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
   }
 }
 
+{
+  const { readLocalMachineTruth, HOMEBREW_OLLAMA_PLIST } = await import('../../src/services/localServer/localServerTruth.ts')
+  const probeEnv = { MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:11434' }
+  const linuxTruth = await readLocalMachineTruth({
+    env: probeEnv,
+    platform: 'linux',
+    pathExists: () => true,
+    readText: () => undefined,
+    run: async () => undefined,
+  }, 'ollama')
+  check(
+    'localServerTruth: unreadable systemd override reports unreadable launch form instead of empty env',
+    linuxTruth.launchForm.kind === 'unknown' && linuxTruth.launchForm.note === 'the launch form could not be read',
+    JSON.stringify(linuxTruth.launchForm),
+  )
+  if (POSIX_MODES) {
+    const home1 = makeTempDir('fn14-truth-dir-')
+    const agents1 = join(home1, 'Library', 'LaunchAgents')
+    mkdirSync(agents1, { recursive: true })
+    chmodSync(agents1, 0o000)
+    try {
+      const t1 = await readLocalMachineTruth({ env: probeEnv, platform: 'darwin', home: home1, run: async () => undefined }, 'ollama')
+      check(
+        'localServerTruth: unreadable LaunchAgents dir reports unreadable launch form instead of absent',
+        t1.launchForm.kind === 'unknown' && t1.launchForm.note === 'the launch form could not be read',
+        JSON.stringify(t1.launchForm),
+      )
+    } finally {
+      chmodSync(agents1, 0o700)
+      rmSync(home1, { recursive: true, force: true })
+    }
+    const home2 = makeTempDir('fn14-truth-plist-')
+    const agents2 = join(home2, 'Library', 'LaunchAgents')
+    mkdirSync(agents2, { recursive: true })
+    const plist = join(agents2, HOMEBREW_OLLAMA_PLIST)
+    writeFileSync(plist, '<plist></plist>', { mode: 0o600 })
+    chmodSync(plist, 0o200)
+    try {
+      const t2 = await readLocalMachineTruth({ env: probeEnv, platform: 'darwin', home: home2, run: async () => undefined }, 'ollama')
+      check(
+        'localServerTruth: unreadable ollama plist reports unreadable launch form instead of absent',
+        t2.launchForm.kind === 'unknown' && t2.launchForm.note === 'the launch form could not be read',
+        JSON.stringify(t2.launchForm),
+      )
+    } finally {
+      chmodSync(plist, 0o600)
+      rmSync(home2, { recursive: true, force: true })
+    }
+  }
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
