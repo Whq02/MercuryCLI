@@ -298,6 +298,59 @@ async function proveStateLifecycle(): Promise<void> {
   })
 }
 
+async function provePauseCarry(): Promise<void> {
+  const bootstrap = await import('../../src/bootstrap/state.js')
+  const pc = await import('../../src/tasks/LocalAgentTask/pauseCarry.js')
+  const { getCommandQueue, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  await withScratchHome(async home => {
+    const project = join(home, 'proj')
+    mkdirSync(project, { recursive: true })
+    bootstrap.setOriginalCwd(project)
+    bootstrap.setProjectRoot(project)
+    bootstrap.setCwdState(project)
+    bootstrap.switchSession('00000000-0000-4000-8000-00000000f024' as never, project)
+
+    const corruptId = 'corrupt01'
+    const corruptPath = pc.agentPauseRecordPath(corruptId)
+    mkdirSync(join(corruptPath, '..'), { recursive: true })
+    writeFileSync(corruptPath, '{corrupt-json', { mode: 0o600 })
+    let parseThrew = false
+    try {
+      await pc.readAgentPauseRecord(corruptId)
+    } catch {
+      parseThrew = true
+    }
+    check('pauseCarry: corrupt pause file throws from readAgentPauseRecord', parseThrew)
+
+    resetCommandQueue()
+    let state = getDefaultAppState()
+    await pc.carryPausedCrewmatesOnResume({
+      getAppState: () => state,
+      setAppState: updater => { state = updater(state) },
+      relaunchContext: async () => ({} as never),
+    })
+    const notices = getCommandQueue().map(c => String(c.value))
+    check('pauseCarry: corrupt pause file surfaces notice during resume carry', notices.some(n => n.includes(corruptId) && n.includes('could not be resumed automatically')), JSON.stringify(notices))
+
+    if (POSIX_MODES) {
+      const lockedId = 'locked01'
+      const lockedPath = pc.agentPauseRecordPath(lockedId)
+      writeFileSync(lockedPath, JSON.stringify({ description: 'x', armedAt: Date.now(), pause: { why: 'usage limit', words: 'wait', resumesAtMs: Date.now() + 60_000 } }), { mode: 0o600 })
+      chmodSync(lockedPath, 0o200)
+      let eaccesCode: string | undefined
+      try {
+        await pc.readAgentPauseRecord(lockedId)
+      } catch (e) {
+        eaccesCode = (e as NodeJS.ErrnoException).code
+      } finally {
+        chmodSync(lockedPath, 0o600)
+      }
+      check('pauseCarry: unreadable pause file throws EACCES', eaccesCode === 'EACCES', String(eaccesCode))
+    }
+  })
+}
+
 async function main(): Promise<void> {
   await proveLaunchMilestones()
   await proveOperationJournal()
@@ -307,6 +360,7 @@ async function main(): Promise<void> {
   await proveSplashHandover()
   await proveStartupMenu()
   await proveStateLifecycle()
+  await provePauseCarry()
   console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
   process.exit(failures === 0 ? 0 : 1)
 }
