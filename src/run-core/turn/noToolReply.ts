@@ -133,6 +133,11 @@ type StopHookGateResult = {
   blockingErrors: Message[]
 }
 
+const EMPTY_STOP_HOOK_RESULT: StopHookGateResult = {
+  preventContinuation: false,
+  blockingErrors: [],
+}
+
 async function* runStopHookGate(
   gen: ReturnType<typeof handleStopHooks>,
   emit: EventMint,
@@ -148,7 +153,7 @@ async function* runStopHookGate(
       yield emit({ kind: 'hook_message', message: r.value })
     }
   } finally {
-    await gen.return(undefined as never)
+    await gen.return(EMPTY_STOP_HOOK_RESULT)
   }
   yield emit({
     kind: 'hook_gate',

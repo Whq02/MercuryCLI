@@ -38,7 +38,7 @@ export function hookBrief(text: string, payloadJson: string): string {
 }
 
 export function hookAnswerJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  const { $schema: _dialect, ...shape } = toJSONSchema(schema as never, { unrepresentable: 'any', target: 'draft-07' }) as Record<string, unknown>
+  const { $schema: _dialect, ...shape } = toJSONSchema(schema, { unrepresentable: 'any', target: 'draft-07' }) as Record<string, unknown>
   return shape
 }
 

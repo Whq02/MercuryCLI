@@ -250,7 +250,7 @@ function removeSwitchHere(id: string): SwitchHome[] {
   const written: SwitchHome[] = []
   for (const source of ['userSettings', 'localSettings'] as const) {
     if (getSettingsForSource(source)?.extensions?.enabled?.[id] === undefined) continue
-    updateSettingsForSource(source, { extensions: { enabled: { [id]: undefined } } } as never)
+    updateSettingsForSource(source, { extensions: { enabled: { [id]: undefined } } })
     written.push(source)
   }
   return written
@@ -263,14 +263,14 @@ function pruneEmptySettings(sources: Iterable<SwitchHome>): void {
       removeSettingsFileIfEmpty(source)
       continue
     }
-    const prune: Record<string, undefined> = {}
-    if (extensions.enabled !== undefined && Object.keys(extensions.enabled).length === 0) prune['enabled'] = undefined
-    if (extensions.options !== undefined && Object.keys(extensions.options).length === 0) prune['options'] = undefined
-    if (extensions.wanted !== undefined && extensions.wanted.length === 0) prune['wanted'] = undefined
-    if (extensions.blocked !== undefined && extensions.blocked.length === 0) prune['blocked'] = undefined
-    if (Object.keys(prune).length > 0) updateSettingsForSource(source, { extensions: prune } as never)
+    const prune: { enabled?: undefined; options?: undefined; wanted?: undefined; blocked?: undefined } = {}
+    if (extensions.enabled !== undefined && Object.keys(extensions.enabled).length === 0) prune.enabled = undefined
+    if (extensions.options !== undefined && Object.keys(extensions.options).length === 0) prune.options = undefined
+    if (extensions.wanted !== undefined && extensions.wanted.length === 0) prune.wanted = undefined
+    if (extensions.blocked !== undefined && extensions.blocked.length === 0) prune.blocked = undefined
+    if (Object.keys(prune).length > 0) updateSettingsForSource(source, { extensions: prune })
     const after = getSettingsForSource(source)?.extensions
-    if (after && Object.keys(after).length === 0) updateSettingsForSource(source, { extensions: undefined } as never)
+    if (after && Object.keys(after).length === 0) updateSettingsForSource(source, { extensions: undefined })
     removeSettingsFileIfEmpty(source)
   }
 }
@@ -438,11 +438,11 @@ export async function update(id: string, options: { progress?: (line: string) =>
   return { ok: true, outcome: 'carried', id, from: record.version, to: entry.version, record: moved }
 }
 
-function changedOnDisk(record: InstalledRecord, sourceRoot: string, entry: { path?: string }): boolean {
+function changedOnDisk(record: InstalledRecord, sourceRoot: string, entry: Parameters<typeof entryDirectory>[1]): boolean {
   if (entry.path === undefined) return false
   const source = sourcesOrEmpty()[record.label]
   if (!source || source.kind !== 'folder') return false
-  const dir = entryDirectory(sourceRoot, entry as never)
+  const dir = entryDirectory(sourceRoot, entry)
   if (dir === null || !existsSync(dir)) return false
   return hashTree(dir) !== record.contentHash
 }

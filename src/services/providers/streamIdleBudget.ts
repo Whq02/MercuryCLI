@@ -526,7 +526,7 @@ export const STREAM_ACTIVITY_OPTION = 'mercuryStreamActivity'
 
 export type StreamActivityNote = () => void
 
-export function streamActivityFetchOptions(note: StreamActivityNote): Record<string, unknown> {
+export function streamActivityFetchOptions(note: StreamActivityNote): { [STREAM_ACTIVITY_OPTION]: StreamActivityNote } {
   return { [STREAM_ACTIVITY_OPTION]: note }
 }
 

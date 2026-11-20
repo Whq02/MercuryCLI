@@ -13,7 +13,7 @@ import { getCwd } from '../../utils/cwd.js'
 
 type Position = { line: number; character: number }
 type Range = { start: Position; end: Position }
-type Location = { uri: string; range: Range }
+export type Location = { uri: string; range: Range }
 type LocationLink = {
   targetUri: string
   targetRange: Range
@@ -21,11 +21,11 @@ type LocationLink = {
 }
 type MarkupContent = { kind?: string; value: string }
 type MarkedString = string | { language: string; value: string }
-type HoverResult = {
+export type HoverResult = {
   contents: MarkupContent | MarkedString | Array<MarkupContent | MarkedString>
   range?: Range
 }
-type DocumentSymbol = {
+export type DocumentSymbol = {
   name: string
   kind: number
   detail?: string
@@ -33,7 +33,7 @@ type DocumentSymbol = {
   selectionRange?: Range
   children?: DocumentSymbol[]
 }
-type SymbolInformation = {
+export type SymbolInformation = {
   name: string
   kind: number
   location?: Location
@@ -47,8 +47,8 @@ type CallHierarchyItem = {
   selectionRange?: Range
   detail?: string
 }
-type IncomingCall = { from?: CallHierarchyItem; fromRanges?: Range[] }
-type OutgoingCall = { to?: CallHierarchyItem; fromRanges?: Range[] }
+export type IncomingCall = { from?: CallHierarchyItem; fromRanges?: Range[] }
+export type OutgoingCall = { to?: CallHierarchyItem; fromRanges?: Range[] }
 
 export type Locationish = Location | LocationLink
 

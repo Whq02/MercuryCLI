@@ -26,7 +26,7 @@ export function ApolloReviewPermissionRequest({
   onReject,
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
-  const input = toolUseConfirm.input as unknown as Input
+  const input = toolUseConfirm.input as Input
 
   usePermissionRequestLogging(toolUseConfirm)
 

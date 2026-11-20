@@ -243,11 +243,11 @@ export class TranscriptPart {
       if (!this.needs.attached()) return
       this.transcriptUnreadableFp = null
       this.chainCursor = chain.cursor
-      const raw = chain.rows as unknown as Message[]
+      const raw = chain.rows
       this.lastSize = sizeNow
       this.lastLen = raw.length
       const since = chain.since <= this.rawRecords.length && chain.since <= this.recordSigs.length ? chain.since : 0
-      const tail = (since === 0 ? raw : (chain.appended as unknown as Message[]))
+      const tail = since === 0 ? raw : chain.appended
       const merge = mergeRecordsContentKeyed(
         this.rawRecords,
         this.recordSigs,

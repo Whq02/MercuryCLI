@@ -317,7 +317,7 @@ async function anonymousDownloadAsset(asset: ChannelAsset, destDir: string): Pro
     if (response.status !== 200 || !response.body) {
       return { state: 'failed', note: `download of ${asset.name} answered HTTP ${response.status}`, remedy: 'the release publication may be incomplete — rerun `mercury update`; if it repeats, report it' }
     }
-    const source = Readable.fromWeb(response.body as unknown as WebReadableStream<Uint8Array>)
+    const source = Readable.fromWeb(response.body as WebReadableStream)
     source.on('data', () => deadline.touch())
     await Promise.race([pipeline(source, createWriteStream(join(destDir, asset.name))), deadline.expiry])
     return { state: 'ok' }

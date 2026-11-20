@@ -47,7 +47,7 @@ export function FallbackPermissionRequest({
 
   usePermissionRequestLogging(toolUseConfirm)
 
-  const rawName = tool.userFacingName(toolUseConfirm.input as never) ?? ''
+  const rawName = tool.userFacingName(toolUseConfirm.input) ?? ''
   const isMcpNamed = rawName.endsWith(MCP_SUFFIX)
   const displayName = isMcpNamed ? rawName.slice(0, -MCP_SUFFIX.length) : rawName
   const runsCode = tool.shellCommandOf !== undefined || RUNS_PROJECT_PROGRAMS.has(tool.name)
@@ -99,7 +99,7 @@ export function FallbackPermissionRequest({
     }
   }
 
-  const useMessage = tool.renderToolUseMessage(toolUseConfirm.input as never, {
+  const useMessage = tool.renderToolUseMessage(toolUseConfirm.input, {
     theme: resolveThemeName(),
     verbose: true,
   })

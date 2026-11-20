@@ -19,15 +19,15 @@ export function applySettingsChange(
   const rules = loadAllPermissionRulesFromDisk()
   refreshHooksSnapshot()
   setAppState(prev => {
-    let toolPermissionContext = syncPermissionRulesFromDisk(prev.toolPermissionContext as never, rules) as never
+    let toolPermissionContext = syncPermissionRulesFromDisk(prev.toolPermissionContext, rules)
     if (
       isSovereignDisabled() &&
-      (toolPermissionContext as { mode?: string }).mode !== undefined
+      toolPermissionContext.mode !== undefined
     ) {
-      toolPermissionContext = createSovereignDisabledContext(toolPermissionContext as never) as never
+      toolPermissionContext = createSovereignDisabledContext(toolPermissionContext)
     }
-    if ((toolPermissionContext as { mode?: string }).mode === 'flow') {
-      toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext as never) as never
+    if (toolPermissionContext.mode === 'flow') {
+      toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext)
     }
 
     const previousEffort = prev.settings?.engine?.effort
@@ -37,8 +37,8 @@ export function applySettingsChange(
     return {
       ...prev,
       toolPermissionContext,
-      settings: settings as never,
-      ...(effortChanged ? { effortValue: nextEffort as never } : {}),
+      settings,
+      ...(effortChanged ? { effortValue: nextEffort } : {}),
     }
   })
 }
