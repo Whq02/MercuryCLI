@@ -19,11 +19,11 @@ const PUPIL_HEX = norm(cellColor(CRITTERS[0]!, 'K'))
 type GridCell = { c: string; fg: string; bg: string }
 type Grid = { grid: GridCell[][] }
 
-function capture(tag: string, sends: Array<{ atTick: number; data: string }>, total = 55): Grid {
+function capture(tag: string, sends: unknown[], settle: number): Grid {
   const cfg = scenario('resume-2turn', 120, 44)
   const out = `/tmp/gaze-live-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/gaze-live-${tag}-cfg-${process.pid}.json`
-  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, sends, total, cols: 120, rows: 44, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, sends, total: 150, cols: 120, rows: 44, out, readyText: '│❯', readySettleTicks: settle }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '..', 'ui', 'vshot.py'), cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(120_000),
@@ -68,9 +68,9 @@ function eyeClusters(g: Grid): Array<{ cols: number[]; pupilCol: number }> {
   return clusters
 }
 
-function captureWithRetry(tag: string, sends: Array<{ atTick: number; data: string }>, total = 55): { g: Grid; eyes: Array<{ cols: number[]; pupilCol: number }> } {
+function captureWithRetry(tag: string, sends: unknown[], settle: number): { g: Grid; eyes: Array<{ cols: number[]; pupilCol: number }> } {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const g = capture(`${tag}-${attempt}`, sends, total)
+    const g = capture(`${tag}-${attempt}`, sends, settle)
     const eyes = eyeClusters(g)
     if (eyes.length >= 2) return { g, eyes }
     console.log(`  (retry ${tag}: eye cells not found — likely a blink-lid frame)`)
@@ -83,7 +83,7 @@ console.log(' critter gaze — live binary, synthetic SGR motion')
 console.log('============================================================')
 
 try {
-  const neutral = captureWithRetry('neutral', [])
+  const neutral = captureWithRetry('neutral', [], 15)
   t('neutral: ≥2 eye clusters found', neutral.eyes.length >= 2, `${neutral.eyes.length}`)
   const neutralCentered = neutral.eyes.every(
     e => e.pupilCol !== e.cols[0] && e.pupilCol !== e.cols[e.cols.length - 1],
@@ -92,10 +92,10 @@ try {
     neutral.eyes.map(e => `${e.pupilCol}∈[${e.cols[0]}..${e.cols[e.cols.length - 1]}]`).join(' '))
 
   const moved = captureWithRetry('left', [
-    { atTick: 34, data: '\x1b[<35;40;20M' },
-    { atTick: 36, data: '\x1b[<35;15;8M' },
-    { atTick: 38, data: '\x1b[<35;3;4M' },
-  ], 42)
+    { requireAwait: true, awaitText: '│❯', minTick: 5, awaitSettleTicks: 10, data: '\x1b[<35;40;20M' },
+    { afterPrevTicks: 2, data: '\x1b[<35;15;8M' },
+    { afterPrevTicks: 2, data: '\x1b[<35;3;4M' },
+  ], 10)
   t('left-gaze: ≥2 eye clusters found', moved.eyes.length >= 2, `${moved.eyes.length}`)
   const allLeft = moved.eyes.every(e => e.pupilCol === e.cols[0])
   t('left-gaze: every pupil at its cluster LEFT cell (tracked the pointer)', allLeft,

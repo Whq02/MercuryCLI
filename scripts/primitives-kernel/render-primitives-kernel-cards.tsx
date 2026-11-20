@@ -75,7 +75,7 @@ if (process.env.AXIOM_CARDS_CHILD) {
       JSON.stringify({
         argv: [process.execPath, 'run', SELF],
         sends: [],
-        total: 15,
+        total: 100,
         cols,
         rows: 45,
         out: `/tmp/axiom-cards-${cols}.json`,

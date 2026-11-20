@@ -86,7 +86,7 @@ if (process.env.VANGUARD_CARDS_CHILD) {
       JSON.stringify({
         argv: [process.execPath, 'run', SELF],
         sends: [],
-        total: 15,
+        total: 100,
         cols,
         rows: 30,
         out: `/tmp/vg-cards-${cols}.json`,

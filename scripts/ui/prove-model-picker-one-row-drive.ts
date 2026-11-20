@@ -95,6 +95,9 @@ seedFirstRun(home, [CWD])
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
 if (driver.kind !== 'posix-pty') throw new Error(`no POSIX pty capture driver on this host (${driver.kind})`)
 const CTRL_W = '\x17'
+const PICKER = 'Mercury · model'
+const focusRow = (window: string): string => `│ │ Opus 4\\.6 {2,}[^\\n│]*\\b${window} ctx`
+const GROUP_TOP = '\\A(?![\\s\\S]*│ │ Opus 4\\.6 )(?=[\\s\\S]*│ ❯ [A-Z.]+ · )'
 const sends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, data: '\r' },
   { atTick: 999, requireAwait: true, awaitText: 'ready · ', minTick: 5, awaitSettleTicks: 3, data: '/model' },
@@ -103,14 +106,14 @@ const sends: Send[] = [
   { afterPrevTicks: 2, data: DOWN },
   { afterPrevTicks: 2, data: DOWN },
   { afterPrevTicks: 2, data: DOWN },
-  { afterPrevTicks: 5, mark: 'focus', data: CTRL_W },
-  { afterPrevTicks: 6, mark: 'toggled', data: CTRL_W },
-  { afterPrevTicks: 6, mark: 'toggled-back', data: HOME },
-  { afterPrevTicks: 6, mark: 'group-top', data: ESC },
+  { requireAwait: true, awaitText: PICKER, awaitPattern: focusRow('1M'), awaitSettleTicks: 2, mark: 'focus', data: CTRL_W },
+  { requireAwait: true, awaitText: PICKER, awaitPattern: focusRow('200k'), awaitSettleTicks: 2, mark: 'toggled', data: CTRL_W },
+  { requireAwait: true, awaitText: PICKER, awaitPattern: focusRow('1M'), awaitSettleTicks: 2, mark: 'toggled-back', data: HOME },
+  { requireAwait: true, awaitText: PICKER, awaitPattern: GROUP_TOP, awaitSettleTicks: 2, mark: 'group-top', data: ESC },
 ]
 const out = join(ROOT, 'picker.json')
 const cfgPath = join(ROOT, 'picker.cfg.json')
-writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols: COLS, rows: ROWS, total: 400, sends, out, title: 'one row per model @120x40' }))
+writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols: COLS, rows: ROWS, total: 400, readyText: 'ready · ', stableTicks: 3, sends, out, title: 'one row per model @120x40' }))
 
 console.log('============================================================')
 console.log(' /model lists one row per model; c chooses the window on the row')

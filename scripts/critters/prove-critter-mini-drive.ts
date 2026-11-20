@@ -67,9 +67,9 @@ function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : und
   return { configHome, cwd }
 }
 
-const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' }
+const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 10, awaitSettleTicks: 6, data: '\r' }
 const WAY_BACK = keyHintLabel('⇧← back')
-const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', targetText: WAY_BACK, awaitSettleTicks: 6, data, mark })
+const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', awaitPattern: '(?:^|\\n) ?ready ·', targetText: WAY_BACK, awaitSettleTicks: 6, data, mark })
 
 type Resize = { atTick?: number; afterMark?: string; afterMs?: number; cols: number; rows: number }
 async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = [], live = false, envPatch: Record<string, string> = {}): Promise<Capture> {
@@ -250,7 +250,7 @@ try {
   const mid = homeFor('mid')
   const c = await capture('mid', mid, 120, 40, [onReady('', 'boot')], '← back')
   const midBoot = c.marks['boot']!
-  const trip = await capture('trip', homeFor('trip'), 178, 51, [onReady('', 'wide')], '← back', [{ atTick: 70, cols: 80, rows: 21 }, { atTick: 85, cols: 178, rows: 51 }])
+  const trip = await capture('trip', homeFor('trip'), 178, 51, [onReady('', 'wide')], '← back', [{ afterMark: 'wide', afterMs: 400, cols: 80, rows: 21 }, { afterMark: 'wide', afterMs: 4400, cols: 178, rows: 51 }])
   const tripWide = trip.marks['wide']!
   const tripNarrow = trip.marks['stage1:80x21']!
   const tripBack = trip.grid

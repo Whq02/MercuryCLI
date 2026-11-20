@@ -145,7 +145,7 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
         JSON.stringify({
           argv: [process.execPath, 'run', SELF],
           sends: [],
-          total: 14,
+          total: 150,
           cols: 40,
           rows: 4,
           out,

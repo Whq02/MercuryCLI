@@ -141,7 +141,7 @@ async function healthJson(): Promise<{ text: string; status: number | null }> {
 
 type Frame = { label: string; lines: string[] }
 const gridLines = (grid: { c: string }[][]): string[] => grid.map(r => r.map(c => c.c || ' ').join(''))
-async function capture(name: string, cols: number, rows: number, sends: Array<Record<string, unknown>>, total: number): Promise<Frame[]> {
+async function capture(name: string, cols: number, rows: number, sends: Array<Record<string, unknown>>, total: number, readyText: string): Promise<Frame[]> {
   const driver = resolveCaptureDriver()
   if (driver.kind !== 'posix-pty') {
     console.log(`  [SKIP] capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -149,7 +149,7 @@ async function capture(name: string, cols: number, rows: number, sends: Array<Re
   }
   scenarios.writeSyntheticSession('short')
   const out = join(SCRATCH, `${name}.json`)
-  const vcfg = { argv: ['node', BIN, '--resume', scenarios.SID], cwd: CWD, cols, rows, sends, total, out }
+  const vcfg = { argv: ['node', BIN, '--resume', scenarios.SID], cwd: CWD, cols, rows, sends, readyText, stableTicks: 4, total, out }
   const vcfgPath = join(SCRATCH, `${name}-cfg.json`)
   writeFileSync(vcfgPath, JSON.stringify(vcfg))
   const res = await runChild(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), vcfgPath], { timeoutMs: vshotBudgetMs(300_000) })
@@ -201,7 +201,7 @@ try {
     const size = `${cols}x${termRows}`
     hits.length = 0
     const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
-    const walk = rowIndex === 0 ? [] : [{ afterPrevTicks: 45, data: '\x1b[B' }, ...downs.slice(1)]
+    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, awaitText: '↑↓ move · ↵ unfold', awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
     const readyNeedle = cols >= 100 && termRows >= 26 ? '← back' : '1 session on'
     const readOn = termRows < 26
       ? Array.from({ length: 4 }, (_, i) => (i === 0
@@ -211,13 +211,13 @@ try {
     const frames = await capture(`row-${size}`, cols, termRows, [
       { atTick: 999, awaitText: readyNeedle, requireAwait: true, minTick: 5, awaitSettleTicks: 4, data: '/model' },
       { afterPrevTicks: 6, data: '\r' },
-      { afterPrevTicks: 30, data: ESC },
-      { afterPrevTicks: 12, data: '/health' },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 30, data: ESC },
+      { requireAwait: true, awaitText: readyNeedle, awaitPattern: '\\A(?![\\s\\S]*Mercury · model)', awaitSettleTicks: 3, data: '/health' },
       { afterPrevTicks: 6, data: '\r' },
       ...walk,
-      { afterPrevTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: 'Model lists', awaitPattern: '▸ ▲ Model lists', awaitSettleTicks: 3, data: '\r' },
       ...readOn,
-    ], 190 + rowIndex + readOn.length * 3)
+    ], 190 + rowIndex + readOn.length * 3, readOn.length > 0 ? `· ${rowIndex + 1}/` : 'OpenAI not served')
     const flat = (lines: string[]): string => lines.map(line => line.replace(/^[│\s]+|[│\s]+$/g, '')).join(' ').replace(/\s+/g, ' ')
     const opened = frames[0]?.lines ?? []
     check(`${size}: the picker read the fixture's list once`, hits.filter(h => h.endsWith('/openai/chatgpt/models')).length >= 1, hits.join(', '))

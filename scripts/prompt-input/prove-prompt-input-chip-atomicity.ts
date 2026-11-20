@@ -28,7 +28,7 @@ function capture(tag: string, sends: unknown[], total: number): string {
   writeSyntheticSession('short', SID)
   const out = join(home, `${tag}.json`)
   const cfgPath = join(home, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total, cols: 120, rows: 40, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total, stableTicks: 4, cols: 120, rows: 40, out }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(200_000),
@@ -44,27 +44,28 @@ const LEFT = `${ESC}[D`
 const RIGHT = `${ESC}[C`
 const BKSP = '\u007f'
 
+const CHIP = '[Pasted text #1 +5 lines]'
 const prefix = [
-  { atTick: 40, data: 'hi ', minTick: 30 },
-  { atTick: 44, data: PASTE, afterPrevTicks: 3 },
+  { requireAwait: true, awaitText: '│❯', minTick: 5, awaitStableTicks: 5, data: 'hi ' },
+  { requireAwait: true, awaitText: '│❯', awaitPattern: '│❯\\s*hi\\b', data: PASTE },
+  { requireAwait: true, awaitText: CHIP, data: LEFT },
+  { afterPrevTicks: 2, data: 'X' },
 ]
 
 try {
   const a = capture('a', [
     ...prefix,
-    { atTick: 50, data: LEFT, afterPrevTicks: 4 },
-    { atTick: 53, data: 'X', afterPrevTicks: 2 },
-  ], 68)
+    { requireAwait: true, awaitText: `hi X${CHIP}`, data: '' },
+  ], 200)
   t('← hops to chip start: typed X lands BEFORE the intact chip',
     /hi X\[Pasted text #1 \+5 lines\]/.test(a), `composer="${a.trim().slice(0, 70)}"`)
 
   const b = capture('b', [
     ...prefix,
-    { atTick: 50, data: LEFT, afterPrevTicks: 4 },
-    { atTick: 53, data: 'X', afterPrevTicks: 2 },
-    { atTick: 56, data: RIGHT, afterPrevTicks: 2 },
-    { atTick: 59, data: BKSP, afterPrevTicks: 2 },
-  ], 76)
+    { requireAwait: true, awaitText: `hi X${CHIP}`, data: RIGHT },
+    { afterPrevTicks: 2, data: BKSP },
+    { requireAwait: true, awaitText: 'hi X', awaitPattern: '\\A(?![\\s\\S]*Pasted)', data: '' },
+  ], 200)
   t('→ hops the chip; ⌫ at chip end deletes the WHOLE chip',
     b.includes('hi X') && !b.includes('[Pasted'),
     `composer="${b.trim().slice(0, 70)}"`)

@@ -35,6 +35,7 @@ interface Send {
   afterPrevTicks?: number
   data: string
   awaitText?: string
+  awaitPattern?: string
   minTick?: number
   awaitSettleTicks?: number
   awaitStableTicks?: number
@@ -98,16 +99,16 @@ writeFileSync(fixturePath, JSON.stringify(fixture))
 const sends: Send[] = [
   { data: 'm', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2, mark: 'live-legend' },
   { data: ESC, awaitText: 'Mercury · model', requireAwait: true, awaitSettleTicks: 3, mark: 'model-picker' },
-  { data: 'e', afterPrevTicks: 2 },
+  { data: 'e', awaitText: 'i interrupt', awaitPattern: '\\A(?![\\s\\S]*Mercury · model)', requireAwait: true, awaitSettleTicks: 2 },
   { data: ESC, awaitText: 'EFFORT —', requireAwait: true, awaitSettleTicks: 3, mark: 'effort-picker' },
-  { data: DOWN + DOWN + DOWN + DOWN + DOWN, afterPrevTicks: 2 },
-  { data: '\t\t\t', afterPrevTicks: 2, mark: 'parked-legend' },
+  { data: DOWN + DOWN + DOWN + DOWN + DOWN, awaitText: 'i interrupt', awaitPattern: '\\A(?![\\s\\S]*EFFORT —)', requireAwait: true, awaitSettleTicks: 2 },
+  { data: '\t\t\t', awaitText: 'parked · ↵ brings it back', requireAwait: true, awaitSettleTicks: 2, mark: 'parked-legend' },
   { data: '\r', afterPrevTicks: 2 },
   { data: 'q', afterPrevTicks: 4, mark: 'cut-no-yn' },
 ]
 const out = join(OUT_DIR, 'board-controls-120x40.json')
 const cfgPath = join(scratch, 'vshot-cfg.json')
-writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 80, cols: 120, rows: 40, out }))
+writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 300, readyText: 'SESSIONS', cols: 120, rows: 40, out }))
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf8',
   timeout: vshotBudgetMs(240_000),

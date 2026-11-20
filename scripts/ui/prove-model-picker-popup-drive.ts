@@ -190,8 +190,8 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
     { afterPrevTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: TITLE, awaitStableTicks: 3, mark: 'session-picker', data: '' },
     ...downs,
-    { afterPrevTicks: 3, awaitText: '↑ ', awaitStableTicks: 3, mark: 'scrolled', data: ESC },
-    { afterPrevTicks: 5, data: '', mark: 'closed' },
+    { requireAwait: true, awaitText: '↑ ', awaitPattern: '↑ \\d+ more', awaitStableTicks: 3, mark: 'scrolled', data: ESC },
+    { requireAwait: true, awaitText: COMPOSER, awaitPattern: `\\A(?![\\s\\S]*${TITLE})`, awaitSettleTicks: 2, data: '', mark: 'closed' },
   ]
   const c = capture('popup', home, sends, { total: 420, ready: [COMPOSER] })
   check('the drive delivered every send (exit 0)', c.status === 0 && c.receipts === sends.length, `exit ${c.status} · ${c.receipts}/${sends.length} sends`)
