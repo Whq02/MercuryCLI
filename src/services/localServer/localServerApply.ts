@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { FIT_REMEDY, LOCAL_SERVER_KNOBS, chosenKnobs, fitVerdict, memoryFactsOf, settingsAsEnv, type FitVerdict, type LocalServerSettings } from './localServerKnobs.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
@@ -257,7 +257,9 @@ export function planLocalServerApply(truth: LocalServerTruth, settings: LocalSer
       return { kind: 'restart', form: form.kind, path, changes: runningChanges, restart, note: `${path} already carries the values; the running server does not — a restart applies them` }
     }
     if (form.writable === false) return { kind: 'by-hand', form: form.kind, changes: fileChanges, lines: byHandLines('systemd', desired), note: `${path} needs root; run these by hand` }
-    const before = io.readText(path) ?? ''
+    const read = io.readText(path)
+    if (read === undefined && io.pathExists(path)) return { kind: 'by-hand', form: form.kind, changes: fileChanges, lines: byHandLines('systemd', desired), note: `${path} needs root; run these by hand` }
+    const before = read ?? ''
     const rewrite = rewriteSystemdOverride(before, desired)
     return { kind: 'write', form: form.kind, path, backupPath: backupPathFor(path, io.pathExists), before, after: rewrite.text, changes: fileChanges, lines: rewrite.lines, restart, note: 'the loaded models unload on the restart' }
   }
@@ -266,6 +268,7 @@ export function planLocalServerApply(truth: LocalServerTruth, settings: LocalSer
 
 export interface LocalServerApplyIo {
   readText?: (path: string) => string | undefined
+  pathExists?: (path: string) => boolean
   writeText?: (path: string, text: string) => void
   copyFile?: (from: string, to: string) => void
   run?: (file: string, args: string[]) => Promise<string | undefined>
@@ -339,6 +342,7 @@ export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmat
   if (plan.kind === 'by-hand') return { outcome: 'refused', reason: `Mercury cannot write this launch form: ${plan.note}` }
   const io = {
     readText: seam.readText ?? defaultReadText,
+    pathExists: seam.pathExists ?? ((path: string) => existsSync(path)),
     writeText: seam.writeText ?? defaultWriteText,
     copyFile: seam.copyFile ?? ((from: string, to: string) => copyFileSync(from, to)),
     run: seam.run ?? resolveLocalServerIo({}).run,
@@ -351,7 +355,7 @@ export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmat
   let backupPath: string | undefined
   if (plan.kind === 'write') {
     const onDisk = io.readText(plan.path)
-    if (onDisk !== plan.before && !(onDisk === undefined && plan.before === '')) return { outcome: 'stale', reason: `${plan.path} changed since the plan was made; review it again` }
+    if (onDisk !== plan.before && !(onDisk === undefined && plan.before === '' && !io.pathExists(plan.path))) return { outcome: 'stale', reason: `${plan.path} changed since the plan was made; review it again` }
     try {
       if (onDisk !== undefined) {
         io.copyFile(plan.path, plan.backupPath)

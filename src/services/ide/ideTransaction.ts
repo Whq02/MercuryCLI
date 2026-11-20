@@ -8,7 +8,6 @@ import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { workspaceVerifiable } from '../../utils/verification/verificationState.js'
 import { findPythonProjectRoot } from './pythonProject.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 export function ideLoopEnabled(): boolean {
   return flagEnabled('MERCURY_IDE_LOOP')
@@ -161,74 +160,72 @@ function decodeRecord(raw: unknown): TxRecord | null {
 }
 
 function readRecordFile(dir: string, file: string, root: string): TxRecord | null {
+  const filePath = path.join(dir, file)
+  let raw: string
   try {
-    const record = decodeRecord(JSON.parse(readFileSync(path.join(dir, file), 'utf8')))
-    if (record !== null && record.projectRoot === '') record.projectRoot = root
-    return record
+    raw = readFileSync(filePath, 'utf8')
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return null
+    throw error
   }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (error) {
+    throw new Error(`corrupt transaction record ${filePath}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
+  }
+  const record = decodeRecord(parsed)
+  if (record === null) {
+    throw new Error(`corrupt transaction record ${filePath}: invalid schema`)
+  }
+  if (record.projectRoot === '') record.projectRoot = root
+  return record
 }
 
 
 export function getTransaction(id: string, from?: string): TxRecord | null {
   if (!isRecordId(id)) return null
-  try {
-    const root = resolveRoot(from)
-    return readRecordFile(storeDir(root), `${id}.json`, root)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  const root = resolveRoot(from)
+  return readRecordFile(storeDir(root), `${id}.json`, root)
 }
 
 export function latestTransaction(from?: string): TxRecord | null {
-  try {
-    const root = resolveRoot(from)
-    return readRecordFile(storeDir(root), POINTER_FILE, root)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  const root = resolveRoot(from)
+  return readRecordFile(storeDir(root), POINTER_FILE, root)
 }
 
 export function listTransactions(from?: string): TxListRow[] {
+  const root = resolveRoot(from)
+  const dir = storeDir(root)
+  let files: string[]
   try {
-    const root = resolveRoot(from)
-    const dir = storeDir(root)
-    const rows: TxListRow[] = []
-    for (const file of readdirSync(dir)) {
-      if (!file.endsWith('.json') || file === POINTER_FILE) continue
-      if (!isRecordId(file.slice(0, -'.json'.length))) continue
-      const record = readRecordFile(dir, file, root)
-      if (record === null) continue
-      rows.push({
-        id: record.id,
-        intent: record.intent.slice(0, INTENT_ROW_MAX),
-        verdict: record.verdict,
-        openedAt: record.openedAt,
-      })
-    }
-    rows.sort((a, b) => b.openedAt - a.openedAt)
-    return rows.slice(0, LIST_MAX)
+    files = readdirSync(dir)
   } catch (error) {
-    passedOver(error)
-    return []
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return []
+    throw error
   }
+  const rows: TxListRow[] = []
+  for (const file of files) {
+    if (!file.endsWith('.json') || file === POINTER_FILE) continue
+    if (!isRecordId(file.slice(0, -'.json'.length))) continue
+    const record = readRecordFile(dir, file, root)
+    if (record === null) continue
+    rows.push({
+      id: record.id,
+      intent: record.intent.slice(0, INTENT_ROW_MAX),
+      verdict: record.verdict,
+      openedAt: record.openedAt,
+    })
+  }
+  rows.sort((a, b) => b.openedAt - a.openedAt)
+  return rows.slice(0, LIST_MAX)
 }
 
 
 const openIndex = new Map<string, string | null>()
 
 export function openTransactionIdFor(from?: string): string | null {
-  let root: string
-  try {
-    root = resolveRoot(from)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
+  const root = resolveRoot(from)
   const seeded = openIndex.get(root)
   if (seeded !== undefined) return seeded
   const latest = latestTransaction(root)
