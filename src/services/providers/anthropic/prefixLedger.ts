@@ -325,12 +325,7 @@ export function recordedBuildFor(owner: string): { recorded: boolean; build: str
 }
 
 function ownsSessionRecord(owner: string): boolean {
-  try {
-    return owner === String(processMainOwner())
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return owner === String(processMainOwner())
 }
 
 interface PendingRecordWrite {
