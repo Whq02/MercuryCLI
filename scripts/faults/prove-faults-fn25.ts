@@ -440,6 +440,25 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
   )
 }
 
+{
+  const { operatorIsTyping } = await import('../../src/tools/ComputerTool/operatorPause.ts')
+  const throwingDriver = {
+    keyboardIdleMs: async () => {
+      throw new Error('idle read failed')
+    },
+  }
+  const quietDriver = {
+    keyboardIdleMs: async () => 60_000,
+  }
+  const onThrow = await operatorIsTyping(throwingDriver as never)
+  const onQuiet = await operatorIsTyping(quietDriver as never)
+  check(
+    'ComputerTool/operatorPause: keyboardIdleMs throw holds (answers true) instead of failing open',
+    onThrow === true && onQuiet === false,
+    `onThrow=${String(onThrow)} onQuiet=${String(onQuiet)}`,
+  )
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

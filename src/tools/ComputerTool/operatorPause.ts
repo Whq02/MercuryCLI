@@ -8,7 +8,7 @@ export const OPERATOR_TYPING_REFUSAL = 'the operator is typing — nothing done;
 
 export async function operatorIsTyping(driver: DesktopDriver): Promise<boolean> {
   let idle: number | null = null
-  try { idle = await driver.keyboardIdleMs?.() ?? null } catch { idle = null }
+  try { idle = await driver.keyboardIdleMs?.() ?? null } catch { return true }
   return isTypingActive() || (idle !== null && Number.isFinite(idle) && idle >= 0 && idle < OPERATOR_QUIET_MS)
 }
 
