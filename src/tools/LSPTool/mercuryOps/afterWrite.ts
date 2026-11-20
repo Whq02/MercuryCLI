@@ -6,6 +6,7 @@ import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { SERVER_SYNC_DEADLINE_MS, STABILIZE_DEADLINE_MS, STABILIZE_QUIET_WINDOW_MS, countBySeverity } from './shared.js'
 import { pullFileDiagnostics, unavailableWords } from './pull.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export async function syncServersAfterWrite(
@@ -18,24 +19,19 @@ export async function syncServersAfterWrite(
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   snapshotDiagnosticsBeforeWrite(absolutePath, before, newText, manager.getDocumentVersion(absolutePath), owner)
   clearDeliveredDiagnosticsForFile(absolutePath)
-  let timer: NodeJS.Timeout | undefined
   try {
-    await Promise.race([
+    await withDeadline(
       manager.changeAndSaveFile(absolutePath, newText),
-      new Promise<never>((_, reject) => {
-        timer = startTimeout(
-          () => reject(new Error(`server sync timed out after ${deadlineMs}ms`)),
-          deadlineMs,
-        )
-      }),
-    ])
+      deadlineMs,
+      () => {
+        throw new Error(`server sync timed out after ${deadlineMs}ms`)
+      },
+    )
     return { ok: true }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     logForDebugging(`lsp ops: post-write server sync failed for ${absolutePath}: ${reason}`)
     return { ok: false, reason }
-  } finally {
-    if (timer !== undefined) stopTimeout(timer)
   }
 }
 
@@ -62,14 +58,12 @@ export async function awaitDiagnosticStabilization(
   const capabilities = server.capabilities as ServerCapabilities | undefined
 
   if (capabilities?.diagnosticProvider) {
-    let timer: NodeJS.Timeout | undefined
     try {
-      const outcome = await Promise.race([
+      const outcome = await withDeadline(
         pullFileDiagnostics(manager, absolutePath),
-        new Promise<'timeout'>(resolveRace => {
-          timer = startTimeout(() => resolveRace('timeout'), deadlineMs)
-        }),
-      ])
+        deadlineMs,
+        () => 'timeout' as const,
+      )
       if (outcome === 'timeout') return { state: 'timed-out', waitedMs: deadlineMs }
       if (outcome.kind === 'unsupported' || outcome.kind === 'no-claimant') return { state: 'unsupported' }
       if (outcome.kind === 'protocol-violation') return { state: 'failed', reason: outcome.detail }
@@ -83,8 +77,6 @@ export async function awaitDiagnosticStabilization(
       }
     } catch (error) {
       return { state: 'failed', reason: error instanceof Error ? error.message : String(error) }
-    } finally {
-      if (timer !== undefined) stopTimeout(timer)
     }
   }
 
