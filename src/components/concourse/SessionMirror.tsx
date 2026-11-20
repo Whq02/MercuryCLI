@@ -257,6 +257,7 @@ export function SessionMirror({
   const hintVisible = onEnter !== undefined
   const effectiveNote = mirrorStatusNote(note, transcriptError, receiptsError)
   const noteView = effectiveNote !== undefined ? controlNoteOf(effectiveNote) : undefined
+  const noteText =
     noteView === undefined
       ? null
       : noteView.state === 'refused' || noteView.state === 'failed'
