@@ -57,6 +57,8 @@ drive_members() {
   local failed=0 name rest f only="${MERCURY_SUITE_MEMBER:-}"
   local -a names=() files=() rests=()
   while read -r name rest; do
+    name="${name%$'\r'}"
+    rest="${rest%$'\r'}"
     case "$name" in (''|'#'*) continue ;; esac
     [ -n "$only" ] && [ "$name" != "$only" ] && continue
     case "${name%%/*}" in (scripts) f="$name" ;; (*) f="${template//\$name/$name}" ;; esac
