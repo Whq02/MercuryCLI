@@ -6,6 +6,7 @@ import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { errorMessage } from '../../utils/errors.js'
 import { foldAnswers } from '../../utils/hooks/answer.js'
 import { fireHooks, prepareHooks, type HookFireResult, type PreparedHooks } from '../../utils/hooks/fire.js'
+import { hooksSettingsUnreadErrors } from '../../utils/hooks/hooksConfigSnapshot.js'
 import { hooksFor } from '../../utils/hooks/matching.js'
 import type { HookScope } from '../../utils/hooks/sessionHooks.js'
 import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
@@ -25,6 +26,22 @@ function hookScopeOf(toolUseContext: ToolUseContext): HookScope {
 
 export type HookAnnounce = (prepared: PreparedHooks) => void
 
+const notifiedUnreadHookSettings = new Set<string>()
+
+function notifyUnreadHookSettings(scope: HookScope, toolUseContext: ToolUseContext): void {
+  for (const item of hooksSettingsUnreadErrors(scope.cwd)) {
+    const key = `${scope.sessionId}\0${item.path}`
+    if (notifiedUnreadHookSettings.has(key)) continue
+    notifiedUnreadHookSettings.add(key)
+    toolUseContext.addNotification?.({
+      key: `hook-settings-unread:${item.path}`,
+      text: `hook settings at ${item.path} could not be read (${item.error}), so no hook runs — fix the file to bring them back`,
+      color: 'warning',
+      priority: 'high',
+    })
+  }
+}
+
 export async function beforeToolHooks(tool: Tool, toolUseID: string, input: AnyObject, toolUseContext: ToolUseContext, signal: AbortSignal, announce?: HookAnnounce): Promise<HookFireResult> {
   const scope = hookScopeOf(toolUseContext)
   try {
@@ -33,6 +50,7 @@ export async function beforeToolHooks(tool: Tool, toolUseID: string, input: AnyO
     const block = `the hooks could not be read, so the ${tool.name} call is refused: ${errorMessage(error)}`
     return { event: 'tool.before', answer: { ...foldAnswers('tool.before', []), block }, outcomes: [] }
   }
+  notifyUnreadHookSettings(scope, toolUseContext)
   const prepared = await prepareHooks('tool.before', { tool: tool.name, input, call_id: toolUseID }, { scope, signal, toolUseContext })
   if (prepared.names.length > 0) announce?.(prepared)
   return prepared.run()

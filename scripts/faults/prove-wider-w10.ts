@@ -405,5 +405,52 @@ console.log('\n§9 w10-9 — getSettingsWithAllErrors passes over ConfigAccessBe
   )
 }
 
+console.log('\n§10 w10-10 — unreadable hook settings file goes on without refusing and notifies once a session')
+{
+  const r = runScenario(`
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { resetSettingsCache } = await import(SRC + '/utils/settings/settingsCache.ts')
+    const { resetHooksSnapshot } = await import(SRC + '/utils/hooks/hooksConfigSnapshot.ts')
+    const { beforeToolHooks } = await import(SRC + '/services/tools/toolHooks.ts')
+
+    const notifs = []
+    const ctx = {
+      getAppState: () => ({ sessionHooks: new Map(), toolPermissionContext: { mode: 'implement' } }),
+      addNotification: (n) => { notifs.push(n) },
+    }
+    const fakeTool = { name: 'Bash' }
+    const ac = new AbortController()
+
+    resetSettingsCache()
+    resetHooksSnapshot()
+    const absentRes = await beforeToolHooks(fakeTool, 'id-0', {}, ctx, ac.signal)
+    out.absentBlocked = absentRes.answer.block ?? null
+    out.absentNotifs = notifs.length
+
+    const settingsFile = join(HOME, 'settings.json')
+    mkdirSync(settingsFile, { recursive: true })
+    resetSettingsCache()
+    resetHooksSnapshot()
+    const res1 = await beforeToolHooks(fakeTool, 'id-1', {}, ctx, ac.signal)
+    const res2 = await beforeToolHooks(fakeTool, 'id-2', {}, ctx, ac.signal)
+    out.settingsFile = settingsFile
+    out.blocked1 = res1.answer.block ?? null
+    out.blocked2 = res2.answer.block ?? null
+    out.notifs = notifs
+  `)
+  const settingsFile = String(r.settingsFile ?? '')
+  const notifs = Array.isArray(r.notifs) ? (r.notifs as Array<{ text?: string }>) : []
+  const prefix = `hook settings at ${settingsFile} could not be read (`
+  const suffix = '), so no hook runs — fix the file to bring them back'
+  check('w10-10: absent settings emits no notice and does not refuse', r.absentBlocked === null && r.absentNotifs === 0, JSON.stringify(r))
+  check('w10-10: unreadable settings does not refuse tool calls', r.blocked1 === null && r.blocked2 === null, JSON.stringify({ b1: r.blocked1, b2: r.blocked2 }))
+  check(
+    'w10-10: unreadable settings notifies once per session with exact sentence',
+    notifs.length === 1 && typeof notifs[0]?.text === 'string' && notifs[0].text.startsWith(prefix) && notifs[0].text.endsWith(suffix),
+    JSON.stringify(notifs),
+  )
+}
+
 console.log(failures === 0 ? '\nprove-wider-w10: all green' : `\nprove-wider-w10: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
