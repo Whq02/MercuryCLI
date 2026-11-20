@@ -27,8 +27,8 @@ import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { needsYouJump } from './mercury-ui/needsYouJump.js'
 import { useIdleMotion } from '../hooks/useIdleMotion.js'
 import { governorTrip, motionPosture } from '../utils/cockpit/motionGovernor.js'
-import '../services/crew/obligationsBridge.js'
-import '../services/workbench/attentionBridge.js'
+import { registerObligationsAttentionGatherer } from '../services/crew/obligationsBridge.js'
+import { registerWorkbenchAttentionGatherer } from '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChromeContext.js'
@@ -69,6 +69,8 @@ import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { ctxChip, healthChipNode, usageChip } from './mercuryFrame/chips.js'
 
+registerObligationsAttentionGatherer()
+registerWorkbenchAttentionGatherer()
 
 type Props = {
   model: ModelName
