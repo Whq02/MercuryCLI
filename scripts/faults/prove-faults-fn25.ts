@@ -394,12 +394,20 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
     const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
     const ctx = { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
     out.decision = await checkBrowserPermissions({ op: 'click', frame: 99, selector: 'button' }, ctx)
+    const ruled = { ...getEmptyToolPermissionContext(), alwaysDenyRules: { userSettings: ['Browser(origin:https://blocked.test)'] } }
+    out.ruledDecision = await checkBrowserPermissions({ op: 'click', frame: 99, selector: 'button' }, { getAppState: () => ({ toolPermissionContext: ruled }) })
   `)
   const d = r.decision as { behavior?: string; message?: string }
+  const ruledDecision = r.ruledDecision as { behavior?: string; message?: string }
   check(
-    'BrowserTool/permissions: checkBrowserPermissions denies instead of allowing when targetSurface/targetOrigin throws',
-    d.behavior === 'deny' && typeof d.message === 'string' && d.message.length > 0,
+    'BrowserTool/permissions: a target that cannot be told goes on, as before, when no rule names an origin',
+    d.behavior === 'allow',
     JSON.stringify(d),
+  )
+  check(
+    'BrowserTool/permissions: a target that cannot be told is refused when a rule of the user names an origin',
+    ruledDecision.behavior === 'deny' && typeof ruledDecision.message === 'string' && ruledDecision.message.length > 0,
+    JSON.stringify(ruledDecision),
   )
 }
 

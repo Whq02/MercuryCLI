@@ -12,6 +12,7 @@ import {
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../../utils/permissions/permissions.js'
+import { logForDebugging } from '../../../utils/debug.js'
 import { suggestionForExactCommand } from '../../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../../utils/permissions/ruleReason.js'
 import type { PermissionRule, ToolPermissionContext } from '../../../types/permissions.js'
@@ -130,7 +131,10 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
     bound = checkedTarget(s, sent === null ? targetSurface(s, input.frame) : s.page)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+    const originRuled = permissionContext !== undefined && (['deny', 'ask'] as const).some(behavior => [...getRuleByContentsForToolName(permissionContext, 'Browser', behavior).keys()].some(content => content.startsWith('origin:')))
+    if (originRuled) return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+    logForDebugging(`browser: the page this ${input.op} targets could not be told (${message}) and no rule names an origin, so the call goes on`)
+    return { behavior: 'allow' as const, updatedInput: asked }
   }
   const ruled = ruleVerdict(`origin:${origin}`)
   if (ruled === 'deny') {
