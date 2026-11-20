@@ -10,7 +10,7 @@ import {
 import { openrouterWireModelId } from '../../src/services/providers/openrouter/openrouterCallModel.ts'
 import { compatDispatchModelId } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import { focusedOptionSupports1m } from '../../src/utils/model/modelOptions.ts'
-import { validateModel } from '../../src/utils/model/validateModel.ts'
+import { validateModel } from '../../src/services/providers/validateModel.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

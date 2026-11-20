@@ -134,7 +134,7 @@ try {
   const { join } = await import('node:path')
   const { resolveQwenAccount } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
   const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-  const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
   const stateFacts = (models: unknown): void => { mkdirSync(proofHome, { recursive: true }); writeFileSync(join(proofHome, 'settings.json'), JSON.stringify({ models })); resetSettingsCache() }
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'qwen3.8-max', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {

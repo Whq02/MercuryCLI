@@ -1,9 +1,9 @@
 import type { ValidateModelResult } from './result.js'
-import { passedOverAs } from '../../passedOver.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export async function validateHuggingfaceModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
   const { resolveHuggingfaceApiKey } = await import(
-    '../../../services/providers/huggingface/huggingfaceAccounts.js'
+    '../huggingface/huggingfaceAccounts.js'
   )
   if (!resolveHuggingfaceApiKey()) {
     return {
@@ -12,12 +12,12 @@ export async function validateHuggingfaceModel(trimmed: string): Promise<Validat
     }
   }
   const { huggingfaceLiveModel, getCachedHuggingfaceCatalogue, refreshHuggingfaceCatalogue } = await import(
-    '../../../services/providers/huggingface/huggingfaceCatalogue.js'
+    '../huggingface/huggingfaceCatalogue.js'
   )
   await refreshHuggingfaceCatalogue().catch(passedOverAs(null))
   const snapshot = getCachedHuggingfaceCatalogue()
   if (!snapshot || snapshot.models.length === 0) return { valid: true, skipCache: true }
-  const { qualifiedWireId } = await import('../../../services/providers/routeLaw.js')
+  const { qualifiedWireId } = await import('../routeLaw.js')
   if (!huggingfaceLiveModel(qualifiedWireId(trimmed))) {
     return {
       valid: false,
@@ -28,8 +28,8 @@ export async function validateHuggingfaceModel(trimmed: string): Promise<Validat
 }
 
 export async function validateLocalModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { localRecordFor } = await import('../../../services/providers/local/localCatalogue.js')
-  const { refreshLocalDiscovery } = await import('../../../services/providers/local/localDiscovery.js')
+  const { localRecordFor } = await import('../local/localCatalogue.js')
+  const { refreshLocalDiscovery } = await import('../local/localDiscovery.js')
   if (!localRecordFor(trimmed)) await refreshLocalDiscovery({ force: true }).catch(passedOverAs(null))
   if (!localRecordFor(trimmed)) {
     return {
@@ -41,15 +41,15 @@ export async function validateLocalModel(trimmed: string): Promise<ValidateModel
 }
 
 export async function validateNousModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
-  const { resolveNousAccount } = await import('../../../services/providers/nous/nousAccounts.js')
+  const { resolveNousAccount } = await import('../nous/nousAccounts.js')
   if (!resolveNousAccount()) {
     return { valid: false, error: 'Nous Portal is unavailable — no API key (/logins nous stores one, or set NOUS_API_KEY).' }
   }
-  const { refreshNousCatalogue, nousWireModelId } = await import('../../../services/providers/nous/nousCatalogue.js')
+  const { refreshNousCatalogue, nousWireModelId } = await import('../nous/nousCatalogue.js')
   const snapshot = await refreshNousCatalogue().catch(passedOverAs(null))
   if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins nous stores another key.` }
   if (snapshot && snapshot.models.length > 0) {
-    const { qualifiedWireId } = await import('../../../services/providers/routeLaw.js')
+    const { qualifiedWireId } = await import('../routeLaw.js')
     const slug = qualifiedWireId(trimmed)
     const listed = snapshot.models.some(m => m.id.toLowerCase() === slug.trim().toLowerCase())
     if (!listed) {
@@ -63,7 +63,7 @@ export async function validateNousModel(trimmed: string): Promise<ValidateModelR
 
 export async function validateOpenrouterModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
   const { resolveOpenrouterAccount } = await import(
-    '../../../services/providers/openrouter/openrouterAccounts.js'
+    '../openrouter/openrouterAccounts.js'
   )
   const account = resolveOpenrouterAccount()
   if (!account) {
@@ -73,13 +73,13 @@ export async function validateOpenrouterModel(trimmed: string): Promise<Validate
     }
   }
   const { refreshOpenrouterCatalogue } = await import(
-    '../../../services/providers/openrouter/openrouterCatalogue.js'
+    '../openrouter/openrouterCatalogue.js'
   )
   const snapshot = await refreshOpenrouterCatalogue(account.keySource).catch(passedOverAs(null))
   if (snapshot && snapshot.models.length > 0) {
-    const { qualifiedWireId } = await import('../../../services/providers/routeLaw.js')
+    const { qualifiedWireId } = await import('../routeLaw.js')
     const { openrouterWireModelId } = await import(
-      '../../../services/providers/openrouter/openrouterCallModel.js'
+      '../openrouter/openrouterCallModel.js'
     )
     const slug = qualifiedWireId(trimmed)
     const listed = snapshot.models.some(m => m.id.toLowerCase() === slug.trim().toLowerCase())
@@ -100,7 +100,7 @@ export async function validateOpenrouterModel(trimmed: string): Promise<Validate
 
 export async function validateMoonshotModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
   const { moonshotDispatchSource } = await import(
-    '../../../services/providers/moonshot/moonshotAccounts.js'
+    '../moonshot/moonshotAccounts.js'
   )
   if (moonshotDispatchSource() === undefined) {
     return {
@@ -108,14 +108,14 @@ export async function validateMoonshotModel(trimmed: string): Promise<ValidateMo
       error: 'Moonshot is unavailable — no Kimi sign-in or API key (/logins moonshot, or set MOONSHOT_API_KEY).',
     }
   }
-  const { qualifyMoonshotModel } = await import('../../../services/providers/moonshot/moonshotCatalogue.js')
+  const { qualifyMoonshotModel } = await import('../moonshot/moonshotCatalogue.js')
   const verdict = await qualifyMoonshotModel(trimmed.toLowerCase())
   return verdict.kind === 'refused' ? { valid: false, error: verdict.message } : { valid: true, skipCache: true }
 }
 
 export async function validateOpenaiModel(trimmed: string): Promise<ValidateModelResult & { skipCache?: boolean }> {
   const { resolveOpenaiAccount } = await import(
-    '../../../services/providers/openai/openaiAccounts.js'
+    '../openai/openaiAccounts.js'
   )
   const account = resolveOpenaiAccount()
   if (!account) {
@@ -125,9 +125,9 @@ export async function validateOpenaiModel(trimmed: string): Promise<ValidateMode
     }
   }
   const { evaluateGptCandidate, qualifiedGptCandidates, refreshOpenaiCatalogue } = await import(
-    '../../../services/providers/openai/openaiCatalogue.js'
+    '../openai/openaiCatalogue.js'
   )
-  const { modelNotOfferedByCatalogue } = await import('../../../services/providers/catalogueAdmission.js')
+  const { modelNotOfferedByCatalogue } = await import('../catalogueAdmission.js')
   await refreshOpenaiCatalogue(account.kind).catch(passedOverAs(null))
   const evaluated = evaluateGptCandidate(trimmed.toLowerCase(), account.kind)
   if (evaluated.ok) return { valid: true }

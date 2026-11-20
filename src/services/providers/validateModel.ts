@@ -1,14 +1,14 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '../../services/api/sdkErrors.js'
+import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '../api/sdkErrors.js'
 
 import { getEmptyToolPermissionContext } from '../../Tool.js'
-import { queryModelWithoutStreaming } from '../../services/providers/anthropic/index.js'
-import { asSystemPrompt } from '../systemPromptType.js'
-import { createUserMessage } from '../messages.js'
-import { isModelAlias } from './aliases.js'
-import { isModelAllowed } from './modelAllowlist.js'
-import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
-import { routeOfFamilyWord } from './modelFamilies.js'
+import { queryModelWithoutStreaming } from './anthropic/index.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import { createUserMessage } from '../../utils/messages.js'
+import { isModelAlias } from '../../utils/model/aliases.js'
+import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from './disabledProviders.js'
+import { routeOfFamilyWord } from '../../utils/model/modelFamilies.js'
 import { validateHuggingfaceModel, validateLocalModel, validateNousModel, validateOpenrouterModel, validateMoonshotModel, validateOpenaiModel } from './validateModel/catalogues.js'
 import { validateGeminiModel, validateZaiModel, validateOrcarouterModel, validateDeepseekModel, validateCompatModel } from './validateModel/credentials.js'
 import { validateXaiModel, validateMetaModel, validateMistralModel, validateZenModel, validateMinimaxModel, validateQwenModel, validateTogetherModel, validateCohereModel, validateGroqModel, validateMeliousModel, validateCerebrasModel, validateFireworksModel } from './validateModel/onDemandCatalogues.js'
@@ -44,7 +44,7 @@ async function validateNonAnthropicModel(
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
-    const { canonicalWireModelId } = await import('../../services/providers/routeLaw.js')
+    const { canonicalWireModelId } = await import('./routeLaw.js')
     const verdict = canonicalWireModelId(trimmed)
     if (!verdict.ok) return { valid: false, error: verdict.reason }
   }
@@ -91,12 +91,12 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
   if (validatedModels.has(trimmed)) return { valid: true }
 
   const { declaredRouteOf } = await import(
-    '../../services/providers/callModelRouter.js'
+    './callModelRouter.js'
   )
-  const { classifyModelRoute, LIVE_LIST_FAMILIES } = await import('../../services/providers/idSpaces.js')
+  const { classifyModelRoute, LIVE_LIST_FAMILIES } = await import('./idSpaces.js')
   const early = classifyModelRoute(trimmed)
   if (early.kind === 'unrecognised' && !early.carrierShaped) {
-    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    const { readCatalogueIfPending } = await import('./catalogueOnDemand.js')
     await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
   }
   const route = declaredRouteOf(trimmed)
@@ -107,12 +107,12 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
   }
 
   const { homeLaneAdmissionRefusal } = await import(
-    '../../services/providers/homeLaneAdmission.js'
+    './homeLaneAdmission.js'
   )
   const admissionRefusal = homeLaneAdmissionRefusal(trimmed)
   if (admissionRefusal !== null) return { valid: false, error: admissionRefusal }
   const { recognizeModelId, unrecognisedModelIdReason } = await import(
-    '../../services/providers/idSpaces.js'
+    './idSpaces.js'
   )
   const recognition = recognizeModelId(trimmed)
 
