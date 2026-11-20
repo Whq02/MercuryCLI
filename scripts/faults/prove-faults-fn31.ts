@@ -704,5 +704,27 @@ else {
   check('crew/appends:history-stat-eacces-throws', r.err === 'EACCES', JSON.stringify(r))
 }
 
+console.log('\ncrew/boot.ts — invocationTraceCheck reports unreadable prior trace instead of no records')
+if (!POSIX_MODES) skip('crew/boot:unreadable-trace-reported', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const lockedHome = path.join(PROJECT, 'locked-trace-home')
+    fs.mkdirSync(lockedHome, { recursive: true })
+    process.env.MERCURY_CONFIG_DIR = lockedHome
+    process.env.MERCURY_TRACE = '1'
+    const { invocationTraceCheck } = await import(SRC + '/utils/health/sections/crew/boot.ts')
+    fs.chmodSync(lockedHome, 0o000)
+    try {
+      out.row = await invocationTraceCheck().run()
+    } finally {
+      fs.chmodSync(lockedHome, 0o700)
+    }
+  `)
+  const row = r.row as { evidence?: string } | undefined
+  check('crew/boot:unreadable-trace-reported', Boolean(row?.evidence?.includes('prior trace unreadable (')), JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
