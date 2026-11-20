@@ -14,7 +14,7 @@ import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import type { PermissionAllowDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
-import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
+import type { ContentBlockParam, ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -194,7 +194,7 @@ function errorResultUpdate(args: {
   content: string
   toolUseResult: unknown
   sourceToolAssistantUUID: AssistantMessage['uuid']
-  extraBlocks?: unknown[]
+  extraBlocks?: ContentBlockParam[]
   imagePasteIds?: number[]
 }): MessageUpdateLazy {
   const block: ToolResultBlockParam = {
@@ -205,7 +205,7 @@ function errorResultUpdate(args: {
   }
   return {
     message: createUserMessage({
-      content: [block, ...((args.extraBlocks as never[]) ?? [])] as never,
+      content: [block, ...(args.extraBlocks ?? [])],
       toolUseResult: args.toolUseResult,
       sourceToolAssistantUUID: args.sourceToolAssistantUUID,
       ...(args.imagePasteIds !== undefined ? { imagePasteIds: args.imagePasteIds } : {}),
@@ -1061,7 +1061,7 @@ interface ResultUpdateNeeds {
   toolUseID: string
   toolUseContext: ToolUseContext
   acceptFeedback: string | undefined
-  allowBlocks: unknown[]
+  allowBlocks: ContentBlockParam[]
   isSubagent: boolean
   result: ToolResult<unknown> | undefined
   sourceUUID: AssistantMessage['uuid']
@@ -1080,7 +1080,7 @@ async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assis
     const landed = (processed as { content?: unknown }).content
     room.settle(toolUseID, tokensOfResultText(typeof landed === 'string' ? landed : JSON.stringify(landed ?? '')))
   }
-  const blocks: unknown[] = [processed]
+  const blocks: ContentBlockParam[] = [processed]
   if (acceptFeedback) blocks.push({ type: 'text', text: acceptFeedback })
   blocks.push(...allowBlocks)
   const imageCount = allowBlocks.filter(isImageBlock).length
@@ -1088,7 +1088,7 @@ async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assis
     imageCount > 0 ? nextImagePasteIds(toolUseContext.messages, imageCount) : undefined
   return {
     message: createUserMessage({
-      content: blocks as never,
+      content: blocks,
       ...(isSubagent ? tool.name === AGENT_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
       ...(isSubagent || result!.mcpMeta === undefined
         ? {}
