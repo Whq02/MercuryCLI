@@ -22,7 +22,7 @@ export async function pumpOutbound(ports: RunnerPorts): Promise<string | null> {
   const { io, routeOutbound } = ports
   let unwrittenRecord: string | null = null
   for await (const outboundMessage of io.outbound) {
-    if (isOutcome(outboundMessage as never)) {
+    if (isOutcome(outboundMessage)) {
       unwrittenRecord = await recordFlushFailure()
       if (unwrittenRecord !== null) {
         const ended = outboundMessage as Unstamped<OutcomeRow>
