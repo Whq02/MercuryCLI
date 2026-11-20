@@ -33,7 +33,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 {
   process.env.MERCURY_FULLSCREEN = '1'
-  const { collapseReadSearchGroups, isStatusUpdateTool } = await import('../../src/utils/collapseReadSearch.ts')
+  const { collapseReadSearchGroups, isStatusUpdateTool } = await import('../../src/components/messages/collapseReadSearch.ts')
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
   const { TaskCreateTool } = await import('../../src/tools/TaskCreateTool/TaskCreateTool.ts')
   const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
