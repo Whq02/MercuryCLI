@@ -77,13 +77,6 @@ export function executableNeedsVerbatimArgs(file: string, platform: NodeJS.Platf
   return platform === 'win32' && CMD_EXECUTABLE.test(file)
 }
 
-export function childIpcTransport(
-  runtime: 'py' | 'js',
-  platform: NodeJS.Platform = process.platform,
-): 'loopback' | 'fd' {
-  return runtime === 'py' && platform === 'win32' ? 'loopback' : 'fd'
-}
-
 export function hostScriptDialect(platform: NodeJS.Platform = process.platform): 'powershell' | 'posix-sh' {
   return platform === 'win32' ? 'powershell' : 'posix-sh'
 }

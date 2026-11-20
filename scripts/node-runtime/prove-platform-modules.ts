@@ -26,7 +26,6 @@ const PROGRAMS: Row[] = [
 ]
 
 import {
-  childIpcTransport,
   commandShellArgv,
   commandShellOption,
   executableNeedsVerbatimArgs,
@@ -103,11 +102,6 @@ const SPAWN: Row[] = [
       executableNeedsVerbatimArgs('mycmd.exe'),
     ],
     recorded: {"win32":[true,true,true,false,false],"darwin":[false,false,false,false,false],"linux":[false,false,false,false,false],"win32 by process.platform alone":[true,true,true,false,false],"win32 by getPlatform() alone":[false,false,false,false,false]},
-  },
-  {
-    name: 'spawn.childIpcTransport',
-    answers: () => [childIpcTransport('py'), childIpcTransport('js')],
-    recorded: {"win32":["loopback","fd"],"darwin":["fd","fd"],"linux":["fd","fd"],"win32 by process.platform alone":["loopback","fd"],"win32 by getPlatform() alone":["fd","fd"]},
   },
   {
     name: 'spawn.hostScriptDialect',
