@@ -11,6 +11,8 @@ prove-delete-ward-windows-parity.ts
 prove-delete-ward-windows-spellings.ts
 prove-destructive-git-ward.ts
 prove-floors-follow-windows-cd.ts
+prove-floors-read-file-url-on-windows.ts
+prove-floors-read-file-url.ts
 prove-floors-spellings.ts
 prove-flow-five-spellings.ts
 prove-fork-bomb-linear.ts
