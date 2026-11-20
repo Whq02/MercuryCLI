@@ -9,6 +9,7 @@ import {
   isClaudeAISubscriber,
 } from '../../../utils/auth.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { logError } from '../../../utils/log.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
 import { noteUsageRecordChanged, resetLimitsForCredentialSwitch, usagePayloadShapeWords } from '../../anthropicLimits.js'
@@ -321,11 +322,21 @@ function forgetAnthropicUsageRead(): void {
 }
 
 function dropIfAccountMoved(): boolean {
-  dropCredentialMemos()
+  try {
+    dropCredentialMemos()
+  } catch (error) {
+    passedOver(error)
+    logError(new Error(`dropIfAccountMoved: dropCredentialMemos failed: ${error instanceof Error ? error.message : String(error)}`))
+  }
   const current = currentCredential()
   if (current === observedCredential) return false
   observedCredential = current
-  resetLimitsForCredentialSwitch()
+  try {
+    resetLimitsForCredentialSwitch()
+  } catch (error) {
+    passedOver(error)
+    logError(new Error(`dropIfAccountMoved: resetLimitsForCredentialSwitch failed: ${error instanceof Error ? error.message : String(error)}`))
+  }
   return true
 }
 

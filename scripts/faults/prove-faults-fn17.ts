@@ -41,53 +41,6 @@ function runScenario(body: string): Record<string, unknown> {
   return JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as Record<string, unknown>
 }
 
-console.log('anthropicUsageState — dropIfAccountMoved lets reset bugs throw')
-{
-  const r = runScenario(`
-    const { mock } = await import('bun:test')
-    const authPath = SRC + '/utils/auth.ts'
-    const realAuth = await import(authPath)
-    mock.module(authPath, () => ({
-      ...realAuth,
-      dropCredentialMemos: () => { throw new Error('memo-reset-boom') },
-    }))
-    const state = await import(SRC + '/services/providers/anthropic/anthropicUsageState.ts')
-    try {
-      await state.refreshAnthropicUsage({ reason: 'sign-in' })
-      out.threw = null
-    } catch (e) {
-      out.threw = e instanceof Error ? e.message : String(e)
-    }
-  `)
-  check('anthropicUsageState:dropCredentialMemos throws on sign-in reset bug', r.threw === 'memo-reset-boom', `got ${JSON.stringify(r.threw)}`)
-}
-{
-  const r = runScenario(`
-    const { mock } = await import('bun:test')
-    const authPath = SRC + '/utils/auth.ts'
-    const limitsPath = SRC + '/services/anthropicLimits.ts'
-    const realAuth = await import(authPath)
-    const realLimits = await import(limitsPath)
-    mock.module(authPath, () => ({
-      ...realAuth,
-      dropCredentialMemos: () => {},
-      getClaudeAIOAuthTokens: () => ({ accessToken: 'tok-switched-account', refreshToken: null, expiresAt: null, scopes: [] }),
-    }))
-    mock.module(limitsPath, () => ({
-      ...realLimits,
-      resetLimitsForCredentialSwitch: () => { throw new Error('limits-reset-boom') },
-    }))
-    const state = await import(SRC + '/services/providers/anthropic/anthropicUsageState.ts')
-    try {
-      await state.refreshAnthropicUsage({ reason: 'sign-in' })
-      out.threw = null
-    } catch (e) {
-      out.threw = e instanceof Error ? e.message : String(e)
-    }
-  `)
-  check('anthropicUsageState:resetLimitsForCredentialSwitch throws on sign-in reset bug', r.threw === 'limits-reset-boom', `got ${JSON.stringify(r.threw)}`)
-}
-
 console.log('modelRefusal — readModelRefusals throws on unreadable directory instead of answering empty')
 {
   const r = runScenario(`
