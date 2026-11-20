@@ -5,7 +5,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
 import type { Message } from '../../types/message.js'
-import type { ToolResultBlockParam } from '../../types/wire.js'
+import type { TextBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { createSystemMessage } from '../../utils/messages/systemMessages.js'
 import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
@@ -466,15 +466,17 @@ export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservatio
   }
 }
 
-function resultText(content: ToolResultBlockParam['content']): string | null {
-  if (typeof content === 'string') return content
+function resultText(content: ToolResultBlockParam['content']): { text: string; content: string | TextBlockParam[] } | null {
+  if (typeof content === 'string') return { text: content, content }
   if (!Array.isArray(content)) return null
   const parts: string[] = []
+  const blocks: TextBlockParam[] = []
   for (const part of content) {
     if (part.type !== 'text' || typeof part.text !== 'string') return null
     parts.push(part.text)
+    blocks.push(part)
   }
-  return parts.join('\n')
+  return { text: parts.join('\n'), content: blocks }
 }
 
 function isReferenceResult(text: string): boolean {
@@ -513,8 +515,8 @@ export async function repeatedResultPointer(owner: OwnerKey, observation: Repeat
   try {
     const { result, toolUseID, roundID } = observation
     if (result.is_error === true || isBookkeepingTool(observation.toolName)) return null
-    const text = resultText(result.content)
-    if (text === null || text.length < REPEATED_RESULT_MIN_CHARS || isReferenceResult(text)) return null
+    const extracted = resultText(result.content)
+    if (extracted === null || extracted.text.length < REPEATED_RESULT_MIN_CHARS || isReferenceResult(extracted.text)) return null
     const state = store.get(owner)
     settleBoundary(state, observation.messages)
     const key = toolCallKey(observation.toolName, observation.arguments)
@@ -534,9 +536,9 @@ export async function repeatedResultPointer(owner: OwnerKey, observation: Repeat
       }
       return null
     }
-    const kept = await persistToolResult(result.content as never, toolUseID)
+    const kept = await persistToolResult(extracted.content, toolUseID)
     const where = 'error' in kept ? '' : ` The full text is also kept at ${kept.filepath}.`
-    return `${REPEATED_RESULT_TAG} this ${observation.toolName} call (${argumentPreview(observation.arguments)}) returned exactly the same ${text.length} characters as call ${known.toolUseID} earlier in this turn, so the text is not repeated here. Reread that result — it is unchanged.${where}`
+    return `${REPEATED_RESULT_TAG} this ${observation.toolName} call (${argumentPreview(observation.arguments)}) returned exactly the same ${extracted.text.length} characters as call ${known.toolUseID} earlier in this turn, so the text is not repeated here. Reread that result — it is unchanged.${where}`
   } catch {
     return null
   }

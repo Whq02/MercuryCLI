@@ -51,11 +51,11 @@ export async function batchClaimOf(block: ToolUseBlock, context: ToolUseContext)
     if (!tool) return EXCLUSIVE
     const parsed = tool.inputSchema.safeParse(block.input)
     if (!parsed.success) return EXCLUSIVE
-    await tool.prepare?.(block.input as never)
-    const safe = tool.isConcurrencySafe(parsed.data as never) === true
-    const touched = tool.getPath?.(parsed.data as never)
+    await tool.prepare?.(block.input)
+    const safe = tool.isConcurrencySafe(parsed.data) === true
+    const touched = tool.getPath?.(parsed.data)
     if (typeof touched !== 'string' || touched === '') return safe ? FREE : EXCLUSIVE
-    if (tool.isReadOnly(parsed.data as never) === true) return safe ? { kind: 'reads', path: canonicalPath(touched) } : EXCLUSIVE
+    if (tool.isReadOnly(parsed.data) === true) return safe ? { kind: 'reads', path: canonicalPath(touched) } : EXCLUSIVE
     return { kind: 'writes', path: canonicalPath(touched) }
   } catch {
     return EXCLUSIVE

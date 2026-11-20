@@ -773,6 +773,14 @@ function studioGuidedMethods(
   }
 }
 
+function copySpecField<K extends keyof AgentSpecFields>(
+  target: Partial<AgentSpecFields>,
+  source: AgentSpecFields,
+  key: K,
+): void {
+  target[key] = source[key]
+}
+
 function studioSaveMethods(
   state: StudioEditorState,
   { options, deps, mode, base, cwd }: StudioEditorPorts,
@@ -838,8 +846,7 @@ function studioSaveMethods(
         for (const key of new Set([...Object.keys(state.baseDocument.fields), ...Object.keys(state.doc.fields)]) as Set<keyof AgentSpecFields>) {
           if (key === 'mcpServers' || key === 'hooks') continue
           if (JSON.stringify(state.doc.fields[key]) !== JSON.stringify(state.baseDocument.fields[key])) {
-            // @ts-expect-error narrow per-key assignment over the shared union
-            edits[key] = state.doc.fields[key]
+            copySpecField(edits, state.doc.fields, key)
           }
         }
         const merged = patchAgentDocument(theirs, {

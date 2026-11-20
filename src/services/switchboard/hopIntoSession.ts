@@ -88,7 +88,7 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
 
 export async function paintAdmissionNote(sessionId: string, note: string): Promise<void> {
   const seat = await import('../engine-connector/daemonConnector.js')
-  seat.getDaemonSessionConnector(sessionId)?.addDisplayRow(createSeatReceiptMessage(`▲ ${note}`, 'warning') as never)
+  seat.getDaemonSessionConnector(sessionId)?.addDisplayRow(createSeatReceiptMessage(`▲ ${note}`, 'warning'))
 }
 
 type ResumeOutcome = HopOutcome & {
@@ -200,8 +200,9 @@ async function focusResumedSessionLanding(
       if (!(await ensureOwnedDaemon())) return 'the daemon did not start'
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       const worn = peekWornPresetKit()
+      const permissionMode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined
       const reply = (await daemonControlRpc(
-        { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...((): Record<string, string> => { const mode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined; return mode !== undefined ? { permissionMode: mode } : {} })(), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) } as never,
+        { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...(permissionMode !== undefined ? { permissionMode } : {}), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) },
         { timeoutMs: 60_000 },
       )) as Record<string, unknown>
       if (reply.ok !== true) return typeof reply.error === 'string' && reply.error !== '' ? reply.error : 'the daemon refused the resume'
@@ -263,12 +264,12 @@ export async function closeFocusedChat(opts: { fate: 'park' | 'end' }): Promise<
     try {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       if (opts.fate === 'end') {
-        await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId, by: 'operator' } as never, { timeoutMs: 15_000 })
-        const released = (await daemonControlRpc({ op: 'sessionRelease', runnerId: rec.runnerId } as never, { timeoutMs: 15_000 })) as { ok?: boolean; settled?: boolean }
+        await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId, by: 'operator' }, { timeoutMs: 15_000 })
+        const released = (await daemonControlRpc({ op: 'sessionRelease', runnerId: rec.runnerId }, { timeoutMs: 15_000 })) as { ok?: boolean; settled?: boolean }
         if (released.ok === true && released.settled !== false) fate = 'ended'
       } else {
         const parked = (await daemonControlRpc(
-          { op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` } as never,
+          { op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` },
           { timeoutMs: 15_000 },
         )) as { ok?: boolean; outcome?: string; detail?: string }
         if (parked.ok === true) {
@@ -312,7 +313,7 @@ async function parkSessionById(sessionId: string): Promise<void> {
   if (rec === undefined) return
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` } as never, { timeoutMs: 15_000 })
+    await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
   } catch {
   }
 }
@@ -355,7 +356,7 @@ async function paintReactivationScheduleWarn(sessionId: string): Promise<void> {
     const count = schedules.length
     const { createSystemMessage } = await import('../../utils/messages/systemMessages.js')
     connector.addDisplayRow(
-      createSystemMessage(`${count} schedule${count === 1 ? '' : 's'} retained — ${sentence}`, 'warning') as never,
+      createSystemMessage(`${count} schedule${count === 1 ? '' : 's'} retained — ${sentence}`, 'warning'),
     )
   } catch {
   }
@@ -426,10 +427,10 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
     const { createAwaySummaryMessage } = await import('../../utils/messages/systemMessages.js')
     let card = createAwaySummaryMessage(recap.line, enriched)
     let shown = recap
-    connector.addDisplayRow(card as never)
+    connector.addDisplayRow(card)
     const settle = connector.subscribeRecords(() => {
       const painted = connector.records()
-      const at = painted.lastIndexOf(card as never)
+      const at = painted.lastIndexOf(card)
       if (at === -1 || painted.slice(at + 1).some(row => row.type === 'user' || row.type === 'assistant')) {
         settle()
         return
@@ -439,7 +440,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
       shown = now
       const { toolFailures: _shown, ...rest } = enriched
       card = createAwaySummaryMessage(now.line, { ...rest, endedOnError: now.endedOnError, ...(now.toolFailures > 0 ? { toolFailures: now.toolFailures } : {}) })
-      connector.addDisplayRow(card as never)
+      connector.addDisplayRow(card)
     })
   } catch {
   }

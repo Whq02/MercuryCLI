@@ -53,7 +53,7 @@ async function contractVerb(op: 'ack' | 'close'): Promise<{ ok: boolean; detail?
       by: `worker:${sessionId.slice(0, 8)}`,
       contract: { op },
       clientOpId: `contract-${op}-${sessionId.slice(0, 8)}-${Date.now().toString(36)}`,
-    } as never,
+    },
     { timeoutMs: 10_000 },
   )) as { ok?: boolean; outcome?: string; detail?: string }
   return { ok: reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'noop'), ...(reply.detail !== undefined ? { detail: reply.detail } : {}) }

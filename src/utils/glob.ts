@@ -125,7 +125,7 @@ export async function glob(
   ignoreByRoot.set(sessionRoot, [...(ignoreByRoot.get(sessionRoot) ?? []), ...relativeRules.filter(pattern => pattern.includes('/'))])
   let walkRoot = searchDir
   try { if (!statSync(walkRoot).isDirectory()) walkRoot = dirname(walkRoot) } catch {}
-  const ignores = normalizePatternsToPath(ignoreByRoot as never, walkRoot)
+  const ignores = normalizePatternsToPath(ignoreByRoot, walkRoot)
   for (const ignore of ignores) {
     args.push('--iglob', `!${ignore}`)
     universeArgs.push('--iglob', `!${ignore}`)
