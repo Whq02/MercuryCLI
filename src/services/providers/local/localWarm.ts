@@ -27,6 +27,7 @@ import { confirmServedWindow, LOCAL_PROBE_TIMEOUT_MS, refreshLocalDiscovery, typ
 import { chooseLocalBatch, chooseLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf } from './localWindow.js'
 import { ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs } from './ollamaChatTransport.js'
 import { toolDialectSystemText } from './toolDialect.js'
+import { tellWhoHearsALocalTurn } from './localTurn.js'
 
 export const LOCAL_WARM_SETTLE_MS = 750
 export const LOCAL_WARM_LIVE_WAITS = 8
@@ -268,6 +269,7 @@ export function noteLocalTurn(record: LocalModelRecord | undefined): void {
   const knobs = heldKnobsFor(record)
   if (knobs !== undefined) state.sent.set(key, knobs)
 }
+tellWhoHearsALocalTurn(noteLocalTurn)
 
 async function resolveRecord(model: string): Promise<LocalModelRecord | undefined> {
   if (!isLocalModelId(model)) return undefined

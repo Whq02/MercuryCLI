@@ -9,8 +9,9 @@ import { adapterCheckpointOf } from './adapter/models.js'
 import type { TensorFoldPullProgress } from './contracts.js'
 import { findTensorFoldEngine, tensorFoldCommand } from './engine.js'
 import { cacheDirOfRepo, hfCacheRoot, hubEndpoint } from './hfCache.js'
-import { configFactsOf, type ConfigFacts, type InventoryIo } from './inventory.js'
+import type { InventoryIo } from './inventory.js'
 import { isGgufRepo, isRepoId, startingPointOf, tensorFoldLabel, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
+import { configFactsOf, type ConfigFacts } from './configFacts.js'
 
 export type PullIo = InventoryIo & {
   binary?: string

@@ -1,16 +1,17 @@
+import shippedManifests from '../../../assets/host/weights.json' with { type: 'json' }
 import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, statfsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, posix, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { parseBankSums } from './boxBank.js'
-import { resolvedWeightManifest } from './keptWeights.js'
-import { bankManifest } from './bankManifest.js'
-import type { HostRecipe } from './recipes.js'
-import { hostRecipeSchema } from './recipesFile.js'
+import { bankManifest, bytesMatchRecipe, manifestBytes, type BankManifest } from './bankManifest.js'
+import type { HostRecipe, HostWeightManifest as WeightManifest } from './recipes.js'
+import { hostRecipeSchema, hostWeightManifestSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
 import { fastLoadEstimate, keptVolumes, matchesVolume, vastVolumeBilling, volumeModel, type KeptVolume } from './volumes.js'
 
@@ -96,6 +97,46 @@ export function bankModelPath(folder: string, recipe: HostRecipe): string {
     } catch { return false }
   })
   return matching.length === 1 ? matching[0]! : canonical
+}
+const manifestsSchema = z.array(z.object({ model: z.string(), include: z.string(), revision: z.string(), files: z.array(z.object({ path: z.string(), size: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), git: z.string().regex(/^[a-f0-9]{40}$/).optional() })) }))
+function weightManifests(): WeightManifest[] {
+  const localPath = flagEnv('MERCURY_HOST_WEIGHTS_FILE')?.trim()
+  if (localPath) return manifestsSchema.parse(JSON.parse(readFileSync(resolve(localPath), 'utf8')))
+  return shippedManifests
+}
+const manifestFits = (row: WeightManifest, recipe: HostRecipe): boolean => row.model === recipe.model && row.include === (recipe.include ?? '') && bytesMatchRecipe(manifestBytes(row), recipe.weightsGb)
+export const shippedWeightManifest = (recipe: HostRecipe): WeightManifest | undefined => weightManifests().find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
+function keptVolumeManifest(recipe: HostRecipe): WeightManifest | undefined {
+  for (const volume of keptVolumes()) {
+    if (volume.state === 'gone' || !matchesVolume(volume, recipe)) continue
+    const row = hostWeightManifestSchema.safeParse(volume.recipeRow?.weightManifest)
+    if (row.success && manifestFits(row.data, recipe)) return row.data
+  }
+  return undefined
+}
+const resolvingBank = new Set<string>()
+export function bankWeightManifest(recipe: HostRecipe): BankManifest {
+  const key = volumeModel(recipe)
+  if (resolvingBank.has(key)) return { reason: 'the bank folder is still being read' }
+  resolvingBank.add(key)
+  try {
+    const folder = bankFolder()
+    if (!folder) return { reason: 'no bank folder on this computer · b banks the weights' }
+    return bankManifest(recipe, bankModelPath(folder, recipe))
+  } catch (error) {
+    return { reason: 'the bank cannot be read: ' + (error instanceof Error ? error.message : String(error)) }
+  } finally { resolvingBank.delete(key) }
+}
+type WeightManifestSource = 'recipe' | 'shipped' | 'volume' | 'bank'
+export function resolvedWeightManifest(recipe: HostRecipe): { manifest: WeightManifest; source: WeightManifestSource } | undefined {
+  const embedded = hostWeightManifestSchema.safeParse(recipe.weightManifest)
+  if (embedded.success) return manifestFits(embedded.data, recipe) ? { manifest: embedded.data, source: 'recipe' } : undefined
+  const shipped = shippedWeightManifest(recipe)
+  if (shipped) return manifestFits(shipped, recipe) ? { manifest: shipped, source: 'shipped' } : undefined
+  const volume = keptVolumeManifest(recipe)
+  if (volume) return { manifest: volume, source: 'volume' }
+  const bank = bankWeightManifest(recipe).manifest
+  return bank ? { manifest: bank, source: 'bank' } : undefined
 }
 export function bankFiles(recipe: HostRecipe, path: string): { files: BankFile[]; pinned: boolean; sealedByBank: boolean } {
   const resolved = resolvedWeightManifest(recipe)

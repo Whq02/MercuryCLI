@@ -16,7 +16,7 @@ import {
 import { getIsNonInteractiveSession, preferThirdPartyAuthentication } from '../bootstrap/state.js'
 import { getGlobalConfig, saveGlobalConfig, checkHasTrustDialogAccepted, untrustedWorkspaceHeadless } from './config.js'
 import { getGlobalConfigCacheStamp, isConfigReadingAllowed, readGlobalConfigAgain } from './config/globalConfig.js'
-import { clearBetasCaches } from './betas.js'
+import { clearBetasWhereKept } from './model/betasClearing.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage } from './errors.js'
@@ -54,7 +54,7 @@ import {
   refreshOAuthToken,
   shouldUseClaudeAIAuth,
   storeOAuthAccountInfo as storeAccount,
-} from '../services/oauth/client.js'
+} from '../services/oauth/refresh.js'
 import { getOauthProfileFromOauthToken } from '../services/oauth/getOauthProfile.js'
 import type { OAuthTokens, SubscriptionType, RateLimitTier } from '../services/oauth/types.js'
 import { binaryName } from './config.js'
@@ -663,7 +663,7 @@ export function dropCredentialMemos(): void {
   managedKeyMemoStamp = null
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
-  clearBetasCaches()
+  clearBetasWhereKept()
   clearToolSchemaCache()
 }
 
@@ -686,7 +686,7 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
       },
     })
     clearOAuthTokenCache()
-    clearBetasCaches()
+    clearBetasWhereKept()
     clearToolSchemaCache()
     if (result.success) unsavedRefresh = null
     return result

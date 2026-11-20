@@ -11,7 +11,7 @@ import {
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
 import { isEnvTruthy } from '../envUtils.js'
-import { getCanonicalName } from './model.js'
+import { getCanonicalName } from './modelNames.js'
 import { isChooseAModel } from './computedDefault.js'
 import { familyDefaultsModel, familyHeadOf } from './configs.js'
 import { getModelCapability } from './modelCapabilities.js'
@@ -76,6 +76,7 @@ import { openrouterListedModel } from '../../services/providers/openrouter/openr
 import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
+import { tellWhatClearsTheBetas } from './betasClearing.js'
 
 
 export function modelSupportsTemperature(model: string): boolean {
@@ -1159,6 +1160,7 @@ export function clearBetasCaches(): void {
   getAllModelBetas.cache?.clear?.()
   getModelBetas.cache?.clear?.()
 }
+tellWhatClearsTheBetas(clearBetasCaches)
 
 
 export function getModelKnowledgeCutoff(modelId: string): string | null {

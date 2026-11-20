@@ -31,13 +31,13 @@ import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../prov
 import { localContextSourceWords, localFitRefusalSentence, localRecordFor, localServerName, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
 import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, localWindowSourceWords, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
-import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import { tensorFoldRequestBegins } from './tensorfoldPrefill.js'
 import { noteTensorFoldTurn } from './tensorfoldUsage.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { estimateRequestTokens } from '../../tokenEstimation.js'
+import { localTurnTakesTheServer } from './localTurn.js'
 
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
   if (record.server === 'ollama' || record.server === 'lmstudio' || record.server === 'tensorfold') return record.thinkingDeclared === true
@@ -337,7 +337,7 @@ export async function* localCallModel(params: CallModelParams): CallModelStream 
         await ensureServedWindow(record, io)
       }
     }
-    noteLocalTurn(record)
+    localTurnTakesTheServer(record)
     const profile = record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model)
     yield* compatChatCallModel(engine?.transport !== undefined ? { ...profile, streamTransport: engine.transport } : profile, params)
   } finally {

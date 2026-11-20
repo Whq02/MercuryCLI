@@ -4,7 +4,7 @@ import { classifyModelRoute } from '../../services/providers/idSpaces.js'
 import { isModelAlias } from './aliases.js'
 import { DECLARED_GENERATION_STEMS, isMirrorFamilyWord, parseFirstPartyGeneration } from './configs.js'
 import { FIRST_PARTY_FAMILY_WORDS, isModelFamilyWord, routeOfFamilyWord } from './modelFamilies.js'
-import { parseUserSpecifiedModel } from './model.js'
+import { modelSettingResolved } from './settingResolution.js'
 import { resolveOverriddenModel } from './modelStrings.js'
 
 const VENDOR_PREFIX = 'claude-'
@@ -15,7 +15,7 @@ function normalize(value: string): string {
 }
 
 function resolvedOf(value: string): string {
-  return isModelAlias(value) ? normalize(parseUserSpecifiedModel(value)) : value
+  return isModelAlias(value) ? normalize(modelSettingResolved(value)) : value
 }
 
 function generationNamedBy(entry: string): string | undefined {
@@ -76,7 +76,7 @@ export function isModelAllowed(model: string): boolean {
   for (const entry of entries) {
     if (isModelAlias(candidate) && candidateResolved === entry) return true
     if (isModelAlias(entry) && !isRosterFamilyWord(entry)) {
-      if (normalize(parseUserSpecifiedModel(entry)) === candidate) return true
+      if (normalize(modelSettingResolved(entry)) === candidate) return true
     }
   }
 

@@ -1,4 +1,4 @@
-import { normalizeModelStringForAPI } from '../../utils/model/model.js'
+import { normalizeModelStringForAPI } from '../../utils/model/modelNames.js'
 import { compatModelEndpoint, configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
 import {
   classifyModelRoute,
