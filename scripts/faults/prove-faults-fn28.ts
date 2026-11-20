@@ -208,6 +208,44 @@ function skip(label: string, why: string): void {
   }
 }
 
+{
+  console.log('\nastPatterns/search: unreadable files are recorded in parseFailures instead of skipped silently')
+  const { searchAstPattern } = await import('../../src/utils/astPatterns/search.ts')
+  const { resolveAstScope, isAstRefusal } = await import('../../src/utils/astPatterns/scope.ts')
+  const astDir = join(SCRATCH, 'ast-proj')
+  mkdirSync(astDir, { recursive: true })
+  const secretFile = join(astDir, 'secret.ts')
+  writeFileSync(secretFile, 'export const needle = 1\n')
+  const scope = resolveAstScope({ cwd: astDir, path: '.' })
+  check('astSearch-setup: scope resolved', !isAstRefusal(scope) && scope.files.length === 1)
+  if (!isAstRefusal(scope)) {
+    if (!POSIX_MODES) skip('astSearch-unreadable', 'needs non-root POSIX')
+    else {
+      chmodSync(secretFile, 0o200)
+      try {
+        const res = await searchAstPattern(scope, { pattern: 'needle' })
+        check(
+          'astSearch-unreadable-recorded: unreadable file lands in parseFailures (main read path)',
+          !isAstRefusal(res) && res.parseFailures.some(f => f.rel === 'secret.ts' && f.message.includes('unreadable')),
+          JSON.stringify(isAstRefusal(res) ? res : res.parseFailures),
+        )
+        const patternOnlyScope = {
+          ...scope,
+          files: scope.files.map(f => ({ ...f, lang: { ...f.lang, patternOnly: true } })),
+        }
+        const resPO = await searchAstPattern(patternOnlyScope, { pattern: 'needle' })
+        check(
+          'astSearch-patternOnly-unreadable-recorded: unreadable file lands in parseFailures (patternOnly pre-read path)',
+          !isAstRefusal(resPO) && resPO.parseFailures.some(f => f.rel === 'secret.ts' && f.message.includes('unreadable')),
+          JSON.stringify(isAstRefusal(resPO) ? resPO : resPO.parseFailures),
+        )
+      } finally {
+        chmodSync(secretFile, 0o600)
+      }
+    }
+  }
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
