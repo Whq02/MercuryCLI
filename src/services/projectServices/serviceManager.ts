@@ -22,6 +22,7 @@ import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { killSignalForChild, posixProcessTableSupported, supportsGracefulSigterm, syncStartTokenSupported } from '../../utils/platform/processes.js'
 import {
   describeCondition,
   SERVICE_NAME_RE,
@@ -357,7 +358,7 @@ async function checkCondition(
 }
 
 async function withPortHolder(cwd: string, status: ReadinessStatus): Promise<ReadinessStatus> {
-  if (process.platform === 'win32') return status
+  if (!posixProcessTableSupported()) return status
   const condition = status.condition
   let host: string
   let port: number
@@ -600,7 +601,7 @@ export async function startService(
     spec,
     state: 'starting',
     pid: child.pid,
-    startToken: process.platform === 'win32' ? null : getProcessStartToken(child.pid),
+    startToken: syncStartTokenSupported() ? getProcessStartToken(child.pid) : null,
     startedAt: Date.now(),
     stoppedAt: null,
     lastExitCode: null,
@@ -672,10 +673,11 @@ export async function startService(
 }
 
 function signalPid(pid: number, signal: NodeJS.Signals): void {
-  if (process.platform === 'win32') {
+  const sig = killSignalForChild(signal)
+  if (sig === undefined) {
     process.kill(pid)
   } else {
-    process.kill(pid, signal)
+    process.kill(pid, sig)
   }
 }
 
@@ -740,7 +742,7 @@ export async function stopService(
     return clear(note)
   }
 
-  if (process.platform === 'win32') {
+  if (!supportsGracefulSigterm()) {
     await endProcessTree(record.pid, 'SIGKILL')
   } else {
     try {

@@ -28,6 +28,7 @@ import {
 import { uniq } from '../array.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../concurrency.js'
 import { updateSessionName } from '../concurrentSessions.js'
+import { foldPathCase } from '../platform/paths.js'
 import { logForDebugging } from '../debug.js'
 import { getWorktreePaths } from '../getWorktreePaths.js'
 import { sanitizePath } from '../path.js'
@@ -686,7 +687,7 @@ export async function listRepoSessionsProgressive(
 }
 
 function worktreeStores(projectDirs: string[], worktreePaths: string[]): Array<{ dir: string; wtPath: string }> {
-  const spelled = (name: string): string => (process.platform === 'win32' ? name.toLowerCase() : name)
+  const spelled = (name: string): string => foldPathCase(name)
   const slugs = worktreePaths
     .map(wtPath => ({ wtPath, prefix: spelled(sanitizePath(wtPath)) }))
     .sort((a, b) => b.prefix.length - a.prefix.length)

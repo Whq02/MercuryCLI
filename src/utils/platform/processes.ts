@@ -89,3 +89,34 @@ type ProcessTreeEndMethod = 'win32-taskkill' | 'posix-group'
 export function processTreeEndMethod(platform: NodeJS.Platform = process.platform): ProcessTreeEndMethod {
   return platform === 'win32' ? 'win32-taskkill' : 'posix-group'
 }
+
+export function posixProcessTableSupported(platform: NodeJS.Platform = process.platform): boolean {
+  return platform !== 'win32'
+}
+
+export function syncStartTokenSupported(platform: NodeJS.Platform = process.platform): boolean {
+  return platform !== 'win32'
+}
+
+export function loadAverageSupported(platform: NodeJS.Platform = process.platform): boolean {
+  return platform !== 'win32'
+}
+
+type ParentPidProbeKind = 'win32-ancestors' | 'posix-ps'
+
+export function parentPidProbeKind(platform: NodeJS.Platform = process.platform): ParentPidProbeKind {
+  return platform === 'win32' ? 'win32-ancestors' : 'posix-ps'
+}
+
+export function ancestorPidsCommand(
+  pid: number,
+  maxDepth: number,
+  platform: NodeJS.Platform = process.platform,
+): { file: string; args: string[] } {
+  if (platform === 'win32') {
+    const script = `$p=${pid};$out=@();for($i=0;$i -lt ${maxDepth};$i++){$proc=Get-CimInstance Win32_Process -Filter "ProcessId=$p" -ErrorAction SilentlyContinue;if(-not $proc){break};$pp=$proc.ParentProcessId;if(-not $pp -or $pp -eq 0){break};$out+=$pp;$p=$pp};$out -join ','`
+    return { file: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-Command', script] }
+  }
+  const script = `p=${pid}; i=0; while [ $i -lt ${maxDepth} ]; do pp=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' '); if [ -z "$pp" ] || [ "$pp" = "0" ] || [ "$pp" = "1" ]; then break; fi; echo "$pp"; p=$pp; i=$((i+1)); done`
+  return { file: 'sh', args: ['-c', script] }
+}

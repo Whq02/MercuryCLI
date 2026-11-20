@@ -5,6 +5,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { readSessionWorkers, sessionOwnedByLiveWorker } from '../../daemon/concourseWorkers.js'
 import type { PermissionMode } from '../../../sdk/src/door.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { posixProcessTableSupported } from '../../utils/platform/processes.js'
 
 const name = z.string().trim().min(1).max(200).regex(/^[^\x00-\x1f\x7f]+$/)
 const secret = z.string().regex(/^[A-Za-z0-9._~+\/-]{32,}={0,2}$/)
@@ -41,7 +42,7 @@ export async function launchingSession(cwd: string): Promise<string | undefined>
   const workers = Object.values(readSessionWorkers()).filter(row => row.endedAt === undefined && row.workspaceId === cwd)
   const direct = workers.find(row => row.pid === process.ppid)
   if (direct && sessionOwnedByLiveWorker(direct.sessionId)) return direct.sessionId
-  if (process.platform === 'win32' || workers.length === 0) return undefined
+  if (!posixProcessTableSupported() || workers.length === 0) return undefined
   const { collectPosixProcessTable } = await import('../../daemon/processSweepPosix.js')
   const table = await collectPosixProcessTable({ waitMs: 4000, recordedPids: workers.flatMap(row => row.pid ? [row.pid] : []) })
   if (!table.complete) return undefined
