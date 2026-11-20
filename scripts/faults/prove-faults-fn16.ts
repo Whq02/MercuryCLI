@@ -439,5 +439,43 @@ if (POSIX_MODES) {
   )
 }
 
+if (POSIX_MODES) {
+  console.log('\nupdateService.ts — unwritable versionsDir returns lock refusal carrying error without throwing')
+  const r = runSub(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const upd = await import(path.join(SRC, 'services/privateChannel/updateService.ts'))
+    const vDir = path.join(WORK, 'ro-update-versions')
+    const prevDir = path.join(vDir, '1.0.0')
+    fs.mkdirSync(path.join(prevDir, 'vendor', 'ripgrep'), { recursive: true })
+    fs.writeFileSync(path.join(prevDir, 'manifest.json'), JSON.stringify({ version: '1.0.0', primary: 'mercury.mjs' }))
+    fs.writeFileSync(path.join(prevDir, 'mercury.mjs'), 'console.log("1.0.0")\\n')
+    fs.writeFileSync(path.join(prevDir, 'mercury'), '#!/bin/sh\\n')
+    fs.writeFileSync(path.join(vDir, 'current.txt'), '1.0.1\\n')
+    fs.writeFileSync(path.join(vDir, 'previous.txt'), '1.0.0\\n')
+    const roots = { versionsDir: vDir, binDir: path.join(WORK, 'bin'), shimPath: path.join(WORK, 'bin', 'mercury'), isWindows: false }
+    fs.chmodSync(vDir, 0o500)
+    try {
+      let threw = null
+      let outcome = null
+      try {
+        outcome = await upd.performRollback(roots, () => {})
+      } catch (e) {
+        threw = e instanceof Error ? e.message : String(e)
+      }
+      out.threw = threw
+      out.outcome = outcome
+    } finally {
+      fs.chmodSync(vDir, 0o700)
+    }
+  `)
+  const outcome = r.outcome as { state?: string; reason?: string } | null
+  check(
+    'performRollback returns refused carrying EACCES error without throwing when versionsDir is unwritable',
+    r.threw === null && outcome?.state === 'refused' && /EACCES|permission denied/i.test(outcome.reason ?? '') && !(outcome.reason ?? '').includes('another update is already running'),
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
