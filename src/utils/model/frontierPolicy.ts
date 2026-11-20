@@ -151,7 +151,7 @@ export function newestPermittedGeneration(family: Parameters<typeof previousGene
   return null
 }
 
-export function newestPermittedMirror(): string | null {
+function newestPermittedMirror(): string | null {
   return declaredMirrorsNewestFirst().find(allowedUnderAllowlist) ?? null
 }
 
