@@ -81,3 +81,5 @@ prove-retry-timeline-anthropic.ts
 prove-retry-timeline-openai.ts
 prove-retry-timeline-openaicompat.ts
 prove-retry-timeline-zai.ts
+prove-image-refusal-drive.ts
+prove-stream-cut-drive.ts

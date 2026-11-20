@@ -1,3 +1,7 @@
 prove-focal-ramp.ts
 prove-raw-owner-ratchet.ts
 prove-waiting-owner.ts
+scripts/visual-finish/prove-finish-census.ts
+scripts/visual-finish/prove-qual-matrix.ts
+scripts/visual-finish/prove-splash-core-parity.ts
+scripts/visual-finish/prove-wordmark-ramp.ts
