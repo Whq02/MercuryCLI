@@ -173,6 +173,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     const { postLoginSettleOf } = await import(${JSON.stringify(join(SRC, 'components/bootLogins/runs.ts'))})
     let state = {
       authVersion: 0,
+      notifications: { current: null, queue: [] },
       toolPermissionContext: {
         mode: 'sovereign',
         isBypassPermissionsModeAvailable: true,
@@ -186,11 +187,17 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     out.mode = state.toolPermissionContext.mode
     out.available = state.toolPermissionContext.isBypassPermissionsModeAvailable
     out.authVersion = state.authVersion
+    out.notice = state.notifications.current ?? state.notifications.queue[0] ?? null
   `)
+  const rejectedNotice = rejected.notice as { key?: string; color?: string; text?: string } | null
   check(
     'bootlogins-killswitch-reject-fails-closed',
-    rejected.mode === 'default' && rejected.available === false,
-    `mode=${String(rejected.mode)} available=${String(rejected.available)}`,
+    rejected.mode === 'default' &&
+      rejected.available === false &&
+      rejectedNotice?.key === 'bypass-killswitch' &&
+      rejectedNotice?.color === 'warning' &&
+      rejectedNotice?.text === "bypass permissions was turned off: your organization's security policy could not be checked (killswitch probe failed)",
+    `mode=${String(rejected.mode)} available=${String(rejected.available)} notice=${JSON.stringify(rejectedNotice)}`,
   )
 
   const outerThrow = runScenario(`
@@ -202,6 +209,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     const { postLoginSettleOf } = await import(${JSON.stringify(join(SRC, 'components/bootLogins/runs.ts'))})
     let state = {
       authVersion: 0,
+      notifications: { current: null, queue: [] },
       toolPermissionContext: {
         mode: 'sovereign',
         isBypassPermissionsModeAvailable: true,
@@ -214,13 +222,18 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf fails closed when 
     await new Promise(resolve => setTimeout(resolve, 60))
     out.mode = state.toolPermissionContext.mode
     out.available = state.toolPermissionContext.isBypassPermissionsModeAvailable
+    out.notice = state.notifications.current ?? state.notifications.queue[0] ?? null
   `)
+  const outerNotice = outerThrow.notice as { key?: string; color?: string; text?: string } | null
   check(
     'bootlogins-settle-throw-fails-closed',
-    outerThrow.mode === 'default' && outerThrow.available === false,
-    `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)}`,
+    outerThrow.mode === 'default' &&
+      outerThrow.available === false &&
+      outerNotice?.key === 'bypass-killswitch' &&
+      outerNotice?.color === 'warning' &&
+      outerNotice?.text === "bypass permissions was turned off: your organization's security policy could not be checked (user cache reset failed)",
+    `mode=${String(outerThrow.mode)} available=${String(outerThrow.available)} notice=${JSON.stringify(outerNotice)}`,
   )
-
   const control = runScenario(`
     const { mock } = await import('bun:test')
     const killswitchPath = ${JSON.stringify(join(SRC, 'utils/permissions/bypassPermissionsKillswitch.ts'))}
