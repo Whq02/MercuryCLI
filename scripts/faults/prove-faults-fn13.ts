@@ -100,6 +100,68 @@ try {
       explicitOk,
     )
   }
+
+  {
+    const { reconcileHostTune } = await import('../../src/services/host/tune.ts')
+    const { readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
+    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const recipe = HOST_RECIPES.find(row => row.engine === 'llamacpp')!
+    const fromTune = { quality: recipe.id, conversations: 4, contextPerConversation: 131072, effort: 'high' as const, updatedAt: new Date().toISOString() }
+    const toTune = { quality: recipe.id, conversations: 8, contextPerConversation: 65536, effort: 'max' as const, updatedAt: new Date().toISOString() }
+    const podId = 'reconcile-ssh-err-1'
+    writeHostRecord({
+      id: podId,
+      vendor: 'runpod',
+      name: 'reconcile-ssh-err',
+      recipe: recipe.id,
+      recipeRow: recipe,
+      price: 5.0,
+      startedAt: new Date().toISOString(),
+      status: 'RUNNING',
+      target: { host: '127.0.0.1', port: 2222, user: 'root' },
+      step: 'reloading engine in place',
+      tune: toTune,
+      retuning: { pid: 2_147_000_000, at: Date.now() - 3 * 3600_000, from: fromTune, to: toTune },
+    })
+    const failingRunner = {
+      async run(): Promise<string> {
+        throw new Error('ssh: connect to host 127.0.0.1 port 2222: Connection timed out')
+      },
+      tunnel() {
+        return { stop() {}, failed: () => undefined }
+      },
+    }
+    const result = await reconcileHostTune(podId, failingRunner, new AbortController().signal)
+    const after = readHostRecord(podId)
+    check(
+      'reconcileHostTune keeps retuning claim and tune intact when SSH read fails',
+      result?.retuning !== undefined &&
+        after?.retuning !== undefined &&
+        after?.tune?.conversations === toTune.conversations &&
+        after?.step !== 'engine reload interrupted',
+      JSON.stringify({ retuning: Boolean(after?.retuning), conversations: after?.tune?.conversations, step: after?.step }),
+    )
+
+    const deadRunner = {
+      async run(): Promise<string> {
+        return JSON.stringify({ mark: 'MERCURY_ENGINE_READ ', alive: false }) + '\n'
+      },
+      tunnel() {
+        return { stop() {}, failed: () => undefined }
+      },
+    }
+    const deadResult = await reconcileHostTune(podId, deadRunner, new AbortController().signal)
+    const afterDead = readHostRecord(podId)
+    check(
+      'reconcileHostTune still marks interrupted and reverts tune when pod reports engine dead',
+      deadResult?.retuning === undefined &&
+        afterDead?.retuning === undefined &&
+        afterDead?.tune?.conversations === fromTune.conversations &&
+        afterDead?.step === 'engine reload interrupted',
+      JSON.stringify({ retuning: Boolean(afterDead?.retuning), conversations: afterDead?.tune?.conversations, step: afterDead?.step }),
+    )
+    removeHostRecord(podId)
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
