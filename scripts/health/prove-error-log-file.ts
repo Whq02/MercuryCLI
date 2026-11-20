@@ -217,5 +217,20 @@ console.log('\n§4 the control: the ring and the debug line are as before')
   check('the debug log carries each error line', debugLines().filter(line => line.includes('[ERROR] Error: Error: refused three')).length === 1)
 }
 
+console.log('\n§5 a failure the code passes over is written to the debug log, once a distinct message')
+{
+  const { passedOver } = await import('../../src/utils/passedOver.js')
+  const { sendPassedOverToDebugLog } = await import('../../src/utils/passedOverSink.js')
+  sendPassedOverToDebugLog()
+  for (let turn = 0; turn < 3; turn++) passedOver(new Error('row five: a rename that was passed over (EPERM)'))
+  passedOver(new Error('row five: another failure passed over'))
+  passedOver('row five: a failure that is a plain string')
+  await flush()
+  const lines = debugLines().filter(line => line.includes('row five:'))
+  check('each distinct failure passed over is in the debug log', ['a rename that was passed over (EPERM)', 'another failure passed over', 'a failure that is a plain string'].every(words => lines.some(line => line.includes(words))), lines.join(' | ').slice(0, 300) || 'no line')
+  check('…once each, however often it is passed over', lines.length === 3, String(lines.length))
+  check("…at the debug level, the log's floor", lines.length > 0 && lines.every(line => /\[DEBUG\] passed over \(\d+\): row five:/.test(line)), lines[0] ?? 'no line')
+}
+
 console.log(failures === 0 ? '\nprove-error-log-file: all green' : `\nprove-error-log-file: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
