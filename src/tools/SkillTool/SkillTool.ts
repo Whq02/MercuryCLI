@@ -20,7 +20,7 @@ import {
   createGetAppStateWithAllowedTools,
   extractResultText,
   prepareForkedCommandContext,
-} from '../../utils/forkedAgent.js'
+} from '../../services/agents/forkedAgent.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { normalizeMessages } from '../../utils/messages.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'

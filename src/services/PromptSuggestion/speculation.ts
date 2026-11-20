@@ -1,6 +1,6 @@
 import { IDLE_SPECULATION_STATE, type AppState, type SpeculationState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../agents/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void

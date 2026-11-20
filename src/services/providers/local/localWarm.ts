@@ -6,7 +6,7 @@ import { appendSystemContext, firstTurnUserContext, prependUserContext, toolToAP
 import { latestUserContextBody } from '../../../utils/attachments/userContext.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { resolveWireRequestedEffort } from '../../../utils/effort.js'
-import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../agents/forkedAgent.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { getEngineModel, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { getApiFetch } from '../../../utils/proxy.js'

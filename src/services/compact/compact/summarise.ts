@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage, Message, UserMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { continuationOfSentRequest, lastSentRequestFor, runForkedAgent, type CacheSafeParams } from '../../../utils/forkedAgent.js'
+import { continuationOfSentRequest, lastSentRequestFor, runForkedAgent, type CacheSafeParams } from '../../agents/forkedAgent.js'
 import { appendSystemContext } from '../../../utils/api.js'
 import { asSystemPrompt } from '../../../utils/systemPromptType.js'
 import { logError } from '../../../utils/log.js'

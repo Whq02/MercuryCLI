@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../../Tool.js'
-import { buildSideQuestionFallbackParams } from '../../../utils/queryContext.js'
+import { buildSideQuestionFallbackParams } from '../../../services/agents/queryContext.js'
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../../utils/fileStateCache.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 

@@ -26,7 +26,7 @@ assert.deepEqual(getMergedBetas(model).slice(-2), ['proof-duplicate', 'proof-dup
 assert.deepEqual(getModelBetas(model), base)
 setSdkBetas(undefined)
 console.log('PASS request extras preserve incoming duplicates, cached parse isolation, identity overrides and model header ownership')
-const { fetchSystemPromptParts, buildSideQuestionFallbackParams } = await import(`${root}/src/utils/queryContext.ts`)
+const { fetchSystemPromptParts, buildSideQuestionFallbackParams } = await import(`${root}/src/services/agents/queryContext.ts`)
 const parts = await fetchSystemPromptParts({ tools: [], engineModel: model, mcpClients: [], customSystemPrompt: '' })
 assert.deepEqual(parts.defaultSystemPrompt, [])
 assert.deepEqual(parts.systemContext, {})

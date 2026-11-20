@@ -2,7 +2,7 @@ import { MERCURY_CONSTITUTION } from '../../prompt/mercuryContract.js'
 import { loadMemoryPrompt } from '../../mneme/mnemeFrontPage.js'
 import { hasMnemeHomeOverride } from '../../mneme/paths.js'
 import type { ContentBlockParam } from '../../types/wire.js'
-import { fetchSystemPromptParts } from '../../utils/queryContext.js'
+import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ConversationConfig } from '../turn.js'
 

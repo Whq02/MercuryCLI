@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { Message } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../agents/forkedAgent.js'
 import { appendSystemContext, toolToAPISchema } from '../../../utils/api.js'
 import { roughTokenCountEstimation } from '../../tokenEstimation.js'
 import { estimateRequestGauge, readRequestGauge } from '../../run/requestGauge.js'

@@ -30,7 +30,7 @@ import { leaveNoteBeforeExit, exitNoteCharsKept } from '../../mneme/exitHandoff.
 import { HANDOFF_ASK_BUDGET_MS } from '../../mneme/handoffAsk.js'
 import { noticeRow } from '../../rows/project.js'
 import { closeLineageSession, lineageKept } from '../../mneme/lineageSession.js'
-import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
+import { getLastCacheSafeParams } from '../../services/agents/forkedAgent.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { RunnerPorts } from './runnerPorts.js'
 import type { RunnerArms } from './runnerMethods.js'

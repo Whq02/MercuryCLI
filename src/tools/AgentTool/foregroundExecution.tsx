@@ -44,7 +44,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { mirrorSwarmNotice, watchSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { pauseLineWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import {
   extractTextContent,
