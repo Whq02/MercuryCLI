@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -34,11 +34,19 @@ const FULL_SECRETS = {
   futureField: 'kept',
 }
 
-function runIn(body: string, extraEnv: Record<string, string> = {}): Record<string, unknown> {
+function runIn(body: string, extraEnv: Record<string, string> = {}, keychainHolds?: Record<string, unknown> | null): Record<string, unknown> {
   const home = mkdtempSync(join(tmpdir(), 'cred-durability-'))
+  const onKeychain = keychainHolds !== undefined
+  const bin = join(home, 'keychain-bin')
+  if (onKeychain) {
+    mkdirSync(bin)
+    writeFileSync(join(bin, 'security'), `#!/bin/sh\nif [ "$1" = "-i" ]; then cat > '${bin}/added'; exit 0; fi\nif [ "$1" = "find-generic-password" ] && [ -f '${bin}/held' ]; then cat '${bin}/held'; exit 0; fi\nexit 44\n`)
+    chmodSync(join(bin, 'security'), 0o755)
+    if (keychainHolds !== null) writeFileSync(join(bin, 'held'), JSON.stringify(keychainHolds))
+  }
   const src = `
     process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
-    process.env.MERCURY_CREDENTIAL_STORE = 'file'
+    ${onKeychain ? 'delete process.env.MERCURY_CREDENTIAL_STORE' : "process.env.MERCURY_CREDENTIAL_STORE = 'file'"}
     delete process.env.MERCURY_HOME
     delete process.env.NODE_ENV
     const fs = await import('node:fs')
@@ -59,10 +67,12 @@ function runIn(body: string, extraEnv: Record<string, string> = {}): Record<stri
     ${body}
     process.stdout.write(JSON.stringify(out))
   `
-  const res = spawnSync(BUN, ['-e', src], {
-    encoding: 'utf8',
-    env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file', ...extraEnv },
-  })
+  const env: Record<string, string | undefined> = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file', ...extraEnv }
+  if (onKeychain) {
+    delete env.MERCURY_CREDENTIAL_STORE
+    env.PATH = `${bin}:${process.env.PATH ?? ''}`
+  }
+  const res = spawnSync(BUN, ['-e', src], { encoding: 'utf8', env })
   if (res.status !== 0) throw new Error(`scenario failed: ${res.stderr.slice(-1500)}`)
   const line = res.stdout.trim().split('\n').pop() ?? '{}'
   return JSON.parse(line) as Record<string, unknown>
@@ -213,6 +223,66 @@ console.log('L7 controls — absent store created; healthy round-trip; a refused
   check('a refused publish reports success:false with the errno class', v.success === false && v.code === 'EPERM', JSON.stringify(v))
   check('the old bytes survive a refused publish', f.same === true)
   check('the refused publish leaves no temp residue', (f.residue as string[]).length === 0, JSON.stringify(f.residue))
+}
+
+console.log('L8 keychain storage — a write never moves the store into the keychain over a credential file it could not read')
+if (process.platform !== 'darwin') skip('L8', 'the keychain storage is the Mac one')
+else if (!POSIX_MODES) skip('L8', 'mode-0200 shape needs a non-root POSIX process')
+else {
+  const onKeychain = (file: 'unreadable' | 'readable' | 'absent', keychainHolds: Record<string, unknown> | null): Record<string, unknown> => runIn(`
+    fs.mkdirSync(home, { recursive: true })
+    const added = path.join(home, 'keychain-bin', 'added')
+    ${file === 'absent' ? '' : `fs.writeFileSync(credFile, JSON.stringify(${JSON.stringify(FULL_STORE)}), { mode: 0o600 })`}
+    const before = raw(credFile)
+    ${file === 'unreadable' ? 'fs.chmodSync(credFile, 0o200)' : ''}
+    out.storeName = store.name
+    const current = store.read() ?? {}
+    out.verdict = store.update({ ...current, trustedDeviceToken: 'device-2' })
+    out.stands = fs.existsSync(credFile)
+    if (out.stands) { fs.chmodSync(credFile, 0o600); out.same = raw(credFile) === before }
+    out.keychainWritten = fs.existsSync(added)
+    out.unreadWords = 'The credential store at ' + ss.credentialsPath() + ' exists but could not be read (EACCES); nothing was written.'
+  `, {}, keychainHolds)
+  type Verdict = { success: boolean; warning?: string; code?: string }
+  const told = (r: Record<string, unknown>): string => `write ${(r.verdict as Verdict).success ? 'landed' : 'refused'} · keychain ${r.keychainWritten === true ? 'written' : 'not written'} · file ${r.stands === true ? (r.same === true ? 'stands' : 'changed') : 'not there'}`
+  const unread = onKeychain('unreadable', null)
+  const v = unread.verdict as Verdict
+  check('the storage under test is the keychain with the credential file behind it', unread.storeName === 'keychain-with-plaintext-fallback', String(unread.storeName))
+  check('the keychain holds nothing and the credential file cannot be read: update() refuses with the store\'s own sentence and its code', v.success === false && v.warning === unread.unreadWords && v.code === 'EACCES', `verdict=${JSON.stringify(v)}`)
+  check('the unreadable credential file stands byte for byte after the refused write', unread.stands === true && unread.same === true, unread.stands === true ? (unread.same === true ? 'stands' : 'its bytes changed') : 'DELETED, its tokens with it')
+  check('nothing was put into the keychain by the refused write', unread.keychainWritten === false)
+  const absent = onKeychain('absent', null)
+  check('control: no credential file, the keychain holds nothing: the write lands in the keychain and makes no file', (absent.verdict as Verdict).success === true && absent.keychainWritten === true && absent.stands === false, told(absent))
+  const readable = onKeychain('readable', null)
+  check('control: a readable credential file, the keychain holds nothing: the store moves into the keychain and the file goes, as before', (readable.verdict as Verdict).success === true && readable.keychainWritten === true && readable.stands === false, told(readable))
+  const signIns = runIn(`
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    process.env.NODE_ENV = 'test'
+    fs.mkdirSync(home, { recursive: true })
+    fs.writeFileSync(credFile, JSON.stringify(${JSON.stringify(FULL_STORE)}), { mode: 0o600 })
+    const before = raw(credFile)
+    fs.chmodSync(credFile, 0o200)
+    out.unreadWords = 'The credential store at ' + ss.credentialsPath() + ' exists but could not be read (EACCES); nothing was written.'
+    const mcp = await import(${JSON.stringify(join(SRC, 'services/mcp/auth.ts'))})
+    let opened = null
+    out.mcp = await Promise.race([
+      mcp.performMCPOAuthFlow('probe', { type: 'http', url: 'http://127.0.0.1:9/mcp' }, url => { opened = url }, undefined, { skipBrowserOpen: true }).then(() => 'resolved', error => 'rejected: ' + error.message),
+      new Promise(resolve => setTimeout(() => resolve('still waiting after 4s'), 4000)),
+    ])
+    out.opened = opened
+    const auth = await import(${JSON.stringify(join(SRC, 'utils/auth.ts'))})
+    out.claude = auth.saveOAuthTokensIfNeeded({ accessToken: 'at-2', refreshToken: 'rt-2', expiresAt: 4102444800000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
+    fs.chmodSync(credFile, 0o600)
+    out.same = raw(credFile) === before
+    out.keychainWritten = fs.existsSync(path.join(home, 'keychain-bin', 'added'))
+    process.stdout.write(JSON.stringify(out))
+    process.exit(0)
+  `, {}, null)
+  check('an MCP sign-in on that store refuses at its start with the store\'s own sentence and shows no sign-in address', signIns.mcp === `rejected: ${signIns.unreadWords}` && signIns.opened === null, `${signIns.mcp} · address ${signIns.opened === null ? 'not shown' : 'shown'}`)
+  check('a Claude sign-in on that store is answered the store\'s own sentence where it saves its tokens', (signIns.claude as Verdict).success === false && (signIns.claude as Verdict).warning === signIns.unreadWords, JSON.stringify(signIns.claude))
+  check('after both sign-ins the unreadable file stands byte for byte and the keychain was not written', signIns.same === true && signIns.keychainWritten === false, `file ${signIns.same === true ? 'stands' : 'changed'} · keychain ${signIns.keychainWritten === true ? 'written' : 'not written'}`)
+  const held = onKeychain('unreadable', { trustedDeviceToken: 'device-1' })
+  check('control: the keychain already holds the store: the write lands there and the unreadable file stands byte for byte', (held.verdict as Verdict).success === true && held.keychainWritten === true && held.stands === true && held.same === true, told(held))
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

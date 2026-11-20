@@ -22,6 +22,7 @@ export interface SecureStorage {
   update(data: SecureStorageData): { success: boolean; warning?: string; code?: string }
   delete(): boolean
   prepare?(data: SecureStorageData): PreparedWrite
+  unread?(): { warning: string; code: string } | null
 }
 
 export type ProtectorAnswer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
