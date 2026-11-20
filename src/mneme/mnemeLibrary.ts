@@ -6,6 +6,7 @@ import { isENOENT } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { fileNameFor, parseTopicDoc, serializeTopicDoc, type MnemeTopicDoc } from './mnemeTopicDocs.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 
 interface LibraryMeta {
   version: 1
@@ -35,16 +36,32 @@ function assertLibraryMetaReadable(dir: string): void {
 
 export function readLibraryMeta(dir: string = mnemeLibraryDir()): LibraryMeta {
   const p = libraryMetaPath(dir)
-  let parsed: LibraryMeta | null = null
+  let raw: string
   try {
-    parsed = JSON.parse(readFileSync(p, 'utf8')) as LibraryMeta
+    raw = readFileSync(p, 'utf8')
   } catch (error) {
-    if (!isENOENT(error)) logForDebugging(`memory library meta unreadable at ${p}: ${String(error)}`)
+    if (isENOENT(error)) {
+      clearMnemeUnread(p)
+    } else {
+      recordMnemeUnread(p, error)
+      logForDebugging(`memory library meta unreadable at ${p}: ${String(error)}`)
+    }
     passedOver(error)
-    parsed = null
+    return { ...FRESH_META }
   }
-  if (parsed && typeof parsed.seqCounter === 'number' && parsed.seqCounter >= 0) return parsed
-  return { ...FRESH_META }
+  try {
+    const parsed = JSON.parse(raw) as LibraryMeta
+    if (parsed && typeof parsed.seqCounter === 'number' && parsed.seqCounter >= 0) {
+      clearMnemeUnread(p)
+      return parsed
+    }
+    throw new Error(`memory library meta unreadable at ${p}`)
+  } catch (error) {
+    recordMnemeUnread(p, error)
+    logForDebugging(`memory library meta unreadable at ${p}: ${String(error)}`)
+    passedOver(error)
+    return { ...FRESH_META }
+  }
 }
 
 export function publishLibraryFile(path: string, content: string): void {

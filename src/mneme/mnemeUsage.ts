@@ -6,6 +6,7 @@ import { passedOver } from '../utils/passedOver.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import { validatedApplicability, type MemoryApplicability } from './memoryApplicability.js'
 
 export const PINNED_TEXT_LIMIT_DEFAULT = 8000
@@ -83,10 +84,14 @@ function readPinsStrict(dir: string): PinRecord[] {
 }
 
 export function readPins(dir: string = mnemeLibraryDir()): PinRecord[] {
+  const p = pinsPath(dir)
   try {
-    return readPinsStrict(dir)
+    const pins = readPinsStrict(dir)
+    clearMnemeUnread(p)
+    return pins
   } catch (e) {
-    logForDebugging(`memory pins unreadable at ${pinsPath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
+    recordMnemeUnread(p, e)
+    logForDebugging(`memory pins unreadable at ${p}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
     passedOver(e)
     return []
   }
@@ -162,10 +167,14 @@ function readUsageStrict(dir: string): Record<string, UsageRecord> {
 }
 
 export function readUsage(dir: string = mnemeLibraryDir()): Record<string, UsageRecord> {
+  const p = usagePath(dir)
   try {
-    return readUsageStrict(dir)
+    const rows = readUsageStrict(dir)
+    clearMnemeUnread(p)
+    return rows
   } catch (e) {
-    logForDebugging(`memory usage unreadable at ${usagePath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
+    recordMnemeUnread(p, e)
+    logForDebugging(`memory usage unreadable at ${p}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
     passedOver(e)
     return {}
   }
