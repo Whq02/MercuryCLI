@@ -250,5 +250,56 @@ function threwOf(fn: () => unknown): Error | null {
   }
 }
 
+{
+  console.log('\nuseChatSubmit-armed-failure')
+  const { mountPart } = await import('../ui/chatScenarios.ts')
+  const { settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
+  const { useChatSubmit } = await import('../../src/screens/chat/useChatSubmit.ts')
+  const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
+  const notes: Array<{ key?: string; text?: string; color?: string }> = []
+  const mounted = await mountPart(store =>
+    useChatSubmit({
+      addNotification: note => {
+        notes.push(note)
+      },
+      setAppState: updater => store.setState(updater),
+      setInputValue: () => {},
+      setInputMode: () => {},
+      setPastedContents: () => {},
+      authWallHold: (() => false) as never,
+      repinToBottom: () => {},
+      setToolJSX: () => {},
+      toolJSX: null,
+      getToolUseContext: (() => ({})) as never,
+      paintScreenCommandReceipt: () => {},
+      setSubmitCount: () => {},
+      lastCompletedAt: null,
+      commandsRef: { current: [] },
+      isLoadingRef: { current: false },
+      dialogInFlightRef: { current: null },
+      armedHandedBackRef: { current: null },
+      queuedDialogCommandsRef: { current: [] },
+      getFocusedSeatLive: () => {
+        throw new Error('session disconnected')
+      },
+    }),
+  )
+  try {
+    mounted.store().setState(prev => ({
+      ...prev,
+      initialMessage: { message: createUserMessage({ content: 'hello' }), armedAtLanding: true } as never,
+    }))
+    await settle(150)
+    await waitFor(() => mounted.store().getState().initialMessage === null, 3000)
+    check(
+      'failed queued message notifies the user instead of dropping silently',
+      notes.some(n => n.text === 'Could not send the queued message (session disconnected) — type it again.' && n.color === 'error'),
+      JSON.stringify(notes),
+    )
+  } finally {
+    mounted.unmount()
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
