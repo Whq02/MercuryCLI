@@ -167,7 +167,7 @@ section('(4) the sentence a bash before 4.0 is given, held to what that bash doe
 section("(5) a reviewer's verification command is wrapped with the shell that runs it")
 {
   const { canonicalReviewerReceipt, restrictReviewerTools } = await import('../../src/tools/AgentTool/reviewerPolicy.ts')
-  const { BASH_TOOL_NAME } = await import('../../src/tools/BashTool/toolName.ts')
+  const { BASH_TOOL_NAME } = await import('../../src/constants/tools/bash.ts')
   const frozen = join(scratch, 'frozen')
   mkdirSync(join(frozen, 'scripts', 'checks'), { recursive: true })
   writeFileSync(join(frozen, 'scripts', 'checks', 'prove-read.ts'), 'console.log("review proof ran")\n')

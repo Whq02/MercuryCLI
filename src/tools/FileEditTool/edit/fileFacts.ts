@@ -10,7 +10,7 @@ import { formatFileSize } from '../../../utils/format.js'
 import { logError } from '../../../utils/log.js'
 import { readFileInRange } from '../../../utils/readFileInRange.js'
 import type { FileState } from '../../../utils/fileStateCache.js'
-import { MAX_LINES_TO_READ } from '../../FileReadTool/prompt.js'
+import { MAX_LINES_TO_READ } from '../../../constants/tools/fileRead.js'
 import type { FileEditInput, FileEditOutput } from '../types.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 

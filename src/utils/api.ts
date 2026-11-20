@@ -15,7 +15,7 @@ import { inlineLocalSchemaRefs } from './inlineSchemaRefs.js'
 import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } from './normalizeToolSchema.js'
 import { userContextReminderBody } from './userContextReminder.js'
 
-import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../constants/tools/bash.js'
 import { FILE_EDIT_TOOL_NAME } from '../constants/tools/fileEdit.js'
 import { editFormCacheMark } from '../tools/FileEditTool/editForm.js'
 import { normalizeFileEditInput } from '../tools/FileEditTool/utils.js'

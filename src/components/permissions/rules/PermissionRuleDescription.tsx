@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Text } from '../../../ink.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import type { PermissionRuleValue } from '../../../types/permissions.js'
 import { hasWildcards, permissionRuleExtractPrefix } from '../../../utils/permissions/shellRuleMatching.js'
 

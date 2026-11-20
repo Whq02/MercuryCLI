@@ -1,7 +1,7 @@
 import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { Input } from './FileReadTool.js'
-import type { FileReadingLimits } from './limits.js'
+import type { FileReadingLimits } from '../../utils/fileReadLimits.js'
 import type { ReadQueryTarget } from './readQueryTarget.js'
 import { classifyReadTarget, readTargetsEnabled } from './readTarget.js'
 import { mercuryRefsEnabled, parseMercuryRef } from '../../services/resources/contracts.js'

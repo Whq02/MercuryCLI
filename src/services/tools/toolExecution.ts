@@ -6,7 +6,7 @@ import type {
   ToolUseContext,
 } from '../../Tool.js'
 import { closestToolByName, findToolByName, offeredToolNamesClause, toolMatchesName } from '../../Tool.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { completionIdentity } from '../agentResults/summaryRoom.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
@@ -53,7 +53,7 @@ import { repairToolInput, toolCallRefusalResultText } from '../providers/toolCal
 import { outputSchemaMismatch } from './toolOutputCheck.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
 import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../../utils/permissions/ruleReason.js'

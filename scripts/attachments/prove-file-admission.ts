@@ -11,7 +11,7 @@ const pdf = await import(join(root, 'utils/pdf.ts'))
 const fsops = await import(join(root, 'utils/fsOperations.ts'))
 const read = await import(join(root, 'tools/FileReadTool/FileReadTool.ts'))
 const { PDF_AT_MENTION_INLINE_THRESHOLD: threshold } = await import(join(root, 'constants/apiLimits.ts'))
-const { MAX_LINES_TO_READ } = await import(join(root, 'tools/FileReadTool/prompt.ts'))
+const { MAX_LINES_TO_READ } = await import(join(root, 'constants/tools/fileRead.ts'))
 const context = { readFileState: new Map(), getAppState: () => ({ toolPermissionContext: {} }), abortController: new AbortController() }
 const path = join(process.env.MERCURY_CONFIG_DIR!, 'tracked.txt')
 let denied = false

@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { hasImageSignature, imageReadCaptions, readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
-import { getDefaultFileReadingLimits } from '../FileReadTool/limits.js'
+import { getDefaultFileReadingLimits } from '../../utils/fileReadLimits.js'
 import { getErrnoCode } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 

@@ -1,7 +1,7 @@
 import { mintFileAnchor, mintRangeAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import type { StructuredPatchHunk } from '../../utils/diff.js'
 import { plural } from '../../utils/stringUtils.js'
-import { getDefaultFileReadingLimits } from '../FileReadTool/limits.js'
+import { getDefaultFileReadingLimits } from '../../utils/fileReadLimits.js'
 import {
   READ_THROUGH_MARGIN,
   coalesceLineRanges,

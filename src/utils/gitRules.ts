@@ -1,6 +1,6 @@
 import { getAttributionTexts } from './attribution.js'
 import { shouldIncludeGitInstructions } from './gitSettings.js'
-import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
+import { BASH_TOOL_NAME } from '../constants/tools/bash.js'
 
 export function gitRulesText(): string {
   if (!shouldIncludeGitInstructions()) return ''
