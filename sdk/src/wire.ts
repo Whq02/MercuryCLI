@@ -349,6 +349,7 @@ export type SessionFactsResult = {
       skill_states: Record<string, 'off' | 'invocable'>
       extensions_off: string[]
     }
+    deltasReadError?: string
   }
   pending_schedule_edits?: Array<{
     op: 'add' | 'remove' | 'pause' | 'resume'

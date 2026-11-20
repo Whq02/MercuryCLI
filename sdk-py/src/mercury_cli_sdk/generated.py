@@ -1004,6 +1004,7 @@ SessionFactsResultKit = TypedDict("SessionFactsResultKit", {
     "extensions": "NotRequired[dict[str, Literal[\"off\"] | Literal[\"on\"]]]",
     "resolved": "NotRequired[Literal[False]]",
     "deltas": "NotRequired[SessionFactsResultKitDeltas]",
+    "deltasReadError": "NotRequired[str]",
 })
 
 SessionFactsResultPending_schedule_editsItem = TypedDict("SessionFactsResultPending_schedule_editsItem", {
