@@ -613,5 +613,28 @@ console.log('\nsettings/sources.ts — killsCheck propagates getAgentCapParseRej
   )
 }
 
+console.log('\nproofs.ts — gate check rejects corrupt verdict JSON instead of reporting no verdict recorded')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { gateVerdictPath } = await import(SRC + '/utils/healthReport.ts')
+    const vp = gateVerdictPath()
+    fs.mkdirSync(path.dirname(vp), { recursive: true })
+    fs.writeFileSync(vp, '{not-json')
+    fs.mkdirSync(path.join(PROJECT, 'scripts'), { recursive: true })
+    fs.writeFileSync(path.join(PROJECT, 'scripts', 'run-all-suites.sh'), '#!/bin/sh\\n')
+    const { proofsChecks } = await import(SRC + '/utils/health/sections/proofs.ts')
+    const gate = proofsChecks({ cwd: PROJECT, version: '1.0.0', git: { state: 'unavailable', data: { git: null } }, repo: null, head: { sha: null, branch: null, dirty: null } }).find(c => c.id === 'gate')
+    try {
+      out.row = await gate.run()
+      out.err = null
+    } catch (e) {
+      out.err = e?.name ?? String(e)
+    }
+  `)
+  check('proofs:corrupt-verdict-throws', r.err === 'SyntaxError', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

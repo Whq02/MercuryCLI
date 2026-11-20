@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { isENOENT } from '../../errors.js'
 import { whichSync } from '../../which.js'
 import { decodeGateVerdict, interpretGateVerdict } from '../../healthCertCore.js'
 import { healthFixEnabled } from '../../healthFix.js'
@@ -17,7 +18,8 @@ export function proofsChecks(context: HealthContext): CheckSpec[] {
         let verdictRaw: unknown = null
         try {
           verdictRaw = JSON.parse(await readFile(gateVerdictPath(), 'utf8'))
-        } catch {
+        } catch (error) {
+          if (!isENOENT(error)) throw error
           verdictRaw = null
         }
         const verdict = decodeGateVerdict(verdictRaw)
