@@ -23,12 +23,31 @@ function streamedCharsOf(minted: ReadonlyArray<Pick<AssistantMessage, 'message'>
   return chars
 }
 
+function safeStringifyLength(value: unknown): number {
+  const seen = new WeakSet<object>()
+  return (
+    JSON.stringify(value, (_key, item: unknown) => {
+      if (typeof item === 'bigint') return item.toString()
+      if (typeof item === 'object' && item !== null) {
+        if (seen.has(item)) return '[Circular]'
+        seen.add(item)
+      }
+      return item
+    })?.length ?? 0
+  )
+}
+
 function requestCharsOf(request: unknown): number {
   try {
     return JSON.stringify(request)?.length ?? 0
-  } catch (error) {
-    passedOver(error)
-    return 0
+  } catch {
+    try {
+      return safeStringifyLength(request)
+    } catch (error) {
+      passedOver(error)
+      logForDebugging(`faultUsageEstimate: request could not be serialized for token estimate (${String(error)})`)
+      return 0
+    }
   }
 }
 
