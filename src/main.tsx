@@ -188,6 +188,15 @@ function eagerLoadSettings(): void {
 
 const require = (await import('node:module')).createRequire(import.meta.url)
 
+let mdmLoadFailureNoted = false
+
+function noteMdmLoadFailure(error: unknown, where: 'at boot' | 'in the background'): void {
+  logForDebugging(`MDM settings load failed ${where}; no policy tier applies: ${String(error)}`, { level: 'error' })
+  if (mdmLoadFailureNoted) return
+  mdmLoadFailureNoted = true
+  const detail = error instanceof Error ? error.message : String(error)
+  addBootNote('warn', `the managed policy could not be loaded (${detail}), so it is not applied in this session`)
+}
 async function run(): Promise<void> {
   profileCheckpoint('run_function_start')
   const cliName = binaryName()
@@ -255,7 +264,7 @@ async function run(): Promise<void> {
     const { ensureMdmSettingsLoaded, mdmBootAwaitsRawRead, getMdmSettings, getHkcuSettings } = await import('./utils/settings/mdm/settings.js')
     if (mdmBootAwaitsRawRead()) {
       await ensureMdmSettingsLoaded().catch((error: unknown) => {
-        logForDebugging(`MDM settings load failed at boot; no policy tier applies: ${String(error)}`, { level: 'error' })
+        noteMdmLoadFailure(error, 'at boot')
       })
     } else {
       void ensureMdmSettingsLoaded()
@@ -264,7 +273,7 @@ async function run(): Promise<void> {
           settingsChangeDetector.notifyChange('policySettings')
         })
         .catch((error: unknown) => {
-          logForDebugging(`MDM settings load failed in the background; no policy tier applies: ${String(error)}`, { level: 'error' })
+          noteMdmLoadFailure(error, 'in the background')
         })
     }
     resetSettingsCache()
