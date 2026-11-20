@@ -5,7 +5,7 @@ import { createBufferedWriter, type BufferedWriter } from './bufferedWriter.js'
 import { CACHE_PATHS } from './cachePaths.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
-import { getErrnoCode } from './errors.js'
+import { getErrnoCode, isENOENT } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { attachErrorLogSink, dateToFilename } from './log.js'
 import { passedOver } from './passedOver.js'
@@ -45,8 +45,11 @@ function fileSize(fs: ReturnType<typeof getFsImplementation>, path: string): num
   try {
     return fs.statSync(path).size
   } catch (error) {
-    passedOver(error)
-    return 0
+    if (isENOENT(error)) {
+      passedOver(error)
+      return 0
+    }
+    throw error
   }
 }
 
@@ -56,7 +59,13 @@ function appendBounded(path: string, content: string): void {
   const lines = content.match(/[^\n]*\n/g) ?? [content]
   for (const line of lines) {
     if (closedPaths.has(path)) return
-    const size = fileSize(fs, path)
+    let size: number
+    try {
+      size = fileSize(fs, path)
+    } catch (error) {
+      closePath(path, `cannot be written (${getErrnoCode(error) ?? deriveErrorString(error)})`)
+      return
+    }
     if (size + line.length > LOG_FILE_BYTE_CEILING) {
       closePath(path, `reached its ${LOG_FILE_BYTE_CEILING} byte ceiling`)
       return

@@ -17,6 +17,8 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'prove-faults-fn30-')))
 const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
+process.env.XDG_CACHE_HOME = join(scratch, 'cache')
+process.env.LOCALAPPDATA = join(scratch, 'cache')
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 
@@ -100,6 +102,32 @@ try {
       }
       check('envUtils.ensurePrivateConfigHome unreadable parent throws EACCES', code === 'EACCES', `got ${String(code)}`)
     }
+  }
+  {
+    const errorLogSink = await import('../../src/utils/errorLogSink.js')
+    const logMod = await import('../../src/utils/log.js')
+    const fsOps = await import('../../src/utils/fsOperations.js')
+    errorLogSink.initializeErrorLogSink()
+    errorLogSink.resetErrorLogSinkForTest()
+    const baseFs = fsOps.getFsImplementation()
+    let appendCalls = 0
+    fsOps.setFsImplementation({
+      ...baseFs,
+      statSync: () => {
+        throw Object.assign(new Error('EIO stat failed'), { code: 'EIO' })
+      },
+      appendFileSync: () => {
+        appendCalls++
+      },
+    })
+    try {
+      logMod.logMCPError('fault-probe-server', new Error('ceiling-check'))
+      errorLogSink.resetErrorLogSinkForTest()
+    } finally {
+      fsOps.setOriginalFsImplementation()
+      errorLogSink.resetErrorLogSinkForTest()
+    }
+    check('errorLogSink non-ENOENT stat failure closes path instead of writing', appendCalls === 0, `appendCalls=${appendCalls}`)
   }
 } finally {
   for (const fn of cleanupTasks.reverse()) fn()
