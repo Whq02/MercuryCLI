@@ -3,6 +3,7 @@ import { unlink } from 'fs/promises'
 import { basename } from 'path'
 import { GLYPH } from '../../utils/glyphs.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { localIpcDoorKind } from '../../utils/platform/files.js'
 import { treeEndsSettled } from '../../utils/processGroup.js'
 import { recordSpawnExit } from '../spawnLedger.js'
 import { parkAllConcourseSessions } from '../concourseWorkers.js'
@@ -342,7 +343,7 @@ export async function giveHomeBack(state: DaemonRunState, { planeAnswer, planeHe
   } catch (error) { passedOver(error) }
   await unlink(controlKeyPath()).catch(passedOver)
   await clearDaemonState()
-  if (process.platform !== 'win32') {
+  if (localIpcDoorKind() === 'unix-socket') {
     unpublishOwnPlane()
     await unlink(predecessorSockPath(process.pid)).catch(passedOver)
   }

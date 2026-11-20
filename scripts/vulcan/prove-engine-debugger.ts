@@ -194,9 +194,16 @@ if (!executable.resolved) {
       'setInterval(() => {}, 1000)',
       '',
     ].join('\n'))
-    const holding = join(scratch, 'holding-engine.sh')
-    writeFileSync(holding, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(holdingScript)} "$@"\n`)
-    chmodSync(holding, 0o755)
+    let holding = join(scratch, 'holding-engine.sh')
+    if (process.platform === 'win32') {
+      const launcherSrc = join(scratch, 'holding-engine-launcher.ts')
+      holding = join(scratch, 'holding-engine.exe')
+      writeFileSync(launcherSrc, `import { spawnSync } from 'node:child_process'\nconst r = spawnSync(${JSON.stringify(process.execPath)}, [${JSON.stringify(holdingScript)}, ...process.argv.slice(2)], { stdio: 'inherit', env: process.env })\nprocess.exit(r.status ?? 1)\n`)
+      execFileSync(process.execPath, ['build', '--compile', launcherSrc, '--outfile', holding], { windowsHide: true, timeout: 120_000 })
+    } else {
+      writeFileSync(holding, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(holdingScript)} "$@"\n`)
+      chmodSync(holding, 0o755)
+    }
     const holder = new EngineJobService(project, { workers: 1, executable: holding })
     try {
       const held = await holder.submit(request({ tour: inlineTour, source: 'engine', settleFrames: 1, sampleFrames: 2, quiet: 'flag' }))

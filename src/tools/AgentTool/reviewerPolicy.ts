@@ -16,6 +16,7 @@ import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { sectionHeadings } from '../FileEditTool/sectionEdit.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { platformTempRoots } from '../../utils/platform/files.js'
 
 export const REVIEW_BRIEF = `You are reviewing one committed change for Mercury, on frozen inputs. Find what the author missed, with evidence, and record it where the next reader looks.
 
@@ -83,7 +84,7 @@ async function verificationCommand(command: string, worktree: string, receipt: s
     if (!base) return null
     let lockRoot: string
     try { lockRoot = realpathSync(base) } catch (error) { passedOver(error); return null }
-    const temporary = [realpathSync(tmpdir()), ...(process.platform === 'win32' ? [] : [realpathSync('/tmp')])]
+    const temporary = platformTempRoots().map(root => realpathSync(root))
     if (!temporary.some(root => lockRoot !== root && within(root, lockRoot)) || within(lockRoot, worktree) || within(worktree, lockRoot) || within(lockRoot, receipt)) return null
     return { command, lockRoot }
   }

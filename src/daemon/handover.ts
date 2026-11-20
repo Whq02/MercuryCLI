@@ -3,6 +3,8 @@ import { existsSync, lstatSync, readFileSync, realpathSync, renameSync } from 'n
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
+import { localIpcDoorKind } from '../utils/platform/files.js'
+import { foldPathCase } from '../utils/platform/paths.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { readCurrentVersion, resolveLayoutRoots } from '../services/privateChannel/installLayout.js'
 import { payloadVendoredRuntime } from '../services/privateChannel/vendoredRuntime.js'
@@ -95,7 +97,7 @@ function realOrResolved(p: string): string {
 
 function pathWithin(parent: string, child: string, platform: NodeJS.Platform): boolean {
   if (child === '') return false
-  const fold = (p: string): string => (platform === 'win32' ? realOrResolved(p).toLowerCase() : realOrResolved(p))
+  const fold = (p: string): string => foldPathCase(realOrResolved(p), platform)
   const rel = relative(fold(parent), fold(child))
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
 }
@@ -145,7 +147,7 @@ function planeHomeHash(plane: string): string | null {
 
 export function predecessorSockPath(pid: number, plane: string = controlSockPath()): string {
   const path = `${plane}.${pid}`
-  if (process.platform === 'win32' || Buffer.byteLength(path) <= 100) return path
+  if (localIpcDoorKind() === 'named-pipe' || Buffer.byteLength(path) <= 100) return path
   const hash = planeHomeHash(plane)
   return join(dirname(plane), hash === null ? `${pid}.sock` : `${hash}.${pid}.sock`)
 }
@@ -163,7 +165,7 @@ export function predecessorSockPidOf(entry: string, plane: string = controlSockP
 
 export function renameSocketForPredecessor(pid: number): boolean {
   const from = controlSockPath()
-  if (process.platform === 'win32' || !existsSync(from)) return false
+  if (localIpcDoorKind() === 'named-pipe' || !existsSync(from)) return false
   try {
     if (lstatSync(from).isSymbolicLink()) return existsSync(predecessorSockPath(pid))
     renameSync(from, predecessorSockPath(pid))

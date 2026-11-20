@@ -19,6 +19,7 @@ import { directoryIdentity } from '../utils/directoryIdentity.js'
 import { isProcessAlive } from '../utils/ownerWatch.js'
 import { availableCores } from '../utils/availableCores.js'
 import { logForDebugging } from '../utils/debug.js'
+import { posixFileModesApply } from '../utils/platform/files.js'
 import { errorMessage, getErrnoCode } from '../utils/errors.js'
 import { recordSpawnExit } from './spawnLedger.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
@@ -220,7 +221,7 @@ export async function mintControlKey(): Promise<string> {
   await mkdir(daemonDir(), { recursive: true })
   await writeFile(controlKeyPath(), key, { mode: 0o600 })
   await chmod(controlKeyPath(), 0o600).catch(async (err: unknown) => {
-    if (process.platform === 'win32') return
+    if (!posixFileModesApply()) return
     const path = controlKeyPath()
     const code = getErrnoCode(err) ?? errorMessage(err)
     let owner: number

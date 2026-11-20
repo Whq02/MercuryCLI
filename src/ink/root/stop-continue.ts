@@ -1,12 +1,13 @@
 import { runTeardownSuite, type TeardownHost } from './teardown.js'
 import { reassertModesBytes } from './screen-session.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { terminalSupportsJobControl } from '../../utils/platform/terminal.js'
 
 export const POSIX_STOP_SIGNALS = ['SIGTSTP', 'SIGTTIN', 'SIGTTOU'] as const
 export type StopSignal = (typeof POSIX_STOP_SIGNALS)[number]
 
 export function stopSignalsSupported(platform: NodeJS.Platform = process.platform): boolean {
-  return platform !== 'win32'
+  return terminalSupportsJobControl(platform)
 }
 
 export function isStopSignal(signal: string): signal is StopSignal {

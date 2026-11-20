@@ -8,6 +8,7 @@ import { ENTER_ALT_SCREEN } from '../termio/dec.js'
 import { liveSize, buildParkPatch, resetFramesForAltScreen } from './frames.js'
 import type Ink from '../ink.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { consoleSizeNeedsPolling } from '../../utils/platform/terminal.js'
 
 type HandleResizeReads = Pick<
   Ink,
@@ -63,7 +64,7 @@ function paintResizeHold(this: PaintResizeHoldReads, columns: number, rows: numb
 }
 
 export function consoleBufferOutlivesWindow(this: Pick<Ink, 'isTTY' | 'isPaused' | 'altScreenActive'>): boolean {
-  return process.platform === 'win32' && !syncOutputCapabilityNow() && this.altScreenActive && !this.isPaused && this.isTTY
+  return consoleSizeNeedsPolling() && !syncOutputCapabilityNow() && this.altScreenActive && !this.isPaused && this.isTTY
 }
 
 function fitConsoleBufferToWindow(this: Pick<Ink, 'options' | 'isTTY' | 'isPaused' | 'altScreenActive' | 'fittingConsoleBuffer'>): void {
@@ -119,6 +120,6 @@ export function clearResizeSettle(this: Pick<Ink, 'scheduler' | 'resizeSettleTim
 }
 
 export function reconcileSize(this: Pick<Ink, 'options' | 'handleResize'>): void {
-  if (process.platform !== 'win32') return;
+  if (!consoleSizeNeedsPolling()) return;
   if (!refreshConsoleSize(this.options.stdout)) this.handleResize();
 }

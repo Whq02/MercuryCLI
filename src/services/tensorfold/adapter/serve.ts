@@ -17,6 +17,7 @@ import { isENOENT } from '../../../utils/errors.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
+import { processQueryTool } from '../../../utils/platform/processes.js'
 
 type ServeArgs = { repo: string; name?: string; window: number; port: number; host: string; promptCacheGib: number; apiKeyFile?: string; drafter?: string }
 
@@ -252,8 +253,9 @@ export function tasklistMemoryBytes(stdout: string): number | undefined {
 
 function rssBytes(pid: number, platform: NodeJS.Platform): Promise<number | undefined> {
   return new Promise(resolve => {
+    const tool = processQueryTool(platform)
     const done = (stdout: string): void => {
-      if (platform === 'win32') {
+      if (tool === 'tasklist') {
         resolve(tasklistMemoryBytes(stdout))
         return
       }
@@ -261,7 +263,7 @@ function rssBytes(pid: number, platform: NodeJS.Platform): Promise<number | unde
       resolve(Number.isFinite(kib) && kib > 0 ? kib * 1024 : undefined)
     }
     try {
-      if (platform === 'win32') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => (error ? resolve(undefined) : done(String(stdout))))
+      if (tool === 'tasklist') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => (error ? resolve(undefined) : done(String(stdout))))
       else execFile('ps', ['-o', 'rss=', '-p', String(pid)], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => (error ? resolve(undefined) : done(String(stdout))))
     } catch {
       resolve(undefined)
@@ -300,7 +302,7 @@ export function childEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 function isLlamaServer(pid: number, platform: NodeJS.Platform): Promise<boolean> {
   return new Promise(resolve => {
     try {
-      if (platform === 'win32') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => resolve(!error && /llama-server/i.test(String(stdout))))
+      if (processQueryTool(platform) === 'tasklist') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => resolve(!error && /llama-server/i.test(String(stdout))))
       else execFile('ps', ['-o', 'command=', '-p', String(pid)], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => resolve(!error && /llama-server/.test(String(stdout))))
     } catch {
       resolve(false)

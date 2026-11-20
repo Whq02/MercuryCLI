@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { stripExtendedLengthPrefix } from '../../../utils/windowsPaths.js'
+import { stripExtendedLengthPrefixForPlatform } from '../../../utils/platform/paths.js'
 import { artifactIdentityLine, describeArtifactIdentity } from '../../../utils/artifactIdentity.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { isMercurySubstrateProfileOn } from '../../../utils/config.js'
@@ -156,7 +156,7 @@ export function identityChecks(context: HealthContext): CheckSpec[] {
       run: async probeCtx => {
         const signal = probeCtx?.signal
         const rawEntry = process.argv[1]
-        const entry = rawEntry && process.platform === 'win32' ? stripExtendedLengthPrefix(rawEntry) : rawEntry
+        const entry = rawEntry ? stripExtendedLengthPrefixForPlatform(rawEntry) : rawEntry
         if (!entry || !existsSync(entry)) {
           return {
             status: 'unknown',
@@ -245,7 +245,7 @@ export function identityChecks(context: HealthContext): CheckSpec[] {
       label: 'Deployed assets',
       run: async () => {
         const rawEntry = process.argv[1]
-        const entry = rawEntry && process.platform === 'win32' ? stripExtendedLengthPrefix(rawEntry) : rawEntry
+        const entry = rawEntry ? stripExtendedLengthPrefixForPlatform(rawEntry) : rawEntry
         const root = entry ? dirname(dirname(entry)) : null
         if (
           !root ||

@@ -7,6 +7,7 @@ import { gte } from '../../utils/semver.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { CURSOR_HOME, csi, ERASE_SCREEN } from '../termio/csi.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { isLegacyWindowsConsole, isModernWindowsTerminalHost, isWindowsTerminalHost } from '../../utils/platform/terminal.js'
 
 
 
@@ -165,7 +166,7 @@ export function isProgressReportingAvailable(
 
 
 export function hasCursorUpViewportYankBug(): boolean {
-  return process.platform === 'win32' || !!hostEnv().WT_SESSION
+  return isWindowsTerminalHost(hostEnv())
 }
 
 export function streamingRevealSuppressed(
@@ -215,15 +216,11 @@ export function isModernWindowsTerminal(
   env: Record<string, string | undefined> = hostEnv(),
   platform: string = process.platform,
 ): boolean {
-  if (platform !== 'win32') return false
-  if (env.WT_SESSION) return true
-  if (env.TERM_PROGRAM === 'vscode' && env.TERM_PROGRAM_VERSION) return true
-  if (env.TERM_PROGRAM === 'mintty' || env.MSYSTEM) return true
-  return false
+  return isModernWindowsTerminalHost(env, platform)
 }
 
 export function getClearTerminalSequence(): string {
-  if (process.platform === 'win32' && !isModernWindowsTerminal()) {
+  if (isLegacyWindowsConsole(hostEnv())) {
     return ERASE_SCREEN + CURSOR_HOME_WINDOWS
   }
   return ERASE_SCREEN + CURSOR_HOME

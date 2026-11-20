@@ -5,6 +5,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { lastMemorySample, refreshMemorySample, runtimeMemorySample, type MemoryRead } from './switchboard/capacityCheck.js'
 import { commandWords } from '../guards/generatedAssets.js'
 import { passedOver, passedOverAs } from './passedOver.js'
+import { loadAverageSupported } from './platform/processes.js'
 
 const BOX_LOCK_SCRIPT = 'with-box-lock.sh'
 
@@ -144,7 +145,7 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
 
 function boxLoadReading(now: number = Date.now()): BoxLoadReading {
   const cores = Math.max(1, cpus().length)
-  const load1 = process.platform === 'win32' ? null : (loadavg()[0] ?? null)
+  const load1 = loadAverageSupported() ? (loadavg()[0] ?? null) : null
   const last = lastMemorySample(now)
   const sample = last?.sample ?? runtimeMemorySample()
   return {

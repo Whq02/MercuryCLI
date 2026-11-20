@@ -5,6 +5,7 @@ import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { resolveLayoutRoots } from './installLayout.js'
 import { nixInstallRoot } from './nixInstallRoot.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { stripExtendedLengthPrefixForPlatform } from '../../utils/platform/paths.js'
 
 export { nixInstallRoot } from './nixInstallRoot.js'
 
@@ -357,7 +358,7 @@ export function resolveInstallProvenance(): InstallProvenanceV1 {
       kind: 'unknown',
       version: typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev',
       activeRoot: '',
-      invokedPath: process.platform === 'win32' ? stripExtendedLengthPrefix(process.argv[1] ?? '') : (process.argv[1] ?? ''),
+      invokedPath: stripExtendedLengthPrefixForPlatform(process.argv[1] ?? ''),
       updateOwner: 'none-known',
       evidence: ['provenance probe threw — no evidence either way'],
       disagreements: [],

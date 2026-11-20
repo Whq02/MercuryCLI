@@ -19,19 +19,33 @@ function runScenario(body: string, extraEnv: Record<string, string> = {}): Recor
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w10-')))
   const userHome = join(scratch, 'userhome')
   const home = join(scratch, 'home')
+  const versionsDir = join(home, 'versions')
+  const localAppData = join(userHome, 'AppData', 'Local')
+  const appData = join(userHome, 'AppData', 'Roaming')
+  const xdgConfigHome = join(userHome, '.config')
   const project = join(scratch, 'project')
   mkdirSync(userHome, { recursive: true })
   mkdirSync(home, { recursive: true })
+  mkdirSync(localAppData, { recursive: true })
+  mkdirSync(appData, { recursive: true })
   mkdirSync(project, { recursive: true })
   const src = `
     process.env.HOME = ${JSON.stringify(userHome)}
+    process.env.USERPROFILE = ${JSON.stringify(userHome)}
+    process.env.LOCALAPPDATA = ${JSON.stringify(localAppData)}
+    process.env.APPDATA = ${JSON.stringify(appData)}
+    process.env.XDG_CONFIG_HOME = ${JSON.stringify(xdgConfigHome)}
     process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
+    process.env.MERCURY_VERSIONS_DIR = ${JSON.stringify(versionsDir)}
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
     process.env.NODE_ENV = 'test'
     delete process.env.MERCURY_HOME
+    delete process.env.HOMEDRIVE
+    delete process.env.HOMEPATH
     globalThis.MACRO = { VERSION: '1.0.12' }
     process.chdir(${JSON.stringify(project)})
+    const SCRATCH = ${JSON.stringify(scratch)}
     const USER_HOME = ${JSON.stringify(userHome)}
     const HOME = ${JSON.stringify(home)}
     const PROJECT = ${JSON.stringify(project)}
@@ -41,10 +55,26 @@ function runScenario(body: string, extraEnv: Record<string, string> = {}): Recor
     process.stdout.write('\\n' + JSON.stringify(out))
     process.exit(0)
   `
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    HOME: userHome,
+    USERPROFILE: userHome,
+    LOCALAPPDATA: localAppData,
+    APPDATA: appData,
+    XDG_CONFIG_HOME: xdgConfigHome,
+    MERCURY_CONFIG_DIR: home,
+    MERCURY_VERSIONS_DIR: versionsDir,
+    MERCURY_CREDENTIAL_STORE: 'file',
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    ...extraEnv,
+  }
+  delete childEnv.MERCURY_HOME
+  delete childEnv.HOMEDRIVE
+  delete childEnv.HOMEPATH
   try {
     const res = spawnSync(BUN, ['-e', src], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: userHome, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file', ...extraEnv },
+      env: childEnv,
       timeout: 30_000,
     })
     if (res.status !== 0) throw new Error(`scenario exited ${res.status}: ${res.stderr.slice(-1500)}`)
@@ -52,7 +82,7 @@ function runScenario(body: string, extraEnv: Record<string, string> = {}): Recor
     return JSON.parse(line) as Record<string, unknown>
   } finally {
     try {
-      chmodSync(join(home, 'versions'), 0o700)
+      chmodSync(versionsDir, 0o700)
     } catch {}
     rmSync(scratch, { recursive: true, force: true })
   }
@@ -62,11 +92,19 @@ console.log('\n§1 w10-1 — channelStatus and mercury update --status report un
 {
   const r = runScenario(`
     const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
+    const { isAbsolute, join, relative, resolve } = await import('node:path')
     const { listInstalledVersions, resolveLayoutRoots, shimStatus } = await import(SRC + '/services/privateChannel/installLayout.ts')
     const { channelStatus } = await import(SRC + '/services/privateChannel/updateService.ts')
     const { update } = await import(SRC + '/cli/update.ts')
     const roots = resolveLayoutRoots()
+    const base = resolve(SCRATCH)
+    for (const p of [roots.versionsDir, roots.binDir, roots.shimPath, ...(roots.shimSetPaths ?? [])]) {
+      const rel = relative(base, resolve(p))
+      if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+        throw new Error('resolved layout root escapes scratch: ' + p)
+      }
+    }
+    out.rootsUnderScratch = true
     mkdirSync(roots.versionsDir, { recursive: true })
     mkdirSync(roots.shimPath, { recursive: true })
     chmodSync(roots.versionsDir, 0o000)
@@ -98,6 +136,7 @@ console.log('\n§1 w10-1 — channelStatus and mercury update --status report un
     }
   `)
   const printed = String(r.printed ?? '')
+  check('w10-1: every resolved layout root lies under the scenario scratch folder', r.rootsUnderScratch === true, JSON.stringify(r))
   check('w10-1: listInstalledVersions keeps []', Array.isArray(r.plainVersions) && r.plainVersions.length === 0, JSON.stringify(r.plainVersions))
   check('w10-1: shimStatus keeps absent', r.plainShim === 'absent', String(r.plainShim))
   check('w10-1: channelStatus reports versionsReadError', typeof r.versionsReadError === 'string' && r.versionsReadError.length > 0, String(r.versionsReadError))
@@ -609,27 +648,55 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w10-r10-')))
     const userHome = join(scratch, 'userhome')
     const home = join(scratch, 'home')
+    const versionsDir = join(home, 'versions')
+    const localAppData = join(userHome, 'AppData', 'Local')
+    const appData = join(userHome, 'AppData', 'Roaming')
+    const xdgConfigHome = join(userHome, '.config')
     const project = join(scratch, 'project')
     mkdirSync(userHome, { recursive: true })
     mkdirSync(home, { recursive: true })
+    mkdirSync(localAppData, { recursive: true })
+    mkdirSync(appData, { recursive: true })
     mkdirSync(project, { recursive: true })
     const script = `
       process.env.HOME = ${JSON.stringify(userHome)}
+      process.env.USERPROFILE = ${JSON.stringify(userHome)}
+      process.env.LOCALAPPDATA = ${JSON.stringify(localAppData)}
+      process.env.APPDATA = ${JSON.stringify(appData)}
+      process.env.XDG_CONFIG_HOME = ${JSON.stringify(xdgConfigHome)}
       process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
+      process.env.MERCURY_VERSIONS_DIR = ${JSON.stringify(versionsDir)}
       process.env.MERCURY_CREDENTIAL_STORE = 'file'
       process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
       delete process.env.NODE_ENV
       delete process.env.MERCURY_HOME
+      delete process.env.HOMEDRIVE
+      delete process.env.HOMEPATH
       globalThis.MACRO = { VERSION: '1.0.12' }
       process.chdir(${JSON.stringify(project)})
       const HOME = ${JSON.stringify(home)}
       const SRC = ${JSON.stringify(SRC)}
       ${body}
     `
+    const childEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      HOME: userHome,
+      USERPROFILE: userHome,
+      LOCALAPPDATA: localAppData,
+      APPDATA: appData,
+      XDG_CONFIG_HOME: xdgConfigHome,
+      MERCURY_CONFIG_DIR: home,
+      MERCURY_VERSIONS_DIR: versionsDir,
+      MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    }
+    delete childEnv.MERCURY_HOME
+    delete childEnv.HOMEDRIVE
+    delete childEnv.HOMEPATH
     try {
       const res = spawnSync(BUN, ['-e', script], {
         encoding: 'utf8',
-        env: { ...process.env, HOME: userHome, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file' },
+        env: childEnv,
         timeout: 30_000,
       })
       const cfgPath = join(home, '.mercury.json')

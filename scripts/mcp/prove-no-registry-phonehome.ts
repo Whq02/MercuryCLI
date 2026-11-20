@@ -11,7 +11,8 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { getProcessStartToken } from '../../src/utils/ownerWatch.ts'
@@ -43,9 +44,13 @@ const ownedPids = join(scratch, 'owned-pids.log')
 mkdirSync(cwd, { recursive: true })
 mkdirSync(shimDir, { recursive: true })
 for (const exe of ['git', 'ssh']) {
-  const path = join(shimDir, exe)
-  writeFileSync(path, `#!/bin/sh\necho "${exe} $*" >> "$SHIM_LOG"\nexit 128\n`)
-  chmodSync(path, 0o755)
+  if (process.platform === 'win32') {
+    writeFileSync(join(shimDir, `${exe}.cmd`), `@echo off\r\necho ${exe} %*>>"%SHIM_LOG%"\r\nexit /b 128\r\n`)
+  } else {
+    const path = join(shimDir, exe)
+    writeFileSync(path, `#!/bin/sh\necho "${exe} $*" >> "$SHIM_LOG"\nexit 128\n`)
+    chmodSync(path, 0o755)
+  }
 }
 const shimHits = (): string => (existsSync(shimLog) ? readFileSync(shimLog, 'utf8').trim() : '')
 const netLines = (): string[] =>
@@ -110,7 +115,7 @@ delete process.env.CI
 process.env.ANTHROPIC_API_KEY = PROOF_KEY
 const childEnv = (home: string): NodeJS.ProcessEnv => ({
   ...process.env,
-  PATH: `${shimDir}:${process.env.PATH ?? ''}`,
+  PATH: `${shimDir}${delimiter}${process.env.PATH ?? ''}`,
   SHIM_LOG: shimLog,
   PROOF_NETLOG: netlog,
   PROOF_OWNED_PIDS: ownedPids,
@@ -219,13 +224,15 @@ console.log('============================================================')
 
 if (!existsSync(DIST)) {
   console.log(`  – ${DIST} absent — SKIP §1–§6 (build first: bun run build.ts)`)
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
   console.log('\n ⚠ NOT RUN (no dist)')
   process.exit(1)
 }
 
 console.log('[0] the sweep reaps only the children it owns')
-{
+if (process.platform === 'win32') {
+  console.log('  [SKIP] not read on Windows: process-group sweep control uses POSIX sh/ps/pgrep/kill(-pid)')
+} else {
   const { spawn } = await import('node:child_process')
   const bystander = spawn('sh', ['-c', 'unrelated="$1"; sleep 30', 'sh', scratch], { stdio: 'ignore', detached: true })
   let bystanderEnded: string | null = null
@@ -300,12 +307,16 @@ console.log('[1] controls: the tripwire is SEEN firing on every layer it guards'
   run("fetch('http://203.0.113.1/x').catch(() => {})")
   check('control: fetch lands in the log', netLines().some(l => l.startsWith('fetch http://203.0.113.1/x')), netLines().join(' · '))
   rmSync(netlog, { force: true })
-  try {
-    execFileSync('git', ['--version'], { env: childEnv(controlHome), cwd, timeout: 20_000, stdio: ['ignore', 'pipe', 'pipe'] })
-  } catch {
+  if (process.platform === 'win32') {
+    console.log('  [SKIP] not read on Windows: execFileSync(git) without shell does not run .cmd shims')
+  } else {
+    try {
+      execFileSync('git', ['--version'], { env: childEnv(controlHome), cwd, timeout: 20_000, stdio: ['ignore', 'pipe', 'pipe'] })
+    } catch {
+    }
+    check('control: the git shim logs a spawn', shimHits().includes('git --version'), shimHits())
+    rmSync(shimLog, { force: true })
   }
-  check('control: the git shim logs a spawn', shimHits().includes('git --version'), shimHits())
-  rmSync(shimLog, { force: true })
 }
 
 console.log('[2] an EMPTY config home, booted headless: no registry request')
@@ -408,6 +419,6 @@ if (!BASE_DIST) {
   check('control: nothing left running', result.leftovers === '', result.leftovers)
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ NO MCP-REGISTRY PHONE-HOME — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

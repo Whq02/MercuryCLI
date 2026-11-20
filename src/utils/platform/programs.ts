@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, lstatSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { hostEnv } from '../hostEnv.js'
 import { passedOver } from '../passedOver.js'
@@ -35,6 +35,14 @@ export function isExecutableFile(candidate: string, platform: string = process.p
     return statSync(candidate).isFile()
   } catch (error) {
     passedOver(error)
+    if (platform === 'win32' && (error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      try {
+        return !lstatSync(candidate).isDirectory()
+      } catch (lstatError) {
+        passedOver(lstatError)
+        return false
+      }
+    }
     return false
   }
 }
@@ -168,4 +176,58 @@ export function missingSpawnCommandError(
     }
   }
   return missing()
+}
+
+type PackPlatform = 'darwin-arm64' | 'darwin-x64' | 'linux-x64' | 'linux-arm64' | 'win-x64' | 'win-arm64'
+
+export function packPlatformFor(platform: string = process.platform, arch: string = process.arch): PackPlatform | null {
+  if (platform === 'darwin' && arch === 'arm64') return 'darwin-arm64'
+  if (platform === 'darwin' && arch === 'x64') return 'darwin-x64'
+  if (platform === 'linux' && arch === 'x64') return 'linux-x64'
+  if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
+  if (platform === 'win32' && arch === 'x64') return 'win-x64'
+  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
+  return null
+}
+
+export function vendorPlatformTag(platform: string = process.platform, arch: string = process.arch): string {
+  return `${platform === 'win32' ? 'win' : platform}-${arch}`
+}
+
+export function hostOsFamily(platform: string = process.platform): 'windows' | 'darwin' | 'linux' {
+  return platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux'
+}
+
+export function normalizedOsPlatform(platform: string = process.platform): 'win32' | 'darwin' | 'linux' {
+  if (platform === 'win32') return 'win32'
+  if (platform === 'darwin') return 'darwin'
+  return 'linux'
+}
+
+export function pathExtensionsForName(
+  name: string,
+  env: NodeJS.ProcessEnv = hostEnv(),
+  platform: string = process.platform,
+): string[] {
+  const extensions = (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
+  const hasExtension = extensions.some(ext => name.toLowerCase().endsWith(ext.toLowerCase()))
+  const exts: string[] = platform === 'win32' && !hasExtension ? [] : ['']
+  if (platform === 'win32' && !hasExtension) {
+    for (const raw of (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';')) {
+      if (raw.length === 0) continue
+      const lower = raw.toLowerCase()
+      if (!exts.includes(lower)) exts.push(lower)
+      if (!exts.includes(raw)) exts.push(raw)
+    }
+  }
+  return exts
+}
+
+export function pathLookupExtensions(env: NodeJS.ProcessEnv = hostEnv(), platform: string = process.platform): string[] {
+  if (platform !== 'win32') return ['']
+  return [...(env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(ext => ext !== ''), '']
+}
+
+export function hasRequiredProgramExtension(filePath: string, platform: string = process.platform): boolean {
+  return platform !== 'win32' || path.extname(filePath) !== ''
 }

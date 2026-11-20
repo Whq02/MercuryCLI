@@ -49,9 +49,9 @@ function shimDir(name: string, binaries: string[]): string {
   const dir = path.join(scratch, name)
   mkdirSync(dir, { recursive: true })
   for (const bin of binaries) {
-    const p = path.join(dir, bin)
-    writeFileSync(p, '#!/bin/sh\nexit 0\n')
-    chmodSync(p, 0o755)
+    const p = path.join(dir, process.platform === 'win32' ? `${bin}.cmd` : bin)
+    writeFileSync(p, process.platform === 'win32' ? '@echo off\r\nexit /b 0\r\n' : '#!/bin/sh\nexit 0\n')
+    if (process.platform !== 'win32') chmodSync(p, 0o755)
   }
   return dir
 }

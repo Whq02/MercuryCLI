@@ -16,6 +16,7 @@ import { resolveBrushPackDir } from './brushPack.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
 import { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, pinPassedOver, settleWindowsShell, shellFollowsTheRecord, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
 import { hostEnv } from '../hostEnv.js'
+import { childGetsOwnProcessGroup } from '../platform/processes.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -68,7 +69,7 @@ function questionEnvironment(): NodeJS.ProcessEnv {
 export function startedBashVersion(path: string, limitMs: number = START_PROBE_TIMEOUT_MS): Promise<string | null> {
   return new Promise(resolve => {
     try {
-      const ownGroup = process.platform !== 'win32'
+      const ownGroup = childGetsOwnProcessGroup()
       askedNow = path
       const question = process.platform === 'win32' ? windowsShellQuestion(tmpdir()) : { text: 'printf %s "$BASH_VERSION"', drive: null }
       whyUnfit.delete(path)

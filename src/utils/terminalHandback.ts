@@ -4,6 +4,7 @@ import { flagEnabled } from '../substrate/flagRegistry.js'
 import { loadVoiceAddon, type VoiceAddon } from './voice/voicePack.js'
 import { logForDebugging } from './debug.js'
 import { passedOver } from './passedOver.js'
+import { terminalSupportsJobControl } from './platform/terminal.js'
 
 export type TtyAddon = Pick<VoiceAddon, 'ttyForegroundGroup' | 'ownProcessGroup' | 'reclaimTerminal'>
 
@@ -84,7 +85,7 @@ function settle(receipt: HandbackReceipt): HandbackReceipt {
 
 export function reclaimTerminalAfterChild(label: string): HandbackReceipt {
   try {
-    if (process.platform === 'win32') {
+    if (!terminalSupportsJobControl()) {
       return settle({ label, reclaimed: false, reason: 'unsupported', note: 'no POSIX job control on this platform' })
     }
     if (!flagEnabled(TERMINAL_HANDBACK_FLAG)) {
@@ -135,7 +136,7 @@ type HandbackDescription = {
 
 export function describeTerminalHandback(): HandbackDescription {
   const stopRoad = 'a killed editor or panel shell leaves a clean job-control stop; fg resumes'
-  if (process.platform === 'win32') {
+  if (!terminalSupportsJobControl()) {
     return { native: false, line: 'Terminal hand-back: not applicable — no POSIX job control on this platform' }
   }
   if (!flagEnabled(TERMINAL_HANDBACK_FLAG)) {

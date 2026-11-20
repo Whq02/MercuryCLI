@@ -28,6 +28,8 @@ import { fileReadCache } from './fileReadCache.js'
 import { logError } from './log.js'
 import { expandPath } from './path.js'
 import { needsPowerShellBom } from './fileEncoding.js'
+import { isTransientHeldFileCode } from './platform/files.js'
+import { foldPathCase, toNativeSeparators } from './platform/paths.js'
 import { passedOver } from './passedOver.js'
 import { sleepSync } from './timers.js'
 
@@ -264,7 +266,7 @@ export function classifyAtomicWriteFailure(
   const platform = facts.platform ?? process.platform
   if (code !== undefined && STRUCTURAL_WRITE_CODES.has(code)) return 'refuse'
   if (isTransientWin32FsCode(code)) {
-    if (platform === 'win32' && facts.attempt < ATOMIC_FRESH_TEMP_ATTEMPTS) return 'retry-atomic'
+    if (isTransientHeldFileCode(code, platform) && facts.attempt < ATOMIC_FRESH_TEMP_ATTEMPTS) return 'retry-atomic'
     if (facts.phase === 'rename') return 'refuse'
   }
   if (facts.isNewFile) return 'refuse'
@@ -438,11 +440,7 @@ export function getDisplayPath(filePath: string): string {
 }
 
 export function normalizePathForComparison(filePath: string): string {
-  const normalized = normalize(filePath)
-  if (process.platform === 'win32') {
-    return normalized.replace(/\//g, '\\').toLowerCase()
-  }
-  return normalized
+  return foldPathCase(toNativeSeparators(normalize(filePath)))
 }
 
 export function findSimilarFile(filePath: string): string | undefined {

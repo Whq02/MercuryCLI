@@ -21,6 +21,7 @@ import { addItemToJSONCArray, safeParseJSONC } from '../../utils/json.js'
 import { logError } from '../../utils/log.js'
 import { getTheme, type ThemeName } from '../../utils/theme.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { userConfigRoot, xdgAndRoamingConfigRoots } from '../../utils/platform/files.js'
 
 const NATIVE_TERMINALS: Record<string, string> = {
   ghostty: 'Ghostty',
@@ -93,12 +94,7 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<Term
       ) }
     }
     const home = homedir()
-    const userDir =
-      process.platform === 'win32'
-        ? join(home, 'AppData', 'Roaming', editorDir, 'User')
-        : process.platform === 'darwin'
-          ? join(home, 'Library', 'Application Support', editorDir, 'User')
-          : join(home, '.config', editorDir, 'User')
+    const userDir = join(userConfigRoot(home), editorDir, 'User')
     await mkdir(userDir, { recursive: true })
     const filePath = join(userDir, 'keybindings.json')
     let content = '[]'
@@ -235,15 +231,7 @@ const ALACRITTY_TABLE = `[[keyboard.bindings]]\nkey = "Return"\nmods = "Shift"\n
 
 async function installAlacritty(paint: Paint): Promise<TerminalSetupResult> {
   try {
-    const candidates: string[] = []
-    if (hostEnv().XDG_CONFIG_HOME) {
-      candidates.push(join(hostEnv().XDG_CONFIG_HOME!, 'alacritty', 'alacritty.toml'))
-    } else {
-      candidates.push(join(homedir(), '.config', 'alacritty', 'alacritty.toml'))
-    }
-    if (process.platform === 'win32' && hostEnv().APPDATA) {
-      candidates.push(join(hostEnv().APPDATA!, 'alacritty', 'alacritty.toml'))
-    }
+    const candidates = xdgAndRoamingConfigRoots().map(root => join(root, 'alacritty', 'alacritty.toml'))
     if (candidates.length === 0) throw new Error('No Alacritty config path could be produced')
     let target: string | null = null
     let content = ''

@@ -1,15 +1,44 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { rulesIgnore } from '../lib/treeIgnore.ts'
 
-const scratch = mkdtempSync(join(tmpdir(), 'node-pack '))
-process.env.HOME = join(scratch, 'home')
-process.env.MERCURY_CONFIG_DIR = join(scratch, 'home', '.mercury')
-process.env.MERCURY_VERSIONS_DIR = join(scratch, 'home', '.mercury', 'versions')
-delete process.env.MERCURY_HOME
+if (!process.env.MERCURY_PROOF_LAYOUT_SCRATCH) {
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'node-pack ')))
+  const userHome = join(scratch, 'home')
+  const configDir = join(userHome, '.mercury')
+  const localAppData = join(userHome, 'AppData', 'Local')
+  const appData = join(userHome, 'AppData', 'Roaming')
+  for (const d of [userHome, configDir, localAppData, appData]) mkdirSync(d, { recursive: true })
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    MERCURY_PROOF_LAYOUT_SCRATCH: scratch,
+    HOME: userHome,
+    USERPROFILE: userHome,
+    LOCALAPPDATA: localAppData,
+    APPDATA: appData,
+    XDG_CONFIG_HOME: join(userHome, '.config'),
+    MERCURY_CONFIG_DIR: configDir,
+    MERCURY_VERSIONS_DIR: join(configDir, 'versions'),
+  }
+  delete env.MERCURY_HOME
+  delete env.HOMEDRIVE
+  delete env.HOMEPATH
+  delete env.MERCURY_NODE
+  delete env.MERCURY_UPDATE_FAULT
+  try {
+    const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: 'inherit', env })
+    process.exit(child.status ?? 1)
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+const scratch = process.env.MERCURY_PROOF_LAYOUT_SCRATCH!
 delete process.env.MERCURY_NODE
 delete process.env.MERCURY_UPDATE_FAULT
 
@@ -27,7 +56,7 @@ const {
   runtimeBinaryFor,
   runtimeLine,
 } = await import('../../src/services/privateChannel/vendoredRuntime.js')
-const { smokeVersion, validatePayloadDir } = await import('../../src/services/privateChannel/installLayout.js')
+const { resolveLayoutRoots, smokeVersion, validatePayloadDir } = await import('../../src/services/privateChannel/installLayout.js')
 const { verifyPayloadDir } = await import('../../src/services/privateChannel/artifactVerify.js')
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -42,6 +71,18 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 
+{
+  const roots = resolveLayoutRoots()
+  const base = resolve(scratch)
+  for (const p of [roots.versionsDir, roots.binDir, roots.shimPath, ...(roots.shimSetPaths ?? [])]) {
+    const rel = relative(base, resolve(p))
+    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+      console.log(`  [FAIL] SAFETY: resolved layout root escapes scratch: ${p}`)
+      process.exit(1)
+    }
+  }
+  check('every resolved layout root lies under scratch', true)
+}
 section('§1 the lock — one nodejs.org archive + sha256 per platform')
 {
   const lockPath = join(ROOT, 'vendor', 'node.lock.json')

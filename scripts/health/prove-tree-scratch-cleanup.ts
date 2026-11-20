@@ -15,6 +15,10 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
+if (process.platform === 'win32') {
+  console.log('not read on Windows: slow git stand-in uses /usr/bin/which and POSIX #!/bin/sh')
+  process.exit(0)
+}
 const world = realpathSync(mkdtempSync(join(tmpdir(), 'tree-scratch-')))
 const scratchTmp = join(world, 'tmp')
 mkdirSync(scratchTmp)

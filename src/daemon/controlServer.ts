@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { readdir, rename, symlink, unlink } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { localIpcDoorKind } from '../utils/platform/files.js'
 import { errorMessage, isENOENT } from '../utils/errors.js'
 import type { DaemonBreaker } from '../utils/daemonBreaker.js'
 import {
@@ -312,7 +313,7 @@ function peerUidRejection(_sock: net.Socket): string | null {
 }
 
 function removeStaleSocket(sockPath: string): Promise<void> {
-  if (process.platform === 'win32') return Promise.resolve()
+  if (localIpcDoorKind() === 'named-pipe') return Promise.resolve()
   return unlink(sockPath).catch(passedOver)
 }
 

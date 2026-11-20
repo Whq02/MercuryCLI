@@ -78,14 +78,20 @@ for (const [, id] of expected) {
   check(`${id}: with no binary on PATH the row is neither detected nor offered`, probe.binaryPath === undefined, JSON.stringify(probe))
 }
 check('an absent binary leaves PATH untouched and the scratch bin empty (nothing was fetched)', readdirSync(emptyBin).length === 0 && readdirSync(shimBin).length === 0)
-writeFileSync(join(shimBin, 'gleam'), '#!/bin/sh\nexit 0\n')
-chmodSync(join(shimBin, 'gleam'), 0o755)
+const shimPath = (name: string): string => join(shimBin, process.platform === 'win32' ? `${name}.cmd` : name)
+const plantShim = (name: string): string => {
+  const file = shimPath(name)
+  writeFileSync(file, process.platform === 'win32' ? '@echo off\r\nexit /b 0\r\n' : '#!/bin/sh\nexit 0\n')
+  if (process.platform !== 'win32') chmodSync(file, 0o755)
+  return file
+}
+const gleamPath = plantShim('gleam')
 process.env.PATH = shimBin
 const gleam = byId.get('gleam')!
 const detectedOnly = probeCatalogueEntry(gleam, scratch, [])
-check('a binary without its root marker is detected, not offered', detectedOnly.binaryPath === join(shimBin, 'gleam') && detectedOnly.rootMatched === false, JSON.stringify(detectedOnly))
+check('a binary without its root marker is detected, not offered', detectedOnly.binaryPath === gleamPath && detectedOnly.rootMatched === false, JSON.stringify(detectedOnly))
 const offered = probeCatalogueEntry(gleam, scratch, ['gleam.toml', 'src'])
-check('the binary beside gleam.toml is offered', offered.binaryPath === join(shimBin, 'gleam') && offered.rootMatched === true, JSON.stringify(offered))
+check('the binary beside gleam.toml is offered', offered.binaryPath === gleamPath && offered.rootMatched === true, JSON.stringify(offered))
 const powershell = byId.get('powershell-editor-services')!
 check('a PowerShell project is one with a .ps1, .psm1 or .psd1 in the folder', probeCatalogueEntry(powershell, scratch, ['Deploy.ps1']).rootMatched && !probeCatalogueEntry(powershell, scratch, ['README.md']).rootMatched)
 process.env.PATH = emptyBin
@@ -96,21 +102,19 @@ for (const key of ['dart', 'kotlin', 'elixir']) {
   check(`${key}: absent on this PATH, the adapter is dormant with its install named`, !dap.knownAdapterKeys().includes(key) && dormant.some(row => row.key === key && row.hint.length > 0), JSON.stringify(dormant.map(row => row.key)))
 }
 for (const [shim, key, extension] of [['dart', 'dart', '.dart'], ['kotlin-debug-adapter', 'kotlin', '.kt'], ['elixir-ls-debugger', 'elixir', '.ex']] as const) {
-  writeFileSync(join(shimBin, shim), '#!/bin/sh\nexit 0\n')
-  chmodSync(join(shimBin, shim), 0o755)
+  plantShim(shim)
   process.env.PATH = shimBin
   const spec = dap.resolveAdapter(key)
   check(`${key}: with ${shim} on PATH the row exists, speaks stdio and owns ${extension}`, spec !== null && spec.command === shim && (spec.connect ?? 'stdio') === 'stdio' && (spec.fileTypes ?? []).includes(extension) && dap.adapterKeyForExtension(extension) === key, JSON.stringify(spec))
   check(`${key}: the row is no longer dormant`, !dap.dormantBuiltinAdapterHints('live').some(row => row.key === key))
-  rmSync(join(shimBin, shim))
+  rmSync(shimPath(shim))
   process.env.PATH = emptyBin
 }
 check('dart launches the SDK\'s own adapter verb', (() => {
-  writeFileSync(join(shimBin, 'dart'), '#!/bin/sh\nexit 0\n')
-  chmodSync(join(shimBin, 'dart'), 0o755)
+  plantShim('dart')
   process.env.PATH = shimBin
   const spec = dap.resolveAdapter('dart')
-  rmSync(join(shimBin, 'dart'))
+  rmSync(shimPath('dart'))
   process.env.PATH = emptyBin
   return spec?.args.join(' ') === 'debug_adapter'
 })())

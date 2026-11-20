@@ -11,6 +11,7 @@ import { lineagePath, mnemeProjectKeyFor } from './paths.js'
 import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
 import type { LedgerEntry, LiveSession } from './types.js'
 import { passedOver } from '../utils/passedOver.js'
+import { syncStartTokenSupported } from '../utils/platform/processes.js'
 
 export const LEDGER_FILES_CAP = 300
 export const HANDOFF_TEXT_CAP = 8000
@@ -64,7 +65,7 @@ const PID_CLAIM_GRACE_MS = 5 * 60 * 1000
 function rowProcessAlive(entry: LedgerEntry): boolean | null {
   if (entry.pid === undefined) return null
   if (!isProcessAlive(entry.pid)) return false
-  if (entry.pidAt === undefined || process.platform === 'win32') return true
+  if (entry.pidAt === undefined || !syncStartTokenSupported()) return true
   const token = getProcessStartToken(entry.pid)
   if (token === null) return true
   if (token === '') return false

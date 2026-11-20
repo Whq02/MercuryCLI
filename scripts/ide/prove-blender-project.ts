@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { fakeCommand } from '../dap/fakeCommand.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -122,15 +123,11 @@ section('§3 · location rungs')
 section('§4 · the version probe (PATH-shim fake)')
 {
   restore()
-  const shim = path.join(scratch, 'shim-blender')
-  writeFileSync(shim, '#!/bin/sh\necho "Blender 4.5.13"\necho "\tbuild date: 2026-08-25"\nexit 0\n')
-  chmodSync(shim, 0o755)
+  const shim = fakeCommand(scratch, 'shim-blender', 'Blender 4.5.13\n\tbuild date: 2026-08-25\n', scratch)
   let v = probeBlenderVersion(shim)
   check('parses "Blender 4.5.13"', v.version === '4.5.13' && v.reason === undefined)
   _resetBlenderVersionProbeForTesting()
-  const foreign = path.join(scratch, 'foreign-blender')
-  writeFileSync(foreign, '#!/bin/sh\necho "something else"\nexit 0\n')
-  chmodSync(foreign, 0o755)
+  const foreign = fakeCommand(scratch, 'foreign-blender', 'something else\n', scratch)
   v = probeBlenderVersion(foreign)
   check('foreign output ⇒ reason, never a throw', v.version === undefined && (v.reason ?? '').includes('unparseable'))
 }
@@ -140,10 +137,7 @@ section('§5 · readiness honesty (armed states)')
   restore()
   process.env.MERCURY_BLENDER = '1'
   const shim = path.join(scratch, 'bin-blender')
-  mkdirSync(shim, { recursive: true })
-  const shimBin = path.join(shim, 'blender')
-  writeFileSync(shimBin, '#!/bin/sh\necho "Blender 5.2.1"\nexit 0\n')
-  chmodSync(shimBin, 0o755)
+  const shimBin = fakeCommand(shim, 'blender', 'Blender 5.2.1\n', scratch)
   process.env.PATH = shim
   let rows = blenderLaneReadinessRecords()
   check(

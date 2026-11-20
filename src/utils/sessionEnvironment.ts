@@ -7,6 +7,7 @@ import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
 import { passedOver } from './passedOver.js'
+import { decodeShellScriptBytes } from './platform/spawn.js'
 
 
 const ENV_FILE_EVENTS = ['session.start', 'file.changed'] as const
@@ -92,10 +93,7 @@ async function readFragments(): Promise<{ fragments: string[]; failed: boolean }
 }
 
 async function readScript(path: string): Promise<string> {
-  if (process.platform !== 'win32') return (await readFile(path, 'utf8')).trim()
-  const bytes = await readFile(path)
-  const text = bytes[0] === 0xff && bytes[1] === 0xfe ? bytes.subarray(2).toString('utf16le') : bytes.toString('utf8').replace(/^\uFEFF/, '')
-  return text.replace(/\r\n?/g, '\n').trim()
+  return decodeShellScriptBytes(await readFile(path))
 }
 
 export async function getSessionEnvironmentScript(windowsBash = false): Promise<string | null> {

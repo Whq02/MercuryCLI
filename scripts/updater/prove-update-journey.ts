@@ -2,7 +2,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { closedLoopbackPort, FLOOR, IS_WIN, hostAllowlist, makeFixtures as mintFixtures, makePayload, spawnFixtureReleaseServer, type ReleaseFixtureSpec } from './journeyFixtures.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -30,12 +30,18 @@ const binDir = join(scratch, 'bin')
 const fixturesRoot = join(scratch, 'fixtures')
 const ghLog = join(scratch, 'gh-invocations.log')
 for (const p of [home, configHome, versionsDir, binDir, fixturesRoot]) mkdirSync(p, { recursive: true })
-for (const p of [home, versionsDir, binDir, fixturesRoot]) {
-  if (!p.startsWith(scratch)) {
+const localAppData = join(home, 'AppData', 'Local')
+const appData = join(home, 'AppData', 'Roaming')
+const xdgConfigHome = join(home, '.config')
+const scratchBase = resolve(scratch)
+for (const p of [home, configHome, versionsDir, binDir, fixturesRoot, localAppData, appData, xdgConfigHome]) {
+  const rel = relative(scratchBase, resolve(p))
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
     console.log(`  [FAIL] SAFETY: path escapes scratch: ${p}`)
     process.exit(1)
   }
 }
+check('every layout and home root lies under scratch', true)
 
 const SLUG = 'fixture-owner/fixture-private-repo'
 
@@ -49,26 +55,33 @@ function runCli(
   args: string[],
   opts: { fixtures: string; env?: Record<string, string>; dist?: string } ,
 ): { code: number; stdout: string; stderr: string } {
+  const childEnv: Record<string, string> = {
+    ...(IS_WIN ? (process.env as Record<string, string>) : {}),
+    PATH: `${binDir}${IS_WIN ? ';' : ':'}${process.env.PATH ?? ''}`,
+    HOME: home,
+    USERPROFILE: home,
+    LOCALAPPDATA: localAppData,
+    APPDATA: appData,
+    XDG_CONFIG_HOME: xdgConfigHome,
+    MERCURY_CONFIG_DIR: configHome,
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    MERCURY_VERSIONS_DIR: versionsDir,
+    MERCURY_UPDATE_CHANNEL_REPO: SLUG,
+    MERCURY_UPDATE_API_BASE_URL: DEAD_API_BASE,
+    MERCURY_GH_CMD: GH_CMD,
+    GH_SHIM_FIXTURES: opts.fixtures,
+    GH_SHIM_LOG: ghLog,
+    CI: '1',
+    TERM: 'dumb',
+    ...(opts.env ?? {}),
+  }
+  delete childEnv.MERCURY_HOME
+  delete childEnv.HOMEDRIVE
+  delete childEnv.HOMEPATH
   const res = spawnSync('node', [opts.dist ?? DIST, ...args], {
     encoding: 'utf8',
     timeout: 180_000,
-    env: {
-      ...(IS_WIN ? process.env : {}),
-      PATH: `${binDir}${IS_WIN ? ';' : ':'}${process.env.PATH ?? ''}`,
-      HOME: home,
-      ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
-      MERCURY_CONFIG_DIR: configHome,
-      MERCURY_LOCAL_PROBE_TARGETS: 'none',
-      MERCURY_VERSIONS_DIR: versionsDir,
-      MERCURY_UPDATE_CHANNEL_REPO: SLUG,
-      MERCURY_UPDATE_API_BASE_URL: DEAD_API_BASE,
-      MERCURY_GH_CMD: GH_CMD,
-      GH_SHIM_FIXTURES: opts.fixtures,
-      GH_SHIM_LOG: ghLog,
-      CI: '1',
-      TERM: 'dumb',
-      ...(opts.env ?? {}),
-    },
+    env: childEnv,
   })
   return { code: res.status ?? -1, stdout: res.stdout ?? '', stderr: res.stderr ?? '' }
 }

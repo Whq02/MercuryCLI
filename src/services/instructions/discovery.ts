@@ -1,7 +1,7 @@
 import ignore from 'ignore'
 import { LRUCache } from 'lru-cache'
 import { homedir } from 'os'
-import { dirname, extname, isAbsolute, join, relative, sep, win32 } from 'path'
+import { dirname, extname, isAbsolute, join, relative, sep } from 'path'
 import picomatch from 'picomatch'
 
 import { getOriginalCwd } from '../../bootstrap/state.js'
@@ -13,7 +13,8 @@ import type { FsOperations } from '../../utils/fsOperations.js'
 import { getFsImplementation, isUncLikePath, safeResolvePath } from '../../utils/fsOperations.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
-import { getPlatform } from '../../utils/platform.js'
+import { rememberedPlatform } from '../../utils/platform/host.js'
+import { hostOrWin32PathModule, isWindowsShareRooted, normalizedDriveRoot, picomatchPathOptions } from '../../utils/platform/paths.js'
 import { recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import type {
   InstructionConvention,
@@ -23,7 +24,7 @@ import type {
 import { parseInstructionFileContent, readRuleSource, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 import { passedOver } from '../../utils/passedOver.js'
 
-const shareRooted = (path: string): boolean => getPlatform() === 'windows' && /^[\\/]{2}/.test(path)
+const shareRooted = (path: string): boolean => isWindowsShareRooted(path)
 
 export function withinInstructionDir(path: string, dir: string): boolean {
   return shareRooted(path) === shareRooted(dir) && pathInWorkingPath(path, dir)
@@ -121,9 +122,8 @@ function resolveExcludePatterns(patterns: string[]): string[] {
     return normalized
   })
 
-  const drives = getPlatform() === 'windows'
   for (const normalized of [...expanded]) {
-    const root = normalized.startsWith('/') ? '/' : drives && /^[A-Za-z]:\//.test(normalized) ? normalized.slice(0, 3) : null
+    const root = normalizedDriveRoot(normalized)
     if (root === null) {
       continue
     }
@@ -154,7 +154,7 @@ export function matchesInstructionExcludes(
     return false
   }
 
-  const matchOpts = { dot: true, nocase: process.platform === 'win32' }
+  const matchOpts = picomatchPathOptions()
   const normalizedPath = filePath.replaceAll('\\', '/')
 
   const expandedPatterns = resolveExcludePatterns(patterns).filter(
@@ -253,7 +253,7 @@ export async function processInstructionFile(
       continue
     }
     const includeTarget = safeResolvePath(getFsImplementation(), resolvedIncludePath).resolvedPath
-    const holder = (getPlatform() === 'windows' ? win32.dirname : dirname)(resolvedPath)
+    const holder = hostOrWin32PathModule(rememberedPlatform()).dirname(resolvedPath)
     const isExternal =
       !pathInInstructionRoots(includeTarget) &&
       !withinInstructionDir(includeTarget, holder)
@@ -380,7 +380,7 @@ async function rulesImportedAt(
 }
 
 const vendorGlobMatches = (globs: string[], spelling: string): boolean =>
-  picomatch.isMatch(spelling.split(sep).join('/'), globs, { dot: true, nocase: process.platform === 'win32' })
+  picomatch.isMatch(spelling.split(sep).join('/'), globs, picomatchPathOptions())
 
 export function importedRuleGoverns(entry: InstructionSourceEntry, targetPath: string): boolean {
   if (entry.anchor === undefined || entry.globs === undefined) return false

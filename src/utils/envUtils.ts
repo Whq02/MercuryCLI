@@ -8,6 +8,7 @@ import { memoize } from 'lodash-es'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from './sessionArgs.js'
 import { hostEnv } from './hostEnv.js'
+import { canonicalHomePathSpelling, posixFileModesApply } from './platform/files.js'
 
 
 export function defaultMercuryHome(): string {
@@ -25,14 +26,7 @@ export const getMercuryHome = memoize((): string => {
   ]))
 
 export function canonicalHomeSpelling(raw: string, platform: string = process.platform): string {
-  let s = raw.normalize('NFC')
-  if (platform === 'win32') {
-    s = s.replace(/\//g, '\\').replace(/^([a-z]):/, (_, letter: string) => `${letter.toUpperCase()}:`)
-  }
-  const bareRoot = platform === 'win32' ? /^(?:[A-Za-z]:\\|\\\\[^\\]+\\[^\\]+\\?)$/ : /^\/$/
-  if (bareRoot.test(s)) return s
-  s = s.replace(platform === 'win32' ? /[\\/]+$/ : /\/+$/, '')
-  return s.length === 0 ? raw.normalize('NFC') : s
+  return canonicalHomePathSpelling(raw, platform)
 }
 
 export function rawConfigHomePinSpelling(): string | null {
@@ -62,7 +56,7 @@ export function getAuthConfigHomeDir(): string {
 }
 
 export function ensurePrivateConfigHome(): void {
-  if (process.platform === 'win32') return
+  if (!posixFileModesApply()) return
   const home = getMercuryHome()
   if (!existsSync(home)) {
     mkdirSync(home, { recursive: true, mode: 0o700 })

@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer'
-import { isModernWindowsTerminal } from '../session/capabilities.js'
+import { isLegacyWindowsConsole } from '../../utils/platform/terminal.js'
 import { PASTE_END, PASTE_START } from '../termio/csi.js'
 import { decodeChunk } from './byte-decoder.js'
 import {
@@ -46,7 +46,7 @@ export function burstCrIsLineBreak(
   env: Record<string, string | undefined> = hostEnv(),
 ): boolean {
   if (burstCrHostOverride !== null) return burstCrHostOverride
-  return platform === 'win32' && !isModernWindowsTerminal(env, platform)
+  return isLegacyWindowsConsole(env, platform)
 }
 
 function splitControlRuns(value: string, keepTabs = false): string[] {

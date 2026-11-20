@@ -3,7 +3,8 @@ import { Box, Text, elementScreenTop } from 'src/ink.js'
 import type { DOMElement } from '../../ink/dom.js'
 import { useDerivedState } from '../../hooks/effects.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { getPlatform } from 'src/utils/platform.js'
+import { rememberedPlatform } from 'src/utils/platform/host.js'
+import { terminalSupportsJobControl } from 'src/utils/platform/terminal.js'
 import { isKeybindingCustomizationEnabled } from '../../keybindings/loadUserBindings.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
@@ -100,7 +101,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
     { key: 'sessions', text: `${sessionsShortcut} to switch session` },
     { key: 'undo', text: `${undoShortcut} to undo` },
     { key: 'redo', text: `${redoShortcut} to redo` },
-    ...(getPlatform() !== 'windows' ? [{ key: 'susp', text: 'ctrl + z to suspend' }] : []),
+    ...(terminalSupportsJobControl(rememberedPlatform()) ? [{ key: 'susp', text: 'ctrl + z to suspend' }] : []),
     { key: 'img', text: `${imagePasteShortcut} to paste images` },
     { key: 'model', text: `${modelPickerShortcut} to switch model` },
     { key: 'stash', text: `${stashShortcut} to stash prompt` },

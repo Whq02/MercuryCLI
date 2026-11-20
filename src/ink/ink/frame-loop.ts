@@ -23,6 +23,7 @@ import { liveSize, resetFramesForAltScreen } from './frames.js'
 import { consoleBufferOutlivesWindow, settleResize, applySize } from './resize.js'
 import type Ink from '../ink.js'
 import { startMicrotask } from '../../utils/timers.js'
+import { consoleSizeNeedsPolling } from '../../utils/platform/terminal.js'
 
 export const RENDER_FAULT_RETRY_BUDGET = 3
 
@@ -49,7 +50,7 @@ export function onRender(this: OnRenderReads): void {
   if (this.resizeSettleTimer !== null) return
   this.isRendering = true
   try {
-    if (this.isTTY && process.platform === 'win32') refreshConsoleSize(this.options.stdout)
+    if (this.isTTY && consoleSizeNeedsPolling()) refreshConsoleSize(this.options.stdout)
     const { columns, rows } = liveSize.call(this)
     if (columns !== this.cachedColumns || rows !== this.cachedRows) {
       if (reconciler.isAlreadyRendering()) {

@@ -5,6 +5,7 @@ import { subprocessEnv } from '../subprocessEnv.js'
 import { join } from 'node:path'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { consoleNeedsUtf8Codepage } from '../platform/terminal.js'
 
 export const UTF8_CODEPAGE = 65001
 
@@ -17,7 +18,7 @@ export function decideWin32ConsoleUtf8(
   stdoutIsTTY: boolean,
   env: Record<string, string | undefined>,
 ): Win32Utf8Decision {
-  if (platform !== 'win32') return { engage: false, reason: 'not-win32' }
+  if (!consoleNeedsUtf8Codepage(platform)) return { engage: false, reason: 'not-win32' }
   if (!stdoutIsTTY) return { engage: false, reason: 'no-tty' }
   if (flagReadsOff(flagEnv('MERCURY_WIN32_UTF8', env))) return { engage: false, reason: 'opted-out' }
   if (flagEnv('MERCURY_WIN32_UTF8_PRESET', env) === '1') return { engage: false, reason: 'launcher-preset' }

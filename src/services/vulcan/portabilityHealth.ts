@@ -1,6 +1,6 @@
 
 import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from 'fs'
-import { delimiter, join, posix as pathPosix, win32 as pathWin32 } from 'path'
+import { join } from 'path'
 import { projectConfigCandidates } from '../../utils/projectConfig.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -13,6 +13,8 @@ import {
 } from './godotProcessCensus.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { pathModuleFor } from '../../utils/platform/paths.js'
+import { executableName, hostPathDelimiter } from '../../utils/platform/programs.js'
 
 interface AbsolutePathFinding {
   skillFile: string
@@ -81,7 +83,7 @@ export function semanticLaunchOf(skillText: string): string | undefined {
 
 
 function joinerFor(platform: CensusPlatform): (...parts: string[]) => string {
-  return platform === 'win32' ? pathWin32.join : pathPosix.join
+  return pathModuleFor(platform).join
 }
 
 export function godotWellKnownRoots(platform: CensusPlatform, env: NodeJS.ProcessEnv = hostEnv()): string[] {
@@ -216,9 +218,9 @@ function pinnedGodotExecutable(pinned: string | undefined, fs: RootWalkFs, probe
 }
 
 function godotOnPath(platform: CensusPlatform, env: NodeJS.ProcessEnv, fs: RootWalkFs): { path: string; note: string } | undefined {
-  const names = platform === 'win32' ? ['godot.exe', 'godot4.exe'] : ['godot', 'godot4']
+  const names = ['godot', 'godot4'].map(name => executableName(name, platform))
   const joinPath = joinerFor(platform)
-  for (const dir of (env.PATH ?? '').split(platform === 'win32' ? ';' : delimiter).filter(Boolean)) {
+  for (const dir of (env.PATH ?? '').split(hostPathDelimiter(platform)).filter(Boolean)) {
     for (const name of names) {
       const candidate = joinPath(dir, name)
       if (fs.executable(candidate)) return { path: candidate, note: `resolved via PATH (${dir})` }

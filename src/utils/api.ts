@@ -22,10 +22,10 @@ import { normalizeFileEditInput } from './fileEditUtils.js'
 import { FILE_WRITE_TOOL_NAME } from '../constants/tools/fileWrite.js'
 import { resolveShellCwd } from './Shell.js'
 import { createUserMessage } from './messages/factories.js'
-import { getPlatform } from './platform.js'
+import { rememberedPlatform } from './platform/host.js'
+import { hostPathSpellings } from './platform/paths.js'
 import { jsonStringify } from './slowOperations.js'
 import { getConversationToolSchemas, getToolSchemaCache } from './toolSchemaCache.js'
-import { windowsPathToPosixPath } from './windowsPaths.js'
 import type { Tool, Tools, ToolPermissionContext } from '../Tool.js'
 import type { AgentDefinition } from '../types/agent.js'
 import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../types/wire.js'
@@ -244,9 +244,9 @@ function reparse<T>(tool: Tool, input: unknown): T {
 
 function stripCwdChangePrefix(command: string, cwd: string): string {
   const strip = (text: string, prefix: string): string => (text.startsWith(prefix) ? text.slice(prefix.length) : text)
-  let result = strip(command, `cd ${cwd} && `)
-  if (getPlatform() === 'windows') {
-    result = strip(result, `cd ${windowsPathToPosixPath(cwd)} && `)
+  let result = command
+  for (const spelling of hostPathSpellings(cwd, rememberedPlatform())) {
+    result = strip(result, `cd ${spelling} && `)
   }
   return result
 }

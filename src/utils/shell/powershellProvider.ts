@@ -1,6 +1,7 @@
 import { tmpdir } from 'node:os'
 import { posix as posixPath } from 'node:path'
-import { getPlatform } from '../platform.js'
+import { rememberedPlatform } from '../platform/host.js'
+import { childGetsOwnProcessGroup } from '../platform/processes.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPowerShellEdition } from './powershellDetection.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
@@ -34,7 +35,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
   return {
     type: 'powershell',
     shellPath,
-    detached: getPlatform() !== 'windows',
+    detached: childGetsOwnProcessGroup(rememberedPlatform()),
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       const cwdFileInShell = posixPath.join(tmpdir(), cwdFileName(opts.id))

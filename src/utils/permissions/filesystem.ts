@@ -17,8 +17,9 @@ import {
   sanitizePath,
 } from '../path.js'
 import { getPlatform, type Platform } from '../platform.js'
+import { boundedProjectTempName, defaultMercuryTempBase, mercuryTempDirName } from '../platform/files.js'
+import { extractDoubleSlashPatternRoot, extractPatternDriveRoot, foldHostPathCase, isEscapingRelativePath, nativePathToShell } from '../platform/paths.js'
 import { shortProjectHash } from '../sessionStoragePortable.js'
-import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../projectConfig.js'
 import { APOLLO_REVIEW_TOOL_NAME } from '../../constants/tools/apolloReview.js'
 import { getSettingsFilePathForSource } from '../settings/settings.js'
@@ -114,7 +115,7 @@ export function normalizeCaseForComparison(path: string): string {
 }
 
 function toPosixPath(path: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
-  return platform === 'windows' ? windowsPathToPosixPath(path) : path
+  return nativePathToShell(path, platform)
 }
 
 export function relativePath(from: string, to: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
@@ -122,7 +123,7 @@ export function relativePath(from: string, to: string, platform: ReturnType<type
   const b = toPosixPath(to, platform)
   const aParts = a.split(posixPath.sep).filter(Boolean)
   const bParts = b.split(posixPath.sep).filter(Boolean)
-  const fold = platform === 'windows' ? (part?: string) => part?.toLowerCase() : (part?: string) => part
+  const fold = (part?: string) => (part === undefined ? undefined : foldHostPathCase(part, platform))
   let i = 0
   while (i < aParts.length && i < bParts.length && fold(aParts[i]) === fold(bParts[i])) i++
   const up = aParts.slice(i).map(() => '..')
@@ -131,8 +132,7 @@ export function relativePath(from: string, to: string, platform: ReturnType<type
 }
 
 export function relativePathEscapes(relative: string, platform: ReturnType<typeof getPlatform> = getPlatform()): boolean {
-  if (relative === '..' || relative.startsWith('../')) return true
-  return platform === 'windows' && relative.startsWith('..\\')
+  return isEscapingRelativePath(relative, platform)
 }
 
 function foldMacSymlinks(path: string): string {
@@ -241,9 +241,7 @@ function isDangerousFileOrDirectory(expandedPath: string): boolean {
 
 
 export function getMercuryTempDirName(): string {
-  if (getPlatform() === 'windows') return 'mercury'
-  const uid = typeof process.getuid === 'function' ? process.getuid() : 0
-  return `mercury-${uid}`
+  return mercuryTempDirName()
 }
 
 let tempDirCache: string | null = null
@@ -251,7 +249,7 @@ let tempDirCache: string | null = null
 export function getMercuryTempDir(): string {
   if (tempDirCache) return tempDirCache
   const envBase = flagEnv('MERCURY_TMPDIR')
-  const base = envBase ?? (getPlatform() === 'windows' ? tmpdir() : '/tmp')
+  const base = envBase ?? defaultMercuryTempBase()
   let resolvedBase = base
   try {
     resolvedBase = safeResolvePath(getFsImplementation(), base).resolvedPath
@@ -265,9 +263,7 @@ export function getMercuryTempDir(): string {
 const PROJECT_TEMP_NAME_BOUND = 48
 
 export function projectTempName(cwd: string, platform: Platform = getPlatform()): string {
-  const name = sanitizePath(cwd)
-  if (platform !== 'windows' || name.length <= PROJECT_TEMP_NAME_BOUND) return name
-  return `${name.slice(9 - PROJECT_TEMP_NAME_BOUND)}-${shortProjectHash(cwd)}`
+  return boundedProjectTempName(sanitizePath(cwd), shortProjectHash(cwd), PROJECT_TEMP_NAME_BOUND, platform)
 }
 
 export function getProjectTempDir(): string {
@@ -608,21 +604,9 @@ export function rootForPattern(
 ): { root: string | null | undefined; relative: string } {
   const remote = remoteRulePattern(pattern)
   if (remote !== null) return { root: REMOTE_RULE_ROOT, relative: remote }
-  if (platform === 'windows') {
-    const drive = pattern.replace(/\\/g, '/').match(/^\/?([A-Za-z]):\/(.*)$/)
-    if (drive) {
-      return { root: `${(drive[1] as string).toUpperCase()}:${platformSep}`, relative: drive[2] as string }
-    }
-  }
-  if (pattern.startsWith('//')) {
-    if (platform === 'windows') {
-      const drive = pattern.match(/^\/\/([A-Za-z])\/(.*)$/)
-      if (drive) {
-        return { root: `${(drive[1] as string).toUpperCase()}:${platformSep}`, relative: drive[2] as string }
-      }
-    }
-    return { root: '/', relative: pattern.slice(1) }
-  }
+  const driveRoot = extractPatternDriveRoot(pattern, platformSep, platform)
+  if (driveRoot !== null) return driveRoot
+  if (pattern.startsWith('//')) return extractDoubleSlashPatternRoot(pattern, platformSep, platform)
   if (pattern.startsWith('~/')) {
     return { root: normalizeNfc(getHomeDir()), relative: pattern.slice(1) }
   }
@@ -756,7 +740,7 @@ export function ruleMatcherFor(
     const seen = new Set<PermissionRule>()
     const remote = remoteRuleCandidates(path, behavior)
     const expanded = remote === null ? expandPath(path) : ''
-    const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
+    const candidatePath = expanded.includes('\\') ? toPosixPath(expanded) : expanded
     const target = candidatePath === '' ? getCwd() : candidatePath
     for (const [root, group] of groups) {
       if ((root === REMOTE_RULE_ROOT) !== (remote !== null)) continue
@@ -789,7 +773,7 @@ export function pathMatchesRulePattern(path: string, pattern: string, source: Pe
   const { root, relative: rel } = rootForPattern(pattern, source)
   if (root === undefined || root === REMOTE_RULE_ROOT) return false
   const expanded = expandPath(path)
-  const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
+  const candidatePath = expanded.includes('\\') ? toPosixPath(expanded) : expanded
   const relative = relativePath(root === null ? getCwd() : root, candidatePath)
   if (relative === '' || relativePathEscapes(relative)) return false
   const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel

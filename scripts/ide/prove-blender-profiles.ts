@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { fakeCommand } from '../dap/fakeCommand.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -36,9 +37,7 @@ const work = path.join(scratch, 'work')
 mkdirSync(work, { recursive: true })
 writeFileSync(path.join(work, 'scene-a.blend'), '')
 writeFileSync(path.join(work, 'scene-b.blend'), '')
-const shimBin = path.join(scratch, 'shim-blender')
-writeFileSync(shimBin, '#!/bin/sh\necho "Blender 5.2.1"\nexit 0\n')
-chmodSync(shimBin, 0o755)
+const shimBin = fakeCommand(scratch, 'shim-blender', 'Blender 5.2.1\n', scratch)
 type Discovery = Awaited<ReturnType<typeof discoverLaunchProfiles>>
 function answeredByTheShim(d: Discovery): boolean {
   const rows = d.profiles.filter(p => p.source === 'blender')

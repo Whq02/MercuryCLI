@@ -3,6 +3,8 @@ import { readlinkSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { foldPathCase } from '../../utils/platform/paths.js'
+import { normalizedOsPlatform } from '../../utils/platform/programs.js'
 
 export type CensusPlatform = 'win32' | 'darwin' | 'linux'
 
@@ -23,9 +25,7 @@ interface CensusRunner {
 const TABLE_TIMEOUT_MS = 8_000
 
 export function censusPlatform(platform: NodeJS.Platform = process.platform): CensusPlatform {
-  if (platform === 'win32') return 'win32'
-  if (platform === 'darwin') return 'darwin'
-  return 'linux'
+  return normalizedOsPlatform(platform)
 }
 
 export function censusCommands(platform: CensusPlatform): Array<{ file: string; args: string[] }> {
@@ -229,11 +229,7 @@ export async function strictGodotCensus(opts?: {
 }
 
 function sameProjectPath(a: string, b: string, platform: CensusPlatform = censusPlatform()): boolean {
-  const norm = (p: string): string => {
-    let s = p.replace(/\\/g, '/').replace(/\/+$/, '')
-    if (platform === 'win32') s = s.toLowerCase()
-    return s
-  }
+  const norm = (p: string): string => foldPathCase(p.replace(/\\/g, '/').replace(/\/+$/, ''), platform)
   return norm(a) === norm(b)
 }
 

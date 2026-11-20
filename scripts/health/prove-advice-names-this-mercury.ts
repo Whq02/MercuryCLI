@@ -3,7 +3,7 @@ import '../lib/hermetic.ts'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { DIST, NODE } from '../daemon/dupline-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -47,12 +47,40 @@ console.log("§2 the built product's health advice names THIS install (a source 
   }
   const world = mkdtempSync(join(tmpdir(), 'advice-word-'))
   const work = join(world, 'work')
-  mkdirSync(work)
-  const env: NodeJS.ProcessEnv = { ...process.env, HOME: join(world, 'home'), MERCURY_CONFIG_DIR: join(world, 'config'), TMPDIR: world, PATH: `/usr/bin:/bin:${dirname(NODE)}`, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none' }
+  const userHome = join(world, 'home')
+  const configDir = join(world, 'config')
+  const versionsDir = join(configDir, 'versions')
+  const localAppData = join(userHome, 'AppData', 'Local')
+  const appData = join(userHome, 'AppData', 'Roaming')
+  const xdgConfigHome = join(userHome, '.config')
+  for (const d of [work, userHome, configDir, localAppData, appData]) mkdirSync(d, { recursive: true })
+  const worldBase = resolve(world)
+  for (const p of [userHome, configDir, versionsDir, localAppData, appData, xdgConfigHome]) {
+    const rel = relative(worldBase, resolve(p))
+    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+      console.log(`  [FAIL] SAFETY: layout root escapes scratch: ${p}`)
+      process.exit(1)
+    }
+  }
+  check('every layout and home root lies under scratch', true)
+  const nodeBin = NODE.includes('/') || NODE.includes('\\') ? NODE : (Bun.which(NODE) ?? NODE)
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    HOME: userHome,
+    USERPROFILE: userHome,
+    LOCALAPPDATA: localAppData,
+    APPDATA: appData,
+    XDG_CONFIG_HOME: xdgConfigHome,
+    MERCURY_CONFIG_DIR: configDir,
+    MERCURY_VERSIONS_DIR: versionsDir,
+    TMPDIR: world,
+    PATH: process.platform === 'win32' ? dirname(nodeBin) : `/usr/bin:/bin${delimiter}${dirname(nodeBin)}`,
+    MERCURY_CREDENTIAL_STORE: 'file',
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
+  }
   delete env.MERCURY_HOME
-  mkdirSync(env.HOME!, { recursive: true })
-  const nodeBin = NODE.includes('/') ? NODE : (Bun.which(NODE) ?? NODE)
-  env.PATH = `/usr/bin:/bin:${dirname(nodeBin)}`
+  delete env.HOMEDRIVE
+  delete env.HOMEPATH
   const run = spawnSync(nodeBin, [DIST, 'health', '--json'], { cwd: work, env, encoding: 'utf8', timeout: 120_000 })
   check('the built product started', run.error === undefined, String(run.error))
   let parsed: unknown = null

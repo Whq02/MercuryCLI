@@ -146,7 +146,9 @@ section('§3 · unavailable teaching (nothing resolves)')
 }
 
 section('§4 · argv truth (shim-recorded)')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: Aseprite tool argv shims use POSIX #!/bin/sh')
+} else {
   restore()
   process.env.MERCURY_ASEPRITE_BIN = shim
   await runWithCwdOverride(tree, async () => {
@@ -242,7 +244,9 @@ section('§4 · argv truth (shim-recorded)')
 }
 
 section('§5 · landed-bytes honesty')
-{
+if (process.platform === 'win32') {
+  console.log('not read on Windows: Aseprite writer shim uses POSIX #!/bin/sh')
+} else {
   restore()
   const writer = path.join(scratch, 'writer-aseprite')
   writeFileSync(
@@ -265,50 +269,54 @@ exit 0
 
 section('§6 · an abort ends the Aseprite process the call started (the contract says kill)')
 {
-  restore()
-  const pidFile = path.join(scratch, 'slow.pid')
-  const slow = path.join(scratch, 'slow-aseprite')
-  writeFileSync(
-    slow,
-    `#!/bin/sh
+  if (process.platform === 'win32') {
+    console.log('not read on Windows: Aseprite abort-kill shim uses POSIX #!/bin/sh')
+  } else {
+    restore()
+    const pidFile = path.join(scratch, 'slow.pid')
+    const slow = path.join(scratch, 'slow-aseprite')
+    writeFileSync(
+      slow,
+      `#!/bin/sh
 if [ "$1" = "--version" ]; then echo "Aseprite 9.8.7-fake"; exit 0; fi
 echo $$ > ${JSON.stringify(pidFile)}
 exec sleep 6
 `,
-  )
-  chmodSync(slow, 0o755)
-  process.env.MERCURY_ASEPRITE = '1'
-  process.env.MERCURY_ASEPRITE_BIN = slow
-  const alive = (): boolean => {
-    try {
-      process.kill(Number(readFileSync(pidFile, 'utf8').trim()), 0)
-      return true
-    } catch {
-      return false
+    )
+    chmodSync(slow, 0o755)
+    process.env.MERCURY_ASEPRITE = '1'
+    process.env.MERCURY_ASEPRITE_BIN = slow
+    const alive = (): boolean => {
+      try {
+        process.kill(Number(readFileSync(pidFile, 'utf8').trim()), 0)
+        return true
+      } catch {
+        return false
+      }
     }
-  }
-  const calls: Array<[string, ToolInput]> = [
-    ['run-script', { op: 'run-script', source: 'print(1)' } as ToolInput],
-    ['info', { op: 'info', file: 'hero.aseprite' } as ToolInput],
-    ['export', { op: 'export', file: 'hero.aseprite', output: 'out/hero.png' } as ToolInput],
-    ['create', { op: 'create', output: 'art/slow.aseprite', width: 8, height: 8 } as ToolInput],
-    ['render', { op: 'render', file: 'hero.aseprite' } as ToolInput],
-  ]
-  for (const [label, input] of calls) {
-    rmSync(pidFile, { force: true })
-    const controller = new AbortController()
-    const started = Date.now()
-    setTimeout(() => controller.abort(), 300)
-    const answered = await runWithCwdOverride(tree, () =>
-      AsepriteTool.call(input, { abortController: controller } as unknown as Parameters<typeof AsepriteTool.call>[1]),
-    )
-    const tookMs = Date.now() - started
-    const stillAlive = alive()
-    check(
-      `${label}: aborted at 300 ms, the call returns long before the process would have ended, and the process is gone`,
-      tookMs < 3_000 && !stillAlive && answered.data.result.includes(`${label} failed`),
-      `${tookMs} ms · process ${stillAlive ? 'ALIVE' : 'gone'} · ${answered.data.result.split('\n')[0]?.slice(0, 120)}`,
-    )
+    const calls: Array<[string, ToolInput]> = [
+      ['run-script', { op: 'run-script', source: 'print(1)' } as ToolInput],
+      ['info', { op: 'info', file: 'hero.aseprite' } as ToolInput],
+      ['export', { op: 'export', file: 'hero.aseprite', output: 'out/hero.png' } as ToolInput],
+      ['create', { op: 'create', output: 'art/slow.aseprite', width: 8, height: 8 } as ToolInput],
+      ['render', { op: 'render', file: 'hero.aseprite' } as ToolInput],
+    ]
+    for (const [label, input] of calls) {
+      rmSync(pidFile, { force: true })
+      const controller = new AbortController()
+      const started = Date.now()
+      setTimeout(() => controller.abort(), 300)
+      const answered = await runWithCwdOverride(tree, () =>
+        AsepriteTool.call(input, { abortController: controller } as unknown as Parameters<typeof AsepriteTool.call>[1]),
+      )
+      const tookMs = Date.now() - started
+      const stillAlive = alive()
+      check(
+        `${label}: aborted at 300 ms, the call returns long before the process would have ended, and the process is gone`,
+        tookMs < 3_000 && !stillAlive && answered.data.result.includes(`${label} failed`),
+        `${tookMs} ms · process ${stillAlive ? 'ALIVE' : 'gone'} · ${answered.data.result.split('\n')[0]?.slice(0, 120)}`,
+      )
+    }
   }
   const declared = (AsepriteTool as unknown as { capability: { cancellation: string } }).capability.cancellation
   check('and that is what the capability contract declares', declared === 'kill', declared)

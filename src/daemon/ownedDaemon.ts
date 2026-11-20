@@ -16,6 +16,7 @@ import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import type { Socket } from 'node:net'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { supportsGracefulSigterm } from '../utils/platform/processes.js'
 
 const OWNER_PIPE_STDIO_INDEX = 3
 const ownerPipeEnds = new Set<Socket>()
@@ -56,7 +57,7 @@ export function decideDaemonReap(facts: {
   stillAlive: boolean
 }): 'already-down' | 'signal' | 'hard-kill' | 'asked' {
   if (!facts.stillAlive) return 'already-down'
-  if (facts.platform !== 'win32') return 'signal'
+  if (supportsGracefulSigterm(facts.platform)) return 'signal'
   return facts.gracefulAsked ? 'asked' : 'hard-kill'
 }
 
@@ -125,7 +126,7 @@ function reapDaemonOnSessionExit(pid: number): void {
   if (reapedPids.has(pid)) return
   reapedPids.add(pid)
   let gracefulAsked = false
-  if (process.platform === 'win32') {
+  if (!supportsGracefulSigterm()) {
     let asking: Promise<void> | null = null
     let answered = false
     const askToShutDown = (): Promise<void> => {

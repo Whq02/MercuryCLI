@@ -14,6 +14,7 @@ import { addFileGlobRuleToGitignore } from '../git/gitignore.js'
 import { safeParseJSON, stripBOM } from '../json.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
+import { foldPathCase } from '../platform/paths.js'
 import { MERCURY_PROJECT_DIR, resolveProjectConfigPath } from '../projectConfig.js'
 import { projectLocalPath } from '../projectLocal/paths.js'
 import { jsonStringify } from '../slowOperations.js'
@@ -457,7 +458,7 @@ export function getSettingsWithErrors(): SettingsWithErrors {
       const filePath = getSettingsFilePathForSource(source)
       if (filePath !== undefined) {
         const resolved = resolve(filePath)
-        const dedupeKey = process.platform === 'win32' ? resolved.toLowerCase() : resolved
+        const dedupeKey = foldPathCase(resolved)
         const firstRead = !filesRead.has(dedupeKey)
         if (firstRead) filesRead.add(dedupeKey)
         const parsed = parseSettingsFile(filePath)

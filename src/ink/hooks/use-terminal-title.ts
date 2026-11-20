@@ -6,6 +6,7 @@ import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 import { noteModeAcquired } from '../root/terminalModeLedger.js'
 import { OSC, osc } from '../termio/osc.js'
 import { TerminalWriteContext } from '../terminalWrite.js'
+import { terminalTitleTransport } from '../../utils/platform/terminal.js'
 
 const CONTROL_BYTES_RE = /[\x00-\x1f\x7f-\x9f]/g
 
@@ -18,7 +19,7 @@ export function useTerminalTitle(title: string | null): void {
   usePublish(() => {
     if (title === null || !write) return
     const clean = sanitizeTitle(title)
-    if (process.platform === 'win32') {
+    if (terminalTitleTransport() === 'process-title') {
       process.title = clean
       noteModeAcquired('terminal-title', 'terminal-title')
       return
