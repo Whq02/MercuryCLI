@@ -167,8 +167,14 @@ section('(1) the list — OUTSIDE: each entry a file under src/ or, closed by a 
   )
 }
 
-section(`(2) the cycle — ${cycle.size} of the ${files.length} files under src/ reach one another through imports that run when a file is loaded: the largest such group, its size printed here and never fenced`)
+section(`(2) the cycle — ${cycle.size} of the ${files.length} files under src/ reach one another through imports that run when a file is loaded: none may`)
 {
+  const inside = edges.filter(edge => edge.kind === 'static' && edge.from !== edge.to && cycle.has(edge.from) && cycle.has(edge.to))
+  check(`no file under src/ is loaded by a file it loads: ${cycle.size} in the largest such group`, cycle.size === 0, [
+    ...inside.slice(0, 12).map(edge => `${edge.from}:${edge.line} → ${edge.to}`),
+    ...(inside.length > 12 ? [`and ${inside.length - 12} more imports inside the group`] : []),
+    'cut the import that closed the group: move what it takes down into a file both sides import and export it again where it stood, or hand the value in; the count stays 0',
+  ])
   const onList = new Set(listed)
   const into = new Map<string, Edge[]>()
   for (const edge of edges) {
