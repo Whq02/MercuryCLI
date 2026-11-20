@@ -24,7 +24,7 @@ const SEALS = {
 
 const sealOf = (mode: PermissionMode): ModeSeal => (mode in SEALS ? SEALS[mode as keyof typeof SEALS] : SEALS.default)
 
-const wordsOf = (modes: readonly string[]) => z.enum(modes as unknown as [string, ...string[]])
+const wordsOf = (modes: readonly string[]) => z.enum(modes)
 
 export function permissionModeSchema() {
   return wordsOf(PERMISSION_MODES)

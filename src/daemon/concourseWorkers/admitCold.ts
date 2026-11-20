@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
+import type { MercuryRecord } from '../../fabric/record.js'
 import { resolveEffectiveSettingsSnapshot } from '../../substrate/startupMenu.js'
 import { workspaceKindOf } from '../concourseWorktrees.js'
 import { normalizeEffortLevelString } from '../../utils/effort.js'
@@ -55,7 +56,7 @@ export function coldSpecOf({ req, records, workspaceId, sessionId, runnerId, wor
           if (!line.includes('effort')) return
           try {
             const row = JSON.parse(line) as Record<string, unknown>
-            const entry = (typeof row.recordId === 'string' && row.payload !== undefined ? recordToEntry(row as never) : row) as { type?: string; effort?: { asked?: unknown } }
+            const entry = (typeof row.recordId === 'string' && row.payload !== undefined ? recordToEntry(row as MercuryRecord) : row) as { type?: string; effort?: { asked?: unknown } }
             if (entry.type !== 'assistant' || typeof entry.effort?.asked !== 'string') return
             const level = normalizeEffortLevelString(entry.effort.asked)
             if (level === undefined) return

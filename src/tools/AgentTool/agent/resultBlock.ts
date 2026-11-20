@@ -1,4 +1,4 @@
-import { foregroundNotKeptLine, type BackgroundHandoverReason } from '../../../tasks/LocalAgentTask/launchReceipts.js'
+import { foregroundNotKeptLine } from '../../../tasks/LocalAgentTask/launchReceipts.js'
 import { crewWorktreeLeftoverNoted, crewWorktreeReminderTail } from '../../../utils/crew/crewWorktreeReminder.js'
 import { RESUME_AGENT_TOOL_NAME } from '../../ResumeAgentTool/constants.js'
 import { PROMOTED_NARRATION_NOTE, structuredResultBlock } from '../agentToolUtils.js'
@@ -35,46 +35,20 @@ export function agentToolResultBlock(
   output: AgentToolOutput,
   toolUseID: string,
 ) {
-  const data = output as AgentToolOutput & {
-    agentId?: string
-    content?: Array<{ type: 'text'; text: string }>
-    totalTokens?: number
-    totalToolUseCount?: number
-    totalDurationMs?: number
-    outcome?: { status: string; promotedNarration?: boolean }
-    agentType?: string
-    error?: string
-    lastCalls?: string[]
-    worktreePath?: string
-    worktreeBranch?: string
-    agentName?: string
-    structured?: { data?: unknown; error?: string; source: 'dispatch' | 'agent-definition'; mode: 'permissive' | 'strict' }
-  }
-  const status = (data as { status?: string }).status
-  const structuredBlocks: Array<{ type: 'text'; text: string }> =
-    data.structured !== undefined ? [{ type: 'text' as const, text: structuredResultBlock(data.structured) }] : []
+  const status: string = output.status
 
-  if (status === 'async_launched') {
-    const async = data as unknown as {
-      agentId: string
-      outputFile: string
-      canReadOutputFile: boolean
-      modelNote?: string
-      agentName?: string
-      backgroundReason?: BackgroundHandoverReason
-      siblingEnd?: { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
-    }
+  if (output.status === 'async_launched') {
     const lines = [
       'Crewmate launched in the background.',
-      ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason, async.siblingEnd)] : []),
-      ...(async.modelNote ? [async.modelNote] : []),
-      continuationHint(async.agentId, async.agentName),
+      ...(output.backgroundReason ? [foregroundNotKeptLine(output.backgroundReason, output.siblingEnd)] : []),
+      ...(output.modelNote ? [output.modelNote] : []),
+      continuationHint(output.agentId, output.agentName),
       'The crewmate is working in the background — you will be notified automatically when it completes.',
     ]
-    if (async.canReadOutputFile) {
+    if (output.canReadOutputFile) {
       lines.push(
         'Do not repeat the launched crewmate\'s work: keep off the same files and subject matter — either pick up something disjoint or give the user a one-line note about the launch and stop.',
-        `Output file: ${async.outputFile} (progress may be inspected with the read tool or a shell tail ONLY when the user asks).`,
+        `Output file: ${output.outputFile} (progress may be inspected with the read tool or a shell tail ONLY when the user asks).`,
       )
     } else {
       lines.push(
@@ -88,9 +62,12 @@ export function agentToolResultBlock(
     }
   }
 
-  if (status === 'failed') {
-    const partialBlocks = data.content ?? []
-    const paused = typeof data.error === 'string' && data.error.startsWith('paused — ')
+  const structuredBlocks: Array<{ type: 'text'; text: string }> =
+    output.structured !== undefined ? [{ type: 'text' as const, text: structuredResultBlock(output.structured) }] : []
+
+  if (output.status === 'failed') {
+    const partialBlocks = output.content ?? []
+    const paused = typeof output.error === 'string' && output.error.startsWith('paused — ')
     const blocks: Array<{ type: 'text'; text: string }> = [
       ...structuredBlocks,
       ...(partialBlocks.length > 0
@@ -102,16 +79,16 @@ export function agentToolResultBlock(
             },
           ]),
     ]
-    const kept = worktreeKeptLine(data)
+    const kept = worktreeKeptLine(output)
     const failedTrailer = [
-      `Crewmate execution failed: ${data.error ?? 'unknown error'}`,
+      `Crewmate execution failed: ${output.error ?? 'unknown error'}`,
       'Output above was captured before the failure as partial work and must not be read as a conclusion; its work is kept on the crewmate\'s transcript.',
-      continuationHint(String(data.agentId ?? '')),
+      continuationHint(String(output.agentId ?? '')),
       ...(kept !== null ? [kept] : []),
-      ...(data.lastCalls !== undefined && data.lastCalls.length > 0 ? [`Last tool calls:\n${data.lastCalls.map(call => `  ${call}`).join('\n')}`] : []),
-      usageBlock(data),
+      ...(output.lastCalls !== undefined && output.lastCalls.length > 0 ? [`Last tool calls:\n${output.lastCalls.map(call => `  ${call}`).join('\n')}`] : []),
+      usageBlock(output),
     ]
-    const failedEnvelope = envelopeFor(data)
+    const failedEnvelope = envelopeFor(output)
     if (failedEnvelope) failedTrailer.push(formatEnvelopeBlock(failedEnvelope))
     blocks.push({
       type: 'text' as const,
@@ -125,8 +102,8 @@ export function agentToolResultBlock(
     }
   }
 
-  if (status === 'completed') {
-    let bodyBlocks = data.content ?? []
+  if (output.status === 'completed') {
+    let bodyBlocks = output.content ?? []
     if (bodyBlocks.length === 0) {
       bodyBlocks = [
         {
@@ -137,16 +114,16 @@ export function agentToolResultBlock(
     }
     const blocks: Array<{ type: 'text'; text: string }> = [...structuredBlocks]
     if (
-      data.outcome?.status === 'completed' &&
-      data.outcome.promotedNarration
+      output.outcome?.status === 'completed' &&
+      output.outcome.promotedNarration
     ) {
       blocks.push({ type: 'text' as const, text: PROMOTED_NARRATION_NOTE })
     }
     blocks.push(...bodyBlocks)
     if (
-      data.agentType !== undefined &&
-      ONE_SHOT_BUILTIN_AGENT_TYPES.has(data.agentType) &&
-      !data.worktreePath
+      output.agentType !== undefined &&
+      ONE_SHOT_BUILTIN_AGENT_TYPES.has(output.agentType) &&
+      !output.worktreePath
     ) {
       return {
         type: 'tool_result' as const,
@@ -154,11 +131,11 @@ export function agentToolResultBlock(
         content: blocks,
       }
     }
-    const trailerParts = [continuationHint(String(data.agentId ?? ''))]
-    const kept = worktreeKeptLine(data)
+    const trailerParts = [continuationHint(String(output.agentId ?? ''))]
+    const kept = worktreeKeptLine(output)
     if (kept !== null) trailerParts.push(kept)
-    trailerParts.push(usageBlock(data))
-    const envelope = envelopeFor(data)
+    trailerParts.push(usageBlock(output))
+    const envelope = envelopeFor(output)
     if (envelope) trailerParts.push(formatEnvelopeBlock(envelope))
     blocks.push({ type: 'text' as const, text: trailerParts.join('\n') })
     return {

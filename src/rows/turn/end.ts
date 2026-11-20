@@ -9,14 +9,14 @@ import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { recordTurnEnd } from '../../utils/sessionStorage/writer.js'
-import { noticeRow, type OutcomeFacts, type RowDraft, type RowScope } from '../project.js'
-import { HOOK_NOTICE_CODES, type OutcomeStatus, type Usage } from '../vocabulary.js'
+import { noticeRow, type OutcomeFacts, type RowDraft, type RowScope, type Unstamped } from '../project.js'
+import { HOOK_NOTICE_CODES, type OutcomeRow, type OutcomeStatus } from '../vocabulary.js'
 import type { contextBuilder } from './context.js'
 import type { ConversationState } from './state.js'
 
 interface EndNeeds {
   clearTimeLimit: () => void
-  closeTurn: (status: OutcomeStatus, extra?: Partial<OutcomeFacts>) => RowDraft
+  closeTurn: (status: OutcomeStatus, extra?: Partial<OutcomeFacts>) => Unstamped<OutcomeRow>
   turnId: string
   cutCalls: string[]
   openCalls: Map<string, string>
@@ -32,7 +32,7 @@ interface EndNeeds {
 export function turnEnder(this: ConversationState, { clearTimeLimit, closeTurn, turnId, cutCalls, openCalls, sessionId, toolUseContext, persistenceDisabled, turnMessages, scope, inputResult, seedMessages }: EndNeeds): (status: OutcomeStatus, extra?: Partial<OutcomeFacts>) => AsyncGenerator<RowDraft> {
   const endTurn = async function* (this: ConversationState, status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): AsyncGenerator<RowDraft> {
     clearTimeLimit()
-    const row = closeTurn(status, extra) as RowDraft & { stop?: string; error?: { message: string; class: string }; steps: number; wall_ms: number; cost_usd?: number; usage: Usage; answer?: string }
+    const row = closeTurn(status, extra)
     const aborted = this.abortController.signal.aborted
     const cut = aborted ? turnCutOf(this.abortController.signal.reason) : null
     try {
@@ -41,8 +41,8 @@ export function turnEnder(this: ConversationState, { clearTimeLimit, closeTurn, 
         {
           turn_id: turnId,
           status,
-          ...(row.stop !== undefined ? { stop: row.stop as never } : {}),
-          ...(row.error !== undefined ? { error: { message: row.error.message, class: row.error.class as never } } : {}),
+          ...(row.stop !== undefined ? { stop: row.stop } : {}),
+          ...(row.error !== undefined ? { error: { message: row.error.message, class: row.error.class } } : {}),
           ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [...cutCalls, ...openCalls.values()] } } : {}),
           steps: row.steps,
           wall_ms: row.wall_ms,

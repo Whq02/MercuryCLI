@@ -34,6 +34,7 @@ type UtilitySource =
   | 'web_fetch_apply'
   | 'overload_probe'
   | 'advisor'
+  | 'eval_completion'
 
 export type QuerySource =
   | MainThreadSource

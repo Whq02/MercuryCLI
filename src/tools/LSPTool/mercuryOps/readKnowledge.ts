@@ -46,7 +46,7 @@ export function readKnowledgeHolds(
   snapshot: string,
   touched: Array<{ start: number; end: number }>,
 ): boolean {
-  const entry = readEntryFor(env.context.readFileState as unknown as ReadCache | undefined, abs)
+  const entry = readEntryFor(env.context.readFileState, abs)
   if (entry && entry.isPartialView !== true) {
     const full = (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
     if (full) {
