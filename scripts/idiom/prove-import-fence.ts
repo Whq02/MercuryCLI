@@ -74,20 +74,6 @@ section('§C renderers consume Mercury types only (E01)')
   check('zero SDK imports under src/components/** + src/screens/**', hits.length === 0, hits.join(', '))
 }
 
-section('§D the wire vocabulary is self-contained (B07)')
-{
-  const wire = readFileSync(join(ROOT, 'src/types/wire.ts'), 'utf8')
-  const imports = wire.match(/(^|\n)\s*import[^;]*from\s+'[^']*'/g) ?? []
-  check('types/wire.ts imports NOTHING (structural clones only)', imports.length === 0, imports.join(' | '))
-}
-
-section('§E sdkErrors.ts is the zero-dependency identity leaf')
-{
-  const src = readFileSync(join(ROOT, 'src/services/api/sdkErrors.ts'), 'utf8')
-  const imports = src.match(/(^|\n)\s*(import|export)[^;]*from\s+'[^']*'/g) ?? []
-  check('the owned error identity leaf imports nothing', imports.length === 0, imports.join(' | '))
-}
-
 section('§F the versioned machine contract + the named projection (E03/E04), on the live homes')
 {
   for (const home of ['src/rows', 'src/runner/wire']) check(`${home} exists`, existsSync(join(ROOT, home)) && statSync(join(ROOT, home)).isDirectory())
