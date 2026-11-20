@@ -70,6 +70,31 @@ console.log('\nSessionManagerView — ownSessionRecord catches malformed worker 
   check('SessionManagerView.ownSessionRecord returns undefined without throwing into render', r.threw === null && r.value === null, JSON.stringify(r))
 }
 
+console.log('\nFilePermissionDialog — resolveSymlinkTarget resolves dangling symlinks so outside-workspace warning shows')
+{
+  const r = runScenario(`
+    const mod = await import(path.join(SRC, 'components/permissions/FilePermissionDialog/FilePermissionDialog.tsx'))
+    const outsideTarget = path.join(SCRATCH, 'outside-new-file.txt')
+    const linkPath = path.join(PROJECT, 'dangling-link.txt')
+    fs.symlinkSync(outsideTarget, linkPath)
+    const plainPath = path.join(PROJECT, 'plain.txt')
+    fs.writeFileSync(plainPath, 'ok')
+    const liveTarget = path.join(SCRATCH, 'outside-live.txt')
+    fs.writeFileSync(liveTarget, 'live')
+    const liveLink = path.join(PROJECT, 'live-link.txt')
+    fs.symlinkSync(liveTarget, liveLink)
+    out.hasExport = typeof mod.resolveSymlinkTarget === 'function'
+    out.dangling = mod.resolveSymlinkTarget?.(linkPath) ?? null
+    out.live = mod.resolveSymlinkTarget?.(liveLink) ?? null
+    out.plain = mod.resolveSymlinkTarget?.(plainPath) ?? null
+    out.absent = mod.resolveSymlinkTarget?.(path.join(PROJECT, 'does-not-exist.txt')) ?? null
+    out.expectedDangling = outsideTarget
+    out.expectedLive = fs.realpathSync(liveTarget)
+  `)
+  check('FilePermissionDialog.resolveSymlinkTarget resolves dangling symlink target', r.hasExport === true && r.dangling === r.expectedDangling, JSON.stringify(r))
+  check('FilePermissionDialog.resolveSymlinkTarget keeps live symlink, plain file, and absent file behaviour', r.live === r.expectedLive && r.plain === null && r.absent === null, JSON.stringify(r))
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)

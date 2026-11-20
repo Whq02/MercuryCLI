@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useMemo } from 'react'
-import { lstatSync, realpathSync } from 'node:fs'
-import { relative } from 'node:path'
+import { lstatSync, readlinkSync, realpathSync } from 'node:fs'
+import { dirname, relative, resolve } from 'node:path'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
@@ -29,6 +29,22 @@ type FilePermissionDialogProps<T extends ToolInput> = {
   parseInput: (input: unknown) => T
   workerBadge?: WorkerBadgeProps
   canApprove?: boolean
+}
+
+export function resolveSymlinkTarget(path: string | null): string | undefined {
+  if (path === null || isRemotePath(path)) return undefined
+  try {
+    const expanded = expandPath(path)
+    if (!lstatSync(expanded).isSymbolicLink()) return undefined
+    try {
+      return realpathSync(expanded)
+    } catch {
+      return resolve(dirname(expanded), readlinkSync(expanded))
+    }
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
 }
 
 export function FilePermissionDialog<T extends ToolInput>({
@@ -63,17 +79,7 @@ export function FilePermissionDialog<T extends ToolInput>({
   const writtenPath = (toolUseConfirm.input as { file_path?: unknown }).file_path
   const sqliteRowWrite = operationType === 'write' && typeof writtenPath === 'string' && !writtenPath.endsWith('#delete') && isSqliteRowTarget(writtenPath)
 
-  const symlinkTarget = useMemo(() => {
-    if (path === null || isRemotePath(path)) return undefined
-    try {
-      const expanded = expandPath(path)
-      if (!lstatSync(expanded).isSymbolicLink()) return undefined
-      return realpathSync(expanded)
-    } catch (error) {
-      passedOver(error)
-      return undefined
-    }
-  }, [path])
+  const symlinkTarget = useMemo(() => resolveSymlinkTarget(path), [path])
   const symlinkEscapes =
     symlinkTarget !== undefined && relative(getFocusedSessionConnector().workspace().cwd, symlinkTarget).startsWith('..')
 
