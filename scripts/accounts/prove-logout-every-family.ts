@@ -255,6 +255,49 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   }
 }
 
+section('§4 the Claude login — a credential store that cannot be read or written is named by the sign-out of that provider and of its slot')
+if (process.platform !== 'darwin' || (typeof process.getuid === 'function' && process.getuid() === 0)) {
+  console.log('  [SKIP] the Claude login — a file that takes no write is made here with the immutable flag of macOS')
+} else {
+  const store = (await import('../../src/utils/secureStorage/index.js')).credentialsPath()
+  const CLAUDE = JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-claude-access', refreshToken: 'fixture-claude-refresh', expiresAt: far, scopes: ['user:inference'], subscriptionType: 'max' }, mcpOAuth: { other: { accessToken: 'fixture-mcp-token' } } })
+  const signOutClaude = (how: 'unreadable' | 'immutable'): { said: { out: string; err: string; exit: number | null }; slot: { note?: string; mutated?: boolean; refused?: boolean; threw?: string }; same: boolean } => {
+    writeFileSync(store, CLAUDE, { mode: 0o600 })
+    if (how === 'unreadable') chmodSync(store, 0o200)
+    else spawnSync('/usr/bin/chflags', ['uchg', store])
+    const ran = spawnSync(process.execPath, ['-e', `
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+      enableConfigs()
+      const cli = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/providerAuth.ts'))})
+      const removal = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/providers/accountSlots/removal.ts'))})
+      const said = { out: '', err: '', exit: null }
+      await cli.providerAuthLogout('anthropic', { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
+      let slot
+      try {
+        slot = removal.executeSlotRemoval({ id: 'anthropic:oauth', family: 'anthropic', kind: 'oauth', signedIn: true, removal: { route: 'anthropic-oauth', dir: process.env.MERCURY_CONFIG_DIR } }, { revokeAnthropicToken: async () => {} })
+      } catch (error) {
+        slot = { threw: String(error.message ?? error) }
+      }
+      process.stdout.write('\\n' + JSON.stringify({ said, slot }))
+      process.exit(0)
+    `], { encoding: 'utf8', env: { ...process.env, MERCURY_ANTHROPIC_OAUTH_BASE: dead }, timeout: 60_000 })
+    if (how === 'unreadable') chmodSync(store, 0o600)
+    else spawnSync('/usr/bin/chflags', ['nouchg', store])
+    const answered = JSON.parse(ran.stdout.trim().split('\n').pop() || '{}') as { said?: { out: string; err: string; exit: number | null }; slot?: { note?: string; mutated?: boolean; refused?: boolean; threw?: string } }
+    return { said: answered.said ?? { out: ran.stdout, err: ran.stderr, exit: ran.status }, slot: answered.slot ?? {}, same: readFileSync(store, 'utf8') === CLAUDE }
+  }
+  for (const [how, words] of [
+    ['unreadable', `Could not sign out: The credential store at ${store} exists but could not be read (EACCES); nothing was written.`],
+    ['immutable', `Could not sign out: The credential store at ${store} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`],
+  ] as const) {
+    const ran = signOutClaude(how)
+    check(`${how}: mercury auth logout anthropic names the store on the error stream and ends 1`, ran.said.err === `${words}\n` && ran.said.out === '' && ran.said.exit === 1, JSON.stringify(ran.said))
+    check(`${how}: the sign-out of the Claude slot answers the same note, refused, and the store stands byte for byte with its login`, ran.slot.note === words && ran.slot.refused === true && ran.slot.mutated === false && ran.same, `${JSON.stringify(ran.slot)} · store ${ran.same ? 'kept' : 'changed'}`)
+  }
+  rmSync(store, { force: true })
+}
+
 try {
   rmSync(scratch, { recursive: true, force: true })
 } catch {

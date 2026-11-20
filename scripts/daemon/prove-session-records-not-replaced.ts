@@ -333,6 +333,34 @@ try {
     check('the turn is refused in the records\' own sentence, nothing is delivered and the file stands', turn.ok === false && turn.error === refusal(file, 'EACCES') && delivered.length === 0 && readFileSync(file, 'utf8') === before, turn.error ?? delivered)
   }
 
+  console.log('the session records — a parked session resumed while they take no write: the admission answers the refusal and throws nothing')
+  if (process.platform !== 'darwin' || !POSIX_MODES) skip('the rename that fails', 'a file that takes no rename is made here with the immutable flag of macOS')
+  else {
+    const gone = spawnSync(process.execPath, ['-e', '']).pid ?? 0
+    for (const [title, fields] of [
+      ['its record needs a change before any runner starts', {}],
+      ['its runner is started, cannot be recorded and is ended', { isolation: 'shared', modelKey: 'choose-a-model', effort: 'high' }],
+    ] as const) {
+      const { dir, file } = fresh()
+      const rested = { ...record(1), workspaceId: workspace, pid: gone, parkedAt: 3000, parkedBy: 'operator', keyless: true, ...fields } as Rec
+      workers.updateConcourseWorkers(all => void (all['concourse-w1'] = rested), dir)
+      const transcript = workers.concourseTranscriptPath(rested)
+      mkdirSync(dirname(transcript), { recursive: true })
+      writeFileSync(transcript, '')
+      started.length = 0
+      ended.length = 0
+      spawnSync('/usr/bin/chflags', ['uchg', file])
+      let resumed: Admitted
+      try {
+        resumed = await workers.makeConcourseAdmitHandler({ roster: () => roster as never, dir })({ workspaceDir: workspace, resumeSessionId: rested.sessionId })
+      } catch (error) {
+        resumed = { threw: error instanceof Error ? error.message : String(error) }
+      }
+      spawnSync('/usr/bin/chflags', ['nouchg', file])
+      check(`${title}: the admission answers that no session was started, with the reason, and leaves no runner`, 'ok' in resumed && resumed.ok === false && resumed.code === 'not-ready' && (resumed.error ?? '').startsWith('no session was started: ') && (resumed.error ?? '').includes(file) && started.length === ended.length, { resumed, started, ended })
+    }
+  }
+
   console.log('the session records — the daemon boots while they cannot be read, says so at the boot, and its reconcile waits')
   if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
   else {

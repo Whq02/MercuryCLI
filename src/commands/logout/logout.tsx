@@ -10,11 +10,11 @@ import { clearBetasCaches } from '../../utils/betas.js'
 import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
-import { deriveFamilySlotGroups, familiesRefusedIn, signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
+import { credentialStoreLeftWords, deriveFamilySlotGroups, familiesRefusedIn, signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { credentialsPath, keychainReachable, macOsKeychainStorage, plainTextStorage } from '../../utils/secureStorage/index.js'
+import { keychainReachable, macOsKeychainStorage, plainTextStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
 import { startTimeout } from '../../utils/timers.js'
@@ -40,12 +40,8 @@ export async function performLogout({
 
   await removeApiKey()
   const storesLeft: string[] = []
-  if (keychainReachable() && !macOsKeychainStorage.delete()) {
-    storesLeft.push('Could not sign out: The keychain entry of Mercury could not be removed; the sign-ins it holds are still stored here. Unlock the keychain, then try again.')
-  }
-  if (!plainTextStorage.delete()) {
-    storesLeft.push(`Could not sign out: The credential store at ${credentialsPath()} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`)
-  }
+  if (keychainReachable() && !macOsKeychainStorage.delete()) storesLeft.push(`Could not sign out: ${credentialStoreLeftWords('keychain')}`)
+  if (!plainTextStorage.delete()) storesLeft.push(`Could not sign out: ${credentialStoreLeftWords('file')}`)
   clearScopeIdentitySnapshot(getMercuryHome())
   forgetScopeIdentity()
 

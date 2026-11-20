@@ -36,7 +36,7 @@ export function xaiAuthPathForDisplay(): string { return join(getAuthConfigHomeD
 function readAuth(): AuthFile {
   try {
     const value = JSON.parse(readFileSync(xaiAuthPathForDisplay(), 'utf8'))
-    return value && typeof value === 'object' ? value : { version: 1 }
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : { version: 1 }
   } catch { return { version: 1 } }
 }
 function writeAuth(file: AuthFile): void {

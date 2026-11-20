@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -59,9 +59,9 @@ async function standIn(answers: 'promptly' | 'never'): Promise<Stand> {
   }
 }
 
-const PRELUDE = (home: string, cwd: string): string => `
+const PRELUDE = (home: string, cwd: string, store: 'file' | 'keychain' = 'file'): string => `
   process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
-  process.env.MERCURY_CREDENTIAL_STORE = 'file'
+  ${store === 'file' ? `process.env.MERCURY_CREDENTIAL_STORE = 'file'` : 'delete process.env.MERCURY_CREDENTIAL_STORE'}
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   delete process.env.MERCURY_HOME
   delete process.env.NODE_ENV
@@ -78,18 +78,27 @@ const PRELUDE = (home: string, cwd: string): string => `
 
 type Run = { code: number | null; stdout: string; stderr: string; seconds: number; seenBeforeExit: Seen[]; seenAfter: Seen[]; tokensLeft: string[]; configured: boolean; world: string; store: string }
 
-async function remove(stand: Stand, opts: { scope: boolean; tokens: boolean; storeTakesNoWrite?: boolean; storeUnreadable?: boolean; projectFileTakesNoWrite?: boolean; again?: string }): Promise<Run> {
+async function remove(stand: Stand, opts: { scope: boolean; tokens: boolean; storeTakesNoWrite?: boolean; storeUnreadable?: boolean; projectFileTakesNoWrite?: boolean; keychainAnswersNothing?: boolean; again?: string }): Promise<Run> {
   const world = opts.again ?? mkdtempSync(join(scratch, 'world-'))
   const home = join(world, 'home')
   const cwd = join(world, 'project')
   const store = join(home, '.credentials.json')
   for (const dir of [home, cwd]) mkdirSync(dir, { recursive: true })
-  const env = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file' }
+  const env: Record<string, string | undefined> = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file' }
+  const acted: Record<string, string | undefined> = { ...env }
+  if (opts.keychainAnswersNothing === true) {
+    const bin = join(world, 'bin')
+    mkdirSync(bin, { recursive: true })
+    writeFileSync(join(bin, 'security'), `#!/bin/sh\nif [ "$1" = "-i" ]; then cat >/dev/null; fi\nexit 44\n`)
+    chmodSync(join(bin, 'security'), 0o755)
+    acted.PATH = `${bin}:${process.env.PATH ?? ''}`
+    delete acted.MERCURY_CREDENTIAL_STORE
+  }
   const server = `{ type: 'http', url: ${JSON.stringify(`${stand.base}/mcp`)} }`
   const held = opts.projectFileTakesNoWrite === true ? 'project' : 'user'
   const projectFolder = join(cwd, '.mercury')
   const src = `
-    ${PRELUDE(home, cwd)}
+    ${PRELUDE(home, cwd, opts.keychainAnswersNothing === true ? 'keychain' : 'file')}
     const handlers = await import(${JSON.stringify(join(SRC, 'cli/handlers/mcp.tsx'))})
     const server = ${server}
     if (${opts.again === undefined}) await config.addMcpConfig('probe', server, ${JSON.stringify(held)})
@@ -103,7 +112,7 @@ async function remove(stand: Stand, opts: { scope: boolean; tokens: boolean; sto
     await handlers.mcpRemoveHandler('probe', ${opts.scope ? `{ scope: ${JSON.stringify(held)} }` : '{}'})
   `
   const startedAt = Date.now()
-  const child = spawn(BUN, ['-e', src], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(BUN, ['-e', src], { env: acted, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', chunk => (stdout += String(chunk)))
@@ -177,6 +186,16 @@ try {
     const again = await remove(stand, { scope: true, tokens: true, again: refused.world })
     await stand.close()
     check('the same command, once the store reads, removes the server and clears the tokens', again.code === 0 && !again.configured && again.tokensLeft.length === 0, `exit ${again.code} · ${again.stdout.trim()} · ${again.stderr.trim()} · left ${again.tokensLeft.join(', ')}`)
+  }
+
+  console.log('mercury mcp remove probe --scope user — a keychain that holds nothing and a credential file that cannot be read (a Mac as it comes): the same refusal, nothing removed')
+  if (process.platform !== 'darwin' || !POSIX_MODES) console.log('  [SKIP] the keychain beside the unreadable file — the keychain tool is stood in for on macOS only, and a mode-0200 file needs a process that is not root')
+  else {
+    const stand = await standIn('promptly')
+    const refused = await remove(stand, { scope: true, tokens: true, storeUnreadable: true, keychainAnswersNothing: true })
+    await stand.close()
+    const words = `The credential store at ${refused.store} exists but could not be read (EACCES); nothing was written.`
+    check('the verb ends 1 with the store\'s own sentence, removes nothing and leaves the tokens in the file', refused.code === 1 && refused.stderr.split('\n').filter(line => line !== '').join('\n') === words && !refused.stdout.includes('Removed MCP server') && refused.configured && refused.tokensLeft.length === 1, `exit ${refused.code} · stdout: ${refused.stdout.trim() || '(empty)'} · stderr: ${refused.stderr.trim() || '(empty)'} · configured ${refused.configured} · left ${refused.tokensLeft.join(', ') || 'nothing'}`)
   }
 
   console.log('mercury mcp remove probe --scope project — the project file takes no write once the tokens are cleared: they are revoked before the verb says why and exits 1')

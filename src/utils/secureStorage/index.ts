@@ -39,7 +39,7 @@ export function getSecureStorage(): SecureStorage {
 
 export function removeSecureStorageField<K extends keyof SecureStorageData>(
   field: K,
-): { removed: boolean; kept: number; success: boolean } {
+): { removed: boolean; kept: number; success: boolean; code?: string } {
   const storage = getSecureStorage()
   const current = storage.read()
   const keys = current === null ? [] : (Object.keys(current) as Array<keyof SecureStorageData>)
@@ -48,5 +48,6 @@ export function removeSecureStorageField<K extends keyof SecureStorageData>(
   const next: SecureStorageData = { ...current }
   delete next[field]
   if (kept === 0) return { removed: true, kept, success: storage.delete() }
-  return { removed: true, kept, success: storage.update(next).success }
+  const written = storage.update(next)
+  return { removed: true, kept, success: written.success, ...(written.code !== undefined ? { code: written.code } : {}) }
 }

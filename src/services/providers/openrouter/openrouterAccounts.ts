@@ -15,7 +15,7 @@ import {
   generateCodeChallenge,
   generateCodeVerifier,
 } from '../../oauth/crypto.js'
-import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredOpenrouterApiKey } from '../providerSecrets.js'
+import { credentialFileUnwritten, credentialJsonToWriteOver, readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { passedOver } from '../../../utils/passedOver.js'
@@ -160,8 +160,12 @@ export function markOpenrouterKeyRefused(
     message: message.trim() || `HTTP ${status}`,
     observedAtMs: now(),
   }
-  if (probeCredentialJson(authFilePath()).state === 'unreadable') return
-  writeAuthFile(file => ({ ...file, refused }))
+  try {
+    writeAuthFile(file => ({ ...file, refused }))
+  } catch (error) {
+    const { logError } = require('../../../utils/log.js') as typeof import('../../../utils/log.js')
+    logError(error)
+  }
 }
 
 export function clearOpenrouterKeyRefusal(key: { key: string } | undefined): void {
