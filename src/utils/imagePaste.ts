@@ -130,7 +130,7 @@ async function saveClipboardImage(platform: ClipboardPlatform, path: string): Pr
     ['wl-paste', ['--type', 'image/bmp']],
   ]
   for (const [tool, args] of attempts) {
-    let stdout: Buffer
+    let stdout: Uint8Array
     try {
       const result = await execa(tool, args, { encoding: 'buffer', windowsHide: true, timeout: 2000 })
       if (result.exitCode !== 0 || result.stdout.length === 0) continue
