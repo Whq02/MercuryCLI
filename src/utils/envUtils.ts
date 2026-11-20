@@ -6,7 +6,7 @@ import { join, sep } from 'node:path'
 import { memoize } from 'lodash-es'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { readSessionOption } from '../cli/sessionArgs.js'
+import { readSessionOption } from './sessionArgs.js'
 import { hostEnv } from './hostEnv.js'
 
 

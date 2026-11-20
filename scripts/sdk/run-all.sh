@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: sdk/** sdk-py/** src/rows/** src/cli/sessionArgs.ts src/cli/structuredIO.ts src/cli/headless/refusalEnvelope.ts
+# gate-watch: sdk/** sdk-py/** src/rows/** src/utils/sessionArgs.ts src/cli/structuredIO.ts src/cli/headless/refusalEnvelope.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
