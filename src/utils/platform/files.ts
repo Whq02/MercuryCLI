@@ -100,11 +100,17 @@ const DIR_FSYNC_UNSUPPORTED_CODES = new Set([
   'EBADF',
 ])
 
+export function heldFileRetriesApply(
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return platform === 'win32'
+}
+
 export function isTransientHeldFileCode(
   code: string | undefined,
   platform: NodeJS.Platform = process.platform,
 ): boolean {
-  return platform === 'win32' && isHeldFileErrnoCode(code)
+  return heldFileRetriesApply(platform) && isHeldFileErrnoCode(code)
 }
 
 export function heldFileRetryDelayMs(
