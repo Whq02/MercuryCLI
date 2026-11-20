@@ -103,14 +103,29 @@ function sliceAfter(input: string | Uint8Array, offset: number): string | Uint8A
   return typeof input === 'string' ? input.slice(offset) : input.subarray(offset)
 }
 
-function parseJsonlNative<T>(data: string | Buffer, parser: NativeJsonl): T[] {
+function hasNonWhitespace(input: string | Uint8Array, end: number): boolean {
+  if (typeof input === 'string') {
+    for (let i = 0; i < end; i++) {
+      if (input.charCodeAt(i) > 0x20) return true
+    }
+    return false
+  }
+  for (let i = 0; i < end; i++) {
+    if (input[i]! > 0x20) return true
+  }
+  return false
+}
+
+function parseJsonlNative<T>(data: string | Buffer, parser: NativeJsonl, onSkipped?: (count: number) => void): T[] {
   const results: T[] = []
+  let skipped = 0
   let rest: string | Uint8Array = typeof data === 'string' ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
   for (;;) {
     let outcome: { values: unknown[]; read: number; done: boolean }
     try {
       outcome = parser.parseChunk(rest)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       outcome = { values: [], read: 0, done: false }
     }
     for (const value of outcome.values) results.push(value as T)
@@ -118,26 +133,34 @@ function parseJsonlNative<T>(data: string | Buffer, parser: NativeJsonl): T[] {
     const after = sliceAfter(rest, Math.max(0, outcome.read))
     const newline = indexOfNewline(after)
     if (newline === -1) break
+    if (hasNonWhitespace(after, newline)) skipped++
     rest = sliceAfter(after, newline + 1)
     if (rest.length === 0) break
   }
+  if (skipped > 0) onSkipped?.(skipped)
   return results
 }
 
-export function parseJSONL<T>(data: string | Buffer): T[] {
+export function parseJSONL<T>(data: string | Buffer, options?: { onSkipped?: (count: number) => void }): T[] {
   if (nativeJsonl) {
-    return parseJsonlNative<T>(typeof data === 'string' ? stripBOM(data) : stripBufferBom(data), nativeJsonl)
+    return parseJsonlNative<T>(typeof data === 'string' ? stripBOM(data) : stripBufferBom(data), nativeJsonl, options?.onSkipped)
   }
   const text = typeof data === 'string' ? stripBOM(data) : stripBufferBom(data).toString('utf8')
+  const lines = text.split('\n')
+  const endsWithNewline = text.endsWith('\n')
   const results: T[] = []
-  for (const rawLine of text.split('\n')) {
-    const line = rawLine.trim()
+  let skipped = 0
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!.trim()
     if (line === '') continue
     try {
       results.push(jsonParse(line) as T)
     } catch (error) {
       passedOver(error)
+      const isTornLastLine = !endsWithNewline && i === lines.length - 1
+      if (!isTornLastLine) skipped++
     }
   }
+  if (skipped > 0) options?.onSkipped?.(skipped)
   return results
 }

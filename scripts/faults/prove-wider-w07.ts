@@ -332,4 +332,73 @@ else {
   )
 }
 
+console.log('\nw07-4 · json.ts parseJSONL + fabric/transcriptDecode.ts — skipped lines counted (native & fallback, excluding torn last line)')
+{
+  const runCase = (disableNative: boolean) =>
+    runSubprocess(`
+      const path = await import('node:path')
+      ${disableNative ? 'if (globalThis.Bun) { try { Object.defineProperty(globalThis.Bun, "JSONL", { value: undefined, configurable: true }) } catch {} }' : ''}
+      const { parseJSONL } = await import(path.join(SRC, 'utils/json.ts'))
+      const probe = input => {
+        let skipped = 0
+        let calls = 0
+        const values = parseJSONL(input, { onSkipped: n => { skipped += n; calls++ } })
+        return { values, skipped, calls }
+      }
+      out.valid = probe('{"a":1}\\n{"b":2}\\n')
+      out.oneBad = probe('{"a":1}\\n{bad\\n{"b":2}\\n')
+      out.twoBad = probe('{"a":1}\\n{bad1\\n{bad2\\n{"b":2}\\n')
+      out.crlfBad = probe('{"a":1}\\r\\n{bad\\r\\n{"b":2}\\r\\n')
+      out.tornLast = probe('{"a":1}\\n{"b":')
+      out.bufBad = probe(Buffer.from('{"a":1}\\n{bad\\n{"b":2}\\n'))
+    `)
+  for (const [mode, res] of [
+    ['native', runCase(false)],
+    ['fallback', runCase(true)],
+  ] as const) {
+    const valid = res.out.valid as { values: unknown[]; skipped: number; calls: number }
+    const oneBad = res.out.oneBad as { values: unknown[]; skipped: number; calls: number }
+    const twoBad = res.out.twoBad as { values: unknown[]; skipped: number; calls: number }
+    const crlfBad = res.out.crlfBad as { values: unknown[]; skipped: number; calls: number }
+    const tornLast = res.out.tornLast as { values: unknown[]; skipped: number; calls: number }
+    const bufBad = res.out.bufBad as { values: unknown[]; skipped: number; calls: number }
+    check(`w07-4 (${mode}) valid JSONL reports 0 skipped`, valid.values.length === 2 && valid.skipped === 0 && valid.calls === 0, JSON.stringify(valid))
+    check(`w07-4 (${mode}) one bad line reports skipped=1`, oneBad.values.length === 2 && oneBad.skipped === 1, JSON.stringify(oneBad))
+    check(`w07-4 (${mode}) two bad lines report skipped=2`, twoBad.values.length === 2 && twoBad.skipped === 2, JSON.stringify(twoBad))
+    check(`w07-4 (${mode}) CRLF bad line reports skipped=1`, crlfBad.values.length === 2 && crlfBad.skipped === 1, JSON.stringify(crlfBad))
+    check(`w07-4 (${mode}) torn last line is not counted`, tornLast.values.length === 1 && tornLast.skipped === 0 && tornLast.calls === 0, JSON.stringify(tornLast))
+    check(`w07-4 (${mode}) Buffer input with bad line reports skipped=1`, bufBad.values.length === 2 && bufBad.skipped === 1, JSON.stringify(bufBad))
+  }
+
+  const rDecode = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { encodeTranscriptLine } = await import(path.join(SRC, 'utils/sessionStorage/vnext.ts'))
+    const { decodeTranscriptBuffer } = await import(path.join(SRC, 'fabric/transcriptDecode.ts'))
+    const loading = await import(path.join(SRC, 'utils/sessionStorage/loading.ts'))
+    const sid = '00000000-dddd-eeee-ffff-000000000d07'
+    const file = path.join(PROJECT, sid + '.jsonl')
+    const meta = (uuid, parent) => ({
+      isSidechain: false, entrypoint: 'cli', cwd: PROJECT, sessionId: sid,
+      version: '1.0.0', gitBranch: '', parentUuid: parent, uuid, timestamp: '2026-11-20T06:00:00.000Z',
+    })
+    const l1 = encodeTranscriptLine(file, { ...meta('00000000-0000-4000-8000-00000000d701', null), type: 'user', message: { role: 'user', content: 'first' } }).line
+    const l2 = encodeTranscriptLine(file, { ...meta('00000000-0000-4000-8000-00000000d702', '00000000-0000-4000-8000-00000000d701'), type: 'assistant', message: { role: 'assistant', model: 'glm-5.3', content: [{ type: 'text', text: 'second' }] } }).line
+    const l3 = encodeTranscriptLine(file, { ...meta('00000000-0000-4000-8000-00000000d703', '00000000-0000-4000-8000-00000000d702'), type: 'user', message: { role: 'user', content: 'third' } }).line
+    const content = l1 + l2.trimEnd() + l3
+    fs.writeFileSync(file, content)
+    const decoded = decodeTranscriptBuffer(content)
+    out.malformedLen = decoded.malformed.length
+    loading._resetTranscriptLoadDegradationForTesting()
+    await loading.loadTranscriptFile(file)
+    out.degradation = loading.transcriptLoadDegradation()
+  `)
+  const deg = rDecode.out.degradation as { malformed?: number; path?: string } | null
+  check(
+    'w07-4 two values on one line still triggers classifyMalformed and latches transcriptLoadDegradation',
+    rDecode.out.malformedLen === 1 && deg !== null && deg.malformed === 1,
+    JSON.stringify({ malformedLen: rDecode.out.malformedLen, deg }),
+  )
+}
+
 process.exit(failures === 0 ? 0 : 1)
