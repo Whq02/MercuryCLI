@@ -12,22 +12,22 @@ export function useMount(effect: EffectCallback): void {
   useEffect(effect, [])
 }
 
-export function useTimer(start: EffectCallback, deps: DependencyList): void {
+export function useTimer(start: EffectCallback, deps?: DependencyList): void {
   useEffect(start, deps)
 }
 
-export function useLoad(load: EffectCallback, deps: DependencyList): void {
+export function useLoad(load: EffectCallback, deps?: DependencyList): void {
   useEffect(load, deps)
 }
 
 export function useSubscription(
   subscribe: UndoableEffect,
-  deps: DependencyList,
+  deps?: DependencyList,
 ): void {
   useEffect(subscribe, deps)
 }
 
-export function useClaim(claim: UndoableEffect, deps: DependencyList): void {
+export function useClaim(claim: UndoableEffect, deps?: DependencyList): void {
   useEffect(claim, deps)
 }
 
@@ -58,21 +58,21 @@ export function useLayoutMount(effect: EffectCallback): void {
 
 export function useLayoutTimer(
   start: EffectCallback,
-  deps: DependencyList,
+  deps?: DependencyList,
 ): void {
   useLayoutEffect(start, deps)
 }
 
 export function useLayoutSubscription(
   subscribe: UndoableEffect,
-  deps: DependencyList,
+  deps?: DependencyList,
 ): void {
   useLayoutEffect(subscribe, deps)
 }
 
 export function useLayoutClaim(
   claim: UndoableEffect,
-  deps: DependencyList,
+  deps?: DependencyList,
 ): void {
   useLayoutEffect(claim, deps)
 }
