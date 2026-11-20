@@ -40,7 +40,28 @@ async function reconcileUnlinkRefused(): Promise<void> {
   }
 }
 
+async function sweepRegistrationUnreadable(): Promise<void> {
+  const label = 'process sweep: a cockpit registration that cannot be read makes the registrations unknown, not one fewer window'
+  if (!POSIX_MODES) return skip(label, 'needs POSIX modes and a non-root user')
+  const home = join(scratch, 'home-sweep')
+  const m = await import(join(SRC, 'daemon/processSweepRun.ts'))
+  const dir = m.processRecordsDir(home)
+  mkdirSync(dir, { recursive: true })
+  const file = join(dir, `cockpit-${process.pid}-0a1b2c3d.json`)
+  writeFileSync(file, JSON.stringify({ schema: 1, id: '0a1b2c3d', pid: process.pid, configHome: home, daemonDir: join(home, 'daemon'), heartbeatAt: Date.now() }))
+  chmodSync(file, 0o000)
+  try {
+    const strict = await m.readCockpitRegistrations(home, 'strict')
+    const loose = await m.readCockpitRegistrations(home)
+    check(label, strict === null, `strict read answered ${JSON.stringify(strict)}`)
+    check('readCockpitRegistrations keeps its answer for outside callers', Array.isArray(loose) && loose.length === 0, JSON.stringify(loose))
+  } finally {
+    chmodSync(file, 0o644)
+  }
+}
+
 await reconcileUnlinkRefused()
+await sweepRegistrationUnreadable()
 
 console.log(failures === 0 ? 'prove-faults-fo02: all rows hold' : `prove-faults-fo02: ${failures} row(s) failed`)
 process.exit(failures === 0 ? 0 : 1)
