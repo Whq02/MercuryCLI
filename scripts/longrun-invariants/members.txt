@@ -5,6 +5,7 @@ prove-context-cadence.ts
 prove-continuation-growth.ts
 prove-crew-interrupt.ts
 prove-finished-crewmates-release-heap.ts
+prove-heap-climb-line.ts
 prove-hotpath-cadence.ts
 prove-injected-guide-seeds-read.ts
 prove-live-progress-road.ts
