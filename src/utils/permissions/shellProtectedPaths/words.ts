@@ -1,6 +1,5 @@
 import { shellTextOutsideFileHeredocs } from '../../wards/wards.js'
-import type { ShellRead } from '../../wards/wardsShellRead.js'
-import { peelWrappers, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
+import { type ShellRead, layersOf, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
   const prepared = powershell ? text.replace(/`\r?\n/g, '').replace(/`([^\r\n])/g, '$1').replace(/\\/g, '\\\\') : text
@@ -44,17 +43,10 @@ function splitFusedOptions(argv: string[]): string[] {
 }
 
 export function unwrapCommand(argv: string[]): string[] {
-  let unwrapped = splitFusedOptions(argv[0] === '&' ? argv.slice(1) : argv)
-  for (;;) {
-    while (['command', 'builtin', 'exec'].includes(verb(unwrapped[0] ?? ''))) {
-      unwrapped = unwrapped.slice(1)
-      while (unwrapped[0]?.startsWith('-')) unwrapped = unwrapped.slice(1)
-    }
-    const peeled = peelWrappers(unwrapped)
-    if (!Array.isArray(peeled) || peeled.length === unwrapped.length) break
-    unwrapped = splitFusedOptions(peeled)
-  }
-  return unwrapped
+  const bare = argv[0] === '&' ? argv.slice(1) : argv
+  const layers = layersOf(bare)
+  const target = layers.find(layer => ['find', 'xargs', 'do', 'then', 'else'].includes(layer.program)) ?? layers.at(-1)
+  return splitFusedOptions(target !== undefined ? target.argv : bare)
 }
 
 const COPY_SWITCHES = ['force', 'recurse', 'container', 'passthru', 'verbose', 'debug', 'whatif', 'confirm']
