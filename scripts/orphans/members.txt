@@ -1,0 +1,6 @@
+prove-comment-census.ts
+prove-dead-exports.ts
+prove-export-census.ts
+prove-no-orphans.ts
+prove-orphan-gate-discrimination.ts
+prove-reachability-manifest.ts

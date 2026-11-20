@@ -1,0 +1,9 @@
+prove-capsule-lifecycle.ts
+prove-capsule-self-reads.ts
+prove-compiler-facility.ts
+prove-context-capsule.ts
+prove-fixture-materialize.ts
+prove-impact-split.ts
+prove-path-tokens-linear.ts
+prove-project-snapshot.ts
+prove-working-set-resolution.ts
