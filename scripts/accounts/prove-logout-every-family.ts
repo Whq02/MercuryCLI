@@ -223,6 +223,17 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   check('mercury auth logout says it on the error stream, does not say Signed out, and exits 1', verb.status === 1 && verb.stderr.includes(words) && !verb.stdout.includes('Signed out'), `exit ${verb.status} · stdout ${JSON.stringify(verb.stdout.slice(-200))} · stderr ${JSON.stringify(verb.stderr.slice(-400))}`)
   check('…the file stands and the other families are signed out', readFileSync(hfPath, 'utf8') === held && othersSignedOut())
   check('…and, two other providers having been signed out by it, one line after the refusal says so', verb.stderr.includes(`${words}\n${OTHERS}\n`), `stderr ${JSON.stringify(verb.stderr.slice(-500))}`)
+  seed()
+  const command = spawnSync(process.execPath, ['-e', `
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+    enableConfigs()
+    const { call } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/logout/logout.tsx'))})
+    const shown = await call()
+    process.stdout.write('SHOWN ' + JSON.stringify(shown.props.children) + '\\n')
+  `], { encoding: 'utf8', env: process.env, timeout: 60_000 })
+  chmodSync(hfPath, 0o600)
+  check('the /logout command shows the refusal and the line about the others where it said "Logged out of all your accounts.", leaves both on the terminal as the session ends, and ends 1', command.status === 1 && command.stdout.includes(`SHOWN ${JSON.stringify(`${words}\n${OTHERS}`)}`) && command.stderr.includes(`${words}\n${OTHERS}\n`) && !command.stdout.includes('Logged out of all your accounts'), `exit ${command.status} · stdout ${JSON.stringify(command.stdout.slice(-500))} · stderr ${JSON.stringify(command.stderr.slice(-500))}`)
   chmodSync(hfPath, 0o200)
   const alone = signOutByTheVerb()
   check('with no other provider signed in, the refusal stands alone: nothing is said of others', alone.status === 1 && alone.stderr.includes(words) && !alone.stderr.includes(OTHERS) && !alone.stdout.includes('Signed out'), `exit ${alone.status} · stderr ${JSON.stringify(alone.stderr.slice(-500))}`)
