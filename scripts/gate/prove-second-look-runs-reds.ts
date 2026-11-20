@@ -75,7 +75,7 @@ function group(w: World, name: string, runner: string, members: Array<[string, K
 }
 
 const inline = (lines: string[]): string =>
-  [`. "${ROOT}/scripts/lib/proof-runner.sh"`, MARK, 'here="$(cd "$(dirname "$0")" && pwd)"', 'bun="${BUN:-$HOME/.bun/bin/bun}"', 'fail=0', ...lines, 'exit "$fail"'].join('\n')
+  [`. "${ROOT}/scripts/lib/proof-runner.sh"`, MARK, 'here="$(cd "$(dirname "$0")" && pwd)"', 'bun="${BUN:-$HOME/.bun/bin/bun}"', 'export PATH="$here:$PATH"', 'fail=0', ...lines, 'exit "$fail"'].join('\n')
 const timed = (file: string): string => `__t=$SECONDS; __rc=0; "$bun" run "$here/${file}" || { __rc=$?; fail=1; }; prover_mark "$here/${file}" "$__t" "$__rc"`
 
 function shard(w: World): Promise<{ code: number | null; text: string }> {
@@ -130,7 +130,7 @@ try {
   }
   check('the second look says which tests it did not run again', ['prove-green-one.ts', 'prove-green-two.ts', 'prove-green-shell.sh', 'prove-green-three.ts'].every(file => logOf(a, 'inline', true).includes(`second look: scripts/inline/${file} was green in the first attempt and is not run again`)), logOf(a, 'inline', true).slice(0, 600))
   const reds = runsOf(a).filter(run => run.member === 'inline/prove-red-once.ts')
-  check('the red test saw the same PATH and BUN in both attempts', reds.length === 2 && reds[0]!.path === reds[1]!.path && reds[0]!.bun === reds[1]!.bun && reds[0]!.bun === process.execPath, JSON.stringify(reds.map(run => [run.bun, run.path.slice(0, 80)])))
+  check("the red test saw the same BUN and the same PATH, the runner's own folder on it, in both attempts", reds.length === 2 && reds[0]!.path === reds[1]!.path && reds[0]!.path.startsWith(`${join(a.suites, 'inline')}:`) && reds[0]!.bun === reds[1]!.bun && reds[0]!.bun === process.execPath, JSON.stringify(reds.map(run => [run.bun, run.path.slice(0, 120)])))
 
   section('§2 a group that joins through drive_members: one test always red')
   check('the group stayed red on its second look', /^listed\tpure\t1\t\d+\t1\t\d+$/.test(rowOf(a, 'listed')), rowOf(a, 'listed'))
