@@ -34,6 +34,7 @@ function runSub(body: string): Record<string, unknown> {
   `
   const res = spawnSync(BUN, ['-e', src], {
     encoding: 'utf8',
+    timeout: 20_000,
     env: { ...process.env, MERCURY_CONFIG_DIR: subHome, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file' },
   })
   if (res.status !== 0) throw new Error(`sub failed (${res.status}): ${res.stderr.slice(-1000)}`)
@@ -131,6 +132,112 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
     'resumeAgent: readAgentMetadata EIO skips overwrite and reports recordNote',
     r.readCalls === 3 && r.writeCalls === 0 && typeof r.note === 'string' && r.note.includes('could not be saved') && r.note.includes('EIO'),
     JSON.stringify(r),
+  )
+}
+
+{
+  const r = runSub(`
+    const { mock } = await import('bun:test')
+    const path = await import('node:path')
+    const firePath = path.join(SRC, 'utils/hooks/fire.ts')
+    mock.module(firePath, () => ({ fireHooks: async () => ({ outcomes: [], answer: { contexts: [] } }) }))
+    const storagePath = path.join(SRC, 'utils/sessionStorage.ts')
+    const realStorage = await import(storagePath)
+    let mode = 'register-fail'
+    let writeCalls = 0
+    mock.module(storagePath, () => ({
+      ...realStorage,
+      registerAgentTranscriptDestination: () => {
+        if (mode === 'register-fail') throw new Error('register bug')
+      },
+      readAgentMetadata: async () => {
+        if (mode === 'read-fail') throw Object.assign(new Error('EIO: unreadable sidecar'), { code: 'EIO' })
+        return null
+      },
+      writeAgentMetadata: async () => {
+        writeCalls++
+        if (mode === 'write-fail') throw Object.assign(new Error('EACCES: cannot write sidecar'), { code: 'EACCES' })
+      },
+    }))
+    const { prepareAgentRun } = await import(path.join(SRC, 'tools/AgentTool/runAgent/prepare.ts'))
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const { createFileStateCacheWithSizeLimit } = await import(path.join(SRC, 'utils/fileStateCache.ts'))
+    const state = { toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, mcp: { tools: [], clients: [] }, sessionHooks: new Map() }
+    const ctx = {
+      getAppState: () => state,
+      setAppState: fn => { Object.assign(state, fn(state)) },
+      abortController: new AbortController(),
+      readFileState: createFileStateCacheWithSizeLimit(100),
+      messages: [],
+      options: { tools: [], mcpClients: [], mcpResources: {}, agentDefinitions: { activeAgents: [], allAgents: [] }, engineModel: 'claude-fable-5-1', debug: false, verbose: false, isNonInteractiveSession: true },
+    }
+    const baseArgs = () => ({
+      agentId: 'agent-prepare-test',
+      name: 'worker',
+      description: 'worker',
+      swarm: false,
+      abortController: new AbortController(),
+      override: { userContext: {}, systemContext: {}, systemPrompt: ['sys'] },
+      agentDefinition: { agentType: 'mercury-crew', whenToUse: 'test', source: 'built-in', getSystemPrompt: () => 'sys', omitProjectInstructions: true },
+      slimAgentGateOn: () => false,
+      withoutInstructionBlob: c => c,
+      readOnlyScout: false,
+      toolUseContext: ctx,
+      isAsync: true,
+      resolveAgentEffort: () => undefined,
+      hookScope: { sessionId: 'sess-1', crewmateId: 'agent-prepare-test' },
+      promptMessages: [],
+      resolvedAgentModel: 'claude-fable-5-1',
+      rootSetAppState: ctx.setAppState,
+      preloadSkills: async () => [],
+      connectAgentMcpServers: async () => ({ clients: [], tools: [], cleanup: async () => {} }),
+      mcp: { clients: [], tools: [], cleanup: async () => {} },
+      availableTools: [],
+      reviewReceipt: undefined,
+      buildAgentSystemPrompt: async () => ['sys'],
+      seat: 'crewmate',
+      isFork: false,
+      readFileState: createFileStateCacheWithSizeLimit(100),
+      childContextRef: { current: undefined },
+      agentKind: 'subagent',
+      run: { watchdog: { touch: () => {} }, eventsSeen: 0, toolUsesSeen: 0, pendingAsks: 0, askHeartbeat: null, deferredTouch: null, throttled: null, stoppedAfterRetry: false, retryStalledRequest: null },
+      accountant: { wait: () => {}, spoke: () => {}, standing: () => false, end: () => {} },
+      touchThrough: () => {},
+      initialMessages: [],
+      landAgentTranscriptRows: async () => undefined,
+      resolvedEffort: undefined,
+    })
+    const attempt = async m => {
+      mode = m
+      writeCalls = 0
+      try {
+        await prepareAgentRun(baseArgs())
+        return { threw: null, writeCalls }
+      } catch (e) {
+        return { threw: e instanceof Error ? e.message : String(e), writeCalls }
+      }
+    }
+    out.registerFail = await attempt('register-fail')
+    out.readFail = await attempt('read-fail')
+    out.writeFail = await attempt('write-fail')
+  `)
+  const reg = r.registerFail as { threw: string | null }
+  const rd = r.readFail as { threw: string | null; writeCalls: number }
+  const wr = r.writeFail as { threw: string | null; writeCalls: number }
+  check(
+    'runAgent/prepare: registerAgentTranscriptDestination error propagates instead of being swallowed',
+    reg.threw !== null && reg.threw.includes('register bug'),
+    JSON.stringify(reg),
+  )
+  check(
+    'runAgent/prepare: readAgentMetadata EIO rejects without overwriting sidecar',
+    rd.threw !== null && rd.threw.includes('EIO') && rd.writeCalls === 0,
+    JSON.stringify(rd),
+  )
+  check(
+    'runAgent/prepare: writeAgentMetadata EACCES rejects instead of running unrecorded',
+    wr.threw !== null && wr.threw.includes('EACCES') && wr.writeCalls === 1,
+    JSON.stringify(wr),
   )
 }
 
