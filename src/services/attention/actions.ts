@@ -32,7 +32,7 @@ export async function submitDispatch(intent: DispatchIntent): Promise<DispatchRe
   }
   const receipt = await getFocusedSessionConnector().sendWords(intent.value, {
     ...(intent.pastedContents !== undefined
-      ? { pastedContents: intent.pastedContents as never }
+      ? { pastedContents: intent.pastedContents }
       : {}),
   })
   if (receipt.state === 'refused') {

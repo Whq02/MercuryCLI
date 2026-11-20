@@ -15,6 +15,7 @@ import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { AgentId } from '../types/ids.js'
 import type { Message } from '../types/message.js'
 import type { NonNullableUsage } from '../services/api/logging.js'
+import type { ApiMessageDeltaUsage } from '../types/wire.js'
 import type { PromptCommand } from '../commands.js'
 import { logForDebugging } from './debug.js'
 import { cloneFileStateCache, type FileStateCache } from './fileStateCache.js'
@@ -245,8 +246,8 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
 }
 
 
-function usageOf(event: unknown): Partial<NonNullableUsage> | undefined {
-  const usage = (event as { usage?: Partial<NonNullableUsage> } | undefined)?.usage
+function usageOf(event: unknown): ApiMessageDeltaUsage | undefined {
+  const usage = (event as { usage?: ApiMessageDeltaUsage } | undefined)?.usage
   return usage && typeof usage === 'object' ? usage : undefined
 }
 
@@ -257,10 +258,10 @@ export function foldForkUsageEvent(
   event: { type?: string; usage?: unknown; message?: { usage?: unknown } },
 ): ForkUsageFold {
   if (event.type === 'message_start') {
-    return { total: fold.total, open: updateUsage(EMPTY_USAGE, usageOf(event.message) as never) }
+    return { total: fold.total, open: updateUsage(EMPTY_USAGE, usageOf(event.message)) }
   }
   if (event.type === 'message_delta') {
-    return { total: fold.total, open: updateUsage(fold.open ?? EMPTY_USAGE, usageOf(event) as never) }
+    return { total: fold.total, open: updateUsage(fold.open ?? EMPTY_USAGE, usageOf(event)) }
   }
   if (event.type === 'message_stop') {
     return fold.open === null ? fold : { total: accumulateUsage(fold.total, fold.open), open: null }

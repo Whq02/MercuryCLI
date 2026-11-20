@@ -82,7 +82,7 @@ export function WebFetchPermissionRequest({
     }
   }
 
-  const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
+  const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
     theme: resolveThemeName(),
     verbose,
   })

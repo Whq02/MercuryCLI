@@ -125,7 +125,7 @@ export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTex
     case 'server_tool_use':
       contentBlocks[part.index] = {
         ...part.content_block,
-        input: '' as unknown as { [key: string]: unknown },
+        input: '',
       }
       break
     case 'text':
@@ -252,7 +252,7 @@ export function observeStreamEnd(call: CallState, pass: StreamPass, turnOwning: 
     startedAt: call.start,
   })
 
-  const resp = call.streamResponse as unknown as Response | undefined
+  const resp = call.streamResponse
   if (resp) {
     extractQuotaStatusFromHeaders(resp.headers, call.start)
     clearAnthropicUsageLimit(call.start)

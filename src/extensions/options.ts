@@ -91,7 +91,7 @@ export function saveOptionValues(
     const existing = getInitialSettings().extensions?.options?.[id] ?? {}
     const { error } = updateSettingsForSource('userSettings', {
       extensions: { options: { [id]: { ...existing, ...plain } } },
-    } as never)
+    })
     if (error) return { ok: false, error: `settings write failed for ${id}: ${String(error)}` }
   }
   return { ok: true }
@@ -110,7 +110,7 @@ export function deleteOptionValues(id: string): { settingsWritten: boolean } {
     else storage.update(next as SecretsBlob)
   }
   if (getInitialSettings().extensions?.options?.[id] === undefined) return { settingsWritten: false }
-  updateSettingsForSource('userSettings', { extensions: { options: { [id]: undefined } } } as never)
+  updateSettingsForSource('userSettings', { extensions: { options: { [id]: undefined } } })
   return { settingsWritten: true }
 }
 

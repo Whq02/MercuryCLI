@@ -24,7 +24,7 @@ export function mapToolResultToToolResultBlockParam(data: Output, toolUseID: str
         ],
       }
     case 'notebook':
-      return mapNotebookCellsToToolResult(data.file.cells as never, toolUseID)
+      return mapNotebookCellsToToolResult(data.file.cells, toolUseID)
     case 'pdf':
       return {
         tool_use_id: toolUseID,

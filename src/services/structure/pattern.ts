@@ -356,7 +356,7 @@ export const COMMENT_TYPES = new Set(['comment', 'line_comment', 'block_comment'
 export function significantChildren(node: TSNode): TSNode[] {
   const out: TSNode[] = []
   const all = node.children
-  const fieldFor = (node as unknown as { fieldNameForChild?: (i: number) => string | null }).fieldNameForChild?.bind(node)
+  const fieldFor = node.fieldNameForChild?.bind(node)
   for (let i = 0; i < all.length; i++) {
     const child = all[i]!
     if (COMMENT_TYPES.has(child.type)) continue
@@ -386,7 +386,7 @@ const PASSED_OVER = /[()[\]{},;"'`\s]+/g
 
 function writtenTokens(node: TSNode): string[][] | null {
   const all = node.children
-  const fieldFor = (node as unknown as { fieldNameForChild?: (i: number) => string | null }).fieldNameForChild?.bind(node)
+  const fieldFor = node.fieldNameForChild?.bind(node)
   let gaps: string[][] | null = null
   let gap = 0
   for (let i = 0; i < all.length; i++) {
@@ -396,7 +396,7 @@ function writtenTokens(node: TSNode): string[][] | null {
       gap++
       continue
     }
-    if ((child as unknown as { isExtra?: boolean }).isExtra) continue
+    if (child.isExtra) continue
     const text = child.text
     const written = text.replace(PASSED_OVER, '').toLowerCase()
     if (written === '' || (written === '\\' && text.length > 1)) continue

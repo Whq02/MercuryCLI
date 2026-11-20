@@ -2,11 +2,12 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
 import type {
   PermissionBehavior,
+  PermissionRuleSource,
   PermissionRuleValue,
   PermissionUpdate,
   PermissionUpdateDestination,
 } from '../../types/permissions.js'
-import { updateSettingsForSource } from '../settings/settings.js'
+import { updateSettingsForSource, type SettingsPatch } from '../settings/settings.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
@@ -34,11 +35,22 @@ function supportsPersistence(
   )
 }
 
-type MutableContext = {
-  alwaysAllowRules: Record<string, string[]>
-  alwaysDenyRules: Record<string, string[]>
-  alwaysAskRules: Record<string, string[]>
-  ruleReasons?: Record<string, Record<string, string>>
+type MutableRulesBySource = {
+  [K in PermissionRuleSource]?: string[]
+}
+
+type MutableRuleReasonsBySource = {
+  [K in PermissionRuleSource]?: Record<string, string>
+}
+
+type MutableContext = Omit<
+  ToolPermissionContext,
+  'mode' | 'alwaysAllowRules' | 'alwaysDenyRules' | 'alwaysAskRules' | 'ruleReasons'
+> & {
+  alwaysAllowRules: MutableRulesBySource
+  alwaysDenyRules: MutableRulesBySource
+  alwaysAskRules: MutableRulesBySource
+  ruleReasons?: MutableRuleReasonsBySource
   mode: ToolPermissionContext['mode']
 }
 
@@ -46,7 +58,7 @@ function ruleString(value: PermissionRuleValue): string {
   return permissionRuleValueToString(value)
 }
 
-function stampReasons(next: MutableContext, destination: string, rules: PermissionRuleValue[]): void {
+function stampReasons(next: MutableContext, destination: PermissionUpdateDestination, rules: PermissionRuleValue[]): void {
   for (const rule of rules) {
     if (rule.reason === undefined) continue
     const reasons = next.ruleReasons ?? (next.ruleReasons = {})
@@ -55,7 +67,7 @@ function stampReasons(next: MutableContext, destination: string, rules: Permissi
   }
 }
 
-function dropReasons(next: MutableContext, destination: string, spellings: Iterable<string>): void {
+function dropReasons(next: MutableContext, destination: PermissionUpdateDestination, spellings: Iterable<string>): void {
   const forSource = next.ruleReasons?.[destination]
   if (forSource === undefined) return
   for (const spelling of spellings) delete forSource[spelling]
@@ -114,7 +126,7 @@ export function applyPermissionUpdate(
     default:
       return context
   }
-  return next as unknown as ToolPermissionContext
+  return next
 }
 
 export function applyPermissionUpdates(
@@ -147,27 +159,28 @@ export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdic
       return writePartial(source, base => {
         const existing = rawPermissionArray(base, behaviorKey)
         for (const rule of additions) if (!existing.includes(rule)) existing.push(rule)
-        return { guardrails: { [behaviorKey]: existing } } as never
+        return guardrailsPatch(behaviorKey, existing)
       })
     }
     case 'replaceRules': {
       const behaviorKey = settingsBehaviorKey(update.behavior)
-      return writePartial(source, { guardrails: { [behaviorKey]: update.rules.map(ruleString) } })
+      return writePartial(source, guardrailsPatch(behaviorKey, update.rules.map(ruleString)))
     }
     case 'removeRules': {
       const behaviorKey = settingsBehaviorKey(update.behavior)
       const toRemove = new Set(update.rules.map(ruleString))
-      return writePartial(source, base => ({
-        guardrails: {
-          [behaviorKey]: rawPermissionArray(base, behaviorKey).filter(entry => {
+      return writePartial(source, base =>
+        guardrailsPatch(
+          behaviorKey,
+          rawPermissionArray(base, behaviorKey).filter(entry => {
             try {
               return !toRemove.has(permissionRuleValueToString(permissionRuleValueFromString(entry)))
             } catch {
               return true
             }
           }),
-        },
-      }) as never)
+        ),
+      )
     }
     case 'setMode':
       return writePartial(source, { guardrails: { mode: update.mode } })
@@ -233,35 +246,40 @@ export function createEditRuleSuggestion(
 }
 
 
-function structuredCloneContext(context: ToolPermissionContext): MutableContext {
-  const c = context as unknown as MutableContext
-  return {
-    ...(context as object),
-    alwaysAllowRules: cloneRuleMap(c.alwaysAllowRules),
-    alwaysDenyRules: cloneRuleMap(c.alwaysDenyRules),
-    alwaysAskRules: cloneRuleMap(c.alwaysAskRules),
-    ...(c.ruleReasons === undefined ? {} : { ruleReasons: cloneReasonMap(c.ruleReasons) }),
-    mode: c.mode,
-  } as MutableContext
+function guardrailsPatch(behaviorKey: 'allow' | 'deny' | 'ask', rules: string[]): SettingsPatch {
+  const guardrails: Partial<Record<'allow' | 'deny' | 'ask', string[]>> = {}
+  guardrails[behaviorKey] = rules
+  return { guardrails }
 }
 
-function cloneRuleMap(map: Record<string, string[]> | undefined): Record<string, string[]> {
-  const out: Record<string, string[]> = {}
-  for (const [key, value] of Object.entries(map ?? {})) out[key] = [...value]
+function structuredCloneContext(context: ToolPermissionContext): MutableContext {
+  return {
+    ...context,
+    alwaysAllowRules: cloneRuleMap(context.alwaysAllowRules),
+    alwaysDenyRules: cloneRuleMap(context.alwaysDenyRules),
+    alwaysAskRules: cloneRuleMap(context.alwaysAskRules),
+    ...(context.ruleReasons === undefined ? {} : { ruleReasons: cloneReasonMap(context.ruleReasons) }),
+    mode: context.mode,
+  }
+}
+
+function cloneRuleMap(map: ToolPermissionContext['alwaysAllowRules'] | undefined): MutableRulesBySource {
+  const out: MutableRulesBySource = {}
+  for (const [key, value] of Object.entries(map ?? {}) as Array<[PermissionRuleSource, readonly string[]]>) out[key] = [...value]
   return out
 }
 
-function cloneReasonMap(map: Record<string, Record<string, string>>): Record<string, Record<string, string>> {
-  const out: Record<string, Record<string, string>> = {}
-  for (const [key, value] of Object.entries(map)) out[key] = { ...value }
+function cloneReasonMap(map: NonNullable<ToolPermissionContext['ruleReasons']>): MutableRuleReasonsBySource {
+  const out: MutableRuleReasonsBySource = {}
+  for (const [key, value] of Object.entries(map) as Array<[PermissionRuleSource, Readonly<Record<string, string>>]>) out[key] = { ...value }
   return out
 }
 
 function writePartial(
   source: EditableSettingSource,
-  partial: Record<string, unknown> | ((rawBase: Record<string, unknown>) => Record<string, unknown>),
+  partial: SettingsPatch | ((rawBase: Record<string, unknown>) => SettingsPatch),
 ): PersistVerdict {
-  const verdict = updateSettingsForSource(source, partial as never)
+  const verdict = updateSettingsForSource(source, partial)
   if (verdict.error !== null) {
     logForDebugging(
       `permission update not saved to ${source}: ${verdict.error.message} — it applies for this session only`,
