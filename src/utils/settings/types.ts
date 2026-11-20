@@ -27,10 +27,10 @@ const mcpEntryShape = {
 
 function requireExactlyOneField(
   entry: { serverName?: unknown; serverCommand?: unknown; serverUrl?: unknown },
-  ctx: { addIssue: (issue: never) => void },
+  ctx: z.RefinementCtx,
 ): void {
   const present = [entry.serverName, entry.serverCommand, entry.serverUrl].filter(field => field !== undefined).length
-  if (present !== 1) ctx.addIssue({ code: 'custom', message: 'Exactly one of serverName, serverCommand, or serverUrl must be set' } as never)
+  if (present !== 1) ctx.addIssue({ code: 'custom', message: 'Exactly one of serverName, serverCommand, or serverUrl must be set' })
 }
 
 export const AllowedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))

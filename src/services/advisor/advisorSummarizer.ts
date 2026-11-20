@@ -27,7 +27,7 @@ export async function liveAdvisorSummarizer(args: {
     messages: [createUserMessage({ content: `<conversation_to_fold>\n${args.transcript}\n</conversation_to_fold>` })],
     systemPrompt: asSystemPrompt([args.systemPrompt]),
     thinkingConfig: { type: 'disabled' },
-    tools: [] as never,
+    tools: [],
     signal,
     options: {
       model: args.modelId,
@@ -41,7 +41,7 @@ export async function liveAdvisorSummarizer(args: {
       async getToolPermissionContext() {
         return getEmptyToolPermissionContext()
       },
-    } as never,
+    },
   })
   const texts: string[] = []
   const failures: string[] = []

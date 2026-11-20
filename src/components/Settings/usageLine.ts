@@ -8,7 +8,7 @@ import { resolveLocalAccount } from '../../services/providers/local/localAccount
 import { getEngineModel } from '../../utils/model/model.js'
 
 export function geminiPlanActiveQuotaWords(figures: readonly { key: string; label: string; value: string }[] | undefined, session: { model?: string; effort?: string; usedModels: readonly string[] }): string | undefined {
-  const view = geminiPlanQuotaView((figures ?? []) as never, session)
+  const view = geminiPlanQuotaView(figures ?? [], session)
   return view.active === undefined ? undefined : `${view.activeRow ?? view.active.key.slice('plan-quota:'.length)} ${view.active.value} left`
 }
 

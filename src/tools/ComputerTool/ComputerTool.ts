@@ -88,7 +88,7 @@ export const ComputerTool = buildTool({
     return inputSchema()
   },
   get inputJSONSchema() {
-    return zodToJsonSchema(modelInputSchema()) as never
+    return zodToJsonSchema(modelInputSchema())
   },
   isEnabled() {
     return computerToolEnabled()

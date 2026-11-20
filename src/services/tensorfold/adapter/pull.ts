@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, createReadStream, createWriteStream, existsSync, linkSync, mkdirSync, renameSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import { dirname, relative } from 'node:path'
 import { Readable } from 'node:stream'
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { ggufOnDisk, ggufPaths, hubEndpoint, type GgufSource } from '../hfCache.js'
 import { ADAPTER_VERSION } from './identity.js'
 
@@ -94,7 +95,7 @@ export async function pullGguf(root: string, gguf: GgufSource, io: GgufPullIo = 
     if (response.body === null) throw new GgufPullError('Hugging Face sent no body')
     const out = createWriteStream(paths.incomplete, { flags: have > 0 ? 'a' : 'w' })
     try {
-      for await (const chunk of Readable.fromWeb(response.body as never)) {
+      for await (const chunk of Readable.fromWeb(response.body as NodeReadableStream)) {
         const bytes = chunk as Buffer
         if (!out.write(bytes)) await new Promise<void>(resolve => out.once('drain', resolve))
         have += bytes.length

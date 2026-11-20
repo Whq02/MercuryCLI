@@ -23,7 +23,7 @@ export function createNoticeRow(value: string, atMs: number, origin?: import('..
     timestamp: new Date(atMs).toISOString(),
     attachment: { type: 'queued_command', prompt: value, commandMode: 'task-notification', sentAt: new Date(atMs).toISOString(), ...(origin ? { origin } : {}) },
     queued: true,
-  } as unknown as Message
+  }
 }
 
 const TASK_ID_FRAME = /<task-id>([\s\S]*?)<\/task-id>/

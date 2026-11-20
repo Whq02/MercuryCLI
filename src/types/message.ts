@@ -221,6 +221,8 @@ export type AttachmentMessage<A extends Attachment = Attachment> = {
   uuid: UUID
   timestamp: string
   attachment: A
+  queued?: true
+  heldFor?: 'compaction'
 }
 
 export type HookResultMessage = AttachmentMessage | ProgressMessage | SystemInformationalMessage
