@@ -81,3 +81,40 @@ export function symlinkDeniedByPrivilege(
   const code = (error as NodeJS.ErrnoException | null)?.code
   return symlinksMayRequirePrivilege(platform) && (code === 'EPERM' || code === 'EACCES')
 }
+
+const HELD_FILE_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200]
+
+const DIR_FSYNC_UNSUPPORTED_CODES = new Set([
+  'EISDIR',
+  'EPERM',
+  'EACCES',
+  'EINVAL',
+  'ENOTSUP',
+  'EBADF',
+])
+
+export function isTransientHeldFileCode(
+  code: string | undefined,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return platform === 'win32' && (code === 'EPERM' || code === 'EBUSY' || code === 'EACCES')
+}
+
+export function heldFileRetryDelayMs(
+  code: string | undefined,
+  attempt: number,
+  platform: NodeJS.Platform = process.platform,
+): number | null {
+  if (!isTransientHeldFileCode(code, platform)) return null
+  if (attempt < 1 || attempt > HELD_FILE_RETRY_DELAYS_MS.length) return null
+  return HELD_FILE_RETRY_DELAYS_MS[attempt - 1]!
+}
+
+export function dirFsyncErrorIsFatal(
+  error: unknown,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  if (platform === 'win32') return false
+  const code = (error as { code?: string } | null)?.code
+  return code === undefined || !DIR_FSYNC_UNSUPPORTED_CODES.has(code)
+}
