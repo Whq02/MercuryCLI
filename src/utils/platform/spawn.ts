@@ -266,3 +266,91 @@ export function terminalEditorSpawnSpec(
   }
   return { shell: false, file: executable, args: [...args, ...lineArgs, filePath] }
 }
+
+const WINDOWS_TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
+  PYTHONIOENCODING: 'utf-8',
+  PYTHONUTF8: '1',
+  LANG: 'C.UTF-8',
+  LC_ALL: 'C.UTF-8',
+  GCM_INTERACTIVE: 'never',
+}
+
+const WINDOWS_HEADLESS_GIT_DEFAULTS: Readonly<Record<string, string>> = {
+  GIT_ASKPASS: '',
+  SSH_ASKPASS: '',
+  GCM_INTERACTIVE: 'never',
+}
+
+const EMPTY_ENV_DEFAULTS: Readonly<Record<string, string>> = {}
+
+const GIT_FOR_WINDOWS_ASKPASS_DISPLAY = 'needs-to-be-defined'
+const GIT_FOR_WINDOWS_ASKPASS = /(?:^|[/\\])(?:git-askpass(?:\.exe)?|git-gui--askpass)$/i
+
+function unquoteAskpass(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.length >= 2 && ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'")))) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
+export function isPlatformAskpassVar(
+  key: string,
+  value: string | undefined,
+  platform: string = process.platform,
+): boolean {
+  if (platform !== 'win32' || value === undefined) return false
+  const upper = key.toUpperCase()
+  if (upper === 'DISPLAY') return value === GIT_FOR_WINDOWS_ASKPASS_DISPLAY
+  return (upper === 'SSH_ASKPASS' || upper === 'GIT_ASKPASS') && GIT_FOR_WINDOWS_ASKPASS.test(unquoteAskpass(value))
+}
+
+export function envVarKey(name: string, platform: string = process.platform): string {
+  return platform === 'win32' ? name.toUpperCase() : name
+}
+
+export function toolShellEnvKey(key: string, platform: string = process.platform): string {
+  return platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
+}
+
+export function extraToolShellDefaults(platform: string = process.platform): Readonly<Record<string, string>> {
+  return platform === 'win32' ? WINDOWS_TOOL_SHELL_DEFAULTS : EMPTY_ENV_DEFAULTS
+}
+
+export function headlessGitDefaults(platform: string = process.platform): Readonly<Record<string, string>> {
+  return platform === 'win32' ? WINDOWS_HEADLESS_GIT_DEFAULTS : EMPTY_ENV_DEFAULTS
+}
+
+const SYSTEM_PROGRAM_FOLDERS: ReadonlySet<string> = new Set([
+  '/usr/local/sbin',
+  '/usr/local/bin',
+  '/usr/sbin',
+  '/usr/bin',
+  '/sbin',
+  '/bin',
+])
+
+export function mergeLoginPath(
+  own: string,
+  carried: NodeJS.ProcessEnv | undefined,
+  platform: string = process.platform,
+): string {
+  const exported = Object.entries(carried ?? {}).find(([name]) => toolShellEnvKey(name, platform) === 'PATH')?.[1] ?? ''
+  const held = new Set(own.split(':'))
+  const login = [...new Set(exported.split(':'))].filter(entry => entry !== '')
+  const added = login.filter(entry => !held.has(entry))
+  if (added.length === 0) return own
+  if (platform === 'win32') return [...(own === '' ? [] : [own]), ...added].join(':')
+  const ofTheLogin = new Set(login)
+  const front = [...held].filter(entry => entry !== '' && !(ofTheLogin.has(entry) && SYSTEM_PROGRAM_FOLDERS.has(entry)))
+  const kept = new Set(front)
+  return [...front, ...login.filter(entry => !kept.has(entry))].join(':')
+}
+
+export function loginPathOverride(
+  own: string,
+  carried: NodeJS.ProcessEnv | undefined,
+  platform: string = process.platform,
+): string | undefined {
+  return platform === 'win32' ? undefined : mergeLoginPath(own, carried, platform)
+}

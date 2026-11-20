@@ -263,17 +263,24 @@ import {
   commandShellOption,
   editorInvocationOf,
   editorShellCommandLine,
+  envVarKey,
   executableNeedsVerbatimArgs,
+  extraToolShellDefaults,
   guiEditorSpawnSpec,
+  headlessGitDefaults,
   hostScriptDialect,
   hostShellHint,
   isBatchShim,
+  isPlatformAskpassVar,
+  loginPathOverride,
+  mergeLoginPath,
   parseEditorCommandLine,
   promptEditorSpawnSpec,
   shellBinarySpec,
   shellCommandSpec,
   shimShellOption,
   terminalEditorSpawnSpec,
+  toolShellEnvKey,
 } from '../../src/utils/platform/spawn.js'
 const SPAWN: Row[] = [
   {
@@ -396,6 +403,53 @@ const SPAWN: Row[] = [
       terminalEditorSpawnSpec('nano', 'nano', [], [], 'C:\\tmp\\a b.ts'),
     ],
     recorded: {"win32":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"darwin":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"linux":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}],"win32 by process.platform alone":[{"shell":true,"command":"vim -n +42 \"/tmp/a b.ts\""},{"shell":true,"command":"nano \"C:\\tmp\\a b.ts\""}],"win32 by getPlatform() alone":[{"shell":false,"file":"vim","args":["-n","+42","/tmp/a b.ts"]},{"shell":false,"file":"nano","args":["C:\\tmp\\a b.ts"]}]},
+  },
+  {
+    name: 'spawn.isPlatformAskpassVar',
+    answers: () => [
+      isPlatformAskpassVar('DISPLAY', 'needs-to-be-defined'),
+      isPlatformAskpassVar('display', 'needs-to-be-defined'),
+      isPlatformAskpassVar('DISPLAY', ':0'),
+      isPlatformAskpassVar('SSH_ASKPASS', 'C:\\Program Files\\Git\\mingw64\\bin\\git-askpass.exe'),
+      isPlatformAskpassVar('git_askpass', '"/usr/libexec/git-core/git-gui--askpass"'),
+      isPlatformAskpassVar('SSH_ASKPASS', '/usr/bin/my-askpass'),
+      isPlatformAskpassVar('SSH_ASKPASS', undefined),
+    ],
+    recorded: {"win32":[true,true,false,true,true,false,false],"darwin":[false,false,false,false,false,false,false],"linux":[false,false,false,false,false,false,false],"win32 by process.platform alone":[true,true,false,true,true,false,false],"win32 by getPlatform() alone":[false,false,false,false,false,false,false]},
+  },
+  {
+    name: 'spawn.envVarKey',
+    answers: () => [envVarKey('Path'), envVarKey('PATH'), envVarKey('npm_config_yes')],
+    recorded: {"win32":["PATH","PATH","NPM_CONFIG_YES"],"darwin":["Path","PATH","npm_config_yes"],"linux":["Path","PATH","npm_config_yes"],"win32 by process.platform alone":["PATH","PATH","NPM_CONFIG_YES"],"win32 by getPlatform() alone":["Path","PATH","npm_config_yes"]},
+  },
+  {
+    name: 'spawn.toolShellEnvKey',
+    answers: () => [toolShellEnvKey('Path'), toolShellEnvKey('npm_config_yes'), toolShellEnvKey('PNPM_CONFIG_FOO'), toolShellEnvKey('myVar')],
+    recorded: {"win32":["PATH","NPM_CONFIG_YES","PNPM_CONFIG_FOO","MYVAR"],"darwin":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"],"linux":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"],"win32 by process.platform alone":["PATH","NPM_CONFIG_YES","PNPM_CONFIG_FOO","MYVAR"],"win32 by getPlatform() alone":["Path","NPM_CONFIG_YES","PNPM_CONFIG_FOO","myVar"]},
+  },
+  {
+    name: 'spawn.extraToolShellDefaults',
+    answers: () => extraToolShellDefaults(),
+    recorded: {"win32":{"PYTHONIOENCODING":"utf-8","PYTHONUTF8":"1","LANG":"C.UTF-8","LC_ALL":"C.UTF-8","GCM_INTERACTIVE":"never"},"darwin":{},"linux":{},"win32 by process.platform alone":{"PYTHONIOENCODING":"utf-8","PYTHONUTF8":"1","LANG":"C.UTF-8","LC_ALL":"C.UTF-8","GCM_INTERACTIVE":"never"},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.headlessGitDefaults',
+    answers: () => headlessGitDefaults(),
+    recorded: {"win32":{"GIT_ASKPASS":"","SSH_ASKPASS":"","GCM_INTERACTIVE":"never"},"darwin":{},"linux":{},"win32 by process.platform alone":{"GIT_ASKPASS":"","SSH_ASKPASS":"","GCM_INTERACTIVE":"never"},"win32 by getPlatform() alone":{}},
+  },
+  {
+    name: 'spawn.mergeLoginPath',
+    answers: () => [
+      mergeLoginPath('/usr/bin:/bin', { PATH: '/opt/homebrew/bin:/usr/bin' }),
+      mergeLoginPath('/custom:/usr/bin', { Path: '/extra:/usr/bin' }),
+      mergeLoginPath('', { PATH: '/a:/b' }),
+    ],
+    recorded: {"win32":["/usr/bin:/bin:/opt/homebrew/bin","/custom:/usr/bin:/extra","/a:/b"],"darwin":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"],"linux":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"],"win32 by process.platform alone":["/usr/bin:/bin:/opt/homebrew/bin","/custom:/usr/bin:/extra","/a:/b"],"win32 by getPlatform() alone":["/bin:/opt/homebrew/bin:/usr/bin","/custom:/usr/bin","/a:/b"]},
+  },
+  {
+    name: 'spawn.loginPathOverride',
+    answers: () => loginPathOverride('/usr/bin', { PATH: '/opt/homebrew/bin:/usr/bin' }),
+    recorded: {"win32":"undefined","darwin":"/opt/homebrew/bin:/usr/bin","linux":"/opt/homebrew/bin:/usr/bin","win32 by process.platform alone":"undefined","win32 by getPlatform() alone":"/opt/homebrew/bin:/usr/bin"},
   },
 ]
 
