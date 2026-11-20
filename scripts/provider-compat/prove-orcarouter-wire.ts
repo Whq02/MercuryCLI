@@ -77,7 +77,7 @@ try {
   const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
   const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'orcarouter/orcarouter/auto', effortValue = 'max', messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
     return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal,

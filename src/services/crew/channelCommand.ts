@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { LocalCommandResult } from '../../types/command.js'
-import type { BoardPostReceiptV1, BoardPostRequestV1 } from '../../services/engine-connector/types.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import type { BoardPostReceiptV1, BoardPostRequestV1 } from '../engine-connector/types.js'
+import { getFocusedSessionConnector, hasFocusedSession } from '../engine-connector/focusedConnector.js'
 
 type ChannelKind = BoardPostRequestV1['channel']
 
@@ -29,7 +29,7 @@ function channelRefusal(receipt: Extract<BoardPostReceiptV1, { ok: false }>): st
 
 async function postOwnerChannel(post: BoardPostRequestV1): Promise<BoardPostReceiptV1> {
   if (hasFocusedSession()) return getFocusedSessionConnector().postBoard(post)
-  const { swarmOwnerPost } = await import('../../services/crewBoard/seam.js')
+  const { swarmOwnerPost } = await import('../crewBoard/seam.js')
   const receipt = swarmOwnerPost(post)
   if (!receipt.ok) return receipt
   return { ok: true, eventId: receipt.eventId, seq: receipt.seq, replay: receipt.replay, address: receipt.channel.kind === 'general' ? 'all' : receipt.channel.target, recipients: receipt.recipients }

@@ -1,4 +1,4 @@
-import type { AgentMetadata } from '../sessionStorage/paths.js'
+import type { AgentMetadata } from '../../utils/sessionStorage/paths.js'
 
 type RecordRun = Omit<AgentMetadata, 'model' | 'effort' | 'effortOverride' | 'compactOnResume'>
 

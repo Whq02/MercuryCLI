@@ -69,7 +69,7 @@ try {
   const { storeFireworksApiKeyLogin } = await import(new URL('../../src/services/providers/fireworks/fireworksLogin.ts', import.meta.url).href)
   const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
+  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
   const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
   const { readStoredFireworksApiKey } = await import('../../src/services/providers/providerSecrets.ts')
   const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')

@@ -3,69 +3,69 @@ import {
   qualifiedGptCandidates,
   refreshOpenaiCatalogue,
   GPT_DISPLAY_PINS,
-} from '../../services/providers/openai/openaiCatalogue.js'
-import { resolveOpenaiAccount } from '../../services/providers/openai/openaiAccounts.js'
-import { buildProviderSnapshot } from '../../services/providers/modelRegistry.js'
-import { refreshProviderDiscovery } from '../../services/providers/providerDiscovery.js'
-import { DEPRECATED_GPT_IDS } from '../../services/providers/openai/openaiAdapter.js'
-import { zaiCatalogueEntries, zaiCatalogueEntry } from '../../services/providers/zai/zaiAdapter.js'
-import { qualifyMoonshotModel } from '../../services/providers/moonshot/moonshotCatalogue.js'
-import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
-import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../../services/providers/deepseek/deepseekAdapter.js'
-import { xaiCatalogueEntries, xaiCatalogueEntry } from '../../services/providers/xai/xaiAdapter.js'
-import { metaCatalogueEntries, metaCatalogueEntry } from '../../services/providers/meta/metaAdapter.js'
-import { mistralCatalogueEntries, mistralCatalogueEntry } from '../../services/providers/mistral/mistralAdapter.js'
+} from '../providers/openai/openaiCatalogue.js'
+import { resolveOpenaiAccount } from '../providers/openai/openaiAccounts.js'
+import { buildProviderSnapshot } from '../providers/modelRegistry.js'
+import { refreshProviderDiscovery } from '../providers/providerDiscovery.js'
+import { DEPRECATED_GPT_IDS } from '../providers/openai/openaiAdapter.js'
+import { zaiCatalogueEntries, zaiCatalogueEntry } from '../providers/zai/zaiAdapter.js'
+import { qualifyMoonshotModel } from '../providers/moonshot/moonshotCatalogue.js'
+import { kimiDisplayName } from '../providers/moonshot/kimiPins.js'
+import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../providers/deepseek/deepseekAdapter.js'
+import { xaiCatalogueEntries, xaiCatalogueEntry } from '../providers/xai/xaiAdapter.js'
+import { metaCatalogueEntries, metaCatalogueEntry } from '../providers/meta/metaAdapter.js'
+import { mistralCatalogueEntries, mistralCatalogueEntry } from '../providers/mistral/mistralAdapter.js'
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
-} from '../../services/providers/openaicompat/compatAccounts.js'
-import { COMPAT_MODEL_PREFIX, isCompatModelId } from '../../services/providers/routeLaw.js'
-import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../../services/providers/huggingface/huggingfaceAdapter.js'
-import { zenCatalogueEntries, zenCatalogueEntry } from '../../services/providers/zen/zenAdapter.js'
-import { minimaxCatalogueEntries, minimaxCatalogueEntry } from '../../services/providers/minimax/minimaxAdapter.js'
-import { togetherCatalogueEntries, togetherCatalogueEntry } from '../../services/providers/together/togetherAdapter.js'
-import { cohereCatalogueEntries, cohereCatalogueEntry } from '../../services/providers/cohere/cohereAdapter.js'
-import { isTogetherModelId } from '../../services/providers/together/togetherPins.js'
-import { isZenModelId } from '../../services/providers/zen/zenPins.js'
-import { isGroqModelId } from '../../services/providers/groq/groqPins.js'
-import { isMeliousModelId } from '../../services/providers/melious/meliousCatalogue.js'
-import { isOrcarouterModelId } from '../../services/providers/orcarouter/orcarouterCatalogue.js'
-import { groqCatalogueEntries, groqCatalogueEntry } from '../../services/providers/groq/groqAdapter.js'
-import { meliousCatalogueEntries, meliousCatalogueEntry } from '../../services/providers/melious/meliousAdapter.js'
-import { orcarouterCatalogueEntries, orcarouterCatalogueEntry } from '../../services/providers/orcarouter/orcarouterAdapter.js'
-import { isCerebrasModelId } from '../../services/providers/cerebras/cerebrasPins.js'
-import { cerebrasCatalogueEntries, cerebrasCatalogueEntry } from '../../services/providers/cerebras/cerebrasAdapter.js'
-import { isFireworksModelId } from '../../services/providers/fireworks/fireworksPins.js'
-import { fireworksCatalogueEntries, fireworksCatalogueEntry } from '../../services/providers/fireworks/fireworksAdapter.js'
-import { qwenCatalogueEntries, qwenCatalogueEntry } from '../../services/providers/qwen/qwenAdapter.js'
-import { localLiveCatalogue } from '../../services/providers/local/localAdapter.js'
+} from '../providers/openaicompat/compatAccounts.js'
+import { COMPAT_MODEL_PREFIX, isCompatModelId } from '../providers/routeLaw.js'
+import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../providers/huggingface/huggingfaceAdapter.js'
+import { zenCatalogueEntries, zenCatalogueEntry } from '../providers/zen/zenAdapter.js'
+import { minimaxCatalogueEntries, minimaxCatalogueEntry } from '../providers/minimax/minimaxAdapter.js'
+import { togetherCatalogueEntries, togetherCatalogueEntry } from '../providers/together/togetherAdapter.js'
+import { cohereCatalogueEntries, cohereCatalogueEntry } from '../providers/cohere/cohereAdapter.js'
+import { isTogetherModelId } from '../providers/together/togetherPins.js'
+import { isZenModelId } from '../providers/zen/zenPins.js'
+import { isGroqModelId } from '../providers/groq/groqPins.js'
+import { isMeliousModelId } from '../providers/melious/meliousCatalogue.js'
+import { isOrcarouterModelId } from '../providers/orcarouter/orcarouterCatalogue.js'
+import { groqCatalogueEntries, groqCatalogueEntry } from '../providers/groq/groqAdapter.js'
+import { meliousCatalogueEntries, meliousCatalogueEntry } from '../providers/melious/meliousAdapter.js'
+import { orcarouterCatalogueEntries, orcarouterCatalogueEntry } from '../providers/orcarouter/orcarouterAdapter.js'
+import { isCerebrasModelId } from '../providers/cerebras/cerebrasPins.js'
+import { cerebrasCatalogueEntries, cerebrasCatalogueEntry } from '../providers/cerebras/cerebrasAdapter.js'
+import { isFireworksModelId } from '../providers/fireworks/fireworksPins.js'
+import { fireworksCatalogueEntries, fireworksCatalogueEntry } from '../providers/fireworks/fireworksAdapter.js'
+import { qwenCatalogueEntries, qwenCatalogueEntry } from '../providers/qwen/qwenAdapter.js'
+import { localLiveCatalogue } from '../providers/local/localAdapter.js'
 import {
   HUGGINGFACE_MODEL_PREFIX,
   isHuggingfaceModelId,
-} from '../../services/providers/huggingface/huggingfacePins.js'
-import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../services/providers/local/localCatalogue.js'
-import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
-import { getEngineModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../model/model.js'
-import { bareFamilyListWords, bareFamilyWordOf, bareFamilyWordOfRoute, bareModelIdOf } from '../model/bareFamilyWords.js'
-import { isModelAlias } from '../model/aliases.js'
-import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
-import { canonicalWireModelId, classifyModelRoute, declaredRouteOf, providerDisplayName } from '../../services/providers/routeLaw.js'
-import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
-import { LIVE_LIST_FAMILIES, liveListedRouteOf, qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
-import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
-import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
+} from '../providers/huggingface/huggingfacePins.js'
+import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../providers/huggingface/huggingfaceCatalogue.js'
+import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../providers/local/localCatalogue.js'
+import { refreshLocalDiscovery } from '../providers/local/localDiscovery.js'
+import { getEngineModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../../utils/model/model.js'
+import { bareFamilyListWords, bareFamilyWordOf, bareFamilyWordOfRoute, bareModelIdOf } from '../../utils/model/bareFamilyWords.js'
+import { isModelAlias } from '../../utils/model/aliases.js'
+import { isModelFamilyWord, modelFamilyWords } from '../../utils/model/modelFamilies.js'
+import { canonicalWireModelId, classifyModelRoute, declaredRouteOf, providerDisplayName } from '../providers/routeLaw.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../providers/disabledProviders.js'
+import { LIVE_LIST_FAMILIES, liveListedRouteOf, qualifiedIdSpaceOf } from '../providers/idSpaces.js'
+import { readCatalogueIfPending } from '../providers/catalogueOnDemand.js'
+import { resolveGeminiAccount } from '../providers/gemini/geminiAccounts.js'
 import {
   geminiGenerateModels,
   newestGeminiGenerationFirst,
   geminiPlanEffortRow,
   refreshGeminiCatalogue,
-} from '../../services/providers/gemini/geminiCatalogue.js'
-import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
-import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
+} from '../providers/gemini/geminiCatalogue.js'
+import { resolveOpenrouterAccount } from '../providers/openrouter/openrouterAccounts.js'
+import { refreshOpenrouterCatalogue } from '../providers/openrouter/openrouterCatalogue.js'
 
 export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
-export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
+type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
   if (typeof v !== 'string' || !(ENGINE_DISPATCH_MODELS as readonly string[]).includes(v)) return false
@@ -137,8 +137,8 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
   await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
 
-import { MODEL_LOOKUP_LADDER } from '../model/modelLookup.js'
-import { passedOverAs } from '../passedOver.js'
+import { MODEL_LOOKUP_LADDER } from '../../utils/model/modelLookup.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, minimax-*, command-*, qwen3*, qwen-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, together/*'
 
@@ -211,7 +211,7 @@ const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
   qwen: '/logins qwen',
 }
 
-export function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
+function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
   const door = SIGN_IN_DOORS[provider]
   const why = reason ?? 'unknown'
   if (door !== undefined && /^no-(api-key|credential|account):/.test(why)) {
@@ -484,7 +484,7 @@ async function resolveNousClassDispatch(): Promise<EngineDispatch> {
   if (declaredRouteOf(main) === 'nous') {
     return { backend: 'nous', model: main, displayLabel: main.slice(NOUS_ENGINE_MODEL_PREFIX.length) }
   }
-  const { getNousModelOptions, refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+  const { getNousModelOptions, refreshNousCatalogue } = await import('../providers/nous/nousCatalogue.js')
   await refreshNousCatalogue().catch(passedOverAs(null))
   const head = getNousModelOptions().find(option => option.value.startsWith(NOUS_ENGINE_MODEL_PREFIX) && option.unavailable === undefined)
   if (!head) {
@@ -494,11 +494,11 @@ async function resolveNousClassDispatch(): Promise<EngineDispatch> {
 }
 
 async function resolveNousExactModel(id: string): Promise<EngineDispatch> {
-  const { resolveNousAccount } = await import('../../services/providers/nous/nousAccounts.js')
+  const { resolveNousAccount } = await import('../providers/nous/nousAccounts.js')
   if (!resolveNousAccount()) {
     throw new Error('Engine provider nous has no API key — /logins nous stores one (or set NOUS_API_KEY).')
   }
-  const { refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+  const { refreshNousCatalogue } = await import('../providers/nous/nousCatalogue.js')
   const slug = id.slice(NOUS_ENGINE_MODEL_PREFIX.length)
   const snapshot = await refreshNousCatalogue().catch(passedOverAs(null))
   if (snapshot && snapshot.models.length > 0) {
@@ -731,7 +731,7 @@ export async function resolveEngineDispatch(
     }
     if (isCompatModelId(id)) {
       await requireProviderAvailable('openai-compat')
-      const { compatModelEndpoint, compatModelRefusal } = await import('../../services/providers/openaicompat/compatAccounts.js')
+      const { compatModelEndpoint, compatModelRefusal } = await import('../providers/openaicompat/compatAccounts.js')
       const endpoint = compatModelEndpoint(id)
       if (endpoint?.endpoint.named) {
         const refusal = compatModelRefusal(id)

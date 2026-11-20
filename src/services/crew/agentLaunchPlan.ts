@@ -1,16 +1,16 @@
 
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { EngineDispatch } from './engineDispatch.js'
-import { classifyModelRoute, laneLabelForVerdict, providerDisplayName } from '../../services/providers/routeLaw.js'
+import { classifyModelRoute, laneLabelForVerdict, providerDisplayName } from '../providers/routeLaw.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
-import { getAgentModel } from '../model/agent.js'
-import type { PermissionMode } from '../permissions/PermissionMode.js'
+import { getAgentModel } from '../../utils/model/agent.js'
+import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import {
   filterDeniedAgents,
   getDenyRuleForAgent,
-} from '../permissions/permissions.js'
-import { reasonForRule, refusalWithReason, ruleSentence } from '../permissions/ruleReason.js'
+} from '../../utils/permissions/permissions.js'
+import { reasonForRule, refusalWithReason, ruleSentence } from '../../utils/permissions/ruleReason.js'
 
 export type AgentLaunchPlanInput = {
   requestedType?: string
