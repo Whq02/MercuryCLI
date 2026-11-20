@@ -94,5 +94,35 @@ console.log('AFTER', await m.isNeedsAuthWarm('srv'))`)
   }
 }
 
+console.log('sessionKit preset note')
+{
+  const CONFIG = join(SRC, 'utils/config.ts')
+  const PRESETS = join(SRC, 'services/mcp/presetStore.ts')
+  const r = runChild(`import { mock } from 'bun:test'
+const config = await import(${JSON.stringify(CONFIG)})
+const presets = await import(${JSON.stringify(PRESETS)})
+mock.module(${JSON.stringify(PRESETS)}, () => ({ ...presets, kitPresetDeltas: () => ({ ok: true, deltas: { mcpOff: ['srv'], skillStates: {}, extensionsOff: [] } }) }))
+mock.module(${JSON.stringify(CONFIG)}, () => ({ ...config, getGlobalConfig: () => { throw new Error('EACCES: fixture') } }))
+const { deriveSessionKitForPreset } = await import(${JSON.stringify(join(SRC, 'daemon/sessionKit.ts'))})
+console.log('NOTE', JSON.stringify(deriveSessionKitForPreset('p', '/w')))`)
+  check('preset-census-unread: an MCP census that cannot be read is named in the preset note, not called servers this repo lacks', r.out.includes("this repo's MCP servers could not be read (EACCES: fixture)") && !r.out.includes('servers this repo lacks'), r.out.slice(0, 300))
+}
+
+console.log('claude.ai connectors')
+{
+  const AUTH = join(SRC, 'utils/auth.ts')
+  const r = runChild(`import { mock } from 'bun:test'
+process.env.MERCURY_ANTHROPIC_CONNECTORS = '1'
+let calls = 0
+const auth = await import(${JSON.stringify(AUTH)})
+mock.module(${JSON.stringify(AUTH)}, () => ({ ...auth, getClaudeAIOAuthTokens: () => ({ accessToken: 'fixture', scopes: ['user:mcp_servers'] }) }))
+mock.module('axios', () => ({ default: { get: async () => { calls++; throw new Error('ECONNRESET: fixture') } } }))
+const m = await import(${JSON.stringify(join(SRC, 'services/mcp/anthropicConnectors.ts'))})
+await m.fetchAnthropicConnectorsIfEligible()
+await m.fetchAnthropicConnectorsIfEligible()
+console.log('CALLS', calls)`)
+  check('connectors-fetch-failed-retried: a failed connector fetch is asked again, not kept as no connectors', /CALLS 2/.test(r.out), r.out.slice(0, 300))
+}
+
 console.log(failures === 0 ? 'all rows pass' : `${failures} row(s) failed`)
 process.exit(failures === 0 ? 0 : 1)
