@@ -562,6 +562,16 @@ if [ -z "$unseeded" ]; then
 else
   echo "  ✗ seed: suite(s) without a duration row:$unseeded"; fail=1
 fi
+seed_sum=$(cksum <"$repo/scripts/gate/duration-seed.tsv")
+if python3 "$repo/scripts/gate/reseed-durations.py" gate=7 zz-unlisted=9 --out "$work/own-seed.tsv" >"$work/own-seed.log" 2>&1 \
+   && [ "$(cksum <"$repo/scripts/gate/duration-seed.tsv")" = "$seed_sum" ] \
+   && grep -q '^gate	7$' "$work/own-seed.tsv" && grep -q '^zz-unlisted	9$' "$work/own-seed.tsv" \
+   && [ "$(grep -v '^gate	' "$repo/scripts/gate/duration-seed.tsv")" = "$(grep -v -e '^gate	' -e '^zz-unlisted	' "$work/own-seed.tsv")" ] \
+   && (cd "$repo" && MERCURY_CI_SHARD_SEED_FILE="$work/own-seed.tsv" bash scripts/gate/ci-shard.sh 0 1 --class release --plan-table 2>/dev/null) | grep -q '^gate	7	'; then
+  echo "  ✓ seed --out: measured seconds go to a file of their own, a suite the tree's file does not know gets a row there, the tree's file is untouched, and the planner reads that file through MERCURY_CI_SHARD_SEED_FILE"
+else
+  echo "  ✗ seed --out: $(tail -1 "$work/own-seed.log" 2>/dev/null)"; fail=1
+fi
 gate_yml="$repo/.github/workflows/gate.yml"; drives_yml="$repo/.github/workflows/drives.yml"
 rel_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class release' "$gate_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)
 drv_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class drives' "$drives_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)

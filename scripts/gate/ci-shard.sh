@@ -231,6 +231,16 @@ suite_class() {
 stuck_note() {
   grep -a -m1 -E 'UNFIRED-SENDS|UNDELIVERED-SENDS|first stuck:' "$1" 2>/dev/null | tr '\t' ' ' | cut -c1-240
 }
+second_look_plan() {
+  LC_ALL=C sed -n 's/^.*── \([^[:space:]][^[:space:]]*\)[[:space:]][[:space:]]*\([0-9][0-9]*\)s rc=\([0-9][0-9]*\)[[:space:]]*$/\3 \2 \1/p' "$1" 2>/dev/null | LC_ALL=C awk '
+    { seen[$3] = 1; took[$3] += $2; if ($1 != 0) red[$3] = 1 }
+    END {
+      for (p in seen) { if (p in red) { reds++; secs += took[p] } else greens++ }
+      if (reds == 0 || greens == 0) exit
+      print secs + 0
+      for (p in seen) if (!(p in red)) print p
+    }'
+}
 
 : >"$OUT/results.tsv"
 : >"$OUT/notes.tsv"
@@ -272,16 +282,26 @@ for dom in ${MINE[@]+"${MINE[@]}"}; do
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$dom" "$cls" "$rc" "$secs" "$retry_rc" "$retry_secs" >>"$OUT/results.tsv"
   hung=0
   [ "$rc" -ne 0 ] && [ -f "$OUT/$dom.hang" ] && hung=1
+  retry_cost=$secs; leave_out=''
+  if [ "$rc" -ne 0 ] && [ "$hung" -eq 0 ]; then
+    plan=$(second_look_plan "$OUT/$dom.out")
+    if [ -n "$plan" ]; then
+      mkdir -p "$OUT/retry"
+      retry_cost=${plan%%$'\n'*}
+      leave_out="$OUT/retry/$dom.green"
+      printf '%s\n' "${plan#*$'\n'}" >"$leave_out"
+    fi
+  fi
   if [ "$hung" -eq 1 ]; then
     printf '  ⛔ %-18s HANG — tree-killed at %ss; solo re-run SKIPPED (a timeout is not a flake)\n' "$dom" "$secs"
-  elif [ "$rc" -ne 0 ] && [ "$secs" -gt "$RETRY_MAX" ]; then
+  elif [ "$rc" -ne 0 ] && [ "$retry_cost" -gt "$RETRY_MAX" ]; then
     printf '  ❌ %-18s RED (rc %s, %ss) — solo re-run SKIPPED (first attempt beyond the %ss retry budget; a long red on an uncontended runner is a verdict, not a flake)\n' "$dom" "$rc" "$secs" "$RETRY_MAX"
   elif [ "$rc" -ne 0 ]; then
     printf '  ⚠  %-18s RED (rc %s, %ss) — recorded solo re-run, once…\n' "$dom" "$rc" "$secs"
     mkdir -p "$OUT/retry"
     retry_home=$(new_home)
     seed_home "$retry_home"
-    MERCURY_CONFIG_DIR="$retry_home" bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT/retry" "$(budget_note_of "$dom")" fixed >/dev/null 2>&1
+    MERCURY_CONFIG_DIR="$retry_home" bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT/retry" "$(budget_note_of "$dom")" fixed "$leave_out" >/dev/null 2>&1
     [ -n "$retry_home" ] && rm -rf "$retry_home"
     retry_home=""
     retry_rc=$(cat "$OUT/retry/$dom.rc" 2>/dev/null || echo 1)

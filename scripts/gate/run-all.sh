@@ -54,6 +54,7 @@ run_proof "$here/prove-gate-scheduler.sh" bash "$here/prove-gate-scheduler.sh" |
 run_proof "$here/prove-keep-going.sh" bash "$here/prove-keep-going.sh" || fail=1
 run_proof "$here/prove-dead-letter-orphan.sh" bash "$here/prove-dead-letter-orphan.sh" || fail=1
 run_proof "$here/prove-shard-stop-ends-suite.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-stop-ends-suite.ts" || fail=1
+run_proof "$here/prove-second-look-runs-reds.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-second-look-runs-reds.ts" || fail=1
 run_proof "$here/prove-dist-cache.sh" bash "$here/prove-dist-cache.sh" || fail=1
 run_proof "$here/prove-dist-readonly.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-readonly.ts" || fail=1
 run_proof "$here/prove-dist-build-inputs.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-build-inputs.ts" || fail=1
