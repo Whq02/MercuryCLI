@@ -76,23 +76,38 @@ console.log('\nFilePermissionDialog — resolveSymlinkTarget resolves dangling s
     const mod = await import(${JSON.stringify(join(SRC, 'components/permissions/FilePermissionDialog/FilePermissionDialog.tsx'))})
     const outsideTarget = path.join(SCRATCH, 'outside-new-file.txt')
     const linkPath = path.join(PROJECT, 'dangling-link.txt')
-    fs.symlinkSync(outsideTarget, linkPath)
     const plainPath = path.join(PROJECT, 'plain.txt')
     fs.writeFileSync(plainPath, 'ok')
     const liveTarget = path.join(SCRATCH, 'outside-live.txt')
     fs.writeFileSync(liveTarget, 'live')
     const liveLink = path.join(PROJECT, 'live-link.txt')
-    fs.symlinkSync(liveTarget, liveLink)
-    out.hasExport = typeof mod.resolveSymlinkTarget === 'function'
-    out.dangling = mod.resolveSymlinkTarget?.(linkPath) ?? null
-    out.live = mod.resolveSymlinkTarget?.(liveLink) ?? null
-    out.plain = mod.resolveSymlinkTarget?.(plainPath) ?? null
-    out.absent = mod.resolveSymlinkTarget?.(path.join(PROJECT, 'does-not-exist.txt')) ?? null
-    out.expectedDangling = outsideTarget
-    out.expectedLive = fs.realpathSync(liveTarget)
+    try {
+      fs.symlinkSync(outsideTarget, linkPath)
+      fs.symlinkSync(liveTarget, liveLink)
+    } catch (error) {
+      if (process.platform === 'win32' && error?.code === 'EPERM') {
+        out.noSymlink = true
+      } else {
+        throw error
+      }
+    }
+    if (!out.noSymlink) {
+      out.hasExport = typeof mod.resolveSymlinkTarget === 'function'
+      out.dangling = mod.resolveSymlinkTarget?.(linkPath) ?? null
+      out.live = mod.resolveSymlinkTarget?.(liveLink) ?? null
+      out.plain = mod.resolveSymlinkTarget?.(plainPath) ?? null
+      out.absent = mod.resolveSymlinkTarget?.(path.join(PROJECT, 'does-not-exist.txt')) ?? null
+      out.expectedDangling = outsideTarget
+      out.expectedLive = fs.realpathSync(liveTarget)
+    }
   `)
-  check('FilePermissionDialog.resolveSymlinkTarget resolves dangling symlink target', r.hasExport === true && r.dangling === r.expectedDangling, JSON.stringify(r))
-  check('FilePermissionDialog.resolveSymlinkTarget keeps live symlink, plain file, and absent file behaviour', r.live === r.expectedLive && r.plain === null && r.absent === null, JSON.stringify(r))
+  if (r.noSymlink === true) {
+    skip('FilePermissionDialog.resolveSymlinkTarget resolves dangling symlink target', 'not read on Windows: no symlink privilege')
+    skip('FilePermissionDialog.resolveSymlinkTarget keeps live symlink, plain file, and absent file behaviour', 'not read on Windows: no symlink privilege')
+  } else {
+    check('FilePermissionDialog.resolveSymlinkTarget resolves dangling symlink target', r.hasExport === true && r.dangling === r.expectedDangling, JSON.stringify(r))
+    check('FilePermissionDialog.resolveSymlinkTarget keeps live symlink, plain file, and absent file behaviour', r.live === r.expectedLive && r.plain === null && r.absent === null, JSON.stringify(r))
+  }
 }
 
 console.log('\nmcp — buildServePermissionContext refuses to drop deny rules when loading permission rules fails')
@@ -171,10 +186,20 @@ console.log('\nroster — unreadable project extension entries and directory rep
     const mod = await import(${JSON.stringify(join(SRC, 'extensions/roster.ts'))})
     const projExt = path.join(PROJECT, '.mercury', 'extensions')
     fs.mkdirSync(projExt, { recursive: true })
-    fs.symlinkSync('self', path.join(projExt, 'self'))
-    const res1 = mod.computeRoster({ cwd: PROJECT, sessionPaths: [] })
-    out.loopProblems = res1.problems
-    fs.unlinkSync(path.join(projExt, 'self'))
+    try {
+      fs.symlinkSync('self', path.join(projExt, 'self'))
+    } catch (error) {
+      if (process.platform === 'win32' && error?.code === 'EPERM') {
+        out.loopNoSymlink = true
+      } else {
+        throw error
+      }
+    }
+    if (!out.loopNoSymlink) {
+      const res1 = mod.computeRoster({ cwd: PROJECT, sessionPaths: [] })
+      out.loopProblems = res1.problems
+      fs.unlinkSync(path.join(projExt, 'self'))
+    }
     if (${JSON.stringify(POSIX_MODES)}) {
       fs.chmodSync(projExt, 0o000)
       try {
@@ -185,8 +210,12 @@ console.log('\nroster — unreadable project extension entries and directory rep
       }
     }
   `)
-  const loopProblems = (r.loopProblems as string[]) ?? []
-  check('roster reports unstattable project extension entry in problems', loopProblems.some(p => p.includes('self') && p.includes('unreadable')), JSON.stringify(loopProblems))
+  if (r.loopNoSymlink === true) {
+    skip('roster reports unstattable project extension entry in problems', 'not read on Windows: no symlink privilege')
+  } else {
+    const loopProblems = (r.loopProblems as string[]) ?? []
+    check('roster reports unstattable project extension entry in problems', loopProblems.some(p => p.includes('self') && p.includes('unreadable')), JSON.stringify(loopProblems))
+  }
   if (!POSIX_MODES) skip('roster unreadable project extensions dir', 'chmod 0o000 needs non-root POSIX')
   else {
     const dirProblems = (r.dirProblems as string[]) ?? []
