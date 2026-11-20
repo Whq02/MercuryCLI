@@ -359,5 +359,60 @@ if (!POSIX_MODES) {
     JSON.stringify(r),
   )
 }
+console.log('\nsrc/main/runLaunch.ts')
+{
+  const r = runCase(`
+    const { mock } = await import('bun:test')
+    mock.module(path.join(SRC, 'utils/permissions/bypassPermissionsKillswitch.ts'), () => ({
+      checkAndDisableSovereignIfNeeded: async () => {
+        throw new Error('killswitch policy check failed')
+      },
+    }))
+    mock.module(path.join(SRC, 'cli/run.ts'), () => ({
+      runHeadless: async (_prompt, getAppState) => {
+        const ctx = getAppState().toolPermissionContext
+        out.mode = ctx.mode
+        out.available = ctx.isBypassPermissionsModeAvailable
+      },
+    }))
+    const { setFlagEnv } = await import(path.join(SRC, 'substrate/flagRegistry.ts'))
+    setFlagEnv('MERCURY_BARE', '1')
+    const stderrLines = []
+    const realStderrWrite = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (chunk) => { stderrLines.push(String(chunk)); return true }
+    const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'Tool.ts'))
+    const { runLaunch } = await import(path.join(SRC, 'main/runLaunch.ts'))
+    await runLaunch({
+      opts: { continue: true, onlyMcp: true },
+      commands: [],
+      prompt: 'hi',
+      permissionMode: 'sovereign',
+      toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'sovereign', isBypassPermissionsModeAvailable: true },
+      allowDangerousSkip: true,
+      mcpConfigPromise: Promise.resolve({}),
+      thinkingConfig: { type: 'disabled' },
+      userSpecifiedModel: undefined,
+      fallbackModel: undefined,
+      mainThreadAgentDefinition: undefined,
+      activeAgents: [],
+      allAgents: [],
+      customSystemPrompt: undefined,
+      appendSystemPrompt: undefined,
+      inputFormat: 'text',
+      outputFormat: 'text',
+      includePartialMessages: false,
+      door: 'rows',
+    })
+    process.stderr.write = realStderrWrite
+    out.stderr = stderrLines.join('')
+  `)
+  check(
+    'runlaunch-killswitch-throw-disables-sovereign',
+    r.mode === 'default' &&
+      r.available === false &&
+      String(r.stderr ?? '').includes("bypass permissions was turned off: your organization's security policy could not be checked (killswitch policy check failed)"),
+    JSON.stringify(r),
+  )
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
