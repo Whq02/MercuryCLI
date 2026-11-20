@@ -290,6 +290,34 @@ async function runScratchLeases(): Promise<void> {
   rmSync(regPath, { force: true })
 }
 
+async function runSessionEnvironment(): Promise<void> {
+  console.log('\nsessionEnvironment — unreadable fragments folder is not cached as absent')
+  if (!POSIX_MODES || process.platform === 'win32') return
+  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { getSessionEnvironmentScript, invalidateSessionEnvCache } = await import('../../src/utils/sessionEnvironment.ts')
+  const dir = join(HOME, 'session-env', getSessionId())
+  mkdirSync(dir, { recursive: true })
+  const hookFile = join(dir, 'session-start-hook-0.sh')
+  writeFileSync(hookFile, 'export MERCURY_HOOK_PROOF=yes\n')
+  invalidateSessionEnvCache()
+  chmodSync(dir, 0o000)
+  let whileUnreadable: string | null = 'sentinel'
+  let afterReadable: string | null = null
+  try {
+    whileUnreadable = await getSessionEnvironmentScript()
+  } finally {
+    chmodSync(dir, 0o700)
+  }
+  afterReadable = await getSessionEnvironmentScript()
+  check('unreadable fragments folder answers null without throwing', whileUnreadable === null, String(whileUnreadable))
+  check(
+    'next call loads the hook script once fragments folder is readable again',
+    afterReadable === 'export MERCURY_HOOK_PROOF=yes',
+    String(afterReadable),
+  )
+  invalidateSessionEnvCache()
+}
+
 try {
   await runPidAlive()
   await runLocalJsxCommandError()
@@ -299,6 +327,7 @@ try {
   await runProofHomeGuard()
   await runSavedPromptsStore()
   await runScratchLeases()
+  await runSessionEnvironment()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
