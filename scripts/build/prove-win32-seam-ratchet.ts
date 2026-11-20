@@ -46,6 +46,7 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/services/browser/session/stealth.ts', 1, 'the navigator platform of the browser follows the host'],
   ['src/services/dap/client/probes.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/desktop/nativeDriver.ts', 1, 'the sentence names the command or the place of this platform'],
+  ['src/services/eval/procKernel.ts', 1, 'the Python kernel speaks over loopback on Windows only'],
   ['src/services/host/bank.ts', 1, 'the sentence names the command or the place of this platform'],
   ['src/services/host/ssh.ts', 1, 'the OS of a box decides its inspection script'],
   ['src/services/ide/blenderProject.ts', 1, 'the install places of another vendor on each platform'],
