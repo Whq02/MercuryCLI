@@ -14,7 +14,7 @@ import type {
   LayoutWrap,
 } from '../../src/ink/layout/node.js'
 
-export type Counters = { visited: number; measured: number; cacheHits: number; live: number }
+type Counters = { visited: number; measured: number; cacheHits: number; live: number }
 export type Engine = { create: () => LayoutNode; counters: () => Counters; trace: string; open: string | null }
 export type Recorded = Map<string, string[]>
 
