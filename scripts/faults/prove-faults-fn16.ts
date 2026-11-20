@@ -77,5 +77,33 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   )
 }
 
+{
+  console.log('\nghRelease.ts — invalid MERCURY_GH_CMD returns error and never runs plain gh')
+  const r = runSub(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const binDir = path.join(WORK, 'bin')
+    const marker = path.join(WORK, 'plain-gh-ran')
+    fs.mkdirSync(binDir, { recursive: true })
+    const fakeGh = path.join(binDir, 'gh')
+    fs.writeFileSync(fakeGh, '#!/bin/sh\\necho ran > ' + JSON.stringify(marker) + '\\necho ok\\n')
+    fs.chmodSync(fakeGh, 0o755)
+    process.env.PATH = binDir + ':' + (process.env.PATH ?? '')
+    process.env.MERCURY_GH_CMD = '{bad json'
+    const ghMod = await import(path.join(SRC, 'services/privateChannel/ghRelease.ts'))
+    out.badJson = await ghMod.gh(['--version'])
+    process.env.MERCURY_GH_CMD = '[]'
+    out.emptyArray = await ghMod.gh(['--version'])
+    out.plainRan = fs.existsSync(marker)
+  `)
+  const badJson = r.badJson as { state?: string; stderr?: string }
+  const emptyArray = r.emptyArray as { state?: string; stderr?: string }
+  check(
+    'unparsable or empty MERCURY_GH_CMD returns error naming MERCURY_GH_CMD and never runs plain gh',
+    badJson?.state === 'error' && (badJson.stderr ?? '').includes('MERCURY_GH_CMD') && emptyArray?.state === 'error' && (emptyArray.stderr ?? '').includes('MERCURY_GH_CMD') && r.plainRan === false,
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
