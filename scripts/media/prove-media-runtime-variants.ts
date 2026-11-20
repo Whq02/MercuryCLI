@@ -8,13 +8,13 @@ import { pathToFileURL } from 'node:url'
 import { parseMediaCatalogue } from '../../src/services/media/catalogue.js'
 import { mediaPullPlan, mediaRuntimeChoice, mediaRuntimeInstalled, mediaRuntimeRowWords, mediaSizeWords, type MediaSnapshot } from '../../src/services/media/setup.js'
 import { catalogue as fixtureCatalogue, proofHome, removeProofHome, root } from './fixture.ts'
+import bundledCatalog from '../../src/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
 
 const MAC = { asset: 'sd-master-e41fbcf-bin-Darwin-macOS-26.6.2-arm64.zip', bytes: 37584335, sha256: '933fb5b622b578df7a0d22c41f39bc83791d40b876648a084fe1c4cbff2ef36c' }
 const savedPath = process.env.PATH
 const savedModulePath = process.env.PSModulePath
 try {
-  const bundledPath = resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server/catalog.json')
-  const bundled = parseMediaCatalogue(JSON.parse(readFileSync(bundledPath, 'utf8')))
+  const bundled = parseMediaCatalogue(bundledCatalog)
   assert.equal(bundled.runtime.tag, 'master-1015-e41fbcf')
   assert.deepEqual(Object.keys(bundled.runtime.platforms), ['darwin-arm64', 'win32-x64', 'linux-x64'])
   assert.deepEqual(bundled.runtime.platforms['darwin-arm64'], [{ variant: 'metal', binary: 'sd-server', files: [MAC] }])
