@@ -165,5 +165,40 @@ console.log('\nw02-1 — Concourse snapshot reports unreadable parked, queued, a
   )
 }
 
+console.log('\nw02-2 — olderChatsCensus reports unreadable transcript folder alongside zero total')
+{
+  const r = runSubprocess(`
+    const fs = await import('node:fs')
+    const snap = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
+    const paths = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/paths.ts'))})
+
+    const missing = snap.olderChatsCensus(PROJECT, new Set(), 1_700_000_000_000)
+    out.missingTotal = missing.total
+    out.missingErr = missing.readError ?? null
+
+    const storeDir = paths.getProjectDir(PROJECT)
+    fs.mkdirSync(storeDir, { recursive: true })
+    const canChmod = ${JSON.stringify(POSIX_MODES)}
+    if (canChmod) fs.chmodSync(storeDir, 0o000)
+    try {
+      const unread = snap.olderChatsCensus(PROJECT, new Set(), 1_700_000_000_000)
+      out.unreadTotal = unread.total
+      out.unreadEntries = unread.entries.length
+      out.unreadErr = unread.readError ?? null
+    } finally {
+      if (canChmod) fs.chmodSync(storeDir, 0o755)
+    }
+  `)
+  check('olderChatsCensus absent dir returns 0 and no readError', r.out.missingTotal === 0 && r.out.missingErr === null, JSON.stringify(r.out))
+  if (!POSIX_MODES) skip('olderChatsCensus unreadable dir', 'chmod 0000 needs non-root POSIX')
+  else {
+    check(
+      'olderChatsCensus unreadable dir keeps 0 total/entries and sets readError',
+      r.out.unreadTotal === 0 && r.out.unreadEntries === 0 && typeof r.out.unreadErr === 'string' && (r.out.unreadErr as string).length > 0,
+      JSON.stringify(r.out),
+    )
+  }
+}
+
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

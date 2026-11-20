@@ -742,6 +742,7 @@ export interface OlderChatFact {
 export interface OlderChatsCensusV1 {
   total: number
   entries: OlderChatFact[]
+  readError?: string
 }
 
 const olderFactCache = new Map<string, { mtimeMs: number; size: number; husk: boolean; title: string | null }>()
@@ -813,10 +814,14 @@ export function olderChatsCensus(
     }
     return { total, entries }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
-      logForDebugging(`[concourse] olderChatsCensus failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return { total: 0, entries: [] }
     }
-    return { total: 0, entries: [] }
+    const detail = errorMessage(error)
+    logForDebugging(`[concourse] olderChatsCensus failed: ${detail}`, { level: 'warn' })
+    passedOver(error)
+    return { total: 0, entries: [], readError: detail }
   }
 }
 
@@ -827,7 +832,7 @@ export function parkedBoardRows(
   nowMs: number,
   excludeSessionId?: string,
   sessions?: readonly ParkedSessionFact[],
-  onReadError?: (error: unknown) => void,
+  onReadError?: (error: unknown, source?: 'parked' | 'older') => void,
 ): ConcourseRowV1[] {
   const rows: ConcourseRowV1[] = []
   try {
@@ -865,11 +870,12 @@ export function parkedBoardRows(
       ...(excludeSessionId !== undefined ? { excludeSessionId } : {}),
       ...(sessions !== undefined ? { sessions } : {}),
     })
+    if (census.readError !== undefined) onReadError?.(new Error(census.readError), 'older')
     if (census.total > 0) rows.push(olderChatsRow(projectDir, projectLabel, census.total))
   } catch (error) {
     logForDebugging(`[concourse] parkedBoardRows failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     passedOver(error)
-    onReadError?.(error)
+    onReadError?.(error, 'parked')
   }
   return rows
 }
@@ -1055,7 +1061,11 @@ export async function buildConcourseSnapshot(
     nowMs,
     hostSessionId,
     undefined,
-    error => sectionNotices.push(`Parked sessions could not be read (${errorMessage(error)}) — refresh or check transcript folder permissions.`),
+    (error, source) => sectionNotices.push(
+      source === 'older'
+        ? `Older chats could not be read (${errorMessage(error)}) — check transcript folder permissions.`
+        : `Parked sessions could not be read (${errorMessage(error)}) — refresh or check transcript folder permissions.`,
+    ),
   )
   const parkedRows = [...parkedRecordRows, ...parkedTranscriptRows]
   const parkedGroupRows = [...(foreignParkedRow !== undefined ? [foreignParkedRow] : []), ...parkedRows]
