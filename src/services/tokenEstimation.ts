@@ -14,7 +14,7 @@ import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAnthropicClient } from './api/client.js'
 import { outageCauseOf, outageCauseWords } from './api/reconnectLadder.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow, retrySeconds } from './api/recoveryBudget.js'
-import { APIConnectionTimeoutError } from './api/sdkErrors.js'
+import { APIConnectionError, APIConnectionTimeoutError } from './api/sdkErrors.js'
 import { is529Error, isRetryableError } from './api/withRetry.js'
 import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from './providers/busyRetry.js'
 import { declaredRouteOf } from './providers/routeLaw.js'
@@ -49,6 +49,7 @@ function countRetryRefusal(error: unknown, askedMs: number | undefined): string 
   if (error instanceof APIConnectionTimeoutError) return `no answer within the count's ${retrySeconds(COUNT_RETRY_BUDGET_MS)} — a stalled count is not retried`
   const outage = outageCauseOf(error)
   if (outage !== null) return `${outageCauseWords(outage)}: nothing answers at the provider's address, and a count is not waited for`
+  if (error instanceof APIConnectionError) return "connection error: nothing answers at the provider's address, and a count is not waited for"
   if (is529Error(error)) return 'an overload is not retried by a count (nobody waits on it; retries multiply the load)'
   if (isSpentUsageWindowAnswer(error)) return 'the usage window is spent'
   if (providerWaitIsWindow(askedMs)) return `the provider asked for ${retrySeconds(askedMs ?? 0)} — its usage window, not a burst`
