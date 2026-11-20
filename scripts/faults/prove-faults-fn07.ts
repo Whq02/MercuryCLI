@@ -25,8 +25,8 @@ function threwOf(fn: () => unknown): Error | null {
 }
 
 {
-  console.log('\nmnemeLibrary-readLibraryMeta-unreadable')
-  const { readLibraryMeta, libraryMetaPath } = await import('../../src/mneme/mnemeLibrary.ts')
+  console.log('\nmnemeLibrary-writeLibraryMeta-unreadable')
+  const { readLibraryMeta, writeLibraryMeta, libraryMetaPath } = await import('../../src/mneme/mnemeLibrary.ts')
   const dir = makeScratch('libmeta')
   try {
     const fresh = readLibraryMeta(dir)
@@ -38,19 +38,17 @@ function threwOf(fn: () => unknown): Error | null {
     check('valid library.json reads seqCounter', readLibraryMeta(dir).seqCounter === 42)
 
     writeFileSync(p, '{corrupt')
-    const parseErr = threwOf(() => readLibraryMeta(dir))
-    check('corrupt JSON library.json throws instead of resetting seqCounter', parseErr !== null, 'returned fresh meta')
-
-    writeFileSync(p, JSON.stringify({ version: 1 }))
-    const schemaErr = threwOf(() => readLibraryMeta(dir))
-    check('invalid schema library.json throws instead of resetting seqCounter', schemaErr !== null, 'returned fresh meta')
+    check('corrupt library.json keeps readLibraryMeta non-throwing for outside callers', readLibraryMeta(dir).seqCounter === 0)
+    const parseErr = threwOf(() => writeLibraryMeta({ version: 1, seqCounter: 1, lastConsolidatedAt: null }, dir))
+    check('writeLibraryMeta refuses to overwrite corrupt library.json', parseErr !== null && readFileSync(p, 'utf8') === '{corrupt', String(parseErr))
 
     if (POSIX_MODES) {
       writeFileSync(p, rawValid, { mode: 0o600 })
       chmodSync(p, 0o200)
-      const permErr = threwOf(() => readLibraryMeta(dir))
+      check('unreadable library.json keeps readLibraryMeta non-throwing for outside callers', readLibraryMeta(dir).seqCounter === 0)
+      const permErr = threwOf(() => writeLibraryMeta({ version: 1, seqCounter: 1, lastConsolidatedAt: null }, dir))
       chmodSync(p, 0o600)
-      check('unreadable library.json throws EACCES', permErr !== null && (permErr as NodeJS.ErrnoException).code === 'EACCES', String(permErr))
+      check('writeLibraryMeta throws EACCES and keeps unreadable library.json intact', permErr !== null && (permErr as NodeJS.ErrnoException).code === 'EACCES' && readFileSync(p, 'utf8') === rawValid, String(permErr))
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })
