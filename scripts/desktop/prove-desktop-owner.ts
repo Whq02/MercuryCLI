@@ -25,7 +25,7 @@ const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 const pack = await import('../../src/services/desktop/pack.js')
 const native = await import('../../src/services/desktop/nativeDriver.js')
 const driver = await import('../../src/services/desktop/driver.js')
-const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 
 const PLATFORM = voicePackPlatform()

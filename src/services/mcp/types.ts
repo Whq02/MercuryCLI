@@ -1,4 +1,4 @@
-import type { Client, Implementation, Resource, ServerCapabilities } from './sdk.js'
+import type { Client, Implementation, Resource, ServerCapabilities } from '../../utils/mcp/sdk.js'
 import type { McpBootstrapManifest } from './lazyStdio.js'
 import { z } from 'zod'
 import { passedOver } from '../../utils/passedOver.js'

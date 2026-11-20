@@ -11,7 +11,7 @@ const { RELEASE_TARGETS, archiveNameFor, buildPlatformOf, isReleaseTarget, platf
 const { assetNameFor, platformNote } = await import('../../src/services/privateChannel/channelCore.ts')
 const { nodePackPlatform, readRuntimeRecord } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
 const { imagePackPlatform } = await import('../../src/utils/imageProcessor/imagePackArm.ts')
-const { voiceCargoTriple, voicePackPlatform } = await import('../../src/services/voice/voicePack.ts')
+const { voiceCargoTriple, voicePackPlatform } = await import('../../src/utils/voice/voicePack.ts')
 const { BRUSH_PACK_PATH, brushBinaryFor, brushPackPlatform } = await import('../../src/utils/shell/brushPack.ts')
 const { lockedPackage, platformPackagesFor, registryTarballUrl, resolvePlatformPackage } = await import('../vendor/platformPackages.ts')
 

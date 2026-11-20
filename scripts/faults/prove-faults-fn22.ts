@@ -96,7 +96,7 @@ console.log('\n2. voice/capture.ts + voice/voiceSession.ts — failed cancelCapt
 {
   const r = runSubprocess(`
     const { mock } = await import('bun:test')
-    const realPack = await import(path.join(SRC, 'services/voice/voicePack.ts'))
+    const realPack = await import(path.join(SRC, 'utils/voice/voicePack.ts'))
     let cancelCalls = 0
     const addon = {
       packVersion: () => '1.0.0',
@@ -118,7 +118,7 @@ console.log('\n2. voice/capture.ts + voice/voiceSession.ts — failed cancelCapt
       name: 'mercury-voice', version: '1.0.0', platform: 'test', addon: 'a.node',
       addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), cargo: '1', crates: [], fileCount: 1, treeDigest: '0'.repeat(64),
     }
-    mock.module(path.join(SRC, 'services/voice/voicePack.ts'), () => ({
+    mock.module(path.join(SRC, 'utils/voice/voicePack.ts'), () => ({
       ...realPack,
       resolveVoicePackDir: () => ({ state: 'ok', dir: PROJECT, addonPath: path.join(PROJECT, 'a.node'), manifest, source: 'override' }),
       loadVoiceAddon: () => ({ state: 'ok', addon, dir: PROJECT, manifest, source: 'override' }),
@@ -141,7 +141,7 @@ console.log('\n3. voice/voiceSession.ts — cancelVoiceCapture keeps active hand
 {
   const r = runSubprocess(`
     const { mock } = await import('bun:test')
-    const realPack = await import(path.join(SRC, 'services/voice/voicePack.ts'))
+    const realPack = await import(path.join(SRC, 'utils/voice/voicePack.ts'))
     const realTranscribe = await import(path.join(SRC, 'services/voice/transcribe.ts'))
     let cancelCalls = 0
     const addon = {
@@ -164,7 +164,7 @@ console.log('\n3. voice/voiceSession.ts — cancelVoiceCapture keeps active hand
       name: 'mercury-voice', version: '1.0.0', platform: 'test', addon: 'a.node',
       addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), cargo: '1', crates: [], fileCount: 1, treeDigest: '0'.repeat(64),
     }
-    mock.module(path.join(SRC, 'services/voice/voicePack.ts'), () => ({
+    mock.module(path.join(SRC, 'utils/voice/voicePack.ts'), () => ({
       ...realPack,
       resolveVoicePackDir: () => ({ state: 'ok', dir: PROJECT, addonPath: path.join(PROJECT, 'a.node'), manifest, source: 'override' }),
       loadVoiceAddon: () => ({ state: 'ok', addon, dir: PROJECT, manifest, source: 'override' }),

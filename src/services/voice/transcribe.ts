@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { isVoiceWavShape, pcmDurationMs, readWav } from './wav.js'
-import { voiceCheckoutRoot } from './voicePack.js'
+import { voiceCheckoutRoot } from '../../utils/voice/voicePack.js'
 import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon, type WhisperSegment } from './whisperPack.js'
 import { checkWhisperModel, downloadWhisperModel, resolveWhisperModelPin, whisperModelsDir, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
 import { passedOver } from '../../utils/passedOver.js'

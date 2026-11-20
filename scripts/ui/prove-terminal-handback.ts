@@ -23,7 +23,7 @@ import {
   TERMINAL_HANDBACK_FLAG,
   type TtyAddon,
 } from '../../src/utils/terminalHandback.ts'
-import { loadVoiceAddon, resetVoiceAddonForTest, VOICE_ADDON_EXPORTS } from '../../src/services/voice/voicePack.ts'
+import { loadVoiceAddon, resetVoiceAddonForTest, VOICE_ADDON_EXPORTS } from '../../src/utils/voice/voicePack.ts'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')

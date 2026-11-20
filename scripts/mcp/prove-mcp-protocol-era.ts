@@ -29,7 +29,7 @@ import {
 } from '../../src/services/mcp/eraVerdictCache.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import { createMercuryServer } from '../../src/services/mcp/mercuryServer.js'
-import type { JSONRPCMessage, Transport } from '../../src/services/mcp/sdk.js'
+import type { JSONRPCMessage, Transport } from '../../src/utils/mcp/sdk.js'
 import { getMercuryHome } from '../../src/utils/envUtils.js'
 
 const ROOT = join(import.meta.dir, '..', '..')

@@ -1,4 +1,4 @@
-import { ProtocolError, SdkError, SdkErrorCode } from '../sdk.js'
+import { ProtocolError, SdkError, SdkErrorCode } from '../../../utils/mcp/sdk.js'
 import { deepestErrorDetail, isStaleSocketCode } from '../../api/transportEvidence.js'
 import { errorMessage, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../../utils/errors.js'
 

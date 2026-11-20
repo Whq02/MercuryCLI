@@ -1,4 +1,4 @@
-import { SSEClientTransport, StreamableHTTPClientTransport, type StdioClientTransport, type Transport } from '../sdk.js'
+import { SSEClientTransport, StreamableHTTPClientTransport, type StdioClientTransport, type Transport } from '../../../utils/mcp/sdk.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { getOauthConfig } from '../../../constants/oauth.js'
 import { scrubSessionEnvStamps } from '../../../substrate/envStamps.js'

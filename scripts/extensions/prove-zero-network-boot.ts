@@ -169,7 +169,7 @@ globalThis.fetch = (input) => { const t = typeof input === 'string' ? input : St
   check('the binary exits 0', code === 0, `exit ${code}`)
   const parsed = JSON.parse(stdout.slice(stdout.indexOf('{'))) as { extensions: Array<{ id: string; trust: string }> }
   check('the roster answers from disk (the installed row is on)', parsed.extensions.some(e => e.id === 'kitchen-sink@fixture-source' && e.trust === 'on'), JSON.stringify(parsed.extensions))
-  const { Client, StdioClientTransport } = await import('../../src/services/mcp/sdk.ts')
+  const { Client, StdioClientTransport } = await import('../../src/utils/mcp/sdk.ts')
   for (const entry of rosterMod.computeRoster({ cwd }).entries.filter(e => e.home === 'bundled' && ['filmcraft', 'lightcraft', 'photocraft'].includes(e.name))) {
     const client = new Client({ name: 'craft-zero-network', version: '1.0.0' })
     await client.connect(new StdioClientTransport({ command: 'node', args: [join(entry.root!, 'server', 'bridge.mjs')], env: { ...env, MERCURY_EXTENSION_DATA: paths.getExtensionDataDir(entry.id) } as Record<string, string>, stderr: 'pipe' }))

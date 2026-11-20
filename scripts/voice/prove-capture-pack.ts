@@ -21,7 +21,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const pack = await import('../../src/services/voice/voicePack.js')
+const pack = await import('../../src/utils/voice/voicePack.js')
 const capture = await import('../../src/services/voice/capture.js')
 const wav = await import('../../src/services/voice/wav.js')
 
