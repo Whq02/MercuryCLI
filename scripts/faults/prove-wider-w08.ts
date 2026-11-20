@@ -385,6 +385,44 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
   check('w08-6: requestStopExecution does not throw and surfaces stop hook failure in record outcome and stopHookError', stopped !== undefined && stopped.state === 'stopping' && typeof stopped.stopHookError === 'string' && stopped.stopHookError.includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running') && (stopped.outcome?.reason ?? '').includes('the stop was asked for, but its hook failed (domain hook crashed) — it may still be running'), JSON.stringify(stopped))
 }
 
+async function w08_8_contextUnserializableToolAndMessageBlockNoted(): Promise<void> {
+  const { analyzeContextUsage } = await import(join(SRC, 'utils/analyzeContext.ts'))
+  const { ContextVisualization } = await import(join(SRC, 'components/ContextVisualization.tsx'))
+  const { renderToString } = await import(join(SRC, 'utils/staticRender.tsx'))
+  let schemaReads = 0
+  const mcpTool = {
+    name: 'mcp__srv__unserializable',
+    get inputJSONSchema() {
+      schemaReads++
+      if (schemaReads === 1) return { type: 'object', properties: {} }
+      return { type: 'object', bad: 1n }
+    },
+    prompt: async () => 'desc',
+    description: async () => 'desc',
+    isEnabled: () => true,
+    isReadOnly: () => true,
+    isConcurrencySafe: () => true,
+  }
+  const msg = {
+    type: 'attachment',
+    uuid: 'a-1',
+    attachment: { type: 'custom', bad: 1n },
+  }
+  const data = await analyzeContextUsage(
+    [msg] as never,
+    'claude-sonnet-4-6',
+    async () => ({ mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, isBypassPermissionsModeAvailable: false } as never),
+    [mcpTool] as never,
+    { activeAgents: [], allAgents: [], allowedAgentTypes: [] } as never,
+    100,
+    { options: {} },
+  )
+  check('w08-8: ContextData flags toolDefinitionsUnmeasured and messageBlocksUnmeasured', data.toolDefinitionsUnmeasured === true && data.messageBlocksUnmeasured === true, JSON.stringify({ toolDefinitionsUnmeasured: data.toolDefinitionsUnmeasured, messageBlocksUnmeasured: data.messageBlocksUnmeasured }))
+  const rendered = await renderToString(React.createElement(ContextVisualization, { data }), 120)
+  check('w08-8: ContextVisualization shows tool definition unmeasured notice', rendered.includes('Some tool definitions could not be measured; tool token counts may be understated.'), rendered.slice(0, 400))
+  check('w08-8: ContextVisualization shows message block unmeasured notice', rendered.includes('Some message blocks could not be measured; message breakdown figures may be understated.'), rendered.slice(0, 400))
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
@@ -392,6 +430,7 @@ const rows: Array<() => Promise<void>> = [
   w08_4_invalidMercuryLspServersReportedOnce,
   w08_5_tsSidecarWorkspaceSymbolIncompleteReported,
   w08_6_executionStopHookFailureSurfaced,
+  w08_8_contextUnserializableToolAndMessageBlockNoted,
 ]
 for (const row of rows) {
   try {

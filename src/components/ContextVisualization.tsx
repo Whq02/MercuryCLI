@@ -151,6 +151,16 @@ export function ContextVisualization({
           category sizes not measured on this source — the total, the grid and free space follow the recorded usage
         </Text>
       ) : null}
+      {data.toolDefinitionsUnmeasured ? (
+        <Text dimColor>
+          Some tool definitions could not be measured; tool token counts may be understated.
+        </Text>
+      ) : null}
+      {data.messageBlocksUnmeasured ? (
+        <Text dimColor>
+          Some message blocks could not be measured; message breakdown figures may be understated.
+        </Text>
+      ) : null}
 
       <Box gap={2} marginTop={1}>
         <Box flexDirection="column">
