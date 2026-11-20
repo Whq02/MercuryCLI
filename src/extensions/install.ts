@@ -250,7 +250,7 @@ function removeSwitchHere(id: string): SwitchHome[] {
   const written: SwitchHome[] = []
   for (const source of ['userSettings', 'localSettings'] as const) {
     if (getSettingsForSource(source)?.extensions?.enabled?.[id] === undefined) continue
-    updateSettingsForSource(source, { extensions: { enabled: { [id]: undefined } } } as never)
+    updateSettingsForSource(source, { extensions: { enabled: { [id]: undefined } } })
     written.push(source)
   }
   return written
