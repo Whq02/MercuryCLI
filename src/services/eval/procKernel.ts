@@ -316,7 +316,11 @@ export class ProcKernel {
       const sigint: NodeJS.Signals = 'SIGINT'
       process.kill(pid, sigint)
     } catch (error) {
-      passedOver(error)
+      if ((error as NodeJS.ErrnoException | null)?.code === 'ESRCH') {
+        passedOver(error)
+        return
+      }
+      throw error
     }
   }
 

@@ -367,7 +367,7 @@ class NativeDesktopDriver implements DesktopDriver {
       return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
     } catch (error) {
       logForDebugging(`desktop driver: the keyboard idle read threw: ${error instanceof Error ? error.message : String(error)}`)
-      return null
+      throw error
     }
   }
   async permissions(): Promise<DesktopAnswer<DesktopPermissions>> {
