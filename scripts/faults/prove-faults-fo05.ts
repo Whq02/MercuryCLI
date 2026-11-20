@@ -9,7 +9,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const HERE = import.meta.dir
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 
-async function capPolicyThatThrowsGoesOn(): Promise<void> {
+async function capPolicyThatThrowsRefuses(): Promise<void> {
   const before = process.env.MERCURY_AGENT_CAP
   process.env.MERCURY_AGENT_CAP = '*:max-risk=low'
   try {
@@ -29,8 +29,11 @@ async function capPolicyThatThrowsGoesOn(): Promise<void> {
     }
     const unread = judged(tool)
     const evaluated = judged({ name: 'FixtureTool', aliases: [] })
-    check('cap-policy-throw-goes-on: an agent-cap check that throws does not switch the tool off', unread === false, `got ${String(unread)}`)
-    check('cap-policy-throw-goes-on: a cap that was evaluated and says no still refuses', evaluated === true, `got ${String(evaluated)}`)
+    check('cap-policy-throw-refuses: with a cap set, a check of it that throws refuses the tool', unread === true, `got ${String(unread)}`)
+    check('cap-policy-throw-refuses: a cap that was evaluated and says no still refuses', evaluated === true, `got ${String(evaluated)}`)
+    delete process.env.MERCURY_AGENT_CAP
+    const uncapped = judged(tool)
+    check('cap-policy-throw-refuses: with no cap set the same tool is not refused', uncapped === false, `got ${String(uncapped)}`)
   } finally {
     if (before === undefined) delete process.env.MERCURY_AGENT_CAP
     else process.env.MERCURY_AGENT_CAP = before
@@ -67,7 +70,7 @@ async function wardPatternThatFailsIsSkipped(): Promise<void> {
   check('ward-pattern-skipped: the other pattern of the same ward still judges', (other as { allow?: unknown })?.allow === false, JSON.stringify(other))
 }
 
-const rows: Array<() => Promise<void>> = [capPolicyThatThrowsGoesOn, flowCheckThatThrowsGoesOn, wardPatternThatFailsIsSkipped]
+const rows: Array<() => Promise<void>> = [capPolicyThatThrowsRefuses, flowCheckThatThrowsGoesOn, wardPatternThatFailsIsSkipped]
 for (const row of rows) {
   try {
     await row()
