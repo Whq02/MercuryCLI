@@ -61,16 +61,26 @@ function outcomesFailure(sessionId: string, what: string, error: unknown): Error
   return new Error(`task outcomes of session ${sessionId}: ${what} — ${error instanceof SyntaxError ? 'the file is not valid JSON' : errorMessage(error)}`)
 }
 
+async function loadFileStrict(sessionId: string): Promise<TaskOutcomeEnvelope[]> {
+  let raw: string
+  try {
+    raw = await readFile(taskOutcomesPath(sessionId), 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return []
+    throw error
+  }
+  const parsed = JSON.parse(raw) as EnvelopeFile
+  if (parsed?.v !== TASK_OUTCOME_ENVELOPE_VERSION || !Array.isArray(parsed.envelopes)) {
+    throw new Error(`invalid task outcomes file at ${taskOutcomesPath(sessionId)}`)
+  }
+  return parsed.envelopes
+}
+
 async function loadFile(sessionId: string): Promise<TaskOutcomeEnvelope[]> {
   try {
-    const raw = await readFile(taskOutcomesPath(sessionId), 'utf8')
-    const parsed = JSON.parse(raw) as EnvelopeFile
-    if (parsed?.v !== TASK_OUTCOME_ENVELOPE_VERSION || !Array.isArray(parsed.envelopes)) {
-      return []
-    }
-    return parsed.envelopes
+    return await loadFileStrict(sessionId)
   } catch (error) {
-    if (!isENOENT(error)) logError(outcomesFailure(sessionId, 'they could not be read, so the next saved outcome replaces every earlier one', error))
+    logError(outcomesFailure(sessionId, 'they could not be read', error))
     return []
   }
 }
@@ -85,7 +95,7 @@ export async function recordTaskOutcome(
     try {
       let envelopes = cacheBySession.get(sessionId)
       if (!envelopes) {
-        envelopes = await loadFile(sessionId)
+        envelopes = await loadFileStrict(sessionId)
         cacheBySession.set(sessionId, envelopes)
       }
       if (envelopes.some(e => e.taskId === envelope.taskId)) {

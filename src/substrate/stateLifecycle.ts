@@ -279,8 +279,10 @@ async function readBuildManifest(dir: string, facts: InstalledBuildFacts): Promi
     if (getErrnoCode(e) === 'ENOENT') return
     throw e
   }
-  const manifest = safeParseJSON(raw, false) as { version?: unknown; runtime?: { version?: unknown } | null } | null
-  if (!manifest || typeof manifest !== 'object') return
+  const manifest = JSON.parse(raw) as { version?: unknown; runtime?: { version?: unknown } | null }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error(`Invalid build manifest at ${join(dir, 'manifest.json')}`)
+  }
   if (typeof manifest.version === 'string') facts.versions.add(manifest.version)
   const node = manifest.runtime?.version
   if (typeof node === 'string') facts.nodeVersions.add(node.startsWith('v') ? node : `v${node}`)
