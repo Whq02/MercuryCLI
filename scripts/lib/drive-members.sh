@@ -16,7 +16,7 @@ members_cat() {
 }
 
 drive_member_run() {
-  local suite="$1" f="$2" name="$3" skip="${4:-}" rest="${5:-}" form="${6:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
+  local suite="$1" f="$2" name="$3" skip="${4:-}" rest="${5:-}" form="${6:-}" tell="${7:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
   [ -x "$bun" ] || bun="$(command -v bun 2>/dev/null || printf '%s' "$bun")"
   local root="$PWD" i var
   local -a words=()
@@ -28,7 +28,7 @@ drive_member_run() {
   done
   local p="$f" leave="${MERCURY_SUITE_LEAVE_OUT:-}"
   case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac
-  p="$p${rest:+ $rest}"
+  p="$p${tell:+ ($tell)}"
   if [ -n "$leave" ] && grep -qxF -- "$p" "$leave" 2>/dev/null; then
     printf 'second look: %s was green in the first attempt and is not run again\n' "$p"
     return 0
@@ -67,6 +67,14 @@ drive_members() {
     fi
     names+=("$name"); files+=("$f"); rests+=("$rest")
   done < "$members"
+  local once=$'\n' twice=$'\n'
+  local -a tells=()
+  for f in ${files[@]+"${files[@]}"}; do
+    case "$once" in (*$'\n'"$f"$'\n'*) twice="$twice$f"$'\n' ;; (*) once="$once$f"$'\n' ;; esac
+  done
+  for f in ${files[@]+"${files[@]}"}; do
+    case "$twice" in (*$'\n'"$f"$'\n'*) tells+=("${rests[${#tells[@]}]}") ;; (*) tells+=('') ;; esac
+  done
   if [ -z "$only" ] && [ "${#names[@]}" -eq 0 ] && [ "$failed" -eq 0 ]; then
     printf '❌ %s: %s names no test — an empty list is a red, never a vacuous green\n' "$suite" "$members"
     return 1
@@ -81,7 +89,7 @@ drive_members() {
   if [ "$jobs" -le 1 ] || [ "${#names[@]}" -le 1 ]; then
     local i code
     for i in "${!names[@]}"; do
-      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" || {
+      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" "${tells[$i]}" || {
         code=$?
         [ "$drive_member_code" -eq 0 ] && drive_member_code=$code
         failed=1
@@ -105,7 +113,7 @@ drive_members() {
   while [ "$next" -lt "$total" ] || [ "$running" -gt 0 ]; do
     while [ "$next" -lt "$total" ] && [ "$running" -lt "$jobs" ]; do
       i=$next
-      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
+      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" "${tells[$i]}" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
       pids+=("$!"); idxs+=("$i"); running=$(( running + 1 )); next=$(( next + 1 ))
     done
     sleep 1
