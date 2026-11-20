@@ -548,7 +548,7 @@ export function listInstalledVersions(roots: LayoutRoots): string[] {
     .reverse()
 }
 
-function listInstalledVersionsStrict(roots: LayoutRoots): string[] {
+export function listInstalledVersionsStrict(roots: LayoutRoots): string[] {
   let entries: string[]
   try {
     entries = readdirSync(roots.versionsDir)
@@ -944,6 +944,16 @@ export function shimStatus(roots: LayoutRoots): 'absent' | 'managed' | 'foreign'
   } catch (error) {
     passedOver(error)
     return 'absent'
+  }
+}
+
+export function shimStatusStrict(roots: LayoutRoots): 'absent' | 'managed' | 'foreign' {
+  try {
+    const existing = readFileSync(roots.shimPath, 'utf8')
+    return existing.includes(SHIM_MARKER_FAMILY) ? 'managed' : 'foreign'
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent'
+    throw error
   }
 }
 

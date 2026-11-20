@@ -31,6 +31,7 @@ import {
   acquireUpdateLock,
   installPayload,
   listInstalledVersions,
+  listInstalledVersionsStrict,
   pathEntryEquals,
   PointerHeldError,
   pruneSupersededVersions,
@@ -40,7 +41,7 @@ import {
   releaseUpdateLock,
   restoreCurrent,
   runningPayloadDir,
-  shimStatus,
+  shimStatusStrict,
   smokeVersion,
   sweepUpdaterResidue,
   switchCurrent,
@@ -94,8 +95,10 @@ interface ChannelStatus {
   installedPointer: 'ok' | 'absent' | 'empty' | 'unreadable'
   previousVersion: string | null
   versionsPresent: string[]
+  versionsReadError?: string
   versionsDir: string
-  shim: 'absent' | 'managed' | 'foreign'
+  shim: 'absent' | 'managed' | 'foreign' | 'unreadable'
+  shimReadError?: string
   shimPath: string
   runtime: RunningRuntime
   channelRepo: string
@@ -104,14 +107,32 @@ interface ChannelStatus {
 
 export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> {
   const slug = channelRepoSlug()
+  let versionsPresent: string[] = []
+  let versionsReadError: string | undefined
+  try {
+    versionsPresent = listInstalledVersionsStrict(roots)
+  } catch (error) {
+    passedOver(error)
+    versionsReadError = error instanceof Error ? error.message : String(error)
+  }
+  let shim: ChannelStatus['shim'] = 'unreadable'
+  let shimReadError: string | undefined
+  try {
+    shim = shimStatusStrict(roots)
+  } catch (error) {
+    passedOver(error)
+    shimReadError = error instanceof Error ? error.message : String(error)
+  }
   return {
     runningVersion: MACRO.VERSION,
     installedVersion: readCurrentVersion(roots),
     installedPointer: readCurrentVersionState(roots).state,
     previousVersion: readPreviousVersion(roots),
-    versionsPresent: listInstalledVersions(roots),
+    versionsPresent,
+    ...(versionsReadError !== undefined ? { versionsReadError } : {}),
     versionsDir: roots.versionsDir,
-    shim: shimStatus(roots),
+    shim,
+    ...(shimReadError !== undefined ? { shimReadError } : {}),
     shimPath: roots.shimPath,
     runtime: runningRuntime(),
     channelRepo: slug,
