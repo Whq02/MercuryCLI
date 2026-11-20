@@ -2,10 +2,6 @@ import { z } from 'zod/v4'
 
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import { performMCPOAuthFlow } from '../../services/mcp/auth.js'
-import {
-  clearMcpAuthCache,
-  reconnectMcpServerImpl,
-} from '../../services/mcp/client.js'
 import { buildMcpToolName } from '../../services/mcp/mcpStringUtils.js'
 import type { ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import {
@@ -14,6 +10,8 @@ import {
   excludeToolsByServer,
 } from '../../services/mcp/utils.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
+import { clearMcpAuthCache } from '../../services/mcp/client/needsAuth.js'
+import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
 
 
 type McpAuthOutput = {
@@ -44,7 +42,7 @@ export function createMcpAuthTool(
   ): Promise<void> => {
     try {
       clearMcpAuthCache()
-      const report = await reconnectMcpServerImpl(serverName, config)
+      const report = await mcpClientForTools().reconnectMcpServerImpl(serverName, config)
       if (setAppState) {
         setAppState(prev => {
           let clients = prev.mcp.clients

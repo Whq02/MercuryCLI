@@ -31,6 +31,7 @@ import { HostTerminationUnconfirmed, hostJobReadOnly, hostReadFailureWords } fro
 import { hostMachineOf, noteHostLink, hostLinkAttemptWords, hostLinkRecoveredWords, hostLinkLossWords } from './reliability.js'
 import { shQuote as quote } from './boxExecution.js'
 import { TENSORFOLD_HOST_WORDS, isTensorFoldRecipe, registerTensorFoldPod, tensorFoldPodAnsweringCommand, tensorFoldPodKey, tensorFoldPodService, writeTensorFoldPodKey } from './tensorfoldPod.js'
+import '../../commands.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}

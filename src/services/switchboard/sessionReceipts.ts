@@ -2,7 +2,6 @@ import { appendFileSync, existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import { MAX_TRANSCRIPT_READ_BYTES } from '../../utils/sessionStorage/paths.js'
-import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
@@ -10,6 +9,7 @@ import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.
 import { AST_EDIT_TOOL_NAME } from '../../tools/AstEditTool/prompt.js'
 import type { SystemSeatReceiptMessage } from '../../types/message.js'
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
+import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptBytes.js'
 
 export interface SessionReceiptEntry {
   readonly at: string

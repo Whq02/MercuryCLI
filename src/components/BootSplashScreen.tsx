@@ -57,17 +57,10 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { openProjectOf, runRowOf, type BootRow } from './bootSplash/rowActions.js';
 import { bootSplashCompositionOf, bootSplashFaceView } from './bootSplash/face.js';
+import { armBootSettingsLayerDeepLink, consumeBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
 
 
-let settingsLayerDeepLink = false;
-export function armBootSettingsLayerDeepLink(): void {
-  settingsLayerDeepLink = true;
-}
-function consumeBootSettingsLayerDeepLink(): boolean {
-  const armed = settingsLayerDeepLink;
-  settingsLayerDeepLink = false;
-  return armed;
-}
+export { armBootSettingsLayerDeepLink };
 
 const KEY_MAP_ROW = (core: ReturnType<typeof createSplashCore>, hint: string): string =>
   '  ' + core.hexFg(core.FAINT, core.T256.faint) + hint + core.R;

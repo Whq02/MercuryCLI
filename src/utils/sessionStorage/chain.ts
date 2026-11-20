@@ -1,5 +1,4 @@
 import type { UUID } from 'crypto'
-import { builtInCommandNames } from '../../commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { projectForTranscript } from '../../services/desktop/screenshotRetention.js'
 import type {
@@ -20,6 +19,7 @@ import type { FileHistorySnapshot } from '../fileHistory.js'
 import { extractTag, normalizeAttachmentForAPI } from '../messages.js'
 import { stripTerminalControls } from '../stringUtils.js'
 import { transcriptRows } from './rowGraph.js'
+import { isBuiltInCommandName } from './builtInCommands.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
   /^(?:\s*<[a-z][\w-]*[\s>]|\[Request (?:interrupted by user|cut off)[^\]]*\])/
@@ -45,7 +45,7 @@ export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
       if (!text) continue
       const command = extractTag(text, COMMAND_NAME_TAG)
       if (command) {
-        if (builtInCommandNames().has(command.replace(/^\//, ''))) continue
+        if (isBuiltInCommandName(command.replace(/^\//, ''))) continue
         const args = extractTag(text, 'command-args')?.trim()
         if (!args) continue
         return `${command} ${args}`

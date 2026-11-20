@@ -29,6 +29,7 @@ import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, dis
 import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } from './worktree/baseline.js'
 import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
 import { runGit } from './worktree/git.js'
+import '../ink/colorize.js'
 
 
 

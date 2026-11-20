@@ -16,7 +16,8 @@ import { cutToWidth } from '../MercuryFilesMenu.js'
 import { ProductLockup } from '../mercury-ui/components.js'
 import { useElevatedSurface } from '../mercury-ui/useElevatedSurface.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { SETTINGS_POPUP_COMPACT_CHROME_ROWS, type SettingsPopupPlacement } from '../SettingsPopupSlot.js'
+import { SETTINGS_POPUP_COMPACT_CHROME_ROWS } from '../settingsPopupChrome.js'
+import type { SettingsPopupPlacement } from '../SettingsPopupSlot.js'
 
 export type SettingsTabName = 'Status' | 'Config' | 'Usage'
 

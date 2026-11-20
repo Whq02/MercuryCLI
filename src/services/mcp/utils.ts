@@ -5,7 +5,6 @@ import { getCwd } from '../../utils/cwd.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
 import { getEnabledSettingsForSource, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
-import { getEnterpriseMcpFilePath, projectMcpFilePath } from './config.js'
 import { getMcpPrefix } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import type {
@@ -16,6 +15,7 @@ import type {
   ServerResource,
   Transport,
 } from './types.js'
+import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
 
 
 type NamedTool = { name: string; mcpInfo?: { serverName?: string } }

@@ -32,6 +32,12 @@ export function tellWhereACdLeftTheShell(read: () => string | null): void {
   whereACdLeftTheShell = read
 }
 
+let whereTheShellStands: (() => string) | undefined
+
+export function tellWhereTheShellStands(read: () => string): void {
+  whereTheShellStands = read
+}
+
 export function getStartingCwd(): string {
   return cwdOverrideStorage.getStore()?.cwd ?? getOriginalCwd()
 }
@@ -54,4 +60,8 @@ export function shellDirectoryLeftByCd(): string | null {
   const directory = whereACdLeftTheShell === undefined ? null : whereACdLeftTheShell()
   if (directory === null) return null
   return `The shell's working directory is still where an earlier cd left it: ${/["\p{Cc}]/u.test(directory) ? JSON.stringify(directory) : directory}`
+}
+
+export function directoryTheShellStandsIn(): string {
+  return whereTheShellStands === undefined ? getCwd() : whereTheShellStands()
 }

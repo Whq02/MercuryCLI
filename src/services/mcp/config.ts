@@ -1,4 +1,4 @@
-import { dirname, join, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 
 import { z } from 'zod'
 
@@ -15,10 +15,10 @@ import {
 } from '../../utils/config.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
-import { MERCURY_PROJECT_DIR, projectConfigDirs } from '../../utils/projectConfig.js'
+import { MERCURY_PROJECT_DIR } from '../../utils/projectConfig.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { isSettingSourceAllowedAtLaunch } from '../../utils/settings/constants.js'
-import { getManagedFilePath } from '../../utils/settings/managedPath.js'
+import '../../utils/settings/managedPath.js'
 import { isRestrictedToExtensionsOnly } from '../../utils/settings/extensionOnlyPolicy.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
 import { getExtensionMcpServers } from '../../extensions/load/servers.js'
@@ -35,6 +35,7 @@ import {
   type ScopedMcpServerConfig,
 } from './types.js'
 import { getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
+import { PROJECT_MCP_FILE, getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
 
 
 type McpConfigError = {
@@ -328,11 +329,7 @@ function projectDirectoryChain(): string[] {
   return chain
 }
 
-export const PROJECT_MCP_FILE = 'mcp.json'
-
-export function projectMcpFilePath(dir: string): string {
-  return join(projectConfigDirs(dir)[0], PROJECT_MCP_FILE)
-}
+export { PROJECT_MCP_FILE, getEnterpriseMcpFilePath, projectMcpFilePath }
 
 function lockedProjectMcpFile(): string {
   const path = projectMcpFilePath(getCwd())
@@ -423,10 +420,6 @@ export function mcpServersSkippedForApprovalLines(): Array<{ name: string; line:
 }
 
 export const PROJECT_MCP_FILE_SPELLING = `${MERCURY_PROJECT_DIR}/${PROJECT_MCP_FILE}`
-
-export function getEnterpriseMcpFilePath(): string {
-  return join(getManagedFilePath(), 'managed-mcp.json')
-}
 
 function getEnterpriseMcpConfigs(): ScopeRead {
   return flat(

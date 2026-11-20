@@ -18,7 +18,7 @@ import {
   setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { recordedDescription } from '../../tasks/LocalAgentTask/launchReceipts.js'
-import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
+import '../../tasks/LocalMainSessionTask.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   runWithAgentContext,
@@ -54,6 +54,9 @@ import { isBuiltInAgent } from './loadAgentsDir.js'
 import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../utils/effort.js'
+import { liveAgentOwner } from './liveAgentOwner.js'
+
+export { liveAgentOwner }
 
 type ResumeAgentResult = {
   agentId: string
@@ -81,22 +84,6 @@ export function definitionForStoredType(
     activeAgents.find(agent => agent.agentType === MERCURY_CREW_AGENT_TYPE) ??
     activeAgents[0]!
   )
-}
-
-export function liveAgentOwner(
-  agentId: string,
-  tasks: Record<string, unknown> | undefined,
-): { kind: 'agent'; words: string } | null {
-  const own = tasks?.[agentId]
-  if (isLocalAgentTask(own) && !isMainSessionTask(own) && own.status === 'running') {
-    return {
-      kind: 'agent',
-      words:
-        `Crewmate ${agentId} is running in this session — guidance for a running crewmate is queued by SendMessage ` +
-        `and delivered at its next tool round; a second run is never started beside it.`,
-    }
-  }
-  return null
 }
 
 export function boardResumeRefusal(agentId: string, tasks: Record<string, unknown> | undefined): string | null {

@@ -7,7 +7,6 @@ import { registerAgentName, registerAsyncAgent, setAgentPendingAsks, setAgentWai
 import { isLocalAgentTask } from '../../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getRunningTasks } from '../../../utils/task/framework.js'
 import { toolMatchesName, type Tool as ToolShape, type ToolUseContext } from '../../../Tool.js'
-import { assembleToolPool } from '../../../tools.js'
 import { generateTaskId } from '../../../Task.js'
 import type { AssistantMessage, Message } from '../../../types/message.js'
 import type { AgentId } from '../../../types/ids.js'
@@ -45,6 +44,7 @@ import { setAgentColor } from '../agentColorManager.js'
 import { sleep } from '../../../utils/sleep.js'
 import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput } from './schema.js'
 import { resolveAgentCwd } from './cwd.js'
+import { toolPoolOfTheTable } from '../../toolTable.js'
 
 export function mcpServerNamesWithTools(tools: readonly ToolShape[]): string[] {
   const names = new Set<string>()
@@ -176,7 +176,7 @@ export async function agentToolCall(
   const workerTools = resolveWorkerTools(
         agentDef,
         plan.workerPermissionMode,
-        assembleToolPool(
+        toolPoolOfTheTable(
           {
             ...context.getAppState().toolPermissionContext,
             mode: plan.workerPermissionMode,

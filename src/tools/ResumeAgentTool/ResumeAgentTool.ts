@@ -7,7 +7,6 @@ import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask, queuePendingMessage, spe
 import { errorMessage } from '../../utils/errors.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { liveAgentOwner } from '../AgentTool/resumeAgent.js'
 import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from '../SendMessageTool/crewAddress.js'
 import { renderToolResultMessage, renderToolUseMessage } from '../SendMessageTool/UI.js'
 import { RESUME_AGENT_TOOL_NAME } from './constants.js'
@@ -15,6 +14,7 @@ import { DESCRIPTION, getPrompt } from './prompt.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
 import { stopAgentByOperator } from '../../services/agents/operatorStop.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
+import { liveAgentOwner } from '../AgentTool/liveAgentOwner.js'
 
 type ResumeAgentToolOutput = MessageOutput
 type Input = CrewMessageInput & { model?: string; effort?: EffortLevel; interrupt?: boolean }

@@ -18,7 +18,7 @@ import '../../utils/debug.js'
 import '../../utils/envUtils.js'
 import '../../utils/errors.js'
 import { displayAddressedTarget } from '../../utils/file.js'
-import { formatFileSize } from '../../utils/format.js'
+import '../../utils/format.js'
 import '../../utils/imageResizer.js'
 import { getCwd } from '../../utils/cwd.js'
 import { referenceReadDecision } from '../../services/resources/referencePaths.js'
@@ -26,7 +26,7 @@ import '../../utils/log.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import '../../utils/memoryFileDetection.js'
 import '../../utils/messages/factories.js'
-import { mapNotebookCellsToToolResult } from '../../utils/notebook.js'
+import '../../utils/notebook.js'
 import { expandPath, hasControlCharacter } from '../../utils/path.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
@@ -49,7 +49,7 @@ import '../../utils/fsOperations.js'
 import './limits.js'
 import './outline.js'
 import '../../services/run/resultRoom.js'
-import { DESCRIPTION, FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB, LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from './prompt.js'
+import { DESCRIPTION, FILE_READ_TOOL_NAME, LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from './prompt.js'
 import { parseRichFormatTarget } from './readRichFormats.js'
 import '../../utils/fileStateCache.js'
 import { parseReadQueryTarget } from './readQueryTarget.js'
@@ -62,10 +62,10 @@ import {
   renderToolUseTag,
   userFacingName,
 } from './UI.js'
-import { inputSchema, type Input, type Output, outputSchema } from './read/schema.js'
-import { cyberRiskReminderForCurrentModel } from './read/reminder.js'
+import { inputSchema, type Input, outputSchema } from './read/schema.js'
+import './read/reminder.js'
 import { remoteAlso, splitPathRangeSelector } from './read/target.js'
-import { serializeTextResult } from './read/serialize.js'
+import './read/serialize.js'
 import { validateReadInput } from './read/validate.js'
 import { readFileCall } from './read/call.js'
 
@@ -75,6 +75,7 @@ export { imageReadCaptions, readImageWithTokenBudget } from './read/image.js'
 export { MaxFileReadTokenExceededError } from './read/window.js'
 export { registerFileReadListener, resultResolvedNames } from './read/results.js'
 export { unresolvedConflictBlocks } from './read/serialize.js'
+import { mapToolResultToToolResultBlockParam } from './read/resultBlock.js'
 
 
 
@@ -161,57 +162,7 @@ export const FileReadTool = buildTool({
   call(input: Input, context: ToolUseContext, canUseTool?: unknown, parentMessage?: unknown) {
     return readFileCall(input, context, canUseTool, parentMessage, readToolItself)
   },
-  mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
-    switch (data.type) {
-      case 'image':
-        return {
-          tool_use_id: toolUseID,
-          type: 'tool_result' as const,
-          content: [
-            ...(data.file.caption ? [{ type: 'text' as const, text: data.file.caption }] : []),
-            {
-              type: 'image' as const,
-              source: {
-                type: 'base64' as const,
-                media_type: data.file.type,
-                data: data.file.base64,
-              },
-            },
-          ],
-        }
-      case 'notebook':
-        return mapNotebookCellsToToolResult(data.file.cells as never, toolUseID)
-      case 'pdf':
-        return {
-          tool_use_id: toolUseID,
-          type: 'tool_result' as const,
-          content: `PDF file: ${data.file.filePath} (${formatFileSize(data.file.originalSize)}). The document content was provided alongside this result.`,
-        }
-      case 'parts':
-        return {
-          tool_use_id: toolUseID,
-          type: 'tool_result' as const,
-          content: `Extracted ${data.file.count} page(s) from ${data.file.filePath} (${formatFileSize(data.file.originalSize)}) as images.`,
-        }
-      case 'file_unchanged':
-        return {
-          tool_use_id: toolUseID,
-          type: 'tool_result' as const,
-          content: `${FILE_UNCHANGED_STUB}${data.file.anchor !== undefined ? `\n(anchor: ${data.file.anchor})` : ''}`,
-        }
-      case 'text': {
-        const body = serializeTextResult(data.file, data)
-        if (data.file.content === '') {
-          return { tool_use_id: toolUseID, type: 'tool_result' as const, content: body }
-        }
-        return {
-          tool_use_id: toolUseID,
-          type: 'tool_result' as const,
-          content: `${body}${data.file.reminder ?? cyberRiskReminderForCurrentModel()}`,
-        }
-      }
-    }
-  },
+  mapToolResultToToolResultBlockParam,
   extractSearchText(): string {
     return ''
   },

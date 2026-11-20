@@ -6,7 +6,6 @@ import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { getSessionId } from '../bootstrap/state.js';
 import { chatOnlyBoot, leaveCurrentSurface, enterConcourse, routeSurfaceRegistered, stripFacts } from '../context/surfaceRoute.js';
-import { armBootSettingsLayerDeepLink } from './BootSplashScreen.js';
 import { STARTUP_MENU, bootEnvPath, evaluateExplicitApply, isLiveEnvRow, menuRowChoices, readBootDefaultsProfile, bootAdmissionSnapshot, resolveEffectiveSettingsSnapshot, type BootDefaultsProfileV1, type ExplicitApplyReceipt, type MenuRow } from '../substrate/startupMenu.js';
 import { flagSpellings } from '../substrate/flagRegistry.js';
 import { SEATS_MENU_ROW, seatCeilingFactsAsync, type SeatCeilingFacts } from '../services/switchboard/capacityCheck.js';
@@ -36,6 +35,7 @@ import { type WorkerApplySummary, type ApplyState, settingsMenuModel } from './b
 import { commitBackgroundLaunchOf, commitMotionOf, commitJevOf, commitSeatsOf, commitRowOf, cycleRowOf } from './bootSettings/commits.js';
 import { settingsRowLine } from './bootSettings/rows.js';
 import type { SettingsContext } from './bootSettings/context.js';
+import { armBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
 export { JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, backgroundLaunchBootDetailLines } from './bootSettings/detailLines.js';
 
 

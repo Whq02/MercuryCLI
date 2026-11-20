@@ -1,7 +1,7 @@
 import { jsonQueryDiscovery, jsonQueryName, parseReadQueryTarget } from '../readQueryTarget.js'
 import type { TextFile } from './schema.js'
 import { resultLineAnchors, resultOutlineBodies, resultResolvedNames, resultPreRenderedBody, resultWithoutProfileHint } from './results.js'
-import { MAX_DISPLAY_LINE_CHARS, numberedWindow, cutMark, overCapWords } from './window.js'
+import { MAX_DISPLAY_LINE_CHARS, numberedWindow, cutMark, overCapWords } from './windowText.js'
 
 export function serializeTextResult(file: TextFile, data: object): string {
   const resolvedName = resultResolvedNames.get(data)

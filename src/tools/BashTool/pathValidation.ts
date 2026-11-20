@@ -25,11 +25,11 @@ import { getShellCwd, resolveShellCwd } from '../../utils/Shell.js'
 import { getPlatform } from '../../utils/platform.js'
 import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
 import { getDirectoryForPath } from '../../utils/path.js'
-import { stripSafeWrappers } from './bashPermissions.js'
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
+import { stripSafeWrappers } from './safeWrappers.js'
 
 
 export type PathCommand =

@@ -15,9 +15,9 @@ import { stripExplicitNulls } from '../messages/structuredOutputDialect.js'
 import { forgetAgentEffortWord, noteAgentEffortWord } from '../effort.js'
 import { getEngineModel } from '../model/model.js'
 import { utilityCallFor } from '../model/utilityModel.js'
-import { hasPermissionsToUseTool } from '../permissions/permissions.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 import { hookAnswerJsonSchema, hookBrief, type ModelHookEnd, type ModelHookRun } from './questionRunner.js'
+import { toolPermissionForHooks } from './toolPermission.js'
 
 const CREWMATE_HOOK_TURN_CAP = 50
 
@@ -87,7 +87,7 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
       userContext: {},
       systemContext: {},
       toolUseContext: childContext,
-      canUseTool: hasPermissionsToUseTool,
+      canUseTool: toolPermissionForHooks,
       querySource: 'hook_agent',
     })
     for await (const streamed of stream) {
