@@ -259,7 +259,8 @@ export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo'
   const mine = served.find(candidate => candidate.repo === row.repo)
   if (mine === undefined) return 'nothing to stop · Mercury did not start it'
   setAct(row.repo, undefined)
-  const { warnings } = await stopTensorFold(mine.name, io.serve)
+  const { warnings, readError } = await stopTensorFold(mine.name, io.serve)
+  if (readError !== undefined) return `the record of what is already serving could not be read (${readError}) · nothing was stopped`
   await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(passedOverAs(undefined))
   mintImmediateReceipt(FEED.stopped(mine.name, mine.servedBy))
   return warnings.length > 0 ? `stopped ${mine.name} · ${warnings.join(' · ')}` : `stopped ${mine.name}`

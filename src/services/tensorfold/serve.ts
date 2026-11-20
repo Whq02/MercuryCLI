@@ -456,8 +456,15 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   return { ...served, pid: readRecord(cwd, service)?.pid ?? record.pid, warnings }
 }
 
-export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 'servedFile' | 'helperFile' | 'forgetPort' | 'forgetHost'> = {}): Promise<{ warnings: readonly string[] }> {
-  const record = readServedRecord(io)
+export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 'servedFile' | 'helperFile' | 'forgetPort' | 'forgetHost'> = {}): Promise<{ warnings: readonly string[]; readError?: string }> {
+  let record: TensorFoldServedRecord | null
+  try {
+    record = readServedRecordStrict(io)
+  } catch (error) {
+    logForDebugging(`tensorfold: served record at ${recordFile(io)} could not be read (${errorMessage(error)})`, { level: 'warn' })
+    passedOver(error)
+    return { warnings: [], readError: errorMessage(error) }
+  }
   if (record === null) return { warnings: [] }
   if (record.name !== name && record.repo !== name) return { warnings: [] }
   const warnings: string[] = []

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { writeFileSync } from 'node:fs'
+import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { FAKE_BIN, GIB, MAC_48, QWEN_2B_REPO, fakeWorld } from '../tensorfold/fixtures/world.ts'
@@ -17,6 +17,8 @@ const road = await import('../../src/commands/tensorfold/road.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
 const panel = await import('../../src/commands/tensorfold/tensorfold.tsx')
 const engine = await import('../../src/services/tensorfold/engine.ts')
+const receipts = await import('../../src/utils/model/seatReceipts.ts')
+const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -166,6 +168,58 @@ console.log('w03-1: startTensorFold and stopTensorFold surface side-step failure
     JSON.stringify(shareNotice),
   )
   await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined, forgetHost: async () => undefined })
+}
+
+console.log('w03-2: stopTensorFold reports an unreadable or damaged served record instead of claiming stopped')
+{
+  const world = fakeWorld('wider-w03-2')
+  const corruptFile = join(world.home, 'corrupt-served.json')
+  writeFileSync(corruptFile, '{"repo": "broken', 'utf8')
+  const stopResult = await serve.stopTensorFold('qwen3.5-2b', { servedFile: corruptFile }) as { warnings?: readonly string[]; readError?: string }
+  check(
+    'stopTensorFold on damaged served.json resolves with readError and leaves file intact',
+    typeof stopResult?.readError === 'string' && stopResult.readError.length > 0 && readFileSync(corruptFile, 'utf8') === '{"repo": "broken',
+    JSON.stringify(stopResult),
+  )
+  const seenReceipts: string[] = []
+  const unsub = receipts.subscribeSeatReceipts(r => seenReceipts.push(r.text))
+  const receiptsBefore = seenReceipts.length
+  const fakeServed = [{ repo: QWEN_2B_REPO, name: 'qwen3.5-2b', port: 18080, window: 262_144, pid: 99999, startedAt: new Date().toISOString() }]
+  road.__resetTensorFoldRoadForTest()
+  const rowMsg = await road.stopTensorFoldRow({ repo: QWEN_2B_REPO, shortName: 'qwen3.5-2b' }, fakeServed, { serve: { servedFile: corruptFile } })
+  const mintedAfter = seenReceipts.slice(receiptsBefore)
+  check(
+    'stopTensorFoldRow answers the read-error sentence instead of "stopped <name>" and mints no stopped receipt',
+    rowMsg.startsWith('the record of what is already serving could not be read (') &&
+      rowMsg.endsWith(') · nothing was stopped') &&
+      !rowMsg.includes('stopped qwen3.5-2b') &&
+      mintedAfter.every(t => !t.includes('stopped qwen3.5-2b')),
+    JSON.stringify({ rowMsg, mintedAfter }),
+  )
+  const facts = await scene.readTensorFoldPanelFacts({ cacheRoot: world.cache, machine: MAC_48, engine: null, env: world.env, home: world.home, servedFile: corruptFile, served: fakeServed, localModels: () => [], hosts: () => [] })
+  const row = facts.rows.find(candidate => candidate.repo === QWEN_2B_REPO)!
+  await panel.onTensorFoldAct({ kind: 'stop', row }, facts, { serve: { servedFile: corruptFile } })
+  const notice = road.tensorFoldRoadState().notice ?? ''
+  check(
+    'onTensorFoldAct stop puts the read-error sentence in the panel notice',
+    notice.startsWith('the record of what is already serving could not be read (') && notice.endsWith(') · nothing was stopped'),
+    JSON.stringify(notice),
+  )
+  unsub()
+  if (POSIX_MODES) {
+    const lockedFile = join(world.home, 'locked-served.json')
+    writeFileSync(lockedFile, '{"repo":"org/m","name":"m","port":8080,"window":32768,"pid":1,"startedAt":"2026-01-01T00:00:00Z","project":"/tmp"}\n', 'utf8')
+    chmodSync(lockedFile, 0o000)
+    const lockedResult = await serve.stopTensorFold('m', { servedFile: lockedFile }) as { warnings?: readonly string[]; readError?: string }
+    chmodSync(lockedFile, 0o600)
+    check(
+      'stopTensorFold on EACCES served.json resolves with readError',
+      typeof lockedResult?.readError === 'string' && lockedResult.readError.length > 0,
+      JSON.stringify(lockedResult),
+    )
+  }
+  const absentResult = await serve.stopTensorFold('m', { servedFile: join(world.home, 'absent.json') }) as { warnings?: readonly string[]; readError?: string }
+  check('stopTensorFold on absent served.json has no readError', absentResult?.readError === undefined, JSON.stringify(absentResult))
 }
 
 console.log(`\n${failures === 0 ? 'GREEN' : `RED (${failures})`}: prove-wider-w03`)
