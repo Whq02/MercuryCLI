@@ -85,12 +85,7 @@ export function getCheckedFileModificationTime(path: string): number {
 }
 
 export async function getFileModificationTimeAsync(path: string): Promise<number> {
-  try {
-    return Math.floor((await stat(path)).mtimeMs)
-  } catch (error) {
-    if (!isENOENT(error)) logError(error)
-    return 0
-  }
+  return Math.floor((await stat(path)).mtimeMs)
 }
 
 const ALIGNMENT_CELL_BUDGET = 4_000_000
@@ -310,7 +305,7 @@ export function writeFileAndFlushAtomically(
       logForDebugging(`atomic write: ${filePath} is a symlink; writing through to ${target}`)
     }
   } catch (error) {
-    if (!isENOENT(error)) logError(error)
+    if (!isENOENT(error)) throw error
   }
 
   let existingMode: number | undefined
