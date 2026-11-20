@@ -135,7 +135,7 @@ else {
   )
 }
 
-console.log('3. src/utils/cockpit/daemonSnapshot.ts — EPERM on pid probe reads as live')
+console.log('3. src/services/cockpit/daemonSnapshot.ts — EPERM on pid probe reads as live')
 {
   const r = runIsolated(`
     const fs = await import('node:fs')
@@ -213,7 +213,7 @@ console.log('4. src/utils/cockpit/harnessMap.ts — throwing DAP probe does not 
   )
 }
 
-console.log('5. src/utils/cockpit/healthCertSnapshot.ts — corrupt or unreadable cert reads certificate unreadable')
+console.log('5. src/services/health/healthCertSnapshot.ts — corrupt or unreadable cert reads certificate unreadable')
 {
   const r = runIsolated(`
     const fs = await import('node:fs')
@@ -259,7 +259,7 @@ console.log('5. src/utils/cockpit/healthCertSnapshot.ts — corrupt or unreadabl
   )
 }
 
-console.log('6. src/utils/cockpit/mcpGauge.ts — policy or project MCP read failure reads unavailable')
+console.log('6. src/services/cockpit/mcpGauge.ts — policy or project MCP read failure reads unavailable')
 {
   const rPolicy = runIsolated(`
     const { mock } = await import('bun:test')
@@ -423,7 +423,7 @@ else {
   )
 }
 
-console.log('10. src/utils/cockpit/daemonSnapshot.ts — unexpected failure reads daemon state unreadable')
+console.log('10. src/services/cockpit/daemonSnapshot.ts — unexpected failure reads daemon state unreadable')
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
@@ -443,7 +443,7 @@ console.log('10. src/utils/cockpit/daemonSnapshot.ts — unexpected failure read
   )
 }
 
-console.log('11. src/utils/cockpit/fleetGauge.ts — worker or execution listing failure reads fleet roster unreadable')
+console.log('11. src/services/cockpit/fleetGauge.ts — worker or execution listing failure reads fleet roster unreadable')
 {
   const rConcourse = runIsolated(`
     const { mock } = await import('bun:test')
