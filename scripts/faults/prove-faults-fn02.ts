@@ -315,11 +315,11 @@ console.log('\nFileEditToolDiff — colliding remote multi-edits fall back to pe
       out.missing = true
     } else {
       const remote = 'ssh://host/tmp/demo.txt'
-      const diff = await mod.loadDiff(remote, [
+      const shown = await mod.loadDiff(remote, [
         { old_string: 'alpha', new_string: 'beta' },
         { old_string: 'beta', new_string: 'gamma' },
       ])
-      out.hunkCount = diff.hunks.length
+      out.hunkCount = shown.hunks.length
       const noop = await mod.loadDiff(remote, [{ old_string: 'same', new_string: 'same' }])
       out.noopHunkCount = noop.hunks.length
     }
