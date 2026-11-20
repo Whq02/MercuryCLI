@@ -28,7 +28,8 @@ const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.
 
 const ROOT = join(import.meta.dir, '..', '..')
 const FIXTURE = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'zai-models-2026-10-05.json'), 'utf8')) as { data: Array<{ id: string }> }
-const LIVE_IDS_NEWEST_FIRST = 'glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-5.2,glm-5.1,glm-5-turbo,glm-5,glm-4.7,glm-4.6,glm-4.5,glm-4.5-air'
+for (const row of FIXTURE.data) if (row.id === 'glm-5-turbo') row.id = 'glm-5-unlisted'
+const LIVE_IDS_NEWEST_FIRST = 'glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-5.2,glm-5.1,glm-5-unlisted,glm-5,glm-4.7,glm-4.6,glm-4.5,glm-4.5-air'
 const FLOOR = 'glm-5.3,glm-5.3-flash,glm-5.2'
 
 let count = 0
@@ -67,34 +68,36 @@ try {
   check('the source is live and counts every row', cat.zaiCatalogueRows().source.kind === 'live' && (cat.zaiCatalogueRows().source as { count: number }).count === 11 && cat.zaiCatalogueSourceWords() === '11 models live')
   const flash = cat.zaiCatalogueRows().rows.find(row => row.id === 'glm-5.3-flash')
   check('glm-5.3-flash reads its pin: GLM-5.3-Flash, 1M window, listed live, dated by docs.z.ai chat-completion, read 2026-10-25', flash?.displayName === 'GLM-5.3-Flash' && flash.contextWindow === 1_000_000 && flash.listedLive === true && flash.liveUnknown === undefined && flash.observedAt === '2026-10-25', JSON.stringify(flash))
-  const turbo = cat.zaiCatalogueRows().rows.find(row => row.id === 'glm-5-turbo')
-  check('an id the docs never name is live and unknown: raw spelling, no window, dated by the fetch', turbo?.displayName === 'GLM-5-Turbo' && turbo.contextWindow === undefined && turbo.liveUnknown === true && /^\d{4}-\d{2}-\d{2}$/.test(turbo.observedAt), JSON.stringify(turbo))
+  const unlisted = cat.zaiCatalogueRows().rows.find(row => row.id === 'glm-5-unlisted')
+  check('an id the docs never name is live and unknown: raw spelling, no window, dated by the fetch', unlisted?.displayName === 'GLM-5-Unlisted' && unlisted.contextWindow === undefined && unlisted.liveUnknown === true && /^\d{4}-\d{2}-\d{2}$/.test(unlisted.observedAt), JSON.stringify(unlisted))
   check('cachedLiveIds names every listed id', [...cat.cachedLiveIds()].sort().join(',') === FIXTURE.data.map(row => row.id).sort().join(','))
 
   const described = router.describeZaiProvider()
   check('the account view reads live-discovery with the fetch stamp', described.catalogueSource === 'live-discovery' && described.discoveredAtMs === snapshot?.fetchedAtMs && described.catalogue.length === 11)
   const entryEfforts = (id: string): string => router.zaiCatalogueEntry(id)?.efforts.join(',') ?? '<absent>'
-  check('the catalogue carries each model its own dial: the 5.3 family low|high|max, glm-5.2 the seven levels, older ids none', entryEfforts('glm-5.3-flash') === 'low,high,max' && entryEfforts('glm-5.3-flashx') === 'low,high,max' && entryEfforts('glm-5.3') === 'low,high,max' && entryEfforts('glm-5.2') === 'max,xhigh,high,medium,low,minimal,none' && entryEfforts('glm-5.1') === '' && entryEfforts('glm-5-turbo') === '', [entryEfforts('glm-5.3-flash'), entryEfforts('glm-5.2'), entryEfforts('glm-5.1')].join(' | '))
+  check('the catalogue carries each model its own dial: the 5.3 family low|high|max, glm-5.2 the seven levels, older ids none', entryEfforts('glm-5.3-flash') === 'low,high,max' && entryEfforts('glm-5.3-flashx') === 'low,high,max' && entryEfforts('glm-5.3') === 'low,high,max' && entryEfforts('glm-5.2') === 'max,xhigh,high,medium,low,minimal,none' && entryEfforts('glm-5.1') === '' && entryEfforts('glm-5-unlisted') === '', [entryEfforts('glm-5.3-flash'), entryEfforts('glm-5.2'), entryEfforts('glm-5.1')].join(' | '))
   check('the exact-id road finds a listed id and its window; an unlisted id is absent', router.zaiCatalogueEntry('glm-5.1')?.contextWindow === 200_000 && router.zaiCatalogueEntry('GLM-5.3-Flash')?.displayLabel === 'GLM-5.3-Flash' && router.zaiCatalogueEntry('glm-9') === undefined)
   check('the seat listing offers every listed row', router.listZaiModels().map(row => row.ref.model).join(',') === LIVE_IDS_NEWEST_FIRST)
 
   check('the picker state reads live 11 and the pins are the rows', keyLaneListState('zai').kind === 'live' && keyLanePins('zai').length === 11 && keyLanePins('zai').every(pin => pin.listedLive === true))
   const options = glmRows()
-  check('/model offers every listed model under the GLM group, selectable, the known rows in list order and the unknown one last', ids(options.map(row => ({ id: row.value }))) === 'glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-5.2,glm-5.1,glm-5,glm-4.7,glm-4.6,glm-4.5,glm-4.5-air,glm-5-turbo' && options.every(row => row.unavailable === undefined), ids(options.map(row => ({ id: row.value }))))
+  check('/model offers every listed model under the GLM group, selectable, the known rows in list order and the unknown one last', ids(options.map(row => ({ id: row.value }))) === 'glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-5.2,glm-5.1,glm-5,glm-4.7,glm-4.6,glm-4.5,glm-4.5-air,glm-5-unlisted' && options.every(row => row.unavailable === undefined), ids(options.map(row => ({ id: row.value }))))
   const flashRow = options.find(row => row.value === 'glm-5.3-flash')
   check('the flash row paints its name and 1M window', flashRow?.label === 'GLM-5.3-Flash' && flashRow.statedContextWindow === 1_000_000 && flashRow.description === '', JSON.stringify(flashRow))
-  const turboRow = options.find(row => row.value === 'glm-5-turbo')
-  check('the unknown live row says so and paints no window', turboRow?.description === LIVE_UNKNOWN_ROW_WORDS && turboRow.liveUnknown === true && turboRow.statedContextWindow === undefined, JSON.stringify(turboRow))
+  const unlistedRow = options.find(row => row.value === 'glm-5-unlisted')
+  check('the unknown live row says so and paints no window', unlistedRow?.description === LIVE_UNKNOWN_ROW_WORDS && unlistedRow.liveUnknown === true && unlistedRow.statedContextWindow === undefined, JSON.stringify(unlistedRow))
 
   const vocabulary = effortVocabularyFor('glm-5.3-flash')
   check('the capability edge offers the flash dial from the same table', vocabulary.kind === 'provider' && vocabulary.source === 'glm' && vocabulary.vocabulary.join(',') === 'low,high,max' && vocabulary.thinkingGated === false, JSON.stringify(vocabulary))
   check('thinking is locked on for the whole 5.3 family and free below it', pins.glmThinkingLocked('glm-5.3-flash') && pins.glmThinkingLocked('glm-5.3-flashx') && pins.glmThinkingLocked('glm-5.3') && !pins.glmThinkingLocked('glm-5.2') && !pins.glmThinkingLocked('glm-5-turbo'))
-  check('an undocumented live id offers no dial', effortVocabularyFor('glm-5-turbo').kind === 'none')
+  check('an undocumented live id offers no dial', effortVocabularyFor('glm-5-unlisted').kind === 'none')
   const window = resolveContextWindow('glm-5.3-flash')
   check('the flash window is the documented 1M, as a dated pin', window.effectiveWindow === 1_000_000 && window.source === 'static-pin', JSON.stringify(window))
   check('an older documented id keeps its own window', resolveContextWindow('glm-5.1').effectiveWindow === 200_000 && resolveContextWindow('glm-4.5-air').effectiveWindow === 128_000)
-  check('the unknown live id budgets the conservative default, never an invented window', resolveContextWindow('glm-5-turbo').effectiveWindow === 200_000 && resolveContextWindow('glm-5-turbo').source !== 'static-pin', JSON.stringify(resolveContextWindow('glm-5-turbo')))
-  check("the flash price is the page's current rate; FlashX is priced; the unknown id stays unpriced", resolveModelPricing('glm-5.3-flash').costs.inputTokens === 0.15 && resolveModelPricing('glm-5.3-flash').costs.outputTokens === 0.5 && resolveModelPricing('glm-5.3-flashx').costs.inputTokens === 0.37 && resolveModelPricing('glm-5-turbo').basis === 'unpriced', JSON.stringify(resolveModelPricing('glm-5.3-flash')))
+  check('the unknown live id budgets the conservative default, never an invented window', resolveContextWindow('glm-5-unlisted').effectiveWindow === 200_000 && resolveContextWindow('glm-5-unlisted').source !== 'static-pin', JSON.stringify(resolveContextWindow('glm-5-unlisted')))
+  check("the flash price is the page's current rate; FlashX is priced; the unknown id stays unpriced", resolveModelPricing('glm-5.3-flash').costs.inputTokens === 0.15 && resolveModelPricing('glm-5.3-flash').costs.outputTokens === 0.5 && resolveModelPricing('glm-5.3-flashx').costs.inputTokens === 0.37 && resolveModelPricing('glm-5-unlisted').basis === 'unpriced', JSON.stringify(resolveModelPricing('glm-5.3-flash')))
+  const turbo = pins.GLM_DISPLAY_PINS.find(pin => pin.id === 'glm-5-turbo')
+  check('glm-5-turbo has its own row: GLM-5-Turbo, the 200K window and the 128K output its page states (docs.z.ai/guides/llm/glm-5-turbo, read 2026-11-20; the API reference writes 128K as 131072), no dial, and no price, since no Z.AI page prints one', turbo?.displayName === 'GLM-5-Turbo' && turbo.contextWindow === 200_000 && turbo.outputMax === 131_072 && turbo.observedAt === '2026-11-20' && resolveContextWindow('glm-5-turbo').effectiveWindow === 200_000 && resolveContextWindow('glm-5-turbo').source === 'static-pin' && effortVocabularyFor('glm-5-turbo').kind === 'none' && resolveModelPricing('glm-5-turbo').basis === 'unpriced' && pins.GLM_PRICE_PINS.every(pin => pin.id !== 'glm-5-turbo'), JSON.stringify([turbo, resolveContextWindow('glm-5-turbo')]))
   check('every price pin cites the page and its read date', pins.GLM_PRICE_PINS.every(pin => pin.source === pins.GLM_PRICING_PAGE && /^\d{4}-\d{2}-\d{2}$/.test(pin.observedAt)))
 
   check("the family word 'glm' is the newest live row, and the frontier fact names that row with no pin date while the list is live", parseUserSpecifiedModel('glm') === 'glm-5.3' && declaredRouteOf('glm-5.3-flash') === 'zai' && JSON.stringify(providerFrontierFact('zai')) === JSON.stringify({ modelId: 'glm-5.3', displayName: 'GLM-5.3' }) && cat.zaiCatalogueSourceWords() === '11 models live', JSON.stringify(providerFrontierFact('zai')))
