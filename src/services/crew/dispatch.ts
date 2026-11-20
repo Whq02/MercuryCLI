@@ -13,6 +13,7 @@ import {
   type SeatDeliveryOutcome,
 } from './seatBridge.js'
 import { isRecord } from '../../utils/isRecord.js'
+import type { CrewConversationId } from './conversations.js'
 
 export const DELIVERY_STATES = ['delivered', 'not-delivered', 'delivery-unknown'] as const
 export type DeliveryState = (typeof DELIVERY_STATES)[number]
@@ -35,7 +36,7 @@ export interface DispatchAttachment {
 
 export interface DispatchDraftV1 {
   clientMessageId: string
-  sourceConversationId?: string
+  sourceConversationId?: CrewConversationId
   requestedAddress: AgentAddressV1
   requestedDisposition: DispatchDisposition
   instruction: string
@@ -52,7 +53,7 @@ export interface DeliveryReceiptV1 {
   schema: 1
   clientMessageId: string
   state: DeliveryState
-  sourceConversationId?: string
+  sourceConversationId?: CrewConversationId
   requestedAddress: AgentAddressV1
   requestedDisposition: DispatchDisposition
   resolvedAgentId?: CrewAgentId
@@ -321,7 +322,7 @@ async function runDispatchTransaction(
       const ref = `receipt:${receipt.clientMessageId}`
       if (receipt.state === 'delivered') {
         await conversations.appendConversationEvent(
-          draft.sourceConversationId as never,
+          draft.sourceConversationId,
           {
             kind: 'delivery',
             ref,
@@ -330,14 +331,14 @@ async function runDispatchTransaction(
           dir !== undefined ? { dir } : undefined,
         )
         await conversations.resolveEventByRef(
-          draft.sourceConversationId as never,
+          draft.sourceConversationId,
           'failure',
           ref,
           dir !== undefined ? { dir } : undefined,
         )
       } else {
         await conversations.upsertUnresolvedEvent(
-          draft.sourceConversationId as never,
+          draft.sourceConversationId,
           {
             kind: 'failure',
             ref,

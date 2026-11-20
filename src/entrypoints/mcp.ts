@@ -90,8 +90,8 @@ export async function startMCPServer(
         const wire: McpTool = {
           name: tool.name,
           description,
-          inputSchema: inputSchema as unknown as McpTool['inputSchema'],
-          ...(outputSchema !== undefined ? { outputSchema: outputSchema as unknown as McpTool['outputSchema'] } : {}),
+          inputSchema: inputSchema as McpTool['inputSchema'],
+          ...(outputSchema !== undefined ? { outputSchema: outputSchema as McpTool['outputSchema'] } : {}),
         }
         return wire
       }),
@@ -146,7 +146,7 @@ export async function startMCPServer(
         throw new Error(`CapabilityKilled: ${tool.name}`)
       }
       const validation = tool.validateInput
-        ? await tool.validateInput(args as never, toolUseContext)
+        ? await tool.validateInput(args, toolUseContext)
         : undefined
       if (validation && typeof validation === 'object' && validation.result === false) {
         throw new Error(

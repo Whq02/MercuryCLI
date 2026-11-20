@@ -37,7 +37,7 @@ export function useConcourseEntry({
             workspaceDir: '',
             targetSessionId: sessionId,
             by: 'operator',
-          } as never,
+          },
           { timeoutMs: 15_000 },
         )) as { ok?: boolean; refusal?: string }
         if (reply.ok === true) {

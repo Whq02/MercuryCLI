@@ -160,7 +160,7 @@ export async function matchHooks(
 ): Promise<MatchedHook[]> {
   try {
     const candidates = hooksFor(event, scope, options.appState)
-    const fields = payload as unknown as Record<string, unknown>
+    const fields: Record<string, unknown> = payload
     const value = hookMatchValue(event, fields)
     const matching = await Promise.all(candidates.map(async hook => hook.entry.match === undefined || value === undefined || await matchesPattern(value, hook.entry.match, fields.input)))
     const result = dedupeHooks(candidates.filter((_, i) => matching[i])).filter(hook => !isHookSpent(hook.id, scope))

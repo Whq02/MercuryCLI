@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import lock from '../../vendor/embed-models.lock.json' with { type: 'json' }
@@ -293,7 +294,7 @@ export async function downloadEmbedModel(
       out.on('close', () => resolveDone())
     })
     try {
-      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+      for await (const chunk of res.body as WebReadableStream<Uint8Array>) {
         received += chunk.byteLength
         if (received > row.bytes) throw new Error(`the download of ${row.file} grew past the ${row.bytes} bytes the lock pins — the file changed upstream`)
         hash.update(chunk)
