@@ -1,7 +1,6 @@
 import shippedManifests from '../../../assets/host/weights.json' with { type: 'json' }
 import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, statfsSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, posix, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
@@ -16,7 +15,8 @@ import { hostRecipeSchema, hostWeightManifestSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
 import { fastLoadEstimate, keptVolumes, matchesVolume, vastVolumeBilling, volumeModel, type KeptVolume } from './volumes.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { mountedVolumeRoots, userHomeDir } from '../../utils/platform/files.js'
+import { hostScriptDialect } from '../../utils/platform/spawn.js'
 
 const bankedModelSchema = z.object({
   path: z.string(), bytes: z.number().nonnegative(), verifiedAt: z.string().optional(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -31,7 +31,7 @@ export interface BankState { folder?: string; path?: string; banked: boolean; se
 interface BankReceipt { sha256: string; bytes: number; files: number; check: 'manifest' | 'download'; at: string }
 export const BANK_DOOR = 'Bank · your weights'
 const registryPath = (): string => join(hostDirectory(), 'bank.json')
-const homeDirectory = (): string => process.platform === 'win32' ? homedir() : hostEnv().HOME?.trim() || homedir()
+const homeDirectory = (): string => userHomeDir()
 const isDirectory = (path: string): boolean => {
   try { return statSync(path).isDirectory() } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
@@ -75,9 +75,9 @@ export function bankedHostRecipes(folder = bankFolder()): HostRecipe[] {
 }
 export function bankCandidates(): string[] {
   const home = homeDirectory()
-  if (process.platform === 'win32' || isProofShapeRun()) return [join(home, 'mercury-model-bank'), join(home, 'models')]
+  const roots = isProofShapeRun() ? [] : mountedVolumeRoots()
   const mounted = (root: string): string[] => { try { return readdirSync(root).sort().map(name => join(root, name, 'mercury-model-bank')) } catch (error) { passedOver(error); return [] } }
-  return [join(home, 'mercury-model-bank'), join(home, 'models'), ...mounted('/Volumes'), ...mounted('/mnt')]
+  return [join(home, 'mercury-model-bank'), join(home, 'models'), ...roots.flatMap(mounted)]
 }
 export const bankCandidateWords = (): string => process.platform === 'win32' ? '~\\mercury-model-bank or ~\\models' : '~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank'
 export function bankFolder(): string | undefined {
@@ -294,7 +294,7 @@ export function bankDownloadPlan(recipe: HostRecipe): { revision?: string; inclu
   if (recipe.weightFile) return { include: [posix.dirname(recipe.weightFile) === '.' ? '*.gguf' : posix.dirname(recipe.weightFile) + '/*'] }
   return { include: [] }
 }
-export function bankDownloadScript(recipe: HostRecipe, path: string, windows = process.platform === 'win32'): string {
+export function bankDownloadScript(recipe: HostRecipe, path: string, windows = hostScriptDialect() === 'powershell'): string {
   const plan = bankDownloadPlan(recipe)
   const home = homeDirectory()
   if (windows) {

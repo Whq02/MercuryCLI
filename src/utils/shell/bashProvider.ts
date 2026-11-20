@@ -16,6 +16,8 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPlatform } from '../platform.js'
+import { rememberedPlatform } from '../platform/host.js'
+import { childGetsOwnProcessGroup } from '../platform/processes.js'
 import { WINDOWS_STARTS_A_PROGRAM_IN, folderWindowsStartsIn, windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
 import { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
@@ -64,7 +66,7 @@ export async function createBashShellProvider(
     type: 'bash',
     shellPath,
     origin: record.origin,
-    detached: getPlatform() !== 'windows',
+    detached: childGetsOwnProcessGroup(rememberedPlatform()),
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       let snapshot = snapshotPath

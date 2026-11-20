@@ -12,7 +12,7 @@ import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
-import { sleep } from './sleep.js'
+import { pollUntil, withDeadline } from './deadline.js'
 import { passedOver } from './passedOver.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from './timers.js'
 
@@ -490,18 +490,12 @@ export async function gracefulShutdown(
   runResumeHint()
 
   const cleanupRun = runCleanupFunctions()
-  let cleanupTimeout: ReturnType<typeof setTimeout> | undefined
   try {
-    await Promise.race([
-      cleanupRun,
-      new Promise<void>((_, reject) => {
-        cleanupTimeout = startTimeout(() => reject(new Error('cleanup timed out')), CLEANUP_TIMEOUT_MS)
-      }),
-    ])
+    await withDeadline(cleanupRun, CLEANUP_TIMEOUT_MS, () => {
+      throw new Error('cleanup timed out')
+    })
   } catch (err) {
     logForDebugging(`gracefulShutdown: a cleanup failed or passed its ${CLEANUP_TIMEOUT_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
-  } finally {
-    if (cleanupTimeout) stopTimeout(cleanupTimeout)
   }
 
   try {
@@ -597,18 +591,12 @@ export async function crashShutdown(exitCode: number): Promise<void> {
   runResumeHint()
 
   const cleanupRun = runCleanupFunctions()
-  let cleanupTimeout: ReturnType<typeof setTimeout> | undefined
   try {
-    await Promise.race([
-      cleanupRun,
-      new Promise<void>((_, reject) => {
-        cleanupTimeout = startTimeout(() => reject(new Error('crash cleanup timed out')), CRASH_CLEANUP_CAP_MS)
-      }),
-    ])
+    await withDeadline(cleanupRun, CRASH_CLEANUP_CAP_MS, () => {
+      throw new Error('crash cleanup timed out')
+    })
   } catch (err) {
     logForDebugging(`crashShutdown: a cleanup failed or passed its ${CRASH_CLEANUP_CAP_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
-  } finally {
-    if (cleanupTimeout) stopTimeout(cleanupTimeout)
   }
 
   try {
@@ -629,25 +617,22 @@ export async function quiesceCleanupBeforeExit(
   cleanupRun: Promise<unknown>,
   graceMs: number = EXIT_QUIESCENCE_MS,
 ): Promise<void> {
-  let grace: ReturnType<typeof setTimeout> | undefined
-  try {
-    await Promise.race([
-      cleanupRun.catch(passedOver),
-      new Promise<void>(resolveGrace => {
-        grace = startTimeout(resolveGrace, graceMs)
-      }),
-    ])
-  } finally {
-    if (grace) stopTimeout(grace)
-  }
+  await withDeadline(cleanupRun.catch(passedOver), graceMs, () => undefined)
 }
 
 type PressureObserved = { writableLength: number; write(...args: unknown[]): boolean; on(event: 'drain' | 'error', listener: (...args: unknown[]) => void): unknown }
-const stdoutPressure = new WeakMap<object, { pending: boolean; readerGone: boolean }>()
+type PressureState = { pending: boolean; readerGone: boolean; waiters: Set<() => void> }
+const stdoutPressure = new WeakMap<object, PressureState>()
+
+function wakePressureWaiters(pressure: PressureState): void {
+  const waiters = [...pressure.waiters]
+  pressure.waiters.clear()
+  for (const wake of waiters) wake()
+}
 
 export function observeStdoutPressure(stdout: PressureObserved = process.stdout): void {
   if (stdoutPressure.has(stdout)) return
-  const pressure = { pending: false, readerGone: false }
+  const pressure: PressureState = { pending: false, readerGone: false, waiters: new Set() }
   stdoutPressure.set(stdout, pressure)
   const write = stdout.write
   stdout.write = function (this: PressureObserved, ...args: unknown[]): boolean {
@@ -657,21 +642,81 @@ export function observeStdoutPressure(stdout: PressureObserved = process.stdout)
   }
   stdout.on('drain', () => {
     pressure.pending = false
+    wakePressureWaiters(pressure)
   })
   stdout.on('error', error => {
-    if (isPeerGoneWriteError(error)) pressure.readerGone = true
+    if (isPeerGoneWriteError(error)) {
+      pressure.readerGone = true
+      wakePressureWaiters(pressure)
+    }
+  })
+}
+
+type DrainableStdout = {
+  isTTY?: boolean
+  writableLength: number
+  destroyed?: boolean
+  writable?: boolean
+  on?(event: 'drain' | 'close' | 'error' | 'finish', listener: (...args: unknown[]) => void): unknown
+  off?(event: 'drain' | 'close' | 'error' | 'finish', listener: (...args: unknown[]) => void): unknown
+  removeListener?(event: 'drain' | 'close' | 'error' | 'finish', listener: (...args: unknown[]) => void): unknown
+}
+
+const STDOUT_DRAIN_POLL_MS = 10
+
+function waitForStdoutEvent(
+  stdout: DrainableStdout,
+  pressure: PressureState | undefined,
+  pollMs: number,
+): Promise<void> {
+  const remove = stdout.off?.bind(stdout) ?? stdout.removeListener?.bind(stdout)
+  const canListen = typeof stdout.on === 'function' && remove !== undefined
+  if (!canListen && pressure === undefined) return Promise.resolve()
+  let cleanup = (): void => {}
+  const eventWake = new Promise<void>(resolve => {
+    let settled = false
+    const wake = (): void => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve()
+    }
+    const events = ['drain', 'close', 'error', 'finish'] as const
+    cleanup = (): void => {
+      pressure?.waiters.delete(wake)
+      if (canListen) {
+        for (const event of events) remove(event, wake)
+      }
+    }
+    pressure?.waiters.add(wake)
+    if (canListen) {
+      for (const event of events) stdout.on!(event, wake)
+    }
+  })
+  return withDeadline(eventWake, pollMs, () => {
+    cleanup()
   })
 }
 
 export async function drainPipedStdoutForExit(
-  stdout: { isTTY?: boolean; writableLength: number; destroyed?: boolean; writable?: boolean } = process.stdout,
+  stdout: DrainableStdout = process.stdout,
+  pollMs: number = STDOUT_DRAIN_POLL_MS,
 ): Promise<{ drained: boolean; remainingBytes: number }> {
   if (stdout.isTTY) return { drained: true, remainingBytes: 0 }
-  const readerGone = (): boolean => stdoutPressure.get(stdout)?.readerGone === true
+  const pressure = stdoutPressure.get(stdout)
+  const readerGone = (): boolean => pressure?.readerGone === true
   const readerAlive = (): boolean => !readerGone() && stdout.destroyed !== true && stdout.writable !== false
-  const pressured = (): boolean => stdoutPressure.get(stdout)?.pending === true
-  while ((stdout.writableLength > 0 || pressured()) && readerAlive()) {
-    await sleep(10)
+  const pressured = (): boolean => pressure?.pending === true
+  const waiting = (): boolean => (stdout.writableLength > 0 || pressured()) && readerAlive()
+  const canWaitEvent = pressure !== undefined || (typeof stdout.on === 'function' && (typeof stdout.off === 'function' || typeof stdout.removeListener === 'function'))
+  if (waiting()) {
+    if (canWaitEvent) {
+      while (waiting()) {
+        await waitForStdoutEvent(stdout, pressure, pollMs)
+      }
+    } else {
+      await pollUntil(() => (waiting() ? undefined : true), pollMs, Infinity, () => true)
+    }
   }
   const remainingBytes = stdout.writableLength
   const drained = remainingBytes === 0 && !pressured() && !readerGone()

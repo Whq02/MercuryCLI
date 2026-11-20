@@ -7,9 +7,10 @@ import type { HostBox } from './boxes.js'
 import { psQuote, shQuote } from './boxExecution.js'
 import { boxServiceRunning, controlBoxService, installBoxService, readBoxService, writeBoxService, type BoxServiceRecord } from './boxService.js'
 import { hostRunner, sshArguments, type HostRunner } from './ssh.js'
+import { hostOsFamily } from '../../utils/platform/programs.js'
 
 function boxTunnelHome(box: HostBox): HostBox {
-  const os = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux'
+  const os = hostOsFamily()
   return { name: 'link-' + createHash('sha256').update(box.name).digest('hex').slice(0, 20), kind: 'this-computer', os, home: homedir(), arch: arch(), uid: process.getuid?.(), memoryGb: totalmem() / 1024 ** 3, unifiedMemory: os === 'darwin' && arch() === 'arm64', gpus: [], engines: [], bankPaths: [], discoveredAt: new Date().toISOString() }
 }
 function boxTunnelScript(box: HostBox, record: BoxServiceRecord, local: HostBox): string {

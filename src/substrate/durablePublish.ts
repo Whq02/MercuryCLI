@@ -15,6 +15,7 @@ import { mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, dirname, join } from 'node:path'
 import { passedOver } from '../utils/passedOver.js'
+import { dirFsyncErrorIsFatal, heldFileRetryDelayMs } from '../utils/platform/files.js'
 import { sleepSync } from '../utils/timers.js'
 
 export type PublishFailurePhase =
@@ -107,10 +108,7 @@ export function renameRetryDelayMs(
   attempt: number,
   platform: NodeJS.Platform = process.platform,
 ): number | null {
-  if (platform !== 'win32') return null
-  if (!isTransientWin32FsCode(code)) return null
-  if (attempt < 1 || attempt > WIN32_RENAME_RETRY_DELAYS_MS.length) return null
-  return WIN32_RENAME_RETRY_DELAYS_MS[attempt - 1]!
+  return heldFileRetryDelayMs(code, attempt, platform)
 }
 
 function isReadOnlyDestination(to: string): boolean {
@@ -339,7 +337,7 @@ export async function durableAtomicPublish(
         await dh.close()
       }
     } catch (e) {
-      if (isFaultInjection(e) || (process.platform !== 'win32' && !isDirFsyncUnsupported(e))) {
+      if (isFaultInjection(e) || dirFsyncErrorIsFatal(e)) {
         throw new DurablePublishError('flush-dir', path, e, {
           fsCode: errnoOf(e),
           attempts: renameAttempts,
@@ -428,7 +426,7 @@ export function durableAtomicPublishSync(
         closeSync(dfd)
       }
     } catch (e) {
-      if (isFaultInjection(e) || (process.platform !== 'win32' && !isDirFsyncUnsupported(e))) {
+      if (isFaultInjection(e) || dirFsyncErrorIsFatal(e)) {
         throw new DurablePublishError('flush-dir', path, e, {
           fsCode: errnoOf(e),
           attempts: renameAttempts,
@@ -448,16 +446,4 @@ export function durableAtomicPublishSync(
 
 function isFaultInjection(e: unknown): boolean {
   return e instanceof Error && e.message.startsWith('injected fault at ')
-}
-
-function isDirFsyncUnsupported(e: unknown): boolean {
-  const code = (e as { code?: string })?.code
-  return (
-    code === 'EISDIR' ||
-    code === 'EPERM' ||
-    code === 'EACCES' ||
-    code === 'EINVAL' ||
-    code === 'ENOTSUP' ||
-    code === 'EBADF'
-  )
 }

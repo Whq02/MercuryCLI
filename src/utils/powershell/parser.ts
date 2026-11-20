@@ -4,6 +4,7 @@ import { memoizeWithLRU } from '../memoize.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
+import { commandByteBudget } from '../platform/spawn.js'
 
 
 type ElementClass =
@@ -129,9 +130,6 @@ const NON_WINDOWS_BUDGET = 4500
 const PARSE_SCRIPT_BODY = buildAnalysisProgramBody()
 
 const WINDOWS_MAX_COMMAND_LENGTH = computeWindowsBudget()
-
-const MAX_COMMAND_LENGTH = process.platform === 'win32' ? WINDOWS_MAX_COMMAND_LENGTH : NON_WINDOWS_BUDGET
-
 function computeWindowsBudget(): number {
   const programCharBudget = ((WINDOWS_ARGV_CAP - ARGV_OVERHEAD) * 3) / 8
   const remainder = programCharBudget - PARSE_SCRIPT_BODY.length - ASSIGNMENT_OVERHEAD
@@ -454,13 +452,14 @@ async function runAnalysis(
 }
 
 const parseImpl = async (command: string): Promise<ParsedPowerShellCommand> => {
+  const maxCommandLength = commandByteBudget(WINDOWS_MAX_COMMAND_LENGTH, NON_WINDOWS_BUDGET)
   const byteLength = utf8ByteLength(command)
-  if (byteLength > MAX_COMMAND_LENGTH) {
-    logForDebugging(`PowerShell command too long: ${byteLength} bytes > ${MAX_COMMAND_LENGTH}`)
+  if (byteLength > maxCommandLength) {
+    logForDebugging(`PowerShell command too long: ${byteLength} bytes > ${maxCommandLength}`)
     return invalidResult(
       command,
       'CommandTooLong',
-      `Command is ${byteLength} bytes; the maximum is ${MAX_COMMAND_LENGTH} bytes.`,
+      `Command is ${byteLength} bytes; the maximum is ${maxCommandLength} bytes.`,
     )
   }
   const pwshPath = await getCachedPowerShellPath()

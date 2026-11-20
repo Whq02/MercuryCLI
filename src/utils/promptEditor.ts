@@ -10,7 +10,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage } from './errors.js'
 import { classifyGuiEditor, editorDisplayName, editorRefusalLine, resolveExternalEditor, shownEditorValue, type EditorVariable } from './editor.js'
-import { parseLegacyCommandString } from './resolvedInvocation.js'
+import { editorInvocationOf, editorShellCommandLine, promptEditorSpawnSpec } from './platform/spawn.js'
 import { generateTempFilePath } from './tempfile.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { passedOver } from './passedOver.js'
@@ -67,14 +67,11 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   const isTerminalEditor = guiEditorName === undefined
 
   const editorCommand = WAIT_FLAG_OVERRIDES[editor.trim()] ?? editor
-  const invocation = process.platform === 'win32' && editorCommand === editor
-    ? { executablePath: resolved.executable, args: resolved.args }
-    : parseLegacyCommandString(editorCommand)
+  const invocation = editorInvocationOf(editor, editorCommand, resolved)
   const editorExe = invocation.executablePath
   if (editorExe === '') {
     return { content: null }
   }
-  const commandLine = editorCommandLine(editorExe, invocation.args, filePath)
 
   try {
     await instance.awaitTerminalQueries()
@@ -86,22 +83,20 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
     }
     try {
       const exitCode = await new Promise<number | null>((resolveExit, rejectExit) => {
-        const child =
-          process.platform === 'win32'
-            ? (() => {
-                const spec = windowsEditorSpawn(
-                  editorExe,
-                  invocation.args,
-                  hostEnv().ComSpec || hostEnv().COMSPEC || 'cmd.exe',
-                )
-                return spawn(spec.file, spec.args, {
-                  windowsHide: false,
-                  windowsVerbatimArguments: spec.windowsVerbatimArguments,
-                  stdio: 'inherit',
-                  env: { ...subprocessEnv(), MERCURY_EDITOR_FILE: filePath },
-                })
-              })()
-            : spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
+        const spec = promptEditorSpawnSpec(
+          editorExe,
+          invocation.args,
+          filePath,
+          hostEnv().ComSpec || hostEnv().COMSPEC || 'cmd.exe',
+        )
+        const child = spec.shell
+          ? spawn(spec.commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
+          : spawn(spec.file, spec.args, {
+              windowsHide: false,
+              windowsVerbatimArguments: spec.windowsVerbatimArguments,
+              stdio: 'inherit',
+              env: { ...subprocessEnv(), ...spec.extraEnv },
+            })
         child.once('error', rejectExit)
         child.once('exit', code => resolveExit(code))
       })
@@ -128,31 +123,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
 }
 
 export function editorCommandLine(editorExe: string, args: readonly string[], filePath: string, platform: NodeJS.Platform = process.platform): string {
-  const quotedPath = platform === 'win32' ? '"%MERCURY_EDITOR_FILE%"' : `'${filePath.replaceAll("'", `'\\''`)}'`
-  return [`"${editorExe}"`, ...args.map(arg => `"${arg}"`), quotedPath].join(' ')
-}
-
-function windowsEditorSpawn(
-  editorExe: string,
-  args: readonly string[],
-  comSpec: string,
-): { file: string; args: string[]; windowsVerbatimArguments: boolean } {
-  const interpreter = comSpec.trim().replace(/^"+|"+$/g, '') || 'cmd.exe'
-  if (/(?:^|[\\/])(?:pwsh|powershell)(?:\.exe)?$/i.test(interpreter)) {
-    const psQuote = (s: string): string => `'${s.replaceAll("'", "''")}'`
-    const psArgs = args.map(arg => ` ${psQuote(arg)}`).join('')
-    return {
-      file: interpreter,
-      args: ['-NoLogo', '-NoProfile', '-Command', `& ${psQuote(editorExe)}${psArgs} $env:MERCURY_EDITOR_FILE`],
-      windowsVerbatimArguments: false,
-    }
-  }
-  const cmdLine = editorCommandLine(editorExe, args, '', 'win32')
-  return {
-    file: interpreter,
-    args: ['/d', '/v:off', '/s', '/c', `"${cmdLine}"`],
-    windowsVerbatimArguments: true,
-  }
+  return editorShellCommandLine(editorExe, args, filePath, platform)
 }
 
 function editorNamed(variable: EditorVariable, value: string, executable: string): string {

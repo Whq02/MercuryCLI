@@ -7,6 +7,7 @@ import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { whichSync } from './which.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
+import { normalizedOsPlatform } from './platform/programs.js'
 
 
 export function globalConfigFileIn(home: string): string {
@@ -39,9 +40,7 @@ const JETBRAINS_IDES: string[] = [
 type NormalizedPlatform = 'win32' | 'darwin' | 'linux'
 
 function normalizedPlatform(): NormalizedPlatform {
-  if (process.platform === 'win32') return 'win32'
-  if (process.platform === 'darwin') return 'darwin'
-  return 'linux'
+  return normalizedOsPlatform()
 }
 
 function isSshSession(): boolean {

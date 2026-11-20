@@ -1,6 +1,7 @@
 import type { Transfer } from '../../../services/browser/browserTransfers.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
-import { type LiveSession, bounded, bytesWords } from './page.js'
+import { type LiveSession, bytesWords } from './page.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export const DOWNLOADS_NOT_FOLLOWED = 'downloads are not followed here; fetch the file with WebFetch or Bash instead'
@@ -62,6 +63,6 @@ export async function downloadSought(s: LiveSession, before: number, timeoutMs: 
   if (s.downloads.count === before || began === null) {
     return `\n  note: ${interrupted ? 'the wait for a download was interrupted' : `no download has begun in ${budget >= 1000 ? `${Math.round(budget / 1000)} s` : `${budget} ms`}`} — this tab stays followed: one that begins later is saved and named in the next answer on it`
   }
-  await Promise.race([began.transfer?.done ?? began.done, bounded(1000)])
+  await withDeadline(began.transfer?.done ?? began.done, 1000, () => {}, { signal, onAbort: () => {}, unref: true })
   return `\n  note: the page started ${downloadWords(began)}`
 }

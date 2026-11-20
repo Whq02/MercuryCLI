@@ -4,14 +4,11 @@ import { getMnemeHome, getMemoryBaseDir, isMnemeEnabled, isMnemePath } from '../
 import { isAgentMemoryPath } from '../tools/AgentTool/agentMemory.js'
 import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { getMercuryHome } from './envUtils.js'
-import { posixPathToWindowsPath, windowsPathToPosixPath } from './windowsPaths.js'
+import { foldPathCase, hostPathSpellings, msysDrivePathToNative } from './platform/paths.js'
 
-
-const isWindows = process.platform === 'win32'
 
 function comparable(path: string): string {
-  const slashed = path.replace(/\\/g, '/')
-  return isWindows ? slashed.toLowerCase() : slashed
+  return foldPathCase(path.replace(/\\/g, '/'))
 }
 
 function comparableNormalized(path: string): string {
@@ -82,28 +79,18 @@ export function isMemoryDirectory(dirPath: string): boolean {
 }
 
 
-function toMingw(path: string): string {
-  const posix = windowsPathToPosixPath(path) as string
-  return comparable(posix)
-}
-
 const PATH_TOKEN = /(?:[A-Za-z]:[\\/]|\/)[^\s"'`]*/g
 
 export function isShellCommandTargetingMemory(command: string): boolean {
   const normalizedCommand = comparable(command)
   const roots = [getMercuryHome(), getMemoryBaseDir(), getMnemeHome()]
-  const mentioned = roots.some(root => {
-    if (normalizedCommand.includes(comparable(root))) return true
-    if (isWindows && normalizedCommand.includes(toMingw(root))) return true
-    return false
-  })
+  const mentioned = roots.some(root =>
+    hostPathSpellings(root).some(spelling => normalizedCommand.includes(comparable(spelling))),
+  )
   if (!mentioned) return false
   const tokens = command.match(PATH_TOKEN) ?? []
   for (const rawToken of tokens) {
-    let token = rawToken.replace(/[,;|&>]+$/, '')
-    if (isWindows && /^\/[A-Za-z](\/|$)/.test(token)) {
-      token = posixPathToWindowsPath(token) as string
-    }
+    const token = msysDrivePathToNative(rawToken.replace(/[,;|&>]+$/, ''), true)
     if (isAutoManagedMemoryFile(token) || isMemoryDirectory(token)) return true
   }
   return false

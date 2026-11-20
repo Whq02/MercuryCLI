@@ -27,7 +27,7 @@ import {
 } from './gptPins.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
-import { startTimeout, stopTimeout } from '../../../utils/timers.js'
+import { withDeadline } from '../../../utils/deadline.js'
 
 export {
   GPT_DISPLAY_PINS,
@@ -149,15 +149,12 @@ export async function readOpenaiCatalogueIfPending(opts?: { boundMs?: number; fo
   if (!account || !catalogueTrafficVerdict('openai').allowed) return false
   const cached = getCachedOpenaiCatalogue(account.kind)
   if (cached && (cached.models.length > 0 || !cached.lastError)) return false
-  let timer: ReturnType<typeof setTimeout> | undefined
-  await Promise.race([
+  await withDeadline(
     refreshOpenaiCatalogue(account.kind, { force: opts?.force === true }).catch(passedOverAs(null)),
-    new Promise<void>(resolve => {
-      timer = startTimeout(resolve, opts?.boundMs ?? OPENAI_ADMISSION_READ_BOUND_MS)
-      timer.unref?.()
-    }),
-  ])
-  stopTimeout(timer)
+    opts?.boundMs ?? OPENAI_ADMISSION_READ_BOUND_MS,
+    () => undefined,
+    { unref: true },
+  )
   return true
 }
 

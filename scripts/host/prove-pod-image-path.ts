@@ -7,6 +7,10 @@ import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
 import type { HostRunner } from '../../src/services/host/ssh.ts'
 
 pinSourceRef()
+if (process.platform === 'win32') {
+  console.log('not read on Windows: Linux pod launch script uses /proc/1/environ and POSIX PATH')
+  process.exit(0)
+}
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'image-path-'))

@@ -1,7 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { connect as netConnect, type Socket } from 'node:net'
 import { logForDebugging } from '../../../utils/debug.js'
-import { sleep } from '../../../utils/sleep.js'
+import { pollUntil } from '../../../utils/deadline.js'
 import { DapCancelledError, dapDeadline } from '../dapCancellation.js'
 import type { Pending } from './shared.js'
 
@@ -32,22 +32,22 @@ export class WirePart {
   }
 
   async connectTcp(port: number, host = '127.0.0.1', deadlineMs = 6_000): Promise<void> {
-    const start = Date.now()
-    for (;;) {
-      if (this.needs.terminated()) throw new Error(this.needs.exitDetail() || 'adapter exited before the tcp port opened')
-      const socket = await new Promise<Socket | null>(resolve => {
-        const s = netConnect({ host, port }, () => resolve(s))
-        s.on('error', () => resolve(null))
-      })
-      if (socket) {
-        await this.adoptSocket(socket, 'adapter socket closed')
-        return
-      }
-      if (Date.now() - start > deadlineMs) {
+    const socket = await pollUntil(
+      async () => {
+        if (this.needs.terminated()) throw new Error(this.needs.exitDetail() || 'adapter exited before the tcp port opened')
+        const connected = await new Promise<Socket | null>(resolve => {
+          const s = netConnect({ host, port }, () => resolve(s))
+          s.on('error', () => resolve(null))
+        })
+        return connected ?? undefined
+      },
+      100,
+      deadlineMs,
+      () => {
         throw new Error(`adapter never opened ${host}:${port} within ${deadlineMs}ms`)
-      }
-      await sleep(100)
-    }
+      },
+    )
+    await this.adoptSocket(socket, 'adapter socket closed')
   }
 
   adoptSocket(socket: Socket, closedDetail: string): Promise<void> {

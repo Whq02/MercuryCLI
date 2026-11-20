@@ -17,27 +17,31 @@ for (const name of ['check', 'debugger', 'instances', 'media', 'query-boot', 'sc
   assert.ok(source.includes("import('./proofGodot.ts')") && source.includes('resolveProofGodot()'), `${name} must probe the engine before its live legs`)
   assert.ok(source.includes('[SKIP]') && source.includes('.reason}'), `${name} must name why its live leg did not run`)
 }
-const scratch = mkdtempSync(join(tmpdir(), 'godot-stub-'))
-const calls = join(scratch, 'calls.txt')
-const stub = join(scratch, 'godot')
-const kept = { bin: process.env.GODOT_BIN, path: process.env.PATH }
-try {
-  for (const [build, wanted, launched] of [['4.7.2.stable.mono.official.ed1daf0bf', /is a \.NET build and no dotnet is installed/, ['--version']], ['4.7.2.stable.official.ed1daf0bf', null, ['--version', '--headless']]] as const) {
-    writeFileSync(calls, '')
-    writeFileSync(stub, `#!/bin/sh\necho "$1" >> ${JSON.stringify(calls)}\n[ "$1" = --version ] && echo ${build}\nexit 0\n`)
-    chmodSync(stub, 0o755)
-    process.env.GODOT_BIN = stub
-    process.env.PATH = `${scratch}:/usr/bin:/bin`
-    const found = await resolveProofGodot()
-    const firstWords = readFileSync(calls, 'utf8').split('\n').filter(Boolean)
-    if (wanted === null) assert.deepEqual([found.resolved, found.reason], [stub, null], `a standard build that opens an empty project is taken: ${found.reason}`)
-    else assert.ok(found.resolved === null && wanted.test(found.reason ?? ''), `a .NET build with no dotnet on the path is skipped by name: ${found.reason}`)
-    assert.deepEqual(firstWords, launched, `the engine was started with ${firstWords.join(' then ')}; a .NET build with no dotnet is asked its version and never opened`)
+if (process.platform === 'win32') {
+  console.log('not read on Windows: godot stub script uses POSIX #!/bin/sh')
+} else {
+  const scratch = mkdtempSync(join(tmpdir(), 'godot-stub-'))
+  const calls = join(scratch, 'calls.txt')
+  const stub = join(scratch, 'godot')
+  const kept = { bin: process.env.GODOT_BIN, path: process.env.PATH }
+  try {
+    for (const [build, wanted, launched] of [['4.7.2.stable.mono.official.ed1daf0bf', /is a \.NET build and no dotnet is installed/, ['--version']], ['4.7.2.stable.official.ed1daf0bf', null, ['--version', '--headless']]] as const) {
+      writeFileSync(calls, '')
+      writeFileSync(stub, `#!/bin/sh\necho "$1" >> ${JSON.stringify(calls)}\n[ "$1" = --version ] && echo ${build}\nexit 0\n`)
+      chmodSync(stub, 0o755)
+      process.env.GODOT_BIN = stub
+      process.env.PATH = `${scratch}:/usr/bin:/bin`
+      const found = await resolveProofGodot()
+      const firstWords = readFileSync(calls, 'utf8').split('\n').filter(Boolean)
+      if (wanted === null) assert.deepEqual([found.resolved, found.reason], [stub, null], `a standard build that opens an empty project is taken: ${found.reason}`)
+      else assert.ok(found.resolved === null && wanted.test(found.reason ?? ''), `a .NET build with no dotnet on the path is skipped by name: ${found.reason}`)
+      assert.deepEqual(firstWords, launched, `the engine was started with ${firstWords.join(' then ')}; a .NET build with no dotnet is asked its version and never opened`)
+    }
+  } finally {
+    if (kept.bin === undefined) delete process.env.GODOT_BIN
+    else process.env.GODOT_BIN = kept.bin
+    process.env.PATH = kept.path
+    rmSync(scratch, { recursive: true, force: true })
   }
-} finally {
-  if (kept.bin === undefined) delete process.env.GODOT_BIN
-  else process.env.GODOT_BIN = kept.bin
-  process.env.PATH = kept.path
-  rmSync(scratch, { recursive: true, force: true })
 }
 console.log('PASS an empty-project prerequisite distinguishes an available engine from missing runtime, spawn failure, crash and timeout; every autodiscovered live leg names its skip')

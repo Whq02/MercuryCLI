@@ -7,6 +7,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { foldCaseInsensitivePath } from '../../utils/platform/paths.js'
 
 export const NO_CHANGE_REPETITION_CEILING = 3
 
@@ -42,9 +43,6 @@ const store = new OwnerScopedStore<RepetitionState>({
 })
 registerOwnerScopedStore(store)
 
-const CASE_INSENSITIVE_FS =
-  process.platform === 'darwin' || process.platform === 'win32'
-
 function canonicalNoChangePath(path: string): string {
   const expanded = expandPath(path)
   let canonical: string
@@ -53,7 +51,7 @@ function canonicalNoChangePath(path: string): string {
   } catch {
     canonical = expanded
   }
-  return CASE_INSENSITIVE_FS ? canonical.toLowerCase() : canonical
+  return foldCaseInsensitivePath(canonical)
 }
 
 export function serializeIntentDigest(material: readonly unknown[]): string {

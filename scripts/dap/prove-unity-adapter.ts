@@ -59,9 +59,9 @@ const fixtureDll = path.join(dllDir, 'UnityDebugAdapter.dll')
 writeFileSync(fixtureDll, 'not-a-real-dll\n')
 const dotnetDir = path.join(scratch, 'bin-dotnet')
 mkdirSync(dotnetDir, { recursive: true })
-const dotnetShim = path.join(dotnetDir, 'dotnet')
-writeFileSync(dotnetShim, '#!/bin/sh\nexit 0\n')
-chmodSync(dotnetShim, 0o755)
+const dotnetShim = path.join(dotnetDir, process.platform === 'win32' ? 'dotnet.cmd' : 'dotnet')
+writeFileSync(dotnetShim, process.platform === 'win32' ? '@echo off\r\nexit /b 0\r\n' : '#!/bin/sh\nexit 0\n')
+if (process.platform !== 'win32') chmodSync(dotnetShim, 0o755)
 
 section('§1 · opt-in polarity (disarmed ⇒ nothing anywhere)')
 {
