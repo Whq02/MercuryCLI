@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, said, section, shown, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, pageText, said, section, shown, type Rules } from './floorsKit.ts'
 
 type Call = [tool: string, input: Record<string, unknown>]
 const RULE = JSON.stringify({ guardrails: { allow: ['Bash(ls *)'] } })
@@ -14,6 +14,9 @@ const CONFIGURATION = [
   '<PROJECT>/MERCURY.md', '<PROJECT>/AGENTS.md',
 ]
 const told = (tool: string, input: Record<string, unknown>): string => (tool === 'Bash' ? shown(String(input.command)).slice(0, 110) : `${tool} ${shown(String(input.file_path))}`)
+
+section('the page, docs/TRUST.md')
+check('sensitive files, such as credentials and Mercury configuration, retain their own permission checks', /Sensitive files, such as credentials and Mercury configuration, retain their own permission checks/.test(pageText()))
 
 section('§1 under Flow a write to Mercury\'s own configuration keeps its ask, by a file tool and by a shell write alike')
 for (const path of CONFIGURATION) {
