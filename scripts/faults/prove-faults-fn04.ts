@@ -237,6 +237,31 @@ console.log('\nPaletteView — failed command load reports the error instead of 
   check('PaletteView.loadPaletteRows returns failure and formats the error sentence', r.hasExport === true && (r.loaded as { ok?: boolean })?.ok === false && r.line === 'Could not read the command roster (EACCES: commands dir unreadable)', JSON.stringify(r))
 }
 
+console.log('\nFileEditPermissionRequest — unreadable file reports unreadable instead of previewing against empty content')
+if (!POSIX_MODES) skip('FileEditPermissionRequest unreadable file', 'chmod 0o200 needs non-root POSIX')
+else {
+  const r = runScenario(`
+    const mod = await import(path.join(SRC, 'components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx'))
+    out.hasExport = typeof mod.previewEditOutcome === 'function'
+    if (out.hasExport) {
+      const locked = path.join(PROJECT, 'locked.txt')
+      const absent = path.join(PROJECT, 'absent.txt')
+      fs.writeFileSync(locked, 'existing line\\n')
+      fs.chmodSync(locked, 0o200)
+      try {
+        out.unreadable = mod.previewEditOutcome({ file_path: locked, append: 'more\\n' }, null)
+        out.absent = mod.previewEditOutcome({ file_path: absent, append: 'more\\n' }, null)
+      } finally {
+        fs.chmodSync(locked, 0o600)
+      }
+    }
+  `)
+  const unreadable = r.unreadable as { kind?: string; message?: string } | undefined
+  const absent = r.absent as { kind?: string; edits?: Array<{ old_string: string }> } | undefined
+  check('FileEditPermissionRequest.previewEditOutcome reports unreadable file instead of empty preview', r.hasExport === true && unreadable?.kind === 'unreadable' && String(unreadable?.message).startsWith('Could not read locked.txt to preview this edit ('), JSON.stringify(r))
+  check('FileEditPermissionRequest.previewEditOutcome still previews append on absent file', absent?.kind === 'edits' && absent?.edits?.[0]?.old_string === '', JSON.stringify(absent))
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
