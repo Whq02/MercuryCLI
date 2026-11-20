@@ -325,5 +325,35 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
   check('json: addItemToJSONCArray rethrows edit error instead of wiping array to single item', threw instanceof Error && threw.message === 'serialize boom', String(threw))
 }
 
+{
+  const { classifyHarnessHome } = await import('../../src/utils/knownAgentClis.ts')
+  if (!POSIX_MODES) {
+    skip('knownAgentClis: unreadable daemon log rejects instead of reporting clean', 'needs non-root POSIX chmod')
+    skip('knownAgentClis: unreadable daemon roster rejects instead of reporting clean', 'needs non-root POSIX chmod')
+    skip('knownAgentClis: unreadable daemon record rejects instead of reporting clean', 'needs non-root POSIX chmod')
+  } else {
+    for (const [tag, rel, label] of [
+      ['log', 'daemon/daemon.log', 'knownAgentClis: unreadable daemon log rejects instead of reporting clean'],
+      ['roster', 'daemon/roster.json', 'knownAgentClis: unreadable daemon roster rejects instead of reporting clean'],
+      ['record', 'daemon/daemon.json', 'knownAgentClis: unreadable daemon record rejects instead of reporting clean'],
+    ] as const) {
+      const home = join(SCRATCH, `kac-${tag}`)
+      mkdirSync(join(home, 'daemon'), { recursive: true })
+      const target = join(home, rel)
+      writeFileSync(target, 'foreign')
+      chmodSync(target, 0o000)
+      let threw: unknown = null
+      try {
+        await classifyHarnessHome(home)
+      } catch (error) {
+        threw = error
+      } finally {
+        chmodSync(target, 0o600)
+      }
+      check(label, threw !== null && (threw as NodeJS.ErrnoException).code === 'EACCES', String(threw))
+    }
+  }
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
