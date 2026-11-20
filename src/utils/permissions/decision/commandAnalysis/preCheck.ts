@@ -1,6 +1,6 @@
-import { hiddenCommandCharacterReason } from '../../sanitization.js'
-import { extractHeredocs } from '../heredoc.js'
-import { PARSE_ABORTED, type Node } from '../parser.js'
+import { hiddenCommandCharacterReason } from '../../../sanitization.js'
+import { extractHeredocs } from '../../../bash/heredoc.js'
+import { PARSE_ABORTED, type Node } from '../../../bash/parser.js'
 
 const ESCAPED_BLANK_RE = /\\[ \t]/
 const MIDWORD_CONTINUATION_RE = /[^ \t\n\\]\\\n/
