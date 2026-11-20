@@ -1,6 +1,7 @@
 import type {
   Message,
 } from '../../../../types/message.js'
+import type { ContentBlockParam } from '../../../../types/wire.js'
 import type { Options } from '../../anthropic/streamCore.js'
 import { isSyntheticApiErrorMessage } from '../../../../utils/messages/factories.js'
 import { COMPACTION_SOURCES } from '../../../../constants/querySource.js'
@@ -138,10 +139,9 @@ export function compactTranscriptFor4xxResume(
   const candidateToolIds: Array<{ id: string; chars: number; tokens: number; badSurrogate: boolean; named: boolean }> = []
   for (const m of base) {
     if (m.type !== 'user' || !Array.isArray(m.message.content)) continue
-    for (const rawBlock of m.message.content) {
-      const block = rawBlock as { type?: string; tool_use_id?: string; content?: unknown }
+    for (const block of m.message.content) {
       if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
-      if (clearedIds.has(block.tool_use_id) || isClearedOrDigested(block.content as never)) continue
+      if (clearedIds.has(block.tool_use_id) || isClearedOrDigested(block.content)) continue
       const text = extractToolResultText(block.content)
       if (text.trim() === '') continue
       const badSurrogate = hasUnpairedSurrogate(text)
@@ -166,7 +166,7 @@ export function compactTranscriptFor4xxResume(
   let firstEdited = micro ? messages.findIndex((m, idx) => m !== base[idx]) : -1
   const rebuilt = base.map((m, idx) => {
     if (m.type !== 'user' && m.type !== 'assistant') return m
-    const content = (m as { message?: { content?: unknown } }).message?.content
+    const content = m.message.content
     if (typeof content === 'string') {
       if (!hasUnpairedSurrogate(content)) return m
       surrogatesFixed++
@@ -175,18 +175,18 @@ export function compactTranscriptFor4xxResume(
     }
     if (!Array.isArray(content)) return m
     let touched = false
-    const nextBlocks = content.map(rawBlock => {
-      const block = rawBlock as { type?: string; tool_use_id?: string; content?: unknown; text?: string }
+    const blocks: readonly ContentBlockParam[] = content
+    const nextBlocks = blocks.map(block => {
       if (
         block.type === 'tool_result' &&
         typeof block.tool_use_id === 'string' &&
         targetIds.has(block.tool_use_id) &&
-        !isClearedOrDigested(block.content as never)
+        !isClearedOrDigested(block.content)
       ) {
         touched = true
         const beforeText = extractToolResultText(block.content)
         if (hasUnpairedSurrogate(beforeText)) surrogatesFixed++
-        const digest = digestClearedToolResult(block.content as never)
+        const digest = digestClearedToolResult(block.content)
         const savedTok = Math.max(1, estimateContentTokens(block.content) - estimateContentTokens(digest))
         tokensSaved += savedTok
         charsSaved += Math.max(0, beforeText.length - digest.length)
@@ -199,7 +199,7 @@ export function compactTranscriptFor4xxResume(
         surrogatesFixed++
         return { ...block, text: block.text.toWellFormed() }
       }
-      return rawBlock
+      return block
     })
     if (!touched) return m
     if (firstEdited === -1 || idx < firstEdited) firstEdited = idx

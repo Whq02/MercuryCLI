@@ -102,7 +102,7 @@ export function addCacheBreakpoints(
   const marker = skipCacheWrite ? messages.findLastIndex((row, index) => index < tail && row.type === 'user') : tail
   const rows = messages.map((row, index) => row.type === 'user'
     ? userMessageToMessageParam(row, index === marker, enablePromptCaching)
-    : assistantMessageToMessageParam(row, index === marker, enablePromptCaching)) as unknown as MessageParam[]
+    : assistantMessageToMessageParam(row, index === marker, enablePromptCaching))
   if (useCachedMC) {
     replayCacheEdits(rows, pinnedEdits ?? [], newCacheEdits)
     if (enablePromptCaching) stampCachedResults(rows)

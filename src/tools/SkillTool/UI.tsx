@@ -76,9 +76,9 @@ function ProgressRows({
         {visible.map((row, index) => (
           <Box key={index} height={1} overflow="hidden">
             <MessageComponent
-              message={row.data.message as never}
+              message={row.data.message}
               tools={tools}
-              commands={[] as never}
+              commands={[]}
               verbose={false}
               addMargin={false}
               shouldAnimate={false}
@@ -86,7 +86,7 @@ function ProgressRows({
               isTranscriptMode={false}
               isStatic={true}
               inProgressToolUseIDs={EMPTY_SET}
-              progressMessagesForMessage={[] as never}
+              progressMessagesForMessage={[]}
               lookups={lookups as never}
               style="condensed"
             />

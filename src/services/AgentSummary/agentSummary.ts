@@ -57,12 +57,16 @@ export function startAgentSummarization(
           ...cacheSafeParams,
           forkContextMessages: contextMessages,
         },
-        canUseTool: async () => ({ behavior: 'deny', message: 'tools are unavailable to the summariser' }),
+        canUseTool: async () => ({
+          behavior: 'deny',
+          message: 'tools are unavailable to the summariser',
+          decisionReason: { type: 'other', reason: 'tools are unavailable to the summariser' },
+        }),
         querySource: 'agent_summary',
         forkLabel: 'agent_summary',
         overrides: { abortController },
         skipTranscript: true,
-      } as unknown as ForkedAgentParams)
+      })
       if (stopped) return
       const messages = (result as { messages?: Message[] }).messages ?? []
       for (const message of messages) {

@@ -485,7 +485,7 @@ export function imageDimensionsOfBase64(data: string): { width: number; height: 
   return imageDimensionsFromHeader(Buffer.from(data, 'base64'))
 }
 
-function isBase64ImageRecord(block: unknown): block is BlockRecord & { source: Base64ImageSource } {
+function isBase64ImageRecord(block: unknown): block is ImageBlockParam & { source: Base64ImageSource } {
   if (typeof block !== 'object' || block === null) return false
   const candidate = block as BlockRecord & { source?: { type?: unknown; data?: unknown } }
   return candidate.type === 'image' && typeof candidate.source === 'object' && candidate.source !== null && candidate.source.type === 'base64' && typeof candidate.source.data === 'string'
@@ -540,7 +540,7 @@ function rememberLeftOut(key: string): void {
 }
 
 async function sizedImageSource(
-  block: BlockRecord & { source: Base64ImageSource },
+  block: ImageBlockParam & { source: Base64ImageSource },
   sidePx: number,
   limits: ImageLimits,
   model: string | undefined,
@@ -561,7 +561,7 @@ async function sizedImageSource(
   const note = imageLeftOutNote(dims, block.source.media_type, sidePx)
   if (leftOutImages.has(key)) return { kind: 'left-out', note, key, hash }
   try {
-    const resized = await maybeResizeAndDownsampleImageBlock(block as unknown as ImageBlockParam, { limits: { ...limits, maxSidePx: sidePx }, model, imagesInRequest, role: 'input' })
+    const resized = await maybeResizeAndDownsampleImageBlock(block, { limits: { ...limits, maxSidePx: sidePx }, model, imagesInRequest, role: 'input' })
     if (resized.block.source.type !== 'base64') return { kind: 'as-is' }
     rememberSized(key, resized.block.source)
     return { kind: 'sized', source: resized.block.source, key, hash }

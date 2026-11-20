@@ -13,7 +13,7 @@ export async function runGit(
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   const result = await execFileNoThrowWithCwd(gitExe(), args, {
     cwd,
-    ...(options?.suppressPrompts ? { env: noPromptEnv(), stdin: 'ignore' as never } : {}),
+    ...(options?.suppressPrompts ? { env: noPromptEnv(), stdin: 'ignore' as const } : {}),
   })
   return { code: result.code, stdout: result.stdout, stderr: result.stderr }
 }
