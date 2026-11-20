@@ -1,0 +1,11 @@
+prove-dependency-census.ts
+prove-distribution-boundaries.ts
+prove-distribution-links.ts
+prove-distribution-notices.ts
+prove-headless-image.ts
+prove-json-query-pack.ts
+prove-no-os-sandbox.ts
+prove-notice-stamp.ts
+prove-readme-author.ts
+prove-release-documents.ts
+prove-winget-manifest.ts
