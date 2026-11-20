@@ -1,4 +1,4 @@
-import { videoToolEnabled, VIDEO_SETUP } from '../services/video/registry.js'
+import { videoProviderReadError, videoToolEnabled, VIDEO_SETUP } from '../services/video/registry.js'
 import { debugToolWithholding } from '../services/dap/dapClient.js'
 import { resolveDesktopDriver } from '../services/desktop/resolveDriver.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
@@ -17,7 +17,17 @@ export const CATALOG_MACHINE_DEPENDENCIES =
 
 export function withheldTools(): WithheldTool[] {
   const out: WithheldTool[] = []
-  if (!videoToolEnabled()) out.push({ tool: 'Video', dependency: 'a configured video provider', why: 'no valid videoProvider entry in settings', remedy: VIDEO_SETUP })
+  if (!videoToolEnabled()) {
+    const readError = videoProviderReadError()
+    out.push({
+      tool: 'Video',
+      dependency: 'a configured video provider',
+      why: readError !== null
+        ? `the videoProvider setting could not be read (${readError}) — fix it in settings`
+        : 'no valid videoProvider entry in settings',
+      remedy: VIDEO_SETUP,
+    })
+  }
   const debug = debugToolWithholding()
   if (debug.withheld) out.push({ tool: 'Debug', dependency: 'a debug adapter', why: debug.why, remedy: debug.remedy })
   const godot = godotToolWithholding()
