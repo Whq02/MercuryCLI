@@ -165,6 +165,35 @@ else {
   check('contributions reports unreadable SKILL.md as file unreadable, not frontmatter parse failure', defects.some(d => d.includes('alpha/SKILL.md') && d.includes('file unreadable')) && !defects.some(d => d.includes('alpha/SKILL.md') && d.includes('frontmatter did not parse')), JSON.stringify(defects))
 }
 
+console.log('\nroster — unreadable project extension entries and directory report in roster.problems')
+{
+  const r = runScenario(`
+    const mod = await import(path.join(SRC, 'extensions/roster.ts'))
+    const projExt = path.join(PROJECT, '.mercury', 'extensions')
+    fs.mkdirSync(projExt, { recursive: true })
+    fs.symlinkSync('self', path.join(projExt, 'self'))
+    const res1 = mod.computeRoster({ cwd: PROJECT, sessionPaths: [] })
+    out.loopProblems = res1.problems
+    fs.unlinkSync(path.join(projExt, 'self'))
+    if (${JSON.stringify(POSIX_MODES)}) {
+      fs.chmodSync(projExt, 0o000)
+      try {
+        const res2 = mod.computeRoster({ cwd: PROJECT, sessionPaths: [] })
+        out.dirProblems = res2.problems
+      } finally {
+        fs.chmodSync(projExt, 0o700)
+      }
+    }
+  `)
+  const loopProblems = (r.loopProblems as string[]) ?? []
+  check('roster reports unstattable project extension entry in problems', loopProblems.some(p => p.includes('self') && p.includes('unreadable')), JSON.stringify(loopProblems))
+  if (!POSIX_MODES) skip('roster unreadable project extensions dir', 'chmod 0o000 needs non-root POSIX')
+  else {
+    const dirProblems = (r.dirProblems as string[]) ?? []
+    check('roster reports unreadable project extensions directory in problems', dirProblems.some(p => p.includes('extensions') && p.includes('unreadable')), JSON.stringify(dirProblems))
+  }
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
