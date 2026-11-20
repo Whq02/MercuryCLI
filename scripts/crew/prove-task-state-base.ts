@@ -1,41 +1,26 @@
 import { deepStrictEqual, equal, notStrictEqual } from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import * as crypto from 'node:crypto'
 import { resolve } from 'node:path'
-import ts from 'typescript'
+import { mock, spyOn } from 'bun:test'
 import type { TaskStatus, TaskType } from '../../src/Task.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } = await import('../../src/types/ids.js')
 const events: unknown[] = []
 let nextByte = 0
-const output = { exports: {} as typeof import('../../src/Task.js') }
-const fixtureImports: Record<string, unknown> = {
-  'node:crypto': {
-    randomBytes(size: number) {
-      events.push(['random', size])
-      return Buffer.from(Array.from({ length: size }, () => nextByte++ % 256))
-    },
+
+spyOn(crypto, 'randomBytes').mockImplementation(((size: number) => {
+  events.push(['random', size])
+  return Buffer.from(Array.from({ length: size }, () => nextByte++ % 256))
+}) as typeof crypto.randomBytes)
+mock.module(resolve(import.meta.dir, '../../src/utils/task/diskOutput.ts'), () => ({
+  getTaskOutputPath(id: string) {
+    events.push(['path', id])
+    return `output/${id}.output`
   },
-  './types/ids.js': { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH },
-  './utils/task/diskOutput.js': {
-    getTaskOutputPath(id: string) {
-      events.push(['path', id])
-      return `output/${id}.output`
-    },
-  },
-}
-const compiled = ts.transpileModule(readFileSync(resolve(import.meta.dir, '../../src/Task.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText
-new Function('require', 'module', 'exports', compiled)(
-  (name: string) => {
-    if (!(name in fixtureImports)) throw new Error(`Unexpected dependency ${name}`)
-    return fixtureImports[name]
-  },
-  output,
-  output.exports,
-)
-const { createTaskStateBase, generateTaskId, isTerminalTaskStatus } = output.exports
+}))
+
+const { createTaskStateBase, generateTaskId, isTerminalTaskStatus } = await import('../../src/Task.js')
 
 for (const status of ['pending', 'running', 'completed', 'failed', 'killed', '', 'stopped', 'COMPLETED', 'toString']) {
   equal(isTerminalTaskStatus(status as TaskStatus), ['completed', 'failed', 'killed'].includes(status))
