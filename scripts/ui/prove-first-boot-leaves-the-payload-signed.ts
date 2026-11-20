@@ -2,7 +2,7 @@
 // gate-watch: src/utils/ripgrep.ts src/main.tsx src/components/MercuryContentSearch.tsx src/services/privateChannel/artifactVerify.ts src/services/privateChannel/installLayout.ts
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { firstOutputTs, firstPtyVisibility, grabScreens, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 import {
   FIXTURE_VERSION,
@@ -58,7 +58,18 @@ try {
   section('§1 install a signed release payload whose vendored rg is linker-signed, the way the archive ships it')
   const fixture = buildSignedPayloadWithLinkerSignedRg(join(scratch, 'archive', 'mercury'), { primary: DIST })
   check('the archive rg is linker-signed', isLinkerSigned(fixture.rgPath), codesignFlags(fixture.rgPath))
-  const roots = { ...resolveLayoutRoots(), versionsDir }
+  const binDir = join(scratch, 'bin')
+  const shimPath = join(binDir, 'mercury')
+  const roots = { ...resolveLayoutRoots(), versionsDir, binDir, shimPath, shimSetPaths: [shimPath] }
+  const scratchBase = resolve(scratch)
+  for (const p of [roots.versionsDir, roots.binDir, roots.shimPath, ...(roots.shimSetPaths ?? [])]) {
+    const rel = relative(scratchBase, resolve(p))
+    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+      console.log(`  [FAIL] SAFETY: layout root escapes scratch: ${p}`)
+      process.exit(1)
+    }
+  }
+  check('every layout root lies under scratch', true)
   const installed = installPayload(roots, fixture.dir, FIXTURE_VERSION)
   check('the payload installs through the updater\'s own install road', installed.state === 'installed', JSON.stringify(installed))
   const versionDir = join(versionsDir, FIXTURE_VERSION)

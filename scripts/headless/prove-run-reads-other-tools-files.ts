@@ -28,7 +28,28 @@ function world(name: string, files: Record<string, string>, options: { untrusted
     mkdirSync(dirname(join(cwd, file)), { recursive: true })
     writeFileSync(join(cwd, file), text)
   }
-  return { home, cwd, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: FIXTURE_API_KEY, ...options.env } }
+  return {
+    home,
+    cwd,
+    env: {
+      HOME: home,
+      USERPROFILE: home,
+      LOCALAPPDATA: join(home, 'AppData', 'Local'),
+      APPDATA: join(home, 'AppData', 'Roaming'),
+      XDG_CONFIG_HOME: join(home, '.config'),
+      PATH: process.env.PATH ?? '',
+      TERM: 'dumb',
+      TMPDIR: join(home, 'tmp'),
+      MERCURY_TMPDIR: join(home, 'tmp'),
+      MERCURY_CONFIG_DIR: home,
+      MERCURY_VERSIONS_DIR: join(home, 'versions'),
+      MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
+      ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+      ...options.env,
+    },
+  }
 }
 
 type Ran = { code: number | null; stderr: string; asks: string[] }
