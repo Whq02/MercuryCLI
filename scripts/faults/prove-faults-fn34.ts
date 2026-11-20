@@ -90,5 +90,29 @@ function runScenario(body: string): Record<string, unknown> {
   }
 }
 
+{
+  if (POSIX_MODES) {
+    const r = runScenario(`
+      const { encodeTranscriptLine, resetTranscriptFormatCacheForTesting } = await import(path.join(SRC, 'utils/sessionStorage/vnext.ts'))
+      const existing = path.join(HOME, 'existing.jsonl')
+      fs.writeFileSync(existing, '{"schemaVersion":1,"creationOrdinal":"5"}\\n', { mode: 0o600 })
+      fs.chmodSync(existing, 0o000)
+      resetTranscriptFormatCacheForTesting()
+      try {
+        encodeTranscriptLine(existing, { type: 'user', uuid: '00000000-0000-4000-8000-000000000012' })
+        out.threw = null
+      } catch (e) {
+        out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+      } finally {
+        fs.chmodSync(existing, 0o600)
+      }
+      const absent = path.join(HOME, 'fresh.jsonl')
+      const fresh = encodeTranscriptLine(absent, { type: 'user', uuid: '00000000-0000-4000-8000-000000000013' })
+      out.freshHasHeader = fresh.line.includes('mercury-transcript-header')
+    `)
+    const threw = r.threw as { code: string | null; message: string } | null
+    check('vnext-unreadable-throws', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.freshHasHeader === true, JSON.stringify(r))
+  }
+}
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

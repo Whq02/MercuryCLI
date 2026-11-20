@@ -4,6 +4,7 @@ import { entryToRecord, type EncodeContext } from '../../fabric/entryCodec.js'
 import { nextOrdinal, asOrdinal, type Ordinal } from '../../fabric/ordinal.js'
 import type { MercuryRecord } from '../../fabric/record.js'
 import type { SessionId } from '../../types/ids.js'
+import { getErrnoCode } from '../errors.js'
 import { jsonStringify } from '../slowOperations.js'
 import { passedOver } from '../passedOver.js'
 
@@ -58,7 +59,9 @@ function stateFor(fullPath: string): FileState {
         unterminatedTail: lastByte[0] !== 0x0a,
       }
     }
-  } catch {
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
     resolved = { nextValue: 1, headerPending: true, unterminatedTail: false }
   } finally {
     if (fd !== null) closeSync(fd)
