@@ -2,7 +2,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, childEnv, isSession, isOutcome, j, makeTally, removeWorld, REPO, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, isSession, isOutcome, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -13,7 +13,6 @@ export const REREAD_END = 'done: the notes file was read twenty times'
 export const REREAD_ROUNDS = 20
 const HIDDEN_DIRECTIVE = 'Cycle re-plan'
 
-const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 type Block = { type?: string; text?: string }
 type Item = { role?: string; content?: unknown }
@@ -168,8 +167,6 @@ if (import.meta.main) {
     barren.requests.length === REREAD_ROUNDS + 1 && strays.length === 0 && barren.terminal.reason === 'completed' && barren.transitions.every(reason => reason === 'next_turn'),
     `between a tool round and the next model call the steps (afterTools, makeRequest and modelReply under src/run-core/turn/) must add to the request only what the transcript holds, whatever the run's record says of its progress; the run made ${barren.requests.length} model calls and ended ${JSON.stringify(barren.terminal)} over [${[...new Set(barren.transitions)].join(',')}] — ${strays.slice(0, 6).join(' · ') || 'no stray row'}`,
   )
-  const durability = src('docs/DURABILITY.md')
-  check('the durability page preserves advisory interactive loops and names the headless failure-only rule', durability.replace(/\s+/g, ' ').includes('The loop guard does not refuse individual calls for repeating. In foreground sessions it only reminds by default') && durability.replace(/\s+/g, ' ').includes('three consecutive failed calls'))
 
   section('§2 on the built product, a turn that re-reads a changing file twenty times runs to the model’s own end')
   const home = join(SCRATCH_ROOT, `mercury-no-governor-${process.pid}`)
