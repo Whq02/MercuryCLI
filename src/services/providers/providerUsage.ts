@@ -240,7 +240,8 @@ export function anthropicSignInEmail(reads?: ProviderFamilyReads): string | unde
 function readBearerTokenSource(): { source: string; hasToken: boolean } {
   try {
     return getAuthTokenSource()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return { source: 'none', hasToken: false }
   }
 }

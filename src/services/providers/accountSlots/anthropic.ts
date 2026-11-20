@@ -21,10 +21,21 @@ export function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   const signInExpired = (scope: AccountScope): boolean =>
     scope.isCurrent && scope.authed && !scope.foreignHarness && (reads.anthropicSignInExpired ?? isAnthropicOAuthSignInExpired)()
   const slots: AccountSlot[] = scopes
-    .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.foreignHarness)
+    .filter(
+      scope =>
+        scope.authed ||
+        scope.unreadError !== undefined ||
+        scope.email !== undefined ||
+        scope.uuid !== undefined ||
+        scope.foreignHarness,
+    )
     .map((scope): AccountSlot => {
       const own = scope.authed && !scope.foreignHarness ? signInEmail(scope) : undefined
       const expired = signInExpired(scope)
+      const unreadNote =
+        !scope.authed && !scope.foreignHarness && scope.unreadError !== undefined
+          ? `credentials could not be read (${scope.unreadError})`
+          : undefined
       return {
         family: 'anthropic',
         id: scope.dir,
@@ -35,12 +46,15 @@ export function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
           ? "another tool's credential scope"
           : scope.authed
             ? (own ?? 'signed in')
-            : (scope.email ?? 'not signed in'),
+            : unreadNote !== undefined
+              ? (scope.email ?? 'unverified')
+              : (scope.email ?? 'not signed in'),
         ...(own !== undefined ? { signInEmail: own } : {}),
         active: scope.foreignHarness ? scope.isCurrent : scope.isCurrent && subscriberSeat,
         envPinned: false,
         signedIn: scope.authed && !expired,
         ...(expired ? { expired: true } : {}),
+        ...(unreadNote !== undefined ? { stateNote: unreadNote } : {}),
         scope,
         removal: scope.foreignHarness
           ? {

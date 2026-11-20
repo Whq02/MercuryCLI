@@ -87,7 +87,8 @@ function familyGroups(reads?: AccountSlotReads): FamilySlotGroup[] {
   let groups: FamilySlotGroup[]
   try {
     groups = deriveFamilySlotGroups()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     groups = []
   }
   memo = { key, at: now, groups }
