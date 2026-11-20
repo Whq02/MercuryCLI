@@ -390,7 +390,7 @@ export const ToolSearchTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: output.matches.map(name => ({ type: 'tool_reference', tool_name: name })) as never,
+      content: output.matches.map(name => ({ type: 'tool_reference' as const, tool_name: name })),
     }
   },
   renderToolUseMessage: () => null,

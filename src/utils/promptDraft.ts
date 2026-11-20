@@ -261,7 +261,7 @@ const scopedStore = defineStore<ScopedDocsFile>({
     }
     return out
   },
-  encode: v => v as unknown as Record<string, unknown>,
+  encode: v => v,
   empty: () => ({}),
   onReadFailure: 'empty',
 })

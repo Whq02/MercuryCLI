@@ -1,4 +1,5 @@
 import type { UUID } from 'node:crypto'
+import type { SessionUpdate } from '@agentclientprotocol/sdk'
 import { buildConversationChain } from '../../../utils/sessionStorage/chain.js'
 import { resumeLeafOf } from '../../../utils/sessionStorage/logs.js'
 import type { TranscriptMessage } from '../../../types/logs.js'
@@ -27,17 +28,27 @@ function commandLineOf(text: string): string | null {
   return args === '' ? name : `${name} ${args}`
 }
 
-function textReplayOf(text: string, typed: boolean): Record<string, unknown> | null {
+function textReplayOf(text: string, typed: boolean): SessionUpdate | null {
   const answer = commandAnswerOf(text)
   if (answer !== null) return answer === '' ? null : { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: answer } }
   const line = commandLineOf(text) ?? (typed ? text : '')
   return line === '' ? null : { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: line } }
 }
 
+type ReplayMessage = {
+  type?: unknown
+  subtype?: unknown
+  content?: unknown
+  isMeta?: unknown
+  isSidechain?: unknown
+  isCompactSummary?: unknown
+  message?: unknown
+}
+
 export function replayUpdatesOf(
-  messages: Iterable<Record<string, unknown>>,
-): Array<Record<string, unknown>> {
-  const updates: Array<Record<string, unknown>> = []
+  messages: Iterable<ReplayMessage>,
+): SessionUpdate[] {
+  const updates: SessionUpdate[] = []
   const announced = new Set<string>()
   for (const m of messages) {
     if (m.isMeta === true || m.isSidechain === true || m.isCompactSummary === true) continue

@@ -91,7 +91,7 @@ export const ApolloReviewTool = buildTool({
   name: APOLLO_REVIEW_TOOL_NAME,
   inputSchema,
   get inputJSONSchema() {
-    return zodToJsonSchema(modelInputSchema) as never
+    return zodToJsonSchema(modelInputSchema)
   },
   outputSchema,
   maxResultSizeChars: RESULT_SIZE_CAP,

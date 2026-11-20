@@ -113,12 +113,12 @@ export async function processBashCommand(
   const startedAt = Date.now()
   try {
     const result = await tool.call(
-      { command: inputString } as never,
-      nestedContext as never,
-      (async () => ({ behavior: 'allow' as const, updatedInput: {} })) as never,
+      { command: inputString },
+      nestedContext,
+      async () => ({ behavior: 'allow' as const, updatedInput: {} }),
       createAssistantMessage({ content: `! ${inputString}` }),
-      progress => {
-        latestProgress = (progress as { data?: ShellProgress }).data ?? latestProgress
+      (progress: { toolUseID: string; data: ShellProgress }) => {
+        latestProgress = progress.data ?? latestProgress
         renderDisplay()
       },
     )

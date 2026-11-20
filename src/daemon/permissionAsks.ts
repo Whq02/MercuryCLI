@@ -499,7 +499,7 @@ export function answerPermissionAsk(
   ask.deadline?.cancel()
   ask.settle(
     allow
-      ? { outcome: 'allow', ...(updatedInput !== undefined ? { input: updatedInput } : {}), ...(updatedPermissions !== undefined ? { rules: updatedPermissions as never } : {}) }
+      ? { outcome: 'allow', ...(updatedInput !== undefined ? { input: updatedInput } : {}), ...(updatedPermissions !== undefined ? { rules: updatedPermissions } : {}) }
       : { outcome: 'deny', message: denial, ...(answer?.interrupt === true ? { stop: true } : {}) },
   )
   publishAsksFor(ask.sessionId)
