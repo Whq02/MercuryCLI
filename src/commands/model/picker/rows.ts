@@ -16,7 +16,7 @@ import type { ModelTensorFold } from '../../../components/tensorfold/tensorfoldM
 import { parseGptModelId, withGptServedWindowSuffix } from '../../../utils/model/pins/gptPins.js'
 import { liveGptContextCeiling } from '../../../services/providers/openai/openaiCatalogue.js'
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../../services/providers/slotSwitch.js'
-import { paintSlotSwitchReceipt } from '../../../utils/model/slotSwitchReceipt.js'
+import { paintSlotSwitchReceipt } from '../../../services/providers/slotSwitchReceipt.js'
 import { configuredCompatEndpoints, isCompatEndpointCredentialed } from '../../../services/providers/openaicompat/compatAccounts.js'
 import { cachedCompatCatalogue, compatCatalogueStatusWords, compatEndpointModelIds, compatEndpointPodTerminated, refreshCompatCatalogues } from '../../../services/providers/openaicompat/compatCatalogue.js'
 import { orderPickerRows } from '../../../utils/model/modelPickerGroups.js'
