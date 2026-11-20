@@ -6,43 +6,22 @@ import { isAbsolute, join, relative } from 'node:path'
 
 import { structuredPatch } from 'diff'
 
-import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../bootstrap/state.js'
-import { commitPlanDigest, runTextChangeSetCommit, type CommitTarget } from '../services/changeTransaction/changeSetCommit.js'
-import { sha256Hex } from './hash.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
-import type { SessionListing } from '../types/logs.js'
-import { getGlobalConfig } from './config.js'
-import { logForDebugging } from './debug.js'
-import { noteFileTouched } from '../mneme/lineageSession.js'
-import { getMercuryHome } from './envUtils.js'
-import { isENOENT } from './errors.js'
-import { stripBOM } from './jsonRead.js'
-import { logError } from './log.js'
-import { recordFileHistorySnapshot } from './sessionStorage.js'
-import { passedOver } from './passedOver.js'
+import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
+import { commitPlanDigest, runTextChangeSetCommit, type CommitTarget } from './changeSetCommit.js'
+import { sha256Hex } from '../../utils/hash.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
+import type { FileHistoryBackup, FileHistorySnapshot, FileHistoryState } from '../../types/fileHistory.js'
+import type { SessionListing } from '../../types/logs.js'
+import { getGlobalConfig } from '../../utils/config.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { noteFileTouched } from '../../mneme/lineageSession.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
+import { isENOENT } from '../../utils/errors.js'
+import { stripBOM } from '../../utils/jsonRead.js'
+import { logError } from '../../utils/log.js'
+import { recordFileHistorySnapshot } from '../../utils/sessionStorage.js'
+import { passedOver } from '../../utils/passedOver.js'
 
-
-export type FileHistoryBackup = {
-  backupFileName: string | null
-  version: number
-  backupTime: Date
-  sourceSize?: number
-  sourceMtimeMs?: number
-  sourceMode?: number
-}
-
-export type FileHistorySnapshot = {
-  messageId: UUID
-  trackedFileBackups: Record<string, FileHistoryBackup>
-  timestamp: Date
-}
-
-export type FileHistoryState = {
-  snapshots: FileHistorySnapshot[]
-  trackedFiles: Set<string>
-  snapshotSequence: number
-  rewindUndo?: FileHistorySnapshot & { restoredDigests: Record<string, string | null> }
-}
 
 type StateUpdater = (updater: (prev: FileHistoryState) => FileHistoryState) => void
 

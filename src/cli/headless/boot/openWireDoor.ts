@@ -11,7 +11,7 @@ import { type AskHost, createRunnerAsks, createRuleOnlyAsks } from '../runnerAsk
 import { registerScheduleEditDoor } from '../../../services/saturn/sessionScheduleBridge.js'
 import { scheduleEditToWire } from '../../../services/engine-connector/seatWire.js'
 import { registerIdeToolDoor } from '../../../services/acp/ideToolBridge.js'
-import { requestFileCheckpoints } from '../../../utils/fileHistory.js'
+import { requestFileCheckpoints } from '../../../services/changeTransaction/fileHistory.js'
 import { compileJsonSchema } from '../../../services/schema/jsonSchemaEngine.js'
 import { invalidParams } from '../../../runner/wire/errors.js'
 import { getSessionId } from '../../../bootstrap/state.js'

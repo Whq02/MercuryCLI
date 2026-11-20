@@ -70,7 +70,7 @@ import { getFileModificationTime } from '../../utils/file.js'
 import {
   fileHistoryEnabled,
   fileHistoryTrackEdit,
-} from '../../utils/fileHistory.js'
+} from '../../services/changeTransaction/fileHistory.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'

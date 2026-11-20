@@ -31,7 +31,7 @@ import {
   gitStatus,
   gitWorktrees,
 } from '../../services/gitGraph/observe.js'
-import { fileHistoryEnabled, maybeExpandFilePath } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, maybeExpandFilePath } from '../../services/changeTransaction/fileHistory.js'
 import {
   applyPlan,
   findPlan,

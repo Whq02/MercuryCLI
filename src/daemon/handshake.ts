@@ -10,9 +10,9 @@ import {
   noteDaemonProto,
   readDaemonState,
 } from './controlSocket.js'
-import { isProcessAlive, OWNER_PID_ENV } from './ownerWatch.js'
+import { isProcessAlive, OWNER_PID_ENV } from '../utils/ownerWatch.js'
 import { MERCURY_DAEMON_PROTO, MIN_PROTO, type DaemonReply } from './protocol.js'
-import { sleep } from '../utils/sleep.js'
+import { pollUntil } from '../utils/deadline.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export interface ClientVersionFacts {
@@ -731,12 +731,19 @@ async function waitForHandshake(
 ): Promise<DaemonHandshakeVerdict | null> {
   const tries = opts.tries ?? SUCCESSOR_WAIT_TRIES
   const pollMs = opts.pollMs ?? SUCCESSOR_WAIT_POLL_MS
-  for (let i = 0; i < tries; i++) {
-    const v = await handshakeDaemon({ timeoutMs: 500 })
-    if (done(v)) return v
-    await sleep(pollMs)
-  }
-  return null
+  if (tries <= 0) return null
+  let attempts = 0
+  return pollUntil(
+    async () => {
+      const v = await handshakeDaemon({ timeoutMs: 500 })
+      if (done(v)) return v
+      if (++attempts >= tries) return null
+      return undefined
+    },
+    pollMs,
+    Infinity,
+    () => null,
+  )
 }
 
 async function spawnSuccessorHere(dir: string, posture: DaemonPosture): Promise<number | undefined> {

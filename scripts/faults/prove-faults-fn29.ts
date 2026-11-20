@@ -464,8 +464,8 @@ console.log('11. src/utils/cockpit/fleetGauge.ts — worker or execution listing
 
   const rExec = runIsolated(`
     const { mock } = await import('bun:test')
-    const realExec = await import(SRC + '/services/primitives/executionPlane.ts')
-    mock.module(SRC + '/services/primitives/executionPlane.js', () => ({
+    const realExec = await import(SRC + '/utils/primitives/executionPlane.ts')
+    mock.module(SRC + '/utils/primitives/executionPlane.js', () => ({
       ...realExec,
       listExecutions: () => { throw new Error('executions registry failed') },
     }))

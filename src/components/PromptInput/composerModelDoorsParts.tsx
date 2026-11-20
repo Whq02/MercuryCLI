@@ -23,7 +23,7 @@ import {
 } from '../../services/capFailover.js'
 import { usageCarryWords, usageForProvider } from '../../services/providers/providerUsage.js'
 import { slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
-import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
+import { paintSlotSwitchReceipt } from '../../services/providers/slotSwitchReceipt.js'
 import { familyDisplayName } from '../../services/providers/accountSlots.js'
 import ModelPicker from '../ModelPicker.js'
 import { TransitionPreviewCard } from '../TransitionPreviewCard.js'

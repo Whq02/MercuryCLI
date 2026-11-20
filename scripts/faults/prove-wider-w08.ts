@@ -344,7 +344,7 @@ async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void>
 }
 
 async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
-  const plane = await import(join(SRC, 'services/primitives/executionPlane.ts'))
+  const plane = await import(join(SRC, 'utils/primitives/executionPlane.ts'))
   const runWatch = await import(join(SRC, 'services/repoHost/runWatch.ts'))
   const { makeOwnerKey } = await import(join(SRC, 'utils/primitives/owner.ts'))
   const owner = makeOwnerKey('w08-6-owner')

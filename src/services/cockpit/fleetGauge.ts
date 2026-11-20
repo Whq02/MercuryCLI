@@ -1,5 +1,5 @@
 import { listConcourseWorkers } from '../../daemon/concourseWorkers.js'
-import { listExecutions } from '../primitives/executionPlane.js'
+import { listExecutions } from '../../utils/primitives/executionPlane.js'
 import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import { withState, type Snapshot } from '../../utils/cockpit/types.js'
 export type FleetRosterSource = 'concourse' | 'execution'

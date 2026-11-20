@@ -4,7 +4,7 @@ import {
   getExecution,
   registerExecution,
   settleExecution,
-} from './executionPlane.js'
+} from '../../utils/primitives/executionPlane.js'
 import { isTerminalExecutionState } from '../../utils/primitives/execution.js'
 import { passedOver } from '../../utils/passedOver.js'
 

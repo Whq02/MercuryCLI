@@ -268,7 +268,7 @@ delete process.env.MERCURY_DAEMON_DIR
 const sockMod = await import(join(ROOT, 'src/daemon/controlSocket.ts'))
 const protocol = await import(join(ROOT, 'src/daemon/protocol.ts'))
 const hsMod = await import(join(ROOT, 'src/daemon/handshake.ts'))
-const { isProcessAlive } = await import(join(ROOT, 'src/daemon/ownerWatch.ts'))
+const { isProcessAlive } = await import(join(ROOT, 'src/utils/ownerWatch.ts'))
 type Hello = { pid: number; buildTree: string | null; version: string; live: number; ownerPid: number | null }
 const hello = (): Promise<Hello | null> =>
   sockMod.daemonControlRpc({ op: 'hello', proto: protocol.MERCURY_DAEMON_PROTO, clientVersion: OLD_VERSION, clientBuildTree: oldTree }, { timeoutMs: vshotBudgetMs(1500) }).then((r: { ok: boolean; op?: string; pid?: number; buildTree?: string | null; version?: string; live?: number; ownerPid?: number | null }) => (r.ok && r.op === 'hello' ? { pid: r.pid as number, buildTree: r.buildTree ?? null, version: r.version ?? '?', live: r.live ?? 0, ownerPid: r.ownerPid ?? null } : null))

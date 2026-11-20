@@ -68,7 +68,7 @@ import {
 import { createUserMessage } from '../../utils/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../NotebookEditTool/constants.js'

@@ -664,7 +664,7 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   const redelivered = getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }) as Raw[]
   check('…and once the chat is advised again the held note is delivered intact', redelivered.length === 1 && redelivered[0]!.prompt === note.text && advisor.peekAdvisorNotes(SESSION).length === 0, j(redelivered))
   ctx.agentKind = 'crewmate'
-  const { createSubagentContext } = await import(join(ROOT, 'src/utils/forkedAgent.ts'))
+  const { createSubagentContext } = await import(join(ROOT, 'src/services/agents/forkedAgent.ts'))
   const fork = createSubagentContext(ctx as never)
   check('a crewmate context fork retains the crewmate exclusion', fork.agentKind === 'crewmate')
   const forkDenied = await AskAdvisorTool.call({ question: QUESTION }, fork) as { data: { status: string; text: string } }

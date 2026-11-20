@@ -14,7 +14,7 @@ const { switchSession, setOriginalCwd } = await import('../../src/bootstrap/stat
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000051' as never, root)
 const { procStartToken } = await import('../../src/utils/genericProcessUtils.ts')
-const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
 const leases = await import('../../src/services/vulcan/engine/leases.ts')
 const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/services/mcp/mercuryServer.ts')
 const { createLinkedTransportPair } = await import('../../src/services/mcp/InProcessTransport.ts')

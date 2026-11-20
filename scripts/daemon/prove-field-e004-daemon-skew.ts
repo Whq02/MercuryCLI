@@ -77,7 +77,7 @@ const hsMod = await import(join(ROOT, 'src/daemon/handshake.ts'))
 const handover = await import(join(ROOT, 'src/daemon/handover.ts'))
 const sock = await import(join(ROOT, 'src/daemon/controlSocket.ts'))
 const protocol = await import(join(ROOT, 'src/daemon/protocol.ts'))
-const { isProcessAlive } = await import(join(ROOT, 'src/daemon/ownerWatch.ts'))
+const { isProcessAlive } = await import(join(ROOT, 'src/utils/ownerWatch.ts'))
 const { MERCURY_DAEMON_PROTO } = protocol
 
 const helloReply = (over: Record<string, unknown>): never =>

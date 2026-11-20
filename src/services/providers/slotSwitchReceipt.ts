@@ -1,7 +1,7 @@
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import type { SlotSwitchOutcome } from '../../services/providers/slotSwitch.js'
+import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
+import type { SlotSwitchOutcome } from './slotSwitch.js'
 import type { Message } from '../../types/message.js'
-import { createSeatReceiptMessage } from '../messages/systemMessages.js'
+import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 
 export function paintSlotSwitchReceipt(outcome: SlotSwitchOutcome): boolean {
   const focused = getFocusedSessionConnector() as { addDisplayRow?: (row: Message) => void }

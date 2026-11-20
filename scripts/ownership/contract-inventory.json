@@ -275,7 +275,7 @@
     "persistPermissionUpdates",
     "type:PersistVerdict"
    ],
-   "src/utils/permissions/permissionExplainer.ts": [
+   "src/services/permissions/permissionExplainer.ts": [
     "generatePermissionExplanation",
     "isPermissionExplainerEnabled",
     "type:PermissionExplanation",

@@ -220,7 +220,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/tools/AgentTool/reviewerPolicy.ts', 'run-short', 'mktemp scratch selection'],
   ['src/utils/processGroup.ts', 'run-short', 'POSIX process inspection'],
   ['src/daemon/processSweepPosix.ts', 'run-short', 'POSIX process inspection'],
-  ['src/daemon/ownerWatch.ts', 'run-short', 'POSIX process inspection'],
+  ['src/utils/ownerWatch.ts', 'run-short', 'POSIX process inspection'],
   ['src/daemon/runnerScript.ts', 'run-short', 'POSIX process inspection (ps -p reads the runner command line)'],
   ['src/services/host/ssh.ts', 'run-short', "ssh's port flag"],
   ['src/services/host/vendors/lambda.ts', 'run-short', "mkdir -p in the vendor's cloud-init runcmd"],

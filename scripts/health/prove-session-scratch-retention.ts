@@ -58,7 +58,7 @@ const scratchpad = await import('../../src/utils/scratchpad.ts')
 const retention = await import('../../src/daemon/scratchpadRetention.ts')
 const { getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
 const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
-const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

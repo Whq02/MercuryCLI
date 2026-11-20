@@ -8,7 +8,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../utils/errors.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 import { decideTransition, type ConcourseSessionState } from '../utils/concourseLifecycle.js'
 import {
   canonicalWorkspaceId,

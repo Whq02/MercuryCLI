@@ -72,7 +72,7 @@ function done(): never {
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const owned = await import('../../src/daemon/ownedDaemon.ts')
-const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const ownerWatch = await import('../../src/utils/ownerWatch.ts')
 const handshake = await import('../../src/daemon/handshake.ts')
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
 

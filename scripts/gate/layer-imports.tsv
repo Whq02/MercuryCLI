@@ -1,9 +1,3 @@
-src/utils/accounts/sessionAccount.ts	src/services/providers/providerUsage.ts	load	open
-src/utils/accounts/sessionAccount.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/accounts/sessionSignIn.ts	src/services/providers/routeLaw.ts	load	open
-src/utils/accounts/sessionSignIn.ts	src/services/wallet/wallet.ts	load	open
-src/utils/accounts/signInFreshness.ts	src/services/oauth/client.ts	load	open
-src/utils/accounts/signInFreshness.ts	src/services/providers/openai/openaiAccounts.ts	load	open
 src/utils/accounts/signInLedger.ts	src/services/providers/providerSecrets.ts	load	open
 src/utils/accounts/signInRefusal.ts	src/services/providers/cerebras/cerebrasAccounts.ts	load	open
 src/utils/accounts/signInRefusal.ts	src/services/providers/cohere/cohereAccounts.ts	load	open
@@ -36,9 +30,6 @@ src/utils/artifacts/reviewContracts.ts	src/services/crew/identity.ts	type	open
 src/utils/artifacts/reviewStore.ts	src/services/crew/activity.ts	load	open
 src/utils/artifacts/reviewStore.ts	src/services/crew/conversations.ts	load	open
 src/utils/artifacts/reviewStore.ts	src/services/crew/identity.ts	load	open
-src/utils/attachments/agentRoster.ts	src/services/engine-connector/crewFacts.ts	load	open
-src/utils/attachments/agentRoster.ts	src/services/engine-connector/types.ts	type	open
-src/utils/attachments/agentRoster.ts	src/services/engine-connector/workCounts.ts	load	open
 src/utils/attachments/contextCapsule.ts	src/services/projectIntel/capsule.ts	load	open
 src/utils/attachments/contextCapsule.ts	src/services/projectIntel/snapshot.ts	load	open
 src/utils/attachments/deltas.ts	src/services/mcp/types.ts	type	open
@@ -60,7 +51,6 @@ src/utils/attachments/reminders.ts	src/daemon/concourseWorkers.ts	load	open
 src/utils/attachments/sessionContext.ts	src/services/providers/limitWarning.ts	load	open
 src/utils/attachments/toolSchemaDelta.ts	src/services/providers/toolEconomy.ts	load	open
 src/utils/attachments/toolSchemaDelta.ts	src/tools/ToolSearchTool/prompt.ts	load	open
-src/utils/attachments/types.ts	src/services/diagnosticTracking.ts	type	open
 src/utils/attachments/types.ts	src/tools/FileReadTool/FileReadTool.ts	type	open
 src/utils/auth.ts	src/services/oauth/getOauthProfile.ts	load	open
 src/utils/auth.ts	src/services/oauth/refresh.ts	load	open
@@ -69,7 +59,6 @@ src/utils/auth.ts	src/services/providers/providerUsage.ts	load	open
 src/utils/auth.ts	src/services/wallet/wallet.ts	load	open
 src/utils/backgroundHousekeeping.ts	src/services/MagicDocs/magicDocs.ts	load	open
 src/utils/bash/shellCompletion.ts	src/components/PromptInput/PromptInputFooterSuggestions.tsx	type	row 8
-src/utils/boxLock.ts	src/services/switchboard/capacityCheck.ts	load	open
 src/utils/capability/manifest.ts	src/services/mcp/toolPolicy.ts	load	open
 src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/harnessMap.ts	src/services/dap/dapClient.ts	load	open
@@ -77,16 +66,7 @@ src/utils/cockpit/harnessMap.ts	src/services/lsp/godotLane.ts	load	open
 src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/runtimePosture.ts	src/services/mcp/toolPolicy.ts	load	open
 src/utils/cockpit/runtimePosture.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
-src/utils/cockpit/types.ts	src/components/mercury-ui/theme.ts	type	open
 src/utils/config/schema.ts	src/services/mcp/types.ts	type	open
-src/utils/contextFill.ts	src/services/providers/local/localCatalogue.ts	load	open
-src/utils/fileHistory.ts	src/services/changeTransaction/changeSetCommit.ts	load	open
-src/utils/forkedAgent.ts	src/services/api/emptyUsage.ts	load	open
-src/utils/forkedAgent.ts	src/services/api/logging.ts	type	open
-src/utils/forkedAgent.ts	src/services/providers/anthropic/cacheAndUsage.ts	load	open
-src/utils/forkedAgent.ts	src/tools/AgentTool/agentPermissionPosture.ts	load	open
-src/utils/forkedAgent.ts	src/tools/AgentTool/built-in/mercuryCrewAgent.ts	load	open
-src/utils/forkedAgent.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
 src/utils/git.ts	src/services/gitGraph/contracts.ts	type	open
 src/utils/git.ts	src/services/gitGraph/observe.ts	load	open
 src/utils/hooks/crewmateRunner.ts	src/services/providers/catalogueOnDemand.ts	load	open
@@ -97,17 +77,12 @@ src/utils/hooks/questionRunner.ts	src/services/providers/callModelRouter.ts	load
 src/utils/hooks/questionRunner.ts	src/services/providers/catalogueOnDemand.ts	load	open
 src/utils/hooks/questionRunner.ts	src/services/providers/routeLaw.ts	load	open
 src/utils/imageResizer.ts	src/services/providers/idSpaces.ts	load	open
-src/utils/logoV2Utils.ts	src/services/providers/callModelRouter.ts	load	open
-src/utils/logoV2Utils.ts	src/services/providers/openai/openaiAccounts.ts	load	open
 src/utils/mcp/dateTimeParser.ts	src/services/providers/anthropic/streamCore.ts	load	open
 src/utils/mcpInstructionsDelta.ts	src/services/mcp/types.ts	type	open
-src/utils/mcpOutputStorage.ts	src/services/mcp/client.ts	type	open
-src/utils/mcpValidation.ts	src/services/tokenEstimation.ts	load	open
 src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/messageContextFill.ts	src/services/providers/routeLaw.ts	load	open
 src/utils/messageContextFill.ts	src/services/roughTokenEstimation.ts	load	open
 src/utils/messages/apiPlan.ts	src/services/api/errors.ts	load	open
-src/utils/messages/attachmentText.ts	src/services/diagnosticTracking.ts	load	open
 src/utils/messages/attachmentText.ts	src/services/instructions/attachedText.ts	load	open
 src/utils/messages/attachmentText.ts	src/services/providers/limitWarning.ts	load	open
 src/utils/messages/attachmentText.ts	src/tools/BashTool/resultBlock.ts	load	open
@@ -115,7 +90,6 @@ src/utils/messages/attachmentText.ts	src/tools/FileReadTool/FileReadTool.ts	type
 src/utils/messages/attachmentText.ts	src/tools/FileReadTool/read/resultBlock.ts	load	open
 src/utils/messages/lookups.ts	src/services/api/errors.ts	load	open
 src/utils/messages/systemMessages.ts	src/services/api/emptyUsage.ts	type	open
-src/utils/messages/systemMessages.ts	src/services/api/transportEvidence.ts	load	open
 src/utils/model/agent.ts	src/services/providers/idSpaces.ts	load	open
 src/utils/model/bareFamilyWords.ts	src/services/providers/catalogueGate.ts	load	open
 src/utils/model/bareFamilyWords.ts	src/services/providers/cohere/cohereCatalogue.ts	load	open
@@ -233,8 +207,6 @@ src/utils/model/providerFrontier.ts	src/services/providers/qwen/qwenCatalogue.ts
 src/utils/model/providerFrontier.ts	src/services/providers/routeLaw.ts	type	open
 src/utils/model/providerFrontier.ts	src/services/providers/xai/xaiCatalogue.ts	load	open
 src/utils/model/providerFrontier.ts	src/services/providers/zai/zaiCatalogue.ts	load	open
-src/utils/model/slotSwitchReceipt.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/model/slotSwitchReceipt.ts	src/services/providers/slotSwitch.ts	type	open
 src/utils/model/subModelSlots.ts	src/services/providers/catalogueGate.ts	load	open
 src/utils/model/subModelSlots.ts	src/services/providers/modelRegistry.ts	load	open
 src/utils/model/subModelSlots.ts	src/services/providers/providerUsage.ts	load	open
@@ -246,62 +218,35 @@ src/utils/ocr.ts	src/services/desktop/pack.ts	load	open
 src/utils/permissions/capabilityGate.ts	src/services/lsp/toolFamily.ts	load	open
 src/utils/permissions/decision/engine.ts	src/services/instructions/engine.ts	load	row 8
 src/utils/permissions/decision/rules.ts	src/services/lsp/toolFamily.ts	load	row 8
-src/utils/permissions/decision/rules.ts	src/services/mcp/mcpStringUtils.ts	load	row 8
 src/utils/permissions/decision/rules.ts	src/tools/MonitorTool/constants.ts	load	row 8
 src/utils/permissions/filesystem.ts	src/services/remoteFiles/thisMachine.ts	load	open
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/DebugTool/prompt.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/MonitorTool/constants.ts	load	row 8
 src/utils/permissions/permissionSetup.ts	src/services/lsp/toolFamily.ts	load	open
-src/utils/permissions/ruleReason.ts	src/services/mcp/mcpStringUtils.ts	load	open
 src/utils/permissions/runtimeProtection.ts	src/daemon/controlSocket.ts	load	open
-src/utils/permissions/runtimeProtection.ts	src/daemon/ownerWatch.ts	load	open
-src/utils/pidAlive.ts	src/daemon/ownerWatch.ts	load	open
 src/utils/profile/appearanceSnapshot.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
-src/utils/queryContext.ts	src/services/mcp/types.ts	type	open
-src/utils/queryContext.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
 src/utils/redactSecrets.ts	src/services/providers/credentialEnvSpellings.ts	load	open
-src/utils/scratchpad.ts	src/daemon/ownerWatch.ts	load	open
 src/utils/secureStorage/otherBuilds.ts	src/daemon/controlSocket.ts	load	open
 src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweep.ts	load	open
 src/utils/secureStorage/otherBuilds.ts	src/daemon/processSweepRun.ts	load	open
-src/utils/sessionFlip.ts	src/services/engine-connector/focusedConnector.ts	load	open
-src/utils/sessionRestore.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
 src/utils/sessionStorage/chain.ts	src/services/desktop/screenshotRetention.ts	load	open
 src/utils/sessionStorage/transcriptPruneDoor.ts	src/services/providers/anthropic/prefixRecordStore.ts	load	open
 src/utils/sessionStorage/transcriptPruneDoor.ts	src/services/switchboard/sessionReceipts.ts	load	open
-src/utils/sessionTitle.ts	src/services/providers/anthropic/streamCore.ts	load	open
 src/utils/settings/allErrors.ts	src/services/mcp/config.ts	load	open
 src/utils/settings/validation.ts	src/services/mcp/types.ts	type	open
-src/utils/sideQuery.ts	src/services/api/client.ts	load	open
-src/utils/sideQuery.ts	src/services/api/clientContractLearned.ts	load	open
-src/utils/sideQuery.ts	src/services/providers/anthropic/requestParams.ts	load	open
 src/utils/spendSpelling.ts	src/services/providers/providerUsage.ts	type	open
-src/utils/status.tsx	src/services/providers/accountSlots.ts	load	open
-src/utils/status.tsx	src/services/providers/providerUsability.ts	load	open
-src/utils/status.tsx	src/services/providers/providerUsage.ts	load	open
-src/utils/status.tsx	src/services/wallet/wallet.ts	load	open
-src/utils/statusNoticeDefinitions.tsx	src/services/instructions/engine.ts	load	open
-src/utils/statusNoticeDefinitions.tsx	src/tools/AgentTool/loadAgentsDir.ts	type	open
-src/utils/statusNoticeHelpers.ts	src/services/tokenEstimation.ts	load	open
-src/utils/statusNoticeHelpers.ts	src/tools/AgentTool/loadAgentsDir.ts	load	open
 src/utils/subprocessEnv.ts	src/services/providers/credentialEnvSpellings.ts	load	open
 src/utils/suggestions/slackChannelSuggestions.ts	src/services/mcp/types.ts	type	open
 src/utils/systemPrompt.ts	src/tools/AgentTool/loadAgentsDir.ts	load	open
-src/utils/task/executionProjection.ts	src/services/primitives/externalProjection.ts	load	open
 src/utils/task/workRoster.ts	src/services/engine-connector/types.ts	type	open
 src/utils/task/workRoster.ts	src/services/notices/unreadLedger.ts	load	open
 src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
 src/utils/theme.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/tokens.ts	src/services/run/requestGauge.ts	load	open
-src/utils/toolPool.ts	src/services/mcp/utils.ts	load	open
 src/utils/toolResultSummary.ts	src/tools/FileReadTool/FileReadTool.ts	load	open
 src/utils/toolSearch.ts	src/services/providers/deferralWire.ts	load	open
 src/utils/toolSearch.ts	src/tools/AgentTool/loadAgentsDir.ts	type	open
 src/utils/toolSearch.ts	src/tools/ToolSearchTool/prompt.ts	load	open
 src/utils/vulcan/vulcanGates.ts	src/services/lsp/godotLane.ts	load	open
 src/utils/vulcan/vulcanGates.ts	src/services/vulcan/portabilityHealth.ts	load	open
-src/utils/withheldTools.ts	src/services/dap/dapClient.ts	load	open
-src/utils/withheldTools.ts	src/services/desktop/resolveDriver.ts	load	open
-src/utils/withheldTools.ts	src/services/video/registry.ts	load	open
 src/utils/worktree.ts	src/services/instructions/engine.ts	load	open

@@ -44,7 +44,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { mirrorSwarmNotice, watchSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
-import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { pauseLineWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import {
   extractTextContent,
@@ -54,7 +54,7 @@ import {
 import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
-import { getAssistantMessageContentLength } from '../../utils/tokens.js'
+import { getAssistantMessageContentLength } from '../../services/context/tokens.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { BackgroundHint } from '../BashTool/UI.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'

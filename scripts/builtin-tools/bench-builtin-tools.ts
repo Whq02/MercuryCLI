@@ -19,7 +19,7 @@ const ROW = {
   assets: 'scripts/builtin-tools/fixtures/RESULTS.md scripts/builtin-tools/fixtures/results.json',
   generator: 'bun scripts/builtin-tools/bench-builtin-tools.ts --write',
   check: 'bun scripts/builtin-tools/prove-builtin-tools-benchmark.ts',
-  sources: 'scripts/builtin-tools/bench-builtin-tools.ts src/services/structure/query.ts src/services/structure/transform.ts src/services/structure/store.ts src/services/gitGraph/observe.ts src/services/gitGraph/plan.ts src/services/journeys/runner.ts src/services/primitives/executionPlane.ts src/services/primitives/transactionPlane.ts src/services/primitives/evidencePlane.ts src/services/resources/registry.ts src/services/resources/adapters/structure.ts src/services/resources/adapters/git.ts src/services/resources/adapters/journey.ts src/services/resources/adapters/evidence.ts src/utils/run/resolveOwner.ts src/tools.ts src/tools/ToolSearchTool/ToolSearchTool.ts',
+  sources: 'scripts/builtin-tools/bench-builtin-tools.ts src/services/structure/query.ts src/services/structure/transform.ts src/services/structure/store.ts src/services/gitGraph/observe.ts src/services/gitGraph/plan.ts src/services/journeys/runner.ts src/utils/primitives/executionPlane.ts src/services/primitives/transactionPlane.ts src/services/primitives/evidencePlane.ts src/services/resources/registry.ts src/services/resources/adapters/structure.ts src/services/resources/adapters/git.ts src/services/resources/adapters/journey.ts src/services/resources/adapters/evidence.ts src/utils/run/resolveOwner.ts src/tools.ts src/tools/ToolSearchTool/ToolSearchTool.ts',
 }
 if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 
@@ -49,7 +49,7 @@ const { preparePlan, applyPlan, resolveConflict, _resetGitPlanStoreForTesting } 
 const { runJourney, cancelJourney, _resetJourneysForTesting } = await import(
   '../../src/services/journeys/runner.ts'
 )
-const { getExecution } = await import('../../src/services/primitives/executionPlane.ts')
+const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
 const { transactionsFor, _resetTransactionPlaneForTesting } = await import(
   '../../src/services/primitives/transactionPlane.ts'
 )

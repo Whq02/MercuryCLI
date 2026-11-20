@@ -19,7 +19,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
 const { restoreConversationModelFromMessages } = await import(
-  '../../src/utils/sessionRestore.ts'
+  '../../src/services/resume/sessionRestore.ts'
 )
 const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
 const { summarizeToolResult } = await import('../../src/utils/toolResultSummary.ts')

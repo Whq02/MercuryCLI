@@ -1,7 +1,7 @@
 
 import { getRawUtilization } from '../anthropicLimits.js'
 import type { UsageFeed } from '../providers/usageFreshness.js'
-import type { SnapshotState } from '../../components/mercury-ui/theme.js'
+import type { SnapshotState } from '../../utils/cockpit/types.js'
 
 export type QuotaWindow = {
   key: '5h' | '7d'

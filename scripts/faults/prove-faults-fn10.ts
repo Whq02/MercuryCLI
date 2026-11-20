@@ -247,7 +247,7 @@ try {
   console.log('8. src/services/dap/dapClient.ts')
   {
     const { createDapSession, getDapSession } = await import('../../src/services/dap/dapClient.ts')
-    const { getExecution, requestStopExecution } = await import('../../src/services/primitives/executionPlane.ts')
+    const { getExecution, requestStopExecution } = await import('../../src/utils/primitives/executionPlane.ts')
     const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
     const owner = processMainOwner()
     const mockAdapter = join(HERE, '../dap/mock-dap-adapter.mjs')

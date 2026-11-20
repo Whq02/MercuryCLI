@@ -4,8 +4,8 @@ import {
   registerOwnerDisposer,
   unregisterOwnerDisposer,
 } from '../../utils/run/ownerLifecycle.js'
-import { registerExecutionDomain } from '../primitives/executionPlane.js'
-import { projectExternalState } from '../primitives/externalProjection.js'
+import { registerExecutionDomain } from '../../utils/primitives/executionPlane.js'
+import { projectExternalState } from '../../utils/primitives/externalProjection.js'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { DapTerminalRunner } from './dapTerminal.js'
 import { createServer as createNetServer, type Socket } from 'node:net'

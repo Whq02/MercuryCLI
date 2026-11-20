@@ -37,7 +37,7 @@ const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = 
 const { disengageToolGuard, engageToolGuard, guardsEngaged, resetGuardsForTesting } = await import(join(SRC, 'guards/guards.ts'))
 const { COMMIT_GATE_ID, engageCommitGate } = await import(join(SRC, 'guards/commitGate.ts'))
 const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const { createSubagentContext } = await import(join(SRC, 'utils/forkedAgent.ts'))
+const { createSubagentContext } = await import(join(SRC, 'services/agents/forkedAgent.ts'))
 const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
 enableConfigs()

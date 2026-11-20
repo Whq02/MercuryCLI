@@ -331,7 +331,7 @@ async function runForkedPromptCommand(
     getLastCacheSafeParams,
     prepareForkedCommandContext,
     runForkedAgent,
-  } = await import('../../utils/forkedAgent.js')
+  } = await import('../agents/forkedAgent.js')
   const echoed = createUserMessage({
     content: formatCommandLoadingMetadata(getCommandName(command), args),
   })

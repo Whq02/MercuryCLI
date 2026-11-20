@@ -117,7 +117,7 @@ section('§2 modelGauge — label, window provenance and provider from their own
 section('§3 fleetGauge — solo reads off; the roster still lists a live execution')
 {
   const f = await import('../../src/services/cockpit/fleetGauge.ts')
-  const plane = await import('../../src/services/primitives/executionPlane.ts')
+  const plane = await import('../../src/utils/primitives/executionPlane.ts')
   const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
   const owner = processMainOwner()
   const solo = await f.fleetGauge()
@@ -137,7 +137,7 @@ section('§3 fleetGauge — solo reads off; the roster still lists a live execut
 
 section('§4 contextGauge — fresh session is unavailable, never a fake figure')
 {
-  const c = await import('../../src/utils/cockpit/contextGauge.ts')
+  const c = await import('../../src/services/cockpit/contextGauge.ts')
   const fresh = c.contextGauge([] as never, 'claude-opus-5' as never)
   check('fresh ⇒ unavailable', fresh.state === 'unavailable', fresh.state)
   check('reason names the fresh session', /fresh session/.test(fresh.reason ?? ''), fresh.reason)

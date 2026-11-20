@@ -98,7 +98,7 @@ const ROW = {
   assets: 'scripts/ui/fixtures/motion-menu/*.txt',
   generator: 'bun scripts/ui/motion-menu-stills.ts --write',
   check: 'bun scripts/transcript-rows/prove-motion-setting.ts',
-  sources: 'scripts/ui/motion-menu-stills.ts assets/splash/splash-core.mjs src/substrate/startupMenu.ts src/services/switchboard/capacityCheck.ts src/utils/cockpit/motion* src/utils/cockpit/liveGlyphs.ts src/utils/cockpit/critterIdle.ts',
+  sources: 'scripts/ui/motion-menu-stills.ts assets/splash/splash-core.mjs src/substrate/startupMenu.ts src/utils/switchboard/capacityCheck.ts src/utils/cockpit/motion* src/utils/cockpit/liveGlyphs.ts src/utils/cockpit/critterIdle.ts',
 }
 if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 if (import.meta.main && process.argv.includes('--write')) {

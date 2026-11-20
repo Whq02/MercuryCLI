@@ -1085,7 +1085,7 @@ export async function probeJourneyLoop(): Promise<CheckResult> {
   const ownerMod = await import('../../utils/run/ownerKey.js')
   const { disposeOwner } = await import('../../utils/run/ownerLifecycle.js')
   const { runJourney } = await import('../journeys/runner.js')
-  const { getExecution } = await import('../primitives/executionPlane.js')
+  const { getExecution } = await import('../../utils/primitives/executionPlane.js')
 
   const owner = fixtureOwnerKey(ownerMod, 'journey')
   const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'health-journey-'))

@@ -431,7 +431,7 @@ section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's ro
   const { productionDeps } = await import('../../src/query/deps.ts')
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const { continuationOfSentRequest, lastSentRequestFor, resetSentRequestsForTests } = await import('../../src/utils/forkedAgent.ts')
+  const { continuationOfSentRequest, lastSentRequestFor, resetSentRequestsForTests } = await import('../../src/services/agents/forkedAgent.ts')
   const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
   const { getCompactPrompt } = await import('../../src/services/compact/prompt.ts')
   const bootstrap = await import('../../src/bootstrap/state.ts')
@@ -647,8 +647,8 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
   const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
   const { gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
   const autoCompact = await import('../../src/services/compact/autoCompact.ts')
-  const { contextFillView } = await import('../../src/utils/contextFill.ts')
-  const tokens = await import('../../src/utils/tokens.ts')
+  const { contextFillView } = await import('../../src/services/context/contextFill.ts')
+  const tokens = await import('../../src/services/context/tokens.ts')
   const jsonFetch = (body: unknown): typeof fetch =>
     (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch
   catalogue.__resetOpenaiCatalogueForTest()

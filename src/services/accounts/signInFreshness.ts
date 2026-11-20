@@ -1,12 +1,12 @@
-import { isOAuthTokenExpired } from '../../services/oauth/client.js'
+import { isOAuthTokenExpired } from '../oauth/client.js'
 import {
   checkAndRefreshOAuthTokenIfNeeded,
   getAuthTokenSource,
   getClaudeAIOAuthTokens,
   invalidateOnDiskChange,
   isAnthropicOAuthSignInExpired,
-} from '../auth.js'
-import { noteCredentialChange } from './signInLedger.js'
+} from '../../utils/auth.js'
+import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 
 type SignInFamily = 'anthropic' | 'openai'
 
@@ -43,7 +43,7 @@ export async function checkAnthropicSignInFresh(): Promise<SignInFreshness> {
 export async function checkOpenaiSignInFresh(): Promise<SignInFreshness> {
   const family = 'openai' as const
   try {
-    const openai = await import('../../services/providers/openai/openaiAccounts.js')
+    const openai = await import('../providers/openai/openaiAccounts.js')
     const before = openai.openaiSubscriptionPresence()
     if (before.state === 'absent') return { family, state: 'absent', probed: false }
     if (before.state === 'expired') return { family, state: 'expired', probed: false }

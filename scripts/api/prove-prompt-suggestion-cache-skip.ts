@@ -38,7 +38,7 @@ try {
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
   const { executePromptSuggestion } = await import('../../src/services/PromptSuggestion/promptSuggestion.ts')
-  const { runForkedAgent } = await import('../../src/utils/forkedAgent.ts')
+  const { runForkedAgent } = await import('../../src/services/agents/forkedAgent.ts')
   const { createUserMessage } = await import('../../src/utils/messages.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')

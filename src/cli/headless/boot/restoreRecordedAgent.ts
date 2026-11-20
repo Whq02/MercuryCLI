@@ -1,5 +1,5 @@
 import { getMainThreadAgentType } from '../../../bootstrap/state.js'
-import { restoreAgentFromSession } from '../../../utils/sessionRestore.js'
+import { restoreAgentFromSession } from '../../../services/resume/sessionRestore.js'
 import { saveAgentSetting } from '../../../utils/sessionStorage.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 

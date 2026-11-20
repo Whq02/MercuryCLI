@@ -1,13 +1,13 @@
 import { z } from 'zod/v4'
 
-import { getIsNonInteractiveSession } from '../bootstrap/state.js'
-import { queryUtility } from '../services/providers/anthropic/streamCore.js'
-import type { Message } from '../types/message.js'
-import { logForDebugging } from './debug.js'
-import { extractTextContent } from './messages.js'
-import { safeParseJSON } from './json.js'
-import { asSystemPrompt } from './systemPromptType.js'
-import { partiallySanitizeUnicode } from './sanitization.js'
+import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { queryUtility } from '../providers/anthropic/streamCore.js'
+import type { Message } from '../../types/message.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { extractTextContent } from '../../utils/messages.js'
+import { safeParseJSON } from '../../utils/json.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 
 
 const DESCRIPTION_BUDGET = 1000

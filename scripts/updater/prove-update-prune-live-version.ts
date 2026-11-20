@@ -17,7 +17,7 @@ delete process.env.MERCURY_UPDATE_FAULT
 
 const { pruneSupersededVersions } = await import('../../src/services/privateChannel/installLayout.ts')
 const service = (await import('../../src/services/privateChannel/updateService.ts')) as { livePayloadDirs?: (roots: LayoutRoots) => Promise<string[]> }
-const { getProcessStartTokenAsync, lstartWords } = await import('../../src/daemon/ownerWatch.ts')
+const { getProcessStartTokenAsync, lstartWords } = await import('../../src/utils/ownerWatch.ts')
 
 const IS_WINDOWS = process.platform === 'win32'
 const DEAD = 4242421

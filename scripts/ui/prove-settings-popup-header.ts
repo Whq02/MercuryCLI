@@ -23,7 +23,7 @@ const ASSET = {
     'src/commands/login/login.tsx',
     'src/commands/usage/usage.tsx',
     'src/components/tasks/useCrewmateView.ts',
-    'src/services/switchboard/capacityCheck.ts',
+    'src/utils/switchboard/capacityCheck.ts',
     'src/ink.ts',
     'src/components/App.tsx',
     'src/state/AppStateStore.ts',

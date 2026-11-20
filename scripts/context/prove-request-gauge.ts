@@ -23,7 +23,7 @@ assert.ok(density.calibrated && Math.abs(density.ratio - 2) < 0.001, 'measured /
 console.log('PASS request-view calibration denominator')
 
 const gauge = await import('../../src/services/run/requestGauge.js')
-const { contextFill, tokenCountWithEstimation } = await import('../../src/utils/tokens.js')
+const { contextFill, tokenCountWithEstimation } = await import('../../src/services/context/tokens.js')
 const { roughTokenCountEstimationForMessages } = await import('../../src/services/tokenEstimation.js')
 const { entryToRecord, recordToEntry } = await import('../../src/fabric/entryCodec.js')
 const { asSessionId } = await import('../../src/types/ids.js')

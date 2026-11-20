@@ -48,21 +48,13 @@ env-read	src/utils/warningHandler.ts	1
 Promise.race	src/boot/launchGraph.ts	1	events 1
 Promise.race	src/cli/headless/boot/ownSignals.ts	1	later 1
 Promise.race	src/cli/headless/runnerAsks.ts	1	events 1
-Promise.race	src/daemon/processSweepWindows.ts	1	deadline 1
-Promise.race	src/daemon/workerParentWatch.ts	1	deadline 1
-Promise.race	src/main/runLaunch.ts	1	deadline 1
-Promise.race	src/mneme/lineageSession.ts	1	deadline 1
 Promise.race	src/services/acp/acpSignIn.ts	1	events 1
 Promise.race	src/services/context/contextWindowWarmup.ts	1	deadline 1
 Promise.race	src/services/eval/procKernel.ts	1	events 1
 Promise.race	src/services/health/healthReport.ts	1	deadline 1
 Promise.race	src/services/health/sections/interface.ts	1	deadline 1
 Promise.race	src/services/host/door.ts	1	events 1
-Promise.race	src/services/journeys/runner.ts	1	deadline 1
 Promise.race	src/services/lsp/LSPClient.ts	1	events 1
-Promise.race	src/services/lsp/LSPServerInstance.ts	1	deadline 1
-Promise.race	src/services/lsp/firstCallServer.ts	1	deadline 1
-Promise.race	src/services/mcp/client.ts	2	deadline 2
 Promise.race	src/services/oauth/index.ts	1	events 1
 Promise.race	src/services/providers/cerebras/cerebrasCallModel.ts	1	events 1
 Promise.race	src/services/providers/cohere/cohereCallModel.ts	1	events 1
@@ -80,12 +72,9 @@ Promise.race	src/services/providers/zen/zenCallModel.ts	1	events 1
 Promise.race	src/tools/AgentTool/foregroundExecution.tsx	1	events 1
 Promise.race	src/tools/BashTool/BashTool.tsx	2	deadline 1 · events 1
 Promise.race	src/tools/McpAuthTool/McpAuthTool.ts	1	events 1
-Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	2	deadline 1 · events 1
-Promise.race	src/utils/attachments/mentionResolvers.ts	1	deadline 1
-Promise.race	src/utils/attachments/orchestrator.ts	1	deadline 1
+Promise.race	src/tools/PowerShellTool/PowerShellTool.tsx	1	events 1
 Promise.race	src/utils/generators.ts	1	events 1
 Promise.race	src/utils/wards/wardsRefusals.ts	2	row8 2
-Promise.race	src/utils/worktreeClone.ts	1	deadline 1
 startInterval	src/cli/headless/boot/watchBuildBehind.ts	1	periodic 1
 startInterval	src/cli/headless/boot/wireProcess.ts	1	periodic 1
 startInterval	src/cli/headless/hostAskLiveness.ts	1	heartbeat 1
@@ -105,16 +94,13 @@ startInterval	src/components/tasks/ShellDetailDialog.tsx	1	clock 1
 startInterval	src/components/tasks/useCrewmateModel.ts	1	clock 1
 startInterval	src/components/tasks/useCrewmateTranscript.ts	1	clock 1
 startInterval	src/components/tensorfold/tensorfoldModelFacts.ts	1	clock 1
-startInterval	src/daemon/ownerWatch.ts	1	heartbeat 1
 startInterval	src/daemon/run/periodic.ts	1	periodic 1
 startInterval	src/daemon/saturnTicker.ts	1	periodic 1
 startInterval	src/daemon/warmRunner.ts	1	periodic 1
 startInterval	src/daemon/workerParentWatch.ts	1	periodic 1
-startInterval	src/hooks/notifs/useLspInitializationNotification.tsx	1	poll-event 1
 startInterval	src/ink/components/ClockContext.tsx	1	clock 1
 startInterval	src/ink/ink.tsx	1	periodic 1
 startInterval	src/main/interactiveLaunch.ts	1	heartbeat 1
-startInterval	src/services/acp/ideToolBridge.ts	1	poll-loop 1
 startInterval	src/services/blender/bridgeClient.ts	1	heartbeat 1
 startInterval	src/services/compact/compact/summarise.ts	1	heartbeat 1
 startInterval	src/services/concourse/sessionTitleMint.ts	1	periodic 1
@@ -143,12 +129,11 @@ startInterval	src/state/vitalsBus.ts	1	heartbeat 1
 startInterval	src/substrate/fileStore.ts	2	periodic 2
 startInterval	src/tools/AgentTool/runAgent/watch.ts	1	heartbeat 1
 startInterval	src/tools/EvalTool/EvalTool.ts	1	clock 1
-startInterval	src/tools/SleepTool/SleepTool.tsx	1	poll-loop 1
 startInterval	src/utils/ShellCommand.ts	1	periodic 1
 startInterval	src/utils/cockpit/uiClock.ts	1	clock 1
 startInterval	src/utils/eventLoopStallDetector.ts	1	clock 1
 startInterval	src/utils/gracefulShutdown.ts	1	periodic 1
+startInterval	src/utils/ownerWatch.ts	1	heartbeat 1
 startInterval	src/utils/settings/changeDetector.ts	1	periodic 1
 startInterval	src/utils/task/TaskOutput.ts	1	periodic 1
 startInterval	src/utils/verification/verificationState.ts	1	periodic 1
-startInterval	src/utils/worktreeClone.ts	1	deadline 1

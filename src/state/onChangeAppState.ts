@@ -8,6 +8,15 @@ import { applyConfigEnvironmentVariables } from '../utils/managedEnv.js'
 import { logError } from '../utils/log.js'
 import type { AppState } from './AppStateStore.js'
 
+const mcpClientsListeners = new Set<() => void>()
+
+export function subscribeMcpClientsChange(listener: () => void): () => void {
+  mcpClientsListeners.add(listener)
+  return () => {
+    mcpClientsListeners.delete(listener)
+  }
+}
+
 export function onChangeAppState({
   newState,
   oldState,
@@ -56,4 +65,7 @@ export function onChangeAppState({
     }
   }
 
+  if (newState.mcp.clients !== oldState.mcp.clients) {
+    for (const listener of mcpClientsListeners) listener()
+  }
 }

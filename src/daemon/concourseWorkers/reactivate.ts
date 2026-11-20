@@ -1,5 +1,5 @@
 import { logForDebugging } from '../../utils/debug.js'
-import { getProcessStartInstantAsync } from '../ownerWatch.js'
+import { getProcessStartInstantAsync } from '../../utils/ownerWatch.js'
 import type { RunnerChildSpec } from '../headlessRun.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { deriveSessionKitForWorkspace, kitDeltasUnreadNote, restampSessionKit, type SessionKitV1, type KitStampSource } from '../sessionKit.js'

@@ -676,7 +676,7 @@ process.chdir(work)
 
 const { daemonControlRpc } = await import(join(SRC, 'daemon/controlSocket.ts'))
 const paths = await import(join(SRC, 'utils/sessionStorage/paths.ts'))
-const { isProcessAlive } = await import(join(SRC, 'daemon/ownerWatch.ts'))
+const { isProcessAlive } = await import(join(SRC, 'utils/ownerWatch.ts'))
 const { restartSessionOnInstalledBuild } = await import(join(SRC, 'commands/restart/restart.ts'))
 const connectorModule = await import(join(SRC, 'services/engine-connector/daemonConnector.ts'))
 const { DaemonSessionConnector } = connectorModule as { DaemonSessionConnector: new (record: Record<string, unknown>) => { attach(): Promise<void>; detach(): void; records(): ReadonlyArray<{ uuid: string; type?: string; message?: { content?: unknown } }>; transcriptFile(): string } }

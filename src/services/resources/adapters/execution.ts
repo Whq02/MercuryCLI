@@ -4,7 +4,7 @@ import {
   executionExpired,
   getExecution,
   listExecutions,
-} from '../../primitives/executionPlane.js'
+} from '../../../utils/primitives/executionPlane.js'
 import { isTerminalExecutionState } from '../../../utils/primitives/execution.js'
 import type { ExecutionRecord } from '../../../utils/primitives/execution.js'
 import { projectOwner } from '../../../utils/primitives/owner.js'

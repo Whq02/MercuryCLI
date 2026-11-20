@@ -9,29 +9,7 @@ export {
 } from '../mercuryPalette.js'
 
 import { AMBER, CRIMSON, FAINT, SECOND, TEAL } from '../mercuryPalette.js'
-
-export type SnapshotState =
-  | 'live'
-  | 'ready'
-  | 'starting'
-  | 'configured'
-  | 'degraded'
-  | 'stale'
-  | 'off'
-  | 'disabled'
-  | 'gated'
-  | 'unavailable'
-  | 'blocked'
-  | 'failed'
-  | 'excluded'
-  | 'planned'
-
-export type Snapshot<T = Record<never, never>> = {
-  state: SnapshotState
-  reason?: string
-  source?: string
-  updatedAt?: string
-} & T
+import type { SnapshotState } from '../../utils/cockpit/types.js'
 
 export const STATE_STYLE: Record<
   SnapshotState,

@@ -1,11 +1,11 @@
 
-import { getSdkBetas } from '../bootstrap/state.js'
-import { calculateTokenWarningState, getAutoCompactThreshold, isAutoCompactEnabled } from './compact/autoCompactWindow.js'
-import type { Message } from '../types/message.js'
-import { contextFillPercent } from './context.js'
-import { type ContextResolution, resolveContextWindow } from './model/capabilities.js'
+import { getSdkBetas } from '../../bootstrap/state.js'
+import { calculateTokenWarningState, getAutoCompactThreshold, isAutoCompactEnabled } from '../../utils/compact/autoCompactWindow.js'
+import type { Message } from '../../types/message.js'
+import { contextFillPercent } from '../../utils/context.js'
+import { type ContextResolution, resolveContextWindow } from '../../utils/model/capabilities.js'
 import { contextFill } from './tokens.js'
-import { localContextSourceWords, localRecordFor } from '../services/providers/local/localCatalogue.js'
+import { localContextSourceWords, localRecordFor } from '../providers/local/localCatalogue.js'
 
 export interface ContextFillView {
   usedTokens: number | null

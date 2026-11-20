@@ -360,7 +360,7 @@ console.log('\nw05-6 — useSessionSignInGate stays open on throw and records er
     mock.module('react', () => ({ useMemo: (fn) => fn() }))
     mock.module(path.join(SRC, 'utils/accounts/useSignInEpoch.js'), () => ({ useSignInEpoch: () => 0 }))
     mock.module(path.join(SRC, 'hooks/useCatalogueEpoch.js'), () => ({ useCatalogueEpoch: () => 0 }))
-    mock.module(path.join(SRC, 'utils/accounts/sessionSignIn.js'), () => ({
+    mock.module(path.join(SRC, 'services/accounts/sessionSignIn.js'), () => ({
       sessionSignInGate: () => { throw new Error('gate-boom') },
     }))
     const { useSessionSignInGate } = await import(path.join(SRC, 'hooks/useSessionSignInGate.ts'))
@@ -562,7 +562,7 @@ console.log('\nw05-5 — unreadable MERCURY_CLIENT_CERT / MERCURY_CLIENT_KEY war
     const fs = await import('node:fs')
     const path = await import('node:path')
     const mtls = await import(path.join(SRC, 'utils/mtls.ts'))
-    const status = await import(path.join(SRC, 'utils/status.tsx'))
+    const status = await import(path.join(SRC, 'components/status.tsx'))
 
     const missingCert = path.join(SCRATCH, 'missing-cert.pem')
     const missingKey = path.join(SCRATCH, 'missing-key.pem')

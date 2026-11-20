@@ -30,8 +30,8 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const compact = await import('../../src/services/compact/autoCompact.ts')
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const tokens = await import('../../src/utils/tokens.ts')
-const { contextFillView } = await import('../../src/utils/contextFill.ts')
+const tokens = await import('../../src/services/context/tokens.ts')
+const { contextFillView } = await import('../../src/services/context/contextFill.ts')
 
 type Usage = { input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number }
 let n = 0

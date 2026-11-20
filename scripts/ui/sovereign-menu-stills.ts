@@ -105,7 +105,7 @@ const ROW = {
   assets: 'scripts/ui/fixtures/sovereign-menu/*.txt',
   generator: 'bun scripts/ui/sovereign-menu-stills.ts --write',
   check: 'bun scripts/ui/prove-sovereign-menu-warning.ts',
-  sources: 'scripts/ui/sovereign-menu-stills.ts assets/splash/splash-core.mjs src/substrate/startupMenu.ts src/services/switchboard/capacityCheck.ts src/utils/cockpit/motionSetting.ts',
+  sources: 'scripts/ui/sovereign-menu-stills.ts assets/splash/splash-core.mjs src/substrate/startupMenu.ts src/utils/switchboard/capacityCheck.ts src/utils/cockpit/motionSetting.ts',
 }
 if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 if (import.meta.main && process.argv.includes('--write')) {

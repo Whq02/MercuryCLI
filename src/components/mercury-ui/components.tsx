@@ -26,7 +26,8 @@ import { useCursorFollow } from './useCursorFollow.js'
 import { PopupScrollViewport, popupListMotion, usePopupScrollWindow } from '../CustomSelect/popup-list.js'
 import { topOverlayOwnsPageKeys } from '../../context/overlayStack.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
-import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
+import { gaugeColorOf, stateStyleOf } from './theme.js'
+import type { SnapshotState } from '../../utils/cockpit/types.js'
 
 
 export const CockpitEmbeddedContext = React.createContext(false)

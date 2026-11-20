@@ -1,7 +1,7 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { advanceToolCallChain, readToolCallChain, type ToolCallChain, type ToolUseContext } from '../../src/Tool.ts'
-import { createSubagentContext } from '../../src/utils/forkedAgent.ts'
+import { createSubagentContext } from '../../src/services/agents/forkedAgent.ts'
 import { FileStateCache } from '../../src/utils/fileStateCache.ts'
 
 let checks = 0

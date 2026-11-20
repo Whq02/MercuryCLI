@@ -1,5 +1,5 @@
 import { armLocalWarm } from '../../../services/providers/local/localWarm.js'
-import { buildSideQuestionFallbackParams } from '../../../utils/queryContext.js'
+import { buildSideQuestionFallbackParams } from '../../../services/agents/queryContext.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<never> {

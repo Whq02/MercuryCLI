@@ -320,7 +320,7 @@ console.log('\nresources/adapters/execution.ts — owner and DAP tree bugs propa
     const dapPath = path.join(SRC, 'services/dap/dapClient.ts')
     const realDap = await import(dapPath)
     mock.module(dapPath, () => ({ ...realDap, getDapSession: () => { throw new Error('dap boom') } }))
-    const { registerExecution } = await import(path.join(SRC, 'services/primitives/executionPlane.ts'))
+    const { registerExecution } = await import(path.join(SRC, 'utils/primitives/executionPlane.ts'))
     const { resolveResource } = await import(path.join(SRC, 'services/resources/registry.ts'))
     const { processMainOwner } = await import(path.join(SRC, 'utils/run/resolveOwner.ts'))
     const owner = processMainOwner()

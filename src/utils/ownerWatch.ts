@@ -1,14 +1,14 @@
 
 import { execFile, spawnSync } from 'node:child_process'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { subprocessEnv } from '../utils/subprocessEnv.js'
+import { subprocessEnv } from './subprocessEnv.js'
 import { existsSync, fstatSync, readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 import { delimiter, join } from 'node:path'
-import { passedOver, passedOverAs } from '../utils/passedOver.js'
-import { hostEnv } from '../utils/hostEnv.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../utils/timers.js'
-import { processInstantStartForm, processStartFormFor, processStartProbeKind, type ProcessStartForm } from '../utils/platform/processes.js'
+import { passedOver, passedOverAs } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from './timers.js'
+import { processInstantStartForm, processStartFormFor, processStartProbeKind, type ProcessStartForm } from './platform/processes.js'
 
 export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
 
