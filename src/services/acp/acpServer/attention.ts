@@ -1,4 +1,4 @@
-import { workbenchFactsOf } from '../../workbench/attentionBridge.js'
+import { registerWorkbenchAttentionGatherer, workbenchFactsOf } from '../../workbench/attentionBridge.js'
 import {
   bucketItems,
   ATTENTION_BUCKETS,
@@ -8,6 +8,8 @@ import {
 import type { AttentionItem, AttentionState } from '../../../services/attention/contracts.js'
 import { foldRelations, emptyRelationState } from '../../../services/attention/relations.js'
 import type { RelationState } from '../../../services/attention/relations.js'
+
+registerWorkbenchAttentionGatherer()
 
 interface AttentionWireItem {
   subjectId: string
