@@ -21,7 +21,6 @@ type Listed = { kind: 'table' | 'text' | 'grows'; what: string }
 type Data = ReadonlyMap<string, Listed>
 
 const LISTED: ReadonlyArray<readonly [file: string, name: string, kind: Listed['kind'], what: string]> = [
-  ['src/constants/changelog.ts', 'MERCURY_CHANGELOG', 'grows', 'the changelog the app shows, one page a release'],
   ['src/extensions/bundled/content.generated.ts', 'bundledMetadata', 'grows', 'the bundled extensions as scripts/extensions/gen-bundled.ts writes them'],
   ['src/utils/vulcan/optable.generated.ts', 'VULCAN_OPS', 'grows', "the Godot bridge's operations as scripts/vulcan/regen-optable.mjs writes them"],
   ['src/runner/wire/methods.ts', 'METHODS', 'table', "the wire's methods, one entry a method"],

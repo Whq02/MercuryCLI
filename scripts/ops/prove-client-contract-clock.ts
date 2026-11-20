@@ -109,9 +109,8 @@ try {
   check('only the first heading supplies the release clock', latestReleaseNote(noteRoot) === '')
   const extractor = join(noteRoot, 'scripts', 'release', 'notesFromChangelog.mjs')
   mkdirSync(join(noteRoot, 'scripts', 'release'), { recursive: true })
-  mkdirSync(join(noteRoot, 'src', 'constants'), { recursive: true })
   writeFileSync(extractor, readFileSync(join(ROOT, 'scripts/release/notesFromChangelog.mjs')))
-  writeFileSync(join(noteRoot, 'src', 'constants', 'changelog.ts'), '## 1.0.0\n- Released\n')
+  writeFileSync(join(notes, '1.0.0.md'), '# 1.0.0 — published 2026-10-29\n\n## What changed\n\n- Released\n')
   const extracted = spawnSync('node', [extractor, '1.0.0'], { encoding: 'utf8', timeout: 10_000 })
   check('release-note extraction still runs in a checkout without installed dependencies', extracted.status === 0 && extracted.stdout === '# Mercury 1.0.0\n\n- Released\n', extracted.stderr)
 } finally {
