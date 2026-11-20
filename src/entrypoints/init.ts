@@ -1,5 +1,4 @@
 import { memoize } from 'lodash-es'
-import '../bootstrap/state.js'
 import { isSessionRunArgv, readSessionOptionValues } from '../cli/sessionArgs.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { enableConfigs } from '../utils/config.js'
