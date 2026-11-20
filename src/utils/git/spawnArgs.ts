@@ -1,6 +1,7 @@
 import { execFile, execFileSync } from 'node:child_process'
 import { existsSync, realpathSync, statSync } from 'node:fs'
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { passedOver } from '../passedOver.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { gitExe } from './gitExe.js'
 
@@ -125,69 +126,49 @@ type RepositoryLayout = { root: string; gitDir: string; commonDir: string; finge
 
 const layoutCache = new Map<string, RepositoryLayout>()
 
-const GIT_FACTS_TIMEOUT_MS = 5_000
-
-class GitFactsUnread extends Error {
-  readonly shortMessage = this.message
-  readonly stderr = this.message
-}
-
 function gitAnswered(error: unknown): boolean {
   if (error === null || typeof error !== 'object') return false
   const { status, code } = error as { status?: unknown; code?: unknown }
   return typeof status === 'number' || typeof code === 'number' || code === 'ENOENT'
 }
 
-function unansweredWhy(error: unknown): string {
-  const { code, killed } = (error ?? {}) as { code?: unknown; killed?: unknown }
-  if (code === 'ETIMEDOUT' || (killed === true && code == null)) return `no answer within ${GIT_FACTS_TIMEOUT_MS / 1000} s`
-  return error instanceof Error ? error.message : String(error)
+function unread(error: unknown): null {
+  if (!gitAnswered(error)) passedOver(error)
+  return null
 }
 
-function factsUnread(what: string, cwd: string, error: unknown): GitFactsUnread {
-  return new GitFactsUnread(`${what} of the git repository at ${cwd} could not be read (${unansweredWhy(error)})`)
-}
-
-function readGitSync(args: string[], cwd: string, what: string): string | null {
+function readGitSync(args: string[], cwd: string): string | null {
   try {
     return execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, ...args], {
       cwd,
       encoding: 'utf8',
       env: subprocessEnv(),
       stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: GIT_FACTS_TIMEOUT_MS,
+      timeout: 5_000,
       windowsHide: true,
     })
   } catch (error) {
-    if (gitAnswered(error)) return null
-    throw factsUnread(what, cwd, error)
+    return unread(error)
   }
 }
 
-function readGitAsync(args: string[], cwd: string, what: string): Promise<string | null> {
-  return new Promise((resolveRead, rejectRead) => {
-    const answer = (error: unknown, stdout: string | null): void => {
-      if (error === null) resolveRead(stdout)
-      else if (gitAnswered(error)) resolveRead(null)
-      else rejectRead(factsUnread(what, cwd, error))
-    }
+function readGitAsync(args: string[], cwd: string): Promise<string | null> {
+  return new Promise(resolveRead => {
     try {
       execFile(
         gitExe(),
         [...GIT_SPAWN_CONFIG, ...args],
-        { cwd, encoding: 'utf8', env: subprocessEnv(), timeout: GIT_FACTS_TIMEOUT_MS, windowsHide: true },
-        (error: Error | null, stdout: string) => answer(error, stdout),
+        { cwd, encoding: 'utf8', env: subprocessEnv(), timeout: 5_000, windowsHide: true },
+        (error: Error | null, stdout: string) => resolveRead(error ? unread(error) : stdout),
       )
     } catch (error) {
-      answer(error, null)
+      resolveRead(unread(error))
     }
   })
 }
 
 const LAYOUT_ARGS = ['rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir']
 const FILTER_ARGS = ['config', '--get-regexp', '^filter\\..*\\.(clean|smudge|process)$']
-const LAYOUT_FACTS = 'the layout'
-const FILTER_FACTS = 'the filter settings'
 
 function layoutFingerprint(cwd: string, layout: Pick<RepositoryLayout, 'root' | 'gitDir'>): string {
   const paths = [join(layout.gitDir, 'commondir')]
@@ -217,11 +198,11 @@ function layoutFrom(cwd: string, facts: string | null): RepositoryLayout | null 
 }
 
 function repositoryLayout(cwd: string): RepositoryLayout | null {
-  return knownLayout(cwd) ?? layoutFrom(cwd, readGitSync(LAYOUT_ARGS, cwd, LAYOUT_FACTS))
+  return knownLayout(cwd) ?? layoutFrom(cwd, readGitSync(LAYOUT_ARGS, cwd))
 }
 
 async function repositoryLayoutAsync(cwd: string): Promise<RepositoryLayout | null> {
-  return knownLayout(cwd) ?? layoutFrom(cwd, await readGitAsync(LAYOUT_ARGS, cwd, LAYOUT_FACTS))
+  return knownLayout(cwd) ?? layoutFrom(cwd, await readGitAsync(LAYOUT_ARGS, cwd))
 }
 
 function cachedFilters(layout: RepositoryLayout): { fingerprint: string; configured: string | null | undefined } {
@@ -249,23 +230,18 @@ function repositoryFilters(cwd: string): string[] {
   const layout = repositoryLayout(cwd)
   if (layout === null) return []
   const { fingerprint, configured } = cachedFilters(layout)
-  return filtersFrom(layout, fingerprint, configured === undefined ? readGitSync(FILTER_ARGS, layout.root, FILTER_FACTS) : configured)
+  return filtersFrom(layout, fingerprint, configured === undefined ? readGitSync(FILTER_ARGS, layout.root) : configured)
 }
 
 async function repositoryFiltersAsync(cwd: string): Promise<string[]> {
   const layout = await repositoryLayoutAsync(cwd)
   if (layout === null) return []
   const { fingerprint, configured } = cachedFilters(layout)
-  return filtersFrom(layout, fingerprint, configured === undefined ? await readGitAsync(FILTER_ARGS, layout.root, FILTER_FACTS) : configured)
+  return filtersFrom(layout, fingerprint, configured === undefined ? await readGitAsync(FILTER_ARGS, layout.root) : configured)
 }
 
 export function gitFilterSkipMessages(cwd: string): string[] {
-  try {
-    return repositoryFilters(cwd).map(name => `filter ${name} skipped: its command lives inside this repository`)
-  } catch (error) {
-    if (error instanceof GitFactsUnread) return [`filters not checked: ${error.message}`]
-    throw error
-  }
+  return repositoryFilters(cwd).map(name => `filter ${name} skipped: its command lives inside this repository`)
 }
 
 function filterArgsOf(names: string[]): string[] {
@@ -292,11 +268,11 @@ function scopedRowsFrom(text: string | null): ScopedRow[] {
 }
 
 function scopedConfig(cwd: string, key: string): ScopedRow[] {
-  return scopedRowsFrom(readGitSync(['config', '--show-scope', '--get-all', key], cwd, key))
+  return scopedRowsFrom(readGitSync(['config', '--show-scope', '--get-all', key], cwd))
 }
 
 async function scopedConfigAsync(cwd: string, key: string): Promise<ScopedRow[]> {
-  return scopedRowsFrom(await readGitAsync(['config', '--show-scope', '--get-all', key], cwd, key))
+  return scopedRowsFrom(await readGitAsync(['config', '--show-scope', '--get-all', key], cwd))
 }
 
 const repositoryScoped = (row: ScopedRow): boolean => row.scope === 'local' || row.scope === 'worktree'
