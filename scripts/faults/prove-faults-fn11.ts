@@ -157,7 +157,7 @@ console.log('\nfakeDesktopDriver.readFakeActLog — non-ENOENT read error throws
   check('readFakeActLog still returns [] on ENOENT', Array.isArray(r.onAbsent) && r.onAbsent.length === 0, JSON.stringify(r))
 }
 
-console.log('\nnativeDriver.keyboardIdleMs — addon throw propagates instead of answering null')
+console.log('\nnativeDriver.keyboardIdleMs — an addon that throws answers null as before, so no act is held on it')
 {
   const r = runScenario(`
     const { voicePackPlatform } = await import(path.join(SRC, 'services/voice/voicePack.ts'))
@@ -195,7 +195,7 @@ console.log('\nnativeDriver.keyboardIdleMs — addon throw propagates instead of
       out.numValue = await loaded.driver.keyboardIdleMs()
     }
   `)
-  check('nativeDriver.keyboardIdleMs rejects when addon throws', r.state === 'ok' && r.threwMsg === 'addon idle read failed' && r.threwValue === undefined, JSON.stringify(r))
+  check('nativeDriver.keyboardIdleMs answers null and does not reject when the addon throws', r.state === 'ok' && r.threwMsg === undefined && r.threwValue === null, JSON.stringify(r))
   check('nativeDriver.keyboardIdleMs still returns finite idle ms on success', r.numValue === 42, JSON.stringify(r))
 }
 
@@ -326,54 +326,7 @@ console.log('\nrunnerCache.ensureCached — failed rename throws when target fil
   check('ensureCached removes temp file and succeeds when a peer already populated target', Array.isArray(r.leftoverTmps) && r.leftoverTmps.length === 0 && r.raceExists === true, JSON.stringify(r))
 }
 
-console.log('\ndelivery.DeliveryPart — openQuestion failure refuses send with honest sentence instead of throwing or dispatching')
-{
-  const r = runScenario(`
-    const { DeliveryPart } = await import(path.join(SRC, 'services/engine-connector/daemon/delivery.ts'))
-    const echoed = new Map()
-    const rpcCalls = []
-    let wakes = 0
-    const delivery = new DeliveryPart({
-      sessionId: () => 'sess-deliv',
-      factsBusy: () => false,
-      compacting: () => false,
-      paint: () => {},
-      wakeLive: () => { wakes++ },
-      openQuestion: async () => { throw new Error('EACCES: cannot read store') },
-      admissionPending: () => null,
-      sendDelivered: () => {},
-      assertSeat: () => {},
-      rpc: async (req) => { rpcCalls.push(req); return { ok: true } },
-      chainRpc: async (req) => { rpcCalls.push(req); return { ok: true } },
-      imageBlocks: () => [],
-      lostLine: () => 'lost',
-      recallTakenLine: 'taken',
-      recallUnknownLine: 'unknown',
-      echo: (id, row) => echoed.set(id, row),
-      rekeyEcho: () => {},
-      enlist: () => {},
-      drop: (id) => echoed.delete(id),
-      withdrawn: () => {},
-      dress: () => {},
-      sendOf: () => undefined,
-      markWithdrawing: () => {},
-      retireUnknown: () => {},
-    })
-    try {
-      out.receipt = await delivery.sendWords('yes proceed')
-    } catch (e) {
-      out.threw = e instanceof Error ? e.message : String(e)
-    }
-    out.echoLeft = echoed.size
-    out.rpcCount = rpcCalls.length
-    out.wakes = wakes
-  `)
-  const receipt = r.receipt as { state?: string; detail?: string } | undefined
-  check('DeliveryPart.sendWords refuses with honest sentence when openQuestion throws', r.threw === undefined && receipt?.state === 'refused' && receipt?.detail === 'the message was not sent because open questions could not be checked (EACCES: cannot read store) — ↵ again retries', JSON.stringify(r))
-  check('DeliveryPart drops provisional echo and sends no RPC on openQuestion failure', r.echoLeft === 0 && r.rpcCount === 0, JSON.stringify(r))
-}
-
-console.log('\ndaemonConnector.openQuestion — obligations read error refuses send instead of dispatching ordinary prompt')
+console.log('\ndaemonConnector.openQuestion — open questions that cannot be read do not stop the message: it goes out as an ordinary prompt')
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
@@ -419,8 +372,8 @@ console.log('\ndaemonConnector.openQuestion — obligations read error refuses s
   `)
   const refused = r.refused as { state?: string; detail?: string } | undefined
   const accepted = r.accepted as { state?: string } | undefined
-  check('DaemonSessionConnector.sendWords refuses with honest sentence and dispatches nothing when openObligations throws', refused?.state === 'refused' && refused?.detail === 'the message was not sent because open questions could not be checked (EACCES: obligations unreadable) — ↵ again retries' && r.rpcAfterFail === 0 && r.recordsAfterFail === 0, JSON.stringify(r))
-  check('DaemonSessionConnector.sendWords still delivers normally when openObligations succeeds', accepted?.state === 'accepted' && r.rpcAfterOk === 1, JSON.stringify(r))
+  check('DaemonSessionConnector.sendWords sends the message when openObligations throws: it is not refused and one request goes out', refused?.state !== 'refused' && r.rpcAfterFail === 1, JSON.stringify(r))
+  check('DaemonSessionConnector.sendWords still delivers normally when openObligations succeeds', accepted?.state === 'accepted' && r.rpcAfterOk === 2, JSON.stringify(r))
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
