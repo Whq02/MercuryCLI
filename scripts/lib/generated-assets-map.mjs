@@ -35,6 +35,7 @@ export function buildCheckedRows(text) {
 
 function runBuildCheck(root, row) {
   const [, script, ...flags] = row.check.split(/\s+/)
+  if (!existsSync(resolve(root, script))) return Promise.resolve({ row, error: new Error(`${script} is not in this tree`) })
   return new Promise(done => {
     const child = spawn(process.execPath, [resolve(root, script), ...flags], { cwd: root })
     let output = ''
