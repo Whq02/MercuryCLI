@@ -439,7 +439,13 @@ export function retireWarmRunner(workspaceId: string, reason: string, deps: Warm
   if (entry === undefined) return false
   pool.delete(workspaceId)
   const roster = deps.roster()
-  const killed = roster !== undefined ? roster.kill(entry.short) : false
+  let killed: boolean
+  try {
+    killed = roster !== undefined ? roster.kill(entry.short) : false
+  } catch (error) {
+    pool.set(workspaceId, entry)
+    throw error
+  }
   console.error(`[daemon] warm runner retired: ${entry.short} (${workspaceId}) — ${reason}${killed ? '' : ' (no live child to kill)'}`)
   return true
 }
