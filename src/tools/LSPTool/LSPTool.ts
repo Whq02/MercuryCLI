@@ -255,9 +255,10 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
     const query = input.query!
     let startPath = filePath
     try {
-      let response: SymbolInformation[] | undefined
+      type WorkspaceSymbolResponse = SymbolInformation[] | { symbols?: SymbolInformation[]; incompleteError?: string }
+      let response: WorkspaceSymbolResponse | undefined
       if (filePath) {
-        response = await manager.sendRequest<SymbolInformation[]>(expandPath(filePath), 'workspace/symbol', { query })
+        response = await manager.sendRequest<WorkspaceSymbolResponse>(expandPath(filePath), 'workspace/symbol', { query })
       } else {
         const chosen = workspaceSymbolServer(manager, query, cwd)
         if (!chosen) return fail(`No language server is configured in this session; LspRead serverStatus lists what is available.${consumeInvalidLspServersNote()}`)
@@ -269,16 +270,26 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
             return { data: { operation, result, filePath, resultCount: 0, fileCount: 0, outcome: 'indeterminate' }, effect: makeEffect(operation, 'indeterminate', result, startedAt) }
           }
         }
-        response = await chosen.server.sendRequest<SymbolInformation[]>('workspace/symbol', { query })
+        response = await chosen.server.sendRequest<WorkspaceSymbolResponse>('workspace/symbol', { query })
       }
-      if (!Array.isArray(response)) {
+      const incompleteError =
+        !Array.isArray(response) && response !== null && typeof response === 'object' && typeof response.incompleteError === 'string'
+          ? response.incompleteError
+          : undefined
+      const symbols = Array.isArray(response)
+        ? response
+        : response !== null && typeof response === 'object' && Array.isArray(response.symbols)
+          ? response.symbols
+          : undefined
+      if (!Array.isArray(symbols)) {
         const result = `No symbols found for "${query}" (the server returned no result).`
         return { data: { operation, result, filePath, resultCount: 0, fileCount: 0, outcome: 'no-change' }, effect: makeEffect(operation, 'no-change', result, startedAt) }
       }
-      const filtered = await filterLocationsByGitignore(response, symbol => symbol.location?.uri)
+      const filtered = await filterLocationsByGitignore(symbols, symbol => symbol.location?.uri)
       const bounded = boundWorkspaceSymbols(filtered, input.limit ?? WORKSPACE_SYMBOL_DEFAULT_LIMIT)
       let result = formatWorkspaceSymbolResult(bounded.shown, cwd)
       if (bounded.truncated) result += `\n\nShowing ${bounded.shown.length} of ${bounded.total} symbols. Raise \`limit\` (maximum ${WORKSPACE_SYMBOL_MAX_LIMIT}) or narrow \`query\` to see the rest.`
+      if (incompleteError !== undefined) result += `\n\nWorkspace symbols may be incomplete: one or more TypeScript projects failed to search (${incompleteError}).`
       const counts = locationCounts(bounded.shown.map(symbol => ({ uri: symbol.location?.uri })))
       return { data: { operation, result, filePath, ...counts }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
     } catch (err) {
